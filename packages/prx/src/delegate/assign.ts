@@ -1,0 +1,135 @@
+/**
+ * `prx delegate assign` — bd-canonical assignment verb (GH-1874).
+ *
+ * Sibling of `prx delegate next` (the picker — GH-983): `next` surfaces the
+ * top portfolio candidate, `assign` puts an owner on the hook. The verb is
+ * bd-canonical: it writes only bd (`bd assign <id> <name>` — shorthand for
+ * `bd update <id> --assignee <name>`); the bd→GH mirror's `push()` picks
+ * up the assignee field on the next sync cadence (synchronous mirror
+ * projection is out of scope — see plan §3a). No direct `gh issue edit`.
+ *
+ * Modes — exactly one must be supplied:
+ *   - `agent` set    → assign the named operator (caller-supplied; expected
+ *     to be a GH login — `prx delegate repair-assignees` rewrites legacy
+ *     display-name strings to logins).
+ *   - `self: true`   → resolve via `gh api user --jq .login` through
+ *     `src/identity/self.ts` (GH-2012). No env or git fallback.
+ *   - `unassign: true` → clear the bd assignee (`bd assign <id> ""`).
+ */
+
+import { execBd as defaultExecBd, runBdShow as defaultRunBdShow } from "@bounded-systems/bd";
+import {
+  resolveSelfOperator as defaultResolveSelfOperator,
+  type ResolveSelfOperatorDeps,
+} from "../identity/self.ts";
+
+export type DelegateAssignInput = {
+  id: string;
+  agent?: string | undefined;
+  self?: boolean | undefined;
+  unassign?: boolean | undefined;
+  repoPath: string;
+};
+
+export type DelegateAssignDeps = {
+  execBd?: typeof defaultExecBd;
+  runBdShow?: typeof defaultRunBdShow;
+  resolveSelfOperator?: (deps?: ResolveSelfOperatorDeps) => ReturnType<typeof defaultResolveSelfOperator>;
+};
+
+export type DelegateAssignResult = {
+  exitCode: number;
+  message: string;
+};
+
+function modeCount(input: DelegateAssignInput): number {
+  let n = 0;
+  if (typeof input.agent === "string" && input.agent.length > 0) n++;
+  if (input.self === true) n++;
+  if (input.unassign === true) n++;
+  return n;
+}
+
+export function runDelegateAssign(
+  input: DelegateAssignInput,
+  deps: DelegateAssignDeps = {},
+): DelegateAssignResult {
+  // Exactly-one-mode gate.
+  const modes = modeCount(input);
+  if (modes === 0) {
+    return {
+      exitCode: 2,
+      message:
+        "prx delegate assign: requires one of <agent>, --self, or --unassign",
+    };
+  }
+  if (modes > 1) {
+    return {
+      exitCode: 2,
+      message:
+        "prx delegate assign: pick exactly one of <agent>, --self, or --unassign",
+    };
+  }
+
+  // Eligibility: the bd record must exist and be open.
+  const runBdShow = deps.runBdShow ?? defaultRunBdShow;
+  const show = runBdShow(input.id, input.repoPath);
+  if (!show.ok) {
+    const detail = show.stderr.trim() || show.stdout.trim() || `bd show ${input.id} failed`;
+    return {
+      exitCode: 1,
+      message: `prx delegate assign: not eligible — ${detail}`,
+    };
+  }
+  const status = show.record.status.toLowerCase();
+  if (status === "closed") {
+    return {
+      exitCode: 1,
+      message: `prx delegate assign: not eligible — ${input.id} is closed`,
+    };
+  }
+
+  // Resolve the target agent (or the empty clear marker for --unassign).
+  let target: string;
+  if (input.unassign === true) {
+    target = "";
+  } else if (input.self === true) {
+    const resolve = deps.resolveSelfOperator ?? defaultResolveSelfOperator;
+    const resolved = resolve();
+    if (!resolved.ok) {
+      return { exitCode: 1, message: `prx delegate assign: ${resolved.message}` };
+    }
+    target = resolved.agent;
+  } else {
+    target = (input.agent ?? "").trim();
+    if (target.length === 0) {
+      return {
+        exitCode: 2,
+        message: "prx delegate assign: <agent> must be a non-empty operator name",
+      };
+    }
+  }
+
+  // bd write — `bd assign <id> <name>` (empty string clears, per bd CLI).
+  const exec = deps.execBd ?? defaultExecBd;
+  const result = exec({
+    subcommand: "assign",
+    args: [input.id, target],
+    cwd: input.repoPath,
+    state: "planning",
+    role: "planner",
+  });
+  if (result.exitCode !== 0) {
+    const detail = result.stderr.trim() || result.stdout.trim() || "bd assign failed";
+    return {
+      exitCode: result.exitCode || 1,
+      message: `prx delegate assign: ${detail}`,
+    };
+  }
+
+  const message =
+    target.length === 0
+      ? `unassigned ${input.id}`
+      : `delegated ${input.id} → ${target}`;
+  return { exitCode: 0, message };
+}

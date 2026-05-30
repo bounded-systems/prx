@@ -1,0 +1,44 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "types": ["bun"],
+    "baseUrl": ".",
+    "paths": {
+      "@bounded-systems/audit-context": ["./packages/audit-context/src/index.ts"],
+      "@bounded-systems/github-budget": ["./packages/github-budget/src/index.ts"],
+      "@bounded-systems/machine-schema": ["./packages/machine-schema/src/index.ts"],
+      "@bounded-systems/prx-config": ["./packages/prx-config/src/index.ts"],
+      "@bounded-systems/prx-mux": ["./packages/prx-mux/src/index.ts"],
+      "@bounded-systems/env": ["./packages/env/src/index.ts"],
+      "@bounded-systems/auth": ["./packages/auth/src/index.ts"],
+      "@bounded-systems/proc": ["./packages/proc/src/index.ts"],
+      "@bounded-systems/fs": ["./packages/fs/src/index.ts"],
+      "@bounded-systems/policy": ["./packages/policy/src/index.ts"],
+      "@bounded-systems/git": ["./packages/git/src/index.ts"],
+      "@bounded-systems/bd": ["./packages/bd/src/index.ts"],
+      "@bounded-systems/gh": ["./packages/gh/src/index.ts"],
+      "@bounded-systems/cas": ["./packages/cas/src/index.ts"],
+      "@bounded-systems/disposition": ["./packages/disposition/src/index.ts"],
+      "@bounded-systems/anchored-chain": ["./packages/anchored-chain/src/index.ts"],
+      "@bounded-systems/anchored-chain-sqlite": ["./packages/anchored-chain-sqlite/src/index.ts"],
+      "@bounded-systems/scout": ["./packages/scout/src/index.ts"],
+      "@bounded-systems/surface-sync": ["./packages/surface-sync/src/index.ts"]
+    }
+  },
+  "include": [
+    "packages/prx/scripts/**/*.ts",
+    "packages/prx/test/**/*.ts",
+    "packages/*/src/**/*.ts"
+  ]
+}

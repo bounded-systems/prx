@@ -1,0 +1,357 @@
+/**
+ * Tool policy engine — TypeScript port of scripts/tool-policy.sh.
+ *
+ * Enforces which subcommands are allowed based on:
+ *   - tool: git, gh, wt, bd, prx
+ *   - state: planning, validating, merging
+ *   - role: planner, executor, reviewer, tester
+ */
+
+export type PolicyTool = "git" | "gh" | "wt" | "bd" | "prx";
+export type PolicyState = "planning" | "validating" | "merging";
+// GH-2348.3: `keeper` is the git-write / ref-custody role (the actor that owns
+// push + branch ops). It holds the same git-write capability as `executor` at
+// validating/merging; it exists as a distinct role so the capability lives in
+// one place (the keeper actor) rather than scattered across executor sessions.
+export type PolicyRole =
+  | "planner"
+  | "executor"
+  | "reviewer"
+  | "tester"
+  | "keeper";
+
+export type PolicyDecision = {
+  allowed: boolean;
+  tool: PolicyTool;
+  subcommand: string;
+  state: PolicyState;
+  role: PolicyRole;
+};
+
+// Static allow-lists keyed by "tool:state:role" → allowed subcommands.
+//
+// GH-1516 invariant: subcommand strings must never be English prepositions /
+// conjunctions / copulas (`as`, `is`, `to`, `for`, `with`, etc.). Such tokens
+// would defeat the layered defense in `STOP_VERB_TOKENS` (see
+// src/plan/preflight_extract.ts), where the planner-side preflight drops
+// matches whose second-token is a known stop-word *before* consulting this
+// table. Tests pin `KNOWN_SUBCOMMANDS[tool] ∩ STOP_VERB_TOKENS === ∅`.
+const POLICY_TABLE: Record<string, readonly string[]> = {
+  // git
+  "git:planning:planner":    ["status", "diff", "log", "show", "rev-parse", "branch"],
+  "git:planning:reviewer":   ["status", "diff", "log", "show", "rev-parse", "branch"],
+  "git:planning:tester":     ["status", "diff", "log", "show", "rev-parse", "branch"],
+  "git:planning:executor":   ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch"],
+  "git:validating:planner":  ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
+  "git:validating:reviewer": ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
+  "git:validating:tester":   ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
+  "git:validating:executor": ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch", "add", "commit", "restore", "switch", "checkout", "merge", "pull", "push"],
+  "git:merging:planner":     ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
+  "git:merging:reviewer":    ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
+  "git:merging:tester":      ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
+  "git:merging:executor":    ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch", "add", "commit", "restore", "switch", "checkout", "merge", "pull", "push"],
+  // GH-2348.3: keeper (git-write / ref custody) — reads everywhere; the full
+  // write set (incl. push/branch) at validating + merging, mirroring executor.
+  // Does not write during planning. GH-2381 admits the object-graph writers
+  // write-tree/commit-tree to keeper ONLY (the sole git-writer, I-AUD4): the
+  // submit artifact is identified by a tree SHA keeper materializes, and the
+  // publishable commit is `commit-tree`'d from it. No other role gets them.
+  "git:planning:keeper":     ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch"],
+  "git:validating:keeper":   ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch", "add", "commit", "restore", "switch", "checkout", "merge", "pull", "push", "write-tree", "commit-tree"],
+  "git:merging:keeper":      ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch", "add", "commit", "restore", "switch", "checkout", "merge", "pull", "push", "write-tree", "commit-tree"],
+
+  // gh (all scoped to `pr` group — the group check is in the gh tool layer)
+  "gh:planning:planner":     ["status", "list", "view", "checks", "diff"],
+  "gh:planning:reviewer":    ["status", "list", "view", "checks", "diff"],
+  "gh:planning:tester":      ["status", "list", "view", "checks", "diff"],
+  "gh:planning:executor":    ["status", "list", "view", "checks", "diff", "comment", "create", "edit"],
+  "gh:validating:planner":   ["status", "list", "view", "checks", "diff"],
+  "gh:validating:executor":  ["status", "list", "view", "checks", "diff", "comment", "create", "edit"],
+  "gh:validating:tester":    ["status", "list", "view", "checks", "diff", "comment"],
+  "gh:validating:reviewer":  ["status", "list", "view", "checks", "diff", "review"],
+  "gh:merging:planner":      ["status", "list", "view", "checks", "diff", "review"],
+  "gh:merging:tester":       ["status", "list", "view", "checks", "diff", "review"],
+  "gh:merging:reviewer":     ["status", "list", "view", "checks", "diff", "review"],
+  "gh:merging:executor":     ["status", "list", "view", "checks", "diff", "comment", "create", "edit"],
+
+  // wt
+  "wt:planning:planner":     ["list", "status", "switch"],
+  "wt:planning:executor":    ["list", "status", "switch"],
+  "wt:planning:reviewer":    ["list", "status", "switch"],
+  "wt:planning:tester":      ["list", "status", "switch"],
+  "wt:validating:planner":   ["list", "status", "switch"],
+  "wt:validating:executor":  ["list", "status", "switch"],
+  "wt:validating:reviewer":  ["list", "status", "switch"],
+  "wt:validating:tester":    ["list", "status", "switch"],
+  "wt:merging:planner":      ["list", "status", "switch"],
+  "wt:merging:executor":     ["list", "status", "switch"],
+  "wt:merging:reviewer":     ["list", "status", "switch"],
+  "wt:merging:tester":       ["list", "status", "switch"],
+
+  // bd — GH-1003 added recall/remember/memories.
+  //
+  // - recall + memories are reads → allowed for all roles, same shape as
+  //   list/show/view.
+  // - remember is a write → planner-only, mirroring create/update/claim/
+  //   reopen. This means a plan-profile session running with
+  //   PRX_AGENT_ROLE=planner can call `prx tools bd exec --subcommand
+  //   remember`, which is broader than just the intake wrapper. That is the
+  //   same trust posture already granted for bd update/create — operator
+  //   memories are no more privileged than issue writes — so the surface
+  //   is intentionally consistent rather than narrowed to intake.
+  // GH-1351: `dep` (typed dep edges, e.g. parent-child / blocks) is a planner
+  // write — same trust class as create/update — added so
+  // `prx triage promote-children` can wire manifest-declared dep edges in
+  // process. Read-side bd dep queries for executor/reviewer/tester roles still
+  // route through `bd ready`/`bd list`; we don't widen reads here.
+  // GH-1573: `sql` is read-only by construction (the bd wrapper injects
+  // `--readonly` for this subcommand in src/tools/bd.ts), so it sits in the
+  // same trust class as `list`/`show`/`view`. Routed through the planner row
+  // because the only in-tree caller is `prx triage status`, which already
+  // runs as planner/planning.
+  // GH-1513: `admin` is admitted planner-only and gated to `admin compact` at
+  // the wrapper layer in src/tools/bd.ts (per-arg check on `args[0]`). The
+  // sibling `admin cleanup` / `admin reset` shapes are blocked there. The
+  // only in-tree caller is `prx memory compact`, which runs as planner.
+  "bd:planning:planner":     ["ready", "list", "show", "view", "create", "update", "claim", "reopen", "assign", "recall", "remember", "memories", "dep", "sql", "admin"],
+  "bd:planning:executor":    ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:planning:reviewer":    ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:planning:tester":      ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:validating:planner":   ["ready", "list", "show", "view", "create", "update", "claim", "reopen", "assign", "recall", "remember", "memories", "dep", "sql", "admin"],
+  "bd:validating:executor":  ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:validating:reviewer":  ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:validating:tester":    ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:merging:planner":      ["ready", "list", "show", "view", "create", "update", "claim", "reopen", "assign", "recall", "remember", "memories", "dep", "sql", "admin"],
+  "bd:merging:executor":     ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:merging:reviewer":     ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:merging:tester":       ["ready", "list", "show", "view", "recall", "memories"],
+};
+
+/** Hard-blocked subcommands (never allowed regardless of state/role). */
+const BLOCKED: Record<PolicyTool, readonly string[]> = {
+  git: ["reset", "clean", "rebase", "cherry-pick", "config", "clone", "init", "remote", "gc"],
+  gh:  ["close", "reopen"],
+  wt:  [],
+  bd:  ["close", "delete", "archive", "import", "export"],
+  prx: [],
+};
+
+export function isBlocked(tool: PolicyTool, subcommand: string): boolean {
+  return (BLOCKED[tool] ?? []).includes(subcommand);
+}
+
+// GH-1832: per-tool vocabulary set — every subcommand that appears in any
+// (state, role) allowlist OR in BLOCKED. The planner-side preflight uses this
+// at extraction time to drop phantom verbs (noun-as-verb prose like "bd
+// records", "gh issues", "git commits") before they ever reach feasibility
+// classification. Computed eagerly at module load; the surface is small and
+// fixed.
+const KNOWN_SUBCOMMANDS: Record<PolicyTool, Set<string>> = (() => {
+  const acc: Record<PolicyTool, Set<string>> = {
+    git: new Set(),
+    gh: new Set(),
+    wt: new Set(),
+    bd: new Set(),
+    prx: new Set(),
+  };
+  for (const [key, subs] of Object.entries(POLICY_TABLE)) {
+    const tool = key.split(":", 1)[0] as PolicyTool;
+    if (acc[tool]) {
+      for (const sub of subs) acc[tool].add(sub);
+    }
+  }
+  for (const [tool, subs] of Object.entries(BLOCKED) as [PolicyTool, readonly string[]][]) {
+    for (const sub of subs) acc[tool].add(sub);
+  }
+  return acc;
+})();
+
+export function isKnownSubcommand(tool: PolicyTool, subcommand: string): boolean {
+  return KNOWN_SUBCOMMANDS[tool]?.has(subcommand) ?? false;
+}
+
+export const POLICY_TOOLS: readonly PolicyTool[] = ["git", "gh", "wt", "bd", "prx"];
+
+export function isPolicyTool(value: string): value is PolicyTool {
+  return (POLICY_TOOLS as readonly string[]).includes(value);
+}
+
+// GH — read-vs-mutate classification. Conservatively lists only subcommands
+// that are *unconditional* reads (pure regardless of flags) — the safe basis
+// for caching their results (see @bounded-systems/proc's cachingProcExecutor). A
+// subcommand that can mutate under some flag (git branch -D, gh issue edit) is
+// deliberately absent: under-classifying as non-read only costs a cache miss,
+// over-classifying would cache a side effect.
+const READ_ONLY: Record<PolicyTool, ReadonlySet<string>> = {
+  git: new Set([
+    "rev-parse", "status", "log", "show", "diff", "ls-files", "ls-tree",
+    "cat-file", "for-each-ref", "merge-base", "describe", "symbolic-ref",
+    "rev-list", "show-ref", "name-rev", "var",
+  ]),
+  gh: new Set(["view", "list", "checks", "status"]),
+  bd: new Set(["list", "show", "view", "ready", "memories", "recall", "dep", "sql"]),
+  wt: new Set(["list", "status"]),
+  prx: new Set<string>(),
+};
+
+/** True iff this subcommand is an unconditional read for the tool (cacheable). */
+export function isReadOnly(tool: PolicyTool, subcommand: string): boolean {
+  return READ_ONLY[tool]?.has(subcommand) ?? false;
+}
+
+export function checkPolicy(
+  tool: PolicyTool,
+  subcommand: string,
+  state: PolicyState,
+  role: PolicyRole,
+): PolicyDecision {
+  if (isBlocked(tool, subcommand)) {
+    return { allowed: false, tool, subcommand, state, role };
+  }
+
+  const key = `${tool}:${state}:${role}`;
+  const allowList = POLICY_TABLE[key];
+  const allowed = allowList ? allowList.includes(subcommand) : false;
+  return { allowed, tool, subcommand, state, role };
+}
+
+// GH-1239: refusal-symmetry predicate shared by `prx plan preflight`
+// (axis-2 allowlist-feasibility) and the in-session policy gate. Both sites
+// must answer the same question — "would this action shape be allowed inside
+// an executor session?" — so they consume one source of truth.
+//
+// `reason` is `null` when feasible. Otherwise it names which layer refused so
+// the planner-side preflight can distinguish a hard block from a state/role
+// allowlist miss.
+export type FeasibilityReason =
+  | "blocked"
+  | "not-allowlisted-for-role"
+  | "unknown-tool";
+
+export type FeasibilityResult =
+  | { feasible: true; reason: null }
+  | { feasible: false; reason: FeasibilityReason };
+
+export function isFeasibleForRole(
+  tool: PolicyTool,
+  subcommand: string,
+  state: PolicyState,
+  role: PolicyRole,
+): FeasibilityResult {
+  if (isBlocked(tool, subcommand)) {
+    return { feasible: false, reason: "blocked" };
+  }
+  const key = `${tool}:${state}:${role}`;
+  const allowList = POLICY_TABLE[key];
+  if (!allowList) {
+    return { feasible: false, reason: "unknown-tool" };
+  }
+  if (!allowList.includes(subcommand)) {
+    return { feasible: false, reason: "not-allowlisted-for-role" };
+  }
+  return { feasible: true, reason: null };
+}
+
+// GH-1579: which roles own this action shape at this state? Returns an empty
+// array when the subcommand is hard-blocked OR universally absent from every
+// (state,role) allowlist. The preflight uses this to demote a refusal that
+// would otherwise read as "executor cannot run X" to a deferred finding
+// pointing at the owning role/profile.
+export function findOwningRoles(
+  tool: PolicyTool,
+  subcommand: string,
+  state: PolicyState,
+): PolicyRole[] {
+  if (isBlocked(tool, subcommand)) return [];
+  const roles: PolicyRole[] = [];
+  for (const role of ["planner", "executor", "reviewer", "tester", "keeper"] as const) {
+    const allow = POLICY_TABLE[`${tool}:${state}:${role}`];
+    if (allow?.includes(subcommand)) roles.push(role);
+  }
+  return roles;
+}
+
+// GH-1397: `checkPolicy` sibling that enqueues a structured handoff when the
+// deny would otherwise read as "executor cannot run X, but role <X> can".
+//
+// Returns the same `PolicyDecision` as `checkPolicy` plus, when an enqueue
+// fires, the resulting `handoffId`. Callers that adopt this sibling get the
+// queue path for free; the original `checkPolicy` stays untouched so the
+// existing in-tree call sites are not forced to migrate.
+//
+// `enqueue` is injected to keep this module free of the bd / CAS / audit
+// graph. Wire it at the boundary (`src/handoff/from-deny.ts:checkPolicyOrEnqueueDefault`).
+export type CheckPolicyOrEnqueueResult = PolicyDecision & {
+  handoffId?: string;
+  /** Why no handoff was enqueued — present on `allowed: false` rows that did
+   *  not enqueue (no owning role, enqueue disabled, bd unprovisioned, …). */
+  enqueueSkipped?:
+    | "no-owning-role"
+    | "enqueue-disabled"
+    | "bd-unprovisioned"
+    | "cross-repo"
+    | "error";
+};
+
+export type CheckPolicyOrEnqueueDeps = {
+  /** Owns the bd+CAS write. See `src/handoff/from-deny.ts`. */
+  enqueue?: (input: {
+    tool: PolicyTool;
+    subcommand: string;
+    state: PolicyState;
+    role: PolicyRole;
+    owningRoles: PolicyRole[];
+  }) => Promise<{ kind: "enqueued"; handoffId: string }
+    | { kind: "skipped"; reason: "bd-unprovisioned" | "cross-repo" | "error" }>;
+};
+
+export async function checkPolicyOrEnqueue(
+  tool: PolicyTool,
+  subcommand: string,
+  state: PolicyState,
+  role: PolicyRole,
+  deps: CheckPolicyOrEnqueueDeps = {},
+): Promise<CheckPolicyOrEnqueueResult> {
+  const decision = checkPolicy(tool, subcommand, state, role);
+  if (decision.allowed) return decision;
+  if (isBlocked(tool, subcommand)) {
+    // Hard-blocked verbs do not enqueue — no role can run them, so the queue
+    // would have no recipient. `enqueueSkipped: "no-owning-role"` is the
+    // honest signal.
+    return { ...decision, enqueueSkipped: "no-owning-role" };
+  }
+  const owningRoles = findOwningRoles(tool, subcommand, state);
+  if (owningRoles.length === 0) {
+    return { ...decision, enqueueSkipped: "no-owning-role" };
+  }
+  if (!deps.enqueue) {
+    return { ...decision, enqueueSkipped: "enqueue-disabled" };
+  }
+  const r = await deps.enqueue({ tool, subcommand, state, role, owningRoles });
+  if (r.kind === "enqueued") {
+    return { ...decision, handoffId: r.handoffId };
+  }
+  return { ...decision, enqueueSkipped: r.reason };
+}
+
+export function phaseToState(phase: string): PolicyState {
+  switch (phase) {
+    case "ready_to_merge":
+      return "merging";
+    case "in_review":
+    case "waiting_on_ci":
+    case "changes_requested":
+    case "blocked":
+      return "validating";
+    default:
+      return "planning";
+  }
+}
+
+export function formatPolicyDecision(decision: PolicyDecision, format: "plain" | "json"): string {
+  if (format === "json") {
+    return JSON.stringify(decision, null, 2);
+  }
+  const verdict = decision.allowed ? "allow" : "deny";
+  return `${decision.tool}-safe: ${verdict} '${decision.subcommand}' for state '${decision.state}' role '${decision.role}'`;
+}

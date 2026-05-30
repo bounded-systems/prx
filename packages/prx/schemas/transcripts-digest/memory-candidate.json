@@ -1,0 +1,38 @@
+{
+  "$ref": "#/definitions/transcripts_digest_MemoryCandidate",
+  "definitions": {
+    "transcripts_digest_MemoryCandidate": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": ["feedback", "project", "reference", "user"]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "description": { "type": "string", "minLength": 1 },
+        "body": { "type": "string", "minLength": 1 },
+        "originSessionId": { "type": "string", "minLength": 1 },
+        "inputRefs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "uowId": { "type": "string", "minLength": 1 }
+      },
+      "required": [
+        "type",
+        "name",
+        "description",
+        "body",
+        "originSessionId",
+        "inputRefs",
+        "uowId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

@@ -1,0 +1,14 @@
+{
+  "file": {
+    "file_id": "auth/login.ts",
+    "path": "auth/login.ts"
+  },
+  "neighbors": [
+    {
+      "file_id": "crypto/tls.ts",
+      "path": "crypto/tls.ts",
+      "cochange_count": 2,
+      "jaccard": 1.0
+    }
+  ]
+}

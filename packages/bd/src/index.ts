@@ -1,0 +1,808 @@
+/**
+ * Beads (bd) tool — typed interface for beads operations.
+ *
+ * Wraps bd CLI with policy enforcement.
+ * Used by:
+ *   - `prx tools bd exec` (CLI entry point, replaces scripts/bd-safe)
+ *   - Internal callers (direct function calls)
+ */
+
+import { z } from "zod";
+
+import { getEnv, processEnv } from "@bounded-systems/env";
+import {
+  captureFailureDetail,
+  isCaptureFailure,
+  spawnCapture,
+  type SpawnCaptureFn,
+  type SpawnCaptureResult,
+} from "@bounded-systems/proc";
+import {
+  checkPolicy,
+  isBlocked,
+  type PolicyState,
+  type PolicyRole,
+  type PolicyDecision,
+} from "@bounded-systems/policy";
+
+export type BdExecResult = {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  policy: PolicyDecision | null;
+};
+
+export type BdExecOptions = {
+  subcommand: string;
+  args: string[];
+  cwd?: string | undefined;
+  /** If set, enforce policy before executing. */
+  state?: PolicyState | undefined;
+  role?: PolicyRole | undefined;
+};
+
+export type BdExecEnv = {
+  PRX_CAPABILITY_STATE?: string;
+  PRX_AGENT_ROLE?: string;
+  BEADS_DIR?: string;
+  [key: string]: string | undefined;
+};
+
+const ALLOWED_SUBCOMMANDS = [
+  "ready", "list", "show", "view", "create", "update", "claim", "reopen",
+  // GH-1874: `assign` is the bd-canonical write for the assignee column —
+  // shorthand for `bd update <id> --assignee <name>` (empty string clears).
+  // Trust class matches `update`/`create`/`claim`: planner-only at the
+  // policy layer (src/tools/policy.ts). The bd→GH mirror's `push()` projects
+  // the bd assignee through the normal sync cadence.
+  "assign",
+  // GH-1003: memory surface — recall (read by key), remember (upsert),
+  // memories (list/search). `forget` (destructive) is intentionally absent.
+  "recall", "remember", "memories",
+  // GH-1351: typed dep edges (parent-child / blocks). Required by
+  // `prx triage promote-children` to wire manifest-declared edges. The
+  // bd `dep` group itself contains read+write subcommands; per-arg policy
+  // remains in tools/policy.ts.
+  "dep",
+  // GH-1573: read-only SQL projection over the beads store. `bd sql` accepts
+  // raw SQL; the wrapper enforces read-only by injecting `--readonly` below
+  // before spawn, so the safety boundary is owned here rather than at every
+  // caller. Used by `prx triage status` for the scoped GH↔bd join.
+  "sql",
+  // GH-1513: bd admin maintenance group. Per-arg gated in tools/policy.ts to
+  // admit `compact` only — `bd admin cleanup` (deletes closed records) and
+  // `bd admin reset` (full DB wipe) stay out of policy reach.
+  "admin",
+] as const;
+
+const BLOCKED_SUBCOMMANDS = [
+  "close", "delete", "archive", "import", "export",
+] as const;
+
+// GH-1473: bd short-id structural guard ---------------------------------------
+//
+// A bare `<prefix>-<n>` positional (e.g. `ai-home-1463`) is a bd *short* id.
+// bd's prefix-ID resolver substring-matches it against the timestamp segment of
+// an unrelated long id (`ai-home-1463` ⊂ `ai-home-1777491131463-…`) and
+// silently writes against the wrong record. prx resolves every ref to its
+// canonical long id via the (domain, external_id) map *before* calling bd (see
+// src/triage/promote-children.ts, invariant I-BF1); this is the structural
+// backstop that refuses a short id if any future caller forgets. Upstream Go
+// resolver fix is tracked at GH-1479.
+//
+// Canonical long-id shape (workspace-prefixed ts-seq-hex8). Mirror of
+// `BD_LONG_ID_RE` in src/adapters/beads.ts; an exact long id is safe to admit.
+const BD_LONG_ID_RE = /^[a-z][a-z0-9-]*-\d{13,}-\d+-[0-9a-f]{8}$/i;
+// Bare bd short-id shape: lowercase workspace prefix + `-` + digits, nothing
+// trailing. This is the fuzzy-matchable form prx must never hand to bd.
+const BD_SHORT_ID_RE = /^[a-z][a-z0-9-]*-\d+$/;
+
+/**
+ * Scan a bd argv for a bare short-id positional, returning the offending arg
+ * (or null). Scoped to id-position only: `--flag` tokens and the value token
+ * after a space-form `--flag value` are skipped, so free-text flag values
+ * (e.g. `--notes "...ai-home-1463..."`) are exempt. A canonical long id is
+ * admitted via {@link BD_LONG_ID_RE}. Pure structural gate — no lookup.
+ */
+function findShortIdPositional(args: string[]): string | null {
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === undefined) continue;
+    if (arg.startsWith("-")) {
+      // `--flag value` (space form): the next token is the flag's value, not an
+      // id position. `--flag=value` carries its value inline — nothing to skip.
+      if (arg.startsWith("--") && !arg.includes("=")) {
+        const next = args[i + 1];
+        if (next !== undefined && !next.startsWith("-")) i += 1;
+      }
+      continue;
+    }
+    if (BD_LONG_ID_RE.test(arg)) continue;
+    if (BD_SHORT_ID_RE.test(arg)) return arg;
+  }
+  return null;
+}
+
+// `bd` invocation seam (GH-1554 / GH-1609) -----------------------------------
+//
+// The generic spawn-capture helper lives in `@bounded-systems/proc` (the spawn capability). It
+// streams the child's stdout to a per-call temp file so `bd list --all --json`
+// (and any other large payload) can't hit the default 1 MiB cap and have its
+// partial bytes silently surface as the result. `BdSpawnFn` / `BdSpawnResult`
+// stay aliased here so callers / tests that already import them keep working.
+
+export type BdSpawnResult = SpawnCaptureResult;
+export type BdSpawnFn = SpawnCaptureFn;
+export const defaultBdSpawn: BdSpawnFn = spawnCapture;
+
+/**
+ * Execute a bd subcommand with optional policy enforcement.
+ *
+ * `spawn` is injectable (last positional, mirrors `BdGithubRunner`) so tests
+ * can drive the spawn-capture boundary without a real `bd` binary; production
+ * callers never pass it.
+ */
+export function execBd(
+  opts: BdExecOptions,
+  env: BdExecEnv = processEnv(),
+  spawn: BdSpawnFn = defaultBdSpawn,
+): BdExecResult {
+  // Hard-block check
+  if (isBlocked("bd", opts.subcommand)) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: `bd-safe: blocked subcommand '${opts.subcommand}'`,
+      policy: null,
+    };
+  }
+
+  // Static block check (bd has its own blocked list beyond what policy.ts tracks)
+  if ((BLOCKED_SUBCOMMANDS as readonly string[]).includes(opts.subcommand)) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: `bd-safe: blocked subcommand '${opts.subcommand}'`,
+      policy: null,
+    };
+  }
+
+  // Allowlist check
+  if (!(ALLOWED_SUBCOMMANDS as readonly string[]).includes(opts.subcommand)) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: `bd-safe: unknown or disallowed subcommand '${opts.subcommand}'`,
+      policy: null,
+    };
+  }
+
+  // GH-1513: per-arg gate for `bd admin`. Only `compact` is admitted —
+  // `admin cleanup` (deletes closed records) and `admin reset` (full DB wipe)
+  // are blocked at this layer regardless of policy state/role. Defense in
+  // depth: the policy table also gates `admin` to planner-only, and the
+  // `runBdAdminCompact` wrapper is the only in-tree caller that constructs
+  // the admin shape.
+  if (opts.subcommand === "admin") {
+    const first = opts.args[0];
+    if (first !== "compact") {
+      return {
+        exitCode: 1,
+        stdout: "",
+        stderr: `bd-safe: 'bd admin' admits only 'compact', got '${first ?? "<missing>"}'`,
+        policy: null,
+      };
+    }
+  }
+
+  // GH-1473: refuse a bare bd short id in an id position (defense in depth for
+  // I-BF1). Callers must resolve refs to the canonical long id before reaching
+  // this chokepoint — a short id fuzzy-matches an unrelated long id and
+  // silently miswires the write.
+  const shortId = findShortIdPositional(opts.args);
+  if (shortId) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr:
+        `bd-safe: refusing bd short id '${shortId}' in id position — ` +
+        `resolve it to the canonical long id via the (domain, external_id) ` +
+        `map before calling bd (GH-1473; I-BF1). Upstream resolver fix: GH-1479.`,
+      policy: null,
+    };
+  }
+
+  // Policy enforcement
+  const state = opts.state ?? (env.PRX_CAPABILITY_STATE as PolicyState | undefined) ?? "validating";
+  const role = opts.role ?? (env.PRX_AGENT_ROLE as PolicyRole | undefined) ?? "executor";
+  const decision = checkPolicy("bd", opts.subcommand, state, role);
+
+  if (!decision.allowed) {
+    return {
+      exitCode: 1,
+      stdout: "",
+      stderr: `bd-safe: blocked subcommand '${opts.subcommand}' for state '${state}' role '${role}'`,
+      policy: decision,
+    };
+  }
+
+  // Build env — clear BEADS_DIR to isolate from ~/.config/worktrunk (matches commandEnv behavior)
+  const childEnv = { ...env } as Record<string, string>;
+  delete childEnv.BEADS_DIR;
+
+  // GH-1573: `bd sql` accepts arbitrary SQL. The wrapper is the single
+  // chokepoint for bd policy, so it owns the `--readonly` inject — callers
+  // never have to remember. `--readonly` is a bd global flag ("block write
+  // operations"), accepted either before or after the subcommand by cobra;
+  // placing it before caller args keeps the injected flag adjacent to the
+  // subcommand for readability and avoids interleaving with a positional
+  // SQL string.
+  const spawnArgs =
+    opts.subcommand === "sql" && !opts.args.includes("--readonly")
+      ? ["--readonly", ...opts.args]
+      : opts.args;
+
+  // Execute
+  const result = spawn(["bd", opts.subcommand, ...spawnArgs], { cwd: opts.cwd, env: childEnv });
+
+  // GH-1554: a spawn error, killing signal, or non-zero exit means the stdout
+  // we hold is partial or absent — never return it as the payload.
+  if (isCaptureFailure(result)) {
+    return {
+      exitCode: result.status ?? 1,
+      stdout: "",
+      stderr: `bd-safe: ${captureFailureDetail(result) || "bd failed"}`,
+      policy: decision,
+    };
+  }
+
+  return {
+    exitCode: 0,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    policy: decision,
+  };
+}
+
+export function formatBdExecResult(result: BdExecResult, format: "plain" | "json"): string {
+  if (format === "json") {
+    return JSON.stringify(result, null, 2);
+  }
+  let output = result.stdout;
+  if (result.stderr && result.exitCode !== 0) {
+    output = result.stderr;
+  }
+  return output.trimEnd();
+}
+
+// `bd github sync` integration ----------------------------------------------
+//
+// GitHub is authoritative for *open/closed status* in ai-home (see memory
+// `feedback_beads_github_authority`), but priority is bd-authoritative and
+// projected bd→external only (authority ADR §2, invariant I-DS-PRIO). The
+// destructive `bd github sync --pull-only --prefer-github` shell-out below
+// is **no longer on any reconcile-after-write path**: GH-2011 moved
+// `prx triage apply` / `type-pass` / `prx repo protect-main` onto the
+// status-only canonical reconcile `runBeadsSync` (src/sync/run.ts), and
+// GH-2316 moved the remaining triage write verbs (prioritize,
+// prioritize-bulk, drift-fix, migrate-axis-value, prune-merged) the same
+// way — closing the channel through which a GH `priority::*` label could
+// round-trip back into bd-canonical priority.
+//
+// The helper is retained as a thin, unit-tested low-level shim (see
+// test/tools/bd.test.ts). The only surviving `bd github sync --pull-only`
+// invocation is the one-shot seed in `runBeadsInit --import-gh`
+// (src/pr-state/cli.ts), which spawns it inline (not via this helper) and
+// is intentionally exempt: bd has no data to lose at seed time.
+
+export type BdGithubRunResult = { stdout: string; stderr: string; status: number };
+
+export type BdGithubRunner = (
+  cmd: string[],
+  options?: { cwd?: string; env?: NodeJS.ProcessEnv; check?: boolean },
+) => BdGithubRunResult;
+
+export const defaultBdGithubRunner: BdGithubRunner = (cmd, options = {}) => {
+  // GH-1609: route through spawnCapture so `bd github sync` and the `gh auth
+  // token` probe both stream stdout through a temp file (no in-memory 1 MiB
+  // cap). Apply the partial-read guard so a SIGTERM'd / errored child can
+  // never return its half-baked stdout as the payload.
+  const result = spawnCapture(cmd, {
+    cwd: options.cwd,
+    env: options.env ?? processEnv(),
+  });
+  if (isCaptureFailure(result)) {
+    return {
+      stdout: "",
+      stderr: captureFailureDetail(result) || (result.stderr ?? ""),
+      status: result.status ?? 1,
+    };
+  }
+  return {
+    stdout: result.stdout,
+    stderr: result.stderr,
+    status: result.status ?? 0,
+  };
+};
+
+/**
+ * Resolve a GITHUB_TOKEN env override for `bd github` calls. Returns
+ * `undefined` when the parent process already exports GITHUB_TOKEN (caller
+ * should pass its own env unmodified). Falls back to `gh auth token` when the
+ * env is empty so headless prx invocations inherit the operator's gh login.
+ *
+ * When falling back to `gh auth token`, returns a **merged** env
+ * (`{ ...processEnv(), GITHUB_TOKEN: token }`) so callers retain PATH/HOME and
+ * other parent vars `bd` needs to locate config and helper binaries (GH-987).
+ */
+export function resolveBeadsGitHubSyncEnv(
+  cwd: string,
+  runner: BdGithubRunner = defaultBdGithubRunner,
+): NodeJS.ProcessEnv | undefined {
+  const existing = getEnv("GITHUB_TOKEN");
+  if (typeof existing === "string" && existing.trim().length > 0) {
+    return undefined;
+  }
+
+  const tokenResult = runner(["gh", "auth", "token"], { cwd, check: false });
+  if (tokenResult.status !== 0) {
+    return undefined;
+  }
+
+  const token = tokenResult.stdout.trim();
+  if (token.length === 0) {
+    return undefined;
+  }
+
+  return { ...processEnv(), GITHUB_TOKEN: token };
+}
+
+export type BdGithubSyncResult = {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+};
+
+/**
+ * Run `bd github sync --pull-only --prefer-github` from `cwd`. Resolves
+ * GITHUB_TOKEN via `resolveBeadsGitHubSyncEnv` so the call works under headless
+ * prx invocations that inherit only `gh auth token` for credentials.
+ *
+ * Set `options.dryRun = true` to append `--dry-run` (used by
+ * `prx repo protect-main` when previewing the post-config sync).
+ */
+export function runBdGithubSyncPullOnly(
+  cwd: string,
+  options: { dryRun?: boolean } = {},
+  runner: BdGithubRunner = defaultBdGithubRunner,
+): BdGithubSyncResult {
+  const env = resolveBeadsGitHubSyncEnv(cwd, runner);
+  const args = ["bd", "github", "sync", "--pull-only", "--prefer-github"];
+  if (options.dryRun) {
+    args.push("--dry-run");
+  }
+  const result = runner(args, { cwd, ...(env ? { env } : {}), check: false });
+  return {
+    exitCode: result.status,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
+}
+
+// `bd admin compact` integration (GH-1513) -----------------------------------
+//
+// Memory-decay policy chokepoint (GH-1500 ADR §7 split 4 of GH-298). The verb
+// `prx memory compact` selects eligible closed bd records (opt-out classifier
+// in src/memory/compact.ts), then asks bd to compact them via this wrapper.
+//
+// bd v1's `bd admin compact` CLI accepts one id per invocation. The wrapper
+// loops the caller-supplied id list and aggregates per-id results so callers
+// can treat the compaction as a single conceptual call (mirrors the
+// `runBdGithubSyncPullOnly` shape).
+//
+// `--auto` is the only no-pre-summary id-based mode the bd CLI offers; it
+// requires `ANTHROPIC_API_KEY` (or `ai.api_key` in bd config) at runtime.
+// `--dry-run` short-circuits before the LLM call so the safety default
+// (`prx memory compact` defaults to dry-run) does not require a key.
+
+export type BdAdminCompactPerIdResult = {
+  id: string;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+};
+
+export type BdAdminCompactResult = {
+  /** Worst per-id exit code (0 when every id succeeded). */
+  exitCode: number;
+  /** One row per id, in input order. */
+  results: BdAdminCompactPerIdResult[];
+};
+
+// `bd show --json` (GH-1766) ------------------------------------------------
+//
+// Used by the canonical=bd plan/implement session entry path to hydrate the
+// covering bd record without falling through to `gh issue view`. The shape
+// here is the subset of `BeadsRecord` (src/triage/triage.ts) that the
+// session-entry hydrate banner and `BeadsResolver.fetch` actually read; a
+// follow-up cleanup will promote `BeadsRecord` to use this schema directly.
+
+export const bdShowOutputSchema = z
+  .object({
+    id: z.string(),
+    title: z.string().default(""),
+    description: z.string().nullish(),
+    status: z.string().default(""),
+    priority: z.number().int().nullish(),
+    issueType: z.string().nullish(),
+    labels: z.array(z.string()).nullish(),
+    blockedBy: z.array(z.string()).nullish(),
+    externalRef: z.string().nullish(),
+    externalRefs: z.record(z.string(), z.string()).nullish(),
+    metadata: z.record(z.string(), z.unknown()).nullish(),
+    sourceSystem: z.string().nullish(),
+    updatedAt: z.string().nullish(),
+  })
+  .passthrough();
+
+export type BdShowOutput = z.infer<typeof bdShowOutputSchema>;
+
+export type BdShowResult =
+  | { ok: true; record: BdShowOutput; stdout: string; stderr: string }
+  | { ok: false; exitCode: number; stdout: string; stderr: string };
+
+export function runBdShow(
+  id: string,
+  cwd: string,
+  runner: BdGithubRunner = defaultBdGithubRunner,
+): BdShowResult {
+  const result = runner(["bd", "show", id, "--json"], { cwd, check: false });
+  if (result.status !== 0) {
+    return {
+      ok: false,
+      exitCode: result.status,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    };
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(result.stdout);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return {
+      ok: false,
+      exitCode: 1,
+      stdout: result.stdout,
+      stderr: `bd show: failed to parse JSON: ${detail}`,
+    };
+  }
+  // `bd show <id> --json` returns a length-1 array (single-id query); accept
+  // the legacy object shape too for back-compat with older bd builds.
+  const record = Array.isArray(raw) ? raw[0] : raw;
+  if (record === undefined) {
+    return {
+      ok: false,
+      exitCode: 1,
+      stdout: result.stdout,
+      stderr: `bd show: no record returned for ${id}`,
+    };
+  }
+  const parsed = bdShowOutputSchema.safeParse(record);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      exitCode: 1,
+      stdout: result.stdout,
+      stderr: `bd show: schema mismatch: ${parsed.error.message}`,
+    };
+  }
+  return { ok: true, record: parsed.data, stdout: result.stdout, stderr: result.stderr };
+}
+
+// `bd update --claim` (GH-1766) ---------------------------------------------
+//
+// On canonical=bd plan-session entry the operator owns the record before the
+// worktree materializes — mirroring the way canonical=gh sessions implicitly
+// claim via the GH issue. `bd update --claim` is admitted by the policy table
+// (planner role, all states; see src/tools/policy.ts) and is not in the
+// BLOCKED list.
+
+export type BdUpdateClaimResult = {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+};
+
+export function runBdUpdateClaim(
+  id: string,
+  cwd: string,
+  runner: BdGithubRunner = defaultBdGithubRunner,
+): BdUpdateClaimResult {
+  const result = runner(["bd", "update", id, "--claim"], { cwd, check: false });
+  return {
+    exitCode: result.status,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
+}
+
+export function runBdAdminCompact(
+  cwd: string,
+  options: { dryRun: boolean; ids: string[] },
+  runner: BdGithubRunner = defaultBdGithubRunner,
+): BdAdminCompactResult {
+  const results: BdAdminCompactPerIdResult[] = [];
+  let worstExit = 0;
+  for (const id of options.ids) {
+    const args = ["bd", "admin", "compact", "--auto", "--id", id];
+    if (options.dryRun) {
+      args.push("--dry-run");
+    }
+    const result = runner(args, { cwd, check: false });
+    if (result.status !== 0 && worstExit === 0) {
+      worstExit = result.status;
+    }
+    results.push({
+      id,
+      exitCode: result.status,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    });
+  }
+  return { exitCode: worstExit, results };
+}
+
+// `bd duplicates` / `bd doctor` / `bd merge` (GH-1255) ----------------------
+//
+// Wrappers used by `prx triage drift-fix` to surface bd's own content-hash
+// dedupe heuristic and substrate-health report inline with the type/priority/
+// status axis reconcile. None route through `execBd`: the wrapper builds argv
+// + spawns via `defaultBdGithubRunner` so per-arg policy is owned at the call
+// site (mirrors `runBdGithubSyncPullOnly`). Read-only and `--fix` paths are
+// split into dedicated functions so the mutating call site differs from the
+// read-only one in grep + audit logs.
+
+export const bdDuplicatesClusterMemberSchema = z
+  .object({
+    beadsId: z.string(),
+    title: z.string().default(""),
+    status: z.string().default(""),
+    priority: z.number().int().nullable().default(null),
+  })
+  .passthrough();
+export type BdDuplicatesClusterMember = z.infer<typeof bdDuplicatesClusterMemberSchema>;
+
+export const bdDuplicatesClusterSchema = z
+  .object({
+    target: bdDuplicatesClusterMemberSchema,
+    sources: z.array(bdDuplicatesClusterMemberSchema).min(1),
+  })
+  .passthrough();
+export type BdDuplicatesCluster = z.infer<typeof bdDuplicatesClusterSchema>;
+
+const bdDuplicatesPayloadSchema = z
+  .object({
+    clusters: z.array(bdDuplicatesClusterSchema).default([]),
+  })
+  .passthrough();
+
+export type BdDuplicatesDryRunResult = {
+  exitCode: number;
+  clusters: BdDuplicatesCluster[];
+  stdout: string;
+  stderr: string;
+};
+
+export function runBdDuplicatesDryRun(
+  cwd: string,
+  runner: BdGithubRunner = defaultBdGithubRunner,
+): BdDuplicatesDryRunResult {
+  const result = runner(["bd", "duplicates", "--dry-run", "--json"], {
+    cwd,
+    check: false,
+  });
+  if (result.status !== 0) {
+    return {
+      exitCode: result.status,
+      clusters: [],
+      stdout: result.stdout,
+      stderr: result.stderr,
+    };
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(result.stdout);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return {
+      exitCode: 1,
+      clusters: [],
+      stdout: result.stdout,
+      stderr: `bd duplicates: failed to parse JSON: ${detail}`,
+    };
+  }
+  // bd may emit `{ clusters: [...] }` or a bare array — accept both.
+  const normalized = Array.isArray(raw) ? { clusters: raw } : raw;
+  const parsed = bdDuplicatesPayloadSchema.safeParse(normalized);
+  if (!parsed.success) {
+    return {
+      exitCode: 1,
+      clusters: [],
+      stdout: result.stdout,
+      stderr: `bd duplicates: schema mismatch: ${parsed.error.message}`,
+    };
+  }
+  return {
+    exitCode: 0,
+    clusters: parsed.data.clusters,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
+}
+
+export const bdDoctorIssueSchema = z
+  .object({
+    category: z.string(),
+    count: z.number().int().nonnegative().default(0),
+    fixable: z.boolean().default(false),
+  })
+  .passthrough();
+export type BdDoctorIssue = z.infer<typeof bdDoctorIssueSchema>;
+
+export const bdDoctorReportSchema = z
+  .object({
+    total: z.number().int().nonnegative().default(0),
+    fixable: z.number().int().nonnegative().default(0),
+    issues: z.array(bdDoctorIssueSchema).default([]),
+  })
+  .passthrough();
+export type BdDoctorReport = z.infer<typeof bdDoctorReportSchema>;
+
+export const emptyBdDoctorReport: BdDoctorReport = bdDoctorReportSchema.parse({});
+
+export type BdDoctorResult = {
+  exitCode: number;
+  report: BdDoctorReport;
+  stdout: string;
+  stderr: string;
+};
+
+function parseBdDoctorReport(
+  result: BdGithubRunResult,
+  verb: string,
+): BdDoctorResult {
+  if (result.status !== 0) {
+    return {
+      exitCode: result.status,
+      report: emptyBdDoctorReport,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    };
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(result.stdout);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return {
+      exitCode: 1,
+      report: emptyBdDoctorReport,
+      stdout: result.stdout,
+      stderr: `${verb}: failed to parse JSON: ${detail}`,
+    };
+  }
+  const parsed = bdDoctorReportSchema.safeParse(raw);
+  if (!parsed.success) {
+    return {
+      exitCode: 1,
+      report: emptyBdDoctorReport,
+      stdout: result.stdout,
+      stderr: `${verb}: schema mismatch: ${parsed.error.message}`,
+    };
+  }
+  return {
+    exitCode: 0,
+    report: parsed.data,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
+}
+
+export function runBdDoctorJson(
+  cwd: string,
+  runner: BdGithubRunner = defaultBdGithubRunner,
+): BdDoctorResult {
+  const result = runner(["bd", "doctor", "--json"], { cwd, check: false });
+  return parseBdDoctorReport(result, "bd doctor");
+}
+
+export function runBdDoctorFix(
+  cwd: string,
+  runner: BdGithubRunner = defaultBdGithubRunner,
+): BdDoctorResult {
+  const result = runner(["bd", "doctor", "--fix", "--json"], { cwd, check: false });
+  return parseBdDoctorReport(result, "bd doctor --fix");
+}
+
+export const bdMergeResultSchema = z
+  .object({
+    target: z.string(),
+    sources: z.array(z.string()).default([]),
+    applied: z.boolean().default(false),
+  })
+  .passthrough();
+export type BdMergeResultPayload = z.infer<typeof bdMergeResultSchema>;
+
+export type BdMergeOptions = {
+  target: string;
+  sources: string[];
+  dryRun?: boolean;
+};
+
+export type BdMergeResult = {
+  exitCode: number;
+  result: BdMergeResultPayload;
+  stdout: string;
+  stderr: string;
+};
+
+export function runBdMerge(
+  cwd: string,
+  options: BdMergeOptions,
+  runner: BdGithubRunner = defaultBdGithubRunner,
+): BdMergeResult {
+  if (options.sources.length === 0) {
+    return {
+      exitCode: 1,
+      result: { target: options.target, sources: [], applied: false },
+      stdout: "",
+      stderr: "bd merge: refusing to run with empty sources list",
+    };
+  }
+  const argv = ["bd", "merge", ...options.sources, "--into", options.target];
+  if (options.dryRun) argv.push("--dry-run");
+  argv.push("--json");
+  const result = runner(argv, { cwd, check: false });
+
+  const fallback: BdMergeResultPayload = {
+    target: options.target,
+    sources: options.sources,
+    applied: false,
+  };
+
+  if (result.status !== 0) {
+    return {
+      exitCode: result.status,
+      result: fallback,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    };
+  }
+  // bd merge may or may not emit JSON on success — fall back to the caller's
+  // intent if parsing fails. Either way exitCode 0 means the merge applied
+  // (dry-run reports `applied: false` from bd's own output).
+  let parsed: BdMergeResultPayload = {
+    target: options.target,
+    sources: options.sources,
+    applied: !options.dryRun,
+  };
+  const trimmed = result.stdout.trim();
+  if (trimmed.length > 0) {
+    try {
+      const raw = JSON.parse(trimmed);
+      const safe = bdMergeResultSchema.safeParse(raw);
+      if (safe.success) {
+        parsed = safe.data;
+      }
+    } catch {
+      // bd merge can succeed without emitting parsable JSON; keep fallback.
+    }
+  }
+  return {
+    exitCode: 0,
+    result: parsed,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
+}

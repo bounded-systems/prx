@@ -1,0 +1,52 @@
+{
+  "$ref": "#/definitions/intake_bug_body",
+  "definitions": {
+    "intake_bug_body": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": true,
+          "x-prx-heading": "Description"
+        },
+        "repro_steps": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": false,
+          "x-prx-heading": "Repro Steps"
+        },
+        "expected": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": false,
+          "x-prx-heading": "Expected"
+        },
+        "actual": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": false,
+          "x-prx-heading": "Actual"
+        },
+        "environment": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": false,
+          "x-prx-heading": "Environment"
+        },
+        "acceptance_criteria": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": true,
+          "x-prx-heading": "Acceptance Criteria"
+        }
+      },
+      "required": [
+        "description",
+        "acceptance_criteria"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

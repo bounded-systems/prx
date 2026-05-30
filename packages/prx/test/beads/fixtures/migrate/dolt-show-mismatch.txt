@@ -1,0 +1,6 @@
+Workspace: demo-repo
+Mode: embedded
+Database: io_github_bdelanghe_demo_repo
+Dolt root: /workspace/.beads/embeddeddolt/demo-repo/.dolt
+Branch: main
+HEAD: 9f2e1d4b3c8a (initial)

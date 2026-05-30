@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Verifies that Claude Code's LSP dependencies are on PATH before launch.
+# Exits non-zero with a clear message if a required binary is missing so
+# the caller (prx, CI, a Claude wrapper) can fail fast instead of falling
+# into Claude's interactive install prompt.
+
+missing=()
+for bin in typescript-language-server tsserver; do
+  if ! command -v "$bin" >/dev/null 2>&1; then
+    missing+=("$bin")
+  fi
+done
+
+if [[ ${#missing[@]} -gt 0 ]]; then
+  {
+    echo "claude-preflight: missing required binaries on PATH:"
+    for bin in "${missing[@]}"; do echo "  - $bin"; done
+    echo
+    echo "Install via home-manager (programs.claude-runtime.enable = true)"
+    echo "or globally: npm i -g typescript typescript-language-server"
+  } >&2
+  exit 1
+fi

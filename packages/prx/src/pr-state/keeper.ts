@@ -1,0 +1,180 @@
+/**
+ * `prx keeper` git-write handlers (GH-2348.3 / GH-2348.2).
+ *
+ * Keeper owns the git ref/object graph. Its push is the git-write counterpart
+ * of `prx submit publish`'s push: when a provenance signer + ledger are
+ * configured (`--ledger` + `PRX_PROVENANCE_KEY`), the push emits the same
+ * signed SLSA `push/v1` derivation — via the git-boundary `attestingGit`
+ * wrapper, which is self-describing (subject = post-push `rev-parse HEAD`) and
+ * builds `GIT_PUSH_BUILD_TYPE`. This is the attestation-capable push that lets
+ * `.2` move submit-publish's push to keeper without dropping the signed-push
+ * guarantee (GH-2249).
+ */
+
+import { processEnv } from "@bounded-systems/env";
+import { execGit, type GitExecResult } from "@bounded-systems/git";
+
+import { attestingGit, type AttestDeps } from "../provenance/attest.ts";
+
+export interface KeeperPushDeps {
+  /**
+   * When present, the push is wrapped by `attestingGit` so a clean push emits a
+   * signed `push/v1` derivation into the ledger. Absent ⇒ a bare `execGit`
+   * push (no emission) — the default, identical to today's `prx keeper push`.
+   */
+  attest?: AttestDeps | undefined;
+  /** Injectable git seam (defaults to `execGit`); tests stub it offline. */
+  git?: typeof execGit | undefined;
+}
+
+/**
+ * Push the work-unit branch to its remote under `role=keeper`. `args` are the
+ * git push args (e.g. `["origin", "GH-456"]`). Always pushes the
+ * checked-out branch's tip; `attestingGit` resolves the attested subject via
+ * `rev-parse HEAD`, so the pushed branch must be the current HEAD (the
+ * keeper-commit → keeper-push flow guarantees this).
+ */
+export async function runKeeperPush(
+  args: string[],
+  cwd: string | undefined,
+  deps: KeeperPushDeps = {},
+): Promise<GitExecResult> {
+  const git = deps.git ?? execGit;
+  const opts = { subcommand: "push", args, cwd, role: "keeper" as const };
+  if (deps.attest) {
+    return attestingGit(git, deps.attest)(opts);
+  }
+  return git(opts);
+}
+
+const SHA1_RE = /^[0-9a-f]{40}$/;
+
+export class KeeperGitError extends Error {
+  exitCode: number;
+  constructor(message: string, exitCode = 1) {
+    super(message);
+    this.name = "KeeperGitError";
+    this.exitCode = exitCode;
+  }
+}
+
+/** Injectable git seam (defaults to `execGit`); tests stub it offline. */
+export interface KeeperGitDeps {
+  git?: typeof execGit | undefined;
+}
+
+/**
+ * GH-2381: materialize the working state into a git TREE object under
+ * `role=keeper` and return its 40-hex SHA. Keeper is the sole git-writer
+ * (I-AUD4), so the producer (`prx submit stage`) routes here rather than
+ * running git-write itself. `write-tree` reads the *index*, so the working-tree
+ * edits a headless `prx implement` leaves behind are staged first (`add -A`,
+ * itself a keeper git-write) — both run as `role=keeper` through the policy-aware
+ * `execGit` seam. The tree SHA is a pure function of file contents, so staging
+ * the same state twice yields the same SHA.
+ */
+export async function runKeeperWriteTree(
+  cwd: string | undefined,
+  deps: KeeperGitDeps = {},
+): Promise<string> {
+  const git = deps.git ?? execGit;
+  const added = git({ subcommand: "add", args: ["-A"], cwd, role: "keeper" });
+  if (added.exitCode !== 0) {
+    throw new KeeperGitError(
+      `keeper write-tree: git add -A failed (${added.exitCode}): ${added.stderr.trim()}`,
+      added.exitCode,
+    );
+  }
+  const written = git({ subcommand: "write-tree", args: [], cwd, role: "keeper" });
+  if (written.exitCode !== 0) {
+    throw new KeeperGitError(
+      `keeper write-tree: git write-tree failed (${written.exitCode}): ${written.stderr.trim()}`,
+      written.exitCode,
+    );
+  }
+  const treeSha = written.stdout.trim();
+  if (!SHA1_RE.test(treeSha)) {
+    throw new KeeperGitError(
+      `keeper write-tree: expected a 40-hex tree sha, got '${treeSha}'`,
+    );
+  }
+  return treeSha;
+}
+
+export interface KeeperCommitTreeInput {
+  /** The tree object to wrap in a commit (the submit artifact's identity). */
+  treeSha: string;
+  /** Lineage parent — the resolved base commit. */
+  parentSha: string;
+  /** Synthetic commit message (derived from workUnitId + summary). */
+  message: string;
+  /**
+   * ISO timestamp pinned to BOTH author and committer date so the commit SHA is
+   * reproducible from (tree, parent, message, date) — the same inputs always
+   * yield the same commit.
+   */
+  date: string;
+  /**
+   * Branch to point at the materialized commit and check out, so it becomes
+   * HEAD before keeper pushes (`attestingGit` resolves the attested subject via
+   * post-push `rev-parse HEAD`).
+   */
+  branch: string;
+}
+
+/**
+ * GH-2381: materialize a synthetic commit from a tree artifact under
+ * `role=keeper` and make it the checked-out HEAD. This is the publish-time
+ * counterpart of {@link runKeeperWriteTree}: the branch + commit the v0 artifact
+ * used to store are derived here instead of persisted. With pinned author/
+ * committer dates the resulting commit SHA is deterministic. Returns the 40-hex
+ * commit SHA, which becomes the provenance subject for the attesting push.
+ */
+export async function runKeeperCommitTree(
+  input: KeeperCommitTreeInput,
+  cwd: string | undefined,
+  deps: KeeperGitDeps = {},
+): Promise<string> {
+  const git = deps.git ?? execGit;
+  const env = {
+    ...processEnv(),
+    GIT_AUTHOR_DATE: input.date,
+    GIT_COMMITTER_DATE: input.date,
+  };
+  const committed = git(
+    {
+      subcommand: "commit-tree",
+      args: [input.treeSha, "-p", input.parentSha, "-m", input.message],
+      cwd,
+      role: "keeper",
+    },
+    env,
+  );
+  if (committed.exitCode !== 0) {
+    throw new KeeperGitError(
+      `keeper commit-tree: git commit-tree failed (${committed.exitCode}): ${committed.stderr.trim()}`,
+      committed.exitCode,
+    );
+  }
+  const commitSha = committed.stdout.trim();
+  if (!SHA1_RE.test(commitSha)) {
+    throw new KeeperGitError(
+      `keeper commit-tree: expected a 40-hex commit sha, got '${commitSha}'`,
+    );
+  }
+  // Point the derived branch at the materialized commit and check it out, so
+  // `rev-parse HEAD` (the attested push subject) is the commit we just made.
+  const switched = git({
+    subcommand: "switch",
+    args: ["-C", input.branch, commitSha],
+    cwd,
+    role: "keeper",
+  });
+  if (switched.exitCode !== 0) {
+    throw new KeeperGitError(
+      `keeper commit-tree: git switch -C ${input.branch} failed (${switched.exitCode}): ${switched.stderr.trim()}`,
+      switched.exitCode,
+    );
+  }
+  return commitSha;
+}

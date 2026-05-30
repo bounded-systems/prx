@@ -1,0 +1,33 @@
+{
+  "file": {
+    "file_id": "auth/login.ts",
+    "path": "auth/login.ts",
+    "touches": 3,
+    "bus_factor": 2,
+    "sensitivity_score": 1.0,
+    "sensitivity_tags": [
+      "auth"
+    ],
+    "last_seen": "2025-05-03T08:00:00-05:00"
+  },
+  "top_people": [
+    {
+      "person_id": "alice@corp.dev",
+      "name": "Alice",
+      "email": "alice@corp.dev",
+      "touches": 2,
+      "recency_weight": 0.358654,
+      "sensitive_weight": 2.0,
+      "primary_tz_offset": "-05:00"
+    },
+    {
+      "person_id": "carol@corp.dev",
+      "name": "Carol",
+      "email": "carol@corp.dev",
+      "touches": 1,
+      "recency_weight": 0.194672,
+      "sensitive_weight": 1.0,
+      "primary_tz_offset": "-05:00"
+    }
+  ]
+}

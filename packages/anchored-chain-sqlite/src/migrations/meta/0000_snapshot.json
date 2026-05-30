@@ -1,0 +1,270 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "c4afa2be-54a8-4a19-bc6d-f1ef644fde29",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "derivation_inputs": {
+      "name": "derivation_inputs",
+      "columns": {
+        "derivation_id": {
+          "name": "derivation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "input_name": {
+          "name": "input_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "input_digest": {
+          "name": "input_digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "derivation_inputs_digest": {
+          "name": "derivation_inputs_digest",
+          "columns": [
+            "input_digest"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "derivation_inputs_derivation_id_derivations_derivation_id_fk": {
+          "name": "derivation_inputs_derivation_id_derivations_derivation_id_fk",
+          "tableFrom": "derivation_inputs",
+          "tableTo": "derivations",
+          "columnsFrom": [
+            "derivation_id"
+          ],
+          "columnsTo": [
+            "derivation_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "derivation_inputs_derivation_id_input_name_pk": {
+          "columns": [
+            "derivation_id",
+            "input_name"
+          ],
+          "name": "derivation_inputs_derivation_id_input_name_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "derivation_outputs": {
+      "name": "derivation_outputs",
+      "columns": {
+        "derivation_id": {
+          "name": "derivation_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "output_name": {
+          "name": "output_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "output_digest": {
+          "name": "output_digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "derivation_outputs_digest": {
+          "name": "derivation_outputs_digest",
+          "columns": [
+            "output_digest"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "derivation_outputs_derivation_id_derivations_derivation_id_fk": {
+          "name": "derivation_outputs_derivation_id_derivations_derivation_id_fk",
+          "tableFrom": "derivation_outputs",
+          "tableTo": "derivations",
+          "columnsFrom": [
+            "derivation_id"
+          ],
+          "columnsTo": [
+            "derivation_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "derivation_outputs_derivation_id_output_name_pk": {
+          "columns": [
+            "derivation_id",
+            "output_name"
+          ],
+          "name": "derivation_outputs_derivation_id_output_name_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "derivations": {
+      "name": "derivations",
+      "columns": {
+        "derivation_id": {
+          "name": "derivation_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "producer": {
+          "name": "producer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "manifest_json": {
+          "name": "manifest_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ts": {
+          "name": "ts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "ref_log": {
+      "name": "ref_log",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "prev_digest": {
+          "name": "prev_digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "new_digest": {
+          "name": "new_digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ts": {
+          "name": "ts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ref_log_name_ts": {
+          "name": "ref_log_name_ts",
+          "columns": [
+            "name",
+            "ts"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "refs": {
+      "name": "refs",
+      "columns": {
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "digest": {
+          "name": "digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

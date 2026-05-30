@@ -1,0 +1,41 @@
+{
+  "$ref": "#/definitions/derive_transition",
+  "definitions": {
+    "derive_transition": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "issueId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "fromState": {
+          "type": "string"
+        },
+        "toState": {
+          "type": "string"
+        },
+        "actor": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "issueId",
+        "fromState",
+        "toState",
+        "actor",
+        "timestamp"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

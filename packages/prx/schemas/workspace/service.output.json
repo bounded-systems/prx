@@ -1,0 +1,43 @@
+{
+  "$ref": "#/definitions/workspace_service_output",
+  "definitions": {
+    "workspace_service_output": {
+      "type": "object",
+      "properties": {
+        "workspace_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{12}$"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "started",
+            "stopped",
+            "skipped",
+            "no-profile",
+            "error"
+          ]
+        },
+        "profile": {
+          "type": "string"
+        },
+        "compose_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace_id",
+        "status",
+        "compose_files"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

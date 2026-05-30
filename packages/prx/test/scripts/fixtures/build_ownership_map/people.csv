@@ -1,0 +1,4 @@
+person_id,name,email,first_seen,last_seen,commit_count,touches,sensitive_touches,primary_tz_offset,primary_tz_minutes,timezone_offsets
+alice@corp.dev,Alice,alice@corp.dev,2025-01-05T10:00:00-05:00,2025-05-03T08:00:00-05:00,3,4,4.00,-05:00,-300,-05:00:3
+bob@corp.dev,Bob,bob@corp.dev,2025-03-15T09:30:00+01:00,2025-06-04T08:00:00+01:00,2,3,3.00,+01:00,60,+01:00:2
+carol@corp.dev,Carol,carol@corp.dev,2025-04-01T08:00:00-05:00,2025-04-02T08:00:00-05:00,2,3,2.00,-05:00,-300,-05:00:2

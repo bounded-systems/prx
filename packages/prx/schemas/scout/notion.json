@@ -1,0 +1,99 @@
+{
+  "$ref": "#/definitions/scout_notion_result",
+  "definitions": {
+    "scout_notion_result": {
+      "type": "object",
+      "properties": {
+        "uuid": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "task_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "body": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "open",
+            "closed",
+            "unknown"
+          ]
+        },
+        "gh_issue": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bd_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "intake_shape": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "title": {
+              "type": "string"
+            },
+            "body": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "title",
+            "body"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "uuid",
+        "task_id",
+        "title",
+        "body",
+        "url",
+        "state",
+        "gh_issue",
+        "bd_id",
+        "intake_shape"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

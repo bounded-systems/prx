@@ -1,0 +1,22 @@
+{
+  "$ref": "#/definitions/derive_changedTree",
+  "definitions": {
+    "derive_changedTree": {
+      "type": "object",
+      "properties": {
+        "sha": {
+          "type": "string"
+        },
+        "tree": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "sha",
+        "tree"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

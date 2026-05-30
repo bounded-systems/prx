@@ -1,0 +1,335 @@
+import { processEnv } from "@bounded-systems/env";
+import { defaultRunner } from "@bounded-systems/proc";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { resolve } from "node:path";
+
+import { PRX_TMUX_SOCKET } from "@bounded-systems/prx-mux";
+
+import {
+  computeTmuxReconcile,
+  formatTmuxReconcile,
+  type TmuxReconcileDeps,
+  type TmuxReconcileOptions,
+  type TmuxReconcileResult,
+} from "./tmux-reconcile.ts";
+
+export type HomeUpdateSpawnResult = {
+  status: number | null;
+  stdout?: string | Buffer | null;
+  stderr?: string | Buffer | null;
+  error?: Error;
+};
+
+export type HomeUpdateSpawn = (
+  file: string,
+  args: string[],
+  options: {
+    cwd: string;
+    env?: NodeJS.ProcessEnv;
+    stdio?: "inherit" | "pipe" | "ignore";
+  },
+) => HomeUpdateSpawnResult;
+
+export type HomeUpdateDeps = {
+  spawn?: HomeUpdateSpawn;
+  readFile?: (path: string) => string;
+  pathExists?: (path: string) => boolean;
+  env?: NodeJS.ProcessEnv;
+  homeDir?: string;
+  /**
+   * Compute reconcile result without printing — `runHomeUpdate` composes the
+   * payload itself so plain output gets one block and JSON output stays a
+   * single parseable payload (GH-838).
+   */
+  computeTmuxReconcile?: (
+    options: TmuxReconcileOptions,
+    deps?: TmuxReconcileDeps,
+  ) => { result: TmuxReconcileResult; exitCode: number };
+};
+
+export type HomeUpdateOptions = {
+  flakeDir?: string | undefined;
+  input?: string | undefined;
+  dryRun: boolean;
+  format: "plain" | "json";
+};
+
+type Output = {
+  log: (line: string) => void;
+  error: (line: string) => void;
+};
+
+const DEFAULT_FLAKE_DIR = "~/.config/home-manager";
+const DEFAULT_INPUT = "ai-home";
+
+function resolveTildePath(path: string, homeDir: string): string {
+  if (path === "~") return homeDir;
+  if (path.startsWith("~/")) return resolve(homeDir, path.slice(2));
+  return resolve(path);
+}
+
+export function resolveFlakeDir(
+  options: HomeUpdateOptions,
+  env: NodeJS.ProcessEnv,
+  homeDir: string,
+): string {
+  if (options.flakeDir) return resolveTildePath(options.flakeDir, homeDir);
+  const envValue = env.PRX_HOME_FLAKE_DIR;
+  if (envValue) return resolveTildePath(envValue, homeDir);
+  return resolveTildePath(DEFAULT_FLAKE_DIR, homeDir);
+}
+
+export function resolveInputName(
+  options: HomeUpdateOptions,
+  env: NodeJS.ProcessEnv,
+): string {
+  if (options.input) return options.input;
+  const envValue = env.PRX_HOME_FLAKE_INPUT;
+  if (envValue) return envValue;
+  return DEFAULT_INPUT;
+}
+
+type LockReadResult =
+  | { ok: true; rev: string | null }
+  | { ok: false; message: string; exitCode: number };
+
+function readLockRev(
+  flakeDir: string,
+  input: string,
+  readFile: (path: string) => string,
+): LockReadResult {
+  const lockPath = resolve(flakeDir, "flake.lock");
+  let parsed: { nodes?: Record<string, { locked?: { rev?: string } }> };
+  try {
+    parsed = JSON.parse(readFile(lockPath));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      ok: false,
+      message: `prx home update: unable to parse ${lockPath}: ${message}`,
+      exitCode: 2,
+    };
+  }
+  const nodes = parsed?.nodes ?? {};
+  const node = nodes[input];
+  if (!node) {
+    const available = Object.keys(nodes)
+      .filter((k) => k !== "root")
+      .sort();
+    const availableText = available.length > 0 ? available.join(", ") : "(none)";
+    return {
+      ok: false,
+      message: `prx home update: input "${input}" not found in ${lockPath}. Available inputs: ${availableText}`,
+      exitCode: 2,
+    };
+  }
+  return { ok: true, rev: node.locked?.rev ?? null };
+}
+
+function shortRev(rev: string | null): string {
+  if (!rev) return "(none)";
+  return rev.length > 7 ? rev.slice(0, 7) : rev;
+}
+
+export function runHomeUpdate(
+  options: HomeUpdateOptions,
+  output: Output,
+  deps: HomeUpdateDeps = {},
+): number {
+  const spawn: HomeUpdateSpawn =
+    deps.spawn ??
+    ((file, args, opts) => {
+      // defaultRunner throws on a spawn error (e.g. ENOENT) and, with the
+      // check on, on a non-zero exit; this seam reports both through its
+      // return shape, so disable the exit check and map a thrown error to
+      // { status: null, error }.
+      try {
+        const result = defaultRunner([file, ...args], {
+          cwd: opts.cwd,
+          env: opts.env ?? processEnv(),
+          stdio: opts.stdio === "pipe" ? "pipe" : "inherit",
+          check: false,
+        });
+        return { status: result.status, stdout: result.stdout, stderr: result.stderr };
+      } catch (error) {
+        return {
+          status: null,
+          error: error instanceof Error ? error : new Error(String(error)),
+        };
+      }
+    });
+  const readFile = deps.readFile ?? ((path: string) => readFileSync(path, "utf8"));
+  const pathExists = deps.pathExists ?? ((path: string) => existsSync(path));
+  const env = deps.env ?? processEnv();
+  const homeDir = deps.homeDir ?? homedir();
+
+  const flakeDir = resolveFlakeDir(options, env, homeDir);
+  const input = resolveInputName(options, env);
+
+  if (!pathExists(flakeDir)) {
+    output.error(`prx home update: flake dir does not exist: ${flakeDir}`);
+    return 2;
+  }
+  if (!pathExists(resolve(flakeDir, "flake.nix"))) {
+    output.error(
+      `prx home update: flake.nix not found at ${flakeDir} (not a flake directory)`,
+    );
+    return 2;
+  }
+  if (!pathExists(resolve(flakeDir, "flake.lock"))) {
+    output.error(`prx home update: flake.lock not found at ${flakeDir}`);
+    return 2;
+  }
+
+  const fromRead = readLockRev(flakeDir, input, readFile);
+  if (!fromRead.ok) {
+    output.error(fromRead.message);
+    return fromRead.exitCode;
+  }
+  const fromRev = fromRead.rev;
+
+  const nixUpdateCmd = ["nix", "flake", "update", input, "--flake", flakeDir];
+  const hmSwitchCmd = ["home-manager", "switch", "--flake", flakeDir];
+
+  if (options.dryRun) {
+    // GH-838: in dry-run mode also preview the tmux reconcile so operators
+    // see what would change on the live socket after the switch.
+    const computeReconcile = deps.computeTmuxReconcile ?? computeTmuxReconcile;
+    const reconcile = computeReconcile(
+      {
+        socket: PRX_TMUX_SOCKET,
+        dryRun: true,
+        format: options.format,
+      },
+      { env, homeDir },
+    );
+    if (options.format === "json") {
+      output.log(
+        JSON.stringify(
+          {
+            dryRun: true,
+            flakeDir,
+            input,
+            from: fromRev,
+            commands: [nixUpdateCmd, hmSwitchCmd],
+            tmuxReconcile: reconcile.result,
+            tmuxReconcileNote: "preview based on current rendered config (pre-switch)",
+          },
+          null,
+          2,
+        ),
+      );
+    } else {
+      output.log(`prx home update (dry-run)`);
+      output.log(`  flake:  ${flakeDir}`);
+      output.log(`  input:  ${input}`);
+      output.log(`  rev:    ${shortRev(fromRev)}`);
+      output.log(`  would run:`);
+      output.log(`    ${nixUpdateCmd.join(" ")}`);
+      output.log(`    ${hmSwitchCmd.join(" ")}`);
+      output.log(`  note: tmux reconcile preview is based on current rendered config (pre-switch)`);
+      output.log(formatTmuxReconcile(reconcile.result, "plain", true));
+    }
+    return 0;
+  }
+
+  // In JSON mode stdout must be a single parseable payload. Pipe child stdio
+  // so nix / home-manager output doesn't interleave with our JSON; suppress
+  // the human-oriented banner as well.
+  const childStdio: "inherit" | "pipe" = options.format === "json" ? "pipe" : "inherit";
+  if (options.format !== "json") {
+    output.log(`prx home update: ${input} @ ${flakeDir}`);
+  }
+
+  const updateResult = spawn(
+    nixUpdateCmd[0]!,
+    nixUpdateCmd.slice(1),
+    { cwd: flakeDir, stdio: childStdio, env },
+  );
+  if (updateResult.error) {
+    output.error(
+      `prx home update: failed to invoke nix: ${updateResult.error.message}`,
+    );
+    return 1;
+  }
+  if (updateResult.status !== 0) {
+    output.error(
+      `prx home update: nix flake update exited with status ${updateResult.status}`,
+    );
+    return updateResult.status ?? 1;
+  }
+
+  const toRead = readLockRev(flakeDir, input, readFile);
+  if (!toRead.ok) {
+    output.error(toRead.message);
+    return toRead.exitCode;
+  }
+  const toRev = toRead.rev;
+
+  const switchResult = spawn(hmSwitchCmd[0]!, hmSwitchCmd.slice(1), {
+    cwd: flakeDir,
+    stdio: childStdio,
+    env,
+  });
+  if (switchResult.error) {
+    output.error(
+      `prx home update: failed to invoke home-manager: ${switchResult.error.message}`,
+    );
+    return 1;
+  }
+  if (switchResult.status !== 0) {
+    output.error(
+      `prx home update: home-manager switch exited with status ${switchResult.status}`,
+    );
+    return switchResult.status ?? 1;
+  }
+
+  const noop = fromRev === toRev;
+
+  // GH-838: after home-manager switch, the rendered ~/.config/tmux/tmux.conf
+  // is up to date but the live `-L prx` server still holds its old in-memory
+  // option values. Run reconcile so scalar options (focus-events,
+  // allow-rename, set-titles, allow-passthrough, mouse, future knobs)
+  // converge without manual `tmux set -g`. Reconcile failure is non-fatal —
+  // the switch already succeeded — but the result is reported so operators
+  // can see drift.
+  const computeReconcile = deps.computeTmuxReconcile ?? computeTmuxReconcile;
+  const reconcile = computeReconcile(
+    {
+      socket: PRX_TMUX_SOCKET,
+      dryRun: options.dryRun,
+      format: options.format,
+    },
+    { env, homeDir },
+  );
+
+  if (options.format === "json") {
+    output.log(
+      JSON.stringify(
+        {
+          flakeDir,
+          input,
+          from: fromRev,
+          to: toRev,
+          noop,
+          switched: true,
+          tmuxReconcile: reconcile.result,
+        },
+        null,
+        2,
+      ),
+    );
+  } else {
+    if (noop) {
+      output.log(`${input}: no-op (${shortRev(fromRev)}) — home-manager switched`);
+    } else {
+      output.log(
+        `${input}: ${shortRev(fromRev)} → ${shortRev(toRev)} (home-manager switched)`,
+      );
+    }
+    output.log(formatTmuxReconcile(reconcile.result, "plain", options.dryRun));
+  }
+
+  return 0;
+}

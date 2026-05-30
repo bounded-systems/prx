@@ -1,0 +1,262 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`help-surface snapshots HelpOverview(registry, 'mainx') 1`] = `
+"prx
+==========
+
+Work-unit identity: GH-NNN (for example GH-456). GitHub issue identity is canonical.
+
+Primary workflow:
+  prx tui           Interactive board and session UI
+  prx plan session  Open plan-mode work session for a unit
+  prx next          Show next recommended action
+  prx do            Execute an enabled derived action
+  prx review        Send review into the live tmux pane
+  prx plan handoff  Post-merge handoff from feature worktree
+
+Pointers:
+  prx help-all              Full command sitemap, grouped by domain
+  prx <cmd> --help          Flags and full semantics for one command"
+`;
+
+exports[`help-surface snapshots HelpAll(registry) 1`] = `
+"prx — full command catalog
+==========================
+
+State:
+  prx model show             Print machine model summary
+  prx model actors           List actors in the workflow model
+  prx model graph            Emit machine graph in chosen format
+  prx model stately          Open machine in Stately registry
+  prx chain status           Show parity chain status across repos
+  prx chain check            Run parity check for a unit
+  prx chain check-issue      Check issue parity for a unit
+  prx chain check-session    Check session parity for a unit
+  prx chain prune            Prune stale parity chain leaves
+  prx prune session          Tear down tmux + resurrect state for a unit (worktree intact)
+  prx gc                     Reclaim and reconcile housekeeping across the system
+  prx gc inventory           Discover reclaimable housekeeping items without mutating anything
+  prx gc run                 Sweep reclaimable items (dry-run by default; --apply acts)
+  prx gc teardown            Fully tear down a named work-unit (acts by default)
+  prx chain backfill         Backfill missing parity chain entries
+  prx chain sync             Sync parity chain across authorities
+  prx contract show          Show current PR contract content
+  prx contract init          Initialize a new PR contract
+  prx contract status        Show PR contract status
+  prx contract transition    Transition the PR contract state
+  prx contract event         Emit an event onto the contract
+  prx contract skills        List skills enabled by the contract
+  prx contract open-mode     Show or compute open-mode for contract
+  prx contract update        Update PR contract from current state
+  prx scout comments         Fetch PR review comments and threads
+  prx scout ci               Fetch remote CI status for a PR
+  prx scout checks           Fetch repo check configuration
+  prx scout logs             Fetch CI logs for a PR
+  prx scout status           Fetch repo and worktree status
+  prx scout overview         Fetch a repo overview snapshot
+  prx scout notion           Resolve a Notion page UUID/Task-ID to a structured mirror record
+  prx derive                 Query Datalog-derived facts over projected state
+  prx derive ready           List ready units via the readiness rules
+  prx derive drift           List drifted chains and the violated invariant
+  prx derive eligible        List actors eligible to act on an issue
+  prx derive why             Print the provenance tree for a derived fact
+  prx derive dump-facts      Emit projected and derived facts as JSONL
+  prx fetch                  Refresh substrate from external sources
+  prx fetch gh-issues        Project a GH-issues refresh cost; --dry-run only in spike
+  prx doctor gh-budget       Summarize recent gh GraphQL spend by verb
+  prx provenance             Inspect provenance signing identities (read-only)
+  prx provenance dev-pubkey  Print the persisted dev signing identity
+  prx audit                  Measure architectural adherence across artifact graph
+  prx audit ingest           Refresh metrics store from audit sink and transitions
+  prx audit system           Roll up seven V1 metrics across the artifact graph
+  prx services               Inspect external service planes (Anthropic, …)
+  prx services status        Project cache hit rate from non-interactive-agent usage rows
+  prx dep                    Periodically research upstream deps
+  prx dep manifest           Print resolved dep-research manifest
+  prx dep research           Snapshot upstream dep paths into .prx/dep-research/
+  prx dep status             Inspect last-run + classification per dep (read-only)
+  prx beads migrate          Migrate a registered repo's beads from embedded to shared-server
+  prx beads sync             Alias of sync issues; --limit caps push only
+  prx sync                   Canonical actor surface for issue reconcile
+  prx sync issues            Reconcile pinned pairs; --limit caps push only
+  prx sync backfill          Backfill cursor-skipped external records over a range
+  prx memory compact         Compact closed beads (memory-decay policy chokepoint)
+  prx handoff enqueue        Enqueue a handoff for the recipient actor
+  prx handoff status         Show pending handoffs filtered by target
+  prx handoff drain          Drain pending handoffs for one recipient
+  prx handoff replay         Re-enqueue an abandoned or failed row
+  prx transcripts digest     Digest transcripts into durable memory shards
+  prx transcripts status     Report transcript TTL pressure and candidates
+
+Work units:
+  prx tui                        Interactive board and session UI
+  prx plan session               Open plan-mode work session for a unit
+  prx next                       Show next recommended action
+  prx do                         Execute an enabled derived action
+  prx review                     Send review into the live tmux pane
+  prx intake agent               Run the mainx intake operator (headless by default, --interactive for tmux/PTY)
+  prx triage agent               Run the mainx triage operator (headless by default, --interactive for tmux/PTY)
+  prx submit agent               Run the work-unit submit operator (headless by default, --interactive for tmux/PTY)
+  prx implement agent            Open implement-mode work session for a unit
+  prx author agent               Run the work-unit PR author (headless by default, --interactive for tmux/PTY)
+  prx author body-template       Render PR body from plan and diff
+  prx scratch                    Open safe-by-default ad-hoc Claude session (--unsafe for ambient authority)
+  prx plan handoff               Post-merge handoff from feature worktree
+  prx plan close                 Close work unit issue with operator context
+  prx plan ultrareview           Pre-fill ultrareview into the work-unit pane
+  prx plan ci                    Run canonical pre-push validation locally
+  prx plan status                Show current phase for the unit
+  prx plan next                  Show next recommended action
+  prx plan prime                 Pre-stage worktree rebase and hydrate without tmux
+  prx plan save                  Persist a plan blob (see plan show --paths for location)
+  prx plan load                  Load a plan blob from the CAS plan store
+  prx plan show                  Show plan blob; --slot pins, default approved with draft fallback
+  prx plan view                  View an issue (GH/bd/Notion id, URL)
+  prx plan search                Search GH+bd issue queue (deduped)
+  prx plan preflight             Pre-draft three-axis check before a plan session
+  prx ultrareview                Pre-fill ultrareview into the pane
+  prx ci                         Run canonical pre-push validation locally
+  prx phase                      Show current phase for the unit
+  prx snapshot                   Emit full session snapshot json
+  prx statusline                 Emit single-line statusline projection
+  prx actions                    List suggested actions for the unit
+  prx intake spike               File an intake-log spike issue
+  prx intake decision            File an intake-log design-decision issue
+  prx intake bug                 File an intake-log bug issue
+  prx intake task                File an intake-log task issue
+  prx intake feature             File an intake-log feature issue
+  prx intake view                View an issue (GH/bd/Notion id, URL)
+  prx intake search              Unified GH+bd dedupe search before filing
+  prx intake merge               Pointer comment + close (atomic dedupe)
+  prx intake comment             Pointer comment without close
+  prx intake mirror              Idempotent bd create from a GH issue (race-checked)
+  prx intake bd ls               List bd issues (narrow \`bd list\` wrapper)
+  prx intake bd memory ls        List or search bd memories (narrow \`bd memories\` wrapper)
+  prx intake bd memory get       Read a bd memory by key (narrow \`bd recall\` wrapper)
+  prx intake bd memory set       Upsert a bd memory by key (narrow \`bd remember\` wrapper)
+  prx triage status              List untriaged issues, reverse orphans, drift, stale beads; closed-as-dup excluded (GH-1829)
+  prx triage classify            Classify open issues by axis
+  prx triage apply               Apply classifier output to GitHub labels
+  prx triage promote             Promote execution-ready issues into beads
+  prx triage promote-children    File child issues from a staging dir manifest
+  prx triage type-pass           Bulk-classify type-less issues via Haiku
+  prx triage close               Close a bd-only record (no GH mirror)
+  prx triage close-stale         Bulk-close beads whose linked GH issue is already closed
+  prx triage prime               Drive the untriaged count toward 0
+  prx map create                 Capture a named cross-tree initiative as a map
+  prx map show                   Render a stored map's sequence and rationale
+  prx doctor                     Diagnose PR readiness, drive guarded transitions
+  prx doctor inventory           Print typed PR snapshot with gate breakdown
+  prx doctor dedupe-bd           Close duplicate bd records per ADR §6
+  prx publisher                  Drive PR publication transitions through GitHub
+  prx publisher merge            Gate against I04, then enable automerge
+  prx publisher ready            Gate ci+threads, then mark PR ready for review
+  prx publisher draft            Convert PR back to draft (no gate)
+  prx publisher pr               Forge PR open update comment and edit verbs
+  prx publisher pr open          Open a PR (gh pr create), draft by default
+  prx publisher pr update        Update-branch (rebase onto base) and optionally retitle
+  prx publisher pr comment       Post a review comment on the PR
+  prx publisher pr edit          Edit the PR title or body
+  prx keeper                     Git-write and ref custody for a work unit
+  prx keeper push                Push the work-unit branch to its remote (keeper role)
+  prx keeper branch              Create or update the work-unit branch ref (keeper role)
+  prx keeper commit              Headlessly stage and commit the worktree (keeper role; GH-2346)
+  prx audit uow                  Project per-UoW artifact chain and invariant findings
+  prx submit body-template       Render PR body with Closes/Refs lines per unit
+  prx submit postmerge           Sweep merged PR body, close referenced units missed
+  prx submit stage               Stage git state into a CAS submit artifact (publish producer)
+  prx submit publish             Publish a CAS-backed submit artifact (push + gh pr create)
+  prx delegate next              Pick top portfolio candidate to delegate
+  prx delegate assign            Assign a work unit to an agent (bd-canonical; mirror projects to GH)
+  prx delegate repair-assignees  List or rewrite bd records with non-GH-login assignees
+  prx beads publish              Publish a beads record to GitHub (bd→GH mirror)
+
+Repo plumbing:
+  prx repo add            Clone bare repo and bootstrap detached mainx
+  prx repo adopt          Adopt on-disk worktree into prx registry
+  prx branch adopt        Adopt current branch into prx registry
+  prx workspace adopt     Adopt on-disk worktree into prx registry
+  prx workspace reserve   Reserve a workspace branch (idempotent ensure-branch)
+  prx workspace prepare   Prepare workspace tooling files for a lifecycle phase
+  prx workspace sync      Idempotently re-apply workspace tooling-file drift correction
+  prx workspace service   Start or stop workspace compose services (--auto = no-op without profile)
+  prx workspace teardown  Mark the workspace torn down (closes lifecycle ledger)
+  prx repo backfill       Populate bd_workspace_prefix on stale inventory entries (GH-1722)
+  prx repo add-dolthub    Wire a Dolthub remote on a per-project beads workspace (GH-1703)
+  prx repo bootstrap      Bootstrap per-project .beads/ and wire Dolthub on a beads-less repo (GH-1704)
+  prx repo list           List prx-managed repositories across hosts
+  prx repo local          List repos cloned under HOME
+  prx repo normalize      Normalize repo names against canonical config
+  prx repo materialize    Clone or fetch a registered bare repo idempotently
+  prx repo overview       Print repo overview snapshot (accepts optional <slug> positional; falls back to cwd)
+  prx repo status         Print repo status with git details
+  prx repo checks         Show repo branch protection checks
+  prx repo sync-issues    Sync repo issue state from GitHub
+  prx repo sync-status    Sync repo status state from GitHub
+  prx repo protect-main   Apply branch protection to main
+  prx repo ci             Fetch remote CI summary for a PR
+  prx repo pr-comments    List or resolve PR review threads
+  prx repo set            Set a per-repo axis (canonical, stale-threshold-days, bd-workspace-prefix, dolt-remote)
+  prx worktree list       List worktrees with status flags
+  prx worktree status     Show single worktree status
+  prx worktree remove     Remove a worktree and branch
+  prx worktree refresh    Rebase work-unit branch onto origin main
+  prx beads hydrate       Hydrate beads database for current repo
+  prx beads issue         Look up beads row by GitHub issue
+  prx beads sync-all      Fan out prx dolt reconcile across dolthub-wired registered repos
+  prx tools wt            Wrap worktrunk wt with policy enforcement
+  prx tools git           Wrap git with policy enforcement
+  prx tools bd            Wrap beads CLI with policy enforcement
+  prx tools labels sync   Sync triage label vocab onto GitHub
+  prx dolt provision      Provision per-repo dolt database and initial push (GH-1685)
+  prx dolt start          Start prx-owned dolt sql-server for this repo
+  prx dolt stop           Stop prx-owned dolt sql-server for this repo
+  prx dolt status         Report dolt sql-server lifecycle and health
+  prx dolt adopt          Adopt an external dolt sql-server pid (legacy import)
+  prx dolt reconcile      Reconcile dolt push, optionally resolving schema conflicts
+  prx dolt sync-all       Fan-out reconcile over every managed dolt database (GH-1702)
+  prx dolt policy         Set dolt.auto-push or dolt.auto-commit across managed workspaces
+  prx dolt supervise      Enable cross-session dolt supervisor (Darwin launchd, GH-568)
+
+System:
+  prx rules render              Render claude/rules/*.md from typed inputs
+  prx rules validate            Validate rules markdown against typed substrate
+  prx rules inputs              Dump typed inputs as JSON for debugging
+  prx transcripts list-sources  List registered transcript source adapters
+  prx home update               Run nix flake update plus home-manager switch
+  prx home sync                 Detach origin main then run home update
+  prx hooks apply               Apply prx-managed git hooks across repos
+  prx hooks status              Report git hooks path drift
+  prx preflight claude          Verify claude agent runtime dependencies
+  prx preflight notion          Verify notion MCP runtime dependencies
+  prx run profile               Print runtime profile projection
+  prx run smoke                 Smoke-test agent runtime for a unit
+  prx run desktop               Open worktree in Codex Desktop
+  prx run task                  Run a task spec across roles
+  prx tmux reconcile            Apply rendered tmux config to socket
+  prx init                      Scaffold cross-agent convention layer (AGENTS.md + project Claude settings)
+  prx --version                 Print prx CLI version
+
+Deprecated spellings:
+  prx session open — alias for \`prx plan session\`; removal: #582 / #833
+  prx session plan — alias for \`prx plan session\`; removal: #1982
+  prx open — alias for \`prx plan session\`; removal: #582 / #833
+  prx work — alias for \`prx plan session\`; removal: #582
+  prx implement session — alias for \`prx implement agent\`; removal: GH-1242 PR-5
+  prx doctor merge — alias for \`prx publisher merge\`; removal: GH-1398 publisher chain (#6)
+  prx doctor ready — alias for \`prx publisher ready\`; removal: GH-1398 publisher chain (#6)
+  prx doctor draft — alias for \`prx publisher draft\`; removal: GH-1398 publisher chain (#6)
+
+Common flow:
+  prx contract init
+  prx plan session GH-<n>
+  prx chain status --remote && prx session next
+  prx contract update --apply
+
+Work-unit identity:
+  Canonical IDs use GH-NNN format (for example GH-456).
+  GitHub issue identity is canonical; ticket/unit/worktree/PR projections share it.
+
+Interactive:
+  prx tui"
+`;

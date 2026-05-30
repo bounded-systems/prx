@@ -1,0 +1,9 @@
+person_id,file_id,touches,recency_weight,first_seen,last_seen,sensitive_weight
+bob@corp.dev,auth/login.ts,1,0.247883,2025-06-04T08:00:00+01:00,2025-06-04T08:00:00+01:00,1.00
+bob@corp.dev,crypto/tls.ts,2,0.429388,2025-03-15T09:30:00+01:00,2025-06-04T08:00:00+01:00,2.00
+alice@corp.dev,auth/login.ts,2,0.358654,2025-01-05T10:00:00-05:00,2025-05-03T08:00:00-05:00,2.00
+alice@corp.dev,crypto/tls.ts,1,0.219355,2025-05-03T08:00:00-05:00,2025-05-03T08:00:00-05:00,1.00
+carol@corp.dev,auth/login.ts,1,0.194672,2025-04-02T08:00:00-05:00,2025-04-02T08:00:00-05:00,1.00
+carol@corp.dev,crypto/tls.ts,1,0.194672,2025-04-02T08:00:00-05:00,2025-04-02T08:00:00-05:00,1.00
+carol@corp.dev,docs/readme.md,1,0.193924,2025-04-01T08:00:00-05:00,2025-04-01T08:00:00-05:00,0.00
+alice@corp.dev,auth/session.ts,1,0.160037,2025-02-10T11:00:00-05:00,2025-02-10T11:00:00-05:00,1.00

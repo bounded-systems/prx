@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/tool-policy.sh"
+
+if [[ $# -lt 1 ]]; then
+  echo "gh-safe: command group required" >&2
+  exit 1
+fi
+
+group="$1"
+shift
+
+if [[ "$group" != "pr" ]]; then
+  echo "gh-safe: only 'pr' group is allowed" >&2
+  exit 1
+fi
+
+if [[ $# -lt 1 ]]; then
+  echo "gh-safe: pr subcommand required" >&2
+  exit 1
+fi
+
+subcommand="$1"
+shift
+
+case "$subcommand" in
+  list)   echo "gh-safe: prefer 'prx repo overview' (this is a safety wrapper)" >&2 ;;
+  checks) echo "gh-safe: prefer 'prx repo checks' (this is a safety wrapper)" >&2 ;;
+  review) echo "gh-safe: prefer 'prx review' (this is a safety wrapper)" >&2 ;;
+  *)      echo "gh-safe: prefer 'prx $subcommand' (this is a safety wrapper)" >&2 ;;
+esac
+
+case "$subcommand" in
+  close|reopen)
+    echo "gh-safe: blocked pr subcommand '$subcommand'" >&2
+    exit 1
+    ;;
+esac
+
+enforce_policy_or_exit "gh" "$subcommand"
+
+case "$subcommand" in
+  status|list|view|checks|diff|comment|create|edit|ready|review)
+    exec gh pr "$subcommand" "$@"
+    ;;
+  merge)
+    exec gh pr "$subcommand" "$@"
+    ;;
+  *)
+    echo "gh-safe: unknown or disallowed pr subcommand '$subcommand'" >&2
+    exit 1
+    ;;
+esac

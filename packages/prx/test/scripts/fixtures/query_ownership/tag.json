@@ -1,0 +1,31 @@
+{
+  "tag": "crypto",
+  "top_people": [
+    {
+      "person_id": "alice@corp.dev",
+      "name": "Alice",
+      "email": "alice@corp.dev",
+      "touches": 1
+    },
+    {
+      "person_id": "carol@corp.dev",
+      "name": "Carol",
+      "email": "carol@corp.dev",
+      "touches": 1
+    },
+    {
+      "person_id": "bob@corp.dev",
+      "name": "Bob",
+      "email": "bob@corp.dev",
+      "touches": 1
+    }
+  ],
+  "top_files": [
+    {
+      "file_id": "crypto/tls.ts",
+      "path": "crypto/tls.ts",
+      "touches": 3,
+      "bus_factor": 3
+    }
+  ]
+}

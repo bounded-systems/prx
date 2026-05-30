@@ -1,0 +1,47 @@
+{
+  "person": {
+    "person_id": "alice@corp.dev",
+    "name": "Alice",
+    "email": "alice@corp.dev",
+    "touches": 4,
+    "commit_count": 3,
+    "sensitive_touches": 4.0,
+    "primary_tz_offset": "-05:00",
+    "timezone_offsets": "-05:00:3"
+  },
+  "top_files": [
+    {
+      "file_id": "auth/login.ts",
+      "path": "auth/login.ts",
+      "touches": 2,
+      "recency_weight": 0.358654,
+      "sensitive_weight": 2.0,
+      "last_seen": "2025-05-03T08:00:00-05:00",
+      "sensitivity_tags": [
+        "auth"
+      ]
+    },
+    {
+      "file_id": "crypto/tls.ts",
+      "path": "crypto/tls.ts",
+      "touches": 1,
+      "recency_weight": 0.219355,
+      "sensitive_weight": 1.0,
+      "last_seen": "2025-05-03T08:00:00-05:00",
+      "sensitivity_tags": [
+        "crypto"
+      ]
+    },
+    {
+      "file_id": "auth/session.ts",
+      "path": "auth/session.ts",
+      "touches": 1,
+      "recency_weight": 0.160037,
+      "sensitive_weight": 1.0,
+      "last_seen": "2025-02-10T11:00:00-05:00",
+      "sensitivity_tags": [
+        "auth"
+      ]
+    }
+  ]
+}

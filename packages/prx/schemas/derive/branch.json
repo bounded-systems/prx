@@ -1,0 +1,57 @@
+{
+  "$ref": "#/definitions/derive_branch",
+  "definitions": {
+    "derive_branch": {
+      "type": "object",
+      "properties": {
+        "issueId": {
+          "type": "string"
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "existsLocal": {
+          "type": "boolean"
+        },
+        "existsRemote": {
+          "type": "boolean"
+        },
+        "headShaLocal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "headShaRemote": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ahead": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "behind": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "issueId",
+        "name",
+        "existsLocal",
+        "existsRemote",
+        "headShaLocal",
+        "headShaRemote",
+        "ahead",
+        "behind"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

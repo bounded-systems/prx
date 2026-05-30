@@ -1,0 +1,19 @@
+{
+  "$ref": "#/definitions/workspace_materialize_input",
+  "definitions": {
+    "workspace_materialize_input": {
+      "type": "object",
+      "properties": {
+        "workspace_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{12}$"
+        }
+      },
+      "required": [
+        "workspace_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

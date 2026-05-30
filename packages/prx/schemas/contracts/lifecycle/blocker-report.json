@@ -1,0 +1,44 @@
+{
+  "$ref": "#/definitions/blocker_report",
+  "definitions": {
+    "blocker_report": {
+      "type": "object",
+      "properties": {
+        "unitId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unblock_condition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "low",
+            "med",
+            "high",
+            "critical"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "unitId",
+        "owner",
+        "unblock_condition",
+        "severity",
+        "reason"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

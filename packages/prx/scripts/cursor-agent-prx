@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+prx_safe_bin="${CURSOR_AGENT_PRX_PRX_SAFE_BIN:-$repo_root/scripts/prx-safe}"
+cursor_agent_bin="${CURSOR_AGENT_PRX_CURSOR_AGENT_BIN:-cursor-agent}"
+cursor_output_format="${CURSOR_AGENT_PRX_OUTPUT_FORMAT:-text}"
+cursor_sandbox="${CURSOR_AGENT_PRX_SANDBOX:-enabled}"
+cursor_workspace="${CURSOR_AGENT_PRX_WORKSPACE:-$repo_root}"
+cursor_trust="${CURSOR_AGENT_PRX_TRUST:-1}"
+cursor_model="${CURSOR_AGENT_PRX_MODEL:-}"
+
+if [[ ! -x "$prx_safe_bin" ]]; then
+  echo "cursor-agent-prx: missing executable prx-safe wrapper: $prx_safe_bin" >&2
+  exit 1
+fi
+
+if ! command -v "$cursor_agent_bin" >/dev/null 2>&1; then
+  echo "cursor-agent-prx: cursor-agent binary not found: $cursor_agent_bin" >&2
+  exit 1
+fi
+
+args=("$@")
+has_format=0
+for arg in "${args[@]}"; do
+  if [[ "$arg" == "--format" || "$arg" == --format=* ]]; then
+    has_format=1
+    break
+  fi
+done
+
+if [[ "$has_format" -eq 0 ]]; then
+  args+=(--format json)
+fi
+
+prompt="$("$prx_safe_bin" "${args[@]}")"
+
+cursor_cmd=(
+  "$cursor_agent_bin"
+  --print
+  --output-format "$cursor_output_format"
+  --workspace "$cursor_workspace"
+  --sandbox "$cursor_sandbox"
+)
+
+if [[ "$cursor_trust" == "1" ]]; then
+  cursor_cmd+=(--trust)
+fi
+
+if [[ -n "$cursor_model" ]]; then
+  cursor_cmd+=(--model "$cursor_model")
+fi
+
+exec "${cursor_cmd[@]}" "$prompt"

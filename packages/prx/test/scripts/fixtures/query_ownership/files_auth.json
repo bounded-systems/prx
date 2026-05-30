@@ -1,0 +1,24 @@
+[
+  {
+    "file_id": "auth/login.ts",
+    "path": "auth/login.ts",
+    "touches": 3,
+    "bus_factor": 2,
+    "sensitivity_score": 1.0,
+    "sensitivity_tags": [
+      "auth"
+    ],
+    "last_seen": "2025-05-03T08:00:00-05:00"
+  },
+  {
+    "file_id": "auth/session.ts",
+    "path": "auth/session.ts",
+    "touches": 1,
+    "bus_factor": 1,
+    "sensitivity_score": 1.0,
+    "sensitivity_tags": [
+      "auth"
+    ],
+    "last_seen": "2025-02-10T11:00:00-05:00"
+  }
+]

@@ -1,0 +1,43 @@
+{
+  "$ref": "#/definitions/derive_worktree",
+  "definitions": {
+    "derive_worktree": {
+      "type": "object",
+      "properties": {
+        "issueId": {
+          "type": "string"
+        },
+        "exists": {
+          "type": "boolean"
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "checkedOutBranch": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "headSha": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "issueId",
+        "exists",
+        "path",
+        "checkedOutBranch",
+        "headSha"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

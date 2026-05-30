@@ -1,0 +1,9 @@
+[
+  {
+    "person": "alice@corp.dev",
+    "name": "Alice",
+    "controls": "75% of auth code",
+    "category": "auth",
+    "share": 0.75
+  }
+]

@@ -1,0 +1,1 @@
+ALTER TABLE `derivations` ADD `envelope_json` text;

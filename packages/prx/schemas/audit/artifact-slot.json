@@ -1,0 +1,72 @@
+{
+  "$ref": "#/definitions/audit_artifact_slot",
+  "definitions": {
+    "audit_artifact_slot": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "work_map",
+            "delegation_record",
+            "context_bundle",
+            "plan",
+            "patch_proposal",
+            "patch_check",
+            "guard_check",
+            "test_plan",
+            "test_run",
+            "review_bundle",
+            "status_update",
+            "blocker_report",
+            "tree_projection",
+            "runner_contract"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "absent",
+            "pending",
+            "present",
+            "passed",
+            "failed",
+            "blocked",
+            "invalid_evidence"
+          ]
+        },
+        "ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "uow_id": {
+          "type": "string"
+        },
+        "input_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "last_seen_ts": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "status",
+        "ref",
+        "uow_id",
+        "input_refs",
+        "last_seen_ts"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

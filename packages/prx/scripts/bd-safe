@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/tool-policy.sh"
+
+if [[ $# -lt 1 ]]; then
+  echo "bd-safe: subcommand required" >&2
+  exit 1
+fi
+
+subcommand="$1"
+shift
+
+echo "bd-safe: prefer 'prx $subcommand' (this is a safety wrapper)" >&2
+
+case "$subcommand" in
+  close|delete|archive|import|export)
+    echo "bd-safe: blocked subcommand '$subcommand'" >&2
+    exit 1
+    ;;
+esac
+
+enforce_policy_or_exit "bd" "$subcommand"
+
+case "$subcommand" in
+  ready|list|show|view|create|update|claim)
+    exec bd "$subcommand" "$@"
+    ;;
+  *)
+    echo "bd-safe: unknown or disallowed subcommand '$subcommand'" >&2
+    exit 1
+    ;;
+esac

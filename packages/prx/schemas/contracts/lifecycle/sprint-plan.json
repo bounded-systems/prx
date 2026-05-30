@@ -1,0 +1,40 @@
+{
+  "$ref": "#/definitions/sprint_plan",
+  "definitions": {
+    "sprint_plan": {
+      "type": "object",
+      "properties": {
+        "sprint_uow_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "selected_uow_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/sprint_plan/properties/sprint_uow_id"
+          },
+          "minItems": 1
+        },
+        "capacity": {
+          "type": "number",
+          "minimum": 0
+        },
+        "start_date": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "end_date": {
+          "$ref": "#/definitions/sprint_plan/properties/start_date"
+        }
+      },
+      "required": [
+        "sprint_uow_id",
+        "selected_uow_ids",
+        "start_date",
+        "end_date"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

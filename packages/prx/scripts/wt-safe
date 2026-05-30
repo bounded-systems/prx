@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/tool-policy.sh"
+
+if [[ $# -lt 1 ]]; then
+  echo "wt-safe: subcommand required" >&2
+  exit 1
+fi
+
+subcommand="$1"
+shift
+
+case "$subcommand" in
+  list)   echo "wt-safe: prefer 'prx worktree list' (this is a safety wrapper)" >&2 ;;
+  status) echo "wt-safe: prefer 'prx worktree status' (this is a safety wrapper)" >&2 ;;
+  switch) echo "wt-safe: prefer 'prx session open GH-N' (this is a safety wrapper)" >&2 ;;
+  *)      echo "wt-safe: prefer 'prx $subcommand' (this is a safety wrapper)" >&2 ;;
+esac
+
+case "$subcommand" in
+  add|prune|remove|delete|move)
+    echo "wt-safe: blocked subcommand '$subcommand'" >&2
+    exit 1
+    ;;
+esac
+
+enforce_policy_or_exit "wt" "$subcommand"
+
+case "$subcommand" in
+  list|status|switch)
+    exec wt "$subcommand" "$@"
+    ;;
+  *)
+    echo "wt-safe: unknown or disallowed subcommand '$subcommand'" >&2
+    exit 1
+    ;;
+esac

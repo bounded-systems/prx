@@ -1,0 +1,45 @@
+{
+  "name": "@bounded-systems/cas",
+  "version": "0.1.0",
+  "description": "Content-addressable storage substrate: bytes addressed by their SHA-256 digest, with a storage-agnostic blob-store port.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bounded-systems/cas.git"
+  },
+  "homepage": "https://github.com/bounded-systems/cas#readme",
+  "bugs": {
+    "url": "https://github.com/bounded-systems/cas/issues"
+  },
+  "keywords": [
+    "content-addressable",
+    "cas",
+    "sha256",
+    "digest",
+    "blob-store",
+    "provenance"
+  ],
+  "exports": {
+    ".": {
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build"
+  }
+}

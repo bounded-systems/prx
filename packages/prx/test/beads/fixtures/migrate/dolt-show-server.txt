@@ -1,0 +1,6 @@
+Workspace: demo-repo
+Mode: per-project
+Database: io_github_bdelanghe_demo_repo
+Dolt root: /Users/dev/.beads/shared-server/dolt/io_github_bdelanghe_demo_repo
+Branch: main
+HEAD: 9f2e1d4b3c8a (initial)
