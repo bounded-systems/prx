@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "bun:test";
@@ -12,7 +12,8 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", ".
 const checkedInPath = resolve(repoRoot, ".claude", "settings.json");
 
 describe("buildClaudeSettings", () => {
-  test("matches the checked-in <repo>/.claude/settings.json (drift sentinel)", () => {
+  // Drift sentinel against ai-home's checked-in .claude/settings.json — absent in the prx repo.
+  test.skipIf(!existsSync(checkedInPath))("matches the checked-in <repo>/.claude/settings.json (drift sentinel)", () => {
     const onDisk = JSON.parse(readFileSync(checkedInPath, "utf8"));
     expect(buildClaudeSettings()).toEqual(onDisk);
   });

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -403,7 +403,7 @@ printf '%s\n' "$*" > "$CURSOR_LOG"
     expect(stderrText(result)).toContain("missing executable prx-safe wrapper");
   });
 
-  test("hooks pre-commit blocks commits on main", () => {
+  test.skipIf(!existsSync(join(monoRoot, "hooks/pre-commit")))("hooks pre-commit blocks commits on main", () => {
     const result = runWithEnv(["sh", join(monoRoot, "hooks/pre-commit")], {
       MAIN_GUARD_CURRENT_BRANCH: "main",
     });
@@ -413,7 +413,7 @@ printf '%s\n' "$*" > "$CURSOR_LOG"
     expect(stderrText(result)).toContain("wt switch <branch>");
   });
 
-  test("hooks pre-commit allows feature branches", () => {
+  test.skipIf(!existsSync(join(monoRoot, "hooks/pre-commit")))("hooks pre-commit allows feature branches", () => {
     const result = runWithEnv(["sh", join(monoRoot, "hooks/pre-commit")], {
       MAIN_GUARD_CURRENT_BRANCH: "cursor-agent-hardening",
       PATH: "/usr/bin:/bin",
@@ -422,7 +422,7 @@ printf '%s\n' "$*" > "$CURSOR_LOG"
     expect(result.exitCode).toBe(0);
   });
 
-  test("hooks pre-commit tolerates beads timeouts under errexit", () => {
+  test.skipIf(!existsSync(join(monoRoot, "hooks/pre-commit")))("hooks pre-commit tolerates beads timeouts under errexit", () => {
     const binDir = tempDir("main-guard-pre-commit-");
     const timeoutStub = join(binDir, "timeout");
     const bdStub = join(binDir, "bd");

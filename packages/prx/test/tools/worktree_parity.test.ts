@@ -11,7 +11,7 @@
  * wt/worktrees/, causing prx chain status to report "no worktree" for
  * worktrees that git sees. This made session open fail in a catch-22.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "bun:test";
@@ -27,7 +27,7 @@ const configPath = join(repoRoot, "worktrunk", "config.toml");
 const nixModulePath = join(repoRoot, "nix", "home-manager", "worktrunk.nix");
 
 describe("GH-419: path template parity", () => {
-  test("config.toml and prx tools wt use the same base path", () => {
+  test.skipIf(!existsSync(configPath))("config.toml and prx tools wt use the same base path", () => {
     const config = readFileSync(configPath, "utf8");
     const result = resolveWorktreePath({ HOME: "/home/test" });
 
@@ -45,7 +45,7 @@ describe("GH-419: path template parity", () => {
     expect(result.template).not.toContain("/git/worktrees/");
   });
 
-  test("config.toml and prx tools wt use the same template suffix", () => {
+  test.skipIf(!existsSync(configPath))("config.toml and prx tools wt use the same template suffix", () => {
     const config = readFileSync(configPath, "utf8");
     const match = config.match(/worktree-path\s*=\s*"([^"]+)"/);
     const configTemplate = match![1];
@@ -54,7 +54,7 @@ describe("GH-419: path template parity", () => {
     expect(configTemplate).toContain(TEMPLATE_SUFFIX);
   });
 
-  test("nix module defines the template that matches config.toml suffix", () => {
+  test.skipIf(!existsSync(nixModulePath) || !existsSync(configPath))("nix module defines the template that matches config.toml suffix", () => {
     const nixModule = readFileSync(nixModulePath, "utf8");
     const config = readFileSync(configPath, "utf8");
 
@@ -68,7 +68,7 @@ describe("GH-419: path template parity", () => {
     expect(nixModule).toContain(suffix);
   });
 
-  test("nix module uses wtWorktreePath in both configFile and sessionVariables", () => {
+  test.skipIf(!existsSync(nixModulePath))("nix module uses wtWorktreePath in both configFile and sessionVariables", () => {
     const nixModule = readFileSync(nixModulePath, "utf8");
 
     // wtWorktreePath should appear in:
@@ -126,7 +126,7 @@ describe("GH-419: worktree vs working directory parity", () => {
 });
 
 describe("GH-419: session open backfill detection", () => {
-  test("board unit with worktree_path set has artifacts.worktree=true", () => {
+  test.skipIf(!existsSync(configPath))("board unit with worktree_path set has artifacts.worktree=true", () => {
     // When wt list returns a worktree, the board unit gets worktree_path set
     // and artifacts.worktree=true. This means the parity chain won't
     // generate a create_worktree action.
@@ -145,7 +145,7 @@ describe("GH-419: session open backfill detection", () => {
     expect(config).not.toContain("git/worktrees/{{ repo }}");
   });
 
-  test("parity chain create_worktree uses configured worktree manager command", () => {
+  test.skipIf(!existsSync(nixModulePath))("parity chain create_worktree uses configured worktree manager command", () => {
     // The command in the parity action should match the configured manager.
     // If the path template is wrong, the command would create a worktree
     // at a different location than where wt switch would put it.

@@ -11,7 +11,7 @@
  * Integration tests with buildParityChain are in test/pr-state/github.test.ts.
  * These tests verify the config-level invariants that prevent the divergence.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "bun:test";
@@ -37,7 +37,7 @@ describe("lifecycle chain: config parity prevents GH-419", () => {
    * parity chain fires create_worktree → session open blocks.
    */
 
-  test("config.toml path matches prx tools wt resolved path (same subdirectory)", () => {
+  test.skipIf(!existsSync(configPath))("config.toml path matches prx tools wt resolved path (same subdirectory)", () => {
     const config = readFileSync(configPath, "utf8");
     const match = config.match(/worktree-path\s*=\s*"([^"]+)"/);
     expect(match).not.toBeNull();
@@ -58,7 +58,7 @@ describe("lifecycle chain: config parity prevents GH-419", () => {
     expect(env.vars.WT_WORKTREE_PATH).toBe(env.vars.WORKTRUNK_WORKTREE_PATH);
   });
 
-  test("nix module is the single source of truth (defines once, used for config + env)", () => {
+  test.skipIf(!existsSync(nixModulePath))("nix module is the single source of truth (defines once, used for config + env)", () => {
     const nixModule = readFileSync(nixModulePath, "utf8");
 
     // wtWorktreePath is defined once and referenced in configFile and sessionVariables
@@ -102,7 +102,7 @@ describe("lifecycle chain: worktree → working dir parity", () => {
 });
 
 describe("lifecycle chain: no divergent path bases", () => {
-  test("neither config.toml nor prx tools wt use the old git/worktrees base", () => {
+  test.skipIf(!existsSync(configPath))("neither config.toml nor prx tools wt use the old git/worktrees base", () => {
     const config = readFileSync(configPath, "utf8");
     const resolved = resolveWorktreePath({ HOME: "/home/test" });
 

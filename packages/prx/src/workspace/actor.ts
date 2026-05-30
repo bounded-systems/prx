@@ -345,6 +345,10 @@ export function runReserve(
     name: input.branch,
     base: input.base,
     localOnly: input.local_only,
+    // GH-2280: run git probes/fetch in the target repo, not the caller's cwd.
+    // Without this, ensureBranch defaults to process.cwd() and misses the
+    // reserved branch (and fetches the wrong origin), failing on credential-less CI.
+    cwd,
   });
 
   const status = ENSURE_TO_RESERVE_STATUS[result.status];

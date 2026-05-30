@@ -79,21 +79,25 @@ describe("loadDepManifest", () => {
   });
 });
 
-describe("checked-in manifest at .prx/dep-research/manifest.json", () => {
-  // Resolve the repo root from this test file's location (test/ → ../).
-  // Walk up because tests may run from arbitrary cwd.
-  const repoRoot = (() => {
-    let cur = new URL(".", import.meta.url).pathname;
-    for (let i = 0; i < 6; i++) {
-      try {
-        loadDepManifest(cur);
-        return cur;
-      } catch {
-        cur = join(cur, "..");
-      }
+// Resolve the repo root containing the checked-in manifest; null when absent.
+// The prx repo has no .prx/dep-research/manifest.json (that's ai-home content),
+// so this describe is skipped there. Computed at module scope (returning null
+// instead of throwing) so a missing manifest can't crash test collection.
+const checkedInManifestRoot = (() => {
+  let cur = new URL(".", import.meta.url).pathname;
+  for (let i = 0; i < 6; i++) {
+    try {
+      loadDepManifest(cur);
+      return cur;
+    } catch {
+      cur = join(cur, "..");
     }
-    throw new Error("could not locate repo root containing dep-research manifest");
-  })();
+  }
+  return null;
+})();
+
+describe.skipIf(checkedInManifestRoot === null)("checked-in manifest at .prx/dep-research/manifest.json", () => {
+  const repoRoot = checkedInManifestRoot as string;
 
   test("parses cleanly", () => {
     const entries = loadDepManifest(repoRoot);

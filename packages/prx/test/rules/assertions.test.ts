@@ -8,7 +8,7 @@
 // when run against the live `core.md`; the test asserts the failure has
 // the right shape.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 import { describe, expect, test } from "bun:test";
 
@@ -104,7 +104,8 @@ describe("verbExists — unfenced", () => {
   });
 });
 
-describe("spike thesis — claude/rules/core.md:95 drift case", () => {
+// Reads ai-home's claude/rules/core.md, which is absent in the prx repo — skip there.
+describe.skipIf(!existsSync("claude/rules/core.md"))("spike thesis — claude/rules/core.md:95 drift case", () => {
   test("aliasExists raises a typed failure for the za/zb/zc line", () => {
     const corePath = "claude/rules/core.md";
     const fullMarkdown = readFileSync(corePath, "utf8");
