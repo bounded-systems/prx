@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, test } from "bun:test";
@@ -80,7 +80,8 @@ function recordingBdExec(
 }
 
 describe("GhDomainAdapter — config / ownedOnPull pin", () => {
-  test("ADR §2 GitHub column is the literal ownedOnPull declaration", () => {
+  // The ADR doc-drift assertion reads ai-home's docs/spikes/GH-1500-authority.md (absent in prx).
+  test.skipIf(!existsSync(join(import.meta.dir, "..", "..", "..", "..", "docs", "spikes", "GH-1500-authority.md")))("ADR §2 GitHub column is the literal ownedOnPull declaration", () => {
     // If you change this list you MUST also update docs/spikes/GH-1500-authority.md §2.
     // GH-1874: `assignees` moved to bd-canonical and left this set.
     expect(GH_OWNED_ON_PULL).toEqual(["externalIssueNumber", "milestone", "status"]);

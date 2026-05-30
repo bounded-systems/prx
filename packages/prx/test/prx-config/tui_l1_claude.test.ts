@@ -26,7 +26,7 @@ describe("parse — empty object", () => {
 });
 
 describe("parse — repo's checked-in claude/settings.json", () => {
-  test("validates and routes non-TUI fields to passthrough", () => {
+  test.skipIf(!existsSync(REPO_CLAUDE_SETTINGS))("validates and routes non-TUI fields to passthrough", () => {
     const raw = JSON.parse(readFileSync(REPO_CLAUDE_SETTINGS, "utf8"));
     const r = parse(raw);
     expect(r.ok).toBe(true);

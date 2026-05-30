@@ -15720,7 +15720,7 @@ describe("pr_state cli", () => {
     expect(logs[0]!).toContain("- Checks pending - ✓ 3 Approved");
   });
 
-  test("example contract still resolves to draft mode", () => {
+  test.skipIf(!existsSync(join(repoRoot, "skills/pr-contract/example.pr.json")))("example contract still resolves to draft mode", () => {
     const result = Bun.spawnSync({
       cmd: [
         "bun",

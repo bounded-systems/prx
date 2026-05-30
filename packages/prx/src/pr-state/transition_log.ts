@@ -1,4 +1,5 @@
-import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { z } from "zod";
 
 import { prSkillNames } from "./machine.ts";
@@ -51,6 +52,8 @@ export function appendTransitionLog(logPath: string, entry: TransitionEntry): vo
     const existing = readTransitionLog(logPath);
     if (existing.some((e) => e.id === entry.id)) return;
   }
+  // Create the parent dir (e.g. .prx/) so a fresh checkout doesn't ENOENT.
+  mkdirSync(dirname(logPath), { recursive: true });
   appendFileSync(logPath, `${JSON.stringify(entry)}\n`, "utf8");
 }
 
