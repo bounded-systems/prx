@@ -1,0 +1,46 @@
+name: release-binary
+
+# On a semver tag (e.g. v0.1.0), build the self-contained prx / prx-tui binaries
+# per platform and attach them to the GitHub Release. Consumers (e.g. ai-home)
+# fetch the asset via nix `pkgs.fetchurl` (hermetic) — no source build needed.
+# Library npm publishing (semver) is handled separately by release.yml + changesets.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: aarch64-darwin
+          - os: ubuntu-latest
+            target: x86_64-linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Build prx
+        run: |
+          PRX_COMPILE_GIT_SHA="$(git rev-parse --short=12 HEAD)" \
+          BUN="$(which bun)" \
+            bun packages/prx/scripts/prx-compile.ts ./prx-${{ matrix.target }}
+      - name: Build prx-tui
+        run: |
+          bun build --compile \
+            --define __PRX_BUILD_GIT_SHA__="\"$(git rev-parse --short=12 HEAD)\"" \
+            packages/prx/scripts/prx_tui.ts --outfile ./prx-tui-${{ matrix.target }}
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            prx-${{ matrix.target }}
+            prx-tui-${{ matrix.target }}
