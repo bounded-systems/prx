@@ -7,52 +7,27 @@
   };
 
   outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+    {
+      # Portable home-manager module. From any home-manager config:
+      #   inputs.prx.url = "github:bounded-systems/prx";
+      #   modules = [ prx.homeManagerModules.default ];
+      #   programs.prx.enable = true;
+      homeManagerModules.prx = import ./nix/hm-module.nix self;
+      homeManagerModules.default = import ./nix/hm-module.nix self;
+    }
+    // flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
-        rev = self.shortRev or self.dirtyShortRev or "dev";
-
-        # Dev/local build. `bun install` needs network, so this opts out of the
-        # sandbox (`__noChroot`, requires `sandbox = relaxed`). Bun's cache/
-        # node_modules are not cleanly fixed-output-derivable (absolute symlinks),
-        # so the PRODUCTION distribution path is the release-binary CI
-        # (.github/workflows/release-binary.yml) + consumers fetchurl the asset —
-        # not this from-source build.
-        mkBin = { name, compileArgs }: pkgs.stdenv.mkDerivation {
-          pname = name;
-          version = "0.0.0";
-          src = self;
-          nativeBuildInputs = [ pkgs.bun pkgs.cacert ];
-          __noChroot = true;
-          dontConfigure = true;
-          buildPhase = ''
-            export HOME="$TMPDIR"
-            bun install --frozen-lockfile
-            ${compileArgs}
-          '';
-          installPhase = ''
-            mkdir -p "$out/bin"
-            cp ./${name} "$out/bin/${name}"
-            chmod +x "$out/bin/${name}"
-          '';
-        };
-      in {
-        packages = rec {
-          prx = mkBin {
-            name = "prx";
-            compileArgs = ''
-              PRX_COMPILE_GIT_SHA="${rev}" BUN="${pkgs.bun}/bin/bun" \
-                bun packages/prx/scripts/prx-compile.ts ./prx
-            '';
-          };
-          prx-tui = mkBin {
-            name = "prx-tui";
-            compileArgs = ''
-              bun build --compile --define __PRX_BUILD_GIT_SHA__="\"${rev}\"" \
-                packages/prx/scripts/prx_tui.ts --outfile ./prx-tui
-            '';
-          };
-          default = prx;
+        # Hermetic released binaries (fetchurl FOD — works under sandbox = true).
+        # The from-source build needs network in the sandbox; distribution is the
+        # released binary, so the flake's packages ARE the released binaries.
+        bins = import ./nix/fetch-release.nix self { inherit pkgs system; };
+      in
+      {
+        packages = {
+          prx = bins.prx;
+          prx-tui = bins.prx-tui;
+          default = bins.prx;
         };
 
         devShells.default = pkgs.mkShell { buildInputs = [ pkgs.bun ]; };

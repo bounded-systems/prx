@@ -75,3 +75,49 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             GIT_SHA=${{ github.sha }}
+
+  # After the binaries are uploaded, compute their sha256 and open a PR updating
+  # release-hashes.json (consumed by the flake packages + home-manager module).
+  # Tag-only: GITHUB_REF_NAME is the version tag here.
+  update-hashes:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+      - name: Compute hashes → release-hashes.json
+        run: |
+          set -euo pipefail
+          ver="${GITHUB_REF_NAME#v}"
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          json=$(jq -n --arg v "$ver" '{version:$v, systems:{}}')
+          for sys in aarch64-darwin x86_64-linux; do
+            for name in prx prx-tui; do
+              h=$(nix-prefetch-url "$base/$name-$sys")
+              json=$(printf '%s' "$json" | jq --arg s "$sys" --arg n "$name" --arg h "$h" '.systems[$s][$n]=$h')
+            done
+          done
+          printf '%s\n' "$json" | jq . > release-hashes.json
+          cat release-hashes.json
+      - name: Open PR if hashes changed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet release-hashes.json; then
+            echo "release-hashes.json already up to date"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          branch="release-hashes-${GITHUB_REF_NAME}"
+          git checkout -b "$branch"
+          git add release-hashes.json
+          git commit -m "chore: release-hashes for ${GITHUB_REF_NAME}"
+          git push -u origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "chore: release-hashes for ${GITHUB_REF_NAME}" \
+            --body "Auto-generated: sha256 of the ${GITHUB_REF_NAME} release assets, consumed by the flake packages + \`homeManagerModules.prx\`."
