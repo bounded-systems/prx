@@ -29,6 +29,17 @@ prx ships as a **released binary** (per platform) attached to each GitHub
 release, plus a container image at `ghcr.io/bounded-systems/prx`. Distribution
 is the binary — nix is one install path among several.
 
+### Homebrew
+
+This repo doubles as a tap (it has a `Formula/`), so:
+
+```bash
+brew tap bounded-systems/prx https://github.com/bounded-systems/prx
+brew install prx
+```
+
+(The explicit tap URL is needed because the repo is `prx`, not `homebrew-prx`.)
+
 ### Nix flake (hermetic)
 
 The flake's packages are the released binaries fetched via `fetchurl`, so they
