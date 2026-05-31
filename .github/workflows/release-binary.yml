@@ -89,7 +89,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
-      - name: Compute hashes → release-hashes.json
+      - name: Compute hashes → release-hashes.json + Homebrew formula
         run: |
           set -euo pipefail
           ver="${GITHUB_REF_NAME#v}"
@@ -103,21 +103,59 @@ jobs:
           done
           printf '%s\n' "$json" | jq . > release-hashes.json
           cat release-hashes.json
-      - name: Open PR if hashes changed
+          # Homebrew formula needs hex sha256 (nix stores base32) — convert.
+          d_hex=$(nix hash convert --hash-algo sha256 --to base16 "$(jq -r '.systems."aarch64-darwin".prx' release-hashes.json)")
+          l_hex=$(nix hash convert --hash-algo sha256 --to base16 "$(jq -r '.systems."x86_64-linux".prx' release-hashes.json)")
+          mkdir -p Formula
+          cat > Formula/prx.rb <<RUBY
+          # Homebrew formula for prx. This repo doubles as a tap:
+          #   brew tap bounded-systems/prx https://github.com/bounded-systems/prx
+          #   brew install prx
+          # Auto-maintained by .github/workflows/release-binary.yml (update-hashes job).
+          class Prx < Formula
+            desc "Agent-run PR contract / work-unit CLI"
+            homepage "https://github.com/bounded-systems/prx"
+            version "$ver"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/bounded-systems/prx/releases/download/v$ver/prx-aarch64-darwin"
+                sha256 "$d_hex"
+              end
+            end
+
+            on_linux do
+              on_intel do
+                url "https://github.com/bounded-systems/prx/releases/download/v$ver/prx-x86_64-linux"
+                sha256 "$l_hex"
+              end
+            end
+
+            def install
+              bin.install Dir["prx-*"].first => "prx"
+            end
+
+            test do
+              assert_match(/git-/, shell_output("#{bin}/prx --version"))
+            end
+          end
+          RUBY
+          cat Formula/prx.rb
+      - name: Open PR if anything changed
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          if git diff --quiet release-hashes.json; then
-            echo "release-hashes.json already up to date"; exit 0
+          if git diff --quiet release-hashes.json Formula/prx.rb; then
+            echo "release-hashes.json + formula already up to date"; exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           branch="release-hashes-${GITHUB_REF_NAME}"
           git checkout -b "$branch"
-          git add release-hashes.json
-          git commit -m "chore: release-hashes for ${GITHUB_REF_NAME}"
+          git add release-hashes.json Formula/prx.rb
+          git commit -m "chore: release-hashes + brew formula for ${GITHUB_REF_NAME}"
           git push -u origin "$branch"
           gh pr create --base main --head "$branch" \
-            --title "chore: release-hashes for ${GITHUB_REF_NAME}" \
-            --body "Auto-generated: sha256 of the ${GITHUB_REF_NAME} release assets, consumed by the flake packages + \`homeManagerModules.prx\`."
+            --title "chore: release-hashes + brew formula for ${GITHUB_REF_NAME}" \
+            --body "Auto-generated: sha256 of the ${GITHUB_REF_NAME} release assets, consumed by the flake packages, \`homeManagerModules.prx\`, and the Homebrew formula."
