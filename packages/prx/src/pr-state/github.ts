@@ -1,5 +1,6 @@
 import { getEnv, processEnv } from "@bounded-systems/env";
 import { bakedAiHomeRoot } from "../build-info.ts";
+import { DOLT_DATABASE_NAME_PATTERN } from "../dolt/schema.ts";
 import { createHash } from "node:crypto";
 import { runCaptured } from "@bounded-systems/proc";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
@@ -3624,6 +3625,27 @@ export function reverseDnsRepoSegments(originUrl: string): [string, string, stri
     return null;
   }
   return ["io.github", owner, repo];
+}
+
+// E0 of GH-1685 — canonical per-repo `dolt_database` name in the live
+// reverse-DNS shape `io_github_<owner>_<repo>` (D0). Joins the reverse-DNS
+// segments and collapses each non-alphanumeric run to a single `_`
+// (`bounded-systems` → `bounded_systems`, `supply-plan-design` →
+// `supply_plan_design`). Returns null when the origin isn't a GitHub
+// owner/repo, or when the sanitized result isn't a valid database name.
+// The name is intentionally not reversible into owner/repo — always derive
+// forward from the origin (see DOLT_DATABASE_NAME_PATTERN in dolt/schema.ts).
+export function canonicalDoltDatabase(originUrl: string): string | null {
+  const segments = reverseDnsRepoSegments(originUrl);
+  if (!segments) {
+    return null;
+  }
+  const name = segments
+    .join("_")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return DOLT_DATABASE_NAME_PATTERN.test(name) ? name : null;
 }
 
 export function parseGithubRepo(url: string): string | null {

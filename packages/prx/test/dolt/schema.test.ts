@@ -36,7 +36,7 @@ import {
 } from "../../src/dolt/schema.ts";
 
 const SAMPLE_ID = "abcdef012345";
-const SAMPLE_SLUG = "github.com__bdelanghe__ai-home";
+const SAMPLE_SLUG = "io_github_bdelanghe_ai_home";
 const SAMPLE_PATH = "/tmp/repo";
 const SAMPLE_DSN = "mysql://prx@127.0.0.1:3306/db";
 
@@ -71,11 +71,15 @@ describe("dolt contract", () => {
     expect(DoltServerId.safeParse("abc").success).toBe(false);
   });
 
-  test("RepoSlug enforces host__owner__repo shape", () => {
+  test("RepoSlug enforces reverse-DNS io_github_<owner>_<repo> shape (D0, GH-1685)", () => {
     expect(RepoSlug.safeParse(SAMPLE_SLUG).success).toBe(true);
-    expect(RepoSlug.safeParse("only_one_segment").success).toBe(false);
-    expect(RepoSlug.safeParse("a__b").success).toBe(false);
-    expect(RepoSlug.safeParse("UPPER__OWNER__REPO").success).toBe(false);
+    expect(RepoSlug.safeParse("io_github_pushd_supply_plan_design").success).toBe(true);
+    // legacy {host}__{owner}__{repo} form is no longer valid
+    expect(RepoSlug.safeParse("github.com__bdelanghe__ai-home").success).toBe(false);
+    expect(RepoSlug.safeParse("io_github").success).toBe(false);
+    expect(RepoSlug.safeParse("io_github_").success).toBe(false);
+    expect(RepoSlug.safeParse("io_gitlab_owner_repo").success).toBe(false);
+    expect(RepoSlug.safeParse("IO_GITHUB_OWNER_REPO").success).toBe(false);
   });
 
   test("Lifecycle is provisioned|running|healthy|stopped|orphaned", () => {
