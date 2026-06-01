@@ -41,13 +41,16 @@ export type Lifecycle = z.infer<typeof Lifecycle>;
 export const DoltServerId = z.string().regex(/^[a-f0-9]{12}$/);
 export type DoltServerId = z.infer<typeof DoltServerId>;
 
-// {host}__{owner}__{repo} per buildDoltRemoteUrl convention (GH-1685
-// §"dolt_database naming"). Lowercase alnum plus `.`, `_`, `-`,
-// joined by `__`. The repo slug ties a dolt_database to the
-// host_repo_slug the audit substrate already keys on.
-export const RepoSlug = z
-  .string()
-  .regex(/^[a-z0-9._-]+__[a-z0-9._-]+__[a-z0-9._-]+$/);
+// Canonical per-repo `dolt_database` identifier in reverse-DNS form
+// `io_github_<owner>_<repo>` — D0 of GH-1685 standardized on the *live*
+// on-disk convention (e.g. `io_github_pushd_supply_plan_design`) over the
+// older `{host}__{owner}__{repo}` shape. Produced from a GitHub origin by
+// `canonicalDoltDatabase()` (src/pr-state/github.ts), which collapses each
+// reverse-DNS segment's non-alphanumerics to `_`. Lowercase, single-`_`
+// joined — boundary-ambiguous by design, so never parse it back into
+// owner/repo; always derive forward from the origin.
+export const DOLT_DATABASE_NAME_PATTERN = /^io_github(_[a-z0-9]+)+$/;
+export const RepoSlug = z.string().regex(DOLT_DATABASE_NAME_PATTERN);
 export type RepoSlug = z.infer<typeof RepoSlug>;
 
 export const Owner = z.enum(["prx", "external"]);

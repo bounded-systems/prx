@@ -33,6 +33,7 @@ import {
   parseCodeBuildIdFromLink,
   parseWorktreeStatus,
   overviewStatus,
+  canonicalDoltDatabase,
   parseGithubRepo,
   protectMainBranch,
   repoCheckNames,
@@ -57,6 +58,7 @@ import {
 } from "../../src/pr-state/github.ts";
 import { createTaskContract, writeTaskContract } from "../../src/pr-state/task.ts";
 import { ProjectionMiss } from "../../src/pr-state/projection.ts";
+import { RepoSlug } from "../../src/dolt/schema.ts";
 
 // GH-2011: stub for `runBeadsSync` (the canonical reconcile that replaced
 // the retired `bd github sync --pull-only --prefer-github` shell-out). Mirror
@@ -1476,6 +1478,37 @@ describe("parseGithubRepo", () => {
     expect(parseGithubRepo("https://github.com/bdelanghe")).toBeNull();
     expect(parseGithubRepo("not a url")).toBeNull();
     expect(parseGithubRepo("")).toBeNull();
+  });
+});
+
+describe("canonicalDoltDatabase (E0 of GH-1685)", () => {
+  test("derives reverse-DNS io_github_<owner>_<repo>, sanitizing hyphens/case", () => {
+    expect(canonicalDoltDatabase("git@github.com:bounded-systems/prx.git")).toBe(
+      "io_github_bounded_systems_prx",
+    );
+    expect(canonicalDoltDatabase("https://github.com/bounded-systems/prx")).toBe(
+      "io_github_bounded_systems_prx",
+    );
+    // matches the live on-disk shape for an existing shared-server db
+    expect(canonicalDoltDatabase("git@github.com:pushd/supply-plan-design.git")).toBe(
+      "io_github_pushd_supply_plan_design",
+    );
+    // uppercase origin collapses to lowercase canonical
+    expect(canonicalDoltDatabase("https://github.com/BDeLanghe/AI-Home")).toBe(
+      "io_github_bdelanghe_ai_home",
+    );
+  });
+
+  test("output validates against the schema's DoltDatabaseName pattern", () => {
+    const name = canonicalDoltDatabase("https://github.com/bounded-systems/prx");
+    expect(name).not.toBeNull();
+    expect(RepoSlug.safeParse(name).success).toBe(true);
+  });
+
+  test("returns null for non-github origins and unparseable URLs", () => {
+    expect(canonicalDoltDatabase("git@gitlab.com:bdelanghe/ai-home.git")).toBeNull();
+    expect(canonicalDoltDatabase("not a url")).toBeNull();
+    expect(canonicalDoltDatabase("")).toBeNull();
   });
 });
 
