@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "io_github_bounded_systems_prx",
+  "project_id": "4d0f906f-a83a-4019-9aba-049914d13cde"
+}
