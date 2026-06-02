@@ -85,7 +85,11 @@ describe("runNotionMcpPreflight", () => {
     const result = await runNotionMcpPreflight(runner, process.env, probe);
     expect(result.ok).toBe(false);
     expect(result.status).toBe("headless-oauth-required");
-    expect(result.detail).toContain("https://mcp.notion.com/authorize");
+    // The OAuth authorize URL must NOT be embedded in the (logged) detail —
+    // it is OAuth-sourced data (CodeQL js/clear-text-logging). We surface that
+    // a URL was emitted, not the URL itself.
+    expect(result.detail).toContain("OAuth URL");
+    expect(result.detail).not.toContain("https://mcp.notion.com/authorize");
     expect(result.remediation).toContain("GH-847");
     expect(calls.length).toBe(1);
   });

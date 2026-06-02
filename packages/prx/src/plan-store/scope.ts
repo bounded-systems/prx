@@ -52,7 +52,14 @@ export function parsePlanScope(body: Buffer | string): ParsePlanScopeResult {
   }
 
   const scopeBody = lines.slice(scopeStart + 1, scopeEnd).join("\n").trim();
-  const stripped = scopeBody.replace(COMMENT_PATTERN, "").trim();
+  // Strip HTML comments to a fixed point: a single pass can leave residue for
+  // nested/overlapping comments (CodeQL js/incomplete-multi-character-sanitization).
+  let stripped = scopeBody;
+  for (let prev = ""; prev !== stripped; ) {
+    prev = stripped;
+    stripped = stripped.replace(COMMENT_PATTERN, "");
+  }
+  stripped = stripped.trim();
   return { hasScope: true, scopeBody, isEmpty: stripped.length === 0 };
 }
 
