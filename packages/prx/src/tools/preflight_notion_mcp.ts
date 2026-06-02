@@ -113,7 +113,10 @@ async function probeHeadlessOAuth(
     return {
       ok: false,
       status: "headless-oauth-required",
-      detail: `claude --print emitted Notion OAuth URL (${oauth.authorizeUrl.slice(0, 120)})`,
+      // Do not embed the OAuth authorize URL in the (logged) detail — it is
+      // OAuth-sourced data and the operator's remediation is a token, not the
+      // URL (CodeQL js/clear-text-logging).
+      detail: "claude --print emitted a Notion OAuth URL — the headless flow cannot complete it",
       remediation: HEADLESS_OAUTH_REMEDIATION,
     };
   }
