@@ -213,8 +213,12 @@ export type ExecuteAgentProfileOpts = {
    *   - subprocess: passed to `localRuntimeExecutor` as the @bounded-systems/proc timeout.
    *   - sdk: wired to the SDK `AbortController` per spike §3.2 (typed
    *     cancellation, distinguishable from network / model / rate-limit).
-   * Per spike §3.2 the SDK path treats `undefined` as "no watchdog"; the
-   * caller must opt in.
+   * prx-hz1: the SDK path no longer treats `undefined` as "no watchdog" — a
+   * headless autonomous run has no operator to unstick it, so an absent deadline
+   * means a silent infinite hang. When the caller does not opt into a tighter
+   * value, the SDK backend falls back to {@link DEFAULT_HEADLESS_AGENT_WATCHDOG_MS}.
+   * Pass an explicit `timeoutMs` (or `sdkOpts.timeoutMs`) to override. The
+   * subprocess route still honors `undefined` as "no proc timeout".
    */
   timeoutMs?: number;
   /** Operator cancellation (SIGINT handler, parent abort, …). SDK route only. */
@@ -224,6 +228,16 @@ export type ExecuteAgentProfileOpts = {
   /** Override for the subprocess executor (existing pre-1828 DI seam). */
   subprocessExecutor?: RuntimeExecutor;
 };
+
+/**
+ * prx-hz1: anti-hang ceiling for headless SDK runs that didn't opt into a
+ * tighter watchdog. NOT an SLA — a legitimate triage/intake/implement pass
+ * completes well within it; this exists only to convert a silent infinite hang
+ * (no operator to unstick a stalled stream / stray approval) into a typed
+ * cancellation the caller can observe. Callers wanting a real budget pass an
+ * explicit `timeoutMs`.
+ */
+export const DEFAULT_HEADLESS_AGENT_WATCHDOG_MS = 15 * 60_000;
 
 /**
  * GH-1828 dispatcher. Routes profiles whose derived backend is `"sdk"`
@@ -248,7 +262,10 @@ export async function executeAgentProfile(
   if (backend === "sdk" && !opts.subprocessExecutor) {
     const sdkOpts: RunClaudeAgentNonInteractiveOpts = {
       cwd: opts.cwd,
-      ...(opts.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
+      // prx-hz1: never let a headless SDK run hang forever. Default to a
+      // generous anti-hang ceiling when the caller didn't opt into a tighter
+      // watchdog; an explicit `sdkOpts.timeoutMs` below still wins.
+      timeoutMs: opts.timeoutMs ?? DEFAULT_HEADLESS_AGENT_WATCHDOG_MS,
       ...(opts.signal ? { signal: opts.signal } : {}),
       ...(opts.sdkOpts ?? {}),
     };
