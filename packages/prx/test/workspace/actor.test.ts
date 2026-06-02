@@ -328,14 +328,14 @@ describe("workspace actor lifecycle", () => {
     expect(prepareOut.workspace_id).toBe(reserveOut.workspace_id);
   });
 
-  test("prx-jkb: materialized (triage/intake) prepare stamps the Dolt connection and never hydrates", () => {
+  test("prx-jkb: materialized (triage/intake) prepare writes a beads redirect and never hydrates", () => {
     runReserve(
       { branch: "main", base: "origin/main", local_only: false },
       fixture.repoDir,
     );
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
 
-    let stampArgs: { src: string; dest: string } | null = null;
+    let redirectArgs: { src: string; dest: string } | null = null;
     let hydrateCalled = false;
     const prepareOut = runPrepare(
       { workspace_id: ctx.workspaceId, lifecycle: "materialized" },
@@ -346,34 +346,33 @@ describe("workspace actor lifecycle", () => {
           hydrateCalled = true;
           return true;
         },
-        // …instead, the connection is stamped from the launching workspace so
-        // bd resolves to the shared server rather than spawning a stray
-        // per-worktree server (prx-jkb).
-        stampConnection: (src, dest) => {
-          stampArgs = { src, dest };
-          return [join(dest, ".beads", "dolt-server.port")];
+        // …instead, a .beads/redirect points the new worktree at the launching
+        // workspace so bd uses its server rather than spawning a stray (prx-jkb).
+        writeRedirect: (src, dest) => {
+          redirectArgs = { src, dest };
+          return [join(dest, ".beads", "redirect")];
         },
       },
     );
 
     expect(prepareOut.status).toBe("ok");
     expect(hydrateCalled).toBe(false);
-    expect(stampArgs).not.toBeNull();
+    expect(redirectArgs).not.toBeNull();
     // launching workspace (cwd) is the source; the materialized worktree is dest.
-    expect(stampArgs!.src).toBe(fixture.repoDir);
+    expect(redirectArgs!.src).toBe(fixture.repoDir);
     expect(prepareOut.files_written).toContain(
-      join(stampArgs!.dest, ".beads", "dolt-server.port"),
+      join(redirectArgs!.dest, ".beads", "redirect"),
     );
   });
 
-  test("prx-jkb: attached lifecycle hydrates and does NOT stamp a connection", () => {
+  test("prx-jkb: attached lifecycle hydrates and does NOT write a redirect", () => {
     runReserve(
       { branch: "main", base: "origin/main", local_only: false },
       fixture.repoDir,
     );
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
 
-    let stampCalled = false;
+    let redirectCalled = false;
     let hydrateCalled = false;
     const prepareOut = runPrepare(
       { workspace_id: ctx.workspaceId, lifecycle: "attached" },
@@ -383,8 +382,8 @@ describe("workspace actor lifecycle", () => {
           hydrateCalled = true;
           return true;
         },
-        stampConnection: () => {
-          stampCalled = true;
+        writeRedirect: () => {
+          redirectCalled = true;
           return [];
         },
       },
@@ -392,7 +391,7 @@ describe("workspace actor lifecycle", () => {
 
     expect(prepareOut.status).toBe("ok");
     expect(hydrateCalled).toBe(true);
-    expect(stampCalled).toBe(false);
+    expect(redirectCalled).toBe(false);
   });
 
   test("I-WS3: service start --auto with no compose profile is no-op", () => {
