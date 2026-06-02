@@ -71,6 +71,14 @@ export type ReserveOutput = z.infer<typeof ReserveOutput>;
 export const PrepareInput = z.object({
   workspace_id: WorkspaceId,
   lifecycle: Lifecycle,
+  /**
+   * The pre-chdir launching workspace. `openSession` chdir's into the new
+   * worktree before `prepare`, so `cwd` is the worktree itself; the redirect
+   * source for a materialized worktree must be the launching workspace (mainx),
+   * not the worktree being prepared (prx-jkb). Optional: the CLI runs prepare
+   * without a chdir, so it falls back to `cwd`.
+   */
+  launchCwd: z.string().optional(),
 });
 export type PrepareInput = z.infer<typeof PrepareInput>;
 

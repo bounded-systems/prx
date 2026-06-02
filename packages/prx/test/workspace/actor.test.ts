@@ -335,10 +335,14 @@ describe("workspace actor lifecycle", () => {
     );
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
 
+    // A launchCwd DISTINCT from cwd — openSession chdir's into the worktree
+    // before prepare, so the redirect source must be launchCwd, NOT cwd
+    // (regression guard for the v0.1.6 src===dest no-op).
+    const launchDir = "/tmp/prx-jkb-launcher";
     let redirectArgs: { src: string; dest: string } | null = null;
     let hydrateCalled = false;
     const prepareOut = runPrepare(
-      { workspace_id: ctx.workspaceId, lifecycle: "materialized" },
+      { workspace_id: ctx.workspaceId, lifecycle: "materialized", launchCwd: launchDir },
       fixture.repoDir,
       {
         // hydrate must NOT run for the materialized lifecycle…
@@ -358,8 +362,9 @@ describe("workspace actor lifecycle", () => {
     expect(prepareOut.status).toBe("ok");
     expect(hydrateCalled).toBe(false);
     expect(redirectArgs).not.toBeNull();
-    // launching workspace (cwd) is the source; the materialized worktree is dest.
-    expect(redirectArgs!.src).toBe(fixture.repoDir);
+    // source is the launching workspace (launchCwd), NOT cwd (the worktree).
+    expect(redirectArgs!.src).toBe(launchDir);
+    expect(redirectArgs!.src).not.toBe(fixture.repoDir);
     expect(prepareOut.files_written).toContain(
       join(redirectArgs!.dest, ".beads", "redirect"),
     );

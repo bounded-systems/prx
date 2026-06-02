@@ -557,8 +557,14 @@ export function runPrepare(
       // (before the agent runs `bd`) so it resolves to that workspace's shared
       // server. `cwd` is the launching workspace; `worktreePath` is the freshly
       // materialized one.
+      // Source = the pre-chdir launching workspace. openSession chdir's into
+      // the new worktree before prepare, so `cwd` IS the worktree here; using
+      // it would make the redirect a no-op (src === dest). `input.launchCwd`
+      // carries the workspace the operator launched from (mainx); the CLI omits
+      // it (no chdir) and falls back to `cwd`.
+      const source = input.launchCwd ?? cwd;
       const writeRedirect = deps.writeRedirect ?? writeBeadsRedirect;
-      filesWritten.push(...writeRedirect(cwd, worktreePath));
+      filesWritten.push(...writeRedirect(source, worktreePath));
     }
 
     updateLedgerState(ledgerPath, "prepared");
