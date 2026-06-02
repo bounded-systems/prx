@@ -493,7 +493,7 @@ describe("sessionEntryMachine", () => {
         // sdkSpec carries the declared toolset verbatim (authority = spec).
         expect(profile?.sdkSpec?.allowedTools).toEqual(SESSION_PROFILES[profileName].allowedTools);
         expect(profile?.sdkSpec?.disallowedTools).toEqual(SESSION_PROFILES[profileName].disallowedTools);
-        expect(profile?.sdkSpec?.permissionMode).toBe("plan");
+        expect(profile?.sdkSpec?.permissionMode).toBe("acceptEdits"); // prx-hz1: headless never uses plan mode
       } finally {
         restore();
       }

@@ -1519,9 +1519,12 @@ describe("ops session SDK runtime profiles (headless-first step 2/2b, GH-2380)",
       expect(p.env?.PRX_AGENT_ROLE).toBe(c.role);
     });
 
-    test(`${c.name} → sdkSpec carries SESSION_PROFILES.${c.name} allowlist/denylist verbatim; read/inspect posture`, () => {
+    test(`${c.name} → sdkSpec carries SESSION_PROFILES.${c.name} allowlist/denylist verbatim; autonomous (non-blocking) posture`, () => {
       const p = c.build();
-      expect(p.sdkSpec?.permissionMode).toBe("plan");
+      // prx-hz1: a headless run has no operator to approve ExitPlanMode, so
+      // `plan` mode hangs forever. acceptEdits runs autonomously; the
+      // allow/deny lists (asserted below) are the authority boundary.
+      expect(p.sdkSpec?.permissionMode).toBe("acceptEdits");
       expect(p.sdkSpec?.allowedTools).toEqual([...SESSION_PROFILES[c.name].allowedTools]);
       expect(p.sdkSpec?.disallowedTools).toEqual([...SESSION_PROFILES[c.name].disallowedTools]);
       // None of the four ops profiles edit source.

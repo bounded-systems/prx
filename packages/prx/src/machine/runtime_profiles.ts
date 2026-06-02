@@ -2442,7 +2442,7 @@ function buildSessionProfileSdkRuntimeProfile(input: {
     "--setting-sources",
     "project,local",
     "--permission-mode",
-    "plan",
+    "acceptEdits",
     "--allowedTools",
     allowedTools.join(","),
     "--disallowedTools",
@@ -2466,7 +2466,13 @@ function buildSessionProfileSdkRuntimeProfile(input: {
     sdkSpec: {
       prompt: input.userPrompt,
       systemPromptStable: [input.systemPrompt],
-      permissionMode: "plan",
+      // prx-hz1: headless agents run with NO human in the loop. `plan` mode
+      // produces a plan and then BLOCKS on ExitPlanMode approval that never
+      // comes → the SDK conversation hangs forever. `acceptEdits` lets the
+      // autonomous run proceed and terminate; the allow/deny lists below (and
+      // the @bounded-systems/policy gate) remain the authority boundary, not the
+      // permission prompt. Mirrors the implement profile's headless posture.
+      permissionMode: "acceptEdits",
       allowedTools,
       disallowedTools,
       strictMcpConfig: true,
@@ -2492,7 +2498,7 @@ function buildSessionProfileSdkRuntimeProfile(input: {
     disallowedActors: [...cfg.disallowedActors],
     notes: [
       `Headless ${input.name} surface: autonomous SDK run (headless-first step 2, GH-2380). Default; selected when the verb is not given --interactive.`,
-      "permissionMode=plan keeps the run read/inspect-only; the SDK allowlist/denylist mirror SESSION_PROFILES verbatim and non-allowlisted tools have no headless approval path. Underlying capability calls stay @bounded-systems/policy-gated.",
+      "permissionMode=acceptEdits (prx-hz1): a headless run has no operator to approve prompts, so `plan` mode would hang on ExitPlanMode forever. The SDK allowlist/denylist mirror SESSION_PROFILES verbatim and ARE the authority boundary; non-allowlisted tools are simply unavailable. Underlying capability calls stay @bounded-systems/policy-gated.",
       "GH-1828: routes through the Anthropic Agent SDK (claude_sdk implementation); typed cancellation, partial capture, usage telemetry. Legacy argv preserved for dry-run.",
     ],
   };

@@ -312,7 +312,7 @@ describe("prx triage session (GH-893)", () => {
     expect(profileFull.agentRuntime).toBe("sdk");
     expect(profile.args).not.toContain("--name");
     const permIdx = profile.args.indexOf("--permission-mode");
-    expect(profile.args[permIdx + 1]).toBe("plan");
+    expect(profile.args[permIdx + 1]).toBe("acceptEdits"); // prx-hz1: headless never uses plan mode
     expect(profile.env?.PRX_AGENT_ROLE).toBe("triage");
   });
 
@@ -374,7 +374,7 @@ describe("prx triage session (GH-893)", () => {
     expect(captured.interaction).toBe("headless");
     const args = captured.args ?? [];
     expect(args).toContain("--permission-mode");
-    expect(args[args.indexOf("--permission-mode") + 1]).toBe("plan");
+    expect(args[args.indexOf("--permission-mode") + 1]).toBe("acceptEdits"); // prx-hz1
     expect(args).toContain("--print");
     // Ops session is unbound; no GH-N appears in args.
     expect(args.join(" ")).not.toMatch(/GH-\d+/);
