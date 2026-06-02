@@ -328,6 +328,73 @@ describe("workspace actor lifecycle", () => {
     expect(prepareOut.workspace_id).toBe(reserveOut.workspace_id);
   });
 
+  test("prx-jkb: materialized (triage/intake) prepare stamps the Dolt connection and never hydrates", () => {
+    runReserve(
+      { branch: "main", base: "origin/main", local_only: false },
+      fixture.repoDir,
+    );
+    const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
+
+    let stampArgs: { src: string; dest: string } | null = null;
+    let hydrateCalled = false;
+    const prepareOut = runPrepare(
+      { workspace_id: ctx.workspaceId, lifecycle: "materialized" },
+      fixture.repoDir,
+      {
+        // hydrate must NOT run for the materialized lifecycle…
+        hydrateBeads: () => {
+          hydrateCalled = true;
+          return true;
+        },
+        // …instead, the connection is stamped from the launching workspace so
+        // bd resolves to the shared server rather than spawning a stray
+        // per-worktree server (prx-jkb).
+        stampConnection: (src, dest) => {
+          stampArgs = { src, dest };
+          return [join(dest, ".beads", "dolt-server.port")];
+        },
+      },
+    );
+
+    expect(prepareOut.status).toBe("ok");
+    expect(hydrateCalled).toBe(false);
+    expect(stampArgs).not.toBeNull();
+    // launching workspace (cwd) is the source; the materialized worktree is dest.
+    expect(stampArgs!.src).toBe(fixture.repoDir);
+    expect(prepareOut.files_written).toContain(
+      join(stampArgs!.dest, ".beads", "dolt-server.port"),
+    );
+  });
+
+  test("prx-jkb: attached lifecycle hydrates and does NOT stamp a connection", () => {
+    runReserve(
+      { branch: "main", base: "origin/main", local_only: false },
+      fixture.repoDir,
+    );
+    const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
+
+    let stampCalled = false;
+    let hydrateCalled = false;
+    const prepareOut = runPrepare(
+      { workspace_id: ctx.workspaceId, lifecycle: "attached" },
+      fixture.repoDir,
+      {
+        hydrateBeads: () => {
+          hydrateCalled = true;
+          return true;
+        },
+        stampConnection: () => {
+          stampCalled = true;
+          return [];
+        },
+      },
+    );
+
+    expect(prepareOut.status).toBe("ok");
+    expect(hydrateCalled).toBe(true);
+    expect(stampCalled).toBe(false);
+  });
+
   test("I-WS3: service start --auto with no compose profile is no-op", () => {
     runReserve(
       { branch: "main", base: "origin/main", local_only: false },

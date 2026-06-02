@@ -56,6 +56,7 @@ import {
   type WorktreeSpawn,
 } from "../tools/worktree_layout.ts";
 import { ensurePrxExcludes } from "../tools/ignore_sync.ts";
+import { stampBeadsConnection } from "../beads/stamp_connection.ts";
 import {
   loadWorkspaceConfig,
   parseGithubRepo,
@@ -492,6 +493,15 @@ export type PrepareDeps = {
    * Returning `false` means hydrate is best-effort and skipped.
    */
   hydrateBeads?: (cwd: string) => boolean;
+  /**
+   * Inject the Dolt-connection stamper for the `materialized` lifecycle
+   * (triage/intake), which skips hydrate. Defaults to the production
+   * {@link stampBeadsConnection}; tests pass a stub. Without it, a
+   * materialized worktree inherits no connection and `bd` spawns a stray
+   * per-worktree Dolt server (prx-jkb). Receives `(srcWorktree, destWorktree)`
+   * and returns the files written.
+   */
+  stampConnection?: (srcWorktree: string, destWorktree: string) => string[];
 };
 
 function ensurePrxExcludesForWorkspace(repoRoot: string): {
@@ -536,8 +546,20 @@ export function runPrepare(
     const excludeResult = ensurePrxExcludesForWorkspace(worktreePath);
     filesWritten.push(...excludeResult.files_written);
 
-    if (input.lifecycle !== "materialized" && deps.hydrateBeads) {
-      beadsHydrated = deps.hydrateBeads(worktreePath) === true;
+    if (input.lifecycle !== "materialized") {
+      if (deps.hydrateBeads) {
+        beadsHydrated = deps.hydrateBeads(worktreePath) === true;
+      }
+    } else {
+      // prx-jkb: the `materialized` lifecycle (triage/intake) skips hydrate and
+      // runs an agent in the new worktree directly. Without a Dolt connection
+      // in its `.beads`, `bd` auto-detects a port and spawns a stray
+      // per-worktree server. Stamp the launching workspace's connection into
+      // the new worktree (before the agent runs `bd`) so it resolves to the
+      // shared server. `cwd` is the launching workspace; `worktreePath` is the
+      // freshly materialized one.
+      const stamp = deps.stampConnection ?? stampBeadsConnection;
+      filesWritten.push(...stamp(cwd, worktreePath));
     }
 
     updateLedgerState(ledgerPath, "prepared");
