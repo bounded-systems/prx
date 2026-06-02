@@ -56,6 +56,12 @@ dolt-server.activity
 # Backup data (auto-exported JSONL, local-only)
 backup/
 
+# Issue mirror (auto-exported JSONL). Dolt is canonical in this repo, so the
+# git-tracked mirror is redundant and caused code commits to pick up beads
+# data. Untracked — beads data lives only in Dolt (round-trip via
+# `bd github sync`); bd still writes this file locally for `bv`/viewers.
+issues.jsonl
+
 # Per-project environment file (Dolt connection config, GH#2520)
 .env
 
