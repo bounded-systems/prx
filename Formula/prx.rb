@@ -1,29 +1,27 @@
-# Homebrew formula for prx. Because this lives in the prx repo's Formula/ dir,
-# the repo doubles as a tap:  brew install bounded-systems/prx/prx
-#
-# Auto-maintained: the release-binary workflow's update-hashes job rewrites the
-# version + per-platform url/sha256 on each release (see .github/workflows/release-binary.yml).
+# Homebrew formula for prx. This repo doubles as a tap:
+#   brew tap bounded-systems/prx https://github.com/bounded-systems/prx
+#   brew install prx
+# Auto-maintained by .github/workflows/release-binary.yml (update-hashes job).
 class Prx < Formula
   desc "Agent-run PR contract / work-unit CLI"
   homepage "https://github.com/bounded-systems/prx"
-  version "0.1.1"
+  version "0.1.2"
 
   on_macos do
     on_arm do
-      url "https://github.com/bounded-systems/prx/releases/download/v0.1.1/prx-aarch64-darwin"
-      sha256 "f30b8c35f4c00266981490cf2fd00d178aaf47d7b65e958dee173b436f69b4b5"
+      url "https://github.com/bounded-systems/prx/releases/download/v0.1.2/prx-aarch64-darwin"
+      sha256 "015b55b987e19a4d0e30269bc1a2422fe8253eec15492aeedac2379e4bb1ad8e"
     end
   end
 
   on_linux do
     on_intel do
-      url "https://github.com/bounded-systems/prx/releases/download/v0.1.1/prx-x86_64-linux"
-      sha256 "8d491ae4c5b9c9a3c41fe5090bb09312f5f8f6f4dfe0b6e9ae627ba4660e6faa"
+      url "https://github.com/bounded-systems/prx/releases/download/v0.1.2/prx-x86_64-linux"
+      sha256 "6549e21c160883d342ba82b57ec2838ef38650c90ea03be80d3ac201b0b871f5"
     end
   end
 
   def install
-    # The release asset is a single self-contained binary named prx-<target>.
     bin.install Dir["prx-*"].first => "prx"
   end
 

@@ -1,13 +1,13 @@
 {
-  "version": "0.1.1",
+  "version": "0.1.2",
   "systems": {
     "aarch64-darwin": {
-      "prx": "1ddld5pl6fqpxs6rapmnsx3sz2hp1p82zkwh2jc6c0n0yhsqq2zk",
-      "prx-tui": "00xnqs0nzvrw55mi98zkmcj30n9fd5mvp540mimvpqsgrqhkk1cl"
+      "prx": "13mdn55rwdy2vbp2lj8mxhz2bs1g8aic36r66074v6p1hywmanq1",
+      "prx-tui": "108hf19kr47hj93ikwp2sf2xvk3lhjc5kxiifpn3aj64ppn179iv"
     },
     "x86_64-linux": {
-      "prx": "1akg1rka8yv2mvlvdq6zykvgix8jjfq0n2g53z2a7jdrqpj1ljcd",
-      "prx-tui": "0s4wpc4n39glafb4my876bzqd77vim8r8m699fpc23l4vg77r47s"
+      "prx": "1xbip2q03his1pl3p80fr588dwwfhg17xdc2p91d70q82qff4jb5",
+      "prx-tui": "094ll1yabhb8g1vjmx74h3gxb1ryr0cbqliga5f3x0h3b5974xs3"
     }
   }
 }
