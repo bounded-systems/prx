@@ -262,6 +262,10 @@ export async function openSession(
   const dispatchImpl = deps.dispatchSessionEntry ?? dispatchSessionEntryEvent;
   const chdirImpl = deps.chdir ?? ((p: string) => process.chdir(p));
   const cwdImpl = deps.cwd ?? (() => process.cwd());
+  // Capture the launching workspace BEFORE the materialize chdir (line ~429).
+  // `prepare` runs post-chdir (cwd === worktree), so the redirect source for a
+  // materialized worktree must come from here (prx-jkb).
+  const launchCwd = cwdImpl();
   const emit = deps.recordEvent ?? recordEvent;
 
   const machine = createActor(sessionOpenMachine).start();
@@ -448,7 +452,7 @@ export async function openSession(
   let prepareResult: PrepareOutput;
   try {
     prepareResult = prepareImpl(
-      { workspace_id: reserveResult.workspace_id, lifecycle },
+      { workspace_id: reserveResult.workspace_id, lifecycle, launchCwd },
       cwdImpl(),
     );
   } catch (err) {
