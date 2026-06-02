@@ -1,7 +1,6 @@
 import {
   chmodSync,
   existsSync,
-  mkdirSync,
   mkdtempSync,
   readdirSync,
   statSync,
@@ -357,53 +356,46 @@ describe("plan-store/cas multi-domain (PRX_CAS_ROOT)", () => {
   });
 });
 
-describe("plan-store/cas legacy-path fallback (PRX_AI_HOME_ROOT)", () => {
+describe("plan-store/cas — PRX_AI_HOME_ROOT is NOT a CAS surface (prx-z27)", () => {
   let envSnap: EnvSnapshot;
   let aiHome: string;
+  let xdgState: string;
 
   beforeEach(() => {
     envSnap = snapshotEnv();
     aiHome = mkdtempSync(join(tmpdir(), "prx-ai-home-"));
+    xdgState = mkdtempSync(join(tmpdir(), "prx-xdg-state-"));
     for (const k of ENV_KEYS) {
       delete process.env[k];
     }
     process.env.PRX_AI_HOME_ROOT = aiHome;
+    process.env.XDG_STATE_HOME = xdgState;
   });
 
   afterEach(() => {
     restoreEnv(envSnap);
   });
 
-  test("legacy <ai-home>/.prx/plans is preferred when it already exists (plans domain only)", async () => {
-    const legacy = join(aiHome, ".prx", "plans");
-    mkdirSync(join(legacy, "objects"), { recursive: true });
-    mkdirSync(join(legacy, "refs"), { recursive: true });
-    mkdirSync(join(legacy, ".tmp"), { recursive: true });
-    const { sha } = await writeBlob("legacy-body");
-    const hex = sha.slice("sha256:".length);
-    expect(
-      statSync(join(legacy, "objects", hex.slice(0, 2), hex.slice(2))).isFile(),
-    ).toBe(true);
-    expect(existsSync(join(aiHome, ".prx", "cas"))).toBe(false);
-  });
-
-  test("non-plans domain ignores legacy fallback and uses cas/<domain>", async () => {
-    mkdirSync(join(aiHome, ".prx", "plans", "objects"), { recursive: true });
-    const { sha } = await writeBlob("scout-body", { domain: "scout" });
+  test("CAS ignores PRX_AI_HOME_ROOT and writes under XDG_STATE_HOME", async () => {
+    const { sha } = await writeBlob("ai-home-ignored-body");
     const hex = sha.slice("sha256:".length);
     expect(
       statSync(
-        join(aiHome, ".prx", "cas", "scout", "objects", hex.slice(0, 2), hex.slice(2)),
+        join(xdgState, "prx", "cas", "plans", "objects", hex.slice(0, 2), hex.slice(2)),
       ).isFile(),
     ).toBe(true);
+    // The CAS owns its surface — nothing is created under the overlay-config root.
+    expect(existsSync(join(aiHome, ".prx"))).toBe(false);
   });
 
-  test("plans domain falls through to cas/plans when legacy path absent", async () => {
-    const { sha } = await writeBlob("fresh-body");
+  test("a read-only /nix/store PRX_AI_HOME_ROOT is harmless — CAS still uses XDG", async () => {
+    process.env.PRX_AI_HOME_ROOT =
+      "/nix/store/zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz-ai-home-source";
+    const { sha } = await writeBlob("store-root-ignored-body");
     const hex = sha.slice("sha256:".length);
     expect(
       statSync(
-        join(aiHome, ".prx", "cas", "plans", "objects", hex.slice(0, 2), hex.slice(2)),
+        join(xdgState, "prx", "cas", "plans", "objects", hex.slice(0, 2), hex.slice(2)),
       ).isFile(),
     ).toBe(true);
   });
@@ -411,30 +403,30 @@ describe("plan-store/cas legacy-path fallback (PRX_AI_HOME_ROOT)", () => {
 
 describe("plan-store/cas read-only root (prx-1ke)", () => {
   let envSnap: EnvSnapshot;
-  let aiHome: string;
+  let casRoot: string;
 
   beforeEach(() => {
     envSnap = snapshotEnv();
-    aiHome = mkdtempSync(join(tmpdir(), "prx-ro-ai-home-"));
+    casRoot = mkdtempSync(join(tmpdir(), "prx-ro-cas-root-"));
     for (const k of ENV_KEYS) {
       delete process.env[k];
     }
-    process.env.PRX_AI_HOME_ROOT = aiHome;
+    process.env.PRX_CAS_ROOT = casRoot;
   });
 
   afterEach(() => {
     // Restore write so the OS can clean up the temp dir.
     try {
-      chmodSync(aiHome, 0o700);
+      chmodSync(casRoot, 0o700);
     } catch {
       // best-effort
     }
     restoreEnv(envSnap);
   });
 
-  test("writeBlob under a read-only PRX_AI_HOME_ROOT throws a clear PlanStoreError, not raw EACCES", async () => {
+  test("writeBlob under a read-only PRX_CAS_ROOT throws a clear PlanStoreError, not raw EACCES", async () => {
     // Strip write perms from the resolved root so ensureLayout's mkdir fails.
-    chmodSync(aiHome, 0o500);
+    chmodSync(casRoot, 0o500);
     let caught: unknown;
     try {
       await writeBlob("body-into-readonly-root");
@@ -541,19 +533,20 @@ describe("plan-store/cas XDG default fallback (GH-1226)", () => {
     expect(existsSync(join(xdgState, "prx", "cas", "plans"))).toBe(false);
   });
 
-  test("PRX_AI_HOME_ROOT takes precedence over XDG default", async () => {
+  test("PRX_AI_HOME_ROOT does NOT precede XDG — CAS ignores it (prx-z27)", async () => {
     const aiHome = mkdtempSync(join(tmpdir(), "prx-ai-home-precedence-"));
     process.env.PRX_AI_HOME_ROOT = aiHome;
     process.env.XDG_STATE_HOME = xdgState;
     process.env.HOME = home;
-    const { sha } = await writeBlob("ai-home-wins-body");
+    const { sha } = await writeBlob("ai-home-ignored-body");
     const hex = sha.slice("sha256:".length);
+    // CAS owns its surface → writes under XDG_STATE_HOME, never PRX_AI_HOME_ROOT.
     expect(
       statSync(
-        join(aiHome, ".prx", "cas", "plans", "objects", hex.slice(0, 2), hex.slice(2)),
+        join(xdgState, "prx", "cas", "plans", "objects", hex.slice(0, 2), hex.slice(2)),
       ).isFile(),
     ).toBe(true);
-    expect(existsSync(join(xdgState, "prx", "cas", "plans"))).toBe(false);
+    expect(existsSync(join(aiHome, ".prx"))).toBe(false);
   });
 
   test("BAKED_AI_HOME_ROOT is ignored (no longer in CAS fallback chain)", async () => {
@@ -612,20 +605,13 @@ describe("plan-store/cas resolveStoreRootForDisplay (GH-1226)", () => {
     expect(r.root).toBe("/tmp/legacy-x");
   });
 
-  test("labels PRX_AI_HOME_ROOT branch (non-legacy path)", () => {
+  test("labels XDG_STATE_HOME branch even when PRX_AI_HOME_ROOT is set (prx-z27: CAS ignores it)", () => {
     process.env.PRX_AI_HOME_ROOT = "/tmp/no-such-ai-home";
+    process.env.XDG_STATE_HOME = "/tmp/xdg-x";
+    process.env.HOME = "/tmp/home-x";
     const r = resolveStoreRootForDisplay("plans");
-    expect(r.source).toBe("PRX_AI_HOME_ROOT");
-    expect(r.root).toBe("/tmp/no-such-ai-home/.prx/cas/plans");
-  });
-
-  test("labels PRX_AI_HOME_ROOT (legacy) when <ai-home>/.prx/plans already exists", () => {
-    const aiHome = mkdtempSync(join(tmpdir(), "prx-ai-home-display-"));
-    mkdirSync(join(aiHome, ".prx", "plans"), { recursive: true });
-    process.env.PRX_AI_HOME_ROOT = aiHome;
-    const r = resolveStoreRootForDisplay("plans");
-    expect(r.source).toBe("PRX_AI_HOME_ROOT (legacy)");
-    expect(r.root).toBe(join(aiHome, ".prx", "plans"));
+    expect(r.source).toBe("XDG_STATE_HOME");
+    expect(r.root).toBe("/tmp/xdg-x/prx/cas/plans");
   });
 
   test("labels XDG_STATE_HOME branch", () => {

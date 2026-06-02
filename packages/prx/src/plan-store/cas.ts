@@ -75,15 +75,13 @@ function validateDomain(domain: string): string {
  *
  *   1. PRX_CAS_ROOT          → <root>/<domain>/{objects,refs,.tmp}/
  *   2. PRX_PLAN_STORE        → <root>/{objects,refs,.tmp}/ (plans-only flat)
- *   3. PRX_AI_HOME_ROOT      → <root>/.prx/plans (legacy, plans-only when
- *                              already populated) or <root>/.prx/cas/<domain>
- *   4. XDG_STATE_HOME ?? $HOME/.local/state → /<state>/prx/cas/<domain>
+ *   3. XDG_STATE_HOME ?? $HOME/.local/state → /<state>/prx/cas/<domain>
  *
- * GH-1226: BAKED_AI_HOME_ROOT is intentionally NOT consulted here. It is
- * compile-time-baked to a read-only nix-store path and is the right
- * fallback only for source-root resolution (per-repo overlays, hook lookup),
- * not for per-operator scratch state. The CAS is per-operator state — its
- * canonical home is XDG_STATE_HOME.
+ * The CAS is its OWN surface (per-operator runtime state). Neither
+ * BAKED_AI_HOME_ROOT (GH-1226) nor PRX_AI_HOME_ROOT (prx-z27) is consulted:
+ * both are overlay-config / source roots that can be read-only (e.g. a
+ * /nix/store flake source) and so can't host a mutable store. The CAS's
+ * canonical home is XDG_STATE_HOME; PRX_CAS_ROOT is the explicit override.
  */
 function resolveStoreRoot(domain: string = DEFAULT_DOMAIN): string {
   return resolveStoreRootForDisplay(domain).root;
@@ -94,8 +92,6 @@ export interface StoreRootResolution {
   source:
     | "PRX_CAS_ROOT"
     | "PRX_PLAN_STORE"
-    | "PRX_AI_HOME_ROOT (legacy)"
-    | "PRX_AI_HOME_ROOT"
     | "XDG_STATE_HOME"
     | "XDG_STATE_HOME (default)";
 }
@@ -127,21 +123,14 @@ export function resolveStoreRootForDisplay(
     }
     return { root: planStore, source: "PRX_PLAN_STORE" };
   }
-  const aiHome = getEnv("PRX_AI_HOME_ROOT");
-  if (aiHome && aiHome.length > 0) {
-    // Backwards-compat: when the new multi-domain root has not been populated
-    // yet, prefer the legacy `<ai-home>/.prx/plans` location for the plans
-    // domain so existing blobs/refs from GH-1174 stay reachable for users who
-    // relied on PRX_AI_HOME_ROOT without setting PRX_CAS_ROOT.
-    if (domain === DEFAULT_DOMAIN) {
-      const legacyPlansRoot = join(aiHome, ".prx", DEFAULT_DOMAIN);
-      if (existsSync(legacyPlansRoot)) {
-        return { root: legacyPlansRoot, source: "PRX_AI_HOME_ROOT (legacy)" };
-      }
-    }
-    return { root: join(aiHome, ".prx", "cas", domain), source: "PRX_AI_HOME_ROOT" };
-  }
-  // GH-1226: per-operator default. Per-domain subtree under XDG_STATE_HOME
+  // prx-z27: the CAS is its OWN surface — per-operator runtime state homed at
+  // PRX_CAS_ROOT / PRX_PLAN_STORE / XDG_STATE_HOME. It is deliberately NOT
+  // resolved from PRX_AI_HOME_ROOT, the per-repo OVERLAY-CONFIG root, which is
+  // legitimately read-only (e.g. the ai-home flake source under /nix/store that
+  // home-manager injects) and so can't host a mutable store. prx is pre-1.0
+  // with no users, so the old PRX_AI_HOME_ROOT CAS branch was removed outright
+  // (no migration / no read-only-compat) — CAS owns its surface.
+  // XDG_STATE_HOME: per-operator default. Per-domain subtree under XDG_STATE_HOME
   // so plans/scout/etc. coexist without colliding.
   const xdgStateHome = getEnv("XDG_STATE_HOME");
   if (xdgStateHome && xdgStateHome.length > 0) {
@@ -155,7 +144,7 @@ export function resolveStoreRootForDisplay(
     };
   }
   throw new PlanStoreError(
-    "no cas-store root: set PRX_CAS_ROOT, PRX_PLAN_STORE (legacy), PRX_AI_HOME_ROOT, XDG_STATE_HOME, or HOME",
+    "no cas-store root: set PRX_CAS_ROOT, PRX_PLAN_STORE (legacy), XDG_STATE_HOME, or HOME",
     "NO_STORE_ROOT",
   );
 }
