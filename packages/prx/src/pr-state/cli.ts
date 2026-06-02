@@ -22232,6 +22232,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           },
         },
       );
+      if (opened.status === "prepared") {
+        output.log(
+          `prx triage agent: prepared ${opened.worktree_path} (no-launch; PRX_SESSION_NO_LAUNCH set)`,
+        );
+        return 0;
+      }
       if (opened.status === "error" || !opened.profile) {
         output.error(
           `prx triage agent: session-open failed at ${opened.stage ?? "dispatch"}: ${opened.error ?? "no profile built"}`,
@@ -22410,6 +22416,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           },
         },
       );
+      if (opened.status === "prepared") {
+        output.log(
+          `prx intake agent: prepared ${opened.worktree_path} (no-launch; PRX_SESSION_NO_LAUNCH set)`,
+        );
+        return 0;
+      }
       if (opened.status === "error" || !opened.profile) {
         output.error(
           `prx intake agent: session-open failed at ${opened.stage ?? "dispatch"}: ${opened.error ?? "no profile built"}`,
@@ -22593,6 +22605,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           },
         },
       );
+      if (opened.status === "prepared") {
+        output.log(
+          `prx submit session: prepared ${opened.worktree_path} (no-launch; PRX_SESSION_NO_LAUNCH set)`,
+        );
+        return 0;
+      }
       if (opened.status === "error" || !opened.profile) {
         output.error(
           `prx submit session: session-open failed at ${opened.stage ?? "dispatch"}: ${opened.error ?? "no profile built"}`,
@@ -22783,6 +22801,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           },
         },
       );
+      if (opened.status === "prepared") {
+        output.log(
+          `prx author session: prepared ${opened.worktree_path} (no-launch; PRX_SESSION_NO_LAUNCH set)`,
+        );
+        return 0;
+      }
       if (opened.status === "error" || !opened.profile) {
         output.error(
           `prx author session: session-open failed at ${opened.stage ?? "dispatch"}: ${opened.error ?? "no profile built"}`,

@@ -38,6 +38,7 @@ import { randomBytes } from "node:crypto";
 
 import { createActor } from "xstate";
 
+import { getEnv } from "@bounded-systems/env";
 import { recordEvent } from "../machine/record_event.ts";
 import {
   dispatchSessionEntryEvent,
@@ -495,6 +496,25 @@ export async function openSession(
       prepared_status: prepareResult.status,
     },
   });
+
+  // prx-r2w: PRX_SESSION_NO_LAUNCH stops here — the worktree is materialized and
+  // (for the materialized lifecycle) `.beads/redirect` is written, but no agent
+  // profile is built or launched. This lets the release smoke harness assert
+  // the materialize→redirect path against the real binary with no claude / PTY /
+  // SDK, deterministically and in CI.
+  if (getEnv("PRX_SESSION_NO_LAUNCH")) {
+    // Machine already recorded SESSION_OPEN_PREPARED above; leave it there.
+    return {
+      workspace_id: reserveResult.workspace_id,
+      worktree_path: worktreePath,
+      branch_ref: reserveResult.branch_ref,
+      lifecycle,
+      reserved_status: reserveResult.status,
+      prepared_status: prepareResult.status,
+      profile_built: false,
+      status: "prepared",
+    };
+  }
 
   // -------------------------------------------------------------------------
   // 6. dispatching → DISPATCHED | FAILED(dispatch)

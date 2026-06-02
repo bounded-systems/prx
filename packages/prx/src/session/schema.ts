@@ -104,7 +104,11 @@ export const SessionOpenOutput = z.object({
   reserved_status: ReserveOutput.shape.status,
   prepared_status: PrepareOutput.shape.status,
   profile_built: z.boolean(),
-  status: z.enum(["opened", "error"]),
+  // "prepared" (prx-r2w): PRX_SESSION_NO_LAUNCH stopped after materialize +
+  // prepare — the worktree exists with its `.beads/redirect`, but no agent was
+  // dispatched/launched. Used by the release smoke harness to assert the
+  // materialize→redirect path with no claude/PTY/SDK.
+  status: z.enum(["opened", "error", "prepared"]),
   stage: z
     .enum(["naming", "reserve", "materialize", "prepare", "dispatch"])
     .optional(),
