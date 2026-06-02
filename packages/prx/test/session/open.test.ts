@@ -452,6 +452,73 @@ describe("openSession — happy path", () => {
   });
 });
 
+describe("openSession — PRX_SESSION_NO_LAUNCH (prx-r2w)", () => {
+  test("stops at PREPARED: status='prepared', no profile built, no dispatch", async () => {
+    const { recorded, recordEvent } = makeRecorder();
+    let dispatched = false;
+    const prev = process.env.PRX_SESSION_NO_LAUNCH;
+    process.env.PRX_SESSION_NO_LAUNCH = "1";
+    try {
+      const result = await openSession(
+        {
+          actor: "triage",
+          shortId: "rkg1w0",
+          now: "2026-05-18T00:00:00Z",
+        },
+        {
+          runReserve: () => ({
+            workspace_id: "deadbeef0000",
+            branch_ref: "triage/20260518-rkg1w0",
+            status: "created",
+          }),
+          runMaterialize: () => ({
+            workspace_id: "deadbeef0000",
+            worktree_path: "/tmp/wt/triage",
+            branch: "triage/20260518-rkg1w0",
+            status: "created",
+          }),
+          runPrepare: () => ({
+            workspace_id: "deadbeef0000",
+            files_written: ["/tmp/wt/triage/.beads/redirect"],
+            beads_hydrated: false,
+            status: "ok",
+          }),
+          dispatchSessionEntry: () => {
+            dispatched = true;
+            return stubProfile();
+          },
+          chdir: () => {},
+          cwd: () => "/tmp/wt/triage",
+          recordEvent,
+        },
+      );
+      // The materialize→prepare path completed (the worktree and its
+      // `.beads/redirect` exist), but the no-launch contract stops before
+      // dispatch: no agent profile is built. In xstate terms this is the
+      // sessionOpenMachine resting at PREPARED — it never transitions to
+      // DISPATCHED. The release smoke harness leans on exactly this to assert
+      // the materialize→redirect path with no claude / PTY / agent-SDK.
+      expect(result.status).toBe("prepared");
+      expect(result.profile_built).toBe(false);
+      expect(result.prepared_status).toBe("ok");
+      expect(result.worktree_path).toBe("/tmp/wt/triage");
+      expect(dispatched).toBe(false);
+      const emitted = recorded.map((r) => r.event);
+      expect(emitted).toEqual([
+        "SESSION_OPEN_REQUESTED",
+        "SESSION_OPEN_NAME_DERIVED",
+        "SESSION_OPEN_RESERVED",
+        "SESSION_OPEN_MATERIALIZED",
+        "SESSION_OPEN_PREPARED",
+      ]);
+      expect(emitted).not.toContain("SESSION_OPEN_DISPATCHED");
+    } finally {
+      if (prev === undefined) delete process.env.PRX_SESSION_NO_LAUNCH;
+      else process.env.PRX_SESSION_NO_LAUNCH = prev;
+    }
+  });
+});
+
 describe("openSession — failure branches", () => {
   test("reserve failure short-circuits before chdir/prepare/dispatch", async () => {
     const { recorded, recordEvent } = makeRecorder();

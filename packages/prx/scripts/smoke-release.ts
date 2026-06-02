@@ -41,9 +41,12 @@ function smoke(name: string, fn: () => Outcome): void {
   }
 }
 
-function prx(args: string[], opts: { cwd?: string; timeoutMs?: number; pty?: boolean } = {}) {
-  // A PTY (`script -q /dev/null …`) is required for the interactive agent path,
-  // which otherwise aborts without a controlling terminal.
+function prx(
+  args: string[],
+  opts: { cwd?: string; timeoutMs?: number; pty?: boolean; env?: Record<string, string> } = {},
+) {
+  // A PTY (`script -q /dev/null …`) is only needed for the interactive agent
+  // path; the materialize smoke uses PRX_SESSION_NO_LAUNCH instead (no PTY).
   const [file, argv] = opts.pty
     ? ["script", ["-q", "/dev/null", PRX, ...args]]
     : [PRX, args];
@@ -52,6 +55,7 @@ function prx(args: string[], opts: { cwd?: string; timeoutMs?: number; pty?: boo
     encoding: "utf8",
     timeout: opts.timeoutMs ?? 60_000,
     input: "",
+    env: opts.env ? { ...process.env, ...opts.env } : process.env,
   });
   return { status: r.status, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
 }
@@ -96,8 +100,10 @@ smoke("agent-sdk-launch", () => {
 });
 
 // --- 3. materialized worktree redirects to the launching beads (prx-jkb) ---
-// Running the agent materializes a fresh worktree and writes `.beads/redirect`
-// BEFORE it launches claude — so this smoke holds even if (2) is red.
+// PRX_SESSION_NO_LAUNCH (prx-r2w) stops openSession after materialize + prepare:
+// the worktree exists with its `.beads/redirect`, but no claude/PTY/agent-SDK is
+// touched. That makes this smoke CI-grade — it exercises the exact materialize→
+// redirect path that prx-jkb regressed, with zero interactive dependencies.
 smoke("materialize-redirect", () => {
   const top = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" });
   if (top.status !== 0) return { skip: "not in a git worktree" };
@@ -106,7 +112,7 @@ smoke("materialize-redirect", () => {
   if (doltServers() === 0) return { skip: "no Dolt server running (start the shared server first)" };
 
   const before = new Set(triageWorktrees(wtRoot));
-  prx(["triage", "agent", "--interactive"], { pty: true, timeoutMs: 25_000 });
+  prx(["triage", "agent"], { env: { PRX_SESSION_NO_LAUNCH: "1" }, timeoutMs: 30_000 });
   const after = triageWorktrees(wtRoot);
   const fresh = after.find((w) => !before.has(w));
   if (!fresh) return { ok: false, detail: "agent did not materialize a new triage worktree" };
