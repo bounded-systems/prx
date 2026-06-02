@@ -409,6 +409,49 @@ describe("plan-store/cas legacy-path fallback (PRX_AI_HOME_ROOT)", () => {
   });
 });
 
+describe("plan-store/cas read-only root (prx-1ke)", () => {
+  let envSnap: EnvSnapshot;
+  let aiHome: string;
+
+  beforeEach(() => {
+    envSnap = snapshotEnv();
+    aiHome = mkdtempSync(join(tmpdir(), "prx-ro-ai-home-"));
+    for (const k of ENV_KEYS) {
+      delete process.env[k];
+    }
+    process.env.PRX_AI_HOME_ROOT = aiHome;
+  });
+
+  afterEach(() => {
+    // Restore write so the OS can clean up the temp dir.
+    try {
+      chmodSync(aiHome, 0o700);
+    } catch {
+      // best-effort
+    }
+    restoreEnv(envSnap);
+  });
+
+  test("writeBlob under a read-only PRX_AI_HOME_ROOT throws a clear PlanStoreError, not raw EACCES", async () => {
+    // Strip write perms from the resolved root so ensureLayout's mkdir fails.
+    chmodSync(aiHome, 0o500);
+    let caught: unknown;
+    try {
+      await writeBlob("body-into-readonly-root");
+    } catch (err) {
+      caught = err;
+    }
+    // If the mkdir somehow succeeded (e.g. running as root, where perms don't
+    // apply), there's nothing to assert — the suite assumes a non-root runner.
+    if (caught === undefined) {
+      return;
+    }
+    expect(caught).toBeInstanceOf(PlanStoreError);
+    expect((caught as PlanStoreError).code).toBe("STORE_ROOT_NOT_WRITABLE");
+    expect((caught as Error).message).toContain("PRX_CAS_ROOT");
+  });
+});
+
 describe("plan-store/cas XDG default fallback (GH-1226)", () => {
   let envSnap: EnvSnapshot;
   let xdgState: string;

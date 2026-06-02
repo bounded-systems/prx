@@ -195,6 +195,10 @@ describe("materializeBareRepo — terminal arms", () => {
     writeFileSync(fetchHead, "");
     const freshSec = nowMs / 1000 - 5; // 5s old; well under the 60s TTL
     utimesSync(fetchHead, freshSec, freshSec);
+    // prx-4p0: a "current" bare carries origin tracking refs. Without one, a
+    // fresh FETCH_HEAD is no longer treated as noop (it forces a fetch).
+    mkdirSync(join(scenario.barePath, "refs", "remotes", "origin"), { recursive: true });
+    writeFileSync(join(scenario.barePath, "refs", "remotes", "origin", "main"), "");
 
     const { runner, calls } = makeRunner();
 
@@ -208,6 +212,34 @@ describe("materializeBareRepo — terminal arms", () => {
 
     expect(result.action).toBe("noop");
     expect(gitCalls(calls)).toEqual([]);
+  });
+
+  test("prx-4p0: fresh FETCH_HEAD but no origin tracking refs forces a fetch", () => {
+    const scenario = makeScenario();
+    mkdirSync(scenario.barePath, { recursive: true });
+    const nowMs = 1_700_000_000_000;
+    const fetchHead = join(scenario.barePath, "FETCH_HEAD");
+    writeFileSync(fetchHead, "");
+    const freshSec = nowMs / 1000 - 5; // fresh, well under TTL
+    utimesSync(fetchHead, freshSec, freshSec);
+    // No refs/remotes/origin/* on disk (buffer-mirror clone / origin added but
+    // never fetched). Despite the fresh FETCH_HEAD, this must not be a noop —
+    // otherwise the downstream mainx bootstrap fails resolving origin/<default>.
+
+    const { runner, calls } = makeRunner();
+
+    const result = materializeBareRepo({
+      name: "demo",
+      cwd: scenario.cwd,
+      runner,
+      ttlSeconds: 60,
+      now: () => nowMs,
+    });
+
+    expect(result.action).toBe("fetched");
+    expect(gitCalls(calls)).toEqual([
+      ["git", "-C", scenario.barePath, "fetch", "--all", "--prune"],
+    ]);
   });
 });
 
@@ -357,6 +389,9 @@ describe("materializeBareRepo — dry-run", () => {
     writeFileSync(fetchHead, "");
     const fresh = nowMs / 1000 - 5;
     utimesSync(fetchHead, fresh, fresh);
+    // prx-4p0: origin tracking ref present so the fresh bare resolves to noop.
+    mkdirSync(join(scenario.barePath, "refs", "remotes", "origin"), { recursive: true });
+    writeFileSync(join(scenario.barePath, "refs", "remotes", "origin", "main"), "");
 
     const { runner, calls } = makeRunner();
     const result = materializeBareRepo({
@@ -403,6 +438,9 @@ describe("loadMaterializeTtlSeconds — TOML precedence", () => {
     // 7s old: stale under the 5s TOML value, but fresh under an explicit 100s.
     const stamp = nowMs / 1000 - 7;
     utimesSync(fetchHead, stamp, stamp);
+    // prx-4p0: origin tracking ref present so freshness resolves to noop.
+    mkdirSync(join(scenario.barePath, "refs", "remotes", "origin"), { recursive: true });
+    writeFileSync(join(scenario.barePath, "refs", "remotes", "origin", "main"), "");
 
     const { runner, calls } = makeRunner();
 

@@ -20,7 +20,7 @@
 //   - I-Mat-4: the repo inventory is read once at entry and not re-read
 //              mid-tick (matches GH-1659 I-RR2).
 
-import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import {
@@ -218,7 +218,51 @@ function decideAction(
     return "fetched";
   }
   const ageSeconds = (nowMs - mtime) / 1000;
-  return ageSeconds < ttlSeconds ? "noop" : "fetched";
+  if (ageSeconds >= ttlSeconds) {
+    return "fetched";
+  }
+  // prx-4p0: a fresh FETCH_HEAD is not sufficient to call the bare "current".
+  // A bare can be fresh yet carry no `refs/remotes/origin/*` — e.g. a
+  // buffer-mirror clone, or an `origin` added after clone without a
+  // tracking-refspec fetch. The downstream mainx bootstrap
+  // (`materializeMainxIfMissing` → `resolveDefaultBranch`/`verifyDefaultBranchRef`)
+  // then fails resolving `origin/<default>` with a raw `fatal: Needed a single
+  // revision`. Force a fetch so the tracking refs get populated. Pure-disk
+  // check keeps the `noop` arm free of git subprocesses.
+  if (!hasOriginTrackingRefsOnDisk(barePath)) {
+    return "fetched";
+  }
+  return "noop";
+}
+
+/**
+ * prx-4p0: true iff the bare has at least one `refs/remotes/origin/*` ref on
+ * disk — either loose under `refs/remotes/origin/` or packed in `packed-refs`.
+ * Pure filesystem read (no git subprocess) so {@link decideAction} stays cheap
+ * and the `noop` arm performs zero git work.
+ */
+function hasOriginTrackingRefsOnDisk(barePath: string): boolean {
+  const looseDir = join(barePath, "refs", "remotes", "origin");
+  if (existsSync(looseDir)) {
+    try {
+      if (readdirSync(looseDir).length > 0) {
+        return true;
+      }
+    } catch {
+      // unreadable dir — fall through to packed-refs
+    }
+  }
+  const packedRefs = join(barePath, "packed-refs");
+  if (existsSync(packedRefs)) {
+    try {
+      if (/\srefs\/remotes\/origin\//.test(readFileSync(packedRefs, "utf8"))) {
+        return true;
+      }
+    } catch {
+      // unreadable file — treat as absent
+    }
+  }
+  return false;
 }
 
 function readFetchHeadMtime(barePath: string): number | null {

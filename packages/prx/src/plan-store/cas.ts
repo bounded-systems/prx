@@ -242,9 +242,29 @@ function ensureLayout(root: string): { objects: string; refs: string; tmp: strin
   const objects = join(root, "objects");
   const refs = join(root, "refs");
   const tmp = join(root, ".tmp");
-  mkdirSync(objects, { recursive: true });
-  mkdirSync(refs, { recursive: true });
-  mkdirSync(tmp, { recursive: true });
+  // prx-1ke: the resolved root may be unwritable — e.g. PRX_AI_HOME_ROOT
+  // (precedence branch 3) pointed at a read-only location with PRX_CAS_ROOT
+  // unset. Convert the raw filesystem error into an actionable PlanStoreError
+  // that names the override env var, rather than leaking EACCES/EROFS/EPERM
+  // from mkdirSync. (BAKED_AI_HOME_ROOT can't reach here — it is intentionally
+  // not consulted by the resolver; see resolveStoreRootForDisplay, GH-1226.)
+  try {
+    mkdirSync(objects, { recursive: true });
+    mkdirSync(refs, { recursive: true });
+    mkdirSync(tmp, { recursive: true });
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === "EACCES" || code === "EPERM" || code === "EROFS") {
+      throw new PlanStoreError(
+        `cas store root is not writable: ${root} (${code}). The root was resolved ` +
+          `from an env override (e.g. PRX_AI_HOME_ROOT) pointing at a read-only location; ` +
+          `set PRX_CAS_ROOT to a writable path, or unset the override to fall back to the ` +
+          `XDG_STATE_HOME per-operator default.`,
+        "STORE_ROOT_NOT_WRITABLE",
+      );
+    }
+    throw err;
+  }
   return { objects, refs, tmp };
 }
 
