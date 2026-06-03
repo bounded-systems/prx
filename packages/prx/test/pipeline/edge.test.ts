@@ -18,6 +18,8 @@ import {
   consumeArtifact,
   defineEdge,
   emitArtifact,
+  isFresh,
+  pinSource,
 } from "../../src/pipeline/edge.ts";
 
 const TestPayload = z.object({ greeting: z.string(), n: z.number().int() });
@@ -107,5 +109,59 @@ describe("pipeline artifact edge (prx-d2d)", () => {
   test("the edge declares its sole owners (source emits, target consumes)", () => {
     expect(edge.source).toBe("alpha");
     expect(edge.target).toBe("beta");
+  });
+});
+
+describe("fixed-output pin — impure source → CAS (epic prx-997, path A)", () => {
+  // An edge over a git-persisted artifact (e.g. a uow living as a GH issue/bead);
+  // the fetcher stands in for the impure read. Injected ⇒ no real git/dolt.
+  const gitEdge = defineEdge({
+    kind: "submit" as const,
+    slot: "fod-test",
+    source: "intake",
+    target: "triage",
+    persistence: "git" as const,
+    schema: TestPayload,
+  });
+
+  test("pinSource fetches the impure source and pins it; consume reads it back", async () => {
+    const fetch = () => ({ greeting: "from-git", n: 1 });
+    const { ref, sha } = await pinSource(gitEdge, "GH-5555", fetch);
+    expect(ref).toBe("GH-5555:submit@fod-test");
+    expect(sha).toMatch(/^sha256:[0-9a-f]{64}$/);
+
+    const got = await consumeArtifact(gitEdge, "GH-5555");
+    expect(got.value).toEqual({ greeting: "from-git", n: 1 });
+  });
+
+  test("isFresh: a pinned source is fresh; a drifted source is stale", async () => {
+    let issue = { greeting: "v1", n: 1 };
+    const fetch = () => issue;
+    await pinSource(gitEdge, "GH-6666", fetch);
+
+    const f1 = await isFresh(gitEdge, "GH-6666", fetch);
+    expect(f1.fresh).toBe(true);
+    expect(f1.pinnedSha).toBe(f1.sourceSha);
+
+    issue = { greeting: "v2-edited", n: 2 }; // the GH issue was edited upstream
+    const f2 = await isFresh(gitEdge, "GH-6666", fetch);
+    expect(f2.fresh).toBe(false);
+    expect(f2.pinnedSha).not.toBe(f2.sourceSha);
+  });
+
+  test("isFresh reports a never-pinned edge as not fresh (pinnedSha null)", async () => {
+    const f = await isFresh(gitEdge, "GH-7000-unpinned", () => ({ greeting: "x", n: 0 }));
+    expect(f.pinnedSha).toBeNull();
+    expect(f.fresh).toBe(false);
+  });
+
+  test("the fetcher is injected — pinning touches no real git/dolt", async () => {
+    let calls = 0;
+    const fetch = () => {
+      calls += 1;
+      return { greeting: "counted", n: calls };
+    };
+    await pinSource(gitEdge, "GH-8001", fetch);
+    expect(calls).toBe(1);
   });
 });
