@@ -135,10 +135,13 @@ const plan = deferred(
   "cas",
 );
 
-const uow = deferred(
+// prx-4fa (epic prx-997): filled — the pipeline's root artifact (intake's
+// output / triage's input) is now typed. Concrete schema partially advances
+// GH-1824's deferred-schema work for the `uow` slot specifically.
+const uow = live(
   "uow",
   "prx.uow.v1",
-  "GH-1824",
+  "schema:src/machine/contracts/lifecycle_artifacts.ts#uowSchema",
   ["id", "title", "status"],
   "git",
 );
