@@ -22457,7 +22457,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         return 0;
       }
 
-      output.error(SESSION_PROFILES.intake.banner);
+      // prx-lfv: no pre-run banner — it was noise and its "No execution" clause
+      // was false for the headless agent. The result line (`prx intake agent:
+      // filed/merged/…`) is the operator's signal.
 
       if (parsed.dryRun) {
         // Preview only (no reserve): show the would-be branch + the built
