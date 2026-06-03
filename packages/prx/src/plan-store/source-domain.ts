@@ -176,6 +176,18 @@ export const CAS_PRODUCERS: readonly CasProducer[] = [
       "domain) and refs `transition:<actor>:<unit>`. Validate-then-pin; domain = " +
       "the role per call, same dynamic precedent as dispatch.handler.",
   },
+  {
+    source: "pipeline.edge_emit",
+    callSite: "src/pipeline/edge.ts",
+    domain: DYNAMIC_DOMAIN,
+    serviceDomain: "dynamic",
+    catalogDomains: [],
+    note:
+      "prx-d2d (epic prx-997): the generic pipeline artifact-edge primitive " +
+      "(`emitArtifact` → `putArtifact`). Domain = the edge's `domain` per call " +
+      "(defaults to `plans`); validate-then-emit, same dynamic precedent as " +
+      "dispatch.handler. The cross-actor pass is the CAS ref `<unit>:<kind>@<slot>`.",
+  },
 ];
 
 /** Producers (possibly more than one) that write a given CAS domain. */
