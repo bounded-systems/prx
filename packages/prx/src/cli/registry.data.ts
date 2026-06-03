@@ -1436,6 +1436,15 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "workspace",
   },
   {
+    // prx-997: materialize the reserved branch's worktree on disk — the step
+    // between reserve and prepare in the workspace lifecycle.
+    name: "workspace materialize",
+    parent: "workspace",
+    description: "Materialize the reserved workspace worktree on disk",
+    domain: "repo-plumbing",
+    actor: "workspace",
+  },
+  {
     name: "workspace prepare",
     parent: "workspace",
     description: "Prepare workspace tooling files for a lifecycle phase",
