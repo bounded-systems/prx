@@ -74,15 +74,22 @@ describe("CLI canonical-id gate adapter fall-through (GH-2015)", () => {
     expect(stderr).not.toContain("must match CANONICAL-ID format");
   });
 
-  test("bare bd workspace id is rejected when no covering repo prefix is registered", () => {
+  test("bare bd workspace id is rejected with an actionable unregistered-prefix hint when no covering repo prefix is registered", () => {
     // Default identity + no `.prx/repos/index.json` (or one whose prefix
     // does not cover the cwd). The BD adapter's `matchesSurfaceId` returns
-    // false; the static regex still misses; the gate refuses cleanly.
+    // false; the static regex still misses; the gate refuses. Because the id
+    // has the bd-short shape (`<prefix>-<rest>`), the gate emits the
+    // unregistered-`bd_workspace_prefix` remedy (not the bare "must match
+    // CANONICAL-ID format" line, which misled before).
     const root = setupRepo("bare-refuse");
     const result = runCli(["audit", "uow", "demo-repo-aqg"], root);
     const stderr = new TextDecoder().decode(result.stderr);
     expect(result.exitCode).toBe(1);
-    expect(stderr).toContain("audit uow must match CANONICAL-ID format");
+    expect(stderr).toContain('"demo-repo-aqg" looks like a beads id');
+    expect(stderr).toContain("bd workspace prefix is not registered");
+    expect(stderr).toContain("prx repo backfill");
+    // The canonical-format clause is still present as the fallback explanation.
+    expect(stderr).toContain("must match CANONICAL-ID format");
   });
 
   test("custom [sources.<name>] overlay wins outright over adapter fall-through", () => {

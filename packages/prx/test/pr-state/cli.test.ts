@@ -3024,7 +3024,7 @@ describe("pr_state cli", () => {
       expect(parsed.error.message).toContain("has no local parity-chain unit yet");
       expect(parsed.error.suggestedNextCommands).toEqual([
         "prx chain backfill --authority issue --scope all",
-        "prx session open BD-AAAAAAAA --create --from=beads",
+        "prx plan agent BD-AAAAAAAA --create",
       ]);
       expect(parsed.exitCode).toBe(1);
     } finally {
@@ -6002,7 +6002,11 @@ describe("pr_state cli", () => {
     const message = caught instanceof Error ? caught.message : String(caught);
     expect(message).toContain("Foo bar");
     expect(message).toContain("https://notion.so/abc");
-    expect(message).toContain("--create --from=notion");
+    // The materialize hint points at the canonical plan entry with a bare
+    // `--create` (the source is auto-resolved); `--from` is no longer emitted.
+    expect(message).toContain("--create");
+    expect(message).toContain("prx plan agent");
+    expect(message).not.toContain("--from=notion");
   });
 
   test("checkWorkUnitChain reports closed state without suggesting --create", async () => {
@@ -16471,7 +16475,11 @@ describe("plan handoff command (GH-643; renamed from session close in GH-1166)",
       {},
     );
     expect(exitCode).toBe(1);
-    expect(errors.join("\n")).toContain("close must match CANONICAL-ID format");
+    // `not-a-real-id` has the bd-short shape, so the gate emits the
+    // unregistered-prefix hint; either way it carries the canonical-format
+    // guidance and the verb label.
+    expect(errors.join("\n")).toContain("close");
+    expect(errors.join("\n")).toContain("must match CANONICAL-ID format");
   });
 
   describe("closeSession executor", () => {
@@ -17012,7 +17020,10 @@ describe("review / ultrareview commands", () => {
     );
 
     expect(exitCode).toBe(1);
-    expect(errors.join("\n")).toContain("review must match CANONICAL-ID format");
+    // `not-a-canonical-id` has the bd-short shape → unregistered-prefix hint;
+    // the canonical-format guidance and verb label are still present.
+    expect(errors.join("\n")).toContain("review");
+    expect(errors.join("\n")).toContain("must match CANONICAL-ID format");
   });
 });
 

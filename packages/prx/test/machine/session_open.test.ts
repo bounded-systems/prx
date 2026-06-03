@@ -155,25 +155,32 @@ describe("prxSessionNotProjectedLocallyMessage (GH-2089)", () => {
     };
   }
 
-  test("includes the --from=<source> hint when the source is accepted by the CLI", () => {
+  test("includes the canonical materialize hint when the source is accepted by the CLI", () => {
     const msg = prxSessionNotProjectedLocallyMessage("BD-AAAAAAAA", resolved("beads"));
     expect(msg).toContain("Cannot open PRX session for BD-AAAAAAAA:");
     expect(msg).toContain("beads page");
     expect(msg).toContain("`prx chain backfill --authority issue --scope all`");
-    expect(msg).toContain("prx session open BD-AAAAAAAA --create --from=beads");
+    // The hint points at the canonical plan entry and drops the redundant
+    // `--from` (`--create` auto-resolves the source); the retired `session
+    // open` alias must not appear.
+    expect(msg).toContain("prx plan agent BD-AAAAAAAA --create");
+    expect(msg).toContain("prx plan session BD-AAAAAAAA --create");
+    expect(msg).not.toContain("session open");
+    expect(msg).not.toContain("--from=");
   });
 
-  test("includes --from=notion for notion-resolved units", () => {
+  test("emits the materialize hint for notion-resolved units too", () => {
     const msg = prxSessionNotProjectedLocallyMessage("PROJ-1", resolved("notion"));
-    expect(msg).toContain("--from=notion");
+    expect(msg).toContain("prx plan agent PROJ-1 --create");
+    expect(msg).not.toContain("--from=");
   });
 
-  test("omits the --from=<source> hint when the source is not in workUnitSources (defensive regression net)", () => {
+  test("omits the materialize hint when the source is not in workUnitSources (defensive regression net)", () => {
     const msg = prxSessionNotProjectedLocallyMessage("X-1", resolved("future-source"));
     expect(msg).toContain("Cannot open PRX session for X-1:");
     expect(msg).toContain("`prx chain backfill --authority issue --scope all`");
-    expect(msg).not.toContain("--from=future-source");
-    expect(msg).not.toContain("--create --from=");
+    expect(msg).not.toContain("prx plan agent X-1 --create");
+    expect(msg).not.toContain("prx plan session X-1 --create");
   });
 });
 
@@ -201,15 +208,15 @@ describe("prxSessionNotProjectedLocallyEnvelope (GH-2067)", () => {
     );
     expect(envelope.suggestedNextCommands).toEqual([
       "prx chain backfill --authority issue --scope all",
-      "prx session open BD-AAAAAAAA --create --from=beads",
+      "prx plan agent BD-AAAAAAAA --create",
     ]);
   });
 
-  test("includes the --from=notion hint for notion-resolved units", () => {
+  test("includes the canonical materialize hint for notion-resolved units too", () => {
     const envelope = prxSessionNotProjectedLocallyEnvelope("PROJ-1", resolved("notion"));
     expect(envelope.source).toBe("notion");
     expect(envelope.suggestedNextCommands).toContain(
-      "prx session open PROJ-1 --create --from=notion",
+      "prx plan agent PROJ-1 --create",
     );
   });
 

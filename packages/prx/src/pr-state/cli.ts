@@ -3397,7 +3397,39 @@ function parseCanonicalWorkUnitId(value: string, flag: string): string {
       return normalized;
     }
   }
+  // A `<prefix>-<rest>` id that survives to here is most often a *recognized*
+  // bd surface id whose covering repo has no `bd_workspace_prefix` registered
+  // (a pre-GH-1657 inventory row) — the bd bare-workspace adapter arm needs
+  // that field to fire, so the id silently fails the gate. The generic
+  // "must match CANONICAL-ID format (GH-456)" misleads in that case (it cost a
+  // full debugging session to trace). Detect the bd-short shape and point at
+  // the documented `prx repo backfill` / `prx repo refresh <slug>` remedy.
+  const inputTrimmed = value.trim();
+  if (activeCanonicalIsDefault && looksLikeBeadsShortId(inputTrimmed)) {
+    const slug = localRepoForCwd(process.cwd())?.name;
+    const refreshHint = slug ? ` (or \`prx repo refresh ${slug}\`)` : "";
+    throw new CliError(
+      `${flag} "${inputTrimmed}" looks like a beads id but is not recognized. ` +
+        `This repo's bd workspace prefix is not registered in the repo inventory ` +
+        `(a pre-GH-1657 row), so the bd id arm cannot resolve it. ` +
+        `Run \`prx repo backfill\`${refreshHint} to populate bd_workspace_prefix, then retry. ` +
+        `Otherwise the id must match CANONICAL-ID format (${canonicalFormatExample()}).`,
+    );
+  }
   throw new CliError(`${flag} must match CANONICAL-ID format (${canonicalFormatExample()})`);
+}
+
+/**
+ * Heuristic: does `value` look like a bd workspace-short id (`<prefix>-<rest>`,
+ * e.g. `prx-0v5`) rather than a malformed canonical id? Excludes the known
+ * domain prefixes (gh / notion / bd) — those have their own surface arms and a
+ * miss there is a genuine format error, not an unregistered-prefix one.
+ */
+function looksLikeBeadsShortId(value: string): boolean {
+  const trimmed = value.trim();
+  if (!/^[a-z][a-z0-9-]*-[a-z0-9]+$/i.test(trimmed)) return false;
+  const prefix = trimmed.slice(0, trimmed.indexOf("-")).toLowerCase();
+  return prefix !== "gh" && prefix !== "notion" && prefix !== "bd";
 }
 
 function detectWorkUnitIdFromCwd(cwd = process.cwd()): string {

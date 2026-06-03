@@ -109,8 +109,14 @@ export function prxSessionNotProjectedLocallyMessage(
   // emitted `--from=beads` before the CLI implemented the verb, leaving the
   // operator following a hint that flat-out failed at the flag layer.
   const sourceIsAccepted = (workUnitSources as readonly string[]).includes(resolved.source);
+  // `--create` already auto-resolves the source from the resolver, so the
+  // redundant `--from=<source>` is dropped. Point at the canonical
+  // `prx plan session` (interactive) / `prx plan agent` (headless) entry — not
+  // the retired `prx session open` alias. The `sourceIsAccepted` gate (GH-2089)
+  // still suppresses the hint when the resolver's source isn't a `--create`
+  // target.
   const materializeHint = sourceIsAccepted
-    ? `, or \`prx session open ${workUnitId} --create --from=${resolved.source}\` to materialize it locally`
+    ? `, or \`prx plan session ${workUnitId} --create\` (interactive) / \`prx plan agent ${workUnitId} --create\` (headless) to materialize it locally`
     : "";
   return [
     `${prxSessionCannotOpenPrefix(workUnitId)} ${resolved.source} page ${describeResolvedWorkUnit(resolved)} exists but has no local parity-chain unit yet.`,
@@ -146,7 +152,11 @@ export function prxSessionNotProjectedLocallyEnvelope(
   const sourceIsAccepted = (workUnitSources as readonly string[]).includes(resolved.source);
   const suggestedNextCommands = ["prx chain backfill --authority issue --scope all"];
   if (sourceIsAccepted) {
-    suggestedNextCommands.push(`prx session open ${workUnitId} --create --from=${resolved.source}`);
+    // `--create` auto-resolves the source; point at the canonical plan entry
+    // (not the retired `prx session open` alias). The headless `prx plan agent
+    // <id> --create` is the pipeline-flow form; the interactive twin is
+    // `prx plan session <id> --create`.
+    suggestedNextCommands.push(`prx plan agent ${workUnitId} --create`);
   }
   return {
     code: "PRX_SESSION_NOT_PROJECTED_LOCALLY",
