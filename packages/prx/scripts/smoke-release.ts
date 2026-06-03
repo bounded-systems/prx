@@ -130,6 +130,43 @@ smoke("materialize-redirect", () => {
   return { ok: true, detail: `redirect → ${target}, no stray` };
 });
 
+// --- 4. every lifecycle step is `prx <actor> agent` (prx-383) --------------
+// The uniform headless chain: intake → triage → plan → implement → submit →
+// author. A regression that drops (or renames) any `agent` verb breaks the
+// operator's single-verb workflow; this catches it.
+smoke("uniform-agent-chain", () => {
+  const actors = ["intake", "triage", "plan", "implement", "submit", "author"];
+  const unrecognized =
+    /unknown .*subcommand|requires a subcommand|is no longer a verb|no SessionEntryEvent matched/i;
+  const missing = actors.filter((a) => unrecognized.test(prx([a, "agent", "--help"]).out));
+  return {
+    ok: missing.length === 0,
+    detail: missing.length
+      ? `not a verb: ${missing.map((a) => `prx ${a} agent`).join(", ")}`
+      : "all six prx <actor> agent verbs route",
+  };
+});
+
+// --- 5. `prx intake agent --message` seeds the headless prompt (prx-28w) ----
+// The free-text front door: the seed must reach the intake operator's prompt so
+// it intakes THAT item instead of sweeping the queue.
+smoke("intake-message-seed", () => {
+  const top = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" });
+  if (top.status !== 0) return { skip: "not in a git worktree" };
+  const probe = "smoke-probe: the readme is out of date";
+  const { out } = prx(
+    ["intake", "agent", "--message", probe, "--dry-run", "--format", "json"],
+    { cwd: (top.stdout ?? "").trim() },
+  );
+  const seeded = /operator reports/i.test(out) && out.includes("readme is out of date");
+  return {
+    ok: seeded,
+    detail: seeded
+      ? "--message threads into the headless intake prompt"
+      : "seed not found in the dry-run profile",
+  };
+});
+
 // --- report ---------------------------------------------------------------
 let failed = 0;
 for (const r of results) {
