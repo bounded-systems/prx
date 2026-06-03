@@ -2520,10 +2520,16 @@ export function intakeUserPrompt(message?: string): string {
   if (seed) {
     return (
       `The operator reports: "${seed}". Intake this specific item. First ` +
-      "dedupe-search the queue; if it already exists, merge or pointer-comment " +
-      "the duplicate. Otherwise file the correctly-typed issue " +
-      "(bug | task | feature | spike | decision) with a clear title and a body " +
-      "derived from the report. Do not ask clarifying questions."
+      "dedupe-search the queue. If a real duplicate exists, merge/pointer-comment " +
+      "it. Otherwise file the correctly-typed issue (bug | task | feature | spike " +
+      "| decision) with a clear title + body, then mirror it to a bead with " +
+      "`prx intake mirror` so the work-unit exists beads-first. " +
+      "FINALLY you MUST report the outcome with the result tool — exactly one of:\n" +
+      "  prx intake result --disposition filed --uow <bd-id>\n" +
+      "  prx intake result --disposition merged --uow <canonical-bd-id> --reason \"<why>\"\n" +
+      "  prx intake result --disposition duplicate --uow <existing-bd-id> --reason \"<why>\"\n" +
+      "  prx intake result --disposition no_action --reason \"<why nothing was filed>\"\n" +
+      "Do not ask clarifying questions."
     );
   }
   return (

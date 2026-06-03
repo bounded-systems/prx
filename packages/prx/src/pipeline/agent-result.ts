@@ -12,6 +12,9 @@
  *
  * The CLI then surfaces the UoW + the CAS ref; it never reports a silent success.
  */
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+
 import { defaultRunner } from "@bounded-systems/proc";
 import { z } from "zod";
 
@@ -22,12 +25,35 @@ export const agentResultSchema = z.object({
   actor: z.string().min(1),
   /** The agent process exit status (0 = ok). */
   status: z.number().int(),
-  /** UoW(s) the run produced — bead ids created during it. */
+  /**
+   * What the agent reported via `prx <actor> result` (the structured tool):
+   *   filed     — created a new UoW (`uow` = the new bead/issue)
+   *   merged    — folded into an existing UoW (`uow` = the canonical one)
+   *   duplicate — an existing UoW already covers it (`uow` = that one)
+   *   no_action — nothing filed (`reason` says why)
+   * Absent when the agent did not report (older agents / it skipped the tool).
+   */
+  disposition: z
+    .enum(["filed", "merged", "duplicate", "no_action"])
+    .optional(),
+  /** The UoW the disposition refers to — new OR the existing one matched. */
+  uow: z.string().optional(),
+  /** Why, for `merged`/`duplicate`/`no_action`. */
+  reason: z.string().optional(),
+  /** Fallback UoW signal: bead(s) created during the run (a `bd list` diff). */
   uows: z.array(z.string()),
   /** Short human summary (the agent's final result text, truncated). */
   summary: z.string(),
 });
 export type AgentResult = z.infer<typeof agentResultSchema>;
+
+/** The structured result an actor's `prx <actor> result` tool reports. */
+export const reportedResultSchema = z.object({
+  disposition: z.enum(["filed", "merged", "duplicate", "no_action"]),
+  uow: z.string().optional(),
+  reason: z.string().optional(),
+});
+export type ReportedResult = z.infer<typeof reportedResultSchema>;
 
 /** The result edge: an agent pins its outcome for the operator to read. */
 const agentResultEdge: ArtifactEdge<AgentResult> = defineEdge({
@@ -98,17 +124,26 @@ export async function captureAgentResult(input: {
   stdout: string;
   before: Set<string>;
   after: Set<string>;
+  /** What the agent reported via `prx <actor> result` (preferred over the diff). */
+  reported?: ReportedResult | undefined;
 }): Promise<{ ref: string; result: AgentResult }> {
   const uows = [...input.after].filter((id) => !input.before.has(id)).sort();
   const result: AgentResult = {
     actor: input.actor,
     status: input.status,
+    ...(input.reported
+      ? {
+          disposition: input.reported.disposition,
+          ...(input.reported.uow ? { uow: input.reported.uow } : {}),
+          ...(input.reported.reason ? { reason: input.reported.reason } : {}),
+        }
+      : {}),
     uows,
     summary: summarizeAgentStdout(input.stdout),
   };
-  // The CAS pin is best-effort: the UoW(s) are already computed, so a CAS write
+  // The CAS pin is best-effort: the result is already computed, so a CAS write
   // failure must never break the agent run — return an empty ref and let the
-  // caller surface the UoW without it.
+  // caller surface the result without it.
   try {
     const { ref } = await emitArtifact(agentResultEdge, input.workspaceId, result);
     return { ref, result };
@@ -117,11 +152,58 @@ export async function captureAgentResult(input: {
   }
 }
 
-/** One-line plain-mode rendering: the UoW + the CAS ref. Never silent. */
-export function renderAgentResult(ref: string, result: AgentResult): string {
-  const uow =
-    result.uows.length > 0 ? `UoW: ${result.uows.join(", ")}` : "no new UoW";
-  return ref
-    ? `prx ${result.actor} agent → ${uow} · result ${ref}`
-    : `prx ${result.actor} agent → ${uow}`;
+/**
+ * One-line plain-mode rendering. Prefers the agent's reported disposition (the
+ * existing-issue / reason the operator asked for); falls back to the bd-diff.
+ * Never silent.
+ */
+export function renderAgentResult(result: AgentResult): string {
+  const head = `prx ${result.actor} agent`;
+  switch (result.disposition) {
+    case "filed":
+      return `${head}: filed ${result.uow ?? "(unknown)"}`;
+    case "merged":
+      return `${head}: merged into ${result.uow ?? "(unknown)"}${result.reason ? ` — ${result.reason}` : ""}`;
+    case "duplicate":
+      return `${head}: already tracked by ${result.uow ?? "(unknown)"}${result.reason ? ` — ${result.reason}` : ""}`;
+    case "no_action":
+      return `${head}: no issue filed — ${result.reason ?? "no action taken"}`;
+    default:
+      // No reported disposition — fall back to the bead diff.
+      return result.uows.length > 0
+        ? `${head}: created ${result.uows.join(", ")}`
+        : `${head}: no result reported`;
+  }
+}
+
+// ── reported-result file (the `prx <actor> result` tool ↔ the parent) ───────
+//
+// The agent reports its disposition by running `prx <actor> result …` (a plain
+// CLI tool in its Bash allowlist — NOT an MCP server). That tool writes this
+// file in the worktree; the parent reads it after the run. A file (not CAS)
+// because the parent already holds the worktree path (spawnCwd), so no ref
+// agreement is needed.
+const REPORTED_RESULT_RELPATH = join(".prx", "run", "agent-result.json");
+
+/** Path the `prx <actor> result` tool writes / the parent reads (in `cwd`). */
+export function reportedResultPath(cwd: string): string {
+  return join(cwd, REPORTED_RESULT_RELPATH);
+}
+
+/** Write the reported result (called by the `prx <actor> result` tool). */
+export function writeReportedResult(cwd: string, reported: ReportedResult): void {
+  const path = reportedResultPath(cwd);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, JSON.stringify(reportedResultSchema.parse(reported)), "utf8");
+}
+
+/** Read the reported result if the agent wrote one (parent, post-run). */
+export function readReportedResult(cwd: string): ReportedResult | undefined {
+  const path = reportedResultPath(cwd);
+  if (!existsSync(path)) return undefined;
+  try {
+    return reportedResultSchema.parse(JSON.parse(readFileSync(path, "utf8")));
+  } catch {
+    return undefined;
+  }
 }
