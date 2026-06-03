@@ -27,11 +27,78 @@ import { runCli } from "../../src/pr-state/cli.ts";
 import {
   KeeperGitError,
   runKeeperCommitTree,
+  runKeeperEnsureWorktree,
   runKeeperPush,
   runKeeperWriteTree,
 } from "../../src/pr-state/keeper.ts";
 import { GIT_PUSH_BUILD_TYPE, type AttestDeps } from "../../src/provenance/attest.ts";
 import { slsaProvenanceStatement, verifySlsaEnvelope } from "../../src/provenance/slsa.ts";
+
+describe("runKeeperEnsureWorktree — worktree placement + self-heal (prx-0yf / prx-5h0)", () => {
+  // Stub keeper's git (execGit-shaped) + fs probes so the worktree lifecycle
+  // runs offline. `worktreeHealthy` toggles the `.git`-present health check.
+  function stub(opts: {
+    registered?: boolean;
+    branchExists?: boolean;
+    worktreeHealthy?: boolean;
+    targetExistsOnDisk?: boolean;
+    addExit?: number;
+  }) {
+    const calls: string[][] = [];
+    const removed: string[] = [];
+    const git = (({ subcommand, args }: GitExecOptions): GitExecResult => {
+      calls.push([subcommand, ...args]);
+      if (subcommand === "worktree" && args[0] === "list") {
+        return { exitCode: 0, stdout: opts.registered ? "worktree /wt/GH-7\n" : "", stderr: "" } as GitExecResult;
+      }
+      if (subcommand === "rev-parse") {
+        return { exitCode: opts.branchExists === false ? 1 : 0, stdout: "", stderr: "" } as GitExecResult;
+      }
+      if (subcommand === "worktree" && args[0] === "add") {
+        return { exitCode: opts.addExit ?? 0, stdout: "", stderr: opts.addExit ? "boom" : "" } as GitExecResult;
+      }
+      return { exitCode: 0, stdout: "", stderr: "" } as GitExecResult;
+    }) as typeof execGit;
+    const exists = (p: string) =>
+      p.endsWith(".git") ? opts.worktreeHealthy === true : opts.targetExistsOnDisk === true;
+    const remove = (p: string) => { removed.push(p); };
+    return { git, exists, remove, calls, removed };
+  }
+
+  test("healthy registered worktree → exists (idempotent, no add)", () => {
+    const s = stub({ registered: true, worktreeHealthy: true });
+    const out = runKeeperEnsureWorktree({ branch: "GH-7", targetPath: "/wt/GH-7" }, "/repo", s);
+    expect(out.status).toBe("exists");
+    expect(s.calls.some((c) => c.join(" ").includes("worktree add"))).toBe(false);
+  });
+
+  test("fresh worktree → created (branch reused when it exists)", () => {
+    const s = stub({ registered: false, branchExists: true });
+    const out = runKeeperEnsureWorktree({ branch: "GH-7", targetPath: "/wt/GH-7" }, "/repo", s);
+    expect(out.status).toBe("created");
+    const add = s.calls.find((c) => c[0] === "worktree" && c[1] === "add")!;
+    expect(add).toEqual(["worktree", "add", "/wt/GH-7", "GH-7"]);
+  });
+
+  test("self-heal: a registered-but-broken worktree (.git gone) is pruned + recreated (prx-5h0)", () => {
+    // The #47 regression: registered but unhealthy was treated as a healthy
+    // "exists", leaving a worktree with no `.git`. Keeper now removes + recreates.
+    const s = stub({ registered: true, worktreeHealthy: false, targetExistsOnDisk: true, branchExists: true });
+    const out = runKeeperEnsureWorktree({ branch: "GH-7", targetPath: "/wt/GH-7" }, "/repo", s);
+    expect(out.status).toBe("recreated");
+    expect(s.calls.some((c) => c.join(" ").includes("worktree prune"))).toBe(true);
+    expect(s.calls.some((c) => c.join(" ").includes("worktree remove --force"))).toBe(true);
+    expect(s.removed).toContain("/wt/GH-7"); // the leftover dir was cleared
+    expect(s.calls.some((c) => c[0] === "worktree" && c[1] === "add")).toBe(true);
+  });
+
+  test("a failing `git worktree add` throws KeeperGitError", () => {
+    const s = stub({ registered: false, branchExists: true, addExit: 1 });
+    expect(() => runKeeperEnsureWorktree({ branch: "GH-7", targetPath: "/wt/GH-7" }, "/repo", s)).toThrow(
+      KeeperGitError,
+    );
+  });
+});
 
 describe("prx keeper CLI verb validation (GH-2353)", () => {
   test("no verb → non-zero exit with the verb hint", async () => {

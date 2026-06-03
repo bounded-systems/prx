@@ -49,12 +49,11 @@ import {
   type EnsureBranchResult,
 } from "../tools/ensure_branch.ts";
 import {
-  addWorktreeForBranch,
   expectedWorktreePath,
-  isRegisteredWorktree,
   WorktreeAddError,
   type WorktreeSpawn,
 } from "../tools/worktree_layout.ts";
+import { runKeeperEnsureWorktree, type KeeperEnsureWorktreeDeps } from "../pr-state/keeper.ts";
 import { ensurePrxExcludes } from "../tools/ignore_sync.ts";
 import { writeBeadsRedirect } from "../beads/redirect.ts";
 import {
@@ -385,16 +384,17 @@ export function runReserve(
 // ---------------------------------------------------------------------------
 
 export type MaterializeDeps = {
-  /** Inject the git spawn seam (tests). Defaults to spawnCapture. */
+  /**
+   * prx-0yf: ignored — the worktree git seam moved to keeper
+   * (`runKeeperEnsureWorktree`). Retained for caller API compatibility.
+   */
   spawn?: WorktreeSpawn;
   /** Override the cwd → repo-toplevel resolver (tests). */
   repoToplevel?: (cwd: string) => string | null;
-};
-
-/** Default WorktreeSpawn adapter over @bounded-systems/proc spawnCapture. */
-const defaultWorktreeSpawn: WorktreeSpawn = (file, args, options) => {
-  const r = spawnCapture([file, ...args], { cwd: options.cwd });
-  return { status: r.status, stdout: r.stdout, stderr: r.stderr };
+  /** prx-0yf: inject keeper's git + fs seams (tests stub the worktree ops offline). */
+  git?: KeeperEnsureWorktreeDeps["git"];
+  exists?: KeeperEnsureWorktreeDeps["exists"];
+  remove?: KeeperEnsureWorktreeDeps["remove"];
 };
 
 /**
@@ -427,7 +427,8 @@ export function runMaterialize(
     };
   }
   const { ledgerPath, ledger } = reserved;
-  const spawn = deps.spawn ?? defaultWorktreeSpawn;
+  // prx-0yf: the worktree git seam now lives in keeper (runKeeperEnsureWorktree);
+  // runMaterialize no longer drives `git worktree` via the injected spawn.
   const repoTop = (deps.repoToplevel ?? resolveRepoToplevel)(cwd);
   if (!repoTop) {
     return {
@@ -441,30 +442,31 @@ export function runMaterialize(
   const targetPath = expectedWorktreePath(repoTop, ledger.branch);
 
   try {
-    if (isRegisteredWorktree(repoTop, targetPath, spawn)) {
-      // Idempotent re-run: worktree already on disk. Still record the
-      // authoritative path + state so prepare resolves against the tree.
-      updateLedger(ledgerPath, {
-        worktree_path: targetPath,
-        state: "materialized",
-      });
-      return {
-        workspace_id: input.workspace_id,
-        worktree_path: targetPath,
-        branch: ledger.branch,
-        status: "exists",
-      };
-    }
-    addWorktreeForBranch(repoTop, ledger.branch, targetPath, spawn);
+    // prx-0yf: keeper is the sole git-knower — delegate the worktree placement
+    // AND the self-heal of stale/prunable state to it. (Previously a registered-
+    // but-broken worktree was treated as a healthy "exists", yielding a worktree
+    // with no `.git`; keeper now prunes + recreates it — fixes the #47
+    // regression / prx-5h0.)
+    const ensured = runKeeperEnsureWorktree(
+      { branch: ledger.branch, targetPath },
+      repoTop,
+      {
+        ...(deps.git ? { git: deps.git } : {}),
+        ...(deps.exists ? { exists: deps.exists } : {}),
+        ...(deps.remove ? { remove: deps.remove } : {}),
+      },
+    );
     updateLedger(ledgerPath, {
-      worktree_path: targetPath,
+      worktree_path: ensured.worktree_path,
       state: "materialized",
     });
     return {
       workspace_id: input.workspace_id,
-      worktree_path: targetPath,
+      worktree_path: ensured.worktree_path,
       branch: ledger.branch,
-      status: "created",
+      // MaterializeOutput's status vocab is created|exists; keeper's self-heal
+      // "recreated" collapses to "created" (a fresh tree on disk).
+      status: ensured.status === "exists" ? "exists" : "created",
     };
   } catch (err) {
     const message = err instanceof WorktreeAddError
