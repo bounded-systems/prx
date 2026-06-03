@@ -5562,7 +5562,7 @@ function parseSessionOpenClaudeCommand(rest: string[]): ParsedCommand {
   }
   if (rest.includes("--detached") || rest.includes("--detached=true")) {
     throw new CliError(
-      "--detached is not supported on `prx session open-claude` (avoids the git detached-HEAD collision flagged in GH-1983); use --background to boot the session without attaching.",
+      "--detached is not supported on `prx claude` (avoids the git detached-HEAD collision flagged in GH-1983); use --background to boot the session without attaching.",
     );
   }
   const { values, positionals } = parseArgs({
@@ -5582,7 +5582,7 @@ function parseSessionOpenClaudeCommand(rest: string[]): ParsedCommand {
   const detectedTarget = workUnitArg ? null : detectWorkCommandTarget();
   if (!workUnitArg && !detectedTarget) {
     throw new CliError(
-      "prx session open-claude requires a work-unit id (e.g. GH-456).",
+      "prx claude requires a work-unit id (e.g. GH-456).",
     );
   }
   if (!workUnitArg && detectedTarget?.launchFromCurrentWorkspace) {
@@ -5591,14 +5591,14 @@ function parseSessionOpenClaudeCommand(rest: string[]): ParsedCommand {
     );
   }
   if (positionals.length > 1) {
-    throw new CliError("prx session open-claude accepts a single work-unit id; pass options as flags");
+    throw new CliError("prx claude accepts a single work-unit id; pass options as flags");
   }
 
   return {
     command: "session-open-claude",
     workUnitId: workUnitArg
-      ? parseCanonicalWorkUnitId(workUnitArg, "session")
-      : parseCanonicalWorkUnitId(detectedTarget!.workUnitId, "session"),
+      ? parseCanonicalWorkUnitId(workUnitArg, "claude")
+      : parseCanonicalWorkUnitId(detectedTarget!.workUnitId, "claude"),
     launchFromCurrentWorkspace: detectedTarget?.launchFromCurrentWorkspace,
     format: ensureChoice(values.format, ["plain", "json"], "--format"),
     dryRun: values["dry-run"],
@@ -7713,27 +7713,30 @@ const RETIRED_SESSION_VERB_REDIRECTS: Record<string, string> = {
   "check-chain": "prx chain check",
 };
 
+// prx-rgr: the final functional `prx session` verbs are retired here — there is
+// no `prx session` surface anymore. `open` / `plan` / the bare `<id>` shorthand
+// redirect to the canonical `prx plan session` (interactive) / `prx plan agent`
+// (headless) entry; the internal claude runtime launcher (`open-claude`) moves
+// to the top-level `prx claude`. `parseSessionOpenCommand` /
+// `parseSessionOpenClaudeCommand` survive — they back `prx plan session
+// --interactive` and `prx claude` respectively.
+const NEWLY_RETIRED_SESSION_VERB_REDIRECTS: Record<string, string> = {
+  open: "prx plan session",
+  plan: "prx plan session",
+  "open-claude": "prx claude",
+};
+
 function parseSessionNamespace(rest: string[]): ParsedCommand {
   const head = rest[0];
+  // `prx session --help` still prints the redirect map to ease migration —
+  // it performs no session action, it only signposts the new homes.
   if (head === "--help" || head === "-h" || head === "help") {
     return { command: "session-help" };
   }
-  if (head === "open") {
-    return parseSessionOpenCommand(rest.slice(1), { idLabel: "session", invokedViaSessionOpen: true });
-  }
-  if (head === "open-claude") {
-    return parseSessionOpenClaudeCommand(rest.slice(1));
-  }
-  if (head === "plan") {
-    // GH-1982: `prx session plan` is a one-cycle alias for `prx plan session`.
-    // Setting `invokedViaPlanSession: true` is the footgun fix — the auto-save
-    // chain into the `<UoW>:plan@draft` CAS slot that `prx implement` consumes
-    // now fires identically to the canonical entry. `viaAlias: true` is the
-    // dispatch-side marker that emits the stderr alias hint exactly once.
-    return parseSessionPlanCommand(rest.slice(1), {
-      invokedViaPlanSession: true,
-      viaAlias: true,
-    });
+
+  if (head && Object.prototype.hasOwnProperty.call(NEWLY_RETIRED_SESSION_VERB_REDIRECTS, head)) {
+    const target = NEWLY_RETIRED_SESSION_VERB_REDIRECTS[head];
+    throw new CliError(`prx session ${head} is retired. Use \`${target}\` instead.`);
   }
 
   if (head && Object.prototype.hasOwnProperty.call(RETIRED_SESSION_VERB_REDIRECTS, head)) {
@@ -7743,34 +7746,16 @@ function parseSessionNamespace(rest: string[]): ParsedCommand {
     );
   }
 
-  // Deprecated shorthand: `prx session GH-456` (and other canonical ids) →
-  // routes to `parseSessionOpenCommand` with the existing deprecation hint.
-  // Tracked separately under #582 / #833 / #1084.
-  // GH-2015: mirror the `parseCanonicalWorkUnitId` adapter fall-through so
-  // runtime-only surface ids (BD's cwd-dependent bare-workspace arm) reach
-  // the same dispatch as the gate accepts. Try verbatim before uppercased
-  // for the same case-preservation reason.
+  // The bare `prx session <id>` shorthand is retired too → plan session.
   if (head && !head.startsWith("-")) {
-    const helpers = ensureCanonicalHelpers();
-    const trimmed = head.trim();
-    const normalized = helpers.normalize(head);
-    const fallThroughOk =
-      activeCanonicalIsDefault &&
-      ((trimmed.length > 0 && adapterForCanonicalId(trimmed) !== null) ||
-        (normalized !== trimmed && adapterForCanonicalId(normalized) !== null));
-    if (helpers.isCanonical(normalized) || fallThroughOk) {
-      return parseSessionOpenCommand(rest, {
-        idLabel: "session",
-        invokedViaDeprecatedSessionShorthand: true,
-      });
-    }
+    throw new CliError(
+      `prx session ${head} is retired. Use \`prx plan session ${head}\` (interactive) or \`prx plan agent ${head}\` (headless pipeline entry) instead.`,
+    );
   }
 
-  // Bare `prx session` (no subverb) or unknown subverb → hard error.
+  // Bare `prx session` (no subverb) → hard error with the full redirect map.
   throw new CliError(
-    head
-      ? `Unknown session subcommand: ${head}. \`prx session <verb>\` is retired (GH-1166); see \`prx session --help\` for the redirect map. Session entry: \`prx plan session\`, \`prx intake agent\`, \`prx triage agent\`, \`prx implement agent\`, \`prx prune session\`.`
-      : "prx session is no longer a verb (GH-1166). Use one of: `prx plan session`, `prx intake agent`, `prx triage agent`, `prx implement agent`, `prx prune session`.",
+    "prx session is retired — there is no `prx session` surface. Use: `prx plan session` / `prx plan agent` (planning), `prx intake agent`, `prx triage agent`, `prx implement agent`, `prx submit agent`, `prx author agent`, `prx prune session`, or `prx claude` (internal claude launcher).",
   );
 }
 
@@ -7830,6 +7815,14 @@ export function parseCommand(argv: string[]): ParsedCommand {
 
   if (command === "session") {
     return parseSessionNamespace(rest);
+  }
+
+  // prx-rgr: `prx claude [<id>] [flags]` is the new home for the internal
+  // claude runtime-bootstrap launcher (formerly `prx session open-claude`). It
+  // parses to the same `session-open-claude` command tag + handler — only the
+  // user-facing verb moved off the retired `prx session` namespace.
+  if (command === "claude") {
+    return parseSessionOpenClaudeCommand(rest);
   }
 
   // GH-950 / GH-1164: `prx plan session [GH-NNN] [...flags]` is the canonical
@@ -13557,41 +13550,39 @@ function formatIntakeNamespaceHelp(): string {
 }
 
 function formatSessionHelp(): string {
-  const workAgentUsage = formatExecutionWorkAgentsForUsage();
-  const aliases = formatWorkAgentAliasMappings();
+  // prx-rgr: `prx session` is retired — there is no `prx session` surface. This
+  // help is now a redirect map from the old verbs to their canonical homes.
   return [
-    "prx session open",
-    "================",
+    "prx session (retired)",
+    "=====================",
     "",
-    ...formatPrxSessionOpenHelpBlock(),
-    "Usage:",
-    `  prx session open [GH-456] [--check] [--agent ${workAgentUsage}] [--mode full|dev] [--io-format json|stream-json] [--prompt TEXT] [--dry-run] [--create [--from github|notion|beads]] [--repo SLUG] [--format plain|json]`,
-    "  prx session open [GH-456] [--plan PATH] [--repo SLUG] [--dry-run] [--no-attach] [--background] [--format plain|json]   (--plan only on the claude path; incompatible with --check/--create/--no-verify/--prompt)",
-    "  prx implement agent [GH-456] [--plan PATH] [--dry-run] [--no-attach] [--background] [--format plain|json]   (canonical executor entry; same dispatch as session open claude)",
-    "  prx plan handoff [GH-456] [--dry-run] [--no-mainx-reset] [--no-next] [--emit-file PATH] [--force] [--format plain|json]   (post-merge teardown; replaces retired `prx session close`)",
-    "  prx plan session GH-456 [--emit-file PATH] [--interactive] [--check] [--dry-run] [--create [--from github|notion|beads]] [--repo SLUG] [--no-verify] [--skip-preflight] [--format plain|json]   (canonical planning entry; default --print + auto-save to <UoW>:plan@draft)",
-    "  prx session plan GH-456 …   (deprecated alias for `prx plan session`; stderr hint, same handler + auto-save chain — GH-1982)",
-    "  prx open …      (deprecated; same behavior, stderr hint — prefer session open)",
-    "  prx session <id> …  (deprecated shorthand for session open)",
-    "  prx work …      (deprecated; same behavior, stderr warning)",
-    "  prx session open --help",
-    "  prx session open GH-456 --help",
+    "`prx session` no longer exists. Every verb moved to a canonical home:",
     "",
-    "Agents:",
-    "  claude      Uses generated agents.json plus project-local MCP/runtime artifacts.",
-    "  codex       Uses the Codex CLI with an inline machine-first prompt.",
-    "  (execution-grade only in `prx session open` and deprecated `prx open` / bare `prx session <id>`: claude, codex)",
-    ...(aliases ? [`  aliases     ${aliases}`] : []),
+    "Redirect map:",
+    "  prx session open <id>        → prx plan session <id>   (interactive planning)",
+    "                               → prx plan agent <id>     (headless pipeline entry)",
+    "  prx session plan <id>        → prx plan session <id>",
+    "  prx session <id>             → prx plan session <id>",
+    "  prx session open-claude <id> → prx claude <id>         (internal claude runtime launcher)",
+    "  prx session close            → prx plan handoff        (post-merge teardown)",
+    "  prx session next             → prx next",
+    "  prx session status / phase   → prx phase",
+    "",
+    "Canonical entries:",
+    "  prx plan session GH-456 [--interactive] [--check] [--dry-run] [--create [--from github|notion|beads]] [--repo SLUG] [--format plain|json]",
+    "      Canonical planning entry; default --print + auto-save to <UoW>:plan@draft. `--interactive` opens a live plan-mode tmux session.",
+    "  prx plan agent GH-456 [--create] [--dry-run] [--format plain|json]",
+    "      Headless planning agent — the pipeline-flow entry. `--create` materializes the local work unit (source auto-resolved).",
+    "  prx implement agent GH-456 [--plan PATH] [--dry-run] [--background] [--format plain|json]",
+    "      Canonical executor entry (Edit/Write enabled).",
+    "  prx claude GH-456 [--dry-run] [--no-attach] [--background] [--format plain|json]",
+    "      Internal claude runtime-bootstrap launcher (formerly `prx session open-claude`).",
+    "  prx plan handoff GH-456 [--dry-run] [--force] [--format plain|json]",
+    "      Post-merge teardown.",
     "",
     "Notes:",
-    "  `prx plan session` (canonical) drafts a claude plan in `--permission-mode plan` for read-only inspection; by default it runs `--print` (plan emitted to stdout, optionally also `--emit-file PATH`) and chains the stdout into `prx plan save --slot draft` so the planner-handoff artifact lands in the CAS slot `prx implement` consumes. The deprecated alias `prx session plan` (GH-1982) routes through the same handler and chain, with a stderr deprecation hint. Pass `--interactive` for a live plan-mode session (skips the save chain). No tool allow-list is enforced by prx — plan mode blocks edits in claude itself.",
-    "  `--check` inspects the task contract / machine-derived status without hydrating an interactive or print-mode agent run.",
-    "  `--create --from=<source>` materializes the worktree for a canonical id whose authority lives outside GitHub. `--from=notion` validates the Notion ticket via the configured resolver before creating the branch + worktree. `--from=beads` validates the bd record via the configured resolver (BeadsResolver) before creating the branch + worktree. `--from` requires `--create`; without `--from`, the source is inferred from prefix routing.",
-    "  `--repo <slug>` retargets `prx plan session` at a registered bare repo from `.prx/repos/index.json` — matches name first, then `owner/name` from origin. Implies `--create` (the target worktree is force-materialized); errors with a `prx repo add` hint if the slug isn't registered. (GH-1661) When the surface id is a BD long-id whose embedded workspace prefix resolves to a different repo, `--repo` is cross-checked: a match proceeds; a disagreement refuses with a structured hint. Omitting `--repo` on a foreign-prefix BD long-id routes implicitly through `repo_router`.",
-    "  `--dry-run` prints the resolved automation profile; default runs attach an agent only after session prerequisites pass.",
-    "  When no work-unit id is provided, only codex can run from the current workspace in execution-grade mode.",
-    "  `prx run desktop` (or `prx desktop`) opens the resolved worktree in Codex Desktop only (no PRX session hydration — use `prx session open` for that).",
-    "  `prx agent-smoke` smoke-tests execution-grade agents (claude, codex) against contract compliance.",
+    "  `--create --from=<source>` materializes the worktree for a canonical id whose authority lives outside GitHub. `--from` requires `--create`; without it, the source is inferred from prefix routing (`--create` alone auto-resolves it).",
+    "  `--repo <slug>` retargets `prx plan session` at a registered bare repo from `.prx/repos/index.json`.",
   ].join("\n");
 }
 
@@ -14577,7 +14568,7 @@ export function reviewVerb(
     const found = map[options.workUnitId];
     if (!found) {
       throw new CliError(
-        `no worktree for ${options.workUnitId}; run \`prx session open ${options.workUnitId}\` to materialize it.`,
+        `no worktree for ${options.workUnitId}; run \`prx plan session ${options.workUnitId}\` to materialize it.`,
       );
     }
     worktreePath = found;
@@ -19055,10 +19046,10 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         output.error(PRX_SESSION_DEPRECATION_WORK);
       }
       if (parsed.invokedViaDeprecatedSessionShorthand) {
-        output.error("Prefer `prx session open <id>` over `prx session <id>`.");
+        output.error("Prefer `prx plan session <id>` over `prx session <id>`.");
       }
       if (parsed.invokedViaDeprecatedRootOpen) {
-        output.error("Prefer `prx session open <id>` over `prx open`.");
+        output.error("Prefer `prx plan session <id>` over `prx open`.");
       }
       // GH-950: when invoked via `prx plan session`, emit the plan-session
       // banner so the operator sees which shape they entered. GH-977: the

@@ -228,7 +228,7 @@ describe("sessionEntryMachine", () => {
       expect(disallowedTools).toContain("Write");
       expect(disallowedTools).toContain("Bash(git push:*)");
       expect(disallowedTools).toContain("Bash(gh:*)");
-      expect(disallowedTools).toContain("Bash(prx session open --create:*)");
+      expect(disallowedTools).toContain("Bash(prx plan agent --create:*)");
       // Display name is `<id>-author` so the prompt-box badge,
       // /resume picker, and terminal title all match.
       const nameIdx = profile!.args.indexOf("--name");
@@ -318,7 +318,7 @@ describe("sessionEntryMachine", () => {
       expect(allowedTools).not.toContain("Bash(prx repo overview:*)");
       // GH-1238: deny-list now blocks recursive session entry, raw beads
       // writes, and `gh pr merge`.
-      expect(disallowedTools).toContain("Bash(prx session open --create:*)");
+      expect(disallowedTools).toContain("Bash(prx plan agent --create:*)");
       expect(disallowedTools).toContain("Bash(gh pr merge:*)");
       expect(disallowedTools).toContain("Bash(bd create:*)");
       expect(disallowedTools).toContain("Bash(bd close:*)");

@@ -204,10 +204,10 @@ function recommendForColumn(unit: BoardUnit): string {
     case "no_worktree":
     case "worktree_created":
     case "branch_created":
-      return `prx session open ${ticket}`;
+      return `prx plan session ${ticket}`;
     case "merged":
     case "cleaned":
-      return `prx session open ${ticket}`;
+      return `prx plan session ${ticket}`;
   }
 }
 
@@ -712,8 +712,8 @@ export function nextWork(
     // worktree yet). Recommend opening a session.
     const ticketGuess = extractGhIssueNumber(bd.external_ref);
     const command = ticketGuess !== null
-      ? `prx session open --create GH-${ticketGuess}`
-      : `prx session open --create ${bd.id}`;
+      ? `prx plan agent GH-${ticketGuess} --create`
+      : `prx plan agent ${bd.id} --create`;
     push("ready_to_start", makeCandidate(bd, null, "bd ready; no worktree yet", command));
   }
 

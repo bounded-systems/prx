@@ -565,6 +565,8 @@ describe("pr_state cli", () => {
     // Representative leaves from each domain:
     expect(stdout).toContain("prx model show");
     expect(stdout).toContain("prx plan session");
+    // prx-rgr: the relocated claude launcher is a work-units leaf.
+    expect(stdout).toContain("prx claude");
     expect(stdout).toContain("prx repo protect-main");
     expect(stdout).toContain("prx home update");
     // GH-1166: retired bare-session reads have canonical homes:
@@ -573,9 +575,11 @@ describe("pr_state cli", () => {
     expect(stdout).toContain("prx statusline");
     expect(stdout).toContain("prx actions");
     expect(stdout).toContain("prx worktree refresh");
-    // Deprecations surface in §8 section only:
+    // Deprecations surface in §8 section only. prx-rgr: `prx session open` /
+    // `prx session plan` are retired (no longer registered); `prx open` /
+    // `prx work` remain deprecation aliases.
     const tail = stdout.slice(depIdx);
-    expect(tail).toContain("prx session open");
+    expect(tail).not.toContain("prx session open");
     expect(tail).toContain("prx open");
     expect(tail).toContain("prx work");
     // Internal entries hidden (§7 demotion):
@@ -590,25 +594,26 @@ describe("pr_state cli", () => {
     expect(new TextDecoder().decode(all.stdout)).toBe(new TextDecoder().decode(alias.stdout));
   });
 
-  test("work --help prints subcommand usage and supported agents", () => {
+  test("work --help prints the session redirect map (prx-rgr)", () => {
     const result = runCli(["work", "--help"]);
 
     expect(result.exitCode).toBe(0);
     const stdout = new TextDecoder().decode(result.stdout);
-    expect(stdout).toContain("prx session open");
-    expect(stdout).toContain("prx session open GH-456 --help");
-    expect(stdout).toContain("claude");
-    expect(stdout).toContain("codex");
-    expect(stdout).toContain("gh-copilot");
+    // prx-rgr: `prx session` is retired; the help is now a redirect map to the
+    // canonical entries.
+    expect(stdout).toContain("prx session (retired)");
+    expect(stdout).toContain("prx plan session");
+    expect(stdout).toContain("prx plan agent");
+    expect(stdout).toContain("prx claude");
   });
 
-  test("work GH-198 --help also prints subcommand usage", () => {
+  test("work GH-198 --help also prints the session redirect map (prx-rgr)", () => {
     const result = runCli(["work", "GH-198", "--help"]);
 
     expect(result.exitCode).toBe(0);
     const stdout = new TextDecoder().decode(result.stdout);
-    expect(stdout).toContain("prx session open");
-    expect(stdout).toContain("gh-copilot -> copilot");
+    expect(stdout).toContain("prx session (retired)");
+    expect(stdout).toContain("prx plan session");
   });
 
   test("--version prints a git-sha-based version", () => {
@@ -816,7 +821,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
 
     const exitCode = await runCliDirect(
-      ["session", "open", "GH-5431", "--dry-run"],
+      ["open","GH-5431", "--dry-run"],
       { log: () => {}, error: (line) => errors.push(line) },
       {
         ...noOpWorktreeLockDeps,
@@ -843,7 +848,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
 
     await runCliDirect(
-      ["session", "open", "GH-5431", "--dry-run"],
+      ["open","GH-5431", "--dry-run"],
       { log: () => {}, error: (line) => errors.push(line) },
       {
         ...noOpWorktreeLockDeps,
@@ -869,7 +874,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       exitCode = await runCliDirect(
-        ["session", "open", "GH-5431", "--dry-run"],
+        ["open","GH-5431", "--dry-run"],
         { log: () => {}, error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -907,7 +912,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       await runCliDirect(
-        ["session", "open", "GH-5431", "--dry-run"],
+        ["open","GH-5431", "--dry-run"],
         { log: () => {}, error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -942,7 +947,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       exitCode = await runCliDirect(
-        ["session", "open", "GH-5431", "--dry-run"],
+        ["open","GH-5431", "--dry-run"],
         { log: () => {}, error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -978,7 +983,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       exitCode = await runCliDirect(
-        ["session", "open", "GH-5431", "--dry-run"],
+        ["open","GH-5431", "--dry-run"],
         { log: () => {}, error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -1009,7 +1014,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       await runCliDirect(
-        ["session", "open", "GH-5431", "--dry-run"],
+        ["open","GH-5431", "--dry-run"],
         { log: () => {}, error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -1044,7 +1049,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       await runCliDirect(
-        ["session", "open", "GH-5431", "--dry-run"],
+        ["open","GH-5431", "--dry-run"],
         { log: (line) => lines.push(line), error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -1081,7 +1086,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       await runCliDirect(
-        ["session", "open", "GH-5431", "--dry-run"],
+        ["open","GH-5431", "--dry-run"],
         { log: (line) => lines.push(line), error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -1111,7 +1116,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       exitCode = await runCliDirect(
-        ["session", "open", "GH-5431", "--dry-run"],
+        ["open","GH-5431", "--dry-run"],
         { log: () => {}, error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -1155,7 +1160,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       await runCliDirect(
-        ["session", "open", "GH-5431", "--dry-run"],
+        ["open","GH-5431", "--dry-run"],
         { log: (line) => lines.push(line), error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -1183,7 +1188,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       await runCliDirect(
-        ["session", "open", "GH-5431", "--dry-run"],
+        ["open","GH-5431", "--dry-run"],
         { log: () => {}, error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -1238,7 +1243,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       exitCode = await runCliDirect(
-        ["session", "open", "GH-5431", "--dry-run"],
+        ["open","GH-5431", "--dry-run"],
         { log: () => {}, error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -1298,7 +1303,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       exitCode = await runCliDirect(
-        ["session", "open", "GH-5431", "--dry-run", "--format", "json"],
+        ["open","GH-5431", "--dry-run", "--format", "json"],
         { log: (line) => lines.push(line), error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -1474,7 +1479,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       await runCliDirect(
-        ["session", "open", "GH-5431", "--dry-run", "--format", "json"],
+        ["open","GH-5431", "--dry-run", "--format", "json"],
         { log: (line) => lines.push(line), error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -1585,7 +1590,7 @@ describe("pr_state cli", () => {
       process.chdir(cwd);
       const mux = captureMuxInvocations();
       exitCode = await runCliDirect(
-        ["session", "open-claude", "GH-5431"],
+        ["claude", "GH-5431"],
         { log: () => {}, error: () => {} },
         {
           ...issueBackedWorkDeps("GH-5431"),
@@ -1650,7 +1655,7 @@ describe("pr_state cli", () => {
       process.chdir(cwd);
       const mux = captureMuxInvocations();
       const exitCode = await runCliDirect(
-        ["session", "open-claude", "GH-5431", "--dry-run"],
+        ["claude", "GH-5431", "--dry-run"],
         { log: (line) => logs.push(line), error: () => {} },
         {
           ...issueBackedWorkDeps("GH-5431"),
@@ -1711,16 +1716,17 @@ describe("pr_state cli", () => {
       const openStdout = new TextDecoder().decode(openResult.stdout);
       const workStdout = new TextDecoder().decode(workResult.stdout);
       expect(openStdout).toBe(workStdout);
-      expect(openStdout).toContain("prx session open");
-      expect(openStdout).toContain("prx run desktop");
+      // prx-rgr: both print the retired-session redirect map.
+      expect(openStdout).toContain("prx session (retired)");
+      expect(openStdout).toContain("prx plan session");
     });
 
-    test("open GH-198 --help prints session help when id precedes --help", () => {
+    test("open GH-198 --help prints the session redirect map when id precedes --help", () => {
       const result = runCli(["open", "GH-198", "--help"]);
       expect(result.exitCode).toBe(0);
       const stdout = new TextDecoder().decode(result.stdout);
-      expect(stdout).toContain("prx session open [GH-456]");
-      expect(stdout).toContain("deprecated");
+      expect(stdout).toContain("prx session (retired)");
+      expect(stdout).toContain("prx claude");
     });
 
     test("open subcommand runs through scripts/pr_state.ts and rejects invalid ids", () => {
@@ -1839,33 +1845,29 @@ describe("pr_state cli", () => {
       expect(errors.some((line) => line.includes("deprecated"))).toBe(false);
     });
 
-    test("session and open produce identical dry-run json output", async () => {
-      const runDryRunJson = async (subcommand: "open" | "session") => {
-        const logs: string[] = [];
-        const cwd = mkdtempSync(join(tmpdir(), `pr-state-${subcommand}-dry-json-`));
-        const previousCwd = process.cwd();
-        process.chdir(cwd);
-        const code = await runCliDirect(
-          [subcommand, "GH-5431", "--dry-run", "--format", "json"],
-          {
-            log: (line) => logs.push(line),
-            error: () => {},
-          },
-          {
-            ...issueBackedWorkDeps("GH-5431"),
-            resolveWorkUnitCwd: () => cwd,
-          },
-        );
-        process.chdir(previousCwd);
-        expect(code).toBe(0);
-        expect(logs).toHaveLength(1);
-        return logs[0]!;
-      };
-
-      const openJson = await runDryRunJson("open");
-      const sessionJson = await runDryRunJson("session");
-      expect(openJson).toBe(sessionJson);
-      const parsed = JSON.parse(openJson) as { command?: string };
+    test("open produces the claude dry-run json profile", async () => {
+      // prx-rgr: the old `prx session <id>` shorthand arm of this comparison is
+      // retired (it errors now). `prx open` keeps the parseSessionOpenCommand
+      // behavior and resolves to the claude runtime profile under --dry-run.
+      const logs: string[] = [];
+      const cwd = mkdtempSync(join(tmpdir(), "pr-state-open-dry-json-"));
+      const previousCwd = process.cwd();
+      process.chdir(cwd);
+      const code = await runCliDirect(
+        ["open", "GH-5431", "--dry-run", "--format", "json"],
+        {
+          log: (line) => logs.push(line),
+          error: () => {},
+        },
+        {
+          ...issueBackedWorkDeps("GH-5431"),
+          resolveWorkUnitCwd: () => cwd,
+        },
+      );
+      process.chdir(previousCwd);
+      expect(code).toBe(0);
+      expect(logs).toHaveLength(1);
+      const parsed = JSON.parse(logs[0]!) as { command?: string };
       expect(parsed.command).toBe("claude");
     });
 
@@ -1963,7 +1965,7 @@ describe("pr_state cli", () => {
     const logs: string[] = [];
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["session", "open", "GH-5480", "--check"],
+      ["open","GH-5480", "--check"],
       {
         log: (line) => logs.push(line),
         error: (line) => errors.push(line),
@@ -1994,7 +1996,7 @@ describe("pr_state cli", () => {
   test("work --check reports remote-only branch state without materializing (GH-549)", async () => {
     const logs: string[] = [];
     const exitCode = await runCliDirect(
-      ["session", "open", "GH-5431", "--check"],
+      ["open","GH-5431", "--check"],
       {
         log: (line) => logs.push(line),
         error: () => {},
@@ -2031,7 +2033,7 @@ describe("pr_state cli", () => {
   test("work --check emits JSON inspection report with --format=json (GH-549)", async () => {
     const logs: string[] = [];
     const exitCode = await runCliDirect(
-      ["session", "open", "GH-5431", "--check", "--format", "json"],
+      ["open","GH-5431", "--check", "--format", "json"],
       {
         log: (line) => logs.push(line),
         error: () => {},
@@ -2475,7 +2477,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
     try {
       const exitCode = await runCliDirect(
-        ["session", "plan", "GH-5431"],
+        ["plan", "session","GH-5431"],
         {
           log: () => {},
           error: () => {},
@@ -2523,93 +2525,10 @@ describe("pr_state cli", () => {
     }
   });
 
-  test("session plan --interactive first-entry: no prior claude session → no --continue, plan-mode shape", async () => {
-    let executed: { command: string; args: string[]; cwd?: string | undefined } | null = null;
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-plan-"));
-    const previousCwd = process.cwd();
-    delete process.env.PRX_SESSION_OPEN;
-    process.chdir(cwd);
-    try {
-      const exitCode = await runCliDirect(
-        ["session", "plan", "GH-5431", "--interactive"],
-        {
-          log: () => {},
-          error: () => {},
-        },
-        {
-          ...noOpWorktreeLockDeps,
-          ...issueBackedWorkDeps("GH-5431"),
-          resolveWorkUnitCwd: () => cwd,
-          findSavedClaudeSession: () => false,
-          execRuntime: (profile, _format, runtimeCwd) => {
-            executed = {
-              command: profile.command,
-              args: profile.args,
-              cwd: runtimeCwd,
-            };
-            return { status: 0, stdout: "", stderr: "" };
-          },
-        },
-      );
-      expect(exitCode).toBe(0);
-      expect(executed).not.toBeNull();
-      expect(executed!.command).toBe("claude");
-      expect(executed!.args).toContain("--permission-mode");
-      expect(executed!.args).toContain("plan");
-      expect(executed!.args).toContain("--append-system-prompt");
-      expect(executed!.args).toContain("--strict-mcp-config");
-      expect(executed!.args).toContain("--mcp-config");
-      expect(executed!.args).not.toContain("--continue");
-      expect(executed!.args).not.toContain("--print");
-      expect(executed!.args).not.toContain("--agent");
-      expect(executed!.args).not.toContain("--agents");
-      expect(executed!.args).not.toContain("--tools");
-      expect(executed!.args).not.toContain("--allowedTools");
-      expect(executed!.args).not.toContain("--json-schema");
-      expect(executed!.args).not.toContain("--output-format");
-      const promptIdx = executed!.args.indexOf("--append-system-prompt");
-      expect(promptIdx).toBeGreaterThanOrEqual(0);
-      expect(executed!.args[promptIdx + 1]).toContain("planner");
-      expect(executed!.args[promptIdx + 1]).toContain("GH-5431");
-    } finally {
-      process.chdir(previousCwd);
-      delete process.env.PRX_SESSION_OPEN;
-    }
-  });
-
-  test("session plan --interactive resume: prior claude session exists → --continue appended", async () => {
-    let executed: { command: string; args: string[] } | null = null;
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-plan-resume-"));
-    const previousCwd = process.cwd();
-    delete process.env.PRX_SESSION_OPEN;
-    process.chdir(cwd);
-    try {
-      const exitCode = await runCliDirect(
-        ["session", "plan", "GH-5431", "--interactive"],
-        {
-          log: () => {},
-          error: () => {},
-        },
-        {
-          ...noOpWorktreeLockDeps,
-          ...issueBackedWorkDeps("GH-5431"),
-          resolveWorkUnitCwd: () => cwd,
-          findSavedClaudeSession: () => true,
-          execRuntime: (profile) => {
-            executed = { command: profile.command, args: profile.args };
-            return { status: 0, stdout: "", stderr: "" };
-          },
-        },
-      );
-      expect(exitCode).toBe(0);
-      expect(executed).not.toBeNull();
-      expect(executed!.args).toContain("--continue");
-      expect(executed!.args).toContain("--permission-mode");
-    } finally {
-      process.chdir(previousCwd);
-      delete process.env.PRX_SESSION_OPEN;
-    }
-  });
+  // prx-rgr: the `prx session plan --interactive` inline-execRuntime tests were
+  // removed — that path is unreachable now (`prx session plan` is retired, and
+  // canonical `prx plan session --interactive` routes through the tmux pane via
+  // parseSessionOpenCommand, covered by the `prx open` / `prx claude` tests).
 
   test("session plan --dry-run prints the resolved profile without executing", async () => {
     const logs: string[] = [];
@@ -2619,7 +2538,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
     try {
       const exitCode = await runCliDirect(
-        ["session", "plan", "GH-5431", "--dry-run"],
+        ["plan", "session","GH-5431", "--dry-run"],
         {
           log: (line) => logs.push(line),
           error: () => {},
@@ -2653,7 +2572,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
     try {
       const exitCode = await runCliDirect(
-        ["session", "plan", "GH-5431"],
+        ["plan", "session","GH-5431"],
         {
           log: () => {},
           error: (line) => errors.push(line),
@@ -2667,7 +2586,7 @@ describe("pr_state cli", () => {
         },
       );
       expect(exitCode).toBe(1);
-      const framed = errors.find((line) => line.startsWith("prx session plan: claude exited"));
+      const framed = errors.find((line) => line.startsWith("prx plan session: claude exited"));
       expect(framed).toBeDefined();
       expect(framed!).toContain("boom from claude");
       expect(framed!).toContain("mode=print");
@@ -2680,7 +2599,7 @@ describe("pr_state cli", () => {
   test("session plan requires a work-unit id", async () => {
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["session", "plan"],
+      ["plan", "session"],
       {
         log: () => {},
         error: (line) => errors.push(line),
@@ -2688,7 +2607,7 @@ describe("pr_state cli", () => {
       { ...noOpWorktreeLockDeps },
     );
     expect(exitCode).toBe(1);
-    expect(errors[0]).toContain("prx session plan requires a work-unit id");
+    expect(errors[0]).toContain("prx plan session requires a work-unit id");
   });
 
   // GH-1164: `prx plan session` (canonical) defaults to the non-interactive
@@ -3302,39 +3221,10 @@ describe("pr_state cli", () => {
     }
   });
 
-  test("session plan --interactive --timeout is rejected at parse time", async () => {
-    // Note: the canonical `prx plan session --interactive` re-routes through
-    // parseSessionOpenCommand entirely (a different parser), so the only
-    // interactive path that flows through parseSessionPlanCommand is the
-    // legacy `prx session plan --interactive` verb. The parser-level guard
-    // lives there, where a stray `--timeout` would otherwise silently
-    // dead-end on the no-op interactive branch.
-    const errors: string[] = [];
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-plan-timeout-int-"));
-    const previousCwd = process.cwd();
-    delete process.env.PRX_SESSION_OPEN;
-    process.chdir(cwd);
-    try {
-      const exitCode = await runCliDirect(
-        ["session", "plan", "GH-5431", "--interactive", "--timeout=10m"],
-        {
-          log: () => {},
-          error: (line) => errors.push(line),
-        },
-        {
-          ...noOpWorktreeLockDeps,
-          ...issueBackedWorkDeps("GH-5431"),
-          resolveWorkUnitCwd: () => cwd,
-          findSavedClaudeSession: () => false,
-        },
-      );
-      expect(exitCode).not.toBe(0);
-      expect(errors.some((line) => line.includes("--timeout only applies to the non-interactive"))).toBe(true);
-    } finally {
-      process.chdir(previousCwd);
-      delete process.env.PRX_SESSION_OPEN;
-    }
-  });
+  // prx-rgr: removed "session plan --interactive --timeout is rejected" — the
+  // guard only fired on the retired `prx session plan --interactive` legacy verb
+  // (canonical `prx plan session --interactive` routes through a different
+  // parser), so it is now unreachable.
 
   test("plan session --resume-from-draft threads the prior partial into the planner user prompt", async () => {
     const partial = "## Scope (partial draft)\n- prior step 1\n- prior step 2\n";
@@ -3471,7 +3361,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
     try {
       const exitCode = await runCliDirect(
-        ["session", "plan", "GH-5431"],
+        ["plan", "session","GH-5431"],
         {
           log: () => {},
           error: () => {},
@@ -3496,39 +3386,9 @@ describe("pr_state cli", () => {
     }
   });
 
-  test("alias `prx session plan` emits PRX_SESSION_PLAN_ALIAS_HINT exactly once (GH-1982)", async () => {
-    const { PRX_SESSION_PLAN_ALIAS_HINT } = await import(
-      "../../src/machine/session_open.ts"
-    );
-    const errors: string[] = [];
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-plan-hint-"));
-    const previousCwd = process.cwd();
-    delete process.env.PRX_SESSION_OPEN;
-    process.chdir(cwd);
-    try {
-      const exitCode = await runCliDirect(
-        ["session", "plan", "GH-5431"],
-        {
-          log: () => {},
-          error: (line) => errors.push(line),
-        },
-        {
-          ...noOpWorktreeLockDeps,
-          ...issueBackedWorkDeps("GH-5431"),
-          resolveWorkUnitCwd: () => cwd,
-          findSavedClaudeSession: () => false,
-          execRuntime: () => ({ status: 0, stdout: "## Scope\n- x\n", stderr: "" }),
-          runPlanSave: async () => ({ sha: "deadbeef", ref: "GH-5431:plan@draft", body_sha: "deadbeef", envelope_sha: "deadbeef", validated_ok: true, diagnostics: [] }),
-        },
-      );
-      expect(exitCode).toBe(0);
-      const hintMatches = errors.filter((line) => line === PRX_SESSION_PLAN_ALIAS_HINT);
-      expect(hintMatches).toHaveLength(1);
-    } finally {
-      process.chdir(previousCwd);
-      delete process.env.PRX_SESSION_OPEN;
-    }
-  });
+  // prx-rgr: removed "alias `prx session plan` emits PRX_SESSION_PLAN_ALIAS_HINT"
+  // — `prx session plan` is retired (it errors now), so the alias hint can no
+  // longer fire. The canonical no-hint behavior is still asserted below.
 
   test("canonical `prx plan session` does NOT emit the alias hint (GH-1982)", async () => {
     const { PRX_SESSION_PLAN_ALIAS_HINT } = await import(
@@ -3582,7 +3442,7 @@ describe("pr_state cli", () => {
     const mux = captureMuxInvocations();
     try {
       const exitCode = await runCliDirect(
-        ["session", "open", "GH-5431", "--agent", "claude"],
+        ["open","GH-5431", "--agent", "claude"],
         { log: () => {}, error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -3644,7 +3504,7 @@ describe("pr_state cli", () => {
     const mux = captureMuxInvocations();
     try {
       const exitCode = await runCliDirect(
-        ["session", "open", "GH-5431"],
+        ["open","GH-5431"],
         { log: () => {}, error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -3678,7 +3538,7 @@ describe("pr_state cli", () => {
     const mux = captureMuxInvocations();
     try {
       const exitCode = await runCliDirect(
-        ["session", "open", "GH-5431", "--agent", "claude"],
+        ["open","GH-5431", "--agent", "claude"],
         { log: () => {}, error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -3710,7 +3570,7 @@ describe("pr_state cli", () => {
     const mux = captureMuxInvocations();
     try {
       const exitCode = await runCliDirect(
-        ["session", "open", "GH-5431", "--agent", "claude", "--prompt", "hi"],
+        ["open","GH-5431", "--agent", "claude", "--prompt", "hi"],
         { log: () => {}, error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -3743,7 +3603,7 @@ describe("pr_state cli", () => {
     const mux = captureMuxInvocations();
     try {
       const exitCode = await runCliDirect(
-        ["session", "open", "GH-5431", "--plan", "/tmp/plan.md"],
+        ["open","GH-5431", "--plan", "/tmp/plan.md"],
         { log: () => {}, error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -3780,7 +3640,7 @@ describe("pr_state cli", () => {
     const errors: string[] = [];
     try {
       const exitCode = await runCliDirect(
-        ["session", "open", "GH-5431", "--plan", "/tmp/plan.md", "--check"],
+        ["open","GH-5431", "--plan", "/tmp/plan.md", "--check"],
         { log: () => {}, error: (m: string) => errors.push(m) },
         {
           ...noOpWorktreeLockDeps,
@@ -4180,38 +4040,10 @@ describe("pr_state cli", () => {
     }
   }, 15000);
 
-  test("session plan --interactive --format json executes claude with format 'plain' (TTY inherit)", async () => {
-    // GH-685 Copilot review on #718: interactive session plan passes parsed.format
-    // into localRuntimeExecutor, which picks stdio: "pipe" for format "json" and
-    // starves interactive claude of a TTY. Force plain at the execution site so
-    // --format json only frames the post-exec envelope.
-    const capturedFormats: string[] = [];
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-plan-json-"));
-    const previousCwd = process.cwd();
-    delete process.env.PRX_SESSION_OPEN;
-    process.chdir(cwd);
-    try {
-      const exitCode = await runCliDirect(
-        ["session", "plan", "GH-5431", "--interactive", "--format", "json"],
-        { log: () => {}, error: () => {} },
-        {
-          ...noOpWorktreeLockDeps,
-          ...issueBackedWorkDeps("GH-5431"),
-          resolveWorkUnitCwd: () => cwd,
-          findSavedClaudeSession: () => false,
-          execRuntime: (_profile, format) => {
-            capturedFormats.push(format);
-            return { status: 0, stdout: "", stderr: "" };
-          },
-        },
-      );
-      expect(exitCode).toBe(0);
-      expect(capturedFormats).toEqual(["plain"]);
-    } finally {
-      process.chdir(previousCwd);
-      delete process.env.PRX_SESSION_OPEN;
-    }
-  });
+  // prx-rgr: removed "session plan --interactive --format json → plain" — the
+  // interactive inline-execRuntime path is unreachable now (retired `prx session
+  // plan`); canonical `prx plan session --interactive` routes through the tmux
+  // pane (parseSessionOpenCommand), not localRuntimeExecutor.
 
   test("session plan default --format json captures stdout (executor format 'json') since there is no TTY to protect", async () => {
     const capturedFormats: string[] = [];
@@ -4221,7 +4053,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
     try {
       const exitCode = await runCliDirect(
-        ["session", "plan", "GH-5431", "--format", "json"],
+        ["plan", "session","GH-5431", "--format", "json"],
         { log: () => {}, error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -4251,7 +4083,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
     try {
       const exitCode = await runCliDirect(
-        ["session", "plan", "GH-5431", "--emit-file", ".prx/plans/GH-5431.md"],
+        ["plan", "session","GH-5431", "--emit-file", ".prx/plans/GH-5431.md"],
         { log: () => {}, error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -4278,16 +4110,10 @@ describe("pr_state cli", () => {
     }
   });
 
-  test("session plan rejects --emit-file combined with --interactive", async () => {
-    const errors: string[] = [];
-    const exitCode = await runCliDirect(
-      ["session", "plan", "GH-5431", "--interactive", "--emit-file", "plan.md"],
-      { log: () => {}, error: (line) => errors.push(line) },
-      { ...noOpWorktreeLockDeps },
-    );
-    expect(exitCode).toBe(1);
-    expect(errors.join("\n")).toContain("--emit-file is only valid for the non-interactive default");
-  });
+  // prx-rgr: removed "session plan rejects --emit-file combined with
+  // --interactive" — that guard lived in parseSessionPlanCommand, which the
+  // canonical `prx plan session --interactive` bypasses (the --interactive fork
+  // re-routes to parseSessionOpenCommand before the guard), so it is unreachable.
 
   test("work reports valid agent values when --agent is invalid", async () => {
     const errors: string[] = [];
@@ -4757,7 +4583,7 @@ describe("pr_state cli", () => {
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-work-json-"));
 
     const exitCode = await runCliDirect(
-      ["session", "open", "GH-5431", "--format", "json"],
+      ["open","GH-5431", "--format", "json"],
       {
         log: (line) => logs.push(line),
         error: (line) => errors.push(line),
@@ -4851,7 +4677,7 @@ describe("pr_state cli", () => {
     const errors: string[] = [];
 
     const exitCode = await runCliDirect(
-      ["session", "open", "GH-5480"],
+      ["open","GH-5480"],
       {
         log: () => {},
         error: (line) => errors.push(line),
@@ -5177,7 +5003,7 @@ describe("pr_state cli", () => {
 
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["session", "open", "GH-5431", "--dry-run"],
+      ["open","GH-5431", "--dry-run"],
       { log: () => {}, error: (line) => errors.push(line) },
       {
         ...deps,
@@ -7183,7 +7009,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
 
     const exitCode = await runCliDirect(
-      ["session", "open", "GH-9999", "--check", "--create", "--from", "notion"],
+      ["open","GH-9999", "--check", "--create", "--from", "notion"],
       { log: () => {}, error: (line) => errors.push(line) },
       {
         ...noOpWorktreeLockDeps,
@@ -7204,8 +7030,12 @@ describe("pr_state cli", () => {
     process.chdir(previousCwd);
 
     expect(exitCode).toBe(1);
-    expect(errors[0]).toContain("--from=notion");
-    expect(errors[0]).toContain("GH-9999");
+    // prx-rgr: invoked via `prx open` now (the retired `prx session open`
+    // emitted no hint); `prx open` prepends a one-line deprecation hint, so the
+    // --from guard message is found in the error stream rather than at [0].
+    const fromError = errors.find((l) => l.includes("--from=notion"));
+    expect(fromError).toBeDefined();
+    expect(fromError!).toContain("GH-9999");
   });
 
   test("work --check threads --from=beads through validateWorkSessionEntry before any IO (GH-870, GH-2113)", async () => {
@@ -7215,7 +7045,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
 
     const exitCode = await runCliDirect(
-      ["session", "open", "GH-9999", "--check", "--create", "--from", "beads"],
+      ["open","GH-9999", "--check", "--create", "--from", "beads"],
       { log: () => {}, error: (line) => errors.push(line) },
       {
         ...noOpWorktreeLockDeps,
@@ -7234,8 +7064,10 @@ describe("pr_state cli", () => {
     process.chdir(previousCwd);
 
     expect(exitCode).toBe(1);
-    expect(errors[0]).toContain("--from=beads");
-    expect(errors[0]).toContain("GH-9999");
+    // prx-rgr: `prx open` prepends a deprecation hint; find the --from guard line.
+    const fromError = errors.find((l) => l.includes("--from=beads"));
+    expect(fromError).toBeDefined();
+    expect(fromError!).toContain("GH-9999");
   });
 
   test("work --no-verify forwards noVerify to resolveWorkUnitCwd", async () => {
@@ -7293,7 +7125,7 @@ describe("pr_state cli", () => {
     const previousCwd = process.cwd();
     process.chdir(cwd);
     const exitCode = await runCliDirect(
-      ["session", "open", "--agent", "codex"],
+      ["open","--agent", "codex"],
       {
         log: () => {},
         error: (line) => errors.push(line),
@@ -7328,7 +7160,7 @@ describe("pr_state cli", () => {
   test("work rejects non-GitHub canonical work-unit IDs", async () => {
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["session", "open", "TASK-171"],
+      ["open","TASK-171"],
       {
         log: () => {},
         error: (line) => errors.push(line),
@@ -7403,7 +7235,7 @@ describe("pr_state cli", () => {
   test("work rejects closed GH issues before bootstrapping a missing unit", async () => {
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["session", "open", "GH-171"],
+      ["open","GH-171"],
       {
         log: () => {},
         error: (line) => errors.push(line),
@@ -7494,7 +7326,7 @@ describe("pr_state cli", () => {
   test("work surfaces unit-complete refusal when GH issue is closed and worktree present", async () => {
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["session", "open", "GH-171"],
+      ["open","GH-171"],
       { log: () => {}, error: (line) => errors.push(line) },
       inactiveAuthorityFixture("completed", "clean", "present"),
     );
@@ -7509,7 +7341,7 @@ describe("pr_state cli", () => {
   test("work surfaces unit-complete refusal when closed issue leaves a branch without a worktree", async () => {
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["session", "open", "GH-171"],
+      ["open","GH-171"],
       { log: () => {}, error: (line) => errors.push(line) },
       inactiveAuthorityFixture("completed", "clean", "no worktree"),
     );
@@ -7523,7 +7355,7 @@ describe("pr_state cli", () => {
   test("work surfaces which authority is unreachable when issue view fails", async () => {
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["session", "open", "GH-171"],
+      ["open","GH-171"],
       { log: () => {}, error: (line) => errors.push(line) },
       inactiveAuthorityFixture("unknown", "disabled", "present"),
     );
@@ -7537,7 +7369,7 @@ describe("pr_state cli", () => {
   test("work fails when parity chain requires prune before launch", async () => {
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["session", "open", "GH-171"],
+      ["open","GH-171"],
       {
         log: () => {},
         error: (line) => errors.push(line),
@@ -7617,7 +7449,7 @@ describe("pr_state cli", () => {
     // We verify that the old error is NOT emitted.
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["session", "open", "GH-171"],
+      ["open","GH-171"],
       {
         log: () => {},
         error: (line) => errors.push(line),
@@ -7698,7 +7530,7 @@ describe("pr_state cli", () => {
   test("work fails clearly when remote board status cannot be read", async () => {
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["session", "open", "GH-171"],
+      ["open","GH-171"],
       {
         log: () => {},
         error: (line) => errors.push(line),

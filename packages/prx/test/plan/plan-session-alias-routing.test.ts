@@ -32,28 +32,20 @@ describe("plan-session vs session-open alias routing (ai-home-f2lcz)", () => {
     expect(parsed.interactive).toBe(false);
   });
 
-  test("`prx session plan GH-456` (GH-1982 alias) also routes to session-plan", () => {
-    const parsed = parseCommand(["session", "plan", "GH-456"]);
-    expect(parsed.command).toBe("session-plan");
-    if (parsed.command !== "session-plan") return;
-    expect(parsed.workUnitId).toBe("GH-456");
-    expect(parsed.invokedViaPlanSession).toBe(true);
-    expect(parsed.interactive).toBe(false);
+  test("prx-rgr: `prx session plan` is retired — errors with a redirect to plan session", () => {
+    expect(() => parseCommand(["session", "plan", "GH-456"])).toThrow(
+      /prx session plan is retired\. Use `prx plan session`/,
+    );
   });
 
-  test("`prx session open GH-456` (deprecated alias) does NOT route to session-plan", () => {
-    // Characterization: this is the bug from ai-home-f2lcz. The alias is
-    // documented as forwarding to the canonical, but its parser entry is
-    // parseSessionOpenCommand (the tmux-interactive path), not
-    // parseSessionPlanCommand. Result: callers in non-tty contexts hit
-    // "open terminal failed: not a terminal" instead of the canonical's
-    // default print path.
-    const parsed = parseCommand(["session", "open", "GH-456"]);
-    expect(parsed.command).not.toBe("session-plan");
-    // Default claude path through parseSessionOpenCommand resolves to
-    // "session-open-claude" (see comment near command-literal table at the
-    // top of parseSessionOpenCommand for the redirect map).
-    expect(parsed.command).toBe("session-open-claude");
+  test("prx-rgr: `prx session open` is retired — errors with a redirect to plan session", () => {
+    // ai-home-f2lcz's divergence (the alias forwarded to the tmux-interactive
+    // parser, not the canonical print path) is moot now: the whole `prx
+    // session` surface is retired. Callers use `prx plan session` (interactive)
+    // or `prx plan agent` (headless) directly.
+    expect(() => parseCommand(["session", "open", "GH-456"])).toThrow(
+      /prx session open is retired\. Use `prx plan session`/,
+    );
   });
 
   test("`prx plan session GH-456 --create --from=beads` carries the source through to session-plan", () => {

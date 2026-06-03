@@ -704,7 +704,7 @@ describe("session profiles config (GH-950)", () => {
     expect(author.disallowedTools).toContain("Bash(git:*)");
     expect(author.disallowedTools).toContain("Bash(bd:*)");
     expect(author.disallowedTools).toContain("Bash(git push:*)");
-    expect(author.disallowedTools).toContain("Bash(prx session open --create:*)");
+    expect(author.disallowedTools).toContain("Bash(prx plan agent --create:*)");
     // Actor boundary: prx only — git/gh/wt/beads are all denied (cross-surface
     // work routes through dispatch to the owning actor, not the session).
     expect(author.allowedActors).toEqual(["prx"]);
@@ -748,7 +748,7 @@ describe("session profiles config (GH-950)", () => {
     expect(submit.disallowedTools).toContain("Bash(gh:*)");
     expect(submit.disallowedTools).toContain("Bash(bd:*)");
     expect(submit.disallowedTools).toContain("Bash(git:*)");
-    expect(submit.disallowedTools).toContain("Bash(prx session open --create:*)");
+    expect(submit.disallowedTools).toContain("Bash(prx plan agent --create:*)");
     // GH-1900: publish runs outside the session — must NOT be reachable.
     expect(submit.disallowedTools).toContain("Bash(prx submit publish:*)");
     // Actor boundary matches the intake shape: gh/beads/prx allowed; no git/wt.
@@ -852,7 +852,7 @@ describe("session profiles config (GH-950)", () => {
     expect(intake.disallowedTools).toContain("Bash(gh:*)");
     expect(intake.disallowedTools).toContain("Bash(bd:*)");
     expect(intake.disallowedTools).toContain("Bash(git:*)");
-    expect(intake.disallowedTools).toContain("Bash(prx session open --create:*)");
+    expect(intake.disallowedTools).toContain("Bash(prx plan agent --create:*)");
   });
 
   test("implement allowlist collapses onto the executor's actor namespace (GH-1238)", () => {
@@ -928,7 +928,7 @@ describe("session profiles config (GH-950)", () => {
     expect(implement.disallowedTools).toContain("Bash(git push --force:*)");
     expect(implement.disallowedTools).toContain("Bash(git reset --hard:*)");
     expect(implement.disallowedTools).toContain("Bash(rm -rf:*)");
-    expect(implement.disallowedTools).toContain("Bash(prx session open --create:*)");
+    expect(implement.disallowedTools).toContain("Bash(prx plan agent --create:*)");
     expect(implement.disallowedTools).toContain("Bash(gh pr merge:*)");
     expect(implement.disallowedTools).toContain("Bash(bd create:*)");
     expect(implement.disallowedTools).toContain("Bash(bd close:*)");
