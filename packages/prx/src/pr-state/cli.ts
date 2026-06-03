@@ -483,7 +483,13 @@ import {
   GcCliError,
   PRX_PRUNE_GC_ALIAS_HINT,
 } from "../machine/gc/cli.ts";
-import { resolveCanonicalChainLedger } from "../workspace/actor.ts";
+import {
+  resolveCanonicalChainLedger,
+  resolveWorkspaceContext,
+  runMaterialize as runWorkspaceMaterialize,
+  runReserve as runWorkspaceReserve,
+} from "../workspace/actor.ts";
+import { MaterializeInput, ReserveInput } from "../workspace/schema.ts";
 import {
   runBeadsPublish,
   beadsPublishOptionsSchema,
@@ -14015,6 +14021,42 @@ function materializeWorkUnitBranchWithGit(
   // never drift (ai-home-rkg1w.1 §3.3). Rewrap the worktree-add failure as
   // a CliError to preserve this surface's error contract.
   const targetPath = expectedWorktreePath(repoRoot, workUnitId);
+
+  // prx-4xb: converge `--create` materialization onto the workspace actor so
+  // the worktree is ledger-tracked (one materialization owner — `prx workspace
+  // service/teardown` can then see `--create`-materialized units). The actor
+  // shares the same placement core, so the worktree path is identical (branch =
+  // workUnitId, base origin/main). `local_only` preserves this surface's
+  // local-branch-no-remote-push semantics. The actor derives its `workspace_id`
+  // from the GitHub origin, so we gate on a recognized workspace context and
+  // fall back to the direct placement when there is none (non-GitHub repos /
+  // fixtures the actor cannot reserve).
+  // Only converge when the resolved workspace context genuinely belongs to
+  // `repoRoot` — the actor's git resolution can leak `process.cwd()`, and
+  // materializing against the wrong repo (or a fixture cwd) must fall back to
+  // the direct placement below.
+  const wsContext = resolveWorkspaceContext({ cwd: repoRoot, branch: workUnitId });
+  if (wsContext !== null && resolve(wsContext.worktreePath) === resolve(repoRoot)) {
+    const reserve = runWorkspaceReserve(
+      ReserveInput.parse({ branch: workUnitId, local_only: true }),
+      repoRoot,
+    );
+    if (reserve.status === "error") {
+      throw new CliError(reserve.error ?? `workspace reserve failed for ${workUnitId}`);
+    }
+    const materialized = runWorkspaceMaterialize(
+      MaterializeInput.parse({ workspace_id: reserve.workspace_id }),
+      repoRoot,
+      { spawn },
+    );
+    if (materialized.status === "error") {
+      throw new CliError(
+        materialized.error ?? `workspace materialize failed for ${workUnitId}`,
+      );
+    }
+    return;
+  }
+
   try {
     addWorktreeForBranch(repoRoot, workUnitId, targetPath, spawn);
   } catch (err) {
