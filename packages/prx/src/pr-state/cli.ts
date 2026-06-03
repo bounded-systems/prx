@@ -114,8 +114,11 @@ import {
 import { shellQuote as shellQuoteArg } from "./executor.ts";
 import {
   captureAgentResult,
+  readReportedResult,
   renderAgentResult,
+  type ReportedResult,
   snapshotBeadIds,
+  writeReportedResult,
 } from "../pipeline/agent-result.ts";
 import { pickPrimaryTmuxEntry, readTmuxSurface } from "./surfaces/tmux.ts";
 import { resolverForCanonicalId } from "./resolvers/dispatch.ts";
@@ -2261,6 +2264,13 @@ type ParsedCommand =
       dryRun: boolean;
       yes: boolean;
       format: "plain" | "json";
+    }
+  | {
+      // prx-lfv: the structured intake-result tool the agent reports through.
+      command: "intake-result";
+      disposition: "filed" | "merged" | "duplicate" | "no_action";
+      uow?: string | undefined;
+      reason?: string | undefined;
     }
   | {
       command: "intake-session";
@@ -7045,6 +7055,37 @@ function parseSessionPlanCommand(
   };
 }
 
+// prx-lfv: parser for `prx intake result` — the structured tool the headless
+// intake agent calls to report its disposition (a non-MCP CLI tool).
+function parseIntakeResultCommand(rest: string[]): ParsedCommand {
+  const { values } = parseArgs({
+    args: rest,
+    options: {
+      disposition: { type: "string" },
+      uow: { type: "string" },
+      reason: { type: "string" },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
+  if (typeof values.disposition !== "string") {
+    throw new CliError(
+      "intake result requires --disposition <filed|merged|duplicate|no_action>",
+    );
+  }
+  const disposition = ensureChoice(
+    values.disposition,
+    ["filed", "merged", "duplicate", "no_action"],
+    "--disposition",
+  );
+  return {
+    command: "intake-result",
+    disposition,
+    ...(typeof values.uow === "string" ? { uow: values.uow } : {}),
+    ...(typeof values.reason === "string" ? { reason: values.reason } : {}),
+  };
+}
+
 // GH-950: parser for `prx intake agent` (the operator-session shape).
 // Mirrors the triage-session parser at the same offsets in the intake namespace.
 function parseIntakeSessionCommand(rest: string[]): ParsedCommand {
@@ -11610,6 +11651,14 @@ export function parseCommand(argv: string[]): ParsedCommand {
     // member of INTAKE_TYPES.
     if (rest[0] === "mirror") {
       return parseIntakeMirrorCommand(rest.slice(1));
+    }
+    // prx-lfv: `prx intake result --disposition … --uow … [--reason …]` — the
+    // structured tool the headless intake agent calls to REPORT its outcome
+    // (filed | merged | duplicate | no_action). A non-MCP tool in the agent's
+    // Bash(prx intake:*) allowlist; it writes the reported-result file the
+    // parent reads post-run to surface the UoW (or the reason).
+    if (rest[0] === "result") {
+      return parseIntakeResultCommand(rest.slice(1));
     }
     // GH-1003: `prx intake bd …` is the narrow bd surface (ls + memory verbs)
     // that subsumes raw `bd list` / `bd memories` for the intake session.
@@ -22349,6 +22398,22 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       })();
     }
 
+    if (parsed.command === "intake-result") {
+      // prx-lfv: the headless intake agent reports its outcome here (a non-MCP
+      // CLI tool in its allowlist). Write the reported-result file in the
+      // agent's worktree cwd; the parent reads it post-run to surface the UoW.
+      const reported: ReportedResult = {
+        disposition: parsed.disposition,
+        ...(parsed.uow ? { uow: parsed.uow } : {}),
+        ...(parsed.reason ? { reason: parsed.reason } : {}),
+      };
+      writeReportedResult(process.cwd(), reported);
+      output.log(
+        `intake result: ${parsed.disposition}${parsed.uow ? ` ${parsed.uow}` : ""}${parsed.reason ? ` — ${parsed.reason}` : ""}`,
+      );
+      return 0;
+    }
+
     if (parsed.command === "intake-session") {
       // GH-950: intake-session is the operator-session shape for pre-triage
       // intake (search → file-or-merge → mirror → comment).
@@ -22392,7 +22457,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         return 0;
       }
 
-      output.error(SESSION_PROFILES.intake.banner);
+      // prx-lfv: no pre-run banner — it was noise and its "No execution" clause
+      // was false for the headless agent. The result line (`prx intake agent:
+      // filed/merged/…`) is the operator's signal.
 
       if (parsed.dryRun) {
         // Preview only (no reserve): show the would-be branch + the built
@@ -22514,9 +22581,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           timestamp: Date.now(),
         }),
       );
-      // prx-lfv: pin the run's result to the CAS (the uniform return channel)
-      // and surface the UoW(s) it produced — never a silent success.
+      // prx-lfv: surface the run's result + pin it to the CAS (the uniform
+      // return channel) — never a silent success. Prefer the disposition the
+      // agent reported via `prx intake result` (existing-issue / reason);
+      // fall back to the bead diff.
       const beadsAfter = snapshotBeadIds(queueCwd);
+      const reported = readReportedResult(spawnCwd);
       const { ref: resultRef, result: agentResult } = await captureAgentResult({
         actor: "intake",
         workspaceId: opened.workspace_id,
@@ -22524,6 +22594,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         stdout: result.stdout ?? "",
         before: beadsBefore,
         after: beadsAfter,
+        reported,
       });
       if (parsed.format === "json") {
         output.log(
@@ -22547,7 +22618,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           ),
         );
       } else {
-        output.log(renderAgentResult(resultRef, agentResult));
+        output.log(renderAgentResult(agentResult));
       }
       return result.status;
       })();

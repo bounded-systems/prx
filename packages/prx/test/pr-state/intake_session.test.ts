@@ -263,8 +263,9 @@ describe("prx intake session (GH-950)", () => {
     const permIdx = profile.args.indexOf("--permission-mode");
     expect(profile.args[permIdx + 1]).toBe("acceptEdits"); // prx-hz1: headless never uses plan mode
     expect(profile.env?.PRX_AGENT_ROLE).toBe("intake");
-    // Banner emitted on stderr before profile JSON on stdout.
-    expect(errors.some((line) => line.includes("prx intake agent"))).toBe(true);
+    // prx-lfv: the pre-run banner was removed (noise + a false "No execution"
+    // clause). The dry-run's signal is the profile JSON on stdout, above.
+    expect(errors.some((line) => line.includes("No code edits, no execution"))).toBe(false);
   });
 
   test("--interactive --dry-run prints the legacy tmux/PTY ops-intake profile (GH-2380)", async () => {

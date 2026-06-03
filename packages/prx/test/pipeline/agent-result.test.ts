@@ -55,23 +55,30 @@ describe("agent-result return channel (prx-lfv)", () => {
     expect(result.uows).toEqual([]);
   });
 
-  test("renderAgentResult is never silent — UoW or 'no new UoW'", () => {
+  test("renderAgentResult surfaces the reported disposition (existing issue / reason)", () => {
+    const base = { actor: "intake", status: 0, uows: [] as string[], summary: "" };
     expect(
-      renderAgentResult("r@latest", {
-        actor: "intake",
-        status: 0,
-        uows: ["prx-ccc"],
-        summary: "x",
-      }),
-    ).toContain("UoW: prx-ccc");
+      renderAgentResult({ ...base, disposition: "filed", uow: "bd-ccc" }),
+    ).toBe("prx intake agent: filed bd-ccc");
     expect(
-      renderAgentResult("r@latest", {
-        actor: "intake",
-        status: 0,
-        uows: [],
-        summary: "x",
-      }),
-    ).toContain("no new UoW");
+      renderAgentResult({ ...base, disposition: "merged", uow: "bd-yyy", reason: "dup" }),
+    ).toBe("prx intake agent: merged into bd-yyy — dup");
+    expect(
+      renderAgentResult({ ...base, disposition: "duplicate", uow: "bd-yyy" }),
+    ).toBe("prx intake agent: already tracked by bd-yyy");
+    expect(
+      renderAgentResult({ ...base, disposition: "no_action", reason: "not actionable" }),
+    ).toBe("prx intake agent: no issue filed — not actionable");
+  });
+
+  test("renderAgentResult falls back to the bead diff when nothing was reported", () => {
+    const base = { actor: "intake", status: 0, summary: "" };
+    expect(renderAgentResult({ ...base, uows: ["bd-z"] })).toBe(
+      "prx intake agent: created bd-z",
+    );
+    expect(renderAgentResult({ ...base, uows: [] })).toBe(
+      "prx intake agent: no result reported",
+    );
   });
 
   test("summarizeAgentStdout extracts the SDK envelope result text", () => {
@@ -93,14 +100,21 @@ describe("agent-result return channel (prx-lfv)", () => {
     ).toEqual(new Set());
   });
 
-  test("renderAgentResult omits the ref when the CAS pin failed (empty ref)", () => {
-    expect(
-      renderAgentResult("", {
-        actor: "intake",
-        status: 0,
-        uows: ["prx-z"],
-        summary: "",
-      }),
-    ).toBe("prx intake agent → UoW: prx-z");
+  test("captureAgentResult carries the reported disposition into the result", async () => {
+    const set = new Set<string>();
+    const { result } = await captureAgentResult({
+      actor: "intake",
+      workspaceId: "deadbeef0002",
+      status: 0,
+      stdout: "",
+      before: set,
+      after: set,
+      reported: { disposition: "merged", uow: "bd-yyy", reason: "dup of bd-yyy" },
+    });
+    expect(result.disposition).toBe("merged");
+    expect(result.uow).toBe("bd-yyy");
+    expect(renderAgentResult(result)).toBe(
+      "prx intake agent: merged into bd-yyy — dup of bd-yyy",
+    );
   });
 });
