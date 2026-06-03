@@ -5,7 +5,7 @@
  * workspace actor. The fixture pattern mirrors `test/workspace/actor.test.ts`.
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 
@@ -14,7 +14,7 @@ import {
   runWorkspaceCli,
   WorkspaceCliError,
 } from "../../src/workspace/cli.ts";
-import { normalizeNamespaceArgv } from "../../src/pr-state/cli.ts";
+import { materializeWorkUnitBranch, normalizeNamespaceArgv } from "../../src/pr-state/cli.ts";
 
 function sh(cwd: string, file: string, args: string[]): void {
   const r = spawnSync(file, args, { cwd, encoding: "utf8" });
@@ -327,6 +327,56 @@ describe.skipIf(!GIT_COMMIT_AVAILABLE)("runWorkspaceCli — materialize --branch
       { cwd: fixture.repoDir },
     );
     expect(materialize.exitCode).toBe(1);
+  }, 30000);
+});
+
+describe.skipIf(!GIT_COMMIT_AVAILABLE)("prx-4xb — session-open --create converges onto the workspace actor", () => {
+  let fixture: ReturnType<typeof makeFixtureRepo>;
+  const cleanupPaths: string[] = [];
+  beforeEach(() => {
+    fixture = makeFixtureRepo();
+  });
+  afterEach(() => {
+    for (const p of cleanupPaths.splice(0)) {
+      rmSync(p, { recursive: true, force: true });
+    }
+    fixture.cleanup();
+  });
+
+  test("materializeWorkUnitBranch writes a workspace ledger (one materialization owner)", () => {
+    // A bd-style work-unit id with no numeric tail skips the gh/bd issue
+    // validation; pre-creating the branch keeps reserve offline (exists-local,
+    // no network push). The injected spawn stubs the `git fetch origin` leg
+    // (the fixture's origin is a fake github URL) and delegates everything else
+    // to real git so the converge path runs end-to-end.
+    const workUnitId = `wsconv-${fixture.repoDir.split("/").pop()}`;
+    sh(fixture.repoDir, "git", ["branch", workUnitId]);
+
+    const realSpawn = (file: string, args: string[], opts: { cwd: string; encoding: "utf8" }) =>
+      spawnSync(file, args, { ...opts, encoding: "utf8" });
+    const spawn = (file: string, args: string[], opts: { cwd: string; encoding: "utf8" }) => {
+      if (file === "git" && args.join(" ").includes("fetch origin")) {
+        return { status: 0, stdout: "", stderr: "" };
+      }
+      return realSpawn(file, args, opts);
+    };
+
+    materializeWorkUnitBranch(workUnitId, fixture.repoDir, spawn);
+
+    // The convergence: a workspace ledger now exists for the materialized unit
+    // (the direct addWorktreeForBranch path wrote none). `prx workspace
+    // service/teardown` can now see this --create-materialized worktree.
+    const commonDir = spawnSync(
+      "git",
+      ["-C", fixture.repoDir, "rev-parse", "--git-common-dir"],
+      { cwd: fixture.repoDir, encoding: "utf8" },
+    ).stdout.trim();
+    const absCommonDir = commonDir.startsWith("/") ? commonDir : join(fixture.repoDir, commonDir);
+    const ledgerDir = join(absCommonDir, "info", "workspace");
+    cleanupPaths.push(join(fixture.repoDir, "..", workUnitId));
+    expect(existsSync(ledgerDir)).toBe(true);
+    const ledgers = readdirSync(ledgerDir).filter((f) => f.endsWith(".json"));
+    expect(ledgers.length).toBeGreaterThan(0);
   }, 30000);
 });
 
