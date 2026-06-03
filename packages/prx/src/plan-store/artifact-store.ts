@@ -23,7 +23,9 @@ export type ArtifactKind =
   | "implement"
   // prx-adj: the FOD-pinned source authority (the GH issue / beads row) at the
   // head of a unit's chain — content-anchored, drift-detectable via isFresh.
-  | "source";
+  | "source"
+  // prx-4fa: the intake→triage unit-of-work artifact (FOD-pinned).
+  | "uow";
 
 /** Canonical ref for an artifact slot: `<unit>:<kind>@<slot>`. */
 export function artifactRef(
