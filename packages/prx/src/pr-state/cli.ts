@@ -1,6 +1,6 @@
 import { getEnv, processEnv, setEnv, deleteEnv } from "@bounded-systems/env";
 import { defaultRunner as procRunner } from "@bounded-systems/proc";
-import { bakedGitSha } from "../build-info.ts";
+import { bakedGitSha, bakedReleaseVersion } from "../build-info.ts";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join, resolve } from "node:path";
@@ -13594,9 +13594,16 @@ function formatSessionHelp(): string {
 }
 
 function detectVersion(cwd = repoRootPath): string {
-  // __PRX_BUILD_GIT_SHA__ is replaced at compile time via bun build --define (build-info.ts),
-  // so compiled binaries report the correct SHA even when run outside the repo.
+  // prx-1ab: a release build bakes the version tag — report it (e.g. `v0.1.14`,
+  // with the SHA appended for traceability). __PRX_BUILD_*__ are replaced at
+  // compile time via bun build --define (build-info.ts), so compiled binaries
+  // report correctly even when run outside the repo. Untagged dev builds and
+  // `bun run` fall back to the git-SHA identity.
+  const version = bakedReleaseVersion();
   const baked = bakedGitSha();
+  if (version) {
+    return baked ? `${version} (git-${baked})` : version;
+  }
   if (baked) {
     return `git-${baked}`;
   }
@@ -13605,45 +13612,68 @@ function detectVersion(cwd = repoRootPath): string {
 }
 
 /**
- * GH-528: Compare the running prx binary's `BAKED_GIT_SHA` against the
- * repo's `origin/main` and return update info if the binary is strictly
- * behind — otherwise null. Used as an early precheck in `prx session
- * open` so users are warned when the installed binary is out of date
- * (e.g. nix-managed and not rebuilt since main advanced).
+ * prx-1ab: the newest local release tag (`v*`, semver-sorted), or null when none
+ * is known. The update check compares the binary's *release* against this rather
+ * than counting commits to origin/main (which advances every merged PR, so a
+ * just-released binary always looked "behind"). Reads local tags only — no
+ * network; a stale tag set just means no nag, same as the prior origin/main read.
+ */
+function latestReleaseTag(cwd: string): string | null {
+  const out = tryCommand(["git", "tag", "--list", "v*", "--sort=-v:refname"], cwd);
+  if (!out) return null;
+  const newest = out.split("\n").map((l) => l.trim()).find((l) => /^v\d/.test(l));
+  return newest ?? null;
+}
+
+/** Shared release-update warning so all session-entry call sites stay in sync. */
+export function formatBinaryUpdateWarning(update: { current: string; latest: string }): string {
+  return (
+    `⚠ prx ${update.current} — a newer release ${update.latest} is available. ` +
+    "Update with `home-manager switch` (or rebuild via `bun run prx:build`) to pick up recent fixes."
+  );
+}
+
+/**
+ * GH-528 / prx-1ab: compare the running prx binary's baked *release* against the
+ * newest local release tag and return update info if a newer release exists —
+ * otherwise null. Used as an early precheck in session-entry so users are warned
+ * when their installed binary predates a release (e.g. nix-managed and not
+ * switched since a new tag landed).
+ *
+ * Release-based (not commit-distance from origin/main): a just-released binary
+ * is no longer reported as "behind" simply because main advanced — only a newer
+ * *tag* triggers the nag, which is what operators actually act on.
  *
  * Returns null (silent) when:
- *   - no `bakedSha` is provided (dev mode / running via `bun run`)
- *   - git resolution fails (not in a repo, no origin/main)
- *   - the binary's sha is ahead of, or on par with, origin/main
- *   - the binary's sha is diverged (ahead AND behind)
+ *   - no baked release version (dev / `bun run` / untagged build)
+ *   - no local release tags are known (nothing to compare against)
+ *   - the binary's release is the newest known tag (up to date)
+ *   - the binary's release is newer than any known tag (ahead — local tags stale)
  */
 export function checkPrxBinaryUpstream(
   cwd: string = process.cwd(),
-  bakedSha: string | undefined = bakedGitSha(),
-): { behind: number; binary: string; remote: string } | null {
-  if (!bakedSha) return null;
-  const remoteSha = tryCommand(["git", "rev-parse", "origin/main"], cwd);
-  if (!remoteSha) return null;
-  const remoteShort = remoteSha.slice(0, 12);
-  if (remoteShort === bakedSha.slice(0, 12)) return null;
-  // Count commits in origin/main that the binary does not contain.
-  // If the binary sha isn't known to this repo, rev-list fails — treat as unknown.
-  const behindOutput = tryCommand(
-    ["git", "rev-list", "--count", `${bakedSha}..origin/main`],
+  bakedVersion: string | undefined = bakedReleaseVersion(),
+): { current: string; latest: string } | null {
+  if (!bakedVersion) return null;
+  const latest = latestReleaseTag(cwd);
+  if (!latest) return null;
+  if (latest === bakedVersion) return null;
+  // Only warn when `latest` is strictly newer than the binary's release. The tag
+  // list is semver-sorted descending, so `latest` is the max; if it sorts at or
+  // below the binary's version, the binary is current-or-ahead → stay silent.
+  const ordered = tryCommand(
+    ["git", "tag", "--list", "v*", "--sort=-v:refname"],
     cwd,
   );
-  if (!behindOutput) return null;
-  const behind = parseInt(behindOutput, 10);
-  if (!Number.isFinite(behind) || behind <= 0) return null;
-  // If the binary is also ahead of origin/main (diverged), stay silent —
-  // the user knows what they're doing.
-  const aheadOutput = tryCommand(
-    ["git", "rev-list", "--count", `origin/main..${bakedSha}`],
-    cwd,
-  );
-  const ahead = aheadOutput ? parseInt(aheadOutput, 10) : 0;
-  if (ahead > 0) return null;
-  return { behind, binary: bakedSha.slice(0, 12), remote: remoteShort };
+  if (ordered) {
+    const tags = ordered.split("\n").map((l) => l.trim()).filter((l) => /^v\d/.test(l));
+    const latestIdx = tags.indexOf(latest);
+    const binaryIdx = tags.indexOf(bakedVersion);
+    // binaryIdx === -1 ⇒ the binary's tag isn't local (can't compare) → silent.
+    // latestIdx >= binaryIdx ⇒ binary is current or ahead → silent.
+    if (binaryIdx === -1 || latestIdx >= binaryIdx) return null;
+  }
+  return { current: bakedVersion, latest };
 }
 
 /** Compare local HEAD against origin/main and return update info, or null if up-to-date / unable to check. */
@@ -17879,7 +17909,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       const binaryUpdate = (deps.checkPrxBinaryUpstream ?? checkPrxBinaryUpstream)();
       if (binaryUpdate) {
         output.error(
-          `⚠ prx binary is ${binaryUpdate.behind} commit${binaryUpdate.behind === 1 ? "" : "s"} behind origin/main (binary ${binaryUpdate.binary}, remote ${binaryUpdate.remote}). Rebuild with \`bun run prx:build\` or \`home-manager switch\` to pick up recent fixes.`,
+          formatBinaryUpdateWarning(binaryUpdate),
         );
       }
       return 0;
@@ -19175,7 +19205,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         const update = (deps.checkPrxBinaryUpstream ?? checkPrxBinaryUpstream)();
         if (update) {
           output.error(
-            `⚠ prx binary is ${update.behind} commit${update.behind === 1 ? "" : "s"} behind origin/main (binary ${update.binary}, remote ${update.remote}). Rebuild with \`bun run prx:build\` or \`home-manager switch\` to pick up recent fixes.`,
+            formatBinaryUpdateWarning(update),
           );
         }
       }
@@ -19400,7 +19430,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           const update = (deps.checkPrxBinaryUpstream ?? checkPrxBinaryUpstream)();
           if (update) {
             output.error(
-              `⚠ prx binary is ${update.behind} commit${update.behind === 1 ? "" : "s"} behind origin/main (binary ${update.binary}, remote ${update.remote}). Rebuild with \`bun run prx:build\` or \`home-manager switch\` to pick up recent fixes.`,
+              formatBinaryUpdateWarning(update),
             );
           }
         }
@@ -19618,7 +19648,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               const update = (deps.checkPrxBinaryUpstream ?? checkPrxBinaryUpstream)();
               if (update) {
                 output.error(
-                  `⚠ prx binary is ${update.behind} commit${update.behind === 1 ? "" : "s"} behind origin/main (binary ${update.binary}, remote ${update.remote}). Rebuild with \`bun run prx:build\` or \`home-manager switch\` to pick up recent fixes.`,
+                  formatBinaryUpdateWarning(update),
                 );
               }
             }
@@ -19793,7 +19823,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               const update = (deps.checkPrxBinaryUpstream ?? checkPrxBinaryUpstream)();
               if (update) {
                 output.error(
-                  `⚠ prx binary is ${update.behind} commit${update.behind === 1 ? "" : "s"} behind origin/main (binary ${update.binary}, remote ${update.remote}). Rebuild with \`bun run prx:build\` or \`home-manager switch\` to pick up recent fixes.`,
+                  formatBinaryUpdateWarning(update),
                 );
               }
             }
@@ -19907,7 +19937,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           const update = (deps.checkPrxBinaryUpstream ?? checkPrxBinaryUpstream)();
           if (update) {
             output.error(
-              `⚠ prx binary is ${update.behind} commit${update.behind === 1 ? "" : "s"} behind origin/main (binary ${update.binary}, remote ${update.remote}). Rebuild with \`bun run prx:build\` or \`home-manager switch\` to pick up recent fixes.`,
+              formatBinaryUpdateWarning(update),
             );
           }
         }

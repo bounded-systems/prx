@@ -35,7 +35,21 @@ function gitShaShort(): string {
   return res.status === 0 ? res.stdout.trim() : "";
 }
 
+// prx-1ab: the release tag the build is cut from. On a release build
+// `release-binary.yml` passes `PRX_COMPILE_VERSION=$GITHUB_REF_NAME` (the pushed
+// `v*` tag); otherwise fall back to a tag sitting exactly on HEAD (a local
+// `git tag` build) or '' for an untagged dev build, where the binary reports by
+// git SHA instead.
+function gitTagOnHead(): string {
+  const res = spawnSync("git", ["tag", "--points-at", "HEAD", "--sort=-v:refname"], {
+    encoding: "utf8",
+  });
+  if (res.status !== 0) return "";
+  return res.stdout.split("\n").map((l) => l.trim()).find((l) => /^v\d/.test(l)) ?? "";
+}
+
 const sha = process.env.PRX_COMPILE_GIT_SHA ?? gitShaShort();
+const version = process.env.PRX_COMPILE_VERSION ?? gitTagOnHead();
 const claudePath = process.env.PRX_COMPILE_CLAUDE_PATH ?? join(homedir(), ".local/bin/claude");
 
 // Each --define value is a JS string literal — the inner quotes are literal
@@ -43,6 +57,7 @@ const claudePath = process.env.PRX_COMPILE_CLAUDE_PATH ?? join(homedir(), ".loca
 // verbatim, no shell parsing).
 const defines = [
   "--define", `__PRX_BUILD_GIT_SHA__="${sha}"`,
+  "--define", `__PRX_BUILD_VERSION__="${version}"`,
   "--define", `__PRX_BUILD_CLAUDE_CODE_PATH__="${claudePath}"`,
 ];
 
