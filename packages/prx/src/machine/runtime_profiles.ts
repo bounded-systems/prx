@@ -1604,11 +1604,17 @@ function buildSessionProfileClaudeArgs(input: {
  * GH-950: allowlist is sourced from `SESSION_PROFILES.triage` (config, not
  * embedded in prompt strings).
  */
-export function buildOpsTriageClaudeRuntimeProfile(): RuntimeProfileProjection {
+export function buildOpsTriageClaudeRuntimeProfile(
+  message?: string,
+): RuntimeProfileProjection {
   const profile = SESSION_PROFILES.triage;
+  const seed = message?.trim();
   const args = buildSessionProfileClaudeArgs({
     name: "mainx-triage",
-    prompt: buildOpsMainxTriagePrompt(),
+    // prx-383: a work-unit id seed aims the interactive session at that item.
+    prompt: seed
+      ? `${buildOpsMainxTriagePrompt()}\n\nTriage this specific work-unit: ${seed}`
+      : buildOpsMainxTriagePrompt(),
   });
 
   return {
@@ -2555,16 +2561,37 @@ export function buildOpsIntakeSdkRuntimeProfile(
 }
 
 /**
+ * prx-383: the triage task prompt. With a work-unit id seed, triage THAT item;
+ * without one, sweep the queue.
+ */
+export function triageUserPrompt(unit?: string): string {
+  const seed = unit?.trim();
+  if (seed) {
+    return (
+      `Triage the specific work-unit ${seed}: classify it (type + axes), dedupe ` +
+      "it against the queue, and promote it to execution-ready if appropriate. " +
+      "Do not ask clarifying questions."
+    );
+  }
+  return (
+    "Run the triage pass headlessly: hydrate the queue, dedupe, and promote " +
+    "execution-ready issues. Do not ask clarifying questions."
+  );
+}
+
+/**
  * GH-2380 — headless SDK profile for `prx triage agent` (default). Mainx-bound,
  * work-unit-unbound. SDK counterpart to `buildOpsTriageClaudeRuntimeProfile`.
+ * prx-383: an optional work-unit id seeds triage to one item.
  */
-export function buildOpsTriageSdkRuntimeProfile(): RuntimeProfileProjection {
+export function buildOpsTriageSdkRuntimeProfile(
+  message?: string,
+): RuntimeProfileProjection {
   return buildSessionProfileSdkRuntimeProfile({
     name: "triage",
     role: "triage",
     systemPrompt: buildOpsMainxTriagePrompt(),
-    userPrompt:
-      "Run the triage pass headlessly: hydrate the queue, dedupe, and promote execution-ready issues. Do not ask clarifying questions.",
+    userPrompt: triageUserPrompt(message),
   });
 }
 

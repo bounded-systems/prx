@@ -200,7 +200,11 @@ function buildSessionEntryEvent(
         message: input.message,
       };
     case "triage":
-      return { type: "OPEN_TRIAGE_SESSION", interaction: input.interaction };
+      return {
+        type: "OPEN_TRIAGE_SESSION",
+        interaction: input.interaction,
+        message: input.message,
+      };
     case "plan":
       return {
         type: "OPEN_PLAN_SESSION",

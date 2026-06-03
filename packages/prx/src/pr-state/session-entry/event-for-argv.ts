@@ -102,8 +102,14 @@ export function eventForArgv(argv: readonly string[]): SessionEntryEvent | null 
     };
   }
   if (a0 === "triage" && a1 === "agent") {
-    const { interactive } = parseInteractiveFlag(rest);
-    return { type: "OPEN_TRIAGE_SESSION", ...(interactive ? { interaction: "interactive" as const } : {}) };
+    const { interactive, remainder } = parseInteractiveFlag(rest);
+    // prx-383: an optional positional work-unit id seeds triage at that item.
+    const unit = remainder.find((a) => !a.startsWith("-"));
+    return {
+      type: "OPEN_TRIAGE_SESSION",
+      ...(interactive ? { interaction: "interactive" as const } : {}),
+      ...(unit ? { message: unit } : {}),
+    };
   }
   if (a0 === "submit" && a1 === "agent") {
     // GH-1900: submit is work-unit-bound; require a positional id.

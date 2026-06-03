@@ -79,6 +79,8 @@ export type SessionEntryEvent =
       type: "OPEN_TRIAGE_SESSION";
       // GH-2380: see OPEN_INTAKE_SESSION.
       interaction?: "headless" | "interactive" | undefined;
+      // prx-383: optional work-unit id — triage THIS item, not the whole queue.
+      message?: string | undefined;
     }
   | {
       // GH-1900: submit is now work-unit-bound — the session prepares a
@@ -222,8 +224,8 @@ export const sessionEntryMachine = setup({
       profile: ({ event }) => {
         if (event.type !== "OPEN_TRIAGE_SESSION") return undefined;
         return event.interaction === "interactive"
-          ? buildOpsTriageClaudeRuntimeProfile()
-          : buildOpsTriageSdkRuntimeProfile();
+          ? buildOpsTriageClaudeRuntimeProfile(event.message)
+          : buildOpsTriageSdkRuntimeProfile(event.message);
       },
     }),
     bootClaudeSubmit: assign({

@@ -2469,6 +2469,8 @@ type ParsedCommand =
       format: "plain" | "json";
       // GH-2380: headless-first. See intake-session.
       interactive?: boolean | undefined;
+      // prx-383: optional work-unit id — triage THIS item, not the whole queue.
+      message?: string | undefined;
     }
   | {
       command: "triage-classify";
@@ -11806,7 +11808,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
   }
 
   if (command === "triage-session") {
-    const { values } = parseArgs({
+    const { values, positionals } = parseArgs({
       args: rest,
       options: {
         // GH-1689: --repo retargets at a registered bare's mainx and skips
@@ -11820,7 +11822,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
         interactive: { type: "boolean", default: false },
       },
       strict: true,
-      allowPositionals: false,
+      // prx-383: an optional positional work-unit id seeds triage at THAT item
+      // (`prx triage agent prx-0v5`) instead of sweeping the whole queue.
+      allowPositionals: true,
     });
 
     return {
@@ -11830,6 +11834,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
       check: values.check ?? false,
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
       interactive: values.interactive === true ? true : undefined,
+      ...(typeof positionals[0] === "string" ? { message: positionals[0] } : {}),
     };
   }
 
@@ -22265,6 +22270,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           "triage",
           "agent",
           ...(parsed.interactive ? ["--interactive"] : []),
+          ...(parsed.message ? [parsed.message] : []),
         ]);
         output.log(formatRuntimeProfile(profile, parsed.format));
         return 0;
@@ -22289,6 +22295,8 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           actor: "triage",
           // GH-2380: default headless; --interactive opts into tmux/PTY.
           ...(parsed.interactive ? { interaction: "interactive" } : {}),
+          // prx-383: a positional work-unit id seeds triage at one item.
+          ...(parsed.message ? { message: parsed.message } : {}),
         },
         {
           cwd: () => liveCwd,
