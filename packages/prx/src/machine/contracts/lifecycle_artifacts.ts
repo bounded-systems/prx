@@ -56,6 +56,34 @@ const artifactTypeIdSchema = z.enum(artifactTypeNames);
 
 const blockerSeveritySchema = z.enum(["low", "med", "high", "critical"]);
 
+// ── uow (unit of work) ────────────────────────────────────────────────────
+//
+// The pipeline's ROOT artifact: intake's output and triage's input
+// (`sessionProfileIo`: intake → uow / triage: uow_queue → …). prx-4fa fills the
+// previously-deferred `prx.uow.v1` contract (GH-1824) with a concrete schema so
+// the intake→triage boundary is typed. A uow is persisted in git (the GH issue /
+// bead), NOT the CAS — so its transport is GH/beads, not the `pipeline/edge.ts`
+// CAS primitive (which serves the cas-persisted back-half: plan→implement→…).
+// Its `id` IS the uow id every other artifact's I-UOW1 lineage hangs off — a uow
+// anchors itself. Required fields mirror the registry contract (`id/title/status`).
+export const uowStatusSchema = z.enum([
+  "open",
+  "in_progress",
+  "blocked",
+  "closed",
+]);
+export type UowStatus = z.infer<typeof uowStatusSchema>;
+
+export const uowSchema = z
+  .object({
+    // GH-NNN / <repo>#NNN / bd-… — the work-unit identity + I-UOW1 anchor.
+    id: uowIdSchema,
+    title: z.string().min(1, "uow.title must be non-empty"),
+    status: uowStatusSchema,
+  })
+  .strict();
+export type Uow = z.infer<typeof uowSchema>;
+
 // ── statusUpdate ──────────────────────────────────────────────────────────
 
 export const statusUpdateSchema = z
