@@ -12,8 +12,7 @@
  *
  * The CLI then surfaces the UoW + the CAS ref; it never reports a silent success.
  */
-import { spawnSync } from "node:child_process";
-
+import { defaultRunner } from "@bounded-systems/proc";
 import { z } from "zod";
 
 import { type ArtifactEdge, defineEdge, emitArtifact } from "./edge.ts";
@@ -43,7 +42,9 @@ const agentResultEdge: ArtifactEdge<AgentResult> = defineEdge({
 export type BeadIdReader = (cwd: string) => string[];
 
 const defaultBeadIdReader: BeadIdReader = (cwd) => {
-  const r = spawnSync("bd", ["list", "--json"], { cwd, encoding: "utf8" });
+  // Route through @bounded-systems/proc (no raw subprocess in src/ — the
+  // ambient-authority guard). check:false so a bd failure yields [] not a throw.
+  const r = defaultRunner(["bd", "list", "--json"], { cwd, check: false });
   if (r.status !== 0) return [];
   try {
     const rows = JSON.parse(r.stdout) as Array<{ id?: unknown }>;
