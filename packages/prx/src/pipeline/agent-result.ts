@@ -34,7 +34,15 @@ export const agentResultSchema = z.object({
    * Absent when the agent did not report (older agents / it skipped the tool).
    */
   disposition: z
-    .enum(["filed", "merged", "duplicate", "no_action"])
+    .enum([
+      "filed",
+      "merged",
+      "duplicate",
+      "classified",
+      "promoted",
+      "deferred",
+      "no_action",
+    ])
     .optional(),
   /** The UoW the disposition refers to — new OR the existing one matched. */
   uow: z.string().optional(),
@@ -49,7 +57,15 @@ export type AgentResult = z.infer<typeof agentResultSchema>;
 
 /** The structured result an actor's `prx <actor> result` tool reports. */
 export const reportedResultSchema = z.object({
-  disposition: z.enum(["filed", "merged", "duplicate", "no_action"]),
+  disposition: z.enum([
+    "filed",
+    "merged",
+    "duplicate",
+    "classified",
+    "promoted",
+    "deferred",
+    "no_action",
+  ]),
   uow: z.string().optional(),
   reason: z.string().optional(),
 });
@@ -166,8 +182,12 @@ export function renderAgentResult(result: AgentResult): string {
       return `${head}: merged into ${result.uow ?? "(unknown)"}${result.reason ? ` — ${result.reason}` : ""}`;
     case "duplicate":
       return `${head}: already tracked by ${result.uow ?? "(unknown)"}${result.reason ? ` — ${result.reason}` : ""}`;
+    case "classified":
+    case "promoted":
+    case "deferred":
+      return `${head}: ${result.disposition} ${result.uow ?? "(unknown)"}${result.reason ? ` — ${result.reason}` : ""}`;
     case "no_action":
-      return `${head}: no issue filed — ${result.reason ?? "no action taken"}`;
+      return `${head}: no action — ${result.reason ?? "nothing to do"}`;
     default:
       // No reported disposition — fall back to the bead diff.
       return result.uows.length > 0

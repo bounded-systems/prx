@@ -2275,6 +2275,13 @@ type ParsedCommand =
       reason?: string | undefined;
     }
   | {
+      // prx-9p9: the structured triage-result tool the triage agent reports through.
+      command: "triage-result";
+      disposition: "classified" | "promoted" | "deferred" | "merged" | "no_action";
+      uow?: string | undefined;
+      reason?: string | undefined;
+    }
+  | {
       command: "intake-session";
       dryRun: boolean;
       check: boolean;
@@ -4971,7 +4978,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "triage") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "triage requires a subcommand: status, agent, classify, apply, promote, prioritize, type-pass, prioritize-bulk, prime, drift-fix, migrate-axis-value, close, close-stale, dispatch",
+        "triage requires a subcommand: status, agent, result, classify, apply, promote, prioritize, type-pass, prioritize-bulk, prime, drift-fix, migrate-axis-value, close, close-stale, dispatch",
       );
     }
     // GH-1194: per-actor dispatch envelope.
@@ -4985,6 +4992,10 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     // `session` token errors with a removal hint.
     if (c1 === "agent") {
       return ["triage-session", ...tail];
+    }
+    // prx-9p9: the structured result tool the headless triage agent reports through.
+    if (c1 === "result") {
+      return ["triage-result", ...tail];
     }
     if (c1 === "session") {
       throw new CliError(
@@ -7056,6 +7067,37 @@ function parseSessionPlanCommand(
     ...(noCache ? { noCache: true } : {}),
     ...(timeoutMs !== undefined ? { timeoutMs } : {}),
     ...(resumeFromDraft ? { resumeFromDraft: true } : {}),
+  };
+}
+
+// prx-9p9: parser for `prx triage result` — the structured tool the headless
+// triage agent calls to report its disposition (a non-MCP CLI tool).
+function parseTriageResultCommand(rest: string[]): ParsedCommand {
+  const { values } = parseArgs({
+    args: rest,
+    options: {
+      disposition: { type: "string" },
+      uow: { type: "string" },
+      reason: { type: "string" },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
+  if (typeof values.disposition !== "string") {
+    throw new CliError(
+      "triage result requires --disposition <classified|promoted|deferred|merged|no_action>",
+    );
+  }
+  const disposition = ensureChoice(
+    values.disposition,
+    ["classified", "promoted", "deferred", "merged", "no_action"],
+    "--disposition",
+  );
+  return {
+    command: "triage-result",
+    disposition,
+    ...(typeof values.uow === "string" ? { uow: values.uow } : {}),
+    ...(typeof values.reason === "string" ? { reason: values.reason } : {}),
   };
 }
 
@@ -11773,6 +11815,10 @@ export function parseCommand(argv: string[]): ParsedCommand {
       yes: values.yes,
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
     };
+  }
+
+  if (command === "triage-result") {
+    return parseTriageResultCommand(rest);
   }
 
   if (command === "triage-status") {
@@ -22256,9 +22302,8 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         );
       }
 
-      // GH-950: session-profile banner — operator-facing acknowledgment of the
-      // session shape (config-sourced, not hard-coded in the prompt).
-      output.error(SESSION_PROFILES.triage.banner);
+      // prx-9p9: no pre-run banner (noise + a false "No execution"); the result
+      // line is the signal — matches the intake agent.
 
       if (parsed.dryRun) {
         // Preview only: show the branch this call *would* reserve plus the
@@ -22334,10 +22379,14 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         output.error(buildMalformedAllowlistWarning(triageSessionAllowlist.path));
       }
 
-      const mcpStatus = (deps.ensureOpsRuntimeMcp ?? ensureOpsRuntimeMcp)(spawnCwd);
+      // prx-9p9: ensure the runtime MCP config exists (side effect); the triage
+      // banner that surfaced its status is gone — the structured result speaks.
+      (deps.ensureOpsRuntimeMcp ?? ensureOpsRuntimeMcp)(spawnCwd);
 
       const policy = POLICY;
       const startedAt = Date.now();
+      // prx-9p9: snapshot beads to report the UoW(s) this triage run touched.
+      const beadsBefore = snapshotBeadIds(queueCwd);
       // GH-2380: backend is derived — headless SDK by default,
       // subprocess/PTY under --interactive (or when tests inject execRuntime).
       const result = resolveAgentBackend(profile) === "sdk"
@@ -22383,27 +22432,24 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           timestamp: Date.now(),
         }),
       );
-      if (parsed.format === "json") {
-        output.log(
-          JSON.stringify(
-            {
-              profile,
-              cwd: spawnCwd,
-              workspace_id: opened.workspace_id,
-              branch_ref: opened.branch_ref,
-              mcpStatus,
-              policy,
-              telemetry,
-              status: result.status,
-              stdout: result.stdout,
-              stderr: result.stderr,
-              queueSummary,
-            },
-            null,
-            2,
-          ),
-        );
-      }
+      // prx-9p9: surface the result — read what the agent reported via
+      // `prx triage result`, capture + pin to CAS, emit the schema-backed result.
+      const beadsAfter = snapshotBeadIds(queueCwd);
+      const reported = readReportedResult(spawnCwd);
+      const { result: agentResult } = await captureAgentResult({
+        actor: "triage",
+        workspaceId: opened.workspace_id,
+        status: result.status,
+        stdout: result.stdout ?? "",
+        before: beadsBefore,
+        after: beadsAfter,
+        reported,
+      });
+      emit(
+        output,
+        { schema: agentResultSchema, data: agentResult, pretty: renderAgentResult },
+        parsed.format,
+      );
       return result.status;
       })();
     }
@@ -22420,6 +22466,22 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       writeReportedResult(process.cwd(), reported);
       output.log(
         `intake result: ${parsed.disposition}${parsed.uow ? ` ${parsed.uow}` : ""}${parsed.reason ? ` — ${parsed.reason}` : ""}`,
+      );
+      return 0;
+    }
+
+    if (parsed.command === "triage-result") {
+      // prx-9p9: the headless triage agent reports its outcome here (a non-MCP
+      // CLI tool in its allowlist), mirroring `prx intake result`. The parent
+      // reads this file post-run to surface the disposition + UoW.
+      const reported: ReportedResult = {
+        disposition: parsed.disposition,
+        ...(parsed.uow ? { uow: parsed.uow } : {}),
+        ...(parsed.reason ? { reason: parsed.reason } : {}),
+      };
+      writeReportedResult(process.cwd(), reported);
+      output.log(
+        `triage result: ${parsed.disposition}${parsed.uow ? ` ${parsed.uow}` : ""}${parsed.reason ? ` — ${parsed.reason}` : ""}`,
       );
       return 0;
     }
