@@ -84,4 +84,23 @@ describe("agent-result return channel (prx-lfv)", () => {
       new Set(["prx-x", "prx-y"]),
     );
   });
+
+  test("snapshotBeadIds degrades to empty when the reader throws (bd absent / CI)", () => {
+    expect(
+      snapshotBeadIds("/repo", () => {
+        throw new Error("spawn bd ENOENT");
+      }),
+    ).toEqual(new Set());
+  });
+
+  test("renderAgentResult omits the ref when the CAS pin failed (empty ref)", () => {
+    expect(
+      renderAgentResult("", {
+        actor: "intake",
+        status: 0,
+        uows: ["prx-z"],
+        summary: "",
+      }),
+    ).toBe("prx intake agent → UoW: prx-z");
+  });
 });
