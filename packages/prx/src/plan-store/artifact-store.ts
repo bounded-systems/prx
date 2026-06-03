@@ -16,7 +16,7 @@
 import { type CasSha, type DomainOptions, setRef, writeBlob } from "./cas.ts";
 
 /** Artifact families addressable in the CAS as `<unit>:<kind>@<slot>`. */
-export type ArtifactKind = "plan" | "submit";
+export type ArtifactKind = "plan" | "submit" | "agent_result";
 
 /** Canonical ref for an artifact slot: `<unit>:<kind>@<slot>`. */
 export function artifactRef(

@@ -112,6 +112,11 @@ import {
   PRX_TMUX_SOCKET,
 } from "@bounded-systems/prx-mux";
 import { shellQuote as shellQuoteArg } from "./executor.ts";
+import {
+  captureAgentResult,
+  renderAgentResult,
+  snapshotBeadIds,
+} from "../pipeline/agent-result.ts";
 import { pickPrimaryTmuxEntry, readTmuxSurface } from "./surfaces/tmux.ts";
 import { resolverForCanonicalId } from "./resolvers/dispatch.ts";
 import { BeadsResolver } from "./resolvers/beads.ts";
@@ -22461,6 +22466,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
 
       const policy = POLICY;
       const startedAt = Date.now();
+      // prx-lfv: snapshot the bead set so we can report the UoW(s) this run
+      // produces — the difference after/before is what intake created.
+      const beadsBefore = snapshotBeadIds(queueCwd);
       // GH-2380: backend is derived — headless SDK by default,
       // subprocess/PTY under --interactive (or when tests inject execRuntime).
       const result = resolveAgentBackend(profile) === "sdk"
@@ -22506,6 +22514,17 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           timestamp: Date.now(),
         }),
       );
+      // prx-lfv: pin the run's result to the CAS (the uniform return channel)
+      // and surface the UoW(s) it produced — never a silent success.
+      const beadsAfter = snapshotBeadIds(queueCwd);
+      const { ref: resultRef, result: agentResult } = await captureAgentResult({
+        actor: "intake",
+        workspaceId: opened.workspace_id,
+        status: result.status,
+        stdout: result.stdout ?? "",
+        before: beadsBefore,
+        after: beadsAfter,
+      });
       if (parsed.format === "json") {
         output.log(
           JSON.stringify(
@@ -22520,11 +22539,15 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               status: result.status,
               stdout: result.stdout,
               stderr: result.stderr,
+              result_ref: resultRef,
+              uows: agentResult.uows,
             },
             null,
             2,
           ),
         );
+      } else {
+        output.log(renderAgentResult(resultRef, agentResult));
       }
       return result.status;
       })();
