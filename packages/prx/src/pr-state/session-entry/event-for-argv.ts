@@ -92,8 +92,14 @@ export function eventForArgv(argv: readonly string[]): SessionEntryEvent | null 
   // means the default headless SDK profile. The hard-removed `session` token
   // is rejected upstream at the parser, so it never reaches here.
   if (a0 === "intake" && a1 === "agent") {
-    const { interactive } = parseInteractiveFlag(rest);
-    return { type: "OPEN_INTAKE_SESSION", ...(interactive ? { interaction: "interactive" as const } : {}) };
+    const { interactive, remainder } = parseInteractiveFlag(rest);
+    // prx-28w: `--message "…"` seeds the intake operator at one specific item.
+    const { message } = parseMessageFlag(remainder);
+    return {
+      type: "OPEN_INTAKE_SESSION",
+      ...(interactive ? { interaction: "interactive" as const } : {}),
+      ...(message ? { message } : {}),
+    };
   }
   if (a0 === "triage" && a1 === "agent") {
     const { interactive } = parseInteractiveFlag(rest);
@@ -142,4 +148,30 @@ function parseInteractiveFlag(args: readonly string[]): {
     remainder.push(a);
   }
   return { interactive, remainder };
+}
+
+/**
+ * prx-28w: extract `--message <value>` / `--message=<value>` from the argv tail.
+ * The seed aims `prx intake agent` at one specific item instead of a sweep.
+ */
+function parseMessageFlag(args: readonly string[]): {
+  message: string | undefined;
+  remainder: string[];
+} {
+  const remainder: string[] = [];
+  let message: string | undefined;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === "--message") {
+      message = args[i + 1];
+      i += 1; // consume the value
+      continue;
+    }
+    if (a !== undefined && a.startsWith("--message=")) {
+      message = a.slice("--message=".length);
+      continue;
+    }
+    if (a !== undefined) remainder.push(a);
+  }
+  return { message, remainder };
 }

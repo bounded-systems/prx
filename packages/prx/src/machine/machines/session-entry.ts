@@ -72,6 +72,8 @@ export type SessionEntryEvent =
       // GH-2380: headless-first axis. Default (absent) → headless SDK;
       // `"interactive"` is the explicit tmux/PTY opt-in.
       interaction?: "headless" | "interactive" | undefined;
+      // prx-28w: optional free-text seed (`--message`) — intake THIS item.
+      message?: string | undefined;
     }
   | {
       type: "OPEN_TRIAGE_SESSION";
@@ -212,8 +214,8 @@ export const sessionEntryMachine = setup({
       profile: ({ event }) => {
         if (event.type !== "OPEN_INTAKE_SESSION") return undefined;
         return event.interaction === "interactive"
-          ? buildOpsIntakeClaudeRuntimeProfile()
-          : buildOpsIntakeSdkRuntimeProfile();
+          ? buildOpsIntakeClaudeRuntimeProfile(event.message)
+          : buildOpsIntakeSdkRuntimeProfile(event.message);
       },
     }),
     bootClaudeTriage: assign({

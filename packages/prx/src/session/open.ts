@@ -189,11 +189,16 @@ function buildSessionEntryEvent(
     planPath?: string | undefined;
     planBody?: string | undefined;
     interaction?: "headless" | "interactive" | undefined;
+    message?: string | undefined;
   },
 ): SessionEntryEvent {
   switch (actor) {
     case "intake":
-      return { type: "OPEN_INTAKE_SESSION", interaction: input.interaction };
+      return {
+        type: "OPEN_INTAKE_SESSION",
+        interaction: input.interaction,
+        message: input.message,
+      };
     case "triage":
       return { type: "OPEN_TRIAGE_SESSION", interaction: input.interaction };
     case "plan":
@@ -528,6 +533,7 @@ export async function openSession(
         planPath: input.planPath,
         planBody: input.planBody,
         interaction: input.interaction,
+        message: input.message,
       }),
     );
   } catch (err) {
