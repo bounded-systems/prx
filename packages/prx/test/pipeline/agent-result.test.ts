@@ -68,7 +68,20 @@ describe("agent-result return channel (prx-lfv)", () => {
     ).toBe("prx intake agent: already tracked by bd-yyy");
     expect(
       renderAgentResult({ ...base, disposition: "no_action", reason: "not actionable" }),
-    ).toBe("prx intake agent: no issue filed — not actionable");
+    ).toBe("prx intake agent: no action — not actionable");
+  });
+
+  test("renderAgentResult surfaces the triage dispositions (prx-9p9)", () => {
+    const base = { actor: "triage", status: 0, uows: [] as string[], summary: "" };
+    expect(
+      renderAgentResult({ ...base, disposition: "classified", uow: "prx-0v5" }),
+    ).toBe("prx triage agent: classified prx-0v5");
+    expect(
+      renderAgentResult({ ...base, disposition: "promoted", uow: "prx-0v5", reason: "ready" }),
+    ).toBe("prx triage agent: promoted prx-0v5 — ready");
+    expect(
+      renderAgentResult({ ...base, disposition: "deferred", uow: "prx-0v5", reason: "blocked" }),
+    ).toBe("prx triage agent: deferred prx-0v5 — blocked");
   });
 
   test("renderAgentResult falls back to the bead diff when nothing was reported", () => {

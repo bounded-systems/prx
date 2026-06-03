@@ -2569,7 +2569,13 @@ export function triageUserPrompt(unit?: string): string {
   if (seed) {
     return (
       `Triage the specific work-unit ${seed}: classify it (type + axes), dedupe ` +
-      "it against the queue, and promote it to execution-ready if appropriate. " +
+      "it against the queue, and promote it to execution-ready if appropriate.\n" +
+      "FINALLY you MUST report the outcome with the result tool — exactly one of:\n" +
+      `  prx triage result --disposition classified --uow ${seed} --reason "<type/axes set>"\n` +
+      `  prx triage result --disposition promoted --uow ${seed} --reason "<now execution-ready>"\n` +
+      `  prx triage result --disposition deferred --uow ${seed} --reason "<why deferred>"\n` +
+      "  prx triage result --disposition merged --uow <canonical-bd-id> --reason \"<why>\"\n" +
+      "  prx triage result --disposition no_action --reason \"<why nothing changed>\"\n" +
       "Do not ask clarifying questions."
     );
   }
