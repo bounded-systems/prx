@@ -72,6 +72,10 @@ export const SessionOpenInput = z
     // the dispatched profile carries the right (headless SDK / interactive
     // tmux) shape. Absent ⇒ headless (the default for every agent mode).
     interaction: z.enum(["headless", "interactive"]).optional(),
+    // prx-28w: free-text seed for `prx intake agent --message "…"`. Aims the
+    // intake operator at one specific item (dedupe → file/merge) instead of a
+    // whole-queue sweep. Ignored by actors that don't consume it.
+    message: z.string().optional(),
     shortId: z
       .string()
       .regex(/^[a-z0-9]{5,8}$/)

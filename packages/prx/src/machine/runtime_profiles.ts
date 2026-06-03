@@ -1647,11 +1647,18 @@ export function buildOpsTriageClaudeRuntimeProfile(): RuntimeProfileProjection {
  * work-unit-unbound, pre-triage shape: search the queue, file or merge,
  * mirror — no execution, no promotion to beads.
  */
-export function buildOpsIntakeClaudeRuntimeProfile(): RuntimeProfileProjection {
+export function buildOpsIntakeClaudeRuntimeProfile(
+  message?: string,
+): RuntimeProfileProjection {
   const profile = SESSION_PROFILES.intake;
+  const seed = message?.trim();
   const args = buildSessionProfileClaudeArgs({
     name: "mainx-intake",
-    prompt: buildOpsMainxIntakePrompt(),
+    // prx-28w: a `--message` seed appends the operator's request to the system
+    // prompt so the interactive session opens already aimed at that one item.
+    prompt: seed
+      ? `${buildOpsMainxIntakePrompt()}\n\nOperator request: ${seed}`
+      : buildOpsMainxIntakePrompt(),
     tools: {
       allowed: profile.allowedTools,
       disallowed: profile.disallowedTools,
@@ -2505,16 +2512,39 @@ function buildSessionProfileSdkRuntimeProfile(input: {
 }
 
 /**
+ * prx-28w: the intake operator's task prompt. With a `--message` seed, intake
+ * THAT one item (dedupe → file-or-merge); without one, sweep the whole queue.
+ */
+export function intakeUserPrompt(message?: string): string {
+  const seed = message?.trim();
+  if (seed) {
+    return (
+      `The operator reports: "${seed}". Intake this specific item. First ` +
+      "dedupe-search the queue; if it already exists, merge or pointer-comment " +
+      "the duplicate. Otherwise file the correctly-typed issue " +
+      "(bug | task | feature | spike | decision) with a clear title and a body " +
+      "derived from the report. Do not ask clarifying questions."
+    );
+  }
+  return (
+    "Run the intake pass headlessly: search the queue, file new issues or merge " +
+    "dupes, mirror as directed. Do not ask clarifying questions."
+  );
+}
+
+/**
  * GH-2380 — headless SDK profile for `prx intake agent` (default). Mainx-bound,
  * work-unit-unbound. SDK counterpart to `buildOpsIntakeClaudeRuntimeProfile`.
+ * prx-28w: an optional `--message` seeds the intake to one specific item.
  */
-export function buildOpsIntakeSdkRuntimeProfile(): RuntimeProfileProjection {
+export function buildOpsIntakeSdkRuntimeProfile(
+  message?: string,
+): RuntimeProfileProjection {
   return buildSessionProfileSdkRuntimeProfile({
     name: "intake",
     role: "intake",
     systemPrompt: buildOpsMainxIntakePrompt(),
-    userPrompt:
-      "Run the intake pass headlessly: search the queue, file new issues or merge dupes, mirror as directed. Do not ask clarifying questions.",
+    userPrompt: intakeUserPrompt(message),
   });
 }
 

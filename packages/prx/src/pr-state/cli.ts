@@ -2265,6 +2265,8 @@ type ParsedCommand =
       // GH-2380: headless-first. Default runs the headless SDK job;
       // `--interactive` opts into the legacy tmux/PTY session.
       interactive?: boolean | undefined;
+      // prx-28w: free-text seed (`--message`) — intake THIS item.
+      message?: string | undefined;
     }
   | {
       command: "intake-view";
@@ -7044,6 +7046,9 @@ function parseIntakeSessionCommand(rest: string[]): ParsedCommand {
       // GH-2380: headless-first. Default is the headless SDK job; --interactive
       // opts into the legacy tmux/PTY session.
       interactive: { type: "boolean", default: false },
+      // prx-28w: free-text seed — intake THIS item (dedupe → file/merge)
+      // instead of sweeping the whole queue.
+      message: { type: "string" },
     },
     strict: true,
     allowPositionals: false,
@@ -7055,6 +7060,7 @@ function parseIntakeSessionCommand(rest: string[]): ParsedCommand {
     check: values.check ?? false,
     format: ensureChoice(values.format, ["plain", "json"], "--format"),
     interactive: values.interactive === true ? true : undefined,
+    message: typeof values.message === "string" ? values.message : undefined,
   };
 }
 
@@ -22388,6 +22394,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           "intake",
           "agent",
           ...(parsed.interactive ? ["--interactive"] : []),
+          ...(parsed.message ? ["--message", parsed.message] : []),
         ]);
         output.log(formatRuntimeProfile(profile, parsed.format));
         return 0;
@@ -22407,6 +22414,8 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           actor: "intake",
           // GH-2380: default headless; --interactive opts into tmux/PTY.
           ...(parsed.interactive ? { interaction: "interactive" } : {}),
+          // prx-28w: free-text seed aims intake at one item.
+          ...(parsed.message ? { message: parsed.message } : {}),
         },
         {
           cwd: () => liveCwd,
