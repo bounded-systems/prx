@@ -173,51 +173,52 @@ Work units:
   prx beads publish              Publish a beads record to GitHub (bd→GH mirror)
 
 Repo plumbing:
-  prx repo add            Clone bare repo and bootstrap detached mainx
-  prx repo adopt          Adopt on-disk worktree into prx registry
-  prx branch adopt        Adopt current branch into prx registry
-  prx workspace adopt     Adopt on-disk worktree into prx registry
-  prx workspace reserve   Reserve a workspace branch (idempotent ensure-branch)
-  prx workspace prepare   Prepare workspace tooling files for a lifecycle phase
-  prx workspace sync      Idempotently re-apply workspace tooling-file drift correction
-  prx workspace service   Start or stop workspace compose services (--auto = no-op without profile)
-  prx workspace teardown  Mark the workspace torn down (closes lifecycle ledger)
-  prx repo backfill       Populate bd_workspace_prefix on stale inventory entries (GH-1722)
-  prx repo add-dolthub    Wire a Dolthub remote on a per-project beads workspace (GH-1703)
-  prx repo bootstrap      Bootstrap per-project .beads/ and wire Dolthub on a beads-less repo (GH-1704)
-  prx repo list           List prx-managed repositories across hosts
-  prx repo local          List repos cloned under HOME
-  prx repo normalize      Normalize repo names against canonical config
-  prx repo materialize    Clone or fetch a registered bare repo idempotently
-  prx repo overview       Print repo overview snapshot (accepts optional <slug> positional; falls back to cwd)
-  prx repo status         Print repo status with git details
-  prx repo checks         Show repo branch protection checks
-  prx repo sync-issues    Sync repo issue state from GitHub
-  prx repo sync-status    Sync repo status state from GitHub
-  prx repo protect-main   Apply branch protection to main
-  prx repo ci             Fetch remote CI summary for a PR
-  prx repo pr-comments    List or resolve PR review threads
-  prx repo set            Set a per-repo axis (canonical, stale-threshold-days, bd-workspace-prefix, dolt-remote)
-  prx worktree list       List worktrees with status flags
-  prx worktree status     Show single worktree status
-  prx worktree remove     Remove a worktree and branch
-  prx worktree refresh    Rebase work-unit branch onto origin main
-  prx beads hydrate       Hydrate beads database for current repo
-  prx beads issue         Look up beads row by GitHub issue
-  prx beads sync-all      Fan out prx dolt reconcile across dolthub-wired registered repos
-  prx tools wt            Wrap worktrunk wt with policy enforcement
-  prx tools git           Wrap git with policy enforcement
-  prx tools bd            Wrap beads CLI with policy enforcement
-  prx tools labels sync   Sync triage label vocab onto GitHub
-  prx dolt provision      Provision per-repo dolt database and initial push (GH-1685)
-  prx dolt start          Start prx-owned dolt sql-server for this repo
-  prx dolt stop           Stop prx-owned dolt sql-server for this repo
-  prx dolt status         Report dolt sql-server lifecycle and health
-  prx dolt adopt          Adopt an external dolt sql-server pid (legacy import)
-  prx dolt reconcile      Reconcile dolt push, optionally resolving schema conflicts
-  prx dolt sync-all       Fan-out reconcile over every managed dolt database (GH-1702)
-  prx dolt policy         Set dolt.auto-push or dolt.auto-commit across managed workspaces
-  prx dolt supervise      Enable cross-session dolt supervisor (Darwin launchd, GH-568)
+  prx repo add               Clone bare repo and bootstrap detached mainx
+  prx repo adopt             Adopt on-disk worktree into prx registry
+  prx branch adopt           Adopt current branch into prx registry
+  prx workspace adopt        Adopt on-disk worktree into prx registry
+  prx workspace reserve      Reserve a workspace branch (idempotent ensure-branch)
+  prx workspace materialize  Materialize the reserved workspace worktree on disk
+  prx workspace prepare      Prepare workspace tooling files for a lifecycle phase
+  prx workspace sync         Idempotently re-apply workspace tooling-file drift correction
+  prx workspace service      Start or stop workspace compose services (--auto = no-op without profile)
+  prx workspace teardown     Mark the workspace torn down (closes lifecycle ledger)
+  prx repo backfill          Populate bd_workspace_prefix on stale inventory entries (GH-1722)
+  prx repo add-dolthub       Wire a Dolthub remote on a per-project beads workspace (GH-1703)
+  prx repo bootstrap         Bootstrap per-project .beads/ and wire Dolthub on a beads-less repo (GH-1704)
+  prx repo list              List prx-managed repositories across hosts
+  prx repo local             List repos cloned under HOME
+  prx repo normalize         Normalize repo names against canonical config
+  prx repo materialize       Clone or fetch a registered bare repo idempotently
+  prx repo overview          Print repo overview snapshot (accepts optional <slug> positional; falls back to cwd)
+  prx repo status            Print repo status with git details
+  prx repo checks            Show repo branch protection checks
+  prx repo sync-issues       Sync repo issue state from GitHub
+  prx repo sync-status       Sync repo status state from GitHub
+  prx repo protect-main      Apply branch protection to main
+  prx repo ci                Fetch remote CI summary for a PR
+  prx repo pr-comments       List or resolve PR review threads
+  prx repo set               Set a per-repo axis (canonical, stale-threshold-days, bd-workspace-prefix, dolt-remote)
+  prx worktree list          List worktrees with status flags
+  prx worktree status        Show single worktree status
+  prx worktree remove        Remove a worktree and branch
+  prx worktree refresh       Rebase work-unit branch onto origin main
+  prx beads hydrate          Hydrate beads database for current repo
+  prx beads issue            Look up beads row by GitHub issue
+  prx beads sync-all         Fan out prx dolt reconcile across dolthub-wired registered repos
+  prx tools wt               Wrap worktrunk wt with policy enforcement
+  prx tools git              Wrap git with policy enforcement
+  prx tools bd               Wrap beads CLI with policy enforcement
+  prx tools labels sync      Sync triage label vocab onto GitHub
+  prx dolt provision         Provision per-repo dolt database and initial push (GH-1685)
+  prx dolt start             Start prx-owned dolt sql-server for this repo
+  prx dolt stop              Stop prx-owned dolt sql-server for this repo
+  prx dolt status            Report dolt sql-server lifecycle and health
+  prx dolt adopt             Adopt an external dolt sql-server pid (legacy import)
+  prx dolt reconcile         Reconcile dolt push, optionally resolving schema conflicts
+  prx dolt sync-all          Fan-out reconcile over every managed dolt database (GH-1702)
+  prx dolt policy            Set dolt.auto-push or dolt.auto-commit across managed workspaces
+  prx dolt supervise         Enable cross-session dolt supervisor (Darwin launchd, GH-568)
 
 System:
   prx rules render              Render claude/rules/*.md from typed inputs

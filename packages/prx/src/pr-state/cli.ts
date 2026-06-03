@@ -4646,7 +4646,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "workspace") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "workspace requires a subcommand: adopt | reserve | prepare | sync | service | teardown",
+        "workspace requires a subcommand: adopt | reserve | materialize | prepare | sync | service | teardown",
       );
     }
     if (c1 === "adopt") {
@@ -4654,6 +4654,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     }
     if (
       c1 === "reserve" ||
+      c1 === "materialize" ||
       c1 === "prepare" ||
       c1 === "sync" ||
       c1 === "service" ||

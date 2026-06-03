@@ -14,6 +14,7 @@ import {
   runWorkspaceCli,
   WorkspaceCliError,
 } from "../../src/workspace/cli.ts";
+import { normalizeNamespaceArgv } from "../../src/pr-state/cli.ts";
 
 function sh(cwd: string, file: string, args: string[]): void {
   const r = spawnSync(file, args, { cwd, encoding: "utf8" });
@@ -107,6 +108,24 @@ describe("parseWorkspaceArgs", () => {
     expect(args.verb).toBe("prepare");
     expect(args.lifecycle).toBe("materialized");
     expect(args.format).toBe("json");
+  });
+
+  test("materialize parses --workspace-id (and --branch resolution carries through)", () => {
+    const args = parseWorkspaceArgs(["materialize", "--workspace-id", "abcdef012345"]);
+    expect(args.verb).toBe("materialize");
+    expect(args.workspaceId).toBe("abcdef012345");
+  });
+
+  test("prx-997: `prx workspace materialize` is wired into the CLI dispatch", () => {
+    // Regression: `materialize` exists in WORKSPACE_VERBS + runWorkspaceCli but
+    // was missing from the `prx workspace <verb>` router allow-list, so the verb
+    // was unreachable. The full lifecycle (reserve → materialize → prepare → …)
+    // is now routable.
+    expect(normalizeNamespaceArgv(["workspace", "materialize", "--workspace-id", "abcdef012345"]))
+      .toEqual(["workspace", "materialize", "--workspace-id", "abcdef012345"]);
+    expect(() => normalizeNamespaceArgv(["workspace", "bogus"])).toThrow(
+      /Unknown workspace subcommand: bogus/,
+    );
   });
 
   test("service --action start --auto", () => {
