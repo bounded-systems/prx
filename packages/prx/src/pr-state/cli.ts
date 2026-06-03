@@ -112,7 +112,9 @@ import {
   PRX_TMUX_SOCKET,
 } from "@bounded-systems/prx-mux";
 import { shellQuote as shellQuoteArg } from "./executor.ts";
+import { emit } from "../cli/emit.ts";
 import {
+  agentResultSchema,
   captureAgentResult,
   readReportedResult,
   renderAgentResult,
@@ -22537,7 +22539,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         output.error(buildMalformedAllowlistWarning(intakeSessionAllowlist.path));
       }
 
-      const mcpStatus = (deps.ensureOpsRuntimeMcp ?? ensureOpsRuntimeMcp)(spawnCwd);
+      // Provision the ops-runtime MCP (side effect); the status is no longer
+      // surfaced now that the run emits the schema-backed AgentResult.
+      (deps.ensureOpsRuntimeMcp ?? ensureOpsRuntimeMcp)(spawnCwd);
 
       const policy = POLICY;
       const startedAt = Date.now();
@@ -22604,30 +22608,18 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         after: beadsAfter,
         reported,
       });
-      if (parsed.format === "json") {
-        output.log(
-          JSON.stringify(
-            {
-              profile,
-              cwd: spawnCwd,
-              workspace_id: opened.workspace_id,
-              branch_ref: opened.branch_ref,
-              mcpStatus,
-              policy,
-              telemetry,
-              status: result.status,
-              stdout: result.stdout,
-              stderr: result.stderr,
-              result_ref: resultRef,
-              uows: agentResult.uows,
-            },
-            null,
-            2,
-          ),
-        );
-      } else {
-        output.log(renderAgentResult(agentResult));
-      }
+      // prx-9kd: one schema-backed structured value, one printer. The `--json`
+      // surface is the validated AgentResult contract; plain is its render.
+      void resultRef; // pinned to CAS for the return channel; not in the surface.
+      emit(
+        output,
+        {
+          schema: agentResultSchema,
+          data: agentResult,
+          pretty: renderAgentResult,
+        },
+        parsed.format,
+      );
       return result.status;
       })();
     }
