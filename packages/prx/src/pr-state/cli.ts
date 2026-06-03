@@ -5037,14 +5037,20 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "plan") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "plan requires a subcommand: session | prime | preflight | handoff | ultrareview | ci | status | next | save | load | show | view | search | dispatch",
+        "plan requires a subcommand: session | agent | prime | preflight | handoff | ultrareview | ci | status | next | save | load | show | view | search | dispatch",
       );
     }
     // GH-1194: per-actor dispatch envelope.
     if (c1 === "dispatch") {
       return ["dispatch", "--source=plan", ...tail];
     }
-    if (c1 === "session") {
+    if (c1 === "session" || c1 === "agent") {
+      // prx-383: `prx plan agent` is the uniform headless verb — it parallels
+      // `prx <actor> agent` for the other lifecycle steps and routes to the
+      // same plan-session engine, whose default IS the non-interactive --print
+      // headless plan generation (`--interactive` opts into the tmux session,
+      // exactly as for `prx plan session`). This closes the last gap so every
+      // step is `prx <actor> agent`.
       return ["plan-session", ...tail];
     }
     // GH-1056: pre-tmux setup of `prx plan session` exposed as its own verb.
