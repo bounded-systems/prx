@@ -733,66 +733,52 @@ describe("pr_state cli", () => {
     expect(result).toBeNull();
   });
 
-  test("checkPrxBinaryUpstream returns behind info when the binary sha is strictly behind origin/main", () => {
-    // GH-528: simulate a binary baked at the base commit and an origin/main
-    // that has advanced by 2 commits — the precheck should flag the staleness.
-    const tmp = initTempGitRepo("prx-binary-behind-");
+  // prx-1ab: the binary self-check is release-based — it compares the baked
+  // release tag to the newest local `v*` tag, not commit distance from
+  // origin/main (which advanced every merged PR, so a just-released binary
+  // always looked "behind").
+  function tagRepo(prefix: string, tags: string[]): string {
+    const tmp = initTempGitRepo(prefix);
     Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "base"], stdout: "pipe", stderr: "pipe" });
-    const baseSha = new TextDecoder().decode(
-      Bun.spawnSync({ cmd: ["git", "-C", tmp, "rev-parse", "HEAD"], stdout: "pipe" }).stdout,
-    ).trim();
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "second"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "third"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "update-ref", "refs/remotes/origin/main", "HEAD"], stdout: "pipe", stderr: "pipe" });
+    for (const t of tags) {
+      // Annotated + unsigned: the dev/CI git config can force annotation
+      // (`git tag <name>` → "no tag message?") and signing; `-m` + the inline
+      // config make tag creation deterministic regardless of environment.
+      Bun.spawnSync({
+        cmd: ["git", "-C", tmp, "-c", "tag.gpgSign=false", "tag", "-m", t, t],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+    }
+    return tmp;
+  }
 
-    const result = checkPrxBinaryUpstream(tmp, baseSha);
+  test("checkPrxBinaryUpstream flags a newer release than the baked version", () => {
+    const tmp = tagRepo("prx-binary-behind-", ["v0.1.10", "v0.1.11", "v0.1.12"]);
+    const result = checkPrxBinaryUpstream(tmp, "v0.1.10");
     expect(result).not.toBeNull();
-    expect(result!.behind).toBe(2);
-    expect(result!.binary).toBe(baseSha.slice(0, 12));
-    expect(result!.remote).toMatch(/^[0-9a-f]{12}$/);
-
+    expect(result!.current).toBe("v0.1.10");
+    expect(result!.latest).toBe("v0.1.12");
     rmSync(tmp, { recursive: true, force: true });
   });
 
-  test("checkPrxBinaryUpstream returns null when bakedSha matches origin/main", () => {
-    const tmp = initTempGitRepo("prx-binary-uptodate-");
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "head"], stdout: "pipe", stderr: "pipe" });
-    const sha = new TextDecoder().decode(
-      Bun.spawnSync({ cmd: ["git", "-C", tmp, "rev-parse", "HEAD"], stdout: "pipe" }).stdout,
-    ).trim();
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "update-ref", "refs/remotes/origin/main", "HEAD"], stdout: "pipe", stderr: "pipe" });
-
-    expect(checkPrxBinaryUpstream(tmp, sha)).toBeNull();
-    // Also tolerate short sha input.
-    expect(checkPrxBinaryUpstream(tmp, sha.slice(0, 12))).toBeNull();
-
+  test("checkPrxBinaryUpstream returns null when the baked version is the newest release", () => {
+    const tmp = tagRepo("prx-binary-uptodate-", ["v0.1.10", "v0.1.12"]);
+    expect(checkPrxBinaryUpstream(tmp, "v0.1.12")).toBeNull();
     rmSync(tmp, { recursive: true, force: true });
   });
 
-  test("checkPrxBinaryUpstream returns null when bakedSha is unset (dev mode)", () => {
-    // Dev mode: `bun run scripts/pr_state.ts` with no BAKED_GIT_SHA env.
-    // Nix-installed prx injects BAKED_GIT_SHA from the flake source (GH-625),
-    // so this silent path is only hit for source-tree dev runs.
+  test("checkPrxBinaryUpstream returns null when the baked version is unset (dev mode)", () => {
+    // Dev mode: `bun run scripts/pr_state.ts` with no baked release version.
     expect(checkPrxBinaryUpstream(process.cwd(), undefined)).toBeNull();
     expect(checkPrxBinaryUpstream(process.cwd(), "")).toBeNull();
   });
 
-  test("checkPrxBinaryUpstream returns null when bakedSha is diverged (ahead of origin/main)", () => {
-    // If the binary contains commits origin/main does not, the user is
-    // running something newer than main — stay silent.
-    const tmp = initTempGitRepo("prx-binary-diverged-");
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "base"], stdout: "pipe", stderr: "pipe" });
-    const baseSha = new TextDecoder().decode(
-      Bun.spawnSync({ cmd: ["git", "-C", tmp, "rev-parse", "HEAD"], stdout: "pipe" }).stdout,
-    ).trim();
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "update-ref", "refs/remotes/origin/main", baseSha], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "ahead"], stdout: "pipe", stderr: "pipe" });
-    const aheadSha = new TextDecoder().decode(
-      Bun.spawnSync({ cmd: ["git", "-C", tmp, "rev-parse", "HEAD"], stdout: "pipe" }).stdout,
-    ).trim();
-
-    expect(checkPrxBinaryUpstream(tmp, aheadSha)).toBeNull();
-
+  test("checkPrxBinaryUpstream returns null when the baked version is ahead of / unknown to local tags", () => {
+    // The binary's tag isn't among the local release tags (newer, or local tags
+    // are stale) — can't conclude it's behind, so stay silent.
+    const tmp = tagRepo("prx-binary-ahead-", ["v0.1.10", "v0.1.12"]);
+    expect(checkPrxBinaryUpstream(tmp, "v0.2.0")).toBeNull();
     rmSync(tmp, { recursive: true, force: true });
   });
 
@@ -825,7 +811,7 @@ describe("pr_state cli", () => {
       { log: () => {}, error: (line) => errors.push(line) },
       {
         ...noOpWorktreeLockDeps,
-        checkPrxBinaryUpstream: () => ({ behind: 3, binary: "aaaaaaaaaaaa", remote: "bbbbbbbbbbbb" }),
+        checkPrxBinaryUpstream: () => ({ current: "v0.1.10", latest: "v0.1.12" }),
         resolveWorkUnitCwd: () => cwd,
       },
     );
@@ -833,9 +819,8 @@ describe("pr_state cli", () => {
 
     expect(exitCode).toBe(0);
     expect(errors.some((line) =>
-      line.includes("prx binary is 3 commits behind origin/main")
-      && line.includes("aaaaaaaaaaaa")
-      && line.includes("bbbbbbbbbbbb"),
+      line.includes("prx v0.1.10")
+      && line.includes("newer release v0.1.12"),
     )).toBe(true);
   });
 

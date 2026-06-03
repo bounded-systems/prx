@@ -14,6 +14,7 @@
 import { getEnv } from "@bounded-systems/env";
 
 declare const __PRX_BUILD_GIT_SHA__: string | undefined;
+declare const __PRX_BUILD_VERSION__: string | undefined;
 declare const __PRX_BUILD_CLAUDE_CODE_PATH__: string | undefined;
 declare const __PRX_BUILD_AI_HOME_ROOT__: string | undefined;
 
@@ -27,6 +28,21 @@ export function bakedGitSha(): string | undefined {
       ? nonEmpty(__PRX_BUILD_GIT_SHA__)
       : undefined;
   return compiled ?? nonEmpty(getEnv("BAKED_GIT_SHA"));
+}
+
+/**
+ * prx-1ab: the release tag the binary was built from (e.g. `v0.1.14`). Baked at
+ * release-build time from `github.ref_name` (the pushed `v*` tag) via
+ * `PRX_COMPILE_VERSION`; absent for dev / non-tag builds, where callers fall
+ * back to the git-SHA identity. This is what makes the binary report (and
+ * self-check) by *release* rather than by commit distance from origin/main.
+ */
+export function bakedReleaseVersion(): string | undefined {
+  const compiled =
+    typeof __PRX_BUILD_VERSION__ !== "undefined"
+      ? nonEmpty(__PRX_BUILD_VERSION__)
+      : undefined;
+  return compiled ?? nonEmpty(getEnv("BAKED_VERSION"));
 }
 
 export function bakedClaudeCodePath(): string | undefined {
