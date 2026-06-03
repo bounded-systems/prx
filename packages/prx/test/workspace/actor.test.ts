@@ -31,7 +31,10 @@ import {
   runSync,
   runTeardown,
 } from "../../src/workspace/actor.ts";
-import type { WorktreeSpawn } from "../../src/tools/worktree_layout.ts";
+import { execGit } from "@bounded-systems/git";
+
+/** execGit-shaped git seam (what keeper's worktree ops call). */
+type ExecGit = typeof execGit;
 
 function sh(cwd: string, file: string, args: string[]): void {
   const r = spawnSync(file, args, { cwd, encoding: "utf8" });
@@ -479,33 +482,41 @@ describe("workspace.materialize (GH-2271 / ai-home-rkg1w.1)", () => {
   // A WorktreeSpawn fake so the git `worktree add` core is exercised
   // without touching disk — the real-git on-disk shape is asserted by the
   // session-open integration test (test/session/open.integration.test.ts).
-  function fakeSpawn(opts: {
+  // prx-0yf: the worktree git seam moved to keeper (runKeeperEnsureWorktree),
+  // so these stub keeper's `git` (execGit-shaped) + `exists` fs probe instead of
+  // the old WorktreeSpawn. Disk-free: the real on-disk shape is asserted by the
+  // session-open integration test + the cli.test.ts convergence regression.
+  function fakeKeeper(opts: {
     registered?: boolean;
     branchExists?: boolean;
     addExit?: number;
-  }): { spawn: WorktreeSpawn; calls: string[][] } {
+    worktreeHealthy?: boolean;
+  }): { git: ExecGit; exists: (p: string) => boolean; calls: string[][] } {
     const calls: string[][] = [];
-    const spawn: WorktreeSpawn = (file, args) => {
-      calls.push([file, ...args]);
-      const joined = args.join(" ");
-      if (joined.includes("worktree list")) {
+    const git: ExecGit = ({ subcommand, args }) => {
+      calls.push([subcommand, ...args]);
+      if (subcommand === "worktree" && args[0] === "list") {
         return {
-          status: 0,
+          exitCode: 0,
           stdout: opts.registered ? "worktree /repo-parent/main\n" : "",
-        };
+          stderr: "",
+        } as ReturnType<ExecGit>;
       }
-      if (joined.includes("show-ref")) {
-        return { status: opts.branchExists === false ? 1 : 0 };
+      if (subcommand === "rev-parse") {
+        return { exitCode: opts.branchExists === false ? 1 : 0, stdout: "", stderr: "" } as ReturnType<ExecGit>;
       }
-      if (joined.includes("worktree add")) {
+      if (subcommand === "worktree" && args[0] === "add") {
         return {
-          status: opts.addExit ?? 0,
+          exitCode: opts.addExit ?? 0,
+          stdout: "",
           stderr: opts.addExit ? "fatal: worktree add failed" : "",
-        };
+        } as ReturnType<ExecGit>;
       }
-      return { status: 0 };
+      return { exitCode: 0, stdout: "", stderr: "" } as ReturnType<ExecGit>;
     };
-    return { spawn, calls };
+    // `.git` probe → worktreeHealthy; the leftover-dir probe → false (no leftover).
+    const exists = (p: string) => (p.endsWith(".git") ? opts.worktreeHealthy === true : false);
+    return { git, exists, calls };
   }
 
   test("I-WS1: materialize before reserve fails closed", () => {
@@ -523,17 +534,17 @@ describe("workspace.materialize (GH-2271 / ai-home-rkg1w.1)", () => {
       { branch: "main", base: "origin/main", local_only: false },
       fixture.repoDir,
     );
-    const { spawn, calls } = fakeSpawn({ branchExists: true });
+    const { git, exists, calls } = fakeKeeper({ branchExists: true });
     const out = runMaterialize(
       { workspace_id: reserveOut.workspace_id },
       fixture.repoDir,
-      { spawn, repoToplevel: () => "/repo-parent/repo" },
+      { git, exists, repoToplevel: () => "/repo-parent/repo" },
     );
     expect(out.status).toBe("created");
     expect(out.worktree_path).toBe("/repo-parent/main");
     expect(out.branch).toBe("main");
-    // It ran `git worktree add` against the resolved repo toplevel.
-    expect(calls.some((c) => c.join(" ").includes("worktree add"))).toBe(true);
+    // Keeper ran `git worktree add` against the resolved repo toplevel.
+    expect(calls.some((c: string[]) => c.join(" ").includes("worktree add"))).toBe(true);
 
     // Ledger advanced to materialized with the authoritative path.
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
@@ -550,15 +561,16 @@ describe("workspace.materialize (GH-2271 / ai-home-rkg1w.1)", () => {
       { branch: "main", base: "origin/main", local_only: false },
       fixture.repoDir,
     );
-    const { spawn, calls } = fakeSpawn({ registered: true });
+    // registered AND healthy (`.git` present) → keeper returns exists.
+    const { git, exists, calls } = fakeKeeper({ registered: true, worktreeHealthy: true });
     const out = runMaterialize(
       { workspace_id: reserveOut.workspace_id },
       fixture.repoDir,
-      { spawn, repoToplevel: () => "/repo-parent/repo" },
+      { git, exists, repoToplevel: () => "/repo-parent/repo" },
     );
     expect(out.status).toBe("exists");
     // No `git worktree add` on the idempotent path.
-    expect(calls.some((c) => c.join(" ").includes("worktree add"))).toBe(false);
+    expect(calls.some((c: string[]) => c.join(" ").includes("worktree add"))).toBe(false);
   });
 
   test("materialize surfaces a worktree-add failure as status=error", () => {
@@ -566,11 +578,11 @@ describe("workspace.materialize (GH-2271 / ai-home-rkg1w.1)", () => {
       { branch: "main", base: "origin/main", local_only: false },
       fixture.repoDir,
     );
-    const { spawn } = fakeSpawn({ branchExists: true, addExit: 1 });
+    const { git, exists } = fakeKeeper({ branchExists: true, addExit: 1 });
     const out = runMaterialize(
       { workspace_id: reserveOut.workspace_id },
       fixture.repoDir,
-      { spawn, repoToplevel: () => "/repo-parent/repo" },
+      { git, exists, repoToplevel: () => "/repo-parent/repo" },
     );
     expect(out.status).toBe("error");
     expect(out.error).toMatch(/workspace\.materialize/);

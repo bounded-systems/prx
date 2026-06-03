@@ -11,6 +11,9 @@
  * guarantee (GH-2249).
  */
 
+import { existsSync, rmSync } from "node:fs";
+import { join, resolve } from "node:path";
+
 import { processEnv } from "@bounded-systems/env";
 import { execGit, type GitExecResult } from "@bounded-systems/git";
 
@@ -177,4 +180,103 @@ export async function runKeeperCommitTree(
     );
   }
   return commitSha;
+}
+
+export interface KeeperEnsureWorktreeInput {
+  /** The local branch to attach (created from `origin/main` if absent). */
+  branch: string;
+  /** Absolute path the worktree should live at. */
+  targetPath: string;
+}
+
+export interface KeeperEnsureWorktreeResult {
+  worktree_path: string;
+  /** `exists` = healthy already; `created` = fresh; `recreated` = self-healed. */
+  status: "exists" | "created" | "recreated";
+}
+
+/** Git seam + injectable fs probes for the worktree lifecycle (tests stub these). */
+export interface KeeperEnsureWorktreeDeps extends KeeperGitDeps {
+  /** Worktree health / leftover probe (defaults to `existsSync`). */
+  exists?: (path: string) => boolean;
+  /** Clear a leftover dir before recreate (defaults to recursive force `rmSync`). */
+  remove?: (path: string) => void;
+}
+
+/**
+ * prx-0yf / prx-5h0: keeper-owned `git worktree` ensure. Keeper is the sole
+ * git-knower, so worktree placement + the self-heal of stale state both live
+ * here rather than scattered across the workspace actor / worktree_layout.
+ *
+ * Self-heal is the fix for the #47 regression: a registered-but-prunable
+ * worktree (working dir or its `.git` link gone) was previously treated as a
+ * healthy "exists", yielding a worktree with no `.git` — launch then hit
+ * "fatal: not a git repository". Here we `prune` stale registrations, detect an
+ * unhealthy registration or a leftover non-worktree dir at the target, clear it,
+ * and recreate a clean tree. Idempotent: a healthy worktree returns `exists`.
+ */
+export function runKeeperEnsureWorktree(
+  input: KeeperEnsureWorktreeInput,
+  cwd: string,
+  deps: KeeperEnsureWorktreeDeps = {},
+): KeeperEnsureWorktreeResult {
+  const git = deps.git ?? execGit;
+  const exists = deps.exists ?? existsSync;
+  const remove = deps.remove ?? ((p: string) => rmSync(p, { recursive: true, force: true }));
+  const target = resolve(input.targetPath);
+
+  // 1. Drop stale/prunable registrations (whose dir or .git is gone) so a
+  //    broken prior materialize can be recreated rather than skipped.
+  git({ subcommand: "worktree", args: ["prune"], cwd, role: "keeper" });
+
+  // 2. Is the target a *healthy* registered worktree? (registered AND its `.git`
+  //    link is present — a registered dir missing `.git` is the broken case.)
+  const registered = worktreeIsRegistered(git, cwd, target);
+  if (registered && exists(join(target, ".git"))) {
+    return { worktree_path: target, status: "exists" };
+  }
+
+  // 3. Clear whatever is at the target so `git worktree add` recreates cleanly:
+  //    deregister a broken worktree, then remove any leftover dir.
+  const hadLeftover = exists(target) || registered;
+  if (registered) {
+    git({ subcommand: "worktree", args: ["remove", "--force", target], cwd, role: "keeper" });
+  }
+  if (exists(target)) {
+    remove(target);
+  }
+  git({ subcommand: "worktree", args: ["prune"], cwd, role: "keeper" });
+
+  // 4. Add: reuse the local branch if it exists, else cut it from origin/main.
+  const branchExists =
+    git({
+      subcommand: "rev-parse",
+      args: ["--verify", "--quiet", `refs/heads/${input.branch}`],
+      cwd,
+      role: "keeper",
+    }).exitCode === 0;
+  const addArgs = branchExists
+    ? ["add", target, input.branch]
+    : ["add", "-b", input.branch, target, "origin/main"];
+  const added = git({ subcommand: "worktree", args: addArgs, cwd, role: "keeper" });
+  if (added.exitCode !== 0) {
+    throw new KeeperGitError(
+      `keeper ensure-worktree: git worktree add failed for ${input.branch} (${added.exitCode}): ${added.stderr.trim()}`,
+      added.exitCode,
+    );
+  }
+  return { worktree_path: target, status: hadLeftover ? "recreated" : "created" };
+}
+
+/** Parse `git worktree list --porcelain` for a `worktree <target>` line. */
+function worktreeIsRegistered(
+  git: typeof execGit,
+  cwd: string,
+  target: string,
+): boolean {
+  const list = git({ subcommand: "worktree", args: ["list", "--porcelain"], cwd, role: "keeper" });
+  if (list.exitCode !== 0) return false;
+  return list.stdout
+    .split("\n")
+    .some((line) => line.startsWith("worktree ") && resolve(line.slice("worktree ".length).trim()) === target);
 }
