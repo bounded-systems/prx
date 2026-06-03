@@ -298,18 +298,16 @@ describe("registry consistency", () => {
     }
   });
 
-  test("session open is recorded as a deprecation alias for plan session", () => {
-    const spec = prxCommandRegistry.find((c) => c.name === "session open");
-    expect(spec).toBeDefined();
-    expect(spec!.deprecation?.alias_for).toBe("plan session");
-    expect(spec!.deprecation?.stderr_hint.length).toBeGreaterThan(0);
+  test("prx-rgr: session open / session plan are retired — no longer registered", () => {
+    expect(prxCommandRegistry.find((c) => c.name === "session open")).toBeUndefined();
+    expect(prxCommandRegistry.find((c) => c.name === "session plan")).toBeUndefined();
   });
 
-  test("session plan is recorded as a deprecation alias for plan session (GH-1982)", () => {
-    const spec = prxCommandRegistry.find((c) => c.name === "session plan");
+  test("prx-rgr: the claude runtime launcher is registered (formerly session open-claude)", () => {
+    const spec = prxCommandRegistry.find((c) => c.name === "claude");
     expect(spec).toBeDefined();
-    expect(spec!.deprecation?.alias_for).toBe("plan session");
-    expect(spec!.deprecation?.stderr_hint.length).toBeGreaterThan(0);
+    expect(spec!.binding).toBe("work-unit");
+    expect(spec!.actor).toBe("plan");
   });
 
   test("author agent and author body-template are registered under author actor (GH-1206 / GH-2380)", () => {

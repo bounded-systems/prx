@@ -172,38 +172,21 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
   },
 
   // ─── Deprecated session aliases (§3 / §8) ──────────────────────────────────
+  //
+  // prx-rgr: `prx session open` / `prx session plan` are retired (no `prx
+  // session` surface). The interactive planning entry is `prx plan session` /
+  // `prx plan agent`; the internal claude runtime launcher moved to the
+  // top-level `prx claude` (below).
 
   {
-    name: "session open",
-    parent: "session",
-    description: "Deprecated alias for plan session",
+    // prx-rgr: the internal claude runtime-bootstrap launcher (formerly
+    // `prx session open-claude`). Work-unit-bound; boots the interactive
+    // claude plan pane. Kept off the help sitemap's main flow — it is the
+    // low-level launcher `prx plan session` / `prx implement agent` rely on.
+    name: "claude",
+    description: "Internal claude runtime launcher (formerly session open-claude)",
     domain: "work-units",
     binding: "work-unit",
-    deprecation: {
-      alias_for: "plan session",
-      removal_target: "#582 / #833",
-      stderr_hint:
-        "prx session open is deprecated; use `prx plan session [GH-NNN]`.",
-    },
-    actor: "plan",
-  },
-  {
-    // GH-1982: one-cycle alias for `prx plan session`. The alias dispatch
-    // sets `invokedViaPlanSession: true` so the auto-save chain into the
-    // `<UoW>:plan@draft` CAS slot fires identically to the canonical entry —
-    // closing the footgun where `prx session plan` previously drafted to
-    // stdout without populating the slot that `prx implement` consumes.
-    name: "session plan",
-    parent: "session",
-    description: "Deprecated alias for plan session",
-    domain: "work-units",
-    binding: "work-unit",
-    deprecation: {
-      alias_for: "plan session",
-      removal_target: "#1982",
-      stderr_hint:
-        "prx session plan is deprecated; use `prx plan session [GH-NNN]`.",
-    },
     actor: "plan",
   },
   {
@@ -419,14 +402,12 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
   //   prx session check-session → prx chain check-session
   //   prx session check-chain → prx chain check
   //
-  // The deprecated `session open` alias for `plan session` is preserved (#582
-  // / #833 / #1084 retire it on their own cadence). GH-1982 promoted
-  // `session plan` to the same shape — a one-cycle alias for `plan session`
-  // with a stderr hint and `invokedViaPlanSession: true` on the dispatch so
-  // the auto-save chain matches the canonical entry. Internal launchers
-  // `session open-claude` and `session help` stay live in cli.ts but are not
-  // registry-surfaced — they are session-entry mechanics, not user-facing
-  // verbs.
+  // prx-rgr: `prx session open` / `prx session plan` / the bare `prx session
+  // <id>` shorthand are retired — there is no `prx session` surface. The
+  // planning entry is `prx plan session` (interactive) / `prx plan agent`
+  // (headless); the internal claude runtime launcher moved to the top-level
+  // `prx claude` (registered above). `prx session --help` still prints a
+  // redirect map from cli.ts but is not registry-surfaced.
 
   // ─── Other work-unit verbs ─────────────────────────────────────────────────
 

@@ -101,6 +101,7 @@ Work units:
   prx author agent               Run the work-unit PR author (headless by default, --interactive for tmux/PTY)
   prx author body-template       Render PR body from plan and diff
   prx scratch                    Open safe-by-default ad-hoc Claude session (--unsafe for ambient authority)
+  prx claude                     Internal claude runtime launcher (formerly session open-claude)
   prx plan handoff               Post-merge handoff from feature worktree
   prx plan close                 Close work unit issue with operator context
   prx plan ultrareview           Pre-fill ultrareview into the work-unit pane
@@ -238,8 +239,6 @@ System:
   prx --version                 Print prx CLI version
 
 Deprecated spellings:
-  prx session open — alias for \`prx plan session\`; removal: #582 / #833
-  prx session plan — alias for \`prx plan session\`; removal: #1982
   prx open — alias for \`prx plan session\`; removal: #582 / #833
   prx work — alias for \`prx plan session\`; removal: #582
   prx implement session — alias for \`prx implement agent\`; removal: GH-1242 PR-5

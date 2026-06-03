@@ -75,7 +75,7 @@ export const SHARED_DENY: readonly string[] = Object.freeze([
   "Bash(find:*)",
   "Bash(rg:*)",
   "Bash(rm:*)",
-  "Bash(prx session open --create:*)",
+  "Bash(prx plan agent --create:*)",
 ]);
 
 export interface ActorRulesetOptions {
