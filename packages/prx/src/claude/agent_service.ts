@@ -236,6 +236,34 @@ function buildPlanCaptureServer(): {
 
 // ── profile → SDK options translation ──────────────────────────────────────
 
+/**
+ * Resolve the native `claude` executable for the SDK's
+ * `pathToClaudeCodeExecutable` (prx-5el / GH-2137). A `bun build --compile`
+ * artifact carries no adjacent `node_modules`, so the SDK cannot self-resolve
+ * its native CLI; we point it at an already-installed `claude`.
+ *
+ * Picks the first candidate that EXISTS — not the first truthy. The release
+ * binary bakes the CI runner's `$HOME/.local/bin/claude` into
+ * `bakedClaudeCodePath()`, which is truthy but absent on the operator's machine;
+ * a plain `??` chain stops at that dead path and leaves the field unset, so the
+ * SDK throws "Native CLI binary … not found". Trying by existence falls through
+ * the dead baked path to the real `~/.local/bin/claude`.
+ *
+ * Precedence: `PRX_CLAUDE_CODE_PATH` → baked compile-time path → `$HOME` default.
+ */
+export function resolveClaudeExecutablePath(
+  candidates: ReadonlyArray<string | undefined> = [
+    getEnv("PRX_CLAUDE_CODE_PATH"),
+    bakedClaudeCodePath(),
+    join(homedir(), ".local/bin/claude"),
+  ],
+  exists: (path: string) => boolean = existsSync,
+): string | undefined {
+  return candidates.find(
+    (p): p is string => typeof p === "string" && p.length > 0 && exists(p),
+  );
+}
+
 function buildSdkOptions(
   spec: RuntimeAgentSdkSpec,
   opts: RunClaudeAgentNonInteractiveOpts,
@@ -256,11 +284,8 @@ function buildSdkOptions(
   // $HOME default. The existsSync guard means dev/CI runs (where the path is
   // absent and node_modules resolves) leave the field unset for SDK
   // self-resolution — safe everywhere.
-  const claudePath =
-    getEnv("PRX_CLAUDE_CODE_PATH")
-    ?? bakedClaudeCodePath()
-    ?? join(homedir(), ".local/bin/claude");
-  if (claudePath && existsSync(claudePath)) {
+  const claudePath = resolveClaudeExecutablePath();
+  if (claudePath) {
     options.pathToClaudeCodeExecutable = claudePath;
   }
 

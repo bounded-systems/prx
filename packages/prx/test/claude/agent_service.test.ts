@@ -651,15 +651,19 @@ describe("buildSdkOptions — pathToClaudeCodeExecutable (GH-2137)", () => {
     expect(cap.get().pathToClaudeCodeExecutable).toBe(existingPath);
   });
 
-  test("resolved path that does not exist leaves the field unset (SDK self-resolves)", async () => {
+  test("a non-existent resolved path is never used (prx-5el: falls through, or unset)", async () => {
     const cap = captureSdkOptions();
-    await withEnv({ prx: missingPath, baked: undefined }, async () => {
+    await withEnv({ prx: missingPath, baked: missingPath }, async () => {
       await runClaudeAgentNonInteractive(
         makeSdkProfile(),
         { cwd: "/tmp", disableAudit: true },
         { query: cap.query },
       );
     });
-    expect(cap.get().pathToClaudeCodeExecutable).toBeUndefined();
+    // prx-5el: a dead path must never reach the SDK. With both override tiers
+    // dead, the resolver either falls through to a real ~/.local/bin/claude (if
+    // present) or leaves the field unset for SDK self-resolution — but it must
+    // NEVER pass the missing path (the old `??`-chain bug that broke releases).
+    expect(cap.get().pathToClaudeCodeExecutable).not.toBe(missingPath);
   });
 });
