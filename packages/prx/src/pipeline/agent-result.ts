@@ -12,8 +12,7 @@
  *
  * The CLI then surfaces the UoW + the CAS ref; it never reports a silent success.
  */
-import { spawnSync } from "node:child_process";
-
+import { defaultRunner } from "@bounded-systems/proc";
 import { z } from "zod";
 
 import { type ArtifactEdge, defineEdge, emitArtifact } from "./edge.ts";
@@ -43,9 +42,13 @@ const agentResultEdge: ArtifactEdge<AgentResult> = defineEdge({
 export type BeadIdReader = (cwd: string) => string[];
 
 const defaultBeadIdReader: BeadIdReader = (cwd) => {
-  const r = spawnSync("bd", ["list", "--json"], { cwd, encoding: "utf8" });
-  if (r.status !== 0) return [];
+  // Route through @bounded-systems/proc (no raw subprocess in src/ — the
+  // ambient-authority guard). Best-effort: a missing `bd` (ENOENT, e.g. CI with
+  // no beads workspace) makes defaultRunner THROW, and a non-zero exit returns
+  // status≠0 — both yield [] so the result-capture never breaks the agent run.
   try {
+    const r = defaultRunner(["bd", "list", "--json"], { cwd, check: false });
+    if (r.status !== 0) return [];
     const rows = JSON.parse(r.stdout) as Array<{ id?: unknown }>;
     return rows
       .map((x) => x?.id)
@@ -55,12 +58,20 @@ const defaultBeadIdReader: BeadIdReader = (cwd) => {
   }
 };
 
-/** Snapshot the bead-id set — call before AND after the run to diff UoWs. */
+/**
+ * Snapshot the bead-id set — call before AND after the run to diff UoWs.
+ * Best-effort: a throwing reader (bd absent / spawn error) yields an empty set
+ * so UoW detection degrades to "no new UoW" rather than breaking the agent run.
+ */
 export function snapshotBeadIds(
   cwd: string,
   read: BeadIdReader = defaultBeadIdReader,
 ): Set<string> {
-  return new Set(read(cwd));
+  try {
+    return new Set(read(cwd));
+  } catch {
+    return new Set();
+  }
 }
 
 /** Extract a short summary from the SDK result envelope (or raw stdout). */
@@ -95,13 +106,22 @@ export async function captureAgentResult(input: {
     uows,
     summary: summarizeAgentStdout(input.stdout),
   };
-  const { ref } = await emitArtifact(agentResultEdge, input.workspaceId, result);
-  return { ref, result };
+  // The CAS pin is best-effort: the UoW(s) are already computed, so a CAS write
+  // failure must never break the agent run — return an empty ref and let the
+  // caller surface the UoW without it.
+  try {
+    const { ref } = await emitArtifact(agentResultEdge, input.workspaceId, result);
+    return { ref, result };
+  } catch {
+    return { ref: "", result };
+  }
 }
 
 /** One-line plain-mode rendering: the UoW + the CAS ref. Never silent. */
 export function renderAgentResult(ref: string, result: AgentResult): string {
   const uow =
     result.uows.length > 0 ? `UoW: ${result.uows.join(", ")}` : "no new UoW";
-  return `prx ${result.actor} agent → ${uow} · result ${ref}`;
+  return ref
+    ? `prx ${result.actor} agent → ${uow} · result ${ref}`
+    : `prx ${result.actor} agent → ${uow}`;
 }
