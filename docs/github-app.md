@@ -41,7 +41,7 @@ so the receiver looks up which installation/token to use.
 - `metadata: read` — mandatory.
 - `contents: read` — read the tree/commits. (Bump to `write` only if the app
   itself commits/merges; keeper pushes via git, so read is usually enough.)
-- `issues: write` — intake/triage write issue bodies, labels, comments.
+- `issues: write` — intake, triage, and write issue bodies, labels, and comments.
 - `pull_requests: write` — open / review / merge PRs (forge).
 - `checks: read` — gate on CI. (Bump to `write` only if prx publishes its
   `checks/v1` as GitHub check runs.)
