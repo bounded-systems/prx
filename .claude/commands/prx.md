@@ -5,7 +5,7 @@ allowed-tools: Bash(prx:*), Bash(bd show:*), Bash(bd list:*), Bash(gh pr checks:
 ---
 
 You are the **capability-poor orchestrator** for the prx pipeline. Drive work
-unit **`$1`** from its current state to a **merged PR** by running the prx verbs
+unit **`$ARGUMENTS`** from its current state to a **merged PR** by running the prx verbs
 in order and gating on each artifact + CI.
 
 You do **not** edit code or perform git/gh writes yourself — that is what your
@@ -17,28 +17,28 @@ action is the capability model working, not a problem to route around.
 
 ## Pipeline
 
-Run these in order for `$1`. Report the **artifact ref** produced at each gate.
+Run these in order for `$ARGUMENTS`. Report the **artifact ref** produced at each gate.
 
 1. **Orient + track.**
-   `bd show $1` — confirm the unit exists. If it has no `External:` GitHub issue,
-   publish it so the PR can close it: `prx beads publish $1`.
+   `bd show $ARGUMENTS` — confirm the unit exists. If it has no `External:` GitHub issue,
+   publish it so the PR can close it: `prx beads publish $ARGUMENTS`.
 
-2. **Plan** → `$1:source@pinned` + `$1:plan@draft`.
-   `prx plan agent $1` — headless planner. If it reports *"no local parity-chain
+2. **Plan** → `$ARGUMENTS:source@pinned` + `$ARGUMENTS:plan@draft`.
+   `prx plan agent $ARGUMENTS` — headless planner. If it reports *"no local parity-chain
    unit yet"*, the unit hasn't been materialized locally; re-run with
-   `--create` (only needed the first time): `prx plan agent $1 --create`.
+   `--create` (only needed the first time): `prx plan agent $ARGUMENTS --create`.
    Read the plan back and confirm it actually addresses the issue.
 
-3. **Implement** → `$1:implement@latest` (a commit).
-   `prx implement agent $1` — the executor applies the change in its own
+3. **Implement** → `$ARGUMENTS:implement@latest` (a commit).
+   `prx implement agent $ARGUMENTS` — the executor applies the change in its own
    worktree. Confirm a commit was produced.
 
-4. **Submit** → `$1:submit@ready`.
-   From the unit's worktree, `prx submit stage $1`. Sanity-check the patch size
+4. **Submit** → `$ARGUMENTS:submit@ready`.
+   From the unit's worktree, `prx submit stage $ARGUMENTS`. Sanity-check the patch size
    (a tiny diff for a focused change; a huge one usually means a missing rebase).
 
 5. **Publish** → opens the PR (draft).
-   `prx submit publish --from-cas $1:submit@ready` — keeper materializes the
+   `prx submit publish --from-cas $ARGUMENTS:submit@ready` — keeper materializes the
    commit, forge opens the PR. Capture the PR number.
 
 6. **Gate on CI — HARD BLOCK.**
@@ -46,14 +46,14 @@ Run these in order for `$1`. Report the **artifact ref** produced at each gate.
    `pending` or `fail`. If anything fails, stop and report — do not merge.
 
 7. **Merge** → Closes the issue.
-   When CI is green: `prx publisher merge $1` (forge merges via GitHub, respecting
+   When CI is green: `prx publisher merge $ARGUMENTS` (forge merges via GitHub, respecting
    branch protection). Confirm the PR is `MERGED` and the issue closed.
 
 ## Rules
 
 - **Stop on failure or denial.** Surface it verbatim; do not improvise a
   workaround (especially not by doing an actor's job yourself).
-- **One unit only.** Stay scoped to `$1`; do not touch other units' state.
+- **One unit only.** Stay scoped to `$ARGUMENTS`; do not touch other units' state.
 - **Report the chain.** End with the lineage you produced:
   `source@pinned → plan@draft → implement@latest → submit@ready → PR #N (merged)`.
-- If `$1` is missing or already merged, say so and stop.
+- If `$ARGUMENTS` is missing or already merged, say so and stop.
