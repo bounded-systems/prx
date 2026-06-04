@@ -8,9 +8,11 @@
 
 import { writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { generateValuePropsDoc } from "../src/value_props.ts";
+import { generateStatusDoc, generateValuePropsDoc } from "../src/value_props.ts";
 
 const repoRoot = resolve(import.meta.dir, "../../..");
-const out = join(repoRoot, "docs", "value-props.md");
-writeFileSync(out, generateValuePropsDoc());
-console.log(`wrote docs/value-props.md`);
+writeFileSync(join(repoRoot, "docs", "value-props.md"), generateValuePropsDoc());
+console.log("wrote docs/value-props.md");
+// The top of the bubble-up: forcing functions → value props → STATUS.md.
+writeFileSync(join(repoRoot, "STATUS.md"), generateStatusDoc());
+console.log("wrote STATUS.md");
