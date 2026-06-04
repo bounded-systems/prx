@@ -8276,6 +8276,52 @@ describe("pr_state cli", () => {
     expect(errs.some((l) => l.includes("no issue-authority resolver is configured"))).toBe(true);
   });
 
+  // prx-lrw: when no issue authority can resolve the unit but a CAS submit/plan
+  // artifact projects it, check-issue passes on the artifact graph (the publish
+  // parity preflight must not require a live bd/GH row). Mirrors
+  // checkWorkUnitChain's `artifact_projected` acceptance.
+  test("check-issue accepts a canonical id with no resolver when an artifact projects it", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pr-state-check-issue-projected-"));
+    writeFileSync(
+      join(root, "prx.toml"),
+      ["[sources.github]", 'kind = "github"', 'canonical_id_pattern = "^(GH|PROJECT)-\\\\d+$"', ""].join("\n"),
+    );
+    execFileSync("git", ["-C", root, "init", "-q"]);
+    const previousCwd = process.cwd();
+    process.chdir(root);
+    const logs: string[] = [];
+    const exitCode = await runCliDirect(
+      ["check-issue", "PROJECT-6688", "--format", "json"],
+      { log: (l) => logs.push(l), error: () => {} },
+      { hasLocalArtifactProjection: async () => true },
+    );
+    process.chdir(previousCwd);
+    rmSync(root, { recursive: true, force: true });
+    expect(exitCode).toBe(0);
+    expect(logs.some((l) => l.includes("artifact_projected"))).toBe(true);
+  });
+
+  test("check-issue still refuses a canonical id with no resolver and no artifact projection", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pr-state-check-issue-unprojected-"));
+    writeFileSync(
+      join(root, "prx.toml"),
+      ["[sources.github]", 'kind = "github"', 'canonical_id_pattern = "^(GH|PROJECT)-\\\\d+$"', ""].join("\n"),
+    );
+    execFileSync("git", ["-C", root, "init", "-q"]);
+    const previousCwd = process.cwd();
+    process.chdir(root);
+    const errs: string[] = [];
+    const exitCode = await runCliDirect(
+      ["check-issue", "PROJECT-6688"],
+      { log: () => {}, error: (l) => errs.push(l) },
+      { hasLocalArtifactProjection: async () => false },
+    );
+    process.chdir(previousCwd);
+    rmSync(root, { recursive: true, force: true });
+    expect(exitCode).toBe(1);
+    expect(errs.some((l) => l.includes("no issue-authority resolver is configured"))).toBe(true);
+  });
+
   test("canonical beads repo ids are derived from github remotes", () => {
     expect(canonicalBeadsRepoIdFromRemote("git@github.com:bdelanghe/ai-home.git")).toBe("io.github.bdelanghe/ai-home");
     expect(canonicalBeadsRepoIdFromRemote("https://github.com/demo/demo-web.git")).toBe("io.github.demo/demo-web");
