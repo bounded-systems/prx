@@ -360,6 +360,7 @@ import {
 import { buildRuntimeOutputSchema } from "../machine/runtime_output.ts";
 import {
   agentProfileExecutionAsRuntimeResult,
+  DEFAULT_IMPLEMENT_WATCHDOG_MS,
   executeAgentProfile,
   executeValidatedAgentWithRetry,
   localRuntimeExecutor,
@@ -19818,6 +19819,10 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
                 () => executeAgentProfile(headlessProfile, {
                   cwd: launchCwd,
                   format: "json",
+                  // prx-who: implement does real, multi-file refactors — default
+                  // to the longer anti-hang ceiling so a legitimate run isn't cut
+                  // off mid-work at the 15-min blanket default (which it was).
+                  timeoutMs: DEFAULT_IMPLEMENT_WATCHDOG_MS,
                   ...(deps.execRuntime ? { subprocessExecutor: deps.execRuntime } : {}),
                 }),
               );

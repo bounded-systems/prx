@@ -906,11 +906,15 @@ export function buildWorkUnitClaudeImplementSdkRuntimeProfile(input: {
         input.planBody,
         "----- END APPROVED PLAN -----",
         "",
-        "Make the file changes, run the project checks, and commit the work.",
+        // prx-who: do NOT tell the executor to run the checks — the toolchain
+        // (bun) is outside its exec sandbox, so it can't, and a real run wasted
+        // its budget trying. prx re-runs + signs the checks (checks/v1) itself
+        // after the commit. The executor's job is the edit + the commit.
+        "Make the file changes and commit the work. Do NOT run the project checks (`bun test` / typecheck) yourself — the toolchain is outside your sandbox; prx runs and signs them after you commit. Commit even if you cannot run them.",
       ].join("\n")
     : [
         `Execute the implementation plan for ${input.workUnitId}.`,
-        "Make the file changes, run the project checks, and commit the work; do not ask clarifying questions.",
+        "Make the file changes and commit the work; do not ask clarifying questions. Do NOT run the project checks yourself — prx runs and signs them after you commit.",
       ].join(" ");
   const allowedTools = [...SESSION_PROFILES.implement.allowedTools];
   const args = [

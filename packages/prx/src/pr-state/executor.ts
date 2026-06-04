@@ -240,6 +240,15 @@ export type ExecuteAgentProfileOpts = {
 export const DEFAULT_HEADLESS_AGENT_WATCHDOG_MS = 15 * 60_000;
 
 /**
+ * prx-who: the headless watchdog is now an IDLE ceiling (reset on every streamed
+ * message), not a total-runtime cap — a productive run never trips it. This is a
+ * generous idle window for the long-running executor: implement does real,
+ * multi-file refactors that can pause to think between tool calls, and only true
+ * silence (a stuck stream / stray approval) should ever cancel it.
+ */
+export const DEFAULT_IMPLEMENT_WATCHDOG_MS = 45 * 60_000;
+
+/**
  * GH-1828 dispatcher. Routes profiles whose derived backend is `"sdk"`
  * (headless + claude — see `resolveAgentBackend`) to
  * `runClaudeAgentNonInteractive`; everything else (interactive sessions,

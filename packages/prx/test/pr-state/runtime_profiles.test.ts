@@ -1434,6 +1434,20 @@ describe("buildWorkUnitClaudeImplementSdkRuntimeProfile (headless-first step 2)"
     expect(prompt).toContain("Execute the implementation plan for prx-0v5");
   });
 
+  test("prompt tells the executor to commit WITHOUT running checks — prx signs them (prx-who)", () => {
+    // bun is outside the executor's exec sandbox, so "run the project checks"
+    // wasted a real run's budget. prx runs + signs checks/v1 post-commit.
+    const withPlan = buildWorkUnitClaudeImplementSdkRuntimeProfile({
+      workUnitId: "prx-0v5",
+      planBody: "## Scope\nx",
+    }).sdkSpec?.prompt ?? "";
+    expect(withPlan).toContain("Do NOT run the project checks");
+    expect(withPlan).toContain("commit");
+    const noPlan = buildWorkUnitClaudeImplementSdkRuntimeProfile({ workUnitId: "prx-0v5" })
+      .sdkSpec?.prompt ?? "";
+    expect(noPlan).toContain("Do NOT run the project checks");
+  });
+
   test("headless system prompt does not order denied CLIs; works from the artifact (prx-pe1 slice 2)", () => {
     // The shared interactive mandate ("inspect prx graph/model/actors") orders
     // tools the headless allowlist denies — the executor's stated refusal

@@ -490,10 +490,20 @@ export async function runClaudeAgentNonInteractive(
     abortController.abort();
   };
 
+  // prx-who: an IDLE watchdog, not a total-runtime ceiling. The timer is reset
+  // on every streamed message (assistant turn / tool event) below, so a run that
+  // is making progress never trips it — only a genuinely stuck run (silent
+  // stream, a stray approval wait) does. No intermittent state is stored; the
+  // stream itself is the liveness signal. This is what lets a long but
+  // legitimate implement run finish without being cut off mid-work.
   let timer: ReturnType<typeof setTimeout> | null = null;
-  if (typeof opts.timeoutMs === "number" && opts.timeoutMs > 0) {
-    timer = setTimeout(onWatchdog, opts.timeoutMs);
-  }
+  const armWatchdog = (): void => {
+    if (typeof opts.timeoutMs === "number" && opts.timeoutMs > 0) {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(onWatchdog, opts.timeoutMs);
+    }
+  };
+  armWatchdog();
   if (opts.signal) {
     if (opts.signal.aborted) onOperator();
     else opts.signal.addEventListener("abort", onOperator, { once: true });
@@ -511,6 +521,7 @@ export async function runClaudeAgentNonInteractive(
 
   try {
     for await (const message of iterator as AsyncIterable<SDKMessage>) {
+      armWatchdog(); // progress → reset the idle timer (only silence trips it)
       if (message.type === "assistant") {
         const content = message.message?.content ?? [];
         for (const block of content as Array<{ type: string; text?: string }>) {
