@@ -5903,6 +5903,85 @@ describe("pr_state cli", () => {
     expect(resolverCalls).toBe(1);
   });
 
+  describe("prx-jcb — artifact-native local projection (in-toto)", () => {
+    const emptyBoard = () => ({
+      source: "derived-board" as const,
+      repo: "owner/repo",
+      remote_freshness: "fresh" as const,
+      units: [],
+    });
+    const emptyParity = () => ({
+      source: "surface-sync" as const,
+      repo: "owner/repo",
+      mode: "full" as const,
+      authority: "issue" as const,
+      scope: "all" as const,
+      apply: false,
+      units: [],
+      actions: [],
+    });
+    const loadIdentity = () => buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|prx)-/ });
+    const beadsResolver = () => ({
+      name: "beads" as const,
+      fetch: async () => ({
+        id: "prx-0v5",
+        title: "task: README is out of date",
+        body: null,
+        state: "open" as const,
+        url: "bd://prx-0v5",
+        source: "beads" as const,
+      }),
+    });
+
+    test("accepts a beads unit when a plan artifact already links it locally", async () => {
+      // The GH board has no row for prx-0v5, but a CAS plan artifact exists — the
+      // artifact graph IS the projection, so entry is allowed (no board re-probe).
+      const hasPlan = async () => true;
+      await expect(
+        checkWorkUnitChain(
+          "prx-0v5",
+          "/repo",
+          false,
+          emptyBoard,
+          emptyParity,
+          undefined,
+          loadIdentity,
+          beadsResolver,
+          undefined,
+          undefined,
+          undefined,
+          hasPlan,
+        ),
+      ).resolves.toMatchObject({
+        valid: true,
+        reason: "artifact_projected",
+        unitExists: true,
+      });
+    });
+
+    test("still refuses (NotProjectedLocally) when no artifact links the unit", async () => {
+      // No plan in CAS and no board row → genuinely not projected; the original
+      // refusal stands (now accurate rather than misleading).
+      const noPlan = async () => false;
+      await expect(
+        checkWorkUnitChain(
+          "prx-0v5",
+          "/repo",
+          false,
+          emptyBoard,
+          emptyParity,
+          undefined,
+          loadIdentity,
+          beadsResolver,
+          undefined,
+          undefined,
+          undefined,
+          noPlan,
+        ),
+      ).rejects.toThrow("has no local parity-chain unit yet");
+    });
+  });
+
   test("checkWorkUnitChain rejects create + from=notion when the Notion ticket is closed", async () => {
     const board = () => ({
       source: "derived-board" as const,
