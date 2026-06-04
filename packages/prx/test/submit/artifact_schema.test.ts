@@ -63,9 +63,17 @@ describe("SubmitArtifactSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  test("rejects non-GH workUnitId", () => {
+  // prx-gr1: beads / non-GH canonical ids are valid work units now.
+  test("accepts a beads canonical workUnitId", () => {
     const result = SubmitArtifactSchema.safeParse(
-      validArtifact({ workUnitId: "bd-xyz" as unknown as string }),
+      validArtifact({ workUnitId: "prx-2c4" as unknown as string }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  test("rejects a workUnitId with ref delimiters", () => {
+    const result = SubmitArtifactSchema.safeParse(
+      validArtifact({ workUnitId: "has:colon" as unknown as string }),
     );
     expect(result.success).toBe(false);
   });
@@ -115,8 +123,22 @@ describe("submitRefFor / parseSubmitRef", () => {
     }
   });
 
-  test("rejects malformed refs and non-GH ids", () => {
-    expect(() => submitRefFor("bd-xyz", "draft")).toThrow();
+  // prx-gr1: submit is no longer GitHub-only — any canonical work-unit id
+  // (beads `prx-xxx`, `bd-xyz`; notion `PROJECT-x`; github `GH-N`) round-trips,
+  // so beads units can reach a PR. Only refs that break the `<unit>:submit@<slot>`
+  // shape (delimiters in the unit, bad slot) reject.
+  test("accepts beads / non-GH canonical ids", () => {
+    for (const unit of ["prx-2c4", "bd-xyz", "PROJECT-6637"]) {
+      const ref = submitRefFor(unit, "draft");
+      expect(ref).toBe(`${unit}:submit@draft`);
+      expect(parseSubmitRef(ref)).toEqual({ workUnitId: unit, slot: "draft" });
+    }
+  });
+
+  test("rejects malformed refs", () => {
+    expect(() => submitRefFor("has:colon", "draft")).toThrow();
+    expect(() => submitRefFor("nodelimiter", "draft")).toThrow();
+    expect(() => submitRefFor("", "draft")).toThrow();
     expect(() => parseSubmitRef("GH-1:submit@bogus")).toThrow();
     expect(() => parseSubmitRef("GH-1:notsubmit@draft")).toThrow();
   });
