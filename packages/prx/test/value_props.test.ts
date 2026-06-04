@@ -15,8 +15,6 @@ import {
   isValuePropBacked,
 } from "../src/value_props.ts";
 
-const repoRoot = REPO_ROOT;
-
 describe("value props (prx-8mx)", () => {
   test("every live check evaluates true — the catalog cannot mark a red claim green", () => {
     for (const vp of VALUE_PROPS) {
@@ -29,7 +27,7 @@ describe("value props (prx-8mx)", () => {
   });
 
   test("the committed docs/value-props.md matches the generator (no drift)", () => {
-    const path = join(repoRoot, "docs", "value-props.md");
+    const path = join(REPO_ROOT, "docs", "value-props.md");
     expect(existsSync(path)).toBe(true);
     expect(
       readFileSync(path, "utf8"),
@@ -38,7 +36,7 @@ describe("value props (prx-8mx)", () => {
   });
 
   test("the committed STATUS.md matches the generator (the bubble-up top, no drift)", () => {
-    const path = join(repoRoot, "STATUS.md");
+    const path = join(REPO_ROOT, "STATUS.md");
     expect(existsSync(path)).toBe(true);
     expect(
       readFileSync(path, "utf8"),
