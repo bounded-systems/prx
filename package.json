@@ -6,9 +6,7 @@
   "workspaces": ["packages/*"],
   "scripts": {
     "pr-state": "bun run packages/prx/scripts/pr_state.ts",
-    "prx:tui": "bun run packages/prx/scripts/prx_tui.ts",
     "prx:build": "bun install && mkdir -p dist && bun packages/prx/scripts/prx-compile.ts dist/prx",
-    "prx:tui:build": "mkdir -p dist && bun build --compile packages/prx/scripts/prx_tui.ts --outfile dist/prx-tui",
     "doctor:agents": "bun run packages/prx/scripts/agent_doctor.ts",
     "doctor:agents:json": "bun run packages/prx/scripts/agent_doctor.ts --format json",
     "doctor:agents:strict": "bun run packages/prx/scripts/agent_doctor.ts --strict",

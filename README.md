@@ -48,7 +48,6 @@ build under `sandbox = true` with no `nix.conf` changes:
 ```bash
 nix run github:bounded-systems/prx -- --version
 nix build github:bounded-systems/prx#prx       # → result/bin/prx
-nix build github:bounded-systems/prx#prx-tui
 ```
 
 ### home-manager (portable module)
@@ -71,12 +70,11 @@ programs.prx = {
   # optional consumer wiring the released binary does not bake:
   aiHomeRoot = "${config.home.homeDirectory}/.config/ai-home"; # PRX_AI_HOME_ROOT
   claudePath = "${config.home.homeDirectory}/.local/bin/claude"; # BAKED_CLAUDE_CODE_PATH
-  installTui = true;   # also install prx-tui
   installWt  = true;   # also install the `wt` worktree wrapper
 };
 ```
 
-This installs `prx` + `repox` (and optionally `prx-tui` / `wt`) into
+This installs `prx` + `repox` (and optionally `wt`) into
 `~/.local/bin`. The per-release sha256s live in `release-hashes.json`, updated
 automatically by the `release-binary` workflow on each tag.
 

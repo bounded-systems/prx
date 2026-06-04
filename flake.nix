@@ -26,7 +26,6 @@
       {
         packages = {
           prx = bins.prx;
-          prx-tui = bins.prx-tui;
           default = bins.prx;
         };
 

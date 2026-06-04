@@ -7,7 +7,6 @@
 #   programs.prx = {
 #     enable = true;
 #     aiHomeRoot = "${config.home.homeDirectory}/.config/ai-home"; # optional
-#     installTui = true;   # optional
 #     installWt  = true;   # optional `wt` worktree wrapper
 #   };
 #
@@ -64,12 +63,6 @@ in
       description = "Sets BAKED_CLAUDE_CODE_PATH — the claude binary prx shells out to.";
     };
 
-    installTui = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
-      description = "Also install prx-tui to ~/.local/bin/prx-tui.";
-    };
-
     installWt = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -80,12 +73,6 @@ in
   config = lib.mkIf cfg.enable {
     home.file.".local/bin/prx" = { text = wrapper ""; executable = true; };
     home.file.".local/bin/repox" = { text = wrapper "repos "; executable = true; };
-
-    home.file.".local/bin/prx-tui" = lib.mkIf cfg.installTui {
-      source = "${bins.prx-tui}/bin/prx-tui";
-      executable = true;
-      force = true; # overwrite a pre-existing unmanaged binary from older installs
-    };
 
     home.file.".local/bin/wt" = lib.mkIf cfg.installWt {
       source = "${wtWrapper}/bin/wt";
