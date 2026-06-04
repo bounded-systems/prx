@@ -46,7 +46,7 @@ describe("formatIntakeStatus", () => {
   test("plain format shows clean message when nothing unfiled or drifted", () => {
     const result = emptyResult({ totalOpen: 12 });
     expect(formatIntakeStatus(result, "plain")).toBe(
-      "All 12 open issues in o/r have a beads row with no reverse orphans or pair drift.",
+      "All 12 open issues in o/r have a beads row with no pair drift.",
     );
   });
 
@@ -59,7 +59,7 @@ describe("formatIntakeStatus", () => {
       ],
     });
     const text = formatIntakeStatus(result, "plain");
-    expect(text).toContain("1 unfiled · 0 reverse-orphan · 0 drift");
+    expect(text).toContain("1 unfiled · 0 drift");
     expect(text).toContain("Unfiled (1):");
     expect(text).toContain("GH-7");
   });
@@ -167,7 +167,7 @@ describe("runIntakeStatus", () => {
     expect(estimateCalls).toBe(0);
   });
 
-  test("--rate-limit flag set → snapshots + estimate populated; queueSize sums all three", () => {
+  test("--rate-limit flag set → snapshots + estimate populated; queueSize excludes reverse-orphans (prx-3f1)", () => {
     const snapshots = [
       { bucket: "core" as const, limit: 5000, remaining: 4994, resetAt: 1700000000000, fetchedAt: 0 },
       { bucket: "graphql" as const, limit: 5000, remaining: 4823, resetAt: 1700000000000, fetchedAt: 0 },
@@ -204,8 +204,9 @@ describe("runIntakeStatus", () => {
     const result = JSON.parse(logs[0]!) as IntakeStatusResult;
     expect(result.rateLimit).toBeDefined();
     expect(result.rateLimit!.snapshots).toEqual(snapshots);
-    // 1 unfiled + 1 reverse orphan + 0 drift = 2
-    expect(receivedQueue).toBe(2);
+    // prx-3f1: reverse-orphans excluded from the sweep budget.
+    // 1 unfiled + 0 drift = 1 (the 1 reverse orphan is informational only)
+    expect(receivedQueue).toBe(1);
   });
 
   test("plain output includes GitHub budget block when rateLimit set", () => {

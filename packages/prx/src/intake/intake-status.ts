@@ -112,8 +112,10 @@ function attachRateLimit(
   if (!opts.rateLimit) return base;
   const refresh = deps.refreshBudget ?? defaultRefreshBudget;
   const estimate = deps.estimateSweepCost ?? defaultEstimateSweepCost;
-  const queueSize =
-    base.totalUntriaged + base.totalReverseOrphans + base.totalDrift;
+  // prx-3f1: totalReverseOrphans is excluded — bd-native records (no external_ref)
+  // are the expected beads-first state, not actionable sweep work, so they must
+  // not inflate the rate-limit budget.
+  const queueSize = base.totalUntriaged + base.totalDrift;
   const snapshots = refresh() ?? [];
   return {
     ...base,
@@ -184,18 +186,20 @@ export function formatIntakeStatus(
     return JSON.stringify(result, null, 2);
   }
 
+  // prx-3f1: reverse-orphans are NOT part of the remediation gate — bd-native
+  // records (no external_ref) are the expected beads-first state, so they no
+  // longer block the all-clear nor appear in the remediation headline.
   if (
     result.totalUntriaged === 0
-    && result.totalReverseOrphans === 0
     && result.totalDrift === 0
   ) {
-    const head = `All ${result.totalOpen} open issues in ${result.repo} have a beads row with no reverse orphans or pair drift.`;
+    const head = `All ${result.totalOpen} open issues in ${result.repo} have a beads row with no pair drift.`;
     return appendRateLimitBlock(head, result.rateLimit);
   }
 
   const lines: string[] = [];
   lines.push(
-    `${result.totalUntriaged} unfiled · ${result.totalReverseOrphans} reverse-orphan · ${result.totalDrift} drift in ${result.repo} (${result.totalOpen} open).`,
+    `${result.totalUntriaged} unfiled · ${result.totalDrift} drift in ${result.repo} (${result.totalOpen} open).`,
   );
 
   if (result.untriaged.length > 0) {
@@ -210,9 +214,12 @@ export function formatIntakeStatus(
     }
   }
 
+  // prx-3f1: informational section only. Bead-native records (no GH mirror) are
+  // the expected beads-first state, not a remediation bucket — they are not
+  // counted in the headline and need no GH backfill.
   if (result.reverseOrphans.length > 0) {
     lines.push("");
-    lines.push(`Reverse Orphans (${result.reverseOrphans.length}):`);
+    lines.push(`Bead-native, no GH mirror (${result.reverseOrphans.length}) — expected under beads-first, informational only:`);
     const idCol = Math.max(...result.reverseOrphans.map((row) => row.beadsId.length), 8);
     const titleCol = 60;
     for (const row of result.reverseOrphans) {

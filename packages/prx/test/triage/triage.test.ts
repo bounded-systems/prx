@@ -1404,7 +1404,7 @@ describe("formatTriageStatus", () => {
   test("plain output reports clean queue when nothing is flagged (GH-1449: short-circuit includes axisConflicts)", () => {
     const result = emptyResult({ totalOpen: 12 });
     expect(formatTriageStatus(result, "plain")).toBe(
-      "All 12 open issues in o/r are triaged with no reverse orphans, pair drift, stale beads, or axis conflicts.",
+      "All 12 open issues in o/r are triaged with no pair drift, stale beads, or axis conflicts.",
     );
   });
 
@@ -1423,7 +1423,7 @@ describe("formatTriageStatus", () => {
     });
     const text = formatTriageStatus(result, "plain");
     expect(text).toContain(
-      "0 untriaged · 0 reverse-orphan · 0 drift · 0 stale · 1 axis-conflict in o/r (4 open)",
+      "0 untriaged · 0 drift · 0 stale · 1 axis-conflict in o/r (4 open)",
     );
     expect(text).toContain("Axis Conflicts (1):");
     expect(text).toContain("GH-1449");
@@ -1436,7 +1436,7 @@ describe("formatTriageStatus", () => {
     // (e.g. forgetting the `&& totalAxisConflicts === 0` arm) is caught.
     const text = formatTriageStatus(result, "plain");
     expect(text).toBe(
-      "All 7 open issues in o/r are triaged with no reverse orphans, pair drift, stale beads, or axis conflicts.",
+      "All 7 open issues in o/r are triaged with no pair drift, stale beads, or axis conflicts.",
     );
   });
 
@@ -1485,10 +1485,10 @@ describe("formatTriageStatus", () => {
     });
     const text = formatTriageStatus(result, "plain");
     expect(text).toContain(
-      "1 untriaged · 1 reverse-orphan · 1 drift · 1 stale · 0 axis-conflict in o/r (5 open)",
+      "1 untriaged · 1 drift · 1 stale · 0 axis-conflict in o/r (5 open)",
     );
     expect(text).toContain("Untriaged (1):");
-    expect(text).toContain("Reverse Orphans (1):");
+    expect(text).toContain("Bead-native, no GH mirror (1) — expected under beads-first, informational only:");
     expect(text).toContain("Drift (1):");
     expect(text).toContain("Stale (1):");
     expect(text).toContain("ai-home-rev");
@@ -1508,7 +1508,7 @@ describe("formatTriageStatus", () => {
     });
     const text = formatTriageStatus(result, "plain");
     expect(text).toContain(
-      "1 untriaged · 0 reverse-orphan · 0 drift · 0 stale · 0 axis-conflict in o/r (3 open)",
+      "1 untriaged · 0 drift · 0 stale · 0 axis-conflict in o/r (3 open)",
     );
     expect(text).not.toContain("Stale (");
     expect(text).not.toContain("Axis Conflicts (");
@@ -1916,7 +1916,7 @@ describe("runTriageStatus + --rate-limit", () => {
     expect(estimateCalls).toBe(0);
   });
 
-  test("flag set → snapshots + estimate populated; queueSize sums all three queues", () => {
+  test("flag set → snapshots + estimate populated; queueSize excludes reverse-orphans (prx-3f1)", () => {
     const snapshots = [
       { bucket: "core" as const, limit: 5000, remaining: 4994, resetAt: 1700000000000, fetchedAt: 0 },
       { bucket: "graphql" as const, limit: 5000, remaining: 4823, resetAt: 1700000000000, fetchedAt: 0 },
@@ -1956,8 +1956,9 @@ describe("runTriageStatus + --rate-limit", () => {
     expect(result.rateLimit).toBeDefined();
     expect(result.rateLimit!.snapshots).toEqual(snapshots);
     expect(result.rateLimit!.estimate.sample.avg).toBe(2.0);
-    // 2 untriaged + 1 reverse orphan + 0 drift = 3
-    expect(receivedQueue).toBe(3);
+    // prx-3f1: reverse-orphans excluded from the sweep budget.
+    // 2 untriaged + 0 drift = 2 (the 1 reverse orphan is informational only)
+    expect(receivedQueue).toBe(2);
   });
 
   test("plain output appends GitHub budget block when rateLimit set", () => {

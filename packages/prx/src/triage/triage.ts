@@ -810,6 +810,14 @@ export function classifyIssue(
   };
 }
 
+// prx-3f1: Under the beads-first model (bd is the source/first layer; GitHub is
+// an opt-in projection per the GH-1500 authority ADR), a bead with no
+// external_ref is the NORMAL, expected state — NOT an orphan that needs a GH
+// backfill. This supersedes the GH-2011 'GitHub canonical' assumption. The rows
+// returned here are INFORMATIONAL ONLY: they are surfaced for visibility but are
+// no longer projected into triage_backlog candidates and no longer count toward
+// the rate-limit sweep budget. The function is retained unchanged for JSON shape
+// stability and the informational count.
 export function findReverseOrphans(
   records: BeadsRecord[],
   includeIntentional: boolean,
@@ -1176,9 +1184,11 @@ function attachRateLimit(
   if (!opts.rateLimit) return base;
   const refresh = deps.refreshBudget ?? defaultRefreshBudget;
   const estimate = deps.estimateSweepCost ?? defaultEstimateSweepCost;
+  // prx-3f1: totalReverseOrphans is excluded — bd-native records (no external_ref)
+  // are the expected beads-first state, not actionable sweep work, so they must
+  // not inflate the rate-limit budget.
   const queueSize =
     base.totalUntriaged
-    + base.totalReverseOrphans
     + base.totalDrift
     + base.totalAxisConflicts;
   const snapshots = refresh() ?? [];
@@ -1510,20 +1520,22 @@ export function formatTriageStatus(
     return formatTriageStatusBd(result);
   }
 
+  // prx-3f1: reverse-orphans are NOT part of the remediation gate — bd-native
+  // records (no external_ref) are the expected beads-first state, so they no
+  // longer block the all-clear nor appear in the remediation headline.
   if (
     result.totalUntriaged === 0
-    && result.totalReverseOrphans === 0
     && result.totalDrift === 0
     && result.totalStale === 0
     && result.totalAxisConflicts === 0
   ) {
-    const head = `All ${result.totalOpen} open issues in ${result.repo} are triaged with no reverse orphans, pair drift, stale beads, or axis conflicts.`;
+    const head = `All ${result.totalOpen} open issues in ${result.repo} are triaged with no pair drift, stale beads, or axis conflicts.`;
     return appendRateLimitBlock(head, result.rateLimit);
   }
 
   const lines: string[] = [];
   lines.push(
-    `${result.totalUntriaged} untriaged · ${result.totalReverseOrphans} reverse-orphan · ${result.totalDrift} drift · ${result.totalStale} stale · ${result.totalAxisConflicts} axis-conflict in ${result.repo} (${result.totalOpen} open).`,
+    `${result.totalUntriaged} untriaged · ${result.totalDrift} drift · ${result.totalStale} stale · ${result.totalAxisConflicts} axis-conflict in ${result.repo} (${result.totalOpen} open).`,
   );
 
   if (result.issues.length > 0) {
@@ -1546,9 +1558,12 @@ export function formatTriageStatus(
     }
   }
 
+  // prx-3f1: informational section only. Bead-native records (no GH mirror) are
+  // the expected beads-first state, not a remediation bucket — they are not
+  // counted in the headline and need no GH backfill.
   if (result.reverseOrphans.length > 0) {
     lines.push("");
-    lines.push(`Reverse Orphans (${result.reverseOrphans.length}):`);
+    lines.push(`Bead-native, no GH mirror (${result.reverseOrphans.length}) — expected under beads-first, informational only:`);
     const idCol = Math.max(...result.reverseOrphans.map((row) => row.beadsId.length), 8);
     const titleCol = 60;
     for (const row of result.reverseOrphans) {

@@ -116,8 +116,16 @@ export type LocalRepo = {
   bd_workspace_prefix?: string | undefined;
   /**
    * GH-1710: explicit triage direction for the repo.
-   *   - `"gh"` (default): GitHub is the source of truth, bd records mirror
-   *     GH issues via `external_ref`. All `prx triage` verbs behave as before.
+   *   - `"gh"` (default): GitHub is the comparator for drift/stale detection,
+   *     and bd records MAY mirror GH issues via `external_ref`. Note (prx-3f1):
+   *     under the beads-first model (bd is the source/first layer; GitHub is an
+   *     opt-in projection per the GH-1500 authority ADR), a bd record with no
+   *     `external_ref` is the NORMAL, EXPECTED state — NOT a remediation orphan
+   *     needing a GH backfill. The reverse-orphan axis is therefore
+   *     informational only on canonical=gh repos: it is no longer projected into
+   *     `triage_backlog` candidates and no longer counts toward the rate-limit
+   *     sweep budget. This supersedes the earlier GH-2011 'GitHub canonical'
+   *     assumption that treated bead-without-GH as actionable.
    *   - `"bd"`: bd is the source of truth — there is no GH issues queue to
    *     mirror. `prx triage status` drops the reverse-orphan + drift buckets,
    *     and `classify` proposes `bd update` mutations.
