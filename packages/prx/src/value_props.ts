@@ -99,9 +99,19 @@ export const VALUE_PROPS: readonly ValueProp[] = [
     whyNot: "vs raw Claude Code: per-actor/unit usage is projected from the audit ledger.",
     forcing: [
       {
-        name: "per-unit Anthropic usage is visible",
+        name: "the compiled binary opens the audit DB (schema embedded)",
+        evidence:
+          "prx-eky / #106 — `./dist/prx services status --anthropic` exits 0 with no ENOENT; audit-DB smoke test in prx_binary.test.ts",
+        exercises: [
+          "audit/store/db.ts:openAuditDb",
+          "audit/store/sql-asset.d.ts",
+          "scripts/prx-compile.ts",
+        ],
+      },
+      {
+        name: "per-unit usage is visible",
         pending:
-          "verb implemented + runs from source (exit 0), but the released binary errors (prx-eky: schema.sql not embedded) and it needs `prx audit ingest` data",
+          "the verb + DB now work (binary blocker cleared by prx-eky); needs `prx audit ingest` data for the claim to back",
       },
     ],
   },

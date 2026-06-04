@@ -16,6 +16,6 @@
 ## Learning goals (what's next)
 
 - ⚠️ You can see what each work unit cost.
-  - verb implemented + runs from source (exit 0), but the released binary errors (prx-eky: schema.sql not embedded) and it needs `prx audit ingest` data
+  - the verb + DB now work (binary blocker cleared by prx-eky); needs `prx audit ingest` data for the claim to back
 
 _See [docs/value-props.md](docs/value-props.md) for the forcing functions + the code→value-prop map._
