@@ -290,3 +290,22 @@ export function loadOrCreateDevKeypair(
   // in-memory candidate) is the one we adopt.
   return adoptDevKeyFile(readDevKeyFile(path), path);
 }
+
+/**
+ * prx-keymaker: the dev-mode per-actor KDF master — the persisted dev seed
+ * (32 bytes) reused as the HMAC master from which every actor's key derives. By
+ * reusing the SAME persisted dev identity, per-actor dev signing is stable and
+ * self-verifying across processes, exactly like {@link loadOrCreateDevKeypair}.
+ * The seed never leaves dev/local; production supplies a real master via the
+ * deployment-secret seam (a later slice), not this.
+ */
+export function loadOrCreateDevMaster(
+  env: (key: string) => string | undefined = getEnv,
+): Buffer {
+  const kp = loadOrCreateDevKeypair(env);
+  const seedB64 = (kp.privateKey.export({ format: "jwk" }) as { d?: string }).d;
+  if (typeof seedB64 !== "string") {
+    throw new DevKeyError("dev master: ed25519 key has no seed", "INVALID_KEY");
+  }
+  return Buffer.from(seedB64, "base64url");
+}

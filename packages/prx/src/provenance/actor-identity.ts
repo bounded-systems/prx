@@ -102,6 +102,30 @@ export function actorIdentity(actor: SessionProfileName): string {
   return `${actor}@${actorAuthorityDigest(actor).slice(0, ACTOR_DIGEST_LENGTH)}`;
 }
 
+function isSessionProfile(actor: string): actor is SessionProfileName {
+  return (sessionProfileNames as readonly string[]).includes(actor);
+}
+
+/**
+ * The signing identity for ANY actor string (e.g. the ambient
+ * `getAuditRuntimeContext().actor`). A session-profile actor gets its full
+ * authority-contract digest (rotates with its powers); an actor without a
+ * profile — `keeper` (the git owner), a future `checks`/`verifier` — gets a
+ * name-bound identity `<actor>@<sha256("prx-actor:"+name)>`. That is stable and
+ * distinct per actor (enough for per-actor key derivation); binding keeper to
+ * its policy-role contract is a follow-up. An empty actor falls back to
+ * `unknown` so a key is always derivable.
+ */
+export function actorSigningIdentity(actor: string): string {
+  const name = actor.trim().length > 0 ? actor.trim() : "unknown";
+  if (isSessionProfile(name)) return actorIdentity(name);
+  const digest = createHash("sha256")
+    .update(`prx-actor:${name}`)
+    .digest("hex")
+    .slice(0, ACTOR_DIGEST_LENGTH);
+  return `${name}@${digest}`;
+}
+
 export interface DerivedActorKeypair {
   privateKey: KeyObject;
   publicKey: KeyObject;

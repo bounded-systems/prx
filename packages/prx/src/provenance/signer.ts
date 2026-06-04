@@ -37,6 +37,7 @@
  */
 
 import {
+  type Derivation,
   ed25519Keyid,
   ed25519Signer,
   ed25519Verifier,
@@ -45,10 +46,13 @@ import {
   type Signer,
   type Verifier,
 } from "@bounded-systems/anchored-chain";
+import { getAuditRuntimeContext } from "@bounded-systems/audit-context";
 import { getEnv } from "@bounded-systems/env";
 import { createPublicKey } from "node:crypto";
 
-import { loadOrCreateDevKeypair } from "./dev-key.ts";
+import { actorSigningIdentity, deriveActorKeypair } from "./actor-identity.ts";
+import { loadOrCreateDevKeypair, loadOrCreateDevMaster } from "./dev-key.ts";
+import { decodeSlsaStatement } from "./verify.ts";
 
 /** The env var that selects the live signing identity (read only here). */
 export const PROVENANCE_KEY_ENV = "PRX_PROVENANCE_KEY";
@@ -61,6 +65,16 @@ export const REQUIRE_SIGNED_ENV = "PRX_REQUIRE_SIGNED_DERIVATIONS";
 
 /** The dev-mode sentinel: an offline, ephemeral ed25519 signer. */
 export const DEV_SIGNER_MODE = "dev";
+
+/**
+ * prx-keymaker: per-actor dev signing. Like `dev`, but each actor signs with its
+ * OWN key, derived from the persisted dev master + the actor's identity
+ * (`deriveActorKeypair`). The signing actor is the AMBIENT one
+ * (`getAuditRuntimeContext().actor`, the same source `builderId` uses), so a
+ * process can only ever sign as itself. Self-verifying in dev: the verifier
+ * resolves the actor from the statement's `builder.id` and derives the same key.
+ */
+export const ACTOR_DEV_SIGNER_MODE = "actor-dev";
 
 /**
  * Prefix marking stable ed25519 key material on `PRX_PROVENANCE_KEY` /
@@ -90,6 +104,13 @@ export function resolveProvenanceSigner(
   env: (key: string) => string | undefined = getEnv,
 ): Signer | null {
   const mode = env(PROVENANCE_KEY_ENV);
+  if (mode === ACTOR_DEV_SIGNER_MODE) {
+    // prx-keymaker: sign as the AMBIENT actor with its derived per-actor key —
+    // the caller has no actor parameter to spoof.
+    const actor = getAuditRuntimeContext().actor;
+    const kp = deriveActorKeypair(loadOrCreateDevMaster(env), actorSigningIdentity(actor));
+    return ed25519Signer(kp.privateKey, kp.keyid);
+  }
   if (mode === DEV_SIGNER_MODE) {
     // GH-2282: stable, persisted dev identity (generate-on-first-use, reuse
     // thereafter) so a dev-signed derivation is verifiable cross-process — no
@@ -150,4 +171,60 @@ export function requireSignedDerivations(
   if (raw === undefined) return false;
   const v = raw.toLowerCase();
   return v === "1" || v === "true" || v === "on" || v === "yes";
+}
+
+/** Whether per-actor (`actor-dev`) signing/verification is the active mode. */
+export function isActorDevMode(
+  env: (key: string) => string | undefined = getEnv,
+): boolean {
+  return env(PROVENANCE_KEY_ENV) === ACTOR_DEV_SIGNER_MODE;
+}
+
+/** Parse the actor out of a builder id `prx://<actor>/<verb>`; null if malformed. */
+export function actorFromBuilderId(id: string): string | null {
+  const m = /^prx:\/\/([^/]+)\//.exec(id);
+  return m ? m[1]! : null;
+}
+
+/**
+ * prx-keymaker: the verifier for a SPECIFIC actor's signatures. In `actor-dev`
+ * mode this derives the actor's public half from the dev master (self-verifying
+ * with the per-actor signer); in any other mode it falls back to the single
+ * configured verifier (stable per-actor verification via the trust map is a
+ * later slice). `null` when no key is resolvable.
+ */
+export function resolveActorVerifier(
+  actor: string,
+  env: (key: string) => string | undefined = getEnv,
+): Verifier | null {
+  if (env(PROVENANCE_KEY_ENV) === ACTOR_DEV_SIGNER_MODE) {
+    const kp = deriveActorKeypair(loadOrCreateDevMaster(env), actorSigningIdentity(actor));
+    return ed25519Verifier(kp.publicKey);
+  }
+  return resolveProvenanceVerifier(env);
+}
+
+/**
+ * prx-keymaker: resolve the verifier for a derivation by reading the actor out
+ * of its signed statement's `builder.id` and picking that actor's key. This is
+ * the per-derivation seam the merge-guard uses so each attestation is checked
+ * against the key of the actor that *claims* to have produced it — the actor and
+ * the signature must be the same identity. Returns `null` (fail-closed) when the
+ * envelope is absent or the actor can't be parsed.
+ */
+export function resolveActorVerifierForDerivation(
+  derivation: Pick<Derivation, "envelope">,
+  env: (key: string) => string | undefined = getEnv,
+): Verifier | null {
+  if (derivation.envelope === undefined) return null;
+  let actor: string | null;
+  try {
+    actor = actorFromBuilderId(
+      decodeSlsaStatement(derivation.envelope).predicate.runDetails.builder.id,
+    );
+  } catch {
+    return null;
+  }
+  if (actor === null) return null;
+  return resolveActorVerifier(actor, env);
 }

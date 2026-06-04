@@ -632,11 +632,14 @@ import {
 } from "../submit/publish.ts";
 // GH-2269: live Signer factory + ledger handle for production SLSA emission.
 import {
+  isActorDevMode,
   requireSignedDerivations,
+  resolveActorVerifierForDerivation,
   resolveProvenanceSigner,
   resolveProvenanceVerifier,
 } from "../provenance/signer.ts";
 import { projectProvenanceAxis } from "../provenance/merge-guard.ts";
+import type { Derivation } from "@bounded-systems/anchored-chain";
 import type { ProvenanceAxis } from "../machine/machines/workflow.ts";
 // GH-2282: persisted dev provenance identity — `prx provenance dev-pubkey`.
 import {
@@ -6092,6 +6095,12 @@ export async function resolveMergeGuardProvenanceAxis(
     return await projectProvenanceAxis(gitCommit, {
       store: store.derivations,
       verifier: resolveProvenanceVerifier(),
+      // prx-keymaker: in per-actor (`actor-dev`) mode, check each derivation
+      // against the key of the actor named in its own `builder.id` — the actor
+      // and the signature must match. Other modes keep the single verifier above.
+      ...(isActorDevMode()
+        ? { verifierFor: (d: Derivation) => resolveActorVerifierForDerivation(d) }
+        : {}),
       enforce: true,
     });
   } finally {
