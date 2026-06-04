@@ -6,7 +6,7 @@
 // The dispatch envelope (handler.ts) just captures the verb's stdout into a
 // CAS blob and emits a `scout://sha256:…` handle.
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { closeSync, fstatSync, openSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 
 export interface ScoutGrepInput {
@@ -168,18 +168,22 @@ function walkDir(ctx: WalkContext, dir: string): void {
     if (!isTextFile(entry.name)) continue;
     const rel = relative(ctx.root, full);
     if (ctx.prefix !== undefined && !rel.startsWith(ctx.prefix)) continue;
-    let stat: ReturnType<typeof statSync>;
+    // Open once, then stat and read the same descriptor so the size gate and
+    // the read refer to one inode (CodeQL js/file-system-race).
+    let fd: number;
     try {
-      stat = statSync(full);
+      fd = openSync(full, "r");
     } catch {
       continue;
     }
-    if (stat.size > HARD_MAX_FILE_BYTES) continue;
     let body: string;
     try {
-      body = readFileSync(full, "utf8");
+      if (fstatSync(fd).size > HARD_MAX_FILE_BYTES) continue;
+      body = readFileSync(fd, "utf8");
     } catch {
       continue;
+    } finally {
+      closeSync(fd);
     }
     ctx.filesScanned += 1;
     const lines = body.split("\n");
