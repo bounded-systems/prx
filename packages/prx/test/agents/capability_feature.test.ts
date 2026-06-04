@@ -5,7 +5,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import {
   POLICY_ROLES,
   POLICY_STATES,
@@ -19,9 +19,9 @@ import {
   ownersOf,
 } from "../../src/agents/capability_feature.ts";
 import { decideAgentToolCall } from "../../src/agents/policy_guard.ts";
+import { REPO_ROOT } from "../../src/repo-root.ts";
 
-const repoRoot = resolve(import.meta.dir, "../../../..");
-const featurePath = join(repoRoot, "features", "capability-ownership.feature");
+const featurePath = join(REPO_ROOT, "features", "capability-ownership.feature");
 
 describe("capability-ownership .feature (prx-g88.7 / 7a)", () => {
   test("the committed feature matches the generator (no drift)", () => {

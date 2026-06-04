@@ -6,11 +6,11 @@
 // policy-table change and commit; the drift test fails otherwise.
 
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
+import { REPO_ROOT } from "../src/repo-root.ts";
 import { generateCapabilityFeature } from "../src/agents/capability_feature.ts";
 
-const repoRoot = resolve(import.meta.dir, "../../..");
-const dir = join(repoRoot, "features");
+const dir = join(REPO_ROOT, "features");
 mkdirSync(dir, { recursive: true });
 writeFileSync(join(dir, "capability-ownership.feature"), generateCapabilityFeature());
 console.log("wrote features/capability-ownership.feature");
