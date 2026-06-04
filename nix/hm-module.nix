@@ -24,12 +24,12 @@ let
     ++ lib.optional (cfg.claudePath != null) ''export BAKED_CLAUDE_CODE_PATH="${cfg.claudePath}"''
   );
 
-  # subcmd is "" for prx, "repos " for repox (the trailing space matters).
-  wrapper = subcmd: ''
+  # The prx launcher: inject the consumer env, then exec the binary.
+  wrapper = ''
     #!${zshBin}
     set -euo pipefail
     ${exports}
-    exec ${cfg.package}/bin/prx ${subcmd}"$@"
+    exec ${cfg.package}/bin/prx "$@"
   '';
 
   wtWrapper = pkgs.writeShellScriptBin "wt"
@@ -71,8 +71,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.file.".local/bin/prx" = { text = wrapper ""; executable = true; };
-    home.file.".local/bin/repox" = { text = wrapper "repos "; executable = true; };
+    home.file.".local/bin/prx" = { text = wrapper; executable = true; };
 
     home.file.".local/bin/wt" = lib.mkIf cfg.installWt {
       source = "${wtWrapper}/bin/wt";
