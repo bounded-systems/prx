@@ -45,6 +45,15 @@ export interface ProvenanceProjectionDeps {
    */
   readonly verifier: Verifier | null;
   /**
+   * prx-keymaker: per-actor verifier resolver. When present, each derivation is
+   * checked against the key of the actor named in its own `builder.id` (via
+   * `resolveActorVerifierForDerivation`) — the actor and the signature must be
+   * the same identity. When absent, the single `verifier` above is used
+   * (unchanged behavior). A resolver returning `null` for a present derivation
+   * fails closed, exactly like a null `verifier`.
+   */
+  readonly verifierFor?: (derivation: Derivation) => Verifier | null;
+  /**
    * Whether fail-closed enforcement is active (from `requireSignedDerivations`,
    * i.e. `PRX_REQUIRE_SIGNED_DERIVATIONS`). When false the projection is a no-op
    * that yields "unchecked".
@@ -71,14 +80,19 @@ export async function projectProvenanceAxis(
   // one be present — that is out of scope and is the publisher tier's job.
   if (ids.length === 0) return "unchecked";
 
-  // Derivations are present but we have no key to check them ⇒ fail closed.
-  if (deps.verifier === null) return "unsigned";
+  // Derivations are present but we have no way to check them ⇒ fail closed.
+  // (A per-actor resolver covers the key; a static verifier is the fallback.)
+  if (deps.verifierFor === undefined && deps.verifier === null) return "unsigned";
 
   for (const id of ids) {
     const derivation: Derivation | null = await deps.store.get(id);
     if (derivation === null) return "unsigned"; // index points at a missing record
-    if (!(await verifySlsaDerivation(derivation, deps.verifier))) {
-      return "unsigned"; // absent/forged envelope or bad signature
+    // prx-keymaker: per-derivation verifier (the actor named in builder.id) when
+    // a resolver is wired; else the single static verifier. A null resolution
+    // for a present derivation is fail-closed.
+    const verifier = deps.verifierFor ? deps.verifierFor(derivation) : deps.verifier;
+    if (verifier === null || !(await verifySlsaDerivation(derivation, verifier))) {
+      return "unsigned"; // no key for this actor, or absent/forged envelope, or bad sig
     }
   }
   return "verified";
