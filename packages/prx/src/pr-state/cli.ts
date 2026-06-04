@@ -2228,6 +2228,7 @@ type ParsedCommand =
       input?: string | undefined;
       dryRun: boolean;
       format: "plain" | "json";
+      verbose: boolean;
     }
   | {
       command: "home-sync";
@@ -9791,6 +9792,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
         input: { type: "string" },
         "dry-run": { type: "boolean", default: false },
         format: { type: "string", default: "plain" },
+        verbose: { type: "boolean", default: false },
       },
       strict: true,
       allowPositionals: false,
@@ -9802,6 +9804,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
       input: values.input,
       dryRun: values["dry-run"],
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
+      verbose: values.verbose,
     };
   }
 
@@ -21517,6 +21520,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           input: parsed.input,
           dryRun: parsed.dryRun,
           format: parsed.format,
+          verbose: parsed.verbose,
         },
         output,
       );
