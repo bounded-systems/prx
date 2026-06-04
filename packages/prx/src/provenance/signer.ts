@@ -68,14 +68,41 @@ export const REQUIRE_SIGNED_ENV = "PRX_REQUIRE_SIGNED_DERIVATIONS";
 export const DEV_SIGNER_MODE = "dev";
 
 /**
- * prx-keymaker: per-actor dev signing. Like `dev`, but each actor signs with its
- * OWN key, derived from the persisted dev master + the actor's identity
- * (`deriveActorKeypair`). The signing actor is the AMBIENT one
- * (`getAuditRuntimeContext().actor`, the same source `builderId` uses), so a
- * process can only ever sign as itself. Self-verifying in dev: the verifier
- * resolves the actor from the statement's `builder.id` and derives the same key.
+ * prx-keymaker: explicit alias that forces per-actor signing on. Redundant now
+ * that per-actor is the DEFAULT for `dev` (see {@link isPerActorMode}); kept so
+ * existing `PRX_PROVENANCE_KEY=actor-dev` configs keep working.
  */
 export const ACTOR_DEV_SIGNER_MODE = "actor-dev";
+
+/**
+ * Opt-OUT switch for per-actor signing. Per-actor is the default (each actor
+ * signs with its own key, attributable via `builder.id`); set this to a falsy
+ * value (`0`/`false`/`off`/`no`) to fall back to single-key dev signing — an
+ * escape hatch for debugging or a verifier that only has one pinned key.
+ */
+export const PER_ACTOR_ENV = "PRX_PROVENANCE_PER_ACTOR";
+
+function perActorOptedOut(env: (key: string) => string | undefined): boolean {
+  const raw = env(PER_ACTOR_ENV);
+  if (raw === undefined) return false;
+  const v = raw.toLowerCase();
+  return v === "0" || v === "false" || v === "off" || v === "no";
+}
+
+/**
+ * Whether per-actor signing/verification is active. It is the DEFAULT for any
+ * dev-master signer (`dev` or `actor-dev`) — there is no good reason to sign
+ * with one shared key when per-actor self-verifies identically and attributes
+ * the signature to the actor. Opt out with {@link PER_ACTOR_ENV}. The `ed25519:`
+ * single-keypair and `null` modes are unaffected (no master to derive from).
+ */
+export function isPerActorMode(
+  env: (key: string) => string | undefined = getEnv,
+): boolean {
+  if (perActorOptedOut(env)) return false;
+  const mode = env(PROVENANCE_KEY_ENV);
+  return mode === DEV_SIGNER_MODE || mode === ACTOR_DEV_SIGNER_MODE;
+}
 
 /**
  * Prefix marking stable ed25519 key material on `PRX_PROVENANCE_KEY` /
@@ -105,10 +132,11 @@ export function resolveProvenanceSigner(
   env: (key: string) => string | undefined = getEnv,
 ): Signer | null {
   const mode = env(PROVENANCE_KEY_ENV);
-  if (mode === ACTOR_DEV_SIGNER_MODE) {
-    // prx-keymaker: sign as the AMBIENT actor with its derived per-actor key —
-    // the caller has no actor parameter to spoof. The master is the deployment
-    // secret (sops/agenix) when configured, else the dev seed.
+  if (isPerActorMode(env) && (mode === DEV_SIGNER_MODE || mode === ACTOR_DEV_SIGNER_MODE)) {
+    // prx-keymaker: per-actor is the DEFAULT. Sign as the AMBIENT actor with its
+    // derived per-actor key — the caller has no actor parameter to spoof. The
+    // master is the deployment secret (sops/agenix) when configured, else the
+    // dev seed. (Opt out to the single-key branch below via PRX_PROVENANCE_PER_ACTOR=off.)
     const actor = getAuditRuntimeContext().actor;
     const kp = deriveActorKeypair(resolveProvenanceMaster(env), actorSigningIdentity(actor));
     return ed25519Signer(kp.privateKey, kp.keyid);
@@ -175,13 +203,6 @@ export function requireSignedDerivations(
   return v === "1" || v === "true" || v === "on" || v === "yes";
 }
 
-/** Whether per-actor (`actor-dev`) signing/verification is the active mode. */
-export function isActorDevMode(
-  env: (key: string) => string | undefined = getEnv,
-): boolean {
-  return env(PROVENANCE_KEY_ENV) === ACTOR_DEV_SIGNER_MODE;
-}
-
 /** Parse the actor out of a builder id `prx://<actor>/<verb>`; null if malformed. */
 export function actorFromBuilderId(id: string): string | null {
   const m = /^prx:\/\/([^/]+)\//.exec(id);
@@ -199,7 +220,7 @@ export function resolveActorVerifier(
   actor: string,
   env: (key: string) => string | undefined = getEnv,
 ): Verifier | null {
-  if (env(PROVENANCE_KEY_ENV) === ACTOR_DEV_SIGNER_MODE) {
+  if (isPerActorMode(env)) {
     // prx-keymaker: prefer the PUBLIC trust map (config) — the production path,
     // where the verifier has pubkeys but not the master. Fall back to deriving
     // the public half from the master (the dev self-verify path).
