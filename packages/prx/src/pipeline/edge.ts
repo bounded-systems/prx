@@ -34,6 +34,41 @@ import {
 } from "../plan-store/artifact-store.ts";
 import { type DomainOptions, getRef, readBlob } from "../plan-store/cas.ts";
 
+/**
+ * A structured validation finding — the uniform diagnostic shape an artifact
+ * contract reports (matches plan-store's `PlanDiagnostic` so the two converge).
+ */
+export interface ArtifactDiagnostic {
+  /** Stable machine code (e.g. `no-scope`, `schema-invalid`). */
+  code: string;
+  /** Field path the finding is about (`""` for whole-artifact). */
+  path: string;
+  /** Human-readable reason. */
+  message: string;
+}
+
+/**
+ * prx-bs4: a semantic approver beyond the structural schema. Returns the
+ * diagnostics it found (empty ⇒ pass). The artifact's `schema` is the mandatory
+ * first contract check; `validators` are the configurable, ordered remainder of
+ * the per-artifact pipeline (e.g. plan = schema + scope-gate + domain approver).
+ */
+export type ArtifactValidator<T> = (value: T) => readonly ArtifactDiagnostic[];
+
+/** Thrown by the save/consume seam when an artifact fails its contract. */
+export class ArtifactValidationError extends Error {
+  constructor(
+    readonly kind: ArtifactKind,
+    readonly diagnostics: readonly ArtifactDiagnostic[],
+  ) {
+    super(
+      `artifact ${kind} failed its contract (${diagnostics.length} diagnostic${diagnostics.length === 1 ? "" : "s"}): ` +
+        diagnostics.map((d) => `[${d.code}] ${d.path || "(root)"}: ${d.message}`).join("; "),
+    );
+    this.name = "ArtifactValidationError";
+  }
+}
+
 /** A typed pipeline edge: `source` emits `kind@slot`; `target` consumes it. */
 export interface ArtifactEdge<T> {
   /** CAS artifact family — the `<kind>` in `<unit>:<kind>@<slot>`. */
@@ -46,6 +81,13 @@ export interface ArtifactEdge<T> {
   target: string;
   /** The artifact contract — validated on emit AND on consume. */
   schema: z.ZodType<T>;
+  /**
+   * prx-bs4: the configurable validator/approver pipeline run AFTER the schema,
+   * on every emit and consume. Each entry is an ordered semantic check; the
+   * artifact's contract is `[schema, ...validators]`. Empty/absent ⇒ schema-only
+   * (the prior behavior). This is the "one pipeline configurable per artifact".
+   */
+  validators?: readonly ArtifactValidator<T>[];
   /**
    * Documentary: the artifact's natural home (matches the registry's
    * `persistence`). `"cas"` artifacts (plan, …) are emitted directly; `"git"`
@@ -75,12 +117,51 @@ function domainOpts<T>(edge: ArtifactEdge<T>): DomainOptions | undefined {
 }
 
 /**
- * The canonical on-the-wire form: validated, then JSON. Emit PINS this; the
- * freshness check HASHES this. Sharing one serializer is what makes a pinned
+ * prx-bs4: run the artifact's full contract — the structural `schema` first,
+ * then the ordered `validators` — and return the value plus all diagnostics.
+ * The structural schema is mandatory; a Zod failure becomes `schema-invalid`
+ * diagnostics so callers see one uniform finding shape regardless of which
+ * stage rejected. This is the single definition of "is this artifact valid",
+ * shared by emit, consume, and the freshness hash.
+ */
+export function runArtifactContract<T>(
+  edge: ArtifactEdge<T>,
+  value: T,
+): { value: T; diagnostics: ArtifactDiagnostic[] } {
+  const parsed = edge.schema.safeParse(value);
+  if (!parsed.success) {
+    return {
+      value,
+      diagnostics: parsed.error.issues.map((issue) => ({
+        code: "schema-invalid",
+        path: issue.path.join(".") || "",
+        message: issue.message,
+      })),
+    };
+  }
+  const diagnostics: ArtifactDiagnostic[] = [];
+  for (const validate of edge.validators ?? []) {
+    diagnostics.push(...validate(parsed.data));
+  }
+  return { value: parsed.data, diagnostics };
+}
+
+/** Run the contract and throw {@link ArtifactValidationError} on any finding. */
+function enforceContract<T>(edge: ArtifactEdge<T>, value: T): T {
+  const { value: checked, diagnostics } = runArtifactContract(edge, value);
+  if (diagnostics.length > 0) {
+    throw new ArtifactValidationError(edge.kind, diagnostics);
+  }
+  return checked;
+}
+
+/**
+ * The canonical on-the-wire form: contract-checked, then JSON. Emit PINS this;
+ * the freshness check HASHES this. Sharing one serializer is what makes a pinned
  * sha and a recomputed source sha comparable.
  */
 function serialize<T>(edge: ArtifactEdge<T>, value: T): string {
-  return JSON.stringify(edge.schema.parse(value));
+  return JSON.stringify(enforceContract(edge, value));
 }
 
 /**
@@ -117,7 +198,8 @@ export async function consumeArtifact<T>(
   const sha = await getRef(ref, opts);
   if (!sha) return { ref, value: null, missing: true };
   const buf = await readBlob(sha, opts);
-  const value = edge.schema.parse(JSON.parse(buf.toString("utf8")));
+  // prx-bs4: re-run the full contract (schema + validators) on the way in.
+  const value = enforceContract(edge, JSON.parse(buf.toString("utf8")) as T);
   return { ref, value };
 }
 

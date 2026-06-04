@@ -15,11 +15,14 @@ import { z } from "zod";
 
 import {
   type ArtifactEdge,
+  ArtifactValidationError,
+  type ArtifactValidator,
   consumeArtifact,
   defineEdge,
   emitArtifact,
   isFresh,
   pinSource,
+  runArtifactContract,
 } from "../../src/pipeline/edge.ts";
 
 const TestPayload = z.object({ greeting: z.string(), n: z.number().int() });
@@ -163,5 +166,40 @@ describe("fixed-output pin — impure source → CAS (epic prx-997, path A)", ()
     };
     await pinSource(gitEdge, "GH-8001", fetch);
     expect(calls).toBe(1);
+  });
+});
+
+describe("prx-bs4 — configurable validator pipeline per artifact", () => {
+  // A semantic approver beyond the schema: n must be even.
+  const evenOnly: ArtifactValidator<TestPayload> = (v) =>
+    v.n % 2 === 0 ? [] : [{ code: "odd-n", path: "n", message: "n must be even" }];
+  const guarded: ArtifactEdge<TestPayload> = defineEdge({
+    kind: "submit",
+    slot: "guarded",
+    source: "a",
+    target: "b",
+    schema: TestPayload,
+    validators: [evenOnly],
+  });
+
+  test("runArtifactContract reports schema THEN validator findings uniformly", () => {
+    // schema failure → schema-invalid (no validators run on a bad shape).
+    const bad = runArtifactContract(guarded, { greeting: "hi", n: 1.5 });
+    expect(bad.diagnostics.map((d) => d.code)).toContain("schema-invalid");
+    // schema ok but validator fails → the validator's own code.
+    const odd = runArtifactContract(guarded, { greeting: "hi", n: 3 });
+    expect(odd.diagnostics).toEqual([{ code: "odd-n", path: "n", message: "n must be even" }]);
+    // fully valid → no diagnostics.
+    expect(runArtifactContract(guarded, { greeting: "hi", n: 4 }).diagnostics).toEqual([]);
+  });
+
+  test("emit/consume enforce the validator pipeline (ArtifactValidationError)", async () => {
+    await expect(emitArtifact(guarded, "GH-9100", { greeting: "hi", n: 3 })).rejects.toThrow(
+      ArtifactValidationError,
+    );
+    // A valid value round-trips through emit + consume (both run the pipeline).
+    await emitArtifact(guarded, "GH-9100", { greeting: "hi", n: 2 });
+    const out = await consumeArtifact(guarded, "GH-9100");
+    expect(out.value).toEqual({ greeting: "hi", n: 2 });
   });
 });

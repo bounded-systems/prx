@@ -18,7 +18,14 @@ import { dirname, join } from "node:path";
 import { defaultRunner } from "@bounded-systems/proc";
 import { z } from "zod";
 
-import { type ArtifactEdge, defineEdge, emitArtifact } from "./edge.ts";
+import {
+  type ArtifactDiagnostic,
+  type ArtifactEdge,
+  type ArtifactValidator,
+  defineEdge,
+  emitArtifact,
+  runArtifactContract,
+} from "./edge.ts";
 
 export const agentResultSchema = z.object({
   /** The producing actor (intake, triage, …). */
@@ -71,6 +78,39 @@ export const reportedResultSchema = z.object({
 });
 export type ReportedResult = z.infer<typeof reportedResultSchema>;
 
+/**
+ * prx-bs4: the semantic contract for an agent result, beyond the schema. A
+ * disposition that names an existing or new UoW must carry that `uow`, and a
+ * `no_action` outcome must say why. This is the configurable validator the
+ * uniform save seam runs on every emit/consume of an `agent_result`.
+ */
+const UOW_DISPOSITIONS = new Set([
+  "filed",
+  "merged",
+  "duplicate",
+  "classified",
+  "promoted",
+  "deferred",
+]);
+const agentResultContract: ArtifactValidator<AgentResult> = (r) => {
+  const diagnostics: ArtifactDiagnostic[] = [];
+  if (r.disposition && UOW_DISPOSITIONS.has(r.disposition) && !r.uow) {
+    diagnostics.push({
+      code: "missing-uow",
+      path: "uow",
+      message: `disposition '${r.disposition}' must reference a UoW (uow)`,
+    });
+  }
+  if (r.disposition === "no_action" && !r.reason) {
+    diagnostics.push({
+      code: "missing-reason",
+      path: "reason",
+      message: "disposition 'no_action' must include a reason",
+    });
+  }
+  return diagnostics;
+};
+
 /** The result edge: an agent pins its outcome for the operator to read. */
 const agentResultEdge: ArtifactEdge<AgentResult> = defineEdge({
   kind: "agent_result",
@@ -78,6 +118,7 @@ const agentResultEdge: ArtifactEdge<AgentResult> = defineEdge({
   source: "agent",
   target: "operator",
   schema: agentResultSchema,
+  validators: [agentResultContract],
 });
 
 /** Injected bead-id reader (the impure `bd list`); overridable in tests. */
@@ -142,7 +183,7 @@ export async function captureAgentResult(input: {
   after: Set<string>;
   /** What the agent reported via `prx <actor> result` (preferred over the diff). */
   reported?: ReportedResult | undefined;
-}): Promise<{ ref: string; result: AgentResult }> {
+}): Promise<{ ref: string; result: AgentResult; diagnostics: readonly ArtifactDiagnostic[] }> {
   const uows = [...input.after].filter((id) => !input.before.has(id)).sort();
   const result: AgentResult = {
     actor: input.actor,
@@ -157,14 +198,20 @@ export async function captureAgentResult(input: {
     uows,
     summary: summarizeAgentStdout(input.stdout),
   };
-  // The CAS pin is best-effort: the result is already computed, so a CAS write
-  // failure must never break the agent run — return an empty ref and let the
-  // caller surface the result without it.
+  // prx-bs4: run the artifact contract (schema + validators). A contract
+  // violation (e.g. the agent reported `filed` with no UoW) is surfaced via the
+  // returned diagnostics — the caller warns the operator — and the invalid
+  // artifact is NOT pinned. A clean result is pinned best-effort: a CAS write
+  // failure must never break the agent run (return an empty ref then).
+  const { diagnostics } = runArtifactContract(agentResultEdge, result);
+  if (diagnostics.length > 0) {
+    return { ref: "", result, diagnostics };
+  }
   try {
     const { ref } = await emitArtifact(agentResultEdge, input.workspaceId, result);
-    return { ref, result };
+    return { ref, result, diagnostics: [] };
   } catch {
-    return { ref: "", result };
+    return { ref: "", result, diagnostics: [] };
   }
 }
 
