@@ -7,10 +7,11 @@
 // backing changes); the drift test fails otherwise.
 
 import { writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
+import { REPO_ROOT } from "../src/repo-root.ts";
 import { generateStatusDoc, generateValuePropsDoc } from "../src/value_props.ts";
 
-const repoRoot = resolve(import.meta.dir, "../../..");
+const repoRoot = REPO_ROOT;
 writeFileSync(join(repoRoot, "docs", "value-props.md"), generateValuePropsDoc());
 console.log("wrote docs/value-props.md");
 // The top of the bubble-up: forcing functions → value props → STATUS.md.

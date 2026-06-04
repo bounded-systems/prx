@@ -5,7 +5,8 @@
 
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
+import { REPO_ROOT } from "../../src/repo-root.ts";
 import {
   POLICY_ROLES,
   allowedSubcommands,
@@ -18,8 +19,7 @@ import {
   generateOrchestratorDoc,
 } from "../../src/agents/generate.ts";
 
-const repoRoot = resolve(import.meta.dir, "../../../..");
-const agentsDir = join(repoRoot, ".claude", "agents");
+const agentsDir = join(REPO_ROOT, ".claude", "agents");
 
 describe("actor sub-agent codegen (prx-g88.1)", () => {
   test("every committed .claude/agents/*.md matches the generator (no drift)", () => {
