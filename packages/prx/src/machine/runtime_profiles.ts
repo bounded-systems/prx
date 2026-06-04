@@ -797,6 +797,14 @@ export function buildWorkUnitClaudePlanPrintRuntimeProfile(input: {
       permissionMode: "plan",
       strictMcpConfig: true,
       settingSources: ["project", "local"],
+      // prx-pln: enforce the structured plan artifact. With this set,
+      // executeAgentProfile injects the `prx-plan` MCP `submit_plan` tool (input
+      // schema = PlanArtifactShape), so the planner MUST submit a schema-valid
+      // PlanArtifact (non-empty `scope` …) rather than free prose — the rendered
+      // artifact (with `## Scope`) becomes the saved body and passes the shape
+      // gate, so `prx implement agent` accepts it. (Was declared but never set,
+      // so the planner ran unconstrained and emitted prose that failed the gate.)
+      capturePlanArtifact: true,
     },
     trustTiers: {
       tierA_controlled: ["project cwd", `${role} system prompt`, "project MCP config"],

@@ -1313,6 +1313,16 @@ describe("ops plan runtime profile (GH-1147)", () => {
   });
 });
 
+describe("prx-pln — plan-print enforces the structured plan artifact", () => {
+  test("the plan-print profile sets capturePlanArtifact so submit_plan is enforced", () => {
+    // Without this, executeAgentProfile never injects the `prx-plan` submit_plan
+    // tool, the planner emits free prose, and the draft fails the `## Scope`
+    // shape gate — so `prx implement agent` refuses. (prx-pln regression.)
+    const p = buildWorkUnitClaudePlanPrintRuntimeProfile({ workUnitId: "GH-1" });
+    expect(p.sdkSpec?.capturePlanArtifact).toBe(true);
+  });
+});
+
 describe("GH-1407 — non-interactive sdkSpec cache split", () => {
   test("plan-print stable prefix is byte-identical across different workUnitIds", () => {
     const a = buildWorkUnitClaudePlanPrintRuntimeProfile({ workUnitId: "GH-1111" });
