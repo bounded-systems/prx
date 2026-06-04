@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -2309,16 +2309,24 @@ export function buildScratchSandboxSettings(cwd: string): {
 /**
  * GH-2394: resolve the on-disk path for the scratch sandbox settings file.
  * Prefers the project runtime dir (`<cwd>/.pr/local/runtime/`) when it exists
- * so the file lives alongside the other runtime artifacts; otherwise falls
- * back to `$TMPDIR`. The filename is fixed (idempotent — re-launching scratch
- * in the same cwd overwrites rather than clutters).
+ * so the file lives alongside the other runtime artifacts (idempotent — the
+ * filename is fixed, so re-launching scratch in the same cwd overwrites rather
+ * than clutters).
+ *
+ * Without a project runtime dir it falls back to a private, per-invocation
+ * temp directory created with `mkdtempSync` (mode 0700, unguessable name)
+ * rather than a predictable `$TMPDIR/prx-<fixed>` path. A fixed name in the
+ * shared OS temp dir is open to symlink / pre-creation hijacking (CodeQL
+ * js/insecure-temporary-file); the trade-off is that the fallback no longer
+ * overwrites in place, but the project-runtime-dir path — the common case —
+ * keeps its idempotency.
  */
 export function resolveScratchSandboxSettingsPath(cwd: string): string {
   const runtimeDir = join(cwd, ".pr", "local", "runtime");
   if (existsSync(runtimeDir)) {
     return join(runtimeDir, scratchSandboxSettingsFilename);
   }
-  return join(tmpdir(), `prx-${scratchSandboxSettingsFilename}`);
+  return join(mkdtempSync(join(tmpdir(), "prx-scratch-")), scratchSandboxSettingsFilename);
 }
 
 /**
