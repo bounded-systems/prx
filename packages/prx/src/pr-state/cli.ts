@@ -640,6 +640,18 @@ import {
 } from "../provenance/signer.ts";
 import { projectProvenanceAxis } from "../provenance/merge-guard.ts";
 import type { Derivation } from "@bounded-systems/anchored-chain";
+import {
+  provenanceConfigPath,
+  readProvenanceTrustMap,
+  resolveProvenanceMaster,
+  writeProvenanceTrustMap,
+} from "../provenance/config.ts";
+import {
+  type KeymakerDeps,
+  keymakerDigest,
+  keymakerDrift,
+  keymakerRegister,
+} from "../provenance/keymaker.ts";
 import type { ProvenanceAxis } from "../machine/machines/workflow.ts";
 // GH-2282: persisted dev provenance identity — `prx provenance dev-pubkey`.
 import {
@@ -1403,6 +1415,14 @@ type ParsedCommand =
       // to match resolver semantics, so it doubles as a bootstrap-and-inspect
       // command for the zero-config dev sign → enforce → verify loop.
       command: "provenance-dev-pubkey";
+      format: "plain" | "json";
+    }
+  | {
+      // prx-keymaker: the secretless registrar — actor identity / trust-map
+      // register / drift. Holds no private key; publishes public material only.
+      command: "keymaker";
+      verb: "digest" | "register" | "drift";
+      actor?: string | undefined;
       format: "plain" | "json";
     }
   | {
@@ -6397,6 +6417,34 @@ function parseProvenanceCommand(rest: string[]): ParsedCommand {
   };
 }
 
+function parseKeymakerCommand(rest: string[]): ParsedCommand {
+  const [verb, ...tail] = rest;
+  if (verb === undefined || !["digest", "register", "drift"].includes(verb)) {
+    throw new CliError(
+      "Usage: prx keymaker <digest <actor> | register | drift> [--format plain|json]\n" +
+        "  digest <actor>  actor@<digest> identity (pure)\n" +
+        "  register        derive every actor's PUBLIC key + write the trust map\n" +
+        "  drift           actors whose identity/key changed since register",
+    );
+  }
+  const { values, positionals } = parseArgs({
+    args: tail,
+    options: { format: { type: "string", default: "plain" } },
+    strict: true,
+    allowPositionals: true,
+  });
+  const format = ensureChoice(values.format, ["plain", "json"], "--format");
+  if (verb === "digest") {
+    const actor = positionals[0];
+    if (actor === undefined) throw new CliError("prx keymaker digest requires an <actor>");
+    return { command: "keymaker", verb: "digest", actor, format };
+  }
+  if (positionals.length > 0) {
+    throw new CliError(`prx keymaker ${verb} takes no positional arguments`);
+  }
+  return { command: "keymaker", verb: verb as "register" | "drift", format };
+}
+
 // GH-1823: `prx audit <verb>` — read-only adherence-metric verb.
 const AUDIT_VERBS = ["ingest", "uow", "system"] as const;
 type AuditVerb = (typeof AUDIT_VERBS)[number];
@@ -8050,6 +8098,11 @@ export function parseCommand(argv: string[]): ParsedCommand {
   // Verb: dev-pubkey (print the persisted dev signing identity).
   if (command === "provenance") {
     return parseProvenanceCommand(rest);
+  }
+
+  // prx-keymaker: the secretless per-actor key registrar.
+  if (command === "keymaker") {
+    return parseKeymakerCommand(rest);
   }
 
   // GH-1318: `prx submit <verb>` — pre/post-merge issue-close cleanup.
@@ -21998,6 +22051,40 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         output.log(`source: ${source}`);
       }
       return 0;
+    }
+
+    if (parsed.command === "keymaker") {
+      const km: KeymakerDeps = {
+        master: () => resolveProvenanceMaster(),
+        readTrust: () => readProvenanceTrustMap(),
+        writeTrust: (trust) => writeProvenanceTrustMap(trust),
+      };
+      if (parsed.verb === "digest") {
+        output.log(keymakerDigest(parsed.actor ?? ""));
+        return 0;
+      }
+      if (parsed.verb === "register") {
+        const r = keymakerRegister(km);
+        if (parsed.format === "json") {
+          output.log(JSON.stringify({ registered: r.trust, changed: r.changed }));
+        } else {
+          output.log(`keymaker register: ${Object.keys(r.trust).length} actors → ${provenanceConfigPath()}`);
+          if (r.changed.length > 0) output.log(`  changed: ${r.changed.join(", ")}`);
+          else output.log("  (no changes — trust map already current)");
+        }
+        return 0;
+      }
+      // drift
+      const drift = keymakerDrift(km);
+      if (parsed.format === "json") {
+        output.log(JSON.stringify({ drift }));
+      } else if (drift.length === 0) {
+        output.log("keymaker drift: trust map is current (no drift)");
+      } else {
+        output.log("keymaker drift:");
+        for (const d of drift) output.log(`  ${d.actor} — ${d.reason}`);
+      }
+      return drift.length === 0 ? 0 : 1;
     }
 
     // GH-885 + GH-882: doctor actor — read-only `inventory`. GH-1559: the
