@@ -63,6 +63,16 @@ describe("intake→triage edge (prx-4fa)", () => {
     expect(got.value).toEqual({ id: "GH-1900", title: "stale board column", status: "open" });
   });
 
+  test("pinUow propagates reader errors for unknown units", async () => {
+    const read = fakeReader({
+      "GH-1900": { id: "GH-1900", title: "stale board column", status: "open" },
+    });
+
+    await expect(pinUow("GH-UNKNOWN", read)).rejects.toThrow(
+      "fake: no record for GH-UNKNOWN",
+    );
+  });
+
   test("uowFresh: fresh after pin, stale once the live issue/bead drifts", async () => {
     const store: Record<string, RawUow> = {
       "GH-2000": { id: "GH-2000", title: "v1", status: "open" },
