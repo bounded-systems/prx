@@ -19967,9 +19967,22 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
                     output.log(
                       `implement: ${parsed.workUnitId} → ${fin.ref} (commit ${fin.artifact?.commit.slice(0, 7)}${checks})`,
                     );
+                  } else if (fin.artifact === null) {
+                    // prx-pl3: no new commit ⇒ nothing to pin. Surface it so a
+                    // missing implement@latest is diagnosable, not silent.
+                    output.error(
+                      `note: implement ${parsed.workUnitId} left no new commit — no implement@latest pinned`,
+                    );
+                  } else if (fin.diagnostics.length > 0) {
+                    output.error(
+                      `warning: implement artifact for ${parsed.workUnitId} failed its contract (${fin.diagnostics.map((d) => d.code).join(", ")}) — not pinned`,
+                    );
                   }
-                } catch {
-                  // capture is best-effort; the implement run already succeeded.
+                } catch (err) {
+                  // capture is best-effort — the commit is already safe — but the
+                  // reason is surfaced so a missing implement@latest is diagnosable.
+                  const msg = err instanceof Error ? err.message : String(err);
+                  output.error(`warning: implement artifact capture failed for ${parsed.workUnitId} (commit is safe): ${msg}`);
                 }
               }
               return result.status;
