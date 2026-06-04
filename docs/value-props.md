@@ -38,7 +38,9 @@ value prop. `exercises` is the code that delivers the claim — the refactoring 
 
 **Why not X:** vs raw Claude Code: per-actor/unit usage is projected from the audit ledger.
 
-- ⚠️ per-unit Anthropic usage is visible — learning goal: verb implemented + runs from source (exit 0), but the released binary errors (prx-eky: schema.sql not embedded) and it needs `prx audit ingest` data
+- 📎 the compiled binary opens the audit DB (schema embedded) — prx-eky / #106 — `./dist/prx services status --anthropic` exits 0 with no ENOENT; audit-DB smoke test in prx_binary.test.ts
+  - exercises: audit/store/db.ts:openAuditDb, audit/store/sql-asset.d.ts, scripts/prx-compile.ts
+- ⚠️ per-unit usage is visible — learning goal: the verb + DB now work (binary blocker cleared by prx-eky); needs `prx audit ingest` data for the claim to back
 
 ## Code → value props (pruning / refactoring lens)
 
@@ -47,9 +49,12 @@ value prop. `exercises` is the code that delivers the claim — the refactoring 
 - `agents/generate.ts:generateOrchestratorDoc` → "An agent cannot perform an action its role doesn't own."
 - `agents/policy_guard.ts:decideAgentToolCall` → "An agent cannot perform an action its role doesn't own."
 - `agents/policy_guard.ts:parsePolicedCommand` → "An agent cannot perform an action its role doesn't own."
+- `audit/store/db.ts:openAuditDb` → "You can see what each work unit cost."
+- `audit/store/sql-asset.d.ts` → "You can see what each work unit cost."
 - `pr-state/keeper.ts:runKeeperCommitTree` → "A beads work unit can travel intake → merged PR through one signed pipeline."
 - `provenance/effect-ownership.ts:verifyEffectOwnership` → "A privileged effect not produced by its owning actor fails verification."
 - `provenance/signer.ts:actorFromBuilderId` → "A privileged effect not produced by its owning actor fails verification."
+- `scripts/prx-compile.ts` → "You can see what each work unit cost."
 - `submit/artifact.schema.ts:submitRefFor` → "A beads work unit can travel intake → merged PR through one signed pipeline."
 - `submit/artifact.schema.ts:WORK_UNIT_RE` → "A beads work unit can travel intake → merged PR through one signed pipeline."
 - `submit/publish.ts:runSubmitPublish` → "A beads work unit can travel intake → merged PR through one signed pipeline."
