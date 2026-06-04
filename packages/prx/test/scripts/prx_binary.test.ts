@@ -4,7 +4,12 @@ import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { describe, expect, test, beforeAll, afterAll } from "bun:test";
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+// Repo root is four levels up from this file (test/scripts/ → packages/prx/
+// → packages/ → root). The compiled binary lands at repo-root dist/prx — both
+// `bun run prx:build` and ci.yml emit there — so binaryPath must resolve to
+// the root, not packages/prx. (Previously "../.." pointed at packages/prx,
+// where no binary ever exists, so every test here silently self-skipped.)
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const binaryPath = join(repoRoot, "dist", "prx");
 
 /**
@@ -35,14 +40,14 @@ function createSandbox(): string {
 
 function run(
   args: string[],
-  opts?: { cwd?: string },
+  opts?: { cwd?: string; env?: Record<string, string | undefined> },
 ): { stdout: string; stderr: string; exitCode: number } {
   const result = Bun.spawnSync({
     cmd: [binaryPath, ...args],
     cwd: opts?.cwd ?? repoRoot,
     stdout: "pipe",
     stderr: "pipe",
-    env: process.env,
+    env: opts?.env ?? process.env,
   });
   return {
     stdout: new TextDecoder().decode(result.stdout).trim(),
@@ -132,14 +137,15 @@ describe("prx compiled binary", () => {
       expect(stdout).toContain("contract");
     });
 
-    test("session open --help prints session semantics", () => {
+    // `prx session` was retired (GH-1530 → canonical `prx plan session`). This
+    // test was silently self-skipping (the binary-path bug fixed alongside
+    // prx-eky), so it still asserted the old surface; pin the retirement redirect.
+    test("session open is retired and redirects to plan session", () => {
       if (!hasBinary()) return;
-      const { stdout, exitCode } = run(["session", "open", "--help"], { cwd: sandbox });
-      expect(exitCode).toBe(0);
-      expect(stdout).toContain("prx session open");
-      expect(stdout).toContain("--agent");
-      expect(stdout).toContain("--dry-run");
-      expect(stdout).toContain("--format");
+      const { stderr, exitCode } = run(["session", "open", "--help"], { cwd: sandbox });
+      expect(exitCode).toBe(1);
+      expect(stderr).toContain("retired");
+      expect(stderr).toContain("prx plan session");
     });
   });
 
@@ -173,6 +179,34 @@ describe("prx compiled binary", () => {
       const parsed = JSON.parse(stdout);
       expect(parsed).toHaveProperty("id");
       expect(parsed).toHaveProperty("type");
+    });
+  });
+
+  // ── audit DB embedded schema (prx-eky) ───────────────────────────────
+  //
+  // The compiled binary applies its SQLite DDL from schema.sql on first DB
+  // open. If that asset is not embedded into the --compile bundle, every
+  // audit-DB command ENOENTs on `/$bunfs/root/schema.sql`. `audit system`
+  // lazily creates the DB and applies the schema, so it exercises the embed
+  // with no ingest and no network. XDG_STATE_HOME points the DB at a temp
+  // dir so the smoke test never touches the dev machine's real metrics store.
+  describe("audit DB embedded schema (prx-eky)", () => {
+    test("audit system opens the DB without ENOENT schema.sql", () => {
+      if (!hasBinary()) return;
+      const stateDir = mkdtempSync(join(tmpdir(), "prx-audit-state-"));
+      try {
+        const { stdout, stderr, exitCode } = run(["audit", "system", "--format", "json"], {
+          cwd: sandbox,
+          env: { ...process.env, XDG_STATE_HOME: stateDir },
+        });
+        expect(stderr).not.toContain("schema.sql");
+        expect(stderr).not.toContain("ENOENT");
+        expect(exitCode).toBe(0);
+        const parsed = JSON.parse(stdout);
+        expect(parsed).toHaveProperty("metrics");
+      } finally {
+        rmSync(stateDir, { recursive: true, force: true });
+      }
     });
   });
 });
