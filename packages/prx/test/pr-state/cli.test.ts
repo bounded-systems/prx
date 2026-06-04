@@ -1378,6 +1378,43 @@ describe("pr_state cli", () => {
     }
   }, 30000);
 
+  test("autoRebaseOnSessionOpen recovers a stale index.lock and still rebases (prx-0yf)", () => {
+    // The live foot-gun: a crashed sibling git left an index.lock behind, so the
+    // rebase aborts with "Unable to create '<path>/index.lock': File exists" and
+    // session-open warns "auto-rebase skipped". With lock recovery the stale lock
+    // is cleared + the rebase retried, so a clean divergence still rebases.
+    // lockHolders is injected ([] = unheld) so recovery does not depend on lsof.
+    const local = mkdtempSync(join(tmpdir(), "prx-auto-rebase-stale-lock-"));
+    try {
+      Bun.spawnSync({ cmd: ["git", "init", "-b", "main", local], stdout: "pipe", stderr: "pipe" });
+      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "user.name", "test"], stdout: "pipe", stderr: "pipe" });
+      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "user.email", "test@test"], stdout: "pipe", stderr: "pipe" });
+      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "commit.gpgsign", "false"], stdout: "pipe", stderr: "pipe" });
+      Bun.spawnSync({ cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "base"], stdout: "pipe", stderr: "pipe" });
+      const baseSha = new TextDecoder().decode(
+        Bun.spawnSync({ cmd: ["git", "-C", local, "rev-parse", "HEAD"], stdout: "pipe" }).stdout,
+      ).trim();
+      Bun.spawnSync({ cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "remote-only"], stdout: "pipe", stderr: "pipe" });
+      Bun.spawnSync({ cmd: ["git", "-C", local, "update-ref", "refs/remotes/origin/main", "HEAD"], stdout: "pipe", stderr: "pipe" });
+      Bun.spawnSync({ cmd: ["git", "-C", local, "checkout", "-b", "feat", baseSha], stdout: "pipe", stderr: "pipe" });
+      // Plant a stale lock exactly where git would create it.
+      const lockPath = join(local, ".git", "index.lock");
+      writeFileSync(lockPath, "");
+
+      const result = autoRebaseOnSessionOpen(local, {
+        skipFetch: true,
+        lockRecovery: { lockHolders: () => [] }, // unheld ⇒ safe to clear
+      });
+      if (result.status !== "rebased") {
+        throw new Error(`expected rebased after lock recovery, got ${JSON.stringify(result)}`);
+      }
+      expect(result.behind).toBe(1);
+      expect(existsSync(lockPath)).toBe(false); // the stale lock was cleared
+    } finally {
+      rmSync(local, { recursive: true, force: true });
+    }
+  }, 30000);
+
   test("autoRebaseOnSessionOpen skips with 'protected branch' when on main", () => {
     const remote = mkdtempSync(join(tmpdir(), "prx-auto-rebase-protected-remote-"));
     const local = mkdtempSync(join(tmpdir(), "prx-auto-rebase-protected-local-"));
