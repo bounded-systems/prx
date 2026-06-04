@@ -10,7 +10,7 @@
 // the ADR's §5 step 7.
 
 import { bakedClaudeCodePath } from "../build-info.ts";
-import { getEnv } from "@bounded-systems/env";
+import { getEnv, processEnv } from "@bounded-systems/env";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
@@ -264,6 +264,28 @@ export function resolveClaudeExecutablePath(
   );
 }
 
+/**
+ * prx-pe1 (slice 3): resolve the directory containing `bun` so the headless
+ * executor's allowlisted `bun test` / `bun run typecheck` checks actually
+ * resolve. bun is routinely absent from the non-interactive PATH the SDK
+ * subprocess inherits (memory: bun-not-on-noninteractive-path), so a check the
+ * allowlist permits still fails "command not found" — which is what made a real
+ * executor refuse to commit. Picks the first dir that actually holds a `bun`
+ * executable. Precedence: `PRX_BUN_DIR` → common `$HOME` installs.
+ */
+export function resolveBunDir(
+  candidates: ReadonlyArray<string | undefined> = [
+    getEnv("PRX_BUN_DIR"),
+    join(homedir(), ".local/share/bun-home/bin"),
+    join(homedir(), ".bun/bin"),
+  ],
+  exists: (path: string) => boolean = existsSync,
+): string | undefined {
+  return candidates.find(
+    (d): d is string => typeof d === "string" && d.length > 0 && exists(join(d, "bun")),
+  );
+}
+
 function buildSdkOptions(
   spec: RuntimeAgentSdkSpec,
   opts: RunClaudeAgentNonInteractiveOpts,
@@ -334,6 +356,22 @@ function buildSdkOptions(
       ...dynamic,
     ];
   }
+
+  // prx-pe1 (slice 3): the SDK's tool subprocesses inherit `options.env`
+  // (defaulting to the ambient environment). When bun is resolvable but missing
+  // from the inherited PATH, prepend its dir so the executor's allowlisted
+  // `bun test` / `bun run typecheck` checks resolve. Left unset (→ inherited
+  // environment) when bun is already on PATH or not found, so non-executor
+  // agents are unaffected.
+  const bunDir = resolveBunDir();
+  if (bunDir) {
+    const env = processEnv();
+    const currentPath = env.PATH ?? "";
+    if (!currentPath.split(":").includes(bunDir)) {
+      options.env = { ...env, PATH: currentPath ? `${bunDir}:${currentPath}` : bunDir };
+    }
+  }
+
   return options;
 }
 

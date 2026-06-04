@@ -8,6 +8,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  resolveBunDir,
   runClaudeAgentNonInteractive,
   type ClaudeAgentQuery,
 } from "../../src/claude/agent_service.ts";
@@ -665,5 +666,28 @@ describe("buildSdkOptions — pathToClaudeCodeExecutable (GH-2137)", () => {
     // present) or leaves the field unset for SDK self-resolution — but it must
     // NEVER pass the missing path (the old `??`-chain bug that broke releases).
     expect(cap.get().pathToClaudeCodeExecutable).not.toBe(missingPath);
+  });
+});
+
+describe("resolveBunDir — bun on the headless session PATH (prx-pe1 slice 3)", () => {
+  test("PRX_BUN_DIR wins when it holds a bun executable", () => {
+    const dir = resolveBunDir(
+      ["/opt/bun-home/bin", "/home/u/.bun/bin"],
+      (p) => p === "/opt/bun-home/bin/bun",
+    );
+    expect(dir).toBe("/opt/bun-home/bin");
+  });
+
+  test("falls through to the next candidate that actually holds bun", () => {
+    const dir = resolveBunDir(
+      [undefined, "/missing/bin", "/home/u/.bun/bin"],
+      (p) => p === "/home/u/.bun/bin/bun",
+    );
+    expect(dir).toBe("/home/u/.bun/bin");
+  });
+
+  test("returns undefined when no candidate holds bun (→ inherited PATH unchanged)", () => {
+    const dir = resolveBunDir(["/a/bin", "/b/bin"], () => false);
+    expect(dir).toBeUndefined();
   });
 });

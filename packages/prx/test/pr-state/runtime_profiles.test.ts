@@ -1434,6 +1434,20 @@ describe("buildWorkUnitClaudeImplementSdkRuntimeProfile (headless-first step 2)"
     expect(prompt).toContain("Execute the implementation plan for prx-0v5");
   });
 
+  test("headless system prompt does not order denied CLIs; works from the artifact (prx-pe1 slice 2)", () => {
+    // The shared interactive mandate ("inspect prx graph/model/actors") orders
+    // tools the headless allowlist denies — the executor's stated refusal
+    // reason. The headless system prompt must not carry it.
+    const sys = buildWorkUnitClaudeImplementSdkRuntimeProfile({ workUnitId: "prx-0v5" })
+      .sdkSpec?.systemPromptStable?.join(" ") ?? "";
+    expect(sys).not.toContain("prx graph");
+    expect(sys).not.toContain("prx model");
+    expect(sys).not.toContain("prx actors");
+    // It tells the executor to work from the embedded plan + its real toolset.
+    expect(sys).toContain("embedded in the task prompt");
+    expect(sys).toContain("prx tools git");
+  });
+
   test("injects the plan path into the dynamic segment when provided", () => {
     const p = buildWorkUnitClaudeImplementSdkRuntimeProfile({
       workUnitId: "GH-1234",

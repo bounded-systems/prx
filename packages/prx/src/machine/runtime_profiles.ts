@@ -582,6 +582,32 @@ function buildRoleStableSystemPrompt(role: TaskAgentRole = "executor"): string {
   ].join(" ");
 }
 
+/**
+ * prx-pe1 (slice 2): the system prompt for the HEADLESS executor, derived for
+ * its actual posture instead of the shared interactive mandate.
+ *
+ * The shared `buildRoleStableSystemPrompt("executor")` tells the agent to "start
+ * from the state machine" by running `prx graph` / `prx model` / `prx actors` —
+ * fine for an interactive executor (TTY approval, dispatch reads), but those
+ * CLIs are DENIED in the headless allowlist, so a headless run that obeyed the
+ * mandate dead-ended ("every executable I need is blocked"). The model-first
+ * analysis those commands would produce is already in the embedded plan, so the
+ * headless executor works FROM the artifact and reads the codebase directly
+ * (Read/Grep/Glob) rather than re-deriving scope through denied tools. This is
+ * the "prompt = projection(input artifact, actor)" rule: the actor's real
+ * toolset shapes what it is told to do.
+ */
+function buildHeadlessExecutorStableSystemPrompt(): string {
+  return [
+    "You are the executor agent, running headlessly — there is no interactive approval, so any tool outside your granted allowlist simply cannot run.",
+    "Stay strictly scoped to your work unit, its current directory, and the configured tool boundaries. Do not invent or switch identities.",
+    "Your confirmed scope is the approved plan embedded in the task prompt; it already carries the model-first analysis (workflow states, actor ownership, event/schema boundaries). Implement exactly that scope and do not widen it.",
+    "Do NOT run `prx`, `bd`, `gh`, or raw `git` to re-derive scope or inspect the model — they are intentionally outside your headless toolset. Read the codebase directly with Read/Grep/Glob instead.",
+    "Use only your granted tools: edit and write files directly, run the project checks, and route git / beads / worktree writes through the `prx tools git|bd|wt` wrappers.",
+    "If the embedded plan is insufficient to proceed safely, stop and report precisely what is missing — do not guess or fabricate work.",
+  ].join(" ");
+}
+
 function buildWorkUnitDynamicSystemSegment(
   workUnitId: string,
   planPath?: string,
@@ -861,7 +887,10 @@ export function buildWorkUnitClaudeImplementSdkRuntimeProfile(input: {
   planBody?: string | undefined;
 }): RuntimeProfileProjection {
   const role: TaskAgentRole = "executor";
-  const systemPromptStable = buildRoleStableSystemPrompt(role);
+  // prx-pe1 (slice 2): headless-posture system prompt — derived for the
+  // executor's real (restricted) toolset, not the shared interactive mandate
+  // that orders denied `prx graph/model/actors` reads.
+  const systemPromptStable = buildHeadlessExecutorStableSystemPrompt();
   const dynamicSegments = [buildWorkUnitDynamicSystemSegment(input.workUnitId)];
   if (input.planPath) {
     dynamicSegments.push(`Execute the plan at ${input.planPath}.`);
