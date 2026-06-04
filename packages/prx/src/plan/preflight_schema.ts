@@ -110,7 +110,7 @@ export const PreflightActionDeferredFinding = z.object({
   shape: PreflightActionShape,
   subcommand: z.string().min(1),
   owningRoles: z
-    .array(z.enum(["planner", "executor", "reviewer", "tester", "keeper"]))
+    .array(z.enum(["planner", "executor", "reviewer", "tester", "keeper", "forge"]))
     .min(1),
   owningProfiles: z
     .array(z.enum(["plan", "intake", "triage", "implement", "submit", "author"]))
@@ -135,7 +135,7 @@ export const PreflightActionPerspectiveMismatchFinding = z.object({
   subcommand: z.string().min(1),
   perspective: ActionPerspective,
   section: z.string().optional(),
-  currentRole: z.enum(["planner", "executor", "reviewer", "tester", "keeper"]),
+  currentRole: z.enum(["planner", "executor", "reviewer", "tester", "keeper", "forge"]),
   detail: z.string().optional(),
 });
 export type PreflightActionPerspectiveMismatchFinding = z.infer<

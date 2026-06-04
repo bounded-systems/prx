@@ -64,6 +64,12 @@ export const actorNames = [
   // write ticket can wire its events to phase transitions without
   // churning the registry twice.
   "fetch",
+  // prx-gr1: GitHub-write / forge-custody actor — the twin of `keeper` (git).
+  // Owns ALL gh writes (issues, labels, comments, PRs, merges) so the capability
+  // lives in one actor (role=forge in the policy table) rather than scattered
+  // across executor / reviewer / publisher; other actors dispatch gh to it. The
+  // PR/merge boundary artifacts (pr@pinned, merge/v1) are produced here.
+  "forge",
   // GH-2026/GH-2327: unified housekeeping actor. One actor, three verbs across
   // two classes — sweep (`gc inventory`, `gc run`; dry-run by default) and
   // targeted (`gc teardown`; acts by default). First-class actor, NOT folded
