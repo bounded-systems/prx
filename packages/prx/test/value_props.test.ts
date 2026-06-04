@@ -9,6 +9,7 @@ import {
   backingOf,
   codeToValueProps,
   exercisedBy,
+  generateStatusDoc,
   generateValuePropsDoc,
   isValuePropBacked,
 } from "../src/value_props.ts";
@@ -33,6 +34,24 @@ describe("value props (prx-8mx)", () => {
       readFileSync(path, "utf8"),
       "docs/value-props.md is stale — run `bun packages/prx/scripts/gen-value-props.ts` and commit",
     ).toBe(generateValuePropsDoc());
+  });
+
+  test("the committed STATUS.md matches the generator (the bubble-up top, no drift)", () => {
+    const path = join(repoRoot, "STATUS.md");
+    expect(existsSync(path)).toBe(true);
+    expect(
+      readFileSync(path, "utf8"),
+      "STATUS.md is stale — run `bun packages/prx/scripts/gen-value-props.ts` and commit",
+    ).toBe(generateStatusDoc());
+  });
+
+  test("STATUS.md reports the live backed count and lists every learning goal", () => {
+    const doc = generateStatusDoc();
+    const backed = VALUE_PROPS.filter(isValuePropBacked).length;
+    expect(doc).toContain(`**${backed} of ${VALUE_PROPS.length} value props backed**`);
+    for (const vp of VALUE_PROPS) {
+      if (!isValuePropBacked(vp)) expect(doc).toContain(`⚠️ ${vp.claim}`);
+    }
   });
 
   test("a value prop is backed iff none of its forcing functions are learning goals", () => {
