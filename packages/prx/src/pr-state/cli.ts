@@ -632,7 +632,7 @@ import {
 } from "../submit/publish.ts";
 // GH-2269: live Signer factory + ledger handle for production SLSA emission.
 import {
-  isActorDevMode,
+  isPerActorMode,
   requireSignedDerivations,
   resolveActorVerifierForDerivation,
   resolveProvenanceSigner,
@@ -6118,7 +6118,7 @@ export async function resolveMergeGuardProvenanceAxis(
       // prx-keymaker: in per-actor (`actor-dev`) mode, check each derivation
       // against the key of the actor named in its own `builder.id` — the actor
       // and the signature must match. Other modes keep the single verifier above.
-      ...(isActorDevMode()
+      ...(isPerActorMode()
         ? { verifierFor: (d: Derivation) => resolveActorVerifierForDerivation(d) }
         : {}),
       enforce: true,

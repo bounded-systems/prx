@@ -169,11 +169,13 @@ describe("resolveProvenanceVerifier — env-gated", () => {
     expect(await verifier.verify(pae, await signer.sign(pae))).toBe(false);
   });
 
-  test("GH-2282: dev mode self-verifies — verifier auto-loads the persisted dev key with PUBKEY unset", async () => {
-    const signer = resolveProvenanceSigner(devEnv())!;
-    // No PRX_PROVENANCE_PUBKEY set — the verifier must fall back to the same
-    // persisted dev key the signer used.
-    const verifier = resolveProvenanceVerifier(devEnv())!;
+  test("GH-2282: single-key dev self-verifies (opt-out) — verifier auto-loads the persisted dev key with PUBKEY unset", async () => {
+    // prx-1bo: per-actor is the default; this is the single-key escape hatch
+    // (PRX_PROVENANCE_PER_ACTOR=off), where signer + verifier share the one
+    // persisted dev key. (Per-actor dev self-verify is covered in actor-signer.test.)
+    const env = devEnv({ PRX_PROVENANCE_PER_ACTOR: "off" });
+    const signer = resolveProvenanceSigner(env)!;
+    const verifier = resolveProvenanceVerifier(env)!;
     expect(verifier).not.toBeNull();
     const pae = dssePae(DSSE_PAYLOAD_TYPE, new TextEncoder().encode("x"));
     expect(await verifier.verify(pae, await signer.sign(pae))).toBe(true);
