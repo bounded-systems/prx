@@ -116,8 +116,10 @@ import { emit } from "../cli/emit.ts";
 import {
   agentResultSchema,
   captureAgentResult,
+  planAgentResultSchema,
   readReportedResult,
   renderAgentResult,
+  renderPlanAgentResult,
   type ReportedResult,
   snapshotBeadIds,
   writeReportedResult,
@@ -13625,6 +13627,18 @@ function latestReleaseTag(cwd: string): string | null {
   return newest ?? null;
 }
 
+/**
+ * prx-j4a: human label for where a UoW lives, for the `prx plan agent`
+ * input-artifact framing (`prx-0v5 (beads) → …`). Best-effort — omitted when the
+ * id's domain isn't recognized.
+ */
+function planSourceLabel(unit: string): string | undefined {
+  const domain = adapterForCanonicalId(unit)?.config?.domain;
+  if (domain === "bd") return "beads";
+  if (domain === "gh") return "github";
+  return domain;
+}
+
 /** Shared release-update warning so all session-entry call sites stay in sync. */
 export function formatBinaryUpdateWarning(update: { current: string; latest: string }): string {
   return (
@@ -20199,13 +20213,30 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               slot: "draft",
               content: stdoutContent,
             });
-            if (saved.validated_ok) {
-              output.error(`${bannerPrefix}: saved draft slot at ${saved.ref}`);
-            } else {
-              output.error(
-                `${bannerPrefix}: saved draft slot at ${saved.ref} (validated_ok=false; ${saved.diagnostics.length} diagnostic${saved.diagnostics.length === 1 ? "" : "s"} — view with \`prx plan show ${effectiveWorkUnitId} --slot draft\`)`,
-              );
-            }
+            // prx-j4a: surface the result through the shared printer, framed as
+            // input-artifact (the UoW) → output-artifact (the plan draft ref),
+            // instead of a prose "saved draft slot" line.
+            emit(
+              output,
+              {
+                schema: planAgentResultSchema,
+                data: {
+                  actor: "plan" as const,
+                  unit: effectiveWorkUnitId,
+                  ...(planSourceLabel(effectiveWorkUnitId)
+                    ? { source: planSourceLabel(effectiveWorkUnitId)! }
+                    : {}),
+                  ref: saved.ref,
+                  validated: saved.validated_ok,
+                  diagnostics: saved.diagnostics.length,
+                  ...(saved.validated_ok
+                    ? {}
+                    : { view: `prx plan show ${effectiveWorkUnitId} --slot draft` }),
+                },
+                pretty: renderPlanAgentResult,
+              },
+              parsed.format,
+            );
           }
         }
         const telemetry = {
@@ -20248,16 +20279,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               2,
             ),
           );
-        } else if (
-          parsed.invokedViaPlanSession &&
-          !parsed.interactive &&
-          result.stdout
-        ) {
-          // GH-1164: when the runPlanSave chain forces stdout capture, relay
-          // the captured plan body to stdout so format=plain operators still
-          // see the plan content the legacy inherit-streaming path emitted.
-          output.log(result.stdout);
         }
+        // prx-j4a: the plan body is no longer dumped to stdout — the agent's
+        // output is the structured input→output result (emitted above), and the
+        // full plan is the output artifact in the CAS draft slot, reachable via
+        // the `view:` command in that result. (Was: GH-1164 relayed result.stdout
+        // for format=plain; that play-by-play is what prx-j4a quiets.)
         return result.status;
       } finally {
         deleteEnv(PRX_SESSION_OPEN_ENV);

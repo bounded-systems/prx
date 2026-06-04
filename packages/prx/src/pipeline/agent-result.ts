@@ -196,6 +196,44 @@ export function renderAgentResult(result: AgentResult): string {
   }
 }
 
+// ── plan-agent result (prx-j4a) ─────────────────────────────────────────────
+//
+// `prx plan agent` consumes a UoW (the bead / issue) and produces a plan
+// artifact in the CAS draft slot. Its result is framed as input-artifact →
+// output-artifact (the pipeline DAG model) and printed through the shared `emit`
+// printer instead of a play-by-play of pipeline steps.
+export const planAgentResultSchema = z.object({
+  actor: z.literal("plan"),
+  /** Input artifact: the UoW (bead / issue) the plan was drafted from. */
+  unit: z.string().min(1),
+  /** Where the UoW lives (e.g. `beads`, `github`) — omitted when unknown. */
+  source: z.string().optional(),
+  /** Output artifact: the CAS ref the plan draft landed at. */
+  ref: z.string().min(1),
+  /** Whether the draft passed the shape gate (else `prx implement` refuses). */
+  validated: z.boolean(),
+  /** Count of shape-gate diagnostics on the draft. */
+  diagnostics: z.number().int(),
+  /** The command to read the full plan. */
+  view: z.string().optional(),
+});
+export type PlanAgentResult = z.infer<typeof planAgentResultSchema>;
+
+/** One-line-plus input→output rendering for `prx plan agent`. */
+export function renderPlanAgentResult(r: PlanAgentResult): string {
+  const src = r.source ? ` (${r.source})` : "";
+  const lines = [`plan: ${r.unit}${src} → ${r.ref}`];
+  const diag =
+    r.diagnostics > 0
+      ? ` (${r.diagnostics} diagnostic${r.diagnostics === 1 ? "" : "s"})`
+      : "";
+  lines.push(`  validated=${r.validated}${diag}`);
+  if (!r.validated && r.view) {
+    lines.push(`  view: ${r.view}`);
+  }
+  return lines.join("\n");
+}
+
 // ── reported-result file (the `prx <actor> result` tool ↔ the parent) ───────
 //
 // The agent reports its disposition by running `prx <actor> result …` (a plain
