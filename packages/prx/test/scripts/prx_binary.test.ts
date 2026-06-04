@@ -104,21 +104,10 @@ describe("prx compiled binary", () => {
       expect(stderr).toBe("");
     });
 
-    test("update hint when behind origin/main", () => {
-      if (!hasBinary()) return;
-      const behind = createSandbox();
-      Bun.spawnSync({ cmd: ["git", "-C", behind, "commit", "--allow-empty", "-m", "a1"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", behind, "commit", "--allow-empty", "-m", "a2"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", behind, "update-ref", "refs/remotes/origin/main", "HEAD"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", behind, "reset", "--hard", "HEAD~2"], stdout: "pipe", stderr: "pipe" });
-
-      const { stderr, exitCode } = run(["--version"], { cwd: behind });
-      expect(exitCode).toBe(0);
-      expect(stderr).toContain("update available");
-      expect(stderr).toContain("2 commits behind origin/main");
-
-      rmSync(behind, { recursive: true, force: true });
-    });
+    // prx-ktw: removed "update hint when behind origin/main" — `prx --version`
+    // no longer reports local-checkout distance from origin/main; the only
+    // update signal is the release-based binary check (covered in
+    // cli.test.ts `checkPrxBinaryUpstream`).
   });
 
   // ── help (sandboxed) ─────────────────────────────────────────────────

@@ -119,10 +119,11 @@ describe("resolveInputName", () => {
 });
 
 describe("runHomeUpdate", () => {
-  test("happy path runs nix flake update then home-manager switch and prints rev diff", () => {
+  test("happy path: nix flake update → commit flake.lock → home-manager switch (prx-1ab)", () => {
     const fx = makeFixture({
       revs: ["aaaaaaaaaa1111", "bbbbbbbbbb2222"],
-      spawnResults: [{ status: 0 }, { status: 0 }],
+      // nix update, git rev-parse (is-git), git add, git commit, hm switch.
+      spawnResults: [{ status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }],
     });
 
     const exit = runHomeUpdate(
@@ -137,14 +138,20 @@ describe("runHomeUpdate", () => {
     );
 
     expect(exit).toBe(0);
-    expect(fx.spawnCalls).toHaveLength(2);
+    expect(fx.spawnCalls).toHaveLength(5);
     expect(fx.spawnCalls[0]!).toEqual({
       file: "nix",
       args: ["flake", "update", "ai-home", "--flake", "/fake/flake"],
       cwd: "/fake/flake",
       stdio: "inherit",
     });
-    expect(fx.spawnCalls[1]).toEqual({
+    // prx-1ab: the lockfile is committed between update and switch so the
+    // git+file flake tree is clean — the step that used to be manual.
+    expect(fx.spawnCalls[1]!.args).toEqual(["-C", "/fake/flake", "rev-parse", "--git-dir"]);
+    expect(fx.spawnCalls[2]!.args).toEqual(["-C", "/fake/flake", "add", "flake.lock"]);
+    expect(fx.spawnCalls[3]!.file).toBe("git");
+    expect(fx.spawnCalls[3]!.args.slice(0, 3)).toEqual(["-C", "/fake/flake", "commit"]);
+    expect(fx.spawnCalls[4]).toEqual({
       file: "home-manager",
       args: ["switch", "--flake", "/fake/flake"],
       cwd: "/fake/flake",
@@ -217,7 +224,17 @@ describe("runHomeUpdate", () => {
       "--flake",
       "/fake/flake",
     ]);
+    // prx-1ab: the lockfile commit is previewed between update and switch.
     expect(parsed.commands[1]).toEqual([
+      "git",
+      "-C",
+      "/fake/flake",
+      "commit",
+      "flake.lock",
+      "-m",
+      "chore(flake): update ai-home",
+    ]);
+    expect(parsed.commands[2]).toEqual([
       "home-manager",
       "switch",
       "--flake",
@@ -330,7 +347,8 @@ describe("runHomeUpdate", () => {
   test("home-manager switch non-zero exit passes through (lock stays at new rev)", () => {
     const fx = makeFixture({
       revs: ["aaaaaaaaaa1111", "bbbbbbbbbb2222"],
-      spawnResults: [{ status: 0 }, { status: 7 }],
+      // nix, git rev-parse, git add, git commit (all ok), then switch fails.
+      spawnResults: [{ status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }, { status: 7 }],
     });
 
     const exit = runHomeUpdate(
@@ -340,7 +358,7 @@ describe("runHomeUpdate", () => {
     );
 
     expect(exit).toBe(7);
-    expect(fx.spawnCalls).toHaveLength(2);
+    expect(fx.spawnCalls).toHaveLength(5);
     expect(fx.errs.join("\n")).toContain("home-manager switch exited with status 7");
   });
 
@@ -434,7 +452,9 @@ describe("runHomeUpdate", () => {
     );
 
     expect(exit).toBe(0);
-    expect(fx.spawnCalls.map((c) => c.stdio)).toEqual(["pipe", "pipe"]);
+    // prx-1ab: nix, git rev-parse, git add, git commit, hm switch — all piped in
+    // JSON mode so stdout stays a single parseable payload.
+    expect(fx.spawnCalls.map((c) => c.stdio)).toEqual(["pipe", "pipe", "pipe", "pipe", "pipe"]);
     // Every log line must be part of the final JSON payload — no banner,
     // no `prx home update: ...` prefix interleaved with the payload.
     expect(fx.logs).toHaveLength(1);

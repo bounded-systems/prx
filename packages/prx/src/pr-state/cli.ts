@@ -5204,6 +5204,17 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     throw new CliError(`Unknown home subcommand: ${c1}`);
   }
 
+  // prx-1ab: `prx upgrade` — the one-command self-update. Updates the `prx` flake
+  // input (the installed binary), commits the lockfile, and runs home-manager
+  // switch (all via `home-update`). `--input <name>` overrides the default to
+  // update a different input. Tail flags (--dry-run/--format/--flake-dir) pass
+  // through. (Distinct from `prx update`, which renders/updates the GitHub PR.)
+  if (c0 === "upgrade") {
+    const argv = [c1, ...tail].filter((a): a is string => a !== undefined);
+    const hasInput = argv.some((a) => a === "--input" || a.startsWith("--input="));
+    return hasInput ? ["home-update", ...argv] : ["home-update", "--input", "prx", ...argv];
+  }
+
   if (c0 === "review") {
     return argv;
   }
@@ -13690,31 +13701,8 @@ export function checkPrxBinaryUpstream(
   return { current: bakedVersion, latest };
 }
 
-/** Compare local HEAD against origin/main and return update info, or null if up-to-date / unable to check. */
-export function checkVersionUpstream(cwd = process.cwd()): { behind: number; local: string; remote: string } | null {
-  const localSha = tryCommand(["git", "rev-parse", "HEAD"], cwd);
-  const remoteSha = tryCommand(["git", "rev-parse", "origin/main"], cwd);
-  if (!localSha || !remoteSha) return null;
-  if (localSha === remoteSha) return null;
-  // Check if local is strictly behind origin/main and not diverged
-  const divergence = tryCommand(
-    ["git", "rev-list", "--left-right", "--count", "HEAD...origin/main"],
-    cwd,
-  );
-  if (!divergence) return null;
-  const [aheadStr, behindStr] = divergence.split(/\s+/);
-  const ahead = aheadStr ? parseInt(aheadStr, 10) : 0;
-  const behind = behindStr ? parseInt(behindStr, 10) : 0;
-  // Only report behind when local is not ahead of origin/main (not diverged)
-  if (!Number.isFinite(ahead) || !Number.isFinite(behind) || behind <= 0 || ahead > 0) {
-    return null;
-  }
-  return {
-    behind,
-    local: localSha.slice(0, 12),
-    remote: remoteSha.slice(0, 12),
-  };
-}
+// prx-ktw: `checkVersionUpstream` (local-checkout-vs-origin/main distance) was
+// removed — `prx --version` is release-based now (see `checkPrxBinaryUpstream`).
 
 function formatRuntimeProfile(profile: RuntimeProfileProjection, format: "plain" | "json"): string {
   if (format === "json") {
@@ -17912,19 +17900,14 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
 
     if (parsed.command === "version") {
       output.log(detectVersion());
-      const upstream = checkVersionUpstream();
-      if (upstream) {
-        output.error(
-          `update available: ${upstream.behind} commit${upstream.behind === 1 ? "" : "s"} behind origin/main (local ${upstream.local}, remote ${upstream.remote})`,
-        );
-        output.error(`run: git pull --rebase origin main`);
-      }
-      // GH-528: also flag binary staleness (distinct from worktree staleness).
+      // prx-ktw: `prx --version` reports the binary's release and flags a newer
+      // *release* only (via the release-based binary check). The former
+      // "update available: N commits behind origin/main" line measured the local
+      // repo checkout's distance from origin/main — unrelated to the binary
+      // version, and noisy from any feature worktree — so it is dropped.
       const binaryUpdate = (deps.checkPrxBinaryUpstream ?? checkPrxBinaryUpstream)();
       if (binaryUpdate) {
-        output.error(
-          formatBinaryUpdateWarning(binaryUpdate),
-        );
+        output.error(formatBinaryUpdateWarning(binaryUpdate));
       }
       return 0;
     }

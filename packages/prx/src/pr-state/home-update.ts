@@ -190,6 +190,9 @@ export function runHomeUpdate(
   const fromRev = fromRead.rev;
 
   const nixUpdateCmd = ["nix", "flake", "update", input, "--flake", flakeDir];
+  // prx-1ab: the lockfile commit that keeps the git+file flake tree clean for
+  // the switch (run only when `nix flake update` actually moved the rev).
+  const gitCommitCmd = ["git", "-C", flakeDir, "commit", "flake.lock", "-m", `chore(flake): update ${input}`];
   const hmSwitchCmd = ["home-manager", "switch", "--flake", flakeDir];
 
   if (options.dryRun) {
@@ -212,7 +215,7 @@ export function runHomeUpdate(
             flakeDir,
             input,
             from: fromRev,
-            commands: [nixUpdateCmd, hmSwitchCmd],
+            commands: [nixUpdateCmd, gitCommitCmd, hmSwitchCmd],
             tmuxReconcile: reconcile.result,
             tmuxReconcileNote: "preview based on current rendered config (pre-switch)",
           },
@@ -227,6 +230,7 @@ export function runHomeUpdate(
       output.log(`  rev:    ${shortRev(fromRev)}`);
       output.log(`  would run:`);
       output.log(`    ${nixUpdateCmd.join(" ")}`);
+      output.log(`    ${gitCommitCmd.join(" ")}   (only if the rev moved)`);
       output.log(`    ${hmSwitchCmd.join(" ")}`);
       output.log(`  note: tmux reconcile preview is based on current rendered config (pre-switch)`);
       output.log(formatTmuxReconcile(reconcile.result, "plain", true));
@@ -266,6 +270,38 @@ export function runHomeUpdate(
     return toRead.exitCode;
   }
   const toRev = toRead.rev;
+
+  // prx-1ab: `home-manager switch` evaluates the flake as a `git+file` input and
+  // refuses on a dirty tree — and `nix flake update` just dirtied flake.lock.
+  // Commit it here so the switch below "just works"; this is the manual step
+  // that made updating a multi-command dance. Skipped on a no-op or a non-git
+  // flake dir. A commit failure is surfaced (the switch will likely then refuse)
+  // but does not abort — the operator sees a precise reason.
+  if (fromRev !== toRev) {
+    const isGit = spawn("git", ["-C", flakeDir, "rev-parse", "--git-dir"], {
+      cwd: flakeDir,
+      stdio: "pipe",
+      env,
+    });
+    if (isGit.status === 0) {
+      spawn("git", ["-C", flakeDir, "add", "flake.lock"], {
+        cwd: flakeDir,
+        stdio: childStdio,
+        env,
+      });
+      const committed = spawn(
+        "git",
+        ["-C", flakeDir, "commit", "-m", `chore(flake): update ${input} ${shortRev(fromRev)} → ${shortRev(toRev)}`],
+        { cwd: flakeDir, stdio: childStdio, env },
+      );
+      if (committed.error || (committed.status !== null && committed.status !== 0)) {
+        output.error(
+          `prx home update: committing flake.lock failed (status ${committed.status ?? "spawn-error"}); ` +
+            "home-manager switch may refuse on the dirty tree.",
+        );
+      }
+    }
+  }
 
   const switchResult = spawn(hmSwitchCmd[0]!, hmSwitchCmd.slice(1), {
     cwd: flakeDir,

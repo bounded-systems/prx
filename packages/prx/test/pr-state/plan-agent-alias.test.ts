@@ -29,3 +29,30 @@ describe("prx plan agent alias (prx-383)", () => {
     expect(() => normalizeNamespaceArgv(["plan"])).toThrow(/agent/);
   });
 });
+
+describe("prx upgrade self-update alias (prx-1ab)", () => {
+  test("`prx upgrade` updates the prx flake input via home-update", () => {
+    expect(normalizeNamespaceArgv(["upgrade"])).toEqual([
+      "home-update",
+      "--input",
+      "prx",
+    ]);
+  });
+
+  test("tail flags pass through", () => {
+    expect(normalizeNamespaceArgv(["upgrade", "--dry-run"])).toEqual([
+      "home-update",
+      "--input",
+      "prx",
+      "--dry-run",
+    ]);
+  });
+
+  test("an explicit --input overrides the prx default", () => {
+    expect(normalizeNamespaceArgv(["upgrade", "--input", "ai-home"])).toEqual([
+      "home-update",
+      "--input",
+      "ai-home",
+    ]);
+  });
+});
