@@ -427,7 +427,13 @@ import {
   expectedWorktreePath,
   WorktreeAddError,
 } from "../tools/worktree_layout.ts";
-import { execGit, formatGitExecResult, withGitLockRecovery } from "@bounded-systems/git";
+import {
+  execGit,
+  formatGitExecResult,
+  type LockRecoveryHooks,
+  runWithGitLockRecovery,
+  withGitLockRecovery,
+} from "@bounded-systems/git";
 import {
   ensureBranch,
   formatEnsureBranchResult,
@@ -16406,6 +16412,10 @@ export type AutoRebaseResult =
 
 export type AutoRebaseOptions = {
   skipFetch?: boolean;
+  // prx-0yf: injectable stale-lock recovery probes (defaults to the real
+  // lsof/fs seam). Tests pass deterministic holder/stat probes so recovery
+  // doesn't depend on lsof being installed in CI.
+  lockRecovery?: LockRecoveryHooks;
 };
 
 // GH-704: on session open, rebase work-unit branches onto origin/main before
@@ -16436,7 +16446,12 @@ export function autoRebaseOnSessionOpen(
   // Session-open already fetches via pruneStaleRemoteRefs in
   // validateWorkSessionEntry; standalone callers still need the fetch.
   if (!options.skipFetch) {
-    const fetchResult = runCommand(["git", "-C", repoPath, "fetch", "origin"]);
+    // prx-0yf: recover a stale index.lock (crashed sibling git) + retry once,
+    // instead of failing the rebase. Mirrors execGit's lock recovery.
+    const fetchResult = runWithGitLockRecovery(
+      () => runCommand(["git", "-C", repoPath, "fetch", "origin"]),
+      options.lockRecovery,
+    );
     if (fetchResult.status !== 0) {
       return { status: "skipped", reason: "git fetch failed" };
     }
@@ -16445,7 +16460,10 @@ export function autoRebaseOnSessionOpen(
   if (behind === 0) {
     return { status: "up_to_date" };
   }
-  const rebaseResult = runCommand(["git", "-C", repoPath, "rebase", "origin/main"]);
+  const rebaseResult = runWithGitLockRecovery(
+    () => runCommand(["git", "-C", repoPath, "rebase", "origin/main"]),
+    options.lockRecovery,
+  );
   if (rebaseResult.status !== 0) {
     // Only classify as "conflict" when git actually left unmerged paths.
     // Other non-zero exits (missing upstream, hook failures, config errors)
@@ -16974,7 +16992,9 @@ function runLocalRefresh(
   const format = parsed.format;
 
   // Rebase onto origin/main
-  const rebaseResult = runCommand(["git", "-C", repoPath, "rebase", "origin/main"]);
+  const rebaseResult = runWithGitLockRecovery(() =>
+    runCommand(["git", "-C", repoPath, "rebase", "origin/main"]),
+  );
   if (rebaseResult.status !== 0) {
     // Capture conflicted files before aborting
     const conflictOutput = tryCommand(["git", "-C", repoPath, "diff", "--name-only", "--diff-filter=U"]);
