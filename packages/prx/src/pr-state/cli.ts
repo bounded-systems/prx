@@ -812,9 +812,17 @@ import {
 } from "../plan-store/verbs.ts";
 import {
   PlanStoreError,
+  getRef,
   resolvePlanStagingDirForDisplay,
   resolveStoreRootForDisplay,
 } from "../plan-store/cas.ts";
+// prx-lrw: submit-ref reading for the check-issue artifact-graph projection
+// fallback (a CAS submit ref proves the unit when the issue authority can't).
+import {
+  SUBMIT_DOMAIN,
+  SUBMIT_SLOTS,
+  submitRefFor,
+} from "../submit/artifact.schema.ts";
 import {
   runPlanView,
   planViewOptionsSchema,
@@ -2768,6 +2776,9 @@ type CliDeps = {
   runPlanSave?: typeof runPlanSave;
   runPlanLoad?: typeof runPlanLoad;
   runPlanShow?: typeof runPlanShow;
+  // prx-lrw: artifact-graph projection probe for `check-issue` — injectable so
+  // tests assert the resolver-unreachable fallback without touching the CAS.
+  hasLocalArtifactProjection?: (workUnitId: string) => Promise<boolean>;
   // GH-1239: pre-draft preflight (axis 1/2/3) — same DI shape so tests can
   // inject a deterministic stub instead of reaching gh/git.
   runPlanPreflight?: typeof runPlanPreflight;
@@ -3744,6 +3755,23 @@ function formatResolvedWorkUnitCheck(
   return `Issue ${workUnitId} is ${resolved.state} in ${location} (${resolved.title}).`;
 }
 
+// prx-lrw: render of the artifact-graph projection acceptance — the issue
+// authority was unreachable / unknowing, but a CAS submit/plan ref projects the
+// unit, so `check-issue` passes on the artifact rather than an external row.
+function formatArtifactProjectedWorkUnitCheck(
+  workUnitId: string,
+  format: "plain" | "json",
+): string {
+  if (format === "json") {
+    return JSON.stringify(
+      { workUnitId, checked: true, valid: true, reason: "artifact_projected" },
+      null,
+      2,
+    );
+  }
+  return `Issue ${workUnitId} is projected by a local CAS artifact (issue authority not reachable here); accepting on the artifact graph.`;
+}
+
 export function formatBeadsIssueMatches(
   issueNumber: number,
   matches: BeadsGithubIssueMatch[],
@@ -4050,6 +4078,33 @@ async function defaultHasLocalPlanArtifact(
     // cannot claim a local artifact projection; fall through to the board path.
     return false;
   }
+}
+
+// prx-lrw: artifact-graph projection probe for `check-issue`. When the issue
+// authority cannot resolve a non-GH unit (e.g. a beads workspace that isn't
+// attached in this worktree — exactly what blocked `submit publish`'s parity
+// preflight), a CAS submit OR plan ref still proves the unit. in-toto framing:
+// the artifact links the unit, so we accept the projection instead of
+// re-probing external board/git state — the same principle `checkWorkUnitChain`
+// applies with its `artifact_projected` reason. A submit ref is the strongest
+// projection (the unit is mid-publish); plan is the fallback.
+async function defaultHasLocalArtifactProjection(
+  workUnitId: string,
+  hasPlan: (unit: string) => Promise<boolean> = defaultHasLocalPlanArtifact,
+  readRef: typeof getRef = getRef,
+): Promise<boolean> {
+  for (const slot of SUBMIT_SLOTS) {
+    try {
+      // getRef resolves to null for a missing ref (it does not throw); only a
+      // present ref counts as a projection.
+      if ((await readRef(submitRefFor(workUnitId, slot), { domain: SUBMIT_DOMAIN })) !== null) {
+        return true;
+      }
+    } catch {
+      // CAS read error for this slot — try the next, then fall back to plan.
+    }
+  }
+  return hasPlan(workUnitId);
 }
 
 export async function checkWorkUnitChain(
@@ -18130,15 +18185,37 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         return 0;
       }
       return (async () => {
+        // prx-lrw: a CAS submit/plan ref is a valid local projection of the
+        // unit. When the issue authority can't be reached or doesn't know the
+        // unit, accept the projection rather than refusing — the publish parity
+        // preflight must not require a live bd/GH row when the artifact graph
+        // already proves the unit (in-toto: the artifact links it).
+        const hasProjection = deps.hasLocalArtifactProjection ?? defaultHasLocalArtifactProjection;
+        const acceptProjection = (): number => {
+          const elapsed = performance.now() - start;
+          output.log(formatArtifactProjectedWorkUnitCheck(parsed.workUnitId, parsed.format));
+          process.stderr.write(`check-issue: ${elapsed.toFixed(0)}ms\n`);
+          return 0;
+        };
         try {
           const config = ensureIdentityConfig();
           const resolver = resolverForCanonicalId(parsed.workUnitId, config, process.cwd());
           if (!resolver) {
+            if (await hasProjection(parsed.workUnitId)) return acceptProjection();
             throw new CliError(
               `${prxSessionCannotOpenPrefix(parsed.workUnitId)} no issue-authority resolver is configured for this canonical id. Add a [sources.<name>] block to prx.toml (kind = "github" | "notion" | "beads") or use a GH-<n> id.`,
             );
           }
-          const resolved = await resolver.fetch(parsed.workUnitId);
+          let resolved: Awaited<ReturnType<typeof resolver.fetch>>;
+          try {
+            resolved = await resolver.fetch(parsed.workUnitId);
+          } catch (fetchError) {
+            // The authority couldn't resolve the unit (e.g. an unattached beads
+            // workspace). Fall back to the artifact-graph projection before
+            // surfacing the resolver error.
+            if (await hasProjection(parsed.workUnitId)) return acceptProjection();
+            throw fetchError;
+          }
           if (resolved.state === "closed") {
             throw new CliError(
               `${prxSessionCannotOpenPrefix(parsed.workUnitId)} ${resolved.source} page is ${resolved.state}, so issue authority is not active.`,
