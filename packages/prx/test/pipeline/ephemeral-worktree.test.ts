@@ -122,4 +122,24 @@ describe("sweepOrphanedActorWorktrees (prx-g88.5)", () => {
     const removes = git.calls.filter((c) => c.sub === "worktree" && c.args[0] === "remove");
     expect(removes).toHaveLength(1);
   });
+
+  test("omits orphan path from result when worktree remove fails", () => {
+    const wt = join(resolve("/repo"), EPHEMERAL_WORKTREE_DIR);
+    const doomed = `${wt}/keeper-aaa111`;
+    const listStdout = [`worktree ${doomed}`, ""].join("\n");
+    const git = fakeGit({ listStdout }) as typeof execGit;
+    const failingGit: typeof execGit = (sub, args, opts) => {
+      if (sub === "worktree" && args[0] === "remove") {
+        return { exitCode: 1, stdout: "", stderr: "remove failed" };
+      }
+      return git(sub, args, opts);
+    };
+
+    const removed = sweepOrphanedActorWorktrees("/repo", {
+      git: failingGit,
+      isOrphan: (p) => p === doomed,
+    });
+
+    expect(removed).toEqual([]);
+  });
 });
