@@ -54,16 +54,20 @@ const ROLE_GUIDANCE: Record<PolicyRole, string> = {
     "You own every gh write — PR open/ready/merge, labels, comments, reviews. You never touch git refs (that is keeper) or the working tree.",
 };
 
-/** Tools a role can touch (any allowed subcommand), as `prx tools <tool>` Bash globs. */
-function roleToolGlobs(role: PolicyRole): string[] {
-  const globs: string[] = [];
-  for (const tool of POLICY_TOOLS) {
-    if (allowedSubcommands(tool, role).length > 0) {
-      globs.push(`Bash(prx tools ${tool}:*)`);
-    }
-  }
-  return globs;
-}
+// prx-g88.2: the per-subcommand allowlist is enforced at runtime by the
+// PreToolUse policy hook (.claude/hooks/policy-guard.ts), NOT by the `tools:`
+// frontmatter — Claude agent `tools` is tool-level only (`Bash(git push:*)`
+// command-scoping is unsupported there). So role agents carry plain `Bash` and
+// this subagent-scoped hook block; the hook resolves the role from `agent_type`
+// and denies anything the role doesn't own.
+const POLICY_HOOK_BLOCK: readonly string[] = [
+  "hooks:",
+  "  PreToolUse:",
+  "    - matcher: Bash",
+  "      hooks:",
+  "        - type: command",
+  '          command: bun "$CLAUDE_PROJECT_DIR/.claude/hooks/policy-guard.ts"',
+];
 
 function renderAllowedSection(role: PolicyRole): string {
   const lines: string[] = [];
@@ -85,12 +89,12 @@ function renderBlockedSection(): string {
 
 /** Render the `.claude/agents/<role>.md` content for one policy role. */
 export function generateRoleAgentDoc(role: PolicyRole): string {
-  const tools = ["Read", "Grep", "Glob", ...roleToolGlobs(role)].join(", ");
   return [
     "---",
     `name: ${role}`,
     `description: ${ROLE_DESCRIPTION[role]}`,
-    `tools: ${tools}`,
+    "tools: Read, Grep, Glob, Bash",
+    ...POLICY_HOOK_BLOCK,
     "---",
     AGENT_GEN_BANNER,
     "",
