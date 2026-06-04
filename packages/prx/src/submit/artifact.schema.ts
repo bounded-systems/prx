@@ -22,13 +22,19 @@ export type SubmitSlot = (typeof SUBMIT_SLOTS)[number];
 
 const SHA_RE = /^sha256:[0-9a-f]{64}$/;
 const SHA1_RE = /^[0-9a-f]{40}$/;
-const WORK_UNIT_RE = /^GH-\d+$/;
+// prx-gr1: any canonical work-unit id — GH-\d+ (github), prx-xxx / BD-xxx
+// (beads), PROJECT-xxx (notion) — not just GitHub. Shape: <prefix>-<suffix>
+// with no ref delimiters (`:`/`@`/whitespace), so `<unit>:submit@<slot>` stays
+// well-formed. The whole pipeline (source/plan/implement) is already
+// unit-id-agnostic; submit was the lone GitHub-only holdout (blocked beads
+// units from reaching a PR).
+const WORK_UNIT_RE = /^[A-Za-z][A-Za-z0-9_]*-[A-Za-z0-9]+$/;
 // `<UoW>:submit@<slot>` — mirrors plan-store ref convention.
-const SUBMIT_REF_RE = /^GH-\d+:submit@(draft|ready|published)$/;
+const SUBMIT_REF_RE = /^[A-Za-z][A-Za-z0-9_]*-[A-Za-z0-9]+:submit@(draft|ready|published)$/;
 
 export const SubmitArtifactSchema = z
   .object({
-    workUnitId: z.string().regex(WORK_UNIT_RE, "workUnitId must match GH-\\d+"),
+    workUnitId: z.string().regex(WORK_UNIT_RE, "workUnitId must be a canonical work-unit id (<prefix>-<suffix>)"),
     baseRef: z.string().min(1),
     baseSha: z.string().regex(SHA1_RE, "baseSha must be a 40-char hex"),
     // GH-2381: the artifact's identity is a git TREE SHA — a pure content hash
@@ -54,7 +60,7 @@ export type SubmitArtifact = z.infer<typeof SubmitArtifactSchema>;
 export function submitRefFor(workUnitId: string, slot: SubmitSlot): string {
   if (!WORK_UNIT_RE.test(workUnitId)) {
     throw new PlanStoreError(
-      `submit ref: workUnitId must match GH-\\d+ (got '${workUnitId}')`,
+      `submit ref: workUnitId must be a canonical work-unit id <prefix>-<suffix> (got '${workUnitId}')`,
       "INVALID_REF_NAME",
     );
   }
@@ -70,7 +76,7 @@ export function parseSubmitRef(ref: string): ParsedSubmitRef {
   const m = SUBMIT_REF_RE.exec(ref);
   if (!m) {
     throw new PlanStoreError(
-      `submit ref: '${ref}' must match <GH-N>:submit@{draft,ready,published}`,
+      `submit ref: '${ref}' must match <unit>:submit@{draft,ready,published}`,
       "INVALID_REF_NAME",
     );
   }
