@@ -40,15 +40,17 @@ jobs:
           PRX_COMPILE_VERSION="${{ github.ref_name }}" \
           BUN="$(which bun)" \
             bun packages/prx/scripts/prx-compile.ts ./prx-${{ matrix.target }}
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
-        with:
-          subject-path: prx-${{ matrix.target }}
       - name: Attach to release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: |
             prx-${{ matrix.target }}
+      # After the asset ships: a failed attestation must not block the release.
+      - name: Attest build provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        with:
+          subject-path: prx-${{ matrix.target }}
 
   # Publish the prx CLI as a container image to GHCR (ghcr.io/<owner>/prx).
   # Multi-stage Dockerfile compiles with bun, then ships a slim runtime.
@@ -85,7 +87,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             GIT_SHA=${{ github.sha }}
+      # The image is already pushed above; a failed attestation must not fail the job.
       - name: Attest image provenance
+        continue-on-error: true
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
         with:
           subject-name: ghcr.io/${{ github.repository }}
