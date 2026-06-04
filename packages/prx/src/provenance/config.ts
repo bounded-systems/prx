@@ -12,9 +12,9 @@
  * The dev path stays the zero-config fallback: with no secret file configured,
  * the master is the persisted dev seed (`loadOrCreateDevMaster`).
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { getEnv } from "@bounded-systems/env";
 
@@ -22,6 +22,12 @@ import { loadOrCreateDevMaster } from "./dev-key.ts";
 
 /** Env var pointing at the decrypted per-actor master secret (sops/agenix target). */
 export const PROVENANCE_MASTER_FILE_ENV = "PRX_PROVENANCE_MASTER_FILE";
+
+/** The `~/.config/prx/config.json` path (where the public trust map lives). */
+export function provenanceConfigPath(env: EnvReader = getEnv): string {
+  const home = env("HOME") ?? homedir();
+  return join(home, ".config", "prx", "config.json");
+}
 
 type EnvReader = (key: string) => string | undefined;
 
@@ -84,4 +90,37 @@ export function resolveProvenanceMaster(
     }
   }
   return loadOrCreateDevMaster(env);
+}
+
+/**
+ * Merge a trust map into `provenance.trust` in `~/.config/prx/config.json`,
+ * preserving every other field (other repo-inventory keys, `provenance.masterFile`).
+ * Returns the config path written. The keymaker `register` verb's only effect.
+ */
+export function writeProvenanceTrustMap(
+  trust: Record<string, string>,
+  env: EnvReader = getEnv,
+  read: (path: string) => string = (p) => readFileSync(p, "utf8"),
+  exists: (path: string) => boolean = existsSync,
+  write: (path: string, data: string) => void = (p, d) => {
+    mkdirSync(dirname(p), { recursive: true });
+    writeFileSync(p, d);
+  },
+): string {
+  const path = provenanceConfigPath(env);
+  let config: Record<string, unknown> = {};
+  if (exists(path)) {
+    try {
+      config = JSON.parse(read(path)) as Record<string, unknown>;
+    } catch {
+      config = {};
+    }
+  }
+  const prov =
+    typeof config.provenance === "object" && config.provenance !== null
+      ? (config.provenance as Record<string, unknown>)
+      : {};
+  config.provenance = { ...prov, trust };
+  write(path, `${JSON.stringify(config, null, 2)}\n`);
+  return path;
 }
