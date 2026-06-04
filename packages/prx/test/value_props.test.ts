@@ -3,7 +3,8 @@
 
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
+import { REPO_ROOT } from "../src/repo-root.ts";
 import {
   VALUE_PROPS,
   backingOf,
@@ -14,7 +15,7 @@ import {
   isValuePropBacked,
 } from "../src/value_props.ts";
 
-const repoRoot = resolve(import.meta.dir, "../../..");
+const repoRoot = REPO_ROOT;
 
 describe("value props (prx-8mx)", () => {
   test("every live check evaluates true — the catalog cannot mark a red claim green", () => {

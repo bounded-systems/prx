@@ -7,11 +7,11 @@
 // result; packages/prx/test/agents/generate.test.ts fails on drift.
 
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
+import { REPO_ROOT } from "../src/repo-root.ts";
 import { generateAllAgentDocs } from "../src/agents/generate.ts";
 
-const repoRoot = resolve(import.meta.dir, "../../..");
-const agentsDir = join(repoRoot, ".claude", "agents");
+const agentsDir = join(REPO_ROOT, ".claude", "agents");
 mkdirSync(agentsDir, { recursive: true });
 
 const docs = generateAllAgentDocs();
