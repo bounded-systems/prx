@@ -1,5 +1,5 @@
 ---
-description: Drive a work unit through the prx pipeline (plan → implement → submit → merged PR), delegating to prx's actors.
+description: /prx <unit> — drive a work unit through the prx pipeline (plan → implement → submit → merged PR), delegating to prx's actors.
 argument-hint: <unit-id>   # e.g. prx-eky
 allowed-tools: Bash(prx:*), Bash(bd show:*), Bash(bd list:*), Bash(gh pr checks:*), Bash(gh pr view:*), Read, Grep, Glob
 ---
