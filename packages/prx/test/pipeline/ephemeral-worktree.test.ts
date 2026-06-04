@@ -69,7 +69,9 @@ describe("create / destroy (prx-g88.5)", () => {
   test("destroy removes the worktree and deletes the branch", () => {
     const git = fakeGit();
     const h = ephemeralWorktreeHandle(SPEC);
-    destroyEphemeralActorWorktree(h, { git, exists: () => false, remove: () => {} });
+    const removed: string[] = [];
+    destroyEphemeralActorWorktree(h, { git, exists: () => true, remove: (p) => removed.push(p) });
+    expect(removed).toEqual([h.path]);
     const subs = git.calls.map((c) => `${c.sub} ${c.args[0]}`);
     expect(subs).toContain("worktree remove");
     expect(subs).toContain("branch -D");
