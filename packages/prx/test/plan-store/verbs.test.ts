@@ -80,6 +80,23 @@ describe("plan-store/verbs", () => {
     expect(loaded.slot).toBe("draft");
   });
 
+  test("prx-bs4: a JSON PlanArtifact body validates via the schema branch of the unified contract", async () => {
+    const validJson = JSON.stringify({
+      problem: "p", scope: "s", approach: "a", changes: [], risks: [], acceptance: ["done"],
+    });
+    const ok = await runPlanSave({ unit: "GH-9a", slot: "draft", content: validJson });
+    expect(ok.validated_ok).toBe(true);
+    expect(ok.diagnostics).toEqual([]);
+
+    // Empty scope → the schema rejects it (no `## Scope` markdown grep involved).
+    const noScope = JSON.stringify({
+      problem: "p", scope: "", approach: "a", changes: [], risks: [], acceptance: ["done"],
+    });
+    const bad = await runPlanSave({ unit: "GH-9b", slot: "draft", content: noScope });
+    expect(bad.validated_ok).toBe(false);
+    expect(bad.diagnostics.map((d) => d.code)).toContain("empty-scope");
+  });
+
   test("3. load approved with fallback returns draft when approved missing", async () => {
     await runPlanSave({
       unit: "GH-1173",
