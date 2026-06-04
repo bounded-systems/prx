@@ -15,6 +15,9 @@
  *
  * All effects (master, config read/write) are injected so the verbs are pure
  * functions of their deps — testable without touching real keys or files.
+ *
+ * Per-actor identities are the default; set `PRX_PROVENANCE_PER_ACTOR=off` to
+ * select the single-key fallback (see provenance/signer.ts).
  */
 import { actorSigningIdentity, buildActorTrustMap } from "./actor-identity.ts";
 
