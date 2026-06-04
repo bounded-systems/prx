@@ -766,6 +766,11 @@ export function buildWorkUnitClaudePlanPrintRuntimeProfile(input: {
   // fresh. Modifies the user prompt only; the cache-stable system prefix
   // stays byte-identical (GH-1407 cache hits keep working across resume).
   resumePartialPlan?: string;
+  // prx-pl2: the unit's source authority (the bead/issue body, `<unit>:source@pinned`).
+  // Embedded so the planner plans the ACTUAL task — it cannot reach for `bd`/`prx`
+  // to hydrate the body (gated in its sandbox), and without this it fabricates
+  // scope from the codebase. Same fix as implement embedding the plan (prx-pe1).
+  sourceBody?: string;
 }): RuntimeProfileProjection {
   const role: TaskAgentRole = "planner";
   // GH-1407 — split the system prompt so the role-level posture is
@@ -780,20 +785,35 @@ export function buildWorkUnitClaudePlanPrintRuntimeProfile(input: {
   // submit_plan is a contract violation (agent_service → "planner did not call
   // submit_plan"). The previous "Output plain markdown" instruction directly
   // contradicted the capture contract, so the model always emitted prose.
+  // prx-pl2: when the source body is available, embed it so the planner plans
+  // the ACTUAL unit (it can't hydrate via gated bd/prx) and tell it NOT to
+  // re-fetch. Falls back to the old fetch-it-yourself line when absent.
+  const sourceSegment = input.sourceBody !== undefined
+    ? [
+        "The work unit's source authority (issue/bead) is reproduced below — this is the task.",
+        "",
+        "----- BEGIN WORK UNIT SOURCE -----",
+        input.sourceBody,
+        "----- END WORK UNIT SOURCE -----",
+        "",
+        "Read the codebase directly (Read/Grep/Glob) to ground the plan; do NOT run `prx`/`bd` to re-fetch the source — it is above.",
+      ].join("\n")
+    : "Hydrate workflow context (issue body, beads rows, parity chain) before proposing scope.";
+  const submitLine =
+    "Submit the plan by calling the `submit_plan` tool with these fields: problem, scope, approach, changes (a file-level list), risks, and acceptance criteria. The `submit_plan` call is the deliverable — do not reply with prose or markdown, and do not ask clarifying questions.";
   const userPrompt = input.resumePartialPlan !== undefined
     ? [
         `Continue drafting the implementation plan for ${input.workUnitId} from this partial draft:`,
         "",
         input.resumePartialPlan,
         "",
-        "Submit the completed plan by calling the `submit_plan` tool with these fields: problem, scope, approach, changes (a file-level list), risks, and acceptance criteria. The `submit_plan` call is the deliverable — do not reply with prose or markdown, and do not ask clarifying questions.",
+        submitLine,
       ].join("\n")
     : [
         `Draft the implementation plan for ${input.workUnitId}.`,
-        "Hydrate workflow context (issue body, beads rows, parity chain) before proposing scope.",
-        "Submit the plan by calling the `submit_plan` tool with these fields: problem, scope, approach, changes (a file-level list), risks, and acceptance criteria.",
-        "The `submit_plan` call is the deliverable — do not reply with prose or markdown, and do not ask clarifying questions.",
-      ].join(" ");
+        sourceSegment,
+        submitLine,
+      ].join("\n");
   const args = [
     "--print",
     "--output-format",

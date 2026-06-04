@@ -6181,7 +6181,7 @@ describe("pr_state cli", () => {
     expect(resolverBuilt).toBe(0);
   });
 
-  test("checkWorkUnitChain skips the resolver probe when create + from is undefined", async () => {
+  test("checkWorkUnitChain resolves the source once on plain create to pin it (prx-pl2)", async () => {
     const board = () => ({
       source: "derived-board" as const,
       repo: "owner/repo",
@@ -6224,7 +6224,10 @@ describe("pr_state cli", () => {
       loadIdentity,
       buildResolver,
     )).resolves.toMatchObject({ valid: true, reason: "missing_unit_allowed" });
-    expect(resolverCalls).toBe(0);
+    // prx-pl2: plain create now resolves the source ONCE to FOD-pin
+    // `<unit>:source@pinned` (the impure→pure boundary the planner consumes).
+    // A closed/erroring source is swallowed (best-effort) but still probed once.
+    expect(resolverCalls).toBe(1);
   });
 
   test("checkWorkUnitChain surfaces resolver errors with source name and cause", async () => {
