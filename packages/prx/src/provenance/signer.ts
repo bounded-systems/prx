@@ -51,7 +51,8 @@ import { getEnv } from "@bounded-systems/env";
 import { createPublicKey } from "node:crypto";
 
 import { actorSigningIdentity, deriveActorKeypair } from "./actor-identity.ts";
-import { loadOrCreateDevKeypair, loadOrCreateDevMaster } from "./dev-key.ts";
+import { readProvenanceTrustMap, resolveProvenanceMaster } from "./config.ts";
+import { loadOrCreateDevKeypair } from "./dev-key.ts";
 import { decodeSlsaStatement } from "./verify.ts";
 
 /** The env var that selects the live signing identity (read only here). */
@@ -106,9 +107,10 @@ export function resolveProvenanceSigner(
   const mode = env(PROVENANCE_KEY_ENV);
   if (mode === ACTOR_DEV_SIGNER_MODE) {
     // prx-keymaker: sign as the AMBIENT actor with its derived per-actor key —
-    // the caller has no actor parameter to spoof.
+    // the caller has no actor parameter to spoof. The master is the deployment
+    // secret (sops/agenix) when configured, else the dev seed.
     const actor = getAuditRuntimeContext().actor;
-    const kp = deriveActorKeypair(loadOrCreateDevMaster(env), actorSigningIdentity(actor));
+    const kp = deriveActorKeypair(resolveProvenanceMaster(env), actorSigningIdentity(actor));
     return ed25519Signer(kp.privateKey, kp.keyid);
   }
   if (mode === DEV_SIGNER_MODE) {
@@ -198,7 +200,14 @@ export function resolveActorVerifier(
   env: (key: string) => string | undefined = getEnv,
 ): Verifier | null {
   if (env(PROVENANCE_KEY_ENV) === ACTOR_DEV_SIGNER_MODE) {
-    const kp = deriveActorKeypair(loadOrCreateDevMaster(env), actorSigningIdentity(actor));
+    // prx-keymaker: prefer the PUBLIC trust map (config) — the production path,
+    // where the verifier has pubkeys but not the master. Fall back to deriving
+    // the public half from the master (the dev self-verify path).
+    const pinned = readProvenanceTrustMap(env)[actor];
+    if (pinned) {
+      return ed25519Verifier(importEd25519PublicKey(stripStablePrefix(pinned)));
+    }
+    const kp = deriveActorKeypair(resolveProvenanceMaster(env), actorSigningIdentity(actor));
     return ed25519Verifier(kp.publicKey);
   }
   return resolveProvenanceVerifier(env);
