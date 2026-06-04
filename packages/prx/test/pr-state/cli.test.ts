@@ -24,7 +24,6 @@ import {
   canonicalBeadsDatabaseName,
   canonicalBeadsRepoIdFromRemote,
   checkPrxBinaryUpstream,
-  checkVersionUpstream,
   checkWorkUnitChain,
   checkWorkUnitIssue,
   checkWorkUnitSession,
@@ -680,58 +679,9 @@ describe("pr_state cli", () => {
     return tmp;
   }
 
-  test("checkVersionUpstream returns null when HEAD equals origin/main", () => {
-    const tmp = initTempGitRepo("prx-version-uptodate-");
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "init"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "update-ref", "refs/remotes/origin/main", "HEAD"], stdout: "pipe", stderr: "pipe" });
-
-    const result = checkVersionUpstream(tmp);
-    expect(result).toBeNull();
-
-    rmSync(tmp, { recursive: true, force: true });
-  });
-
-  test("checkVersionUpstream returns behind count when strictly behind origin/main", () => {
-    const tmp = initTempGitRepo("prx-version-behind-");
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "base"], stdout: "pipe", stderr: "pipe" });
-    const baseSha = new TextDecoder().decode(
-      Bun.spawnSync({ cmd: ["git", "-C", tmp, "rev-parse", "HEAD"], stdout: "pipe" }).stdout,
-    ).trim();
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "second"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "third"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "update-ref", "refs/remotes/origin/main", "HEAD"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "reset", "--hard", baseSha], stdout: "pipe", stderr: "pipe" });
-
-    const result = checkVersionUpstream(tmp);
-    expect(result).not.toBeNull();
-    expect(result!.behind).toBe(2);
-    expect(result!.local).toMatch(/^[0-9a-f]{12}$/);
-    expect(result!.remote).toMatch(/^[0-9a-f]{12}$/);
-
-    rmSync(tmp, { recursive: true, force: true });
-  });
-
-  test("checkVersionUpstream returns null when diverged from origin/main", () => {
-    const tmp = initTempGitRepo("prx-version-diverged-");
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "base"], stdout: "pipe", stderr: "pipe" });
-    const baseSha = new TextDecoder().decode(
-      Bun.spawnSync({ cmd: ["git", "-C", tmp, "rev-parse", "HEAD"], stdout: "pipe" }).stdout,
-    ).trim();
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "remote-only"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "update-ref", "refs/remotes/origin/main", "HEAD"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "reset", "--hard", baseSha], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "local-only"], stdout: "pipe", stderr: "pipe" });
-
-    const result = checkVersionUpstream(tmp);
-    expect(result).toBeNull();
-
-    rmSync(tmp, { recursive: true, force: true });
-  });
-
-  test("checkVersionUpstream returns null outside a git repo", () => {
-    const result = checkVersionUpstream("/tmp");
-    expect(result).toBeNull();
-  });
+  // prx-ktw: the `checkVersionUpstream` (local-checkout vs origin/main) tests
+  // were removed with the function — `prx --version` is release-based now and
+  // no longer reports repo-checkout distance.
 
   // prx-1ab: the binary self-check is release-based — it compares the baked
   // release tag to the newest local `v*` tag, not commit distance from
