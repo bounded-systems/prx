@@ -86,11 +86,13 @@ describe("value props (prx-8mx)", () => {
 
   test("the capability-containment value prop is currently backed", () => {
     const vp = VALUE_PROPS.find((v) => v.claim.includes("cannot perform an action"));
-    expect(vp && isValuePropBacked(vp)).toBe(true);
+    expect(vp).toBeDefined();
+    expect(isValuePropBacked(vp!)).toBe(true);
   });
 
   test("cost visibility is honestly a learning goal (not yet backed)", () => {
     const vp = VALUE_PROPS.find((v) => v.claim.includes("what each work unit cost"));
-    expect(vp && isValuePropBacked(vp)).toBe(false);
+    expect(vp).toBeDefined();
+    expect(isValuePropBacked(vp!)).toBe(false);
   });
 });
