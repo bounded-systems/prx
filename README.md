@@ -85,3 +85,25 @@ automatically by the `release-binary` workflow on each tag.
 Public `@bounded-systems/*` leaves (e.g. `cas`) are published to npm via
 changesets + `.github/workflows/release.yml` (SLSA provenance). See
 `docs/companion-repos.md`.
+
+## Community & governance
+
+- [`LICENSE`](LICENSE) — see below
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to build, test, and propose changes
+- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) — Contributor Covenant 2.1
+- [`SECURITY.md`](SECURITY.md) — report vulnerabilities privately
+
+These files, the `.github/` issue + pull-request templates, and their shared
+facts (project, copyright, security contact, supported versions) are
+**generated** from `packages/prx/community/` — edit `community.json` (validated
+against a JSON Schema with ajv) or the pinned templates, then
+`bun run community:render`. `bun run community:check` (and the test suite) fail
+on drift, so the governance docs can't fall out of sync.
+
+## License
+
+`prx` is **source-available**, not OSI open-source. It is licensed under the
+[PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0)
+(`PolyForm-Noncommercial-1.0.0`): free for any **noncommercial** use, with all
+commercial rights reserved to the copyright holder. For a commercial license,
+contact the maintainer at <https://github.com/bdelanghe>. See [`LICENSE`](LICENSE).

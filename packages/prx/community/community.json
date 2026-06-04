@@ -1,0 +1,34 @@
+{
+  "$schema": "../schemas/community/community.schema.json",
+  "project": {
+    "name": "prx",
+    "tagline": "the agent-run PR contract / work-unit CLI",
+    "org": "bounded-systems",
+    "repo": "bounded-systems/prx",
+    "url": "https://github.com/bounded-systems/prx"
+  },
+  "copyright": {
+    "year": "2026",
+    "holder": "Robert DeLanghe",
+    "url": "https://github.com/bdelanghe"
+  },
+  "license": {
+    "spdx": "PolyForm-Noncommercial-1.0.0",
+    "name": "PolyForm Noncommercial License 1.0.0",
+    "url": "https://polyformproject.org/licenses/noncommercial/1.0.0",
+    "summary": "Source-available. Free for any noncommercial use; all commercial rights are reserved to the copyright holder. This is not an OSI-approved open-source license."
+  },
+  "security": {
+    "channel": "github-private-advisory",
+    "reportUrl": "https://github.com/bounded-systems/prx/security/advisories/new",
+    "responseDays": 7,
+    "supportedVersions": [
+      { "range": "0.1.x", "supported": true },
+      { "range": "< 0.1", "supported": false }
+    ]
+  },
+  "conduct": {
+    "contact": "the maintainer via https://github.com/bdelanghe",
+    "covenantVersion": "2.1"
+  }
+}

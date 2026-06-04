@@ -1,0 +1,41 @@
+# Rendered from packages/prx/community/ — do not edit by hand.
+name: Bug report
+description: Something in prx isn't working as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug in `prx`.
+
+        **Security issue?** Do not use this form — report it privately per the
+        security policy (SECURITY.md).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: prx version
+      description: Output of `prx --version`
+      placeholder: 0.1.4
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: A minimal sequence of commands or actions that triggers the bug.
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, install method (brew / nix / released binary), and shell.
+    validations:
+      required: false
