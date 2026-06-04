@@ -203,6 +203,54 @@ describe("runClaudeAgentNonInteractive", () => {
     expect(captured.value).toBe("partial body so far");
   });
 
+  test("idle watchdog: a steadily-progressing run survives past the timeout window (prx-who)", async () => {
+    // Each message arrives within the idle window, but TOTAL runtime exceeds it.
+    // A total-timeout watchdog would cancel; the idle watchdog resets on each
+    // streamed message, so the run completes.
+    const delay = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+    const query: ClaudeAgentQuery = () => {
+      async function* gen(): AsyncGenerator<FakeMessage, void> {
+        yield assistantMessage("step 1");
+        await delay(40);
+        yield assistantMessage("step 2");
+        await delay(40);
+        yield assistantMessage("step 3");
+        await delay(40); // cumulative ~120ms > timeoutMs 80ms, but each gap < 80ms
+        yield successResult("done");
+      }
+      const iter = gen();
+      return Object.assign(iter, { interrupt: async () => {}, close: () => {} }) as ReturnType<ClaudeAgentQuery>;
+    };
+    const result = await runClaudeAgentNonInteractive(
+      makeSdkProfile(),
+      { cwd: "/tmp", timeoutMs: 80, disableAudit: true },
+      { query },
+    );
+    expect(result.kind).toBe("success");
+  });
+
+  test("idle watchdog: a silent (no-progress) run is still cancelled (prx-who)", async () => {
+    const query: ClaudeAgentQuery = (params) => {
+      const signal = params.options?.abortController?.signal;
+      async function* gen(): AsyncGenerator<FakeMessage, void> {
+        yield assistantMessage("then silence");
+        await new Promise<void>((_resolve, reject) => {
+          signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+        });
+      }
+      const iter = gen();
+      return Object.assign(iter, { interrupt: async () => {}, close: () => {} }) as ReturnType<ClaudeAgentQuery>;
+    };
+    const result = await runClaudeAgentNonInteractive(
+      makeSdkProfile(),
+      { cwd: "/tmp", timeoutMs: 50, disableAudit: true },
+      { query },
+    );
+    expect(result.kind).toBe("cancelled");
+    if (result.kind !== "cancelled") return;
+    expect(result.reason).toBe("watchdog");
+  });
+
   test("operator SIGINT cancellation reports reason='operator'", async () => {
     const controller = new AbortController();
     const query: ClaudeAgentQuery = (params) => {
