@@ -308,7 +308,7 @@ describe("runKeeperCommitTree (GH-2381)", () => {
   const TREE = "3".repeat(40);
   const BASE = "4".repeat(40);
 
-  function fakeGit(over: { commitExit?: number; switchExit?: number } = {}): typeof execGit & {
+  function fakeGit(over: { commitExit?: number; switchExit?: number; switchStderr?: string } = {}): typeof execGit & {
     calls: Array<{ sub: string; args: string[]; env?: Record<string, string | undefined> | undefined }>;
   } {
     const calls: Array<{ sub: string; args: string[]; env?: Record<string, string | undefined> | undefined }> = [];
@@ -323,7 +323,12 @@ describe("runKeeperCommitTree (GH-2381)", () => {
         };
       }
       if (opts.subcommand === "switch") {
-        return { exitCode: over.switchExit ?? 0, stdout: "", stderr: "switch boom", policy: null };
+        return {
+          exitCode: over.switchExit ?? 0,
+          stdout: "",
+          stderr: over.switchStderr ?? "switch boom",
+          policy: null,
+        };
       }
       return { exitCode: 0, stdout: "", stderr: "", policy: null };
     }) as typeof execGit & {
@@ -364,6 +369,19 @@ describe("runKeeperCommitTree (GH-2381)", () => {
   test("a failing switch raises KeeperGitError", async () => {
     const git = fakeGit({ switchExit: 1 });
     await expect(runKeeperCommitTree(input, "/repo", { git })).rejects.toBeInstanceOf(KeeperGitError);
+  });
+
+  // prx-5l3: when the branch is checked out in another worktree, git refuses the
+  // switch. Surface a clean ownership error naming the holding worktree instead
+  // of the raw `is already used by worktree` failure.
+  test("a cross-worktree branch collision raises an actionable ownership error", async () => {
+    const git = fakeGit({
+      switchExit: 128,
+      switchStderr: "fatal: 'GH-2381' is already used by worktree at '/wt/GH-2381'",
+    });
+    await expect(runKeeperCommitTree(input, "/repo", { git })).rejects.toThrow(
+      /checked out in another worktree \(\/wt\/GH-2381\).*Run keeper \/ publish from that worktree/s,
+    );
   });
 });
 
