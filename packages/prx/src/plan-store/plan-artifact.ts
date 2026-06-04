@@ -15,7 +15,7 @@
 // list, risks, and acceptance criteria".
 
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { toJsonSchemaArtifact } from "../lib/json-schema.ts";
 import { validatePlanShape, type PlanShapeVerdict } from "./scope.ts";
 import type { PlanDiagnostic } from "./envelope.ts";
 
@@ -97,10 +97,8 @@ export function renderPlanArtifact(artifact: PlanArtifact): string {
  * body-shape contract printed by `prx plan schema`. Derived (not hand-authored)
  * so it cannot drift from the Zod schema.
  */
-export const planArtifactJsonSchema: Record<string, unknown> = zodToJsonSchema(
-  PlanArtifactSchema,
-  "PlanArtifact",
-) as Record<string, unknown>;
+export const planArtifactJsonSchema: Record<string, unknown> =
+  toJsonSchemaArtifact(PlanArtifactSchema, "PlanArtifact");
 
 /**
  * Classify a plan body by serialized form: a body that begins with an object

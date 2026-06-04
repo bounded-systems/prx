@@ -17,7 +17,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { toJsonSchemaArtifact } from "../src/lib/json-schema.ts";
 
 import {
   artifactSlotSchema,
@@ -37,10 +37,7 @@ const exports = [
 ] as const;
 
 for (const { name, schema } of exports) {
-  const json = zodToJsonSchema(schema, {
-    name: `audit_${name.replace(/-/g, "_")}`,
-    target: "jsonSchema7",
-  });
+  const json = toJsonSchemaArtifact(schema, `audit_${name.replace(/-/g, "_")}`);
   const outPath = resolve(outDir, `${name}.json`);
   writeFileSync(outPath, JSON.stringify(json, null, 2) + "\n", "utf8");
   console.log(`wrote ${outPath}`);

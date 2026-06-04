@@ -256,9 +256,14 @@ describe("anchoredChainBridge", () => {
       // ZodOptional fields may be omitted; ZodDefault fields are filled in by
       // the schema, so they're required-in-output even though they're
       // input-optional. The registry tracks output shape.
+      // Probe via the public parse API rather than Zod internals (`_def`
+      // shape changed in Zod 4): a field is optional-in-output iff parsing
+      // `undefined` succeeds and yields `undefined`. `.optional()` does;
+      // `.default()` yields the filled value (so it's required-in-output);
+      // a required field fails to parse.
       const isOptionalInOutput = (field: z.ZodTypeAny): boolean => {
-        const typeName = (field._def as { typeName?: string }).typeName;
-        return typeName === "ZodOptional";
+        const parsed = field.safeParse(undefined);
+        return parsed.success && parsed.data === undefined;
       };
       const shape = inner.shape as Record<string, z.ZodTypeAny>;
       return Object.keys(shape)

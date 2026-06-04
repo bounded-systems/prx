@@ -9,12 +9,13 @@
           "pattern": "^[a-f0-9]{12}$"
         },
         "force": {
-          "type": "boolean",
-          "default": false
+          "default": false,
+          "type": "boolean"
         }
       },
       "required": [
-        "workspace_id"
+        "workspace_id",
+        "force"
       ],
       "additionalProperties": false
     }

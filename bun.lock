@@ -20,7 +20,6 @@
         "drizzle-kit": "^0.31.10",
         "madge": "^8.0.0",
         "typescript": "^6.0.3",
-        "zod-to-json-schema": "^3.25.2",
       },
     },
     "packages/anchored-chain": {
@@ -59,7 +58,7 @@
         "@bounded-systems/proc": "workspace:*",
       },
       "peerDependencies": {
-        "zod": "^3.25.0",
+        "zod": "^3.25.0 || ^4.0.0",
       },
     },
     "packages/cas": {
@@ -70,7 +69,7 @@
       "name": "@bounded-systems/disposition",
       "version": "0.0.0",
       "peerDependencies": {
-        "zod": "^3.25.0",
+        "zod": "^3.25.0 || ^4.0.0",
       },
     },
     "packages/env": {
@@ -110,14 +109,14 @@
         "@bounded-systems/proc": "workspace:*",
       },
       "peerDependencies": {
-        "zod": "^3.25.0",
+        "zod": "^3.25.0 || ^4.0.0",
       },
     },
     "packages/machine-schema": {
       "name": "@bounded-systems/machine-schema",
       "version": "0.0.0",
       "peerDependencies": {
-        "zod": "^3.25.0",
+        "zod": "^3.25.0 || ^4.0.0",
       },
     },
     "packages/policy": {
@@ -132,7 +131,7 @@
         "@bounded-systems/policy": "workspace:*",
       },
       "peerDependencies": {
-        "zod": "^3.25.0",
+        "zod": "^3.25.0 || ^4.0.0",
       },
     },
     "packages/prx": {

@@ -581,7 +581,7 @@ export const catalogEventAuditSchema = z.object({
   actor: z.string(),
   workUnitId: z.string().optional(),
   repo: z.string().optional(),
-  details: z.record(z.unknown()).optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
 });
 export type CatalogEventAuditRow = z.infer<typeof catalogEventAuditSchema>;
 

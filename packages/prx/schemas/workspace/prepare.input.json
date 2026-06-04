@@ -15,6 +15,9 @@
             "attached",
             "running"
           ]
+        },
+        "launchCwd": {
+          "type": "string"
         }
       },
       "required": [

@@ -66,7 +66,7 @@ import { listOpenIssuesFromBeads as defaultListOpenIssues } from "./issues-from-
 
 export const labelAxisSchema = z.enum(LABEL_AXES as readonly [LabelAxis, ...LabelAxis[]]);
 
-const AXIS_TO_ENUM: Record<LabelAxis, z.ZodEnum<[string, ...string[]]>> = {
+const AXIS_TO_ENUM: Record<LabelAxis, z.ZodEnum<Record<string, string>>> = {
   type: TYPE,
   priority: PRIORITY,
   area: AREA,

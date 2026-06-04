@@ -24,7 +24,7 @@ export const procRequestSchema = z.object({
   command: z.string().min(1),
   args: z.array(z.string()).default([]),
   cwd: z.string().optional(),
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
   stdin: z.string().optional(),
   timeoutMs: z.number().int().positive().optional(),
   stdio: z.enum(["pipe", "inherit"]).default("pipe"),

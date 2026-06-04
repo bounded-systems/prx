@@ -63,20 +63,24 @@ export function collectDrift(
           if (isPlainObject(acc)) return (acc as Record<string, unknown>)[segment];
           return undefined;
         }, slice);
-      if (issue.code === "invalid_enum_value") {
+      // Zod 4 folded enum/literal mismatches into `invalid_value` and exposes
+      // the permitted set as `values` (was `invalid_enum_value` + `options`).
+      if (issue.code === "invalid_value") {
         return {
           kind: "stale_value",
           path,
           rawValue,
-          reason: `not in {${issue.options.map((o) => JSON.stringify(o)).join(", ")}}`,
+          reason: `not in {${issue.values.map((o) => JSON.stringify(o)).join(", ")}}`,
         };
       }
+      // Zod 4 dropped `received` from the issue; recover the runtime type from
+      // the offending value directly.
       if (issue.code === "invalid_type") {
         return {
           kind: "type_mismatch",
           path,
           expected: issue.expected,
-          received: issue.received,
+          received: describeRuntimeType(rawValue),
           rawValue,
         };
       }

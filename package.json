@@ -39,7 +39,6 @@
     "ajv-formats": "^3.0.1",
     "drizzle-kit": "^0.31.10",
     "madge": "^8.0.0",
-    "typescript": "^6.0.3",
-    "zod-to-json-schema": "^3.25.2"
+    "typescript": "^6.0.3"
   }
 }
