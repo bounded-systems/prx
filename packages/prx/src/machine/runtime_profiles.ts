@@ -748,19 +748,25 @@ export function buildWorkUnitClaudePlanPrintRuntimeProfile(input: {
   const systemPromptStable = buildRoleStableSystemPrompt(role);
   const systemPromptDynamic = buildWorkUnitDynamicSystemSegment(input.workUnitId);
   const systemPrompt = `${systemPromptStable} ${systemPromptDynamic}`;
+  // prx-ei6: `capturePlanArtifact` injects the `submit_plan` tool, so the
+  // planner MUST submit through it — not emit prose. The prompt names the tool
+  // and its fields and bans free-text; a run that ends without calling
+  // submit_plan is a contract violation (agent_service → "planner did not call
+  // submit_plan"). The previous "Output plain markdown" instruction directly
+  // contradicted the capture contract, so the model always emitted prose.
   const userPrompt = input.resumePartialPlan !== undefined
     ? [
         `Continue drafting the implementation plan for ${input.workUnitId} from this partial draft:`,
         "",
         input.resumePartialPlan,
         "",
-        "Emit a single structured plan with the same shape as before: problem statement, scope boundary, proposed approach, file-level change list, risks, and acceptance criteria. Output plain markdown suitable for handoff to Ultraplan; do not ask clarifying questions.",
+        "Submit the completed plan by calling the `submit_plan` tool with these fields: problem, scope, approach, changes (a file-level list), risks, and acceptance criteria. The `submit_plan` call is the deliverable — do not reply with prose or markdown, and do not ask clarifying questions.",
       ].join("\n")
     : [
         `Draft the implementation plan for ${input.workUnitId}.`,
         "Hydrate workflow context (issue body, beads rows, parity chain) before proposing scope.",
-        "Emit a single structured plan with: problem statement, scope boundary, proposed approach, file-level change list, risks, and acceptance criteria.",
-        "Output plain markdown suitable for handoff to Ultraplan; do not ask clarifying questions.",
+        "Submit the plan by calling the `submit_plan` tool with these fields: problem, scope, approach, changes (a file-level list), risks, and acceptance criteria.",
+        "The `submit_plan` call is the deliverable — do not reply with prose or markdown, and do not ask clarifying questions.",
       ].join(" ");
   const args = [
     "--print",

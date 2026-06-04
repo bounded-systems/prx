@@ -1321,6 +1321,27 @@ describe("prx-pln — plan-print enforces the structured plan artifact", () => {
     const p = buildWorkUnitClaudePlanPrintRuntimeProfile({ workUnitId: "GH-1" });
     expect(p.sdkSpec?.capturePlanArtifact).toBe(true);
   });
+
+  test("the planner prompt instructs calling submit_plan, not emitting prose (prx-ei6)", () => {
+    // The capture contract is only honored if the prompt tells the model to
+    // call the tool. The old prompt said "Output plain markdown", so the model
+    // never called submit_plan → "planner did not call submit_plan".
+    const p = buildWorkUnitClaudePlanPrintRuntimeProfile({ workUnitId: "GH-1" });
+    const prompt = p.sdkSpec?.prompt ?? "";
+    expect(prompt).toContain("submit_plan");
+    // The old contradictory instruction ("Output plain markdown …") is gone.
+    expect(prompt.toLowerCase()).not.toContain("output plain markdown");
+  });
+
+  test("the resume-draft planner prompt also routes through submit_plan (prx-ei6)", () => {
+    const p = buildWorkUnitClaudePlanPrintRuntimeProfile({
+      workUnitId: "GH-1",
+      resumePartialPlan: "## Problem\npartial",
+    });
+    const prompt = p.sdkSpec?.prompt ?? "";
+    expect(prompt).toContain("submit_plan");
+    expect(prompt.toLowerCase()).not.toContain("output plain markdown");
+  });
 });
 
 describe("GH-1407 — non-interactive sdkSpec cache split", () => {
