@@ -5215,16 +5215,20 @@ function detectOperation(
   repoPath: string,
   runner: CommandRunner = defaultRunner,
 ): RepoStatusResult["operation"] {
-  const mergeHead = tryPath(["git", "-C", repoPath, "rev-parse", "--git-path", "MERGE_HEAD"], runner);
-  if (mergeHead && existsSync(mergeHead)) return "merge";
+  // `git --git-path` returns a REPO-relative path; resolve it against repoPath,
+  // not the process CWD (which `existsSync` would otherwise use). Without this,
+  // a caller whose own CWD is a repo mid-merge/rebase — e.g. a merge-queue
+  // `gh-readonly-queue/...` checkout — false-positives on `.git/MERGE_HEAD` and
+  // reports `operation: "merge"` for an unrelated repo. `resolve` leaves an
+  // already-absolute git-path untouched.
+  const gitOpExists = (name: string): boolean => {
+    const p = tryPath(["git", "-C", repoPath, "rev-parse", "--git-path", name], runner);
+    return p != null && existsSync(resolve(repoPath, p));
+  };
 
-  const rebaseApply = tryPath(["git", "-C", repoPath, "rev-parse", "--git-path", "rebase-apply"], runner);
-  const rebaseMerge = tryPath(["git", "-C", repoPath, "rev-parse", "--git-path", "rebase-merge"], runner);
-  if ((rebaseApply && existsSync(rebaseApply)) || (rebaseMerge && existsSync(rebaseMerge))) return "rebase";
-
-  const cherryPick = tryPath(["git", "-C", repoPath, "rev-parse", "--git-path", "CHERRY_PICK_HEAD"], runner);
-  if (cherryPick && existsSync(cherryPick)) return "cherry-pick";
-
+  if (gitOpExists("MERGE_HEAD")) return "merge";
+  if (gitOpExists("rebase-apply") || gitOpExists("rebase-merge")) return "rebase";
+  if (gitOpExists("CHERRY_PICK_HEAD")) return "cherry-pick";
   return "none";
 }
 
