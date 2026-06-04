@@ -74,7 +74,7 @@ programs.prx = {
 };
 ```
 
-This installs `prx` + `repox` (and optionally `wt`) into
+This installs `prx` (and optionally `wt`) into
 `~/.local/bin`. The per-release sha256s live in `release-hashes.json`, updated
 automatically by the `release-binary` workflow on each tag.
 
