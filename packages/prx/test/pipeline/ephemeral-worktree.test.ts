@@ -46,10 +46,10 @@ describe("ephemeralWorktreeHandle (prx-g88.5)", () => {
   });
 
   test("two actors on the same unit get different paths (isolation)", () => {
-    const k = ephemeralWorktreeHandle(SPEC);
-    const f = ephemeralWorktreeHandle({ ...SPEC, actor: "forge" });
-    expect(k.path).not.toBe(f.path);
-    expect(k.branch).not.toBe(f.branch);
+    const keeperHandle = ephemeralWorktreeHandle(SPEC);
+    const forgeHandle = ephemeralWorktreeHandle({ ...SPEC, actor: "forge" });
+    expect(keeperHandle.path).not.toBe(forgeHandle.path);
+    expect(keeperHandle.branch).not.toBe(forgeHandle.branch);
   });
 });
 
