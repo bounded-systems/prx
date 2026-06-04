@@ -24,6 +24,12 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-linux
     runs-on: ${{ matrix.os }}
+    # contents: write to attach the asset; id-token + attestations to mint a
+    # signed build-provenance attestation linking the binary to this commit.
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -39,14 +45,24 @@ jobs:
         with:
           files: |
             prx-${{ matrix.target }}
+      # After the asset ships: a failed attestation must not block the release.
+      - name: Attest build provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        with:
+          subject-path: prx-${{ matrix.target }}
 
   # Publish the prx CLI as a container image to GHCR (ghcr.io/<owner>/prx).
   # Multi-stage Dockerfile compiles with bun, then ships a slim runtime.
   image:
     runs-on: ubuntu-latest
+    # packages: write to push the image; id-token + attestations to mint a
+    # signed build-provenance attestation for the pushed image digest.
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -62,7 +78,8 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
-      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+      - id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           push: true
@@ -70,6 +87,14 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             GIT_SHA=${{ github.sha }}
+      # The image is already pushed above; a failed attestation must not fail the job.
+      - name: Attest image provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
   # After the binaries are uploaded, compute their sha256 and open a PR updating
   # release-hashes.json (consumed by the flake packages + home-manager module).
