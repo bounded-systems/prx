@@ -365,8 +365,10 @@ describe("triageMachine — decision-state branching", () => {
   test("reverse orphans present → driftDecision → reporting (no orphan push, GH-1718)", async () => {
     // GH-1718: `triage push-orphans` retired. Reverse-orphan signals no
     // longer influence machine flow — the path is promote → driftDecision
-    // → reporting regardless of `totalReverseOrphans`. Operators resolve
-    // per-record via `prx beads publish <bd-id>` (next_work projection).
+    // → reporting regardless of `totalReverseOrphans`. prx-3f1: reverse-orphans
+    // are the normal beads-first state (informational only), not projected into
+    // next_work's triage_backlog; an operator may still publish manually via
+    // `prx beads publish <bd-id>` if a GH mirror is genuinely wanted.
     const machine = triageMachine.provide({
       actors: {
         pruneMergedActor: fakePruneMergedOk,

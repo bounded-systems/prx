@@ -344,7 +344,11 @@ describe("nextWork — triage_backlog projection (GH-1617, I-NW1)", () => {
     expect(row.priority).toBe(2);
   });
 
-  test("reverse orphan surfaces in triage_backlog", () => {
+  // prx-3f1: reverse-orphans (bd records with no external_ref) are the normal
+  // beads-first state, not a remediation orphan — they are informational only
+  // and must NOT be projected into triage_backlog (no `prx beads publish`
+  // candidate). I-NW1 excludes reverseOrphans from the projection.
+  test("reverse orphan does NOT surface in triage_backlog (prx-3f1)", () => {
     const triage = makeTriageSnapshot({
       reverseOrphans: [
         {
@@ -358,10 +362,10 @@ describe("nextWork — triage_backlog projection (GH-1617, I-NW1)", () => {
       ],
     });
     const result = nextWork("/dev/null", { bdReady: NO_BD, board: emptyBoard(), triage });
-    const row = result.threads.find((t) => t.kind === "triage_backlog")!.candidates[0]!;
-    expect(row.bd_id).toBe("ai-home-orphan");
-    expect(row.reason).toBe("Reverse orphan — bd has no external_ref");
-    expect(row.command).toBe("prx beads publish ai-home-orphan");
+    const backlog = result.threads.find((t) => t.kind === "triage_backlog");
+    const candidates = backlog?.candidates ?? [];
+    expect(candidates.some((c) => c.bd_id === "ai-home-orphan")).toBe(false);
+    expect(candidates.some((c) => c.command === "prx beads publish ai-home-orphan")).toBe(false);
   });
 
   test("unit in executor_in_flight is suppressed from triage_backlog (I-NW3)", () => {

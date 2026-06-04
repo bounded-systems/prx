@@ -20,6 +20,11 @@ export const triageIssueRowSchema = z.object({
 });
 export type TriageIssueRow = z.infer<typeof triageIssueRowSchema>;
 
+// prx-3f1: INFORMATIONAL axis only. A bd record with no `external_ref` is the
+// normal, expected beads-first state — not a remediation orphan needing a GH
+// backfill. These rows (and `totalReverseOrphans`) are retained for JSON shape
+// stability and visibility, but are NOT projected into triage_backlog and do
+// NOT count toward the rate-limit sweep budget. Supersedes GH-2011.
 export const reverseOrphanRowSchema = z.object({
   beadsId: z.string(),
   title: z.string(),

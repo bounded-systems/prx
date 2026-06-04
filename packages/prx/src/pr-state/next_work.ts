@@ -422,22 +422,12 @@ function projectTriageBacklog(
     });
   }
 
-  for (const row of snapshot.reverseOrphans) {
-    if (suppressedKeys.has(row.beadsId)) continue;
-    out.push({
-      bd_id: row.beadsId,
-      gh_issue: null,
-      title: row.title,
-      priority: priorityLabelToNumber(row.priority),
-      issue_type: row.issueType || "unknown",
-      branch: null,
-      worktree_path: null,
-      status: "open",
-      blocked_by: [],
-      reason: "Reverse orphan — bd has no external_ref",
-      command: `prx beads publish ${row.beadsId}`,
-    });
-  }
+  // GH-1710 / prx-3f1: reverse-orphans (bd records with no external_ref) are the
+  // NORMAL beads-first state, not a remediation orphan. They are informational
+  // only — we deliberately do NOT project them into triage_backlog candidates,
+  // so `prx next-work` never emits `prx beads publish <id>` for a bead whose only
+  // "issue" is a missing GH mirror. This supersedes the GH-2011 'GitHub canonical'
+  // framing. The reverseOrphans snapshot field is retained for visibility.
 
   for (const row of snapshot.drift) {
     if (suppressedKeys.has(row.beadsId)) continue;
