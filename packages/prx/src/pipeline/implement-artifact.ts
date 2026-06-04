@@ -142,9 +142,18 @@ export async function finalizeImplementRun(
     return { ref: "", artifact: null, checksAttested: false, diagnostics: [] };
   }
   const filesChanged = deps.listChangedFiles(input.cwd, commit);
-  const checksAttested = deps.attestChecks
-    ? await deps.attestChecks(input.cwd, commit)
-    : false;
+  // prx-pl3: the artifact (the commit record) is the primary output; the checks
+  // attestation is secondary. A checks failure (bun absent, a test error, a
+  // ledger hiccup) must NEVER prevent the artifact from being pinned — else the
+  // chain loses its implement link over a side concern. Best-effort.
+  let checksAttested = false;
+  if (deps.attestChecks) {
+    try {
+      checksAttested = await deps.attestChecks(input.cwd, commit);
+    } catch {
+      checksAttested = false;
+    }
+  }
   const captured = await captureImplementArtifact({
     unit: input.unit,
     commit,

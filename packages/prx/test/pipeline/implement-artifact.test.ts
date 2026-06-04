@@ -84,6 +84,24 @@ describe("implement artifact (prx-pe1 slice 4b)", () => {
     expect(result.artifact?.files_changed).toEqual(["a.ts", "b.ts"]);
   });
 
+  test("finalizeImplementRun pins the artifact even when attestChecks THROWS (prx-pl3)", async () => {
+    // The commit record is primary; a checks failure (bun absent, ledger hiccup)
+    // must never lose the implement link.
+    const result = await finalizeImplementRun(
+      { unit: "prx-checkfail", summary: "did it", cwd: "/repo" },
+      {
+        resolveHead: () => COMMIT,
+        listChangedFiles: () => ["a.ts"],
+        attestChecks: async () => {
+          throw new Error("bun: command not found");
+        },
+      },
+    );
+    expect(result.ref).toBe("prx-checkfail:implement@latest");
+    expect(result.checksAttested).toBe(false);
+    expect(result.artifact?.commit).toBe(COMMIT);
+  });
+
   test("finalizeImplementRun pins nothing when the run produced no commit", async () => {
     const result = await finalizeImplementRun(
       { unit: "prx-nocommit", summary: "", cwd: "/repo" },
