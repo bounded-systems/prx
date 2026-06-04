@@ -1,0 +1,31 @@
+{
+  "name": "bounded-systems-prx",
+  "url": "https://bounded.tools",
+  "description": "The agent-run PR pipeline for bounded-systems — drives issues → merged PRs through a signed, capability-scoped contract, reacting to repo and project events.",
+  "public": false,
+  "hook_attributes": {
+    "url": "https://bounded.tools/api/github/webhooks",
+    "active": true
+  },
+  "redirect_url": "https://bounded.tools/app-manifest/callback",
+  "setup_url": "https://bounded.tools/setup",
+  "setup_on_update": false,
+  "request_oauth_on_install": false,
+  "default_events": [
+    "issues",
+    "pull_request",
+    "pull_request_review",
+    "check_suite",
+    "projects_v2_item",
+    "meta"
+  ],
+  "default_permissions": {
+    "metadata": "read",
+    "contents": "read",
+    "issues": "write",
+    "pull_requests": "write",
+    "checks": "read",
+    "organization_projects": "write",
+    "git_ssh_signing_keys": "write"
+  }
+}
