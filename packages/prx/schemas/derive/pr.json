@@ -13,7 +13,9 @@
         "number": {
           "anyOf": [
             {
-              "type": "integer"
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
             },
             {
               "type": "null"
@@ -30,15 +32,23 @@
           ]
         },
         "isDraft": {
-          "type": [
-            "boolean",
-            "null"
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "headRef": {
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "autoMergeEnabled": {

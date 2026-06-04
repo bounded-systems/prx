@@ -16,12 +16,14 @@
             "delegate",
             "report",
             "retro",
+            "gc",
             "plan",
             "intake",
             "triage",
             "implement",
             "submit",
-            "author"
+            "author",
+            "scratch"
           ]
         },
         "inputArtifact": {
@@ -30,7 +32,9 @@
           "pattern": "^[a-z][a-z0-9_]*$"
         },
         "outputArtifact": {
-          "$ref": "#/definitions/agent_contract/properties/inputArtifact"
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]*$"
         },
         "capabilities": {
           "type": "array",

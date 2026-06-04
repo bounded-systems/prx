@@ -19,7 +19,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { toJsonSchemaArtifact } from "../src/lib/json-schema.ts";
 
 import {
   factRelations,
@@ -32,10 +32,7 @@ const outDir = resolve(repoRoot, "schemas/derive");
 mkdirSync(outDir, { recursive: true });
 
 for (const name of factRelations) {
-  const schema = zodToJsonSchema(factSchemas[name], {
-    name: `derive_${name}`,
-    target: "jsonSchema7",
-  });
+  const schema = toJsonSchemaArtifact(factSchemas[name], `derive_${name}`);
   const outPath = resolve(outDir, `${name}.json`);
   writeFileSync(outPath, JSON.stringify(schema, null, 2) + "\n", "utf8");
   console.log(`wrote ${outPath}`);

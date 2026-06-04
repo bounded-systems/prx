@@ -14,12 +14,12 @@
           "pattern": "^prx\\.[a-z][a-z0-9_]*\\.v\\d+$"
         },
         "requiredFields": {
+          "minItems": 0,
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1
-          },
-          "minItems": 0
+          }
         },
         "validationRef": {
           "type": "string",
@@ -36,7 +36,9 @@
         "composedOf": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/artifact_contract/properties/type"
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_]*$"
           }
         }
       },

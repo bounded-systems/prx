@@ -6,7 +6,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { toJsonSchemaArtifact } from "../../src/lib/json-schema.ts";
 
 import { scoutNotionResultSchema } from "../../src/scout/notion.ts";
 
@@ -17,10 +17,10 @@ describe("scout JSON Schema artifacts — checked-in vs regenerated parity", () 
     const onDisk = JSON.parse(
       readFileSync(resolve(repoRoot, "schemas/scout/notion.json"), "utf8"),
     );
-    const regenerated = zodToJsonSchema(scoutNotionResultSchema, {
-      name: "scout_notion_result",
-      target: "jsonSchema7",
-    });
+    const regenerated = toJsonSchemaArtifact(
+      scoutNotionResultSchema,
+      "scout_notion_result",
+    );
     expect(onDisk).toEqual(regenerated);
   });
 

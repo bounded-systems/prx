@@ -1,7 +1,7 @@
 /**
  * JSON Schema artifact builder (GH-1359).
  *
- * Wraps `zodToJsonSchema` and decorates each property with the canonical
+ * Wraps `toJsonSchemaArtifact` and decorates each property with the canonical
  * heading + `actionsBearing` classification from `INTAKE_BODY_FIELDS_META`.
  * Vendor extensions (`x-prx-*`) keep the artifact valid Draft-7.
  *
@@ -9,7 +9,7 @@
  * `test/intake/schemas.test.ts` import from here so they cannot drift.
  */
 
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { toJsonSchemaArtifact } from "../../lib/json-schema.ts";
 
 import {
   INTAKE_BODY_FIELDS_META,
@@ -18,10 +18,10 @@ import {
 } from "./index.ts";
 
 export function buildIntakeJsonSchema(type: IntakeBodySchemaType): unknown {
-  const json = zodToJsonSchema(INTAKE_BODY_SCHEMAS[type], {
-    name: `intake_${type}_body`,
-    target: "jsonSchema7",
-  }) as Record<string, unknown>;
+  const json = toJsonSchemaArtifact(
+    INTAKE_BODY_SCHEMAS[type],
+    `intake_${type}_body`,
+  );
   return decorateWithFieldsMeta(json, type);
 }
 

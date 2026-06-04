@@ -36,9 +36,13 @@
           ]
         },
         "ref": {
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "uow_id": {
@@ -51,9 +55,13 @@
           }
         },
         "last_seen_ts": {
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
           ]
         }
       },

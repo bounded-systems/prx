@@ -8,9 +8,13 @@
           "type": "string"
         },
         "issueId": {
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "fromState": {

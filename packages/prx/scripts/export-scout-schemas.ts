@@ -17,7 +17,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { toJsonSchemaArtifact } from "../src/lib/json-schema.ts";
 
 import { scoutNotionResultSchema } from "../src/scout/notion.ts";
 
@@ -29,10 +29,7 @@ mkdirSync(outDir, { recursive: true });
 const artifacts: Array<{ name: string; schema: unknown }> = [
   {
     name: "notion",
-    schema: zodToJsonSchema(scoutNotionResultSchema, {
-      name: "scout_notion_result",
-      target: "jsonSchema7",
-    }),
+    schema: toJsonSchemaArtifact(scoutNotionResultSchema, "scout_notion_result"),
   },
 ];
 

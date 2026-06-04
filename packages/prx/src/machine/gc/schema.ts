@@ -89,7 +89,7 @@ export type InventoryInput = z.infer<typeof InventoryInput>;
 export const InventoryOutput = z.object({
 	status: z.enum(["clean", "reclaimable", "error"]),
 	findings: z.array(GcFinding),
-	by_class: z.record(GcClass, z.number().int().nonnegative()),
+	by_class: z.partialRecord(GcClass, z.number().int().nonnegative()),
 	error: z.string().optional(),
 });
 export type InventoryOutput = z.infer<typeof InventoryOutput>;
@@ -117,7 +117,7 @@ export const RunOutput = z.object({
 	dry_run: z.boolean(),
 	/** Acted-on (or, in dry-run, would-be-acted-on) items. */
 	reclaimed: z.array(GcFinding),
-	by_class: z.record(GcClass, z.number().int().nonnegative()),
+	by_class: z.partialRecord(GcClass, z.number().int().nonnegative()),
 	/** Per-component failures — one driver failing must not abort the others. */
 	failed: z.array(z.object({ component: GcComponent, error: z.string() })),
 	error: z.string().optional(),

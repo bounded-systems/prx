@@ -9,16 +9,18 @@
           "minLength": 1
         },
         "base": {
-          "type": "string",
-          "default": "origin/main"
+          "default": "origin/main",
+          "type": "string"
         },
         "local_only": {
-          "type": "boolean",
-          "default": false
+          "default": false,
+          "type": "boolean"
         }
       },
       "required": [
-        "branch"
+        "branch",
+        "base",
+        "local_only"
       ],
       "additionalProperties": false
     }

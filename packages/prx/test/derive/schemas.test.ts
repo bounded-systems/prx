@@ -4,7 +4,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { toJsonSchemaArtifact } from "../../src/lib/json-schema.ts";
 
 import {
   factColumns,
@@ -20,10 +20,7 @@ describe("derive JSON Schema artifacts — checked-in vs regenerated parity", ()
       const onDisk = JSON.parse(
         readFileSync(resolve(repoRoot, `schemas/derive/${name}.json`), "utf8"),
       );
-      const regenerated = zodToJsonSchema(factSchemas[name], {
-        name: `derive_${name}`,
-        target: "jsonSchema7",
-      });
+      const regenerated = toJsonSchemaArtifact(factSchemas[name], `derive_${name}`);
       expect(onDisk).toEqual(regenerated);
     });
   }

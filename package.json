@@ -31,7 +31,7 @@
     "@bounded-systems/prx-mux": "workspace:*",
     "@statelyai/inspect": "^0.7.1",
     "xstate": "^5.32.0",
-    "zod": "^3.25.76"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",
@@ -39,7 +39,6 @@
     "ajv-formats": "^3.0.1",
     "drizzle-kit": "^0.31.10",
     "madge": "^8.0.0",
-    "typescript": "^6.0.3",
-    "zod-to-json-schema": "^3.25.2"
+    "typescript": "^6.0.3"
   }
 }

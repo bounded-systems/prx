@@ -18,7 +18,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { toJsonSchemaArtifact } from "../src/lib/json-schema.ts";
 
 import {
   agentContractSchema,
@@ -42,24 +42,15 @@ mkdirSync(lifecycleOutDir, { recursive: true });
 const artifacts: Array<{ name: string; schema: unknown }> = [
   {
     name: "agent",
-    schema: zodToJsonSchema(agentContractSchema, {
-      name: "agent_contract",
-      target: "jsonSchema7",
-    }),
+    schema: toJsonSchemaArtifact(agentContractSchema, "agent_contract"),
   },
   {
     name: "artifact",
-    schema: zodToJsonSchema(artifactContractSchema, {
-      name: "artifact_contract",
-      target: "jsonSchema7",
-    }),
+    schema: toJsonSchemaArtifact(artifactContractSchema, "artifact_contract"),
   },
   {
     name: "transition",
-    schema: zodToJsonSchema(transitionContractSchema, {
-      name: "transition_contract",
-      target: "jsonSchema7",
-    }),
+    schema: toJsonSchemaArtifact(transitionContractSchema, "transition_contract"),
   },
 ];
 
@@ -75,31 +66,19 @@ for (const { name, schema } of artifacts) {
 const lifecycleArtifacts: Array<{ name: string; schema: unknown }> = [
   {
     name: "status-update",
-    schema: zodToJsonSchema(statusUpdateSchema, {
-      name: "status_update",
-      target: "jsonSchema7",
-    }),
+    schema: toJsonSchemaArtifact(statusUpdateSchema, "status_update"),
   },
   {
     name: "blocker-report",
-    schema: zodToJsonSchema(blockerReportSchema, {
-      name: "blocker_report",
-      target: "jsonSchema7",
-    }),
+    schema: toJsonSchemaArtifact(blockerReportSchema, "blocker_report"),
   },
   {
     name: "delegation-record",
-    schema: zodToJsonSchema(delegationRecordSchema, {
-      name: "delegation_record",
-      target: "jsonSchema7",
-    }),
+    schema: toJsonSchemaArtifact(delegationRecordSchema, "delegation_record"),
   },
   {
     name: "sprint-plan",
-    schema: zodToJsonSchema(sprintPlanSchema, {
-      name: "sprint_plan",
-      target: "jsonSchema7",
-    }),
+    schema: toJsonSchemaArtifact(sprintPlanSchema, "sprint_plan"),
   },
 ];
 

@@ -9,11 +9,12 @@
           "minLength": 1
         },
         "uow_refs": {
+          "minItems": 1,
           "type": "array",
           "items": {
-            "$ref": "#/definitions/status_update/properties/unitId"
-          },
-          "minItems": 1
+            "type": "string",
+            "minLength": 1
+          }
         },
         "body": {
           "type": "string",

@@ -75,7 +75,7 @@ export const BD_TYPE_ENUM = ["bug", "feature", "task", "epic", "chore"] as const
 
 export type LabelAxis = "type" | "priority" | "area" | "effort";
 
-const AXIS_TO_ENUM: Record<LabelAxis, z.ZodEnum<[string, ...string[]]>> = {
+const AXIS_TO_ENUM: Record<LabelAxis, z.ZodEnum<Record<string, string>>> = {
   type: TYPE,
   priority: PRIORITY,
   area: AREA,
