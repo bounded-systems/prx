@@ -165,4 +165,37 @@ describe("agent-result return channel (prx-lfv)", () => {
       renderPlanAgentResult({ actor: "plan", unit: "GH-7", ref: "GH-7:plan@draft", validated: true, diagnostics: 0 }),
     ).toBe("plan: GH-7 → GH-7:plan@draft\n  validated=true");
   });
+
+  test("captureAgentResult flags a contract violation and does NOT pin (prx-bs4)", async () => {
+    // The agent reported `filed` but named no UoW — the agent_result edge's
+    // validator catches it; the result is surfaced (diagnostics) and not pinned.
+    const set = new Set<string>();
+    const { ref, result, diagnostics } = await captureAgentResult({
+      actor: "intake",
+      workspaceId: "deadbeef0003",
+      status: 0,
+      stdout: "",
+      before: set,
+      after: set,
+      reported: { disposition: "filed" },
+    });
+    expect(diagnostics.map((d) => d.code)).toContain("missing-uow");
+    expect(ref).toBe(""); // invalid → not pinned
+    expect(result.disposition).toBe("filed");
+  });
+
+  test("captureAgentResult pins (no diagnostics) when the disposition is consistent", async () => {
+    const set = new Set<string>();
+    const { ref, diagnostics } = await captureAgentResult({
+      actor: "intake",
+      workspaceId: "deadbeef0004",
+      status: 0,
+      stdout: "",
+      before: set,
+      after: set,
+      reported: { disposition: "filed", uow: "prx-ccc" },
+    });
+    expect(diagnostics).toEqual([]);
+    expect(ref).toBe("deadbeef0004:agent_result@latest");
+  });
 });

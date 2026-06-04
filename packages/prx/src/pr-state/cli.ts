@@ -13650,6 +13650,23 @@ function planSourceLabel(unit: string): string | undefined {
   return domain;
 }
 
+/**
+ * prx-bs4: surface an agent-result artifact-contract violation (the agent
+ * misreported — e.g. `filed` with no UoW) so it is not silently swallowed by the
+ * best-effort CAS pin. The result still renders; the diagnostics warn the operator.
+ */
+function warnAgentContractDiagnostics(
+  output: Output,
+  actor: string,
+  diagnostics: readonly { code: string; path: string; message: string }[],
+): void {
+  if (diagnostics.length === 0) return;
+  output.error(`⚠ ${actor} result failed its artifact contract — not pinned to CAS:`);
+  for (const d of diagnostics) {
+    output.error(`  [${d.code}] ${d.path || "(root)"}: ${d.message}`);
+  }
+}
+
 /** Shared release-update warning so all session-entry call sites stay in sync. */
 export function formatBinaryUpdateWarning(update: { current: string; latest: string }): string {
   return (
@@ -22542,7 +22559,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // `prx triage result`, capture + pin to CAS, emit the schema-backed result.
       const beadsAfter = snapshotBeadIds(queueCwd);
       const reported = readReportedResult(spawnCwd);
-      const { result: agentResult } = await captureAgentResult({
+      const { result: agentResult, diagnostics: triageDiagnostics } = await captureAgentResult({
         actor: "triage",
         workspaceId: opened.workspace_id,
         status: result.status,
@@ -22551,6 +22568,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         after: beadsAfter,
         reported,
       });
+      warnAgentContractDiagnostics(output, "triage", triageDiagnostics);
       emit(
         output,
         { schema: agentResultSchema, data: agentResult, pretty: renderAgentResult },
@@ -22767,15 +22785,19 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // fall back to the bead diff.
       const beadsAfter = snapshotBeadIds(queueCwd);
       const reported = readReportedResult(spawnCwd);
-      const { ref: resultRef, result: agentResult } = await captureAgentResult({
-        actor: "intake",
-        workspaceId: opened.workspace_id,
-        status: result.status,
-        stdout: result.stdout ?? "",
-        before: beadsBefore,
-        after: beadsAfter,
-        reported,
-      });
+      const { ref: resultRef, result: agentResult, diagnostics: intakeDiagnostics } =
+        await captureAgentResult({
+          actor: "intake",
+          workspaceId: opened.workspace_id,
+          status: result.status,
+          stdout: result.stdout ?? "",
+          before: beadsBefore,
+          after: beadsAfter,
+          reported,
+        });
+      // prx-bs4: surface an artifact-contract violation (intake misreported its
+      // disposition) instead of silently dropping the CAS pin.
+      warnAgentContractDiagnostics(output, "intake", intakeDiagnostics);
       // prx-9kd: one schema-backed structured value, one printer. The `--json`
       // surface is the validated AgentResult contract; plain is its render.
       void resultRef; // pinned to CAS for the return channel; not in the surface.
