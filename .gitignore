@@ -3,6 +3,7 @@ node_modules/
 **/.tmp/
 .prx/transitions.jsonl
 dist/
+coverage/
 result
 result-*
 .direnv/
