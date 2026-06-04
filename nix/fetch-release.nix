@@ -1,4 +1,4 @@
-# Fetch the released prx / prx-tui binaries for a given system, hermetically.
+# Fetch the released prx binary for a given system, hermetically.
 #
 # `pkgs.fetchurl` is a fixed-output derivation, so this works under
 # `sandbox = true` with no nix.conf changes — the portable distribution path
@@ -6,7 +6,7 @@
 #
 # Hashes live in ../release-hashes.json, updated per release by the
 # release-binary workflow. Usage:
-#   import ./nix/fetch-release.nix self { inherit pkgs; }   # → { prx; prx-tui; version; }
+#   import ./nix/fetch-release.nix self { inherit pkgs; }   # → { prx; version; }
 self:
 { pkgs, system ? pkgs.stdenv.hostPlatform.system }:
 let
@@ -31,5 +31,4 @@ in
 {
   inherit version;
   prx = fetchBin "prx" sysHashes.prx;
-  prx-tui = fetchBin "prx-tui" sysHashes."prx-tui";
 }

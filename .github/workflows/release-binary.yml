@@ -1,7 +1,7 @@
 name: release-binary
 
-# On a semver tag (e.g. v0.1.0), build the self-contained prx / prx-tui binaries
-# per platform and attach them to the GitHub Release. Consumers (e.g. ai-home)
+# On a semver tag (e.g. v0.1.0), build the self-contained prx binary per platform
+# and attach it to the GitHub Release. Consumers (e.g. ai-home)
 # fetch the asset via nix `pkgs.fetchurl` (hermetic) — no source build needed.
 # Library npm publishing (semver) is handled separately by release.yml + changesets.
 
@@ -34,17 +34,11 @@ jobs:
           PRX_COMPILE_VERSION="${{ github.ref_name }}" \
           BUN="$(which bun)" \
             bun packages/prx/scripts/prx-compile.ts ./prx-${{ matrix.target }}
-      - name: Build prx-tui
-        run: |
-          bun build --compile \
-            --define __PRX_BUILD_GIT_SHA__="\"$(git rev-parse --short=12 HEAD)\"" \
-            packages/prx/scripts/prx_tui.ts --outfile ./prx-tui-${{ matrix.target }}
       - name: Attach to release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: |
             prx-${{ matrix.target }}
-            prx-tui-${{ matrix.target }}
 
   # Publish the prx CLI as a container image to GHCR (ghcr.io/<owner>/prx).
   # Multi-stage Dockerfile compiles with bun, then ships a slim runtime.
@@ -97,10 +91,8 @@ jobs:
           base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
           json=$(jq -n --arg v "$ver" '{version:$v, systems:{}}')
           for sys in aarch64-darwin x86_64-linux; do
-            for name in prx prx-tui; do
-              h=$(nix-prefetch-url "$base/$name-$sys")
-              json=$(printf '%s' "$json" | jq --arg s "$sys" --arg n "$name" --arg h "$h" '.systems[$s][$n]=$h')
-            done
+            h=$(nix-prefetch-url "$base/prx-$sys")
+            json=$(printf '%s' "$json" | jq --arg s "$sys" --arg h "$h" '.systems[$s].prx=$h')
           done
           printf '%s\n' "$json" | jq . > release-hashes.json
           cat release-hashes.json
