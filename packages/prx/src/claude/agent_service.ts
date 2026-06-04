@@ -358,10 +358,11 @@ function buildSdkOptions(
   }
 
   // prx-pe1 (slice 3): the SDK's tool subprocesses inherit `options.env`
-  // (defaulting to process.env). When bun is resolvable but missing from the
-  // inherited PATH, prepend its dir so the executor's allowlisted `bun test` /
-  // `bun run typecheck` checks resolve. Left unset (→ process.env) when bun is
-  // already on PATH or not found, so non-executor agents are unaffected.
+  // (defaulting to the ambient environment). When bun is resolvable but missing
+  // from the inherited PATH, prepend its dir so the executor's allowlisted
+  // `bun test` / `bun run typecheck` checks resolve. Left unset (→ inherited
+  // environment) when bun is already on PATH or not found, so non-executor
+  // agents are unaffected.
   const bunDir = resolveBunDir();
   if (bunDir) {
     const env = processEnv();
