@@ -43,6 +43,11 @@ import {
 
 export const GIT_COMMIT_BUILD_TYPE = "https://prx.dev/git/commit/v1";
 export const GIT_PUSH_BUILD_TYPE = "https://prx.dev/git/push/v1";
+// prx-ux2: the verify step (typecheck/test) as a signed predicate. The subject
+// is the commit under test, so a `checks/v1` derivation is the SLSA-shaped,
+// DSSE-signed answer to "did this commit pass its checks?" — replacing a
+// self-reported `checks_passed` boolean on the implement artifact.
+export const CHECKS_BUILD_TYPE = "https://prx.dev/checks/v1";
 
 /** What the decorator needs to emit and persist a signed Derivation. */
 export interface AttestDeps {
@@ -150,6 +155,30 @@ export function attestingProc(
       return result;
     },
   };
+}
+
+/**
+ * prx-ux2: wrap a `ProcExecutor` so a clean checks run (`status === 0`) emits a
+ * signed `checks/v1` Derivation whose subject is the commit under test. This is
+ * the verify step modelled as an attestation rather than a self-reported
+ * boolean: a passing run produces a DSSE-signed predicate in the ledger; a
+ * failing run produces nothing, so absence of a `checks/v1` for a commit ≡ "not
+ * verified" (the same fail-closed shape as {@link attestingGit}).
+ *
+ * The commit is resolved by the caller (the post-commit `HEAD`) and closed over,
+ * since it is not carried in the `ProcRequest`. Built on {@link attestingProc},
+ * so it reuses the identical sign + ledger-append path as `commit/v1`/`push/v1`.
+ */
+export function attestingChecks(
+  inner: ProcExecutor,
+  deps: AttestDeps,
+  commit: string,
+): ProcExecutor {
+  return attestingProc(inner, deps, (req) => ({
+    subject: [{ name: "checks", digest: { gitCommit: commit } }],
+    buildType: CHECKS_BUILD_TYPE,
+    externalParameters: { command: req.command, args: req.args ?? [] },
+  }));
 }
 
 interface AttestationSpec {
