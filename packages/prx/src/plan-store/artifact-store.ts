@@ -16,7 +16,14 @@
 import { type CasSha, type DomainOptions, setRef, writeBlob } from "./cas.ts";
 
 /** Artifact families addressable in the CAS as `<unit>:<kind>@<slot>`. */
-export type ArtifactKind = "plan" | "submit" | "agent_result" | "implement";
+export type ArtifactKind =
+  | "plan"
+  | "submit"
+  | "agent_result"
+  | "implement"
+  // prx-adj: the FOD-pinned source authority (the GH issue / beads row) at the
+  // head of a unit's chain — content-anchored, drift-detectable via isFresh.
+  | "source";
 
 /** Canonical ref for an artifact slot: `<unit>:<kind>@<slot>`. */
 export function artifactRef(
