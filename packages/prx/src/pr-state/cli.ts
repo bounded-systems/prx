@@ -13224,10 +13224,19 @@ export async function initContract(
       "!config.json",
     ].join("\n");
 
-    if (!existsSync(prxRootGitignore) || readFileSync(prxRootGitignore, "utf8").trim() !== desiredPrxRootGitignore) {
+    // Read once (empty on missing) instead of existsSync-then-read, so the
+    // writeFileSync isn't racing an existence check (CodeQL js/file-system-race).
+    const readOrEmpty = (p: string): string => {
+      try {
+        return readFileSync(p, "utf8");
+      } catch {
+        return "";
+      }
+    };
+    if (readOrEmpty(prxRootGitignore).trim() !== desiredPrxRootGitignore) {
       writeFileSync(prxRootGitignore, `${desiredPrxRootGitignore}\n`);
     }
-    if (!existsSync(prxReposGitignore) || readFileSync(prxReposGitignore, "utf8").trim() !== desiredPrxReposGitignore) {
+    if (readOrEmpty(prxReposGitignore).trim() !== desiredPrxReposGitignore) {
       writeFileSync(prxReposGitignore, `${desiredPrxReposGitignore}\n`);
     }
 
@@ -15026,18 +15035,27 @@ export function runBeadsInit(
     run("bd", dryRun ? ["bootstrap", "--dry-run"] : ["bootstrap", "--yes"]);
   };
 
-  // Patch metadata if needed
-  if (existsSync(metadataPath) && metadataDatabase !== database) {
-    output.log(`repair: rewriting ${metadataPath} dolt_database ${metadataDatabase ?? "unset"} -> ${database}`);
-    if (!dryRun) {
-      try {
-        const metadata = JSON.parse(readFileSync(metadataPath, "utf8"));
-        metadata.dolt_database = database;
-        writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + "\n");
-      } catch {
-        throw new CliError(
-          `beads-init: ${metadataPath} contains invalid JSON; fix or delete it and re-run`,
-        );
+  // Patch metadata if needed. Read once instead of existsSync-then-read so the
+  // rewrite isn't racing an existence check (CodeQL js/file-system-race).
+  {
+    let metadataRaw: string | null = null;
+    try {
+      metadataRaw = readFileSync(metadataPath, "utf8");
+    } catch {
+      metadataRaw = null;
+    }
+    if (metadataRaw !== null && metadataDatabase !== database) {
+      output.log(`repair: rewriting ${metadataPath} dolt_database ${metadataDatabase ?? "unset"} -> ${database}`);
+      if (!dryRun) {
+        try {
+          const metadata = JSON.parse(metadataRaw);
+          metadata.dolt_database = database;
+          writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + "\n");
+        } catch {
+          throw new CliError(
+            `beads-init: ${metadataPath} contains invalid JSON; fix or delete it and re-run`,
+          );
+        }
       }
     }
   }
@@ -15080,18 +15098,27 @@ export function runBeadsInit(
       output.log("repair: running canonical Beads init");
       run("bd", ["init", "--prefix", repo, "--database", database]);
     }
-    // Re-patch metadata after init
-    if (existsSync(metadataPath) && !dryRun) {
+    // Re-patch metadata after init. Read once instead of existsSync-then-read
+    // (CodeQL js/file-system-race).
+    if (!dryRun) {
+      let metadataRaw: string | null = null;
       try {
-        const metadata = JSON.parse(readFileSync(metadataPath, "utf8"));
-        if (metadata.dolt_database !== database) {
-          metadata.dolt_database = database;
-          writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + "\n");
-        }
+        metadataRaw = readFileSync(metadataPath, "utf8");
       } catch {
-        throw new CliError(
-          `beads-init: ${metadataPath} contains invalid JSON; fix or delete it and re-run`,
-        );
+        metadataRaw = null;
+      }
+      if (metadataRaw !== null) {
+        try {
+          const metadata = JSON.parse(metadataRaw);
+          if (metadata.dolt_database !== database) {
+            metadata.dolt_database = database;
+            writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + "\n");
+          }
+        } catch {
+          throw new CliError(
+            `beads-init: ${metadataPath} contains invalid JSON; fix or delete it and re-run`,
+          );
+        }
       }
     }
   } else {

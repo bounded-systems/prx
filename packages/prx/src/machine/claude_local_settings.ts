@@ -19,7 +19,7 @@
  * profile already permits. Raw git/gh/bd/wt stay on the permission-prompt path
  * unless the profile explicitly lists them (triage lists `bd`/`gh issue`).
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { SESSION_PROFILES, type SessionProfileName } from "./runtime_profiles.ts";
@@ -59,9 +59,18 @@ export function ensureClaudeAllowlistPatterns(
   patterns: readonly string[],
 ): EnsureClaudeAllowlistResult {
   const absPath = join(cwd, CLAUDE_LOCAL_SETTINGS_RELATIVE_PATH);
-  const fileExists = existsSync(absPath);
 
-  if (!fileExists) {
+  // Read once instead of existsSync-then-read: a missing file surfaces as a
+  // read error here, avoiding the check→use TOCTOU window (CodeQL
+  // js/file-system-race).
+  let raw: string | null = null;
+  try {
+    raw = readFileSync(absPath, "utf8");
+  } catch {
+    raw = null;
+  }
+
+  if (raw === null) {
     mkdirSync(dirname(absPath), { recursive: true });
     const fresh: SettingsShape = {
       permissions: { allow: [...patterns] },
@@ -72,7 +81,7 @@ export function ensureClaudeAllowlistPatterns(
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(absPath, "utf8"));
+    parsed = JSON.parse(raw);
   } catch {
     return { status: "skipped-malformed", path: absPath };
   }

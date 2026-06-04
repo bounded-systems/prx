@@ -20,7 +20,7 @@
  *   - the rename meta-docs, which reference the old scope as "the name being
  *     renamed" — replacing there would mangle the migration description.
  */
-import { readdirSync, readFileSync, writeFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const oldScope = process.argv[2] ?? "@prx";
@@ -48,15 +48,19 @@ let occCount = 0;
 const changed: string[] = [];
 
 function walk(dir: string): void {
-  for (const name of readdirSync(dir)) {
+  // `withFileTypes` returns the entry kind from the single readdir syscall, so
+  // there's no separate statSync(full) before reading/writing the file — which
+  // would be a TOCTOU race (CodeQL js/file-system-race).
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const name = entry.name;
     if (SKIP_DIRS.has(name)) continue;
     const full = join(dir, name);
     const rel = relative(root, full);
-    const st = statSync(full);
-    if (st.isDirectory()) {
+    if (entry.isDirectory()) {
       if (!SKIP_PATHS.has(rel)) walk(full);
       continue;
     }
+    if (!entry.isFile()) continue;
     if (SKIP_FILES.has(rel)) continue;
     const dot = name.lastIndexOf(".");
     const ext = dot >= 0 ? name.slice(dot) : "";

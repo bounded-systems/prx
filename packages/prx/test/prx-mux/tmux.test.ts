@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, readFileSync, openSync, fstatSync, closeSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -274,9 +274,15 @@ describe("clearResurrectEntry", () => {
 
     clearResurrectEntry({ name: "gh_100", resurrectDir: dir + "/" });
 
-    const mtimeAfter = (require("node:fs") as typeof import("node:fs")).statSync(save).mtimeMs;
-    expect(mtimeAfter).toBe(mtimeBefore);
-    expect(readFileSync(save, "utf8")).toBe(contents);
+    // Read mtime and content from a single descriptor so the assertions don't
+    // stat-then-read the path non-atomically (CodeQL js/file-system-race).
+    const fd = openSync(save, "r");
+    try {
+      expect(fstatSync(fd).mtimeMs).toBe(mtimeBefore);
+      expect(readFileSync(fd, "utf8")).toBe(contents);
+    } finally {
+      closeSync(fd);
+    }
   });
 
   test("handles an absent 'last' symlink gracefully", () => {

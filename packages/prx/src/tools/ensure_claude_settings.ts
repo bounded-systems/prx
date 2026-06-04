@@ -57,7 +57,14 @@ export function ensureClaudeSettings(
   }
 
   const canonical = readFileSync(sourcePath, "utf8");
-  const current = existsSync(targetPath) ? readFileSync(targetPath, "utf8") : null;
+  // Read once (null on missing) instead of existsSync-then-read, so the
+  // writeFileSync isn't racing an existence check (CodeQL js/file-system-race).
+  let current: string | null = null;
+  try {
+    current = readFileSync(targetPath, "utf8");
+  } catch {
+    current = null;
+  }
   if (current === canonical) {
     return { targetPath, sourcePath, wrote: false, reason: "unchanged" };
   }

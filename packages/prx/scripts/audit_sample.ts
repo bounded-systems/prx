@@ -20,7 +20,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 type BeadsIssue = {
@@ -176,14 +176,21 @@ function main(): void {
 
   const today = new Date().toISOString().slice(0, 10);
   const target = resolveWritePath(writePath, today);
-  if (existsSync(target) && !force) {
-    console.error(
-      `audit_sample: refusing to overwrite existing file ${target} (pass --force to replace it)`,
-    );
-    process.exit(2);
-  }
   mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, rendered);
+  // Atomic refuse-to-overwrite: `wx` fails with EEXIST if the file already
+  // exists, so there's no existsSync→write TOCTOU window
+  // (CodeQL js/file-system-race).
+  try {
+    writeFileSync(target, rendered, { flag: force ? "w" : "wx" });
+  } catch (err) {
+    if (!force && (err as NodeJS.ErrnoException).code === "EEXIST") {
+      console.error(
+        `audit_sample: refusing to overwrite existing file ${target} (pass --force to replace it)`,
+      );
+      process.exit(2);
+    }
+    throw err;
+  }
   console.log(target);
 }
 
