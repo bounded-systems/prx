@@ -14,9 +14,13 @@ concurrency:
   group: coverage-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Least-privilege: coverage only reads the repo and writes the run summary.
+# Least-privilege: read the repo, plus write coverage to GitHub Code Quality.
+# `code-quality: write` is the fine-grained scope the upload action needs
+# (Code coverage in PRs, public preview). Harmless where the feature is
+# unavailable — the upload step is report-only and won't fail the job.
 permissions:
   contents: read
+  code-quality: write
 
 jobs:
   coverage:
@@ -55,10 +59,28 @@ jobs:
         if: always()
         run: bun run packages/prx/scripts/coverage-summary.ts coverage/lcov.info
 
+      # GitHub Code Quality wants Cobertura XML; Bun only emits lcov.
+      - name: Convert lcov to Cobertura
+        if: always()
+        run: bun run packages/prx/scripts/lcov-to-cobertura.ts coverage/lcov.info coverage/cobertura.xml
+
+      # Surface coverage inline on PRs via GitHub Code Quality (public preview).
+      # Report-only: never fails the job — lights up wherever the feature is
+      # enabled for the repo, and no-ops harmlessly where it isn't.
+      - name: Upload coverage to GitHub Code Quality
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-code-coverage@abb5995db9e0199b0e2bb9dbd136fce4cb1ec4d3 # v1
+        with:
+          file: coverage/cobertura.xml
+          language: typescript
+          label: unit
+          fail-on-error: false
+
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: coverage-lcov
+          name: coverage-report
           path: coverage/
           if-no-files-found: warn
