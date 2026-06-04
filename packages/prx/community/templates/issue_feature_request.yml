@@ -1,0 +1,30 @@
+# Rendered from packages/prx/community/ — do not edit by hand.
+name: Feature request
+description: Suggest an idea or improvement for {{project.name}}
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        `{{project.name}}` is small and opinionated — for anything non-trivial,
+        please describe the problem first so we can agree on scope.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+      description: What are you trying to do, and why is it hard today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would you like {{project.name}} to do?
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false

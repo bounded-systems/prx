@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bounded-systems/prx/schemas/community/community.schema.json",
+  "title": "Community health metadata",
+  "description": "Single source of truth for the variable facts woven through the repo governance files (LICENSE, CODE_OF_CONDUCT.md, SECURITY.md, CONTRIBUTING.md). Rendered into pinned templates; the render check asserts no drift.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project", "copyright", "license", "security", "conduct"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "tagline", "org", "repo", "url"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "tagline": { "type": "string", "minLength": 1 },
+        "org": { "type": "string", "minLength": 1 },
+        "repo": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
+        "url": { "type": "string", "format": "uri" }
+      }
+    },
+    "copyright": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["year", "holder", "url"],
+      "properties": {
+        "year": { "type": "string", "pattern": "^[0-9]{4}(-[0-9]{4})?$" },
+        "holder": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri" }
+      }
+    },
+    "license": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spdx", "name", "url", "summary"],
+      "properties": {
+        "spdx": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri" },
+        "summary": { "type": "string", "minLength": 1 }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["channel", "reportUrl", "responseDays", "supportedVersions"],
+      "properties": {
+        "channel": { "type": "string", "enum": ["github-private-advisory", "email"] },
+        "reportUrl": { "type": "string", "format": "uri" },
+        "responseDays": { "type": "integer", "minimum": 1 },
+        "supportedVersions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["range", "supported"],
+            "properties": {
+              "range": { "type": "string", "minLength": 1 },
+              "supported": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "conduct": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contact", "covenantVersion"],
+      "properties": {
+        "contact": { "type": "string", "minLength": 1 },
+        "covenantVersion": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

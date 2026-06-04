@@ -2,6 +2,7 @@
   "name": "prx",
   "private": true,
   "type": "module",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "workspaces": ["packages/*"],
   "scripts": {
     "pr-state": "bun run packages/prx/scripts/pr_state.ts",
@@ -14,6 +15,8 @@
     "snapshot:help:check": "bun test packages/prx/test/scripts/cli_help_snapshot.test.ts packages/prx/test/pr-state/help/help.snapshot.test.ts",
     "snapshot:help:refresh": "bun run snapshot:help:check -- -u",
     "schemas:export": "bun run packages/prx/scripts/export-intake-schemas.ts && bun run packages/prx/scripts/export-scout-schemas.ts && bun run packages/prx/scripts/export-contract-schemas.ts && bun run packages/prx/scripts/export-audit-schemas.ts && bun run packages/prx/scripts/export-workspace-schema.ts",
+    "community:render": "bun run packages/prx/scripts/render-community.ts",
+    "community:check": "bun run packages/prx/scripts/render-community.ts --check",
     "typecheck": "bunx tsc --noEmit",
     "test": "bun test",
     "test:dolt-smoke": "PRX_DOLT_SMOKE=1 bun test packages/prx/test/beads/hydrate.test.ts",
@@ -34,6 +37,8 @@
   },
   "devDependencies": {
     "@types/bun": "^1.3.2",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
     "drizzle-kit": "^0.31.10",
     "madge": "^8.0.0",
     "typescript": "^5.9.2",
