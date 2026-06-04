@@ -126,6 +126,7 @@ import {
   writeReportedResult,
 } from "../pipeline/agent-result.ts";
 import { finalizeImplementRun } from "../pipeline/implement-artifact.ts";
+import { pinWorkUnitSourceBestEffort } from "../pipeline/source-pin.ts";
 import { type CheckStep, runAttestedChecks } from "../provenance/attest.ts";
 
 // prx-ub4 (slice 4c): the project checks prx re-runs + signs (`checks/v1`) after
@@ -4179,6 +4180,12 @@ export async function checkWorkUnitChain(
     if (resolved === null) {
       throw new CliError(prxSessionNoSourceConfiguredMessage(workUnitId));
     }
+    // prx-adj: content-anchor the chain ROOT. We have the resolved issue/bead
+    // authority here, so FOD-pin it as `<unit>:source@pinned` — the chain is now
+    // anchored to the exact source text at entry, and `workUnitSourceFresh`
+    // makes upstream drift observable. Best-effort: a CAS write must never break
+    // session entry.
+    await pinWorkUnitSourceBestEffort(workUnitId, resolved);
     // prx-jcb: the GH board has no parity row, but ask the artifact graph before
     // refusing. A plan in CAS is a valid local projection (in-toto: the artifact
     // links the unit, so we don't re-probe external board/git state). Entry is
