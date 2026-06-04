@@ -143,7 +143,8 @@ describe("runHomeUpdate", () => {
       file: "nix",
       args: ["flake", "update", "ai-home", "--flake", "/fake/flake"],
       cwd: "/fake/flake",
-      stdio: "inherit",
+      // prx-up2: quiet by default — the heavy commands are captured, not inherited.
+      stdio: "pipe",
     });
     // prx-1ab: the lockfile is committed between update and switch so the
     // git+file flake tree is clean — the step that used to be manual.
@@ -155,10 +156,63 @@ describe("runHomeUpdate", () => {
       file: "home-manager",
       args: ["switch", "--flake", "/fake/flake"],
       cwd: "/fake/flake",
-      stdio: "inherit",
+      stdio: "pipe",
     });
     expect(fx.logs.join("\n")).toContain("ai-home: aaaaaaa → bbbbbbb (home-manager switched)");
     expect(fx.errs).toEqual([]);
+  });
+
+  test("prx-up2: quiet mode prints per-step progress, --verbose streams the raw log", () => {
+    const quiet = makeFixture({
+      revs: ["aaaaaaaaaa1111", "bbbbbbbbbb2222"],
+      spawnResults: [{ status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }],
+    });
+    runHomeUpdate(
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "plain" },
+      quiet.output,
+      quiet.deps,
+    );
+    const quietLog = quiet.logs.join("\n");
+    expect(quietLog).toContain("updating flake input ai-home…");
+    expect(quietLog).toContain("switching home-manager generation…");
+
+    const verbose = makeFixture({
+      revs: ["aaaaaaaaaa1111", "bbbbbbbbbb2222"],
+      spawnResults: [{ status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }],
+    });
+    runHomeUpdate(
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "plain", verbose: true },
+      verbose.output,
+      verbose.deps,
+    );
+    // --verbose inherits the terminal for the heavy steps (no per-step banner).
+    expect(verbose.spawnCalls[0]!.stdio).toBe("inherit");
+    expect(verbose.spawnCalls[4]!.stdio).toBe("inherit");
+    expect(verbose.logs.join("\n")).not.toContain("switching home-manager generation…");
+  });
+
+  test("prx-up2: a failed switch dumps the captured log so quiet mode stays debuggable", () => {
+    const fx = makeFixture({
+      revs: ["aaaaaaaaaa1111", "bbbbbbbbbb2222"],
+      // update ok, rev-parse ok, add ok, commit ok, switch fails with output.
+      spawnResults: [
+        { status: 0 },
+        { status: 0 },
+        { status: 0 },
+        { status: 0 },
+        { status: 1, stderr: "error: build of '/nix/store/x' failed\nsome detail" },
+      ],
+    });
+    const exit = runHomeUpdate(
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "plain" },
+      fx.output,
+      fx.deps,
+    );
+    expect(exit).toBe(1);
+    const errText = fx.errs.join("\n");
+    expect(errText).toContain("home-manager switch exited with status 1");
+    expect(errText).toContain("captured output");
+    expect(errText).toContain("build of '/nix/store/x' failed");
   });
 
   test("detects no-op when rev unchanged", () => {
@@ -385,6 +439,7 @@ describe("runHomeUpdate", () => {
       input?: string | undefined;
       dryRun: boolean;
       format: "plain" | "json";
+      verbose?: boolean;
     }> = [];
 
     const logs: string[] = [];
@@ -417,7 +472,24 @@ describe("runHomeUpdate", () => {
       input: "ai-home",
       dryRun: true,
       format: "json",
+      verbose: false,
     });
+  });
+
+  test("runCli threads --verbose through to the homeUpdate handler", () => {
+    const calls: Array<{ verbose?: boolean }> = [];
+    const exit = runCli(
+      ["home", "update", "--verbose"],
+      { log: () => {}, error: () => {} },
+      {
+        homeUpdate: (options) => {
+          calls.push(options);
+          return 0;
+        },
+      },
+    );
+    expect(exit).toBe(0);
+    expect(calls[0]?.verbose).toBe(true);
   });
 
   test("runCli returns the handler's exit code", () => {

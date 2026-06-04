@@ -53,6 +53,11 @@ export type HomeUpdateOptions = {
   input?: string | undefined;
   dryRun: boolean;
   format: "plain" | "json";
+  // prx-up2: when true, stream the raw `nix` / `home-manager switch` activation
+  // log live (the old behavior). Default (false) captures it inside prx and
+  // prints only a per-step progress line, surfaced warnings/errors, and the
+  // summary — the full log is still dumped if a step fails.
+  verbose?: boolean;
 };
 
 type Output = {
@@ -130,6 +135,38 @@ function readLockRev(
 function shortRev(rev: string | null): string {
   if (!rev) return "(none)";
   return rev.length > 7 ? rev.slice(0, 7) : rev;
+}
+
+// prx-up2: a captured child's combined stdout+stderr as text (empty when the
+// child inherited the terminal, i.e. nothing was piped back).
+function captureToText(result: HomeUpdateSpawnResult): string {
+  const parts: string[] = [];
+  for (const chunk of [result.stdout, result.stderr]) {
+    if (chunk == null) continue;
+    parts.push(typeof chunk === "string" ? chunk : chunk.toString("utf8"));
+  }
+  return parts.join("\n");
+}
+
+// Lines worth surfacing even in quiet mode — anything that smells like a problem
+// the operator should see without scrolling the whole activation log.
+const NOTEWORTHY_RE = /\b(error|warning|fail(?:ed|ure)?|refus|conflict|denied)\b/i;
+
+function surfaceNoteworthy(captured: string, output: Output): void {
+  for (const raw of captured.split("\n")) {
+    const line = raw.trimEnd();
+    if (line.trim() && NOTEWORTHY_RE.test(line)) output.error(`  ${line.trim()}`);
+  }
+}
+
+// On a failed step, dump the captured log so quiet mode is still debuggable.
+function dumpCaptured(captured: string, output: Output): void {
+  const text = captured.trim();
+  if (!text) return;
+  output.error("  --- captured output ---");
+  for (const raw of text.split("\n")) {
+    output.error(`  ${raw.trimEnd()}`);
+  }
 }
 
 export function runHomeUpdate(
@@ -238,14 +275,18 @@ export function runHomeUpdate(
     return 0;
   }
 
-  // In JSON mode stdout must be a single parseable payload. Pipe child stdio
-  // so nix / home-manager output doesn't interleave with our JSON; suppress
-  // the human-oriented banner as well.
-  const childStdio: "inherit" | "pipe" = options.format === "json" ? "pipe" : "inherit";
+  // prx-up2: stream the raw nix / home-manager activation log live only when the
+  // operator asked for it (--verbose) or in JSON mode (where we always pipe so
+  // stdout stays a single parseable payload). Otherwise capture it inside prx
+  // and print a clean per-step summary — far less noise for `prx upgrade`.
+  const streamLive = options.format !== "json" && options.verbose === true;
+  const childStdio: "inherit" | "pipe" = streamLive ? "inherit" : "pipe";
+  const quiet = options.format !== "json" && !options.verbose;
   if (options.format !== "json") {
     output.log(`prx home update: ${input} @ ${flakeDir}`);
   }
 
+  if (quiet) output.log(`  updating flake input ${input}…`);
   const updateResult = spawn(
     nixUpdateCmd[0]!,
     nixUpdateCmd.slice(1),
@@ -261,6 +302,7 @@ export function runHomeUpdate(
     output.error(
       `prx home update: nix flake update exited with status ${updateResult.status}`,
     );
+    if (quiet) dumpCaptured(captureToText(updateResult), output);
     return updateResult.status ?? 1;
   }
 
@@ -303,6 +345,7 @@ export function runHomeUpdate(
     }
   }
 
+  if (quiet) output.log(`  switching home-manager generation…`);
   const switchResult = spawn(hmSwitchCmd[0]!, hmSwitchCmd.slice(1), {
     cwd: flakeDir,
     stdio: childStdio,
@@ -318,8 +361,11 @@ export function runHomeUpdate(
     output.error(
       `prx home update: home-manager switch exited with status ${switchResult.status}`,
     );
+    if (quiet) dumpCaptured(captureToText(switchResult), output);
     return switchResult.status ?? 1;
   }
+  // Even on success, surface any warnings the activation log buried.
+  if (quiet) surfaceNoteworthy(captureToText(switchResult), output);
 
   const noop = fromRev === toRev;
 
