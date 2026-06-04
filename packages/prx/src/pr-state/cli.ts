@@ -3953,7 +3953,15 @@ export type WorkUnitChainCheckResult = {
   backfillActions: string[];
   checked: true;
   valid: true;
-  reason: "ok" | "missing_unit_allowed" | "backfill_allowed" | "bd_schema_drift_detected";
+  reason:
+    | "ok"
+    | "missing_unit_allowed"
+    | "backfill_allowed"
+    | "bd_schema_drift_detected"
+    // prx-jcb: the unit has no GH-board parity row, but a content-addressed
+    // artifact (a plan in CAS) already links it locally. The artifact graph IS
+    // the projection — entry is allowed and the consumer validates the artifact.
+    | "artifact_projected";
   bdSchemaProbe?: BdSchemaProbeResult;
 };
 
@@ -3981,6 +3989,32 @@ async function probeNonGhResolver(
   return resolved;
 }
 
+/**
+ * prx-jcb: does a content-addressed artifact already link this unit locally?
+ *
+ * The in-toto / SLSA framing the operator is steering toward: a unit is
+ * "projected locally" iff it exists in the artifact graph — not iff the external
+ * GitHub board has a row for it. A plan in CAS (`<unit>:plan@draft|approved`) is
+ * the proof the intake→triage→plan edges ran for this unit, so its presence is a
+ * valid local projection. We return `exists` only (not the validity verdict):
+ * the gate answers "is it projected", the downstream consumer (`prx implement
+ * agent` already refuses on `validated_ok=false`) answers "is it valid" — one
+ * source of refusal, no double-gating.
+ */
+async function defaultHasLocalPlanArtifact(
+  workUnitId: string,
+  showPlan: typeof runPlanShow = runPlanShow,
+): Promise<boolean> {
+  try {
+    await showPlan({ unit: workUnitId });
+    return true;
+  } catch {
+    // PlanRefNotFound (no plan for this unit) — and any CAS read error — mean we
+    // cannot claim a local artifact projection; fall through to the board path.
+    return false;
+  }
+}
+
 export async function checkWorkUnitChain(
   workUnitId: string,
   repoPath: string,
@@ -3993,6 +4027,9 @@ export async function checkWorkUnitChain(
   from?: WorkUnitSource,
   readEpicChildren: typeof findEpicChildren = findEpicChildren,
   probeSchema: typeof probeBdSchema = probeBdSchema,
+  // prx-jcb: artifact-native local-projection probe (in-toto framing). Default
+  // checks the CAS plan ref; injectable so tests stay offline.
+  hasLocalPlanArtifact: (unit: string) => Promise<boolean> = defaultHasLocalPlanArtifact,
 ): Promise<WorkUnitChainCheckResult> {
   let board: ReturnType<typeof boardStatus>;
   try {
@@ -4130,6 +4167,23 @@ export async function checkWorkUnitChain(
     const resolved = await probeNonGhResolver(workUnitId, repoPath, loadIdentity, buildResolver);
     if (resolved === null) {
       throw new CliError(prxSessionNoSourceConfiguredMessage(workUnitId));
+    }
+    // prx-jcb: the GH board has no parity row, but ask the artifact graph before
+    // refusing. A plan in CAS is a valid local projection (in-toto: the artifact
+    // links the unit, so we don't re-probe external board/git state). Entry is
+    // allowed; the consumer validates the artifact it reads.
+    if (await hasLocalPlanArtifact(workUnitId)) {
+      return {
+        workUnitId,
+        create,
+        unitExists: true,
+        issueAuthorityActive: true,
+        pruneActions: [],
+        backfillActions: [],
+        checked: true,
+        valid: true,
+        reason: "artifact_projected",
+      };
     }
     throw new CliError(
       prxSessionNotProjectedLocallyMessage(workUnitId, resolved),
@@ -4282,6 +4336,10 @@ function formatWorkUnitChainCheck(result: WorkUnitChainCheckResult, format: "pla
     return result.issueAuthorityActive
       ? `Parity chain check passed for ${result.workUnitId}: open GitHub issue authority can bootstrap this unit before local projection exists.`
       : `Parity chain check passed for ${result.workUnitId}: no existing issue-backed unit yet, which is allowed for pre-switch creation.`;
+  }
+
+  if (result.reason === "artifact_projected") {
+    return `Parity chain check passed for ${result.workUnitId}: no GitHub-board parity row, but a content-addressed plan artifact already links this unit locally — the artifact graph is the projection.`;
   }
 
   if (result.reason === "backfill_allowed") {
