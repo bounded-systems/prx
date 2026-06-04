@@ -122,8 +122,10 @@ import {
   renderPlanAgentResult,
   type ReportedResult,
   snapshotBeadIds,
+  summarizeAgentStdout,
   writeReportedResult,
 } from "../pipeline/agent-result.ts";
+import { finalizeImplementRun } from "../pipeline/implement-artifact.ts";
 import { pickPrimaryTmuxEntry, readTmuxSurface } from "./surfaces/tmux.ts";
 import { resolverForCanonicalId } from "./resolvers/dispatch.ts";
 import { BeadsResolver } from "./resolvers/beads.ts";
@@ -19786,6 +19788,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
                 output.log(formatRuntimeProfile(headlessProfile, parsed.format));
                 return 0;
               }
+              // prx-pe1 (slice 4b): snapshot HEAD so we only pin an implement
+              // artifact when the executor actually produced a NEW commit.
+              const headBefore = (() => {
+                const r = runCommand(["git", "-C", launchCwd, "rev-parse", "HEAD"]);
+                return r.status === 0 ? r.stdout.trim() : null;
+              })();
               const dispatched = await maybeWithWorktreeRuntimeLock(
                 true,
                 launchCwd,
@@ -19800,6 +19808,44 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               const result = agentProfileExecutionAsRuntimeResult(dispatched);
               if (result.stdout) output.log(result.stdout);
               if (result.status !== 0 && result.stderr) output.error(result.stderr);
+              // prx-pe1 (slice 4b): on a clean run that left a new commit, pin
+              // `<unit>:implement@latest` so the implement step is a typed
+              // artifact, not a bare commit. Best-effort: never break the run on
+              // capture failure. The `checks/v1` attestation (prx-ux2) is keyed
+              // by the same commit and wired separately.
+              if (result.status === 0) {
+                try {
+                  const fin = await finalizeImplementRun(
+                    {
+                      unit: parsed.workUnitId,
+                      summary: summarizeAgentStdout(result.stdout ?? ""),
+                      cwd: launchCwd,
+                    },
+                    {
+                      resolveHead: (cwd) => {
+                        const r = runCommand(["git", "-C", cwd, "rev-parse", "HEAD"]);
+                        const head = r.status === 0 ? r.stdout.trim() : null;
+                        return head && head !== headBefore ? head : null;
+                      },
+                      listChangedFiles: (cwd, commit) => {
+                        const r = runCommand([
+                          "git", "-C", cwd, "show", "--name-only", "--pretty=format:", commit,
+                        ]);
+                        return r.status === 0
+                          ? r.stdout.split("\n").map((s) => s.trim()).filter(Boolean)
+                          : [];
+                      },
+                    },
+                  );
+                  if (fin.ref) {
+                    output.log(
+                      `implement: ${parsed.workUnitId} → ${fin.ref} (commit ${fin.artifact?.commit.slice(0, 7)})`,
+                    );
+                  }
+                } catch {
+                  // capture is best-effort; the implement run already succeeded.
+                }
+              }
               return result.status;
             }
             const runtimeArtifacts = primed.runtimeArtifacts;
