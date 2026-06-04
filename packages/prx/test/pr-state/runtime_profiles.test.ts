@@ -1410,6 +1410,30 @@ describe("buildWorkUnitClaudeImplementSdkRuntimeProfile (headless-first step 2)"
     expect(a.sdkSpec?.systemPromptDynamic).not.toEqual(b.sdkSpec?.systemPromptDynamic);
   });
 
+  test("embeds the input plan artifact in the prompt so the executor has scope (prx-pe1)", () => {
+    // The plan→implement edge consumed: the validated plan body is the
+    // executor's confirmed scope, embedded directly so it never reaches for
+    // prx/bd (denied in the headless allowlist) to read scope.
+    const planBody = "## Problem\nREADME drift\n## Scope\nUpdate the README only.";
+    const p = buildWorkUnitClaudeImplementSdkRuntimeProfile({
+      workUnitId: "prx-0v5",
+      planBody,
+    });
+    const prompt = p.sdkSpec?.prompt ?? "";
+    expect(prompt).toContain("BEGIN APPROVED PLAN");
+    expect(prompt).toContain("Update the README only.");
+    expect(prompt).toContain("do not widen it");
+    // The cache-stable system prefix must NOT carry the per-unit plan body.
+    expect(p.sdkSpec?.systemPromptStable?.join(" ")).not.toContain("README drift");
+  });
+
+  test("falls back to the fetch-it-yourself prompt when no plan body is supplied", () => {
+    const p = buildWorkUnitClaudeImplementSdkRuntimeProfile({ workUnitId: "prx-0v5" });
+    const prompt = p.sdkSpec?.prompt ?? "";
+    expect(prompt).not.toContain("BEGIN APPROVED PLAN");
+    expect(prompt).toContain("Execute the implementation plan for prx-0v5");
+  });
+
   test("injects the plan path into the dynamic segment when provided", () => {
     const p = buildWorkUnitClaudeImplementSdkRuntimeProfile({
       workUnitId: "GH-1234",

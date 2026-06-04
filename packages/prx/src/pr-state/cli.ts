@@ -19777,6 +19777,10 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               const headlessProfile = buildWorkUnitClaudeImplementSdkRuntimeProfile({
                 workUnitId: parsed.workUnitId,
                 ...(parsed.planPath !== undefined ? { planPath: parsed.planPath } : {}),
+                // prx-pe1: embed the validated plan slot the gate already loaded
+                // so the headless executor has confirmed scope from the artifact
+                // (parity with the interactive path's `planBody: primedPlanBody`).
+                ...(primedPlanBody !== undefined ? { planBody: primedPlanBody } : {}),
               });
               if (parsed.dryRun) {
                 output.log(formatRuntimeProfile(headlessProfile, parsed.format));

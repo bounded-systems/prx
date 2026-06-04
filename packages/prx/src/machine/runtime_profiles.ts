@@ -852,6 +852,13 @@ export function buildWorkUnitClaudePlanPrintRuntimeProfile(input: {
 export function buildWorkUnitClaudeImplementSdkRuntimeProfile(input: {
   workUnitId: string;
   planPath?: string | undefined;
+  // prx-pe1: the validated plan artifact body (the consumed `<unit>:plan@*`
+  // slot). When present it is embedded in the prompt so the executor has its
+  // confirmed scope FROM THE ARTIFACT — it never has to reach for `prx`/`bd` to
+  // read scope (those are denied in the headless allowlist, which is why a
+  // scope-blind executor refused). This is the plan→implement edge consumed:
+  // the prompt is derived from the input artifact, not hardcoded.
+  planBody?: string | undefined;
 }): RuntimeProfileProjection {
   const role: TaskAgentRole = "executor";
   const systemPromptStable = buildRoleStableSystemPrompt(role);
@@ -861,10 +868,21 @@ export function buildWorkUnitClaudeImplementSdkRuntimeProfile(input: {
   }
   const systemPromptDynamic = dynamicSegments.join(" ");
   const systemPrompt = `${systemPromptStable} ${systemPromptDynamic}`;
-  const userPrompt = [
-    `Execute the implementation plan for ${input.workUnitId}.`,
-    "Make the file changes, run the project checks, and commit the work; do not ask clarifying questions.",
-  ].join(" ");
+  const userPrompt = input.planBody
+    ? [
+        `Execute the approved implementation plan for ${input.workUnitId}, reproduced in full below.`,
+        "It is your confirmed scope — implement exactly this, do not widen it, and do not ask clarifying questions.",
+        "",
+        "----- BEGIN APPROVED PLAN -----",
+        input.planBody,
+        "----- END APPROVED PLAN -----",
+        "",
+        "Make the file changes, run the project checks, and commit the work.",
+      ].join("\n")
+    : [
+        `Execute the implementation plan for ${input.workUnitId}.`,
+        "Make the file changes, run the project checks, and commit the work; do not ask clarifying questions.",
+      ].join(" ");
   const allowedTools = [...SESSION_PROFILES.implement.allowedTools];
   const args = [
     "--print",
