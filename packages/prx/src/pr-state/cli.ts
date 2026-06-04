@@ -126,7 +126,8 @@ import {
   writeReportedResult,
 } from "../pipeline/agent-result.ts";
 import { finalizeImplementRun } from "../pipeline/implement-artifact.ts";
-import { pinWorkUnitSourceBestEffort } from "../pipeline/source-pin.ts";
+import { pinWorkUnitSourceBestEffort, workUnitSourceEdge } from "../pipeline/source-pin.ts";
+import { consumeArtifact } from "../pipeline/edge.ts";
 import { type CheckStep, runAttestedChecks } from "../provenance/attest.ts";
 
 // prx-ub4 (slice 4c): the project checks prx re-runs + signs (`checks/v1`) after
@@ -4123,14 +4124,17 @@ export async function checkWorkUnitChain(
       // the caller throws prxSessionNoSourceConfiguredMessage in that case. On
       // success the resolved unit is informational and we fall through to allow
       // create. --from=notion is only valid for non-GH canonical IDs.
+      // prx-pl2: capture the resolved source once so the create-path pin reuses
+      // it (no double resolve).
+      let createResolvedSource: ResolvedWorkUnit | null = null;
       if (from === "notion") {
         if (githubIssueNumberForWorkUnit(workUnitId) !== null) {
           throw new CliError(
             `--from=notion is not valid for GitHub work unit IDs (${workUnitId}). Use a Notion canonical ID or omit --from=notion.`,
           );
         }
-        const resolved = await probeNonGhResolver(workUnitId, repoPath, loadIdentity, buildResolver);
-        if (resolved === null) {
+        createResolvedSource = await probeNonGhResolver(workUnitId, repoPath, loadIdentity, buildResolver);
+        if (createResolvedSource === null) {
           throw new CliError(prxSessionNoSourceConfiguredMessage(workUnitId));
         }
       }
@@ -4153,9 +4157,22 @@ export async function checkWorkUnitChain(
             `--from=beads is not valid for GitHub work unit IDs (${workUnitId}). Use a BD canonical ID or omit --from=beads.`,
           );
         }
-        const resolved = await probeNonGhResolver(workUnitId, repoPath, loadIdentity, buildResolver);
-        if (resolved === null) {
+        createResolvedSource = await probeNonGhResolver(workUnitId, repoPath, loadIdentity, buildResolver);
+        if (createResolvedSource === null) {
           throw new CliError(prxSessionNoSourceConfiguredMessage(workUnitId));
+        }
+      }
+      // prx-pl2: pin `<unit>:source@pinned` on create too (the impure→pure FOD
+      // boundary) so the planner/implementer CONSUME the pinned source derivation
+      // rather than re-fetching the bead. Non-GH (beads/notion) only; reuses the
+      // resolve above when present (no double fetch). Best-effort.
+      if (githubIssueNumberForWorkUnit(workUnitId) === null) {
+        try {
+          const src = createResolvedSource
+            ?? (await probeNonGhResolver(workUnitId, repoPath, loadIdentity, buildResolver));
+          if (src) await pinWorkUnitSourceBestEffort(workUnitId, src);
+        } catch {
+          // best-effort
         }
       }
       return {
@@ -20308,6 +20325,24 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             throw err;
           }
         }
+        // prx-pl2: embed the unit's source authority by CONSUMING the pinned
+        // `<unit>:source@pinned` derivation (the gate captured the one impure
+        // read there). Pure + scoped to exactly this unit — no bead loading, no
+        // resolver here. Absent pin ⇒ the planner falls back to fetch-it-yourself.
+        let planSourceBody: string | undefined;
+        if (!parsed.interactive && resumePartialPlan === undefined) {
+          try {
+            const src = await consumeArtifact(workUnitSourceEdge, effectiveWorkUnitId);
+            if (!src.missing && src.value) {
+              const body = src.value.body;
+              planSourceBody = body && body.trim().length > 0
+                ? `${src.value.title}\n\n${body}`
+                : src.value.title;
+            }
+          } catch {
+            // best-effort: a missing/unreadable pin leaves the fallback prompt
+          }
+        }
         const profile = parsed.interactive
           ? buildWorkUnitClaudeInteractiveRuntimeProfile({
               workUnitId: effectiveWorkUnitId,
@@ -20317,6 +20352,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           : buildWorkUnitClaudePlanPrintRuntimeProfile({
               workUnitId: effectiveWorkUnitId,
               ...(resumePartialPlan !== undefined ? { resumePartialPlan } : {}),
+              ...(planSourceBody !== undefined ? { sourceBody: planSourceBody } : {}),
             });
         if (parsed.dryRun) {
           output.log(formatRuntimeProfile(profile, parsed.format));

@@ -1322,6 +1322,22 @@ describe("prx-pln — plan-print enforces the structured plan artifact", () => {
     expect(p.sdkSpec?.capturePlanArtifact).toBe(true);
   });
 
+  test("the planner embeds the consumed source body; falls back when absent (prx-pl2)", () => {
+    const withSrc = buildWorkUnitClaudePlanPrintRuntimeProfile({
+      workUnitId: "prx-2c4",
+      sourceBody: "task: Document the opt-out\n\nAdd a note to keymaker.ts.",
+    }).sdkSpec?.prompt ?? "";
+    expect(withSrc).toContain("BEGIN WORK UNIT SOURCE");
+    expect(withSrc).toContain("Add a note to keymaker.ts");
+    expect(withSrc).toContain("do NOT run `prx`/`bd` to re-fetch");
+    expect(withSrc).toContain("submit_plan");
+    // No source ⇒ the old fetch-it-yourself line (no regression).
+    const noSrc = buildWorkUnitClaudePlanPrintRuntimeProfile({ workUnitId: "prx-2c4" })
+      .sdkSpec?.prompt ?? "";
+    expect(noSrc).not.toContain("BEGIN WORK UNIT SOURCE");
+    expect(noSrc).toContain("Hydrate workflow context");
+  });
+
   test("the planner prompt instructs calling submit_plan, not emitting prose (prx-ei6)", () => {
     // The capture contract is only honored if the prompt tells the model to
     // call the tool. The old prompt said "Output plain markdown", so the model
