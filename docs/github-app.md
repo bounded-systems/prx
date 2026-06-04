@@ -85,10 +85,12 @@ without re-clicking the form.
 ## Secrets
 
 The `installation_id` and App ID are identifiers (fine to commit/log). The
-**private key (`.pem`)** and **webhook secret** are real secrets — keep them in
-sops/agenix / env, never in the repo, mirroring the keymaker deployment-master
-pattern. The manifest deliberately contains **no** secret (the webhook secret is
-minted by the conversion step, not stored here).
+**private key (`.pem`)**, **webhook secret**, and **client secret** are real
+secrets — keep them in sops/agenix / env, never in the repo, mirroring the
+keymaker deployment-master pattern. Even with user-identity flows currently OFF,
+treat the client secret as sensitive credential material (store/rotate like other
+secrets if those flows are ever enabled). The manifest deliberately contains **no**
+secret (the webhook secret is minted by the conversion step, not stored here).
 
 ## Related beads
 
