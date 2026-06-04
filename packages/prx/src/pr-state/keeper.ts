@@ -174,8 +174,23 @@ export async function runKeeperCommitTree(
     role: "keeper",
   });
   if (switched.exitCode !== 0) {
+    const stderr = switched.stderr.trim();
+    // prx-5l3: the branch is checked out in another worktree, so git refuses to
+    // switch to it here. keeper must materialize + push from where its branch
+    // lives (the attested push subject is `rev-parse HEAD` in that worktree), so
+    // surface a clean ownership error naming the holding worktree instead of the
+    // raw `is already used by worktree` git failure. (The durable elimination is
+    // the salted, ephemeral, per-actor worktrees tracked in prx-g88.)
+    const collision = /already used by worktree at '([^']+)'/.exec(stderr);
+    if (collision) {
+      throw new KeeperGitError(
+        `keeper commit-tree: branch '${input.branch}' is checked out in another worktree (${collision[1]}). ` +
+          `Run keeper / publish from that worktree — keeper materializes and pushes where its branch lives.`,
+        switched.exitCode,
+      );
+    }
     throw new KeeperGitError(
-      `keeper commit-tree: git switch -C ${input.branch} failed (${switched.exitCode}): ${switched.stderr.trim()}`,
+      `keeper commit-tree: git switch -C ${input.branch} failed (${switched.exitCode}): ${stderr}`,
       switched.exitCode,
     );
   }
