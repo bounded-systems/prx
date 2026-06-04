@@ -13,6 +13,9 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "types": ["bun"],
+    // TS 6.0 deprecates `baseUrl` (TS5101); silence until the paths setup is
+    // migrated off it. Removed entirely in TS 7.0. See prx-d68.
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@bounded-systems/audit-context": ["./packages/audit-context/src/index.ts"],
