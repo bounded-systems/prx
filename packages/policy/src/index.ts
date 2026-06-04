@@ -185,6 +185,24 @@ export function isKnownSubcommand(tool: PolicyTool, subcommand: string): boolean
 
 export const POLICY_TOOLS: readonly PolicyTool[] = ["git", "gh", "wt", "bd", "prx"];
 
+// prx-g88.1: the canonical role + state vocabularies, exported so generators
+// (e.g. the actor sub-agent codegen) and `findOwningRoles` iterate ONE list
+// rather than re-typing the tuple. Order is stable (used in generated output).
+export const POLICY_ROLES: readonly PolicyRole[] = [
+  "planner",
+  "executor",
+  "reviewer",
+  "tester",
+  "keeper",
+  "forge",
+];
+
+export const POLICY_STATES: readonly PolicyState[] = [
+  "planning",
+  "validating",
+  "merging",
+];
+
 export function isPolicyTool(value: string): value is PolicyTool {
   return (POLICY_TOOLS as readonly string[]).includes(value);
 }
@@ -277,11 +295,28 @@ export function findOwningRoles(
 ): PolicyRole[] {
   if (isBlocked(tool, subcommand)) return [];
   const roles: PolicyRole[] = [];
-  for (const role of ["planner", "executor", "reviewer", "tester", "keeper", "forge"] as const) {
+  for (const role of POLICY_ROLES) {
     const allow = POLICY_TABLE[`${tool}:${state}:${role}`];
     if (allow?.includes(subcommand)) roles.push(role);
   }
   return roles;
+}
+
+// prx-g88.1: projection of the policy table for code generators. Returns the
+// sorted union, across all states, of subcommands a role may run for a tool —
+// the "what can this role touch" view the actor sub-agent docs render. Reads the
+// table directly so the generated allowlists cannot drift from enforcement.
+export function allowedSubcommands(tool: PolicyTool, role: PolicyRole): string[] {
+  const acc = new Set<string>();
+  for (const state of POLICY_STATES) {
+    for (const sub of POLICY_TABLE[`${tool}:${state}:${role}`] ?? []) acc.add(sub);
+  }
+  return [...acc].sort();
+}
+
+/** prx-g88.1: the hard-blocked subcommands for a tool (never allowed, any role). */
+export function blockedSubcommands(tool: PolicyTool): readonly string[] {
+  return BLOCKED[tool] ?? [];
 }
 
 // GH-1397: `checkPolicy` sibling that enqueues a structured handoff when the
