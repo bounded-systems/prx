@@ -2647,11 +2647,14 @@ describe("pr_state cli", () => {
       expect(saved!.unit).toBe("GH-5431");
       expect(saved!.slot).toBe("draft");
       expect(saved!.content).toContain("## Scope");
-      const banner = errors.find((line) => line.startsWith("prx plan session: saved draft slot at"));
-      expect(banner).toBeDefined();
-      expect(banner!).toContain("GH-5431:plan@draft");
-      // format=plain relays captured stdout so the operator still sees the plan body.
-      expect(logs.some((line) => line.includes("## Scope"))).toBe(true);
+      // prx-j4a: the result is now emitted to stdout, framed input→output.
+      const planLine = logs.find((line) => line.includes("plan: GH-5431"));
+      expect(planLine).toBeDefined();
+      expect(planLine!).toContain("→ GH-5431:plan@draft");
+      expect(planLine!).toContain("validated=true");
+      // The plan body is the output artifact in the slot (asserted above via
+      // `saved.content`) — it is NOT dumped to stdout anymore (prx-j4a).
+      expect(logs.some((line) => line.includes("## Scope"))).toBe(false);
     } finally {
       process.chdir(previousCwd);
       delete process.env.PRX_SESSION_OPEN;
@@ -2810,6 +2813,7 @@ describe("pr_state cli", () => {
 
   test("plan session (canonical) default: shape-failing body still persists — validated_ok=false narrated, exit 0 (GH-2028)", async () => {
     const errors: string[] = [];
+    const logs: string[] = [];
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-plan-session-refusal-"));
     const previousCwd = process.cwd();
     delete process.env.PRX_SESSION_OPEN;
@@ -2818,7 +2822,7 @@ describe("pr_state cli", () => {
       const exitCode = await runCliDirect(
         ["plan", "session", "GH-5431"],
         {
-          log: () => {},
+          log: (line) => logs.push(line),
           error: (line) => errors.push(line),
         },
         {
@@ -2846,13 +2850,14 @@ describe("pr_state cli", () => {
         },
       );
       expect(exitCode).toBe(0);
-      // Real state is narrated: the draft slot WAS saved (never "not saved").
-      const note = errors.find((line) =>
-        line.startsWith("prx plan session:") && line.includes("saved draft slot"),
-      );
-      expect(note).toBeDefined();
-      expect(note!).toContain("validated_ok=false");
-      expect(errors.join("\n")).not.toContain("not saved");
+      // prx-j4a: real state is surfaced via the emitted result — the draft slot
+      // WAS saved (never "not saved"); validated=false routes the operator to the
+      // viewer rather than dumping diagnostics.
+      const planLine = logs.find((line) => line.includes("plan:"));
+      expect(planLine).toBeDefined();
+      expect(planLine!).toContain("validated=false");
+      expect(planLine!).toContain("view: prx plan show");
+      expect(logs.concat(errors).join("\n")).not.toContain("not saved");
     } finally {
       process.chdir(previousCwd);
       delete process.env.PRX_SESSION_OPEN;

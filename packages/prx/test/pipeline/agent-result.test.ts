@@ -11,6 +11,7 @@ import { join } from "node:path";
 import {
   captureAgentResult,
   renderAgentResult,
+  renderPlanAgentResult,
   snapshotBeadIds,
   summarizeAgentStdout,
 } from "../../src/pipeline/agent-result.ts";
@@ -129,5 +130,39 @@ describe("agent-result return channel (prx-lfv)", () => {
     expect(renderAgentResult(result)).toBe(
       "prx intake agent: merged into bd-yyy — dup of bd-yyy",
     );
+  });
+
+  test("renderPlanAgentResult frames input artifact → output artifact (prx-j4a)", () => {
+    // Validated draft: one clean input→output line + validated flag, no viewer.
+    expect(
+      renderPlanAgentResult({
+        actor: "plan",
+        unit: "prx-0v5",
+        source: "beads",
+        ref: "prx-0v5:plan@draft",
+        validated: true,
+        diagnostics: 0,
+      }),
+    ).toBe("plan: prx-0v5 (beads) → prx-0v5:plan@draft\n  validated=true");
+
+    // Shape-failing draft: diagnostics count + the viewer command to resolve it.
+    expect(
+      renderPlanAgentResult({
+        actor: "plan",
+        unit: "prx-0v5",
+        source: "beads",
+        ref: "prx-0v5:plan@draft",
+        validated: false,
+        diagnostics: 1,
+        view: "prx plan show prx-0v5 --slot draft",
+      }),
+    ).toBe(
+      "plan: prx-0v5 (beads) → prx-0v5:plan@draft\n  validated=false (1 diagnostic)\n  view: prx plan show prx-0v5 --slot draft",
+    );
+
+    // No source → the `(source)` annotation is omitted.
+    expect(
+      renderPlanAgentResult({ actor: "plan", unit: "GH-7", ref: "GH-7:plan@draft", validated: true, diagnostics: 0 }),
+    ).toBe("plan: GH-7 → GH-7:plan@draft\n  validated=true");
   });
 });

@@ -42,11 +42,11 @@ export async function runStep<T>(
   opts: RunStepOptions = {},
 ): Promise<T> {
   const write = opts.write ?? ((line) => process.stderr.write(line));
-  // Auto-silent when stderr is not a TTY (tests, CI, piped output) unless the
-  // operator force-enables progress via PRX_PROGRESS=1. Matches the gating
-  // precedent for the format-gated stderr writes already in primePlanSession.
-  const autoSilent =
-    process.stderr.isTTY !== true && getEnv("PRX_PROGRESS") !== "1";
+  // prx-j4a: the per-step ▸/✓ noise is off by default — the agents narrate their
+  // outcome through the structured result (input-artifact → output-artifact via
+  // `emit`), not a play-by-play. Opt back into the live step log + heartbeat with
+  // PRX_PROGRESS=1 (e.g. when a long step looks hung).
+  const autoSilent = getEnv("PRX_PROGRESS") !== "1";
   const silent = opts.silent ?? autoSilent;
   const now = opts.now ?? (() => Date.now());
   const heartbeatMs = opts.heartbeatMs ?? DEFAULT_HEARTBEAT_MS;
