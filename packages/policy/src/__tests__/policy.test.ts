@@ -63,6 +63,17 @@ describe("checkPolicy", () => {
     expect(d.allowed).toBe(true);
   });
 
+  test("prx-gr1: forge owns the full gh write set at every state (the keeper twin)", () => {
+    for (const state of ["planning", "validating", "merging"] as const) {
+      for (const sub of ["create", "edit", "comment", "review", "merge", "ready"]) {
+        expect(checkPolicy("gh", sub, state, "forge").allowed).toBe(true);
+      }
+    }
+    // gh writes that only forge owns: a non-forge role cannot merge/ready.
+    expect(checkPolicy("gh", "merge", "merging", "executor").allowed).toBe(false);
+    expect(checkPolicy("gh", "ready", "merging", "executor").allowed).toBe(false);
+  });
+
   test("hard-blocked commands are denied regardless of state/role", () => {
     const d = checkPolicy("git", "reset", "merging", "executor");
     expect(d.allowed).toBe(false);

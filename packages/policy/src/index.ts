@@ -13,12 +13,17 @@ export type PolicyState = "planning" | "validating" | "merging";
 // push + branch ops). It holds the same git-write capability as `executor` at
 // validating/merging; it exists as a distinct role so the capability lives in
 // one place (the keeper actor) rather than scattered across executor sessions.
+// prx-gr1: `forge` is the gh-write / GitHub-custody role — the twin of `keeper`
+// (git). It owns ALL GitHub writes (issues, labels, comments, PRs, merges) so
+// the capability lives in one actor rather than scattered across executor /
+// reviewer / publisher sessions; other actors dispatch gh to it.
 export type PolicyRole =
   | "planner"
   | "executor"
   | "reviewer"
   | "tester"
-  | "keeper";
+  | "keeper"
+  | "forge";
 
 export type PolicyDecision = {
   allowed: boolean;
@@ -73,6 +78,14 @@ const POLICY_TABLE: Record<string, readonly string[]> = {
   "gh:merging:tester":       ["status", "list", "view", "checks", "diff", "review"],
   "gh:merging:reviewer":     ["status", "list", "view", "checks", "diff", "review"],
   "gh:merging:executor":     ["status", "list", "view", "checks", "diff", "comment", "create", "edit"],
+  // prx-gr1: forge (gh-write / GitHub custody) — reads everywhere; the FULL gh
+  // write set (issue + pr writes, review, merge/ready) at every state, mirroring
+  // keeper for git. forge is the single owner of GitHub side effects; other
+  // actors dispatch gh to it. The migration (removing gh-writes from the other
+  // roles + the non-forge-gh architecture guard) is the rest of prx-gr1.
+  "gh:planning:forge":       ["status", "list", "view", "checks", "diff", "comment", "create", "edit", "review", "merge", "ready"],
+  "gh:validating:forge":     ["status", "list", "view", "checks", "diff", "comment", "create", "edit", "review", "merge", "ready"],
+  "gh:merging:forge":        ["status", "list", "view", "checks", "diff", "comment", "create", "edit", "review", "merge", "ready"],
 
   // wt
   "wt:planning:planner":     ["list", "status", "switch"],
@@ -264,7 +277,7 @@ export function findOwningRoles(
 ): PolicyRole[] {
   if (isBlocked(tool, subcommand)) return [];
   const roles: PolicyRole[] = [];
-  for (const role of ["planner", "executor", "reviewer", "tester", "keeper"] as const) {
+  for (const role of ["planner", "executor", "reviewer", "tester", "keeper", "forge"] as const) {
     const allow = POLICY_TABLE[`${tool}:${state}:${role}`];
     if (allow?.includes(subcommand)) roles.push(role);
   }
