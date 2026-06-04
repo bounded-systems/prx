@@ -17,9 +17,12 @@ import {
 } from "@bounded-systems/anchored-chain";
 import type { ProcExecutor } from "@bounded-systems/proc";
 
+import type { ProcRequest } from "@bounded-systems/proc";
+
 import {
   attestingChecks,
   CHECKS_BUILD_TYPE,
+  runAttestedChecks,
   type AttestDeps,
 } from "../../src/provenance/attest.ts";
 import { verifySlsaDerivation } from "../../src/provenance/verify.ts";
@@ -104,5 +107,53 @@ describe("attestingChecks — verify step as a signed checks/v1 attestation (prx
 
   test("CHECKS_BUILD_TYPE is the checks/v1 predicate type", () => {
     expect(CHECKS_BUILD_TYPE).toBe("https://prx.dev/checks/v1");
+  });
+});
+
+describe("runAttestedChecks — in-flow verify, signed per step (prx-ub4 slice 4c)", () => {
+  /** Records each request and returns the queued statuses in order. */
+  function recordingExec(statuses: number[]): {
+    exec: { exec(req: ProcRequest): Promise<{ status: number; stdout: string; stderr: string; signal: null }> };
+    seen: ProcRequest[];
+  } {
+    const seen: ProcRequest[] = [];
+    let i = 0;
+    return {
+      seen,
+      exec: {
+        async exec(req: ProcRequest) {
+          seen.push(req);
+          const status = statuses[i++] ?? 0;
+          return { status, stdout: "", stderr: "", signal: null };
+        },
+      },
+    };
+  }
+
+  const STEPS = [
+    { command: "bun", args: ["run", "typecheck"] },
+    { command: "bun", args: ["test"] },
+  ];
+
+  test("all steps pass → true, and each clean step signs a checks/v1", async () => {
+    const store = fakeStore();
+    const { deps } = mkAttest(store);
+    const { exec, seen } = recordingExec([0, 0]);
+
+    const ok = await runAttestedChecks(exec, deps, COMMIT, "/repo", STEPS);
+    expect(ok).toBe(true);
+    expect(seen.map((r) => r.args)).toEqual([["run", "typecheck"], ["test"]]);
+    expect(store.appended).toHaveLength(2); // one checks/v1 per passing step
+  });
+
+  test("stops at the first failure → false, and does NOT attest the failed step", async () => {
+    const store = fakeStore();
+    const { deps } = mkAttest(store);
+    const { exec, seen } = recordingExec([1, 0]); // typecheck fails
+
+    const ok = await runAttestedChecks(exec, deps, COMMIT, "/repo", STEPS);
+    expect(ok).toBe(false);
+    expect(seen).toHaveLength(1); // never ran `bun test`
+    expect(store.appended).toHaveLength(0); // a failing step is not attested
   });
 });

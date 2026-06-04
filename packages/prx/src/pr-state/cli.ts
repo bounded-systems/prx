@@ -1,5 +1,5 @@
 import { getEnv, processEnv, setEnv, deleteEnv } from "@bounded-systems/env";
-import { defaultRunner as procRunner } from "@bounded-systems/proc";
+import { defaultRunner as procRunner, localProcExecutor } from "@bounded-systems/proc";
 import { bakedGitSha, bakedReleaseVersion } from "../build-info.ts";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -126,6 +126,15 @@ import {
   writeReportedResult,
 } from "../pipeline/agent-result.ts";
 import { finalizeImplementRun } from "../pipeline/implement-artifact.ts";
+import { type CheckStep, runAttestedChecks } from "../provenance/attest.ts";
+
+// prx-ub4 (slice 4c): the project checks prx re-runs + signs (`checks/v1`) after
+// a headless implement commit, when a signer + ledger are configured. Mirrors
+// the executor's own check tooling (the implement allowlist grants these).
+const IMPLEMENT_CHECK_STEPS: readonly CheckStep[] = [
+  { command: "bun", args: ["run", "typecheck"] },
+  { command: "bun", args: ["test"] },
+];
 import { pickPrimaryTmuxEntry, readTmuxSurface } from "./surfaces/tmux.ts";
 import { resolverForCanonicalId } from "./resolvers/dispatch.ts";
 import { BeadsResolver } from "./resolvers/beads.ts";
@@ -19815,6 +19824,30 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               // by the same commit and wired separately.
               if (result.status === 0) {
                 try {
+                  // prx-ub4 (slice 4c): when a signer + canonical ledger are
+                  // configured, run the project checks against the produced
+                  // commit and emit a signed `checks/v1` per clean step (prx
+                  // signs its OWN verdict, not the executor's word). Gated so the
+                  // default path (no PRX_PROVENANCE_KEY) is unchanged.
+                  const signer = resolveProvenanceSigner();
+                  const canonicalLedger = resolveCanonicalChainLedger(launchCwd)?.ledgerPath;
+                  const attestChecks = signer !== null && canonicalLedger !== undefined
+                    ? async (cwd: string, commit: string): Promise<boolean> => {
+                        mkdirSync(dirname(canonicalLedger), { recursive: true });
+                        const store = openAnchoredChain(canonicalLedger);
+                        try {
+                          return await runAttestedChecks(
+                            localProcExecutor(),
+                            { signer, store: store.derivations },
+                            commit,
+                            cwd,
+                            IMPLEMENT_CHECK_STEPS,
+                          );
+                        } finally {
+                          store.close();
+                        }
+                      }
+                    : undefined;
                   const fin = await finalizeImplementRun(
                     {
                       unit: parsed.workUnitId,
@@ -19835,11 +19868,13 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
                           ? r.stdout.split("\n").map((s) => s.trim()).filter(Boolean)
                           : [];
                       },
+                      ...(attestChecks ? { attestChecks } : {}),
                     },
                   );
                   if (fin.ref) {
+                    const checks = fin.checksAttested ? "; checks/v1 signed" : "";
                     output.log(
-                      `implement: ${parsed.workUnitId} → ${fin.ref} (commit ${fin.artifact?.commit.slice(0, 7)})`,
+                      `implement: ${parsed.workUnitId} → ${fin.ref} (commit ${fin.artifact?.commit.slice(0, 7)}${checks})`,
                     );
                   }
                 } catch {

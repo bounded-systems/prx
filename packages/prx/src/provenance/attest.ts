@@ -181,6 +181,39 @@ export function attestingChecks(
   }));
 }
 
+/** A single check step (e.g. `bun run typecheck`). */
+export interface CheckStep {
+  readonly command: string;
+  readonly args: readonly string[];
+}
+
+/**
+ * prx-ub4 (slice 4c): run an ordered set of check steps against `commit` through
+ * {@link attestingChecks}, so each clean step emits a signed `checks/v1`. Stops
+ * at the first failure (returns `false`) and does NOT attest it — so a `checks/v1`
+ * is present only for steps that genuinely passed. Returns `true` iff every step
+ * passed (and was attested). This is the in-flow verify step: prx runs the
+ * checks itself and signs the verdict, rather than trusting the executor's run.
+ */
+export async function runAttestedChecks(
+  inner: ProcExecutor,
+  deps: AttestDeps,
+  commit: string,
+  cwd: string,
+  steps: ReadonlyArray<CheckStep>,
+): Promise<boolean> {
+  const exec = attestingChecks(inner, deps, commit);
+  for (const step of steps) {
+    const result = await exec.exec({
+      command: step.command,
+      args: [...step.args],
+      cwd,
+    });
+    if (result.status !== 0) return false;
+  }
+  return true;
+}
+
 interface AttestationSpec {
   readonly buildType: string;
   readonly subject: readonly SlsaResourceDescriptor[];
