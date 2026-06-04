@@ -2,17 +2,19 @@
 //
 // Lazy-creates the SQLite file at `~/.local/state/prx/audit/metrics.sqlite`
 // (or a caller-supplied override; tests use `:memory:` or a tmp file).
-// Schema is read from `schema.sql` and applied idempotently on first open.
+// Schema lives in `schema.sql` and is applied idempotently on first open.
+//
+// The DDL is imported as a `type: "text"` asset rather than read from disk at
+// runtime: `bun build --compile` embeds statically-imported assets into the
+// bundle, so the compiled binary carries the schema. A runtime `readFileSync`
+// instead ENOENTs on `/$bunfs/root/schema.sql` in the release (prx-eky).
 
 import { processEnv } from "@bounded-systems/env";
 import { Database } from "bun:sqlite";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const here = dirname(fileURLToPath(import.meta.url));
-const SCHEMA_PATH = resolve(here, "schema.sql");
+import { dirname, join } from "node:path";
+import schemaSql from "./schema.sql" with { type: "text" };
 
 export type OpenAuditDbOptions = {
   /** Absolute path to the SQLite file. Defaults to the state-dir resolved path. */
@@ -43,12 +45,9 @@ export function openAuditDb(opts: OpenAuditDbOptions = {}): Database {
     mkdirSync(dirname(path), { recursive: true });
   }
   const db = new Database(path);
-  const ddl = readFileSync(SCHEMA_PATH, "utf8");
-  db.exec(ddl);
+  db.exec(schemaSql);
   return db;
 }
-
-export const AUDIT_SCHEMA_PATH = SCHEMA_PATH;
 
 /** Tiny helper — `existsSync` re-export so callers don't need the node import. */
 export function auditDbExists(opts: OpenAuditDbOptions = {}): boolean {
