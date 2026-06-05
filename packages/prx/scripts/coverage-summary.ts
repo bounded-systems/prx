@@ -47,7 +47,13 @@ function pct(hit: number, found: number): string {
 function emit(text: string): void {
   process.stdout.write(text + "\n");
   const summary = process.env.GITHUB_STEP_SUMMARY;
-  if (summary) appendFileSync(summary, text + "\n");
+  if (summary) {
+    try {
+      appendFileSync(summary, text + "\n");
+    } catch (error) {
+      process.stderr.write(`Warning: failed to append coverage summary to \`${summary}\`: ${String(error)}\n`);
+    }
+  }
 }
 
 function main(): void {
