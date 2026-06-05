@@ -23,6 +23,7 @@
  */
 
 import { pluginAllowedTools, type ActorPolicies } from "./permissions.ts";
+import type { CommandSpec } from "./registry.ts";
 import { verbToken, type Registry, type VerbSpec } from "./verbspec.ts";
 
 export type PluginFile = { path: string; content: string };
@@ -151,4 +152,42 @@ export function toClaudePlugin(reg: Registry, opts: ClaudePluginOpts = {}): Plug
   });
 
   return files;
+}
+
+/** A slash command that runs a full-registry verb through the installed binary. */
+function renderBashCommand(c: CommandSpec): string {
+  const invocation = `prx ${c.name} $ARGUMENTS`;
+  return [
+    "---",
+    `description: ${c.description}`,
+    "argument-hint: [args]",
+    // Capability projection: scope the slash command to exactly this verb.
+    `allowed-tools: Bash(prx ${c.name}:*)`,
+    "---",
+    "",
+    `Run the prx \`${c.name}\` command (actor: **${c.actor}**) by executing`,
+    `\`${invocation}\` with the Bash tool, then report the result.`,
+    "Do not perform the command's effects yourself — the prx runtime owns them.",
+    "",
+    "$ARGUMENTS",
+    "",
+  ].join("\n");
+}
+
+/**
+ * Project the full prx command registry to Bash-delegating slash commands —
+ * one `/<prefix>:<verb>` per non-internal, non-deprecated command, each running
+ * the verb through the installed `prx` binary.
+ *
+ * Unlike the VerbSpec→MCP commands {@link toClaudePlugin} emits, these need no
+ * `prx mcp serve`: they work against the runtime today. Pure — the caller
+ * passes the registry (e.g. `prxCommandRegistry`) so this stays data-free.
+ */
+export function commandSlashFiles(commands: CommandSpec[], prefix = "prx"): PluginFile[] {
+  return commands
+    .filter((c) => !c.internal && c.deprecation === undefined)
+    .map((c) => ({
+      path: `commands/${prefix}-${c.name.split(" ").join("-")}.md`,
+      content: renderBashCommand(c),
+    }));
 }

@@ -2,8 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 
 import { defineVerb, type Registry } from "./verbspec.ts";
-import { mcpToolRef, toClaudePlugin } from "./claude-plugin.ts";
+import { commandSlashFiles, mcpToolRef, toClaudePlugin } from "./claude-plugin.ts";
 import { fleetVerb, pilotVerb } from "./pilot-verbs.ts";
+import { CommandSpec } from "./registry.ts";
 
 const find = (files: { path: string; content: string }[], path: string) =>
   files.find((f) => f.path === path);
@@ -81,6 +82,36 @@ describe("prx as a Claude Code plugin (projection of the registry)", () => {
     const files = toClaudePlugin(reg, { name: "prx-dev" });
     const monitors = JSON.parse(find(files, "monitors/monitors.json")!.content);
     expect(monitors[0].name).toBe("prx-dev-pipeline");
+  });
+
+  test("commandSlashFiles projects the full registry to Bash-delegating commands", () => {
+    const cmds = [
+      CommandSpec.parse({
+        name: "triage agent",
+        description: "run the triage operator for mainx",
+        domain: "work-units",
+        actor: "triage",
+      }),
+      CommandSpec.parse({
+        name: "secret thing",
+        description: "internal helper not for end users",
+        domain: "work-units",
+        actor: "work",
+        internal: true,
+      }),
+    ];
+    const files = commandSlashFiles(cmds);
+    const paths = files.map((f) => f.path);
+
+    expect(paths).toContain("commands/prx-triage-agent.md");
+    // internal commands are excluded from the slash surface
+    expect(paths).not.toContain("commands/prx-secret-thing.md");
+
+    const triage = files.find((f) => f.path === "commands/prx-triage-agent.md")!;
+    // Bash-delegates to the installed binary (works without `prx mcp serve`),
+    // scoped to exactly this verb.
+    expect(triage.content).toContain("allowed-tools: Bash(prx triage agent:*)");
+    expect(triage.content).toContain("prx triage agent $ARGUMENTS");
   });
 
   test("opts customize runtime command + plugin name", () => {

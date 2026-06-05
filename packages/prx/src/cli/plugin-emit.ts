@@ -11,8 +11,9 @@
 import { chmod, mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-import { toClaudePlugin } from "./claude-plugin.ts";
+import { commandSlashFiles, toClaudePlugin, type PluginFile } from "./claude-plugin.ts";
 import { orchestratorRegistry } from "./pilot-verbs.ts";
+import { prxCommandRegistry } from "./registry.data.ts";
 
 function flagValue(args: readonly string[], flag: string): string | undefined {
   const i = args.indexOf(flag);
@@ -45,10 +46,19 @@ export async function runPluginVerb(
 
   const name = flagValue(rest, "--name");
   const version = flagValue(rest, "--version");
-  const files = toClaudePlugin(orchestratorRegistry, {
+
+  // Scaffold + the spec-driven orchestrator verbs (pilot/fleet, via MCP) …
+  const base = toClaudePlugin(orchestratorRegistry, {
     ...(name !== undefined ? { name } : {}),
     ...(version !== undefined ? { version } : {}),
   });
+  // … plus the *full* registry as Bash-delegating slash commands (work today
+  // against the installed binary, no `prx mcp serve` required). Merge and
+  // dedupe by path — the spec-driven commands win on any name collision.
+  const slash = commandSlashFiles(prxCommandRegistry);
+  const byPath = new Map<string, PluginFile>();
+  for (const f of [...base, ...slash]) if (!byPath.has(f.path)) byPath.set(f.path, f);
+  const files = [...byPath.values()];
 
   for (const file of files) {
     const dest = join(dir, file.path);
