@@ -14,8 +14,7 @@
  *   bun run scripts/coverage-summary.ts [coverage/lcov.info]
  */
 
-import { readFileSync } from "node:fs";
-import { appendFileSync } from "node:fs";
+import { appendFileSync, readFileSync } from "node:fs";
 
 const lcovPath = process.argv[2] ?? "coverage/lcov.info";
 
