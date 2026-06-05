@@ -27,14 +27,33 @@ function hasBinary(): boolean {
   return existsSync(binaryPath);
 }
 
+function runGitOrThrow(args: string[], cwd?: string): void {
+  const result = Bun.spawnSync({
+    cmd: ["git", ...args],
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  if ((result.exitCode ?? -1) !== 0) {
+    const stderr = new TextDecoder().decode(result.stderr).trim();
+    const stdout = new TextDecoder().decode(result.stdout).trim();
+    const output = stderr || stdout || "(no output)";
+    throw new Error(
+      `Failed to run git ${args.join(" ")}${cwd ? ` (cwd: ${cwd})` : ""}. ` +
+        `Exit code: ${result.exitCode ?? -1}. Output: ${output}`,
+    );
+  }
+}
+
 function createSandbox(): string {
   const tmp = mkdtempSync(join(tmpdir(), "prx-sandbox-"));
-  Bun.spawnSync({ cmd: ["git", "init", tmp], stdout: "pipe", stderr: "pipe" });
-  Bun.spawnSync({ cmd: ["git", "-C", tmp, "config", "user.name", "test"], stdout: "pipe", stderr: "pipe" });
-  Bun.spawnSync({ cmd: ["git", "-C", tmp, "config", "user.email", "test@test"], stdout: "pipe", stderr: "pipe" });
+  runGitOrThrow(["init", tmp]);
+  runGitOrThrow(["config", "user.name", "test"], tmp);
+  runGitOrThrow(["config", "user.email", "test@test"], tmp);
   writeFileSync(join(tmp, "prx.toml"), '[worktree]\nmanager = "worktrunk"\n');
-  Bun.spawnSync({ cmd: ["git", "-C", tmp, "add", "."], stdout: "pipe", stderr: "pipe" });
-  Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "-m", "init"], stdout: "pipe", stderr: "pipe" });
+  runGitOrThrow(["add", "."], tmp);
+  runGitOrThrow(["commit", "-m", "init"], tmp);
   return tmp;
 }
 
