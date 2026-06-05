@@ -23,12 +23,21 @@ export type PolicyGuardHookInput = {
  * silent (allow / out of scope). Pure — the stdin/stdout plumbing is in
  * {@link runHookVerb}, so this is unit-testable without a pipe.
  */
-export function policyGuardHookOutput(input: PolicyGuardHookInput): string | null {
+export function policyGuardHookOutput(
+  input: PolicyGuardHookInput,
+  sessionActor?: string,
+): string | null {
   const command = input.tool_input?.command;
   if (input.tool_name !== "Bash" || !command) return null;
 
+  // The firing actor: a subagent's `agent_type`, else the session's declared
+  // human actor (`PRX_AGENT_ROLE`). Treating the human as a sandboxed actor is
+  // the invariant — no privileged escape: the same capability policy that
+  // bounds the subagents bounds the human-in-the-loop. An undeclared session
+  // (no agent_type, no role) stays out of scope → allow.
+  const agentType = input.agent_type ?? sessionActor;
   const decision = decideAgentToolCall({
-    ...(input.agent_type !== undefined ? { agentType: input.agent_type } : {}),
+    ...(agentType !== undefined ? { agentType } : {}),
     command,
   });
   if (decision.allow) return null;
@@ -66,7 +75,10 @@ export async function runHookVerb(
     return 0; // unparseable input → don't block; normal permission flow applies
   }
 
-  const decision = policyGuardHookOutput(input);
+  // `PRX_AGENT_ROLE` declares the session's actor — so an interactive/main
+  // session is gated as a sandboxed actor (the human, or a haiku stand-in in
+  // tests), not an unscoped escape hatch. A subagent's `agent_type` wins.
+  const decision = policyGuardHookOutput(input, process.env.PRX_AGENT_ROLE);
   if (decision) output.log(decision);
   return 0;
 }
