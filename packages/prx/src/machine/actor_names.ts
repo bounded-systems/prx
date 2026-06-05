@@ -151,6 +151,11 @@ export const actorNames = [
   // vocabulary only — not a machine `toolActorCatalog` actor (it owns no XState
   // events; its side effect is the signed ledger attestation).
   "scope-gate",
+  // prx-x8ji (epic prx-9zh): the checks verification gate. A CLI verb
+  // (`test-gate run <unit>`) that runs the checks the executor skips
+  // (typecheck + test) and emits a signed `gate/v1` verdict. Registry/CLI
+  // vocabulary only, like `scope-gate` — not a machine `toolActorCatalog` actor.
+  "test-gate",
   // GH-1318: post/pre-merge cleanup actor for issues GitHub does not
   // auto-close because the PR title's `(GH-N)` suffix is decorative, not a
   // close-keyword. Ships two verbs: `submit body-template` (pre-merge `Closes
