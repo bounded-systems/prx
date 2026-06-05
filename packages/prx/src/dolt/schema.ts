@@ -253,7 +253,7 @@ export const DOLT_OUTPUT_SCHEMAS = {
 // dispatcher, error messages, and parity tests all derive from this table.
 export const DOLT_VERB_DISPATCH = {
   provision: { route: "dolt-stub", tracking: "GH-1685" },
-  start: { route: "dolt-stub", tracking: "GH-555" },
+  start: { route: "dolt-start", tracking: "GH-555" },
   stop: { route: "dolt-stub", tracking: "GH-555" },
   status: { route: "dolt-status", tracking: "GH-555" },
   adopt: { route: "dolt-stub", tracking: "GH-555" },

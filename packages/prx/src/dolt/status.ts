@@ -119,7 +119,7 @@ function tryGit(spawn: DoltStatusSpawn, args: string[], cwd: string, env: NodeJS
   return out.length > 0 ? out : null;
 }
 
-function defaultResolveContext(
+export function defaultResolveContext(
   spawn: DoltStatusSpawn,
   env: NodeJS.ProcessEnv,
   repoPath: string,
