@@ -1558,11 +1558,17 @@ function writeOverlayStub(
 ): RepoAddOverlayResult {
   const overlayDir = join(operatorConfigRoot, ".prx", "repos", `io.${canonicalHostSegment(parsed.host)}`, parsed.owner, parsed.name);
   const overlayPath = join(overlayDir, "prx.toml");
-  if (existsSync(overlayPath)) {
-    return { path: overlayPath, written: false, reason: "already_exists" };
-  }
   mkdirSync(overlayDir, { recursive: true });
-  writeFileSync(overlayPath, overlayTemplate(parsed));
+  // Atomic create-if-absent: `wx` fails with EEXIST rather than an
+  // existsSync→write TOCTOU window (CodeQL js/file-system-race).
+  try {
+    writeFileSync(overlayPath, overlayTemplate(parsed), { flag: "wx" });
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "EEXIST") {
+      return { path: overlayPath, written: false, reason: "already_exists" };
+    }
+    throw err;
+  }
   return { path: overlayPath, written: true };
 }
 

@@ -48,10 +48,11 @@ export function readTransitionLog(logPath: string): TransitionEntry[] {
 }
 
 export function appendTransitionLog(logPath: string, entry: TransitionEntry): void {
-  if (existsSync(logPath)) {
-    const existing = readTransitionLog(logPath);
-    if (existing.some((e) => e.id === entry.id)) return;
-  }
+  // `readTransitionLog` already returns [] for a missing log, so the extra
+  // existsSync guard only added an existsSync→append TOCTOU window
+  // (CodeQL js/file-system-race).
+  const existing = readTransitionLog(logPath);
+  if (existing.some((e) => e.id === entry.id)) return;
   // Create the parent dir (e.g. .prx/) so a fresh checkout doesn't ENOENT.
   mkdirSync(dirname(logPath), { recursive: true });
   appendFileSync(logPath, `${JSON.stringify(entry)}\n`, "utf8");

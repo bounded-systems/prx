@@ -13224,10 +13224,19 @@ export async function initContract(
       "!config.json",
     ].join("\n");
 
-    if (!existsSync(prxRootGitignore) || readFileSync(prxRootGitignore, "utf8").trim() !== desiredPrxRootGitignore) {
+    // Read once (empty on missing) instead of existsSync-then-read, so the
+    // writeFileSync isn't racing an existence check (CodeQL js/file-system-race).
+    const readOrEmpty = (p: string): string => {
+      try {
+        return readFileSync(p, "utf8");
+      } catch {
+        return "";
+      }
+    };
+    if (readOrEmpty(prxRootGitignore).trim() !== desiredPrxRootGitignore) {
       writeFileSync(prxRootGitignore, `${desiredPrxRootGitignore}\n`);
     }
-    if (!existsSync(prxReposGitignore) || readFileSync(prxReposGitignore, "utf8").trim() !== desiredPrxReposGitignore) {
+    if (readOrEmpty(prxReposGitignore).trim() !== desiredPrxReposGitignore) {
       writeFileSync(prxReposGitignore, `${desiredPrxReposGitignore}\n`);
     }
 

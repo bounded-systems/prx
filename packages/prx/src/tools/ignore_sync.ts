@@ -22,7 +22,7 @@
  * `excludeUpdatedRules`/`excludeRemovedRules` reporting stays intact) and
  * from `prx tools wt ensure-prx-excludes` (the worktrunk hook entry-point).
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { spawnCapture } from "@bounded-systems/proc";
@@ -71,7 +71,15 @@ export function ensurePrxExcludes(opts: EnsurePrxExcludesOptions): EnsurePrxExcl
   const excludePath = join(commonDir, "info", "exclude");
   mkdirSync(dirname(excludePath), { recursive: true });
 
-  const existing = existsSync(excludePath) ? readFileSync(excludePath, "utf8") : "";
+  // Read once (empty on missing) instead of existsSync-then-read, so the
+  // writeFileSync below isn't racing an existence check (CodeQL
+  // js/file-system-race).
+  let existing = "";
+  try {
+    existing = readFileSync(excludePath, "utf8");
+  } catch {
+    existing = "";
+  }
   let lines = existing.split(/\r?\n/);
 
   if (workspaceTrack) {
