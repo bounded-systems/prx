@@ -46,27 +46,34 @@ export const spawnCapture: SpawnCaptureFn = (cmd, options = {}) => {
   const [file, ...args] = cmd;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "prx-spawn-"));
   const outPath = path.join(dir, "out");
-  const fd = fs.openSync(outPath, "w");
+  // Open read+write so the child's stdout is read back from this same
+  // descriptor rather than by re-opening `outPath` — accessing the path twice
+  // (create, then read) is a TOCTOU race (CodeQL js/file-system-race).
+  const fd = fs.openSync(outPath, "w+");
   try {
-    let result: ReturnType<typeof spawnSync>;
-    try {
-      const spawnOpts: SpawnSyncOptions = {
-        // stdin ignored; stdout → file (no parent buffering); stderr → pipe (small).
-        stdio: ["ignore", fd, "pipe"],
-        encoding: "utf8",
-        cwd: options.cwd,
-        env: options.env as Record<string, string> | undefined,
-        timeout: options.timeout,
-      };
-      result = spawnSync(file!, args, spawnOpts);
-    } finally {
-      try {
-        fs.closeSync(fd);
-      } catch {
-        /* already closed / never opened cleanly */
+    const spawnOpts: SpawnSyncOptions = {
+      // stdin ignored; stdout → file (no parent buffering); stderr → pipe (small).
+      stdio: ["ignore", fd, "pipe"],
+      encoding: "utf8",
+      cwd: options.cwd,
+      env: options.env as Record<string, string> | undefined,
+      timeout: options.timeout,
+    };
+    const result = spawnSync(file!, args, spawnOpts);
+    // The child shares this fd's open file description, so its writes advanced
+    // the shared offset to EOF; read back from an explicit position 0.
+    const size = fs.fstatSync(fd).size;
+    let stdout = "";
+    if (size > 0) {
+      const buf = Buffer.allocUnsafe(size);
+      let read = 0;
+      while (read < size) {
+        const n = fs.readSync(fd, buf, read, size - read, read);
+        if (n === 0) break;
+        read += n;
       }
+      stdout = buf.subarray(0, read).toString("utf8");
     }
-    const stdout = fs.readFileSync(outPath, "utf8");
     return {
       status: result.status,
       signal: result.signal,
@@ -77,6 +84,11 @@ export const spawnCapture: SpawnCaptureFn = (cmd, options = {}) => {
       error: result.error ?? undefined,
     };
   } finally {
+    try {
+      fs.closeSync(fd);
+    } catch {
+      /* already closed / never opened cleanly */
+    }
     try {
       fs.rmSync(dir, { recursive: true, force: true });
     } catch {
