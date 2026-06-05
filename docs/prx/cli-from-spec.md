@@ -81,6 +81,16 @@ CLI-isms (positional mapping, comma-split arrays, boolean flags) live in
   binary — Claude calls in. The plugin's commands and the server's tools are the
   same registry, so they can't drift. (4 tests.)
 
+- **`prx mcp serve`** (`mcp-server.ts`) — the runtime side of the plugin, built.
+  `handleMcpRequest` mounts the registry as an MCP server: `initialize` /
+  `tools/list` (= `toMcpToolset`) / `tools/call` (resolve by `verbToken` →
+  validate args against the verb's Zod input → `run` → rendered result). The
+  handler is transport-agnostic and unit-tested (6 tests); `serveStdio` is the
+  thin newline-delimited-JSON shell (prod swaps in the official MCP stdio
+  transport). The MCP path takes structured JSON args — no CLI-isms; the Zod
+  schema is the only validation. End-to-end: plugin `.mcp.json` → `prx mcp serve`
+  → `tools/call` → `verb.run`.
+
 ## Open
 
 - **Output presenters** — optional `present(output)` on `VerbSpec` for a custom
@@ -88,8 +98,6 @@ CLI-isms (positional mapping, comma-split arrays, boolean flags) live in
 - **Permission projection** — the `actor` field should drive the allow/deny tool
   lists per surface (CLI flag-layer, MCP exposure, plugin `allowed-tools`),
   tying into the capability model.
-- **`prx mcp serve`** — the runtime side of the plugin: an MCP server that mounts
-  `toMcpToolset(registry)` and routes tool calls to each verb's `run`.
 
 ## Tracked follow-up (separate spike)
 
