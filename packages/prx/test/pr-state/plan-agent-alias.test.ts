@@ -30,12 +30,15 @@ describe("prx plan agent alias (prx-383)", () => {
   });
 });
 
-describe("prx upgrade self-update alias (prx-1ab)", () => {
-  test("`prx upgrade` updates the prx flake input via home-update", () => {
+describe("prx upgrade self-update alias (prx-1ab, prx-9lc)", () => {
+  test("`prx upgrade` updates the coupled prx,ai-home pair via home-update", () => {
+    // prx-9lc: prx and ai-home must move together — ai-home consumes prx's hm
+    // modules, so bumping only `prx` lets a stale ai-home reference a removed
+    // option and abort `home-manager switch`.
     expect(normalizeNamespaceArgv(["upgrade"])).toEqual([
       "home-update",
       "--input",
-      "prx",
+      "prx,ai-home",
     ]);
   });
 
@@ -43,12 +46,12 @@ describe("prx upgrade self-update alias (prx-1ab)", () => {
     expect(normalizeNamespaceArgv(["upgrade", "--dry-run"])).toEqual([
       "home-update",
       "--input",
-      "prx",
+      "prx,ai-home",
       "--dry-run",
     ]);
   });
 
-  test("an explicit --input overrides the prx default", () => {
+  test("an explicit --input overrides the prx,ai-home default", () => {
     expect(normalizeNamespaceArgv(["upgrade", "--input", "ai-home"])).toEqual([
       "home-update",
       "--input",

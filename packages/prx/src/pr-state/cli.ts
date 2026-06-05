@@ -5366,10 +5366,15 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   // switch (all via `home-update`). `--input <name>` overrides the default to
   // update a different input. Tail flags (--dry-run/--format/--flake-dir) pass
   // through. (Distinct from `prx update`, which renders/updates the GitHub PR.)
+  //
+  // prx-9lc: the default updates the coupled `prx,ai-home` pair in a single
+  // `nix flake update` + `home-manager switch`. prx and ai-home must move
+  // together (ai-home consumes prx's hm modules); bumping only `prx` lets a
+  // stale ai-home reference a removed prx option and abort the switch.
   if (c0 === "upgrade") {
     const argv = [c1, ...tail].filter((a): a is string => a !== undefined);
     const hasInput = argv.some((a) => a === "--input" || a.startsWith("--input="));
-    return hasInput ? ["home-update", ...argv] : ["home-update", "--input", "prx", ...argv];
+    return hasInput ? ["home-update", ...argv] : ["home-update", "--input", "prx,ai-home", ...argv];
   }
 
   if (c0 === "review") {
