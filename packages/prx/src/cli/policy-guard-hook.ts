@@ -9,6 +9,8 @@
  * policy — the plugin just points the hook at this verb.
  */
 
+import { getEnv } from "@bounded-systems/env";
+
 import { decideAgentToolCall } from "../agents/policy_guard.ts";
 
 /** PreToolUse hook input — only the fields the policy guard reads. */
@@ -78,7 +80,7 @@ export async function runHookVerb(
   // `PRX_AGENT_ROLE` declares the session's actor — so an interactive/main
   // session is gated as a sandboxed actor (the human, or a haiku stand-in in
   // tests), not an unscoped escape hatch. A subagent's `agent_type` wins.
-  const decision = policyGuardHookOutput(input, process.env.PRX_AGENT_ROLE);
+  const decision = policyGuardHookOutput(input, getEnv("PRX_AGENT_ROLE"));
   if (decision) output.log(decision);
   return 0;
 }
