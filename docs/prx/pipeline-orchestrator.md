@@ -189,3 +189,25 @@ is the only thing that knows it's a Claude subagent over ssh.
   thin driver of this machine, so prose and CLI can't drift.
 - **`prx fleet`** → runner unchanged; the supervisor owns N pilots.
 - **tests** → `stubLegRunner`.
+
+## Driving real subagents (`pilot-real.ts`)
+
+The production wiring, gated behind `PRX_PILOT_REAL`. Each leg reuses the CLI's
+own path: `openSession({actor})` materializes the unit's worktree + builds the
+per-role runtime profile, then `runClaudeAgentNonInteractive` runs that role
+headless; the result is signed with the role's authority via
+`resolveProvenanceSigner`. `buildRealPilotDeps` also signs the pilot summary for
+real. All three I/O seams (openSession, the agent run, the signer) are injected,
+so `pilot-real.test.ts` drives the real machine with mocked I/O and a real
+ed25519 key — the executor leg and the summary carry genuine, verifiable
+signatures (not stubs), and a failed `openSession` retreats correctly.
+
+Role → session actor: `planner→plan`, `executor→implement`, `tester→implement`
+(runs the unit's tests in the implement worktree), `reviewer→author`.
+
+A live probe (`PRX_PILOT_REAL=1 prx pilot prx-eky`) confirmed the path reaches
+`openSession`; completing a live run is gated only on (a) a real `waitFor`
+timeout — now 30 min in real mode vs. 4 s for stubs — and (b) the beads/Dolt
+server being up (attached actors hydrate beads at session start). Open: wire the
+CI gate and merge legs to the real `prx plan ci` / publisher actors (they keep
+auto-pass defaults today).
