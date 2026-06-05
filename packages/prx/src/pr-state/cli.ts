@@ -547,6 +547,7 @@ import {
 } from "../dolt/status.ts";
 import { runDoltStartCli } from "../dolt/start.ts";
 import { runOrchestratorVerb } from "../cli/orchestrator-cli.ts";
+import { runPluginVerb } from "../cli/plugin-emit.ts";
 import {
   DOLT_VERBS,
   DOLT_VERB_DISPATCH,
@@ -18371,6 +18372,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     const [orchestratorVerb, ...orchestratorRest] = argv;
     if (orchestratorVerb === "pilot" || orchestratorVerb === "fleet") {
       return runOrchestratorVerb(orchestratorVerb, orchestratorRest, output);
+    }
+    if (orchestratorVerb === "plugin") {
+      return runPluginVerb(orchestratorRest, output);
     }
 
     // Clear memoized canonical-ID helpers so tests (which share the process
