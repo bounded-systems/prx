@@ -1,4 +1,4 @@
-import { readFileSync, openSync, writeSync, ftruncateSync, closeSync, existsSync, readlinkSync, statSync } from "node:fs";
+import { readFileSync, openSync, writeSync, ftruncateSync, closeSync, existsSync, readlinkSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, resolve } from "node:path";
 
@@ -189,26 +189,16 @@ export function killMuxSession(opts: {
 export function clearResurrectEntry(opts: { name: string; resurrectDir?: string | undefined }): void {
   const dir = opts.resurrectDir ?? PRX_RESURRECT_DIR;
   const lastPath = `${dir.replace(/\/?$/, "/")}last`;
-  if (!existsSync(lastPath)) {
-    return;
-  }
-  let savePath: string;
-  try {
-    const linkStat = statSync(lastPath, { throwIfNoEntry: false });
-    if (linkStat === undefined) {
-      return;
-    }
-    const target = tryReadlink(lastPath);
-    savePath = target
-      ? (isAbsolute(target) ? target : resolve(dirname(lastPath), target))
-      : lastPath;
-  } catch {
-    return;
-  }
+  // Resolve the resurrect "last" symlink (if it is one) without a stat/exists
+  // pre-check: readlink returns null for a non-symlink, broken, or missing
+  // path, and the open below surfaces a missing/unreadable target. Checking the
+  // path first and then opening it is a TOCTOU race (CodeQL js/file-system-race).
+  const target = tryReadlink(lastPath);
+  const savePath = target
+    ? (isAbsolute(target) ? target : resolve(dirname(lastPath), target))
+    : lastPath;
   // Read and rewrite through a single descriptor so the filter-and-write is
-  // atomic against the read — no existsSync/read check that a separate write
-  // could race (CodeQL js/file-system-race). A missing or unreadable save file
-  // is handled by the open failing.
+  // atomic against the read.
   let fd: number;
   try {
     fd = openSync(savePath, "r+");
