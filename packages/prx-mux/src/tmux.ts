@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, readlinkSync, statSync } from "node:fs";
+import { readFileSync, openSync, writeSync, ftruncateSync, closeSync, existsSync, readlinkSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, resolve } from "node:path";
 
@@ -205,34 +205,36 @@ export function clearResurrectEntry(opts: { name: string; resurrectDir?: string 
   } catch {
     return;
   }
-  // No existence pre-check: reading and writing below are each guarded by
-  // try/catch, so a missing or concurrently-removed savePath is handled at
-  // point-of-use. Checking first would be a TOCTOU race (CodeQL
-  // js/file-system-race) without changing the outcome.
-  let contents: string;
+  // Read and rewrite through a single descriptor so the filter-and-write is
+  // atomic against the read — no existsSync/read check that a separate write
+  // could race (CodeQL js/file-system-race). A missing or unreadable save file
+  // is handled by the open failing.
+  let fd: number;
   try {
-    contents = readFileSync(savePath, "utf8");
+    fd = openSync(savePath, "r+");
   } catch {
     return;
   }
-
-  const filtered = contents
-    .split("\n")
-    .filter((line) => {
-      if (line.length === 0) return true;
-      const parts = line.split("\t");
-      return parts[1] !== opts.name;
-    })
-    .join("\n");
-
-  if (filtered === contents) {
-    return;
-  }
-
   try {
-    writeFileSync(savePath, filtered);
+    const contents = readFileSync(fd, "utf8");
+    const filtered = contents
+      .split("\n")
+      .filter((line) => {
+        if (line.length === 0) return true;
+        const parts = line.split("\t");
+        return parts[1] !== opts.name;
+      })
+      .join("\n");
+
+    if (filtered === contents) {
+      return;
+    }
+    ftruncateSync(fd, 0);
+    writeSync(fd, filtered, 0);
   } catch {
     // Non-fatal: a permission error here should not block worktree removal.
+  } finally {
+    closeSync(fd);
   }
 }
 
