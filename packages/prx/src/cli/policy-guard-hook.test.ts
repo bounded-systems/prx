@@ -35,4 +35,21 @@ describe("prx hook policy-guard (PreToolUse capability bridge)", () => {
     // Missing command → nothing to decide.
     expect(policyGuardHookOutput({ tool_name: "Bash" })).toBeNull();
   });
+
+  test("gates the main session by its declared actor (human / haiku stand-in)", () => {
+    // No agent_type (main/interactive session), but a declared session actor
+    // (PRX_AGENT_ROLE) → gated exactly like a subagent. The same invariant that
+    // sandboxes the human is what lets a cheap haiku agent stand in for them.
+    const out = policyGuardHookOutput(
+      { tool_name: "Bash", tool_input: { command: "git status" } },
+      "orchestrator",
+    );
+    expect(out).not.toBeNull();
+    expect(JSON.parse(out!).hookSpecificOutput.permissionDecision).toBe("deny");
+
+    // Undeclared session (no agent_type, no role) stays out of scope → allow.
+    expect(
+      policyGuardHookOutput({ tool_name: "Bash", tool_input: { command: "git status" } }),
+    ).toBeNull();
+  });
 });
