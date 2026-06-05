@@ -24,7 +24,7 @@
  * downgrades. Fallback policy lives in T2/T3 (issue body).
  */
 
-import { appendFileSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { z } from "zod";
@@ -854,7 +854,8 @@ function readAuditTail(path: string, maxRows: number): RateLimitAuditEntry[] {
   // tail read is the right next step if the log grows unbounded.
   let raw: string;
   try {
-    statSync(path);
+    // No statSync pre-check: readFileSync throws ENOENT into the same catch,
+    // so the check only added a TOCTOU window (CodeQL js/file-system-race).
     raw = readFileSync(path, "utf8");
   } catch {
     return [];
