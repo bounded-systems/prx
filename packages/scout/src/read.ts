@@ -2,7 +2,7 @@
 // file read. Sibling to scout/grep.ts and scout/files.ts; emits one JSON
 // envelope so the dispatch envelope captures a single CAS record.
 
-import { readFileSync, statSync } from "node:fs";
+import { closeSync, fstatSync, openSync, readFileSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 
 // Scout's content-addressed reads use the CAS substrate's digest primitive,
@@ -144,38 +144,45 @@ export async function runScoutRead(
     );
   }
   const target = resolveTarget(input);
-  let stat: ReturnType<typeof statSync>;
+  // Open once and stat/read the same descriptor: the metadata checks and the
+  // read then refer to the same inode, so the file can't be swapped between
+  // check and use (CodeQL js/file-system-race).
+  let fd: number;
   try {
-    stat = statSync(target);
+    fd = openSync(target, "r");
   } catch {
     throw new ScoutReadError(`file not found: ${target}`, "FILE_NOT_FOUND");
   }
-  if (!stat.isFile()) {
-    throw new ScoutReadError(
-      `path is not a regular file: ${target}`,
-      "NOT_A_FILE",
-    );
-  }
-  if (stat.size > requestedMax) {
-    throw new ScoutReadError(
-      `file exceeds maxBytes (${stat.size} > ${requestedMax}): ${target}`,
-      "FILE_TOO_LARGE",
-    );
-  }
-  if (!hasTextExt(target)) {
-    throw new ScoutReadError(
-      `path is not a recognized text file (extension allowlist): ${target}`,
-      "NOT_TEXT",
-    );
-  }
   let buf: Buffer;
   try {
-    buf = readFileSync(target);
+    const stat = fstatSync(fd);
+    if (!stat.isFile()) {
+      throw new ScoutReadError(
+        `path is not a regular file: ${target}`,
+        "NOT_A_FILE",
+      );
+    }
+    if (stat.size > requestedMax) {
+      throw new ScoutReadError(
+        `file exceeds maxBytes (${stat.size} > ${requestedMax}): ${target}`,
+        "FILE_TOO_LARGE",
+      );
+    }
+    if (!hasTextExt(target)) {
+      throw new ScoutReadError(
+        `path is not a recognized text file (extension allowlist): ${target}`,
+        "NOT_TEXT",
+      );
+    }
+    buf = readFileSync(fd);
   } catch (err) {
+    if (err instanceof ScoutReadError) throw err;
     throw new ScoutReadError(
       `read failed: ${(err as Error).message}`,
       "READ_FAILED",
     );
+  } finally {
+    closeSync(fd);
   }
   if (looksBinary(buf)) {
     throw new ScoutReadError(
