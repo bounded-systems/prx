@@ -4,7 +4,7 @@ import { bakedGitSha, bakedReleaseVersion } from "../build-info.ts";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join, resolve } from "node:path";
-import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 
@@ -842,6 +842,7 @@ import {
   parseDispatchCommand as parseDispatchArgv,
 } from "./dispatch/parse.ts";
 import { renderDispatchOutcome, runDispatch } from "./dispatch/handler.ts";
+import { rewriteFileAtomic } from "../tools/atomic_file.ts";
 import {
   formatScoutGrepJsonLines,
   runScoutGrep,
@@ -14985,15 +14986,20 @@ export function runBeadsInit(
     issuePrefix: repo,
   };
 
-  // Read current metadata database
+  // Read current metadata database. Read atomically through a descriptor (no
+  // existsSync-then-read, which CodeQL pairs with the later metadata writes as
+  // js/file-system-race).
   let metadataDatabase: string | null = null;
-  if (existsSync(metadataPath)) {
+  try {
+    const fd = openSync(metadataPath, "r");
     try {
-      const metadata = JSON.parse(readFileSync(metadataPath, "utf8"));
+      const metadata = JSON.parse(readFileSync(fd, "utf8"));
       metadataDatabase = typeof metadata.dolt_database === "string" ? metadata.dolt_database : null;
-    } catch {
-      // ignore parse errors
+    } finally {
+      closeSync(fd);
     }
+  } catch {
+    // missing or invalid → leave null
   }
 
   const run = (cmd: string, args: string[]): { status: number; stdout: string; stderr: string } => {
@@ -15035,15 +15041,24 @@ export function runBeadsInit(
     run("bd", dryRun ? ["bootstrap", "--dry-run"] : ["bootstrap", "--yes"]);
   };
 
-  // Patch metadata if needed
-  if (existsSync(metadataPath) && metadataDatabase !== database) {
+  // Patch metadata if needed. Rewrite through one descriptor (rewriteFileAtomic)
+  // rather than existsSync-then-read-then-write (CodeQL js/file-system-race).
+  if (metadataDatabase !== database) {
     output.log(`repair: rewriting ${metadataPath} dolt_database ${metadataDatabase ?? "unset"} -> ${database}`);
     if (!dryRun) {
-      try {
-        const metadata = JSON.parse(readFileSync(metadataPath, "utf8"));
+      let invalidJson = false;
+      rewriteFileAtomic(metadataPath, (current) => {
+        let metadata: { dolt_database?: string };
+        try {
+          metadata = JSON.parse(current);
+        } catch {
+          invalidJson = true;
+          return null;
+        }
         metadata.dolt_database = database;
-        writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + "\n");
-      } catch {
+        return JSON.stringify(metadata, null, 2) + "\n";
+      });
+      if (invalidJson) {
         throw new CliError(
           `beads-init: ${metadataPath} contains invalid JSON; fix or delete it and re-run`,
         );
@@ -15089,15 +15104,24 @@ export function runBeadsInit(
       output.log("repair: running canonical Beads init");
       run("bd", ["init", "--prefix", repo, "--database", database]);
     }
-    // Re-patch metadata after init
-    if (existsSync(metadataPath) && !dryRun) {
-      try {
-        const metadata = JSON.parse(readFileSync(metadataPath, "utf8"));
-        if (metadata.dolt_database !== database) {
-          metadata.dolt_database = database;
-          writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + "\n");
+    // Re-patch metadata after init. Rewrite through one descriptor
+    // (rewriteFileAtomic) rather than existsSync-then-read-then-write
+    // (CodeQL js/file-system-race).
+    if (!dryRun) {
+      let invalidJson = false;
+      rewriteFileAtomic(metadataPath, (current) => {
+        let metadata: { dolt_database?: string };
+        try {
+          metadata = JSON.parse(current);
+        } catch {
+          invalidJson = true;
+          return null;
         }
-      } catch {
+        if (metadata.dolt_database === database) return null;
+        metadata.dolt_database = database;
+        return JSON.stringify(metadata, null, 2) + "\n";
+      });
+      if (invalidJson) {
         throw new CliError(
           `beads-init: ${metadataPath} contains invalid JSON; fix or delete it and re-run`,
         );
