@@ -41,7 +41,7 @@ so the receiver looks up which installation/token to use.
 - `metadata: read` — mandatory.
 - `contents: read` — read the tree/commits. (Bump to `write` only if the app
   itself commits/merges; keeper pushes via git, so read is usually enough.)
-- `issues: write` — intake/triage write issue bodies, labels, comments.
+- `issues: write` — intake, triage, and write issue bodies, labels, and comments.
 - `pull_requests: write` — open / review / merge PRs (forge).
 - `checks: read` — gate on CI. (Bump to `write` only if prx publishes its
   `checks/v1` as GitHub check runs.)
@@ -85,10 +85,12 @@ without re-clicking the form.
 ## Secrets
 
 The `installation_id` and App ID are identifiers (fine to commit/log). The
-**private key (`.pem`)** and **webhook secret** are real secrets — keep them in
-sops/agenix / env, never in the repo, mirroring the keymaker deployment-master
-pattern. The manifest deliberately contains **no** secret (the webhook secret is
-minted by the conversion step, not stored here).
+**private key (`.pem`)**, **webhook secret**, and **client secret** are real
+secrets — keep them in sops/agenix / env, never in the repo, mirroring the
+keymaker deployment-master pattern. Even with user-identity flows currently OFF,
+treat the client secret as sensitive credential material (store/rotate like other
+secrets if those flows are ever enabled). The manifest deliberately contains **no**
+secret (the webhook secret is minted by the conversion step, not stored here).
 
 ## Related beads
 
