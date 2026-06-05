@@ -43,6 +43,7 @@ describe("actor sub-agent codegen (prx-g88.1)", () => {
   test("the orchestrator is capability-poor — no Bash, only Agent + reads", () => {
     const doc = generateOrchestratorDoc();
     const tools = /^tools: (.+)$/m.exec(doc)?.[1] ?? "";
+    expect(tools).not.toBe("");
     expect(tools).not.toContain("Bash");
     expect(tools).toContain("Agent");
   });
