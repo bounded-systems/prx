@@ -234,11 +234,16 @@ function bootstrapBeads(cwd: string, deps: BootstrapDeps): BeadsBootstrapResult 
   const expectedRedirectContent = `${relativeTarget}\n`;
   const staleState = detectStaleState(beadsDir);
 
-  if (existsSync(redirectPath)) {
-    let existing: string;
-    try {
-      existing = readFileSync(redirectPath, "utf8");
-    } catch (err) {
+  // Read once to decide create-vs-rewrite. ENOENT means "no redirect yet" (the
+  // create branch below); any other read error is surfaced. Replaces an
+  // existsSync→write TOCTOU window (CodeQL js/file-system-race).
+  let existing: string | null;
+  try {
+    existing = readFileSync(redirectPath, "utf8");
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      existing = null;
+    } else {
       return {
         status: "error",
         redirectPath,
@@ -246,6 +251,8 @@ function bootstrapBeads(cwd: string, deps: BootstrapDeps): BeadsBootstrapResult 
         message: (err as Error).message,
       };
     }
+  }
+  if (existing !== null) {
     if (existing === expectedRedirectContent) {
       const result: BeadsBootstrapResult = {
         status: "skipped-redirect-exists",

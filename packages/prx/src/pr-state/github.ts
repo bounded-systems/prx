@@ -3906,7 +3906,15 @@ export function persistWorkspaceTrack(repoRoot: string, track: boolean): void {
   const configPath = join(repoRoot, "prx.toml");
   const desired = `track = ${track ? "true" : "false"}`;
 
-  const existing = existsSync(configPath) ? readFileSync(configPath, "utf8") : "";
+  // Read once (empty on missing) instead of existsSync-then-read, so the
+  // later writeFileSync isn't racing an existence check (CodeQL
+  // js/file-system-race).
+  let existing = "";
+  try {
+    existing = readFileSync(configPath, "utf8");
+  } catch {
+    existing = "";
+  }
   if (existing.length === 0) {
     writeFileSync(configPath, `[workspace]\n${desired}\n`);
     return;
