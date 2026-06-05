@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   runHomeUpdate,
   resolveFlakeDir,
-  resolveInputName,
+  resolveInputNames,
   type HomeUpdateOptions,
   type HomeUpdateDeps,
   type HomeUpdateSpawnResult,
@@ -18,18 +18,20 @@ type SpawnCall = {
 };
 
 function makeFixture(params: {
-  revs: Array<string | null>;
+  // prx-9lc: each entry is a flake.lock snapshot (input name -> locked rev),
+  // consumed one per readFile call (call 1 = "from", call 2 = "to"). A name
+  // omitted from a snapshot is absent from the lock (warn-and-skip path).
+  lockStates: Array<Record<string, string>>;
   spawnResults: HomeUpdateSpawnResult[];
   existingPaths?: Set<string>;
-  inputName?: string;
+  // Unrelated inputs always present in every snapshot (e.g. nixpkgs).
   extraNodes?: Record<string, { locked: { rev: string } }>;
 }) {
   const logs: string[] = [];
   const errs: string[] = [];
   const spawnCalls: SpawnCall[] = [];
-  const revs = [...params.revs];
+  const lockStates = [...params.lockStates];
   const spawnResults = [...params.spawnResults];
-  const inputName = params.inputName ?? "ai-home";
   const defaultExisting = new Set(
     params.existingPaths
       ? Array.from(params.existingPaths)
@@ -41,15 +43,12 @@ function makeFixture(params: {
   );
 
   const readFile = (_path: string) => {
-    const rev = revs.shift();
+    const state = lockStates.shift() ?? {};
     const nodes: Record<string, { locked: { rev: string } }> = {
       ...(params.extraNodes ?? {}),
     };
-    if (rev !== undefined && rev !== null) {
-      nodes[inputName] = { locked: { rev } };
-    } else if (rev === null) {
-      // Input present but no rev.
-      nodes[inputName] = { locked: { rev: "" } };
+    for (const [name, rev] of Object.entries(state)) {
+      nodes[name] = { locked: { rev } };
     }
     return JSON.stringify({ nodes });
   };
@@ -103,25 +102,43 @@ describe("resolveFlakeDir", () => {
   });
 });
 
-describe("resolveInputName", () => {
+describe("resolveInputNames", () => {
   test("flag beats env beats default ai-home", () => {
     expect(
-      resolveInputName({ input: "custom", dryRun: false, format: "plain" }, {}),
-    ).toBe("custom");
+      resolveInputNames({ input: "custom", dryRun: false, format: "plain" }, {}),
+    ).toEqual(["custom"]);
     expect(
-      resolveInputName(
+      resolveInputNames(
         { dryRun: false, format: "plain" },
         { PRX_HOME_FLAKE_INPUT: "env-input" },
       ),
-    ).toBe("env-input");
-    expect(resolveInputName({ dryRun: false, format: "plain" }, {})).toBe("ai-home");
+    ).toEqual(["env-input"]);
+    expect(resolveInputNames({ dryRun: false, format: "plain" }, {})).toEqual([
+      "ai-home",
+    ]);
+  });
+
+  test("prx-9lc: splits a comma-separated list, trims, drops empties", () => {
+    expect(
+      resolveInputNames({ input: "prx,ai-home", dryRun: false, format: "plain" }, {}),
+    ).toEqual(["prx", "ai-home"]);
+    expect(
+      resolveInputNames(
+        { input: " prx , , ai-home ", dryRun: false, format: "plain" },
+        {},
+      ),
+    ).toEqual(["prx", "ai-home"]);
+    // An all-empty list falls back to the bare default.
+    expect(
+      resolveInputNames({ input: ",,", dryRun: false, format: "plain" }, {}),
+    ).toEqual(["ai-home"]);
   });
 });
 
 describe("runHomeUpdate", () => {
   test("happy path: nix flake update → commit flake.lock → home-manager switch (prx-1ab)", () => {
     const fx = makeFixture({
-      revs: ["aaaaaaaaaa1111", "bbbbbbbbbb2222"],
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }, { "ai-home": "bbbbbbbbbb2222" }],
       // nix update, git rev-parse (is-git), git add, git commit, hm switch.
       spawnResults: [{ status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }],
     });
@@ -158,13 +175,108 @@ describe("runHomeUpdate", () => {
       cwd: "/fake/flake",
       stdio: "pipe",
     });
-    expect(fx.logs.join("\n")).toContain("ai-home: aaaaaaa → bbbbbbb (home-manager switched)");
+    const log = fx.logs.join("\n");
+    expect(log).toContain("ai-home: aaaaaaa → bbbbbbb");
+    expect(log).toContain("home-manager switched");
     expect(fx.errs).toEqual([]);
+  });
+
+  test("prx-9lc: multi-input updates both inputs in one nix flake update and commits both moved", () => {
+    const fx = makeFixture({
+      lockStates: [
+        { prx: "prx1111aaaa", "ai-home": "aih1111bbbb" },
+        { prx: "prx2222cccc", "ai-home": "aih2222dddd" },
+      ],
+      spawnResults: [{ status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }],
+    });
+
+    const exit = runHomeUpdate(
+      { flakeDir: "/fake/flake", input: "prx,ai-home", dryRun: false, format: "plain" },
+      fx.output,
+      fx.deps,
+    );
+
+    expect(exit).toBe(0);
+    // One nix invocation names both inputs (scoped — does not touch nixpkgs).
+    expect(fx.spawnCalls[0]!.args).toEqual([
+      "flake",
+      "update",
+      "prx",
+      "ai-home",
+      "--flake",
+      "/fake/flake",
+    ]);
+    // Commit message names both moved inputs with their rev transitions.
+    const commit = fx.spawnCalls.find(
+      (c) => c.file === "git" && c.args.includes("commit"),
+    )!;
+    const msg = commit.args[commit.args.length - 1]!;
+    expect(msg).toContain("prx prx1111→prx2222");
+    expect(msg).toContain("ai-home aih1111→aih2222");
+    const log = fx.logs.join("\n");
+    expect(log).toContain("prx: prx1111 → prx2222");
+    expect(log).toContain("ai-home: aih1111 → aih2222");
+  });
+
+  test("prx-9lc: when only one of the pair moves, the commit names only the moved input", () => {
+    const fx = makeFixture({
+      lockStates: [
+        { prx: "prxsame0000", "ai-home": "aih1111bbbb" },
+        { prx: "prxsame0000", "ai-home": "aih2222dddd" },
+      ],
+      spawnResults: [{ status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }],
+    });
+
+    const exit = runHomeUpdate(
+      { flakeDir: "/fake/flake", input: "prx,ai-home", dryRun: false, format: "plain" },
+      fx.output,
+      fx.deps,
+    );
+
+    expect(exit).toBe(0);
+    const commit = fx.spawnCalls.find(
+      (c) => c.file === "git" && c.args.includes("commit"),
+    )!;
+    const msg = commit.args[commit.args.length - 1]!;
+    expect(msg).toContain("ai-home aih1111→aih2222");
+    // prx (unchanged) is absent from the commit message.
+    expect(msg).not.toContain("prx ");
+    const log = fx.logs.join("\n");
+    expect(log).toContain("prx: no-op (prxsame)");
+    expect(log).toContain("ai-home: aih1111 → aih2222");
+  });
+
+  test("prx-9lc: an absent input is warned-and-skipped while present inputs still update", () => {
+    const fx = makeFixture({
+      lockStates: [{ prx: "prx1111aaaa" }, { prx: "prx2222cccc" }],
+      extraNodes: { nixpkgs: { locked: { rev: "n" } } },
+      spawnResults: [{ status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }],
+    });
+
+    const exit = runHomeUpdate(
+      { flakeDir: "/fake/flake", input: "prx,ai-home", dryRun: false, format: "plain" },
+      fx.output,
+      fx.deps,
+    );
+
+    expect(exit).toBe(0);
+    const err = fx.errs.join("\n");
+    expect(err).toContain('input "ai-home" not found');
+    expect(err).toContain("skipping");
+    // nix flake update names only the present input.
+    expect(fx.spawnCalls[0]!.args).toEqual([
+      "flake",
+      "update",
+      "prx",
+      "--flake",
+      "/fake/flake",
+    ]);
+    expect(fx.logs.join("\n")).toContain("prx: prx1111 → prx2222");
   });
 
   test("prx-up2: quiet mode prints per-step progress, --verbose streams the raw log", () => {
     const quiet = makeFixture({
-      revs: ["aaaaaaaaaa1111", "bbbbbbbbbb2222"],
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }, { "ai-home": "bbbbbbbbbb2222" }],
       spawnResults: [{ status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }],
     });
     runHomeUpdate(
@@ -177,7 +289,7 @@ describe("runHomeUpdate", () => {
     expect(quietLog).toContain("switching home-manager generation…");
 
     const verbose = makeFixture({
-      revs: ["aaaaaaaaaa1111", "bbbbbbbbbb2222"],
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }, { "ai-home": "bbbbbbbbbb2222" }],
       spawnResults: [{ status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }],
     });
     runHomeUpdate(
@@ -191,9 +303,25 @@ describe("runHomeUpdate", () => {
     expect(verbose.logs.join("\n")).not.toContain("switching home-manager generation…");
   });
 
+  test("prx-9lc: multi-input quiet progress pluralizes the input list", () => {
+    const fx = makeFixture({
+      lockStates: [
+        { prx: "prx1111aaaa", "ai-home": "aih1111bbbb" },
+        { prx: "prx2222cccc", "ai-home": "aih2222dddd" },
+      ],
+      spawnResults: [{ status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }],
+    });
+    runHomeUpdate(
+      { flakeDir: "/fake/flake", input: "prx,ai-home", dryRun: false, format: "plain" },
+      fx.output,
+      fx.deps,
+    );
+    expect(fx.logs.join("\n")).toContain("updating flake inputs prx, ai-home…");
+  });
+
   test("prx-up2: a failed switch dumps the captured log so quiet mode stays debuggable", () => {
     const fx = makeFixture({
-      revs: ["aaaaaaaaaa1111", "bbbbbbbbbb2222"],
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }, { "ai-home": "bbbbbbbbbb2222" }],
       // update ok, rev-parse ok, add ok, commit ok, switch fails with output.
       spawnResults: [
         { status: 0 },
@@ -217,7 +345,7 @@ describe("runHomeUpdate", () => {
 
   test("detects no-op when rev unchanged", () => {
     const fx = makeFixture({
-      revs: ["same1234567890", "same1234567890"],
+      lockStates: [{ "ai-home": "same1234567890" }, { "ai-home": "same1234567890" }],
       spawnResults: [{ status: 0 }, { status: 0 }],
     });
 
@@ -228,12 +356,17 @@ describe("runHomeUpdate", () => {
     );
 
     expect(exit).toBe(0);
-    expect(fx.logs.join("\n")).toContain("ai-home: no-op (same123) — home-manager switched");
+    const log = fx.logs.join("\n");
+    expect(log).toContain("ai-home: no-op (same123)");
+    expect(log).toContain("home-manager switched (no input moved)");
+    // No git calls fire on a no-op — only nix update + hm switch.
+    expect(fx.spawnCalls).toHaveLength(2);
+    expect(fx.spawnCalls.some((c) => c.file === "git")).toBe(false);
   });
 
   test("dry-run prints commands but does not spawn", () => {
     const fx = makeFixture({
-      revs: ["aaaaaaaaaa1111"],
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }],
       spawnResults: [],
     });
 
@@ -252,9 +385,9 @@ describe("runHomeUpdate", () => {
     expect(joined).toContain("aaaaaaa");
   });
 
-  test("dry-run JSON payload includes from rev and command arrays", () => {
+  test("dry-run JSON payload includes inputs[] from rev and command arrays", () => {
     const fx = makeFixture({
-      revs: ["aaaaaaaaaa1111"],
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }],
       spawnResults: [],
     });
 
@@ -268,8 +401,7 @@ describe("runHomeUpdate", () => {
     const parsed = JSON.parse(fx.logs[0]!);
     expect(parsed.dryRun).toBe(true);
     expect(parsed.flakeDir).toBe("/fake/flake");
-    expect(parsed.input).toBe("ai-home");
-    expect(parsed.from).toBe("aaaaaaaaaa1111");
+    expect(parsed.inputs).toEqual([{ name: "ai-home", from: "aaaaaaaaaa1111" }]);
     expect(parsed.commands[0]).toEqual([
       "nix",
       "flake",
@@ -296,9 +428,38 @@ describe("runHomeUpdate", () => {
     ]);
   });
 
+  test("prx-9lc: dry-run previews a nix flake update listing both inputs", () => {
+    const fx = makeFixture({
+      lockStates: [{ prx: "prx1111aaaa", "ai-home": "aih1111bbbb" }],
+      spawnResults: [],
+    });
+
+    const exit = runHomeUpdate(
+      { flakeDir: "/fake/flake", input: "prx,ai-home", dryRun: true, format: "json" },
+      fx.output,
+      fx.deps,
+    );
+
+    expect(exit).toBe(0);
+    const parsed = JSON.parse(fx.logs[0]!);
+    expect(parsed.commands[0]).toEqual([
+      "nix",
+      "flake",
+      "update",
+      "prx",
+      "ai-home",
+      "--flake",
+      "/fake/flake",
+    ]);
+    expect(parsed.inputs).toEqual([
+      { name: "prx", from: "prx1111aaaa" },
+      { name: "ai-home", from: "aih1111bbbb" },
+    ]);
+  });
+
   test("missing flake dir exits 2", () => {
     const fx = makeFixture({
-      revs: [],
+      lockStates: [],
       spawnResults: [],
       existingPaths: new Set(),
     });
@@ -316,7 +477,7 @@ describe("runHomeUpdate", () => {
 
   test("missing flake.nix exits 2", () => {
     const fx = makeFixture({
-      revs: [],
+      lockStates: [],
       spawnResults: [],
       existingPaths: new Set(["/fake/flake"]),
     });
@@ -334,7 +495,7 @@ describe("runHomeUpdate", () => {
 
   test("missing flake.lock exits 2", () => {
     const fx = makeFixture({
-      revs: [],
+      lockStates: [],
       spawnResults: [],
       existingPaths: new Set(["/fake/flake", "/fake/flake/flake.nix"]),
     });
@@ -350,11 +511,10 @@ describe("runHomeUpdate", () => {
     expect(fx.spawnCalls).toEqual([]);
   });
 
-  test("input not in lock exits 2 and lists available inputs", () => {
+  test("none of the requested inputs present exits 2 and lists available inputs", () => {
     const fx = makeFixture({
-      revs: [],
+      lockStates: [{}],
       spawnResults: [],
-      inputName: "not-present-placeholder",
       extraNodes: {
         nixpkgs: { locked: { rev: "x" } },
         "home-manager": { locked: { rev: "y" } },
@@ -375,6 +535,7 @@ describe("runHomeUpdate", () => {
     expect(exit).toBe(2);
     const err = fx.errs.join("\n");
     expect(err).toContain('input "nonexistent" not found');
+    expect(err).toContain("none of the requested inputs are present");
     expect(err).toContain("home-manager");
     expect(err).toContain("nixpkgs");
     expect(fx.spawnCalls).toEqual([]);
@@ -382,7 +543,7 @@ describe("runHomeUpdate", () => {
 
   test("nix flake update non-zero exit passes through without running switch", () => {
     const fx = makeFixture({
-      revs: ["aaaaaaaaaa1111"],
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }],
       spawnResults: [{ status: 3 }],
     });
 
@@ -400,7 +561,7 @@ describe("runHomeUpdate", () => {
 
   test("home-manager switch non-zero exit passes through (lock stays at new rev)", () => {
     const fx = makeFixture({
-      revs: ["aaaaaaaaaa1111", "bbbbbbbbbb2222"],
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }, { "ai-home": "bbbbbbbbbb2222" }],
       // nix, git rev-parse, git add, git commit (all ok), then switch fails.
       spawnResults: [{ status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }, { status: 7 }],
     });
@@ -418,7 +579,7 @@ describe("runHomeUpdate", () => {
 
   test("spawn error from nix surfaces non-zero without running switch", () => {
     const fx = makeFixture({
-      revs: ["aaaaaaaaaa1111"],
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }],
       spawnResults: [{ status: null, error: new Error("ENOENT nix") }],
     });
 
@@ -451,7 +612,7 @@ describe("runHomeUpdate", () => {
         "--flake-dir",
         "/custom/flake",
         "--input",
-        "ai-home",
+        "prx,ai-home",
         "--dry-run",
         "--format",
         "json",
@@ -467,9 +628,11 @@ describe("runHomeUpdate", () => {
 
     expect(exit).toBe(0);
     expect(calls).toHaveLength(1);
+    // The comma-separated value threads through verbatim; the split happens
+    // downstream in resolveInputNames.
     expect(calls[0]).toEqual({
       flakeDir: "/custom/flake",
-      input: "ai-home",
+      input: "prx,ai-home",
       dryRun: true,
       format: "json",
       verbose: false,
@@ -513,7 +676,7 @@ describe("runHomeUpdate", () => {
 
   test("JSON mode pipes child stdio and omits the human banner so stdout stays parseable", () => {
     const fx = makeFixture({
-      revs: ["aaaaaaaaaa1111", "bbbbbbbbbb2222"],
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }, { "ai-home": "bbbbbbbbbb2222" }],
       spawnResults: [{ status: 0 }, { status: 0 }],
     });
 
@@ -535,7 +698,7 @@ describe("runHomeUpdate", () => {
 
   test("home-manager switch is invoked with --flake pointing at the validated flake dir", () => {
     const fx = makeFixture({
-      revs: ["aaaaaaaaaa1111", "bbbbbbbbbb2222"],
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }, { "ai-home": "bbbbbbbbbb2222" }],
       spawnResults: [{ status: 0 }, { status: 0 }],
     });
 
@@ -550,9 +713,9 @@ describe("runHomeUpdate", () => {
     expect(switchCall?.args).toEqual(["switch", "--flake", "/fake/flake"]);
   });
 
-  test("JSON success output includes from/to and noop=false", () => {
+  test("JSON success output emits inputs[] with from/to/noop=false", () => {
     const fx = makeFixture({
-      revs: ["aaaaaaaaaa1111", "bbbbbbbbbb2222"],
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }, { "ai-home": "bbbbbbbbbb2222" }],
       spawnResults: [{ status: 0 }, { status: 0 }],
     });
 
@@ -565,17 +728,44 @@ describe("runHomeUpdate", () => {
     expect(exit).toBe(0);
     const payload = JSON.parse(fx.logs[fx.logs.length - 1]!);
     expect(payload.flakeDir).toBe("/fake/flake");
-    expect(payload.input).toBe("ai-home");
-    expect(payload.from).toBe("aaaaaaaaaa1111");
-    expect(payload.to).toBe("bbbbbbbbbb2222");
-    expect(payload.noop).toBe(false);
+    expect(payload.inputs).toEqual([
+      {
+        name: "ai-home",
+        from: "aaaaaaaaaa1111",
+        to: "bbbbbbbbbb2222",
+        noop: false,
+      },
+    ]);
     expect(payload.switched).toBe(true);
+  });
+
+  test("prx-9lc: JSON success emits an inputs[] array with per-input from/to/noop", () => {
+    const fx = makeFixture({
+      lockStates: [
+        { prx: "prxsame0000", "ai-home": "aih1111bbbb" },
+        { prx: "prxsame0000", "ai-home": "aih2222dddd" },
+      ],
+      spawnResults: [],
+    });
+
+    const exit = runHomeUpdate(
+      { flakeDir: "/fake/flake", input: "prx,ai-home", dryRun: false, format: "json" },
+      fx.output,
+      fx.deps,
+    );
+
+    expect(exit).toBe(0);
+    const payload = JSON.parse(fx.logs[fx.logs.length - 1]!);
+    expect(payload.inputs).toEqual([
+      { name: "prx", from: "prxsame0000", to: "prxsame0000", noop: true },
+      { name: "ai-home", from: "aih1111bbbb", to: "aih2222dddd", noop: false },
+    ]);
   });
 
   test("GH-838: reconcile is invoked post-switch with the prx socket and embedded in JSON", () => {
     const reconcileCalls: Array<{ socket: string; dryRun: boolean }> = [];
     const fx = makeFixture({
-      revs: ["aaaaaaaaaa1111", "bbbbbbbbbb2222"],
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }, { "ai-home": "bbbbbbbbbb2222" }],
       spawnResults: [{ status: 0 }, { status: 0 }],
     });
     fx.deps.computeTmuxReconcile = (options) => {
@@ -621,7 +811,7 @@ describe("runHomeUpdate", () => {
   test("GH-838: reconcile dry-run is invoked when home update is dry-run", () => {
     const reconcileCalls: Array<{ socket: string; dryRun: boolean }> = [];
     const fx = makeFixture({
-      revs: ["aaaaaaaaaa1111"],
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }],
       spawnResults: [],
     });
     fx.deps.computeTmuxReconcile = (options) => {
@@ -652,7 +842,7 @@ describe("runHomeUpdate", () => {
 
   test("GH-838: reconcile applied summary appears in plain output after the switch line", () => {
     const fx = makeFixture({
-      revs: ["aaaaaaaaaa1111", "bbbbbbbbbb2222"],
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }, { "ai-home": "bbbbbbbbbb2222" }],
       spawnResults: [{ status: 0 }, { status: 0 }],
     });
     fx.deps.computeTmuxReconcile = (options) => ({

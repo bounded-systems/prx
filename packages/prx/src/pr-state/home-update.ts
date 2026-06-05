@@ -66,7 +66,10 @@ type Output = {
 };
 
 const DEFAULT_FLAKE_DIR = "~/.config/home-manager";
-const DEFAULT_INPUT = "ai-home";
+// prx-9lc: the bare `prx home update` default. `prx upgrade` requests the
+// coupled `prx,ai-home` pair so the consumer (ai-home) never drifts ahead of
+// the hm modules it imports from prx.
+const DEFAULT_INPUTS = ["ai-home"];
 
 function resolveTildePath(path: string, homeDir: string): string {
   if (path === "~") return homeDir;
@@ -85,25 +88,40 @@ export function resolveFlakeDir(
   return resolveTildePath(DEFAULT_FLAKE_DIR, homeDir);
 }
 
-export function resolveInputName(
+// prx-9lc: `--input` / PRX_HOME_FLAKE_INPUT carry a comma-separated list so a
+// single run can update a coupled set of inputs (e.g. `prx,ai-home`). Empty /
+// whitespace-only entries are dropped; an empty list falls back to the bare
+// default.
+export function resolveInputNames(
   options: HomeUpdateOptions,
   env: NodeJS.ProcessEnv,
-): string {
-  if (options.input) return options.input;
-  const envValue = env.PRX_HOME_FLAKE_INPUT;
-  if (envValue) return envValue;
-  return DEFAULT_INPUT;
+): string[] {
+  const raw = options.input ?? env.PRX_HOME_FLAKE_INPUT ?? "";
+  const names = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  return names.length > 0 ? names : [...DEFAULT_INPUTS];
 }
 
-type LockReadResult =
-  | { ok: true; rev: string | null }
+type LockRevsResult =
+  | {
+      ok: true;
+      revs: Map<string, string | null>;
+      missing: string[];
+      available: string[];
+    }
   | { ok: false; message: string; exitCode: number };
 
-function readLockRev(
+// prx-9lc: read each requested input's locked rev in a single parse of
+// flake.lock. Inputs absent from the lock are reported via `missing` (the
+// caller decides warn-and-skip vs. hard-fail), so the function only fails hard
+// on an unparseable lockfile.
+function readLockRevs(
   flakeDir: string,
-  input: string,
+  inputs: string[],
   readFile: (path: string) => string,
-): LockReadResult {
+): LockRevsResult {
   const lockPath = resolve(flakeDir, "flake.lock");
   let parsed: { nodes?: Record<string, { locked?: { rev?: string } }> };
   try {
@@ -117,19 +135,20 @@ function readLockRev(
     };
   }
   const nodes = parsed?.nodes ?? {};
-  const node = nodes[input];
-  if (!node) {
-    const available = Object.keys(nodes)
-      .filter((k) => k !== "root")
-      .sort();
-    const availableText = available.length > 0 ? available.join(", ") : "(none)";
-    return {
-      ok: false,
-      message: `prx home update: input "${input}" not found in ${lockPath}. Available inputs: ${availableText}`,
-      exitCode: 2,
-    };
+  const revs = new Map<string, string | null>();
+  const missing: string[] = [];
+  for (const input of inputs) {
+    const node = nodes[input];
+    if (!node) {
+      missing.push(input);
+    } else {
+      revs.set(input, node.locked?.rev ?? null);
+    }
   }
-  return { ok: true, rev: node.locked?.rev ?? null };
+  const available = Object.keys(nodes)
+    .filter((k) => k !== "root")
+    .sort();
+  return { ok: true, revs, missing, available };
 }
 
 function shortRev(rev: string | null): string {
@@ -202,7 +221,8 @@ export function runHomeUpdate(
   const homeDir = deps.homeDir ?? homedir();
 
   const flakeDir = resolveFlakeDir(options, env, homeDir);
-  const input = resolveInputName(options, env);
+  const requestedInputs = resolveInputNames(options, env);
+  const lockPath = resolve(flakeDir, "flake.lock");
 
   if (!pathExists(flakeDir)) {
     output.error(`prx home update: flake dir does not exist: ${flakeDir}`);
@@ -219,17 +239,53 @@ export function runHomeUpdate(
     return 2;
   }
 
-  const fromRead = readLockRev(flakeDir, input, readFile);
+  const fromRead = readLockRevs(flakeDir, requestedInputs, readFile);
   if (!fromRead.ok) {
     output.error(fromRead.message);
     return fromRead.exitCode;
   }
-  const fromRev = fromRead.rev;
 
-  const nixUpdateCmd = ["nix", "flake", "update", input, "--flake", flakeDir];
+  // prx-9lc: an input absent from flake.lock is warned-and-skipped so the
+  // coupled `prx,ai-home` request degrades gracefully on a flake that
+  // legitimately lacks one of the pair. We only hard-fail (exit 2) when NONE of
+  // the requested inputs are present — preserving the single `--input <bogus>`
+  // → exit 2 behavior.
+  for (const name of fromRead.missing) {
+    output.error(
+      `prx home update: input "${name}" not found in ${lockPath}; skipping`,
+    );
+  }
+  const presentInputs = requestedInputs.filter((n) => fromRead.revs.has(n));
+  if (presentInputs.length === 0) {
+    const availableText =
+      fromRead.available.length > 0 ? fromRead.available.join(", ") : "(none)";
+    output.error(
+      `prx home update: none of the requested inputs are present in ${lockPath}. Available inputs: ${availableText}`,
+    );
+    return 2;
+  }
+  const fromRevs = new Map<string, string | null>();
+  for (const name of presentInputs) {
+    fromRevs.set(name, fromRead.revs.get(name) ?? null);
+  }
+  const inputsLabel = presentInputs.join(", ");
+
+  // prx-9lc: `nix flake update a b` updates each named input in one invocation
+  // (bare `nix flake update` would update ALL inputs incl. nixpkgs/home-manager
+  // — deliberately NOT done, to keep churn scoped to the requested set).
+  const nixUpdateCmd = [
+    "nix",
+    "flake",
+    "update",
+    ...presentInputs,
+    "--flake",
+    flakeDir,
+  ];
   // prx-1ab: the lockfile commit that keeps the git+file flake tree clean for
-  // the switch (run only when `nix flake update` actually moved the rev).
-  const gitCommitCmd = ["git", "-C", flakeDir, "commit", "flake.lock", "-m", `chore(flake): update ${input}`];
+  // the switch (run only when `nix flake update` actually moved a rev). The
+  // dry-run preview names the requested inputs; the real commit (below) names
+  // only the inputs that moved with their rev transitions.
+  const gitCommitCmd = ["git", "-C", flakeDir, "commit", "flake.lock", "-m", `chore(flake): update ${inputsLabel}`];
   const hmSwitchCmd = ["home-manager", "switch", "--flake", flakeDir];
 
   if (options.dryRun) {
@@ -250,8 +306,10 @@ export function runHomeUpdate(
           {
             dryRun: true,
             flakeDir,
-            input,
-            from: fromRev,
+            inputs: presentInputs.map((name) => ({
+              name,
+              from: fromRevs.get(name) ?? null,
+            })),
             commands: [nixUpdateCmd, gitCommitCmd, hmSwitchCmd],
             tmuxReconcile: reconcile.result,
             tmuxReconcileNote: "preview based on current rendered config (pre-switch)",
@@ -263,11 +321,13 @@ export function runHomeUpdate(
     } else {
       output.log(`prx home update (dry-run)`);
       output.log(`  flake:  ${flakeDir}`);
-      output.log(`  input:  ${input}`);
-      output.log(`  rev:    ${shortRev(fromRev)}`);
+      output.log(`  inputs: ${inputsLabel}`);
+      for (const name of presentInputs) {
+        output.log(`    ${name}: ${shortRev(fromRevs.get(name) ?? null)}`);
+      }
       output.log(`  would run:`);
       output.log(`    ${nixUpdateCmd.join(" ")}`);
-      output.log(`    ${gitCommitCmd.join(" ")}   (only if the rev moved)`);
+      output.log(`    ${gitCommitCmd.join(" ")}   (only if a rev moved)`);
       output.log(`    ${hmSwitchCmd.join(" ")}`);
       output.log(`  note: tmux reconcile preview is based on current rendered config (pre-switch)`);
       output.log(formatTmuxReconcile(reconcile.result, "plain", true));
@@ -283,10 +343,14 @@ export function runHomeUpdate(
   const childStdio: "inherit" | "pipe" = streamLive ? "inherit" : "pipe";
   const quiet = options.format !== "json" && !options.verbose;
   if (options.format !== "json") {
-    output.log(`prx home update: ${input} @ ${flakeDir}`);
+    output.log(`prx home update: ${inputsLabel} @ ${flakeDir}`);
   }
 
-  if (quiet) output.log(`  updating flake input ${input}…`);
+  if (quiet) {
+    output.log(
+      `  updating flake input${presentInputs.length > 1 ? "s" : ""} ${inputsLabel}…`,
+    );
+  }
   const updateResult = spawn(
     nixUpdateCmd[0]!,
     nixUpdateCmd.slice(1),
@@ -306,12 +370,20 @@ export function runHomeUpdate(
     return updateResult.status ?? 1;
   }
 
-  const toRead = readLockRev(flakeDir, input, readFile);
+  const toRead = readLockRevs(flakeDir, presentInputs, readFile);
   if (!toRead.ok) {
     output.error(toRead.message);
     return toRead.exitCode;
   }
-  const toRev = toRead.rev;
+  const toRevs = new Map<string, string | null>();
+  for (const name of presentInputs) {
+    toRevs.set(name, toRead.revs.get(name) ?? null);
+  }
+  // prx-9lc: the inputs whose rev actually changed — drives the commit message,
+  // the no-op detection, and (only when non-empty) the lockfile commit.
+  const moved = presentInputs.filter(
+    (name) => (fromRevs.get(name) ?? null) !== (toRevs.get(name) ?? null),
+  );
 
   // prx-1ab: `home-manager switch` evaluates the flake as a `git+file` input and
   // refuses on a dirty tree — and `nix flake update` just dirtied flake.lock.
@@ -319,7 +391,7 @@ export function runHomeUpdate(
   // that made updating a multi-command dance. Skipped on a no-op or a non-git
   // flake dir. A commit failure is surfaced (the switch will likely then refuse)
   // but does not abort — the operator sees a precise reason.
-  if (fromRev !== toRev) {
+  if (moved.length > 0) {
     const isGit = spawn("git", ["-C", flakeDir, "rev-parse", "--git-dir"], {
       cwd: flakeDir,
       stdio: "pipe",
@@ -331,9 +403,17 @@ export function runHomeUpdate(
         stdio: childStdio,
         env,
       });
+      // prx-9lc: name only the moved inputs with their rev transitions, so the
+      // commit accurately reflects what the lockfile change did.
+      const movedSummary = moved
+        .map(
+          (name) =>
+            `${name} ${shortRev(fromRevs.get(name) ?? null)}→${shortRev(toRevs.get(name) ?? null)}`,
+        )
+        .join(", ");
       const committed = spawn(
         "git",
-        ["-C", flakeDir, "commit", "-m", `chore(flake): update ${input} ${shortRev(fromRev)} → ${shortRev(toRev)}`],
+        ["-C", flakeDir, "commit", "-m", `chore(flake): update ${movedSummary}`],
         { cwd: flakeDir, stdio: childStdio, env },
       );
       if (committed.error || (committed.status !== null && committed.status !== 0)) {
@@ -367,7 +447,7 @@ export function runHomeUpdate(
   // Even on success, surface any warnings the activation log buried.
   if (quiet) surfaceNoteworthy(captureToText(switchResult), output);
 
-  const noop = fromRev === toRev;
+  const noop = moved.length === 0;
 
   // GH-838: after home-manager switch, the rendered ~/.config/tmux/tmux.conf
   // is up to date but the live `-L prx` server still holds its old in-memory
@@ -391,10 +471,11 @@ export function runHomeUpdate(
       JSON.stringify(
         {
           flakeDir,
-          input,
-          from: fromRev,
-          to: toRev,
-          noop,
+          inputs: presentInputs.map((name) => {
+            const from = fromRevs.get(name) ?? null;
+            const to = toRevs.get(name) ?? null;
+            return { name, from, to, noop: from === to };
+          }),
           switched: true,
           tmuxReconcile: reconcile.result,
         },
@@ -403,13 +484,20 @@ export function runHomeUpdate(
       ),
     );
   } else {
-    if (noop) {
-      output.log(`${input}: no-op (${shortRev(fromRev)}) — home-manager switched`);
-    } else {
-      output.log(
-        `${input}: ${shortRev(fromRev)} → ${shortRev(toRev)} (home-manager switched)`,
-      );
+    for (const name of presentInputs) {
+      const from = fromRevs.get(name) ?? null;
+      const to = toRevs.get(name) ?? null;
+      if (from === to) {
+        output.log(`${name}: no-op (${shortRev(from)})`);
+      } else {
+        output.log(`${name}: ${shortRev(from)} → ${shortRev(to)}`);
+      }
     }
+    output.log(
+      noop
+        ? "home-manager switched (no input moved)"
+        : "home-manager switched",
+    );
     output.log(formatTmuxReconcile(reconcile.result, "plain", options.dryRun));
   }
 
