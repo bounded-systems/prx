@@ -1,0 +1,18 @@
+{
+  "version": "2.25.6",
+  "tag": "codeql-bundle-v2.25.6",
+  "systems": {
+    "aarch64-darwin": {
+      "asset": "codeql-bundle-osx64.tar.gz",
+      "sha256": "sha256-Kf/SbFo6RVYl3ekohqklFIEph9D3DEb9RX25ZRbyJDs="
+    },
+    "x86_64-darwin": {
+      "asset": "codeql-bundle-osx64.tar.gz",
+      "sha256": "sha256-Kf/SbFo6RVYl3ekohqklFIEph9D3DEb9RX25ZRbyJDs="
+    },
+    "x86_64-linux": {
+      "asset": "codeql-bundle-linux64.tar.gz",
+      "sha256": "sha256-VcWnYPipjYgs5FL2nEJxFqA02RRQxie+9xfUrNiWYyw="
+    }
+  }
+}
