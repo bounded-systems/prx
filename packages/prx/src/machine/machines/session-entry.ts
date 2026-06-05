@@ -12,6 +12,8 @@ import {
   buildOpsSubmitSdkRuntimeProfile,
   buildOpsTriageClaudeRuntimeProfile,
   buildOpsTriageSdkRuntimeProfile,
+  buildWorkUnitClaudeImplementSdkRuntimeProfile,
+  buildWorkUnitClaudePlanPrintRuntimeProfile,
   type RuntimeProfileProjection,
 } from "../runtime_profiles.ts";
 import { PRX_SESSION_OPEN_ALIAS_HINT } from "../session_open.ts";
@@ -66,6 +68,14 @@ export type SessionEntryEvent =
       // "foreground" (legacy behaviour); "background" tells the cli
       // handler to skip `attachMuxSession` and print a re-entry hint.
       attachMode?: "foreground" | "background" | undefined;
+      // GH-196: headless-first axis. Unlike the four ops actors (whose
+      // `agent` verbs default to SDK), plan's CLI entry is the interactive
+      // `prx plan session` / `session open` tmux verb, which dispatches with
+      // NO interaction — so the DEFAULT here stays interactive. Only the
+      // explicit `"headless"` opt-in (the autonomous `openSession` caller,
+      // e.g. the pilot) selects the SDK plan builder. This is the inverse
+      // default of OPEN_INTAKE_SESSION, by design.
+      interaction?: "headless" | "interactive" | undefined;
     }
   | {
       type: "OPEN_INTAKE_SESSION";
@@ -114,6 +124,14 @@ export type SessionEntryEvent =
       // "foreground" (legacy behaviour); "background" tells the cli
       // handler to skip `attachMuxSession` and print a re-entry hint.
       attachMode?: "foreground" | "background" | undefined;
+      // GH-196: headless-first axis. See OPEN_PLAN_SESSION — the DEFAULT stays
+      // interactive (the `prx implement --interactive` tmux path dispatches
+      // this event with no interaction), and only the explicit `"headless"`
+      // opt-in selects the SDK executor builder. Note the non-interactive
+      // `prx implement` CLI verb builds the SDK profile directly and never
+      // dispatches this event; the headless path here is the `openSession`
+      // (pilot/autonomous) caller.
+      interaction?: "headless" | "interactive" | undefined;
     }
   | {
       // GH-1206: work-unit-bound author session — PR-body authoring profile
@@ -195,6 +213,16 @@ export const sessionEntryMachine = setup({
         event.type === "OPEN_PLAN_SESSION" ? event.workUnitId : undefined,
       profile: ({ event }) => {
         if (event.type !== "OPEN_PLAN_SESSION") return undefined;
+        // GH-196: the explicit `"headless"` opt-in (autonomous `openSession`,
+        // e.g. the pilot) routes through the SDK plan-print builder so
+        // `runClaudeAgentNonInteractive` gets `agentRuntime:"sdk"` + `sdkSpec`.
+        // Without this, the headless caller got the interactive subprocess
+        // profile and threw "profile is not SDK-routed" on leg 1.
+        if (event.interaction === "headless") {
+          return buildWorkUnitClaudePlanPrintRuntimeProfile({
+            workUnitId: event.workUnitId,
+          });
+        }
         // GH-1147: plan profile carries its own work-unit-bound builder with
         // --allowed-tools / --disallowed-tools sourced from SESSION_PROFILES.plan.
         // GH-1044: optional planPath threads through to the system prompt so
@@ -252,6 +280,16 @@ export const sessionEntryMachine = setup({
         event.type === "OPEN_IMPLEMENT_SESSION" ? event.workUnitId : undefined,
       profile: ({ event }) => {
         if (event.type !== "OPEN_IMPLEMENT_SESSION") return undefined;
+        // GH-196: explicit `"headless"` → SDK executor (Edit/Write via the
+        // implement allowlist, acceptEdits). Mirrors bootClaudePlan; the
+        // default stays the interactive tmux executor.
+        if (event.interaction === "headless") {
+          return buildWorkUnitClaudeImplementSdkRuntimeProfile({
+            workUnitId: event.workUnitId,
+            planPath: event.planPath,
+            planBody: event.planBody,
+          });
+        }
         return buildOpsImplementClaudeRuntimeProfile({
           workUnitId: event.workUnitId,
           hasPriorSession: event.hasPriorSession ?? false,

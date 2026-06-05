@@ -211,6 +211,11 @@ function buildSessionEntryEvent(
         workUnitId: input.workUnitId!,
         hasPriorSession: input.hasPriorSession,
         planPath: input.planPath,
+        // GH-196: thread the headless axis so the autonomous caller
+        // (`openSession({ interaction: "headless" })`, e.g. the pilot) reaches
+        // the SDK plan builder. Absent → the interactive default (the human
+        // `prx plan session` / `session open` tmux path is unchanged).
+        interaction: input.interaction,
       };
     case "implement":
       return {
@@ -219,6 +224,9 @@ function buildSessionEntryEvent(
         hasPriorSession: input.hasPriorSession,
         planPath: input.planPath,
         planBody: input.planBody,
+        // GH-196: see OPEN_PLAN_SESSION. Absent → the interactive
+        // `prx implement --interactive` tmux path; "headless" → SDK executor.
+        interaction: input.interaction,
       };
     case "submit":
       return {

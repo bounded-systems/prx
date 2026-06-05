@@ -515,6 +515,86 @@ describe("sessionEntryMachine", () => {
     });
   }
 
+  // GH-196: plan/implement headless axis. Unlike the four ops actors above,
+  // plan and implement's CLI entry is the INTERACTIVE tmux verb (`prx plan
+  // session`, `prx implement --interactive`), which dispatches these events
+  // with NO `interaction`. So the DEFAULT here must stay interactive
+  // (subprocess, no SDK axis) — the inverse of the ops actors — and only the
+  // explicit `"headless"` opt-in (the autonomous `openSession` caller, e.g.
+  // the pilot) selects the SDK builder. This guards the regression that made
+  // the real-pilot run die on leg 1: the headless caller got the subprocess
+  // profile and `runClaudeAgentNonInteractive` threw "profile is not
+  // SDK-routed".
+  test("OPEN_PLAN_SESSION default (no interaction) → interactive subprocess profile (human tmux path unchanged)", () => {
+    const { restore } = captureHints();
+    try {
+      const actor = createActor(sessionEntryMachine).start();
+      actor.send({ type: "OPEN_PLAN_SESSION", workUnitId: "GH-196" });
+      const profile = actor.getSnapshot().context.profile;
+      expect(profile?.command).toBe("claude");
+      expect(profile?.env?.PRX_AGENT_ROLE).toBe("planner");
+      // The defining assertion: NOT SDK-routed by default.
+      expect(profile?.agentRuntime).toBeUndefined();
+      expect(profile?.sdkSpec).toBeUndefined();
+    } finally {
+      restore();
+    }
+  });
+
+  test('OPEN_PLAN_SESSION with interaction:"headless" → SDK plan-print profile (fixes pilot leg 1)', () => {
+    const { restore } = captureHints();
+    try {
+      const actor = createActor(sessionEntryMachine).start();
+      actor.send({ type: "OPEN_PLAN_SESSION", workUnitId: "GH-196", interaction: "headless" });
+      const profile = actor.getSnapshot().context.profile;
+      expect(profile?.command).toBe("claude");
+      expect(profile?.env?.PRX_AGENT_ROLE).toBe("planner");
+      // SDK-routed: this is exactly what `runClaudeAgentNonInteractive` requires
+      // (agentRuntime==="sdk" && sdkSpec) — its absence was GH-196.
+      expect(profile?.agentRuntime).toBe("sdk");
+      expect(profile?.sdkSpec).toBeDefined();
+      // Plan stays read-only: the print builder uses --permission-mode plan and
+      // enforces the structured plan artifact.
+      expect(profile?.sdkSpec?.permissionMode).toBe("plan");
+      expect(profile?.sdkSpec?.capturePlanArtifact).toBe(true);
+    } finally {
+      restore();
+    }
+  });
+
+  test("OPEN_IMPLEMENT_SESSION default (no interaction) → interactive subprocess profile (human tmux path unchanged)", () => {
+    const { restore } = captureHints();
+    try {
+      const actor = createActor(sessionEntryMachine).start();
+      actor.send({ type: "OPEN_IMPLEMENT_SESSION", workUnitId: "GH-196" });
+      const profile = actor.getSnapshot().context.profile;
+      expect(profile?.command).toBe("claude");
+      expect(profile?.env?.PRX_AGENT_ROLE).toBe("executor");
+      expect(profile?.agentRuntime).toBeUndefined();
+      expect(profile?.sdkSpec).toBeUndefined();
+    } finally {
+      restore();
+    }
+  });
+
+  test('OPEN_IMPLEMENT_SESSION with interaction:"headless" → SDK executor profile (fixes pilot leg 2)', () => {
+    const { restore } = captureHints();
+    try {
+      const actor = createActor(sessionEntryMachine).start();
+      actor.send({ type: "OPEN_IMPLEMENT_SESSION", workUnitId: "GH-196", interaction: "headless" });
+      const profile = actor.getSnapshot().context.profile;
+      expect(profile?.command).toBe("claude");
+      expect(profile?.env?.PRX_AGENT_ROLE).toBe("executor");
+      expect(profile?.agentRuntime).toBe("sdk");
+      expect(profile?.interaction).toBe("headless");
+      expect(profile?.sdkSpec).toBeDefined();
+      // Edit-capable headless executor: acceptEdits + the implement allowlist.
+      expect(profile?.sdkSpec?.permissionMode).toBe("acceptEdits");
+    } finally {
+      restore();
+    }
+  });
+
   // GH-2380: deterministic across work-unit ids — the submit SDK profile's
   // declared toolset must not vary by id.
   test("OPEN_SUBMIT_SESSION headless sdkSpec.allowedTools is deterministic across ids", () => {
