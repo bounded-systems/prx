@@ -1942,6 +1942,32 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "dolt",
   },
 
+  // prx-wt5: merge-conflict reconciliation actor (mediator). Read-only v0
+  // verbs — detect/classify/status — that write nothing to the working tree
+  // (I-MED1). They route to `mediator-stub` today; the detector orchestrator
+  // that wires them lands under the prx-wt5 epic.
+  {
+    name: "mediator detect",
+    parent: "mediator",
+    description: "Detect conflicted paths in an in-progress rebase",
+    domain: "repo-plumbing",
+    actor: "mediator",
+  },
+  {
+    name: "mediator classify",
+    parent: "mediator",
+    description: "Classify each detected merge conflict by kind",
+    domain: "repo-plumbing",
+    actor: "mediator",
+  },
+  {
+    name: "mediator status",
+    parent: "mediator",
+    description: "Report the merge-conflict reconciliation lifecycle state",
+    domain: "repo-plumbing",
+    actor: "mediator",
+  },
+
   // ─── System ────────────────────────────────────────────────────────────────
 
   {
