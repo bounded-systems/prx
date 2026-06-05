@@ -71,6 +71,11 @@ describe("real pilot wiring (openSession → headless agent → real signature)"
     const deps = buildRealPilotDeps({
       openSession: fakeOpen,
       runAgent: fakeRun,
+      // Fake the tail's `prx` calls so the real CI gate / merge don't shell out.
+      runPrx: async (args) =>
+        args[0] === "scout"
+          ? { ok: true, stdout: '{"conclusion":"success"}', stderr: "" }
+          : { ok: true, stdout: "merged", stderr: "" },
       signer: ed25519Signer(kp.privateKey, kp.keyid),
     });
     const actor = createActor(createPilotMachine(deps), { input: { workUnitId: "GH-1" } }).start();
@@ -102,7 +107,7 @@ describe("real pilot wiring (openSession → headless agent → real signature)"
   });
 
   test("throws when no signer is configured; role map is total", () => {
-    expect(() => buildRealLegRunner({ signer: null })).toThrow("no provenance signer");
+    expect(() => buildRealLegRunner({ signer: null })).toThrow("must hold a signing key");
     expect(roleSessionActor).toEqual({
       planner: "plan",
       executor: "implement",

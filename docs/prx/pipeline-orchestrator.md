@@ -208,6 +208,25 @@ Role → session actor: `planner→plan`, `executor→implement`, `tester→impl
 A live probe (`PRX_PILOT_REAL=1 prx pilot prx-eky`) confirmed the path reaches
 `openSession`; completing a live run is gated only on (a) a real `waitFor`
 timeout — now 30 min in real mode vs. 4 s for stubs — and (b) the beads/Dolt
-server being up (attached actors hydrate beads at session start). Open: wire the
-CI gate and merge legs to the real `prx plan ci` / publisher actors (they keep
-auto-pass defaults today).
+server being up (attached actors hydrate beads at session start).
+
+The **tail is real too**: `buildRealCiGate` polls `prx scout ci <unit>` until CI
+SETTLES — pending never advances (the hard block, now against the live status
+rather than a stub) — and `buildRealMerge` runs `prx publisher merge <unit>`;
+both sign their links. They shell out through an injected `runPrx`, so the whole
+tail is tested driven to `merged` with real signatures. `buildRealPilotDeps`
+wires all of it.
+
+## No agent acts unsigned — and the CLI is a tty-actor
+
+`agent-signing-guard.ts` makes the signing key a **launch precondition**:
+`requireSigner(actorLabel)` resolves the actor's `Signer` or REFUSES to launch
+(closing the T3 hole — no effect without a signed owner). The pilot's leg, CI
+gate, and merge route their signer through it, so `buildRealPilotDeps` throws
+without a key rather than running an unsigned agent.
+
+The human is an actor too. The CLI is modeled as **an actor that inherits from
+the controlling tty**: `cliActor()` resolves to the `human` operator when stdin
+is a terminal, else the `noninteractive` actor — and `requireCliSigner` insists
+that actor hold a key as well. A person at the terminal signs exactly like a
+pipeline actor; the authority is the same shape top to bottom.
