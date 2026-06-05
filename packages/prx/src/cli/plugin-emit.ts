@@ -70,7 +70,15 @@ export async function runPluginVerb(
       description: v.summary,
     })),
   );
-  const regSlash = commandSlashFiles(prxCommandRegistry);
+  // Default to the PROMOTED surface only. Command listings are always-on
+  // context in every session (unlike MCP tools, slash commands don't defer), so
+  // emitting all ~216 verbs is a needless per-session token tax — and every verb
+  // stays reachable via `prx <verb>` directly. `--all` opts into the full set.
+  const includeAll = rest.includes("--all");
+  const registryCommands = includeAll
+    ? prxCommandRegistry
+    : prxCommandRegistry.filter((c) => (c.promoted_in ?? []).length > 0);
+  const regSlash = commandSlashFiles(registryCommands);
 
   // The actor registry as plugin subagents (agents/<actor>.md) — each embodies
   // an actor's role and is scoped to driving its own verbs.

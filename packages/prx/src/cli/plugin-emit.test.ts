@@ -56,6 +56,29 @@ describe("prx plugin emit", () => {
     expect(summary.paths).toContain("monitors/monitors.json");
   });
 
+  test("emits the promoted surface by default, full surface with --all", async () => {
+    const exists = async (p: string) => {
+      try {
+        await stat(p);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    const lean = await mkdtemp(join(tmpdir(), "prx-plugin-"));
+    await runPluginVerb(["emit", lean], sink().out);
+    // pilot/fleet + promoted verbs present …
+    expect(await exists(join(lean, "commands/prx-pilot.md"))).toBe(true);
+    expect(await exists(join(lean, "commands/prx-next.md"))).toBe(true);
+    // … but a non-promoted verb is omitted by default (it's still `prx upgrade`).
+    expect(await exists(join(lean, "commands/prx-upgrade.md"))).toBe(false);
+
+    const full = await mkdtemp(join(tmpdir(), "prx-plugin-"));
+    await runPluginVerb(["emit", full, "--all"], sink().out);
+    expect(await exists(join(full, "commands/prx-upgrade.md"))).toBe(true);
+  });
+
   test("honors --name", async () => {
     const dir = await mkdtemp(join(tmpdir(), "prx-plugin-"));
     const { out } = sink();
