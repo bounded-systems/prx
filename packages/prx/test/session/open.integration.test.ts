@@ -25,6 +25,7 @@ import {
   readdirSync,
   realpathSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -55,7 +56,7 @@ describe("openSession — real-git on-disk shape (intake)", () => {
     spawnSync("git", ["init", "--initial-branch=main", seed], { encoding: "utf8" });
     git(seed, ["config", "user.email", "test@example.com"]);
     git(seed, ["config", "user.name", "Test"]);
-    spawnSync("bash", ["-c", `echo hello > ${join(seed, "README.md")}`]);
+    writeFileSync(join(seed, "README.md"), "hello\n");
     git(seed, ["add", "."]);
     git(seed, ["commit", "-m", "seed"]);
 
