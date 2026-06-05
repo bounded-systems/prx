@@ -124,10 +124,6 @@ function showOk(status: string): BdShowResult {
   };
 }
 
-function showErr(stderr: string): BdShowResult {
-  return { ok: false, exitCode: 1, stdout: "", stderr };
-}
-
 function closeOk(): BdIssueCloseResult {
   return { exitCode: 0, stdout: "", stderr: "" };
 }

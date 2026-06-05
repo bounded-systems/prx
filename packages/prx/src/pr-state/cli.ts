@@ -296,7 +296,6 @@ import {
 } from "./sprint.ts";
 import {
   buildCanonicalWorkUnitIdHelpers,
-  canonicalWorkUnitIdPattern,
   normalizeCanonicalWorkUnitId,
   type CanonicalWorkUnitIdHelpers,
 } from "../machine/work_unit.ts";
@@ -306,7 +305,6 @@ import {
   PRX_SESSION_OPEN_REQUIRES_TARGET,
   PRX_SESSION_PLAN_ALIAS_HINT,
   PRX_SESSION_PLAN_DEFINITION,
-  formatPrxSessionOpenHelpBlock,
   prxSessionBoardReadFailureMessage,
   prxSessionCannotOpenPrefix,
   prxSessionEpicRefusalMessage,
@@ -349,8 +347,6 @@ import {
   runtimeModes,
   runtimeProfiles,
   type SessionProfileName,
-  taskAgentRoles,
-  type TaskAgentRole,
   workAgentImplementations,
   type WorkAgentImplementation,
   type RuntimeIoFormat,
@@ -380,7 +376,6 @@ import {
   loadTaskContract,
   setTaskMergeConflict,
   setTaskNeedsRebase,
-  setTaskRemoteCiPassed,
   setTaskReviewAdded,
   setTaskReviewApproved,
   setTaskAgentReview,
@@ -458,7 +453,6 @@ import {
   buildDefaultDeps as buildDefaultBootstrapDeps,
   formatBootstrapResult,
 } from "../tools/bootstrap_worktree.ts";
-import { ensureWorkUnitBranchAndUpstream } from "../tools/ensure_work_unit_branch.ts";
 import { execGh } from "@bounded-systems/gh";
 import {
   execBd,
@@ -683,7 +677,6 @@ import {
   type IntakeBdDeps,
 } from "../intake/intake-bd.ts";
 import {
-  loadAllBeads as defaultLoadAllBeads,
   runTriageStatus,
   triageStatusOptionsSchema,
   type BeadsRecord,
@@ -3308,14 +3301,6 @@ function formatSupportedWorkAgents(): string {
   return aliases ? `${base} (aliases: ${aliases})` : base;
 }
 
-function formatSupportedWorkAgentsForUsage(): string {
-  return workAgentImplementations.join("|");
-}
-
-function formatExecutionWorkAgentsForUsage(): string {
-  return executionWorkAgents.join("|");
-}
-
 function validateWorkIoFormat(
   agent: WorkAgentImplementation,
   ioFormat: RuntimeIoFormat,
@@ -3374,10 +3359,6 @@ function buildWorkAutomationProfile(
     ioFormat,
     mode,
   });
-}
-
-function supportsCurrentWorkspaceLaunch(agent: WorkAgentImplementation): boolean {
-  return agent === "codex";
 }
 
 // Resolved canonical-ID helpers for the current CLI invocation. Lazily loaded
@@ -3567,10 +3548,6 @@ function detectWorkCommandTarget(
     workUnitId: branchName ?? basename(cwd),
     launchFromCurrentWorkspace: true,
   };
-}
-
-function summarizeParityActionKinds(actions: Array<{ type: string }>): string {
-  return actions.map((action) => action.type).join(", ");
 }
 
 export type WorkUnitIssueCheckResult = {
@@ -6621,7 +6598,6 @@ function parseAuditCommand(rest: string[]): ParsedCommand {
 
 // GH-1407 — `prx services <verb>` read-only external-plane status verb.
 const SERVICES_VERBS = ["status"] as const;
-type ServicesVerb = (typeof SERVICES_VERBS)[number];
 
 function printServicesHelp(): string {
   return [
@@ -6652,7 +6628,6 @@ function parseServicesCommand(rest: string[]): ParsedCommand {
       `prx services: unknown verb '${verbArg}'. Valid verbs: ${SERVICES_VERBS.join(", ")}.`,
     );
   }
-  const verb = verbArg as ServicesVerb;
   const subRest = rest.slice(1);
   if (subRest.includes("--help") || subRest.includes("-h")) {
     printServicesHelpAndExit();
@@ -13966,13 +13941,6 @@ function formatRuntimeProfile(profile: RuntimeProfileProjection, format: "plain"
   ].join(" \\\n  ");
 }
 
-function shellQuote(value: string): string {
-  if (/^[A-Za-z0-9_./:@%+=,-]+$/.test(value)) {
-    return value;
-  }
-  return `'${value.replace(/'/g, `'\\''`)}'`;
-}
-
 type RunRecord = {
   id: string;
   agent: string;
@@ -14977,14 +14945,6 @@ export function runBeadsInit(
     .replace(/^_+|_+$/g, "");
 
   const metadataPath = join(repoRoot, ".beads", "metadata.json");
-
-  const info = {
-    originUrl: url,
-    githubRepo,
-    canonicalRepoId,
-    database,
-    issuePrefix: repo,
-  };
 
   // Read current metadata database. Read atomically through a descriptor (no
   // existsSync-then-read, which CodeQL pairs with the later metadata writes as
@@ -19260,7 +19220,8 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       const contract = loadContract(parsed.contract);
       const from = deriveInfo(contract).state;
       const definition: SkillEventDefinition = eventForSkill(skill);
-      let nextContract = contract;
+      // Assigned on every branch below before it is read.
+      let nextContract: typeof contract;
       let appliedTransition = false;
       let blockedTransition: { from: LifecycleState; to: LifecycleState } | null = null;
 

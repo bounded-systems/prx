@@ -33,7 +33,6 @@ import {
 } from "../beads/workspace_mode.ts";
 import {
   canonicalMainxPathFromParsed,
-  defaultRepoRunner,
   loadRepoInventoryIndex as defaultLoadRepoInventoryIndex,
   parseRepoUrl,
   type LocalRepo,
@@ -178,7 +177,6 @@ export function runRepoGc(
   opts: RunRepoGcOptions,
   deps: RunRepoGcDeps = {},
 ): RepoGcReport {
-  const runner = deps.runner ?? defaultRepoRunner;
   const loadIndex = deps.loadRepoInventoryIndex ?? defaultLoadRepoInventoryIndex;
   const classify = deps.classifyBeadsWorkspace ?? defaultClassifyBeadsWorkspace;
   const readMetadata = deps.readBeadsMetadata ?? defaultReadBeadsMetadata;

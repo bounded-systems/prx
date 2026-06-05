@@ -72,10 +72,6 @@ const fakeApplyOk = fromPromise<TriageApplyActorResult, TriageApplyOptions>(
   async () => ({ exitCode: 0, audit: [], stdout: [], stderr: [], touchedIssues: [] }),
 );
 
-const fakePrioritizeOk = fromPromise<TriagePrioritizeActorResult, TriagePrioritizeOptions>(
-  async () => ({ exitCode: 0, audit: [], stdout: [], stderr: [], touchedIssues: [] }),
-);
-
 const fakePromoteOk = fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(
   async () => ({
     exitCode: 0,

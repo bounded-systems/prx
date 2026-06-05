@@ -2,7 +2,7 @@ import { getEnv } from "@bounded-systems/env";
 import { streamCapture, type SpawnCaptureResult, type StreamCaptureOptions } from "@bounded-systems/proc";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { assign, createActor, createMachine, fromPromise, setup } from "xstate";
+import { assign, createActor, fromPromise, setup } from "xstate";
 
 import {
   buildWorkUnitClaudeRuntimeProfile,

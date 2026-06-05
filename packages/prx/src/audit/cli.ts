@@ -105,15 +105,6 @@ export type AuditUowProjection = {
 };
 
 export function projectAuditUow(db: Database, uowId: string): AuditUowProjection {
-  const eventCounts = db
-    .query<{ total: number; attached: number }, [string]>(
-      `SELECT COUNT(*) AS total,
-              SUM(CASE WHEN uow_id IS NOT NULL THEN 1 ELSE 0 END) AS attached
-       FROM events
-       WHERE uow_id = ? OR uow_id IS NULL`,
-    )
-    .get(uowId) ?? { total: 0, attached: 0 };
-
   const ownedEvents = db
     .query<{ total: number }, [string]>(
       `SELECT COUNT(*) AS total FROM events WHERE uow_id = ?`,

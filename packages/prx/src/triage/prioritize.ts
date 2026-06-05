@@ -305,7 +305,6 @@ export async function runTriagePrioritize(
   const touchedIssues: number[] = [];
 
   for (const candidate of candidates) {
-    if (quit) break;
     outputSink.log(formatCandidate(candidate));
     const key = await prompt(candidate);
 
