@@ -23,10 +23,22 @@
  */
 
 import { pluginAllowedTools, type ActorPolicies } from "./permissions.ts";
-import type { CommandSpec } from "./registry.ts";
 import { verbToken, type Registry, type VerbSpec } from "./verbspec.ts";
 
 export type PluginFile = { path: string; content: string };
+
+/**
+ * The minimal shape {@link commandSlashFiles} needs to render a Bash-delegating
+ * slash command. `CommandSpec` (the full registry) and a mapped `VerbSpec`
+ * (pilot/fleet) both satisfy it structurally.
+ */
+export type SlashSource = {
+  name: string;
+  actor: string;
+  description: string;
+  internal?: boolean;
+  deprecation?: unknown;
+};
 
 export type ClaudePluginOpts = {
   /** Plugin + MCP server name. Default "prx". */
@@ -155,7 +167,7 @@ export function toClaudePlugin(reg: Registry, opts: ClaudePluginOpts = {}): Plug
 }
 
 /** A slash command that runs a full-registry verb through the installed binary. */
-function renderBashCommand(c: CommandSpec): string {
+function renderBashCommand(c: SlashSource): string {
   const invocation = `prx ${c.name} $ARGUMENTS`;
   return [
     "---",
@@ -183,7 +195,7 @@ function renderBashCommand(c: CommandSpec): string {
  * `prx mcp serve`: they work against the runtime today. Pure — the caller
  * passes the registry (e.g. `prxCommandRegistry`) so this stays data-free.
  */
-export function commandSlashFiles(commands: CommandSpec[], prefix = "prx"): PluginFile[] {
+export function commandSlashFiles(commands: SlashSource[], prefix = "prx"): PluginFile[] {
   return commands
     .filter((c) => !c.internal && c.deprecation === undefined)
     .map((c) => ({

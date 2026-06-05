@@ -26,8 +26,21 @@ describe("prx plugin emit", () => {
     const manifest = JSON.parse(await readFile(join(dir, ".claude-plugin/plugin.json"), "utf8"));
     expect(manifest.name).toBe("prx");
 
-    const mcp = JSON.parse(await readFile(join(dir, ".mcp.json"), "utf8"));
-    expect(mcp.mcpServers.prx).toEqual({ command: "prx", args: ["mcp", "serve"] });
+    // No MCP client config: the emitted plugin is fully Bash-delegating, so it
+    // loads with no failed MCP connection. (The MCP surface returns later via
+    // the meta-prx-CLI actor, #189.)
+    let mcpExists = true;
+    try {
+      await stat(join(dir, ".mcp.json"));
+    } catch {
+      mcpExists = false;
+    }
+    expect(mcpExists).toBe(false);
+
+    // pilot/fleet are Bash-delegating too, not MCP tools.
+    const pilot = await readFile(join(dir, "commands/prx-pilot.md"), "utf8");
+    expect(pilot).toContain("allowed-tools: Bash(prx pilot:*)");
+    expect(pilot).toContain("prx pilot $ARGUMENTS");
 
     const monitors = JSON.parse(await readFile(join(dir, "monitors/monitors.json"), "utf8"));
     expect(monitors[0].name).toBe("prx-pipeline");

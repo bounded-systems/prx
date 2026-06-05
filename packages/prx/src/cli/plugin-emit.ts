@@ -47,17 +47,30 @@ export async function runPluginVerb(
   const name = flagValue(rest, "--name");
   const version = flagValue(rest, "--version");
 
-  // Scaffold + the spec-driven orchestrator verbs (pilot/fleet, via MCP) …
-  const base = toClaudePlugin(orchestratorRegistry, {
+  // Scaffold only (manifest, monitor, watcher) — drop the `.mcp.json` client
+  // config and the MCP-based verb commands. The MCP surface returns later via
+  // the meta-prx-CLI actor (#189); until then the emitted plugin is fully
+  // Bash-delegating so it loads with zero failed connections.
+  const scaffold = toClaudePlugin(orchestratorRegistry, {
     ...(name !== undefined ? { name } : {}),
     ...(version !== undefined ? { version } : {}),
-  });
-  // … plus the *full* registry as Bash-delegating slash commands (work today
-  // against the installed binary, no `prx mcp serve` required). Merge and
-  // dedupe by path — the spec-driven commands win on any name collision.
-  const slash = commandSlashFiles(prxCommandRegistry);
+  }).filter((f) => f.path !== ".mcp.json" && !f.path.startsWith("commands/"));
+
+  // Every verb as a Bash-delegating slash command against the installed binary:
+  // the orchestrator verbs (pilot/fleet) plus the full command registry.
+  const verbSlash = commandSlashFiles(
+    Object.values(orchestratorRegistry).map((v) => ({
+      name: v.id,
+      actor: v.actor,
+      description: v.summary,
+    })),
+  );
+  const regSlash = commandSlashFiles(prxCommandRegistry);
+
   const byPath = new Map<string, PluginFile>();
-  for (const f of [...base, ...slash]) if (!byPath.has(f.path)) byPath.set(f.path, f);
+  for (const f of [...scaffold, ...verbSlash, ...regSlash]) {
+    if (!byPath.has(f.path)) byPath.set(f.path, f);
+  }
   const files = [...byPath.values()];
 
   for (const file of files) {
