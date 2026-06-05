@@ -2,8 +2,8 @@
 /**
  * Run the three CodeQL quality rules prx cares about against the JS/TS sources.
  *
- * Rules (run as individual queries — they live in two different built-in
- * suites, so we reference the .ql files directly for an exact, stable match):
+ * The rule set lives in codeql/prx-quality.qls (the single source of truth,
+ * shared with the codeql-quality CI workflow):
  *   js/unused-local-variable        Declarations/UnusedVariable.ql
  *   js/useless-assignment-to-local  Declarations/DeadStoreOfLocal.ql
  *   js/trivial-conditional          Statements/UselessConditional.ql
@@ -39,12 +39,12 @@ function isFinalizedDb(dir: string): boolean {
   }
 }
 
-/** The three queries, by `<pack>:<path>` spec. */
-const QUERIES = [
-  "codeql/javascript-queries:Declarations/UnusedVariable.ql",
-  "codeql/javascript-queries:Declarations/DeadStoreOfLocal.ql",
-  "codeql/javascript-queries:Statements/UselessConditional.ql",
-] as const;
+/**
+ * Single source of truth for which rules run — a CodeQL suite filtered to the
+ * three ids. Shared with the codeql-quality CI workflow. Resolved relative to
+ * the source root (repo root).
+ */
+const SUITE = "codeql/prx-quality.qls";
 
 /** Minimal SARIF 2.1.0 shape we consume — validated, not trusted. */
 const Finding = z.object({
@@ -121,13 +121,13 @@ async function main() {
       ]);
     }
 
-    console.error(`>> Running ${QUERIES.length} quality queries ...`);
+    console.error(`>> Running quality suite ${SUITE} ...`);
     await run([
       "codeql",
       "database",
       "analyze",
       db,
-      ...QUERIES,
+      join(sourceRoot, SUITE),
       "--format=sarifv2.1.0",
       `--output=${opts.out}`,
       "--threads=0",

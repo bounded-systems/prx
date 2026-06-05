@@ -1,0 +1,15 @@
+# prx's CodeQL quality gate — exactly three rules, the single source of truth
+# shared by packages/prx/scripts/codeql-quality.ts and the codeql-quality CI
+# workflow. The rules live in two different built-in suites, so we load the
+# whole javascript-queries pack and filter to these ids.
+#
+#   js/unused-local-variable        (Declarations/UnusedVariable.ql)
+#   js/useless-assignment-to-local  (Declarations/DeadStoreOfLocal.ql)
+#   js/trivial-conditional          (Statements/UselessConditional.ql)
+- queries: "."
+  from: codeql/javascript-queries
+- include:
+    id:
+      - js/unused-local-variable
+      - js/useless-assignment-to-local
+      - js/trivial-conditional
