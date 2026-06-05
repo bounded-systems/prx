@@ -108,6 +108,9 @@ function main(): void {
   const check = process.argv.includes("--check");
   const data = readJson(dataPath);
   const schema = readJson(schemaPath);
+  const outputRoot = process.env.COMMUNITY_RENDER_OUTDIR
+    ? resolve(process.env.COMMUNITY_RENDER_OUTDIR)
+    : repoRoot;
 
   validate(data, schema);
 
@@ -118,7 +121,7 @@ function main(): void {
   for (const { template, output } of RENDER_TARGETS) {
     const tmpl = readFileSync(resolve(templatesDir, template), "utf8");
     const next = render(tmpl, dict);
-    const outPath = resolve(repoRoot, output);
+    const outPath = resolve(outputRoot, output);
 
     if (check) {
       let current = "";
