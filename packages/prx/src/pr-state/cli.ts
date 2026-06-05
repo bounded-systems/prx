@@ -545,6 +545,7 @@ import {
   type DoltStatusOptions,
   type DoltStatusDeps,
 } from "../dolt/status.ts";
+import { runDoltStartCli } from "../dolt/start.ts";
 import {
   DOLT_VERBS,
   DOLT_VERB_DISPATCH,
@@ -2311,6 +2312,11 @@ type ParsedCommand =
     }
   | {
       command: "dolt-status";
+      repoPath: string;
+      format: "plain" | "json";
+    }
+  | {
+      command: "dolt-start";
       repoPath: string;
       format: "plain" | "json";
     }
@@ -10277,6 +10283,24 @@ export function parseCommand(argv: string[]): ParsedCommand {
 
     return {
       command: "dolt-status",
+      repoPath: values["repo-path"],
+      format: ensureChoice(values.format, ["plain", "json"], "--format"),
+    };
+  }
+
+  if (command === "dolt-start") {
+    const { values } = parseArgs({
+      args: rest,
+      options: {
+        "repo-path": { type: "string", default: "." },
+        format: { type: "string", default: "plain" },
+      },
+      strict: true,
+      allowPositionals: false,
+    });
+
+    return {
+      command: "dolt-start",
       repoPath: values["repo-path"],
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
     };
@@ -22142,6 +22166,10 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         { repoPath: parsed.repoPath, format: parsed.format },
         output,
       );
+    }
+
+    if (parsed.command === "dolt-start") {
+      return runDoltStartCli({ repoPath: parsed.repoPath, format: parsed.format }, output);
     }
 
     if (parsed.command === "dolt-stub") {

@@ -10,28 +10,39 @@
  * The orchestration is pure + fully injected (`DoltStartDeps`), so it is
  * unit-tested with fakes and NEVER spawns a live server in CI.
  *
- * ⚠️ REVIEWER FLAGS — env-specific defaults to confirm before running live:
- *   F1 (argv):     `buildServerArgv` is a best reading of the codebase; confirm
- *                  the data-dir / --host / --port / config flags bd expects.
- *   F2 (discovery): the health probe goes through `bd dolt show`, so a
- *                  prx-started server only registers if bd is pointed at the
- *                  same port. Confirm the bd↔prx port coordination, or replace
- *                  `defaultProbe` with a direct TCP/dolt check on the chosen port.
- *   F3 (db name):  `defaultDeriveDatabase` maps the origin slug to the
- *                  reverse-DNS database name (`io_github_<owner>_<repo>`);
- *                  confirm it matches bd's canonical naming.
- * None of F1–F3 affect the tested orchestration — they are isolated in the
- * default deps and swappable.
+ * DESIGN: the actor MEDIATES bd. bd owns the per-repo dolt server lifecycle (a
+ * competing prx-spawned server hits "database is locked by another dolt
+ * process"), so the default `spawnServer` delegates to `bd dolt start` and the
+ * probe reads `bd dolt show` (bd is authoritative). Verified live: against a
+ * repo whose bd server is already up, `prx dolt start` correctly detects it and
+ * routes to `prx dolt adopt` rather than double-starting.
+ *
+ * Remaining seam to confirm:
+ *   F3 (db name): `defaultDeriveDatabase` maps the origin slug to the
+ *                 reverse-DNS database name (`io_github_<owner>_<repo>`) for the
+ *                 dsn/ledger; confirm it matches bd's canonical naming. (The
+ *                 session's errors named exactly `io_github_bounded_systems_prx`,
+ *                 which this produces.)
+ * (F1/F2 from the original draft are resolved by delegating to bd; the
+ * standalone-server path — `spawnDetached(buildServerArgv(...))` — remains
+ * available for a future prx-owned server.)
  */
 
 import { join } from "node:path";
 import { mkdirSync, writeFileSync } from "node:fs";
 
 import { processEnv } from "@bounded-systems/env";
-import { spawnCapture, spawnDetached } from "@bounded-systems/proc";
+import { spawnCapture } from "@bounded-systems/proc";
 
 import { StartInput, type StartOutput } from "./schema.ts";
-import { computeDoltServerId, type DoltStatusContext, type DoltLedger } from "./status.ts";
+import {
+  computeDoltServerId,
+  defaultResolveContext,
+  type DoltStatusContext,
+  type DoltLedger,
+  type DoltStatusSpawn,
+  type DoltStatusSpawnResult,
+} from "./status.ts";
 
 export const DEFAULT_DOLT_HOST = "127.0.0.1";
 export const DEFAULT_DOLT_PORT = 3307; // F1/F2: the port bd bootstrap probes.
@@ -104,10 +115,13 @@ export async function runDoltStart(inputRaw: StartInput, deps: DoltStartDeps): P
   for (let i = 0; i < deps.maxProbes; i++) {
     await deps.sleep(deps.probeMs);
     const p = deps.probe(ctx.repoRoot);
-    if (p.reachable) {
-      const dsn = buildDsn(deps.host, deps.port, database);
-      deps.writeLedger(ledgerPath, { dolt_server_id: serverId, pid, port: deps.port, dsn });
-      return { dolt_server_id: serverId, pid, port: deps.port, dsn, owner: "prx", status: "started" };
+    if (p.reachable && p.port) {
+      // Use the port the server actually came up on (bd auto-detects it), not
+      // the requested default — bd owns the lifecycle, so it picks the port.
+      const port = p.port;
+      const dsn = buildDsn(deps.host, port, database);
+      deps.writeLedger(ledgerPath, { dolt_server_id: serverId, pid, port, dsn });
+      return { dolt_server_id: serverId, pid, port, dsn, owner: "prx", status: "started" };
     }
   }
   throw new Error(
@@ -164,7 +178,26 @@ function defaultWriteLedger(
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
-/** Production deps wiring the flagged seams; `resolveContext` is supplied by the caller (status.ts). */
+/**
+ * Default `spawnServer`: **delegate to `bd dolt start`** — bd owns the per-repo
+ * dolt server lifecycle (a competing prx-spawned server hits "database is locked
+ * by another dolt process"). The prx dolt actor mediates bd: it asks bd to
+ * start, then verifies + ledgers through its own probe. Parses bd's
+ * "Dolt server started (PID N, port M)" for the pid; the port comes from the
+ * probe. (For a standalone prx-owned server instead, swap this for
+ * `spawnDetached(buildServerArgv(...))` — F1's direct path.)
+ */
+export function bdDelegatingSpawn(_argv: string[], cwd: string): { pid: number } {
+  const r = spawnCapture(["bd", "dolt", "start"], { cwd, env: processEnv() });
+  const text = `${readBuffer(r.stdout)}\n${readBuffer(r.stderr)}`;
+  if ((r.status ?? 1) !== 0 && !/already running|PID/i.test(text)) {
+    throw new Error(`dolt start: \`bd dolt start\` failed — ${text.trim() || `exit ${r.status}`}`);
+  }
+  const m = text.match(/PID[:\s]+(\d+)/i);
+  return { pid: m ? Number(m[1]) : 0 };
+}
+
+/** Production deps. `resolveContext` is supplied by the caller (status.ts). */
 export function defaultDoltStartDeps(
   resolveContext: (repoPath: string) => DoltStatusContext | null,
 ): DoltStartDeps {
@@ -172,7 +205,7 @@ export function defaultDoltStartDeps(
     resolveContext,
     deriveDatabase: defaultDeriveDatabase,
     probe: defaultProbe,
-    spawnServer: (argv, cwd) => spawnDetached(argv, { cwd }),
+    spawnServer: bdDelegatingSpawn,
     readLedger: defaultReadLedger,
     writeLedger: defaultWriteLedger,
     sleep,
@@ -181,4 +214,45 @@ export function defaultDoltStartDeps(
     probeMs: 500,
     maxProbes: 40,
   };
+}
+
+/**
+ * Resolve the dolt context for a repo path using the real (spawnCapture-backed)
+ * git probe — the CLI entry's `resolveContext`.
+ */
+export function resolveDoltContext(repoPath: string): DoltStatusContext | null {
+  const spawn: DoltStatusSpawn = (file, args, options) => {
+    const r = spawnCapture([file, ...args], { cwd: options.cwd, env: options.env });
+    const result: DoltStatusSpawnResult = { status: r.status, stdout: r.stdout, stderr: r.stderr };
+    if (r.error) result.error = r.error;
+    return result;
+  };
+  return defaultResolveContext(spawn, processEnv(), repoPath);
+}
+
+/** Thin CLI entry: `prx dolt start`. Resolves deps, runs the engine, formats. */
+export async function runDoltStartCli(
+  opts: { repoPath: string; format: "plain" | "json" },
+  output: { log: (line: string) => void },
+): Promise<number> {
+  try {
+    const out = await runDoltStart(
+      { repo_path: opts.repoPath, detach: true },
+      defaultDoltStartDeps(resolveDoltContext),
+    );
+    if (opts.format === "json") {
+      output.log(JSON.stringify(out, null, 2));
+    } else {
+      output.log(`dolt ${out.status}: ${out.dolt_server_id} pid=${out.pid} port=${out.port} (${out.dsn})`);
+    }
+    return out.status === "error" ? 1 : 0;
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    if (opts.format === "json") {
+      output.log(JSON.stringify({ status: "error", error: message }, null, 2));
+    } else {
+      output.log(message);
+    }
+    return 1;
+  }
 }
