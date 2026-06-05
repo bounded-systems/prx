@@ -271,3 +271,30 @@ function renderAgent(a: ActorAgentSource): string {
 export function actorAgentFiles(actors: ActorAgentSource[]): PluginFile[] {
   return actors.map((a) => ({ path: `agents/${a.name}.md`, content: renderAgent(a) }));
 }
+
+/**
+ * Project the capability `PreToolUse` hook — the Claude Code lifecycle → prx
+ * policy bridge. When a Bash tool call fires inside a prx actor-subagent, Claude
+ * Code routes it through `prx hook policy-guard`, which denies anything that
+ * actor doesn't own (plus universal hard-blocks for every session). The plugin
+ * is thin: the prx runtime owns the policy.
+ */
+export function hooksFile(): PluginFile {
+  return {
+    path: "hooks/hooks.json",
+    content: JSON.stringify(
+      {
+        hooks: {
+          PreToolUse: [
+            {
+              matcher: "Bash",
+              hooks: [{ type: "command", command: "prx hook policy-guard" }],
+            },
+          ],
+        },
+      },
+      null,
+      2,
+    ),
+  };
+}

@@ -548,6 +548,7 @@ import {
 import { runDoltStartCli } from "../dolt/start.ts";
 import { runOrchestratorVerb } from "../cli/orchestrator-cli.ts";
 import { runPluginVerb } from "../cli/plugin-emit.ts";
+import { runHookVerb } from "../cli/policy-guard-hook.ts";
 import {
   DOLT_VERBS,
   DOLT_VERB_DISPATCH,
@@ -18375,6 +18376,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
     if (orchestratorVerb === "plugin") {
       return runPluginVerb(orchestratorRest, output);
+    }
+    if (orchestratorVerb === "hook") {
+      return runHookVerb(orchestratorRest, output);
     }
 
     // Clear memoized canonical-ID helpers so tests (which share the process
