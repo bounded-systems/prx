@@ -51,6 +51,8 @@ export type ClaudePluginOpts = {
   commandPrefix?: string;
   /** Per-actor tool policy driving each command's `allowed-tools`. */
   policies?: ActorPolicies;
+  /** Manifest author. Default `{ name: "bounded-systems" }`. */
+  author?: { name: string; email?: string; url?: string };
 };
 
 /** `mcp__<server>__<verbToken>` — how a slash command names the verb's tool. */
@@ -64,7 +66,8 @@ function renderCommand(v: VerbSpec, serverName: string, policies?: ActorPolicies
   const allowed = pluginAllowedTools(v, tool, policies).join(", ");
   return [
     "---",
-    `description: ${v.summary}`,
+    // Quote: descriptions can contain `:` etc. that would break YAML frontmatter.
+    `description: ${JSON.stringify(v.summary)}`,
     `argument-hint: ${hint || "[args]"}`,
     `allowed-tools: ${allowed}`,
     "---",
@@ -113,6 +116,7 @@ export function toClaudePlugin(reg: Registry, opts: ClaudePluginOpts = {}): Plug
         name,
         version: opts.version ?? "0.0.0-spike",
         description: "prx pipeline orchestrator — verbs projected from the canonical registry",
+        author: opts.author ?? { name: "bounded-systems" },
       },
       null,
       2,
@@ -171,7 +175,7 @@ function renderBashCommand(c: SlashSource): string {
   const invocation = `prx ${c.name} $ARGUMENTS`;
   return [
     "---",
-    `description: ${c.description}`,
+    `description: ${JSON.stringify(c.description)}`,
     "argument-hint: [args]",
     // Capability projection: scope the slash command to exactly this verb.
     `allowed-tools: Bash(prx ${c.name}:*)`,

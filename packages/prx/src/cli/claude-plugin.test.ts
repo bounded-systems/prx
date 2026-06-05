@@ -114,6 +114,19 @@ describe("prx as a Claude Code plugin (projection of the registry)", () => {
     expect(triage.content).toContain("prx triage agent $ARGUMENTS");
   });
 
+  test("quotes descriptions so a colon can't break YAML frontmatter", () => {
+    const cmds = [
+      CommandSpec.parse({
+        name: "upgrade",
+        description: "self update: flake update then switch",
+        domain: "work-units",
+        actor: "work",
+      }),
+    ];
+    const md = commandSlashFiles(cmds)[0]!.content;
+    expect(md).toContain('description: "self update: flake update then switch"');
+  });
+
   test("opts customize runtime command + plugin name", () => {
     const files = toClaudePlugin(reg, { name: "prx-dev", mcpCommand: "/usr/local/bin/prx", mcpArgs: ["mcp"] });
     const mcp = JSON.parse(find(files, ".mcp.json")!.content);
