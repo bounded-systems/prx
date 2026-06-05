@@ -15407,6 +15407,8 @@ describe("pr_state cli", () => {
       // split out of publisher.
       "keeper",
       "local_ci",
+      // prx-wt5: mediator (merge-conflict reconciliation) joins the pr scope.
+      "mediator",
       "prx",
       // GH-1558: publisher joins the pr scope as foundation for the
       // GH-1398 publisher-actor chain.

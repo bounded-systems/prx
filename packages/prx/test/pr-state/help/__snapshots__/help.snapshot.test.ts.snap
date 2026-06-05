@@ -221,6 +221,9 @@ Repo plumbing:
   prx dolt sync-all          Fan-out reconcile over every managed dolt database (GH-1702)
   prx dolt policy            Set dolt.auto-push or dolt.auto-commit across managed workspaces
   prx dolt supervise         Enable cross-session dolt supervisor (Darwin launchd, GH-568)
+  prx mediator detect        Detect conflicted paths in an in-progress rebase
+  prx mediator classify      Classify each detected merge conflict by kind
+  prx mediator status        Report the merge-conflict reconciliation lifecycle state
 
 System:
   prx rules render              Render claude/rules/*.md from typed inputs

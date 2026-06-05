@@ -551,6 +551,12 @@ import {
   type DoltVerb,
 } from "../dolt/schema.ts";
 import {
+  MEDIATOR_VERBS,
+  MEDIATOR_VERB_DISPATCH,
+  type MediatorStubOutput,
+  type MediatorVerb,
+} from "../mediator/schema.ts";
+import {
   runTmuxReconcile,
   type TmuxReconcileOptions,
   type TmuxReconcileDeps,
@@ -2301,6 +2307,12 @@ type ParsedCommand =
   | {
       command: "dolt-stub";
       verb: DoltVerb;
+      tracking: string;
+      format: "plain" | "json";
+    }
+  | {
+      command: "mediator-stub";
+      verb: MediatorVerb;
       tracking: string;
       format: "plain" | "json";
     }
@@ -5418,6 +5430,27 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     }
     if (entry.route === "dolt-stub") {
       return ["dolt-stub", c1, ...tail];
+    }
+    return [entry.route, ...tail];
+  }
+
+  if (c0 === "mediator") {
+    // prx-wt5: table-driven dispatch over MEDIATOR_VERB_DISPATCH (the
+    // contract-side source of truth in src/mediator/schema.ts). Every verb
+    // routes to `mediator-stub` today, which emits a typed not-implemented
+    // outcome; no verb falls through to a bare `Unknown` string.
+    const verbs = Object.keys(MEDIATOR_VERB_DISPATCH) as MediatorVerb[];
+    if (!c1 || c1.startsWith("-")) {
+      throw new CliError(`mediator requires a subcommand: ${verbs.join(", ")}`);
+    }
+    const entry = MEDIATOR_VERB_DISPATCH[c1 as MediatorVerb];
+    if (!entry) {
+      throw new CliError(
+        `Unknown mediator subcommand: ${c1} (available: ${verbs.join(", ")})`,
+      );
+    }
+    if (entry.route === "mediator-stub") {
+      return ["mediator-stub", c1, ...tail];
     }
     return [entry.route, ...tail];
   }
@@ -10188,6 +10221,30 @@ export function parseCommand(argv: string[]): ParsedCommand {
       command: "dolt-stub",
       verb,
       tracking: DOLT_VERB_DISPATCH[verb].tracking,
+      format: ensureChoice(format, ["plain", "json"], "--format"),
+    };
+  }
+
+  if (command === "mediator-stub") {
+    // prx-wt5: synthetic command produced by the mediator namespace rewrite for
+    // any verb whose MEDIATOR_VERB_DISPATCH route is still "mediator-stub". The
+    // verb arrives as the first positional; flags beyond --format are ignored so
+    // an operator can keep the eventual real-verb flags in muscle memory.
+    const [verbArg] = rest;
+    const verb = ensureChoice(verbArg ?? "", MEDIATOR_VERBS, "mediator subcommand");
+    const { values } = parseArgs({
+      args: rest.slice(1),
+      options: {
+        format: { type: "string", default: "plain" },
+      },
+      strict: false,
+      allowPositionals: true,
+    });
+    const format = typeof values.format === "string" ? values.format : "plain";
+    return {
+      command: "mediator-stub",
+      verb,
+      tracking: MEDIATOR_VERB_DISPATCH[verb].tracking,
       format: ensureChoice(format, ["plain", "json"], "--format"),
     };
   }
@@ -22016,6 +22073,25 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         status: "not-implemented",
         tracking: parsed.tracking,
         message: `dolt ${parsed.verb} is not yet implemented — tracked: ${parsed.tracking}`,
+      };
+      if (parsed.format === "json") {
+        output.log(JSON.stringify(result, null, 2));
+      } else {
+        output.log(result.message);
+      }
+      return 2;
+    }
+
+    if (parsed.command === "mediator-stub") {
+      // prx-wt5: typed not-implemented outcome for an unwired mediator verb.
+      // Exit 2 distinguishes "declared but not yet built" from a real op
+      // failure (1) or success (0); the message names the tracking unit so an
+      // operator who hit the verb learns where the work lives.
+      const result: MediatorStubOutput = {
+        verb: parsed.verb,
+        status: "not-implemented",
+        tracking: parsed.tracking,
+        message: `mediator ${parsed.verb} is not yet implemented — tracked: ${parsed.tracking}`,
       };
       if (parsed.format === "json") {
         output.log(JSON.stringify(result, null, 2));

@@ -113,6 +113,13 @@ export const actorNames = [
   // the v0 verb; the actor leaves room for future memory-engine verbs
   // (memory inspect / memory decay) without churning the registry.
   "memory",
+  // prx-wt5: merge-conflict reconciliation actor. The mediator *facilitates*
+  // a rebase onto a moved base (detect → classify → model the lifecycle); it
+  // writes nothing to the working tree (I-MED1) and emits the
+  // `RECONCILE_CONTINUE_REQUESTED` intent only — the `git rebase
+  // --continue/--abort` effects stay with git/keeper (I-MED4). The
+  // impose/auto-resolve variant is a future `arbiter` sibling.
+  "mediator",
   "model",
   "plan",
   "preflight",

@@ -82,6 +82,24 @@ export const toolActors = [
   // Wiring, not new machinery — composes existing `workspace`
   // primitives. Invariants I-SO1..I-SO3 (see `src/machine/state.ts`).
   "session_open",
+  // prx-wt5: merge-conflict reconciliation actor — design pass. A
+  // *mediator* (facilitates, never imposes): when main advances under an
+  // open work-unit branch, the branch must rebase onto the moved base
+  // before submit. The mediator detects an in-progress rebase/merge,
+  // classifies each conflicted path (content / add-add / delete-modify;
+  // ours=HEAD/base vs theirs=incoming), and models the
+  // detecting → conflicted → resolving → resolved → reconciled lifecycle
+  // (mediatorMachine, src/machine/machines/mediator.ts). v0 is documentary:
+  // it writes NOTHING to the working tree (I-MED1) — resolution edits stay
+  // with the operator, and the `git rebase --continue/--abort` EFFECTS stay
+  // owned by `git`/`keeper` (I-MED4, the same intent⟂effect split as
+  // keeper⟂git); the mediator emits the `RECONCILE_CONTINUE_REQUESTED`
+  // intent only. Its terminal `reconciled` state hands off to
+  // `prx submit stage` re-resolution (`RESTAGE_REQUESTED`) so the rebased
+  // tree flows through `publish`. The impose/auto-resolve variant
+  // (LLM proposes + applies hunks) is a future `arbiter` sibling. Detector
+  // orchestrator, restage wiring, and `arbiter` land in child tickets.
+  "mediator",
 ] as const;
 
 export type ToolActor = (typeof toolActors)[number];
@@ -678,10 +696,44 @@ export const toolActorCatalog: Record<ToolActor, ToolActorSpec> = {
     ],
     accepts: ["open"],
   },
+  // prx-wt5: merge-conflict reconciliation actor — design pass. Catalog
+  // citizen + documentary `mediatorMachine` only; the detector orchestrator
+  // (reads live `git rebase`/`merge` state), the `RESTAGE_REQUESTED` →
+  // `prx submit stage` handoff, and the impose/auto-resolve `arbiter` sibling
+  // land in child tickets. Verbs (`detect`/`classify`/`status`) are read-only
+  // in v0 — the mediator writes nothing to the working tree (I-MED1).
+  //
+  // Event families:
+  //   CONFLICT_DETECTED / CONFLICT_CLASSIFIED  — the dispute + its per-path shape
+  //   MEDIATION_STARTED / RESOLUTION_OBSERVED   — facilitation lifecycle (observed,
+  //                                               not authored — the operator edits)
+  //   RECONCILE_CONTINUE_REQUESTED              — INTENT handed to git/keeper
+  //                                               (effect = `git rebase --continue`); I-MED4
+  //   MEDIATION_ABORTED                          — `git rebase --abort` taken (observed)
+  //   RECONCILE_COMPLETED                        — clean tree, no in-progress op (I-MED3)
+  //   RESTAGE_REQUESTED                          — handoff to `prx submit stage`
+  // Every event carries `uow_id` (+ `branch`, `base_ref`) for I-MED2 / I-AUD1.
+  mediator: {
+    actor: "mediator",
+    tier: "execution",
+    kind: "cli",
+    domain: "merge_conflict",
+    emits: [
+      "CONFLICT_DETECTED",
+      "CONFLICT_CLASSIFIED",
+      "MEDIATION_STARTED",
+      "RESOLUTION_OBSERVED",
+      "RECONCILE_CONTINUE_REQUESTED",
+      "MEDIATION_ABORTED",
+      "RECONCILE_COMPLETED",
+      "RESTAGE_REQUESTED",
+    ],
+    accepts: ["detect", "classify", "status"],
+  },
 };
 
 export const actorScopes: Record<ActorScope, ToolActor[]> = {
-  pr: ["git", "wt", "gh", "doctor", "keeper", "publisher", "prx", "local_ci", "remote_ci"],
+  pr: ["git", "wt", "gh", "doctor", "keeper", "publisher", "prx", "local_ci", "remote_ci", "mediator"],
   workflow: [
     "notion_mcp",
     "beads",
@@ -709,6 +761,7 @@ export const actorScopes: Record<ActorScope, ToolActor[]> = {
     "dolt",
     "transcripts_digest",
     "session_open",
+    "mediator",
   ],
 };
 
@@ -1004,6 +1057,25 @@ export const eventOwnerMap: Record<string, ToolActor> = {
   SESSION_OPEN_PREPARED: "session_open",
   SESSION_OPEN_DISPATCHED: "session_open",
   SESSION_OPEN_FAILED: "session_open",
+
+  // prx-wt5: merge-conflict reconciliation events. Owned by the new
+  // `mediator` actor; emitted by `mediatorMachine`
+  // (src/machine/machines/mediator.ts) across the
+  // detecting → conflicted → resolving → resolved → reconciled graph (plus
+  // the aborted / failed terminals). Each event carries `uow_id` + `branch`
+  // + `base_ref` per I-MED2, grounding I-AUD1/I-AUD2. The mediator owns the
+  // `RECONCILE_CONTINUE_REQUESTED` *intent* only — the matching effect
+  // (`git rebase --continue`) stays owned by `git`/`keeper` (I-MED4), the
+  // same intent⟂effect split as keeper⟂git. `RESTAGE_REQUESTED` is the
+  // handoff into `prx submit stage` so the rebased tree flows to `publish`.
+  CONFLICT_DETECTED: "mediator",
+  CONFLICT_CLASSIFIED: "mediator",
+  MEDIATION_STARTED: "mediator",
+  RESOLUTION_OBSERVED: "mediator",
+  RECONCILE_CONTINUE_REQUESTED: "mediator",
+  MEDIATION_ABORTED: "mediator",
+  RECONCILE_COMPLETED: "mediator",
+  RESTAGE_REQUESTED: "mediator",
 
   // Backwards compatibility aliases used in existing machine events.
   SUBMIT: "gh",
