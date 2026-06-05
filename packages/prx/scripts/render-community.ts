@@ -124,8 +124,18 @@ function main(): void {
       let current = "";
       try {
         current = readFileSync(outPath, "utf8");
-      } catch {
-        current = "";
+      } catch (err: unknown) {
+        if (
+          typeof err === "object" &&
+          err !== null &&
+          "code" in err &&
+          typeof (err as { code?: unknown }).code === "string" &&
+          (err as { code: string }).code === "ENOENT"
+        ) {
+          current = "";
+        } else {
+          throw err;
+        }
       }
       if (current !== next) drift.push(output);
     } else {
