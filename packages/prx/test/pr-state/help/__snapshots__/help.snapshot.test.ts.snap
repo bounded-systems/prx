@@ -165,6 +165,8 @@ Work units:
   prx audit uow                  Project per-UoW artifact chain and invariant findings
   prx scope-gate                 Gate a commit's diff against the plan's declared scope
   prx scope-gate run             Check files_changed ⊆ plan.paths; emit a signed gate/v1 verdict
+  prx test-gate                  Run the checks the executor skipped, as a signed gate
+  prx test-gate run              Run typecheck + test on the commit; emit a signed gate/v1 verdict
   prx submit body-template       Render PR body with Closes/Refs lines per unit
   prx submit postmerge           Sweep merged PR body, close referenced units missed
   prx submit stage               Stage git state into a CAS submit artifact (publish producer)
