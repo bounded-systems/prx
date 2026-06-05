@@ -59,26 +59,50 @@ export type ClaudePluginOpts = {
 export const mcpToolRef = (serverName: string, v: VerbSpec): string =>
   `mcp__${serverName}__${verbToken(v.id)}`;
 
+// ── Frontmatter serialization ────────────────────────────────────────────────
+// Render markdown docs from a TYPED field map instead of hand-built strings, so
+// a `:` / `#` / quote in any value can never break the YAML frontmatter — the
+// exact class of bug `claude plugin validate` caught in `prx-upgrade.md`. A value
+// is quoted only when a YAML plain scalar would misparse it; otherwise left bare.
+
+/** Serialize one frontmatter value as a YAML-safe scalar. */
+function yamlScalar(v: string): string {
+  const needsQuote =
+    v === "" ||
+    /:\s/.test(v) || // ": " starts a mapping
+    /\s#/.test(v) || // " #" starts a comment
+    /^\s|\s$/.test(v) || // leading/trailing space
+    /^[!&*?|>@`"'%,#[\]{}-]/.test(v) || // leading YAML indicator
+    /[\n"\\]/.test(v);
+  // JSON.stringify yields a valid YAML double-quoted scalar for any string.
+  return needsQuote ? JSON.stringify(v) : v;
+}
+
+/** A markdown doc: YAML frontmatter from a typed field map, then the body. */
+function markdownDoc(frontmatter: Record<string, string>, body: string[]): string {
+  const fm = Object.entries(frontmatter).map(([k, v]) => `${k}: ${yamlScalar(v)}`);
+  return ["---", ...fm, "---", "", ...body, ""].join("\n");
+}
+
 function renderCommand(v: VerbSpec, serverName: string, policies?: ActorPolicies): string {
   const tool = mcpToolRef(serverName, v);
   const hint = (v.positionals ?? []).map((p) => `<${p}>`).join(" ");
   // The verb's own MCP tool + the actor's allowed tools (capability projection).
   const allowed = pluginAllowedTools(v, tool, policies).join(", ");
-  return [
-    "---",
-    // Quote: descriptions can contain `:` etc. that would break YAML frontmatter.
-    `description: ${JSON.stringify(v.summary)}`,
-    `argument-hint: ${hint || "[args]"}`,
-    `allowed-tools: ${allowed}`,
-    "---",
-    "",
-    `Run the prx \`${v.id}\` verb (actor: **${v.actor}**) by calling the \`${tool}\``,
-    "MCP tool with the arguments in `$ARGUMENTS`, then report the result.",
-    "Do not perform the verb's effects yourself — the prx runtime owns them.",
-    "",
-    "$ARGUMENTS",
-    "",
-  ].join("\n");
+  return markdownDoc(
+    {
+      description: v.summary,
+      "argument-hint": hint || "[args]",
+      "allowed-tools": allowed,
+    },
+    [
+      `Run the prx \`${v.id}\` verb (actor: **${v.actor}**) by calling the \`${tool}\``,
+      "MCP tool with the arguments in `$ARGUMENTS`, then report the result.",
+      "Do not perform the verb's effects yourself — the prx runtime owns them.",
+      "",
+      "$ARGUMENTS",
+    ],
+  );
 }
 
 /**
@@ -172,22 +196,21 @@ export function toClaudePlugin(reg: Registry, opts: ClaudePluginOpts = {}): Plug
 
 /** A slash command that runs a full-registry verb through the installed binary. */
 function renderBashCommand(c: SlashSource): string {
-  const invocation = `prx ${c.name} $ARGUMENTS`;
-  return [
-    "---",
-    `description: ${JSON.stringify(c.description)}`,
-    "argument-hint: [args]",
-    // Capability projection: scope the slash command to exactly this verb.
-    `allowed-tools: Bash(prx ${c.name}:*)`,
-    "---",
-    "",
-    `Run the prx \`${c.name}\` command (actor: **${c.actor}**) by executing`,
-    `\`${invocation}\` with the Bash tool, then report the result.`,
-    "Do not perform the command's effects yourself — the prx runtime owns them.",
-    "",
-    "$ARGUMENTS",
-    "",
-  ].join("\n");
+  return markdownDoc(
+    {
+      description: c.description,
+      "argument-hint": "[args]",
+      // Capability projection: scope the slash command to exactly this verb.
+      "allowed-tools": `Bash(prx ${c.name}:*)`,
+    },
+    [
+      `Run the prx \`${c.name}\` command (actor: **${c.actor}**) by executing`,
+      `\`prx ${c.name} $ARGUMENTS\` with the Bash tool, then report the result.`,
+      "Do not perform the command's effects yourself — the prx runtime owns them.",
+      "",
+      "$ARGUMENTS",
+    ],
+  );
 }
 
 /**
@@ -221,23 +244,23 @@ function renderAgent(a: ActorAgentSource): string {
   const verbLines = a.verbs.map((v) => `- \`prx ${v.name}\` — ${v.description}`);
   // `description` drives when Claude delegates to this subagent.
   const description = `${a.summary ? `${a.summary}. ` : ""}The prx \`${a.name}\` actor — delegate ${a.name}-domain work to this subagent.`;
-  return [
-    "---",
-    `name: ${a.name}`,
-    // plugin agents may NOT set permissionMode/hooks/mcpServers (reference).
-    `description: ${JSON.stringify(description)}`,
-    "tools: Bash, Read, Grep, Glob",
-    "---",
-    "",
-    `You are the **prx \`${a.name}\`** actor — ${role}.`,
-    "",
-    ...(verbLines.length
-      ? ["You carry out your role through these prx verbs:", "", ...verbLines, ""]
-      : []),
-    "Run them with the Bash tool (`prx <verb> …`) and report a concise result.",
-    "Don't perform effects outside your verbs — the prx runtime owns them.",
-    "",
-  ].join("\n");
+  return markdownDoc(
+    {
+      name: a.name,
+      // plugin agents may NOT set permissionMode/hooks/mcpServers (reference).
+      description,
+      tools: "Bash, Read, Grep, Glob",
+    },
+    [
+      `You are the **prx \`${a.name}\`** actor — ${role}.`,
+      "",
+      ...(verbLines.length
+        ? ["You carry out your role through these prx verbs:", "", ...verbLines, ""]
+        : []),
+      "Run them with the Bash tool (`prx <verb> …`) and report a concise result.",
+      "Don't perform effects outside your verbs — the prx runtime owns them.",
+    ],
+  );
 }
 
 /**
@@ -247,4 +270,31 @@ function renderAgent(a: ActorAgentSource): string {
  */
 export function actorAgentFiles(actors: ActorAgentSource[]): PluginFile[] {
   return actors.map((a) => ({ path: `agents/${a.name}.md`, content: renderAgent(a) }));
+}
+
+/**
+ * Project the capability `PreToolUse` hook — the Claude Code lifecycle → prx
+ * policy bridge. When a Bash tool call fires inside a prx actor-subagent, Claude
+ * Code routes it through `prx hook policy-guard`, which denies anything that
+ * actor doesn't own (plus universal hard-blocks for every session). The plugin
+ * is thin: the prx runtime owns the policy.
+ */
+export function hooksFile(): PluginFile {
+  return {
+    path: "hooks/hooks.json",
+    content: JSON.stringify(
+      {
+        hooks: {
+          PreToolUse: [
+            {
+              matcher: "Bash",
+              hooks: [{ type: "command", command: "prx hook policy-guard" }],
+            },
+          ],
+        },
+      },
+      null,
+      2,
+    ),
+  };
 }

@@ -45,6 +45,11 @@ describe("prx plugin emit", () => {
     const monitors = JSON.parse(await readFile(join(dir, "monitors/monitors.json"), "utf8"));
     expect(monitors[0].name).toBe("prx-pipeline");
 
+    // The capability PreToolUse hook → prx policy guard.
+    const hooks = JSON.parse(await readFile(join(dir, "hooks/hooks.json"), "utf8"));
+    expect(hooks.hooks.PreToolUse[0].matcher).toBe("Bash");
+    expect(hooks.hooks.PreToolUse[0].hooks[0].command).toBe("prx hook policy-guard");
+
     // The watcher script is on disk and executable (the monitor runs it).
     const watch = join(dir, "bin/prx-audit-watch.sh");
     expect((await readFile(watch, "utf8"))).toContain("tail -n0 -F");

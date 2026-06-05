@@ -14,6 +14,7 @@ import { dirname, join } from "node:path";
 import {
   actorAgentFiles,
   commandSlashFiles,
+  hooksFile,
   toClaudePlugin,
   type PluginFile,
 } from "./claude-plugin.ts";
@@ -92,8 +93,9 @@ export async function runPluginVerb(
     })),
   );
 
+  // The capability PreToolUse hook — Claude Code lifecycle → prx policy guard.
   const byPath = new Map<string, PluginFile>();
-  for (const f of [...scaffold, ...verbSlash, ...regSlash, ...agents]) {
+  for (const f of [...scaffold, ...verbSlash, ...regSlash, ...agents, hooksFile()]) {
     if (!byPath.has(f.path)) byPath.set(f.path, f);
   }
   const files = [...byPath.values()];
