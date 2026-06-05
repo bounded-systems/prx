@@ -546,6 +546,7 @@ import {
   type DoltStatusDeps,
 } from "../dolt/status.ts";
 import { runDoltStartCli } from "../dolt/start.ts";
+import { runOrchestratorVerb } from "../cli/orchestrator-cli.ts";
 import {
   DOLT_VERBS,
   DOLT_VERB_DISPATCH,
@@ -18364,6 +18365,14 @@ function resolveTriageRepoCwd(
 
 export function runCli(argv: string[], output: Output = console, deps: CliDeps = {}): number | Promise<number> {
   try {
+    // Experimental orchestrator verbs (pilot/fleet) are handled by the
+    // spec-driven dispatch, ahead of the legacy typed-command union/executor
+    // machinery (which threads a shared union through bare fallthroughs).
+    const [orchestratorVerb, ...orchestratorRest] = argv;
+    if (orchestratorVerb === "pilot" || orchestratorVerb === "fleet") {
+      return runOrchestratorVerb(orchestratorVerb, orchestratorRest, output);
+    }
+
     // Clear memoized canonical-ID helpers so tests (which share the process
     // and chdir between cases) don't observe stale helpers from a prior run.
     // Helpers load lazily on first validator access via ensureCanonicalHelpers.
