@@ -13,10 +13,10 @@
  * Gated behind `PRX_PILOT_REAL`; default `prx pilot` stays stub-driven.
  */
 
-import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 
 import { getEnv } from "@bounded-systems/env";
+import { spawnCapture } from "@bounded-systems/proc";
 
 import {
   runClaudeAgentNonInteractive,
@@ -77,13 +77,11 @@ export type RealLegDeps = {
 /** Run a `prx <args>` invocation. The capability boundary for tail effects. */
 export type RunPrx = (args: string[]) => Promise<{ ok: boolean; stdout: string; stderr: string }>;
 
-/** Default: shell the installed `prx` binary. */
-export const realRunPrx: RunPrx = (args) =>
-  new Promise((resolve) => {
-    execFile("prx", args, { maxBuffer: 16 * 1024 * 1024 }, (err, stdout, stderr) => {
-      resolve({ ok: !err, stdout: String(stdout ?? ""), stderr: String(stderr ?? "") });
-    });
-  });
+/** Default: shell the installed `prx` binary (via @bounded-systems/proc). */
+export const realRunPrx: RunPrx = async (args) => {
+  const r = spawnCapture(["prx", ...args]);
+  return { ok: r.status === 0, stdout: r.stdout, stderr: r.stderr };
+};
 
 const sha256Hex = (text: string): string => createHash("sha256").update(text).digest("hex");
 
