@@ -7850,13 +7850,13 @@ describe("pr_state cli", () => {
             outputPath: ".pr/local/pr.json",
             title: "Example title",
             summary: "Example summary",
-            excludePath: "/tmp/repo/.git/info/exclude",
+            excludePath: "/fixtures/repo/.git/info/exclude",
             excludeRules: [".pr/"],
             excludeUpdatedRules: [".pr/"],
             excludeRemovedRules: [".prx/"],
             prxGitignorePaths: [
-              "/tmp/repo/.prx/.gitignore",
-              "/tmp/repo/.prx/repos/.gitignore",
+              "/fixtures/repo/.prx/.gitignore",
+              "/fixtures/repo/.prx/repos/.gitignore",
             ],
             beadsSetup: {
               status: "initialized",
@@ -7866,7 +7866,7 @@ describe("pr_state cli", () => {
               prefix: "ai-home",
             },
             workspaceTrack: true,
-            workspaceConfigPath: "/tmp/repo/prx.toml",
+            workspaceConfigPath: "/fixtures/repo/prx.toml",
             workspaceTrackPersisted: false,
             trackedPrxFiles: [],
           };
@@ -7876,7 +7876,7 @@ describe("pr_state cli", () => {
 
     expect(exitCode).toBe(0);
     expect(logs).toEqual([
-      "Initialized PR contract at .pr/local/pr.json\ntitle=Example title\nsummary=Example summary\nRemoved legacy .prx/ from /tmp/repo/.git/info/exclude\nAdded .pr/ to /tmp/repo/.git/info/exclude\nEnsured /tmp/repo/.prx/.gitignore\nEnsured /tmp/repo/.prx/repos/.gitignore\nInitialized beads for io.github.bdelanghe/ai-home (database=io_github_bdelanghe_ai_home, prefix=ai-home, github=bdelanghe/ai-home)",
+      "Initialized PR contract at .pr/local/pr.json\ntitle=Example title\nsummary=Example summary\nRemoved legacy .prx/ from /fixtures/repo/.git/info/exclude\nAdded .pr/ to /fixtures/repo/.git/info/exclude\nEnsured /fixtures/repo/.prx/.gitignore\nEnsured /fixtures/repo/.prx/repos/.gitignore\nInitialized beads for io.github.bdelanghe/ai-home (database=io_github_bdelanghe_ai_home, prefix=ai-home, github=bdelanghe/ai-home)",
     ]);
   });
 
@@ -7893,13 +7893,13 @@ describe("pr_state cli", () => {
           outputPath: ".pr/local/pr.json",
           title: "Example title",
           summary: "Example summary",
-          excludePath: "/tmp/repo/.git/info/exclude",
+          excludePath: "/fixtures/repo/.git/info/exclude",
           excludeRules: [".pr/"],
           excludeUpdatedRules: [],
           excludeRemovedRules: [],
           prxGitignorePaths: [
-            "/tmp/repo/.prx/.gitignore",
-            "/tmp/repo/.prx/repos/.gitignore",
+            "/fixtures/repo/.prx/.gitignore",
+            "/fixtures/repo/.prx/repos/.gitignore",
           ],
           beadsSetup: {
             status: "unchanged",
@@ -7908,7 +7908,7 @@ describe("pr_state cli", () => {
             githubRepository: "bdelanghe/ai-home",
           },
           workspaceTrack: true,
-          workspaceConfigPath: "/tmp/repo/prx.toml",
+          workspaceConfigPath: "/fixtures/repo/prx.toml",
           workspaceTrackPersisted: false,
           trackedPrxFiles: [],
         }),
@@ -7920,13 +7920,13 @@ describe("pr_state cli", () => {
       outputPath: ".pr/local/pr.json",
       title: "Example title",
       summary: "Example summary",
-      excludePath: "/tmp/repo/.git/info/exclude",
+      excludePath: "/fixtures/repo/.git/info/exclude",
       excludeRules: [".pr/"],
       excludeUpdatedRules: [],
       excludeRemovedRules: [],
       prxGitignorePaths: [
-        "/tmp/repo/.prx/.gitignore",
-        "/tmp/repo/.prx/repos/.gitignore",
+        "/fixtures/repo/.prx/.gitignore",
+        "/fixtures/repo/.prx/repos/.gitignore",
       ],
       beadsSetup: {
         status: "unchanged",
@@ -8360,7 +8360,7 @@ describe("pr_state cli", () => {
       throw new Error(`Unexpected command: ${joined}`);
     };
 
-    expect(ensureBeadsInitSetup("/tmp/repo", runner)).toEqual({
+    expect(ensureBeadsInitSetup("/fixtures/repo", runner)).toEqual({
       status: "initialized",
       canonicalRepoId: "io.github.bdelanghe/ai-home",
       database: "io_github_bdelanghe_ai_home",
@@ -8394,7 +8394,7 @@ describe("pr_state cli", () => {
       throw new Error(`Unexpected command: ${joined}`);
     };
 
-    expect(ensureBeadsInitSetup("/tmp/repo", runner)).toEqual({
+    expect(ensureBeadsInitSetup("/fixtures/repo", runner)).toEqual({
       status: "skipped",
       reason: "existing beads database bdelanghe_demo does not match io_github_bdelanghe_ai_home",
       canonicalRepoId: "io.github.bdelanghe/ai-home",
@@ -8435,7 +8435,7 @@ describe("pr_state cli", () => {
       throw new Error(`Unexpected command: ${joined}`);
     };
 
-    expect(ensureBeadsInitSetup("/tmp/repo", runner, { force: true })).toEqual({
+    expect(ensureBeadsInitSetup("/fixtures/repo", runner, { force: true })).toEqual({
       status: "forced",
       canonicalRepoId: "io.github.bdelanghe/ai-home",
       database: "io_github_bdelanghe_ai_home",
@@ -8478,7 +8478,7 @@ describe("pr_state cli", () => {
       throw new Error(`Unexpected command: ${joined}`);
     };
 
-    expect(ensureBeadsInitSetup("/tmp/repo", runner)).toEqual({
+    expect(ensureBeadsInitSetup("/fixtures/repo", runner)).toEqual({
       status: "unchanged",
       canonicalRepoId: "io.github.bdelanghe/ai-home",
       database: "io_github_bdelanghe_ai_home",
@@ -8500,9 +8500,9 @@ describe("pr_state cli", () => {
       const joined = [file, ...args].join(" ");
       commands.push(joined);
       if (joined === "git rev-parse --show-toplevel") {
-        return { status: 0, stdout: "/tmp/repo\n", stderr: "" };
+        return { status: 0, stdout: "/fixtures/repo\n", stderr: "" };
       }
-      if (joined === "git -C /tmp/repo remote get-url origin") {
+      if (joined === "git -C /fixtures/repo remote get-url origin") {
         return { status: 0, stdout: "git@github.com:bdelanghe/ai-home.git\n", stderr: "" };
       }
       if (joined === "bd context --json") {
@@ -8535,7 +8535,7 @@ describe("pr_state cli", () => {
     };
 
     expect(runBeadsInit(
-      "/tmp/repo",
+      "/fixtures/repo",
       false,
       false,
       { log: (line) => logs.push(line) },
@@ -8547,7 +8547,7 @@ describe("pr_state cli", () => {
     expect(logs).toContain("verified:          beads ready");
     expect(commands).toEqual([
       "git rev-parse --show-toplevel",
-      "git -C /tmp/repo remote get-url origin",
+      "git -C /fixtures/repo remote get-url origin",
       "bd context --json",
       "bd info",
       "bd bootstrap --yes",
@@ -16658,7 +16658,7 @@ describe("plan handoff command (GH-643; renamed from session close in GH-1166)",
           mainxReset: false,
           emitNext: true,
           force: false,
-          emitFile: "/tmp/handoff.txt",
+          emitFile: "/fixtures/handoff.txt",
         },
         {
           cwd: wtPath,
@@ -16697,7 +16697,7 @@ describe("plan handoff command (GH-643; renamed from session close in GH-1166)",
       );
 
       expect(result.handoffRequired).toBe(true);
-      expect(writtenPath).toBe("/tmp/handoff.txt");
+      expect(writtenPath).toBe("/fixtures/handoff.txt");
       expect(writtenContent).toBe(
         "prx worktree-remove GH-643 --delete-branch --force\nprx delegate next\n",
       );

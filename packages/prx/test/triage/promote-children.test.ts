@@ -139,7 +139,7 @@ function makeDeps(args: {
     writeFileSyncFn: (path, data) => fs.set(path, data),
     existsSyncFn: (path) => fs.has(path),
     auditSink: {
-      stateDirOverride: "/tmp/state",
+      stateDirOverride: "/fixtures/state",
       ensureDir: () => {},
       appendFn: (_path: string, line: string) => audit.push(line),
     },
@@ -188,10 +188,10 @@ describe("promoteChildBodySchema — spike refusal (GH-1489)", () => {
 
 describe("runTriagePromoteChildren — refusal contract", () => {
   test("missing manifest.json returns exit 2 with upstream pointer", () => {
-    const { deps } = makeDeps({ dir: "/tmp/staging-empty", manifest: null });
+    const { deps } = makeDeps({ dir: "/fixtures/staging-empty", manifest: null });
     const o = makeOutput();
     const code = runTriagePromoteChildren(
-      { dir: "/tmp/staging-empty", dryRun: false, limit: 0 },
+      { dir: "/fixtures/staging-empty", dryRun: false, limit: 0 },
       o.output,
       deps,
     );
@@ -202,10 +202,10 @@ describe("runTriagePromoteChildren — refusal contract", () => {
 
   test("malformed JSON manifest returns exit 2", () => {
     const fs = new Map<string, string>();
-    fs.set("/tmp/bad/manifest.json", "{ not json");
+    fs.set("/fixtures/bad/manifest.json", "{ not json");
     const o = makeOutput();
     const code = runTriagePromoteChildren(
-      { dir: "/tmp/bad", dryRun: false, limit: 0 },
+      { dir: "/fixtures/bad", dryRun: false, limit: 0 },
       o.output,
       {
         readFileSync: (path) => {
@@ -215,7 +215,7 @@ describe("runTriagePromoteChildren — refusal contract", () => {
         },
         existsSyncFn: (p) => fs.has(p),
         auditSink: {
-          stateDirOverride: "/tmp/state",
+          stateDirOverride: "/fixtures/state",
           ensureDir: () => {},
           appendFn: () => {},
         },
@@ -230,12 +230,12 @@ describe("runTriagePromoteChildren — refusal contract", () => {
 describe("runTriagePromoteChildren — dry-run", () => {
   test("dry-run writes nothing and exits 0", () => {
     const { deps, audit, fs, bdCalls } = makeDeps({
-      dir: "/tmp/staging",
+      dir: "/fixtures/staging",
       manifest: manifestFixture(),
     });
     const o = makeOutput();
     const code = runTriagePromoteChildren(
-      { dir: "/tmp/staging", dryRun: true, limit: 0 },
+      { dir: "/fixtures/staging", dryRun: true, limit: 0 },
       o.output,
       deps,
     );
@@ -243,7 +243,7 @@ describe("runTriagePromoteChildren — dry-run", () => {
     expect(audit).toHaveLength(0);
     expect(bdCalls).toHaveLength(0);
     // No `.filed.json` written
-    expect(fs.has("/tmp/staging/.filed.json")).toBe(false);
+    expect(fs.has("/fixtures/staging/.filed.json")).toBe(false);
     // Plan summary printed
     expect(o.log.join("\n")).toMatch(/dry-run slot=view/);
     expect(o.log.join("\n")).toMatch(/creates=2/);
@@ -255,7 +255,7 @@ describe("runTriagePromoteChildren — file + wire path", () => {
   test("files all bodies, persists .filed.json, wires deps via bd dep add", () => {
     const beads: BeadsRecord[] = []; // populated by callback as filings happen
     const { deps, audit, fs, bdCalls } = makeDeps({
-      dir: "/tmp/staging",
+      dir: "/fixtures/staging",
       manifest: manifestFixture(),
       beads,
     });
@@ -280,13 +280,13 @@ describe("runTriagePromoteChildren — file + wire path", () => {
     ];
     const o = makeOutput();
     const code = runTriagePromoteChildren(
-      { dir: "/tmp/staging", dryRun: false, limit: 0 },
+      { dir: "/fixtures/staging", dryRun: false, limit: 0 },
       o.output,
       deps,
     );
     expect(code).toBe(0);
     // .filed.json now persisted with both slots
-    const filed = JSON.parse(fs.get("/tmp/staging/.filed.json")!);
+    const filed = JSON.parse(fs.get("/fixtures/staging/.filed.json")!);
     expect(filed.rows).toHaveLength(2);
     expect(filed.rows.map((r: { slot: string }) => r.slot).sort()).toEqual([
       "comment",
@@ -316,7 +316,7 @@ describe("runTriagePromoteChildren — file + wire path", () => {
 describe("runTriagePromoteChildren — idempotency", () => {
   test("re-run with .filed.json skips already-filed slots", () => {
     const { deps, audit } = makeDeps({
-      dir: "/tmp/staging",
+      dir: "/fixtures/staging",
       manifest: manifestFixture(),
       preFiled: [
         { slot: "view", number: 2001, url: "https://github.com/bdelanghe/ai-home/issues/2001" },
@@ -335,7 +335,7 @@ describe("runTriagePromoteChildren — idempotency", () => {
     };
     const o = makeOutput();
     const code = runTriagePromoteChildren(
-      { dir: "/tmp/staging", dryRun: false, limit: 0 },
+      { dir: "/fixtures/staging", dryRun: false, limit: 0 },
       o.output,
       deps,
     );
@@ -352,7 +352,7 @@ describe("runTriagePromoteChildren — idempotency", () => {
 describe("runTriagePromoteChildren — IntakeTitleMismatchError row-level continue", () => {
   test("intake exit 2 with title-prefix stderr aborts slot, continues run", () => {
     const { deps, audit, fs } = makeDeps({
-      dir: "/tmp/staging",
+      dir: "/fixtures/staging",
       manifest: manifestFixture(),
       intakeImpl: (opts, output) => {
         if (opts.title.includes("view layer")) {
@@ -384,7 +384,7 @@ describe("runTriagePromoteChildren — IntakeTitleMismatchError row-level contin
     });
     const o = makeOutput();
     const code = runTriagePromoteChildren(
-      { dir: "/tmp/staging", dryRun: false, limit: 0 },
+      { dir: "/fixtures/staging", dryRun: false, limit: 0 },
       o.output,
       deps,
     );
@@ -399,7 +399,7 @@ describe("runTriagePromoteChildren — IntakeTitleMismatchError row-level contin
     expect(ok.action).toBe("create");
     expect(ok.url).toContain("/issues/2042");
     // Comment slot got persisted; view did not.
-    const filed = JSON.parse(fs.get("/tmp/staging/.filed.json")!);
+    const filed = JSON.parse(fs.get("/fixtures/staging/.filed.json")!);
     expect(filed.rows).toHaveLength(1);
     expect(filed.rows[0].slot).toBe("comment");
   });
@@ -408,7 +408,7 @@ describe("runTriagePromoteChildren — IntakeTitleMismatchError row-level contin
 describe("runTriagePromoteChildren — dep ref forms", () => {
   test("literal ai-home-* ref is passed through to bd dep add unchanged", () => {
     const { deps, audit, bdCalls } = makeDeps({
-      dir: "/tmp/staging",
+      dir: "/fixtures/staging",
       manifest: manifestFixture({
         bodies: [
           { slot: "view", file: "01-view.md", type: "feature", title: "feat: view" },
@@ -449,7 +449,7 @@ describe("runTriagePromoteChildren — dep ref forms", () => {
     });
     const o = makeOutput();
     const code = runTriagePromoteChildren(
-      { dir: "/tmp/staging", dryRun: false, limit: 0 },
+      { dir: "/fixtures/staging", dryRun: false, limit: 0 },
       o.output,
       deps,
     );
@@ -466,7 +466,7 @@ describe("runTriagePromoteChildren — dep ref forms", () => {
 
   test("GH-N ref with no matching beads row records skip (sync-lag case)", () => {
     const { deps, audit, bdCalls } = makeDeps({
-      dir: "/tmp/staging",
+      dir: "/fixtures/staging",
       manifest: manifestFixture({
         bodies: [
           { slot: "view", file: "01-view.md", type: "feature", title: "feat: view" },
@@ -504,7 +504,7 @@ describe("runTriagePromoteChildren — dep ref forms", () => {
     });
     const o = makeOutput();
     const code = runTriagePromoteChildren(
-      { dir: "/tmp/staging", dryRun: false, limit: 0 },
+      { dir: "/fixtures/staging", dryRun: false, limit: 0 },
       o.output,
       deps,
     );
@@ -520,7 +520,7 @@ describe("runTriagePromoteChildren — dep ref forms", () => {
 describe("runTriagePromoteChildren — --only filter", () => {
   test("--only restricts to a single slot and skips deps whose other endpoint is unfiled", () => {
     const { deps, audit, fs } = makeDeps({
-      dir: "/tmp/staging",
+      dir: "/fixtures/staging",
       manifest: manifestFixture(),
       beads: [
         bead({ id: "ai-home-2001-x", externalRef: "https://github.com/bdelanghe/ai-home/issues/2001", externalIssueNumber: 2001 }),
@@ -551,7 +551,7 @@ describe("runTriagePromoteChildren — --only filter", () => {
     });
     const o = makeOutput();
     const code = runTriagePromoteChildren(
-      { dir: "/tmp/staging", dryRun: false, limit: 0, only: "view" },
+      { dir: "/fixtures/staging", dryRun: false, limit: 0, only: "view" },
       o.output,
       deps,
     );
@@ -560,7 +560,7 @@ describe("runTriagePromoteChildren — --only filter", () => {
     const bodyRows = audit.map((l) => JSON.parse(l)).filter((e) => e.kind === "body");
     expect(bodyRows).toHaveLength(1);
     expect(bodyRows[0].slot).toBe("view");
-    const filed = JSON.parse(fs.get("/tmp/staging/.filed.json")!);
+    const filed = JSON.parse(fs.get("/fixtures/staging/.filed.json")!);
     expect(filed.rows).toHaveLength(1);
     const depRows = audit.map((l) => JSON.parse(l)).filter((e) => e.kind === "dep");
     const wired = depRows.filter((r) => r.action === "wire");
@@ -657,7 +657,7 @@ describe("resolveDepRef — short ai-home-N never reaches bd (GH-1473)", () => {
 describe("runPromoteChildrenActor", () => {
   test("captures stdout/stderr, audit, and filed[] envelope", () => {
     const { deps } = makeDeps({
-      dir: "/tmp/staging",
+      dir: "/fixtures/staging",
       manifest: manifestFixture({
         bodies: [
           { slot: "view", file: "01-view.md", type: "feature", title: "feat: view" },
@@ -694,7 +694,7 @@ describe("runPromoteChildrenActor", () => {
       },
     });
     const result = runPromoteChildrenActor(
-      { dir: "/tmp/staging", dryRun: false, limit: 0 },
+      { dir: "/fixtures/staging", dryRun: false, limit: 0 },
       deps,
     );
     expect(result.exitCode).toBe(0);
