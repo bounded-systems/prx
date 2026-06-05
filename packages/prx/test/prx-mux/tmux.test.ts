@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, readFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, readFileSync, openSync, fstatSync, closeSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -266,7 +266,11 @@ describe("clearResurrectEntry", () => {
     const contents = "pane\tgh_200\teditor\n";
     writeFileSync(save, contents);
     symlinkSync("save.txt", join(dir, "last"));
-    const mtimeBefore = (require("node:fs") as typeof import("node:fs")).statSync(save).mtimeMs;
+    // Capture mtime/content through descriptors (fstat/read) rather than a
+    // path statSync-then-read, which CodeQL flags as js/file-system-race.
+    const fdBefore = openSync(save, "r");
+    const mtimeBefore = fstatSync(fdBefore).mtimeMs;
+    closeSync(fdBefore);
 
     // Sleep briefly to ensure mtime resolution would show a change if we wrote.
     const t0 = Date.now();
@@ -274,9 +278,13 @@ describe("clearResurrectEntry", () => {
 
     clearResurrectEntry({ name: "gh_100", resurrectDir: dir + "/" });
 
-    const mtimeAfter = (require("node:fs") as typeof import("node:fs")).statSync(save).mtimeMs;
-    expect(mtimeAfter).toBe(mtimeBefore);
-    expect(readFileSync(save, "utf8")).toBe(contents);
+    const fdAfter = openSync(save, "r");
+    try {
+      expect(fstatSync(fdAfter).mtimeMs).toBe(mtimeBefore);
+      expect(readFileSync(fdAfter, "utf8")).toBe(contents);
+    } finally {
+      closeSync(fdAfter);
+    }
   });
 
   test("handles an absent 'last' symlink gracefully", () => {

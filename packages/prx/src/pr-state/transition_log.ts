@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { z } from "zod";
 
@@ -40,18 +40,25 @@ const transitionEntrySchema = z.object({
 export type TransitionEntry = z.infer<typeof transitionEntrySchema>;
 
 export function readTransitionLog(logPath: string): TransitionEntry[] {
-  if (!existsSync(logPath)) return [];
-  return readFileSync(logPath, "utf8")
+  // Read directly; a missing log surfaces as a read error rather than an
+  // existsSync-then-read check (CodeQL js/file-system-race).
+  let raw: string;
+  try {
+    raw = readFileSync(logPath, "utf8");
+  } catch {
+    return [];
+  }
+  return raw
     .split("\n")
     .filter((line) => line.trim().length > 0)
     .map((line) => transitionEntrySchema.parse(JSON.parse(line)));
 }
 
 export function appendTransitionLog(logPath: string, entry: TransitionEntry): void {
-  if (existsSync(logPath)) {
-    const existing = readTransitionLog(logPath);
-    if (existing.some((e) => e.id === entry.id)) return;
-  }
+  // readTransitionLog already returns [] for a missing log, so no separate
+  // existsSync guard (which CodeQL would pair with the append below).
+  const existing = readTransitionLog(logPath);
+  if (existing.some((e) => e.id === entry.id)) return;
   // Create the parent dir (e.g. .prx/) so a fresh checkout doesn't ENOENT.
   mkdirSync(dirname(logPath), { recursive: true });
   appendFileSync(logPath, `${JSON.stringify(entry)}\n`, "utf8");

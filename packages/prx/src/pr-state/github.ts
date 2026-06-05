@@ -63,6 +63,7 @@ import {
 import { withBucketGate } from "@bounded-systems/github-budget";
 import { classifyTraceCmd, traceEnabled, traceSync } from "./trace.ts";
 import { getUnit, ProjectionMiss, projectionBypass, putUnit } from "./projection.ts";
+import { rewriteFileAtomic } from "../tools/atomic_file.ts";
 
 export type PrSignalInfo = {
   reviewAdded: boolean;
@@ -3906,53 +3907,55 @@ export function persistWorkspaceTrack(repoRoot: string, track: boolean): void {
   const configPath = join(repoRoot, "prx.toml");
   const desired = `track = ${track ? "true" : "false"}`;
 
-  const existing = existsSync(configPath) ? readFileSync(configPath, "utf8") : "";
-  if (existing.length === 0) {
-    writeFileSync(configPath, `[workspace]\n${desired}\n`);
-    return;
-  }
+  // Read + rewrite through one descriptor (rewriteFileAtomic) rather than
+  // existsSync-then-read-then-write (CodeQL js/file-system-race).
+  rewriteFileAtomic(configPath, (existing) => {
+    if (existing === null || existing.length === 0) {
+      return `[workspace]\n${desired}\n`;
+    }
 
-  const lines = existing.split("\n");
-  const hadTrailingNewline = existing.endsWith("\n");
-  if (hadTrailingNewline && lines[lines.length - 1] === "") {
-    lines.pop();
-  }
+    const lines = existing.split("\n");
+    const hadTrailingNewline = existing.endsWith("\n");
+    if (hadTrailingNewline && lines[lines.length - 1] === "") {
+      lines.pop();
+    }
 
-  let workspaceIdx = -1;
-  let trackIdx = -1;
-  let nextSectionIdx = lines.length;
-  for (let index = 0; index < lines.length; index += 1) {
-    const trimmed = lines[index]!.trim();
-    const sectionMatch = trimmed.match(/^\[([A-Za-z0-9_.-]+)\]$/);
-    if (sectionMatch) {
-      if (sectionMatch[1] === "workspace") {
-        workspaceIdx = index;
-        trackIdx = -1;
-        nextSectionIdx = lines.length;
-      } else if (workspaceIdx >= 0 && nextSectionIdx === lines.length) {
-        nextSectionIdx = index;
+    let workspaceIdx = -1;
+    let trackIdx = -1;
+    let nextSectionIdx = lines.length;
+    for (let index = 0; index < lines.length; index += 1) {
+      const trimmed = lines[index]!.trim();
+      const sectionMatch = trimmed.match(/^\[([A-Za-z0-9_.-]+)\]$/);
+      if (sectionMatch) {
+        if (sectionMatch[1] === "workspace") {
+          workspaceIdx = index;
+          trackIdx = -1;
+          nextSectionIdx = lines.length;
+        } else if (workspaceIdx >= 0 && nextSectionIdx === lines.length) {
+          nextSectionIdx = index;
+        }
+        continue;
       }
-      continue;
-    }
-    if (workspaceIdx >= 0 && index > workspaceIdx && index < nextSectionIdx) {
-      if (/^track\s*=/.test(trimmed)) {
-        trackIdx = index;
+      if (workspaceIdx >= 0 && index > workspaceIdx && index < nextSectionIdx) {
+        if (/^track\s*=/.test(trimmed)) {
+          trackIdx = index;
+        }
       }
     }
-  }
 
-  if (trackIdx >= 0) {
-    lines[trackIdx] = desired;
-  } else if (workspaceIdx >= 0) {
-    lines.splice(workspaceIdx + 1, 0, desired);
-  } else {
-    if (lines.length > 0 && lines[lines.length - 1] !== "") {
-      lines.push("");
+    if (trackIdx >= 0) {
+      lines[trackIdx] = desired;
+    } else if (workspaceIdx >= 0) {
+      lines.splice(workspaceIdx + 1, 0, desired);
+    } else {
+      if (lines.length > 0 && lines[lines.length - 1] !== "") {
+        lines.push("");
+      }
+      lines.push("[workspace]", desired);
     }
-    lines.push("[workspace]", desired);
-  }
 
-  writeFileSync(configPath, `${lines.join("\n")}\n`);
+    return `${lines.join("\n")}\n`;
+  });
 }
 
 // Routing operates on the raw branch/id prefix (KEY-NUM) so that legacy

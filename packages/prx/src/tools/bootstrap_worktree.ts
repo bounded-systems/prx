@@ -20,7 +20,9 @@
  * go directly through node:fs because they are prx-internal, not agent-facing.
  */
 
-import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync } from "node:fs";
+
+import { rewriteFileAtomic } from "./atomic_file.ts";
 import { join, relative, resolve } from "node:path";
 import { execGit } from "@bounded-systems/git";
 import {
@@ -234,50 +236,17 @@ function bootstrapBeads(cwd: string, deps: BootstrapDeps): BeadsBootstrapResult 
   const expectedRedirectContent = `${relativeTarget}\n`;
   const staleState = detectStaleState(beadsDir);
 
-  if (existsSync(redirectPath)) {
-    let existing: string;
-    try {
-      existing = readFileSync(redirectPath, "utf8");
-    } catch (err) {
-      return {
-        status: "error",
-        redirectPath,
-        redirectTarget: mainBeadsDir,
-        message: (err as Error).message,
-      };
-    }
-    if (existing === expectedRedirectContent) {
-      const result: BeadsBootstrapResult = {
-        status: "skipped-redirect-exists",
-        redirectPath,
-        redirectTarget: mainBeadsDir,
-      };
-      if (staleState) result.staleState = staleState;
-      return result;
-    }
-    // Wrong target — overwrite with the correct relative path.
-    try {
-      writeFileSync(redirectPath, expectedRedirectContent);
-    } catch (err) {
-      return {
-        status: "error",
-        redirectPath,
-        redirectTarget: mainBeadsDir,
-        message: (err as Error).message,
-      };
-    }
-    const result: BeadsBootstrapResult = {
-      status: "rewrote-redirect-target",
-      redirectPath,
-      redirectTarget: mainBeadsDir,
-      message: `rewrote redirect: was ${existing.trim()}, now ${relativeTarget}`,
-    };
-    if (staleState) result.staleState = staleState;
-    return result;
-  }
-
+  // Read + rewrite the redirect through one descriptor (rewriteFileAtomic)
+  // rather than existsSync-then-read-then-write (CodeQL js/file-system-race).
+  let previous: string | null = null;
+  let outcome: { existed: boolean; wrote: boolean };
   try {
-    writeFileSync(redirectPath, expectedRedirectContent);
+    outcome = rewriteFileAtomic(redirectPath, (current) => {
+      previous = current;
+      // Already pointing at the right target — leave it untouched.
+      if (current === expectedRedirectContent) return null;
+      return expectedRedirectContent;
+    });
   } catch (err) {
     return {
       status: "error",
@@ -287,11 +256,19 @@ function bootstrapBeads(cwd: string, deps: BootstrapDeps): BeadsBootstrapResult 
     };
   }
 
-  const result: BeadsBootstrapResult = {
-    status: "wrote-redirect",
-    redirectPath,
-    redirectTarget: mainBeadsDir,
-  };
+  let result: BeadsBootstrapResult;
+  if (!outcome.existed) {
+    result = { status: "wrote-redirect", redirectPath, redirectTarget: mainBeadsDir };
+  } else if (!outcome.wrote) {
+    result = { status: "skipped-redirect-exists", redirectPath, redirectTarget: mainBeadsDir };
+  } else {
+    result = {
+      status: "rewrote-redirect-target",
+      redirectPath,
+      redirectTarget: mainBeadsDir,
+      message: `rewrote redirect: was ${(previous ?? "").trim()}, now ${relativeTarget}`,
+    };
+  }
   if (staleState) result.staleState = staleState;
   return result;
 }

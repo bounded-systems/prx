@@ -22,8 +22,9 @@
  * `excludeUpdatedRules`/`excludeRemovedRules` reporting stays intact) and
  * from `prx tools wt ensure-prx-excludes` (the worktrunk hook entry-point).
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
+
+import { rewriteFileAtomic } from "./atomic_file.ts";
 
 import { spawnCapture } from "@bounded-systems/proc";
 
@@ -69,30 +70,35 @@ export function ensurePrxExcludes(opts: EnsurePrxExcludesOptions): EnsurePrxExcl
   }
 
   const excludePath = join(commonDir, "info", "exclude");
-  mkdirSync(dirname(excludePath), { recursive: true });
 
-  const existing = existsSync(excludePath) ? readFileSync(excludePath, "utf8") : "";
-  let lines = existing.split(/\r?\n/);
+  // Read + rewrite through one descriptor (rewriteFileAtomic) rather than
+  // existsSync-then-read-then-write (CodeQL js/file-system-race). The helper
+  // creates the file (and parent dir) when it doesn't exist yet.
+  rewriteFileAtomic(excludePath, (current) => {
+    let lines = (current ?? "").split(/\r?\n/);
 
-  if (workspaceTrack) {
-    const filteredLines = lines.filter((line) => line.trim() !== ".prx/");
-    if (filteredLines.length !== lines.length) {
-      excludeRemovedRules.push(".prx/");
-      lines = filteredLines;
+    if (workspaceTrack) {
+      const filteredLines = lines.filter((line) => line.trim() !== ".prx/");
+      if (filteredLines.length !== lines.length) {
+        excludeRemovedRules.push(".prx/");
+        lines = filteredLines;
+      }
     }
-  }
 
-  const missingRules = excludeRules.filter(
-    (rule) => !lines.some((line) => line.trim() === rule),
-  );
+    const missingRules = excludeRules.filter(
+      (rule) => !lines.some((line) => line.trim() === rule),
+    );
 
-  if (missingRules.length > 0 || excludeRemovedRules.length > 0) {
+    if (missingRules.length === 0 && excludeRemovedRules.length === 0) {
+      return null;
+    }
+
     const body = lines.filter((line) => line.length > 0);
     const trailing = body.length > 0 ? "\n" : "";
     const append = missingRules.length > 0 ? `${missingRules.join("\n")}\n` : "";
-    writeFileSync(excludePath, `${body.join("\n")}${trailing}${append}`);
     excludeUpdatedRules.push(...missingRules);
-  }
+    return `${body.join("\n")}${trailing}${append}`;
+  });
 
   return { excludePath, excludeRules, excludeUpdatedRules, excludeRemovedRules };
 }

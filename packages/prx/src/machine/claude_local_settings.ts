@@ -19,8 +19,9 @@
  * profile already permits. Raw git/gh/bd/wt stay on the permission-prompt path
  * unless the profile explicitly lists them (triage lists `bd`/`gh issue`).
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
+
+import { rewriteFileAtomic } from "../tools/atomic_file.ts";
 
 import { SESSION_PROFILES, type SessionProfileName } from "./runtime_profiles.ts";
 
@@ -59,50 +60,53 @@ export function ensureClaudeAllowlistPatterns(
   patterns: readonly string[],
 ): EnsureClaudeAllowlistResult {
   const absPath = join(cwd, CLAUDE_LOCAL_SETTINGS_RELATIVE_PATH);
-  const fileExists = existsSync(absPath);
 
-  if (!fileExists) {
-    mkdirSync(dirname(absPath), { recursive: true });
-    const fresh: SettingsShape = {
-      permissions: { allow: [...patterns] },
+  // Read and rewrite through one descriptor (rewriteFileAtomic) rather than
+  // existsSync-then-read-then-write, which CodeQL flags as js/file-system-race.
+  let malformed = false;
+  const result = rewriteFileAtomic(absPath, (current) => {
+    if (current === null) {
+      const fresh: SettingsShape = { permissions: { allow: [...patterns] } };
+      return `${JSON.stringify(fresh, null, 2)}\n`;
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(current);
+    } catch {
+      malformed = true;
+      return null;
+    }
+    if (!isPlainObject(parsed)) {
+      malformed = true;
+      return null;
+    }
+    const settings = parsed as SettingsShape;
+    const existingPermissions = isPlainObject(settings.permissions) ? settings.permissions : {};
+    const existingAllow: unknown[] = Array.isArray(existingPermissions.allow)
+      ? (existingPermissions.allow as unknown[])
+      : [];
+    const present = new Set(
+      existingAllow.filter((entry): entry is string => typeof entry === "string"),
+    );
+    const missing = patterns.filter((pattern) => !present.has(pattern));
+    if (missing.length === 0) return null;
+    const nextSettings: SettingsShape = {
+      ...settings,
+      permissions: {
+        ...existingPermissions,
+        allow: [...existingAllow, ...missing],
+      },
     };
-    writeFileSync(absPath, `${JSON.stringify(fresh, null, 2)}\n`);
+    return `${JSON.stringify(nextSettings, null, 2)}\n`;
+  });
+
+  if (malformed) {
+    return { status: "skipped-malformed", path: absPath };
+  }
+  if (!result.existed) {
     return { status: "created", path: absPath };
   }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(absPath, "utf8"));
-  } catch {
-    return { status: "skipped-malformed", path: absPath };
-  }
-  if (!isPlainObject(parsed)) {
-    return { status: "skipped-malformed", path: absPath };
-  }
-
-  const settings = parsed as SettingsShape;
-  const existingPermissions = isPlainObject(settings.permissions) ? settings.permissions : {};
-  const existingAllow: unknown[] = Array.isArray(existingPermissions.allow)
-    ? (existingPermissions.allow as unknown[])
-    : [];
-
-  const present = new Set(
-    existingAllow.filter((entry): entry is string => typeof entry === "string"),
-  );
-  const missing = patterns.filter((pattern) => !present.has(pattern));
-  if (missing.length === 0) {
-    return { status: "unchanged", path: absPath };
-  }
-
-  const nextSettings: SettingsShape = {
-    ...settings,
-    permissions: {
-      ...existingPermissions,
-      allow: [...existingAllow, ...missing],
-    },
-  };
-  writeFileSync(absPath, `${JSON.stringify(nextSettings, null, 2)}\n`);
-  return { status: "updated", path: absPath };
+  return { status: result.wrote ? "updated" : "unchanged", path: absPath };
 }
 
 /**

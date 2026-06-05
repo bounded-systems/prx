@@ -20,7 +20,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 type BeadsIssue = {
@@ -80,15 +80,10 @@ function parseArgs(argv: string[]): ParsedArgs {
 function resolveWritePath(raw: string, today: string): string {
   // If it's an existing directory, or the path has no .md suffix and no
   // extension, treat as a directory and auto-name the file.
-  let looksLikeDir = raw.endsWith("/");
-  if (!looksLikeDir) {
-    try {
-      looksLikeDir = statSync(raw).isDirectory();
-    } catch {
-      // Doesn't exist yet; fall back to extension heuristic.
-    }
-  }
-  if (looksLikeDir || !raw.toLowerCase().endsWith(".md")) {
+  // Treat as a directory when the path ends in "/" or lacks a .md suffix.
+  // (Avoids a statSync(raw) that CodeQL would pair with the later write as a
+  // js/file-system-race.)
+  if (raw.endsWith("/") || !raw.toLowerCase().endsWith(".md")) {
     return join(raw, `${today}.md`);
   }
   return raw;
@@ -176,14 +171,20 @@ function main(): void {
 
   const today = new Date().toISOString().slice(0, 10);
   const target = resolveWritePath(writePath, today);
-  if (existsSync(target) && !force) {
-    console.error(
-      `audit_sample: refusing to overwrite existing file ${target} (pass --force to replace it)`,
-    );
-    process.exit(2);
-  }
   mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, rendered);
+  // Atomic refuse-to-overwrite: `wx` fails with EEXIST if the file exists,
+  // avoiding an existsSync→write TOCTOU window (CodeQL js/file-system-race).
+  try {
+    writeFileSync(target, rendered, { flag: force ? "w" : "wx" });
+  } catch (err) {
+    if (!force && (err as NodeJS.ErrnoException).code === "EEXIST") {
+      console.error(
+        `audit_sample: refusing to overwrite existing file ${target} (pass --force to replace it)`,
+      );
+      process.exit(2);
+    }
+    throw err;
+  }
   console.log(target);
 }
 

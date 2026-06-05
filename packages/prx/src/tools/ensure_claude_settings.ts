@@ -12,13 +12,10 @@
  * The handler never touches `<repoRoot>/.claude/settings.local.json`, which is
  * a per-user Claude scratch surface.
  */
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { rewriteFileAtomic } from "./atomic_file.ts";
 
 export type EnsureClaudeSettingsOptions = {
   /** Resolved repo root (`git rev-parse --show-toplevel`). */
@@ -57,12 +54,15 @@ export function ensureClaudeSettings(
   }
 
   const canonical = readFileSync(sourcePath, "utf8");
-  const current = existsSync(targetPath) ? readFileSync(targetPath, "utf8") : null;
-  if (current === canonical) {
-    return { targetPath, sourcePath, wrote: false, reason: "unchanged" };
-  }
-
-  mkdirSync(dirname(targetPath), { recursive: true });
-  writeFileSync(targetPath, canonical);
-  return { targetPath, sourcePath, wrote: true, reason: "wrote" };
+  // Read + rewrite the target through one descriptor (rewriteFileAtomic)
+  // rather than existsSync-then-read-then-write (CodeQL js/file-system-race).
+  const result = rewriteFileAtomic(targetPath, (current) =>
+    current === canonical ? null : canonical,
+  );
+  return {
+    targetPath,
+    sourcePath,
+    wrote: result.wrote,
+    reason: result.wrote ? "wrote" : "unchanged",
+  };
 }
