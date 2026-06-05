@@ -842,7 +842,7 @@ import {
   parseDispatchCommand as parseDispatchArgv,
 } from "./dispatch/parse.ts";
 import { renderDispatchOutcome, runDispatch } from "./dispatch/handler.ts";
-import { rewriteFileAtomic } from "../tools/atomic_file.ts";
+import { rewriteExistingFileAtomic, rewriteFileAtomic } from "../tools/atomic_file.ts";
 import {
   formatScoutGrepJsonLines,
   runScoutGrep,
@@ -15042,8 +15042,7 @@ export function runBeadsInit(
     output.log(`repair: rewriting ${metadataPath} dolt_database ${metadataDatabase ?? "unset"} -> ${database}`);
     if (!dryRun) {
       let invalidJson = false;
-      rewriteFileAtomic(metadataPath, (current) => {
-        if (current === null) return null;
+      rewriteExistingFileAtomic(metadataPath, (current) => {
         let metadata: { dolt_database?: string };
         try {
           metadata = JSON.parse(current);
@@ -15105,8 +15104,7 @@ export function runBeadsInit(
     // (CodeQL js/file-system-race).
     if (!dryRun) {
       let invalidJson = false;
-      rewriteFileAtomic(metadataPath, (current) => {
-        if (current === null) return null;
+      rewriteExistingFileAtomic(metadataPath, (current) => {
         let metadata: { dolt_database?: string };
         try {
           metadata = JSON.parse(current);

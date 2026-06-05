@@ -1,52 +1,67 @@
-import { closeSync, ftruncateSync, mkdirSync, openSync, readFileSync, writeFileSync, writeSync } from "node:fs";
+import { closeSync, ftruncateSync, mkdirSync, openSync, readFileSync, writeSync } from "node:fs";
 import { dirname } from "node:path";
 
 /**
- * Read a file and conditionally rewrite it atomically through a single
- * descriptor.
+ * Read a file and conditionally rewrite it atomically, creating it when absent.
  *
  * Replaces the `existsSync(p) ? readFileSync(p) : default` → `writeFileSync(p)`
- * shape, which CodeQL flags as `js/file-system-race`: the existence check (or
- * the try-read used as one) and the later write race because they re-resolve
- * the path independently. Here the read and the rewrite share one descriptor,
- * so they refer to the same inode.
+ * shape, which CodeQL flags as `js/file-system-race`. A single `a+` open
+ * (create-or-open, read+write) avoids any existence probe — there's no
+ * check-then-act — and the read and rewrite share one descriptor, so they
+ * refer to the same inode.
  *
- * `transform` receives the current contents, or `null` when the file does not
- * exist, and returns the new contents — or `null` to leave the file untouched
- * (and, when absent, to not create it). Missing parent directories are created
- * for the create path. Returns whether the file existed and whether a write
- * happened.
+ * `transform` receives the current contents, or `null` when the file is brand
+ * new or empty, and returns the new contents — or `null` to leave it as-is.
+ * (Callers here always return content for the `null` case; a `null` return for
+ * a freshly-created file would leave an empty file behind.) Missing parent
+ * directories are created. Returns whether the file already had content and
+ * whether a write happened.
  */
 export function rewriteFileAtomic(
   path: string,
   transform: (current: string | null) => string | null,
 ): { existed: boolean; wrote: boolean } {
+  mkdirSync(dirname(path), { recursive: true });
+  const fd = openSync(path, "a+");
+  try {
+    const current = readFileSync(fd, "utf8");
+    const existed = current.length > 0;
+    const next = transform(existed ? current : null);
+    if (next === null || next === current) {
+      return { existed, wrote: false };
+    }
+    ftruncateSync(fd, 0);
+    writeSync(fd, next);
+    return { existed, wrote: true };
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/**
+ * Like {@link rewriteFileAtomic} but never creates the file: a missing path is
+ * a no-op. Uses a single `r+` descriptor (read + in-place rewrite), so there's
+ * no existence check that a later write could race (`js/file-system-race`).
+ * `transform` receives the current contents and returns the new contents, or
+ * `null` to leave the file untouched. Returns whether a write happened.
+ */
+export function rewriteExistingFileAtomic(
+  path: string,
+  transform: (current: string) => string | null,
+): boolean {
   let fd: number;
   try {
     fd = openSync(path, "r+");
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
-    // No file yet — create it exclusively (`wx` = O_CREAT|O_EXCL) so the
-    // create is atomic rather than an exists-check-then-write race. If the path
-    // appeared in the meantime (EEXIST), fall back to the rewrite path.
-    const next = transform(null);
-    if (next === null) return { existed: false, wrote: false };
-    mkdirSync(dirname(path), { recursive: true });
-    try {
-      writeFileSync(path, next, { flag: "wx" });
-      return { existed: false, wrote: true };
-    } catch (createErr) {
-      if ((createErr as NodeJS.ErrnoException).code !== "EEXIST") throw createErr;
-      return rewriteFileAtomic(path, transform);
-    }
+  } catch {
+    return false;
   }
   try {
     const current = readFileSync(fd, "utf8");
     const next = transform(current);
-    if (next === null || next === current) return { existed: true, wrote: false };
+    if (next === null || next === current) return false;
     ftruncateSync(fd, 0);
-    writeSync(fd, next, 0);
-    return { existed: true, wrote: true };
+    writeSync(fd, next);
+    return true;
   } finally {
     closeSync(fd);
   }
