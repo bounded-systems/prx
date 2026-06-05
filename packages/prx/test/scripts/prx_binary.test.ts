@@ -56,7 +56,7 @@ function run(
   };
 }
 
-describe("prx compiled binary", () => {
+describe.skipIf(!hasBinary())("prx compiled binary", () => {
   let sandbox: string;
 
   beforeAll(() => {
@@ -75,35 +75,30 @@ describe("prx compiled binary", () => {
 
   describe("version", () => {
     test("--version prints a baked git SHA", () => {
-      if (!hasBinary()) return;
       const { stdout, exitCode } = run(["--version"], { cwd: sandbox });
       expect(exitCode).toBe(0);
       expect(stdout).toMatch(/^git-[0-9a-f]{12}$/);
     });
 
     test("-v is an alias for --version", () => {
-      if (!hasBinary()) return;
       const { stdout, exitCode } = run(["-v"], { cwd: sandbox });
       expect(exitCode).toBe(0);
       expect(stdout).toMatch(/^git-[0-9a-f]{12}$/);
     });
 
     test("version subcommand prints the same format", () => {
-      if (!hasBinary()) return;
       const { stdout, exitCode } = run(["version"], { cwd: sandbox });
       expect(exitCode).toBe(0);
       expect(stdout).toMatch(/^git-[0-9a-f]{12}$/);
     });
 
     test("baked SHA is stable across invocations", () => {
-      if (!hasBinary()) return;
       const first = run(["--version"], { cwd: sandbox }).stdout;
       const second = run(["--version"], { cwd: sandbox }).stdout;
       expect(first).toBe(second);
     });
 
     test("no update hint when sandbox has no origin/main", () => {
-      if (!hasBinary()) return;
       const { stderr, exitCode } = run(["--version"], { cwd: sandbox });
       expect(exitCode).toBe(0);
       expect(stderr).toBe("");
