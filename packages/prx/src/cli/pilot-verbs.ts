@@ -12,6 +12,7 @@ import { z } from "zod";
 
 import { createFleetMachine, type FleetContext } from "../machine/machines/fleet.ts";
 import { createPilotMachine, stubLegRunner } from "../machine/machines/pilot.ts";
+import { buildRealPilotDeps, wantsRealPilot } from "./pilot-real.ts";
 import { defineVerb } from "./verbspec.ts";
 
 export const pilotVerb = defineVerb({
@@ -35,10 +36,15 @@ export const pilotVerb = defineVerb({
     summarySignedBy: z.string().nullable(),
   }),
   run: async ({ workUnitId, retreatBudget }) => {
-    const actor = createActor(createPilotMachine(stubLegRunner), {
+    // Real subagents + real signatures when PRX_PILOT_REAL is set; else stubs.
+    const real = wantsRealPilot();
+    const deps = real ? buildRealPilotDeps() : stubLegRunner;
+    // Real legs run real Claude sessions (minutes); the stub path is instant.
+    const timeout = real ? 30 * 60_000 : 4000;
+    const actor = createActor(createPilotMachine(deps), {
       input: { workUnitId, ...(retreatBudget !== undefined ? { retreatBudget } : {}) },
     }).start();
-    const done = await waitFor(actor, (s) => s.status === "done", { timeout: 4000 });
+    const done = await waitFor(actor, (s) => s.status === "done", { timeout });
     return {
       workUnitId,
       finalState: String(done.value),
