@@ -49,7 +49,11 @@ describe("intake→triage edge (prx-4fa)", () => {
 
   test("normalizeUow validates and rejects an unknown status", () => {
     expect(normalizeUow({ id: "GH-1", title: "t", status: "open" }).status).toBe("open");
+    expect(normalizeUow({ id: "GH-2", title: "t", status: "in_progress" }).status).toBe("in_progress");
+
     expect(() => normalizeUow({ id: "GH-1", title: "t", status: "frozen" })).toThrow();
+    expect(() => normalizeUow({ id: "GH-3", title: "t", status: "Open" })).toThrow();
+    expect(() => normalizeUow({ id: "GH-4", title: "t", status: "" })).toThrow();
   });
 
   test("intake pins a uow from its impure home; triage consumes the snapshot", async () => {
@@ -61,6 +65,16 @@ describe("intake→triage edge (prx-4fa)", () => {
 
     const got = await consumeUow("GH-1900");
     expect(got.value).toEqual({ id: "GH-1900", title: "stale board column", status: "open" });
+  });
+
+  test("pinUow propagates reader errors for unknown units", async () => {
+    const read = fakeReader({
+      "GH-1900": { id: "GH-1900", title: "stale board column", status: "open" },
+    });
+
+    await expect(pinUow("GH-UNKNOWN", read)).rejects.toThrow(
+      "fake: no record for GH-UNKNOWN",
+    );
   });
 
   test("uowFresh: fresh after pin, stale once the live issue/bead drifts", async () => {
