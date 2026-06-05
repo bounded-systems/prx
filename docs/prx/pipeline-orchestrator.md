@@ -92,6 +92,19 @@ Signing locus: the leg-runner signs at the host boundary with the role's key
 Self-signing via a `prx` signing tool in the subagent's allowlist is the
 stronger v2 variant.
 
+**Real signatures (not stubs).** `pilot-signing.ts` wires the artifacts to the
+repo's actual provenance stack: `resolveProvenanceSigner()` returns an ed25519
+`Signer` (`PRX_PROVENANCE_KEY=dev` / per-actor / stable `ed25519:<b64>`), and we
+sign the standard DSSE pre-authentication encoding of each statement.
+`realStatementSigner(signer)` drops straight into `createPilotMachine({
+signSummary })` / `createFleetMachine(_, { signBatch })`; `realRoleSigner` does
+the leg links. `verifyStatement` / `verifyLeg` check them. Proven in
+`pilot-signing.test.ts`: a pilot summary and a fleet batch carry genuine sigs
+that verify, a tampered predicate or wrong key is rejected, and the ambient
+dev-mode resolver round-trips end to end. Open: store each leg's `outputHash` on
+its link so step links are verifiable from the chain alone (today `verifyLeg`
+needs the hash passed in).
+
 ## CI is a hard block — by construction
 
 The pilot tail is `reviewing → awaiting_ci → ready_to_merge → sealing → merged`.
