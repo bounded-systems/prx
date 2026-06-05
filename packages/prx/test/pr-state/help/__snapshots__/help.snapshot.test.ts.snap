@@ -163,6 +163,8 @@ Work units:
   prx keeper branch              Create or update the work-unit branch ref (keeper role)
   prx keeper commit              Headlessly stage and commit the worktree (keeper role; GH-2346)
   prx audit uow                  Project per-UoW artifact chain and invariant findings
+  prx scope-gate                 Gate a commit's diff against the plan's declared scope
+  prx scope-gate run             Check files_changed ⊆ plan.paths; emit a signed gate/v1 verdict
   prx submit body-template       Render PR body with Closes/Refs lines per unit
   prx submit postmerge           Sweep merged PR body, close referenced units missed
   prx submit stage               Stage git state into a CAS submit artifact (publish producer)

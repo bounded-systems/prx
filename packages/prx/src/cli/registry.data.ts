@@ -1288,6 +1288,20 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "audit",
   },
   {
+    name: "scope-gate",
+    description: "Gate a commit's diff against the plan's declared scope",
+    domain: "work-units",
+    actor: "scope-gate",
+  },
+  {
+    name: "scope-gate run",
+    parent: "scope-gate",
+    description: "Check files_changed ⊆ plan.paths; emit a signed gate/v1 verdict",
+    domain: "work-units",
+    binding: "work-unit",
+    actor: "scope-gate",
+  },
+  {
     name: "audit system",
     parent: "audit",
     description: "Roll up seven V1 metrics across the artifact graph",

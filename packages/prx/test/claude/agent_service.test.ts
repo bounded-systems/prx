@@ -502,6 +502,7 @@ describe("submit_plan plan-artifact capture (GH-2337)", () => {
     scope: "Capture the typed PlanArtifact via the submit_plan SDK tool.",
     approach: "Inject a prx-plan in-process MCP server at the IO boundary.",
     changes: ["src/claude/agent_service.ts: add the capture seam"],
+    paths: ["src/claude/agent_service.ts"],
     risks: ["test seam must reach the in-process handler without a transport"],
     acceptance: ["result.text equals renderPlanArtifact(captured)"],
   };

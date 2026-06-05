@@ -23,6 +23,7 @@ const valid: PlanArtifact = {
   scope: "Add a submit_plan tool that captures a typed PlanArtifact.",
   approach: "Register an in-process SDK tool; render its input to markdown.",
   changes: ["src/plan-store/plan-artifact.ts", "src/claude/agent_service.ts"],
+  paths: ["src/plan-store/plan-artifact.ts", "src/claude/agent_service.ts"],
   risks: ["plan permission mode may block the custom tool"],
   acceptance: ["draft slot lands with validated_ok=true"],
 };
@@ -57,6 +58,13 @@ describe("PlanArtifactSchema (ai-home-r5crv)", () => {
     });
     expect(parsed.changes).toEqual([]);
     expect(parsed.risks).toEqual([]);
+    // prx-tth: the scope-gate allowlist defaults empty (⇒ fail-closed).
+    expect(parsed.paths).toEqual([]);
+  });
+
+  test("prx-tth: the structured `paths` allowlist round-trips", () => {
+    const parsed = PlanArtifactSchema.parse(valid);
+    expect(parsed.paths).toEqual(valid.paths);
   });
 });
 
@@ -71,7 +79,7 @@ describe("renderPlanArtifact (ai-home-r5crv)", () => {
 
   test("renders every section heading in canonical order", () => {
     const md = renderPlanArtifact(valid);
-    const order = ["## Problem", "## Scope", "## Approach", "## Changes", "## Risks", "## Acceptance"];
+    const order = ["## Problem", "## Scope", "## Approach", "## Changes", "## Paths", "## Risks", "## Acceptance"];
     let last = -1;
     for (const h of order) {
       const at = md.indexOf(h);

@@ -214,7 +214,7 @@ export async function runAttestedChecks(
   return true;
 }
 
-interface AttestationSpec {
+export interface AttestationSpec {
   readonly buildType: string;
   readonly subject: readonly SlsaResourceDescriptor[];
   readonly resolvedDependencies?: readonly SlsaResourceDescriptor[];
@@ -227,8 +227,13 @@ interface AttestationSpec {
  * inside), so re-emitting an identical attestation is idempotent — the stored
  * record is returned without a duplicate append, mirroring
  * `recordScoutReadDerivation`.
+ *
+ * Exported (prx-tth) so the gate framework can emit a `gate/v1` attestation
+ * directly: unlike {@link attestingProc} (which only signs on `status === 0`),
+ * a gate calls this unconditionally so a *failed* verdict is signed evidence
+ * too — the verdict lives in `externalParameters`.
  */
-async function persistAttestation(
+export async function persistAttestation(
   deps: AttestDeps,
   spec: AttestationSpec,
 ): Promise<Derivation> {
