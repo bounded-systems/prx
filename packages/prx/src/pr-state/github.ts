@@ -41,7 +41,6 @@ import type {
 } from "@bounded-systems/surface-sync";
 import {
   computeSurfaceSync,
-  resolveFeatureForPrefix,
   issueParityFeatureEnabled,
   issueFeatureForUnit,
   issueFeatureStatus,
@@ -4682,46 +4681,6 @@ export function commandForSurfaceSyncAction(
   }
 }
 
-function targetForActionType(action: SurfaceSyncAction): AgentPlanAction["target"] {
-  switch (action.type) {
-    case "delete_remote_branch":
-    case "push_remote_branch":
-      return "remote_branch";
-    case "delete_local_branch":
-    case "create_local_branch":
-      return "branch";
-    case "create_worktree":
-    case "delete_worktree":
-    case "open_tmux_session":
-    case "kill_tmux_session":
-    case "close_prx_session":
-      return "worktree";
-    case "open_pr":
-      return "pr";
-    case "close_issue":
-      return "issue";
-  }
-}
-
-function classifyActionType(action: SurfaceSyncAction): AgentPlanAction["type"] {
-  switch (action.type) {
-    case "delete_remote_branch":
-    case "delete_local_branch":
-    case "delete_worktree":
-    case "kill_tmux_session":
-    case "close_prx_session":
-    case "close_issue":
-      return "delete";
-    case "create_local_branch":
-    case "create_worktree":
-    case "open_pr":
-    case "open_tmux_session":
-      return "create";
-    case "push_remote_branch":
-      return "sync";
-  }
-}
-
 export type FallbackIssueLabel = {
   name: string;
 };
@@ -5759,7 +5718,8 @@ function dispositionForUnit(
   const tmux = unit.tmux ?? { present: false, sessionName: null };
 
   let issueFeatureEnabled = false;
-  let issueStatus: "clean" | "dirty" | "completed" | "disabled" = "disabled";
+  // Assigned on both branches below before it is read.
+  let issueStatus: "clean" | "dirty" | "completed" | "disabled";
   if (parityConfig && routingConfig) {
     const issueFeature = issueFeatureForUnit(unit.branch, routingConfig);
     issueFeatureEnabled = issueFeature ? issueParityFeatureEnabled(parityConfig, issueFeature) : false;

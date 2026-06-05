@@ -487,7 +487,6 @@ describe("--resolve schema-prefer-remote", () => {
   test("happy path: detect conflict on commit, resolve, retry commit, finish reconciled", () => {
     let bdCommitCalls = 0;
     const fx = makeMatchedFixture((file, args) => {
-      const key = `${file} ${args.join(" ")}`;
       if (file === "bd") {
         if (args[0] === "dolt" && args[1] === "commit") {
           bdCommitCalls++;

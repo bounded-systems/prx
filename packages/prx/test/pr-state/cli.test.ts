@@ -1,13 +1,11 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "bun:test";
 import type {
   CommandRunner as GithubCommandRunner,
-  ProtectMainBranchCheckResult,
-  ProtectMainBranchResult,
   WtStatusResult,
 } from "../../src/pr-state/github.ts";
 import { commandForSurfaceSyncAction } from "../../src/pr-state/github.ts";
@@ -54,7 +52,7 @@ import {
   type PrxSessionNotProjectedLocallyDetails,
 } from "../../src/machine/session_open.ts";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
-import { loadIdentityConfig, loadWorkspaceConfig } from "../../src/pr-state/github.ts";
+import { loadWorkspaceConfig } from "../../src/pr-state/github.ts";
 import { buildIdentityFromLegacy } from "./identity-helpers.ts";
 
 function beadRecord(overrides: Partial<BeadsRecord> = {}): BeadsRecord {
@@ -115,104 +113,6 @@ function mockEnsureWorkUnitBranchFlow(
     return { status: 0, stdout: "", stderr: "" };
   }
   return null;
-}
-
-function makeRepoInventoryConfig(overrides: Partial<RepoInventoryConfig> = {}): RepoInventoryConfig {
-  return {
-    repoRoot,
-    bareRoot: "/Users/dev/.local/share/git/bare",
-    roots: ["/Users/dev/.local/share/git/bare"],
-    everywhereRoots: ["/Users/dev/.local/share/git/bare", "/Users/dev/.local/share"],
-    globalConfigPath: `${repoRoot}/.prx/repos/global.json`,
-    configPath: `${repoRoot}/.prx/repos/config.json`,
-    indexPath: `${repoRoot}/.prx/repos/index.json`,
-    ...overrides,
-  };
-}
-
-function makeRepoInventory(overrides: Partial<RepoInventory> = {}): RepoInventory {
-  return {
-    roots: [],
-    repos: [],
-    bareRoot: "/Users/dev/.local/share/git/bare",
-    ...overrides,
-  };
-}
-
-function makeProtectMainBranchResult(
-  overrides: Partial<ProtectMainBranchResult>,
-): ProtectMainBranchResult {
-  return {
-    backend: "branch-protection",
-    repo: "bdelanghe/ai-home",
-    branch: "main",
-    viewer: "bdelanghe",
-    owner: "bdelanghe",
-    ownerType: "User",
-    rulesetId: null,
-    rulesetName: null,
-    solo: false,
-    approvalContributorCount: null,
-    requireLastPushApprovalSuppressed: false,
-    requiredApprovingReviewCountSuppressed: false,
-    apply: false,
-    applied: false,
-    enforceAdmins: false,
-    requireConversationResolution: false,
-    requireLastPushApproval: false,
-    requiredApprovingReviewCount: 1,
-    requireLinearHistory: false,
-    requiredStatusChecks: [],
-    payload: {
-      required_status_checks: null,
-      enforce_admins: null,
-      required_pull_request_reviews: {
-        dismiss_stale_reviews: true,
-        require_code_owner_reviews: false,
-        required_approving_review_count: 1,
-        require_last_push_approval: false,
-      },
-      restrictions: null,
-      required_linear_history: false,
-      allow_force_pushes: false,
-      allow_deletions: false,
-      block_creations: false,
-      required_conversation_resolution: false,
-      lock_branch: false,
-      allow_fork_syncing: false,
-    },
-    command: ["gh", "api", "--method", "PUT", "repos/bdelanghe/ai-home/branches/main/protection"],
-    ...overrides,
-  };
-}
-
-function makeProtectMainBranchCheckResult(
-  overrides: Partial<ProtectMainBranchCheckResult>,
-): ProtectMainBranchCheckResult {
-  return {
-    backend: "branch-protection",
-    repo: "bdelanghe/ai-home",
-    branch: "main",
-    viewer: "bdelanghe",
-    owner: "bdelanghe",
-    ownerType: "User",
-    rulesetId: null,
-    rulesetName: null,
-    solo: false,
-    approvalContributorCount: null,
-    requireLastPushApprovalSuppressed: false,
-    requiredApprovingReviewCountSuppressed: false,
-    enforceAdmins: false,
-    requireConversationResolution: false,
-    requireLastPushApproval: false,
-    requiredApprovingReviewCount: 1,
-    requireLinearHistory: false,
-    requiredStatusChecks: [],
-    desired: makeProtectMainBranchResult({}).payload,
-    live: makeProtectMainBranchResult({}).payload,
-    matches: false,
-    ...overrides,
-  };
 }
 
 function makeContractFile(state = "drafting", ready = false) {
@@ -7507,7 +7407,7 @@ describe("pr_state cli", () => {
     // backfill actions are now resolved automatically by resolveWorkUnitLaunchCwd.
     // We verify that the old error is NOT emitted.
     const errors: string[] = [];
-    const exitCode = await runCliDirect(
+    await runCliDirect(
       ["open","GH-171"],
       {
         log: () => {},

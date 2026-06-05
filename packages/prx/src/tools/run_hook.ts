@@ -28,7 +28,6 @@ import { defaultRunner as procDefaultRunner } from "@bounded-systems/proc";
 import {
   type CommandRunner,
   defaultRunner,
-  parseGithubRepo,
   reverseDnsRepoSegments,
 } from "../pr-state/github.ts";
 import { ensurePrxExcludes } from "./ignore_sync.ts";

@@ -10,7 +10,6 @@ import {
   requireCanonicalWorkUnitId,
 } from "../machine/work_unit.ts";
 import {
-  initialTaskRoleContext,
   roleExecutionStatuses,
   taskRoleMachine,
   taskRoles,

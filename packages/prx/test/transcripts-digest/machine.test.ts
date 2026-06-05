@@ -10,7 +10,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { runTranscriptsDigest } from "../../src/transcripts-digest/cli.ts";
-import { commitCandidate } from "../../src/transcripts-digest/commit-writer.ts";
 
 let scratch: string[] = [];
 function tmp(prefix: string): string {

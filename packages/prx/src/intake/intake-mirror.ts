@@ -167,7 +167,7 @@ function fetchGhTitle(
 function findExisting(
   records: BeadsRecord[],
   ghNumber: number,
-  repo: string | undefined,
+  repo: string,
 ): BeadsRecord | null {
   // GH-2254: an issue number can carry more than one bd record when bd's
   // short-id recycling has left a closed phantom colliding on the live
@@ -179,12 +179,11 @@ function findExisting(
   let firstMatch: BeadsRecord | null = null;
   for (const record of records) {
     if (record.externalIssueNumber !== ghNumber) continue;
-    if (repo) {
-      // When --repo is non-default we additionally compare repo prefixes to
-      // avoid cross-repo collisions on the same issue number.
-      const recRepo = extractRepoFromUrl(record.externalRef);
-      if (recRepo !== null && recRepo !== repo) continue;
-    }
+    // When --repo is non-default we additionally compare repo prefixes to
+    // avoid cross-repo collisions on the same issue number. (`repo` is always
+    // resolved to a non-empty string before this is called.)
+    const recRepo = extractRepoFromUrl(record.externalRef);
+    if (recRepo !== null && recRepo !== repo) continue;
     if (record.status === "open") return record;
     if (firstMatch === null) firstMatch = record;
   }

@@ -57,11 +57,6 @@ function makeFixture(params: {
     homeDir: "/home/test",
   };
 
-  const output = {
-    log: (l: string) => logs.push(l),
-    error: (l: string) => errs.push(l),
-  };
-
   return { logs, errs, calls, deps, configPath };
 }
 

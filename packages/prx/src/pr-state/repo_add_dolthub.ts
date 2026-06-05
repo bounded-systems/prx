@@ -13,10 +13,7 @@
 // sibling. Idempotency invariant: a repo already wired at the candidate URL
 // short-circuits to `already-wired` without invoking bd.
 
-import {
-  buildDoltRemoteUrl,
-  parseGitOrigin,
-} from "../beads/hydrate.ts";
+import { parseGitOrigin } from "../beads/hydrate.ts";
 import {
   classifyBeadsWorkspace as defaultClassifyBeadsWorkspace,
   type BeadsWorkspaceMode,

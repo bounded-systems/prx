@@ -92,7 +92,6 @@ describe("verify.ts — SLSA-aware live verifier", () => {
 
   test("an unsigned derivation (no envelope) fails closed", async () => {
     const kp = generateEd25519Keypair();
-    const d = await slsaDerivation(ed25519Signer(kp.privateKey, kp.keyid));
     const unsigned: Pick<Derivation, "envelope"> = {};
     expect(
       await verifySlsaDerivation(unsigned, ed25519Verifier(kp.publicKey)),

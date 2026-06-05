@@ -1380,7 +1380,6 @@ describe("runTriageDriftFix — GH-1255 dupe + doctor surfaces", () => {
         stderr: "",
       };
     };
-    const o = makeOutput();
     const result = await runDriftFixActor(
       {
         apply: true,

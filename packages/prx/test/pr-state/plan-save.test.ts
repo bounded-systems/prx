@@ -31,7 +31,6 @@ function captureOutput(): { logs: string[]; errors: string[]; output: Output } {
   };
 }
 
-const FAKE_SHA = "deadbeef".repeat(8);
 const ENVELOPE_SHA = `sha256:${"a".repeat(64)}`;
 const BODY_SHA = `sha256:${"b".repeat(64)}`;
 

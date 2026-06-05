@@ -427,9 +427,10 @@ export function runDoltReconcileWithResult(
 
   for (const step of pipeline) {
     let resolveAttempted = false;
-    let stepCompleted = false;
 
-    while (!stepCompleted) {
+    // Each step retries in place (via `continue`) after a schema resolution and
+    // otherwise exits the loop with break/return — so the loop is unconditional.
+    while (true) {
       const args = bdArgs(step);
       const spawnResult = spawn("bd", args, { cwd: options.repoPath, env });
 
@@ -463,7 +464,6 @@ export function runDoltReconcileWithResult(
           stderrTail: stderrTail || undefined,
           command: commandString(step),
         });
-        stepCompleted = true;
         break;
       }
 
@@ -475,7 +475,6 @@ export function runDoltReconcileWithResult(
           stderrTail: stderrTail || undefined,
           command: commandString(step),
         });
-        stepCompleted = true;
         break;
       }
 

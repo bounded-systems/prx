@@ -25,7 +25,6 @@ import {
   type WriteCasBlobOutput,
 } from "../../src/machine/machines/dispatch.ts";
 import {
-  getRef,
   readBlob,
 } from "../../src/plan-store/cas.ts";
 
