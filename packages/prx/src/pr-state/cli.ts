@@ -412,6 +412,7 @@ import {
 // GH-2348.2: keeper attested-push handler.
 import { runKeeperPush, type KeeperPushDeps } from "./keeper.ts";
 import { runScopeGate, ScopeGateInputError } from "./scope-gate.ts";
+import { runTestGate, TestGateInputError } from "./test-gate.ts";
 import type { GateResult } from "../provenance/gate.ts";
 // GH-1508: doctor substrate-tier dedupe verb (ADR §6).
 import { runDedupeBd as doctorRunDedupeBd } from "../doctor/dedupe-bd.ts";
@@ -1478,6 +1479,15 @@ type ParsedCommand =
       command: "scope-gate-run";
       workUnitId: string;
       ledger?: string | undefined;
+      format: "plain" | "json";
+    }
+  | {
+      // prx-x8ji — `prx test-gate run <unit>`: run the checks the executor
+      // skipped (typecheck + test) and emit a signed `gate/v1` verdict.
+      command: "test-gate-run";
+      workUnitId: string;
+      ledger?: string | undefined;
+      cwd?: string | undefined;
       format: "plain" | "json";
     }
   | {
@@ -6707,7 +6717,73 @@ function parseScopeGateCommand(rest: string[]): ParsedCommand {
   };
 }
 
-function formatScopeGateResult(result: GateResult, format: "plain" | "json"): string {
+// prx-x8ji — `prx test-gate <verb>`: the checks verification gate.
+const TEST_GATE_VERBS = ["run"] as const;
+
+function printTestGateHelp(): string {
+  return [
+    "Usage: prx test-gate run <work-unit-id> [options]",
+    "",
+    "Run the checks the executor skipped (typecheck + test) against the",
+    "implement commit and emit a signed `gate/v1` verdict (a fail is signed",
+    "evidence too). Exit 0 = pass, 1 = fail.",
+    "",
+    "Options:",
+    "  --cwd <path>      directory to run the checks in (default: cwd)",
+    "  --ledger <path>   anchored-chain ledger to append the attestation to",
+    "                    (default: the canonical per-UoW ledger)",
+    "  --format <plain|json>",
+    "",
+    "Requires a signer: set PRX_PROVENANCE_KEY=dev (or ed25519:<b64>).",
+  ].join("\n");
+}
+
+function printTestGateHelpAndExit(): never {
+  process.stdout.write(printTestGateHelp() + "\n");
+  process.exit(0);
+}
+
+function parseTestGateCommand(rest: string[]): ParsedCommand {
+  if (rest.length === 0 || rest[0] === "--help" || rest[0] === "-h") {
+    printTestGateHelpAndExit();
+  }
+  const verbArg = rest[0]!;
+  if (!(TEST_GATE_VERBS as readonly string[]).includes(verbArg)) {
+    throw new CliError(
+      `prx test-gate: unknown verb '${verbArg}'. Valid verbs: ${TEST_GATE_VERBS.join(", ")}.`,
+    );
+  }
+  const subRest = rest.slice(1);
+  if (subRest.includes("--help") || subRest.includes("-h")) {
+    printTestGateHelpAndExit();
+  }
+  // verb === "run"
+  const { values, positionals } = parseArgs({
+    args: subRest,
+    options: {
+      format: { type: "string", default: "plain" },
+      ledger: { type: "string" },
+      cwd: { type: "string" },
+    },
+    strict: true,
+    allowPositionals: true,
+  });
+  if (positionals.length === 0) {
+    throw new CliError("prx test-gate run requires a work-unit id (e.g. GH-1823)");
+  }
+  if (positionals.length > 1) {
+    throw new CliError("prx test-gate run accepts a single work-unit id");
+  }
+  return {
+    command: "test-gate-run",
+    workUnitId: parseCanonicalWorkUnitId(positionals[0]!, "test-gate run"),
+    ...(values.ledger !== undefined ? { ledger: values.ledger } : {}),
+    ...(values.cwd !== undefined ? { cwd: values.cwd } : {}),
+    format: ensureChoice(values.format, ["plain", "json"], "--format"),
+  };
+}
+
+function formatGateResult(result: GateResult, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify({
       gate: result.gate,
@@ -6719,7 +6795,7 @@ function formatScopeGateResult(result: GateResult, format: "plain" | "json"): st
   }
   const v = result.verdict;
   const lines = [
-    `scope-gate: ${result.pass ? "PASS" : "FAIL"} (${v.unit})`,
+    `${result.gate}-gate: ${result.pass ? "PASS" : "FAIL"} (${v.unit})`,
     `  subject:     ${v.subject}`,
     `  verdict ref: ${result.ref}`,
     `  attestation: ${result.derivationId}`,
@@ -8305,6 +8381,11 @@ export function parseCommand(argv: string[]): ParsedCommand {
   // prx-tth: `prx scope-gate run <unit>` — the scope verification gate.
   if (command === "scope-gate") {
     return parseScopeGateCommand(rest);
+  }
+
+  // prx-x8ji: `prx test-gate run <unit>` — the checks verification gate.
+  if (command === "test-gate") {
+    return parseTestGateCommand(rest);
   }
 
   // GH-1407: `prx services <verb>` — read-only external-plane status.
@@ -22554,10 +22635,46 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             signer,
             store: store.derivations,
           });
-          output.log(formatScopeGateResult(result, parsed.format));
+          output.log(formatGateResult(result, parsed.format));
           return result.pass ? 0 : 1;
         } catch (err) {
           if (err instanceof ScopeGateInputError) {
+            output.error(err.message);
+            return 2;
+          }
+          throw err;
+        } finally {
+          store.close();
+        }
+      })();
+    }
+
+    // prx-x8ji: test-gate — run the checks the executor skipped and emit a
+    // signed `gate/v1` verdict. Same provenance wiring as scope-gate, plus a
+    // local proc executor to run the steps.
+    if (parsed.command === "test-gate-run") {
+      return (async () => {
+        const signer = resolveProvenanceSigner();
+        const emissionLedger =
+          parsed.ledger ?? resolveCanonicalChainLedger(process.cwd())?.ledgerPath;
+        if (signer === null || emissionLedger === undefined) {
+          output.error(
+            "test-gate: no provenance signer/ledger configured — set PRX_PROVENANCE_KEY=dev (and run inside a work-unit, or pass --ledger).",
+          );
+          return 2;
+        }
+        mkdirSync(dirname(emissionLedger), { recursive: true });
+        const store = openAnchoredChain(emissionLedger);
+        try {
+          const result = await runTestGate(parsed.workUnitId, parsed.cwd ?? process.cwd(), {
+            signer,
+            store: store.derivations,
+            runCheck: localProcExecutor(),
+          });
+          output.log(formatGateResult(result, parsed.format));
+          return result.pass ? 0 : 1;
+        } catch (err) {
+          if (err instanceof TestGateInputError) {
             output.error(err.message);
             return 2;
           }

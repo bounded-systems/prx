@@ -1302,6 +1302,20 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "scope-gate",
   },
   {
+    name: "test-gate",
+    description: "Run the checks the executor skipped, as a signed gate",
+    domain: "work-units",
+    actor: "test-gate",
+  },
+  {
+    name: "test-gate run",
+    parent: "test-gate",
+    description: "Run typecheck + test on the commit; emit a signed gate/v1 verdict",
+    domain: "work-units",
+    binding: "work-unit",
+    actor: "test-gate",
+  },
+  {
     name: "audit system",
     parent: "audit",
     description: "Roll up seven V1 metrics across the artifact graph",
