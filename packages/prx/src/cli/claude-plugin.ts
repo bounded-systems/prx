@@ -16,6 +16,7 @@
  * same registry.
  */
 
+import { pluginAllowedTools, type ActorPolicies } from "./permissions.ts";
 import { verbToken, type Registry, type VerbSpec } from "./verbspec.ts";
 
 export type PluginFile = { path: string; content: string };
@@ -29,20 +30,24 @@ export type ClaudePluginOpts = {
   mcpArgs?: string[];
   /** Slash-command filename prefix. Default "prx". */
   commandPrefix?: string;
+  /** Per-actor tool policy driving each command's `allowed-tools`. */
+  policies?: ActorPolicies;
 };
 
 /** `mcp__<server>__<verbToken>` — how a slash command names the verb's tool. */
 export const mcpToolRef = (serverName: string, v: VerbSpec): string =>
   `mcp__${serverName}__${verbToken(v.id)}`;
 
-function renderCommand(v: VerbSpec, serverName: string): string {
+function renderCommand(v: VerbSpec, serverName: string, policies?: ActorPolicies): string {
   const tool = mcpToolRef(serverName, v);
   const hint = (v.positionals ?? []).map((p) => `<${p}>`).join(" ");
+  // The verb's own MCP tool + the actor's allowed tools (capability projection).
+  const allowed = pluginAllowedTools(v, tool, policies).join(", ");
   return [
     "---",
     `description: ${v.summary}`,
     `argument-hint: ${hint || "[args]"}`,
-    `allowed-tools: ${tool}, Read, Grep, Glob`,
+    `allowed-tools: ${allowed}`,
     "---",
     "",
     `Run the prx \`${v.id}\` verb (actor: **${v.actor}**) by calling the \`${tool}\``,
@@ -95,7 +100,7 @@ export function toClaudePlugin(reg: Registry, opts: ClaudePluginOpts = {}): Plug
 
   for (const v of Object.values(reg)) {
     const slug = `${prefix}-${v.id.split(" ").join("-")}`;
-    files.push({ path: `commands/${slug}.md`, content: renderCommand(v, name) });
+    files.push({ path: `commands/${slug}.md`, content: renderCommand(v, name, opts.policies) });
   }
 
   return files;

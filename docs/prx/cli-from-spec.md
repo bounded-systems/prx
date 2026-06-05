@@ -91,13 +91,17 @@ CLI-isms (positional mapping, comma-split arrays, boolean flags) live in
   schema is the only validation. End-to-end: plugin `.mcp.json` → `prx mcp serve`
   → `tools/call` → `verb.run`.
 
+- **Permission projection** (`permissions.ts`) — built. A verb's `actor` drives
+  its `ToolPolicy {allow, deny}` (the GH-1530 registry-derived ruleset idea);
+  one table projects to the CLI flag-layer (`--allowedTools`/`--disallowedTools`)
+  and the plugin command's `allowed-tools` frontmatter, so the CLI and the
+  plugin grant the SAME authority. Unknown actors fall back to `READ_ONLY`.
+  Wired into `toClaudePlugin`. (5 tests.)
+
 ## Open
 
 - **Output presenters** — optional `present(output)` on `VerbSpec` for a custom
   pretty-printer (table, status line) beyond `render`'s JSON.
-- **Permission projection** — the `actor` field should drive the allow/deny tool
-  lists per surface (CLI flag-layer, MCP exposure, plugin `allowed-tools`),
-  tying into the capability model.
 
 ## Tracked follow-up (separate spike)
 
