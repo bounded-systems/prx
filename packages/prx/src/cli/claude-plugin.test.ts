@@ -58,6 +58,31 @@ describe("prx as a Claude Code plugin (projection of the registry)", () => {
     ]);
   });
 
+  test("emits a monitor that streams the runtime audit log into the session", () => {
+    const files = toClaudePlugin(reg);
+
+    // The watcher script the monitor runs.
+    const watch = find(files, "bin/prx-audit-watch.sh")!;
+    expect(watch).toBeDefined();
+    expect(watch.content).toContain("#!/usr/bin/env bash");
+    // Follows the daily audit NDJSON and forwards leg + agent-lifecycle rows.
+    expect(watch.content).toContain("prx/audit");
+    expect(watch.content).toContain("tail -n0 -F");
+    expect(watch.content).toMatch(/machine.*pilot|fleet|session-entry/);
+
+    // The monitor manifest points at that script via the plugin-root var.
+    const monitors = JSON.parse(find(files, "monitors/monitors.json")!.content);
+    expect(Array.isArray(monitors)).toBe(true);
+    expect(monitors[0].name).toBe("prx-pipeline");
+    expect(monitors[0].command).toContain("${CLAUDE_PLUGIN_ROOT}/bin/prx-audit-watch.sh");
+  });
+
+  test("the monitor name tracks the plugin name", () => {
+    const files = toClaudePlugin(reg, { name: "prx-dev" });
+    const monitors = JSON.parse(find(files, "monitors/monitors.json")!.content);
+    expect(monitors[0].name).toBe("prx-dev-pipeline");
+  });
+
   test("opts customize runtime command + plugin name", () => {
     const files = toClaudePlugin(reg, { name: "prx-dev", mcpCommand: "/usr/local/bin/prx", mcpArgs: ["mcp"] });
     const mcp = JSON.parse(find(files, ".mcp.json")!.content);
