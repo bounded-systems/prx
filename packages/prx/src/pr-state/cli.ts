@@ -411,6 +411,8 @@ import {
 } from "./publisher.ts";
 // GH-2348.2: keeper attested-push handler.
 import { runKeeperPush, type KeeperPushDeps } from "./keeper.ts";
+import { runScopeGate, ScopeGateInputError } from "./scope-gate.ts";
+import type { GateResult } from "../provenance/gate.ts";
 // GH-1508: doctor substrate-tier dedupe verb (ADR §6).
 import { runDedupeBd as doctorRunDedupeBd } from "../doctor/dedupe-bd.ts";
 // GH-1823: audit actor — read-only adherence metrics over the artifact graph.
@@ -1462,6 +1464,14 @@ type ParsedCommand =
   | {
       command: "audit-system";
       since?: string | undefined;
+      format: "plain" | "json";
+    }
+  | {
+      // prx-tth — `prx scope-gate run <unit>`: gate that implement.files_changed
+      // ⊆ plan.paths, emitting a signed `gate/v1` verdict.
+      command: "scope-gate-run";
+      workUnitId: string;
+      ledger?: string | undefined;
       format: "plain" | "json";
     }
   | {
@@ -6596,6 +6606,94 @@ function parseAuditCommand(rest: string[]): ParsedCommand {
   };
 }
 
+// prx-tth — `prx scope-gate <verb>`: the scope verification gate.
+const SCOPE_GATE_VERBS = ["run"] as const;
+
+function printScopeGateHelp(): string {
+  return [
+    "Usage: prx scope-gate run <work-unit-id> [options]",
+    "",
+    "Gate that the implementation stayed inside the plan's declared scope:",
+    "checks implement.files_changed ⊆ plan.paths and emits a signed `gate/v1`",
+    "verdict (a fail is signed evidence too). Exit 0 = pass, 1 = fail.",
+    "",
+    "Options:",
+    "  --ledger <path>   anchored-chain ledger to append the attestation to",
+    "                    (default: the canonical per-UoW ledger)",
+    "  --format <plain|json>",
+    "",
+    "Requires a signer: set PRX_PROVENANCE_KEY=dev (or ed25519:<b64>).",
+  ].join("\n");
+}
+
+function printScopeGateHelpAndExit(): never {
+  process.stdout.write(printScopeGateHelp() + "\n");
+  process.exit(0);
+}
+
+function parseScopeGateCommand(rest: string[]): ParsedCommand {
+  if (rest.length === 0 || rest[0] === "--help" || rest[0] === "-h") {
+    printScopeGateHelpAndExit();
+  }
+  const verbArg = rest[0]!;
+  if (!(SCOPE_GATE_VERBS as readonly string[]).includes(verbArg)) {
+    throw new CliError(
+      `prx scope-gate: unknown verb '${verbArg}'. Valid verbs: ${SCOPE_GATE_VERBS.join(", ")}.`,
+    );
+  }
+  const subRest = rest.slice(1);
+  if (subRest.includes("--help") || subRest.includes("-h")) {
+    printScopeGateHelpAndExit();
+  }
+  // verb === "run"
+  const { values, positionals } = parseArgs({
+    args: subRest,
+    options: {
+      format: { type: "string", default: "plain" },
+      ledger: { type: "string" },
+    },
+    strict: true,
+    allowPositionals: true,
+  });
+  if (positionals.length === 0) {
+    throw new CliError("prx scope-gate run requires a work-unit id (e.g. GH-1823)");
+  }
+  if (positionals.length > 1) {
+    throw new CliError("prx scope-gate run accepts a single work-unit id");
+  }
+  return {
+    command: "scope-gate-run",
+    workUnitId: parseCanonicalWorkUnitId(positionals[0]!, "scope-gate run"),
+    ...(values.ledger !== undefined ? { ledger: values.ledger } : {}),
+    format: ensureChoice(values.format, ["plain", "json"], "--format"),
+  };
+}
+
+function formatScopeGateResult(result: GateResult, format: "plain" | "json"): string {
+  if (format === "json") {
+    return JSON.stringify({
+      gate: result.gate,
+      pass: result.pass,
+      ref: result.ref,
+      derivationId: result.derivationId,
+      verdict: result.verdict,
+    });
+  }
+  const v = result.verdict;
+  const lines = [
+    `scope-gate: ${result.pass ? "PASS" : "FAIL"} (${v.unit})`,
+    `  subject:     ${v.subject}`,
+    `  verdict ref: ${result.ref}`,
+    `  attestation: ${result.derivationId}`,
+  ];
+  if (v.reason) lines.push(`  reason:      ${v.reason}`);
+  if (v.violations.length > 0) {
+    lines.push("  violations:");
+    for (const f of v.violations) lines.push(`    - ${f}`);
+  }
+  return lines.join("\n");
+}
+
 // GH-1407 — `prx services <verb>` read-only external-plane status verb.
 const SERVICES_VERBS = ["status"] as const;
 
@@ -8164,6 +8262,11 @@ export function parseCommand(argv: string[]): ParsedCommand {
   // Verbs: ingest | uow <id> | system. No bd / gh / git writes.
   if (command === "audit") {
     return parseAuditCommand(rest);
+  }
+
+  // prx-tth: `prx scope-gate run <unit>` — the scope verification gate.
+  if (command === "scope-gate") {
+    return parseScopeGateCommand(rest);
   }
 
   // GH-1407: `prx services <verb>` — read-only external-plane status.
@@ -22347,6 +22450,41 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         { ...(parsed.since !== undefined ? { since: parsed.since } : {}), format: parsed.format },
         output,
       );
+    }
+
+    // prx-tth: scope-gate — emit a signed `gate/v1` verdict that the commit
+    // stayed within the plan's declared scope. Mirrors the publish handler's
+    // provenance wiring (signer + canonical-or-explicit ledger).
+    if (parsed.command === "scope-gate-run") {
+      return (async () => {
+        const signer = resolveProvenanceSigner();
+        const emissionLedger =
+          parsed.ledger ?? resolveCanonicalChainLedger(process.cwd())?.ledgerPath;
+        if (signer === null || emissionLedger === undefined) {
+          output.error(
+            "scope-gate: no provenance signer/ledger configured — set PRX_PROVENANCE_KEY=dev (and run inside a work-unit, or pass --ledger).",
+          );
+          return 2;
+        }
+        mkdirSync(dirname(emissionLedger), { recursive: true });
+        const store = openAnchoredChain(emissionLedger);
+        try {
+          const result = await runScopeGate(parsed.workUnitId, {
+            signer,
+            store: store.derivations,
+          });
+          output.log(formatScopeGateResult(result, parsed.format));
+          return result.pass ? 0 : 1;
+        } catch (err) {
+          if (err instanceof ScopeGateInputError) {
+            output.error(err.message);
+            return 2;
+          }
+          throw err;
+        } finally {
+          store.close();
+        }
+      })();
     }
 
     // GH-1407: services verb — Anthropic prompt-cache hit-rate projector.

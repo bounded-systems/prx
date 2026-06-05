@@ -31,6 +31,12 @@ export const PlanArtifactShape = {
     .array(nonEmpty)
     .default([])
     .describe("File-level change list: paths touched and the nature of each change."),
+  paths: z
+    .array(nonEmpty)
+    .default([])
+    .describe(
+      "Structured path allowlist (repo-relative) the implementation may touch — the machine-checkable scope boundary scope-gate enforces (implement.files_changed ⊆ paths). An empty list means no declared scope: scope-gate fails closed.",
+    ),
   risks: z
     .array(nonEmpty)
     .default([])
@@ -75,6 +81,13 @@ export function renderPlanArtifact(artifact: PlanArtifact): string {
     "## Changes",
     "",
     renderList(artifact.changes),
+    "",
+    "## Paths",
+    "",
+    // `paths` (prx-tth) post-dates some captured plans; tolerate its absence so
+    // rendering a pre-`paths` artifact does not throw (the schema default only
+    // applies on `.parse`, not to a raw captured object).
+    renderList(artifact.paths ?? []),
     "",
     "## Risks",
     "",

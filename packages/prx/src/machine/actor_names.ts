@@ -145,6 +145,12 @@ export const actorNames = [
   // --anthropic` (prompt-cache hit rate per profile/actor/workUnitId);
   // per-actor budget planes belong to GH-1826.
   "services",
+  // prx-tth (epic prx-9zh): the scope verification gate. A read-only CLI verb
+  // (`scope-gate run <unit>`) that checks implement.files_changed ⊆ plan.paths
+  // and emits a signed `gate/v1` verdict. Like `audit`, it is registry/CLI
+  // vocabulary only — not a machine `toolActorCatalog` actor (it owns no XState
+  // events; its side effect is the signed ledger attestation).
+  "scope-gate",
   // GH-1318: post/pre-merge cleanup actor for issues GitHub does not
   // auto-close because the PR title's `(GH-N)` suffix is decorative, not a
   // close-keyword. Ships two verbs: `submit body-template` (pre-merge `Closes

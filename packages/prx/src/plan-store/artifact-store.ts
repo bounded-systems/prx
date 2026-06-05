@@ -25,7 +25,10 @@ export type ArtifactKind =
   // head of a unit's chain — content-anchored, drift-detectable via isFresh.
   | "source"
   // prx-4fa: the intake→triage unit-of-work artifact (FOD-pinned).
-  | "uow";
+  | "uow"
+  // prx-tth: a gate's signed verdict — `<unit>:gate@<gateName>` (e.g.
+  // `gate@scope`). Carries the pass/fail + the `gate/v1` attestation digest.
+  | "gate";
 
 /** Canonical ref for an artifact slot: `<unit>:<kind>@<slot>`. */
 export function artifactRef(
