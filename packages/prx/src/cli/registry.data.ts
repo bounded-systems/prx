@@ -1239,6 +1239,19 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     binding: "work-unit",
     actor: "keeper",
   },
+  {
+    // GH-201: `keeper serve` runs keeperd — the persistent git-write/signing
+    // daemon — on a unix socket inside an isolated VM. Infrastructure verb, not
+    // an operator command: `internal: true` keeps it out of the user-facing
+    // help/plugin surfaces while still registering it as a real keeper verb.
+    name: "keeper serve",
+    parent: "keeper",
+    description: "Run the keeperd git-write/signing daemon on a unix socket (keeper role; GH-201)",
+    domain: "work-units",
+    binding: "work-unit",
+    actor: "keeper",
+    internal: true,
+  },
 
   // ─── Provenance — read-only signing-identity inspection (GH-2282) ──────────
   // `provenance dev-pubkey` prints (and bootstraps on first use) the persisted

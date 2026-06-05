@@ -132,6 +132,17 @@ describe("prx keeper CLI verb validation (GH-2353)", () => {
     expect(exit).not.toBe(0);
     expect(errors.some((l) => l.includes("requires a message"))).toBe(true);
   });
+
+  test("serve without --socket → non-zero with a socket hint (GH-201)", async () => {
+    const errors: string[] = [];
+    const exit = await runCli(
+      ["keeper", "serve"],
+      { log: () => {}, error: (l: string) => errors.push(l) },
+      {},
+    );
+    expect(exit).not.toBe(0);
+    expect(errors.some((l) => l.includes("requires a socket"))).toBe(true);
+  });
 });
 
 describe("prx keeper commit — headless commit (GH-2346)", () => {

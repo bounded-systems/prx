@@ -411,6 +411,7 @@ import {
 } from "./publisher.ts";
 // GH-2348.2: keeper attested-push handler.
 import { runKeeperPush, type KeeperPushDeps } from "./keeper.ts";
+import { runKeeperServe, type KeeperDaemonDeps } from "../keeperd/daemon.ts";
 import { runScopeGate, ScopeGateInputError } from "./scope-gate.ts";
 import { runTestGate, TestGateInputError } from "./test-gate.ts";
 import type { GateResult } from "../provenance/gate.ts";
@@ -1898,12 +1899,14 @@ type ParsedCommand =
       // GH-2353 (GH-2348.3): `prx keeper <verb>` — git-write / ref custody.
       command: "keeper";
       format: "plain" | "json";
-      verb: "push" | "branch" | "commit";
+      verb: "push" | "branch" | "commit" | "serve";
       passArgs: string[];
       // GH-2346: commit message for `keeper commit` (add -A + commit).
       message?: string | undefined;
       // GH-2348.2: anchored-chain ledger for the attested `keeper push`.
       ledger?: string | undefined;
+      // GH-201: unix socket path for the `keeper serve` daemon (keeperd).
+      socket?: string | undefined;
       cwd?: string | undefined;
     }
   | {
@@ -8318,7 +8321,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
   if (command === "keeper") {
     const { prxArgs, passthrough } = splitPassthroughArgv(
       rest,
-      new Set(["format", "cwd", "message", "ledger"]),
+      new Set(["format", "cwd", "message", "ledger", "socket"]),
       new Set(),
     );
     const { values, positionals } = parseArgs({
@@ -8329,14 +8332,22 @@ export function parseCommand(argv: string[]): ParsedCommand {
         message: { type: "string" },
         // GH-2348.2: opt-in attested push (emit a signed push/v1 derivation).
         ledger: { type: "string" },
+        // GH-201: unix socket path for the `keeper serve` daemon (keeperd).
+        socket: { type: "string" },
       },
       strict: true,
       allowPositionals: true,
     });
     const verb = positionals[0];
-    if (verb !== "push" && verb !== "branch" && verb !== "commit") {
+    if (verb !== "push" && verb !== "branch" && verb !== "commit" && verb !== "serve") {
       throw new CliError(
-        "prx keeper requires a verb: push | branch | commit (e.g. `prx keeper commit -m \"msg\"`)",
+        "prx keeper requires a verb: push | branch | commit | serve (e.g. `prx keeper commit -m \"msg\"`)",
+      );
+    }
+    // GH-201: `keeper serve` runs the keeperd daemon on a unix socket.
+    if (verb === "serve" && (typeof values.socket !== "string" || values.socket.length === 0)) {
+      throw new CliError(
+        "prx keeper serve requires a socket: --socket <path> (the keeperd listen path)",
       );
     }
     // GH-2346: `keeper commit` finalizes the worktree headlessly (add -A +
@@ -8359,6 +8370,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
       passArgs: [...positionals.slice(1), ...passthrough],
       ...(message !== undefined ? { message } : {}),
       ...(values.ledger !== undefined ? { ledger: values.ledger } : {}),
+      ...(values.socket !== undefined ? { socket: values.socket } : {}),
       cwd: values.cwd,
     };
   }
@@ -24325,6 +24337,22 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "keeper") {
+      // GH-201: `keeper serve` runs keeperd — the persistent git-write/signing
+      // daemon — on a unix socket. The host's IsolatedKeeperClient frames
+      // requests to it; the daemon dispatches each to runKeeperCommitTree +
+      // runKeeperPush under role=keeper. The in-VM signer (attest) is wired in
+      // slice 4 (gated); until then a request's ledgerRef yields a bare push.
+      if (parsed.verb === "serve") {
+        return (async () => {
+          const deps: KeeperDaemonDeps = {};
+          if (parsed.cwd !== undefined) deps.cwd = parsed.cwd;
+          const server = await runKeeperServe({ socketPath: parsed.socket!, deps });
+          output.error(`keeperd: listening on ${parsed.socket}`);
+          // Block until the process is terminated — the daemon runs until killed.
+          await new Promise<void>((resolve) => server.on("close", () => resolve()));
+          return 0;
+        })();
+      }
       // GH-2346: `keeper commit` finalizes the worktree headlessly — stage all
       // changes then commit, both under role=keeper (no manual git, no TTY).
       // `git add` + `git commit` are already in keeper's allowlist; producing a
