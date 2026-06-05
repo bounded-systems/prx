@@ -86,10 +86,12 @@ describe("value props (prx-8mx)", () => {
     const vp = VALUE_PROPS.find((v) => v.claim.includes("cannot perform an action"));
     expect(vp).toBeDefined();
     expect(isValuePropBacked(vp!)).toBe(true);
-  });
+    expect(vp).toBeDefined();
+    expect(isValuePropBacked(vp!)).toBe(true);
 
   test("cost visibility is honestly a learning goal (not yet backed)", () => {
     const vp = VALUE_PROPS.find((v) => v.claim.includes("what each work unit cost"));
+    expect(vp).toBeDefined();
     expect(vp).toBeDefined();
     expect(isValuePropBacked(vp!)).toBe(false);
   });
