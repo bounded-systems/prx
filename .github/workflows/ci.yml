@@ -5,11 +5,11 @@ on:
   push:
     branches:
       - main
-  merge_group:
 
 # Cancel superseded runs on the same PR (a new push kills the stale run — the
 # largest Actions-minute leak on a private repo). Scoped to pull_request only:
-# never cancel a merge_group (queue) or a push:main run, which must each finish.
+# never cancel a push:main run, which validates main post-merge (the merge
+# queue was removed, so push:main is the post-merge safety net).
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
