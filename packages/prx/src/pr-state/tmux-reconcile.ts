@@ -479,10 +479,17 @@ export function formatTmuxReconcile(
   const lines: string[] = [];
   lines.push(dryRun ? "prx tmux reconcile (dry-run):" : "prx tmux reconcile:");
 
+  // The exact command an operator can run to restart the prx tmux server so
+  // unsupported lines (hooks/plugins/user-options) take effect. Matches the
+  // socket form shown elsewhere (prx-mux/src/tmux.ts).
+  const restartCmd = `tmux -L ${result.socket} kill-server`;
+
   if (result.errors.length === 0 && !result.serverRunning) {
     lines.push(`  ${result.socket}: server not running, nothing to reconcile`);
     if (result.unsupported.length > 0) {
-      lines.push(`  note: ${result.unsupported.length} hook/plugin/user-option line(s) skipped (server restart required to apply)`);
+      // A stopped server reloads the whole config on next start, so no restart
+      // is required — the skipped lines apply automatically then.
+      lines.push(`  note: ${result.unsupported.length} hook/plugin/user-option line(s) will apply when a prx session next starts the server`);
     }
     return lines.join("\n");
   }
@@ -507,7 +514,7 @@ export function formatTmuxReconcile(
   }
 
   if (result.unsupported.length > 0) {
-    lines.push(`  note: ${result.unsupported.length} hook/plugin/user-option line(s) skipped (server restart required to apply)`);
+    lines.push(`  note: ${result.unsupported.length} hook/plugin/user-option line(s) skipped; restart the prx tmux server to apply: ${restartCmd}`);
   }
   return lines.join("\n");
 }

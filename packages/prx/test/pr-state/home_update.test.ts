@@ -242,7 +242,7 @@ describe("runHomeUpdate", () => {
     // prx (unchanged) is absent from the commit message.
     expect(msg).not.toContain("prx ");
     const log = fx.logs.join("\n");
-    expect(log).toContain("prx: no-op (prxsame)");
+    expect(log).toContain("prx: already up to date (prxsame)");
     expect(log).toContain("ai-home: aih1111 → aih2222");
   });
 
@@ -357,11 +357,94 @@ describe("runHomeUpdate", () => {
 
     expect(exit).toBe(0);
     const log = fx.logs.join("\n");
-    expect(log).toContain("ai-home: no-op (same123)");
+    expect(log).toContain("ai-home: already up to date (same123)");
+    // No readlink dep wired → generation unknown → falls back to prior wording.
     expect(log).toContain("home-manager switched (no input moved)");
     // No git calls fire on a no-op — only nix update + hm switch.
     expect(fx.spawnCalls).toHaveLength(2);
     expect(fx.spawnCalls.some((c) => c.file === "git")).toBe(false);
+  });
+
+  test("switch summary names the generation when an input moved (genBefore != genAfter)", () => {
+    const fx = makeFixture({
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }, { "ai-home": "bbbbbbbbbb2222" }],
+      spawnResults: [{ status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }],
+    });
+    // Generation moves from 41 → 42 across the switch.
+    const targets = ["home-manager-41-link", "home-manager-42-link"];
+    fx.deps.readlink = () => targets.shift() ?? null;
+
+    const exit = runHomeUpdate(
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "plain" },
+      fx.output,
+      fx.deps,
+    );
+
+    expect(exit).toBe(0);
+    const log = fx.logs.join("\n");
+    expect(log).toContain("ai-home: aaaaaaa → bbbbbbb");
+    expect(log).toContain("home-manager switched → generation 42");
+  });
+
+  test("switch summary reports already-current with generation on a no-op", () => {
+    const fx = makeFixture({
+      lockStates: [{ "ai-home": "same1234567890" }, { "ai-home": "same1234567890" }],
+      spawnResults: [{ status: 0 }, { status: 0 }],
+    });
+    // Generation unchanged across the switch (no input moved).
+    fx.deps.readlink = () => "home-manager-42-link";
+
+    const exit = runHomeUpdate(
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "plain" },
+      fx.output,
+      fx.deps,
+    );
+
+    expect(exit).toBe(0);
+    const log = fx.logs.join("\n");
+    expect(log).toContain("ai-home: already up to date (same123)");
+    expect(log).toContain("home-manager already current (generation 42)");
+  });
+
+  test("switch summary reports unchanged generation when an input moved but generation held", () => {
+    const fx = makeFixture({
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }, { "ai-home": "bbbbbbbbbb2222" }],
+      spawnResults: [{ status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }],
+    });
+    // Same generation before and after even though the rev moved.
+    fx.deps.readlink = () => "home-manager-42-link";
+
+    const exit = runHomeUpdate(
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "plain" },
+      fx.output,
+      fx.deps,
+    );
+
+    expect(exit).toBe(0);
+    expect(fx.logs.join("\n")).toContain("home-manager switched (generation 42, unchanged)");
+  });
+
+  test("switch summary falls back to prior wording when the generation can't be read", () => {
+    const fx = makeFixture({
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }, { "ai-home": "bbbbbbbbbb2222" }],
+      spawnResults: [{ status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }],
+    });
+    // readlink fails / unreadable → generation unknown.
+    fx.deps.readlink = () => null;
+
+    const exit = runHomeUpdate(
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "plain" },
+      fx.output,
+      fx.deps,
+    );
+
+    expect(exit).toBe(0);
+    const log = fx.logs.join("\n");
+    expect(log).toContain("home-manager switched");
+    // Fallback summary carries no generation number (the bare "switching
+    // home-manager generation…" progress line is unrelated).
+    expect(log).not.toContain("→ generation");
+    expect(log).not.toContain("(generation");
   });
 
   test("dry-run prints commands but does not spawn", () => {

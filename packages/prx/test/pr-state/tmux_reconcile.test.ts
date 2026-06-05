@@ -286,7 +286,32 @@ describe("runTmuxReconcile", () => {
       fx.deps,
     );
     expect(code).toBe(0);
-    expect(fx.logs.join("\n")).toContain("hook/plugin/user-option line(s) skipped");
+    const out = fx.logs.join("\n");
+    expect(out).toContain("hook/plugin/user-option line(s) skipped");
+    // The note is actionable: it names the exact runnable restart command.
+    expect(out).toContain("tmux -L prx kill-server");
+  });
+
+  test("server not running with unsupported lines: note says they apply on next start, no restart-required contradiction", () => {
+    const fx = makeFixture({
+      configText: [
+        "set -g focus-events on",
+        "set-hook -g pane-title-changed 'run-shell foo'",
+      ].join("\n"),
+      hasSession: { status: 1 },
+      showResults: new Map(),
+    });
+    const code = runTmuxReconcile(
+      { socket: "prx", dryRun: false, format: "plain" },
+      { log: (l) => fx.logs.push(l), error: (l) => fx.errs.push(l) },
+      fx.deps,
+    );
+    expect(code).toBe(0);
+    const out = fx.logs.join("\n");
+    expect(out).toContain("server not running, nothing to reconcile");
+    expect(out).toContain("will apply when a prx session next starts the server");
+    // The contradictory / non-actionable wording is gone.
+    expect(out).not.toContain("server restart required");
   });
 
   test("XDG_CONFIG_HOME is respected for default config path", () => {
