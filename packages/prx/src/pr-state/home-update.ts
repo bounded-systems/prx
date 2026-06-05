@@ -1,6 +1,6 @@
 import { processEnv } from "@bounded-systems/env";
 import { defaultRunner } from "@bounded-systems/proc";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readlinkSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 
@@ -35,6 +35,13 @@ export type HomeUpdateDeps = {
   spawn?: HomeUpdateSpawn;
   readFile?: (path: string) => string;
   pathExists?: (path: string) => boolean;
+  /**
+   * Read the target of a symlink (best-effort). Used to detect the
+   * home-manager generation before/after the switch via the profile symlink.
+   * Returns null on any error so generation detection degrades gracefully to
+   * the prior wording when the profile path is unreadable.
+   */
+  readlink?: (path: string) => string | null;
   env?: NodeJS.ProcessEnv;
   homeDir?: string;
   /**
@@ -156,6 +163,50 @@ function shortRev(rev: string | null): string {
   return rev.length > 7 ? rev.slice(0, 7) : rev;
 }
 
+// The home-manager profile symlink whose target encodes the active generation
+// (`home-manager-<N>-link`). Honors XDG_STATE_HOME, falling back to the
+// conventional ~/.local/state location.
+function homeManagerProfilePath(env: NodeJS.ProcessEnv, homeDir: string): string {
+  const xdgState = env.XDG_STATE_HOME;
+  const base = xdgState && xdgState.length > 0 ? xdgState : resolve(homeDir, ".local/state");
+  return resolve(base, "nix", "profiles", "home-manager");
+}
+
+// Best-effort current home-manager generation number, or null when the profile
+// symlink can't be read or its target doesn't match the expected shape.
+function readGeneration(
+  readlink: (path: string) => string | null,
+  env: NodeJS.ProcessEnv,
+  homeDir: string,
+): number | null {
+  const target = readlink(homeManagerProfilePath(env, homeDir));
+  if (!target) return null;
+  const match = target.match(/home-manager-(\d+)-link/);
+  if (!match) return null;
+  const n = Number.parseInt(match[1]!, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+// Report what the switch did as its own fact, independent of whether any input
+// moved. Names the generation number when it could be read; otherwise falls
+// back to the prior wording so the feature degrades without erroring.
+function switchSummaryLine(
+  noop: boolean,
+  genBefore: number | null,
+  genAfter: number | null,
+): string {
+  if (genAfter !== null) {
+    if (genBefore !== null && genBefore !== genAfter) {
+      return `home-manager switched → generation ${genAfter}`;
+    }
+    if (!noop) {
+      return `home-manager switched (generation ${genAfter}, unchanged)`;
+    }
+    return `home-manager already current (generation ${genAfter})`;
+  }
+  return noop ? "home-manager switched (no input moved)" : "home-manager switched";
+}
+
 // prx-up2: a captured child's combined stdout+stderr as text (empty when the
 // child inherited the terminal, i.e. nothing was piped back).
 function captureToText(result: HomeUpdateSpawnResult): string {
@@ -217,6 +268,15 @@ export function runHomeUpdate(
     });
   const readFile = deps.readFile ?? ((path: string) => readFileSync(path, "utf8"));
   const pathExists = deps.pathExists ?? ((path: string) => existsSync(path));
+  const readlink =
+    deps.readlink ??
+    ((path: string) => {
+      try {
+        return readlinkSync(path);
+      } catch {
+        return null;
+      }
+    });
   const env = deps.env ?? processEnv();
   const homeDir = deps.homeDir ?? homedir();
 
@@ -425,6 +485,9 @@ export function runHomeUpdate(
     }
   }
 
+  // Best-effort generation snapshot around the switch so the summary line can
+  // report what the switch actually did (changed vs. already-current).
+  const genBefore = readGeneration(readlink, env, homeDir);
   if (quiet) output.log(`  switching home-manager generation…`);
   const switchResult = spawn(hmSwitchCmd[0]!, hmSwitchCmd.slice(1), {
     cwd: flakeDir,
@@ -447,6 +510,7 @@ export function runHomeUpdate(
   // Even on success, surface any warnings the activation log buried.
   if (quiet) surfaceNoteworthy(captureToText(switchResult), output);
 
+  const genAfter = readGeneration(readlink, env, homeDir);
   const noop = moved.length === 0;
 
   // GH-838: after home-manager switch, the rendered ~/.config/tmux/tmux.conf
@@ -488,16 +552,12 @@ export function runHomeUpdate(
       const from = fromRevs.get(name) ?? null;
       const to = toRevs.get(name) ?? null;
       if (from === to) {
-        output.log(`${name}: no-op (${shortRev(from)})`);
+        output.log(`${name}: already up to date (${shortRev(from)})`);
       } else {
         output.log(`${name}: ${shortRev(from)} → ${shortRev(to)}`);
       }
     }
-    output.log(
-      noop
-        ? "home-manager switched (no input moved)"
-        : "home-manager switched",
-    );
+    output.log(switchSummaryLine(noop, genBefore, genAfter));
     output.log(formatTmuxReconcile(reconcile.result, "plain", options.dryRun));
   }
 
