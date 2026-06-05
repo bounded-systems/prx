@@ -205,10 +205,10 @@ export function clearResurrectEntry(opts: { name: string; resurrectDir?: string 
   } catch {
     return;
   }
-  if (!existsSync(savePath)) {
-    return;
-  }
-
+  // No existence pre-check: reading and writing below are each guarded by
+  // try/catch, so a missing or concurrently-removed savePath is handled at
+  // point-of-use. Checking first would be a TOCTOU race (CodeQL
+  // js/file-system-race) without changing the outcome.
   let contents: string;
   try {
     contents = readFileSync(savePath, "utf8");
