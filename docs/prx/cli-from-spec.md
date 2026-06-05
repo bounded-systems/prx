@@ -67,12 +67,35 @@ CLI-isms (positional mapping, comma-split arrays, boolean flags) live in
 5. `/prx` and the role subagents consume `toAnthropicTool` of the same verbs, so
    the agent's tools and the CLI can't diverge.
 
+## More projections
+
+- **Namespaced router** (`router.ts`) — `dispatchTree` resolves the longest
+  matching multi-token verb id (`plan session`), exact-verb-wins-over-namespace,
+  and lists a namespace's children for bare `prx plan`. So the *whole* registry
+  is reachable, not just single-token verbs. (6 tests.)
+- **Claude Code plugin** (`claude-plugin.ts`) — "prx installed as a Claude
+  extension" is just another projection: `toClaudePlugin(registry)` emits a
+  plugin manifest, a `.mcp.json` pointing Claude at the **separate** runtime
+  (`prx mcp serve`), and one slash command per verb delegating to that verb's
+  MCP tool (`mcp__prx__<verbToken>`). Install the plugin, keep running the prx
+  binary — Claude calls in. The plugin's commands and the server's tools are the
+  same registry, so they can't drift. (4 tests.)
+
 ## Open
 
-- **Output presenters** — a verb may want a custom pretty-printer (table, status
-  line) beyond `render`'s JSON; add an optional `present(output)` to `VerbSpec`.
-- **Subcommand namespaces** — `plan session`, `intake spike` are two-token ids;
-  the router needs prefix resolution (trie over ids).
+- **Output presenters** — optional `present(output)` on `VerbSpec` for a custom
+  pretty-printer (table, status line) beyond `render`'s JSON.
 - **Permission projection** — the `actor` field should drive the allow/deny tool
-  lists per surface (CLI flag-layer, MCP exposure), tying into the capability
-  model.
+  lists per surface (CLI flag-layer, MCP exposure, plugin `allowed-tools`),
+  tying into the capability model.
+- **`prx mcp serve`** — the runtime side of the plugin: an MCP server that mounts
+  `toMcpToolset(registry)` and routes tool calls to each verb's `run`.
+
+## Tracked follow-up (separate spike)
+
+The real migration off `cli.ts` is its own work unit — **"refactor the CLI to be
+spec-driven and add the projections"**: port `registry.data.ts` entries to carry
+`input`/`output` Zod + `run`, move each `cli.ts` handler body into its verb,
+swap dispatch to `dispatchTree`, and stand up `prx mcp serve` + the OpenAPI doc
++ the Claude plugin as registry projections. File via `prx intake spike` once the
+beads/Dolt server is reachable. This doc + the spike slice are the design input.

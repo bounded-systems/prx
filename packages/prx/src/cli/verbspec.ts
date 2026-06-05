@@ -41,6 +41,13 @@ export function defineVerb<I extends ZodType, O extends ZodType>(spec: VerbSpec<
 
 export type JsonSchema = Record<string, unknown>;
 
+/**
+ * MCP/OpenAPI-safe token for a verb id: spaces → `_` (MCP tool names and
+ * OpenAPI operationIds can't contain spaces). `plan session` → `plan_session`;
+ * single-token ids are unchanged.
+ */
+export const verbToken = (id: string): string => id.replace(/\s+/g, "_");
+
 export const toInputJsonSchema = (v: VerbSpec): JsonSchema => z.toJSONSchema(v.input) as JsonSchema;
 export const toOutputJsonSchema = (v: VerbSpec): JsonSchema => z.toJSONSchema(v.output) as JsonSchema;
 
@@ -48,20 +55,20 @@ export const toOutputJsonSchema = (v: VerbSpec): JsonSchema => z.toJSONSchema(v.
 
 export type McpTool = { name: string; description: string; inputSchema: JsonSchema };
 export const toMcpTool = (v: VerbSpec): McpTool => ({
-  name: v.id,
+  name: verbToken(v.id),
   description: v.summary,
   inputSchema: toInputJsonSchema(v),
 });
 
 export type AnthropicTool = { name: string; description: string; input_schema: JsonSchema };
 export const toAnthropicTool = (v: VerbSpec): AnthropicTool => ({
-  name: v.id,
+  name: verbToken(v.id),
   description: v.summary,
   input_schema: toInputJsonSchema(v),
 });
 
 export const toOpenApiOperation = (v: VerbSpec): JsonSchema => ({
-  operationId: v.id,
+  operationId: verbToken(v.id),
   summary: v.summary,
   "x-prx-actor": v.actor,
   requestBody: {
@@ -73,9 +80,11 @@ export const toOpenApiOperation = (v: VerbSpec): JsonSchema => ({
   },
 });
 
-/** Project a whole registry to an OpenAPI `paths` object. */
+/** Project a whole registry to an OpenAPI `paths` object (ids → `/a/b` paths). */
 export const toOpenApiPaths = (reg: Registry): JsonSchema =>
-  Object.fromEntries(Object.values(reg).map((v) => [`/${v.id}`, { post: toOpenApiOperation(v) }]));
+  Object.fromEntries(
+    Object.values(reg).map((v) => [`/${v.id.split(" ").join("/")}`, { post: toOpenApiOperation(v) }]),
+  );
 
 /** Project a whole registry to an MCP toolset. */
 export const toMcpToolset = (reg: Registry): McpTool[] => Object.values(reg).map(toMcpTool);
