@@ -266,24 +266,24 @@ describe("clearResurrectEntry", () => {
     const contents = "pane\tgh_200\teditor\n";
     writeFileSync(save, contents);
     symlinkSync("save.txt", join(dir, "last"));
-    // Capture mtime/content through descriptors (fstat/read) rather than a
-    // path statSync-then-read, which CodeQL flags as js/file-system-race.
-    const fdBefore = openSync(save, "r");
-    const mtimeBefore = fstatSync(fdBefore).mtimeMs;
-    closeSync(fdBefore);
-
-    // Sleep briefly to ensure mtime resolution would show a change if we wrote.
-    const t0 = Date.now();
-    while (Date.now() - t0 < 5) { /* spin */ }
-
-    clearResurrectEntry({ name: "gh_100", resurrectDir: dir + "/" });
-
-    const fdAfter = openSync(save, "r");
+    // Hold one descriptor across the whole assertion: fstat/read the same fd
+    // before and after, so the file is never re-resolved by path (which CodeQL
+    // flags as js/file-system-race). The fd tracks the inode, so a rewrite by
+    // clearResurrectEntry would still surface as a changed mtime/content.
+    const fd = openSync(save, "r");
     try {
-      expect(fstatSync(fdAfter).mtimeMs).toBe(mtimeBefore);
-      expect(readFileSync(fdAfter, "utf8")).toBe(contents);
+      const mtimeBefore = fstatSync(fd).mtimeMs;
+
+      // Sleep briefly to ensure mtime resolution would show a change if we wrote.
+      const t0 = Date.now();
+      while (Date.now() - t0 < 5) { /* spin */ }
+
+      clearResurrectEntry({ name: "gh_100", resurrectDir: dir + "/" });
+
+      expect(fstatSync(fd).mtimeMs).toBe(mtimeBefore);
+      expect(readFileSync(fd, "utf8")).toBe(contents);
     } finally {
-      closeSync(fdAfter);
+      closeSync(fd);
     }
   });
 

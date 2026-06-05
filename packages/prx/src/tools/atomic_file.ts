@@ -26,14 +26,19 @@ export function rewriteFileAtomic(
     fd = openSync(path, "r+");
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
-    // No file yet — create it from the `null` branch of `transform`. The failed
-    // open is not an existence *check* (CodeQL doesn't pair it with the write),
-    // so this stays race-free.
+    // No file yet — create it exclusively (`wx` = O_CREAT|O_EXCL) so the
+    // create is atomic rather than an exists-check-then-write race. If the path
+    // appeared in the meantime (EEXIST), fall back to the rewrite path.
     const next = transform(null);
     if (next === null) return { existed: false, wrote: false };
     mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, next);
-    return { existed: false, wrote: true };
+    try {
+      writeFileSync(path, next, { flag: "wx" });
+      return { existed: false, wrote: true };
+    } catch (createErr) {
+      if ((createErr as NodeJS.ErrnoException).code !== "EEXIST") throw createErr;
+      return rewriteFileAtomic(path, transform);
+    }
   }
   try {
     const current = readFileSync(fd, "utf8");
