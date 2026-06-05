@@ -44,6 +44,7 @@ describe("actor sub-agent codegen (prx-g88.1)", () => {
     const doc = generateOrchestratorDoc();
     const tools = /^tools: (.+)$/m.exec(doc)?.[1] ?? "";
     expect(tools).not.toBe("");
+    expect(tools).not.toBe("");
     expect(tools).not.toContain("Bash");
     expect(tools).toContain("Agent");
   });
