@@ -150,3 +150,6 @@ export { procRequestSchema, localProcExecutor } from "./contract.ts";
 
 export type { ProcCache, CachingProcExecutor, CachingProcOptions } from "./caching.ts";
 export { cachingProcExecutor, inMemoryProcCache, policyCacheable } from "./caching.ts";
+
+export type { SpawnDetachedOptions, SpawnDetachedResult } from "./spawn-detached.ts";
+export { spawnDetached } from "./spawn-detached.ts";
