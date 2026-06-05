@@ -58,8 +58,19 @@ export interface PrxLayout {
  * name — is detected at `muxSessionState` time rather than here,
  * because detection requires talking to the running tmux server.
  */
+/**
+ * Trim trailing slashes without a backtracking regex. `/\/+$/` is flagged as
+ * polynomial-ReDoS (CodeQL js/polynomial-redos) on paths with many trailing
+ * `/`; this scans from the end in linear time instead.
+ */
+function stripTrailingSlashes(p: string): string {
+  let end = p.length;
+  while (end > 0 && p[end - 1] === "/") end--;
+  return p.slice(0, end);
+}
+
 export function muxSessionName(worktreePath: string, mode?: string): string {
-  const raw = basename(worktreePath.replace(/\/+$/, ""));
+  const raw = basename(stripTrailingSlashes(worktreePath));
   const sanitized = raw.replace(/[^A-Za-z0-9_-]/g, "_");
   if (sanitized.length === 0) {
     throw new Error(`muxSessionName: empty session name derived from ${JSON.stringify(worktreePath)}`);
