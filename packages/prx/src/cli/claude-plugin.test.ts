@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 
 import { defineVerb, type Registry } from "./verbspec.ts";
-import { commandSlashFiles, mcpToolRef, toClaudePlugin } from "./claude-plugin.ts";
+import { actorAgentFiles, commandSlashFiles, mcpToolRef, toClaudePlugin } from "./claude-plugin.ts";
 import { fleetVerb, pilotVerb } from "./pilot-verbs.ts";
 import { CommandSpec } from "./registry.ts";
 
@@ -125,6 +125,26 @@ describe("prx as a Claude Code plugin (projection of the registry)", () => {
     ];
     const md = commandSlashFiles(cmds)[0]!.content;
     expect(md).toContain('description: "self update: flake update then switch"');
+  });
+
+  test("actorAgentFiles projects actors to subagents scoped to their verbs", () => {
+    const files = actorAgentFiles([
+      {
+        name: "triage",
+        summary: "classify and label the inbox",
+        verbs: [{ name: "triage agent", description: "run the triage operator" }],
+      },
+      { name: "scratch", verbs: [] },
+    ]);
+
+    const triage = files.find((f) => f.path === "agents/triage.md")!;
+    expect(triage.content).toContain("name: triage");
+    expect(triage.content).toContain("tools: Bash, Read, Grep, Glob");
+    expect(triage.content).toContain("prx triage agent");
+    // plugin agents cannot set permissionMode (reference) — we never emit it.
+    expect(triage.content).not.toContain("permissionMode");
+    // an actor with no verbs still yields a valid agent file
+    expect(files.some((f) => f.path === "agents/scratch.md")).toBe(true);
   });
 
   test("opts customize runtime command + plugin name", () => {

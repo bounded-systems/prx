@@ -11,9 +11,14 @@
 import { chmod, mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-import { commandSlashFiles, toClaudePlugin, type PluginFile } from "./claude-plugin.ts";
+import {
+  actorAgentFiles,
+  commandSlashFiles,
+  toClaudePlugin,
+  type PluginFile,
+} from "./claude-plugin.ts";
 import { orchestratorRegistry } from "./pilot-verbs.ts";
-import { prxCommandRegistry } from "./registry.data.ts";
+import { commandsByActor, prxActorRegistry, prxCommandRegistry } from "./registry.data.ts";
 
 function flagValue(args: readonly string[], flag: string): string | undefined {
   const i = args.indexOf(flag);
@@ -67,8 +72,20 @@ export async function runPluginVerb(
   );
   const regSlash = commandSlashFiles(prxCommandRegistry);
 
+  // The actor registry as plugin subagents (agents/<actor>.md) — each embodies
+  // an actor's role and is scoped to driving its own verbs.
+  const agents = actorAgentFiles(
+    prxActorRegistry.map((a) => ({
+      name: a.name,
+      ...(a.summary !== undefined ? { summary: a.summary } : {}),
+      verbs: commandsByActor(a.name)
+        .filter((c) => !c.internal && c.deprecation === undefined)
+        .map((c) => ({ name: c.name, description: c.description })),
+    })),
+  );
+
   const byPath = new Map<string, PluginFile>();
-  for (const f of [...scaffold, ...verbSlash, ...regSlash]) {
+  for (const f of [...scaffold, ...verbSlash, ...regSlash, ...agents]) {
     if (!byPath.has(f.path)) byPath.set(f.path, f);
   }
   const files = [...byPath.values()];

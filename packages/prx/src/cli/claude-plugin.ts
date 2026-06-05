@@ -207,3 +207,44 @@ export function commandSlashFiles(commands: SlashSource[], prefix = "prx"): Plug
       content: renderBashCommand(c),
     }));
 }
+
+/** An actor and the verbs it owns — the source for a plugin subagent. */
+export type ActorAgentSource = {
+  name: string;
+  summary?: string;
+  verbs: { name: string; description: string }[];
+};
+
+/** A plugin subagent (`agents/<actor>.md`) embodying one prx actor's role. */
+function renderAgent(a: ActorAgentSource): string {
+  const role = a.summary ?? `the prx ${a.name} actor`;
+  const verbLines = a.verbs.map((v) => `- \`prx ${v.name}\` — ${v.description}`);
+  // `description` drives when Claude delegates to this subagent.
+  const description = `${a.summary ? `${a.summary}. ` : ""}The prx \`${a.name}\` actor — delegate ${a.name}-domain work to this subagent.`;
+  return [
+    "---",
+    `name: ${a.name}`,
+    // plugin agents may NOT set permissionMode/hooks/mcpServers (reference).
+    `description: ${JSON.stringify(description)}`,
+    "tools: Bash, Read, Grep, Glob",
+    "---",
+    "",
+    `You are the **prx \`${a.name}\`** actor — ${role}.`,
+    "",
+    ...(verbLines.length
+      ? ["You carry out your role through these prx verbs:", "", ...verbLines, ""]
+      : []),
+    "Run them with the Bash tool (`prx <verb> …`) and report a concise result.",
+    "Don't perform effects outside your verbs — the prx runtime owns them.",
+    "",
+  ].join("\n");
+}
+
+/**
+ * Project the prx actor registry to plugin subagents — one `agents/<actor>.md`
+ * per actor, each embodying that actor's role and scoped to driving its verbs.
+ * Pure — the caller resolves each actor's verbs (e.g. via `commandsByActor`).
+ */
+export function actorAgentFiles(actors: ActorAgentSource[]): PluginFile[] {
+  return actors.map((a) => ({ path: `agents/${a.name}.md`, content: renderAgent(a) }));
+}
