@@ -41,6 +41,20 @@ describe("builderId", () => {
       "prx://claude-code/unknown",
     );
   });
+
+  // GH-352: the dispatch source is the provenance authority — it wins over the
+  // executor `actor` so a leg-dispatched verb attributes to the dispatching leg.
+  test("prefers the dispatch source over actor when present", () => {
+    expect(builderId({ actor: "scout", verb: "read", source: "implement" })).toBe(
+      "prx://implement/read",
+    );
+  });
+
+  test("a null source falls back to actor (a direct call)", () => {
+    expect(builderId({ actor: "claude-code", verb: "ci", source: null })).toBe(
+      "prx://claude-code/ci",
+    );
+  });
 });
 
 describe("slsaProvenanceStatement", () => {

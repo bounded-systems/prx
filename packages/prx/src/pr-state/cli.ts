@@ -864,6 +864,7 @@ import {
 } from "../plan-store/plan-search.ts";
 import { resolvePlanSessionUnit } from "../plan-store/session-context.ts";
 import type { DispatchActor } from "../machine/dispatch.ts";
+import { readDispatchSource } from "../machine/dispatch.ts";
 import {
   DispatchParseError,
   parseDispatchCommand as parseDispatchArgv,
@@ -18867,7 +18868,11 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
 
     // GH-1533: stamp the parsed verb into the ambient audit context so the
     // GH-1141 `gh`-call wrapper can attribute each `gh_call` row to a prx verb.
-    setAuditRuntimeContext({ verb: auditVerbName(parsed) });
+    // GH-352: when this process is a leg-dispatched target subprocess, the parent
+    // set PRX_DISPATCH_SOURCE; stamp it as the signing/provenance authority so an
+    // emitted derivation attributes to the dispatching leg (null for a direct
+    // call ⇒ provenance falls back to the `actor` default).
+    setAuditRuntimeContext({ verb: auditVerbName(parsed), source: readDispatchSource() });
 
     if (parsed.command === "help") {
       output.log(formatHelp());

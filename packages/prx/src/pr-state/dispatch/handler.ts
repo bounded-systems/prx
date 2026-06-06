@@ -12,6 +12,7 @@ import { fromPromise, createActor } from "xstate";
 import {
   DISPATCH_DEPTH_ENV,
   DISPATCH_PARENT_ENV,
+  DISPATCH_SOURCE_ENV,
   type DispatchActor,
   type DispatchFailure,
   type DispatchResult,
@@ -92,19 +93,38 @@ function resolveRejectUntyped(
  * the dispatch-depth env so nested dispatches see the correct depth, and
  * stdout is captured into a single Buffer for CAS storage.
  */
+/**
+ * The env handed to the target's subprocess: the parent env plus the dispatch
+ * propagation vars. Pure + exported so the propagation contract is unit-testable
+ * without spawning. GH-352 adds `DISPATCH_SOURCE_ENV` so the child attributes
+ * provenance to the dispatching source's authority.
+ */
+export function dispatchChildEnv(
+  parentEnv: NodeJS.ProcessEnv,
+  opts: { childDepth: number; parentDispatchId: string; source: DispatchActor },
+): NodeJS.ProcessEnv {
+  return {
+    ...parentEnv,
+    [DISPATCH_DEPTH_ENV]: String(opts.childDepth),
+    [DISPATCH_PARENT_ENV]: opts.parentDispatchId,
+    [DISPATCH_SOURCE_ENV]: opts.source,
+  };
+}
+
 function buildInvokeActor(opts: {
   prxBinary: string;
   parentEnv: NodeJS.ProcessEnv;
   parentDispatchId: string;
+  source: DispatchActor;
 }) {
   return fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(
     async ({ input }) => {
       const start = Date.now();
-      const childEnv: NodeJS.ProcessEnv = {
-        ...opts.parentEnv,
-        [DISPATCH_DEPTH_ENV]: String(input.childDepth),
-        [DISPATCH_PARENT_ENV]: opts.parentDispatchId,
-      };
+      const childEnv = dispatchChildEnv(opts.parentEnv, {
+        childDepth: input.childDepth,
+        parentDispatchId: opts.parentDispatchId,
+        source: opts.source,
+      });
       // The dispatched verb is invoked as a top-level prx command. The argv
       // shape is the target's namespaced verb (e.g. `prx scout grep …`); we
       // pass the action through verbatim to preserve the target's existing
@@ -190,6 +210,7 @@ export async function runDispatch(
       prxBinary,
       parentEnv: env,
       parentDispatchId: env[DISPATCH_PARENT_ENV] ?? dispatchId,
+      source: opts.parsed.source,
     });
   const writeCasBlob =
     opts.actors?.writeCasBlob ?? buildWriteCasActor({ dispatchId });
