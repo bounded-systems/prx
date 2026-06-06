@@ -13,6 +13,7 @@ import { RepoAddError, writeRepoInventoryIndex } from "../../src/pr-state/repos.
 import type { RepoInventory, RepoInventoryConfig } from "../../src/pr-state/repos.ts";
 import { consumeArtifact } from "../../src/pipeline/edge.ts";
 import { workUnitSourceEdge, pinWorkUnitSource } from "../../src/pipeline/source-pin.ts";
+import { provenanceSigner, realStatementSigner } from "../../src/machine/machines/pilot-signing.ts";
 // GH-2098: brand the mock `rawState` fixtures (plain-string literals standing
 // in for validated raw state) at the single cast point per block.
 import type { RawStateV1 } from "@bounded-systems/machine-schema";
@@ -414,21 +415,31 @@ describe("pr_state cli", () => {
   // plan-session plumbing tests below all drive GH-5431, so seed its source in
   // a temp CAS once. Real flows pin via intake/scout upstream.
   let prevCasRootForPlan: string | undefined;
+  let prevKeyForPlan: string | undefined;
   beforeAll(async () => {
     prevCasRootForPlan = process.env.PRX_CAS_ROOT;
+    prevKeyForPlan = process.env.PRX_PROVENANCE_KEY;
     process.env.PRX_CAS_ROOT = mkdtempSync(join(tmpdir(), "cli-test-source-"));
-    await pinWorkUnitSource("GH-5431", {
-      id: "GH-5431",
-      title: "linear-backed work unit (test fixture)",
-      body: "Seeded source for the plan-session plumbing tests.",
-      state: "open",
-      url: null,
-      source: "github",
-    });
+    // GH-292: source@pinned is signed; seed + the best-effort GH pin both need a key.
+    process.env.PRX_PROVENANCE_KEY = "dev";
+    await pinWorkUnitSource(
+      "GH-5431",
+      {
+        id: "GH-5431",
+        title: "linear-backed work unit (test fixture)",
+        body: "Seeded source for the plan-session plumbing tests.",
+        state: "open",
+        url: null,
+        source: "github",
+      },
+      realStatementSigner(provenanceSigner()!),
+    );
   });
   afterAll(() => {
     if (prevCasRootForPlan === undefined) delete process.env.PRX_CAS_ROOT;
     else process.env.PRX_CAS_ROOT = prevCasRootForPlan;
+    if (prevKeyForPlan === undefined) delete process.env.PRX_PROVENANCE_KEY;
+    else process.env.PRX_PROVENANCE_KEY = prevKeyForPlan;
   });
 
   test("help prints the registry-backed overview surface (GH-976)", () => {

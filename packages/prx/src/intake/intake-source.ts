@@ -21,6 +21,9 @@ import { loadIdentityConfig } from "../pr-state/github.ts";
 import { resolverForCanonicalId } from "../pr-state/resolvers/dispatch.ts";
 import { resolveWorkUnitSource, ScoutSourceError } from "../scout/source.ts";
 import { pinWorkUnitSource } from "../pipeline/source-pin.ts";
+import { requireSigner } from "../cli/agent-signing-guard.ts";
+import { realStatementSigner } from "../machine/machines/pilot-signing.ts";
+import type { StatementSigner } from "../machine/machines/provenance.ts";
 
 export const intakeSourceOptionsSchema = z.object({
   id: z.string().trim().min(1, "id must not be empty"),
@@ -38,15 +41,21 @@ export type IntakeSourceDeps = {
   loadIdentity?: typeof loadIdentityConfig;
   buildResolver?: typeof resolverForCanonicalId;
   pinSource?: typeof pinWorkUnitSource;
+  /**
+   * The submitting actor's signer. GH-292: intake signs the input text — the
+   * signature IS the root artifact. Defaults to the ambient key-gated signer
+   * (`requireSigner`), so a missing key is a hard refusal. Tests inject a stub.
+   */
+  signer?: StatementSigner;
   repoPath?: string;
 };
 
 export class IntakeSourceError extends Error {}
 
 /**
- * Delegate the fetch to scout, then pin the result as `<unit>:source@pinned`.
- * Returns the pinned ref + the resolved source. Pure plumbing — injectable deps
- * keep it testable offline.
+ * Delegate the fetch to scout, then pin the result as a SIGNED `<unit>:source@pinned`.
+ * The submitting actor signs the input text (GH-292). Returns the pinned ref +
+ * the resolved source. Injectable deps keep it testable offline.
  */
 export async function runIntakeSource(
   options: IntakeSourceOptions,
@@ -54,6 +63,9 @@ export async function runIntakeSource(
   deps: IntakeSourceDeps = {},
 ): Promise<number> {
   const pinSource = deps.pinSource ?? pinWorkUnitSource;
+  // GH-292: no unsigned intake. The submitting actor must hold a signing key —
+  // `requireSigner` refuses otherwise. Tests inject `deps.signer`.
+  const signer = deps.signer ?? realStatementSigner(requireSigner("intake"));
 
   // GH-232: scout owns the reach — delegate the fetch, don't resolve here.
   let resolved;
@@ -69,7 +81,7 @@ export async function runIntakeSource(
     throw error;
   }
 
-  const { ref } = await pinSource(options.id, resolved);
+  const { ref } = await pinSource(options.id, resolved, signer);
 
   if (options.format === "json") {
     output.log(
