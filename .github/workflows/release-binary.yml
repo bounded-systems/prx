@@ -127,7 +127,10 @@ jobs:
       - name: Publish — flip draft → published (locks immutable with all assets present)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "${GITHUB_REF_NAME}" --draft=false --latest
+        # --repo is required: this job has no checkout, so gh can't infer the
+        # repo from git context (the v0.3.1 publish failed with "not a git
+        # repository" without it).
+        run: gh release edit "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --draft=false --latest
 
   # After the release is published, compute the assets' sha256 and open a PR
   # updating release-hashes.json (consumed by the flake packages + home-manager
