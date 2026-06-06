@@ -38,14 +38,16 @@ describe("sdk leg runner (machine ↔ real-agent + signing seam)", () => {
     expect(ran).toEqual(["planner", "executor", "tester", "reviewer"]);
     // The runner governs the four role legs; the CI gate + merge use defaults.
     expect(signed.map((s) => s.role)).toEqual(["planner", "executor", "tester", "reviewer"]);
-    expect(done.context.chain.slice(0, 4).map((l) => l.signedBy)).toEqual([
+    // GH-232: chain[0] is the intake `source@pinned` link; the four role legs
+    // follow at indices 1-4.
+    expect(done.context.chain.slice(1, 5).map((l) => l.signedBy)).toEqual([
       "planner@key",
       "executor@key",
       "tester@key",
       "reviewer@key",
     ]);
     // The signature commits to the per-role artifact subject.
-    const execLink = done.context.chain[1]!;
+    const execLink = done.context.chain[2]!;
     expect(execLink.subject).toBe("prx-real:implement@latest");
     expect(execLink.predicate).toBe("executor.completed");
     expect(execLink.stage).toBe("executor");

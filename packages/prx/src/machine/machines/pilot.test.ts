@@ -33,8 +33,10 @@ describe("pilot (Layer-1: self-driving, CI-gated, signed in-toto)", () => {
     // The four role legs ran in order (gate + merge are not legs).
     expect(visited).toEqual(["planner", "executor", "tester", "reviewer"]);
 
-    // Chain = 4 leg links + CI gate + merge, each signed by its actor.
+    // Chain = intake (source@pinned) + 4 leg links + CI gate + merge, each
+    // signed by its actor. GH-232: intake is the chain ROOT.
     expect(done.context.chain.map((l) => l.subject)).toEqual([
+      "prx-demo:source@pinned",
       "prx-demo:plan@draft",
       "prx-demo:implement@latest",
       "prx-demo:gate@ci",
@@ -43,6 +45,7 @@ describe("pilot (Layer-1: self-driving, CI-gated, signed in-toto)", () => {
       "prx-demo:merged@pr",
     ]);
     expect(done.context.chain.map((l) => l.signedBy)).toEqual([
+      "intake@stub",
       "planner@stub",
       "executor@stub",
       "tester@stub",
@@ -55,7 +58,7 @@ describe("pilot (Layer-1: self-driving, CI-gated, signed in-toto)", () => {
     const summary = done.context.summary!;
     expect(summary._type).toBe("https://in-toto.io/Statement/v1");
     expect(summary.predicateType).toBe("prx.pilot/v1");
-    expect((summary.predicate as { legCount: number }).legCount).toBe(6);
+    expect((summary.predicate as { legCount: number }).legCount).toBe(7);
     expect(summary.subject[0]!.name).toBe("prx-demo");
     // Machine output carries the chain + summary up to the fleet.
     expect(done.output!.summary).toBe(summary);
@@ -96,7 +99,7 @@ describe("pilot (Layer-1: self-driving, CI-gated, signed in-toto)", () => {
     }).start();
     const blocked = await waitFor(actor, (s) => s.value === "blocked", { timeout: 2000 });
 
-    expect(blocked.context.chain.map((l) => l.stage)).toEqual(["planner", "executor"]);
+    expect(blocked.context.chain.map((l) => l.stage)).toEqual(["intake", "planner", "executor"]);
   });
 
   test("PROVEN termination: a permanently-failing leg is abandoned, never loops", async () => {

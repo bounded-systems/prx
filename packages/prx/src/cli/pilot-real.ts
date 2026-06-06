@@ -35,6 +35,7 @@ import {
 } from "../machine/machines/pilot-signing.ts";
 import type {
   CiGate,
+  IntakeRunner,
   LegAttestation,
   LegRunner,
   MergeRunner,
@@ -180,6 +181,33 @@ export function buildRealCiGate(deps: CiGateDeps): CiGate {
   };
 }
 
+export type IntakeDeps = { runPrx: RunPrx; signer: Signer };
+
+/**
+ * GH-232: real intake leg — `prx intake source <unit>` (the same verb a human
+ * runs) resolves + pins the chain ROOT `<unit>:source@pinned`; signs a
+ * `source.pinned` link. On failure it throws → the pilot blocks (no plan without
+ * a source). This is what makes the headless planner CONSUME the real issue
+ * instead of fabricating (GH-230).
+ */
+export function buildRealIntake(deps: IntakeDeps): IntakeRunner {
+  const sign = realRoleSigner(deps.signer);
+  return async ({ workUnitId }) => {
+    const res = await deps.runPrx(["intake", "source", workUnitId, "--format", "json"]);
+    if (!res.ok) {
+      throw new Error(`intake source failed for ${workUnitId}: ${res.stderr.trim() || res.stdout.trim()}`);
+    }
+    const attestation = await signStageLink(
+      sign,
+      "intake",
+      `${workUnitId}:source@pinned`,
+      "source.pinned",
+      sha256Hex(res.stdout),
+    );
+    return { attestation };
+  };
+}
+
 export type MergeDeps = { runPrx: RunPrx; signer: Signer };
 
 /** Real merge: `prx publisher merge <unit>` (forge merges); signs `merged@pr`. */
@@ -210,6 +238,7 @@ export function buildRealPilotDeps(deps: RealLegDeps = {}): PilotDeps {
   const runPrx = deps.runPrx ?? realRunPrx;
   return {
     runLeg: buildRealLegRunner({ ...deps, signer }),
+    runIntake: buildRealIntake({ runPrx, signer }),
     signSummary: realStatementSigner(signer),
     runCiGate: buildRealCiGate({ runPrx, signer }),
     runMerge: buildRealMerge({ runPrx, signer }),
