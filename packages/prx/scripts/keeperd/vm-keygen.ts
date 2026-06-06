@@ -140,21 +140,17 @@ function parseArgs(argv: string[], config: VmKeygenConfig): Options {
 }
 
 /**
- * Parse argv and generate the key in the VM per `config`. Exits the process with
- * the in-VM `ssh-keygen` exit status (or 1 on a spawn failure). `--workdir /`
+ * Run `script` IN the VM via `limactl shell … sh -s -- <args>` (script over
+ * stdin, so no host-side shell expansion touches it), inheriting stdio, and exit
+ * the process with the in-VM exit status (or 1 on a spawn failure). `--workdir /`
  * stops limactl trying to cd into the host CWD inside the VM (a benign but
- * confusing "cd: … No such file or directory"); the remote script uses $HOME.
+ * confusing "cd: … No such file or directory"). Shared by the keygen bootstraps.
  */
-export function runVmKeygenCli(argv: string[], config: VmKeygenConfig): void {
-  const opts = parseArgs(argv, config);
+export function runVmShellScript(vm: string, script: string, args: string[]): never {
   const result = spawnSync(
     "limactl",
-    [
-      "shell", "--workdir", "/", opts.vm, "--",
-      "sh", "-s", "--",
-      opts.keyRel, opts.comment, opts.force ? "1" : "0", config.pinGithubHostKey ? "1" : "0",
-    ],
-    { input: REMOTE_SCRIPT, stdio: ["pipe", "inherit", "inherit"] },
+    ["shell", "--workdir", "/", vm, "--", "sh", "-s", "--", ...args],
+    { input: script, stdio: ["pipe", "inherit", "inherit"] },
   );
   if (result.error) {
     const code = (result.error as NodeJS.ErrnoException).code;
@@ -166,4 +162,18 @@ export function runVmKeygenCli(argv: string[], config: VmKeygenConfig): void {
     process.exit(1);
   }
   process.exit(result.status ?? 1);
+}
+
+/**
+ * Parse argv and generate the key in the VM per `config`. Exits with the in-VM
+ * `ssh-keygen` exit status.
+ */
+export function runVmKeygenCli(argv: string[], config: VmKeygenConfig): never {
+  const opts = parseArgs(argv, config);
+  runVmShellScript(opts.vm, REMOTE_SCRIPT, [
+    opts.keyRel,
+    opts.comment,
+    opts.force ? "1" : "0",
+    config.pinGithubHostKey ? "1" : "0",
+  ]);
 }
