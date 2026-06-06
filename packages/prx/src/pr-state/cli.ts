@@ -883,6 +883,7 @@ import {
   recordScoutReadDerivation,
   scoutReadProvenance,
 } from "@bounded-systems/scout";
+import { attestScoutRead } from "./scout-attest.ts";
 import { openAnchoredChain } from "@bounded-systems/anchored-chain-sqlite";
 import {
   runMapCreate,
@@ -19433,6 +19434,28 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             } finally {
               store.close();
             }
+          }
+          // GH-352: when a signer is configured, also record the SIGNED
+          // `scout/read/v1` into the canonical chain — the merge-guard-verifiable
+          // counterpart of the unsigned record above, attributed to the
+          // dispatch source's authority (a leg, when this read was dispatched).
+          // Best-effort: a signing failure never fails the read. No
+          // PRX_PROVENANCE_KEY ⇒ no signer ⇒ no-op (unchanged behavior).
+          try {
+            const signer = resolveProvenanceSigner();
+            const signedLedger = resolveCanonicalChainLedger(process.cwd())?.ledgerPath;
+            if (signer !== null && signedLedger !== undefined) {
+              mkdirSync(dirname(signedLedger), { recursive: true });
+              const store = openAnchoredChain(signedLedger);
+              try {
+                await attestScoutRead({ signer, store: store.derivations }, result);
+              } finally {
+                store.close();
+              }
+            }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            output.error(`scout read: scout/read/v1 attestation skipped (read result is unaffected): ${msg}`);
           }
           output.log(
             parsed.provenance
