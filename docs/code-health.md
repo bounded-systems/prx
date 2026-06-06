@@ -117,6 +117,11 @@ Also landed:
 - [x] `prx-is-the-top` layering rule (`error`, 0) + monolith ratchet (≤2000 lines).
 
 Next:
+- [ ] **Auto-docs-PR workflow** — generalize `version.yml`: on push to `main` (or a
+      schedule), run `docs:render` and, if any generated doc drifts, open a PR with
+      the regenerated output. Removes the manual "sync main + regenerate" step that
+      bit the CLI reference (a generated doc's content depends on registry code that
+      `main` changes; the `pull_request` merge-tree check then reads as stale).
 - [ ] Zod **boundary** coverage lens in `health` (`JSON.parse` not `.parse`'d; `z.any()` holes).
 - [ ] VerbSpec schema coverage (% of registry verbs with input/output Zod).
 - [ ] Migrate `no-intake-triage` test off `madge`; drop `madge`.
