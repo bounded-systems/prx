@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { runCaptured } from "@bounded-systems/proc";
+import { getRepoRoot } from "@bounded-systems/repo-root";
 
 import { VALUE_PROPS } from "../value_props.ts";
 import { prxCommandRegistry } from "../cli/registry.data.ts";
@@ -26,27 +27,17 @@ export type HealthIo = {
   tracked: (glob: string) => string[];
 };
 
-// Resolve the repo root LAZILY, from the working dir via git — never at import
-// time and never from this module's location. The compiled `prx` binary lives in
-// bun's virtual fs (`/$bunfs/root`, no `.git` ancestor), so an eager module-dir
-// walk (the `repo-root.ts` `REPO_ROOT` const) would crash the binary at startup;
-// `prx health` instead scans whatever prx checkout it is invoked from. All spawns
-// route through @bounded-systems/proc (the sanctioned subprocess capability);
-// `check: false` returns stdout regardless of exit code — depcruise/knip exit
-// non-zero when they have findings, and we want that output, not a throw.
-let cachedRoot: string | undefined;
-function repoRoot(): string {
-  if (cachedRoot !== undefined) return cachedRoot;
-  cachedRoot = runCaptured(["git", "rev-parse", "--show-toplevel"], { check: false }).stdout.trim() || process.cwd();
-  return cachedRoot;
-}
-
+// Root resolution is owned by @bounded-systems/repo-root: lazy + git-based, so it
+// is safe in the compiled binary (bun's virtual fs has no `.git` ancestor) and
+// scans whatever prx checkout `prx health` is invoked from. Spawns route through
+// @bounded-systems/proc; `check: false` returns stdout regardless of exit code —
+// depcruise/knip exit non-zero when they have findings, and we want that output.
 export const defaultHealthIo: HealthIo = {
   run(cmd, args) {
-    return runCaptured([cmd, ...args], { cwd: repoRoot(), check: false }).stdout;
+    return runCaptured([cmd, ...args], { cwd: getRepoRoot(), check: false }).stdout;
   },
   readFile(relPath) {
-    return readFileSync(join(repoRoot(), relPath), "utf8");
+    return readFileSync(join(getRepoRoot(), relPath), "utf8");
   },
   tracked(glob) {
     return this.run("git", ["ls-files", glob]).split("\n").filter(Boolean);
