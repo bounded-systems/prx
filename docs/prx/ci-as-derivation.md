@@ -62,10 +62,16 @@ inputs { tree, lock, toolchain }  (sha256:, bucket-A)  →  output { commit }  (
 - **Same signing path.** `persistAttestation` builds the manifest from the SLSA
   spec — subject → outputs, `resolvedDependencies` → inputs — and signs it. We
   pass the materials as `resolvedDependencies`; everything else is reused.
-- **Signed, attributed.** Attribution is set to the `local_ci` actor before the
-  signer resolves, so the per-actor signer and `builder.id` agree (the record
-  self-verifies, and the merge-guard's per-actor verifier resolves the right
-  key).
+- **Signed, attributed to the source authority.** The verdict is signed with
+  the *ambient actor's* authority — the dispatch **source** model: a direct
+  `prx ci` is sourced from the human (the `claude-code` default), and a
+  leg-dispatched run carries that leg's actor. `persistAttestation` reads that
+  actor for `builder.id`, so the signer and `builder.id` stay consistent and the
+  merge-guard's per-actor verifier resolves the right key. We deliberately do
+  **not** pin a `local_ci` tool actor: that attributes the verdict to the *tool*
+  rather than the *authority* that ran it, diverges from how the pilot's
+  `checks/v1` signs (also the default actor), and risks fail-closed rejection
+  under a production trust map that doesn't pin it.
 - **Fail-closed.** Attestation runs only on a clean pass (`code === 0`). A
   failure records nothing ⇒ absence of a derivation for a tree ≡ "not verified".
 
@@ -96,10 +102,14 @@ merge-guard / publisher tier.
 > **On scout being unsigned.** `recordScoutReadDerivation`
 > (`packages/scout/src/provenance.ts`) records *integrity only* (no `envelope`)
 > because a bare-CLI `scout read` runs under **no actor authority** — it has no
-> key to sign with. Now that CI signs as `local_ci`, a scout read dispatched
-> *inside a leg* should likewise sign with that leg's authority — and, being
-> already bucket A (`sha256:source → sha256:envelope`), it composes with these
-> CI derivations in one chain. Tracked in *Follow-ups*.
+> key to sign with. The fix follows the same source model as CI: a scout read
+> *dispatched inside a leg* should sign with that leg's authority (the dispatch
+> `source`). That needs one missing piece — **dispatch does not yet propagate
+> its `source` into the signing/audit context** (`setAuditRuntimeContext`'s
+> `actor` is only ever the `claude-code` default today). Wire that, and both
+> dispatched scout reads and leg-run CI attribute to the real authority; being
+> already bucket A (`sha256:source → sha256:envelope`), scout reads then compose
+> with these CI derivations in one chain. Tracked in *Follow-ups*.
 
 ## Follow-ups
 
@@ -109,8 +119,12 @@ merge-guard / publisher tier.
 - Attest a *partial* pass (the phases that passed before a failure) — needs
   `runCi` to surface per-phase results; the current slice attests only a full
   green.
+- **Propagate the dispatch `source` into the signing/audit context** so a
+  leg-dispatched verb (CI or a scout read) signs with the dispatching leg's
+  authority rather than the `claude-code` default. This is the shared mechanism
+  the next two items rest on.
 - Sign in-pipeline scout reads with the dispatching leg's authority (close the
-  unsigned gap above).
+  unsigned gap above), once `source` propagation lands.
 - Carry a signer in `.github/workflows/ci.yml` (already a thin shell over
   `dist/prx ci`) so remote greens join the same chain as local ones.
 

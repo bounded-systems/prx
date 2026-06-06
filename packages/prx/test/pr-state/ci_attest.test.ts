@@ -14,6 +14,7 @@ import {
   generateEd25519Keypair,
 } from "@bounded-systems/anchored-chain";
 import { openAnchoredChain } from "@bounded-systems/anchored-chain-sqlite";
+import { getAuditRuntimeContext, setAuditRuntimeContext } from "@bounded-systems/audit-context";
 
 import { type AttestDeps } from "../../src/provenance/attest.ts";
 import { decodeSlsaStatement, verifySlsaDerivation } from "../../src/provenance/verify.ts";
@@ -97,5 +98,30 @@ describe("attestCiPhases — signed + content-addressed CI derivation (GH-352)",
     const [d] = await attestCiPhases(deps, INPUTS, COMMIT, ["test"]);
     const hit = await chain.invalidate.descendants(`sha256:${INPUTS.tree}` as never);
     expect(hit).toContain(d!.derivationId);
+  });
+
+  // Attribution follows the dispatch *source* model: the verdict is signed with
+  // the ambient actor's authority (the `builder.id`), NOT a pinned `local_ci`
+  // tool actor. A direct run is sourced from the human (`claude-code` default);
+  // a leg-dispatched run carries that leg's actor.
+  test("builder.id is the ambient source authority, not a pinned tool actor", async () => {
+    const before = getAuditRuntimeContext();
+    try {
+      // Direct call ⇒ the human/agent default authority.
+      setAuditRuntimeContext({ actor: "claude-code", verb: "ci" });
+      const [direct] = await attestCiPhases(deps, INPUTS, COMMIT, ["test"]);
+      expect(decodeSlsaStatement(direct!.envelope!).predicate.runDetails.builder.id).toBe(
+        "prx://claude-code/ci",
+      );
+
+      // A leg-dispatched run ⇒ that leg's authority (here `implement`).
+      setAuditRuntimeContext({ actor: "implement", verb: "ci" });
+      const [leg] = await attestCiPhases(deps, INPUTS, "a".repeat(40), ["test"]);
+      expect(decodeSlsaStatement(leg!.envelope!).predicate.runDetails.builder.id).toBe(
+        "prx://implement/ci",
+      );
+    } finally {
+      setAuditRuntimeContext({ actor: before.actor, verb: before.verb });
+    }
   });
 });
