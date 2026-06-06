@@ -47,6 +47,44 @@ describe("prx beads doctor parsing", () => {
   });
 });
 
+describe("prx beads read-door (ready/list/show via beadsd)", () => {
+  test("`beads ready --vm` rewrites to beads-read and parses", () => {
+    expect(normalizeNamespaceArgv(["beads", "ready", "--vm", "myvm"])).toEqual([
+      "beads-read",
+      "ready",
+      "--vm",
+      "myvm",
+    ]);
+    const p = parse(["beads", "ready", "--vm", "myvm"]);
+    expect(p.command).toBe("beads-read");
+    if (p.command === "beads-read") {
+      expect(p.kind).toBe("ready");
+      expect(p.vm).toBe("myvm");
+      expect(p.vmSocket).toBe("/tmp/beadsd.sock"); // default
+    }
+  });
+
+  test("`beads list --vm --status open` carries the status", () => {
+    const p = parse(["beads", "list", "--vm", "myvm", "--status", "open"]);
+    expect(p.command === "beads-read" && p.kind).toBe("list");
+    if (p.command === "beads-read") expect(p.status).toBe("open");
+  });
+
+  test("`beads show <id> --vm` carries the id", () => {
+    const p = parse(["beads", "show", "prx-abb", "--vm", "myvm"]);
+    expect(p.command === "beads-read" && p.kind).toBe("show");
+    if (p.command === "beads-read") expect(p.id).toBe("prx-abb");
+  });
+
+  test("reads require a vm (no --vm, no PRX_BEADS_VM)", () => {
+    expect(() => parse(["beads", "ready"])).toThrow(/requires --vm/);
+  });
+
+  test("show requires an id", () => {
+    expect(() => parse(["beads", "show", "--vm", "myvm"])).toThrow(/requires an id/);
+  });
+});
+
 describe("prx lima parsing", () => {
   test("`up <vm>` with --binary/--cwd", () => {
     const p = parse(["lima", "up", "myvm", "--binary", "dist/prx", "--cwd", "/vm/clone"]);
