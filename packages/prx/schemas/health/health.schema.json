@@ -134,6 +134,32 @@
             "rawJsonParse"
           ],
           "additionalProperties": false
+        },
+        "verbspec": {
+          "type": "object",
+          "properties": {
+            "verbs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "withInput": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "withEvent": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "verbs",
+            "withInput",
+            "withEvent"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
@@ -141,7 +167,8 @@
         "coupling",
         "deadCode",
         "productMap",
-        "boundary"
+        "boundary",
+        "verbspec"
       ],
       "additionalProperties": false
     }
