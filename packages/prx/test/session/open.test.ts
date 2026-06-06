@@ -842,6 +842,43 @@ describe("openSession — leg input gate + signed spawn (GH-288 / GH-293)", () =
     expect(result.status).toBe("opened");
     expect(capture.mint).toBeUndefined();
   });
+
+  test("implement/headless: embeds the plan as planBody AND mints a spawn over it (GH-325)", async () => {
+    const capture: Capture = {};
+    const result = await openSession(
+      { actor: "implement", workUnitId: "GH-288", interaction: "headless", now: "2026-06-06T00:00:00Z" },
+      {
+        ...baseDeps(capture),
+        resolveLegInput: async () => ({
+          missing: false,
+          ref: "GH-288:plan@draft",
+          sha: "sha256:planmaterial",
+          body: "THE PLAN BODY",
+          signedBy: "planner",
+        }),
+      },
+    );
+    expect(result.status).toBe("opened");
+    const ev = capture.event as { type: string; planBody?: string };
+    expect(ev.type).toBe("OPEN_IMPLEMENT_SESSION");
+    expect(ev.planBody).toBe("THE PLAN BODY");
+    expect(capture.mint).toEqual({
+      unit: "GH-288",
+      role: "implement",
+      input: { ref: "GH-288:plan@draft", sha: "sha256:planmaterial" },
+    });
+  });
+
+  test("implement/headless: FAILS CLOSED when no plan@draft exists (GH-325)", async () => {
+    const capture: Capture = {};
+    const result = await openSession(
+      { actor: "implement", workUnitId: "GH-288", interaction: "headless", now: "2026-06-06T00:00:00Z" },
+      { ...baseDeps(capture), resolveLegInput: async () => ({ missing: true, ref: "GH-288:plan@draft" }) },
+    );
+    expect(result.status).toBe("error");
+    expect(capture.event).toBeUndefined();
+    expect(capture.mint).toBeUndefined();
+  });
 });
 
 // Ensure unused SessionActor import is exercised (keeps imports tight).
