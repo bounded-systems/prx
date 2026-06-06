@@ -1,6 +1,18 @@
 # Capability-Poor Orchestrator
 
-**Status:** Draft spec (prx-g88) · **Owner:** bobby · **Date:** 2026-06-04
+**Status:** Implemented (prx-g88) · **Owner:** bobby · **Spec'd:** 2026-06-04 ·
+**Updated:** 2026-06-06
+
+> **Implementation status.** This started as a draft spec ("no code lands from
+> this PR"). The epic has since landed and this document has been re-grounded
+> against the shipped code: the original `[NEEDS CLARIFICATION]` markers below are
+> now annotated **Resolved** with the file that answers them, and the acceptance
+> criteria are checked against tests. The one part still in flight is the
+> delegation-**edge recorder** in §2 (the verify gate itself ships and is tested;
+> see the note there). Each section's claims are kept honest by executable
+> grounding — the generated Gherkin features in `features/` and the
+> forcing-function value props (`packages/prx/src/value_props.ts`) — not just by
+> this prose.
 
 A core/orchestration agent that drives the prx pipeline must hold **no capability
 of its own** — only the capability to **delegate** to actor sub-agents. Every
@@ -9,9 +21,9 @@ hand it work, but it cannot perform the actor's work itself. When that constrain
 holds, ambient-authority leaks stop being invisible: they surface as ownership
 denials or as provenance-verification failures.
 
-This document is the spec. It defines the threat, the enforcement mechanism, the
+This document defines the threat, the enforcement mechanism, the
 identity/isolation model, the projection that generates the sub-agents, and the
-child beads + sequence. No code lands from this PR.
+child beads + sequence — now cross-referenced to the modules that implement each.
 
 ---
 
@@ -105,6 +117,20 @@ exactly SLSA `resolvedDependencies` / in-toto nested provenance.
   derivation whose `producer` is the **owning actor** of `e` (per the policy
   table) and whose envelope verifies.
 
+> **Implemented (prx-1dz):** the ownership half ships in
+> `packages/prx/src/provenance/effect-ownership.ts` — `verifyEffectOwnership(D)`
+> returns `ok: false` ("orphan/ambient effect") when the `producer` actor is not
+> a policy-table owner of the effect, when the effect is hard-blocked, or when the
+> producer is unparseable. Owners come straight from the policy table
+> (`findOwningRoles`), so the gate tightens automatically as prx-gr1 narrows git
+> custody. It is wired into the merge path via `provenance/merge-guard.ts` and
+> proven by the value-prop forcing function "a push produced by reviewer is
+> rejected" (`value_props.test.ts`). **Still in flight:** the delegation-**edge
+> recorder** (writing `D_A.inputs["delegate:B/<call>"] = D_B.derivationId` into the
+> parent agent-run / `merge/v1` derivation) — the key format is pinned today via
+> `delegationInputKey()`, but the emitter lands with `merge/v1` as a tracked
+> follow-up.
+
 **The enforceable definition of the threat:**
 
 > **Ambient authority := a privileged output with no matching owning-actor input
@@ -118,12 +144,16 @@ that holds the effect's `(tool, subcommand)` in any state. `git push → keeper`
 `gh merge|ready|create|... → forge`, etc. Hard-blocked subcommands (`git reset`,
 `gh close`) have no owner and may never appear as an output.
 
-- [NEEDS CLARIFICATION] Granularity of "privileged output": which effects MUST be
-  attested (commit/push/checks/gh-merge are in; is every `bd` mutate in scope for
-  v1, or only git/gh?).
-- [NEEDS CLARIFICATION] Who writes `D_A.inputs` in practice — the dispatch
-  wrapper that spawns `B`, or `A` post-hoc from `B`'s returned derivation id?
-  (Prefer the dispatch wrapper, so `A` cannot forge the edge.)
+- **Resolved (granularity).** v1 attests **git `commit`/`push`** — `effectKindOf`
+  reads `params.subcommand` off the derivation (`attestingGit` records it). The gh
+  custody effects (`merge`/`ready`) "join here once forge attests them"; `bd`
+  mutates are out of scope for v1. Non-policy-role producers (session-profile
+  actors like `work`/`implement`) pass through until the profile→role table lands —
+  the role-named custody actors (keeper, forge) are enforced strictly.
+- **Resolved (who writes `D_A.inputs`).** The dispatch/recorder side owns the edge
+  (so `A` cannot forge it), keyed by `delegationInputKey(actor, call)` →
+  `delegate:<actor>/<call>`. The recorder itself lands with `merge/v1` (see the
+  in-flight note above).
 
 ---
 
@@ -153,11 +183,17 @@ The actor's signing key continues to be `HMAC(deployment-master,
 actor_identity)` (keymaker); the salt governs *isolation/addressing* (§4), not
 key material.
 
-- [NEEDS CLARIFICATION] Exact `H` and `⊗` (e.g. `H = sha256`, `⊗ = ":"`-join of
-  hex). Must be deterministic and recomputable by a verifier.
-- [NEEDS CLARIFICATION] Is the unit salt persisted as an artifact
-  (`<unit>:salt@pinned`) or derived on demand from `source@pinned`? Persisting
-  makes it auditable; deriving avoids a new ref kind.
+> **Implemented (prx-g88.4 / C4):** `packages/prx/src/provenance/actor-salt.ts`.
+
+- **Resolved (`H` and `⊗`).** `H = sha256`, hex, truncated to a 12-char
+  (`SALT_LENGTH`) git-short-sha-style addressable token; `⊗` is a `/`-join with a
+  domain-separation prefix: `unitSalt = sha256("prx/unit-salt/" + sourcePinnedDigest)`
+  and `actorSalt = sha256("prx/actor-salt/" + unitSalt + "/" + actorSigningIdentity)`.
+  Deterministic and recomputable by a verifier; two actors on one unit get
+  different salts (no sharing), one actor across units gets different salts (intake-bound).
+- **Resolved (persisted vs derived).** **Derived on demand** from
+  `source@pinned` — no new ref kind. `actorSaltForSource(sourcePinnedDigest, actor)`
+  recomputes it straight from the pinned digest.
 
 ---
 
@@ -182,11 +218,16 @@ checkout for `git switch -C` to collide with, and no manual
 `git push origin --delete` cleanup is ever needed. #87's ownership error becomes
 unreachable — kept as a backstop.
 
-- [NEEDS CLARIFICATION] Lifecycle owner: does the dispatch wrapper create/destroy
-  the worktree, or does the actor's session-open/close
-  (`keeper`'s `runKeeperEnsureWorktree` already owns worktree placement)?
-- [NEEDS CLARIFICATION] Crash cleanup: a `gc` sweep for orphaned `.wt/<actor>-*`
-  worktrees whose agent died (tie to the existing `gc inventory`/`gc run`).
+> **Implemented (prx-g88.5 / C5):** `packages/prx/src/pipeline/ephemeral-worktree.ts`.
+
+- **Resolved (lifecycle owner).** A scoped wrapper owns it:
+  `withEphemeralActorWorktree(spec, fn)` calls `createEphemeralActorWorktree`
+  on entry and `destroyEphemeralActorWorktree` in a `finally` (so the worktree +
+  salted branch live exactly as long as the agent's work, then vanish even on
+  throw). All git ops run with `role: "keeper"`.
+- **Resolved (crash cleanup).** `sweepOrphanedActorWorktrees(repoRoot)` lists
+  worktrees under `.wt/` and force-removes the orphans (default posture: all),
+  ready to wire into `gc inventory` / `gc run` (that wiring is the remaining bit).
 
 ---
 
@@ -241,35 +282,46 @@ Recommendation: (1) — the hook *is* the projection at runtime; the generated
 `.claude/agents/*.md` are the human-readable/dispatch surface. A drift test
 asserts the generated files match `POLICY_TABLE`.
 
-- [NEEDS CLARIFICATION] Does the prx repo already ship a PreToolUse policy hook we
-  extend, or is this new? (`prx tools git`/`prx tools gh` already route through
-  `checkPolicy`; the hook may just need the actor identity in context.)
-- [NEEDS CLARIFICATION] State (`planning|validating|merging`) selection per
-  sub-agent: fixed per actor, or derived from the unit's phase at dispatch?
+> **Implemented (prx-g88.1/.2):** mechanism **(1)** shipped. The agents are
+> generated by `packages/prx/scripts/gen-agents.ts` (`generate.ts`) and emit
+> `tools: Read, Grep, Glob, Bash` plus a `PreToolUse` `hooks:` block calling
+> `.claude/hooks/policy-guard.ts` — **not** the per-glob `Bash(git push:*)`
+> frontmatter sketched above (that approach was rejected as drift-prone). The hook
+> resolves the firing subagent's role from `agent_type` and denies via the pure,
+> unit-tested `decideAgentToolCall` (`packages/prx/src/agents/policy_guard.ts`).
+> Drift is held by `test/agents/generate.test.ts`; the orchestrator's empty
+> capability is asserted by `value_props.ts` ("the orchestrator owns nothing").
+
+- **Resolved (existing hook?).** New, and it now ships: `.claude/hooks/policy-guard.ts`,
+  the single runtime projection of the policy engine.
+- **Resolved (state selection).** The runtime guard decides on `(tool, subcommand,
+  role)` via `findOwningRoles`'s union across states (`owningRolesUnion`) — i.e.
+  "owned in *some* state" — rather than threading a per-dispatch phase, so an
+  actor's allowlist is fixed per actor at the hook layer.
 
 ---
 
 ## 6. Child beads + sequence
 
-Parent epic: **prx-g88**. Proposed children (file after this spec lands):
+Parent epic: **prx-g88**. Children (status as of 2026-06-06):
 
-1. **C1 — policy-table → sub-agent codegen + drift test** (the projection, §5).
-   Generate `.claude/agents/<actor>.md` from `POLICY_TABLE` + `actorNames`; a
-   test fails when committed files ≠ generated. *Depends on: nothing.*
-2. **C2 — runtime policy hook** (§5 enforcement). PreToolUse hook that resolves
-   the sub-agent's actor identity and calls `checkPolicy`; denies out-of-allowlist
-   subcommands. *Depends on: C1 (names), can start in parallel.*
-3. **C3 — capability-poor orchestrator profile** (§1/§5). Orchestrator agent
-   definition with dispatch-only tools; a test asserts it cannot reach git/gh/bd.
-   *Depends on: C1.*
-4. **prx-1dz — delegation-DAG provenance** (§2). Record sub-actor calls as
-   `Derivation.manifest.inputs`; verify gate fails closed on orphan effects.
-   *Depends on: C2 (so out-of-allowlist effects can't be produced).*
-5. **C4 — intake ⊗ actor salt** (§3). Mint `unit_salt` at intake from
-   `source@pinned`; derive `actor_salt`. *Depends on: nothing (intake side).*
-6. **C5 — ephemeral salted worktrees** (§4). Per-actor worktree/branch from
-   `actor_salt`, create-on-start / destroy-on-finish; gc sweep for orphans.
-   *Depends on: C4.*
+1. ✅ **C1 — policy-table → sub-agent codegen + drift test** (the projection, §5).
+   `scripts/gen-agents.ts` + `test/agents/generate.test.ts`.
+2. ✅ **C2 — runtime policy hook** (§5 enforcement). `.claude/hooks/policy-guard.ts`
+   over `agents/policy_guard.ts:decideAgentToolCall`.
+3. ✅ **C3 — capability-poor orchestrator profile** (§1/§5). `.claude/agents/orchestrator.md`
+   (`tools: Agent, Read, Grep, Glob` — no Bash); asserted by `value_props.ts`.
+4. 🟡 **prx-1dz — delegation-DAG provenance** (§2). Verify gate **landed**
+   (`provenance/effect-ownership.ts`, wired via `merge-guard.ts`); the
+   delegation-**edge recorder** lands with `merge/v1` (follow-up).
+5. ✅ **C4 — intake ⊗ actor salt** (§3). `provenance/actor-salt.ts`.
+6. ✅ **C5 — ephemeral salted worktrees** (§4). `pipeline/ephemeral-worktree.ts`;
+   `sweepOrphanedActorWorktrees` awaits `gc` wiring.
+
+The §7 *external-audit surface* also landed: the policy table and the capability
+envelope each project to a generated Gherkin `.feature` (`features/`), kept
+faithful — not just drift-free — by `test/agents/capability_feature.test.ts` and
+`capability_envelope.test.ts`.
 
 **Sequence rationale.** C1 is the cheapest demonstrable slice ("orchestrator can
 only delegate, by construction"). C2 makes the allowlist real. prx-1dz makes
@@ -279,24 +331,39 @@ authority spine), then C4→C5 (the isolation spine).
 
 ## Acceptance criteria (epic)
 
-- [ ] The orchestrator agent has no tool path to `git`/`gh`/`bd`/`prx <actor>`
+- [x] The orchestrator agent has no tool path to `git`/`gh`/`bd`/`prx <actor>`
       privileged verbs; a test proves a denied attempt.
-- [ ] Each actor sub-agent is generated from `POLICY_TABLE`; a drift test holds.
-- [ ] An out-of-allowlist subcommand by any actor is denied at runtime by the
-      policy hook (T2).
-- [ ] A privileged effect with no owning-actor signed input derivation fails the
-      verify gate (T3 / T1).
-- [ ] No two actors share a worktree or branch checkout; actor branches are
+      *(`value_props.ts` "the orchestrator owns nothing"; capability feature scenario.)*
+- [x] Each actor sub-agent is generated from `POLICY_TABLE`; a drift test holds.
+      *(`gen-agents.ts` + `test/agents/generate.test.ts`.)*
+- [x] An out-of-allowlist subcommand by any actor is denied at runtime by the
+      policy hook (T2). *(`policy-guard.ts` + `decideAgentToolCall`; "forge is
+      denied a git push".)*
+- [~] A privileged effect with no owning-actor signed input derivation fails the
+      verify gate (T3 / T1). *(Gate live + tested via `verifyEffectOwnership`;
+      the input-edge recorder lands with `merge/v1`.)*
+- [x] No two actors share a worktree or branch checkout; actor branches are
       ephemeral and removed on finish (prx-5l3 class structurally gone).
-- [ ] The salt is deterministic and recomputable by a verifier; intake-minted,
-      actor-scoped.
+      *(`ephemeral-worktree.ts:withEphemeralActorWorktree`.)*
+- [x] The salt is deterministic and recomputable by a verifier; intake-minted,
+      actor-scoped. *(`actor-salt.ts`.)*
 
 ## Open questions (consolidated)
 
-All `[NEEDS CLARIFICATION]` markers above, plus:
+The per-section `[NEEDS CLARIFICATION]` markers above are now **Resolved** inline.
+Remaining:
 
-- [ ] Does this model run *only* inside Claude Code sub-agents, or also as a prx
-      runtime concept usable headlessly (cron, CI)? The provenance half (§2) is
-      harness-agnostic; the sub-agent half (§5) is Claude-Code-specific.
-- [ ] Interaction with `isPerActorMode` opt-out: is per-actor signing a hard
-      prerequisite for this epic (the delegation DAG needs per-actor envelopes)?
+- **Mostly resolved (headless vs Claude-only).** The engine is harness-agnostic
+  pure TypeScript — the policy table, `verifyEffectOwnership`, `actor-salt`, and
+  the ephemeral-worktree lifecycle all run headlessly (they're exercised in CI by
+  the unit tests and value-prop checks with no Claude harness). Only the
+  `.claude/agents/*.md` + the `PreToolUse` hook are Claude-Code-specific surfaces
+  *over* that engine.
+- [ ] **Open — `isPerActorMode`.** Per-actor DSSE envelopes are a prerequisite for
+      the §2 delegation-edge recorder (the gate already keys on the per-actor
+      producer); confirm the opt-out interaction when `merge/v1` lands.
+- [ ] **Open — `gc` wiring.** `sweepOrphanedActorWorktrees` exists but is not yet
+      called from `gc inventory` / `gc run`.
+- [ ] **Open — gh + non-role producers in the verify gate.** §2 attests git
+      `commit`/`push` today; gh custody effects and the session-profile→role table
+      are tracked follow-ups.
