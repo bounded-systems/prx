@@ -8,10 +8,6 @@
 `prx` — the agent-run PR contract / work-unit CLI, plus the `@bounded-systems/*`
 libraries it builds on. A Bun + TypeScript monorepo.
 
-> Extracted from [`bdelanghe/ai-home`](https://github.com/bdelanghe/ai-home) as a
-> fresh, squashed history. ai-home now **consumes** prx (via the nix flake below)
-> rather than implementing it.
-
 ## Layout
 
 - `packages/prx/` — The agent-run PR contract / work-unit CLI
