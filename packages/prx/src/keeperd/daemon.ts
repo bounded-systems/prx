@@ -216,18 +216,20 @@ export interface KeeperServeOptions {
 }
 
 /**
- * Bind the keeperd unix-socket server. Resolves with the listening `Server`
- * (close it to stop). Each connection is served by {@link serveConnection}
- * against {@link handleKeeperRequest} bound to `deps`. When `pidfile` is set the
- * daemon records its pid there (removed on close) so the host can stop it by pid.
+ * Bind a unix-socket server that hands each connection to `onConnection`, with
+ * the GH-223 pidfile lifecycle. Contract-agnostic: it owns only the bind + the
+ * pidfile (the framing/dispatch is the caller's `onConnection` — e.g.
+ * {@link serveConnection} for keeperd, `serveSessionConnection` for the session
+ * host). Resolves with the listening `Server` (close it to stop).
  */
-export function runKeeperServe(options: KeeperServeOptions): Promise<Server> {
-  const { socketPath, pidfile, deps } = options;
+export function runFramedServe(
+  socketPath: string,
+  pidfile: string | undefined,
+  onConnection: (socket: Socket) => void,
+): Promise<Server> {
   // A leftover socket file from a prior run makes `listen` throw EADDRINUSE.
   if (existsSync(socketPath)) rmSync(socketPath, { force: true });
-  const handler = (request: KeeperRemoteRequest): Promise<KeeperRemoteResponse> =>
-    handleKeeperRequest(request, deps);
-  const server = createServer((socket) => serveConnection(socket, handler));
+  const server = createServer(onConnection);
   return new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(socketPath, () => {
@@ -247,4 +249,17 @@ export function runKeeperServe(options: KeeperServeOptions): Promise<Server> {
       resolve(server);
     });
   });
+}
+
+/**
+ * Bind the keeperd unix-socket server. Resolves with the listening `Server`
+ * (close it to stop). Each connection is served by {@link serveConnection}
+ * against {@link handleKeeperRequest} bound to `deps`. When `pidfile` is set the
+ * daemon records its pid there (removed on close) so the host can stop it by pid.
+ */
+export function runKeeperServe(options: KeeperServeOptions): Promise<Server> {
+  const { socketPath, pidfile, deps } = options;
+  const handler = (request: KeeperRemoteRequest): Promise<KeeperRemoteResponse> =>
+    handleKeeperRequest(request, deps);
+  return runFramedServe(socketPath, pidfile, (socket) => serveConnection(socket, handler));
 }
