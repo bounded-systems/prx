@@ -575,6 +575,17 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     binding: "mainx",
     actor: "intake",
   },
+  {
+    // GH-232: the intake role (human OR agent) owns the chain ROOT. A plain
+    // deterministic verb so either an operator types it or an intake agent calls
+    // it — `actor: intake` is the capability label, not an agent-only gate.
+    name: "intake source",
+    parent: "intake",
+    description: "Pin a work unit's source authority as <unit>:source@pinned",
+    domain: "work-units",
+    binding: "work-unit",
+    actor: "intake",
+  },
 
   // ─── triage.* leaves ───────────────────────────────────────────────────────
 
