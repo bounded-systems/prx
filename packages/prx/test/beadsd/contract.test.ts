@@ -29,6 +29,14 @@ describe("beadsd wire contract — request envelope", () => {
     expect(BeadsRequestSchema.safeParse({ kind: "show", id: "GH-228" }).success).toBe(true);
   });
 
+  test("accepts the read-parity flags (ready --explain, list --all/--limit)", () => {
+    expect(BeadsRequestSchema.safeParse({ kind: "ready", explain: true }).success).toBe(true);
+    expect(BeadsRequestSchema.safeParse({ kind: "list", all: true }).success).toBe(true);
+    expect(BeadsRequestSchema.safeParse({ kind: "list", all: true, limit: 0 }).success).toBe(true);
+    // a negative limit is rejected
+    expect(BeadsRequestSchema.safeParse({ kind: "list", limit: -1 }).success).toBe(false);
+  });
+
   test("accepts the write envelope (create / update / close)", () => {
     expect(BeadsRequestSchema.safeParse({ kind: "create", issueType: "task", title: "x" }).success).toBe(true);
     expect(
