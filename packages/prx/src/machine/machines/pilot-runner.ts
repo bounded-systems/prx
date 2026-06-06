@@ -65,11 +65,20 @@ export function createSdkLegRunner(deps: SdkLegRunnerDeps): LegRunner {
       throw new Error(`[${input.role}] agent failed (${run.errorKind}): ${run.message}`);
     }
 
-    const advance = run.kind === "success";
+    // GH-289: a planner that submits a REJECTION (`decision: "blocked"`) succeeded
+    // as an agent run but produced no viable plan — do NOT advance. Halting here
+    // (advance=false → the pilot's planning→blocked edge) stops the cascade where
+    // executor/tester/author flail over an empty plan (the GH-286 drive bug).
+    const rejected = run.kind === "success" && run.planDecision === "blocked";
+    const advance = run.kind === "success" && !rejected;
     const text = run.kind === "success" ? run.text : run.partialStdout;
     const outputHash = hash(text);
     const subject = `${input.workUnitId}:${input.profile.signs}`;
-    const predicate = advance ? `${input.role}.completed` : `${input.role}.blocked`;
+    const predicate = rejected
+      ? `${input.role}.rejected`
+      : advance
+        ? `${input.role}.completed`
+        : `${input.role}.blocked`;
 
     const { signedBy, sig } = await deps.sign({ role: input.role, subject, predicate, outputHash });
 
