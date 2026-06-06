@@ -889,6 +889,11 @@ import {
   ScoutNotionError,
 } from "../scout/notion.ts";
 import {
+  runScoutSource,
+  scoutSourceOptionsSchema,
+  type ScoutSourceOptions,
+} from "../scout/source.ts";
+import {
   FetchGhIssuesError,
   formatFetchGhIssuesJson,
   runFetchGhIssues,
@@ -1558,6 +1563,11 @@ type ParsedCommand =
       max?: number | undefined;
       maxStaleness: string;
       format: "jsonl" | "plain";
+    }
+  | {
+      command: "scout-source";
+      id: string;
+      format: "plain" | "json";
     }
   | {
       // GH-1420: Notion page UUID / Task-ID → structured mirror record.
@@ -2907,6 +2917,10 @@ type CliDeps = {
   ) => number | Promise<number>;
   runIntakeSource?: (
     options: IntakeSourceOptions,
+    output: Output,
+  ) => number | Promise<number>;
+  runScoutSource?: (
+    options: ScoutSourceOptions,
     output: Output,
   ) => number | Promise<number>;
   runIntakeSearch?: (
@@ -4973,6 +4987,11 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     // GH-1244: read-only beads/Dolt projection.
     if (c1 === "issues") {
       return ["scout-issues", ...tail];
+    }
+    // GH-232: resolve a work unit's source authority (the FETCH; scout owns the
+    // gh/bd/notion reach). The pin (intake) attenuates the result downstream.
+    if (c1 === "source") {
+      return ["scout-source", ...tail];
     }
     if (c1 === "comments" || c1 === "pr-comments") {
       return ["pr-comments", ...tail];
@@ -9447,6 +9466,27 @@ export function parseCommand(argv: string[]): ParsedCommand {
   }
   // GH-1244: read-only beads/Dolt projection. `<query>` is optional
   // (omitted = full snapshot). Flags mirror the spec §3 surface.
+  if (command === "scout-source") {
+    const { values, positionals } = parseArgs({
+      args: rest,
+      options: { format: { type: "string", default: "plain" } },
+      strict: true,
+      allowPositionals: true,
+    });
+    const id = positionals[0]?.trim();
+    if (!id) {
+      throw new CliError("scout source requires a work-unit id positional (e.g. `prx scout source GH-224`)");
+    }
+    if (positionals.length > 1) {
+      throw new CliError(`scout source: unexpected extra positionals: ${positionals.slice(1).join(" ")}`);
+    }
+    return {
+      command: "scout-source",
+      id,
+      format: ensureChoice(values.format, ["plain", "json"], "--format"),
+    };
+  }
+
   if (command === "scout-issues") {
     const { values, positionals } = parseArgs({
       args: rest,
@@ -19253,6 +19293,15 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     // GH-1244: scout issues handler — read-only beads/Dolt projection.
     // Emits JSONL on stdout (one record per match + trailing _summary line)
     // so the dispatch envelope captures one CAS record per invocation.
+    if (parsed.command === "scout-source") {
+      const handler = deps.runScoutSource ?? runScoutSource;
+      const validated: ScoutSourceOptions = scoutSourceOptionsSchema.parse({
+        id: parsed.id,
+        format: parsed.format,
+      });
+      return handler(validated, output);
+    }
+
     if (parsed.command === "scout-issues") {
       return (async () => {
         try {

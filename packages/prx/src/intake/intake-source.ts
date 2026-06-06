@@ -2,13 +2,13 @@
  * `prx intake source <UoW>` — pin a work unit's source authority as the chain
  * ROOT `<unit>:source@pinned` (GH-232).
  *
- * This is the intake actor OWNING the source pin, instead of it being a
- * side-effect of the plan gate (`checkWorkUnitChain`). Intake holds the
- * capability to reach the source system (gh / bd / notion) and CAS; the planner
- * is sandboxed off those, so it must CONSUME a pre-pinned source rather than
- * fetching (otherwise it fabricates scope — see GH-230). Resolving the source
- * through `resolverForCanonicalId` works uniformly for GitHub, beads, and Notion
- * units, and is idempotent: re-pinning the same source is a no-op by content.
+ * Capability split (ocap): the FETCH (reaching gh/bd/notion) is `scout`'s — see
+ * `resolveWorkUnitSource` in `../scout/source.ts` — because scout owns external
+ * reads. This verb delegates the fetch to scout and OWNS the ATTENUATION: it
+ * pins scout's resolved result into the content-addressed `<unit>:source@pinned`
+ * artifact (the chain root). The planner is sandboxed off gh/bd/notion, so it
+ * CONSUMES this pinned artifact as input — it never fetches/hydrates (GH-230).
+ * Idempotent: re-pinning the same source is a no-op by content.
  *
  * Sits upstream of the parity chain (the chain root), so it emits no XState
  * event here — it produces the content-addressed artifact the rest of the
@@ -19,7 +19,7 @@ import { z } from "zod";
 
 import { loadIdentityConfig } from "../pr-state/github.ts";
 import { resolverForCanonicalId } from "../pr-state/resolvers/dispatch.ts";
-import type { ResolvedWorkUnit } from "../pr-state/resolvers/types.ts";
+import { resolveWorkUnitSource, ScoutSourceError } from "../scout/source.ts";
 import { pinWorkUnitSource } from "../pipeline/source-pin.ts";
 
 export const intakeSourceOptionsSchema = z.object({
@@ -44,7 +44,7 @@ export type IntakeSourceDeps = {
 export class IntakeSourceError extends Error {}
 
 /**
- * Resolve the unit's source authority and pin it as `<unit>:source@pinned`.
+ * Delegate the fetch to scout, then pin the result as `<unit>:source@pinned`.
  * Returns the pinned ref + the resolved source. Pure plumbing — injectable deps
  * keep it testable offline.
  */
@@ -53,27 +53,20 @@ export async function runIntakeSource(
   output: Output,
   deps: IntakeSourceDeps = {},
 ): Promise<number> {
-  const loadIdentity = deps.loadIdentity ?? loadIdentityConfig;
-  const buildResolver = deps.buildResolver ?? resolverForCanonicalId;
   const pinSource = deps.pinSource ?? pinWorkUnitSource;
-  const repoPath = deps.repoPath ?? process.cwd();
 
-  const identity = loadIdentity(repoPath);
-  const resolver = buildResolver(options.id, identity, repoPath);
-  if (resolver === null) {
-    throw new IntakeSourceError(
-      `intake source: no source resolver configured for ${options.id} — configure a GitHub/beads/Notion source or check the canonical id`,
-    );
-  }
-
-  let resolved: ResolvedWorkUnit;
+  // GH-232: scout owns the reach — delegate the fetch, don't resolve here.
+  let resolved;
   try {
-    resolved = await resolver.fetch(options.id);
+    resolved = await resolveWorkUnitSource(options.id, {
+      ...(deps.loadIdentity ? { loadIdentity: deps.loadIdentity } : {}),
+      ...(deps.buildResolver ? { buildResolver: deps.buildResolver } : {}),
+      ...(deps.repoPath ? { repoPath: deps.repoPath } : {}),
+    });
   } catch (error) {
-    const details = error instanceof Error ? error.message : String(error);
-    throw new IntakeSourceError(
-      `intake source: failed to resolve ${options.id} via ${resolver.name}: ${details}`,
-    );
+    // Re-wrap scout's error under the intake verb's surface for the caller.
+    if (error instanceof ScoutSourceError) throw new IntakeSourceError(error.message);
+    throw error;
   }
 
   const { ref } = await pinSource(options.id, resolved);

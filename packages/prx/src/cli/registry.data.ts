@@ -946,6 +946,15 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     domain: "state",
     actor: "scout",
   },
+  {
+    // GH-232: the source FETCH — scout owns the gh/bd/notion reach. The pin
+    // (intake) attenuates the result into <unit>:source@pinned downstream.
+    name: "scout source",
+    parent: "scout",
+    description: "Resolve a work unit's source authority (GH/beads/Notion)",
+    domain: "state",
+    actor: "scout",
+  },
 
   // ─── Derive actor — Datalog derived-truth spike (GH-1768) ─────────────────
   //
