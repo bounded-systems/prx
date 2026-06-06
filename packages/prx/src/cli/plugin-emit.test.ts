@@ -45,10 +45,22 @@ describe("prx plugin emit", () => {
     const monitors = JSON.parse(await readFile(join(dir, "monitors/monitors.json"), "utf8"));
     expect(monitors[0].name).toBe("prx-pipeline");
 
-    // The capability PreToolUse hook → prx policy guard.
+    // The capability PreToolUse hook → prx policy guard, routed through the
+    // bundled resolver script (not a bare `prx`) so it survives a minimal-PATH
+    // launch context.
     const hooks = JSON.parse(await readFile(join(dir, "hooks/hooks.json"), "utf8"));
     expect(hooks.hooks.PreToolUse[0].matcher).toBe("Bash");
-    expect(hooks.hooks.PreToolUse[0].hooks[0].command).toBe("prx hook policy-guard");
+    expect(hooks.hooks.PreToolUse[0].hooks[0].command).toBe(
+      'bash "${CLAUDE_PLUGIN_ROOT}/bin/prx-policy-guard.sh"',
+    );
+
+    // The resolver script is on disk, executable, and resolves prx by PATH then
+    // common install dirs before delegating to `prx hook policy-guard`.
+    const guard = join(dir, "bin/prx-policy-guard.sh");
+    const guardSrc = await readFile(guard, "utf8");
+    expect(guardSrc).toContain("command -v prx");
+    expect(guardSrc).toContain("hook policy-guard");
+    expect((await stat(guard)).mode & 0o111).not.toBe(0);
 
     // The watcher script is on disk and executable (the monitor runs it).
     const watch = join(dir, "bin/prx-audit-watch.sh");
