@@ -29,6 +29,7 @@ export const GRAPH_CONTEXT = [
     supported: "prx:supported",
     conductContact: "prx:conductContact",
     codeOfConductVersion: "prx:codeOfConductVersion",
+    backedClaims: "prx:backedClaims",
   },
 ] as const;
 
@@ -99,7 +100,11 @@ export const ProjectNode = z
     "@type": z.literal("SoftwareSourceCode"),
     "@id": z.string().min(1),
     name: z.string().min(1),
+    /** Short slogan (schema.org/slogan) — the README subtitle / tagline. */
+    slogan: z.string().min(1),
     description: z.string().min(1),
+    /** The backed value-prop claims the description rests on (gherkin-covered). */
+    backedClaims: z.array(z.string().min(1)).min(1),
     codeRepository: z.string().min(1),
     programmingLanguage: z.string().min(1),
     runtimePlatform: z.string().min(1),

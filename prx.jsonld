@@ -13,7 +13,8 @@
       "versionRange": "prx:versionRange",
       "supported": "prx:supported",
       "conductContact": "prx:conductContact",
-      "codeOfConductVersion": "prx:codeOfConductVersion"
+      "codeOfConductVersion": "prx:codeOfConductVersion",
+      "backedClaims": "prx:backedClaims"
     }
   ],
   "@graph": [
@@ -21,7 +22,13 @@
       "@type": "SoftwareSourceCode",
       "@id": "https://github.com/bounded-systems/prx",
       "name": "prx",
-      "description": "the agent-run PR contract / work-unit CLI",
+      "slogan": "the agent-run PR contract / work-unit CLI",
+      "description": "The agent-run work-unit CLI: capability-scoped agents whose every privileged effect is verified against its signed owner, driving a work unit through one signed pipeline to a merged PR.",
+      "backedClaims": [
+        "An agent cannot perform an action its role doesn't own.",
+        "A privileged effect not produced by its owning actor fails verification.",
+        "A beads work unit can travel intake → merged PR through one signed pipeline."
+      ],
       "codeRepository": "https://github.com/bounded-systems/prx",
       "programmingLanguage": "TypeScript",
       "runtimePlatform": "Bun",

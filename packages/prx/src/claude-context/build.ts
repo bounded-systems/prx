@@ -77,7 +77,7 @@ export function renderContextDoc(): string {
 -->
 # ${project.name} — project context for Claude
 
-${project.name} — ${project.description}. A Bun + TypeScript monorepo,
+${project.name} — ${project.slogan}. A Bun + TypeScript monorepo,
 source-available under \`${project.license.identifier}\`.
 
 - \`packages/prx/\` — the CLI
