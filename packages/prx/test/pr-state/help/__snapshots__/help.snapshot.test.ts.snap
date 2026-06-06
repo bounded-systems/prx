@@ -55,6 +55,7 @@ State:
   prx scout status           Fetch repo and worktree status
   prx scout overview         Fetch a repo overview snapshot
   prx scout notion           Resolve a Notion page UUID/Task-ID to a structured mirror record
+  prx scout source           Resolve a work unit's source authority (GH/beads/Notion)
   prx derive                 Query Datalog-derived facts over projected state
   prx derive ready           List ready units via the readiness rules
   prx derive drift           List drifted chains and the violated invariant
