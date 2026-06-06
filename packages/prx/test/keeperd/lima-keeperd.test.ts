@@ -51,12 +51,28 @@ describe("startKeeperd", () => {
 
     expect(handle.socket).toBe("/tmp/keeperd.sock");
     const launch = calls.find((c) => script(c.args).includes("keeper serve"))!;
-    expect(script(launch.args)).toContain("setsid nohup /tmp/prx keeper serve --socket /tmp/keeperd.sock --cwd /vm/clone");
-    expect(script(launch.args)).toContain("pkill -f 'prx keeper serve'");
+    expect(script(launch.args)).toContain(
+      "setsid nohup /tmp/prx keeper serve --socket /tmp/keeperd.sock --cwd /vm/clone --pidfile /tmp/keeperd.pid",
+    );
+    expect(script(launch.args)).toContain("</dev/null");
+    expect(script(launch.args)).not.toContain("pkill"); // robust: no self-matching pkill
     expect(calls.some((c) => isTestS(c.args))).toBe(true);
 
     await handle.stop();
-    expect(calls.some((c) => script(c.args).includes("pkill -f 'prx keeper serve'") && script(c.args).includes("rm -f"))).toBe(true);
+    const stopCall = calls.find((c) => script(c.args).includes("rm -f /tmp/keeperd.sock"))!;
+    expect(script(stopCall.args)).toContain("cat /tmp/keeperd.pid");
+    expect(script(stopCall.args)).toContain("rm -f /tmp/keeperd.sock /tmp/keeperd.log /tmp/keeperd.pid");
+    expect(script(stopCall.args)).not.toContain("pkill");
+  });
+
+  test("treats a non-zero launch exit (ssh backgrounding) as OK once the socket appears", async () => {
+    // `limactl shell` returns non-zero when backgrounding a daemon even on
+    // success; the readiness poll (test -S), not the launch exit, is the signal.
+    const { run } = recorder((_cmd, args) =>
+      script(args).includes("keeper serve") ? fail("client_loop: send disconnect") : undefined,
+    );
+    const handle = await startKeeperd({ vm: "myvm", cwd: "/vm/clone" }, { run, sleep: noSleep });
+    expect(handle.socket).toBe("/tmp/keeperd.sock");
   });
 
   test("throws with the daemon log if the socket never appears", async () => {
@@ -76,8 +92,10 @@ describe("stopKeeperd", () => {
     const { calls, run } = recorder();
     await stopKeeperd({ vm: "myvm" }, { run });
     const s = script(calls[0]!.args);
-    expect(s).toContain("pkill -f 'prx keeper serve'");
-    expect(s).toContain("rm -f /tmp/keeperd.sock /tmp/keeperd.log");
+    expect(s).toContain("cat /tmp/keeperd.pid");
+    expect(s).toContain('kill "$P"');
+    expect(s).toContain("rm -f /tmp/keeperd.sock /tmp/keeperd.log /tmp/keeperd.pid");
+    expect(s).not.toContain("pkill");
   });
 });
 

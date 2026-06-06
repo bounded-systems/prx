@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { connect, type Server } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -182,5 +183,22 @@ describe("runKeeperServe (unix socket, end-to-end)", () => {
     };
     expect(res.status).toBe("error");
     expect(res.code).toBe("bad-request");
+  });
+
+  test("writes its own pid to --pidfile while listening, removes it on close (GH-223)", async () => {
+    const { git } = fakeGit();
+    const socketPath = join(tmpdir(), `keeperd-pid-${process.pid}-${counter++}.sock`);
+    const pidfile = join(tmpdir(), `keeperd-pid-${process.pid}-${counter++}.pid`);
+    try {
+      server = await runKeeperServe({ socketPath, pidfile, deps: { git } });
+      expect(existsSync(pidfile)).toBe(true);
+      expect(readFileSync(pidfile, "utf8").trim()).toBe(String(process.pid));
+      await new Promise<void>((r) => server!.close(() => r()));
+      server = undefined;
+      expect(existsSync(pidfile)).toBe(false);
+    } finally {
+      rmSync(pidfile, { force: true });
+      rmSync(socketPath, { force: true });
+    }
   });
 });
