@@ -389,6 +389,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/code-health.md",
+      "name": "prx — code health & modernization status",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/code-health.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/companion-repos.md",
       "name": "Companion repo inventory",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/companion-repos.md",

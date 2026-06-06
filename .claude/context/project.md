@@ -41,6 +41,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Contributing to prx — `CONTRIBUTING.md`
 - Build & release — `docs/build-and-release.md`
 - Capability-Poor Orchestrator — `docs/capability-orchestrator.md`
+- prx — code health & modernization status — `docs/code-health.md`
 - Companion repo inventory — `docs/companion-repos.md`
 - GitHub App: `bounded-systems-prx` — `docs/github-app.md`
 - ADR — a spec-driven CLI: author verbs once, project everywhere — `docs/prx/cli-from-spec.md`
