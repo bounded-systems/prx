@@ -147,6 +147,32 @@ lives off-chain as telemetry/OTEL, optionally pinned to the chain as an anchored
 `observed@<leg>` side-attestation. Heartbeat-missing → watchdog/retreat (a
 liveness guard), *not* a failed gate.
 
+### Observing a run today (operators)
+
+Every leg heartbeat (`TELEMETRY_LEG_OBSERVED`) and seam start/done
+(`TELEMETRY_SEAM_OBSERVED`) is written as a `catalog-event` row to the daily
+audit NDJSON sink — `$XDG_STATE_HOME/prx/audit/<YYYY-MM-DD>.ndjson` (default
+`~/.local/state/prx/audit/`). So a run is observable with nothing more than
+`tail`/`jq`:
+
+```bash
+# Live: follow a pilot as it runs, filtered to one unit's telemetry
+tail -f ~/.local/state/prx/audit/$(date +%F).ndjson \
+  | jq -c 'select(.event|startswith("TELEMETRY_")) | select(.workUnitId=="GH-123")
+           | {ts, event, d:.details}'
+
+# Or mirror every audit row to stderr as it's emitted
+PRX_AUDIT_STDOUT=1 prx pilot GH-123
+```
+
+> Until this PR, `TELEMETRY_SEAM_OBSERVED` was **not registered in
+> `eventOwnerMap`**, so the default sink threw `unknown catalog event` and the
+> best-effort wrapper swallowed it — seam telemetry never reached the log.
+> Registering it (owner `telemetry`) is what makes the seam stream observable.
+
+A dedicated `prx pilot observe <unit>` reader (pretty timeline over these rows)
+is the natural next step; the tailable NDJSON is the substrate it would read.
+
 ## 4. Implementation slices
 
 To be filed as a bd epic once beads is back (the Dolt server is currently

@@ -751,7 +751,13 @@ export const toolActorCatalog: Record<ToolActor, ToolActorSpec> = {
     tier: "observability",
     kind: "external_runner",
     domain: "observability",
-    emits: ["TELEMETRY_LEG_OBSERVED", "TELEMETRY_EXPORTED", "TELEMETRY_EXPORT_FAILED", "SPAWN_ATTESTED"],
+    emits: [
+      "TELEMETRY_LEG_OBSERVED",
+      "TELEMETRY_SEAM_OBSERVED",
+      "TELEMETRY_EXPORTED",
+      "TELEMETRY_EXPORT_FAILED",
+      "SPAWN_ATTESTED",
+    ],
     accepts: ["span.emit", "metric.emit", "log.emit", "export"],
   },
 };
@@ -795,6 +801,9 @@ export const actorScopes: Record<ActorScope, ToolActor[]> = {
 export const eventOwnerMap: Record<string, ToolActor> = {
   // GH-188: telemetry actor's observability events.
   TELEMETRY_LEG_OBSERVED: "telemetry",
+  // Deterministic-seam telemetry (intake/checks/ci/merge) — parity with the LLM
+  // legs' heartbeat, so the seam stream reaches the operator-visible audit sink.
+  TELEMETRY_SEAM_OBSERVED: "telemetry",
   TELEMETRY_EXPORTED: "telemetry",
   TELEMETRY_EXPORT_FAILED: "telemetry",
   // GH-294: a signed spawn attestation was minted at leg launch (the ocap).
