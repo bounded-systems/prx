@@ -17,10 +17,15 @@
 import type { SessionActor } from "./schema.ts";
 import { type ArtifactEdge, consumeArtifact } from "../pipeline/edge.ts";
 import { type ResolvedSource, workUnitSourceEdge } from "../pipeline/source-pin.ts";
+import { artifactRef } from "../plan-store/artifact-store.ts";
+import { getRef } from "../plan-store/cas.ts";
 
-/** The resolved leg input: the embeddable body + provenance, or a miss. */
+/**
+ * The resolved leg input: the embeddable body + the content digest (`sha`, the
+ * spawn attestation's material — GH-293) + provenance, or a miss.
+ */
 export type LegInput =
-  | { missing: false; ref: string; body: string; signedBy: string }
+  | { missing: false; ref: string; sha: string; body: string; signedBy: string }
   | { missing: true; ref: string };
 
 /**
@@ -74,9 +79,14 @@ export async function resolveLegInput(
   const attestation = got.value.attestation;
   if (!attestation) return { missing: true, ref };
 
+  // GH-293: the content digest is the spawn attestation's required material.
+  const sha = await getRef(artifactRef(unit, edge.kind, edge.slot));
+  if (!sha) return { missing: true, ref };
+
   return {
     missing: false,
     ref: got.ref,
+    sha,
     body: sourceBody(got.value),
     signedBy: attestation.submittedBy,
   };

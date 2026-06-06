@@ -749,8 +749,9 @@ describe("session_open actor registration", () => {
 // failing closed (headless) when it's missing — the fix for the pilot planner
 // that ran blind. resolveLegInput + dispatchSessionEntry are injected so these
 // stay offline (no CAS, no claude).
-describe("openSession — leg input gate (GH-288)", () => {
-  const baseDeps = (capture: { event?: unknown }) => ({
+describe("openSession — leg input gate + signed spawn (GH-288 / GH-293)", () => {
+  type Capture = { event?: unknown; mint?: { unit: string; role: string; input: { ref: string; sha: string } } };
+  const baseDeps = (capture: Capture) => ({
     runReserve: () => ({
       workspace_id: "feedface0001",
       branch_ref: "plan/gh-288",
@@ -772,55 +773,74 @@ describe("openSession — leg input gate (GH-288)", () => {
       capture.event = event;
       return { profile: "stub-plan" } as unknown as RuntimeProfileProjection;
     },
+    // GH-293: a non-null signer + a capturing mint keep this offline (no CAS, no key).
+    resolveSigner: (() => ({})) as never,
+    mintSpawn: (async (a: { unit: string; role: string; input: { ref: string; sha: string } }) => {
+      capture.mint = { unit: a.unit, role: a.role, input: a.input };
+      return { statement: {} as never, emit: { ref: `${a.unit}:spawn@${a.role}`, sha: "sha256:stub" } };
+    }) as never,
     chdir: () => {},
     cwd: () => "/tmp/wt/plan",
   });
 
-  test("plan/headless: embeds the consumed source body into OPEN_PLAN_SESSION", async () => {
-    const capture: { event?: unknown } = {};
+  const presentInput = async () => ({
+    missing: false as const,
+    ref: "GH-288:source@pinned",
+    sha: "sha256:inputmaterial",
+    body: "THE EMBEDDED ISSUE TEXT",
+    signedBy: "dev-key",
+  });
+
+  test("plan/headless: embeds source AND mints a spawn attestation over the input material", async () => {
+    const capture: Capture = {};
     const result = await openSession(
       { actor: "plan", workUnitId: "GH-288", interaction: "headless", shortId: "gh2880", now: "2026-06-06T00:00:00Z" },
-      {
-        ...baseDeps(capture),
-        resolveLegInput: async () => ({
-          missing: false,
-          ref: "GH-288:source@pinned",
-          body: "THE EMBEDDED ISSUE TEXT",
-          signedBy: "dev-key",
-        }),
-      },
+      { ...baseDeps(capture), resolveLegInput: presentInput },
     );
     expect(result.status).toBe("opened");
     const ev = capture.event as { type: string; sourceBody?: string };
     expect(ev.type).toBe("OPEN_PLAN_SESSION");
     expect(ev.sourceBody).toBe("THE EMBEDDED ISSUE TEXT");
+    // GH-293: the spawn was minted over the consumed input material.
+    expect(capture.mint).toEqual({
+      unit: "GH-288",
+      role: "plan",
+      input: { ref: "GH-288:source@pinned", sha: "sha256:inputmaterial" },
+    });
   });
 
-  test("plan/headless: FAILS CLOSED when the input artifact is missing (no spawn)", async () => {
-    const capture: { event?: unknown } = {};
+  test("plan/headless: FAILS CLOSED when the input artifact is missing (no spawn, no mint)", async () => {
+    const capture: Capture = {};
     const result = await openSession(
       { actor: "plan", workUnitId: "GH-288", interaction: "headless", shortId: "gh2881", now: "2026-06-06T00:00:00Z" },
-      {
-        ...baseDeps(capture),
-        resolveLegInput: async () => ({ missing: true, ref: "GH-288:source@pinned" }),
-      },
+      { ...baseDeps(capture), resolveLegInput: async () => ({ missing: true, ref: "GH-288:source@pinned" }) },
     );
     expect(result.status).toBe("error");
     if (result.status === "error") expect(result.stage).toBe("dispatch");
-    // The profile was never built → the agent cannot spawn.
+    expect(capture.event).toBeUndefined();
+    expect(capture.mint).toBeUndefined();
+  });
+
+  test("plan/headless: FAILS CLOSED with a present input but NO signer (no unsigned spawn)", async () => {
+    const capture: Capture = {};
+    const result = await openSession(
+      { actor: "plan", workUnitId: "GH-288", interaction: "headless", shortId: "gh2883", now: "2026-06-06T00:00:00Z" },
+      { ...baseDeps(capture), resolveLegInput: presentInput, resolveSigner: (() => null) as never },
+    );
+    expect(result.status).toBe("error");
+    if (result.status === "error") expect(result.stage).toBe("dispatch");
+    expect(capture.mint).toBeUndefined();
     expect(capture.event).toBeUndefined();
   });
 
   test("plan/interactive: missing input does NOT hard-fail (human can pin mid-session)", async () => {
-    const capture: { event?: unknown } = {};
+    const capture: Capture = {};
     const result = await openSession(
       { actor: "plan", workUnitId: "GH-288", interaction: "interactive", shortId: "gh2882", now: "2026-06-06T00:00:00Z" },
-      {
-        ...baseDeps(capture),
-        resolveLegInput: async () => ({ missing: true, ref: "GH-288:source@pinned" }),
-      },
+      { ...baseDeps(capture), resolveLegInput: async () => ({ missing: true, ref: "GH-288:source@pinned" }) },
     );
     expect(result.status).toBe("opened");
+    expect(capture.mint).toBeUndefined();
   });
 });
 
