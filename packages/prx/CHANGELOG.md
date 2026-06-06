@@ -1,5 +1,21 @@
 # @bounded-systems/prx
 
+## 0.3.2
+
+### Patch Changes
+
+- 84b4579: `plugin emit`: route the capability `PreToolUse` hook through a bundled resolver
+  script (`bin/prx-policy-guard.sh`) instead of a bare `prx hook policy-guard`.
+
+  The bare command is PATH-dependent: when Claude Code is launched from a GUI /
+  Spotlight / launchd context (not a shell), the hook subprocess can inherit a
+  minimal PATH without `~/.local/bin`, so `prx` resolves to "command not found"
+  and the policy guard silently stops enforcing. The resolver finds `prx` by PATH
+  first, then common install locations (`$XDG_BIN_HOME`/`~/.local/bin`, homebrew,
+  `/usr/local/bin`, the nix system profile), mirroring the monitor's existing
+  `${CLAUDE_PLUGIN_ROOT}` script pattern. Surfaced by dogfooding the emitted
+  plugin against the v0.3.1 binary.
+
 ## 0.3.1
 
 ### Patch Changes
@@ -20,6 +36,7 @@
   preview subsystem (tested; not yet wired as `prx` commands — the real run is
   behind `PRX_PILOT_REAL` and gated on the dolt actor). Ships as a tested
   subsystem behind the existing surfaces.
+
   - **feat(orchestrator):** `pilot` (Layer 1) drives one work unit — each role leg
     invokes a headless Claude subagent (no tmux, "claude over ssh") and signs an
     in-toto step link. The tail `awaiting_ci → ready_to_merge → sealing → merged`
@@ -48,6 +65,7 @@
 ### Patch Changes
 
 - 4d8d08e: Capability-poor orchestrator, beads-native pipeline, and the compiled-binary audit-DB fix.
+
   - **fix(audit):** embed `schema.sql` into the `bun --compile` binary — fixes the `ENOENT /$bunfs/root/schema.sql` that broke every audit-DB command (e.g. `prx services status --anthropic`) in the released binary (prx-eky).
   - **feat(submit):** beads-native submit / publish / merge — a beads work unit can travel intake → merged PR (no longer GitHub-issue-only).
   - **feat(agents):** capability-poor orchestrator — actor sub-agents generated from the policy table, a PreToolUse policy hook that denies any command a role doesn't own, orphan-effect provenance verification, and the intake⊗actor salt + ephemeral salted worktrees for per-actor isolation.
