@@ -24,11 +24,14 @@ That runs the `ci` job of `.github/workflows/ci.yml` in a runner container via
 straight through to `act`:
 
 ```bash
-bun run ci:act -- -l                                   # list jobs
+bun run ci:act -- -l -W .github/workflows/ci.yml       # list a workflow's jobs
 bun run ci:act -- -n                                   # dry-run, no containers
 bun run ci:act -- -W .github/workflows/coverage.yml    # a different workflow
-bun run ci:act -- --container-architecture linux/amd64 # Apple Silicon escape hatch
+bun run ci:act -- --container-architecture linux/amd64 # force amd64 (default is host arch)
 ```
+
+Scope `-l` to a workflow with `-W` — a bare `act -l` validates *every*
+workflow and trips on `coverage.yml` (see [Known rough edges](#known-rough-edges)).
 
 The wrapper (`packages/prx/scripts/local-ci-act`) preflights `act` and the
 Docker daemon and prints install/start hints if either is missing.
@@ -89,13 +92,26 @@ Silicon macOS 13+, which is fast; `qemu` elsewhere).
 
 `act` reproduces most, not all, of GitHub-hosted CI:
 
-- **`actions/cache` is a no-op** under act — you'll see a warning, not a
-  failure. Jobs just run cold.
+- **`actions/cache` runs against act's ephemeral cache server** — expect a cache
+  *miss* ("Cache not found for input keys"), not a hit. That's normal: jobs run
+  cold, the step still succeeds, and nothing fails.
+- **The test phase fails under act, and that's expected.** act checks the repo
+  out by copying the working tree into the container with `docker cp` — there is
+  **no `.git`** inside. Tests that shell out to `git` (`markdown-coverage`,
+  `no-operational-python`, …) hit `fatal: not a git repository`, and the tmux/
+  PTY session tests have no terminal. For "did I break the checks", run
+  `dist/prx ci` instead — act is for proving the *workflow YAML* runs.
+- **`act -l` validates every workflow** and rejects `coverage.yml`'s
+  `code-quality:` permission (`Unknown Property code-quality` — act's schema
+  trails GitHub's). It's valid on GitHub; scope local listing to one workflow
+  with `-W` (the `ci:act` default already runs scoped, so it's unaffected).
 - **Pinned-SHA actions are fetched from the network** on first run (`setup-bun`,
   `checkout`, …). The first `ci:act` is slower; later runs reuse the images.
-- **Apple Silicon**: if an action assumes `amd64` and dies, re-run with
-  `bun run ci:act -- --container-architecture linux/amd64` (emulated, slower).
-  Running inside the arm64 Lima VM avoids this for arm64-native images.
+- **Apple Silicon**: `ci:act` defaults `--container-architecture` to the host
+  arch, so the run is native arm64. Forcing amd64 (`bun run ci:act --
+  --container-architecture linux/amd64`) runs under emulation, where the
+  setup-bun → `actions/cache` hand-off loses `node` from PATH and the job dies —
+  only reach for it if an action is genuinely amd64-only.
 - **Secrets / `GITHUB_TOKEN`**: the `ci` job needs none. For workflows that do,
   pass `-s NAME=value` or `--secret-file`.
 

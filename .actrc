@@ -13,6 +13,10 @@
 # Quieter, deterministic output for a local run.
 --rm
 
-# Apple Silicon note: if an action assumes amd64 and fails, re-run with
-#   bun run ci:act -- --container-architecture linux/amd64
-# (emulated, slower). Left out here so native arm64 VMs/hosts run natively.
+# Apple Silicon note: the `ci:act` wrapper defaults --container-architecture to
+# the host arch (linux/arm64 on Apple Silicon), so the run is native — Docker
+# would otherwise resolve `ubuntu-latest` to amd64, and under emulation the
+# setup-bun → actions/cache hand-off loses `node` from PATH and the job dies.
+# If an action is amd64-only, force it back with:
+#   bun run ci:act -- --container-architecture linux/amd64   (emulated, slower)
+# (Pinned here rather than in the wrapper because the right arch is host-specific.)
