@@ -1,14 +1,25 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  BEADS_READ_KINDS,
   BEADS_REQUEST_KINDS,
+  BEADS_WRITE_KINDS,
   BeadsRequestSchema,
   BeadsResponseSchema,
+  isBeadsWriteKind,
 } from "../../src/beadsd/contract.ts";
 
 describe("beadsd wire contract — request envelope", () => {
-  test("the read envelope is an enumerable allowlist", () => {
-    expect(BEADS_REQUEST_KINDS).toEqual(["ready", "list", "show"]);
+  test("the envelope is an enumerable read+write allowlist", () => {
+    expect(BEADS_READ_KINDS).toEqual(["ready", "list", "show"]);
+    expect(BEADS_WRITE_KINDS).toEqual(["create", "update", "close"]);
+    expect(BEADS_REQUEST_KINDS).toEqual(["ready", "list", "show", "create", "update", "close"]);
+  });
+
+  test("isBeadsWriteKind classifies reads vs writes", () => {
+    expect(isBeadsWriteKind("show")).toBe(false);
+    expect(isBeadsWriteKind("create")).toBe(true);
+    expect(isBeadsWriteKind("close")).toBe(true);
   });
 
   test("accepts ready, list (±status), and show", () => {
@@ -18,13 +29,27 @@ describe("beadsd wire contract — request envelope", () => {
     expect(BeadsRequestSchema.safeParse({ kind: "show", id: "GH-228" }).success).toBe(true);
   });
 
-  test("rejects show without an id and list with an empty status", () => {
-    expect(BeadsRequestSchema.safeParse({ kind: "show" }).success).toBe(false);
-    expect(BeadsRequestSchema.safeParse({ kind: "list", status: "" }).success).toBe(false);
+  test("accepts the write envelope (create / update / close)", () => {
+    expect(BeadsRequestSchema.safeParse({ kind: "create", issueType: "task", title: "x" }).success).toBe(true);
+    expect(
+      BeadsRequestSchema.safeParse({ kind: "create", issueType: "bug", title: "x", priority: 1, description: "d" })
+        .success,
+    ).toBe(true);
+    expect(BeadsRequestSchema.safeParse({ kind: "update", id: "prx-abb", status: "in_progress" }).success).toBe(true);
+    expect(BeadsRequestSchema.safeParse({ kind: "update", id: "prx-abb", assignee: "" }).success).toBe(true);
+    expect(BeadsRequestSchema.safeParse({ kind: "close", id: "prx-abb", reason: "done" }).success).toBe(true);
   });
 
-  test("rejects an off-envelope kind (e.g. a write)", () => {
-    expect(BeadsRequestSchema.safeParse({ kind: "close", id: "GH-228" }).success).toBe(false);
+  test("rejects malformed requests", () => {
+    expect(BeadsRequestSchema.safeParse({ kind: "show" }).success).toBe(false);
+    expect(BeadsRequestSchema.safeParse({ kind: "list", status: "" }).success).toBe(false);
+    expect(BeadsRequestSchema.safeParse({ kind: "create", title: "x" }).success).toBe(false); // no issueType
+    expect(BeadsRequestSchema.safeParse({ kind: "create", issueType: "task" }).success).toBe(false); // no title
+    expect(BeadsRequestSchema.safeParse({ kind: "create", issueType: "task", title: "x", priority: 9 }).success).toBe(
+      false,
+    ); // priority out of range
+    expect(BeadsRequestSchema.safeParse({ kind: "close" }).success).toBe(false); // no id
+    expect(BeadsRequestSchema.safeParse({ kind: "frobnicate" }).success).toBe(false); // off-envelope
   });
 });
 

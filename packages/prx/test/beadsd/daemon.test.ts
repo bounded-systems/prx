@@ -104,6 +104,92 @@ describe("handleBeadsRequest", () => {
   });
 });
 
+describe("handleBeadsRequest — writes (single-writer, policy passthrough)", () => {
+  test("create dispatches `bd create --json --type --title [--priority --description]`", async () => {
+    const { execBd, calls } = fakeBd(okResult(JSON.stringify({ id: "prx-new" })));
+    const res = await handleBeadsRequest(
+      { kind: "create", issueType: "task", title: "do a thing", priority: 1, description: "why" },
+      { execBd },
+    );
+    expect(res.status).toBe("ok");
+    if (res.status === "ok") expect(res.result).toEqual({ id: "prx-new" });
+    expect(calls[0]!.subcommand).toBe("create");
+    expect(calls[0]!.args).toEqual([
+      "--json",
+      "--type",
+      "task",
+      "--title",
+      "do a thing",
+      "--priority",
+      "1",
+      "--description",
+      "why",
+    ]);
+  });
+
+  test("create omits optional flags when not given", async () => {
+    const { execBd, calls } = fakeBd(okResult("{}"));
+    await handleBeadsRequest({ kind: "create", issueType: "bug", title: "t" }, { execBd });
+    expect(calls[0]!.args).toEqual(["--json", "--type", "bug", "--title", "t"]);
+  });
+
+  test("update dispatches `bd update <id> --json <fields>`", async () => {
+    const { execBd, calls } = fakeBd(okResult("{}"));
+    await handleBeadsRequest(
+      { kind: "update", id: "prx-abb", status: "in_progress", priority: 0, assignee: "alice" },
+      { execBd },
+    );
+    expect(calls[0]!.subcommand).toBe("update");
+    expect(calls[0]!.args).toEqual([
+      "prx-abb",
+      "--json",
+      "--status",
+      "in_progress",
+      "--priority",
+      "0",
+      "--assignee",
+      "alice",
+    ]);
+  });
+
+  test("update with an empty assignee passes `--assignee ''` (clear semantics)", async () => {
+    const { execBd, calls } = fakeBd(okResult("{}"));
+    await handleBeadsRequest({ kind: "update", id: "prx-abb", assignee: "" }, { execBd });
+    expect(calls[0]!.args).toEqual(["prx-abb", "--json", "--assignee", ""]);
+  });
+
+  test("update with no fields is a bad-request (never reaches bd)", async () => {
+    const { execBd, calls } = fakeBd();
+    const res = await handleBeadsRequest({ kind: "update", id: "prx-abb" }, { execBd });
+    expect(res.status).toBe("error");
+    if (res.status === "error") expect(res.code).toBe("bad-request");
+    expect(calls).toHaveLength(0); // short-circuited before dispatch
+  });
+
+  test("close dispatches `bd close <id> --json [--reason]`", async () => {
+    const { execBd, calls } = fakeBd(okResult("{}"));
+    await handleBeadsRequest({ kind: "close", id: "prx-abb", reason: "done" }, { execBd });
+    expect(calls[0]!.subcommand).toBe("close");
+    expect(calls[0]!.args).toEqual(["prx-abb", "--json", "--reason", "done"]);
+  });
+
+  test("a write rejected by the bd policy layer surfaces as a bd-write error", async () => {
+    // execBd returns non-zero (e.g. planner-role gate) — beadsd reports bd-write.
+    const { execBd } = fakeBd({
+      exitCode: 1,
+      stdout: "",
+      stderr: "bd-safe: blocked subcommand 'create' for state 'validating' role 'executor'",
+      policy: null,
+    });
+    const res = await handleBeadsRequest({ kind: "create", issueType: "task", title: "t" }, { execBd });
+    expect(res.status).toBe("error");
+    if (res.status === "error") {
+      expect(res.code).toBe("bd-write");
+      expect(res.message).toContain("blocked");
+    }
+  });
+});
+
 describe("runBeadsServe (unix socket, end-to-end)", () => {
   let server: Server | undefined;
   let socketPath: string | undefined;
