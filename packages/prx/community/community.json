@@ -3,7 +3,12 @@
   "project": {
     "name": "prx",
     "tagline": "the agent-run PR contract / work-unit CLI",
-    "description": "The agent-run PR-contract CLI: it drives each work unit from plan through implementation, CI, and review to a merged PR as a signed, policy-enforced derivation chain run by capability-scoped agents — and ships the @bounded-systems libraries (policy, provenance, capability seams, content-addressed storage) it is built on.",
+    "description": "The agent-run work-unit CLI: capability-scoped agents whose every privileged effect is verified against its signed owner, driving a work unit through one signed pipeline to a merged PR.",
+    "claims": [
+      "An agent cannot perform an action its role doesn't own.",
+      "A privileged effect not produced by its owning actor fails verification.",
+      "A beads work unit can travel intake → merged PR through one signed pipeline."
+    ],
     "org": "bounded-systems",
     "repo": "bounded-systems/prx",
     "url": "https://github.com/bounded-systems/prx"

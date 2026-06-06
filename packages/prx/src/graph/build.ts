@@ -181,6 +181,7 @@ export function buildGraph(): ProjectGraph {
         name: String(project.name),
         slogan: String(project.tagline),
         description: String(project.description),
+        backedClaims: ((project.claims ?? []) as unknown[]).map(String),
         codeRepository: repoUrl,
         programmingLanguage: "TypeScript",
         runtimePlatform: "Bun",
