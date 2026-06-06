@@ -9,12 +9,17 @@
  * user's $HOME claude CLI — supply baked values that dev/CI derive locally.
  *
  * Usage:
- *   bun scripts/prx-compile.ts <outfile>
+ *   bun scripts/prx-compile.ts <outfile> [--target <bun-target>]
+ *
+ * `--target` (or PRX_COMPILE_TARGET) cross-compiles for another platform via
+ * `bun build --compile --target` — e.g. `bun-linux-arm64` to bake the Linux prx
+ * the keeperd VM runs (GH-201). Omitted ⇒ a host build (unchanged behavior).
  *
  * Env overrides:
  *   PRX_COMPILE_GIT_SHA       baked git SHA (default: rev-parse --short=12)
  *   PRX_COMPILE_CLAUDE_PATH   baked native claude CLI path (default: $HOME/.local/bin/claude)
  *   PRX_COMPILE_AI_HOME_ROOT  bake BAKED_AI_HOME_ROOT (nix only; else omitted)
+ *   PRX_COMPILE_TARGET        bun --compile target (default: host; CLI --target wins)
  *   BUN                       bun binary to invoke (default: bun)
  */
 
@@ -22,9 +27,30 @@ import { spawnSync } from "node:child_process";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-const outfile = process.argv[2];
+// outfile is the sole positional; `--target <t>` / `--target=<t>` is optional
+// (CLI wins over the PRX_COMPILE_TARGET env override).
+let outfile: string | undefined;
+let target = process.env.PRX_COMPILE_TARGET;
+const argv = process.argv.slice(2);
+for (let i = 0; i < argv.length; i++) {
+  const arg = argv[i]!; // bounded by argv.length
+  if (arg === "--target") {
+    target = argv[++i];
+  } else if (arg.startsWith("--target=")) {
+    target = arg.slice("--target=".length);
+  } else if (outfile === undefined) {
+    outfile = arg;
+  } else {
+    console.error(`prx-compile: unexpected argument '${arg}'`);
+    process.exit(2);
+  }
+}
 if (!outfile) {
-  console.error("prx-compile: outfile required (usage: bun scripts/prx-compile.ts <outfile>)");
+  console.error("prx-compile: outfile required (usage: bun scripts/prx-compile.ts <outfile> [--target <t>])");
+  process.exit(2);
+}
+if (target !== undefined && target.length === 0) {
+  console.error("prx-compile: --target requires a value (e.g. bun-linux-arm64)");
   process.exit(2);
 }
 
@@ -67,9 +93,10 @@ if (aiHomeRoot) {
 }
 
 const bun = process.env.BUN ?? "bun";
+const targetArgs = target ? [`--target=${target}`] : [];
 const result = spawnSync(
   bun,
-  ["build", "--compile", ...defines, "packages/prx/scripts/pr_state.ts", "--outfile", outfile],
+  ["build", "--compile", ...defines, ...targetArgs, "packages/prx/scripts/pr_state.ts", "--outfile", outfile],
   { stdio: "inherit" },
 );
 

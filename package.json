@@ -7,6 +7,7 @@
   "scripts": {
     "pr-state": "bun run packages/prx/scripts/pr_state.ts",
     "prx:build": "bun install && mkdir -p dist && bun packages/prx/scripts/prx-compile.ts dist/prx",
+    "prx:build:linux-arm64": "bun install && mkdir -p dist && bun packages/prx/scripts/prx-compile.ts dist/prx-linux-arm64 --target bun-linux-arm64",
     "doctor:agents": "bun run packages/prx/scripts/agent_doctor.ts",
     "doctor:agents:json": "bun run packages/prx/scripts/agent_doctor.ts --format json",
     "doctor:agents:strict": "bun run packages/prx/scripts/agent_doctor.ts --strict",
