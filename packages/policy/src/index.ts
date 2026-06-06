@@ -61,9 +61,11 @@ const POLICY_TABLE: Record<string, readonly string[]> = {
   // write-tree/commit-tree to keeper ONLY (the sole git-writer, I-AUD4): the
   // submit artifact is identified by a tree SHA keeper materializes, and the
   // publishable commit is `commit-tree`'d from it. No other role gets them.
-  "git:planning:keeper":     ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch"],
-  "git:validating:keeper":   ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch", "add", "commit", "restore", "switch", "checkout", "merge", "pull", "push", "write-tree", "commit-tree"],
-  "git:merging:keeper":      ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch", "add", "commit", "restore", "switch", "checkout", "merge", "pull", "push", "write-tree", "commit-tree"],
+  // GH-201: `bundle` (local commit-range export for keeperd's host→VM object
+  // ship) joins keeper's read-side caps — read-only + local, no ref mutation.
+  "git:planning:keeper":     ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch", "bundle"],
+  "git:validating:keeper":   ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch", "bundle", "add", "commit", "restore", "switch", "checkout", "merge", "pull", "push", "write-tree", "commit-tree"],
+  "git:merging:keeper":      ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch", "bundle", "add", "commit", "restore", "switch", "checkout", "merge", "pull", "push", "write-tree", "commit-tree"],
 
   // gh (all scoped to `pr` group — the group check is in the gh tool layer)
   "gh:planning:planner":     ["status", "list", "view", "checks", "diff"],

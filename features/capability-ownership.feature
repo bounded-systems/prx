@@ -15,6 +15,7 @@ Feature: Actor capability ownership
       | subcommand  | owners                                      |
       | add         | executor, keeper                            |
       | branch      | planner, executor, reviewer, tester, keeper |
+      | bundle      | keeper                                      |
       | checkout    | executor, keeper                            |
       | commit      | executor, keeper                            |
       | commit-tree | keeper                                      |

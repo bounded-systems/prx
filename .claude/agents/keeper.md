@@ -17,7 +17,7 @@ You own git refs for one unit, in your own ephemeral worktree. You materialize a
 
 ## Allowed subcommands (projected from the policy table)
 
-- **git** — add, branch, checkout, commit, commit-tree, diff, fetch, log, merge, pull, push, restore, rev-parse, show, status, switch, worktree, write-tree
+- **git** — add, branch, bundle, checkout, commit, commit-tree, diff, fetch, log, merge, pull, push, restore, rev-parse, show, status, switch, worktree, write-tree
 
 ## Never (hard-blocked, any role)
 
