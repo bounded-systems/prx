@@ -201,9 +201,6 @@ import {
   WorkspaceStore,
   defaultRegistryPath,
   openRegistry,
-  type BranchRow,
-  type RepoRow,
-  type WorkspaceRow,
 } from "./registry_store.ts";
 import { adoptRepo, type AdoptRepoResult } from "./repo_adopt.ts";
 import { adoptBranch, type AdoptBranchResult } from "./branch_adopt.ts";
