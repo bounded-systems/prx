@@ -35,7 +35,14 @@ import { openSession } from "../../src/session/open.ts";
 import type { RuntimeProfileProjection } from "../../src/machine/runtime_profiles.ts";
 
 function git(cwd: string, args: string[]): string {
-  const r = spawnSync("git", args, { cwd, encoding: "utf8" });
+  // `-c commit.gpgsign=false` keeps these temp-repo commits hermetic: without
+  // it, a developer with `commit.gpgsign=true` (e.g. SSH signing) hangs the
+  // seed commit on a signing prompt, timing out the beforeAll hook. Harmless
+  // for non-commit git subcommands.
+  const r = spawnSync("git", ["-c", "commit.gpgsign=false", ...args], {
+    cwd,
+    encoding: "utf8",
+  });
   if (r.status !== 0) {
     throw new Error(`git ${args.join(" ")} (cwd=${cwd}) failed: ${r.stderr}`);
   }
