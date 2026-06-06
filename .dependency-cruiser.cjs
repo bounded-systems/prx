@@ -40,6 +40,17 @@ module.exports = {
       from: { orphan: true, pathNot: ["\\.(test|d)\\.ts$", "(^|/)(index|cli)\\.ts$"] },
       to: {},
     },
+    {
+      // prx (the app) is the TOP of the package graph: the @bounded-systems/*
+      // leaves are extractable libraries and must never import the CLI app. The
+      // monorepo-internal twin of each package's extractability.test.ts — catches
+      // an upward leaf→app edge before it forms.
+      name: "prx-is-the-top",
+      comment: "A @bounded-systems/* library imported the prx app — an upward edge that breaks extractability.",
+      severity: "error",
+      from: { path: "^packages/(?!prx/)[^/]+/src/" },
+      to: { path: "^packages/prx/src/" },
+    },
   ],
   options: {
     doNotFollow: { path: "node_modules" },

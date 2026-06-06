@@ -1,2 +1,14 @@
-{ "name": "@bounded-systems/policy", "description": "Tool-policy engine enforcing subcommand allowlists by tool, state, and role", "version": "0.0.0", "private": true, "type": "module",
-  "exports": { ".": { "types": "./src/index.ts", "default": "./src/index.ts" } } }
+{
+  "name": "@bounded-systems/policy",
+  "description": "Tool-policy engine enforcing subcommand allowlists by tool, state, and role",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  }
+}

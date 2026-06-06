@@ -1,8 +1,10 @@
 {
-  "name": "@bounded-systems/anchored-chain", "description": "Derivation chain with contract validation, signing, lineage tracking, and invalidation",
+  "name": "@bounded-systems/anchored-chain",
+  "description": "Derivation chain with contract validation, signing, lineage tracking, and invalidation",
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./src/index.ts",

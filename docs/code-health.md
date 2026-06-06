@@ -37,6 +37,41 @@ Replaced the ad-hoc `madge` orphan heuristics with maintained, declarative tools
 
 `madge` remains only for the legacy `no-intake-triage` cycle test (migrate next).
 
+## 2a. Flagging & fixing the monolith
+
+**What flags it:** `bun run health` (sprawl lens) names the largest files;
+`bunx depcruise … --output-type metrics` ranks them by coupling (Ca/Ce/instability,
+so `pr-state/cli.ts` shows as the top hub); ESLint `max-lines` / `max-lines-per-function`
+is the canonical per-file linter (heavy to adopt retroactively); SonarJS adds
+cognitive-complexity. We use a repo-native **ratchet** instead:
+`test/code_health.test.ts` caps source files at 2,000 lines with a shrinking
+`MONOLITHS` allowlist — no *new* monolith can land, and offenders only leave the
+list by being split.
+
+**What fixes it:** **ts-morph** (TS compiler API) for the codemods — move
+declarations, split files, rewrite imports — applied verb-by-verb as each
+`pr-state/cli.ts` handler becomes a registered VerbSpec whose body lives in a
+feature module (§4). `jscodeshift` is the alternative.
+
+## 2b. Packaging, rebuilds & extraction
+
+- **Tree-shaking:** `sideEffects: false` set on all 19 `@bounded-systems/*` leaf
+  packages (the CLI app keeps its entrypoint side effects). Combined with ESM +
+  the acyclic rule, bundlers/consumers can drop unused exports.
+- **Extraction readiness** is already gated per-package by `extractability.test.ts`
+  (a package may import only node builtins + its own barrel — any other edge means
+  an upward dep). The monorepo-internal twin is now a dependency-cruiser rule,
+  **`prx-is-the-top`** (`error`, currently 0): no leaf may import the `prx` app.
+  A concern earns its own repo only with a stable contract + external consumers +
+  independent cadence + green extractability (`cas` qualifies; `pr-state` can't
+  until decomposed).
+- **Per-package nix derivations (planned, not yet landed):** `flake.nix` today
+  fetches released binaries via `fetchurl`. The rebuild/cache win is a derivation
+  *per package* (each hashed by its own inputs) so a leaf change doesn't bust
+  unrelated builds — ~80% of the separate-repo caching benefit without the
+  cross-repo coordination tax. Prereq: the acyclic graph above. (No nix in CI yet;
+  spike pending.)
+
 ## 3. Target module architecture
 
 bobby's rule: **"parents import children; shared is one global module; you always
@@ -75,11 +110,16 @@ Landed (PR #290 / #282):
 - [x] `type-coverage` ratchet gate (`bun run typecov`).
 - [x] Re-grounded `docs/capability-orchestrator.md` (#282).
 
+Also landed:
+- [x] Automated changelog workflow (`.github/workflows/version.yml`, SHA-pinned).
+- [x] Schema-first health report (`src/health/model.ts` → `schemas/health/`).
+- [x] `sideEffects: false` on all 19 leaf packages (tree-shaking).
+- [x] `prx-is-the-top` layering rule (`error`, 0) + monolith ratchet (≤2000 lines).
+
 Next:
-- [ ] Automated changelog workflow (hand-rolled changesets `version` PR, SHA-pinned).
 - [ ] Zod **boundary** coverage lens in `health` (`JSON.parse` not `.parse`'d; `z.any()` holes).
 - [ ] VerbSpec schema coverage (% of registry verbs with input/output Zod).
 - [ ] Migrate `no-intake-triage` test off `madge`; drop `madge`.
 - [ ] Scripts → `prx` verbs — template on `prx health`, then the `gen-*` codegen.
-- [ ] Decompose `pr-state/cli.ts` (ts-morph codemods, verb-by-verb).
-- [ ] Flip `no-circular` to `error` once ratcheted to 0.
+- [ ] Decompose `pr-state/cli.ts` (ts-morph codemods, verb-by-verb) → shrink `MONOLITHS`.
+- [ ] Per-package nix derivations (spike) + flip `no-circular` to `error` once ratcheted to 0.

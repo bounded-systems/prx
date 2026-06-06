@@ -4,6 +4,7 @@
   "description": "Content-addressable storage substrate: bytes addressed by their SHA-256 digest, with a storage-agnostic blob-store port.",
   "license": "MIT",
   "type": "module",
+  "sideEffects": false,
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bounded-systems/cas.git"
