@@ -4,6 +4,7 @@ import type { FramedTransport } from "../../src/keeperd/transport.ts";
 import type { RunResult } from "../../src/keeperd/lima-exec.ts";
 import {
   BeadsUnavailableError,
+  ensureLocalBeadsd,
   resolveBeadsEndpoint,
   withBeadsClient,
   DEFAULT_LOCAL_BEADS_SOCKET,
@@ -14,6 +15,8 @@ import {
 const fakeEnv = (vars: Record<string, string | undefined>) => (k: string) => vars[k];
 
 const okTransport: FramedTransport = async () => ({ status: "ok", result: [] });
+/** No-op auto-start for tests that drive the client over a fake transport. */
+const noEnsure = async () => {};
 
 describe("resolveBeadsEndpoint", () => {
   test("defaults to a local socket", () => {
@@ -52,7 +55,7 @@ describe("withBeadsClient — local", () => {
         seen = true;
         return client.query({ kind: "ready" });
       },
-      { endpoint: { kind: "local", socket: "/x.sock" }, localTransport: () => okTransport },
+      { endpoint: { kind: "local", socket: "/x.sock" }, localTransport: () => okTransport, ensureUp: noEnsure },
     );
     expect(seen).toBe(true);
     expect(res.status).toBe("ok");
@@ -66,12 +69,14 @@ describe("withBeadsClient — local", () => {
       withBeadsClient((c) => c.query({ kind: "ready" }), {
         endpoint: { kind: "local", socket: "/x.sock" },
         localTransport: () => refused,
+        ensureUp: noEnsure,
       }),
     ).rejects.toThrow(BeadsUnavailableError);
     await expect(
       withBeadsClient((c) => c.query({ kind: "ready" }), {
         endpoint: { kind: "local", socket: "/x.sock" },
         localTransport: () => refused,
+        ensureUp: noEnsure,
       }),
     ).rejects.toThrow(/prx beads serve/);
   });
@@ -84,6 +89,7 @@ describe("withBeadsClient — local", () => {
       withBeadsClient((c) => c.query({ kind: "ready" }), {
         endpoint: { kind: "local", socket: "/x.sock" },
         localTransport: () => boom,
+        ensureUp: noEnsure,
       }),
     ).rejects.toThrow(/kaboom/);
   });
@@ -106,5 +112,54 @@ describe("withBeadsClient — lima", () => {
     expect(res.status).toBe("ok");
     // the Lima forward was opened (limactl show-ssh ran)
     expect(calls.some((c) => c[0] === "limactl" && c.includes("show-ssh"))).toBe(true);
+  });
+});
+
+describe("ensureLocalBeadsd", () => {
+  test("no-op when already up (does not spawn)", async () => {
+    let spawned = 0;
+    await ensureLocalBeadsd(
+      { socket: "/s.sock", cwd: "/repo" },
+      { isUp: async () => true, spawn: () => (spawned++, { pid: 1 }), sleep: async () => {} },
+    );
+    expect(spawned).toBe(0);
+  });
+
+  test("spawns `prx beads serve` against the repo, then waits until ready", async () => {
+    let up = false;
+    const spawns: string[][] = [];
+    await ensureLocalBeadsd(
+      { socket: "/s.sock", cwd: "/repo" },
+      {
+        isUp: async () => up, // down until the spawn flips it
+        spawn: (cmd) => {
+          spawns.push(cmd);
+          up = true;
+          return { pid: 42 };
+        },
+        sleep: async () => {},
+      },
+    );
+    expect(spawns).toHaveLength(1);
+    expect(spawns[0]).toEqual([
+      "prx",
+      "beads",
+      "serve",
+      "--socket",
+      "/s.sock",
+      "--cwd",
+      "/repo",
+      "--pidfile",
+      "/s.sock.pid",
+    ]);
+  });
+
+  test("throws BeadsUnavailableError if it never becomes ready", async () => {
+    await expect(
+      ensureLocalBeadsd(
+        { socket: "/s.sock", cwd: "/repo", readyTimeoutMs: 100 },
+        { isUp: async () => false, spawn: () => ({ pid: 1 }), sleep: async () => {} },
+      ),
+    ).rejects.toThrow(BeadsUnavailableError);
   });
 });
