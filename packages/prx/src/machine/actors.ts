@@ -100,6 +100,14 @@ export const toolActors = [
   // (LLM proposes + applies hunks) is a future `arbiter` sibling. Detector
   // orchestrator, restage wiring, and `arbiter` land in child tickets.
   "mediator",
+  // GH-188: observability actor. Owns the telemetry domain — the pilot/fleet
+  // legs DELEGATE emission to it (they don't own telemetry), and it exports the
+  // leg-event stream (OTel spans/metrics/log events, NATS #258) to a collector.
+  // Concrete backend today: Jaeger (OTLP). Like `derive`, it emits observability
+  // events and mutates nothing in the work tree; optional signed `observed@<unit>`
+  // attestation makes telemetry a verifiable effect in the in-toto chain. The
+  // operator's framing: "Jaeger should become an actor too."
+  "telemetry",
 ] as const;
 
 export type ToolActor = (typeof toolActors)[number];
@@ -107,7 +115,10 @@ export type ActorScope = "pr" | "workflow";
 
 export type ToolActorSpec = {
   actor: ToolActor;
-  tier: "planning" | "execution" | "verification_publication";
+  // `observability` (GH-188) is the telemetry tier — the actor observes the
+  // pipeline rather than planning/executing/publishing it. `tier` is consumed
+  // only for display (`prx model actors`), so this is an additive value.
+  tier: "planning" | "execution" | "verification_publication" | "observability";
   kind: "cli" | "api_cli" | "local_runner" | "external_runner" | "mcp_server" | "agent";
   domain: string;
   emits: string[];
@@ -730,6 +741,19 @@ export const toolActorCatalog: Record<ToolActor, ToolActorSpec> = {
     ],
     accepts: ["detect", "classify", "status"],
   },
+  // GH-188: the telemetry actor — owns the observability domain. The pilot/fleet
+  // legs delegate emission to it; it exports the leg-event stream to a collector
+  // (OTLP → Jaeger today; NATS #258 a sibling transport). Documentary like
+  // `derive`: mutates nothing in the work tree. `observed@<unit>` is the optional
+  // signed attestation that makes telemetry a verifiable in-toto chain effect.
+  telemetry: {
+    actor: "telemetry",
+    tier: "observability",
+    kind: "external_runner",
+    domain: "observability",
+    emits: ["TELEMETRY_LEG_OBSERVED", "TELEMETRY_EXPORTED", "TELEMETRY_EXPORT_FAILED"],
+    accepts: ["span.emit", "metric.emit", "log.emit", "export"],
+  },
 };
 
 export const actorScopes: Record<ActorScope, ToolActor[]> = {
@@ -762,10 +786,17 @@ export const actorScopes: Record<ActorScope, ToolActor[]> = {
     "transcripts_digest",
     "session_open",
     "mediator",
+    // GH-188: telemetry observes the whole workflow (pilot/fleet legs), so it is
+    // a workflow-scope actor, not a per-PR-contract (`pr`) one.
+    "telemetry",
   ],
 };
 
 export const eventOwnerMap: Record<string, ToolActor> = {
+  // GH-188: telemetry actor's observability events.
+  TELEMETRY_LEG_OBSERVED: "telemetry",
+  TELEMETRY_EXPORTED: "telemetry",
+  TELEMETRY_EXPORT_FAILED: "telemetry",
   BRANCH_CREATED: "git",
   REMOTE_BRANCH_PUBLISHED: "git",
   PUSH_COMMIT: "git",
