@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type { execGit, GitExecOptions, GitExecResult } from "@bounded-systems/git";
+import { ed25519Signer, generateEd25519Keypair, type DerivationStore } from "@bounded-systems/anchored-chain";
 
 import {
   FrameDecoder,
@@ -112,6 +113,50 @@ describe("handleKeeperRequest", () => {
     expect(res.status).toBe("ok");
     expect(order[0]).toBe("import");
     expect(order.indexOf("import")).toBeLessThan(order.indexOf("push"));
+  });
+
+  test("emits a signed push/v1 into the per-request ledger when signer + ledgerRef present (GH-236)", async () => {
+    const { git } = fakeGit();
+    const kp = generateEd25519Keypair();
+    const signer = ed25519Signer(kp.privateKey, kp.keyid);
+    const appended: unknown[] = [];
+    let openedRef: string | undefined;
+    let closed = false;
+    const store: Pick<DerivationStore, "append" | "get"> = {
+      append: async (d) => {
+        appended.push(d);
+      },
+      get: async () => null,
+    };
+    const deps: KeeperDaemonDeps = {
+      git,
+      signer,
+      openLedger: (ledgerRef) => {
+        openedRef = ledgerRef;
+        return { store, close: () => { closed = true; } };
+      },
+    };
+    const res = await handleKeeperRequest({ ...REQUEST, ledgerRef: "refs/prx/ledger" }, deps);
+    expect(res.status).toBe("ok");
+    expect(openedRef).toBe("refs/prx/ledger"); // ledger opened from the REQUEST's ref
+    expect(appended.length).toBe(1); // a push/v1 derivation was signed + appended
+    expect(closed).toBe(true); // per-request ledger closed
+  });
+
+  test("does NOT open a ledger when the request omits ledgerRef (bare push)", async () => {
+    const { git } = fakeGit();
+    const kp = generateEd25519Keypair();
+    let opened = false;
+    const res = await handleKeeperRequest(REQUEST, {
+      git,
+      signer: ed25519Signer(kp.privateKey, kp.keyid),
+      openLedger: () => {
+        opened = true;
+        return { store: { append: async () => {}, get: async () => null }, close: () => {} };
+      },
+    });
+    expect(res.status).toBe("ok");
+    expect(opened).toBe(false);
   });
 });
 
