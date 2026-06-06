@@ -3,6 +3,7 @@ import { bakedAiHomeRoot } from "../build-info.ts";
 import { DOLT_DATABASE_NAME_PATTERN } from "../dolt/schema.ts";
 import { createHash } from "node:crypto";
 import { runCaptured } from "@bounded-systems/proc";
+import { resolveRepoRoot } from "@bounded-systems/repo-root";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -328,7 +329,7 @@ export const defaultRenderRunner: RenderRunner = (contractPath, outputPath) => {
 };
 
 export function repoRoot(path: string, runner: CommandRunner = defaultRunner): string {
-  return runner(["git", "-C", path, "rev-parse", "--show-toplevel"]).stdout.trim();
+  return resolveRepoRoot(path, runner);
 }
 
 export function currentBranchName(

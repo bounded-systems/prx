@@ -41,18 +41,32 @@ export function findRepoRoot(start: string = import.meta.dir): string {
   }
 }
 
+/**
+ * Resolve the git toplevel of an ARBITRARY directory — pure, no memo. Throws if
+ * `cwd` is not inside a repo (the runner's default `check`), so callers that need
+ * a hard repo root surface the failure. This is the single source of the
+ * `git rev-parse --show-toplevel` invocation; `getRepoRoot` and
+ * `pr-state/github.ts`'s path-based `repoRoot` both route through it.
+ */
+export function resolveRepoRoot(cwd: string, run: CommandRunner = runCaptured): string {
+  return run(["git", "-C", cwd, "rev-parse", "--show-toplevel"]).stdout.trim();
+}
+
 let cached: string | undefined;
 
 /**
  * The repo root for the running process, resolved lazily from `cwd` via git and
  * memoized. The `run` seam is injectable for tests; production uses
- * @bounded-systems/proc. Falls back to `cwd` if git reports nothing (e.g. not a
- * repo) rather than throwing — the runtime CLI degrades, it doesn't crash.
+ * @bounded-systems/proc. Falls back to `cwd` if git reports nothing or errors
+ * (e.g. not a repo) rather than throwing — the runtime CLI degrades, not crashes.
  */
 export function getRepoRoot(cwd: string = process.cwd(), run: CommandRunner = runCaptured): string {
   if (cached !== undefined) return cached;
-  const top = run(["git", "rev-parse", "--show-toplevel"], { cwd, check: false }).stdout.trim();
-  cached = top || cwd;
+  try {
+    cached = resolveRepoRoot(cwd, run) || cwd;
+  } catch {
+    cached = cwd;
+  }
   return cached;
 }
 

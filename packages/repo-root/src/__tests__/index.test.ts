@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { CommandRunner } from "@bounded-systems/proc";
-import { findRepoRoot, getRepoRoot, resetRepoRootCache } from "../index.ts";
+import { findRepoRoot, getRepoRoot, resetRepoRootCache, resolveRepoRoot } from "../index.ts";
 
 afterEach(resetRepoRootCache);
 
@@ -15,6 +15,29 @@ describe("findRepoRoot", () => {
 
   test("throws when no .git ancestor exists", () => {
     expect(() => findRepoRoot("/")).toThrow(/no .git ancestor/);
+  });
+});
+
+describe("resolveRepoRoot", () => {
+  test("returns the git toplevel of the given dir, passing -C and no memo", () => {
+    const seen: string[][] = [];
+    const run: CommandRunner = (cmd) => {
+      seen.push(cmd);
+      return { stdout: "/work/repo\n", stderr: "", status: 0 };
+    };
+    expect(resolveRepoRoot("/work/repo/sub", run)).toBe("/work/repo");
+    expect(resolveRepoRoot("/other", run)).toBe("/work/repo"); // no memo — both shell out
+    expect(seen).toEqual([
+      ["git", "-C", "/work/repo/sub", "rev-parse", "--show-toplevel"],
+      ["git", "-C", "/other", "rev-parse", "--show-toplevel"],
+    ]);
+  });
+
+  test("propagates the runner's throw (not a repo)", () => {
+    const run: CommandRunner = () => {
+      throw new Error("not a git repository");
+    };
+    expect(() => resolveRepoRoot("/nope", run)).toThrow(/not a git repository/);
   });
 });
 
