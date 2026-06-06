@@ -321,6 +321,18 @@ export function blockedSubcommands(tool: PolicyTool): readonly string[] {
   return BLOCKED[tool] ?? [];
 }
 
+// The single owner-of-effect projection. A role OWNS a (tool, subcommand) when
+// it may run it in *some* state; hard-blocked subcommands are owned by no one.
+// Both halves of the capability model read THIS function so they cannot
+// disagree: the production-time guard surface (the capability-ownership
+// `.feature`, via `agents/capability_feature.ts`) and the after-the-fact
+// verify gate (`provenance/effect-ownership.ts`). Equivalent to "∃ state:
+// subcommand ∈ findOwningRoles(tool, subcommand, state)", computed once.
+export function ownersOf(tool: PolicyTool, subcommand: string): PolicyRole[] {
+  if (isBlocked(tool, subcommand)) return [];
+  return POLICY_ROLES.filter((role) => allowedSubcommands(tool, role).includes(subcommand));
+}
+
 // GH-1397: `checkPolicy` sibling that enqueues a structured handoff when the
 // deny would otherwise read as "executor cannot run X, but role <X> can".
 //

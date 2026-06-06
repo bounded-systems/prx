@@ -17,9 +17,8 @@
 
 import {
   POLICY_ROLES,
-  POLICY_STATES,
-  findOwningRoles,
   isBlocked,
+  ownersOf,
   type PolicyRole,
   type PolicyTool,
 } from "@bounded-systems/policy";
@@ -62,15 +61,6 @@ export function effectKindOf(derivation: Derivation): EffectKind | null {
   return null;
 }
 
-/** Union, across all states, of the roles that own an effect per the policy table. */
-function owningRolesUnion(tool: PolicyTool, subcommand: string): PolicyRole[] {
-  const acc = new Set<PolicyRole>();
-  for (const state of POLICY_STATES) {
-    for (const role of findOwningRoles(tool, subcommand, state)) acc.add(role);
-  }
-  return [...acc];
-}
-
 /**
  * Verify a privileged effect derivation was produced by an owning actor. Returns
  * `ok: true` for non-effect derivations and for effects whose producer is an
@@ -98,7 +88,7 @@ export function verifyEffectOwnership(derivation: Derivation): EffectOwnershipRe
   }
 
   const actor = actorFromBuilderId(derivation.manifest.producer);
-  const owners = owningRolesUnion(tool, subcommand);
+  const owners = ownersOf(tool, subcommand);
   if (actor === null) {
     return {
       ok: false,
