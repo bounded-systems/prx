@@ -63,6 +63,11 @@ const ALLOWED_SUBCOMMANDS = [
   "fetch", "add", "commit", "restore", "switch", "checkout", "merge", "pull", "push",
   // GH-2381: object-graph materializers — gated to role=keeper by POLICY_TABLE.
   "write-tree", "commit-tree",
+  // GH-201: local object export for the isolated keeper (keeperd). `bundle`
+  // packs a commit range into a file so the host can ship objects to the in-VM
+  // keeper, which imports them via `fetch` (already allowed) and does the signed
+  // push. Read-only + local (no ref mutation, no network); gated to role=keeper.
+  "bundle",
 ] as const;
 
 /**
