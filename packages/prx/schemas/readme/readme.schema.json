@@ -1,0 +1,129 @@
+{
+  "$ref": "#/definitions/readme_model",
+  "definitions": {
+    "readme_model": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tagline": {
+              "type": "string",
+              "minLength": 1
+            },
+            "org": {
+              "type": "string",
+              "minLength": 1
+            },
+            "repo": {
+              "type": "string",
+              "minLength": 1
+            },
+            "url": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "name",
+            "tagline",
+            "org",
+            "repo",
+            "url"
+          ],
+          "additionalProperties": false
+        },
+        "license": {
+          "type": "object",
+          "properties": {
+            "spdx": {
+              "type": "string",
+              "minLength": 1
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "url": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "spdx",
+            "name",
+            "url"
+          ],
+          "additionalProperties": false
+        },
+        "maintainerUrl": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cli": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "short": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "name",
+            "short",
+            "description"
+          ],
+          "additionalProperties": false
+        },
+        "libraries": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "short": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "name",
+              "short",
+              "description"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "project",
+        "license",
+        "maintainerUrl",
+        "cli",
+        "libraries"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

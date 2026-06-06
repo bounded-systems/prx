@@ -1,0 +1,481 @@
+{
+  "@context": [
+    "https://schema.org",
+    {
+      "prx": "https://github.com/bounded-systems/prx#vocab/",
+      "spdxLicenseId": "prx:spdxLicenseId",
+      "securityReportUrl": {
+        "@id": "prx:securityReportUrl",
+        "@type": "@id"
+      },
+      "securityResponseDays": "prx:securityResponseDays",
+      "supportedVersions": "prx:supportedVersions",
+      "versionRange": "prx:versionRange",
+      "supported": "prx:supported",
+      "conductContact": "prx:conductContact",
+      "codeOfConductVersion": "prx:codeOfConductVersion"
+    }
+  ],
+  "@graph": [
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx",
+      "name": "prx",
+      "description": "the agent-run PR contract / work-unit CLI",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "programmingLanguage": "TypeScript",
+      "runtimePlatform": "Bun",
+      "license": {
+        "@type": "CreativeWork",
+        "name": "PolyForm Noncommercial License 1.0.0",
+        "url": "https://polyformproject.org/licenses/noncommercial/1.0.0",
+        "identifier": "PolyForm-Noncommercial-1.0.0"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Robert DeLanghe",
+        "url": "https://github.com/bdelanghe"
+      },
+      "copyrightHolder": {
+        "@type": "Person",
+        "name": "Robert DeLanghe",
+        "url": "https://github.com/bdelanghe"
+      },
+      "copyrightYear": "2026",
+      "publisher": {
+        "@type": "Organization",
+        "name": "bounded-systems",
+        "url": "https://github.com/bounded-systems"
+      },
+      "securityReportUrl": "https://github.com/bounded-systems/prx/security/advisories/new",
+      "securityResponseDays": 7,
+      "supportedVersions": [
+        {
+          "versionRange": "0.1.x",
+          "supported": true
+        },
+        {
+          "versionRange": "< 0.1",
+          "supported": false
+        }
+      ],
+      "conductContact": "the maintainer via https://github.com/bdelanghe",
+      "codeOfConductVersion": "2.1",
+      "hasPart": [
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/anchored-chain"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/anchored-chain-sqlite"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/audit-context"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/auth"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/bd"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/cas"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/disposition"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/env"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/fs"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/gh"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/git"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/github-budget"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/machine-schema"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/policy"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/proc"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/prx"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/prx-config"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/prx-mux"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/scout"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/surface-sync"
+        }
+      ]
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/anchored-chain",
+      "name": "@bounded-systems/anchored-chain",
+      "description": "Derivation chain with contract validation, signing, lineage tracking, and invalidation",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/anchored-chain-sqlite",
+      "name": "@bounded-systems/anchored-chain-sqlite",
+      "description": "SQLite/Drizzle-backed implementation of the anchored-chain stores",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/audit-context",
+      "name": "@bounded-systems/audit-context",
+      "description": "Ambient runtime context for gh-call audit attribution (verb, actor, truth reason)",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/auth",
+      "name": "@bounded-systems/auth",
+      "description": "Service-credential resolver (GitHub, Notion) through a single sanctioned access point",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/bd",
+      "name": "@bounded-systems/bd",
+      "description": "Typed interface to the beads CLI with policy enforcement and short-ID guards",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/cas",
+      "name": "@bounded-systems/cas",
+      "description": "Content-addressable storage substrate: bytes addressed by their SHA-256 digest, with a storage-agnostic blob-store port.",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/disposition",
+      "name": "@bounded-systems/disposition",
+      "description": "Pure classifier mapping work-unit surface state to a disposition (ok/prune/repair/review)",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/env",
+      "name": "@bounded-systems/env",
+      "description": "The one sanctioned reader of process.env, routing ambient config through capability imports",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/fs",
+      "name": "@bounded-systems/fs",
+      "description": "Filesystem capability seam; the one allowed filesystem-access point with an injectable FileSystem",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/gh",
+      "name": "@bounded-systems/gh",
+      "description": "GitHub CLI wrapper with policy enforcement, rate-limit gating, and budget audit logging",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/git",
+      "name": "@bounded-systems/git",
+      "description": "Git CLI wrapper with policy enforcement and stale-lock recovery",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/github-budget",
+      "name": "@bounded-systems/github-budget",
+      "description": "Rate-limit-aware gh wrapper with bucket classification, pre-call gating, and audit trail",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/machine-schema",
+      "name": "@bounded-systems/machine-schema",
+      "description": "Brands, handoff envelope, and state/phase/invariant primitives for work-unit machines",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/policy",
+      "name": "@bounded-systems/policy",
+      "description": "Tool-policy engine enforcing subcommand allowlists by tool, state, and role",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/proc",
+      "name": "@bounded-systems/proc",
+      "description": "The one allowed subprocess spawn point, routing external-tool invocations through a capability",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/prx",
+      "name": "@bounded-systems/prx",
+      "description": "The agent-run PR contract / work-unit CLI",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/prx-config",
+      "name": "@bounded-systems/prx-config",
+      "description": "TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/prx-mux",
+      "name": "@bounded-systems/prx-mux",
+      "description": "Tmux session layout compilation, spawning, and config-driven state restoration",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/scout",
+      "name": "@bounded-systems/scout",
+      "description": "Content-addressed surface reads (file/grep/files) with anchored-chain provenance",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/surface-sync",
+      "name": "@bounded-systems/surface-sync",
+      "description": "Type ontology for work-unit change-detection across GH/branch/worktree/tmux/beads",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/CODE_OF_CONDUCT.md",
+      "name": "Contributor Covenant Code of Conduct",
+      "url": "https://github.com/bounded-systems/prx/blob/main/CODE_OF_CONDUCT.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/CONTRIBUTING.md",
+      "name": "Contributing to prx",
+      "url": "https://github.com/bounded-systems/prx/blob/main/CONTRIBUTING.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/README.md",
+      "name": "prx",
+      "url": "https://github.com/bounded-systems/prx/blob/main/README.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/SECURITY.md",
+      "name": "Security Policy",
+      "url": "https://github.com/bounded-systems/prx/blob/main/SECURITY.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/STATUS.md",
+      "name": "prx — status",
+      "url": "https://github.com/bounded-systems/prx/blob/main/STATUS.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/build-and-release.md",
+      "name": "Build & release",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/build-and-release.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/capability-orchestrator.md",
+      "name": "Capability-Poor Orchestrator",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/capability-orchestrator.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/companion-repos.md",
+      "name": "Companion repo inventory",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/companion-repos.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/github-app.md",
+      "name": "GitHub App: `bounded-systems-prx`",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/github-app.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/cli-from-spec.md",
+      "name": "ADR — a spec-driven CLI: author verbs once, project everywhere",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/cli-from-spec.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/dolt-start.md",
+      "name": "`prx dolt start` — the dolt actor's start driver (GH-555)",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/dolt-start.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/pipeline-orchestrator.md",
+      "name": "Pilot & fleet — Claude subagents as a signed pipeline",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/pipeline-orchestrator.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/roadmap/prx.md",
+      "name": "prx — project roadmap",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/roadmap/prx.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/GH-1836-prx-runtime-architecture.md",
+      "name": "GH-1836 — PRX runtime + workspace architecture: Nix + Moon + Deno/Bun hybrid (ADR)",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/GH-1836-prx-runtime-architecture.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/value-props.md",
+      "name": "prx — value props (forcing-function-backed)",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/value-props.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/packages/cas/README.md",
+      "name": "@bounded-systems/cas",
+      "url": "https://github.com/bounded-systems/prx/blob/main/packages/cas/README.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/spec/README.md",
+      "name": "spike: effect-typed CUE spec unifying the prx actor-model invariants (+ Rule 4, MCP-as-projection)",
+      "url": "https://github.com/bounded-systems/prx/blob/main/spec/README.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    }
+  ]
+}

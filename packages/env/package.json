@@ -1,2 +1,2 @@
-{ "name": "@bounded-systems/env", "version": "0.0.0", "private": true, "type": "module",
+{ "name": "@bounded-systems/env", "description": "The one sanctioned reader of process.env, routing ambient config through capability imports", "version": "0.0.0", "private": true, "type": "module",
   "exports": { ".": { "types": "./src/index.ts", "default": "./src/index.ts" } } }

@@ -48,5 +48,8 @@ jobs:
       - name: prx ci (typecheck)
         run: dist/prx ci --phase=typecheck
 
+      - name: prx ci (docs)
+        run: dist/prx ci --phase=docs
+
       - name: prx ci (test)
         run: dist/prx ci --phase=test

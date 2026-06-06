@@ -1,7 +1,7 @@
 // `prx ci` (GH-955) — CLI surface for the `local_ci` actor's `run` accept.
 //
-// Runs the canonical local-validation pipeline (install → typecheck → build →
-// test) so `.github/workflows/ci.yml` can be a thin shell over the prx surface
+// Runs the canonical local-validation pipeline (install → typecheck → docs →
+// build → test) so `.github/workflows/ci.yml` can be a thin shell over the prx surface
 // instead of calling raw `bun test` / `bun build`. Per the workflow model
 // (`prx actors --scope workflow`), this is the executor for the `local_ci`
 // actor; emitted `LOCAL_CI_*` events feed the `ci` parallel region
@@ -14,7 +14,7 @@
 import { defaultRunner, runCaptured } from "@bounded-systems/proc";
 import { z } from "zod";
 
-export const CI_PHASES = ["install", "typecheck", "build", "test"] as const;
+export const CI_PHASES = ["install", "typecheck", "docs", "build", "test"] as const;
 export type CiPhase = (typeof CI_PHASES)[number];
 
 export const ciOptionsSchema = z.object({
@@ -61,6 +61,10 @@ function phaseSpec(phase: CiPhase): PhaseSpec {
       return { argv: ["bun", "install", "--frozen-lockfile"] };
     case "typecheck":
       return { argv: ["bunx", "tsc", "--noEmit"] };
+    case "docs":
+      // Verify the generated docs (community files, prx.jsonld, README) are in
+      // sync with their sources — fails if a source changed without a re-render.
+      return { argv: ["bun", "run", "docs:check"] };
     case "build":
       return {
         argv: [

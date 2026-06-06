@@ -1,4 +1,4 @@
-{ "name": "@bounded-systems/bd", "version": "0.0.0", "private": true, "type": "module",
+{ "name": "@bounded-systems/bd", "description": "Typed interface to the beads CLI with policy enforcement and short-ID guards", "version": "0.0.0", "private": true, "type": "module",
   "exports": { ".": { "types": "./src/index.ts", "default": "./src/index.ts" } },
   "dependencies": { "@bounded-systems/env": "workspace:*", "@bounded-systems/proc": "workspace:*", "@bounded-systems/policy": "workspace:*" },
   "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" } }

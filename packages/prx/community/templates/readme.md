@@ -3,9 +3,9 @@
   per-package `description` fields. Edit this template or those sources, not
   README.md — `bun run readme:check` (and the test suite) fail on drift.
 -->
-# prx
+# {{project.name}}
 
-`prx` — the agent-run PR contract / work-unit CLI, plus the `@bounded-systems/*`
+`{{project.name}}` — {{project.tagline}}, plus the `@{{project.org}}/*`
 libraries it builds on. A Bun + TypeScript monorepo.
 
 > Extracted from [`bdelanghe/ai-home`](https://github.com/bdelanghe/ai-home) as a
@@ -14,28 +14,10 @@ libraries it builds on. A Bun + TypeScript monorepo.
 
 ## Layout
 
-- `packages/prx/` — The agent-run PR contract / work-unit CLI
-- `packages/*` — the `@bounded-systems/*` libraries it builds on, workspace-internal
+- `packages/prx/` — {{cli.description}}
+- `packages/*` — the `@{{project.org}}/*` libraries it builds on, workspace-internal
   via `workspace:*`:
-    - `anchored-chain` — Derivation chain with contract validation, signing, lineage tracking, and invalidation
-    - `anchored-chain-sqlite` — SQLite/Drizzle-backed implementation of the anchored-chain stores
-    - `audit-context` — Ambient runtime context for gh-call audit attribution (verb, actor, truth reason)
-    - `auth` — Service-credential resolver (GitHub, Notion) through a single sanctioned access point
-    - `bd` — Typed interface to the beads CLI with policy enforcement and short-ID guards
-    - `cas` — Content-addressable storage substrate: bytes addressed by their SHA-256 digest, with a storage-agnostic blob-store port
-    - `disposition` — Pure classifier mapping work-unit surface state to a disposition (ok/prune/repair/review)
-    - `env` — The one sanctioned reader of process.env, routing ambient config through capability imports
-    - `fs` — Filesystem capability seam; the one allowed filesystem-access point with an injectable FileSystem
-    - `gh` — GitHub CLI wrapper with policy enforcement, rate-limit gating, and budget audit logging
-    - `git` — Git CLI wrapper with policy enforcement and stale-lock recovery
-    - `github-budget` — Rate-limit-aware gh wrapper with bucket classification, pre-call gating, and audit trail
-    - `machine-schema` — Brands, handoff envelope, and state/phase/invariant primitives for work-unit machines
-    - `policy` — Tool-policy engine enforcing subcommand allowlists by tool, state, and role
-    - `proc` — The one allowed subprocess spawn point, routing external-tool invocations through a capability
-    - `prx-config` — TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools
-    - `prx-mux` — Tmux session layout compilation, spawning, and config-driven state restoration
-    - `scout` — Content-addressed surface reads (file/grep/files) with anchored-chain provenance
-    - `surface-sync` — Type ontology for work-unit change-detection across GH/branch/worktree/tmux/beads
+{{layout}}
 - `spec/` — the prx effect/contract spec (`schema.cue`)
 
 ## Build & test
@@ -50,7 +32,7 @@ bun run prx:build      # → dist/prx (self-contained binary)
 ## Install
 
 prx ships as a **released binary** (per platform) attached to each GitHub
-release, plus a container image at `ghcr.io/bounded-systems/prx`. Distribution
+release, plus a container image at `ghcr.io/{{project.repo}}`. Distribution
 is the binary — nix is one install path among several.
 
 ### Homebrew
@@ -58,11 +40,11 @@ is the binary — nix is one install path among several.
 This repo doubles as a tap (it has a `Formula/`), so:
 
 ```bash
-brew tap bounded-systems/prx https://github.com/bounded-systems/prx
-brew install prx
+brew tap {{project.repo}} {{project.url}}
+brew install {{project.name}}
 ```
 
-(The explicit tap URL is needed because the repo is `prx`, not `homebrew-prx`.)
+(The explicit tap URL is needed because the repo is `{{project.name}}`, not `homebrew-{{project.name}}`.)
 
 ### Nix flake (hermetic)
 
@@ -70,8 +52,8 @@ The flake's packages are the released binaries fetched via `fetchurl`, so they
 build under `sandbox = true` with no `nix.conf` changes:
 
 ```bash
-nix run github:bounded-systems/prx -- --version
-nix build github:bounded-systems/prx#prx       # → result/bin/prx
+nix run github:{{project.repo}} -- --version
+nix build github:{{project.repo}}#prx       # → result/bin/prx
 ```
 
 ### home-manager (portable module)
@@ -80,7 +62,7 @@ Any home-manager config can install prx via the exported module:
 
 ```nix
 {
-  inputs.prx.url = "github:bounded-systems/prx";
+  inputs.prx.url = "github:{{project.repo}}";
 
   # in your home-manager configuration's modules list:
   modules = [ prx.homeManagerModules.default ];
@@ -104,7 +86,7 @@ automatically by the `release-binary` workflow on each tag.
 
 ## Publishing
 
-Public `@bounded-systems/*` leaves (e.g. `cas`) are published to npm via
+Public `@{{project.org}}/*` leaves (e.g. `cas`) are published to npm via
 changesets + `.github/workflows/release.yml` (SLSA provenance). See
 `docs/companion-repos.md`.
 
@@ -132,8 +114,8 @@ run in CI) keep the graph, the README, and the sources in lockstep.
 
 ## License
 
-`prx` is **source-available**, not OSI open-source. It is licensed under the
-[PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0)
-(`PolyForm-Noncommercial-1.0.0`): free for any **noncommercial** use, with all
+`{{project.name}}` is **source-available**, not OSI open-source. It is licensed under the
+[{{license.name}}]({{license.url}})
+(`{{license.spdx}}`): free for any **noncommercial** use, with all
 commercial rights reserved to the copyright holder. For a commercial license,
-contact the maintainer at <https://github.com/bdelanghe>. See [`LICENSE`](LICENSE).
+contact the maintainer at <{{maintainerUrl}}>. See [`LICENSE`](LICENSE).
