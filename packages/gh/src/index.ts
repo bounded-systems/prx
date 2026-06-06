@@ -175,17 +175,18 @@ export function execGh(
   const captured = (deps.spawn ?? spawnCapture)(["gh", group, opts.subcommand, ...opts.args], {
     env: env as Record<string, string>,
   });
+  // A null status means a signal kill or spawn error (always a capture
+  // failure), which maps to exit 1; a clean capture always carries status 0.
+  // So the same `?? 1` is exact in both arms — the success arm never sees null
+  // (see isCaptureFailure) — and there is no dead per-arm fallback.
+  const status = captured.status ?? 1;
   const cmdResult = isCaptureFailure(captured)
     ? {
         stdout: "",
         stderr: `gh-safe: ${captureFailureDetail(captured) || "gh failed"}`,
-        status: captured.status ?? 1,
+        status,
       }
-    : {
-        stdout: captured.stdout,
-        stderr: captured.stderr,
-        status: captured.status ?? 0,
-      };
+    : { stdout: captured.stdout, stderr: captured.stderr, status };
 
   if (gate) {
     try {

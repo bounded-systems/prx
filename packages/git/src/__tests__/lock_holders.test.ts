@@ -6,7 +6,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { recoverStaleLock } from "@bounded-systems/git";
+import { recoverStaleLock, isRetryableGitLock } from "@bounded-systems/git";
 
 describe("recoverStaleLock with the default lsof holder probe", () => {
   test("an unheld stale lock resolves through the real lsof probe", () => {
@@ -32,5 +32,11 @@ describe("recoverStaleLock with the default lsof holder probe", () => {
       // lsof unavailable in this environment → conservative refusal.
       expect(r.reason).toMatch(/lsof/);
     }
+  });
+
+  test("isRetryableGitLock tolerates a null/undefined stderr (asText guard)", () => {
+    // No stderr field → asText(undefined) returns "" → no lock path → not
+    // retryable. Covers the `value == null` arm of asText.
+    expect(isRetryableGitLock("git", { status: 1 })).toBe(false);
   });
 });
