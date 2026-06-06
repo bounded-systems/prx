@@ -23610,10 +23610,15 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       if (code !== 0) return code;
       return (async () => {
         try {
-          // Attribute the signature to the `local_ci` actor so the per-actor
-          // signer and the `builder.id` agree (self-verifying); set before
-          // resolving the signer.
-          setAuditRuntimeContext({ actor: "local_ci" });
+          // Attribution follows the dispatch *source* model: the signer signs
+          // with the ambient actor's authority (a direct `prx ci` is sourced
+          // from the human → the `claude-code` default; a leg-dispatched run
+          // would carry that leg's actor). We deliberately do NOT pin a `local_ci`
+          // tool-actor here — that would attribute the verdict to the tool rather
+          // than the authority that ran it, diverge from how the pilot's
+          // `checks/v1` signs, and risk fail-closed rejection under a trust map
+          // that doesn't pin it. `persistAttestation` reads the actor for
+          // `builder.id`, so signer and `builder.id` stay consistent.
           const signer = resolveProvenanceSigner();
           const ledger = resolveCanonicalChainLedger(process.cwd())?.ledgerPath;
           if (signer === null || ledger === undefined) return code;
