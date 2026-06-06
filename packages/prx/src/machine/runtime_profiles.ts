@@ -819,9 +819,13 @@ export function buildWorkUnitClaudePlanPrintRuntimeProfile(input: {
   // submit_plan is a contract violation (agent_service → "planner did not call
   // submit_plan"). The previous "Output plain markdown" instruction directly
   // contradicted the capture contract, so the model always emitted prose.
-  // prx-pl2: when the source body is available, embed it so the planner plans
-  // the ACTUAL unit (it can't hydrate via gated bd/prx) and tell it NOT to
-  // re-fetch. Falls back to the old fetch-it-yourself line when absent.
+  // prx-pl2 / GH-261: the source is ALWAYS handed in as input — the planner is
+  // sandboxed off bd/prx/gh and must NEVER hydrate or fabricate. The caller pins
+  // `<unit>:source@pinned` (intake) and embeds it; a real headless launch
+  // hard-fails upstream when it's absent (see the plan-agent dispatch), so the
+  // no-source branch here is a defensive notice (e.g. a dry-run preview) — NOT a
+  // "go fetch it yourself" instruction, which is exactly what made the planner
+  // flail/fabricate (GH-230).
   const sourceSegment = input.sourceBody !== undefined
     ? [
         "The work unit's source authority (issue/bead) is reproduced below — this is the task.",
@@ -832,7 +836,11 @@ export function buildWorkUnitClaudePlanPrintRuntimeProfile(input: {
         "",
         "Read the codebase directly (Read/Grep/Glob) to ground the plan; do NOT run `prx`/`bd` to re-fetch the source — it is above.",
       ].join("\n")
-    : "Hydrate workflow context (issue body, beads rows, parity chain) before proposing scope.";
+    : [
+        `NO source was handed in for ${input.workUnitId}. The planner receives the issue as`,
+        "input and must NOT fetch or fabricate. This run should be rejected upstream — pin",
+        `the source first: \`prx intake source ${input.workUnitId}\`.`,
+      ].join("\n");
   const submitLine =
     "Submit the plan by calling the `submit_plan` tool with these fields: problem, scope, approach, changes (a file-level list), risks, and acceptance criteria. The `submit_plan` call is the deliverable — do not reply with prose or markdown, and do not ask clarifying questions.";
   const userPrompt = input.resumePartialPlan !== undefined

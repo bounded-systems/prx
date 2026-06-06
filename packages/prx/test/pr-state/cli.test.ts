@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import type {
   CommandRunner as GithubCommandRunner,
   WtStatusResult,
@@ -12,7 +12,7 @@ import { commandForSurfaceSyncAction } from "../../src/pr-state/github.ts";
 import { RepoAddError, writeRepoInventoryIndex } from "../../src/pr-state/repos.ts";
 import type { RepoInventory, RepoInventoryConfig } from "../../src/pr-state/repos.ts";
 import { consumeArtifact } from "../../src/pipeline/edge.ts";
-import { workUnitSourceEdge } from "../../src/pipeline/source-pin.ts";
+import { workUnitSourceEdge, pinWorkUnitSource } from "../../src/pipeline/source-pin.ts";
 // GH-2098: brand the mock `rawState` fixtures (plain-string literals standing
 // in for validated raw state) at the single cast point per block.
 import type { RawStateV1 } from "@bounded-systems/machine-schema";
@@ -409,6 +409,28 @@ function checkMainBranchProtectionResultFixture(overrides: Record<string, unknow
 }
 
 describe("pr_state cli", () => {
+  // GH-261: headless `plan`/`plan session` now requires `<unit>:source@pinned`
+  // (the issue is handed in as input; the planner never hydrates). The
+  // plan-session plumbing tests below all drive GH-5431, so seed its source in
+  // a temp CAS once. Real flows pin via intake/scout upstream.
+  let prevCasRootForPlan: string | undefined;
+  beforeAll(async () => {
+    prevCasRootForPlan = process.env.PRX_CAS_ROOT;
+    process.env.PRX_CAS_ROOT = mkdtempSync(join(tmpdir(), "cli-test-source-"));
+    await pinWorkUnitSource("GH-5431", {
+      id: "GH-5431",
+      title: "linear-backed work unit (test fixture)",
+      body: "Seeded source for the plan-session plumbing tests.",
+      state: "open",
+      url: null,
+      source: "github",
+    });
+  });
+  afterAll(() => {
+    if (prevCasRootForPlan === undefined) delete process.env.PRX_CAS_ROOT;
+    else process.env.PRX_CAS_ROOT = prevCasRootForPlan;
+  });
+
   test("help prints the registry-backed overview surface (GH-976)", () => {
     // Per `docs/prx/help-surface.md` §5/§6 the overview is identity + the
     // canonical six promoted commands + pointers. The 'Grouped by domain'
@@ -8067,6 +8089,8 @@ describe("pr_state cli", () => {
     execFileSync("git", ["-C", root, "init", "-q"]);
     execFileSync("git", ["-C", root, "config", "user.email", "test@example.com"]);
     execFileSync("git", ["-C", root, "config", "user.name", "Test"]);
+    // GH-261: hermetic — never sign the seed commit (no 1Password/gpg in CI/sandbox).
+    execFileSync("git", ["-C", root, "config", "commit.gpgsign", "false"]);
     mkdirSync(join(root, ".prx"), { recursive: true });
     writeFileSync(join(root, ".prx/.gitignore"), "*\n!.gitignore\n");
     execFileSync("git", ["-C", root, "add", ".prx/.gitignore"]);

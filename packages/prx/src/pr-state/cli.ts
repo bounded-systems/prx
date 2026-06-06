@@ -20840,7 +20840,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         // prx-pl2: embed the unit's source authority by CONSUMING the pinned
         // `<unit>:source@pinned` derivation (the gate captured the one impure
         // read there). Pure + scoped to exactly this unit — no bead loading, no
-        // resolver here. Absent pin ⇒ the planner falls back to fetch-it-yourself.
+        // GH-261: consume the pinned `<unit>:source@pinned` to hand the issue in
+        // as INPUT. The planner is sandboxed off bd/prx/gh, so it must never
+        // hydrate — the source is always embedded.
         let planSourceBody: string | undefined;
         if (!parsed.interactive && resumePartialPlan === undefined) {
           try {
@@ -20852,7 +20854,16 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
                 : src.value.title;
             }
           } catch {
-            // best-effort: a missing/unreadable pin leaves the fallback prompt
+            // unreadable pin → treated as absent; the hard-fail below fires.
+          }
+          // GH-261: NO hydrate path. A headless planner with no handed-in source
+          // would flail/fabricate (GH-230) — fail closed instead. Intake must pin
+          // the source first. (`--dry-run` still previews the profile; resume and
+          // interactive carry their own context.)
+          if (!parsed.dryRun && planSourceBody === undefined) {
+            throw new CliError(
+              `prx plan agent: no \`${effectiveWorkUnitId}:source@pinned\` — the planner receives the issue as input and must not hydrate. Pin it first: \`prx intake source ${effectiveWorkUnitId}\` (GH-232).`,
+            );
           }
         }
         const profile = parsed.interactive
