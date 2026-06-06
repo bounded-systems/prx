@@ -1,0 +1,35 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["packages/prx/scripts/**/*.ts", ".claude/hooks/**/*.ts"],
+      "project": ["packages/prx/scripts/**/*.ts", ".claude/hooks/**/*.ts"]
+    },
+    "packages/*": {
+      "entry": [
+        "src/index.ts",
+        "src/**/cli.ts",
+        "src/**/*-example.ts",
+        "src/**/*.test.ts",
+        "src/**/__tests__/**/*.ts",
+        "test/**/*.ts",
+        "scripts/**/*.ts"
+      ],
+      "project": ["src/**/*.ts", "test/**/*.ts"]
+    },
+    "packages/prx": {
+      "entry": [
+        "src/cli/registry.data.ts",
+        "src/**/cli.ts",
+        "src/**/daemon.ts",
+        "src/**/*-example.ts",
+        "src/**/*.test.ts",
+        "src/**/__tests__/**/*.ts",
+        "test/**/*.ts",
+        "scripts/**/*.ts"
+      ],
+      "project": ["src/**/*.ts", "test/**/*.ts"]
+    }
+  },
+  "ignoreDependencies": ["@statelyai/inspect"]
+}
