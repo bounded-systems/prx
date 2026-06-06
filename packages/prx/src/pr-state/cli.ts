@@ -424,6 +424,8 @@ import { diagnoseBeads, healBeads } from "../beads/doctor.ts";
 // GH-296: the host read-door — route `prx beads ready|list|show` through beadsd.
 import { withLimaBeadsClient } from "../beadsd/lima.ts";
 import type { BeadsRequest } from "../beadsd/contract.ts";
+// GH-296: provision beads inside a Lima VM (install bd+dolt + clone canonical).
+import { provisionVmBeads } from "../beadsd/provision.ts";
 import { runScopeGate, ScopeGateInputError } from "./scope-gate.ts";
 import { runTestGate, TestGateInputError } from "./test-gate.ts";
 import type { GateResult } from "../provenance/gate.ts";
@@ -2042,13 +2044,16 @@ type ParsedCommand =
       // GH-228: `prx lima <verb>` — in-VM daemon lifecycle over the daemon registry.
       command: "lima";
       format: "plain" | "json";
-      verb: "up" | "down" | "daemons" | "status";
+      verb: "up" | "down" | "daemons" | "status" | "provision-beads";
       vm?: string | undefined;
       binary?: string | undefined;
       cwd?: string | undefined;
       socket?: string | undefined;
       provenanceKeyFile?: string | undefined;
       daemon?: string | undefined;
+      // GH-296: `lima provision-beads` — origin slug for the reverse-DNS db + DoltHub URL.
+      origin?: string | undefined;
+      workspace?: string | undefined;
     }
   | {
       // GH-1990: `prx sync issues --from <src> --to <dst>`. v0 wires only the
@@ -8683,20 +8688,34 @@ export function parseCommand(argv: string[]): ParsedCommand {
         socket: { type: "string" },
         "provenance-key-file": { type: "string" },
         daemon: { type: "string" },
+        // GH-296: `lima provision-beads`
+        origin: { type: "string" },
+        workspace: { type: "string" },
       },
       strict: true,
       allowPositionals: true,
     });
     const verb = positionals[0];
-    if (verb !== "up" && verb !== "down" && verb !== "daemons" && verb !== "status") {
+    if (
+      verb !== "up" &&
+      verb !== "down" &&
+      verb !== "daemons" &&
+      verb !== "status" &&
+      verb !== "provision-beads"
+    ) {
       throw new CliError(
-        "prx lima requires a verb: up | down | daemons | status (e.g. `prx lima up <vm> --binary <path> --cwd <path>`)",
+        "prx lima requires a verb: up | down | daemons | status | provision-beads (e.g. `prx lima up <vm> --binary <path> --cwd <path>`)",
       );
     }
-    // up/down/status are VM-scoped (positional <vm> or --vm); daemons is local.
+    // up/down/status/provision-beads are VM-scoped (positional <vm> or --vm); daemons is local.
     const vm = values.vm ?? positionals[1];
     if (verb !== "daemons" && (typeof vm !== "string" || vm.length === 0)) {
       throw new CliError(`prx lima ${verb} requires a VM: \`prx lima ${verb} <vm>\` (or --vm <name>)`);
+    }
+    if (verb === "provision-beads" && (typeof values.origin !== "string" || values.origin.length === 0)) {
+      throw new CliError(
+        "prx lima provision-beads requires --origin <owner/repo> (the repo whose beads to clone into the VM)",
+      );
     }
     if (verb === "up") {
       if (typeof values.binary !== "string" || values.binary.length === 0) {
@@ -8731,6 +8750,8 @@ export function parseCommand(argv: string[]): ParsedCommand {
         ? { provenanceKeyFile: values["provenance-key-file"] }
         : {}),
       ...(values.daemon !== undefined ? { daemon: values.daemon } : {}),
+      ...(values.origin !== undefined ? { origin: values.origin } : {}),
+      ...(values.workspace !== undefined ? { workspace: values.workspace } : {}),
     };
   }
 
@@ -25016,6 +25037,24 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             output.log(JSON.stringify(statuses, null, 2));
           } else {
             for (const s of statuses) output.log(`${s.key}\t${s.up ? "up" : "down"}\t${s.socket}`);
+          }
+          return 0;
+        }
+        if (parsed.verb === "provision-beads") {
+          // GH-296: install bd+dolt + clone the canonical beads into the VM so
+          // beadsd serves real data. Then `prx lima up --cwd <workspace> --daemon beads`.
+          const result = provisionVmBeads({
+            vm: parsed.vm!,
+            originSlug: parsed.origin!,
+            ...(parsed.workspace !== undefined ? { workspace: parsed.workspace } : {}),
+          });
+          if (parsed.format === "json") {
+            output.log(JSON.stringify(result, null, 2));
+          } else {
+            output.error(
+              `lima provision-beads on ${parsed.vm}: cloned ${result.database} → ${result.workspace}; ` +
+                `serve it with \`prx lima up ${parsed.vm} --binary <linux-prx> --cwd ${result.workspace} --daemon beads\``,
+            );
           }
           return 0;
         }
