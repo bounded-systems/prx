@@ -68,6 +68,31 @@ describe("pilot (Layer-1: self-driving, CI-gated, signed in-toto)", () => {
     expect(done.output!.summary).toBe(summary);
   });
 
+  test("observedAnchor folds the telemetry hash-chain head into the signed summary (never a gate)", async () => {
+    const actor = createActor(
+      createPilotMachine({
+        runLeg: stubLegRunner,
+        observedAnchor: () => ({ digest: "deadbeef", count: 5 }),
+      }),
+      { input: { workUnitId: "prx-obs" } },
+    ).start();
+    const done = await waitFor(actor, (s) => s.status === "done", { timeout: 2000 });
+
+    expect(done.value).toBe("merged");
+    // The anchor rides in the summary predicate — the pilot's signature commits
+    // to it — but it never affected an edge: the run still reached merged.
+    const observed = (done.context.summary!.predicate as { observed?: { digest: string; count: number } }).observed;
+    expect(observed).toEqual({ digest: "deadbeef", count: 5 });
+  });
+
+  test("no observedAnchor ⇒ summary has no `observed` field (back-compatible)", async () => {
+    const actor = createActor(createPilotMachine(stubLegRunner), {
+      input: { workUnitId: "prx-noobs" },
+    }).start();
+    const done = await waitFor(actor, (s) => s.status === "done", { timeout: 2000 });
+    expect((done.context.summary!.predicate as { observed?: unknown }).observed).toBeUndefined();
+  });
+
   test("HARD BLOCK: a red CI gate never reaches merged — it abandons", async () => {
     const redGate: CiGate = ({ workUnitId }) =>
       Promise.resolve({
