@@ -8,7 +8,6 @@
  */
 
 import {
-  IssueResolveError,
   resolveIssueId,
   type IssueResolvedId,
 } from "../issues/resolver.ts";
@@ -22,10 +21,13 @@ export {
   FORBIDDEN_INPUT_RE,
 } from "../issues/resolver.ts";
 
-export type IntakeViewResolvedId = IssueResolvedId;
+// Live re-export binding (not an eager `const X = IssueResolveError`): a value
+// alias evaluated at module-init time is a TDZ hazard inside the
+// resolver ↔ intake-id import cycle — `export { … as … } from` is resolved
+// lazily, so it stays safe regardless of module evaluation order (GH-296).
+export { IssueResolveError as IntakeViewError } from "../issues/resolver.ts";
 
-export const IntakeViewError = IssueResolveError;
-export type IntakeViewError = IssueResolveError;
+export type IntakeViewResolvedId = IssueResolvedId;
 
 export function resolveIntakeViewId(raw: string): IntakeViewResolvedId {
   return resolveIssueId(raw, "prx intake view");

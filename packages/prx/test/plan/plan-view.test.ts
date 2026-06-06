@@ -182,7 +182,7 @@ describe("runPlanView — bd paths", () => {
           ghCalls++;
           return ghOk();
         }) as never,
-        loadAllBeads: (() => [
+        loadBeads: (async () => [
           bead({ id: "ai-home-xyz", title: "bd-only thing", externalRef: null }),
         ]) as never,
       },
@@ -204,7 +204,7 @@ describe("runPlanView — bd paths", () => {
           ghCalls.push({ args: opts.args });
           return ghOk({ title: "from gh", url: "https://github.com/o/r/issues/123" });
         }) as never,
-        loadAllBeads: (() => [
+        loadBeads: (async () => [
           bead({
             id: "ai-home-xyz",
             externalRef: "https://github.com/o/r/issues/123",
@@ -223,7 +223,7 @@ describe("runPlanView — bd paths", () => {
       { log: () => undefined, error: (l) => errors.push(l) },
       {
         execGh: (() => ghOk()) as never,
-        loadAllBeads: (() => [bead({ id: "ai-home-other" })]) as never,
+        loadBeads: (async () => [bead({ id: "ai-home-other" })]) as never,
       },
     );
     expect(exitCode).toBe(1);
@@ -239,7 +239,7 @@ describe("runPlanView — bd loader failure (GH-1186 review)", () => {
       { log: () => undefined, error: (l) => errors.push(l) },
       {
         execGh: (() => ghOk()) as never,
-        loadAllBeads: (() => {
+        loadBeads: (async () => {
           throw new Error("bd: database not found");
         }) as never,
       },
@@ -259,7 +259,7 @@ describe("runPlanView — bd loader failure (GH-1186 review)", () => {
           ghCalls.push({ args: opts.args });
           return ghOk();
         }) as never,
-        loadAllBeads: (() => [
+        loadBeads: (async () => [
           bead({
             id: "ai-home-xyz",
             externalRef: "https://github.com/o/r/issues/123?source=intake",

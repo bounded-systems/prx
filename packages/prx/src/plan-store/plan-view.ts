@@ -28,7 +28,9 @@ import {
 import { runScoutNotion, ScoutNotionError } from "../scout/notion.ts";
 import { execBd } from "@bounded-systems/bd";
 import { execGh } from "@bounded-systems/gh";
-import { loadAllBeads } from "../triage/triage.ts";
+import type { BeadsRecord } from "../triage/triage.ts";
+// GH-296: read beads through the daemon (one true source), not local bd.
+import { loadAllBeadsViaDaemon } from "../beadsd/reads.ts";
 
 export const planViewOptionsSchema = z.object({
   id: z.string().trim().min(1, "id must not be empty"),
@@ -45,7 +47,8 @@ type Output = {
 export type PlanViewDeps = {
   execGh?: typeof execGh;
   execBd?: typeof execBd;
-  loadAllBeads?: typeof loadAllBeads;
+  /** GH-296: daemon-routed beads read (default {@link loadAllBeadsViaDaemon}). */
+  loadBeads?: () => Promise<BeadsRecord[]>;
   runScoutNotion?: typeof runScoutNotion;
 };
 
@@ -57,7 +60,7 @@ export async function runPlanView(
   deps: PlanViewDeps = {},
 ): Promise<number> {
   const ghExec = deps.execGh ?? execGh;
-  const loader = deps.loadAllBeads ?? loadAllBeads;
+  const loadBeads = deps.loadBeads ?? loadAllBeadsViaDaemon;
   const bdExec = deps.execBd ?? execBd;
   const scoutNotion = deps.runScoutNotion ?? runScoutNotion;
 
@@ -101,7 +104,7 @@ export async function runPlanView(
 
     let records;
     try {
-      records = loader(bdExec);
+      records = await loadBeads();
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       output.error(`${VERB}: bd unreachable: ${detail}`);
