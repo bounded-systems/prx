@@ -35,6 +35,7 @@ import { processEnv } from "@bounded-systems/env";
 import { spawnCapture } from "@bounded-systems/proc";
 
 import { StartInput, type StartOutput } from "./schema.ts";
+import { resolveDoltDatabaseName } from "./namespace.ts";
 import {
   computeDoltServerId,
   defaultResolveContext,
@@ -134,10 +135,13 @@ export async function runDoltStart(inputRaw: StartInput, deps: DoltStartDeps): P
 
 import { existsSync, readFileSync } from "node:fs";
 
-/** F3: origin slug (`owner/repo`) → reverse-DNS db name. Confirm vs bd. */
+/**
+ * F3: origin slug (`owner/repo`) → dolt db name, via the {@link ../dolt/namespace}
+ * resolver (default reverse-DNS, e.g. "bounded-systems/prx" →
+ * "io_github_bounded_systems_prx"). The naming scheme is config, not baked here.
+ */
 export function defaultDeriveDatabase(hostRepoSlug: string): string {
-  // e.g. "bounded-systems/prx" → "io_github_bounded_systems_prx"
-  return `io_github_${hostRepoSlug.replace(/[/-]/g, "_")}`;
+  return resolveDoltDatabaseName(hostRepoSlug);
 }
 
 function readBuffer(b: string | Buffer): string {
