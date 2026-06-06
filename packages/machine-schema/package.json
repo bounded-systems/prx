@@ -1,5 +1,5 @@
 {
-  "name": "@bounded-systems/machine-schema",
+  "name": "@bounded-systems/machine-schema", "description": "Brands, handoff envelope, and state/phase/invariant primitives for work-unit machines",
   "version": "0.0.0",
   "private": true,
   "type": "module",
