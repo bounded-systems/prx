@@ -99,18 +99,32 @@ CI derivations carry a DSSE-signed SLSA envelope; enforcement
 (`requireSignedDerivations()`, fail-closed) rejects unsigned ones at the
 merge-guard / publisher tier.
 
-> **On scout being unsigned.** `recordScoutReadDerivation`
+> **On scout being unsigned (now signed).** `recordScoutReadDerivation`
 > (`packages/scout/src/provenance.ts`) records *integrity only* (no `envelope`)
-> because a bare-CLI `scout read` runs under **no actor authority** — it has no
-> key to sign with. The fix follows the same source model as CI: a scout read
-> *dispatched inside a leg* should sign with that leg's authority (the dispatch
-> `source`). The enabling mechanism now exists — **dispatch propagates its
-> `source` into the child's signing/audit context** (`PRX_DISPATCH_SOURCE` →
-> `audit-context.source` → `builderId`), so the remaining work is just to emit a
-> *signed* `scout/read/v1` at the scout-read boundary; it will attribute to the
-> dispatching leg automatically. Being already bucket A
-> (`sha256:source → sha256:envelope`), scout reads then compose with these CI
-> derivations in one chain. Tracked in *Follow-ups*.
+> because a bare-CLI `scout read` runs under **no actor authority**. This is now
+> closed (#342, see *Delivered*): when a signer is configured, the scout-read
+> boundary also emits a *signed* `scout/read/v1` (`pr-state/scout-attest.ts`),
+> attributed via the dispatch `source` (#337) so a read dispatched inside a leg
+> signs with that leg's authority. Being already bucket A
+> (`sha256:source → sha256:envelope`), scout reads compose with these CI
+> derivations in one chain. The unsigned bespoke record is unchanged; signing is
+> additive (no `PRX_PROVENANCE_KEY` ⇒ no-op).
+
+## Delivered
+
+The signing spine is in place — local CI and scout reads both emit signed,
+content-addressed derivations that compose in one chain:
+
+- **Dispatch `source` → signing authority** (#337). `runDispatch` stamps
+  `PRX_DISPATCH_SOURCE` into the target subprocess (`dispatchChildEnv`), the
+  child reads it at startup into the audit context's `source` slot, and
+  `builderId` prefers `source` over `actor`. So a leg-dispatched verb (CI or a
+  scout read) attributes to the dispatching leg's authority rather than the
+  `claude-code` default.
+- **Signed `scout/read/v1`** (#342). When a signer is configured, a `scout read`
+  emits a signed SLSA derivation (`inputs { source } → outputs { envelope }`)
+  alongside the unsigned bespoke record — merge-guard-verifiable, attributed via
+  the dispatch `source` above. Closes the "everything should be signed" gap.
 
 ## Follow-ups
 
@@ -120,16 +134,6 @@ merge-guard / publisher tier.
 - Attest a *partial* pass (the phases that passed before a failure) — needs
   `runCi` to surface per-phase results; the current slice attests only a full
   green.
-- ~~Propagate the dispatch `source` into the signing/audit context~~ **(done)** —
-  `runDispatch` stamps `PRX_DISPATCH_SOURCE` into the target subprocess
-  (`dispatchChildEnv`), the child reads it at startup into the audit context's
-  `source` slot, and `builderId` prefers `source` over `actor`. So a
-  leg-dispatched verb (CI or a scout read) now attributes to the dispatching
-  leg's authority rather than the `claude-code` default. This is the shared
-  mechanism the next item rests on.
-- Sign in-pipeline scout reads with the dispatching leg's authority (close the
-  unsigned gap above) — now unblocked: emit a signed `scout/read/v1` at the
-  scout-read boundary, attributed via the `source` propagated above.
 - Carry a signer in `.github/workflows/ci.yml` (already a thin shell over
   `dist/prx ci`) so remote greens join the same chain as local ones.
 
