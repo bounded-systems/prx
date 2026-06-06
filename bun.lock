@@ -139,7 +139,7 @@
     },
     "packages/prx": {
       "name": "@bounded-systems/prx",
-      "version": "0.3.6",
+      "version": "0.3.7",
       "bin": {
         "prx": "./dist/prx",
       },
@@ -154,6 +154,10 @@
       "dependencies": {
         "@bounded-systems/proc": "workspace:*",
       },
+    },
+    "packages/repo-root": {
+      "name": "@bounded-systems/repo-root",
+      "version": "0.0.0",
     },
     "packages/scout": {
       "name": "@bounded-systems/scout",
@@ -229,6 +233,8 @@
     "@bounded-systems/prx-config": ["@bounded-systems/prx-config@workspace:packages/prx-config"],
 
     "@bounded-systems/prx-mux": ["@bounded-systems/prx-mux@workspace:packages/prx-mux"],
+
+    "@bounded-systems/repo-root": ["@bounded-systems/repo-root@workspace:packages/repo-root"],
 
     "@bounded-systems/scout": ["@bounded-systems/scout@workspace:packages/scout"],
 

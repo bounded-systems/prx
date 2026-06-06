@@ -12,7 +12,8 @@ import {
   evaluateEnvelope,
   generateEnvelopeFeature,
 } from "../../src/agents/capability_envelope.ts";
-import { REPO_ROOT } from "../../src/repo-root.ts";
+import { findRepoRoot } from "../../src/repo-root.ts";
+const REPO_ROOT = findRepoRoot();
 
 const featurePath = join(REPO_ROOT, "features", "capability-envelope.feature");
 

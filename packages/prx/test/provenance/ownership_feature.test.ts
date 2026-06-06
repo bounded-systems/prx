@@ -20,7 +20,8 @@ import {
   generateProvenanceFeature,
 } from "../../src/provenance/ownership_feature.ts";
 import { verifyEffectOwnership } from "../../src/provenance/effect-ownership.ts";
-import { REPO_ROOT } from "../../src/repo-root.ts";
+import { findRepoRoot } from "../../src/repo-root.ts";
+const REPO_ROOT = findRepoRoot();
 
 const featurePath = join(REPO_ROOT, "features", "provenance-ownership.feature");
 

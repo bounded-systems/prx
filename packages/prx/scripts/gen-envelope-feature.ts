@@ -6,7 +6,8 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { REPO_ROOT } from "../src/repo-root.ts";
+import { findRepoRoot } from "../src/repo-root.ts";
+const REPO_ROOT = findRepoRoot();
 import { generateEnvelopeFeature } from "../src/agents/capability_envelope.ts";
 
 const dir = join(REPO_ROOT, "features");
