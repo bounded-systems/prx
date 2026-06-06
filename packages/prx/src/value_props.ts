@@ -19,6 +19,16 @@
 import { decideAgentToolCall } from "./agents/policy_guard.ts";
 import { submitRefFor } from "./submit/artifact.schema.ts";
 import { verifyEffectOwnership } from "./provenance/effect-ownership.ts";
+import {
+  canonicalJson,
+  digestManifest,
+  manifestToStatement,
+  statementToManifest,
+} from "@bounded-systems/anchored-chain";
+import {
+  BASELINE_MANIFEST,
+  everyFieldIsTamperEvident,
+} from "./provenance/derivation_chain_feature.ts";
 
 export type ForcingFunction =
   // Live + pure — green/red as of now; `exercises` is the code it traces to.
@@ -91,6 +101,42 @@ export const VALUE_PROPS: readonly ValueProp[] = [
         name: "driven end-to-end to a merged PR",
         evidence: "prx-2c4 → PR #85 (merged); chain source@pinned→plan→implement on disk; prx publisher did the merge",
         exercises: ["submit/stage.ts:runSubmitStage", "submit/publish.ts:runSubmitPublish", "pr-state/keeper.ts:runKeeperCommitTree"],
+      },
+    ],
+  },
+  {
+    claim: "A derivation's identity is content-addressed: any change to its manifest changes its id.",
+    whyNot:
+      "vs a mutable build record: the id IS the hash of the manifest, so a step can't be edited after the fact without becoming a different derivation — the chain is tamper-evident.",
+    forcing: [
+      {
+        name: "changing any manifest field changes the derivation id",
+        check: () => everyFieldIsTamperEvident(),
+        exercises: [
+          "provenance/derivation_chain_feature.ts:generateDerivationChainFeature",
+          "@bounded-systems/anchored-chain:digestManifest",
+          "@bounded-systems/anchored-chain:canonicalJson",
+        ],
+      },
+      {
+        name: "the id is deterministic and key-order independent",
+        check: () =>
+          digestManifest(BASELINE_MANIFEST) === digestManifest(BASELINE_MANIFEST) &&
+          canonicalJson({ a: 1, b: 2 }) === canonicalJson({ b: 2, a: 1 }),
+        exercises: [
+          "@bounded-systems/anchored-chain:digestManifest",
+          "@bounded-systems/anchored-chain:canonicalJson",
+        ],
+      },
+      {
+        name: "a manifest round-trips through its in-toto statement",
+        check: () =>
+          canonicalJson(statementToManifest(manifestToStatement(BASELINE_MANIFEST))) ===
+          canonicalJson(BASELINE_MANIFEST),
+        exercises: [
+          "@bounded-systems/anchored-chain:manifestToStatement",
+          "@bounded-systems/anchored-chain:statementToManifest",
+        ],
       },
     ],
   },
