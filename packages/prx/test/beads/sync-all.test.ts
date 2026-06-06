@@ -170,7 +170,7 @@ function makeDeps(
         rows.push({ event: r.event, ...(r.details ? { details: r.details } : {}), ...(r.repo ? { repo: r.repo } : {}) });
       }
     },
-    getAuditRuntimeContext: () => ({ verb: "beads.sync-all", actor: "test-actor", ghTruthReason: null }),
+    getAuditRuntimeContext: () => ({ verb: "beads.sync-all", actor: "test-actor", ghTruthReason: null, source: null }),
     now: () => FIXED_NOW,
     ...over,
   };

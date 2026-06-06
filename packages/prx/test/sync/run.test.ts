@@ -92,7 +92,7 @@ function baseDeps(over: Partial<RunBeadsSyncDeps> = {}): {
     repoNameWithOwner: () => "bdelanghe/ai-home",
     refreshBudget: () => [{ bucket: "graphql", limit: 5000, remaining: 4000, resetAt: 0, fetchedAt: 0 }],
     appendAuditRow: (row) => rows.push(row),
-    getAuditRuntimeContext: () => ({ verb: "beads.sync", actor: "test-actor", ghTruthReason: null }),
+    getAuditRuntimeContext: () => ({ verb: "beads.sync", actor: "test-actor", ghTruthReason: null, source: null }),
     now: () => FIXED_NOW,
     adapter: fakeAdapter(),
     bulkClose: () => ({ exitCode: 0, stdout: "", stderr: "" }),

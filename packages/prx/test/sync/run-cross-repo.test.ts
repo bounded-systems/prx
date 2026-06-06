@@ -109,7 +109,7 @@ function makeDeps(over: Partial<RunBeadsSyncAcrossReposDeps> = {}): {
     },
     perRepoDeps: () => ({}),
     appendAuditRow: (row) => rows.push(row),
-    getAuditRuntimeContext: () => ({ verb: "beads.sync", actor: "test-actor", ghTruthReason: null }),
+    getAuditRuntimeContext: () => ({ verb: "beads.sync", actor: "test-actor", ghTruthReason: null, source: null }),
     now: () => FIXED_NOW,
     ...over,
   };

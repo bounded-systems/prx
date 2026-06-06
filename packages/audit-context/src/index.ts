@@ -28,20 +28,38 @@ export type GhTruthReason =
 let currentVerb: string | null = null;
 let currentActor = "claude-code";
 let currentGhTruthReason: GhTruthReason | null = null;
+// GH-352: the dispatch *source* — the actor that initiated this run when it is a
+// leg-dispatched subprocess (e.g. `implement` dispatching `scout`). Null for a
+// direct call (sourced from the human, i.e. `actor`). It is the signing/
+// provenance *authority* (who drove the work), distinct from `actor` (the gh-
+// audit executor), so it lives in its own slot rather than overloading `actor`.
+let currentSource: string | null = null;
 
 export type AuditRuntimeContext = {
   verb: string | null;
   actor: string;
   ghTruthReason: GhTruthReason | null;
+  /** The dispatch source (initiating authority), or null for a direct call. */
+  source: string | null;
 };
 
-export function setAuditRuntimeContext(ctx: { verb?: string | null; actor?: string }): void {
+export function setAuditRuntimeContext(ctx: {
+  verb?: string | null;
+  actor?: string;
+  source?: string | null;
+}): void {
   if (ctx.verb !== undefined) currentVerb = ctx.verb;
   if (ctx.actor !== undefined) currentActor = ctx.actor;
+  if (ctx.source !== undefined) currentSource = ctx.source;
 }
 
 export function getAuditRuntimeContext(): AuditRuntimeContext {
-  return { verb: currentVerb, actor: currentActor, ghTruthReason: currentGhTruthReason };
+  return {
+    verb: currentVerb,
+    actor: currentActor,
+    ghTruthReason: currentGhTruthReason,
+    source: currentSource,
+  };
 }
 
 /**
@@ -65,4 +83,5 @@ export function __resetAuditRuntimeContextForTesting(): void {
   currentVerb = null;
   currentActor = "claude-code";
   currentGhTruthReason = null;
+  currentSource = null;
 }
