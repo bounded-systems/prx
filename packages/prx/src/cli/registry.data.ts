@@ -1295,6 +1295,44 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     internal: true,
   },
 
+  // ─── Lima — in-VM daemon lifecycle (keeper + beads); GH-228 ────────────────
+  // Generalizes `keeper up|down` into one namespace over a daemon registry, so
+  // the VM's daemons are brought up/down/inspected from one place.
+  {
+    name: "lima",
+    description: "Manage in-VM daemons (keeper + beads) on a Lima VM",
+    domain: "work-units",
+    actor: "keeper",
+  },
+  {
+    name: "lima up",
+    parent: "lima",
+    description: "Deploy + start in-VM daemon(s) on a Lima VM (--daemon keeper|beads|all)",
+    domain: "work-units",
+    actor: "keeper",
+  },
+  {
+    name: "lima down",
+    parent: "lima",
+    description: "Stop in-VM daemon(s) on a Lima VM (--daemon keeper|beads|all)",
+    domain: "work-units",
+    actor: "keeper",
+  },
+  {
+    name: "lima daemons",
+    parent: "lima",
+    description: "List the registered in-VM daemons and their default sockets",
+    domain: "work-units",
+    actor: "keeper",
+  },
+  {
+    name: "lima status",
+    parent: "lima",
+    description: "Show which in-VM daemons are up on a Lima VM",
+    domain: "work-units",
+    actor: "keeper",
+  },
+
   // ─── Provenance — read-only signing-identity inspection (GH-2282) ──────────
   // `provenance dev-pubkey` prints (and bootstraps on first use) the persisted
   // dev signing identity that `PRX_PROVENANCE_KEY=dev` signs with. Owned by the
@@ -1803,6 +1841,26 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     description: "Fan out prx dolt reconcile across dolthub-wired registered repos",
     domain: "repo-plumbing",
     actor: "dolt",
+  },
+  {
+    // GH-228: `beads serve` runs beadsd — the read-only beads query daemon — on
+    // a unix socket inside an isolated VM. In-VM infrastructure verb (the host
+    // reaches it via the Lima channel), `internal: true` like `keeper serve`.
+    name: "beads serve",
+    parent: "beads",
+    description: "Run the beadsd read daemon on a unix socket (GH-228)",
+    domain: "repo-plumbing",
+    actor: "beads",
+    internal: true,
+  },
+  {
+    // GH-228: operator self-heal for an unhealthy beads clone (missing prefix /
+    // diverged after the canonical prefix repair). Visible — agents/operators run it.
+    name: "beads doctor",
+    parent: "beads",
+    description: "Diagnose the beads workspace; --fix re-bootstraps an unhealthy clone (GH-228)",
+    domain: "repo-plumbing",
+    actor: "beads",
   },
   {
     // GH-1990: canonical actor surface for bd↔external reconcile. Operators
