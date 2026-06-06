@@ -25,6 +25,7 @@
     "docs:render": "bun run jsonld:render && bun run readme:render && bun run community:render && bun run claude-context:render",
     "docs:check": "bun run community:check && bun run jsonld:check && bun run readme:check && bun run claude-context:check",
     "typecheck": "bunx tsc --noEmit",
+    "ci:act": "packages/prx/scripts/local-ci-act",
     "test": "bun test",
     "test:dolt-smoke": "PRX_DOLT_SMOKE=1 bun test packages/prx/test/beads/hydrate.test.ts",
     "db:generate": "drizzle-kit generate",
