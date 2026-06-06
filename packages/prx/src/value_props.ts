@@ -162,7 +162,7 @@ const BANNER =
 
 function forcingLine(f: ForcingFunction): string {
   const backing = backingOf(f);
-  const mark = backing === "backed" ? "✅" : backing === "evidence" ? "📎" : "⚠️";
+  const mark = backing === "backed" ? "[backed]" : backing === "evidence" ? "[evidence]" : "[learning goal]";
   const tail =
     "evidence" in f ? ` — ${f.evidence}` : "pending" in f ? ` — learning goal: ${f.pending}` : "";
   const exercises =
@@ -184,7 +184,7 @@ export function generateValuePropsDoc(): string {
     BANNER,
     "",
     "Each claim is **backed** only when its forcing functions hold now (a passing pure",
-    "check ✅, or external evidence 📎). A ⚠️ forcing function is a **learning goal**, not a",
+    "check, or external evidence). A forcing function marked *learning goal* is not yet a",
     "value prop. `exercises` is the code that delivers the claim — the refactoring contract",
     "(keep it green) and the pruning lens (code that traces to nothing is a prune candidate).",
     "",
@@ -236,13 +236,13 @@ export function generateStatusDoc(): string {
   ];
   if (backed.length === 0) lines.push("_(none backed yet)_");
   for (const vp of backed) {
-    lines.push(`- ✅ ${vp.claim}`);
+    lines.push(`- ${vp.claim}`);
     lines.push(`  - ${vp.whyNot}`);
   }
   lines.push("", "## Learning goals (what's next)", "");
   if (learning.length === 0) lines.push("_(none — every value prop is backed)_");
   for (const vp of learning) {
-    lines.push(`- ⚠️ ${vp.claim}`);
+    lines.push(`- ${vp.claim}`);
     for (const f of vp.forcing) {
       if (backingOf(f) === "learning-goal") {
         lines.push(`  - ${"pending" in f ? f.pending : f.name}`);

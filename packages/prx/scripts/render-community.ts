@@ -87,7 +87,7 @@ function versionTable(data: Json): string {
   const security = data.security as Json;
   const rows = security.supportedVersions as Array<{ range: string; supported: boolean }>;
   return rows
-    .map((r) => `| ${r.range} | ${r.supported ? "✅" : "❌"} |`)
+    .map((r) => `| ${r.range} | ${r.supported ? "Yes" : "No"} |`)
     .join("\n");
 }
 

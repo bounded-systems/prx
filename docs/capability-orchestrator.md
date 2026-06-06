@@ -305,17 +305,17 @@ asserts the generated files match `POLICY_TABLE`.
 
 Parent epic: **prx-g88**. Children (status as of 2026-06-06):
 
-1. ✅ **C1 — policy-table → sub-agent codegen + drift test** (the projection, §5).
+1. [done] **C1 — policy-table → sub-agent codegen + drift test** (the projection, §5).
    `scripts/gen-agents.ts` + `test/agents/generate.test.ts`.
-2. ✅ **C2 — runtime policy hook** (§5 enforcement). `.claude/hooks/policy-guard.ts`
+2. [done] **C2 — runtime policy hook** (§5 enforcement). `.claude/hooks/policy-guard.ts`
    over `agents/policy_guard.ts:decideAgentToolCall`.
-3. ✅ **C3 — capability-poor orchestrator profile** (§1/§5). `.claude/agents/orchestrator.md`
+3. [done] **C3 — capability-poor orchestrator profile** (§1/§5). `.claude/agents/orchestrator.md`
    (`tools: Agent, Read, Grep, Glob` — no Bash); asserted by `value_props.ts`.
-4. 🟡 **prx-1dz — delegation-DAG provenance** (§2). Verify gate **landed**
+4. [partial] **prx-1dz — delegation-DAG provenance** (§2). Verify gate **landed**
    (`provenance/effect-ownership.ts`, wired via `merge-guard.ts`); the
    delegation-**edge recorder** lands with `merge/v1` (follow-up).
-5. ✅ **C4 — intake ⊗ actor salt** (§3). `provenance/actor-salt.ts`.
-6. ✅ **C5 — ephemeral salted worktrees** (§4). `pipeline/ephemeral-worktree.ts`;
+5. [done] **C4 — intake ⊗ actor salt** (§3). `provenance/actor-salt.ts`.
+6. [done] **C5 — ephemeral salted worktrees** (§4). `pipeline/ephemeral-worktree.ts`;
    `sweepOrphanedActorWorktrees` awaits `gc` wiring.
 
 The §7 *external-audit surface* also landed: the policy table and the capability

@@ -6,16 +6,16 @@
 
 ## What prx does today (backed)
 
-- ✅ An agent cannot perform an action its role doesn't own.
+- An agent cannot perform an action its role doesn't own.
   - vs raw Claude Code: a delegated capability, not ambient trust — overreach is a denial, not a hope.
-- ✅ A privileged effect not produced by its owning actor fails verification.
+- A privileged effect not produced by its owning actor fails verification.
   - vs trust-the-signature: a valid signature isn't enough — the producer must OWN the effect, or it's an orphan/ambient effect.
-- ✅ A beads work unit can travel intake → merged PR through one signed pipeline.
+- A beads work unit can travel intake → merged PR through one signed pipeline.
   - vs GitHub Actions: authoring → merge with a content-addressed provenance chain, not CI orchestration.
 
 ## Learning goals (what's next)
 
-- ⚠️ You can see what each work unit cost.
+- You can see what each work unit cost.
   - the verb + DB now work (binary blocker cleared by prx-eky); needs `prx audit ingest` data for the claim to back
 
 _See [docs/value-props.md](docs/value-props.md) for the forcing functions + the code→value-prop map._

@@ -49,7 +49,7 @@ describe("value props (prx-8mx)", () => {
     const backed = VALUE_PROPS.filter(isValuePropBacked).length;
     expect(doc).toContain(`**${backed} of ${VALUE_PROPS.length} value props backed**`);
     for (const vp of VALUE_PROPS) {
-      if (!isValuePropBacked(vp)) expect(doc).toContain(`⚠️ ${vp.claim}`);
+      if (!isValuePropBacked(vp)) expect(doc).toContain(`- ${vp.claim}`);
     }
   });
 
