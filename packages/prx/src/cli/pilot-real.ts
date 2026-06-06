@@ -105,6 +105,32 @@ export const DEFAULT_PILOT_LEG_IDLE_MS = 5 * 60 * 1000;
 /** GH-261: throttle for the per-leg liveness heartbeat (telemetry actor). */
 const LEG_HEARTBEAT_THROTTLE_MS = 15 * 1000;
 
+/**
+ * Hard wall-clock cap for the local `prx ci` checks seam — the pipeline analogue
+ * of a GitHub job `timeout-minutes`. A hung `prx ci` (install/build/test) would
+ * otherwise stall the whole machine; on timeout the spawn is killed → non-zero
+ * exit → passed:false → the pilot retreats (budget-bounded). 15 min covers a
+ * cold install+build+test. Override per-call or via PRX_PILOT_CHECKS_TIMEOUT_MS.
+ */
+export const DEFAULT_PILOT_CHECKS_TIMEOUT_MS = 15 * 60 * 1000;
+
+/**
+ * A deterministic-seam telemetry observation — parity with the LLM-leg heartbeat
+ * (GH-261). The seams (intake/checks/ci/merge) are synchronous shell-outs with
+ * no stream, so instead of a throttled progress beat they emit a start/done (or
+ * error) pair, carrying elapsed time so an observer can see WHERE a run sits.
+ */
+export type SeamObservation = {
+  workUnitId: string;
+  /** intake | checks | ci | merge */
+  seam: string;
+  phase: "start" | "done" | "error";
+  /** ms since the seam started (absent on "start"). */
+  elapsedMs?: number;
+  /** error message on "error". */
+  error?: string;
+};
+
 export type RealLegDeps = {
   openSession?: OpenSessionFn;
   runAgent?: RunAgentFn;
@@ -115,6 +141,10 @@ export type RealLegDeps = {
   legIdleMs?: number;
   /** GH-261: heartbeat sink (defaults to recordEvent → telemetry actor). Injectable for tests. */
   onLegHeartbeat?: (info: LegHeartbeat) => void;
+  /** Hard timeout for the local `prx ci` checks seam (ms). Defaults to DEFAULT_PILOT_CHECKS_TIMEOUT_MS. */
+  checksTimeoutMs?: number;
+  /** Seam telemetry sink (defaults to recordEvent → telemetry actor). Injectable for tests. */
+  onSeamObserved?: (info: SeamObservation) => void;
   /** GH-325: persist the planner's plan → `plan@draft` (defaults to runPlanSave). */
   savePlan?: typeof runPlanSave;
 };
@@ -126,15 +156,21 @@ const LEG_HEARTBEAT_SNIPPET_MAX = 140;
  * Run a `prx <args>` invocation. The capability boundary for tail effects.
  * `opts.cwd` lets a seam run in the unit's worktree — the local `prx ci` gate
  * needs it (the GH-facing seams don't, so it stays optional / process-CWD).
+ * `opts.timeoutMs` caps a long-running shell-out (the checks seam's `prx ci`);
+ * on timeout the process is killed → non-zero exit (the pipeline analogue of a
+ * GitHub job `timeout-minutes`).
  */
 export type RunPrx = (
   args: string[],
-  opts?: { cwd?: string },
+  opts?: { cwd?: string; timeoutMs?: number },
 ) => Promise<{ ok: boolean; stdout: string; stderr: string }>;
 
 /** Default: shell the installed `prx` binary (via @bounded-systems/proc). */
 export const realRunPrx: RunPrx = async (args, opts) => {
-  const r = spawnCapture(["prx", ...args], opts?.cwd ? { cwd: opts.cwd } : {});
+  const r = spawnCapture(["prx", ...args], {
+    ...(opts?.cwd ? { cwd: opts.cwd } : {}),
+    ...(opts?.timeoutMs ? { timeout: opts.timeoutMs } : {}),
+  });
   return { ok: r.status === 0, stdout: r.stdout, stderr: r.stderr };
 };
 
@@ -300,6 +336,8 @@ export type ChecksDeps = {
   signer: Signer;
   /** Resolve the unit's worktree to run `prx ci` in. Injectable for tests. */
   openSession?: OpenSessionFn;
+  /** Hard timeout for `prx ci` (ms). Defaults to DEFAULT_PILOT_CHECKS_TIMEOUT_MS. */
+  timeoutMs?: number;
 };
 
 /**
@@ -313,12 +351,13 @@ export type ChecksDeps = {
 export function buildRealChecks(deps: ChecksDeps): ChecksGate {
   const sign = realRoleSigner(deps.signer);
   const open = deps.openSession ?? (openSession as OpenSessionFn);
+  const timeoutMs = deps.timeoutMs ?? DEFAULT_PILOT_CHECKS_TIMEOUT_MS;
   return async ({ workUnitId }) => {
     const opened = await open({ actor: "implement", workUnitId, interaction: "headless" });
     if (opened.status !== "opened" || !opened.worktree_path) {
       throw new Error(`openSession(checks/implement) for ${workUnitId} → status=${opened.status}, no worktree`);
     }
-    const res = await deps.runPrx(["ci"], { cwd: opened.worktree_path });
+    const res = await deps.runPrx(["ci"], { cwd: opened.worktree_path, timeoutMs });
     const passed = res.ok;
     const attestation = await signStageLink(
       sign,
@@ -379,20 +418,82 @@ export function buildRealMerge(deps: MergeDeps): MergeRunner {
   };
 }
 
+/** Default seam-telemetry sink: best-effort recordEvent (never breaks a seam). */
+function recordSeamObservation(info: SeamObservation): void {
+  try {
+    recordEvent("TELEMETRY_SEAM_OBSERVED", {
+      workUnitId: info.workUnitId,
+      details: {
+        seam: info.seam,
+        phase: info.phase,
+        ...(info.elapsedMs !== undefined ? { elapsedMs: info.elapsedMs } : {}),
+        ...(info.error !== undefined ? { error: info.error } : {}),
+      },
+    });
+  } catch {
+    // observability is best-effort — never break a seam on a sink error.
+  }
+}
+
 /**
- * Full real `PilotDeps`: real leg-runner + summary signing + the CI-gate and
- * merge legs wired to `prx scout ci` / `prx publisher merge` (via `runPrx`).
+ * Wrap a deterministic seam so it emits start/done/error telemetry — parity with
+ * the LLM legs' heartbeat (GH-261), which the GH-facing seams previously lacked.
+ * The sink is best-effort; the seam's own result/throw passes through unchanged.
+ */
+function observeSeam<I extends { workUnitId: string }, R>(
+  seam: string,
+  emit: (info: SeamObservation) => void,
+  fn: (input: I) => Promise<R>,
+): (input: I) => Promise<R> {
+  return async (input) => {
+    const startedAt = Date.now();
+    emit({ workUnitId: input.workUnitId, seam, phase: "start" });
+    try {
+      const r = await fn(input);
+      emit({ workUnitId: input.workUnitId, seam, phase: "done", elapsedMs: Date.now() - startedAt });
+      return r;
+    } catch (e) {
+      emit({
+        workUnitId: input.workUnitId,
+        seam,
+        phase: "error",
+        elapsedMs: Date.now() - startedAt,
+        error: String((e as Error)?.message ?? e),
+      });
+      throw e;
+    }
+  };
+}
+
+/**
+ * Full real `PilotDeps`: real leg-runner + summary signing + the intake / local
+ * checks / remote CI / merge seams wired to `prx` (via `runPrx`). Each seam is
+ * wrapped with `observeSeam` for telemetry parity with the LLM legs, and the
+ * checks seam carries a hard `prx ci` timeout.
  */
 export function buildRealPilotDeps(deps: RealLegDeps = {}): PilotDeps {
   const signer = resolveSignerOrThrow(deps.signer);
   const runPrx = deps.runPrx ?? realRunPrx;
+  const emitSeam = deps.onSeamObserved ?? recordSeamObservation;
+  const envChecksTimeout = Number(getEnv("PRX_PILOT_CHECKS_TIMEOUT_MS"));
+  const checksTimeoutMs = deps.checksTimeoutMs
+    ?? (Number.isFinite(envChecksTimeout) && envChecksTimeout > 0 ? envChecksTimeout : DEFAULT_PILOT_CHECKS_TIMEOUT_MS);
   return {
     runLeg: buildRealLegRunner({ ...deps, signer }),
-    runIntake: buildRealIntake({ runPrx, signer }),
-    runChecks: buildRealChecks({ runPrx, signer, ...(deps.openSession ? { openSession: deps.openSession } : {}) }),
+    runIntake: observeSeam("intake", emitSeam, buildRealIntake({ runPrx, signer })),
+    runChecks: observeSeam(
+      "checks",
+      emitSeam,
+      buildRealChecks({
+        runPrx,
+        signer,
+        timeoutMs: checksTimeoutMs,
+        ...(deps.openSession ? { openSession: deps.openSession } : {}),
+      }),
+    ),
     signSummary: realStatementSigner(signer),
-    runCiGate: buildRealCiGate({ runPrx, signer }),
-    runMerge: buildRealMerge({ runPrx, signer }),
+    runCiGate: observeSeam("ci", emitSeam, buildRealCiGate({ runPrx, signer })),
+    runMerge: observeSeam("merge", emitSeam, buildRealMerge({ runPrx, signer })),
   };
 }
 

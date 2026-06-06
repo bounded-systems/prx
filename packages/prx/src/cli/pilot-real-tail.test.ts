@@ -15,6 +15,7 @@ import {
   type OpenSessionFn,
   type RunAgentFn,
   type RunPrx,
+  type SeamObservation,
 } from "./pilot-real.ts";
 
 const noSleep = async () => {};
@@ -124,6 +125,18 @@ describe("real CI gate + merge tail", () => {
     expect(threw).toContain("no worktree");
   });
 
+  test("checks seam passes a hard timeout to `prx ci` (analogue of job timeout-minutes)", async () => {
+    const { signer } = newSigner();
+    let seenOpts: { cwd?: string; timeoutMs?: number } | undefined;
+    const runPrx: RunPrx = async (_args, opts) => {
+      seenOpts = opts;
+      return { ok: true, stdout: "ok", stderr: "" };
+    };
+    await buildRealChecks({ runPrx, signer, openSession: okOpen, timeoutMs: 1234 })({ workUnitId: "GH-13" });
+    expect(seenOpts?.timeoutMs).toBe(1234);
+    expect(seenOpts?.cwd).toBe("/wt/GH-13/implement");
+  });
+
   test("merge runs `publisher merge` + signs merged@pr; failure throws", async () => {
     const { signer } = newSigner();
     const okPrx: RunPrx = async () => ({ ok: true, stdout: "merged PR #9", stderr: "" });
@@ -175,6 +188,47 @@ describe("real CI gate + merge tail", () => {
     expect(merge.signedBy).toBe(kp.keyid);
     expect(ci.predicate).toBe("ci.passed");
     expect(done.context.summary!.signedBy).toBe(kp.keyid);
+  });
+
+  test("every deterministic seam emits start+done telemetry (parity with the LLM-leg heartbeat)", async () => {
+    const { signer } = newSigner();
+    const fakeOpen: OpenSessionFn = async ({ workUnitId, actor }) =>
+      ({ status: "opened", worktree_path: `/wt/${workUnitId}/${actor}`, profile: {} }) as unknown as Awaited<
+        ReturnType<OpenSessionFn>
+      >;
+    const fakeRun: RunAgentFn = async () =>
+      ({
+        kind: "success",
+        text: "ok",
+        stdout: "ok",
+        usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+        elapsed_ms: 1,
+      }) as NonInteractiveAgentResult;
+    const runPrx: RunPrx = async (args) =>
+      args[0] === "scout"
+        ? { ok: true, stdout: '{"conclusion":"success"}', stderr: "" }
+        : { ok: true, stdout: "merged", stderr: "" };
+
+    const obs: SeamObservation[] = [];
+    const deps = buildRealPilotDeps({
+      openSession: fakeOpen,
+      runAgent: fakeRun,
+      runPrx,
+      signer,
+      onSeamObserved: (i) => obs.push(i),
+    });
+    const actor = createActor(createPilotMachine(deps), { input: { workUnitId: "GH-8" } }).start();
+    const done = await waitFor(actor, (s) => s.status === "done", { timeout: 4000 });
+    expect(done.value).toBe("merged");
+
+    // Each GH-facing seam reported exactly one start and one done (none errored).
+    for (const seam of ["intake", "checks", "ci", "merge"]) {
+      expect(obs.filter((o) => o.seam === seam && o.phase === "start").length).toBe(1);
+      expect(obs.filter((o) => o.seam === seam && o.phase === "done").length).toBe(1);
+    }
+    expect(obs.some((o) => o.phase === "error")).toBe(false);
+    // `done` observations carry elapsed time so an observer can see WHERE a run sits.
+    expect(obs.filter((o) => o.phase === "done").every((o) => typeof o.elapsedMs === "number")).toBe(true);
   });
 
   test("buildRealPilotDeps refuses without a signing key (no agent unsigned)", () => {
