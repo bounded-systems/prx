@@ -3,12 +3,15 @@
   "private": true,
   "type": "module",
   "license": "PolyForm-Noncommercial-1.0.0",
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "pr-state": "bun run packages/prx/scripts/pr_state.ts",
     "prx:build": "bun install && mkdir -p dist && bun packages/prx/scripts/prx-compile.ts dist/prx",
     "prx:build:linux-arm64": "bun install && mkdir -p dist && bun packages/prx/scripts/prx-compile.ts dist/prx-linux-arm64 --target bun-linux-arm64",
     "health": "bun run packages/prx/scripts/code-health.ts",
+    "site:build": "bun run packages/prx/scripts/build-site.ts",
     "typecov": "type-coverage --strict --at-least 98 --ignore-files '**/*.test.ts'",
     "doctor:agents": "bun run packages/prx/scripts/agent_doctor.ts",
     "doctor:agents:json": "bun run packages/prx/scripts/agent_doctor.ts --format json",
@@ -52,6 +55,7 @@
     "drizzle-kit": "^0.31.10",
     "knip": "^6.16.1",
     "madge": "^8.0.0",
+    "marked": "^18.0.5",
     "type-coverage": "^2.29.7",
     "typescript": "^6.0.3"
   }
