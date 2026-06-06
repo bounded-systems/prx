@@ -4136,6 +4136,27 @@ async function defaultHasLocalArtifactProjection(
   return hasPlan(workUnitId);
 }
 
+// GH-230: pin an already-fetched GitHub issue as `<unit>:source@pinned`, so the
+// headless planner CONSUMES the real issue body instead of falling back to the
+// "fetch-it-yourself" prompt — which the sandboxed planner cannot satisfy, so it
+// fabricates scope from the codebase. Mirrors GithubResolver's
+// issue→ResolvedWorkUnit mapping; best-effort, a CAS write must never block
+// session entry. The non-GH (beads/notion) path already pins; GH units (the
+// common case) were the gap.
+function pinGitHubWorkUnitSourceBestEffort(
+  workUnitId: string,
+  issue: ReturnType<typeof validateGitHubIssue>,
+): Promise<{ pinned: boolean; ref: string }> {
+  return pinWorkUnitSourceBestEffort(workUnitId, {
+    id: workUnitId,
+    title: issue.title,
+    body: issue.body ?? null,
+    state: (issue.state ?? "").toUpperCase() === "OPEN" ? "open" : "closed",
+    url: issue.url ?? null,
+    source: "github",
+  });
+}
+
 export async function checkWorkUnitChain(
   workUnitId: string,
   repoPath: string,
@@ -4246,18 +4267,26 @@ export async function checkWorkUnitChain(
           throw new CliError(prxSessionNoSourceConfiguredMessage(workUnitId));
         }
       }
-      // prx-pl2: pin `<unit>:source@pinned` on create too (the impure→pure FOD
-      // boundary) so the planner/implementer CONSUME the pinned source derivation
-      // rather than re-fetching the bead. Non-GH (beads/notion) only; reuses the
-      // resolve above when present (no double fetch). Best-effort.
-      if (githubIssueNumberForWorkUnit(workUnitId) === null) {
-        try {
+      // prx-pl2 / GH-230: pin `<unit>:source@pinned` on create so the planner/
+      // implementer CONSUME the pinned source derivation rather than re-fetching
+      // it. GH units (the common case) were previously skipped here, so the
+      // headless planner fell back to the fetch-it-yourself prompt and fabricated
+      // scope. Pin both: GH issues from the fetched issue (reusing cachedGhIssue,
+      // no double `gh` call), non-GH (beads/notion) from the resolver. Best-effort.
+      try {
+        const ghIssueNumber = githubIssueNumberForWorkUnit(workUnitId);
+        if (ghIssueNumber !== null) {
+          const issue = cachedGhIssue && cachedGhIssue.number === ghIssueNumber
+            ? cachedGhIssue
+            : readGitHubIssue(board.repo, ghIssueNumber);
+          await pinGitHubWorkUnitSourceBestEffort(workUnitId, issue);
+        } else {
           const src = createResolvedSource
             ?? (await probeNonGhResolver(workUnitId, repoPath, loadIdentity, buildResolver));
           if (src) await pinWorkUnitSourceBestEffort(workUnitId, src);
-        } catch {
-          // best-effort
         }
+      } catch {
+        // best-effort
       }
       return {
         workUnitId,
@@ -4286,6 +4315,10 @@ export async function checkWorkUnitChain(
           `${prxSessionCannotOpenPrefix(workUnitId)} GitHub issue #${issue.number} in ${board.repo} is ${state.toLowerCase()}. Reopen the issue or choose a different work unit.`,
         );
       }
+      // GH-230: pin `<unit>:source@pinned` on the non-create missing-unit path
+      // too (mirrors the create-block pin above), so a planner run against an
+      // already-materialized GH unit also consumes the real issue body.
+      await pinGitHubWorkUnitSourceBestEffort(workUnitId, issue);
       return {
         workUnitId,
         create,
