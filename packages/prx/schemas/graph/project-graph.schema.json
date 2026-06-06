@@ -35,9 +35,21 @@
                     "type": "string",
                     "minLength": 1
                   },
+                  "slogan": {
+                    "type": "string",
+                    "minLength": 1
+                  },
                   "description": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "backedClaims": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
                   },
                   "codeRepository": {
                     "type": "string",
@@ -212,7 +224,9 @@
                   "@type",
                   "@id",
                   "name",
+                  "slogan",
                   "description",
+                  "backedClaims",
                   "codeRepository",
                   "programmingLanguage",
                   "runtimePlatform",
