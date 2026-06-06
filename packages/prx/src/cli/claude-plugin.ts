@@ -112,16 +112,27 @@ function renderCommand(v: VerbSpec, serverName: string, policies?: ActorPolicies
  * `prx pilot` is visible in-session. Each forwarded line is one notification.
  */
 const AUDIT_WATCH_SCRIPT = `#!/usr/bin/env bash
-# prx plugin monitor — stream pilot/fleet pipeline events into the Claude session.
-# The runtime appends one NDJSON line per event to
+# prx plugin monitor — stream the live pilot/fleet pipeline into the Claude
+# session: leg transitions, agent start/finish, AND telemetry heartbeats
+# (GH-188/GH-261). Each heartbeat carries the leg's progress + latest-output
+# snippet, so you see a leg working — and pinpoint where it goes silent — live.
+# One NDJSON line per event under
 #   \${XDG_STATE_HOME:-$HOME/.local/state}/prx/audit/<YYYY-MM-DD>.ndjson
-# Follow today's file (-F retries until it is created on the first event) and
-# forward only leg transitions + agent start/finish.
+# Follow today's file (-F retries until it is created on the first event).
 set -uo pipefail
 dir="\${XDG_STATE_HOME:-$HOME/.local/state}/prx/audit"
 file="$dir/$(date +%F).ndjson"
-tail -n0 -F "$file" 2>/dev/null \\
-  | grep --line-buffered -E '"machine":"(pilot|fleet|session-entry)"|"kind":"non-interactive-agent"'
+stream() {
+  tail -n0 -F "$file" 2>/dev/null \\
+    | grep --line-buffered -E '"machine":"(pilot|fleet|session-entry)"|"kind":"non-interactive-agent"|"event":"TELEMETRY_LEG_OBSERVED"'
+}
+# Render compact when jq is present (ts · role · what · snippet); raw NDJSON
+# otherwise. @tsv keeps the projection template-safe.
+if command -v jq >/dev/null 2>&1; then
+  stream | jq -rc --unbuffered '[.ts, (.details.role // .role // "-"), (.event // .subkind // .state // "-"), (.details.last // "")] | @tsv'
+else
+  stream
+fi
 `;
 
 /**
