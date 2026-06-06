@@ -1,5 +1,17 @@
 # @bounded-systems/prx
 
+## 0.3.1
+
+### Patch Changes
+
+- Re-cut the v0.3.x binary release as **0.3.1**. The first v0.3.0 binary release
+  shipped broken — only `prx-x86_64-linux` attached, because the release-binary
+  matrix published the GitHub Release in parallel and the second job hit the
+  immutable-release lock. The pipeline is fixed (build → artifacts → single
+  draft-then-publish release job, #209), but immutable releases permanently
+  reserve the `v0.3.0` tag name, so the corrected release ships as 0.3.1. No
+  source changes from 0.3.0 — same binary, working release pipeline.
+
 ## 0.3.0
 
 ### Minor Changes
@@ -8,7 +20,6 @@
   preview subsystem (tested; not yet wired as `prx` commands — the real run is
   behind `PRX_PILOT_REAL` and gated on the dolt actor). Ships as a tested
   subsystem behind the existing surfaces.
-
   - **feat(orchestrator):** `pilot` (Layer 1) drives one work unit — each role leg
     invokes a headless Claude subagent (no tmux, "claude over ssh") and signs an
     in-toto step link. The tail `awaiting_ci → ready_to_merge → sealing → merged`
@@ -37,7 +48,6 @@
 ### Patch Changes
 
 - 4d8d08e: Capability-poor orchestrator, beads-native pipeline, and the compiled-binary audit-DB fix.
-
   - **fix(audit):** embed `schema.sql` into the `bun --compile` binary — fixes the `ENOENT /$bunfs/root/schema.sql` that broke every audit-DB command (e.g. `prx services status --anthropic`) in the released binary (prx-eky).
   - **feat(submit):** beads-native submit / publish / merge — a beads work unit can travel intake → merged PR (no longer GitHub-issue-only).
   - **feat(agents):** capability-poor orchestrator — actor sub-agents generated from the policy table, a PreToolUse policy hook that denies any command a role doesn't own, orphan-effect provenance verification, and the intake⊗actor salt + ephemeral salted worktrees for per-actor isolation.
