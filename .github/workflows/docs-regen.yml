@@ -97,4 +97,9 @@ jobs:
           # against the branch head to produce the required check, then arm
           # auto-merge so the refreshed docs land hands-free once it's green.
           gh workflow run ci.yml --ref "$branch"
-          gh pr merge "$branch" --auto --squash
+          # Arm auto-merge, but only if not already set: on the PR-update path
+          # auto-merge persists from the first run, and re-enabling it can exit
+          # non-zero — under `set -e` that would fail every later docs-regen run.
+          if [ "$(gh pr view "$branch" --json autoMergeRequest --jq '.autoMergeRequest != null')" != "true" ]; then
+            gh pr merge "$branch" --auto --squash
+          fi
