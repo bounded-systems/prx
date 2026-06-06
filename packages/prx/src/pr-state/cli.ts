@@ -807,6 +807,7 @@ import {
   type CiOptions,
   type CiPhase,
 } from "./local-ci.ts";
+import { attestCiPhases } from "./ci-attest.ts";
 import {
   inferOperatorScopeFromCwd,
   isMainxPath,
@@ -23513,7 +23514,45 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         phase: parsed.phase,
         format: parsed.format,
       });
-      return handler(validated, output);
+      const code = handler(validated, output);
+      // GH-352: a GREEN `prx ci` records a signed `checks/v1` per phase, keyed
+      // on HEAD — the same attestation shape the pilot's verify step emits — so
+      // a local CI pass becomes verifiable evidence in the chain rather than a
+      // log line. Gated on a resolved signer + canonical ledger (no
+      // PRX_PROVENANCE_KEY ⇒ unchanged behavior) and on `code === 0` (every
+      // requested phase passed; a failure attests nothing — absence ≡ not
+      // verified, the same fail-closed shape as `attestingChecks`). Best-effort:
+      // attestation never alters the CI exit code.
+      if (code !== 0) return code;
+      return (async () => {
+        try {
+          const signer = resolveProvenanceSigner();
+          const ledger = resolveCanonicalChainLedger(process.cwd())?.ledgerPath;
+          if (signer === null || ledger === undefined) return code;
+          const head = runCommand(["git", "rev-parse", "HEAD"]);
+          const commit = head.status === 0 ? head.stdout.trim() : "";
+          if (commit === "") return code;
+          const phases: CiPhase[] = validated.phase ? [validated.phase] : [...CI_PHASES];
+          mkdirSync(dirname(ledger), { recursive: true });
+          const store = openAnchoredChain(ledger);
+          try {
+            const recorded = await attestCiPhases(
+              { signer, store: store.derivations },
+              commit,
+              phases,
+            );
+            output.error(
+              `prx ci: signed checks/v1 for ${recorded.length} phase(s) at ${commit.slice(0, 7)} → ledger`,
+            );
+          } finally {
+            store.close();
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          output.error(`prx ci: checks/v1 attestation skipped (CI result is unaffected): ${msg}`);
+        }
+        return code;
+      })();
     }
 
     if (parsed.command === "triage-session") {

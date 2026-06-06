@@ -1,9 +1,10 @@
 # ADR — `prx ci` as a signed derivation chain (GH-352)
 
-> Status: **proposed**. Extends the anchored-chain provenance track (roadmap
-> Track A) and the `local_ci` actor (`packages/prx/src/machine/actors.ts`).
-> Precedent: `scout`'s read → derivation bridge (`packages/scout/src/provenance.ts`).
-> No code yet — this is the contract to review before implementation.
+> Status: **accepted**, with an implemented first slice (`packages/prx/src/pr-state/ci-attest.ts`
+> + the `ci` verb wiring in `cli.ts`; tests in `test/pr-state/ci_attest.test.ts`).
+> Reuses the existing `checks/v1` attestation tier (`packages/prx/src/provenance/`),
+> the same one the pilot's verify step emits. Supersedes the initial draft, which
+> proposed a parallel `prx.ci.phase/v1` shape (see *History*).
 
 ## Problem
 
@@ -11,195 +12,126 @@
 test`) and emits `LOCAL_CI_*` lines on stderr (`packages/prx/src/pr-state/local-ci.ts`),
 but the **result is ephemeral**: a green run is a line in a log, not an
 artifact. Nothing records *which tree-state* was validated, *who* validated it,
-or *whether that result still holds* once the working tree moves. The merge
-decision therefore trusts "CI was green" on faith, and a stale green (HEAD moved
-after the run) is indistinguishable from a fresh one.
+or *whether that result still holds* once HEAD moves. The merge decision
+therefore trusts "CI was green" on faith. `local-ci.ts` flagged the gap:
 
-`local-ci.ts` already flags the gap:
-
-> *Out of scope (covered by #352): projecting `LOCAL_CI_*` events into
-> `.pr/local/pr.json` and the parity chain.*
+> *Out of scope (covered by #352): projecting `LOCAL_CI_*` events into … the
+> parity chain.*
 
 ## Decision
 
-**A `prx ci` run becomes a signed sub-graph in the anchored chain: one
-derivation per phase, anchored to the tree-state it consumed, feeding a single
-roll-up *run* derivation. Every derivation is signed by the `local_ci` actor's
-authority and verified with `requireSigned: true`. An unsigned CI derivation is
-rejected.**
+**A green `prx ci` run records a signed `checks/v1` derivation per phase, keyed
+on the commit under test — the exact same attestation the pilot's verify step
+already emits — so a local CI pass becomes verifiable evidence in the anchored
+chain. There is no parallel CI shape: the merge guard reads one `checks/v1`
+family regardless of which surface produced it.**
 
-This mirrors `scout`'s pattern (a content-addressed operation records itself as
-a `Derivation`) but as a **DAG** (Phase-level lineage) and **signed** (CI runs
-under an actor authority; scout's bare-CLI read does not — see *Signing*).
+This reuses the GH-2249 provenance tier wholesale rather than inventing a second
+ledger shape:
 
-```
-            inputs (refs, content-addressed)
-   source = sha256(git HEAD commit oid)   lock = sha256(bun.lock)   toolchain = sha256(bun/version…)
-        │                │                          │
-        ├────────────────┼──────────────────────────┤      each phase consumes the same inputs
-        ▼                ▼                          ▼
-  ┌───────────┐   ┌───────────┐   ┌──────┐   ┌───────┐   ┌──────┐
-  │ install   │   │ typecheck │   │ docs │   │ build │   │ test │     prx.ci.phase/v1  (signed)
-  └─────┬─────┘   └─────┬─────┘   └──┬───┘   └───┬───┘   └──┬───┘
-        │ outputs: result digest    │           │          │
-        └─────────────┬─────────────┴───────────┴──────────┘
-                      ▼  inputs = { install: <digest>, typecheck: <digest>, … }
-                 ┌─────────┐
-                 │   run   │   prx.ci.run/v1  (signed)  ← the merge-guard artifact
-                 └─────────┘
-```
+- **Emission**: `provenance/attest.ts` `persistAttestation` builds a SLSA
+  Provenance v1 Statement (`buildType = https://prx.dev/checks/v1`, subject =
+  the commit), signs it via the resolved `Signer`, and appends a `Derivation`
+  carrying the DSSE `envelope`. `ci-attest.ts` calls it once per passed phase.
+- **Signer**: `resolveProvenanceSigner()` — the env-gated, per-actor signer
+  (dev key auto-persists; zero env wiring for the dev loop).
+- **Verification / enforcement**: `provenance/verify.ts` `verifySlsaDerivation`
+  + the `requireSignedDerivations()` fail-closed flag, already consumed by the
+  merge-guard / publisher tiers.
 
-## The derivation shapes
+### Why this shape
 
-A `Derivation` (`packages/anchored-chain/src/types.ts:25`) is
-`{ derivationId, manifest{ producer, inputs, outputs, contracts, params }, envelope?, ts }`,
-with `derivationId = digestManifest(manifest)` — content-addressed and
-reproducible. Two producers:
+- **Signed by construction.** Every recorded derivation carries a signature;
+  `verifySlsaDerivation` rejects an unsigned one. CI runs under an actor
+  authority (`local_ci` / the ambient actor), so there is no reason to omit it —
+  see *On scout being unsigned*.
+- **Per-phase granularity.** One `checks/v1` per phase (`install/typecheck/docs/
+  build/test`); the `phase` param feeds the manifest digest, so each phase is a
+  distinct, content-addressed derivation sharing one subject commit.
+- **Fail-closed.** Attestation runs only on a clean pass (`code === 0` ⇒ every
+  requested phase passed). A failure records nothing, so **absence of a
+  `checks/v1` for a commit ≡ "not verified"** — the same discipline as
+  `attestingChecks` (which signs only on `status === 0`).
+- **Tree-bound.** The subject is the commit oid. "Is this green still valid?"
+  becomes "is there a `checks/v1` for *this* HEAD?" — when HEAD moves to a new
+  commit, the old attestations simply do not cover it. (This is the `checks/v1`
+  analogue of the chain's `isStale`; the merge guard already keys on the commit.)
+- **One shape.** A `prx ci` green and a pilot green land identical-shaped,
+  merge-guard-readable attestations in one ledger.
 
-### Phase derivation — `prx.ci.phase/v1`
+## What was built (first slice)
 
-```ts
-manifest = {
-  producer: "prx.ci.phase",
-  inputs: {
-    source:    "sha256:<HEAD-commit-oid hashed>",   // the tree-state validated
-    lock:      "sha256:<bun.lock>",                  // resolved deps
-    toolchain: "sha256:<bun version + target>",      // the runtime
-  },
-  outputs: {
-    // sha256 of the phase result record (status, durationMs, captured log digest).
-    result: "sha256:<phase-result-json>",
-  },
-  contracts: ["prx.ci.phase/v1"],
-  params: { phase: "typecheck", status: 0, durationMs: 8423 },
-};
-```
+- **`packages/prx/src/pr-state/ci-attest.ts`** — `attestCiPhases(deps, commit,
+  phases)`: one signed `checks/v1` per phase via `persistAttestation`.
+  Idempotent (content-addressed id, no timestamp inside), pure over its
+  `{ signer, store }` deps so it unit-tests against a fake store + a fixed
+  keypair.
+- **`cli.ts` `ci` verb** — after a green run, when a signer + canonical ledger
+  resolve (`resolveProvenanceSigner` + `resolveCanonicalChainLedger`) and HEAD
+  is known, open the ledger and attest the run's phases. Best-effort: a failure
+  to attest never changes the CI exit code. With no `PRX_PROVENANCE_KEY`, the
+  path is a no-op and behavior is unchanged.
+- **`test/pr-state/ci_attest.test.ts`** — per-phase signed/verifiable
+  derivations, distinct ids per phase, idempotency, and commit-binding; mirrors
+  `test/provenance/checks-attest.test.ts`.
 
-The `source`/`lock`/`toolchain` inputs are the key move: with them recorded,
-`store.invalidate.descendants(oldSourceDigest)` answers *"which CI phases
-validated the now-superseded tree?"* — and `lineage.isStale` (below) turns that
-into a gate.
+## Signing (mandatory) — and why scout is unsigned
 
-### Run derivation — `prx.ci.run/v1`
+CI derivations carry a DSSE-signed SLSA envelope; enforcement
+(`requireSignedDerivations()`, fail-closed) rejects unsigned ones at the
+merge-guard / publisher tier.
 
-A roll-up whose **inputs are the phase outputs**, so the phases are its
-ancestors in the DAG:
-
-```ts
-manifest = {
-  producer: "prx.ci.run",
-  inputs: {
-    install:   "sha256:<install phase result>",
-    typecheck: "sha256:<typecheck phase result>",
-    docs:      "sha256:<docs phase result>",
-    build:     "sha256:<build phase result>",
-    test:      "sha256:<test phase result>",
-  },
-  outputs: { verdict: "sha256:<{passed:true, phases:5}>" },
-  contracts: ["prx.ci.run/v1"],
-  params: { passed: true, source: "sha256:…", unit: "GH-352" },
-};
-```
-
-### Why per-phase (the Phase DAG choice)
-
-- **Per-phase invalidation.** `isStale`/`invalidate.descendants` work at phase
-  granularity — a docs-only change can invalidate the `docs` phase while
-  `typecheck`/`test` (whose inputs didn't change) stay valid.
-- **Reuse.** A phase derivation is content-addressed on its inputs; an identical
-  phase over an unchanged tree is the same `derivationId` — recordable once,
-  referenceable by many runs (idempotent append, as in scout).
-- **Honest lineage.** The run verdict is *derived from* its phases, not asserted
-  independently — `lineage.ancestors(runId)` enumerates exactly what it rests on.
-
-## Staleness = the merge guard
-
-The store exposes (`packages/anchored-chain/src/store.ts:16`):
-
-```ts
-lineage.isStale(
-  derivationId: Digest,
-  currentRefs: Readonly<Record<string, Digest>>,
-): Promise<boolean>;
-```
-
-We maintain a ref (e.g. `tree/HEAD`) tracking the current `source` digest. The
-merge gate computes the *current* tree digest and asks:
-
-```ts
-const stale = await store.lineage.isStale(runId, { source: currentTreeDigest });
-// stale === true  → HEAD moved since this green run; re-run required.
-// stale === false → this signed green still covers the tree being merged.
-```
-
-That converts "CI was green" from a mutable claim into a **verifiable,
-tree-bound fact** — the property `local-ci.ts` cannot offer today.
-
-## Signing (mandatory)
-
-Per *everything should be signed*: CI derivations carry a DSSE-signed in-toto
-envelope and are validated with `requireSigned: true`. The infra already exists:
-
-- `ed25519Signer(privateKey, keyid)` + `assembleEnvelope(statement)`
-  (`packages/anchored-chain/src/signing.ts`, `in-toto.ts`) produce the
-  `Derivation.envelope`.
-- `validateDerivation(id, store, registry, { verifier, requireSigned: true })`
-  (`packages/anchored-chain/src/validate.ts`) rejects an unsigned or
-  wrongly-signed derivation when walking the DAG.
-
-**Authority.** `local_ci` is a pipeline actor, so it has a signing identity —
-exactly the *"each role signs an in-toto link with its authority"* contract in
-`docs/prx/pipeline-orchestrator.md`. The signer is **injected** into the record
-path (like `scout`'s `now` injection for determinism), so tests use a fixed test
-key and production binds the actor's key via `@bounded-systems/auth`.
-
-> **On scout being unsigned.** `recordScoutReadDerivation` records *integrity
-> only* (no `envelope`) because a bare-CLI `scout read` runs under **no actor
-> authority** — it has no key to sign with. That is a Phase-1 shortcut, not a
-> principle. Under "everything should be signed" it is a gap: scout reads
-> performed *within* a pipeline leg should sign with that leg's authority. Track
-> separately (see *Follow-ups*); this ADR establishes the signed-by-default bar
-> that scout should also meet.
-
-## Wiring
-
-1. **`packages/prx/src/pr-state/ci-provenance.ts`** — a pure builder +
-   idempotent recorder, mirroring `scout/src/provenance.ts`:
-   `ciPhaseDerivation(phaseResult, inputs, opts)`, `ciRunDerivation(phaseDerivations, opts)`,
-   and `recordCiRun(store, runResult, signer, opts)`.
-2. **`prx ci --ledger <path>`** — when given, open the chain
-   (`openAnchoredChain`), record the phase + run derivations signed by the
-   actor, and update the `prx/ci/<unit>` ref to the run's verdict digest. Mirrors
-   scout's `--ledger` flag exactly. Absent `--ledger` → today's behavior
-   (stderr events), so the surface is additive.
-3. **GH-352 projection** — project the run verdict into `.pr/local/pr.json` so
-   the local semantic-state read shows the signed CI fact, and the merge guard
-   reads the `prx/ci/<unit>` ref + `isStale` rather than scraping log lines.
-4. **SLSA export** — reuse the `scoutReadProvenance` projection shape so a CI
-   run is exportable as a SLSA Provenance v1 statement (Rekor/slsa-verifier
-   portable) without adopting their runtime.
-
-The validation logic itself is untouched: `runCi` still drives the phases; this
-adds a recording seam around each phase result.
-
-## Alternatives considered
-
-- **Run-level only (one derivation per run).** Simpler, but loses per-phase
-  invalidation and reuse, and makes the verdict an assertion rather than a
-  derivation of its phases. Rejected for the Phase DAG.
-- **Unsigned, integrity-only (as scout does today).** Detects tampering but not
-  forgery; can't answer *who* validated. Rejected — CI has an actor authority,
-  so there's no reason to omit the signature.
-- **Reuse GitHub's check-run status as the source of truth.** That's the remote
-  signal; it isn't content-addressed, tree-bound, or locally verifiable, and it
-  doesn't compose with the chain. Kept as a *projection target*, not the record.
+> **On scout being unsigned.** `recordScoutReadDerivation`
+> (`packages/scout/src/provenance.ts`) records *integrity only* (no `envelope`)
+> because a bare-CLI `scout read` runs under **no actor authority** — it has no
+> key to sign with. That is a Phase-1 shortcut, not a principle. Under
+> "everything should be signed" it is a gap: scout reads performed *within* a
+> pipeline leg should sign with that leg's authority. Tracked separately (see
+> *Follow-ups*).
 
 ## Follow-ups
 
+- Project the `checks/v1` verdict into `.pr/local/pr.json` (the GH-352 local
+  semantic-state read) so the merge guard reads the attestation, not a log line.
+- Record `checks/v1` on a *partial* pass (attest the phases that passed before a
+  failure) — needs `runCi` to surface per-phase results; the current slice
+  attests only on a full green.
+- Have `.github/workflows/ci.yml` (already a thin shell over `dist/prx ci`)
+  carry a signer so remote greens land in the same chain as local ones.
 - Sign `scout` reads performed inside a pipeline leg with that leg's authority
-  (close the unsigned gap).
-- Key management / rotation for actor signing authorities via
-  `@bounded-systems/auth` (out of scope here).
-- Remote CI parity: have `.github/workflows/ci.yml` record the same signed
-  derivations (the workflow already shells `dist/prx ci`), so local and remote
-  greens land in one chain.
+  (close the unsigned gap above).
+
+## Alternatives considered
+
+- **A parallel `prx.ci.phase/v1` phase-DAG** (the initial draft): one derivation
+  per phase with `source`/`lock`/`toolchain` inputs feeding a roll-up `run`
+  derivation, giving `lineage.isStale`-on-inputs semantics. **Rejected**: it
+  stands up a second CI-attestation shape next to the `checks/v1` the merge
+  guard already consumes, which the codebase works to avoid. The commit-keyed
+  `checks/v1` gives the same fail-closed, tree-bound guarantee with zero new
+  ledger surface.
+- **Unsigned, integrity-only (as scout does today).** Detects tampering but not
+  forgery. Rejected — CI has an actor authority.
+- **GitHub's check-run status as the source of truth.** Not content-addressed,
+  tree-bound, or locally verifiable, and it doesn't compose with the chain.
+  Kept as a *projection target*, not the record.
+
+## History
+
+The first draft of this ADR proposed `prx.ci.phase/v1` derivations with
+`{ source, lock, toolchain }` inputs and a run roll-up, relying on
+`lineage.isStale(runId, { source })`. Reviewing the existing
+`packages/prx/src/provenance/` tier showed the pilot already runs and signs the
+project checks as `checks/v1` (`attestingChecks` / `runAttestedChecks`), with a
+signer resolver and a merge-guard consumer. Reusing that — rather than building
+a parallel shape — is the accepted decision above. Two further notes from that
+review, recorded so they are not re-litigated:
+
+- `lineage`/`invalidate` link edges by `input_digest == output_digest`, whereas
+  the core `validateDerivation` recurses treating each input as a `derivationId`
+  — two different graph conventions. The `checks/v1` path sidesteps the question
+  (it is a single signed node keyed on the commit, verified by
+  `verifySlsaDerivation`, not the recursive walk).
+- `validateDerivation` rejects a SLSA envelope (`anchored-chain/envelope-mismatch`)
+  because it re-binds the *bespoke* predicate; SLSA verification lives in
+  `provenance/verify.ts` by design.
