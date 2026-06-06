@@ -121,9 +121,11 @@ Also landed:
 - [x] **Auto-docs-PR workflow** (`.github/workflows/docs-regen.yml`) — on push to `main`,
       `docs:render` and open a "docs: regenerate" PR when a generated doc drifts. Owns
       `docs/cli.md` (and the rest) so they stay current without hard-gating feature PRs.
+- [x] **VerbSpec coverage** lens in `health` — spec-driven-CLI readiness: share of the
+      command registry declaring the GH-1242 substrate (`args` input Zod, typed `event`).
+      A coverage ratchet toward full `VerbSpec`; today ~1% input / 0% event.
 
 Next:
-- [ ] VerbSpec schema coverage (% of registry verbs with input/output Zod).
 - [ ] Scripts → `prx` verbs — template on `prx health`, then the `gen-*` codegen.
 - [ ] Decompose `pr-state/cli.ts` (ts-morph codemods, verb-by-verb) → shrink `MONOLITHS`.
 - [ ] Per-package nix derivations (spike) + flip `no-circular` to `error` once ratcheted to 0.

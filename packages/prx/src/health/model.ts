@@ -69,6 +69,23 @@ export const CodeHealthReport = z
         rawJsonParse: z.number().int().nonnegative(),
       })
       .strict(),
+    /**
+     * Spec-driven-CLI readiness — how far the command registry is from the full
+     * `VerbSpec` ideal ("author the verb once, project everywhere"). The GH-1242
+     * substrate adds two optional fields to each `CommandSpec`: `args` (the Zod
+     * INPUT schema the parser validates argv against) and `event` (the typed
+     * machine event the actor receives). This lens counts how many verbs declare
+     * each — "higher is better", a coverage ratchet, not a hard gate. There is no
+     * output-schema field on `CommandSpec` yet (it arrives with the VerbSpec
+     * migration), so output coverage is intentionally not measured here.
+     */
+    verbspec: z
+      .object({
+        verbs: z.number().int().nonnegative(),
+        withInput: z.number().int().nonnegative(),
+        withEvent: z.number().int().nonnegative(),
+      })
+      .strict(),
   })
   .strict();
 export type CodeHealthReport = z.infer<typeof CodeHealthReport>;

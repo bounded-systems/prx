@@ -19,6 +19,7 @@ import { join } from "node:path";
 import { REPO_ROOT } from "../src/repo-root.ts";
 import { VALUE_PROPS } from "../src/value_props.ts";
 import { CodeHealthReport } from "../src/health/model.ts";
+import { prxCommandRegistry } from "../src/cli/registry.data.ts";
 
 const args = process.argv.slice(2);
 const asJson = args.includes("--json");
@@ -80,6 +81,13 @@ const countMatches = (re: RegExp) =>
 const zAnyHoles = countMatches(/z\.(any|unknown)\(/g);
 const rawJsonParse = countMatches(/JSON\.parse\(/g);
 
+// 6. VERBSPEC — spec-driven-CLI readiness over the command registry. ----------
+// Counts how many verbs declare the GH-1242 substrate fields (`args` = input
+// Zod, `event` = typed machine event) en route to full VerbSpec coverage.
+const verbs = prxCommandRegistry.length;
+const withInput = prxCommandRegistry.filter((c) => c.args !== undefined).length;
+const withEvent = prxCommandRegistry.filter((c) => c.event !== undefined).length;
+
 // Schema-first: validate the report against src/health/model.ts before emitting.
 const report = CodeHealthReport.parse({
   sprawl: { totalLines, fileCount: sizes.length, largest: sizes.slice(0, 10) },
@@ -87,6 +95,7 @@ const report = CodeHealthReport.parse({
   deadCode: { count: deadFiles.length, files: deadFiles },
   productMap: { valueProps: VALUE_PROPS.length, backed: backedCount, modulesExercised: exercised.size },
   boundary: { zAnyHoles, rawJsonParse },
+  verbspec: { verbs, withInput, withEvent },
 });
 
 if (asJson) {
@@ -104,4 +113,7 @@ if (asJson) {
   console.log(`  (modules named by no forcing function are pruning candidates — see value_props.ts)`);
   console.log(`\n## 5. Zod boundary — ${zAnyHoles} z.any()/z.unknown() holes; ${rawJsonParse} JSON.parse sites`);
   console.log(`  (lower is better — each is an IO boundary that should be schema-validated)`);
+  const pct = (n: number) => (verbs === 0 ? 0 : Math.round((n / verbs) * 100));
+  console.log(`\n## 6. VerbSpec — ${withInput}/${verbs} verbs with input schema (${pct(withInput)}%); ${withEvent}/${verbs} with typed event (${pct(withEvent)}%)`);
+  console.log(`  (higher is better — spec-driven-CLI readiness; target 100% as the VerbSpec migration lands)`);
 }
