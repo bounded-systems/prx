@@ -24420,6 +24420,17 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         return (async () => {
           const deps: KeeperDaemonDeps = {};
           if (parsed.cwd !== undefined) deps.cwd = parsed.cwd;
+          // GH-236 slice 4: wire the in-VM provenance signer. When the daemon runs
+          // with PRX_PROVENANCE_KEY set (the key born in the VM), a request with a
+          // ledgerRef emits a signed push/v1 into that ledger. Unset ⇒ bare push.
+          const signer = resolveProvenanceSigner();
+          if (signer !== null) {
+            deps.signer = signer;
+            deps.openLedger = (ledgerRef: string) => {
+              const chain = openAnchoredChain(ledgerRef);
+              return { store: chain.derivations, close: chain.close };
+            };
+          }
           const server = await runKeeperServe({
             socketPath: parsed.socket!,
             ...(parsed.pidfile !== undefined ? { pidfile: parsed.pidfile } : {}),

@@ -12,7 +12,9 @@
  * and performs only the security-sensitive push. The dispatch is
  * dependency-injected with the git/import/attest seams, so it is exercised
  * end-to-end over a real unix socket with a fake git — no VM, no keys, no
- * network. The in-VM signing key behind `attest` lands in slice 4 (gated).
+ * network. Slice 4 (GH-236) wires the provenance signer: a serve-time `signer`
+ * (from the in-VM `PRX_PROVENANCE_KEY`) + a per-request `openLedger`, so a push
+ * with `ledgerRef` emits a signed `push/v1` derivation.
  *
  * A handler NEVER throws to the socket: every failure becomes a typed `error`
  * response, so one bad request can't take the daemon down.
@@ -41,11 +43,20 @@ export interface KeeperDaemonDeps {
   /** Git seam (defaults to `execGit`). Tests pass a fake to stay offline. */
   git?: typeof execGit | undefined;
   /**
-   * When present AND the request carries `ledgerRef`, the push is wrapped by
-   * `attestingGit` so a clean push emits a signed `push/v1` derivation. The
-   * in-VM signing key behind this is provisioned in slice 4 (gated).
+   * GH-236 slice 4: the in-VM provenance signer, resolved once at serve time from
+   * `PRX_PROVENANCE_KEY` (the key born in the VM). When present AND a request
+   * carries `ledgerRef`, the push is wrapped by `attestingGit` so a clean push
+   * emits a signed `push/v1` derivation into that request's ledger.
    */
-  attest?: AttestDeps | undefined;
+  signer?: AttestDeps["signer"] | undefined;
+  /**
+   * Open the per-request ledger named by `request.ledgerRef` to append the
+   * derivation to (closed after the push). The store is opened per request — the
+   * signer is serve-wide, the ledger is request-scoped. Tests stub it.
+   */
+  openLedger?:
+    | ((ledgerRef: string) => { store: AttestDeps["store"]; close: () => void })
+    | undefined;
   /** The keeper worktree the git-writes run in (defaults to the daemon's cwd). */
   cwd?: string | undefined;
   /**
@@ -77,6 +88,8 @@ export async function handleKeeperRequest(
   const git = deps.git ?? execGit;
   const importBundle =
     deps.importBundle ?? ((input) => importBundleIntoRepo(input, { git }));
+  // Per-request ledger: opened here from request.ledgerRef, closed in `finally`.
+  let ledger: { store: AttestDeps["store"]; close: () => void } | undefined;
   try {
     importBundle({
       cwd: deps.cwd,
@@ -85,10 +98,14 @@ export async function handleKeeperRequest(
       commitSha: request.commitSha,
     });
     const pushArgs = [request.remote, request.branch, ...(request.pushArgs ?? [])];
-    const pushDeps: KeeperPushDeps =
-      request.ledgerRef !== undefined && deps.attest !== undefined
-        ? { git, attest: deps.attest }
-        : { git };
+    let pushDeps: KeeperPushDeps = { git };
+    // Attest only when the request opts in (ledgerRef) AND a signer + ledger
+    // opener are configured (the in-VM PRX_PROVENANCE_KEY path). Otherwise a bare
+    // push, unchanged.
+    if (request.ledgerRef !== undefined && deps.signer !== undefined && deps.openLedger !== undefined) {
+      ledger = deps.openLedger(request.ledgerRef);
+      pushDeps = { git, attest: { signer: deps.signer, store: ledger.store } };
+    }
     const pushResult = await runKeeperPush(pushArgs, deps.cwd, pushDeps);
     if (pushResult.exitCode !== 0) {
       return {
@@ -108,6 +125,8 @@ export async function handleKeeperRequest(
       code: "keeper",
       message: err instanceof Error ? err.message : String(err),
     };
+  } finally {
+    ledger?.close();
   }
 }
 
