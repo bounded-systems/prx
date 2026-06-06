@@ -155,6 +155,39 @@ that holds the effect's `(tool, subcommand)` in any state. `git push → keeper`
   `delegate:<actor>/<call>`. The recorder itself lands with `merge/v1` (see the
   in-flight note above).
 
+### 2.5 Signed spawn — the spawn IS the capability
+
+The delegation edge above is not the only signed SLSA step: the **spawn itself**
+is one. The shipped ocap flow (prx-292/293) makes the right to spawn an actor a
+*consumed signed input*, not an ambient grant — **no consumed signed input ⇒ no
+spawn**:
+
+- **Intake roots the chain by signing.** Intake pins and **signs** the canonical
+  unit input to `<unit>:source@pinned`; the signature itself is the root artifact
+  (`pinWorkUnitSource` / `signWorkUnitSource`,
+  `packages/prx/src/pipeline/source-pin.ts`). The CLI refuses to mint an unsigned
+  pin (`packages/prx/src/intake/intake-source.ts`), so there is no entry without a
+  signed root.
+- **openSession consumes-or-fails, then mints a signed spawn.** Opening a leg
+  resolves and **consumes** its input artifact; if the required input is absent it
+  fails closed rather than spawning (`openSession`,
+  `packages/prx/src/session/open.ts`; `resolveLegInput`,
+  `packages/prx/src/session/leg-input.ts`). On success it mints a signed SLSA
+  spawn attestation `<unit>:spawn@<role>` over the consumed material
+  (`mintSpawnAttestation`, `packages/prx/src/pipeline/spawn-attestation.ts`) — the
+  spawn is cryptographically rooted in the input, so an unsigned or missing input
+  yields no attestation.
+- **Planner → executor receive their input embedded, and a rejected plan halts.**
+  Each leg is handed its consumed input (the signed `source@pinned`, then
+  `plan@draft`) rather than re-deriving it. A planner verdict of
+  `decision: "blocked"` (`packages/prx/src/plan-store/plan-artifact.ts`) spawns no
+  executor leg — the pilot emits `<role>.rejected` and parks
+  (`packages/prx/src/machine/machines/pilot-runner.ts`).
+- **`prx spawn verify <unit> <role>` audits an attestation.** The persisted
+  `<unit>:spawn@<role>` is independently verifiable after the fact (`runSpawnVerify`,
+  `packages/prx/src/spawn/verify.ts`, over `verifySpawn` in
+  `spawn-attestation.ts`; CLI wiring in `packages/prx/src/pr-state/cli.ts`).
+
 ---
 
 ## 3. Identity — the intake ⊗ actor salt
