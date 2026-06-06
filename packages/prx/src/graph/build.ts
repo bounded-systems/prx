@@ -98,14 +98,14 @@ function docTitle(path: string): string {
 }
 
 /**
- * The project's prose docs as TechArticle nodes: the top-level docs (README,
+ * Repo-relative paths of the project's prose docs: the top-level docs (README,
  * CONTRIBUTING, …), everything under `docs/`, the `spec/` readme, and each
  * package's README. Tooling/config Markdown (`.github/`, `.claude/`, `.beads/`,
- * `.changeset/`, the `community/templates/` sources, CHANGELOG) is excluded.
- * Each node links back to the project via `isPartOf`; the on-disk path becomes a
- * `blob/main` URL so the node is dereferenceable. Sorted by repo-relative path.
+ * `.changeset/`, the `community/templates/` sources, CHANGELOG) is excluded —
+ * `test/markdown-coverage.test.ts` enforces that every tracked `.md` is either
+ * returned here or explicitly listed there. Sorted for a stable graph.
  */
-export function collectDocs(repoUrl: string): DocNode[] {
+export function collectDocRelPaths(): string[] {
   const paths = new Set<string>(walkMarkdown(resolve(REPO_ROOT, "docs")));
   // Top-level docs only (non-recursive) — skips dotted tooling dirs entirely.
   for (const entry of readdirSync(REPO_ROOT, { withFileTypes: true })) {
@@ -120,8 +120,11 @@ export function collectDocs(repoUrl: string): DocNode[] {
     const readme = resolve(packagesDir, dirent.name, "README.md");
     if (existsSync(readme)) paths.add(readme);
   }
-  const rels = [...paths].map((p) => relative(REPO_ROOT, p)).sort();
-  return rels.map((rel) => {
+  return [...paths].map((p) => relative(REPO_ROOT, p)).sort();
+}
+
+export function collectDocs(repoUrl: string): DocNode[] {
+  return collectDocRelPaths().map((rel) => {
     const url = `${repoUrl}/blob/main/${rel}`;
     return {
       "@type": "TechArticle",
