@@ -7,9 +7,10 @@
 // IO (subprocess + file reads + `git ls-files`) is injected via `HealthIo` so the
 // pure assembly is unit-testable without shelling out to knip/dependency-cruiser.
 
-import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+
+import { runCaptured } from "@bounded-systems/proc";
 
 import { VALUE_PROPS } from "../value_props.ts";
 import { prxCommandRegistry } from "../cli/registry.data.ts";
@@ -29,19 +30,20 @@ export type HealthIo = {
 // time and never from this module's location. The compiled `prx` binary lives in
 // bun's virtual fs (`/$bunfs/root`, no `.git` ancestor), so an eager module-dir
 // walk (the `repo-root.ts` `REPO_ROOT` const) would crash the binary at startup;
-// `prx health` instead scans whatever prx checkout it is invoked from.
+// `prx health` instead scans whatever prx checkout it is invoked from. All spawns
+// route through @bounded-systems/proc (the sanctioned subprocess capability);
+// `check: false` returns stdout regardless of exit code — depcruise/knip exit
+// non-zero when they have findings, and we want that output, not a throw.
 let cachedRoot: string | undefined;
 function repoRoot(): string {
   if (cachedRoot !== undefined) return cachedRoot;
-  const r = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" });
-  cachedRoot = (r.stdout ?? "").trim() || process.cwd();
+  cachedRoot = runCaptured(["git", "rev-parse", "--show-toplevel"], { check: false }).stdout.trim() || process.cwd();
   return cachedRoot;
 }
 
 export const defaultHealthIo: HealthIo = {
   run(cmd, args) {
-    const r = spawnSync(cmd, args, { cwd: repoRoot(), encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
-    return r.stdout ?? "";
+    return runCaptured([cmd, ...args], { cwd: repoRoot(), check: false }).stdout;
   },
   readFile(relPath) {
     return readFileSync(join(repoRoot(), relPath), "utf8");
