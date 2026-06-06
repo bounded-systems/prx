@@ -71,6 +71,8 @@ import {
   type SessionOpenOutput,
 } from "./schema.ts";
 import { resolveLegInput } from "./leg-input.ts";
+import { mintSpawnAttestation } from "../pipeline/spawn-attestation.ts";
+import { provenanceSigner, realStatementSigner } from "../machine/machines/pilot-signing.ts";
 
 /**
  * `openSession` return shape. Mirrors the Zod-validated
@@ -178,6 +180,10 @@ export type OpenSessionDeps = {
   recordEvent?: typeof recordEvent;
   /** Override the leg-input consume (tests). GH-288. */
   resolveLegInput?: typeof resolveLegInput;
+  /** Override the ambient signer resolution (tests). GH-293. */
+  resolveSigner?: typeof provenanceSigner;
+  /** Override the spawn-attestation mint (tests). GH-293. */
+  mintSpawn?: typeof mintSpawnAttestation;
 };
 
 // ---------------------------------------------------------------------------
@@ -541,11 +547,14 @@ export async function openSession(
   }
 
   // -------------------------------------------------------------------------
-  // 5b. consume the leg's required input artifact (GH-288). No artifact → no
-  // spawn: a headless leg whose signed input is missing fails closed here rather
-  // than running blind and fabricating (the bug the v0.3.6 drive surfaced).
-  // Interactive sessions embed the source when present but don't hard-fail (the
-  // human can pin mid-session); the cryptographic gate is universal in GH-293.
+  // 5b. consume the leg's required input artifact (GH-288) and mint the signed
+  // SLSA spawn attestation over it (GH-293). No artifact → no spawn: a headless
+  // leg whose signed input is missing fails closed here rather than running blind
+  // (the v0.3.6 drive bug). And no UNSIGNED spawn: the launch refuses unless a
+  // signed `<unit>:spawn@<actor>` is minted over the consumed input material —
+  // the attestation IS the ocap. Headless (the autonomous path) hard-requires a
+  // signer; interactive sessions embed + mint when a key is present, and don't
+  // hard-fail on a missing pin (the human can pin mid-session).
   // -------------------------------------------------------------------------
   let resolvedSourceBody: string | undefined;
   if (input.workUnitId) {
@@ -563,6 +572,42 @@ export async function openSession(
       }
     } else if (legInput) {
       resolvedSourceBody = legInput.body;
+      // GH-293: mint the signed spawn attestation over the consumed input.
+      const signer = (deps.resolveSigner ?? provenanceSigner)();
+      if (!signer) {
+        if (input.interaction === "headless") {
+          return failAt(
+            machine,
+            emit,
+            "dispatch",
+            `${input.actor}: refusing to spawn unsigned — every prx actor must hold a signing key ` +
+              `(set PRX_PROVENANCE_KEY=dev, or ed25519:<b64>). The spawn IS the capability (GH-293).`,
+            { workUnitId: input.workUnitId, workspace_id: reserveResult.workspace_id, branch },
+          );
+        }
+      } else {
+        try {
+          await (deps.mintSpawn ?? mintSpawnAttestation)(
+            {
+              unit: input.workUnitId,
+              role: input.actor,
+              actor: input.actor,
+              input: { ref: legInput.ref, sha: legInput.sha },
+              interaction: input.interaction,
+              invocationId: branch,
+            },
+            realStatementSigner(signer),
+          );
+        } catch (err) {
+          return failAt(
+            machine,
+            emit,
+            "dispatch",
+            `${input.actor}: spawn attestation failed — ${err instanceof Error ? err.message : String(err)} (GH-293)`,
+            { workUnitId: input.workUnitId, workspace_id: reserveResult.workspace_id, branch },
+          );
+        }
+      }
     }
   }
 
