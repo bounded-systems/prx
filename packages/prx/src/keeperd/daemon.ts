@@ -19,7 +19,7 @@
  */
 
 import { createServer, type Server, type Socket } from "node:net";
-import { existsSync, rmSync, writeFileSync } from "node:fs";
+import { closeSync, constants as FS, existsSync, openSync, rmSync, writeSync } from "node:fs";
 
 import { execGit } from "@bounded-systems/git";
 
@@ -214,7 +214,15 @@ export function runKeeperServe(options: KeeperServeOptions): Promise<Server> {
     server.listen(socketPath, () => {
       server.removeListener("error", reject);
       if (pidfile !== undefined) {
-        writeFileSync(pidfile, `${process.pid}\n`);
+        // O_NOFOLLOW refuses to follow a pre-planted symlink at this (predictable)
+        // path, and 0600 restricts the pidfile — closing the insecure-temp-file
+        // vector (CodeQL). O_TRUNC still overwrites a stale *regular* pidfile.
+        const fd = openSync(pidfile, FS.O_WRONLY | FS.O_CREAT | FS.O_TRUNC | FS.O_NOFOLLOW, 0o600);
+        try {
+          writeSync(fd, `${process.pid}\n`);
+        } finally {
+          closeSync(fd);
+        }
         server.on("close", () => rmSync(pidfile, { force: true }));
       }
       resolve(server);
