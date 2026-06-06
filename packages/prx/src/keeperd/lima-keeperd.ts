@@ -17,6 +17,7 @@ import { spawnRun, type Run, type RunResult } from "./lima-exec.ts";
 const DEFAULT_VM_BIN = "/tmp/prx";
 const DEFAULT_SOCKET = "/tmp/keeperd.sock";
 const DEFAULT_LOG = "/tmp/keeperd.log";
+const DEFAULT_PIDFILE = "/tmp/keeperd.pid";
 const POLL_MS = 50;
 
 /** Injected effects (default to real process); tests stub them offline. */
@@ -45,6 +46,8 @@ export interface StartKeeperdOptions {
   cwd: string;
   /** Absolute daemon log path in the VM (default `/tmp/keeperd.log`). */
   logPath?: string | undefined;
+  /** Absolute pidfile the daemon writes its own pid to (default `/tmp/keeperd.pid`). */
+  pidfile?: string | undefined;
   /** Max ms to wait for the socket to appear (default 5000). */
   readyTimeoutMs?: number | undefined;
 }
@@ -53,6 +56,7 @@ export interface StopKeeperdOptions {
   vm: string;
   socket?: string | undefined;
   logPath?: string | undefined;
+  pidfile?: string | undefined;
 }
 
 /** A running keeperd daemon handle. */
@@ -91,8 +95,12 @@ export function deployKeeperdBinary(opts: DeployKeeperdOptions, deps: KeeperdLif
 
 /**
  * Start keeperd detached in the VM on a unix socket, bound to a keeper clone, and
- * wait until the socket exists. `setsid nohup … &` fully detaches the daemon so
- * it survives the launching shell; a stale daemon/socket is cleared first.
+ * wait until the socket exists. The daemon writes its OWN `--pidfile` (GH-223),
+ * so a stale instance is cleared with `kill "$(cat <pidfile>)"` — not `pkill -f`
+ * (which would also match the controlling `sh -c` over `limactl shell`).
+ * `setsid nohup … </dev/null &` fully detaches the daemon. Backgrounding over
+ * `limactl shell` (ssh) returns a non-zero exit even on success, so the launch
+ * exit is IGNORED and the socket-readiness poll is the sole success signal.
  */
 export async function startKeeperd(
   opts: StartKeeperdOptions,
@@ -103,12 +111,16 @@ export async function startKeeperd(
   const vmBinPath = opts.vmBinPath ?? DEFAULT_VM_BIN;
   const socket = opts.socket ?? DEFAULT_SOCKET;
   const logPath = opts.logPath ?? DEFAULT_LOG;
+  const pidfile = opts.pidfile ?? DEFAULT_PIDFILE;
   const readyTimeoutMs = opts.readyTimeoutMs ?? 5000;
 
   const launch =
-    `pkill -f 'prx keeper serve' 2>/dev/null || true; rm -f ${socket} ${logPath}; ` +
-    `setsid nohup ${vmBinPath} keeper serve --socket ${socket} --cwd ${opts.cwd} >${logPath} 2>&1 &`;
-  requireOk(run("limactl", limaShell(opts.vm, launch)), "keeperd launch");
+    `OLD="$(cat ${pidfile} 2>/dev/null)"; [ -n "$OLD" ] && kill "$OLD" 2>/dev/null; ` +
+    `rm -f ${socket} ${logPath} ${pidfile}; ` +
+    `setsid nohup ${vmBinPath} keeper serve --socket ${socket} --cwd ${opts.cwd} --pidfile ${pidfile} </dev/null >${logPath} 2>&1 &`;
+  // Backgrounding a daemon over `limactl shell` (ssh) returns non-zero even on
+  // success — the readiness poll below is the real signal, not this exit.
+  run("limactl", limaShell(opts.vm, launch));
 
   const socketExists = (): boolean =>
     run("limactl", ["shell", "--workdir", "/", opts.vm, "--", "test", "-S", socket]).status === 0;
@@ -125,15 +137,26 @@ export async function startKeeperd(
       `keeperd socket ${socket} did not appear in ${opts.vm} within ${readyTimeoutMs}ms${log ? `: ${log}` : ""}`,
     );
   }
-  return { socket, stop: () => stopKeeperd({ vm: opts.vm, socket, logPath }, deps) };
+  return { socket, stop: () => stopKeeperd({ vm: opts.vm, socket, logPath, pidfile }, deps) };
 }
 
-/** Stop keeperd in the VM and remove its socket/log (best-effort; never throws). */
+/**
+ * Stop keeperd in the VM by its own pidfile and remove its socket/log/pidfile
+ * (best-effort; never throws). Kills by `kill "$(cat <pidfile>)"`, NOT `pkill -f`
+ * — the latter also matches the `sh -c` shell running it over `limactl shell`.
+ */
 export async function stopKeeperd(opts: StopKeeperdOptions, deps: KeeperdLifecycleDeps = {}): Promise<void> {
   const run = deps.run ?? spawnRun;
   const socket = opts.socket ?? DEFAULT_SOCKET;
   const logPath = opts.logPath ?? DEFAULT_LOG;
-  run("limactl", limaShell(opts.vm, `pkill -f 'prx keeper serve' 2>/dev/null || true; rm -f ${socket} ${logPath}`));
+  const pidfile = opts.pidfile ?? DEFAULT_PIDFILE;
+  run(
+    "limactl",
+    limaShell(
+      opts.vm,
+      `P="$(cat ${pidfile} 2>/dev/null)"; [ -n "$P" ] && kill "$P" 2>/dev/null; rm -f ${socket} ${logPath} ${pidfile}`,
+    ),
+  );
 }
 
 /**
@@ -141,7 +164,8 @@ export async function stopKeeperd(opts: StopKeeperdOptions, deps: KeeperdLifecyc
  * Returns a handle whose `stop()` tears the daemon down.
  */
 export async function provisionKeeperd(
-  opts: DeployKeeperdOptions & Pick<StartKeeperdOptions, "cwd" | "socket" | "logPath" | "readyTimeoutMs">,
+  opts: DeployKeeperdOptions &
+    Pick<StartKeeperdOptions, "cwd" | "socket" | "logPath" | "pidfile" | "readyTimeoutMs">,
   deps: KeeperdLifecycleDeps = {},
 ): Promise<KeeperdHandle> {
   const vmBinPath = deployKeeperdBinary(opts, deps);
@@ -152,6 +176,7 @@ export async function provisionKeeperd(
       cwd: opts.cwd,
       socket: opts.socket,
       logPath: opts.logPath,
+      pidfile: opts.pidfile,
       readyTimeoutMs: opts.readyTimeoutMs,
     },
     deps,

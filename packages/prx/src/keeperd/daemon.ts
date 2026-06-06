@@ -19,7 +19,7 @@
  */
 
 import { createServer, type Server, type Socket } from "node:net";
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, rmSync, writeFileSync } from "node:fs";
 
 import { execGit } from "@bounded-systems/git";
 
@@ -185,16 +185,25 @@ function badRequest(message: string): KeeperRemoteResponse {
 export interface KeeperServeOptions {
   /** Unix socket path the daemon listens on. A stale socket file is removed first. */
   socketPath: string;
+  /**
+   * GH-223: when set, the daemon writes its OWN pid here once listening and
+   * removes it on close. The host lifecycle stops the daemon with
+   * `kill "$(cat <pidfile>)"` — no `pkill -f` (which self-matches the
+   * controlling shell over `limactl shell`) and no `$!` capture (mangled across
+   * the host→ssh→VM shell layers).
+   */
+  pidfile?: string | undefined;
   deps?: KeeperDaemonDeps | undefined;
 }
 
 /**
  * Bind the keeperd unix-socket server. Resolves with the listening `Server`
  * (close it to stop). Each connection is served by {@link serveConnection}
- * against {@link handleKeeperRequest} bound to `deps`.
+ * against {@link handleKeeperRequest} bound to `deps`. When `pidfile` is set the
+ * daemon records its pid there (removed on close) so the host can stop it by pid.
  */
 export function runKeeperServe(options: KeeperServeOptions): Promise<Server> {
-  const { socketPath, deps } = options;
+  const { socketPath, pidfile, deps } = options;
   // A leftover socket file from a prior run makes `listen` throw EADDRINUSE.
   if (existsSync(socketPath)) rmSync(socketPath, { force: true });
   const handler = (request: KeeperRemoteRequest): Promise<KeeperRemoteResponse> =>
@@ -204,6 +213,10 @@ export function runKeeperServe(options: KeeperServeOptions): Promise<Server> {
     server.once("error", reject);
     server.listen(socketPath, () => {
       server.removeListener("error", reject);
+      if (pidfile !== undefined) {
+        writeFileSync(pidfile, `${process.pid}\n`);
+        server.on("close", () => rmSync(pidfile, { force: true }));
+      }
       resolve(server);
     });
   });
