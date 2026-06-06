@@ -22,6 +22,8 @@ permissions:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    # A hung step otherwise burns Actions minutes up to the 6-hour default.
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
