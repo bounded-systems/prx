@@ -124,7 +124,7 @@ dir="\${XDG_STATE_HOME:-$HOME/.local/state}/prx/audit"
 file="$dir/$(date +%F).ndjson"
 stream() {
   tail -n0 -F "$file" 2>/dev/null \\
-    | grep --line-buffered -E '"machine":"(pilot|fleet|session-entry)"|"kind":"non-interactive-agent"|"event":"TELEMETRY_LEG_OBSERVED"'
+    | grep --line-buffered -E '"machine":"(pilot|fleet|session-entry)"|"kind":"non-interactive-agent"|"event":"(TELEMETRY_LEG_OBSERVED|SPAWN_ATTESTED)"'
 }
 # Render compact when jq is present (ts · role · what · snippet); raw NDJSON
 # otherwise. @tsv keeps the projection template-safe.

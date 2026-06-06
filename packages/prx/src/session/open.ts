@@ -587,7 +587,7 @@ export async function openSession(
         }
       } else {
         try {
-          await (deps.mintSpawn ?? mintSpawnAttestation)(
+          const minted = await (deps.mintSpawn ?? mintSpawnAttestation)(
             {
               unit: input.workUnitId,
               role: input.actor,
@@ -598,6 +598,11 @@ export async function openSession(
             },
             realStatementSigner(signer),
           );
+          // GH-294: observability — the signed spawn (the ocap) is on the record.
+          emit("SPAWN_ATTESTED", {
+            workUnitId: input.workUnitId,
+            details: { role: input.actor, ref: minted.emit.ref, material: legInput.ref, materialSha: legInput.sha },
+          });
         } catch (err) {
           return failAt(
             machine,
