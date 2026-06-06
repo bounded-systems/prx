@@ -24,10 +24,11 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-linux
     runs-on: ${{ matrix.os }}
-    # contents: write to attach the asset; id-token + attestations to mint a
-    # signed build-provenance attestation linking the binary to this commit.
+    # Build only uploads an artifact (the release is published once, later, by
+    # the `release` job); id-token + attestations mint a signed build-provenance
+    # attestation linking the binary to this commit.
     permissions:
-      contents: write
+      contents: read
       id-token: write
       attestations: write
     steps:
@@ -40,12 +41,13 @@ jobs:
           PRX_COMPILE_VERSION="${{ github.ref_name }}" \
           BUN="$(which bun)" \
             bun packages/prx/scripts/prx-compile.ts ./prx-${{ matrix.target }}
-      - name: Attach to release
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          files: |
-            prx-${{ matrix.target }}
-      # After the asset ships: a failed attestation must not block the release.
+          name: prx-${{ matrix.target }}
+          path: prx-${{ matrix.target }}
+          if-no-files-found: error
+      # After the binary is built: a failed attestation must not block the release.
       - name: Attest build provenance
         continue-on-error: true
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
@@ -96,11 +98,42 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
-  # After the binaries are uploaded, compute their sha256 and open a PR updating
-  # release-hashes.json (consumed by the flake packages + home-manager module).
-  # Tag-only: GITHUB_REF_NAME is the version tag here.
-  update-hashes:
+  # Single release job: gather both platform binaries and publish the GitHub
+  # Release in one shot. Immutable releases lock on publish, so every asset must
+  # be attached to the DRAFT first, then the draft is flipped to published. The
+  # old per-matrix parallel attach raced to publish and lost the second asset
+  # (v0.3.0 shipped linux-only when the darwin job hit the immutable lock).
+  release:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download platform binaries
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: List assets
+        run: ls -l release-assets
+      - name: Create draft release with both assets
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          draft: true
+          files: |
+            release-assets/prx-aarch64-darwin
+            release-assets/prx-x86_64-linux
+      - name: Publish — flip draft → published (locks immutable with all assets present)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${GITHUB_REF_NAME}" --draft=false --latest
+
+  # After the release is published, compute the assets' sha256 and open a PR
+  # updating release-hashes.json (consumed by the flake packages + home-manager
+  # module). Tag-only: GITHUB_REF_NAME is the version tag here.
+  update-hashes:
+    needs: release
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
