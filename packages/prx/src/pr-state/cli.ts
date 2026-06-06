@@ -809,7 +809,7 @@ import {
   type CiOptions,
   type CiPhase,
 } from "./local-ci.ts";
-import { attestCiPhases } from "./ci-attest.ts";
+import { attestCiPhases, resolveCiInputs } from "./ci-attest.ts";
 import {
   inferOperatorScopeFromCwd,
   isMainxPath,
@@ -23598,41 +23598,51 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         format: parsed.format,
       });
       const code = handler(validated, output);
-      // GH-352: a GREEN `prx ci` records a signed `checks/v1` per phase, keyed
-      // on HEAD — the same attestation shape the pilot's verify step emits — so
-      // a local CI pass becomes verifiable evidence in the chain rather than a
-      // log line. Gated on a resolved signer + canonical ledger (no
-      // PRX_PROVENANCE_KEY ⇒ unchanged behavior) and on `code === 0` (every
-      // requested phase passed; a failure attests nothing — absence ≡ not
-      // verified, the same fail-closed shape as `attestingChecks`). Best-effort:
-      // attestation never alters the CI exit code.
+      // GH-352: a GREEN `prx ci` records a signed, content-addressed CI
+      // derivation per phase — `inputs { tree, lock, toolchain } → output
+      // { commit }`, wrapped in the same SLSA/DSSE envelope the merge-guard
+      // verifies. Carrying the validated tree as `sha256:` inputs makes it a
+      // bucket-A chain node (lineage/`isStale`/`invalidate` work, composes with
+      // scout reads), not just a commit-keyed vouch. Gated on a resolved signer
+      // + canonical ledger (no PRX_PROVENANCE_KEY ⇒ unchanged) and on
+      // `code === 0` (every requested phase passed; a failure attests nothing —
+      // absence ≡ not verified). Best-effort: never alters the CI exit code.
       if (code !== 0) return code;
       return (async () => {
         try {
+          // Attribute the signature to the `local_ci` actor so the per-actor
+          // signer and the `builder.id` agree (self-verifying); set before
+          // resolving the signer.
+          setAuditRuntimeContext({ actor: "local_ci" });
           const signer = resolveProvenanceSigner();
           const ledger = resolveCanonicalChainLedger(process.cwd())?.ledgerPath;
           if (signer === null || ledger === undefined) return code;
           const head = runCommand(["git", "rev-parse", "HEAD"]);
           const commit = head.status === 0 ? head.stdout.trim() : "";
-          if (commit === "") return code;
+          const treeProbe = runCommand(["git", "rev-parse", "HEAD^{tree}"]);
+          const treeOid = treeProbe.status === 0 ? treeProbe.stdout.trim() : "";
+          if (commit === "" || treeOid === "") return code;
+          const lock = existsSync("bun.lock") ? readFileSync("bun.lock", "utf8") : "";
+          const inputs = resolveCiInputs({ treeOid, lock, toolchain: `bun ${Bun.version}` });
           const phases: CiPhase[] = validated.phase ? [validated.phase] : [...CI_PHASES];
           mkdirSync(dirname(ledger), { recursive: true });
           const store = openAnchoredChain(ledger);
           try {
             const recorded = await attestCiPhases(
               { signer, store: store.derivations },
+              inputs,
               commit,
               phases,
             );
             output.error(
-              `prx ci: signed checks/v1 for ${recorded.length} phase(s) at ${commit.slice(0, 7)} → ledger`,
+              `prx ci: signed ci/phase/v1 for ${recorded.length} phase(s) at ${commit.slice(0, 7)} (tree-bound) → ledger`,
             );
           } finally {
             store.close();
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          output.error(`prx ci: checks/v1 attestation skipped (CI result is unaffected): ${msg}`);
+          output.error(`prx ci: ci/phase/v1 attestation skipped (CI result is unaffected): ${msg}`);
         }
         return code;
       })();
