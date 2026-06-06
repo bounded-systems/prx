@@ -28,7 +28,10 @@ export type ArtifactKind =
   | "uow"
   // prx-tth: a gate's signed verdict — `<unit>:gate@<gateName>` (e.g.
   // `gate@scope`). Carries the pass/fail + the `gate/v1` attestation digest.
-  | "gate";
+  | "gate"
+  // GH-293: the signed SLSA-v1 spawn attestation — `<unit>:spawn@<role>`. Binds a
+  // leg's launch to the input artifact it consumed (materials). No spawn without it.
+  | "spawn";
 
 /** Canonical ref for an artifact slot: `<unit>:<kind>@<slot>`. */
 export function artifactRef(
