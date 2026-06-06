@@ -1,18 +1,21 @@
 /**
- * beadsd daemon (GH-228, slice 2).
+ * beadsd daemon (GH-228, slices 2 + 5).
  *
  * The in-VM side of the beads isolation: a request handler that dispatches the
- * read envelope (`ready`/`list`/`show`) to the policy-enforced `bd` runner
- * ({@link execBd} from `@bounded-systems/bd`) and frames the typed reply back to
- * the host's {@link ./client.IsolatedBeadsClient}. Its rationale is
- * **context-shape, not secret-custody**: the agent queries the daemon for the
- * exact tasks it needs instead of loading the whole beads DB into context.
+ * wire envelope — reads (`ready`/`list`/`show`) and writes (`create`/`update`/
+ * `close`, slice 5) — to the policy-enforced `bd` runner ({@link execBd} from
+ * `@bounded-systems/bd`) and frames the typed reply back to the host's
+ * {@link ./client.IsolatedBeadsClient}. Its rationale is **context-shape, not
+ * secret-custody**: the agent queries the daemon for the exact tasks it needs
+ * instead of loading the whole beads DB into context.
  *
- * Read-only, by construction: the only subcommands this daemon ever names are
- * the three read kinds in the wire contract — `bd`'s own allowlist/policy layer
- * is the second line of defence. Each read is run with `--json` and its stdout
- * parsed, so the wire carries structured data (the contract's opaque `result`),
- * not a CLI string.
+ * Single-writer, by construction: writes go through this one daemon to the one
+ * in-VM canonical beads, so there is no per-clone divergence (the failure mode
+ * that breaks beads otherwise). The daemon mints no authority — it dispatches
+ * writes under the SAME `bd` allowlist + planner-role policy that gates any bd
+ * write, so the gate is `bd`'s, not beadsd's. Every op runs with `--json` and
+ * its stdout is parsed, so the wire carries structured data (the contract's
+ * opaque `result`), not a CLI string.
  *
  * The `bd` runner is dependency-injected (mirrors keeperd's `git` seam), so the
  * handler and the socket server are exercised end-to-end with a fake `bd` — no
@@ -29,6 +32,7 @@ import { execBd as defaultExecBd, type BdExecResult } from "@bounded-systems/bd"
 import { FrameDecoder, encodeFrame, runFramedServe } from "../keeperd/daemon.ts";
 import {
   BeadsRequestSchema,
+  isBeadsWriteKind,
   type BeadsRequest,
   type BeadsResponse,
 } from "./contract.ts";
@@ -41,12 +45,16 @@ export interface BeadsDaemonDeps {
   cwd?: string | undefined;
 }
 
+/** A write `update` with no field to change — surfaced as a bad-request, not sent to bd. */
+class EmptyUpdateError extends Error {}
+
 /**
- * The `bd` argv for one read request — always `--json` so the reply is
- * structured. Exhaustive over the discriminated union, so a new request kind is
- * a compile error here until it is given args.
+ * The `bd` argv for one request — always `--json` so the reply is structured.
+ * `subcommand` is the bd verb (== `request.kind`); `args` carries the flags.
+ * Exhaustive over the discriminated union, so a new request kind is a compile
+ * error here until it is given args.
  */
-function beadsReadArgs(request: BeadsRequest): string[] {
+function beadsArgs(request: BeadsRequest): string[] {
   switch (request.kind) {
     case "ready":
       return ["--json"];
@@ -55,6 +63,29 @@ function beadsReadArgs(request: BeadsRequest): string[] {
     case "show":
       // `bd show <id> --json` — id first, mirroring runBdShow.
       return [request.id, "--json"];
+    case "create":
+      return [
+        "--json",
+        "--type",
+        request.issueType,
+        "--title",
+        request.title,
+        ...(request.priority !== undefined ? ["--priority", String(request.priority)] : []),
+        ...(request.description !== undefined ? ["--description", request.description] : []),
+      ];
+    case "update": {
+      const fields = [
+        ...(request.status !== undefined ? ["--status", request.status] : []),
+        ...(request.priority !== undefined ? ["--priority", String(request.priority)] : []),
+        ...(request.assignee !== undefined ? ["--assignee", request.assignee] : []),
+      ];
+      if (fields.length === 0) {
+        throw new EmptyUpdateError("update requires at least one of status / priority / assignee");
+      }
+      return [request.id, "--json", ...fields];
+    }
+    case "close":
+      return [request.id, "--json", ...(request.reason !== undefined ? ["--reason", request.reason] : [])];
     default: {
       // Exhaustiveness: a new request kind is a compile error here until given args.
       const unreachable: never = request;
@@ -64,27 +95,40 @@ function beadsReadArgs(request: BeadsRequest): string[] {
 }
 
 /**
- * Run one beads read request to a typed verdict: dispatch `request.kind` to
- * `bd <kind> --json` under the bd policy layer, parse the JSON payload, and
- * return it as the contract's opaque `result` — or a typed `error` for a
- * non-zero exit (`bd-read`) or unparseable output (`bad-output`). Pure w.r.t.
- * the socket: returns data, never throws.
+ * Run one beads request to a typed verdict: dispatch `request.kind` to
+ * `bd <kind> --json` under the bd policy layer (reads unconditional; writes —
+ * create/update/close — gated by bd's own planner-role policy, no extra
+ * authority here), parse the JSON payload, and return it as the contract's
+ * opaque `result` — or a typed `error` for a non-zero exit (`bd-read`/
+ * `bd-write`), unparseable output (`bad-output`), or a fieldless update
+ * (`bad-request`). Pure w.r.t. the socket: returns data, never throws.
  */
 export async function handleBeadsRequest(
   request: BeadsRequest,
   deps: BeadsDaemonDeps = {},
 ): Promise<BeadsResponse> {
   const execBd = deps.execBd ?? defaultExecBd;
+  let args: string[];
+  try {
+    args = beadsArgs(request);
+  } catch (err) {
+    if (err instanceof EmptyUpdateError) {
+      return { status: "error", code: "bad-request", message: err.message };
+    }
+    return { status: "error", code: "beadsd", message: err instanceof Error ? err.message : String(err) };
+  }
   let result: BdExecResult;
   try {
-    result = execBd({ subcommand: request.kind, args: beadsReadArgs(request), cwd: deps.cwd });
+    // Writes dispatch under the bd policy layer exactly like reads — bd's own
+    // allowlist + planner-role gate decides; beadsd adds no authority of its own.
+    result = execBd({ subcommand: request.kind, args, cwd: deps.cwd });
   } catch (err) {
     return { status: "error", code: "beadsd", message: err instanceof Error ? err.message : String(err) };
   }
   if (result.exitCode !== 0) {
     return {
       status: "error",
-      code: "bd-read",
+      code: isBeadsWriteKind(request.kind) ? "bd-write" : "bd-read",
       message: (result.stderr || result.stdout).trim() || `bd ${request.kind} failed`,
     };
   }

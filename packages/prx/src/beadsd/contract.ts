@@ -23,23 +23,63 @@
 import { z } from "zod";
 
 /**
- * The bounded set of READ ops the agent may ask of beadsd — its capability
- * envelope. A discriminated union so the daemon dispatches exhaustively, and an
- * enumerable allowlist: a kind not listed here cannot be requested.
+ * The bounded set of ops the agent may ask of beadsd — its capability envelope.
+ * A discriminated union so the daemon dispatches exhaustively, and an enumerable
+ * allowlist: a kind not listed here cannot be requested.
+ *
+ * Reads (`ready`/`list`/`show`) are unconditional. Writes (`create`/`update`/
+ * `close`, GH-228 slice 5) are the single-writer surface: the daemon dispatches
+ * them to `bd` under the SAME bd policy layer that gates any bd write
+ * (planner-role), so beadsd adds no new authority — it just centralizes the one
+ * writer to the in-VM canonical, which is what removes per-clone divergence.
  */
 export const BeadsRequestSchema = z.discriminatedUnion("kind", [
+  // ── reads ──
   /** `bd ready` — issues with no open blockers (the agent's available work). */
   z.object({ kind: z.literal("ready") }),
   /** `bd list [--status <s>]` — issues, optionally filtered by status. */
   z.object({ kind: z.literal("list"), status: z.string().min(1).optional() }),
   /** `bd show <id>` — one issue's detail. */
   z.object({ kind: z.literal("show"), id: z.string().min(1) }),
+  // ── writes (policy-gated; dispatched to `bd` --json) ──
+  /** `bd create --type <t> --title <title> [--priority N] [--description d]`. */
+  z.object({
+    kind: z.literal("create"),
+    issueType: z.string().min(1),
+    title: z.string().min(1),
+    priority: z.number().int().min(0).max(4).optional(),
+    description: z.string().min(1).optional(),
+  }),
+  /** `bd update <id> [--status s] [--priority N] [--assignee a]` — at least one field. */
+  z.object({
+    kind: z.literal("update"),
+    id: z.string().min(1),
+    status: z.string().min(1).optional(),
+    priority: z.number().int().min(0).max(4).optional(),
+    /** Assignee; empty string clears it (bd assignee semantics). */
+    assignee: z.string().optional(),
+  }),
+  /** `bd close <id> [--reason r]`. */
+  z.object({
+    kind: z.literal("close"),
+    id: z.string().min(1),
+    reason: z.string().min(1).optional(),
+  }),
 ]);
 export type BeadsRequest = z.infer<typeof BeadsRequestSchema>;
 
-/** The read kinds beadsd exposes (the envelope), enumerable as an allowlist. */
-export const BEADS_REQUEST_KINDS = ["ready", "list", "show"] as const;
+/** The read kinds (unconditional). */
+export const BEADS_READ_KINDS = ["ready", "list", "show"] as const;
+/** The write kinds (policy-gated single-writer surface; GH-228 slice 5). */
+export const BEADS_WRITE_KINDS = ["create", "update", "close"] as const;
+/** Every kind beadsd exposes (the envelope), enumerable as an allowlist. */
+export const BEADS_REQUEST_KINDS = [...BEADS_READ_KINDS, ...BEADS_WRITE_KINDS] as const;
 export type BeadsRequestKind = (typeof BEADS_REQUEST_KINDS)[number];
+
+/** True iff `kind` mutates the store (dispatched under the bd write-policy gate). */
+export function isBeadsWriteKind(kind: BeadsRequestKind): boolean {
+  return (BEADS_WRITE_KINDS as readonly string[]).includes(kind);
+}
 
 /**
  * beadsd's reply. A discriminated union on `status`: `ok` carries the bd result
