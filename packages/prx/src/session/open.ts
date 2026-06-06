@@ -70,6 +70,7 @@ import {
   type SessionActor,
   type SessionOpenOutput,
 } from "./schema.ts";
+import { resolveLegInput } from "./leg-input.ts";
 
 /**
  * `openSession` return shape. Mirrors the Zod-validated
@@ -175,6 +176,8 @@ export type OpenSessionDeps = {
   cwd?: () => string;
   /** Inject `recordEvent` (tests). */
   recordEvent?: typeof recordEvent;
+  /** Override the leg-input consume (tests). GH-288. */
+  resolveLegInput?: typeof resolveLegInput;
 };
 
 // ---------------------------------------------------------------------------
@@ -188,6 +191,8 @@ function buildSessionEntryEvent(
     hasPriorSession: boolean;
     planPath?: string | undefined;
     planBody?: string | undefined;
+    /** GH-288: consumed `<unit>:source@pinned` text, embedded for the planner. */
+    sourceBody?: string | undefined;
     interaction?: "headless" | "interactive" | undefined;
     message?: string | undefined;
   },
@@ -211,6 +216,8 @@ function buildSessionEntryEvent(
         workUnitId: input.workUnitId!,
         hasPriorSession: input.hasPriorSession,
         planPath: input.planPath,
+        // GH-288: embed the consumed source so the headless planner gets its input.
+        sourceBody: input.sourceBody,
         // GH-196: thread the headless axis so the autonomous caller
         // (`openSession({ interaction: "headless" })`, e.g. the pilot) reaches
         // the SDK plan builder. Absent → the interactive default (the human
@@ -534,6 +541,32 @@ export async function openSession(
   }
 
   // -------------------------------------------------------------------------
+  // 5b. consume the leg's required input artifact (GH-288). No artifact → no
+  // spawn: a headless leg whose signed input is missing fails closed here rather
+  // than running blind and fabricating (the bug the v0.3.6 drive surfaced).
+  // Interactive sessions embed the source when present but don't hard-fail (the
+  // human can pin mid-session); the cryptographic gate is universal in GH-293.
+  // -------------------------------------------------------------------------
+  let resolvedSourceBody: string | undefined;
+  if (input.workUnitId) {
+    const legInput = await (deps.resolveLegInput ?? resolveLegInput)(input.actor, input.workUnitId);
+    if (legInput?.missing) {
+      if (input.interaction === "headless") {
+        return failAt(
+          machine,
+          emit,
+          "dispatch",
+          `${input.actor}: no signed ${legInput.ref} — the agent receives its input artifact ` +
+            `as input and must not hydrate. Pin it first: \`prx intake source ${input.workUnitId}\` (GH-288).`,
+          { workUnitId: input.workUnitId, workspace_id: reserveResult.workspace_id, branch },
+        );
+      }
+    } else if (legInput) {
+      resolvedSourceBody = legInput.body;
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // 6. dispatching → DISPATCHED | FAILED(dispatch)
   // -------------------------------------------------------------------------
   let profile;
@@ -544,6 +577,7 @@ export async function openSession(
         hasPriorSession: input.hasPriorSession ?? false,
         planPath: input.planPath,
         planBody: input.planBody,
+        sourceBody: resolvedSourceBody,
         interaction: input.interaction,
         message: input.message,
       }),
