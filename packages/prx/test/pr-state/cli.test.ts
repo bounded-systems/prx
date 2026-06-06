@@ -11,6 +11,8 @@ import type {
 import { commandForSurfaceSyncAction } from "../../src/pr-state/github.ts";
 import { RepoAddError, writeRepoInventoryIndex } from "../../src/pr-state/repos.ts";
 import type { RepoInventory, RepoInventoryConfig } from "../../src/pr-state/repos.ts";
+import { consumeArtifact } from "../../src/pipeline/edge.ts";
+import { workUnitSourceEdge } from "../../src/pipeline/source-pin.ts";
 // GH-2098: brand the mock `rawState` fixtures (plain-string literals standing
 // in for validated raw state) at the single cast point per block.
 import type { RawStateV1 } from "@bounded-systems/machine-schema";
@@ -5634,6 +5636,58 @@ describe("pr_state cli", () => {
       valid: true,
       reason: "missing_unit_allowed",
     });
+  });
+
+  // GH-230: on `--create` for a GitHub unit, the chain ROOT `<unit>:source@pinned`
+  // must be pinned from the issue body — previously only non-GH units were pinned,
+  // so the headless planner got an empty sourceBody and fabricated scope.
+  test("checkWorkUnitChain pins <unit>:source@pinned for a GitHub unit on --create (GH-230)", async () => {
+    const prevCasRoot = process.env.PRX_CAS_ROOT;
+    process.env.PRX_CAS_ROOT = mkdtempSync(join(tmpdir(), "gh-230-source-pin-"));
+    try {
+      await checkWorkUnitChain(
+        "GH-230",
+        "/repo",
+        true,
+        () => ({
+          source: "derived-board",
+          repo: "owner/repo",
+          remote_freshness: "fresh",
+          units: [],
+        }),
+        () => ({
+          source: "surface-sync",
+          repo: "owner/repo",
+          mode: "full",
+          authority: "issue",
+          scope: "all",
+          apply: false,
+          units: [],
+          actions: [],
+        }),
+        // GH issue stub WITH a body — this is the source authority the planner
+        // must consume instead of fabricating.
+        () => ({
+          number: 230,
+          title: "Planner ignores issue body",
+          state: "OPEN",
+          body: "The headless planner confabulates scope from its system prompt.",
+          url: "https://github.com/owner/repo/issues/230",
+          labels: [],
+        }),
+      );
+
+      const pinned = await consumeArtifact(workUnitSourceEdge, "GH-230");
+      expect(pinned.missing).toBeUndefined();
+      expect(pinned.value?.source).toBe("github");
+      expect(pinned.value?.title).toBe("Planner ignores issue body");
+      expect(pinned.value?.body).toBe(
+        "The headless planner confabulates scope from its system prompt.",
+      );
+    } finally {
+      if (prevCasRoot === undefined) delete process.env.PRX_CAS_ROOT;
+      else process.env.PRX_CAS_ROOT = prevCasRoot;
+    }
   });
 
   test("checkWorkUnitChain errors when no resolver is configured for a non-GH id", async () => {
