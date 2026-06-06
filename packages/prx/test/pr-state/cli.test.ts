@@ -8089,6 +8089,8 @@ describe("pr_state cli", () => {
     execFileSync("git", ["-C", root, "init", "-q"]);
     execFileSync("git", ["-C", root, "config", "user.email", "test@example.com"]);
     execFileSync("git", ["-C", root, "config", "user.name", "Test"]);
+    // GH-261: hermetic — never sign the seed commit (no 1Password/gpg in CI/sandbox).
+    execFileSync("git", ["-C", root, "config", "commit.gpgsign", "false"]);
     mkdirSync(join(root, ".prx"), { recursive: true });
     writeFileSync(join(root, ".prx/.gitignore"), "*\n!.gitignore\n");
     execFileSync("git", ["-C", root, "add", ".prx/.gitignore"]);
