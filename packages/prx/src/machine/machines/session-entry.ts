@@ -76,6 +76,10 @@ export type SessionEntryEvent =
       // e.g. the pilot) selects the SDK plan builder. This is the inverse
       // default of OPEN_INTAKE_SESSION, by design.
       interaction?: "headless" | "interactive" | undefined;
+      // GH-288: the consumed `<unit>:source@pinned` issue text, embedded so the
+      // headless planner receives its input instead of running blind. Resolved
+      // by `openSession` via `resolveLegInput` before dispatch.
+      sourceBody?: string | undefined;
     }
   | {
       type: "OPEN_INTAKE_SESSION";
@@ -221,6 +225,8 @@ export const sessionEntryMachine = setup({
         if (event.interaction === "headless") {
           return buildWorkUnitClaudePlanPrintRuntimeProfile({
             workUnitId: event.workUnitId,
+            // GH-288: embed the consumed source so the planner gets its input.
+            ...(event.sourceBody !== undefined ? { sourceBody: event.sourceBody } : {}),
           });
         }
         // GH-1147: plan profile carries its own work-unit-bound builder with
