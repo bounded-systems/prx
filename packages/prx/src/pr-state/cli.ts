@@ -1920,6 +1920,8 @@ type ParsedCommand =
       // GH-201/223: host-side keeperd VM lifecycle (`keeper up|down <vm>`).
       vm?: string | undefined;
       binary?: string | undefined;
+      // GH-236 slice 4: in-VM provenance key file injected into the daemon env.
+      provenanceKeyFile?: string | undefined;
     }
   | {
       command: "tools-bd";
@@ -8407,7 +8409,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
   if (command === "keeper") {
     const { prxArgs, passthrough } = splitPassthroughArgv(
       rest,
-      new Set(["format", "cwd", "message", "ledger", "socket", "pidfile", "vm", "binary"]),
+      new Set(["format", "cwd", "message", "ledger", "socket", "pidfile", "vm", "binary", "provenance-key-file"]),
       new Set(),
     );
     const { values, positionals } = parseArgs({
@@ -8425,6 +8427,8 @@ export function parseCommand(argv: string[]): ParsedCommand {
         // GH-201/223: host-side keeperd VM lifecycle (`keeper up|down`).
         vm: { type: "string" },
         binary: { type: "string" },
+        // GH-236 slice 4: in-VM provenance key file to inject as PRX_PROVENANCE_KEY.
+        "provenance-key-file": { type: "string" },
       },
       strict: true,
       allowPositionals: true,
@@ -8490,6 +8494,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
       ...(values.pidfile !== undefined ? { pidfile: values.pidfile } : {}),
       ...(vm !== undefined ? { vm } : {}),
       ...(values.binary !== undefined ? { binary: values.binary } : {}),
+      ...(values["provenance-key-file"] !== undefined
+        ? { provenanceKeyFile: values["provenance-key-file"] }
+        : {}),
       cwd: values.cwd,
     };
   }
@@ -24515,6 +24522,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             binaryPath: parsed.binary!,
             cwd: parsed.cwd!,
             ...(parsed.socket !== undefined ? { socket: parsed.socket } : {}),
+            ...(parsed.provenanceKeyFile !== undefined
+              ? { provenanceKeyFile: parsed.provenanceKeyFile }
+              : {}),
           });
           output.error(`keeperd up on ${parsed.vm}: listening at ${handle.socket}`);
           return 0;

@@ -65,6 +65,24 @@ describe("startKeeperd", () => {
     expect(script(stopCall.args)).not.toContain("pkill");
   });
 
+  test("injects PRX_PROVENANCE_KEY from the in-VM key file when provenanceKeyFile set (GH-236)", async () => {
+    const { calls, run } = recorder();
+    await startKeeperd(
+      { vm: "myvm", cwd: "/vm/clone", provenanceKeyFile: "/home/dev/.ssh/keeper_provenance" },
+      { run, sleep: noSleep },
+    );
+    const launch = script(calls.find((c) => script(c.args).includes("keeper serve"))!.args);
+    // Env assignment from the file (kept out of argv), before setsid nohup.
+    expect(launch).toContain('PRX_PROVENANCE_KEY="$(cat /home/dev/.ssh/keeper_provenance)" setsid nohup');
+  });
+
+  test("no PRX_PROVENANCE_KEY in the launch when provenanceKeyFile absent (bare push)", async () => {
+    const { calls, run } = recorder();
+    await startKeeperd({ vm: "myvm", cwd: "/vm/clone" }, { run, sleep: noSleep });
+    const launch = script(calls.find((c) => script(c.args).includes("keeper serve"))!.args);
+    expect(launch).not.toContain("PRX_PROVENANCE_KEY");
+  });
+
   test("treats a non-zero launch exit (ssh backgrounding) as OK once the socket appears", async () => {
     // `limactl shell` returns non-zero when backgrounding a daemon even on
     // success; the readiness poll (test -S), not the launch exit, is the signal.
