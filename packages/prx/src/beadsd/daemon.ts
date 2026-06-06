@@ -66,9 +66,14 @@ function beadsSubcommand(request: BeadsRequest): string {
 function beadsArgs(request: BeadsRequest): string[] {
   switch (request.kind) {
     case "ready":
-      return ["--json"];
+      return ["--json", ...(request.explain === true ? ["--explain"] : [])];
     case "list":
-      return request.status !== undefined ? ["--json", "--status", request.status] : ["--json"];
+      return [
+        "--json",
+        ...(request.status !== undefined ? ["--status", request.status] : []),
+        ...(request.all === true ? ["--all"] : []),
+        ...(request.limit !== undefined ? ["--limit", String(request.limit)] : []),
+      ];
     case "show":
       // `bd show <id> --json` — id first, mirroring runBdShow.
       return [request.id, "--json"];

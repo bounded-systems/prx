@@ -60,6 +60,19 @@ describe("handleBeadsRequest", () => {
     expect(calls[0]!.args).toEqual(["--json", "--status", "open"]);
   });
 
+  test("dispatches `list --all --limit` (read parity)", async () => {
+    const { execBd, calls } = fakeBd();
+    await handleBeadsRequest({ kind: "list", all: true, limit: 0 }, { execBd });
+    expect(calls[0]!.args).toEqual(["--json", "--all", "--limit", "0"]);
+  });
+
+  test("dispatches `ready --explain` (read parity)", async () => {
+    const { execBd, calls } = fakeBd();
+    await handleBeadsRequest({ kind: "ready", explain: true }, { execBd });
+    expect(calls[0]!.subcommand).toBe("ready");
+    expect(calls[0]!.args).toEqual(["--json", "--explain"]);
+  });
+
   test("dispatches `show` to `bd show <id> --json` (id first)", async () => {
     const { execBd, calls } = fakeBd(okResult(JSON.stringify([{ id: "prx-abb", title: "x" }])));
     const res = await handleBeadsRequest({ kind: "show", id: "prx-abb" }, { execBd });

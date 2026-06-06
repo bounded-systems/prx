@@ -35,10 +35,17 @@ import { z } from "zod";
  */
 export const BeadsRequestSchema = z.discriminatedUnion("kind", [
   // ── reads ──
-  /** `bd ready` — issues with no open blockers (the agent's available work). */
-  z.object({ kind: z.literal("ready") }),
-  /** `bd list [--status <s>]` — issues, optionally filtered by status. */
-  z.object({ kind: z.literal("list"), status: z.string().min(1).optional() }),
+  /** `bd ready [--explain]` — issues with no open blockers (the agent's available work). */
+  z.object({ kind: z.literal("ready"), explain: z.boolean().optional() }),
+  /** `bd list [--status <s>] [--all] [--limit N]` — issues, optionally filtered/expanded. */
+  z.object({
+    kind: z.literal("list"),
+    status: z.string().min(1).optional(),
+    /** Include all statuses (the common `bd list --all` reader shape). */
+    all: z.boolean().optional(),
+    /** Cap the result count (`--limit`; 0 = no cap). */
+    limit: z.number().int().min(0).optional(),
+  }),
   /** `bd show <id>` — one issue's detail. */
   z.object({ kind: z.literal("show"), id: z.string().min(1) }),
   // ── writes (policy-gated; dispatched to `bd` --json) ──
