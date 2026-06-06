@@ -75,6 +75,64 @@ describe("execGh rate-limit gate", () => {
     expect(r.exitCode).toBe(1);
   });
 
+  test("a non-budget error from the gate is rethrown, not swallowed", () => {
+    // The gate's catch only converts BucketBudgetExhaustedError into a result;
+    // any other failure (here a throwing rate_limit refresh) propagates.
+    expect(() =>
+      execGh(listOpts, {}, {
+        budget: {
+          rawRunner: () => {
+            throw new Error("rate_limit probe blew up");
+          },
+          threshold: () => 100,
+          appendAuditLine: () => {},
+          ensureDir: () => {},
+          homeDir: () => "/tmp",
+          auditPath: () => null,
+        },
+      }),
+    ).toThrow(/rate_limit probe blew up/);
+  });
+
+  test("a non-budget error from the post-call recorder is rethrown", () => {
+    // Gate passes (call 1 healthy); the gh result trips the throttle detector,
+    // so the recorder refreshes the budget (call 2) — which here throws a
+    // generic error that must propagate, not be swallowed as a budget result.
+    let calls = 0;
+    const budget: RateLimitDeps = {
+      rawRunner: () => {
+        calls += 1;
+        if (calls === 1) return { stdout: rateLimitBody(5000), stderr: "", status: 0 };
+        throw new Error("post-call refresh blew up");
+      },
+      threshold: () => 100,
+      appendAuditLine: () => {},
+      ensureDir: () => {},
+      homeDir: () => "/tmp",
+      auditPath: () => null,
+      runtimeContext: () => ({ verb: null, actor: "test", ghTruthReason: null }),
+      measureCost: () => false,
+    };
+    expect(() =>
+      execGh(listOpts, {}, {
+        budget,
+        spawn: () => ({ status: 1, stdout: "", stderr: "API rate limit exceeded", signal: null }),
+      }),
+    ).toThrow(/post-call refresh blew up/);
+  });
+
+  test("a signal-killed gh (null status) maps to exit 1", () => {
+    const r = execGh(listOpts, {}, {
+      budget: budgetWith(5000),
+      // A signal kill leaves status null; isCaptureFailure routes it to the
+      // failure arm, where `?? 1` is the exact exit code.
+      spawn: () => ({ status: null, stdout: "", stderr: "", signal: "SIGTERM" }),
+    });
+    expect(r.budgetError).toBeUndefined();
+    expect(r.exitCode).toBe(1);
+    expect(r.stderr).toMatch(/killed by SIGTERM/);
+  });
+
   test("healthy budget + clean spawn passes through unchanged", () => {
     const r = execGh(listOpts, {}, {
       budget: budgetWith(5000),
