@@ -1,30 +1,32 @@
 /**
- * keeperd daemon lifecycle on Lima (GH-201, slice 3b).
+ * keeperd daemon lifecycle on Lima (GH-201; generalized in GH-228 slice 4a).
  *
- * The host-side orchestration that turns the proven spike — cross-compile a
- * Linux prx, copy it into the VM, run `keeper serve` detached on a socket — into
- * callable steps. It pairs with the sibling drivers:
- *   - {@link ./lima-transport} forwards the socket this daemon listens on,
- *   - the executor spec (GH-211) owns the VM the binary runs in.
+ * A thin keeper-typed wrapper over the daemon-agnostic {@link ../lima/lifecycle}:
+ * the deploy → start → stop orchestration now lives there (shared with beadsd's
+ * {@link ../beadsd/lima}); this module binds the keeper {@link DaemonSpec}
+ * (`keeper serve`, `/tmp/keeperd.*`) and owns the keeper-only provenance-key
+ * injection — turning a `provenanceKeyFile` into the launch's env-prefix so a
+ * push with `ledgerRef` emits a signed `push/v1`.
  *
- * deploy → start (bound to a keeper repo clone) → stop. All process effects route
- * through the {@link ./lima-exec} seam (→ `@bounded-systems/proc`), so the
- * orchestration is unit-tested offline; the live path runs against a real VM.
+ * Exports are kept stable (`deployKeeperdBinary`, `startKeeperd`, `stopKeeperd`,
+ * `provisionKeeperd`, `KeeperdHandle`, …) so existing callers and tests are
+ * untouched.
  */
 
-import { spawnRun, type Run, type RunResult } from "./lima-exec.ts";
+import {
+  deployDaemonBinary,
+  provisionDaemon,
+  startDaemon,
+  stopDaemon,
+  type DaemonHandle,
+  type DaemonLifecycleDeps,
+  type DaemonSpec,
+} from "../lima/lifecycle.ts";
 
-const DEFAULT_VM_BIN = "/tmp/prx";
-const DEFAULT_SOCKET = "/tmp/keeperd.sock";
-const DEFAULT_LOG = "/tmp/keeperd.log";
-const DEFAULT_PIDFILE = "/tmp/keeperd.pid";
-const POLL_MS = 50;
+/** The keeper daemon: `keeper serve`, defaults at `/tmp/keeperd.*`. */
+const KEEPER_SPEC: DaemonSpec = { name: "keeperd", serveCommand: ["keeper", "serve"] };
 
-/** Injected effects (default to real process); tests stub them offline. */
-export interface KeeperdLifecycleDeps {
-  run?: Run | undefined;
-  sleep?: ((ms: number) => Promise<void>) | undefined;
-}
+export type KeeperdLifecycleDeps = DaemonLifecycleDeps;
 
 export interface DeployKeeperdOptions {
   /** Lima instance name. */
@@ -67,109 +69,49 @@ export interface StopKeeperdOptions {
 }
 
 /** A running keeperd daemon handle. */
-export interface KeeperdHandle {
-  /** Absolute socket path inside the VM (forward it with {@link ./lima-transport}). */
-  readonly socket: string;
-  /** Stop the daemon and remove its socket/log (best-effort). */
-  stop(): Promise<void>;
-}
+export type KeeperdHandle = DaemonHandle;
 
-/** `limactl shell` argv that runs `script` via `sh -c` at a stable workdir. */
-function limaShell(vm: string, script: string): string[] {
-  return ["shell", "--workdir", "/", vm, "--", "sh", "-c", script];
-}
-
-function requireOk(res: RunResult, what: string): void {
-  if (res.status !== 0) {
-    throw new Error(`${what} failed (${res.status}): ${res.stderr.trim()}`);
-  }
+/** Build the keeper-only env-prefix that injects the in-VM provenance key (from its file, out of argv). */
+function provenanceEnvPrefix(provenanceKeyFile?: string): string {
+  return provenanceKeyFile !== undefined ? `PRX_PROVENANCE_KEY="$(cat ${provenanceKeyFile})" ` : "";
 }
 
 /** Copy a (Linux) prx binary into the VM and make it executable. Returns its VM path. */
 export function deployKeeperdBinary(opts: DeployKeeperdOptions, deps: KeeperdLifecycleDeps = {}): string {
-  const run = deps.run ?? spawnRun;
-  const vmBinPath = opts.vmBinPath ?? DEFAULT_VM_BIN;
-  requireOk(
-    run("limactl", ["copy", opts.binaryPath, `${opts.vm}:${vmBinPath}`]),
-    `limactl copy → ${opts.vm}`,
-  );
-  requireOk(
-    run("limactl", ["shell", "--workdir", "/", opts.vm, "--", "chmod", "+x", vmBinPath]),
-    "chmod +x in VM",
-  );
-  return vmBinPath;
+  return deployDaemonBinary(opts, deps);
 }
 
 /**
  * Start keeperd detached in the VM on a unix socket, bound to a keeper clone, and
- * wait until the socket exists. The daemon writes its OWN `--pidfile` (GH-223),
- * so a stale instance is cleared with `kill "$(cat <pidfile>)"` — not `pkill -f`
- * (which would also match the controlling `sh -c` over `limactl shell`).
- * `setsid nohup … </dev/null &` fully detaches the daemon. Backgrounding over
- * `limactl shell` (ssh) returns a non-zero exit even on success, so the launch
- * exit is IGNORED and the socket-readiness poll is the sole success signal.
+ * wait until the socket exists. Delegates to {@link startDaemon}; the only
+ * keeper-specific bit is the provenance-key env injection.
  */
 export async function startKeeperd(
   opts: StartKeeperdOptions,
   deps: KeeperdLifecycleDeps = {},
 ): Promise<KeeperdHandle> {
-  const run = deps.run ?? spawnRun;
-  const sleep = deps.sleep ?? ((ms) => new Promise<void>((r) => setTimeout(r, ms)));
-  const vmBinPath = opts.vmBinPath ?? DEFAULT_VM_BIN;
-  const socket = opts.socket ?? DEFAULT_SOCKET;
-  const logPath = opts.logPath ?? DEFAULT_LOG;
-  const pidfile = opts.pidfile ?? DEFAULT_PIDFILE;
-  const readyTimeoutMs = opts.readyTimeoutMs ?? 5000;
-
-  // Inject the provenance signer from its in-VM file into the daemon's env (an
-  // env assignment, so the key value never appears in argv). Absent ⇒ bare push.
-  const provEnv =
-    opts.provenanceKeyFile !== undefined
-      ? `PRX_PROVENANCE_KEY="$(cat ${opts.provenanceKeyFile})" `
-      : "";
-  const launch =
-    `OLD="$(cat ${pidfile} 2>/dev/null)"; [ -n "$OLD" ] && kill "$OLD" 2>/dev/null; ` +
-    `rm -f ${socket} ${logPath} ${pidfile}; ` +
-    `${provEnv}setsid nohup ${vmBinPath} keeper serve --socket ${socket} --cwd ${opts.cwd} --pidfile ${pidfile} </dev/null >${logPath} 2>&1 &`;
-  // Backgrounding a daemon over `limactl shell` (ssh) returns non-zero even on
-  // success — the readiness poll below is the real signal, not this exit.
-  run("limactl", limaShell(opts.vm, launch));
-
-  const socketExists = (): boolean =>
-    run("limactl", ["shell", "--workdir", "/", opts.vm, "--", "test", "-S", socket]).status === 0;
-
-  const maxPolls = Math.max(1, Math.ceil(readyTimeoutMs / POLL_MS));
-  let ready = socketExists();
-  for (let i = 0; i < maxPolls && !ready; i++) {
-    await sleep(POLL_MS);
-    ready = socketExists();
-  }
-  if (!ready) {
-    const log = run("limactl", limaShell(opts.vm, `cat ${logPath} 2>/dev/null`)).stdout.trim();
-    throw new Error(
-      `keeperd socket ${socket} did not appear in ${opts.vm} within ${readyTimeoutMs}ms${log ? `: ${log}` : ""}`,
-    );
-  }
-  return { socket, stop: () => stopKeeperd({ vm: opts.vm, socket, logPath, pidfile }, deps) };
+  return startDaemon(
+    KEEPER_SPEC,
+    {
+      vm: opts.vm,
+      vmBinPath: opts.vmBinPath,
+      socket: opts.socket,
+      cwd: opts.cwd,
+      logPath: opts.logPath,
+      pidfile: opts.pidfile,
+      envPrefix: provenanceEnvPrefix(opts.provenanceKeyFile),
+      readyTimeoutMs: opts.readyTimeoutMs,
+    },
+    deps,
+  );
 }
 
 /**
  * Stop keeperd in the VM by its own pidfile and remove its socket/log/pidfile
- * (best-effort; never throws). Kills by `kill "$(cat <pidfile>)"`, NOT `pkill -f`
- * — the latter also matches the `sh -c` shell running it over `limactl shell`.
+ * (best-effort; never throws). Delegates to {@link stopDaemon}.
  */
 export async function stopKeeperd(opts: StopKeeperdOptions, deps: KeeperdLifecycleDeps = {}): Promise<void> {
-  const run = deps.run ?? spawnRun;
-  const socket = opts.socket ?? DEFAULT_SOCKET;
-  const logPath = opts.logPath ?? DEFAULT_LOG;
-  const pidfile = opts.pidfile ?? DEFAULT_PIDFILE;
-  run(
-    "limactl",
-    limaShell(
-      opts.vm,
-      `P="$(cat ${pidfile} 2>/dev/null)"; [ -n "$P" ] && kill "$P" 2>/dev/null; rm -f ${socket} ${logPath} ${pidfile}`,
-    ),
-  );
+  return stopDaemon(KEEPER_SPEC, opts, deps);
 }
 
 /**
@@ -184,16 +126,17 @@ export async function provisionKeeperd(
     >,
   deps: KeeperdLifecycleDeps = {},
 ): Promise<KeeperdHandle> {
-  const vmBinPath = deployKeeperdBinary(opts, deps);
-  return startKeeperd(
+  return provisionDaemon(
+    KEEPER_SPEC,
     {
       vm: opts.vm,
-      vmBinPath,
+      binaryPath: opts.binaryPath,
+      vmBinPath: opts.vmBinPath,
       cwd: opts.cwd,
       socket: opts.socket,
       logPath: opts.logPath,
       pidfile: opts.pidfile,
-      provenanceKeyFile: opts.provenanceKeyFile,
+      envPrefix: provenanceEnvPrefix(opts.provenanceKeyFile),
       readyTimeoutMs: opts.readyTimeoutMs,
     },
     deps,
