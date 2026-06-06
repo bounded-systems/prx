@@ -11,7 +11,6 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { REPO_ROOT } from "../repo-root.ts";
 import { VALUE_PROPS } from "../value_props.ts";
 import { prxCommandRegistry } from "../cli/registry.data.ts";
 import { CodeHealthReport } from "./model.ts";
@@ -26,13 +25,26 @@ export type HealthIo = {
   tracked: (glob: string) => string[];
 };
 
+// Resolve the repo root LAZILY, from the working dir via git — never at import
+// time and never from this module's location. The compiled `prx` binary lives in
+// bun's virtual fs (`/$bunfs/root`, no `.git` ancestor), so an eager module-dir
+// walk (the `repo-root.ts` `REPO_ROOT` const) would crash the binary at startup;
+// `prx health` instead scans whatever prx checkout it is invoked from.
+let cachedRoot: string | undefined;
+function repoRoot(): string {
+  if (cachedRoot !== undefined) return cachedRoot;
+  const r = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" });
+  cachedRoot = (r.stdout ?? "").trim() || process.cwd();
+  return cachedRoot;
+}
+
 export const defaultHealthIo: HealthIo = {
   run(cmd, args) {
-    const r = spawnSync(cmd, args, { cwd: REPO_ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+    const r = spawnSync(cmd, args, { cwd: repoRoot(), encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
     return r.stdout ?? "";
   },
   readFile(relPath) {
-    return readFileSync(join(REPO_ROOT, relPath), "utf8");
+    return readFileSync(join(repoRoot(), relPath), "utf8");
   },
   tracked(glob) {
     return this.run("git", ["ls-files", glob]).split("\n").filter(Boolean);
