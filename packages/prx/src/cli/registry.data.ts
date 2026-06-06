@@ -1854,6 +1854,15 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     internal: true,
   },
   {
+    // GH-228: operator self-heal for an unhealthy beads clone (missing prefix /
+    // diverged after the canonical prefix repair). Visible — agents/operators run it.
+    name: "beads doctor",
+    parent: "beads",
+    description: "Diagnose the beads workspace; --fix re-bootstraps an unhealthy clone (GH-228)",
+    domain: "repo-plumbing",
+    actor: "beads",
+  },
+  {
     // GH-1990: canonical actor surface for bd↔external reconcile. Operators
     // and agents must reach reconcile flows through this verb family rather
     // than raw `bd <verb>` / `git <verb>`. Per-pair work lives under
