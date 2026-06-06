@@ -182,9 +182,8 @@ describe("runPlanView — bd paths", () => {
           ghCalls++;
           return ghOk();
         }) as never,
-        loadBeads: (async () => [
-          bead({ id: "ai-home-xyz", title: "bd-only thing", externalRef: null }),
-        ]) as never,
+        showBead: (async () =>
+          bead({ id: "ai-home-xyz", title: "bd-only thing", externalRef: null })) as never,
       },
     );
     expect(exitCode).toBe(0);
@@ -204,12 +203,11 @@ describe("runPlanView — bd paths", () => {
           ghCalls.push({ args: opts.args });
           return ghOk({ title: "from gh", url: "https://github.com/o/r/issues/123" });
         }) as never,
-        loadBeads: (async () => [
+        showBead: (async () =>
           bead({
             id: "ai-home-xyz",
             externalRef: "https://github.com/o/r/issues/123",
-          }),
-        ]) as never,
+          })) as never,
       },
     );
     expect(ghCalls).toHaveLength(1);
@@ -223,7 +221,8 @@ describe("runPlanView — bd paths", () => {
       { log: () => undefined, error: (l) => errors.push(l) },
       {
         execGh: (() => ghOk()) as never,
-        loadBeads: (async () => [bead({ id: "ai-home-other" })]) as never,
+        // targeted `show <id>` finds nothing for the looked-up id.
+        showBead: (async () => null) as never,
       },
     );
     expect(exitCode).toBe(1);
@@ -239,7 +238,7 @@ describe("runPlanView — bd loader failure (GH-1186 review)", () => {
       { log: () => undefined, error: (l) => errors.push(l) },
       {
         execGh: (() => ghOk()) as never,
-        loadBeads: (async () => {
+        showBead: (async () => {
           throw new Error("bd: database not found");
         }) as never,
       },
@@ -259,12 +258,11 @@ describe("runPlanView — bd loader failure (GH-1186 review)", () => {
           ghCalls.push({ args: opts.args });
           return ghOk();
         }) as never,
-        loadBeads: (async () => [
+        showBead: (async () =>
           bead({
             id: "ai-home-xyz",
             externalRef: "https://github.com/o/r/issues/123?source=intake",
-          }),
-        ]) as never,
+          })) as never,
       },
     );
     expect(ghCalls).toHaveLength(1);

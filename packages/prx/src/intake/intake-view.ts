@@ -31,8 +31,9 @@ import { runScoutNotion, ScoutNotionError } from "../scout/notion.ts";
 import { execBd } from "@bounded-systems/bd";
 import { execGh } from "@bounded-systems/gh";
 import type { BeadsRecord } from "../triage/triage.ts";
-// GH-296: read beads through the daemon (one true source), not local bd.
-import { loadAllBeadsViaDaemon } from "../beadsd/reads.ts";
+// GH-296: targeted beads read through the daemon (one true source), not local
+// bd. A single-id view is `show <id>`, not load-the-world-and-`.find()`.
+import { showBeadViaDaemon } from "../beadsd/reads.ts";
 
 export {
   IntakeViewError,
@@ -58,8 +59,8 @@ export type IntakeViewRender = IssueViewRender;
 export type IntakeViewDeps = {
   execGh?: typeof execGh;
   execBd?: typeof execBd;
-  /** GH-296: daemon-routed beads read (default {@link loadAllBeadsViaDaemon}). */
-  loadBeads?: () => Promise<BeadsRecord[]>;
+  /** GH-296: daemon-routed targeted read (default {@link showBeadViaDaemon}). */
+  showBead?: (id: string) => Promise<BeadsRecord | null>;
   runScoutNotion?: typeof runScoutNotion;
 };
 
@@ -71,7 +72,7 @@ export async function runIntakeView(
   deps: IntakeViewDeps = {},
 ): Promise<number> {
   const ghExec = deps.execGh ?? execGh;
-  const loadBeads = deps.loadBeads ?? loadAllBeadsViaDaemon;
+  const showBead = deps.showBead ?? showBeadViaDaemon;
   const bdExec = deps.execBd ?? execBd;
   const scoutNotion = deps.runScoutNotion ?? runScoutNotion;
 
@@ -116,16 +117,15 @@ export async function runIntakeView(
       }
     }
 
-    // bd resolution path (best-effort per acceptance).
-    let records;
+    // bd resolution path (best-effort per acceptance): a targeted `show <id>`.
+    let record;
     try {
-      records = await loadBeads();
+      record = await showBead(resolved.id);
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       output.error(`${VERB}: bd unreachable: ${detail}`);
       return 1;
     }
-    const record = records.find((r) => r.id === resolved.id);
     if (!record) {
       output.error(`${VERB}: no bd record matching '${resolved.id}'`);
       return 1;
