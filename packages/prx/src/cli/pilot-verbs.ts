@@ -10,6 +10,7 @@
 import { createActor, waitFor, type AnyStateMachine } from "xstate";
 import { z } from "zod";
 
+import { readUnitTelemetry } from "../audit/observe.ts";
 import { createFleetMachine, type FleetContext } from "../machine/machines/fleet.ts";
 import { createPilotMachine, stubLegRunner } from "../machine/machines/pilot.ts";
 import { buildRealPilotDeps, wantsRealPilot } from "./pilot-real.ts";
@@ -85,8 +86,45 @@ export const fleetVerb = defineVerb({
   },
 });
 
+export const observeVerb = defineVerb({
+  id: "observe",
+  summary: "Show a work unit's pilot telemetry timeline (legs + seams) from the audit log.",
+  actor: "telemetry",
+  positionals: ["workUnitId"],
+  input: z.object({
+    workUnitId: z.string().min(1).describe("canonical work unit id, e.g. GH-456"),
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .optional()
+      .describe("show only the most recent N telemetry events"),
+  }),
+  output: z.object({
+    workUnitId: z.string(),
+    eventCount: z.number().int(),
+    events: z.array(
+      z.object({
+        ts: z.string(),
+        event: z.string(),
+        details: z.record(z.string(), z.unknown()).optional(),
+      }),
+    ),
+  }),
+  run: ({ workUnitId, limit }) => {
+    // Read-only projection of the operator-visible audit NDJSON (today's bucket).
+    const events = readUnitTelemetry({
+      workUnitId,
+      date: new Date(),
+      ...(limit !== undefined ? { limit } : {}),
+    });
+    return { workUnitId, eventCount: events.length, events };
+  },
+});
+
 /** The spec-driven slice of the prx registry. */
 export const orchestratorRegistry = {
   [pilotVerb.id]: pilotVerb,
   [fleetVerb.id]: fleetVerb,
+  [observeVerb.id]: observeVerb,
 };
