@@ -6,6 +6,7 @@ import {
   pilotMeasure,
   roleProfile,
   stubLegRunner,
+  type ChecksGate,
   type CiGate,
   type LegRunner,
 } from "./pilot.ts";
@@ -33,13 +34,15 @@ describe("pilot (Layer-1: self-driving, CI-gated, signed in-toto)", () => {
     // The four role legs ran in order (gate + merge are not legs).
     expect(visited).toEqual(["planner", "executor", "tester", "reviewer"]);
 
-    // Chain = intake (source@pinned) + 4 leg links + CI gate + merge, each
-    // signed by its actor. GH-232: intake is the chain ROOT.
+    // Chain = intake (source@pinned) + plan + implement + LOCAL checks gate + 2
+    // leg links + remote CI gate + merge, each signed by its actor. GH-232:
+    // intake is the chain ROOT; the local `prx ci` gate sits after executing.
     expect(done.context.chain.map((l) => l.subject)).toEqual([
       "prx-demo:source@pinned",
       "prx-demo:plan@draft",
       "prx-demo:implement@latest",
-      "prx-demo:gate@ci",
+      "prx-demo:gate@checks-local",
+      "prx-demo:review@validated",
       "prx-demo:submit@ready",
       "prx-demo:gate@ci-remote",
       "prx-demo:merged@pr",
@@ -48,6 +51,7 @@ describe("pilot (Layer-1: self-driving, CI-gated, signed in-toto)", () => {
       "intake@stub",
       "planner@stub",
       "executor@stub",
+      "local_checks@stub",
       "tester@stub",
       "reviewer@stub",
       "remote_ci@stub",
@@ -58,7 +62,7 @@ describe("pilot (Layer-1: self-driving, CI-gated, signed in-toto)", () => {
     const summary = done.context.summary!;
     expect(summary._type).toBe("https://in-toto.io/Statement/v1");
     expect(summary.predicateType).toBe("prx.pilot/v1");
-    expect((summary.predicate as { legCount: number }).legCount).toBe(7);
+    expect((summary.predicate as { legCount: number }).legCount).toBe(8);
     expect(summary.subject[0]!.name).toBe("prx-demo");
     // Machine output carries the chain + summary up to the fleet.
     expect(done.output!.summary).toBe(summary);
@@ -88,6 +92,34 @@ describe("pilot (Layer-1: self-driving, CI-gated, signed in-toto)", () => {
     expect(halted.context.chain.some((l) => l.stage === "merge")).toBe(false);
     expect(halted.context.chain.some((l) => l.predicate === "ci.failed")).toBe(true);
     expect(halted.context.summary).toBeUndefined();
+  });
+
+  test("the local checks gate is a real gate: red `prx ci` retreats, never reaches merged", async () => {
+    const redChecks: ChecksGate = ({ workUnitId }) =>
+      Promise.resolve({
+        passed: false,
+        attestation: {
+          stage: "checks",
+          subject: `${workUnitId}:gate@checks-local`,
+          predicate: "checks.failed",
+          signedBy: "local_checks@stub",
+          sig: "x",
+        },
+      });
+
+    const actor = createActor(
+      createPilotMachine({ runLeg: stubLegRunner, runChecks: redChecks }),
+      { input: { workUnitId: "prx-redchecks", retreatBudget: 2 } },
+    ).start();
+    const halted = await waitFor(actor, (s) => s.status === "done", { timeout: 2000 });
+
+    expect(halted.value).toBe("abandoned");
+    // Never advanced past the local gate: no remote CI, no tester/reviewer/merge.
+    expect(halted.context.chain.some((l) => l.stage === "merge")).toBe(false);
+    expect(halted.context.chain.some((l) => l.subject.endsWith("gate@ci-remote"))).toBe(false);
+    expect(halted.context.chain.some((l) => l.subject.endsWith("review@validated"))).toBe(false);
+    expect(halted.context.chain.filter((l) => l.predicate === "checks.failed").length).toBeGreaterThan(0);
+    expect(halted.context.retreatBudget).toBe(0);
   });
 
   test("a non-advancing leg parks in blocked but still signs its link", async () => {

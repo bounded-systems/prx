@@ -49,6 +49,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - ADR — `prx ci` as a signed derivation chain (GH-352) — `docs/prx/ci-as-derivation.md`
 - ADR — a spec-driven CLI: author verbs once, project everywhere — `docs/prx/cli-from-spec.md`
 - `prx dolt start` — the dolt actor's start driver (GH-555) — `docs/prx/dolt-start.md`
+- Local CI in the pipeline — the `checking` gate + where health/OTEL belongs — `docs/prx/pipeline-local-checks.md`
 - Pilot & fleet — Claude subagents as a signed pipeline — `docs/prx/pipeline-orchestrator.md`
 - prx — project roadmap — `docs/roadmap/prx.md`
 - GH-1836 — PRX runtime + workspace architecture: Nix + Moon + Deno/Bun hybrid (ADR) — `docs/spikes/GH-1836-prx-runtime-architecture.md`
