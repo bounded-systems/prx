@@ -419,6 +419,8 @@ import {
   limaDaemonStatuses,
   selectLimaDaemons,
 } from "../lima/registry.ts";
+// GH-228: beads workspace self-heal (`prx beads doctor [--fix]`).
+import { diagnoseBeads, healBeads } from "../beads/doctor.ts";
 import { runScopeGate, ScopeGateInputError } from "./scope-gate.ts";
 import { runTestGate, TestGateInputError } from "./test-gate.ts";
 import type { GateResult } from "../provenance/gate.ts";
@@ -2012,6 +2014,13 @@ type ParsedCommand =
       format: "plain" | "json";
       socket: string;
       pidfile?: string | undefined;
+      cwd?: string | undefined;
+    }
+  | {
+      // GH-228: `beads doctor [--fix]` — diagnose / re-bootstrap an unhealthy beads clone.
+      command: "beads-doctor";
+      format: "plain" | "json";
+      fix: boolean;
       cwd?: string | undefined;
     }
   | {
@@ -5248,7 +5257,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "beads") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "beads requires a subcommand: hydrate, issue, migrate, publish, sync, sync-all",
+        "beads requires a subcommand: hydrate, issue, migrate, publish, sync, sync-all, doctor",
       );
     }
     if (c1 === "hydrate") {
@@ -5274,6 +5283,10 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     if (c1 === "serve") {
       // GH-228: the in-VM beadsd read daemon entrypoint.
       return ["beads-serve", ...tail];
+    }
+    if (c1 === "doctor") {
+      // GH-228: beads workspace self-heal (diagnose / --fix re-bootstrap).
+      return ["beads-doctor", ...tail];
     }
     throw new CliError(`Unknown beads subcommand: ${c1}`);
   }
@@ -8571,6 +8584,27 @@ export function parseCommand(argv: string[]): ParsedCommand {
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
       socket: values.socket,
       ...(values.pidfile !== undefined ? { pidfile: values.pidfile } : {}),
+      ...(values.cwd !== undefined ? { cwd: values.cwd } : {}),
+    };
+  }
+
+  // GH-228: `prx beads doctor [--fix]` — diagnose (read-only) or re-bootstrap an
+  // unhealthy beads clone (rewritten to `beads-doctor` by normalizeNamespaceArgv).
+  if (command === "beads-doctor") {
+    const { values } = parseArgs({
+      args: rest,
+      options: {
+        format: { type: "string", default: "plain" },
+        fix: { type: "boolean", default: false },
+        cwd: { type: "string" },
+      },
+      strict: true,
+      allowPositionals: false,
+    });
+    return {
+      command: "beads-doctor",
+      format: ensureChoice(values.format, ["plain", "json"], "--format"),
+      fix: values.fix ?? false,
       ...(values.cwd !== undefined ? { cwd: values.cwd } : {}),
     };
   }
@@ -24801,6 +24835,34 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         await new Promise<void>((resolve) => server.on("close", () => resolve()));
         return 0;
       })();
+    }
+
+    if (parsed.command === "beads-doctor") {
+      // GH-228: diagnose (read-only) or, with --fix, re-bootstrap an unhealthy
+      // beads clone from the canonical (the post-prefix-repair self-heal).
+      const deps = parsed.cwd !== undefined ? { cwd: parsed.cwd } : {};
+      if (!parsed.fix) {
+        const diag = diagnoseBeads(deps);
+        if (parsed.format === "json") {
+          output.log(JSON.stringify(diag, null, 2));
+        } else if (diag.healthy) {
+          output.log(`beads: healthy (prefix=${diag.prefix})`);
+        } else {
+          output.log("beads: UNHEALTHY — issue_prefix not set; run `prx beads doctor --fix` to re-bootstrap");
+        }
+        return diag.healthy ? 0 : 1;
+      }
+      const res = healBeads(deps);
+      if (parsed.format === "json") {
+        output.log(JSON.stringify(res, null, 2));
+      } else if (res.action === "none") {
+        output.log(`beads: already healthy (prefix=${res.after.prefix}) — nothing to do`);
+      } else if (res.repaired) {
+        output.log(`beads: re-bootstrapped — now healthy (prefix=${res.after.prefix})`);
+      } else {
+        output.error("beads: re-bootstrap did not restore a prefix — see `bd doctor` / `bd help init-safety`");
+      }
+      return res.repaired || res.action === "none" ? 0 : 1;
     }
 
     if (parsed.command === "lima") {

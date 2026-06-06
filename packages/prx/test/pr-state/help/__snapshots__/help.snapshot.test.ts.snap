@@ -217,6 +217,7 @@ Repo plumbing:
   prx beads hydrate          Hydrate beads database for current repo
   prx beads issue            Look up beads row by GitHub issue
   prx beads sync-all         Fan out prx dolt reconcile across dolthub-wired registered repos
+  prx beads doctor           Diagnose the beads workspace; --fix re-bootstraps an unhealthy clone (GH-228)
   prx tools wt               Wrap worktrunk wt with policy enforcement
   prx tools git              Wrap git with policy enforcement
   prx tools bd               Wrap beads CLI with policy enforcement

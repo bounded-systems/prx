@@ -29,6 +29,24 @@ describe("prx beads serve parsing", () => {
   });
 });
 
+describe("prx beads doctor parsing", () => {
+  test("`beads doctor` rewrites to beads-doctor (diagnose, fix=false)", () => {
+    expect(normalizeNamespaceArgv(["beads", "doctor"])).toEqual(["beads-doctor"]);
+    const p = parse(["beads", "doctor"]);
+    expect(p.command).toBe("beads-doctor");
+    if (p.command === "beads-doctor") expect(p.fix).toBe(false);
+  });
+
+  test("`beads doctor --fix --cwd <p>` parses", () => {
+    const p = parse(["beads", "doctor", "--fix", "--cwd", "/wt"]);
+    expect(p.command).toBe("beads-doctor");
+    if (p.command === "beads-doctor") {
+      expect(p.fix).toBe(true);
+      expect(p.cwd).toBe("/wt");
+    }
+  });
+});
+
 describe("prx lima parsing", () => {
   test("`up <vm>` with --binary/--cwd", () => {
     const p = parse(["lima", "up", "myvm", "--binary", "dist/prx", "--cwd", "/vm/clone"]);
