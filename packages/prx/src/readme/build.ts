@@ -52,7 +52,7 @@ export function buildReadmeModel(): ReadmeModel {
   return ReadmeModel.parse({
     project: {
       name: project.name,
-      tagline: project.description,
+      tagline: project.slogan,
       org,
       repo,
       url: project.codeRepository,
