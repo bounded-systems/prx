@@ -135,6 +135,7 @@ Work units:
   prx intake bd memory ls        List or search bd memories (narrow \`bd memories\` wrapper)
   prx intake bd memory get       Read a bd memory by key (narrow \`bd recall\` wrapper)
   prx intake bd memory set       Upsert a bd memory by key (narrow \`bd remember\` wrapper)
+  prx intake source              Pin a work unit's source authority as <unit>:source@pinned
   prx triage status              List untriaged issues, reverse orphans, drift, stale beads; closed-as-dup excluded (GH-1829)
   prx triage classify            Classify open issues by axis
   prx triage apply               Apply classifier output to GitHub labels
