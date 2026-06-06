@@ -164,6 +164,11 @@ Work units:
   prx keeper push                Push the work-unit branch to its remote (keeper role)
   prx keeper branch              Create or update the work-unit branch ref (keeper role)
   prx keeper commit              Headlessly stage and commit the worktree (keeper role; GH-2346)
+  prx lima                       Manage in-VM daemons (keeper + beads) on a Lima VM
+  prx lima up                    Deploy + start in-VM daemon(s) on a Lima VM (--daemon keeper|beads|all)
+  prx lima down                  Stop in-VM daemon(s) on a Lima VM (--daemon keeper|beads|all)
+  prx lima daemons               List the registered in-VM daemons and their default sockets
+  prx lima status                Show which in-VM daemons are up on a Lima VM
   prx audit uow                  Project per-UoW artifact chain and invariant findings
   prx scope-gate                 Gate a commit's diff against the plan's declared scope
   prx scope-gate run             Check files_changed ⊆ plan.paths; emit a signed gate/v1 verdict

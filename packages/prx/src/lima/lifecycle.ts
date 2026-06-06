@@ -88,6 +88,12 @@ function daemonPaths(name: string): { socket: string; logPath: string; pidfile: 
   return { socket: `/tmp/${name}.sock`, logPath: `/tmp/${name}.log`, pidfile: `/tmp/${name}.pid` };
 }
 
+/** True iff a daemon's unix socket exists in the VM — a liveness probe (`test -S`). */
+export function isDaemonSocketUp(vm: string, socket: string, deps: DaemonLifecycleDeps = {}): boolean {
+  const run = deps.run ?? spawnRun;
+  return run("limactl", ["shell", "--workdir", "/", vm, "--", "test", "-S", socket]).status === 0;
+}
+
 /** `limactl shell` argv that runs `script` via `sh -c` at a stable workdir. */
 function limaShell(vm: string, script: string): string[] {
   return ["shell", "--workdir", "/", vm, "--", "sh", "-c", script];
