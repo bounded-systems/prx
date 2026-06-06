@@ -18,7 +18,7 @@
  * segments, so the backtick-quoted name carries no injection surface.
  */
 
-import { DOLT_DATABASE_NAME_PATTERN } from "./schema.ts";
+import { isSafeDoltIdentifier } from "./namespace.ts";
 
 export type DoltSqlSpawnResult = {
   status: number | null;
@@ -104,14 +104,15 @@ export function createDoltDatabase(
   conn: CreateDatabaseConn,
   spawn: DoltSqlSpawn,
 ): CreateDatabaseResult {
-  // Defense-in-depth: only a validated canonical name is ever interpolated
-  // into SQL. The verb passes a `canonicalDoltDatabase()` result, but a
-  // bad name must fail closed here rather than reach the server.
-  if (!DOLT_DATABASE_NAME_PATTERN.test(database)) {
+  // Defense-in-depth: only a SQL-safe identifier is ever interpolated into SQL.
+  // The guard is the SAFETY constraint (scheme-agnostic), not the naming policy
+  // — the reverse-DNS scheme lives in the namespace resolver (GH-303). A bad
+  // name must fail closed here rather than reach the server.
+  if (!isSafeDoltIdentifier(database)) {
     return {
       status: "error",
       database,
-      error: `invalid dolt_database name (expected io_github_<owner>_<repo>): ${database}`,
+      error: `unsafe dolt_database name (expected a safe identifier [a-z0-9_]): ${database}`,
     };
   }
 
