@@ -1,0 +1,177 @@
+# Local CI in the pipeline — the `checking` gate + where health/OTEL belongs
+
+**Status:** slices 1+2 implemented (the signed `checking` gate + the real
+`prx ci` seam); slices 3–6 are still plan-of-record. Pairs with the
+`ci: add job timeouts` workflow-hygiene PR and the act local-CI work
+(`docs/local-ci.md`).
+
+This answers two asks:
+
+1. Put **local CI (`prx ci`)** into the signed pipeline as a real gate.
+2. Decide **where health verification (heartbeat / OTEL) sits in the chain.**
+
+The short version: local CI becomes a new **deterministic, signed `checking`
+gate** between `executing` and `testing`, mirroring the existing remote CI gate.
+Health/heartbeat/OTEL is **observability, not a chain gate** — it rides the
+telemetry seam (`recordEvent` → log → NATS → OTel), and only touches the signed
+chain as an *anchored* `observed@<leg>` side-link, never as a merge gate.
+
+---
+
+## 1. Where the pipeline checks today (and the gap)
+
+The pilot machine (`packages/prx/src/machine/machines/pilot.ts`) drives one unit:
+
+```
+intaking → planning → executing → testing → reviewing → awaiting_ci → ready_to_merge → sealing → merged
+   0          1           2          3          4           5              6              7
+```
+
+Every step emits a signed in-toto link; `sealing` mints a `prx.pilot/v1` summary
+over the whole chain. There are two kinds of step:
+
+- **LLM legs** (`runLeg`): planner/executor/tester/reviewer — a headless
+  `query()` against a scoped subagent (`pilot.ts:319-322`, `pilot-real.ts:151`).
+- **Deterministic seams**: `intaking` (`prx intake source`), `awaiting_ci`
+  (`prx scout ci`), `ready_to_merge` (`prx publisher merge`) — plain shell-outs
+  that sign a link, no LLM (`pilot-real.ts:244,282,303`).
+
+Today there are **three** check points, and **none of them runs the real CI
+surface** (`install → typecheck → docs → build → test`, i.e. `prx ci`):
+
+| Where | What it runs | Signs | Source |
+| --- | --- | --- | --- |
+| executor opportunistic checks | typecheck + test | `checks/v1` (only on success) | `cli.ts` `IMPLEMENT_CHECK_STEPS` |
+| `test-gate` | typecheck + test | `gate@test` (always) | `pr-state/test-gate.ts` |
+| `awaiting_ci` | **remote** GitHub CI | `gate@ci-remote` | `pilot-real.ts:244` |
+| `tester` leg | LLM *validation* (reads, comments) | `gate@ci` ⚠️ | `pilot.ts:42`, `tester.md` |
+
+Two problems:
+
+- The **full CI surface only runs remotely.** A docs-drift or build break is
+  caught after the push, on the PR — not before. The local gates run a *subset*.
+- The `tester` role **signs `gate@ci`** but is an LLM validator that doesn't run
+  the checks — a naming/semantics smell next to `gate@ci-remote`.
+
+## 2. The `checking` gate
+
+Add a new **deterministic signed gate** `checking`, run by a `runChecks` seam
+that shells `dist/prx ci` and signs `<unit>:gate@checks-local`. It mirrors
+`buildRealCiGate` almost exactly — same shape, local instead of remote.
+
+```
+intaking → planning → executing → checking → testing → reviewing → awaiting_ci → ready_to_merge → sealing → merged
+   0          1           2          3          4         5             6              7              8
+```
+
+- **Placement: after `executing`, before `testing`.** Fail fast on the real CI
+  surface *locally* before spending the (LLM) tester/reviewer legs and before the
+  remote CI gate. `executing` advances to `checking` (was `testing`).
+- **On red → retreat to `executing`** (spend retreat budget), exactly like
+  `awaiting_ci` red (`pilot.ts:345-358`). On green → `testing`.
+- **Signs** `<unit>:gate@checks-local`, predicate `checks.passed|checks.failed`,
+  over `sha256(prx ci output)` — same `signStageLink` path as the other seams.
+
+### Deterministic seam, not an LLM `checker` role
+
+`prx ci` is deterministic, so the gate should be a **seam** (like intake/ci-gate),
+not an LLM subagent. It's still a "new signed leg" in the pipeline — it just
+doesn't burn a model call or introduce nondeterminism. (An LLM `checker` role
+would add a `TaskRole`, an agent definition, cost, and flakiness for zero gain.)
+
+### Termination proof stays intact
+
+The well-founded measure is `[retreatBudget, MERGED_RANK − rank]` (`pilotMeasure`,
+`pilot.ts:163`). `checking` slots in like `awaiting_ci`:
+
+- forward (`checking → testing`): budget unchanged, distance ↓.
+- retreat (`checking → executing` on red): budget ↓ (dominates).
+
+Mechanical changes: insert `checking: 3` and shift `testing..sealing` to `4..8`
+in `pilotPhaseRank`; bump `MERGED_RANK` 8 → 9; update the proof comment. No new
+cycle, no new unbounded edge — the proof is preserved by construction.
+
+### Naming cleanup (sub-decision)
+
+With a real local gate, disambiguate: local = `gate@checks-local`, remote =
+`gate@ci-remote`, and rename the `tester` LLM leg's `signs` from `gate@ci` to
+something honest (`review@validated`). **[NEEDS DECISION]** keep `tester` as an
+LLM validation leg after `checking`, or fold it in.
+
+## 3. Where health / heartbeat / OTEL belongs
+
+**The signed chain is authority; telemetry is observability. They are
+orthogonal, and health must never gate a merge.** (Same split as
+`docs/capability-orchestrator.md` / the XState-vs-chain distinction: XState +
+telemetry surface *what's happening*; the signed DAG decides *what's allowed*.)
+
+What already exists (GH-261, `pilot-real.ts:76-101,160-209`): a per-leg
+**heartbeat** (turns/chars/elapsed/last-snippet) and an **IDLE watchdog**
+(`DEFAULT_PILOT_LEG_IDLE_MS = 5min`) feeding `recordEvent("TELEMETRY_LEG_OBSERVED")`.
+A silent leg trips the watchdog → the leg throws → the pilot **retreats**
+(budget-bounded). That is liveness *enforcement* — the operational complement to
+the termination *proof* (which only assumes legs terminate).
+
+Three gaps and where each lands relative to the chain:
+
+1. **Heartbeat coverage** — the heartbeat is on **LLM legs only**. The
+   deterministic seams (intake, the new `checking`, ci-gate, merge) emit nothing
+   while they shell out. Fix: emit `TELEMETRY_LEG_OBSERVED` around each seam
+   (start/finish + elapsed). **Off-chain** — pure telemetry.
+
+2. **Watchdog parity = the pipeline's `timeout-minutes`.** LLM legs have the IDLE
+   watchdog; deterministic seams have **no timeout** (a hung `prx ci` or a stuck
+   poll hangs the machine — the same failure the workflow `timeout-minutes` PR
+   just fixed for GitHub jobs). Fix: a hard per-seam timeout; on trip → throw →
+   budget-bounded retreat. **Off-chain** (it's a guard), but it protects the
+   chain's liveness.
+
+3. **OTEL** — `recordEvent` is the seam; the roadmap is log → NATS → OTel
+   (`docs` / observability epic). OTEL **spans mirror the XState leg lifecycle**
+   (one span per state; heartbeats as span events; errors as span status), and
+   carry the chain subject/digest as *attributes* for correlation. OTEL does
+   **not** go in the chain — it's the projection of it.
+
+### The one place health touches the chain: an anchored `observed@` side-link
+
+If you want health to be **verifiable / tamper-evident** (not just emitted),
+don't put raw telemetry on the chain and don't sign per event. **Anchor** it:
+hash-chain each leg's telemetry batch and sign **one** `<unit>:observed@<leg>`
+link (one ed25519 sig per leg), referenced by digest from the `prx.pilot/v1`
+summary. That gives a cryptographic pointer "this is the health stream that
+accompanied this leg" — verifiable, cheap, and still **never a gate**.
+
+So: **gates** (`gate@checks-local`, `gate@ci-remote`) decide merge; **health**
+lives off-chain as telemetry/OTEL, optionally pinned to the chain as an anchored
+`observed@<leg>` side-attestation. Heartbeat-missing → watchdog/retreat (a
+liveness guard), *not* a failed gate.
+
+## 4. Implementation slices
+
+To be filed as a bd epic once beads is back (the Dolt server is currently
+unreachable). Each is an independent, testable PR.
+
+1. **✅ Machine: `checking` state.** `runChecks` dep + default auto-pass stub;
+   `checking` inserted between `executing`/`testing` (a shared `gateState` helper
+   now backs both `checking` and `awaiting_ci`); `pilotPhaseRank` renumbered,
+   `MERGED_RANK` 8→9, proof comment updated. Machine test: red `prx ci`
+   retreats and never reaches merged. (`pilot.ts`, `pilot.test.ts`)
+2. **✅ Real seam: `buildRealChecks`.** Resolves the implement worktree via
+   `openSession` and runs `prx ci` THERE; signs `gate@checks-local`; non-zero
+   exit → `passed:false`. Wired into `buildRealPilotDeps`. Tests mock
+   `runPrx`/`openSession` and assert a verifiable ed25519 link + retreat on red.
+   (`pilot-real.ts`, `pilot-real-tail.test.ts`)
+   - **Deferred:** a hard timeout on the `prx ci` shell-out (see slice 3) — for
+     now it relies on `runPrx`. ⚠️
+3. **Telemetry parity + seam timeout.** Emit `TELEMETRY_LEG_OBSERVED` around the
+   deterministic seams; add the per-seam timeout/watchdog (gap #2 above). This is
+   where the `checking` seam's `prx ci` timeout lands.
+4. **(optional) Anchored `observed@<leg>`.** Hash-chain per-leg telemetry, sign
+   once, reference from the summary statement.
+5. **✅ Naming cleanup (partial).** `tester` now signs `review@validated`; local
+   gate is `gate@checks-local`, remote stays `gate@ci-remote`.
+6. **Docs.** Fold this into `docs/prx/pipeline-orchestrator.md`.
+
+Shipped: **slices 1 + 2 (+ the §2 naming)** — local CI is now a signed gate in
+the pipeline. 3–4 harden health (incl. the deferred `prx ci` timeout); 6 is
+cleanup.

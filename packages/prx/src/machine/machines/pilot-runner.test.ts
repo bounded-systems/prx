@@ -38,11 +38,13 @@ describe("sdk leg runner (machine ↔ real-agent + signing seam)", () => {
     expect(ran).toEqual(["planner", "executor", "tester", "reviewer"]);
     // The runner governs the four role legs; the CI gate + merge use defaults.
     expect(signed.map((s) => s.role)).toEqual(["planner", "executor", "tester", "reviewer"]);
-    // GH-232: chain[0] is the intake `source@pinned` link; the four role legs
-    // follow at indices 1-4.
-    expect(done.context.chain.slice(1, 5).map((l) => l.signedBy)).toEqual([
+    // GH-232: chain[0] is the intake `source@pinned` link. The role legs follow,
+    // with the deterministic local-checks gate (default stub) at index 3 between
+    // executor and tester.
+    expect(done.context.chain.slice(1, 6).map((l) => l.signedBy)).toEqual([
       "planner@key",
       "executor@key",
+      "local_checks@stub",
       "tester@key",
       "reviewer@key",
     ]);

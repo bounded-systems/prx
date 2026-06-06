@@ -461,6 +461,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/pipeline-local-checks.md",
+      "name": "Local CI in the pipeline — the `checking` gate + where health/OTEL belongs",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/pipeline-local-checks.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/pipeline-orchestrator.md",
       "name": "Pilot & fleet — Claude subagents as a signed pipeline",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/pipeline-orchestrator.md",

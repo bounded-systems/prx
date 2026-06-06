@@ -39,7 +39,7 @@ export const roleProfile: Record<
 > = {
   planner: { agent: "planner", tools: ["Read", "Grep", "Glob"], signs: "plan@draft" },
   executor: { agent: "executor", tools: ["Read", "Edit", "Write", "Bash"], signs: "implement@latest" },
-  tester: { agent: "tester", tools: ["Read", "Bash"], signs: "gate@ci" },
+  tester: { agent: "tester", tools: ["Read", "Bash"], signs: "review@validated" },
   reviewer: { agent: "reviewer", tools: ["Read", "Grep"], signs: "submit@ready" },
 };
 
@@ -78,6 +78,14 @@ export type CiGate = (input: { workUnitId: string }) => Promise<{
   attestation: LegAttestation;
 }>;
 
+/**
+ * Run the LOCAL CI surface (`prx ci`: install→typecheck→docs→build→test) as a
+ * gate, in the unit's worktree. Same shape as the remote CI gate — green
+ * advances, red retreats to `executing` (budget-bounded). Signs
+ * `<unit>:gate@checks-local`. See docs/prx/pipeline-local-checks.md.
+ */
+export type ChecksGate = CiGate;
+
 /** Merge the PR (publisher actor) + sign the merge link. */
 export type MergeRunner = (input: { workUnitId: string }) => Promise<{
   attestation: LegAttestation;
@@ -99,6 +107,8 @@ export type IntakeRunner = (input: { workUnitId: string }) => Promise<{
 export type PilotDeps = {
   runLeg: LegRunner;
   runIntake?: IntakeRunner;
+  /** Local `prx ci` gate, between executing and testing. Defaults to auto-pass. */
+  runChecks?: ChecksGate;
   runCiGate?: CiGate;
   runMerge?: MergeRunner;
   /** Signs the pilot summary statement with the pilot's authority. */
@@ -139,13 +149,17 @@ export const pilotPhaseRank = {
   intaking: 0,
   planning: 1,
   executing: 2,
-  testing: 3,
-  reviewing: 4,
-  awaiting_ci: 5,
-  ready_to_merge: 6,
-  sealing: 7,
+  // `checking` is the local `prx ci` gate; like `awaiting_ci` it retreats to
+  // `executing` on red (budget ↓ dominates) and advances forward otherwise, so
+  // the well-founded measure is preserved — no new cycle.
+  checking: 3,
+  testing: 4,
+  reviewing: 5,
+  awaiting_ci: 6,
+  ready_to_merge: 7,
+  sealing: 8,
 } as const;
-const MERGED_RANK = 8;
+const MERGED_RANK = 9;
 
 /**
  * Well-founded termination measure: lexicographic `[retreatBudget,
@@ -185,6 +199,18 @@ const defaultCiGate: CiGate = ({ workUnitId }) =>
     },
   });
 
+const defaultChecks: ChecksGate = ({ workUnitId }) =>
+  Promise.resolve({
+    passed: true,
+    attestation: {
+      stage: "checks",
+      subject: `${workUnitId}:gate@checks-local`,
+      predicate: "checks.passed",
+      signedBy: "local_checks@stub",
+      sig: "stub-checks-sig",
+    },
+  });
+
 const defaultMerge: MergeRunner = ({ workUnitId }) =>
   Promise.resolve({
     attestation: {
@@ -216,6 +242,7 @@ export function createPilotMachine(deps: PilotDeps | LegRunner) {
   const d: PilotDeps = typeof deps === "function" ? { runLeg: deps } : deps;
   const runLeg = d.runLeg;
   const intakeRunner = d.runIntake ?? defaultIntake;
+  const checksGate = d.runChecks ?? defaultChecks;
   const ciGate = d.runCiGate ?? defaultCiGate;
   const mergeRunner = d.runMerge ?? defaultMerge;
   const signSummary = d.signSummary ?? stubStatementSigner("pilot");
@@ -230,6 +257,9 @@ export function createPilotMachine(deps: PilotDeps | LegRunner) {
       runLeg: fromPromise<LegResult, LegInput>(({ input }) => runLeg(input)),
       runIntake: fromPromise<{ attestation: LegAttestation }, { workUnitId: string }>(
         ({ input }) => intakeRunner(input),
+      ),
+      runChecks: fromPromise<{ passed: boolean; attestation: LegAttestation }, { workUnitId: string }>(
+        ({ input }) => checksGate(input),
       ),
       runCiGate: fromPromise<{ passed: boolean; attestation: LegAttestation }, { workUnitId: string }>(
         ({ input }) => ciGate(input),
@@ -317,59 +347,18 @@ export function createPilotMachine(deps: PilotDeps | LegRunner) {
         },
       },
       planning: legState("planner", "executing", "planning"),
-      executing: legState("executor", "testing", "planning"),
+      executing: legState("executor", "checking", "planning"),
+
+      // Local `prx ci` gate (GH: see docs/prx/pipeline-local-checks.md). Green →
+      // testing; red → retreat to executing to fix (budget-bounded). Fails fast
+      // on the real CI surface BEFORE the LLM tester/reviewer legs + remote CI.
+      checking: gateState("runChecks", "testing", "executing"),
+
       testing: legState("tester", "reviewing", "executing"),
       reviewing: legState("reviewer", "awaiting_ci", "executing"),
 
       // HARD BLOCK: the only path toward merge. Advances solely on settled-green.
-      awaiting_ci: {
-        invoke: {
-          src: "runCiGate",
-          input: ({ context }: { context: PilotContext }) => ({ workUnitId: context.workUnitId }),
-          onDone: [
-            {
-              guard: {
-                type: "ciPassed" as const,
-                params: ({ event }: { event: { output: { passed: boolean } } }) => ({
-                  passed: event.output.passed,
-                }),
-              },
-              target: "ready_to_merge",
-              actions: {
-                type: "pushLink" as const,
-                params: ({ event }: { event: { output: { attestation: LegAttestation } } }) => ({
-                  attestation: event.output.attestation,
-                }),
-              },
-            },
-            {
-              // CI red, budget left → retreat to fix.
-              guard: "canRetreat" as const,
-              target: "executing",
-              actions: [
-                {
-                  type: "pushLink" as const,
-                  params: ({ event }: { event: { output: { attestation: LegAttestation } } }) => ({
-                    attestation: event.output.attestation,
-                  }),
-                },
-                { type: "spendRetreat" as const },
-              ],
-            },
-            {
-              // CI red, no budget → abandon (still record the failed gate).
-              target: "abandoned",
-              actions: {
-                type: "pushLink" as const,
-                params: ({ event }: { event: { output: { attestation: LegAttestation } } }) => ({
-                  attestation: event.output.attestation,
-                }),
-              },
-            },
-          ],
-          onError: retreatOrAbandon(),
-        },
-      },
+      awaiting_ci: gateState("runCiGate", "ready_to_merge", "executing"),
 
       ready_to_merge: {
         invoke: {
@@ -471,6 +460,51 @@ export function createPilotMachine(deps: PilotDeps | LegRunner) {
     };
   }
 
+  /**
+   * A deterministic GATE state: invoke a pass/fail seam, sign its link, then
+   * advance on pass / retreat to `onRetreat` on red (budget-bounded) / abandon
+   * when the budget is spent. Shared by `checking` (local `prx ci`) and
+   * `awaiting_ci` (remote CI) — same shape, different seam + forward target.
+   */
+  function gateState(src: "runChecks" | "runCiGate", onPass: string, onRetreat: string) {
+    const pushAttestation = {
+      type: "pushLink" as const,
+      params: ({ event }: { event: { output: { attestation: LegAttestation } } }) => ({
+        attestation: event.output.attestation,
+      }),
+    };
+    return {
+      invoke: {
+        src,
+        input: ({ context }: { context: PilotContext }) => ({ workUnitId: context.workUnitId }),
+        onDone: [
+          {
+            guard: {
+              type: "ciPassed" as const,
+              params: ({ event }: { event: { output: { passed: boolean } } }) => ({
+                passed: event.output.passed,
+              }),
+            },
+            target: onPass,
+            actions: pushAttestation,
+          },
+          {
+            // red, budget left → retreat to fix.
+            guard: "canRetreat" as const,
+            target: onRetreat,
+            actions: [pushAttestation, { type: "spendRetreat" as const }],
+          },
+          {
+            // red, no budget → abandon (still record the failed gate).
+            target: "abandoned",
+            actions: pushAttestation,
+          },
+        ],
+        onError: legRetreat(onRetreat),
+      },
+    };
+  }
+
   /** onError for a leg: retreat to `onError` while budgeted, else abandon. */
   function legRetreat(onError: string) {
     return [
@@ -493,11 +527,6 @@ export function createPilotMachine(deps: PilotDeps | LegRunner) {
         },
       },
     ];
-  }
-
-  /** onError for the CI gate: same retreat-or-abandon, back to executing. */
-  function retreatOrAbandon() {
-    return legRetreat("executing");
   }
 }
 

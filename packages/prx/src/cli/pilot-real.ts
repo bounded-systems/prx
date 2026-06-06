@@ -34,6 +34,7 @@ import {
   type Signer,
 } from "../machine/machines/pilot-signing.ts";
 import type {
+  ChecksGate,
   CiGate,
   IntakeRunner,
   LegAttestation,
@@ -118,12 +119,19 @@ export type RealLegDeps = {
 /** GH-261: bound the heartbeat's activity snippet so audit rows stay small. */
 const LEG_HEARTBEAT_SNIPPET_MAX = 140;
 
-/** Run a `prx <args>` invocation. The capability boundary for tail effects. */
-export type RunPrx = (args: string[]) => Promise<{ ok: boolean; stdout: string; stderr: string }>;
+/**
+ * Run a `prx <args>` invocation. The capability boundary for tail effects.
+ * `opts.cwd` lets a seam run in the unit's worktree — the local `prx ci` gate
+ * needs it (the GH-facing seams don't, so it stays optional / process-CWD).
+ */
+export type RunPrx = (
+  args: string[],
+  opts?: { cwd?: string },
+) => Promise<{ ok: boolean; stdout: string; stderr: string }>;
 
 /** Default: shell the installed `prx` binary (via @bounded-systems/proc). */
-export const realRunPrx: RunPrx = async (args) => {
-  const r = spawnCapture(["prx", ...args]);
+export const realRunPrx: RunPrx = async (args, opts) => {
+  const r = spawnCapture(["prx", ...args], opts?.cwd ? { cwd: opts.cwd } : {});
   return { ok: r.status === 0, stdout: r.stdout, stderr: r.stderr };
 };
 
@@ -270,6 +278,42 @@ export function buildRealCiGate(deps: CiGateDeps): CiGate {
   };
 }
 
+export type ChecksDeps = {
+  runPrx: RunPrx;
+  signer: Signer;
+  /** Resolve the unit's worktree to run `prx ci` in. Injectable for tests. */
+  openSession?: OpenSessionFn;
+};
+
+/**
+ * Real local-CI gate: resolve the unit's implement worktree, run `prx ci`
+ * (install→typecheck→docs→build→test) THERE, and sign a `gate@checks-local`
+ * link. Non-zero exit ⇒ passed:false ⇒ the pilot retreats to `executing`
+ * (budget-bounded). Mirrors `buildRealCiGate`, local instead of remote — it
+ * fails fast on the real CI surface before the LLM tester/reviewer legs and the
+ * remote CI gate. See docs/prx/pipeline-local-checks.md.
+ */
+export function buildRealChecks(deps: ChecksDeps): ChecksGate {
+  const sign = realRoleSigner(deps.signer);
+  const open = deps.openSession ?? (openSession as OpenSessionFn);
+  return async ({ workUnitId }) => {
+    const opened = await open({ actor: "implement", workUnitId, interaction: "headless" });
+    if (opened.status !== "opened" || !opened.worktree_path) {
+      throw new Error(`openSession(checks/implement) for ${workUnitId} → status=${opened.status}, no worktree`);
+    }
+    const res = await deps.runPrx(["ci"], { cwd: opened.worktree_path });
+    const passed = res.ok;
+    const attestation = await signStageLink(
+      sign,
+      "checks",
+      `${workUnitId}:gate@checks-local`,
+      passed ? "checks.passed" : "checks.failed",
+      sha256Hex(`${res.stdout}\n${res.stderr}`),
+    );
+    return { passed, attestation };
+  };
+}
+
 export type IntakeDeps = { runPrx: RunPrx; signer: Signer };
 
 /**
@@ -328,6 +372,7 @@ export function buildRealPilotDeps(deps: RealLegDeps = {}): PilotDeps {
   return {
     runLeg: buildRealLegRunner({ ...deps, signer }),
     runIntake: buildRealIntake({ runPrx, signer }),
+    runChecks: buildRealChecks({ runPrx, signer, ...(deps.openSession ? { openSession: deps.openSession } : {}) }),
     signSummary: realStatementSigner(signer),
     runCiGate: buildRealCiGate({ runPrx, signer }),
     runMerge: buildRealMerge({ runPrx, signer }),

@@ -7,6 +7,7 @@ import type { NonInteractiveAgentResult } from "../claude/agent_service.ts";
 import { createPilotMachine } from "../machine/machines/pilot.ts";
 import { verifyLeg } from "../machine/machines/pilot-signing.ts";
 import {
+  buildRealChecks,
   buildRealCiGate,
   buildRealMerge,
   buildRealPilotDeps,
@@ -21,6 +22,10 @@ const newSigner = () => {
   const kp = generateEd25519Keypair();
   return { kp, signer: ed25519Signer(kp.privateKey, kp.keyid) };
 };
+const okOpen: OpenSessionFn = async ({ workUnitId, actor }) =>
+  ({ status: "opened", worktree_path: `/wt/${workUnitId}/${actor}`, profile: {} }) as unknown as Awaited<
+    ReturnType<OpenSessionFn>
+  >;
 
 describe("real CI gate + merge tail", () => {
   test("parseCiConclusion maps scout statuses", () => {
@@ -75,6 +80,50 @@ describe("real CI gate + merge tail", () => {
     expect(threw).toContain("did not settle");
   });
 
+  test("local checks gate runs `prx ci` in the worktree + signs a verifiable gate@checks-local", async () => {
+    const { kp, signer } = newSigner();
+    let ranIn = "";
+    const runPrx: RunPrx = async (args, opts) => {
+      ranIn = `${args.join(" ")}@${opts?.cwd}`;
+      return { ok: true, stdout: "ok", stderr: "" };
+    };
+    const { passed, attestation } = await buildRealChecks({ runPrx, signer, openSession: okOpen })({
+      workUnitId: "GH-10",
+    });
+
+    expect(passed).toBe(true);
+    // It shelled `prx ci` in the unit's implement worktree (not process CWD).
+    expect(ranIn).toBe("ci@/wt/GH-10/implement");
+    expect(attestation.subject).toBe("GH-10:gate@checks-local");
+    expect(attestation.predicate).toBe("checks.passed");
+    const hash = createHash("sha256").update("ok\n").digest("hex");
+    expect(await verifyLeg(ed25519Verifier(kp.publicKey), attestation, hash)).toBe(true);
+  });
+
+  test("red `prx ci` → passed:false (pilot retreats, no advance)", async () => {
+    const { signer } = newSigner();
+    const runPrx: RunPrx = async () => ({ ok: false, stdout: "", stderr: "3 fail" });
+    const { passed, attestation } = await buildRealChecks({ runPrx, signer, openSession: okOpen })({
+      workUnitId: "GH-11",
+    });
+    expect(passed).toBe(false);
+    expect(attestation.predicate).toBe("checks.failed");
+  });
+
+  test("a failed openSession throws (machine retreats, bounded)", async () => {
+    const { signer } = newSigner();
+    const badOpen: OpenSessionFn = async () =>
+      ({ status: "error", worktree_path: "", profile: undefined }) as unknown as Awaited<ReturnType<OpenSessionFn>>;
+    const runPrx: RunPrx = async () => ({ ok: true, stdout: "", stderr: "" });
+    let threw = "";
+    try {
+      await buildRealChecks({ runPrx, signer, openSession: badOpen })({ workUnitId: "GH-12" });
+    } catch (e) {
+      threw = String(e);
+    }
+    expect(threw).toContain("no worktree");
+  });
+
   test("merge runs `publisher merge` + signs merged@pr; failure throws", async () => {
     const { signer } = newSigner();
     const okPrx: RunPrx = async () => ({ ok: true, stdout: "merged PR #9", stderr: "" });
@@ -116,8 +165,12 @@ describe("real CI gate + merge tail", () => {
     const done = await waitFor(actor, (s) => s.status === "done", { timeout: 4000 });
 
     expect(done.value).toBe("merged");
+    const checks = done.context.chain.find((l) => l.stage === "checks")!;
     const ci = done.context.chain.find((l) => l.stage === "ci")!;
     const merge = done.context.chain.find((l) => l.stage === "merge")!;
+    expect(checks.signedBy).toBe(kp.keyid);
+    expect(checks.subject).toBe("GH-7:gate@checks-local");
+    expect(checks.predicate).toBe("checks.passed");
     expect(ci.signedBy).toBe(kp.keyid);
     expect(merge.signedBy).toBe(kp.keyid);
     expect(ci.predicate).toBe("ci.passed");

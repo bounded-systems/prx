@@ -55,7 +55,7 @@ describe("spec-driven CLI: author once, project everywhere", () => {
     const res = await dispatch(orchestratorRegistry, ["pilot", "GH-7"]);
     expect(res.kind).toBe("ok");
     if (res.kind !== "ok") throw new Error("expected ok");
-    expect(res.output).toMatchObject({ workUnitId: "GH-7", finalState: "merged", legCount: 7 });
+    expect(res.output).toMatchObject({ workUnitId: "GH-7", finalState: "merged", legCount: 8 });
     expect((res.output as { summarySignedBy: string }).summarySignedBy).toBe("pilot@stub");
     expect(render(res.output)).toContain("merged");
   });
