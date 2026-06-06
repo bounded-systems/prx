@@ -23,7 +23,16 @@ const DOMAIN_TITLE: Record<CommandDomain, string> = {
   system: "System",
 };
 
-const cell = (s: string) => s.replace(/\|/g, "\\|");
+// Escape for a Markdown table cell. Backslashes first, then pipes — otherwise a
+// literal `\` in the input would combine with the pipe escape (incomplete
+// escaping).
+const cell = (s: string) => s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|");
+
+// Locale-INDEPENDENT name sort: localeCompare's ordering varies with the
+// runner's ICU/locale (hyphens/spaces in names like `commit-tree`/`plan session`
+// sort differently), which made the generated doc drift between environments.
+const byName = <T extends { name: string }>(a: T, b: T): number =>
+  a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
 
 function commandRow(c: CommandSpec): string {
   const flags = [
@@ -53,7 +62,7 @@ export function generateCliDoc(): string {
   for (const domain of DOMAIN_ORDER) {
     const cmds = prxCommandRegistry
       .filter((c) => c.domain === domain)
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort(byName);
     if (cmds.length === 0) continue;
     lines.push(
       `## ${DOMAIN_TITLE[domain]}`,
@@ -74,7 +83,7 @@ export function generateCliDoc(): string {
     "| Actor | Summary | Dispatchable | Allowed callers |",
     "| --- | --- | --- | --- |",
     ...[...prxActorRegistry]
-      .sort((a, b) => a.name.localeCompare(b.name))
+      .sort(byName)
       .map(
         (a) =>
           `| ${a.name} | ${cell(a.summary ?? "—")} | ${a.dispatchable ? "yes" : "no"} | ${
