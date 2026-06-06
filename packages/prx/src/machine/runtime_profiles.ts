@@ -3,7 +3,33 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { getEnv } from "@bounded-systems/env";
+
 import { PlanStoreError, resolvePlanStagingDirForDisplay } from "../plan-store/cas.ts";
+
+/**
+ * GH-188: turn on Claude Code OTel telemetry for a headless agent leg when an
+ * OTLP collector is configured (`OTEL_EXPORTER_OTLP_ENDPOINT` in the host env).
+ * Claude Code exports metrics + log events (and beta traces) — tagged here with
+ * the prx actor so a fleet dashboard segments by actor. OTLP ONLY: the `console`
+ * exporter writes to stdout, which the Agent SDK uses as its message channel, so
+ * console would corrupt the leg's output — we never fall back to it. No endpoint
+ * (or `PRX_OTEL_DISABLE=1`) ⇒ telemetry stays off, a safe no-op. Inherited env
+ * is merged by the runtime, so existing `OTEL_*` host vars (protocol, headers,
+ * resource attrs) pass through unchanged.
+ */
+export function agentOtelEnv(role: string): Record<string, string> {
+  if (getEnv("PRX_OTEL_DISABLE") === "1") return {};
+  if (!getEnv("OTEL_EXPORTER_OTLP_ENDPOINT")) return {};
+  return {
+    CLAUDE_CODE_ENABLE_TELEMETRY: "1",
+    OTEL_METRICS_EXPORTER: "otlp",
+    OTEL_LOGS_EXPORTER: "otlp",
+    OTEL_EXPORTER_OTLP_PROTOCOL: getEnv("OTEL_EXPORTER_OTLP_PROTOCOL") ?? "http/protobuf",
+    OTEL_SERVICE_NAME: getEnv("OTEL_SERVICE_NAME") ?? "prx",
+    OTEL_RESOURCE_ATTRIBUTES: `service.name=prx,prx.actor=${role}`,
+  };
+}
 import {
   type ArgComponent,
   assertArgvWithinCeiling,
@@ -731,6 +757,7 @@ export function buildWorkUnitClaudeInteractiveRuntimeProfile(input: {
     args,
     env: {
       PRX_AGENT_ROLE: input.role,
+      ...agentOtelEnv(input.role),
     },
     trustTiers: {
       tierA_controlled: ["project cwd", `${input.role} system prompt`, "project MCP config"],
@@ -837,6 +864,7 @@ export function buildWorkUnitClaudePlanPrintRuntimeProfile(input: {
     args,
     env: {
       PRX_AGENT_ROLE: role,
+      ...agentOtelEnv(role),
     },
     // GH-1828: non-interactive callers route through the Agent SDK service.
     // The legacy `command`/`args` shape stays populated for dry-run printing
@@ -957,6 +985,7 @@ export function buildWorkUnitClaudeImplementSdkRuntimeProfile(input: {
     args,
     env: {
       PRX_AGENT_ROLE: role,
+      ...agentOtelEnv(role),
     },
     agentRuntime: "sdk",
     interaction: "headless",
@@ -1212,6 +1241,7 @@ export function buildTaskRoleClaudeRuntimeProfile(input: {
     args,
     env: {
       PRX_AGENT_ROLE: input.role,
+      ...agentOtelEnv(input.role),
     },
     trustTiers: {
       tierA_controlled: ["generated agents", "project/local settings", "project MCP config", "role-scoped wrappers"],
@@ -1250,6 +1280,7 @@ export function buildTaskRoleCodexRuntimeProfile(input: {
     fallbackArgs: freshArgs,
     env: {
       PRX_AGENT_ROLE: input.role,
+      ...agentOtelEnv(input.role),
     },
     trustTiers: {
       tierA_controlled: ["project cwd", "inline role prompt", "explicit Codex sandbox/approval flags"],
@@ -1286,6 +1317,7 @@ export function buildTaskRoleCopilotRuntimeProfile(input: {
     args: ["copilot", "--", "-i", prompt],
     env: {
       PRX_AGENT_ROLE: input.role,
+      ...agentOtelEnv(input.role),
     },
     trustTiers: {
       tierA_controlled: ["project cwd", "inline role prompt", "explicit gh copilot launch path"],
@@ -1322,6 +1354,7 @@ export function buildTaskRoleGeminiRuntimeProfile(input: {
     args: ["-p", prompt, "--output-format", input.ioFormat],
     env: {
       PRX_AGENT_ROLE: input.role,
+      ...agentOtelEnv(input.role),
     },
     trustTiers: {
       tierA_controlled: ["project cwd", "inline role prompt", "explicit Gemini CLI launch path"],
@@ -1359,6 +1392,7 @@ export function buildTaskRoleCursorRuntimeProfile(input: {
     args: ["--print", "--output-format", input.ioFormat, "--trust", prompt],
     env: {
       PRX_AGENT_ROLE: input.role,
+      ...agentOtelEnv(input.role),
     },
     trustTiers: {
       tierA_controlled: ["project cwd", "inline role prompt", "explicit Cursor Agent launch path"],
