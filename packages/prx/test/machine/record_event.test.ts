@@ -42,6 +42,25 @@ describe("recordEvent", () => {
     });
   });
 
+  test("TELEMETRY_SEAM_OBSERVED is a registered event (regression: was silently dropped)", () => {
+    // The deterministic-seam telemetry must reach the audit sink, not throw
+    // `unknown catalog event` and get swallowed by the best-effort sink wrapper.
+    const { rows, deps } = captureSink();
+    recordEvent("TELEMETRY_SEAM_OBSERVED", {
+      workUnitId: "GH-1",
+      details: { seam: "checks", phase: "done", elapsedMs: 12 },
+      deps,
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      kind: "catalog-event",
+      event: "TELEMETRY_SEAM_OBSERVED",
+      actor: "telemetry",
+      workUnitId: "GH-1",
+      details: { seam: "checks", phase: "done" },
+    });
+  });
+
   test("forwards optional workUnitId, repo, and details", () => {
     const { rows, deps } = captureSink();
     recordEvent("NEXT_WORK_THREAD_RANKED", {
