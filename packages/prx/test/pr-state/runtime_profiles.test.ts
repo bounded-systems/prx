@@ -1331,11 +1331,14 @@ describe("prx-pln — plan-print enforces the structured plan artifact", () => {
     expect(withSrc).toContain("Add a note to keymaker.ts");
     expect(withSrc).toContain("do NOT run `prx`/`bd` to re-fetch");
     expect(withSrc).toContain("submit_plan");
-    // No source ⇒ the old fetch-it-yourself line (no regression).
+    // GH-261: NO hydrate path. Absent source ⇒ a no-fabricate notice pointing at
+    // intake (real headless launches hard-fail upstream), NOT "fetch it yourself".
     const noSrc = buildWorkUnitClaudePlanPrintRuntimeProfile({ workUnitId: "prx-2c4" })
       .sdkSpec?.prompt ?? "";
     expect(noSrc).not.toContain("BEGIN WORK UNIT SOURCE");
-    expect(noSrc).toContain("Hydrate workflow context");
+    expect(noSrc).not.toContain("Hydrate workflow context");
+    expect(noSrc).toContain("must NOT fetch or fabricate");
+    expect(noSrc).toContain("prx intake source");
   });
 
   test("the planner prompt instructs calling submit_plan, not emitting prose (prx-ei6)", () => {
