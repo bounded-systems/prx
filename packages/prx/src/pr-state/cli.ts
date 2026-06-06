@@ -910,6 +910,11 @@ import {
   type ScoutSourceOptions,
 } from "../scout/source.ts";
 import {
+  runSpawnVerify,
+  spawnVerifyOptionsSchema,
+  type SpawnVerifyOptions,
+} from "../spawn/verify.ts";
+import {
   FetchGhIssuesError,
   formatFetchGhIssuesJson,
   runFetchGhIssues,
@@ -1583,6 +1588,13 @@ type ParsedCommand =
   | {
       command: "scout-source";
       id: string;
+      format: "plain" | "json";
+    }
+  | {
+      // GH-294: verify a persisted SLSA spawn attestation `<unit>:spawn@<role>`.
+      command: "spawn-verify";
+      unit: string;
+      role: string;
       format: "plain" | "json";
     }
   | {
@@ -2978,6 +2990,10 @@ type CliDeps = {
   ) => number | Promise<number>;
   runScoutSource?: (
     options: ScoutSourceOptions,
+    output: Output,
+  ) => number | Promise<number>;
+  runSpawnVerify?: (
+    options: SpawnVerifyOptions,
     output: Output,
   ) => number | Promise<number>;
   runIntakeSearch?: (
@@ -5011,6 +5027,15 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
       return ["gc", c1, ...tail];
     }
     throw new CliError(`Unknown gc subcommand: ${c1}`);
+  }
+
+  if (c0 === "spawn") {
+    // GH-294: `prx spawn verify <unit> <role>` — audit the signed SLSA spawn
+    // attestation. Read-only; the only spawn subcommand today.
+    if (c1 === "verify") {
+      return ["spawn-verify", ...tail];
+    }
+    throw new CliError("spawn requires a subcommand: verify");
   }
 
   if (c0 === "scout") {
@@ -9721,6 +9746,32 @@ export function parseCommand(argv: string[]): ParsedCommand {
     return {
       command: "scout-source",
       id,
+      format: ensureChoice(values.format, ["plain", "json"], "--format"),
+    };
+  }
+
+  // GH-294: `prx spawn verify <unit> <role>` — audit a signed spawn attestation.
+  if (command === "spawn-verify") {
+    const { values, positionals } = parseArgs({
+      args: rest,
+      options: { format: { type: "string", default: "plain" } },
+      strict: true,
+      allowPositionals: true,
+    });
+    const unit = positionals[0]?.trim();
+    const role = positionals[1]?.trim();
+    if (!unit || !role) {
+      throw new CliError(
+        "spawn verify requires <unit> <role> positionals (e.g. `prx spawn verify GH-286 plan`)",
+      );
+    }
+    if (positionals.length > 2) {
+      throw new CliError(`spawn verify: unexpected extra positionals: ${positionals.slice(2).join(" ")}`);
+    }
+    return {
+      command: "spawn-verify",
+      unit,
+      role,
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
     };
   }
@@ -19535,6 +19586,17 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       const handler = deps.runScoutSource ?? runScoutSource;
       const validated: ScoutSourceOptions = scoutSourceOptionsSchema.parse({
         id: parsed.id,
+        format: parsed.format,
+      });
+      return handler(validated, output);
+    }
+
+    // GH-294: verify a persisted SLSA spawn attestation.
+    if (parsed.command === "spawn-verify") {
+      const handler = deps.runSpawnVerify ?? runSpawnVerify;
+      const validated: SpawnVerifyOptions = spawnVerifyOptionsSchema.parse({
+        unit: parsed.unit,
+        role: parsed.role,
         format: parsed.format,
       });
       return handler(validated, output);

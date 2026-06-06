@@ -955,6 +955,22 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     domain: "state",
     actor: "scout",
   },
+  // GH-294: the signed-spawn ocap audit surface. The spawn attestation
+  // (`<unit>:spawn@<role>`) binds a leg's launch to its consumed input material;
+  // `verify` is read-only and confirms the signature + material freshness.
+  {
+    name: "spawn",
+    description: "Signed SLSA spawn attestations — the ocap that gates leg launches",
+    domain: "state",
+    actor: "audit",
+  },
+  {
+    name: "spawn verify",
+    parent: "spawn",
+    description: "Verify a leg's signed SLSA spawn attestation (signature + material)",
+    domain: "state",
+    actor: "audit",
+  },
 
   // ─── Derive actor — Datalog derived-truth spike (GH-1768) ─────────────────
   //

@@ -751,7 +751,7 @@ export const toolActorCatalog: Record<ToolActor, ToolActorSpec> = {
     tier: "observability",
     kind: "external_runner",
     domain: "observability",
-    emits: ["TELEMETRY_LEG_OBSERVED", "TELEMETRY_EXPORTED", "TELEMETRY_EXPORT_FAILED"],
+    emits: ["TELEMETRY_LEG_OBSERVED", "TELEMETRY_EXPORTED", "TELEMETRY_EXPORT_FAILED", "SPAWN_ATTESTED"],
     accepts: ["span.emit", "metric.emit", "log.emit", "export"],
   },
 };
@@ -797,6 +797,8 @@ export const eventOwnerMap: Record<string, ToolActor> = {
   TELEMETRY_LEG_OBSERVED: "telemetry",
   TELEMETRY_EXPORTED: "telemetry",
   TELEMETRY_EXPORT_FAILED: "telemetry",
+  // GH-294: a signed spawn attestation was minted at leg launch (the ocap).
+  SPAWN_ATTESTED: "telemetry",
   BRANCH_CREATED: "git",
   REMOTE_BRANCH_PUBLISHED: "git",
   PUSH_COMMIT: "git",
