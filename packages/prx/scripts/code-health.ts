@@ -18,6 +18,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { REPO_ROOT } from "../src/repo-root.ts";
 import { VALUE_PROPS } from "../src/value_props.ts";
+import { CodeHealthReport } from "../src/health/model.ts";
 
 const args = process.argv.slice(2);
 const asJson = args.includes("--json");
@@ -73,12 +74,13 @@ for (const vp of VALUE_PROPS) {
 }
 const backedCount = VALUE_PROPS.filter((vp) => !vp.forcing.some((ff) => "pending" in ff)).length;
 
-const report = {
+// Schema-first: validate the report against src/health/model.ts before emitting.
+const report = CodeHealthReport.parse({
   sprawl: { totalLines, fileCount: sizes.length, largest: sizes.slice(0, 10) },
   coupling: { circularChains, samples: cycleSamples },
   deadCode: { count: deadFiles.length, files: deadFiles },
   productMap: { valueProps: VALUE_PROPS.length, backed: backedCount, modulesExercised: exercised.size },
-};
+});
 
 if (asJson) {
   console.log(JSON.stringify(report, null, 2));

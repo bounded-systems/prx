@@ -1,0 +1,129 @@
+{
+  "$ref": "#/definitions/CodeHealthReport",
+  "definitions": {
+    "CodeHealthReport": {
+      "type": "object",
+      "properties": {
+        "sprawl": {
+          "type": "object",
+          "properties": {
+            "totalLines": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "fileCount": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "largest": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "lines": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "file",
+                  "lines"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "totalLines",
+            "fileCount",
+            "largest"
+          ],
+          "additionalProperties": false
+        },
+        "coupling": {
+          "type": "object",
+          "properties": {
+            "circularChains": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "samples": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "circularChains",
+            "samples"
+          ],
+          "additionalProperties": false
+        },
+        "deadCode": {
+          "type": "object",
+          "properties": {
+            "count": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "files": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "count",
+            "files"
+          ],
+          "additionalProperties": false
+        },
+        "productMap": {
+          "type": "object",
+          "properties": {
+            "valueProps": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "backed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "modulesExercised": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "valueProps",
+            "backed",
+            "modulesExercised"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "sprawl",
+        "coupling",
+        "deadCode",
+        "productMap"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
