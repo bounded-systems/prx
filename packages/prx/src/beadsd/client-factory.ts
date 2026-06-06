@@ -14,10 +14,12 @@
  */
 
 import { getEnv } from "@bounded-systems/env";
+import { spawnDetached } from "@bounded-systems/proc";
 
 import { IsolatedBeadsClient } from "./client.ts";
 import { withLimaBeadsClient, type LimaBeadsChannelDeps } from "./lima.ts";
 import { unixSocketTransport, type FramedTransport } from "../keeperd/transport.ts";
+import { findRepoRoot } from "../repo-root.ts";
 
 /** Where beadsd lives: a local unix socket, or a daemon inside a Lima VM. */
 export type BeadsEndpoint =
@@ -56,6 +58,79 @@ function isUnreachable(err: unknown): boolean {
   return /ECONNREFUSED|ENOENT|connect|did not appear|forward failed|closed the connection/i.test(msg);
 }
 
+// ── local beadsd auto-start (the "require beadsd up" prerequisite) ────────────
+
+const READY_POLL_MS = 50;
+const DEFAULT_READY_TIMEOUT_MS = 5000;
+
+/** Default liveness probe: a `ready` query is up unless it fails to connect. */
+async function defaultIsUp(socket: string): Promise<boolean> {
+  const client = new IsolatedBeadsClient(unixSocketTransport(socket));
+  try {
+    await client.query({ kind: "ready" });
+    return true; // the daemon answered
+  } catch (err) {
+    return !isUnreachable(err); // unreachable ⇒ down; any other error ⇒ it responded
+  }
+}
+
+export interface EnsureLocalBeadsdDeps {
+  /** Liveness probe (default: a `ready` query over the socket). */
+  isUp?: ((socket: string) => Promise<boolean>) | undefined;
+  /** Spawn the daemon detached (default {@link spawnDetached}). */
+  spawn?: ((cmd: string[], opts: { cwd?: string; logPath?: string }) => { pid: number }) | undefined;
+  /** Sleep between readiness polls. */
+  sleep?: ((ms: number) => Promise<void>) | undefined;
+}
+
+export interface EnsureLocalBeadsdOptions {
+  /** The unix socket beadsd should listen on. */
+  socket: string;
+  /** The repo clone beadsd serves (default: {@link findRepoRoot}). */
+  cwd?: string | undefined;
+  /** The prx binary to spawn (default `prx`). */
+  prxBin?: string | undefined;
+  /** Pidfile the daemon writes (default `<socket>.pid`). */
+  pidfile?: string | undefined;
+  /** Daemon log path (default: inherit stdio). */
+  logPath?: string | undefined;
+  /** Max ms to wait for readiness after spawn (default 5000). */
+  readyTimeoutMs?: number | undefined;
+}
+
+/**
+ * Ensure a local beadsd is listening at `socket` — the seamless side of
+ * "require beadsd up". No-op when already live; otherwise spawn `prx beads serve`
+ * detached against the repo's beads and wait until it answers. Throws
+ * {@link BeadsUnavailableError} if it can't be brought up.
+ */
+export async function ensureLocalBeadsd(
+  opts: EnsureLocalBeadsdOptions,
+  deps: EnsureLocalBeadsdDeps = {},
+): Promise<void> {
+  const isUp = deps.isUp ?? defaultIsUp;
+  const spawn = deps.spawn ?? ((cmd, o) => spawnDetached(cmd, o));
+  const sleep = deps.sleep ?? ((ms) => new Promise<void>((r) => setTimeout(r, ms)));
+
+  if (await isUp(opts.socket)) return;
+
+  const cwd = opts.cwd ?? findRepoRoot();
+  const prxBin = opts.prxBin ?? "prx";
+  const pidfile = opts.pidfile ?? `${opts.socket}.pid`;
+  const cmd = [prxBin, "beads", "serve", "--socket", opts.socket, "--cwd", cwd, "--pidfile", pidfile];
+  spawn(cmd, { cwd, ...(opts.logPath !== undefined ? { logPath: opts.logPath } : {}) });
+
+  const timeout = opts.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS;
+  const maxPolls = Math.max(1, Math.ceil(timeout / READY_POLL_MS));
+  for (let i = 0; i < maxPolls; i++) {
+    if (await isUp(opts.socket)) return;
+    await sleep(READY_POLL_MS);
+  }
+  throw new BeadsUnavailableError(
+    `spawned \`${prxBin} beads serve\` at ${opts.socket} but it did not become ready within ${timeout}ms`,
+  );
+}
+
 export interface WithBeadsClientDeps {
   /** Override the resolved endpoint (default: {@link resolveBeadsEndpoint}). */
   endpoint?: BeadsEndpoint | undefined;
@@ -63,6 +138,12 @@ export interface WithBeadsClientDeps {
   localTransport?: ((socket: string) => FramedTransport) | undefined;
   /** Lima channel deps (forwarded to {@link withLimaBeadsClient}); tests inject. */
   lima?: LimaBeadsChannelDeps | undefined;
+  /**
+   * Ensure a local beadsd is up before connecting (default:
+   * {@link ensureLocalBeadsd}). Tests pass a no-op; a caller can disable
+   * auto-start by passing `() => Promise.resolve()`.
+   */
+  ensureUp?: ((socket: string) => Promise<void>) | undefined;
 }
 
 /**
@@ -94,6 +175,10 @@ export async function withBeadsClient<T>(
       throw err;
     }
   }
+
+  // Require beadsd up: auto-start a local daemon if needed (seamless), then connect.
+  const ensureUp = deps.ensureUp ?? ((socket: string) => ensureLocalBeadsd({ socket }));
+  await ensureUp(endpoint.socket);
 
   const makeTransport = deps.localTransport ?? unixSocketTransport;
   const client = new IsolatedBeadsClient(makeTransport(endpoint.socket));
