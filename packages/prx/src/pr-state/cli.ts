@@ -586,6 +586,11 @@ import {
   type IntakeViewDeps,
 } from "../intake/intake-view.ts";
 import {
+  runIntakeSource,
+  intakeSourceOptionsSchema,
+  type IntakeSourceOptions,
+} from "../intake/intake-source.ts";
+import {
   runIntakeSearch,
   intakeSearchOptionsSchema,
   type IntakeSearchOptions,
@@ -2403,6 +2408,11 @@ type ParsedCommand =
       format: "plain" | "json";
     }
   | {
+      command: "intake-source";
+      id: string;
+      format: "plain" | "json";
+    }
+  | {
       command: "intake-search";
       query: string;
       state: "open" | "closed" | "all";
@@ -2895,6 +2905,10 @@ type CliDeps = {
     options: IntakeViewOptions,
     output: Output,
     deps?: IntakeViewDeps,
+  ) => number | Promise<number>;
+  runIntakeSource?: (
+    options: IntakeSourceOptions,
+    output: Output,
   ) => number | Promise<number>;
   runIntakeSearch?: (
     options: IntakeSearchOptions,
@@ -7698,6 +7712,38 @@ function parseIntakeViewCommand(rest: string[]): ParsedCommand {
   };
 }
 
+// GH-232: parser for `prx intake source <UoW>` — pin the unit's source authority
+// as the chain ROOT `<unit>:source@pinned` (intake owns it; the planner consumes
+// it and must not fabricate). Takes a single canonical-id positional.
+function parseIntakeSourceCommand(rest: string[]): ParsedCommand {
+  const { values, positionals } = parseArgs({
+    args: rest,
+    options: {
+      format: { type: "string", default: "plain" },
+    },
+    strict: true,
+    allowPositionals: true,
+  });
+
+  const id = positionals[0]?.trim();
+  if (!id) {
+    throw new CliError(
+      "intake source requires a work-unit id positional (e.g. `prx intake source GH-224`)",
+    );
+  }
+  if (positionals.length > 1) {
+    throw new CliError(
+      `intake source: unexpected extra positionals: ${positionals.slice(1).join(" ")}`,
+    );
+  }
+
+  return {
+    command: "intake-source",
+    id,
+    format: ensureChoice(values.format, ["plain", "json"], "--format"),
+  };
+}
+
 // GH-999: parser for `prx intake search <query>` — unified GH+bd dedupe
 // search. Mirrors parseIntakeViewCommand: positional query, --state filter
 // (open|closed|all, default all), --format / --json output toggle.
@@ -12267,6 +12313,12 @@ export function parseCommand(argv: string[]): ParsedCommand {
     // not a member of INTAKE_TYPES.
     if (rest[0] === "view") {
       return parseIntakeViewCommand(rest.slice(1));
+    }
+    // GH-232: `prx intake source <UoW>` pins the unit's source authority as the
+    // chain ROOT. Routed before the type-positional validator since `source` is
+    // not a member of INTAKE_TYPES.
+    if (rest[0] === "source") {
+      return parseIntakeSourceCommand(rest.slice(1));
     }
     // GH-999: `prx intake search <query>` is the unified GH+bd dedupe search.
     // Routed before the type-positional validator since `search` is not a
@@ -22328,6 +22380,15 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     if (parsed.command === "intake-view") {
       const handler = deps.runIntakeView ?? runIntakeView;
       const validated: IntakeViewOptions = intakeViewOptionsSchema.parse({
+        id: parsed.id,
+        format: parsed.format,
+      });
+      return handler(validated, output);
+    }
+
+    if (parsed.command === "intake-source") {
+      const handler = deps.runIntakeSource ?? runIntakeSource;
+      const validated: IntakeSourceOptions = intakeSourceOptionsSchema.parse({
         id: parsed.id,
         format: parsed.format,
       });
