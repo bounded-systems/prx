@@ -1,9 +1,10 @@
 # Local CI in the pipeline — the `checking` gate + where health/OTEL belongs
 
-**Status:** slices 1–3 implemented (the signed `checking` gate, the real
-`prx ci` seam, and seam telemetry + the `prx ci` timeout); slices 4–6 are still
-plan-of-record. Pairs with the `ci: add job timeouts` workflow-hygiene PR and the
-act local-CI work (`docs/local-ci.md`).
+**Status:** slices 1–4 implemented (the signed `checking` gate, the real
+`prx ci` seam, seam telemetry + the `prx ci` timeout, and the anchored telemetry
+digest in the signed summary); slice 6 (doc fold) is the only remainder. Pairs
+with the `ci: add job timeouts` workflow-hygiene PR and the act local-CI work
+(`docs/local-ci.md`).
 
 This answers two asks:
 
@@ -171,8 +172,14 @@ unreachable). Each is an independent, testable PR.
    `pilot-real-tail.test.ts`)
    - **Still open:** timeouts on the intake/merge seams (quick GH calls; the CI
      gate is already bounded by `maxPolls`) — add if they ever hang in practice.
-4. **(optional) Anchored `observed@<leg>`.** Hash-chain per-leg telemetry, sign
-   once, reference from the summary statement.
+4. **✅ Anchored telemetry digest.** Implemented even cheaper than a separate
+   `observed@<leg>` link: all telemetry (seam start/done + leg heartbeat) folds
+   into a per-unit hash chain (`h = sha256(prev + json(entry))`), and its head is
+   carried in the `prx.pilot/v1` summary predicate as `observed: { digest,
+   count }`. The pilot's *existing* summary signature commits to it — **zero
+   extra signatures**, tamper-evident, and never a gate (absent ⇒ no field, so
+   it's back-compatible). (`pilot.ts` `observedAnchor`, `pilot-real.ts`
+   `createTelemetryAnchor`)
 5. **✅ Naming cleanup (partial).** `tester` now signs `review@validated`; local
    gate is `gate@checks-local`, remote stays `gate@ci-remote`.
 6. **Docs.** Fold this into `docs/prx/pipeline-orchestrator.md`.
