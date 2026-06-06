@@ -46,6 +46,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Companion repo inventory — `docs/companion-repos.md`
 - GitHub App: `bounded-systems-prx` — `docs/github-app.md`
 - Running CI locally — `docs/local-ci.md`
+- ADR — `prx ci` as a signed derivation chain (GH-352) — `docs/prx/ci-as-derivation.md`
 - ADR — a spec-driven CLI: author verbs once, project everywhere — `docs/prx/cli-from-spec.md`
 - `prx dolt start` — the dolt actor's start driver (GH-555) — `docs/prx/dolt-start.md`
 - Pilot & fleet — Claude subagents as a signed pipeline — `docs/prx/pipeline-orchestrator.md`
