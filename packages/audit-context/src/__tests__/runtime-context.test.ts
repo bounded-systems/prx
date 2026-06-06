@@ -18,6 +18,7 @@ describe("audit runtime context", () => {
       verb: null,
       actor: "claude-code",
       ghTruthReason: null,
+      source: null,
     });
   });
 
@@ -27,28 +28,44 @@ describe("audit runtime context", () => {
       verb: "triage.status",
       actor: "claude-code",
       ghTruthReason: null,
+      source: null,
     });
     setAuditRuntimeContext({ actor: "test-harness" });
     expect(getAuditRuntimeContext()).toEqual({
       verb: "triage.status",
       actor: "test-harness",
       ghTruthReason: null,
+      source: null,
     });
     setAuditRuntimeContext({ verb: null });
     expect(getAuditRuntimeContext()).toEqual({
       verb: null,
       actor: "test-harness",
       ghTruthReason: null,
+      source: null,
     });
   });
 
+  // GH-352: the dispatch source — the initiating authority for a leg-dispatched
+  // subprocess. Its own slot (provenance authority), distinct from `actor`.
+  test("source defaults to null and is set independently of actor", () => {
+    expect(getAuditRuntimeContext().source).toBeNull();
+    setAuditRuntimeContext({ source: "implement" });
+    expect(getAuditRuntimeContext().source).toBe("implement");
+    // actor is untouched — source and executor are separate concerns.
+    expect(getAuditRuntimeContext().actor).toBe("claude-code");
+    setAuditRuntimeContext({ source: null });
+    expect(getAuditRuntimeContext().source).toBeNull();
+  });
+
   test("__resetAuditRuntimeContextForTesting restores process-start defaults", () => {
-    setAuditRuntimeContext({ verb: "intake.search", actor: "x" });
+    setAuditRuntimeContext({ verb: "intake.search", actor: "x", source: "plan" });
     __resetAuditRuntimeContextForTesting();
     expect(getAuditRuntimeContext()).toEqual({
       verb: null,
       actor: "claude-code",
       ghTruthReason: null,
+      source: null,
     });
   });
 

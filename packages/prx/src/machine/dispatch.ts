@@ -204,6 +204,10 @@ export const defaultDispatchCapabilities: Readonly<
 export const MAX_DISPATCH_DEPTH = 2;
 export const DISPATCH_DEPTH_ENV = "PRX_DISPATCH_DEPTH";
 export const DISPATCH_PARENT_ENV = "PRX_DISPATCH_PARENT";
+// GH-352: the dispatch source (the initiating actor) carried into the target's
+// subprocess, so its audit/signing context attributes provenance to that
+// authority. Set by the parent when spawning; read at child startup.
+export const DISPATCH_SOURCE_ENV = "PRX_DISPATCH_SOURCE";
 
 export function readDispatchDepth(env: NodeJS.ProcessEnv = processEnv()): number {
   const raw = env[DISPATCH_DEPTH_ENV];
@@ -211,6 +215,13 @@ export function readDispatchDepth(env: NodeJS.ProcessEnv = processEnv()): number
   const n = Number.parseInt(raw, 10);
   if (!Number.isFinite(n) || n < 0) return 0;
   return n;
+}
+
+/** The dispatch source carried in the env, or null for a direct (non-dispatched)
+ *  invocation. The child's audit context uses it as the provenance authority. */
+export function readDispatchSource(env: NodeJS.ProcessEnv = processEnv()): string | null {
+  const raw = env[DISPATCH_SOURCE_ENV];
+  return raw && raw.length > 0 ? raw : null;
 }
 
 // ── capability chokepoint ──────────────────────────────────────────────────

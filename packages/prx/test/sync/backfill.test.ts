@@ -96,7 +96,7 @@ function baseDeps(
     appendAuditRow: (row) => {
       auditRows.push(row as unknown as Record<string, unknown>);
     },
-    getAuditRuntimeContext: () => ({ verb: "sync backfill", actor: "test-actor", ghTruthReason: null }),
+    getAuditRuntimeContext: () => ({ verb: "sync backfill", actor: "test-actor", ghTruthReason: null, source: null }),
     // Default mirror: a clean create that logs the JSON render backfill parses.
     runIntakeMirror: (opts, output) => {
       mirrorCalls.push(opts);

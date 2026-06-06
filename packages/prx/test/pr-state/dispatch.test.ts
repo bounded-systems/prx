@@ -14,9 +14,14 @@ import {
   parseDispatchCommand,
 } from "../../src/pr-state/dispatch/parse.ts";
 import {
+  dispatchChildEnv,
   renderDispatchOutcome,
   runDispatch,
 } from "../../src/pr-state/dispatch/handler.ts";
+import {
+  DISPATCH_SOURCE_ENV,
+  readDispatchSource,
+} from "../../src/machine/dispatch.ts";
 import {
   isDispatchSuccess,
   type InvokeTargetVerbInput,
@@ -501,5 +506,28 @@ describe("renderDispatchOutcome — exit-code map", () => {
       detail: "rg exited 2",
     });
     expect(r.exitCode).toBe(65);
+  });
+});
+
+// ── source propagation (GH-352) ─────────────────────────────────────────────
+
+describe("dispatchChildEnv — propagates the dispatch source to the target", () => {
+  test("stamps PRX_DISPATCH_SOURCE (+ depth/parent) so the child attributes to the leg", () => {
+    const childEnv = dispatchChildEnv(
+      { PATH: "/usr/bin", EXISTING: "kept" },
+      { childDepth: 1, parentDispatchId: "abcd1234", source: "implement" },
+    );
+    expect(childEnv[DISPATCH_SOURCE_ENV]).toBe("implement");
+    expect(childEnv.PRX_DISPATCH_DEPTH).toBe("1");
+    expect(childEnv.PRX_DISPATCH_PARENT).toBe("abcd1234");
+    // Parent env is preserved.
+    expect(childEnv.EXISTING).toBe("kept");
+    // …and the child reads it back as its source authority.
+    expect(readDispatchSource(childEnv)).toBe("implement");
+  });
+
+  test("readDispatchSource is null for a direct (non-dispatched) call", () => {
+    expect(readDispatchSource({})).toBeNull();
+    expect(readDispatchSource({ [DISPATCH_SOURCE_ENV]: "" })).toBeNull();
   });
 });

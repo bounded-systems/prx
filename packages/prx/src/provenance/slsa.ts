@@ -94,9 +94,15 @@ export interface SlsaProvenanceInput {
  * session segment once a source exists, without changing this shape.
  */
 export function builderId(
-  ctx: Pick<AuditRuntimeContext, "actor" | "verb">,
+  ctx: Pick<AuditRuntimeContext, "actor" | "verb"> &
+    Partial<Pick<AuditRuntimeContext, "source">>,
 ): string {
-  return `prx://${ctx.actor}/${ctx.verb ?? "unknown"}`;
+  // GH-352: prefer the dispatch *source* — the authority that initiated the run
+  // (a leg, when this is a dispatched subprocess). A direct call has no source
+  // and falls back to `actor` (the `claude-code` default). This is what makes a
+  // leg-dispatched verb's provenance attribute to the leg's authority.
+  const authority = ctx.source ?? ctx.actor;
+  return `prx://${authority}/${ctx.verb ?? "unknown"}`;
 }
 
 /** Build the SLSA Provenance v1 Statement. Pure: same input → same Statement. */

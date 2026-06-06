@@ -120,8 +120,16 @@ describe("attestCiPhases — signed + content-addressed CI derivation (GH-352)",
       expect(decodeSlsaStatement(leg!.envelope!).predicate.runDetails.builder.id).toBe(
         "prx://implement/ci",
       );
+
+      // GH-352 end-to-end: when the dispatch *source* is set (propagated from a
+      // leg-dispatch), it is the authority and wins over the executor `actor`.
+      setAuditRuntimeContext({ actor: "scout", verb: "ci", source: "implement" });
+      const [dispatched] = await attestCiPhases(deps, INPUTS, "b".repeat(40), ["test"]);
+      expect(decodeSlsaStatement(dispatched!.envelope!).predicate.runDetails.builder.id).toBe(
+        "prx://implement/ci",
+      );
     } finally {
-      setAuditRuntimeContext({ actor: before.actor, verb: before.verb });
+      setAuditRuntimeContext({ actor: before.actor, verb: before.verb, source: before.source });
     }
   });
 });

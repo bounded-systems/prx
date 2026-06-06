@@ -77,7 +77,7 @@ function makeDeps(
       };
     },
     appendAuditRow: (row) => cap.rows.push(row),
-    getAuditRuntimeContext: () => ({ verb: "memory.compact", actor: "test-actor", ghTruthReason: null }),
+    getAuditRuntimeContext: () => ({ verb: "memory.compact", actor: "test-actor", ghTruthReason: null, source: null }),
     now: () => FIXED_NOW,
     ...over,
   };

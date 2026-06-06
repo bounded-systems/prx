@@ -104,12 +104,13 @@ merge-guard / publisher tier.
 > because a bare-CLI `scout read` runs under **no actor authority** — it has no
 > key to sign with. The fix follows the same source model as CI: a scout read
 > *dispatched inside a leg* should sign with that leg's authority (the dispatch
-> `source`). That needs one missing piece — **dispatch does not yet propagate
-> its `source` into the signing/audit context** (`setAuditRuntimeContext`'s
-> `actor` is only ever the `claude-code` default today). Wire that, and both
-> dispatched scout reads and leg-run CI attribute to the real authority; being
-> already bucket A (`sha256:source → sha256:envelope`), scout reads then compose
-> with these CI derivations in one chain. Tracked in *Follow-ups*.
+> `source`). The enabling mechanism now exists — **dispatch propagates its
+> `source` into the child's signing/audit context** (`PRX_DISPATCH_SOURCE` →
+> `audit-context.source` → `builderId`), so the remaining work is just to emit a
+> *signed* `scout/read/v1` at the scout-read boundary; it will attribute to the
+> dispatching leg automatically. Being already bucket A
+> (`sha256:source → sha256:envelope`), scout reads then compose with these CI
+> derivations in one chain. Tracked in *Follow-ups*.
 
 ## Follow-ups
 
@@ -119,12 +120,16 @@ merge-guard / publisher tier.
 - Attest a *partial* pass (the phases that passed before a failure) — needs
   `runCi` to surface per-phase results; the current slice attests only a full
   green.
-- **Propagate the dispatch `source` into the signing/audit context** so a
-  leg-dispatched verb (CI or a scout read) signs with the dispatching leg's
-  authority rather than the `claude-code` default. This is the shared mechanism
-  the next two items rest on.
+- ~~Propagate the dispatch `source` into the signing/audit context~~ **(done)** —
+  `runDispatch` stamps `PRX_DISPATCH_SOURCE` into the target subprocess
+  (`dispatchChildEnv`), the child reads it at startup into the audit context's
+  `source` slot, and `builderId` prefers `source` over `actor`. So a
+  leg-dispatched verb (CI or a scout read) now attributes to the dispatching
+  leg's authority rather than the `claude-code` default. This is the shared
+  mechanism the next item rests on.
 - Sign in-pipeline scout reads with the dispatching leg's authority (close the
-  unsigned gap above), once `source` propagation lands.
+  unsigned gap above) — now unblocked: emit a signed `scout/read/v1` at the
+  scout-read boundary, attributed via the `source` propagated above.
 - Carry a signer in `.github/workflows/ci.yml` (already a thin shell over
   `dist/prx ci`) so remote greens join the same chain as local ones.
 
