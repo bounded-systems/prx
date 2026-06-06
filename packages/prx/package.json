@@ -1,9 +1,11 @@
 {
   "name": "@bounded-systems/prx",
-  "version": "0.0.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "license": "PolyForm-Noncommercial-1.0.0",
-  "bin": { "prx": "./dist/prx" },
+  "bin": {
+    "prx": "./dist/prx"
+  },
   "description": "prx — the agent-run CLI (staged in-monorepo; destined for its own bounded-systems repo). See ai-home-74qpv."
 }
