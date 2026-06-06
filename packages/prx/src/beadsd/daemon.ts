@@ -49,6 +49,15 @@ export interface BeadsDaemonDeps {
 class EmptyUpdateError extends Error {}
 
 /**
+ * The bd subcommand for a request kind. Identity for every kind EXCEPT `close`:
+ * `bd close` is blocked by the bd policy wrapper, so a close is dispatched as
+ * `bd update <id> --status closed` (the prx-canonical close).
+ */
+function beadsSubcommand(request: BeadsRequest): string {
+  return request.kind === "close" ? "update" : request.kind;
+}
+
+/**
  * The `bd` argv for one request — always `--json` so the reply is structured.
  * `subcommand` is the bd verb (== `request.kind`); `args` carries the flags.
  * Exhaustive over the discriminated union, so a new request kind is a compile
@@ -85,7 +94,15 @@ function beadsArgs(request: BeadsRequest): string[] {
       return [request.id, "--json", ...fields];
     }
     case "close":
-      return [request.id, "--json", ...(request.reason !== undefined ? ["--reason", request.reason] : [])];
+      // `bd close` is blocked by the bd policy wrapper; the prx-canonical close
+      // is `bd update <id> --status closed [--notes <reason>]` (see beadsSubcommand).
+      return [
+        request.id,
+        "--json",
+        "--status",
+        "closed",
+        ...(request.reason !== undefined ? ["--notes", request.reason] : []),
+      ];
     default: {
       // Exhaustiveness: a new request kind is a compile error here until given args.
       const unreachable: never = request;
@@ -121,7 +138,7 @@ export async function handleBeadsRequest(
   try {
     // Writes dispatch under the bd policy layer exactly like reads — bd's own
     // allowlist + planner-role gate decides; beadsd adds no authority of its own.
-    result = execBd({ subcommand: request.kind, args, cwd: deps.cwd });
+    result = execBd({ subcommand: beadsSubcommand(request), args, cwd: deps.cwd });
   } catch (err) {
     return { status: "error", code: "beadsd", message: err instanceof Error ? err.message : String(err) };
   }
