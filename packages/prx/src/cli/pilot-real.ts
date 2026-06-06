@@ -44,6 +44,7 @@ import type {
 } from "../machine/machines/pilot.ts";
 import type { TaskRole } from "../machine/machines/task.ts";
 import { recordEvent } from "../machine/record_event.ts";
+import { runPlanSave } from "../plan-store/verbs.ts";
 import { requireSigner } from "./agent-signing-guard.ts";
 
 /**
@@ -114,6 +115,8 @@ export type RealLegDeps = {
   legIdleMs?: number;
   /** GH-261: heartbeat sink (defaults to recordEvent → telemetry actor). Injectable for tests. */
   onLegHeartbeat?: (info: LegHeartbeat) => void;
+  /** GH-325: persist the planner's plan → `plan@draft` (defaults to runPlanSave). */
+  savePlan?: typeof runPlanSave;
 };
 
 /** GH-261: bound the heartbeat's activity snippet so audit rows stay small. */
@@ -160,6 +163,7 @@ export function buildRealLegRunner(deps: RealLegDeps = {}): LegRunner {
   const open = deps.openSession ?? (openSession as OpenSessionFn);
   const runAgent = deps.runAgent ?? (runClaudeAgentNonInteractive as unknown as RunAgentFn);
   const sign = realRoleSigner(resolveSignerOrThrow(deps.signer));
+  const savePlan = deps.savePlan ?? runPlanSave;
   // GH-261: resolve the per-leg IDLE threshold. Explicit dep wins; else env
   // override; else the default. ≤0 disables it (back to no watchdog).
   const envIdle = Number(getEnv("PRX_PILOT_LEG_IDLE_MS"));
@@ -193,7 +197,7 @@ export function buildRealLegRunner(deps: RealLegDeps = {}): LegRunner {
     let chars = 0;
     let last = "";
     let lastBeat = 0;
-    return runAgent(opened.profile, {
+    const result = await runAgent(opened.profile, {
       cwd: opened.worktree_path,
       workUnitId: input.workUnitId,
       ...(legIdleMs > 0 ? { timeoutMs: legIdleMs } : {}),
@@ -214,6 +218,19 @@ export function buildRealLegRunner(deps: RealLegDeps = {}): LegRunner {
         }
       },
     });
+    // GH-325: persist the planner's plan to `plan@draft` so the executor can
+    // consume it. The pilot path wires no draftSink (that only fires on cancel),
+    // so save the rendered plan explicitly after a successful planner leg. A
+    // save failure surfaces downstream as a missing plan → the executor fails
+    // closed rather than running blind.
+    if (input.role === "planner" && result.kind === "success" && result.text.trim().length > 0) {
+      try {
+        await savePlan({ unit: input.workUnitId, slot: "draft", content: result.text });
+      } catch {
+        /* best-effort persist */
+      }
+    }
+    return result;
   };
 
   return createSdkLegRunner({ runAgent: roleAgent, sign });

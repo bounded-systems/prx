@@ -23,7 +23,43 @@ const okRun = (text: string): NonInteractiveAgentResult => ({
   elapsed_ms: 1,
 });
 
+// GH-325: the planner leg persists `plan@draft` via `savePlan` (default is the real
+// runPlanSave). Inject a noop so the suite never touches the CAS (no env/CAS-root
+// juggling — keeping this co-located src/ test clean for the architecture guards).
+const noopSavePlan = (async () => ({
+  ref: "stub:plan@draft",
+  sha: "sha256:stub",
+  validated_ok: true,
+  diagnostics: [],
+})) as never;
+
 describe("real pilot wiring (openSession → headless agent → real signature)", () => {
+  test("persists the planner's plan to plan@draft so the executor can consume it (GH-325)", async () => {
+    const kp = generateEd25519Keypair();
+    const saved: Array<{ unit: string; slot: string; content: string }> = [];
+    const fakeOpen: OpenSessionFn = async ({ actor, workUnitId }) =>
+      ({ status: "opened", worktree_path: `/wt/${workUnitId}/${actor}`, profile: {} } as unknown as Awaited<
+        ReturnType<OpenSessionFn>
+      >);
+    const runner = buildRealLegRunner({
+      openSession: fakeOpen,
+      runAgent: async (_p, opts) => okRun(`## Scope\n\nplan for ${opts.workUnitId}`),
+      signer: ed25519Signer(kp.privateKey, kp.keyid),
+      savePlan: (async (input: { unit: string; slot: string; content: string | Buffer }) => {
+        saved.push({ unit: input.unit, slot: input.slot, content: String(input.content) });
+        return { ref: `${input.unit}:plan@${input.slot}`, sha: "sha256:x", validated_ok: true, diagnostics: [] };
+      }) as never,
+    });
+    const actor = createActor(createPilotMachine(runner), { input: { workUnitId: "GH-325" } }).start();
+    await waitFor(actor, (s) => s.status === "done", { timeout: 3000 });
+
+    // Exactly the planner leg persisted, to the draft slot, with its plan body.
+    const draftSaves = saved.filter((s) => s.slot === "draft");
+    expect(draftSaves.length).toBe(1);
+    expect(draftSaves[0]!.unit).toBe("GH-325");
+    expect(draftSaves[0]!.content).toContain("plan for GH-325");
+  });
+
   test("opens a session per role and signs legs with the real ed25519 key", async () => {
     const kp = generateEd25519Keypair();
     const openedActors: string[] = [];
@@ -44,6 +80,7 @@ describe("real pilot wiring (openSession → headless agent → real signature)"
       openSession: fakeOpen,
       runAgent: fakeRun,
       signer: ed25519Signer(kp.privateKey, kp.keyid),
+      savePlan: noopSavePlan,
     });
 
     const actor = createActor(createPilotMachine(runner), { input: { workUnitId: "GH-9" } }).start();
@@ -77,6 +114,7 @@ describe("real pilot wiring (openSession → headless agent → real signature)"
           ? { ok: true, stdout: '{"conclusion":"success"}', stderr: "" }
           : { ok: true, stdout: "merged", stderr: "" },
       signer: ed25519Signer(kp.privateKey, kp.keyid),
+      savePlan: noopSavePlan,
     });
     const actor = createActor(createPilotMachine(deps), { input: { workUnitId: "GH-1" } }).start();
     const done = await waitFor(actor, (s) => s.status === "done", { timeout: 3000 });
@@ -99,6 +137,7 @@ describe("real pilot wiring (openSession → headless agent → real signature)"
       openSession: fakeOpen,
       runAgent: async () => okRun("ok"),
       signer: ed25519Signer(kp.privateKey, kp.keyid),
+      savePlan: noopSavePlan,
     });
     const actor = createActor(createPilotMachine(runner), { input: { workUnitId: "GH-2", retreatBudget: 3 } }).start();
     const done = await waitFor(actor, (s) => s.status === "done", { timeout: 3000 });
@@ -145,6 +184,7 @@ describe("real pilot wiring (openSession → headless agent → real signature)"
       openSession: fakeOpen,
       runAgent: fakeRun,
       signer: ed25519Signer(kp.privateKey, kp.keyid),
+      savePlan: noopSavePlan,
       legIdleMs: 1234,
       onLegHeartbeat: (b) => beats.push(b),
     });
