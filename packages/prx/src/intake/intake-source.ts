@@ -1,6 +1,8 @@
 /**
  * `prx intake source <UoW>` — pin a work unit's source authority as the chain
- * ROOT `<unit>:source@pinned` (GH-232).
+ * ROOT `<unit>:source@pinned` (GH-232). Runnable by a human or an agent: the
+ * verb is plain plumbing over injectable deps, so the same entry point serves
+ * an operator at the CLI and the intake actor inside the pipeline.
  *
  * This is the intake actor OWNING the source pin, instead of it being a
  * side-effect of the plan gate (`checkWorkUnitChain`). Intake holds the
