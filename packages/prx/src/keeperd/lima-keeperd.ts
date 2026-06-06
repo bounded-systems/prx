@@ -48,6 +48,13 @@ export interface StartKeeperdOptions {
   logPath?: string | undefined;
   /** Absolute pidfile the daemon writes its own pid to (default `/tmp/keeperd.pid`). */
   pidfile?: string | undefined;
+  /**
+   * GH-236 slice 4: absolute path IN the VM to the provenance key file
+   * (`ed25519:<b64>`, born in-VM). When set, the launch injects it into the
+   * daemon's env (`PRX_PROVENANCE_KEY="$(cat <file>)"`) — from the file, kept out
+   * of argv — so a push with `ledgerRef` emits a signed `push/v1`.
+   */
+  provenanceKeyFile?: string | undefined;
   /** Max ms to wait for the socket to appear (default 5000). */
   readyTimeoutMs?: number | undefined;
 }
@@ -114,10 +121,16 @@ export async function startKeeperd(
   const pidfile = opts.pidfile ?? DEFAULT_PIDFILE;
   const readyTimeoutMs = opts.readyTimeoutMs ?? 5000;
 
+  // Inject the provenance signer from its in-VM file into the daemon's env (an
+  // env assignment, so the key value never appears in argv). Absent ⇒ bare push.
+  const provEnv =
+    opts.provenanceKeyFile !== undefined
+      ? `PRX_PROVENANCE_KEY="$(cat ${opts.provenanceKeyFile})" `
+      : "";
   const launch =
     `OLD="$(cat ${pidfile} 2>/dev/null)"; [ -n "$OLD" ] && kill "$OLD" 2>/dev/null; ` +
     `rm -f ${socket} ${logPath} ${pidfile}; ` +
-    `setsid nohup ${vmBinPath} keeper serve --socket ${socket} --cwd ${opts.cwd} --pidfile ${pidfile} </dev/null >${logPath} 2>&1 &`;
+    `${provEnv}setsid nohup ${vmBinPath} keeper serve --socket ${socket} --cwd ${opts.cwd} --pidfile ${pidfile} </dev/null >${logPath} 2>&1 &`;
   // Backgrounding a daemon over `limactl shell` (ssh) returns non-zero even on
   // success — the readiness poll below is the real signal, not this exit.
   run("limactl", limaShell(opts.vm, launch));
@@ -165,7 +178,10 @@ export async function stopKeeperd(opts: StopKeeperdOptions, deps: KeeperdLifecyc
  */
 export async function provisionKeeperd(
   opts: DeployKeeperdOptions &
-    Pick<StartKeeperdOptions, "cwd" | "socket" | "logPath" | "pidfile" | "readyTimeoutMs">,
+    Pick<
+      StartKeeperdOptions,
+      "cwd" | "socket" | "logPath" | "pidfile" | "provenanceKeyFile" | "readyTimeoutMs"
+    >,
   deps: KeeperdLifecycleDeps = {},
 ): Promise<KeeperdHandle> {
   const vmBinPath = deployKeeperdBinary(opts, deps);
@@ -177,6 +193,7 @@ export async function provisionKeeperd(
       socket: opts.socket,
       logPath: opts.logPath,
       pidfile: opts.pidfile,
+      provenanceKeyFile: opts.provenanceKeyFile,
       readyTimeoutMs: opts.readyTimeoutMs,
     },
     deps,
