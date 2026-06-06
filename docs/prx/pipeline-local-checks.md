@@ -1,9 +1,9 @@
 # Local CI in the pipeline — the `checking` gate + where health/OTEL belongs
 
-**Status:** slices 1+2 implemented (the signed `checking` gate + the real
-`prx ci` seam); slices 3–6 are still plan-of-record. Pairs with the
-`ci: add job timeouts` workflow-hygiene PR and the act local-CI work
-(`docs/local-ci.md`).
+**Status:** slices 1–3 implemented (the signed `checking` gate, the real
+`prx ci` seam, and seam telemetry + the `prx ci` timeout); slices 4–6 are still
+plan-of-record. Pairs with the `ci: add job timeouts` workflow-hygiene PR and the
+act local-CI work (`docs/local-ci.md`).
 
 This answers two asks:
 
@@ -161,11 +161,16 @@ unreachable). Each is an independent, testable PR.
    exit → `passed:false`. Wired into `buildRealPilotDeps`. Tests mock
    `runPrx`/`openSession` and assert a verifiable ed25519 link + retreat on red.
    (`pilot-real.ts`, `pilot-real-tail.test.ts`)
-   - **Deferred:** a hard timeout on the `prx ci` shell-out (see slice 3) — for
-     now it relies on `runPrx`. ⚠️
-3. **Telemetry parity + seam timeout.** Emit `TELEMETRY_LEG_OBSERVED` around the
-   deterministic seams; add the per-seam timeout/watchdog (gap #2 above). This is
-   where the `checking` seam's `prx ci` timeout lands.
+3. **✅ Telemetry parity + checks timeout.** `RunPrx` gained an optional
+   `timeoutMs`; the checks seam runs `prx ci` under a hard cap
+   (`DEFAULT_PILOT_CHECKS_TIMEOUT_MS`, env `PRX_PILOT_CHECKS_TIMEOUT_MS`) — on
+   timeout the spawn is killed → red → retreat (the pipeline analogue of a job
+   `timeout-minutes`). An `observeSeam` decorator emits `TELEMETRY_SEAM_OBSERVED`
+   (start/done/error + elapsed) around every deterministic seam, with an
+   injectable sink (`onSeamObserved`) mirroring `onLegHeartbeat`. (`pilot-real.ts`,
+   `pilot-real-tail.test.ts`)
+   - **Still open:** timeouts on the intake/merge seams (quick GH calls; the CI
+     gate is already bounded by `maxPolls`) — add if they ever hang in practice.
 4. **(optional) Anchored `observed@<leg>`.** Hash-chain per-leg telemetry, sign
    once, reference from the summary statement.
 5. **✅ Naming cleanup (partial).** `tester` now signs `review@validated`; local
