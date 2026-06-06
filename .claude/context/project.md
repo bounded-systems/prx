@@ -32,6 +32,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - `@bounded-systems/proc` — The one allowed subprocess spawn point, routing external-tool invocations through a capability
 - `@bounded-systems/prx-config` — TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools
 - `@bounded-systems/prx-mux` — Tmux session layout compilation, spawning, and config-driven state restoration
+- `@bounded-systems/repo-root` — Repo-root resolution capability: lazy git-based runtime root plus the eager .git-marker walk for build/codegen, the one sanctioned root-resolution point
 - `@bounded-systems/scout` — Content-addressed surface reads (file/grep/files) with anchored-chain provenance
 - `@bounded-systems/surface-sync` — Type ontology for work-unit change-detection across GH/branch/worktree/tmux/beads
 

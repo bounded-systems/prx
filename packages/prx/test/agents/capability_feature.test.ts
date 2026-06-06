@@ -19,7 +19,8 @@ import {
   ownersOf,
 } from "../../src/agents/capability_feature.ts";
 import { decideAgentToolCall } from "../../src/agents/policy_guard.ts";
-import { REPO_ROOT } from "../../src/repo-root.ts";
+import { findRepoRoot } from "../../src/repo-root.ts";
+const REPO_ROOT = findRepoRoot();
 
 const featurePath = join(REPO_ROOT, "features", "capability-ownership.feature");
 

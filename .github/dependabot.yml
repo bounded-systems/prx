@@ -19,10 +19,15 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
-      # Batch low-risk bumps into one PR; majors still open individually.
+      # Batch low-risk bumps into one PR.
       bun-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+      # Batch majors into a single PR too; breaking changes still land
+      # together for one focused review rather than N noisy PRs.
+      bun-major:
+        patterns: ["*"]
+        update-types: ["major"]
 
   # Container base image(s) in the root Dockerfile.
   - package-ecosystem: "docker"
@@ -33,6 +38,9 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+    groups:
+      docker:
+        patterns: ["*"]
 
   # GitHub Actions used in workflows (kept SHA-pinned for supply-chain hygiene).
   - package-ecosystem: "github-actions"
@@ -44,5 +52,8 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
+      # Batch routine action bumps; major bumps open individually so a
+      # potentially CI-breaking upgrade gets its own review.
       github-actions:
         patterns: ["*"]
+        update-types: ["minor", "patch"]

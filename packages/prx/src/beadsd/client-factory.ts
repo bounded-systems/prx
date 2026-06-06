@@ -1,0 +1,197 @@
+/**
+ * Unified beads client — the one door host code uses to reach beads (GH-296).
+ *
+ * The migration model is "require beadsd up": prx reaches beads through the
+ * daemon, never local `execBd`. This factory resolves the beadsd endpoint (a
+ * local unix socket, or a configured Lima VM) and hands back an
+ * {@link IsolatedBeadsClient}, failing fast with an actionable error when the
+ * daemon isn't reachable — so a missing daemon is a clear "start beadsd"
+ * message, not an opaque socket error.
+ *
+ * Foundation only: this adds the door; it does NOT yet route the ~280 execBd
+ * call sites through it (the waves) and does NOT auto-start a local daemon (a
+ * follow-up). Existing code is untouched until call sites adopt `withBeadsClient`.
+ */
+
+import { getEnv } from "@bounded-systems/env";
+import { spawnDetached } from "@bounded-systems/proc";
+
+import { IsolatedBeadsClient } from "./client.ts";
+import { withLimaBeadsClient, type LimaBeadsChannelDeps } from "./lima.ts";
+import { unixSocketTransport, type FramedTransport } from "../keeperd/transport.ts";
+import { findRepoRoot } from "../repo-root.ts";
+
+/** Where beadsd lives: a local unix socket, or a daemon inside a Lima VM. */
+export type BeadsEndpoint =
+  | { readonly kind: "local"; readonly socket: string }
+  | { readonly kind: "lima"; readonly vm: string; readonly vmSocket: string };
+
+/** Default local beadsd socket (override with `PRX_BEADS_SOCKET`). */
+export const DEFAULT_LOCAL_BEADS_SOCKET = "/tmp/prx-beadsd.sock";
+/** Default in-VM beadsd socket (matches the BEADS_SPEC default). */
+export const DEFAULT_VM_BEADS_SOCKET = "/tmp/beadsd.sock";
+
+/** Thrown when beadsd isn't reachable — carries an actionable "start it" message. */
+export class BeadsUnavailableError extends Error {
+  constructor(message: string, readonly cause?: unknown) {
+    super(message);
+    this.name = "BeadsUnavailableError";
+  }
+}
+
+/**
+ * Resolve the beads endpoint from the environment: `PRX_BEADS_VM` selects the
+ * Lima VM daemon (`PRX_BEADS_VM_SOCKET` overrides its in-VM socket); otherwise a
+ * local socket (`PRX_BEADS_SOCKET` overrides the default).
+ */
+export function resolveBeadsEndpoint(env: typeof getEnv = getEnv): BeadsEndpoint {
+  const vm = env("PRX_BEADS_VM");
+  if (vm) {
+    return { kind: "lima", vm, vmSocket: env("PRX_BEADS_VM_SOCKET") ?? DEFAULT_VM_BEADS_SOCKET };
+  }
+  return { kind: "local", socket: env("PRX_BEADS_SOCKET") ?? DEFAULT_LOCAL_BEADS_SOCKET };
+}
+
+/** Heuristic: did this error come from a connect-time failure (no daemon listening)? */
+function isUnreachable(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /ECONNREFUSED|ENOENT|connect|did not appear|forward failed|closed the connection/i.test(msg);
+}
+
+// ── local beadsd auto-start (the "require beadsd up" prerequisite) ────────────
+
+const READY_POLL_MS = 50;
+const DEFAULT_READY_TIMEOUT_MS = 5000;
+
+/** Default liveness probe: a `ready` query is up unless it fails to connect. */
+async function defaultIsUp(socket: string): Promise<boolean> {
+  const client = new IsolatedBeadsClient(unixSocketTransport(socket));
+  try {
+    await client.query({ kind: "ready" });
+    return true; // the daemon answered
+  } catch (err) {
+    return !isUnreachable(err); // unreachable ⇒ down; any other error ⇒ it responded
+  }
+}
+
+export interface EnsureLocalBeadsdDeps {
+  /** Liveness probe (default: a `ready` query over the socket). */
+  isUp?: ((socket: string) => Promise<boolean>) | undefined;
+  /** Spawn the daemon detached (default {@link spawnDetached}). */
+  spawn?: ((cmd: string[], opts: { cwd?: string; logPath?: string }) => { pid: number }) | undefined;
+  /** Sleep between readiness polls. */
+  sleep?: ((ms: number) => Promise<void>) | undefined;
+}
+
+export interface EnsureLocalBeadsdOptions {
+  /** The unix socket beadsd should listen on. */
+  socket: string;
+  /** The repo clone beadsd serves (default: {@link findRepoRoot}). */
+  cwd?: string | undefined;
+  /** The prx binary to spawn (default `prx`). */
+  prxBin?: string | undefined;
+  /** Pidfile the daemon writes (default `<socket>.pid`). */
+  pidfile?: string | undefined;
+  /** Daemon log path (default: inherit stdio). */
+  logPath?: string | undefined;
+  /** Max ms to wait for readiness after spawn (default 5000). */
+  readyTimeoutMs?: number | undefined;
+}
+
+/**
+ * Ensure a local beadsd is listening at `socket` — the seamless side of
+ * "require beadsd up". No-op when already live; otherwise spawn `prx beads serve`
+ * detached against the repo's beads and wait until it answers. Throws
+ * {@link BeadsUnavailableError} if it can't be brought up.
+ */
+export async function ensureLocalBeadsd(
+  opts: EnsureLocalBeadsdOptions,
+  deps: EnsureLocalBeadsdDeps = {},
+): Promise<void> {
+  const isUp = deps.isUp ?? defaultIsUp;
+  const spawn = deps.spawn ?? ((cmd, o) => spawnDetached(cmd, o));
+  const sleep = deps.sleep ?? ((ms) => new Promise<void>((r) => setTimeout(r, ms)));
+
+  if (await isUp(opts.socket)) return;
+
+  const cwd = opts.cwd ?? findRepoRoot();
+  const prxBin = opts.prxBin ?? "prx";
+  const pidfile = opts.pidfile ?? `${opts.socket}.pid`;
+  const cmd = [prxBin, "beads", "serve", "--socket", opts.socket, "--cwd", cwd, "--pidfile", pidfile];
+  spawn(cmd, { cwd, ...(opts.logPath !== undefined ? { logPath: opts.logPath } : {}) });
+
+  const timeout = opts.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS;
+  const maxPolls = Math.max(1, Math.ceil(timeout / READY_POLL_MS));
+  for (let i = 0; i < maxPolls; i++) {
+    if (await isUp(opts.socket)) return;
+    await sleep(READY_POLL_MS);
+  }
+  throw new BeadsUnavailableError(
+    `spawned \`${prxBin} beads serve\` at ${opts.socket} but it did not become ready within ${timeout}ms`,
+  );
+}
+
+export interface WithBeadsClientDeps {
+  /** Override the resolved endpoint (default: {@link resolveBeadsEndpoint}). */
+  endpoint?: BeadsEndpoint | undefined;
+  /** Local transport factory (default {@link unixSocketTransport}); tests inject. */
+  localTransport?: ((socket: string) => FramedTransport) | undefined;
+  /** Lima channel deps (forwarded to {@link withLimaBeadsClient}); tests inject. */
+  lima?: LimaBeadsChannelDeps | undefined;
+  /**
+   * Ensure a local beadsd is up before connecting (default:
+   * {@link ensureLocalBeadsd}). Tests pass a no-op; a caller can disable
+   * auto-start by passing `() => Promise.resolve()`.
+   */
+  ensureUp?: ((socket: string) => Promise<void>) | undefined;
+}
+
+/**
+ * Run `fn` with a beads client over the resolved endpoint, then clean up. A
+ * connect-time failure becomes a {@link BeadsUnavailableError} with a "start
+ * beadsd" message — the "require beadsd up" contract.
+ */
+export async function withBeadsClient<T>(
+  fn: (client: IsolatedBeadsClient) => Promise<T>,
+  deps: WithBeadsClientDeps = {},
+): Promise<T> {
+  const endpoint = deps.endpoint ?? resolveBeadsEndpoint();
+
+  if (endpoint.kind === "lima") {
+    try {
+      return await withLimaBeadsClient(
+        { vm: endpoint.vm, vmSocket: endpoint.vmSocket },
+        fn,
+        deps.lima ?? {},
+      );
+    } catch (err) {
+      if (isUnreachable(err)) {
+        throw new BeadsUnavailableError(
+          `beadsd not reachable in VM ${endpoint.vm} — bring it up with ` +
+            `\`prx lima up ${endpoint.vm} --daemon beads\` (after \`prx lima provision-beads\`)`,
+          err,
+        );
+      }
+      throw err;
+    }
+  }
+
+  // Require beadsd up: auto-start a local daemon if needed (seamless), then connect.
+  const ensureUp = deps.ensureUp ?? ((socket: string) => ensureLocalBeadsd({ socket }));
+  await ensureUp(endpoint.socket);
+
+  const makeTransport = deps.localTransport ?? unixSocketTransport;
+  const client = new IsolatedBeadsClient(makeTransport(endpoint.socket));
+  try {
+    return await fn(client);
+  } catch (err) {
+    if (isUnreachable(err)) {
+      throw new BeadsUnavailableError(
+        `beadsd not reachable at ${endpoint.socket} — start it with ` +
+          `\`prx beads serve --socket ${endpoint.socket} --cwd <repo>\` (or set PRX_BEADS_VM)`,
+        err,
+      );
+    }
+    throw err;
+  }
+}

@@ -8,7 +8,8 @@
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { REPO_ROOT } from "../src/repo-root.ts";
+import { findRepoRoot } from "../src/repo-root.ts";
+const REPO_ROOT = findRepoRoot();
 import { generateAllAgentDocs } from "../src/agents/generate.ts";
 
 const agentsDir = join(REPO_ROOT, ".claude", "agents");

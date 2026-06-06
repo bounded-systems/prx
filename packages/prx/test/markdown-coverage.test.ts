@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 
-import { REPO_ROOT } from "../src/repo-root.ts";
+import { findRepoRoot } from "../src/repo-root.ts";
+const REPO_ROOT = findRepoRoot();
 import { collectDocRelPaths } from "../src/graph/build.ts";
 
 /**
