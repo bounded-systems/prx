@@ -1,0 +1,49 @@
+# @bounded-systems/prx
+
+## 0.3.0
+
+### Minor Changes
+
+- 0a8a8bc: **Experimental: pilot/fleet pipeline orchestrator + spec-driven CLI surface.** A
+  preview subsystem (tested; not yet wired as `prx` commands — the real run is
+  behind `PRX_PILOT_REAL` and gated on the dolt actor). Ships as a tested
+  subsystem behind the existing surfaces.
+
+  - **feat(orchestrator):** `pilot` (Layer 1) drives one work unit — each role leg
+    invokes a headless Claude subagent (no tmux, "claude over ssh") and signs an
+    in-toto step link. The tail `awaiting_ci → ready_to_merge → sealing → merged`
+    makes "CI is a HARD BLOCK" _structural_ — the only edge to merge runs through
+    a settled-green gate. Termination is proven via a well-founded measure
+    `[retreatBudget, distanceToMerged] ∈ ℕ²`. `fleet` (Layer 2) supervises many
+    pilots, WIP-bounded, projecting a live board (the agents view) + a signed
+    batch attestation.
+  - **feat(provenance):** a signed in-toto tree — leg step → pilot summary
+    (`prx.pilot/v1`) → fleet batch (`prx.fleet/v1`), real ed25519/DSSE via
+    `resolveProvenanceSigner`; verifiable, tamper / wrong-key rejected.
+  - **feat(cli-spec):** author a verb once as a Zod `VerbSpec`; project it to CLI
+    / MCP / OpenAPI / Anthropic tools / a Claude Code plugin / `prx mcp serve`,
+    with a namespaced router and an actor→tool permission projection — the basis
+    for collapsing `cli.ts` to a thin router + pretty-printer.
+  - **feat(invariant):** no prx agent launches without a signing key
+    (`requireSigner`); the CLI is modeled as an actor that inherits identity from
+    the controlling tty (`cliActor` → `human` / `noninteractive`,
+    `requireCliSigner`).
+  - **feat(real):** the `prx pilot` real path (`PRX_PILOT_REAL`) wires legs to
+    `openSession` + a headless role agent + the Signer, and the tail to the real
+    `prx scout ci` / `prx publisher merge` actors.
+
+  Design: `docs/prx/pipeline-orchestrator.md`, `docs/prx/cli-from-spec.md`.
+
+### Patch Changes
+
+- 4d8d08e: Capability-poor orchestrator, beads-native pipeline, and the compiled-binary audit-DB fix.
+
+  - **fix(audit):** embed `schema.sql` into the `bun --compile` binary — fixes the `ENOENT /$bunfs/root/schema.sql` that broke every audit-DB command (e.g. `prx services status --anthropic`) in the released binary (prx-eky).
+  - **feat(submit):** beads-native submit / publish / merge — a beads work unit can travel intake → merged PR (no longer GitHub-issue-only).
+  - **feat(agents):** capability-poor orchestrator — actor sub-agents generated from the policy table, a PreToolUse policy hook that denies any command a role doesn't own, orphan-effect provenance verification, and the intake⊗actor salt + ephemeral salted worktrees for per-actor isolation.
+  - **feat(commands):** `/prx <unit>` — drive a work unit through the pipeline (plan → implement → submit → merged PR), capability-scoped and delegating to prx's actors.
+  - **chore:** automatic GitHub-issue tracking (`intake --to gh` + `Closes #N`/postmerge); value-props + `STATUS.md`; capability ownership/approval `.feature` audit surfaces.
+
+- e6882e0: dolt: add `createDoltDatabase` — an idempotent `CREATE DATABASE` primitive for the shared dolt sql-server (E0 of GH-1685). Probes `SHOW DATABASES` then creates the empty database when absent, reporting `created` / `exists` / `error`; re-validates the canonical reverse-DNS name before any SQL interpolation. Schema seeding (E1, `bd init --database`) and the `prx repo provision` verb (E4) compose it.
+- 11d76cf: dolt: canonical `dolt_database` naming standardized on the live reverse-DNS form `io_github_<owner>_<repo>` (D0 of GH-1685). `RepoSlug` now validates that shape (exported as `DOLT_DATABASE_NAME_PATTERN`), and a new `canonicalDoltDatabase()` derives it from a GitHub origin. The legacy `{host}__{owner}__{repo}` form is no longer accepted.
+- d6ee05a: deps: migrate to zod 4 (`^4.4.3`). Replaces the Zod-3-only `zod-to-json-schema` with Zod 4's built-in `z.toJSONSchema` behind a shared `toJsonSchemaArtifact` helper (preserving the `{ $ref, definitions }` artifact wrapper), switches `z.record(value)` call sites to the Zod-4 `z.record(key, value)` arity, uses `z.partialRecord` for enum-keyed counters, and updates config-drift issue introspection to Zod 4's `invalid_value`/`values` issue shape. Committed JSON-schema artifacts were regenerated (Zod 4 emits nullable unions as `anyOf` and bounds integers at `MAX_SAFE_INTEGER`); the contract artifacts also pick up roles that had drifted from source. prx-mt9.
