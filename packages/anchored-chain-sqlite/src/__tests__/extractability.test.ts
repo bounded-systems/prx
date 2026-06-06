@@ -16,6 +16,10 @@ const PROD_ALLOWLIST = new Set<string>([
   "drizzle-orm/bun-sqlite",
   "drizzle-orm/bun-sqlite/migrator",
   "node:url",
+  // GH-245: materialize embedded migrations to a temp dir for compiled binaries.
+  "node:fs",
+  "node:os",
+  "node:path",
   "@bounded-systems/anchored-chain",
   "@bounded-systems/cas",
 ]);

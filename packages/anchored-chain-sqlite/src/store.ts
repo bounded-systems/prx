@@ -1,9 +1,25 @@
 import { Database } from 'bun:sqlite';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { and, asc, desc, eq, lte } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
+
+// GH-245: embed the migrations so a `bun build --compile` binary (where the
+// on-disk ./migrations folder is absent) can still initialize the schema. The
+// dev/install path uses the folder directly; only the compiled path materializes
+// these. Adding a migration means adding its import + EMBEDDED_MIGRATION_SQL entry.
+import journal from './migrations/meta/_journal.json' with { type: 'json' };
+import sql0000init from './migrations/0000_init.sql' with { type: 'text' };
+import sql0001watchers from './migrations/0001_tiresome_the_watchers.sql' with { type: 'text' };
+
+const EMBEDDED_MIGRATION_SQL: Record<string, string> = {
+  '0000_init': sql0000init,
+  '0001_tiresome_the_watchers': sql0001watchers,
+};
 
 import type {
   AnchoredChainStore,
@@ -32,7 +48,7 @@ export function openAnchoredChain(path: string = ':memory:'): AnchoredChainStore
   sqlite.exec('PRAGMA foreign_keys = ON');
 
   const db = drizzle(sqlite, { schema });
-  migrate(db, { migrationsFolder: migrationsFolderPath() });
+  migrate(db, { migrationsFolder: resolveMigrationsFolder() });
 
   const casUpdate = sqlite.prepare(
     'UPDATE refs SET digest = ?, updated_at = ? WHERE name = ? AND digest = ?',
@@ -342,8 +358,27 @@ export function openAnchoredChain(path: string = ':memory:'): AnchoredChainStore
   };
 }
 
-function migrationsFolderPath(): string {
-  return fileURLToPath(new URL('./migrations', import.meta.url));
+/**
+ * Resolve drizzle's migrations folder. In dev / a normal install the on-disk
+ * ./migrations folder exists and is used directly (drizzle's migrator + its
+ * migration tracking, unchanged). In a `bun build --compile` binary that folder
+ * isn't on disk, so materialize the EMBEDDED migrations to a temp dir in
+ * drizzle's expected layout (meta/_journal.json + <tag>.sql) and use that. GH-245.
+ */
+function resolveMigrationsFolder(): string {
+  const onDisk = fileURLToPath(new URL('./migrations', import.meta.url));
+  if (existsSync(join(onDisk, 'meta', '_journal.json'))) return onDisk;
+  const dir = mkdtempSync(join(tmpdir(), 'acs-migrations-'));
+  mkdirSync(join(dir, 'meta'), { recursive: true });
+  writeFileSync(join(dir, 'meta', '_journal.json'), JSON.stringify(journal));
+  for (const entry of journal.entries) {
+    const sql = EMBEDDED_MIGRATION_SQL[entry.tag];
+    if (sql === undefined) {
+      throw new Error(`anchored-chain: no embedded migration for '${entry.tag}'`);
+    }
+    writeFileSync(join(dir, `${entry.tag}.sql`), sql);
+  }
+  return dir;
 }
 
 function rowToRefLogEntry(row: {
