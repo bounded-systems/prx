@@ -19,6 +19,16 @@ import {
   type LimaChannelDeps as GenericLimaChannelDeps,
   type LimaChannelOptions,
 } from "../lima/channel.ts";
+import {
+  provisionDaemon,
+  stopDaemon,
+  type DaemonHandle,
+  type DaemonLifecycleDeps,
+  type DaemonSpec,
+  type DeployDaemonOptions,
+  type StartDaemonOptions,
+  type StopDaemonOptions,
+} from "../lima/lifecycle.ts";
 
 export type { RunResult } from "../lima/channel.ts";
 
@@ -57,4 +67,35 @@ export async function withLimaBeadsClient<T>(
     (transport) => fn(new IsolatedBeadsClient(transport)),
     deps,
   );
+}
+
+// ── lifecycle: bring beadsd up/down inside the VM ────────────────────────────
+//
+// beadsd is read-only (no provenance/signing), so unlike keeperd it injects no
+// env-prefix — just the daemon spec over the shared {@link ../lima/lifecycle}.
+
+/** The beads daemon: `beads serve`, defaults at `/tmp/beadsd.*`. */
+const BEADS_SPEC: DaemonSpec = { name: "beadsd", serveCommand: ["beads", "serve"] };
+
+export type BeadsdLifecycleDeps = DaemonLifecycleDeps;
+
+/** A running beadsd daemon handle. */
+export type BeadsdHandle = DaemonHandle;
+
+/**
+ * Deploy the (Linux) prx binary into the VM, then start beadsd detached on a unix
+ * socket bound to the in-VM repo clone (its beads DB). Returns a handle whose
+ * `stop()` tears it down. Delegates to {@link provisionDaemon}.
+ */
+export function provisionBeadsd(
+  opts: DeployDaemonOptions &
+    Pick<StartDaemonOptions, "cwd" | "socket" | "logPath" | "pidfile" | "readyTimeoutMs">,
+  deps: BeadsdLifecycleDeps = {},
+): Promise<BeadsdHandle> {
+  return provisionDaemon(BEADS_SPEC, opts, deps);
+}
+
+/** Stop beadsd in the VM by its pidfile and remove its socket/log/pidfile (best-effort). */
+export function stopBeadsd(opts: StopDaemonOptions, deps: BeadsdLifecycleDeps = {}): Promise<void> {
+  return stopDaemon(BEADS_SPEC, opts, deps);
 }

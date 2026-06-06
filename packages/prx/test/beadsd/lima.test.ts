@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
-import { openLimaBeadsChannel, withLimaBeadsClient } from "../../src/beadsd/lima.ts";
-import type { LimaBeadsChannelDeps, RunResult } from "../../src/beadsd/lima.ts";
+import {
+  openLimaBeadsChannel,
+  provisionBeadsd,
+  stopBeadsd,
+  withLimaBeadsClient,
+} from "../../src/beadsd/lima.ts";
+import type { BeadsdLifecycleDeps, LimaBeadsChannelDeps, RunResult } from "../../src/beadsd/lima.ts";
 import type { BeadsTransport } from "../../src/beadsd/client.ts";
 
 const ok = (stdout = ""): RunResult => ({ status: 0, stdout, stderr: "" });
@@ -60,5 +65,48 @@ describe("openLimaBeadsChannel", () => {
     } finally {
       await ch.close();
     }
+  });
+});
+
+// ── lifecycle: beadsd up/down in the VM ──────────────────────────────────────
+
+const ok2 = (stdout = ""): RunResult => ({ status: 0, stdout, stderr: "" });
+const script = (args: string[]) => args[args.length - 1] ?? "";
+
+function lifecycleRecorder() {
+  const calls: { cmd: string; args: string[] }[] = [];
+  const run = (cmd: string, args: string[]): RunResult => {
+    calls.push({ cmd, args });
+    return ok2();
+  };
+  return { calls, run };
+}
+
+describe("provisionBeadsd / stopBeadsd", () => {
+  test("provisions: deploys prx, launches `beads serve` on /tmp/beadsd.sock, no provenance env", async () => {
+    const { calls, run } = lifecycleRecorder();
+    const deps: BeadsdLifecycleDeps = { run, sleep: async () => {} };
+    const handle = await provisionBeadsd(
+      { vm: "myvm", binaryPath: "dist/prx-linux-arm64", cwd: "/vm/clone" },
+      deps,
+    );
+
+    expect(handle.socket).toBe("/tmp/beadsd.sock");
+    expect(calls[0]).toEqual({ cmd: "limactl", args: ["copy", "dist/prx-linux-arm64", "myvm:/tmp/prx"] });
+    const launch = script(calls.find((c) => script(c.args).includes("beads serve"))!.args);
+    expect(launch).toContain(
+      "setsid nohup /tmp/prx beads serve --socket /tmp/beadsd.sock --cwd /vm/clone --pidfile /tmp/beadsd.pid",
+    );
+    // beadsd is read-only — no provenance/signing key is ever injected.
+    expect(launch).not.toContain("PRX_PROVENANCE_KEY");
+  });
+
+  test("stops by pidfile and removes socket/log/pidfile (no pkill)", async () => {
+    const { calls, run } = lifecycleRecorder();
+    await stopBeadsd({ vm: "myvm" }, { run });
+    const s = script(calls[0]!.args);
+    expect(s).toContain("cat /tmp/beadsd.pid");
+    expect(s).toContain("rm -f /tmp/beadsd.sock /tmp/beadsd.log /tmp/beadsd.pid");
+    expect(s).not.toContain("pkill");
   });
 });
