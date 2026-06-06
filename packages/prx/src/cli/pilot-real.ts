@@ -42,6 +42,7 @@ import type {
   PilotDeps,
 } from "../machine/machines/pilot.ts";
 import type { TaskRole } from "../machine/machines/task.ts";
+import { recordEvent } from "../machine/record_event.ts";
 import { requireSigner } from "./agent-signing-guard.ts";
 
 /**
@@ -64,8 +65,43 @@ export type OpenSessionFn = (input: {
 
 export type RunAgentFn = (
   profile: NonNullable<OpenSessionResult["profile"]>,
-  opts: { cwd: string; workUnitId?: string },
+  opts: {
+    cwd: string;
+    workUnitId?: string;
+    timeoutMs?: number;
+    onStreamEvent?: (e: { kind: string; text?: string }) => void;
+  },
 ) => Promise<NonInteractiveAgentResult>;
+
+/** GH-261: a meaningful per-leg heartbeat — progress, not a bare liveness ping. */
+export type LegHeartbeat = {
+  workUnitId: string;
+  role: string;
+  /** assistant turns emitted so far (progress count). */
+  turns: number;
+  /** cumulative assistant-text length (progress volume). */
+  chars: number;
+  /** ms since this leg started. */
+  elapsedMs: number;
+  /** truncated snippet of the latest assistant output — WHAT the leg is doing now. */
+  last: string;
+};
+
+/**
+ * GH-261: per-leg IDLE threshold (NOT a total-runtime cap). `agent_service`'s
+ * watchdog resets on every streamed message, so a long-but-ACTIVE leg never
+ * trips — only genuine silence does. The pilot legs previously passed none, so a
+ * stalled leg (silent stream / stray approval wait — the GH-254 drive that hung
+ * ~21 min post-author) hung the whole machine forever. With it, sustained
+ * silence aborts the run with `reason: "watchdog"` (recorded, distinct from a
+ * clean completion) → the leg throws → the pilot RETREATS (budget-bounded). 5
+ * min of NO activity is a strong stall signal without cutting active work.
+ * Override per-call or via `PRX_PILOT_LEG_IDLE_MS`.
+ */
+export const DEFAULT_PILOT_LEG_IDLE_MS = 5 * 60 * 1000;
+
+/** GH-261: throttle for the per-leg liveness heartbeat (telemetry actor). */
+const LEG_HEARTBEAT_THROTTLE_MS = 15 * 1000;
 
 export type RealLegDeps = {
   openSession?: OpenSessionFn;
@@ -73,7 +109,14 @@ export type RealLegDeps = {
   signer?: Signer | null;
   /** How CI-gate / merge legs shell out to the prx runtime (injectable). */
   runPrx?: RunPrx;
+  /** GH-261: per-leg IDLE-watchdog threshold (ms). Defaults to DEFAULT_PILOT_LEG_IDLE_MS. */
+  legIdleMs?: number;
+  /** GH-261: heartbeat sink (defaults to recordEvent → telemetry actor). Injectable for tests. */
+  onLegHeartbeat?: (info: LegHeartbeat) => void;
 };
+
+/** GH-261: bound the heartbeat's activity snippet so audit rows stay small. */
+const LEG_HEARTBEAT_SNIPPET_MAX = 140;
 
 /** Run a `prx <args>` invocation. The capability boundary for tail effects. */
 export type RunPrx = (args: string[]) => Promise<{ ok: boolean; stdout: string; stderr: string }>;
@@ -109,6 +152,25 @@ export function buildRealLegRunner(deps: RealLegDeps = {}): LegRunner {
   const open = deps.openSession ?? (openSession as OpenSessionFn);
   const runAgent = deps.runAgent ?? (runClaudeAgentNonInteractive as unknown as RunAgentFn);
   const sign = realRoleSigner(resolveSignerOrThrow(deps.signer));
+  // GH-261: resolve the per-leg IDLE threshold. Explicit dep wins; else env
+  // override; else the default. ≤0 disables it (back to no watchdog).
+  const envIdle = Number(getEnv("PRX_PILOT_LEG_IDLE_MS"));
+  const legIdleMs = deps.legIdleMs
+    ?? (Number.isFinite(envIdle) && envIdle > 0 ? envIdle : DEFAULT_PILOT_LEG_IDLE_MS);
+  // GH-261: liveness heartbeat → the telemetry actor's TELEMETRY_LEG_OBSERVED
+  // event. Lets an observer SEE a leg making progress (and pinpoint where it
+  // goes silent) — feedback the bare watchdog can't give. Best-effort + throttled.
+  const heartbeat = deps.onLegHeartbeat
+    ?? ((info: LegHeartbeat) => {
+      try {
+        recordEvent("TELEMETRY_LEG_OBSERVED", {
+          workUnitId: info.workUnitId,
+          details: { role: info.role, turns: info.turns, chars: info.chars, elapsedMs: info.elapsedMs, last: info.last },
+        });
+      } catch {
+        // observability is best-effort — never break a leg on a sink error.
+      }
+    });
 
   const roleAgent: RunRoleAgent = async (input) => {
     const actor = roleSessionActor[input.role];
@@ -116,7 +178,34 @@ export function buildRealLegRunner(deps: RealLegDeps = {}): LegRunner {
     if (opened.status !== "opened" || !opened.profile) {
       throw new Error(`openSession(${input.role}/${actor}) → status=${opened.status}, no profile`);
     }
-    return runAgent(opened.profile, { cwd: opened.worktree_path, workUnitId: input.workUnitId });
+    // GH-261: accumulate real progress so the heartbeat carries WHAT the leg is
+    // doing (turns/chars/elapsed + the latest output snippet), not just "alive".
+    const startedAt = Date.now();
+    let turns = 0;
+    let chars = 0;
+    let last = "";
+    let lastBeat = 0;
+    return runAgent(opened.profile, {
+      cwd: opened.worktree_path,
+      workUnitId: input.workUnitId,
+      ...(legIdleMs > 0 ? { timeoutMs: legIdleMs } : {}),
+      onStreamEvent: (e) => {
+        // Full assistant turns are the meaningful progress unit; partial deltas
+        // only keep `last` fresh between turns. Either way it's live activity.
+        if (typeof e.text === "string" && e.text.length > 0) {
+          if (e.kind === "assistant_text") {
+            turns += 1;
+            chars += e.text.length;
+          }
+          last = e.text.replace(/\s+/g, " ").trim().slice(0, LEG_HEARTBEAT_SNIPPET_MAX);
+        }
+        const t = Date.now();
+        if (t - lastBeat >= LEG_HEARTBEAT_THROTTLE_MS) {
+          lastBeat = t;
+          heartbeat({ workUnitId: input.workUnitId, role: input.role, turns, chars, elapsedMs: t - startedAt, last });
+        }
+      },
+    });
   };
 
   return createSdkLegRunner({ runAgent: roleAgent, sign });

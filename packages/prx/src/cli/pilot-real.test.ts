@@ -122,4 +122,46 @@ describe("real pilot wiring (openSession → headless agent → real signature)"
     expect(wantsRealPilot(() => undefined)).toBe(false);
     expect(wantsRealPilot(() => "0")).toBe(false);
   });
+
+  // GH-261: a leg sets the idle watchdog and emits a MEANINGFUL heartbeat
+  // (progress, not a bare ping) so a stall is visible + locatable.
+  test("each leg arms the idle watchdog and heartbeats real progress", async () => {
+    const kp = generateEd25519Keypair();
+    const beats: Array<{ role: string; turns: number; chars: number; last: string; elapsedMs: number; workUnitId: string }> = [];
+    let sawTimeoutMs: number | undefined;
+
+    const fakeOpen: OpenSessionFn = async ({ actor, workUnitId }) =>
+      ({ status: "opened", worktree_path: `/wt/${workUnitId}/${actor}`, profile: {} }) as unknown as Awaited<
+        ReturnType<OpenSessionFn>
+      >;
+    const fakeRun: RunAgentFn = async (_profile, opts) => {
+      sawTimeoutMs = opts.timeoutMs;
+      // The leg streams a real assistant turn → the heartbeat must reflect it.
+      opts.onStreamEvent?.({ kind: "assistant_text", text: "Editing  packages/prx/src/pr-state/cli.ts now" });
+      return okRun("done");
+    };
+
+    const runner = buildRealLegRunner({
+      openSession: fakeOpen,
+      runAgent: fakeRun,
+      signer: ed25519Signer(kp.privateKey, kp.keyid),
+      legIdleMs: 1234,
+      onLegHeartbeat: (b) => beats.push(b),
+    });
+
+    const actor = createActor(createPilotMachine(runner), { input: { workUnitId: "GH-9" } }).start();
+    await waitFor(actor, (s) => s.status === "done", { timeout: 3000 });
+
+    // The idle watchdog was armed with our threshold (not left unbounded).
+    expect(sawTimeoutMs).toBe(1234);
+    // Heartbeats carry meaningful progress, not just "alive".
+    expect(beats.length).toBeGreaterThan(0);
+    const b = beats[0]!;
+    expect(b.turns).toBe(1);
+    expect(b.chars).toBeGreaterThan(0);
+    expect(b.last).toBe("Editing packages/prx/src/pr-state/cli.ts now"); // whitespace-collapsed snippet
+    expect(b.elapsedMs).toBeGreaterThanOrEqual(0);
+    expect(b.role).toBe("planner"); // first leg
+    expect(b.workUnitId).toBe("GH-9");
+  });
 });
