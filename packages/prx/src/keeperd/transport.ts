@@ -19,16 +19,24 @@
 
 import { connect, type Socket } from "node:net";
 
-import { type KeeperTransport } from "./client.ts";
 import { FrameDecoder, encodeFrame } from "./daemon.ts";
 
 /**
- * Build a {@link KeeperTransport} from a factory that opens a fresh connection
- * to keeperd. Each call connects, writes the framed request once connected,
+ * A framed request/response channel: send one value, get the daemon's first
+ * decoded reply frame back. Request-agnostic on purpose — the framing is the
+ * same length-prefixed JSON regardless of contract, so the keeperd client
+ * ({@link ./client.KeeperTransport}) and the session-host client both run over
+ * it. (Assignable to the narrower {@link ./client.KeeperTransport}.)
+ */
+export type FramedTransport = (request: unknown) => Promise<unknown>;
+
+/**
+ * Build a {@link FramedTransport} from a factory that opens a fresh connection
+ * to the daemon. Each call connects, writes the framed request once connected,
  * resolves with the first decoded response frame, then closes. A socket error,
  * an unframable reply, or a close-before-response all reject.
  */
-export function socketTransport(openConnection: () => Socket): KeeperTransport {
+export function socketTransport(openConnection: () => Socket): FramedTransport {
   return (request) =>
     new Promise<unknown>((resolve, reject) => {
       const socket = openConnection();
@@ -69,7 +77,7 @@ export function socketTransport(openConnection: () => Socket): KeeperTransport {
     });
 }
 
-/** A {@link KeeperTransport} over a unix-domain socket at `socketPath`. */
-export function unixSocketTransport(socketPath: string): KeeperTransport {
+/** A {@link FramedTransport} over a unix-domain socket at `socketPath`. */
+export function unixSocketTransport(socketPath: string): FramedTransport {
   return socketTransport(() => connect(socketPath));
 }
