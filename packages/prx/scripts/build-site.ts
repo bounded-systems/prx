@@ -12,7 +12,8 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { marked } from "marked";
-import { REPO_ROOT } from "../src/repo-root.ts";
+import { findRepoRoot } from "../src/repo-root.ts";
+const REPO_ROOT = findRepoRoot();
 import { collectDocRelPaths } from "../src/graph/build.ts";
 
 const OUT = join(REPO_ROOT, "_site");

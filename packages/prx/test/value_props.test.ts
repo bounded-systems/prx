@@ -4,7 +4,8 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { REPO_ROOT } from "../src/repo-root.ts";
+import { findRepoRoot } from "../src/repo-root.ts";
+const REPO_ROOT = findRepoRoot();
 import {
   VALUE_PROPS,
   backingOf,

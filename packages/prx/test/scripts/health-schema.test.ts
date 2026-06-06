@@ -7,7 +7,8 @@ import { join } from "node:path";
 
 import { toJsonSchemaArtifact } from "../../src/lib/json-schema.ts";
 import { CODE_HEALTH_SCHEMA_NAME, CodeHealthReport } from "../../src/health/model.ts";
-import { REPO_ROOT } from "../../src/repo-root.ts";
+import { findRepoRoot } from "../../src/repo-root.ts";
+const REPO_ROOT = findRepoRoot();
 
 const artifactPath = join(REPO_ROOT, "packages/prx/schemas/health/health.schema.json");
 
