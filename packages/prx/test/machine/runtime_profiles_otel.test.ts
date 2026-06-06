@@ -10,6 +10,7 @@ const KEYS = [
   "OTEL_EXPORTER_OTLP_PROTOCOL",
   "OTEL_SERVICE_NAME",
   "PRX_OTEL_DISABLE",
+  "PRX_OTEL_TRACES",
 ];
 let saved: Record<string, string | undefined>;
 
@@ -58,5 +59,21 @@ describe("agentOtelEnv (GH-188)", () => {
     process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4317";
     process.env.OTEL_EXPORTER_OTLP_PROTOCOL = "grpc";
     expect(agentOtelEnv("tester").OTEL_EXPORTER_OTLP_PROTOCOL).toBe("grpc");
+  });
+
+  test("enables beta traces by default (so Jaeger renders agent-leg spans)", () => {
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318";
+    const env = agentOtelEnv("executor");
+    expect(env.OTEL_TRACES_EXPORTER).toBe("otlp");
+    expect(env.CLAUDE_CODE_ENHANCED_TELEMETRY_BETA).toBe("1");
+  });
+
+  test("PRX_OTEL_TRACES=0 keeps metrics+logs but drops traces", () => {
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = "http://localhost:4318";
+    process.env.PRX_OTEL_TRACES = "0";
+    const env = agentOtelEnv("executor");
+    expect(env.OTEL_METRICS_EXPORTER).toBe("otlp");
+    expect(env.OTEL_TRACES_EXPORTER).toBeUndefined();
+    expect(env.CLAUDE_CODE_ENHANCED_TELEMETRY_BETA).toBeUndefined();
   });
 });

@@ -25,6 +25,13 @@ export function agentOtelEnv(role: string): Record<string, string> {
     CLAUDE_CODE_ENABLE_TELEMETRY: "1",
     OTEL_METRICS_EXPORTER: "otlp",
     OTEL_LOGS_EXPORTER: "otlp",
+    // GH-188: traces are Claude Code beta (gated by CLAUDE_CODE_ENHANCED_TELEMETRY_BETA),
+    // but they are what a trace UI like Jaeger actually renders — so enable them
+    // too once a collector is configured, lighting up the telemetry actor's
+    // backend with per-leg spans. `PRX_OTEL_TRACES=0` opts back out (metrics+logs only).
+    ...(getEnv("PRX_OTEL_TRACES") === "0"
+      ? {}
+      : { OTEL_TRACES_EXPORTER: "otlp", CLAUDE_CODE_ENHANCED_TELEMETRY_BETA: "1" }),
     OTEL_EXPORTER_OTLP_PROTOCOL: getEnv("OTEL_EXPORTER_OTLP_PROTOCOL") ?? "http/protobuf",
     OTEL_SERVICE_NAME: getEnv("OTEL_SERVICE_NAME") ?? "prx",
     OTEL_RESOURCE_ATTRIBUTES: `service.name=prx,prx.actor=${role}`,
