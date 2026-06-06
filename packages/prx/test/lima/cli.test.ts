@@ -113,6 +113,16 @@ describe("prx lima parsing", () => {
     expect(() => parse(["lima", "bogus"])).toThrow(/requires a verb/);
   });
 
+  test("`provision-beads <vm> --origin` parses; requires --origin", () => {
+    const p = parse(["lima", "provision-beads", "myvm", "--origin", "bounded-systems/prx"]);
+    expect(p.command === "lima" && p.verb).toBe("provision-beads");
+    if (p.command === "lima") {
+      expect(p.vm).toBe("myvm");
+      expect(p.origin).toBe("bounded-systems/prx");
+    }
+    expect(() => parse(["lima", "provision-beads", "myvm"])).toThrow(/requires --origin/);
+  });
+
   test("up requires --binary and --cwd", () => {
     expect(() => parse(["lima", "up", "myvm"])).toThrow(/--binary/);
     expect(() => parse(["lima", "up", "myvm", "--binary", "b"])).toThrow(/--cwd/);

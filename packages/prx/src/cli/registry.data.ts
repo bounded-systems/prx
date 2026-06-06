@@ -1332,6 +1332,14 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     domain: "work-units",
     actor: "keeper",
   },
+  {
+    // GH-296: install bd+dolt + clone canonical beads into the VM (beadsd source).
+    name: "lima provision-beads",
+    parent: "lima",
+    description: "Install bd+dolt and clone canonical beads into a Lima VM (GH-296)",
+    domain: "work-units",
+    actor: "keeper",
+  },
 
   // ─── Provenance — read-only signing-identity inspection (GH-2282) ──────────
   // `provenance dev-pubkey` prints (and bootstraps on first use) the persisted
