@@ -745,6 +745,85 @@ describe("session_open actor registration", () => {
   });
 });
 
+// GH-288: openSession consumes the leg's required input artifact and embeds it,
+// failing closed (headless) when it's missing — the fix for the pilot planner
+// that ran blind. resolveLegInput + dispatchSessionEntry are injected so these
+// stay offline (no CAS, no claude).
+describe("openSession — leg input gate (GH-288)", () => {
+  const baseDeps = (capture: { event?: unknown }) => ({
+    runReserve: () => ({
+      workspace_id: "feedface0001",
+      branch_ref: "plan/gh-288",
+      status: "created" as const,
+    }),
+    runMaterialize: () => ({
+      workspace_id: "feedface0001",
+      worktree_path: "/tmp/wt/plan",
+      branch: "plan/gh-288",
+      status: "created" as const,
+    }),
+    runPrepare: () => ({
+      workspace_id: "feedface0001",
+      files_written: [],
+      beads_hydrated: false,
+      status: "ok" as const,
+    }),
+    dispatchSessionEntry: (event: unknown) => {
+      capture.event = event;
+      return { profile: "stub-plan" } as unknown as RuntimeProfileProjection;
+    },
+    chdir: () => {},
+    cwd: () => "/tmp/wt/plan",
+  });
+
+  test("plan/headless: embeds the consumed source body into OPEN_PLAN_SESSION", async () => {
+    const capture: { event?: unknown } = {};
+    const result = await openSession(
+      { actor: "plan", workUnitId: "GH-288", interaction: "headless", shortId: "gh2880", now: "2026-06-06T00:00:00Z" },
+      {
+        ...baseDeps(capture),
+        resolveLegInput: async () => ({
+          missing: false,
+          ref: "GH-288:source@pinned",
+          body: "THE EMBEDDED ISSUE TEXT",
+          signedBy: "dev-key",
+        }),
+      },
+    );
+    expect(result.status).toBe("opened");
+    const ev = capture.event as { type: string; sourceBody?: string };
+    expect(ev.type).toBe("OPEN_PLAN_SESSION");
+    expect(ev.sourceBody).toBe("THE EMBEDDED ISSUE TEXT");
+  });
+
+  test("plan/headless: FAILS CLOSED when the input artifact is missing (no spawn)", async () => {
+    const capture: { event?: unknown } = {};
+    const result = await openSession(
+      { actor: "plan", workUnitId: "GH-288", interaction: "headless", shortId: "gh2881", now: "2026-06-06T00:00:00Z" },
+      {
+        ...baseDeps(capture),
+        resolveLegInput: async () => ({ missing: true, ref: "GH-288:source@pinned" }),
+      },
+    );
+    expect(result.status).toBe("error");
+    if (result.status === "error") expect(result.stage).toBe("dispatch");
+    // The profile was never built → the agent cannot spawn.
+    expect(capture.event).toBeUndefined();
+  });
+
+  test("plan/interactive: missing input does NOT hard-fail (human can pin mid-session)", async () => {
+    const capture: { event?: unknown } = {};
+    const result = await openSession(
+      { actor: "plan", workUnitId: "GH-288", interaction: "interactive", shortId: "gh2882", now: "2026-06-06T00:00:00Z" },
+      {
+        ...baseDeps(capture),
+        resolveLegInput: async () => ({ missing: true, ref: "GH-288:source@pinned" }),
+      },
+    );
+    expect(result.status).toBe("opened");
+  });
+});
+
 // Ensure unused SessionActor import is exercised (keeps imports tight).
 const _check: SessionActor = "intake";
 void _check;
