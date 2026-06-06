@@ -74,12 +74,19 @@ for (const vp of VALUE_PROPS) {
 }
 const backedCount = VALUE_PROPS.filter((vp) => !vp.forcing.some((ff) => "pending" in ff)).length;
 
+// 5. BOUNDARY — Zod coverage of the IO seams (portable, over the src files). ---
+const countMatches = (re: RegExp) =>
+  srcFiles.reduce((n, f) => n + (readFileSync(join(REPO_ROOT, f), "utf8").match(re)?.length ?? 0), 0);
+const zAnyHoles = countMatches(/z\.(any|unknown)\(/g);
+const rawJsonParse = countMatches(/JSON\.parse\(/g);
+
 // Schema-first: validate the report against src/health/model.ts before emitting.
 const report = CodeHealthReport.parse({
   sprawl: { totalLines, fileCount: sizes.length, largest: sizes.slice(0, 10) },
   coupling: { circularChains, samples: cycleSamples },
   deadCode: { count: deadFiles.length, files: deadFiles },
   productMap: { valueProps: VALUE_PROPS.length, backed: backedCount, modulesExercised: exercised.size },
+  boundary: { zAnyHoles, rawJsonParse },
 });
 
 if (asJson) {
@@ -95,4 +102,6 @@ if (asJson) {
   for (const f of deadFiles) console.log(`  ${f}`);
   console.log(`\n## 4. Product map — ${backedCount}/${VALUE_PROPS.length} value props backed; ${exercised.size} modules traced`);
   console.log(`  (modules named by no forcing function are pruning candidates — see value_props.ts)`);
+  console.log(`\n## 5. Zod boundary — ${zAnyHoles} z.any()/z.unknown() holes; ${rawJsonParse} JSON.parse sites`);
+  console.log(`  (lower is better — each is an IO boundary that should be schema-validated)`);
 }

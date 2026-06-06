@@ -115,6 +115,9 @@ Also landed:
 - [x] Schema-first health report (`src/health/model.ts` → `schemas/health/`).
 - [x] `sideEffects: false` on all 19 leaf packages (tree-shaking).
 - [x] `prx-is-the-top` layering rule (`error`, 0) + monolith ratchet (≤2000 lines).
+- [x] Generated CLI reference (`docs/cli.md`) + GitHub Pages site (`pages.yml`).
+- [x] Migrated the intake-cycle guard to dependency-cruiser; dropped `madge`.
+- [x] Zod **boundary** lens in `health` (`z.any()`/`z.unknown()` holes; `JSON.parse` sites).
 
 Next:
 - [ ] **Auto-docs-PR workflow** — generalize `version.yml`: on push to `main` (or a
@@ -122,9 +125,7 @@ Next:
       the regenerated output. Removes the manual "sync main + regenerate" step that
       bit the CLI reference (a generated doc's content depends on registry code that
       `main` changes; the `pull_request` merge-tree check then reads as stale).
-- [ ] Zod **boundary** coverage lens in `health` (`JSON.parse` not `.parse`'d; `z.any()` holes).
 - [ ] VerbSpec schema coverage (% of registry verbs with input/output Zod).
-- [ ] Migrate `no-intake-triage` test off `madge`; drop `madge`.
 - [ ] Scripts → `prx` verbs — template on `prx health`, then the `gen-*` codegen.
 - [ ] Decompose `pr-state/cli.ts` (ts-morph codemods, verb-by-verb) → shrink `MONOLITHS`.
 - [ ] Per-package nix derivations (spike) + flip `no-circular` to `error` once ratcheted to 0.

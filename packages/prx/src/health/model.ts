@@ -56,6 +56,19 @@ export const CodeHealthReport = z
         modulesExercised: z.number().int().nonnegative(),
       })
       .strict(),
+    /**
+     * Zod boundary coverage — the capability seams already gate WHERE the
+     * outside world is touched; this gauges whether those touches are
+     * schema-validated. `zAnyHoles` = `z.any()`/`z.unknown()` escape hatches;
+     * `rawJsonParse` = `JSON.parse(` sites (each should feed a `.parse()`).
+     * Both are "lower is better" — unschematized-boundary debt, not a hard gate.
+     */
+    boundary: z
+      .object({
+        zAnyHoles: z.number().int().nonnegative(),
+        rawJsonParse: z.number().int().nonnegative(),
+      })
+      .strict(),
   })
   .strict();
 export type CodeHealthReport = z.infer<typeof CodeHealthReport>;

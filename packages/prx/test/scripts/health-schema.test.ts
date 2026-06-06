@@ -27,6 +27,7 @@ describe("code-health schema", () => {
       coupling: { circularChains: 0, samples: [] },
       deadCode: { count: 0, files: [] },
       productMap: { valueProps: 4, backed: 3, modulesExercised: 12 },
+      boundary: { zAnyHoles: 0, rawJsonParse: 0 },
     };
     expect(CodeHealthReport.parse(ok)).toEqual(ok);
     expect(() => CodeHealthReport.parse({ ...ok, sprawl: { totalLines: -1 } })).toThrow();

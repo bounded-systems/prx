@@ -114,13 +114,34 @@
             "modulesExercised"
           ],
           "additionalProperties": false
+        },
+        "boundary": {
+          "type": "object",
+          "properties": {
+            "zAnyHoles": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "rawJsonParse": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "zAnyHoles",
+            "rawJsonParse"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
         "sprawl",
         "coupling",
         "deadCode",
-        "productMap"
+        "productMap",
+        "boundary"
       ],
       "additionalProperties": false
     }
