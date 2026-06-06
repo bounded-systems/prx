@@ -1863,6 +1863,29 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "beads",
   },
   {
+    // GH-296: the read door — query beads through the in-VM beadsd daemon (no
+    // host beads DB). The human + agents reach beads through one source.
+    name: "beads ready",
+    parent: "beads",
+    description: "Ready issues via the in-VM beadsd daemon (GH-296)",
+    domain: "repo-plumbing",
+    actor: "beads",
+  },
+  {
+    name: "beads list",
+    parent: "beads",
+    description: "List issues via the in-VM beadsd daemon (GH-296)",
+    domain: "repo-plumbing",
+    actor: "beads",
+  },
+  {
+    name: "beads show",
+    parent: "beads",
+    description: "Show one issue via the in-VM beadsd daemon (GH-296)",
+    domain: "repo-plumbing",
+    actor: "beads",
+  },
+  {
     // GH-1990: canonical actor surface for bd↔external reconcile. Operators
     // and agents must reach reconcile flows through this verb family rather
     // than raw `bd <verb>` / `git <verb>`. Per-pair work lives under

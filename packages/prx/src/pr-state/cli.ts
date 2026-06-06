@@ -421,6 +421,9 @@ import {
 } from "../lima/registry.ts";
 // GH-228: beads workspace self-heal (`prx beads doctor [--fix]`).
 import { diagnoseBeads, healBeads } from "../beads/doctor.ts";
+// GH-296: the host read-door — route `prx beads ready|list|show` through beadsd.
+import { withLimaBeadsClient } from "../beadsd/lima.ts";
+import type { BeadsRequest } from "../beadsd/contract.ts";
 import { runScopeGate, ScopeGateInputError } from "./scope-gate.ts";
 import { runTestGate, TestGateInputError } from "./test-gate.ts";
 import type { GateResult } from "../provenance/gate.ts";
@@ -2022,6 +2025,17 @@ type ParsedCommand =
       format: "plain" | "json";
       fix: boolean;
       cwd?: string | undefined;
+    }
+  | {
+      // GH-296: `beads ready|list|show` routed through beadsd in a Lima VM (the read door).
+      command: "beads-read";
+      format: "plain" | "json";
+      kind: "ready" | "list" | "show";
+      vm: string;
+      vmSocket: string;
+      hostSocket?: string | undefined;
+      id?: string | undefined;
+      status?: string | undefined;
     }
   | {
       // GH-228: `prx lima <verb>` — in-VM daemon lifecycle over the daemon registry.
@@ -5257,7 +5271,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "beads") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "beads requires a subcommand: hydrate, issue, migrate, publish, sync, sync-all, doctor",
+        "beads requires a subcommand: ready, list, show, hydrate, issue, migrate, publish, sync, sync-all, doctor",
       );
     }
     if (c1 === "hydrate") {
@@ -5287,6 +5301,11 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     if (c1 === "doctor") {
       // GH-228: beads workspace self-heal (diagnose / --fix re-bootstrap).
       return ["beads-doctor", ...tail];
+    }
+    if (c1 === "ready" || c1 === "list" || c1 === "show") {
+      // GH-296: host read-door — routed through beadsd (the in-VM daemon).
+      // Collapse the three reads onto one command with the kind as a positional.
+      return ["beads-read", c1, ...tail];
     }
     throw new CliError(`Unknown beads subcommand: ${c1}`);
   }
@@ -8606,6 +8625,47 @@ export function parseCommand(argv: string[]): ParsedCommand {
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
       fix: values.fix ?? false,
       ...(values.cwd !== undefined ? { cwd: values.cwd } : {}),
+    };
+  }
+
+  // GH-296: `prx beads ready|list|show` — read through beadsd in a Lima VM
+  // (rewritten to `beads-read <kind>` by normalizeNamespaceArgv). The host holds
+  // no beads DB; it asks the daemon. `--vm` is required (the VM running beadsd);
+  // `PRX_BEADS_VM` is the fallback so the operator need not repeat it.
+  if (command === "beads-read") {
+    const { values, positionals } = parseArgs({
+      args: rest,
+      options: {
+        format: { type: "string", default: "plain" },
+        vm: { type: "string" },
+        "vm-socket": { type: "string" },
+        "host-socket": { type: "string" },
+        status: { type: "string" },
+      },
+      strict: true,
+      allowPositionals: true,
+    });
+    const kind = positionals[0];
+    if (kind !== "ready" && kind !== "list" && kind !== "show") {
+      throw new CliError("prx beads read requires a kind: ready | list | show");
+    }
+    const vm = values.vm ?? getEnv("PRX_BEADS_VM");
+    if (typeof vm !== "string" || vm.length === 0) {
+      throw new CliError("prx beads " + kind + " requires --vm <name> (or PRX_BEADS_VM) — the VM running beadsd");
+    }
+    const id = positionals[1];
+    if (kind === "show" && (typeof id !== "string" || id.length === 0)) {
+      throw new CliError("prx beads show requires an id: `prx beads show <id> --vm <name>`");
+    }
+    return {
+      command: "beads-read",
+      format: ensureChoice(values.format, ["plain", "json"], "--format"),
+      kind,
+      vm,
+      vmSocket: values["vm-socket"] ?? "/tmp/beadsd.sock",
+      ...(values["host-socket"] !== undefined ? { hostSocket: values["host-socket"] } : {}),
+      ...(kind === "show" ? { id } : {}),
+      ...(values.status !== undefined ? { status: values.status } : {}),
     };
   }
 
@@ -24863,6 +24923,33 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         output.error("beads: re-bootstrap did not restore a prefix — see `bd doctor` / `bd help init-safety`");
       }
       return res.repaired || res.action === "none" ? 0 : 1;
+    }
+
+    if (parsed.command === "beads-read") {
+      // GH-296: read through beadsd in the VM — the host holds no beads DB, it asks
+      // the daemon over the Lima channel. The single source for the human, too.
+      return (async () => {
+        const request: BeadsRequest =
+          parsed.kind === "show"
+            ? { kind: "show", id: parsed.id! }
+            : parsed.kind === "list"
+              ? parsed.status !== undefined
+                ? { kind: "list", status: parsed.status }
+                : { kind: "list" }
+              : { kind: "ready" };
+        const channelOpts = {
+          vm: parsed.vm,
+          vmSocket: parsed.vmSocket,
+          ...(parsed.hostSocket !== undefined ? { hostSocket: parsed.hostSocket } : {}),
+        };
+        const reply = await withLimaBeadsClient(channelOpts, (client) => client.query(request));
+        if (reply.status === "error") {
+          output.error(`beads ${parsed.kind}: ${reply.code}: ${reply.message}`);
+          return 1;
+        }
+        output.log(JSON.stringify(reply.result, null, 2));
+        return 0;
+      })();
     }
 
     if (parsed.command === "lima") {
