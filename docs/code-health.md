@@ -118,13 +118,11 @@ Also landed:
 - [x] Generated CLI reference (`docs/cli.md`) + GitHub Pages site (`pages.yml`).
 - [x] Migrated the intake-cycle guard to dependency-cruiser; dropped `madge`.
 - [x] Zod **boundary** lens in `health` (`z.any()`/`z.unknown()` holes; `JSON.parse` sites).
+- [x] **Auto-docs-PR workflow** (`.github/workflows/docs-regen.yml`) — on push to `main`,
+      `docs:render` and open a "docs: regenerate" PR when a generated doc drifts. Owns
+      `docs/cli.md` (and the rest) so they stay current without hard-gating feature PRs.
 
 Next:
-- [ ] **Auto-docs-PR workflow** — generalize `version.yml`: on push to `main` (or a
-      schedule), run `docs:render` and, if any generated doc drifts, open a PR with
-      the regenerated output. Removes the manual "sync main + regenerate" step that
-      bit the CLI reference (a generated doc's content depends on registry code that
-      `main` changes; the `pull_request` merge-tree check then reads as stale).
 - [ ] VerbSpec schema coverage (% of registry verbs with input/output Zod).
 - [ ] Scripts → `prx` verbs — template on `prx health`, then the `gen-*` codegen.
 - [ ] Decompose `pr-state/cli.ts` (ts-morph codemods, verb-by-verb) → shrink `MONOLITHS`.
