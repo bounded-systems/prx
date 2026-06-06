@@ -15,7 +15,7 @@
 
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 import { REPO_ROOT } from "../src/repo-root.ts";
 import { VALUE_PROPS } from "../src/value_props.ts";
 
