@@ -505,6 +505,7 @@ describe("submit_plan plan-artifact capture (GH-2337)", () => {
     paths: ["src/claude/agent_service.ts"],
     risks: ["test seam must reach the in-process handler without a transport"],
     acceptance: ["result.text equals renderPlanArtifact(captured)"],
+    decision: "proceed",
   };
 
   function makeCapturingProfile(

@@ -26,6 +26,7 @@ const valid: PlanArtifact = {
   paths: ["src/plan-store/plan-artifact.ts", "src/claude/agent_service.ts"],
   risks: ["plan permission mode may block the custom tool"],
   acceptance: ["draft slot lands with validated_ok=true"],
+  decision: "proceed",
 };
 
 describe("PlanArtifactSchema (ai-home-r5crv)", () => {

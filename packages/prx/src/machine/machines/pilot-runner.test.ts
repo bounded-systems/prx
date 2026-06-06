@@ -72,6 +72,32 @@ describe("sdk leg runner (machine ↔ real-agent + signing seam)", () => {
     expect(done.context.lastError).toContain("agent failed");
   });
 
+  test("a planner rejection (decision:blocked) halts the pilot before the executor (GH-289)", async () => {
+    const ran: LegInput["role"][] = [];
+    const runAgent: RunRoleAgent = async (input) => {
+      ran.push(input.role);
+      if (input.role === "planner") {
+        // A submitted-but-blocked plan: the agent run succeeded, but the planner
+        // declared the work cannot proceed. The pilot must NOT advance.
+        return { ...ok("blocked: the requested change is out of scope"), planDecision: "blocked" };
+      }
+      return ok(`${input.role} ok`);
+    };
+    const runner = createSdkLegRunner({ runAgent, sign: recordingSigner([]) });
+
+    const actor = createActor(createPilotMachine(runner), {
+      input: { workUnitId: "prx-reject" },
+    }).start();
+    const blocked = await waitFor(actor, (s) => s.value === "blocked", { timeout: 2000 });
+
+    expect(blocked.value).toBe("blocked");
+    // The cascade is stopped: no executor/tester/reviewer leg ran.
+    expect(ran).toEqual(["planner"]);
+    const last = blocked.context.chain.at(-1)!;
+    expect(last.stage).toBe("planner");
+    expect(last.predicate).toBe("planner.rejected");
+  });
+
   test("a cancelled run parks in blocked and signs the stop", async () => {
     const runAgent: RunRoleAgent = async (input) => {
       if (input.role === "executor") {

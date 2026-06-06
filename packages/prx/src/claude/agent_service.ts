@@ -70,6 +70,12 @@ export const nonInteractiveSuccessSchema = z.object({
   usage: usageTelemetrySchema,
   totalCostUsd: z.number().nonnegative().optional(),
   elapsed_ms: z.number().int().nonnegative(),
+  /**
+   * GH-289: the planner's verdict from the captured `submit_plan` artifact, when
+   * this run was a plan capture. `"blocked"` tells the pilot leg-runner to NOT
+   * advance (halt instead of cascading an executor over an empty plan).
+   */
+  planDecision: z.enum(["proceed", "blocked"]).optional(),
 });
 export type NonInteractiveSuccess = z.infer<typeof nonInteractiveSuccessSchema>;
 
@@ -664,6 +670,7 @@ export async function runClaudeAgentNonInteractive(
   // canonical markdown) over the model's free-text reply. A successful run
   // that never called submit_plan is a planner contract violation → typed
   // `failed` (reusing errorKind "model"; no new result variant).
+  let planDecision: "proceed" | "blocked" | undefined;
   if (planCapture) {
     const captured = planCapture.getCaptured();
     if (!captured) {
@@ -686,6 +693,8 @@ export async function runClaudeAgentNonInteractive(
       return failure;
     }
     text = renderPlanArtifact(captured);
+    // GH-289: surface the planner's verdict so the pilot can halt on "blocked".
+    planDecision = captured.decision ?? "proceed";
   }
   const stdout = envelopeStdout(text, totalCostUsd);
   const usage = usageFromSdk(resultMessage.usage);
@@ -724,6 +733,7 @@ export async function runClaudeAgentNonInteractive(
     envelope: resultMessage,
     usage,
     ...(typeof totalCostUsd === "number" ? { totalCostUsd } : {}),
+    ...(planDecision !== undefined ? { planDecision } : {}),
     elapsed_ms: elapsedMs,
   };
 }

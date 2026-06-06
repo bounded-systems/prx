@@ -45,6 +45,16 @@ export const PlanArtifactShape = {
     .array(nonEmpty)
     .min(1)
     .describe("Acceptance criteria: observable conditions that confirm the work is done."),
+  // GH-289: the planner's verdict. "proceed" (default) ⇒ a viable plan exists and
+  // the pilot advances to implementation. "blocked" ⇒ the work cannot/should not
+  // proceed (the reason belongs in `risks`); the pilot HALTS — no executor runs —
+  // rather than cascading downstream legs over an empty plan.
+  decision: z
+    .enum(["proceed", "blocked"])
+    .default("proceed")
+    .describe(
+      "Planner verdict: 'proceed' if a viable, in-scope plan exists; 'blocked' if the work cannot or should not be implemented (put the reason in `risks`). 'blocked' halts the pilot — no executor leg is spawned.",
+    ),
 } as const;
 
 export const PlanArtifactSchema = z.object(PlanArtifactShape);
