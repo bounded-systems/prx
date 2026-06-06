@@ -188,6 +188,11 @@ describe("real CI gate + merge tail", () => {
     expect(merge.signedBy).toBe(kp.keyid);
     expect(ci.predicate).toBe("ci.passed");
     expect(done.context.summary!.signedBy).toBe(kp.keyid);
+    // Telemetry is anchored into the signed summary: a hash-chain head over all
+    // observations, committed to by the pilot's signature (tamper-evident, no gate).
+    const observed = (done.context.summary!.predicate as { observed?: { digest: string; count: number } }).observed;
+    expect(observed?.count).toBeGreaterThan(0);
+    expect(observed?.digest).toMatch(/^[0-9a-f]{64}$/);
   });
 
   test("every deterministic seam emits start+done telemetry (parity with the LLM-leg heartbeat)", async () => {

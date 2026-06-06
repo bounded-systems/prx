@@ -194,6 +194,18 @@ function resolveSignerOrThrow(signer?: Signer | null, actorLabel = "pilot"): Sig
   return signer ?? requireSigner(actorLabel);
 }
 
+/** GH-261 default heartbeat sink: best-effort recordEvent (never breaks a leg). */
+function recordLegHeartbeat(info: LegHeartbeat): void {
+  try {
+    recordEvent("TELEMETRY_LEG_OBSERVED", {
+      workUnitId: info.workUnitId,
+      details: { role: info.role, turns: info.turns, chars: info.chars, elapsedMs: info.elapsedMs, last: info.last },
+    });
+  } catch {
+    // observability is best-effort — never break a leg on a sink error.
+  }
+}
+
 /** Real leg-runner: openSession(role) → headless agent run → sign. */
 export function buildRealLegRunner(deps: RealLegDeps = {}): LegRunner {
   const open = deps.openSession ?? (openSession as OpenSessionFn);
@@ -208,17 +220,7 @@ export function buildRealLegRunner(deps: RealLegDeps = {}): LegRunner {
   // GH-261: liveness heartbeat → the telemetry actor's TELEMETRY_LEG_OBSERVED
   // event. Lets an observer SEE a leg making progress (and pinpoint where it
   // goes silent) — feedback the bare watchdog can't give. Best-effort + throttled.
-  const heartbeat = deps.onLegHeartbeat
-    ?? ((info: LegHeartbeat) => {
-      try {
-        recordEvent("TELEMETRY_LEG_OBSERVED", {
-          workUnitId: info.workUnitId,
-          details: { role: info.role, turns: info.turns, chars: info.chars, elapsedMs: info.elapsedMs, last: info.last },
-        });
-      } catch {
-        // observability is best-effort — never break a leg on a sink error.
-      }
-    });
+  const heartbeat = deps.onLegHeartbeat ?? recordLegHeartbeat;
 
   const roleAgent: RunRoleAgent = async (input) => {
     const actor = roleSessionActor[input.role];
@@ -466,20 +468,63 @@ function observeSeam<I extends { workUnitId: string }, R>(
 }
 
 /**
+ * Per-unit telemetry hash chain. Every observation (seam start/done + leg
+ * heartbeat) folds into a running head `h = sha256(prev + json(entry))`; the head
+ * is anchored into the signed pilot summary (`observedAnchor`), making the whole
+ * stream tamper-evident with NO per-event signing. Best-effort — it only
+ * records, never throws, and never gates.
+ */
+function createTelemetryAnchor() {
+  const perUnit = new Map<string, { head: string; count: number }>();
+  return {
+    observe(workUnitId: string, entry: unknown): void {
+      try {
+        const prev = perUnit.get(workUnitId) ?? { head: "", count: 0 };
+        perUnit.set(workUnitId, {
+          head: sha256Hex(`${prev.head}\n${JSON.stringify(entry)}`),
+          count: prev.count + 1,
+        });
+      } catch {
+        // anchoring is best-effort — never break a run on a telemetry error.
+      }
+    },
+    digest(workUnitId: string): { digest: string; count: number } | null {
+      const s = perUnit.get(workUnitId);
+      return s && s.count > 0 ? { digest: s.head, count: s.count } : null;
+    },
+  };
+}
+
+/**
  * Full real `PilotDeps`: real leg-runner + summary signing + the intake / local
  * checks / remote CI / merge seams wired to `prx` (via `runPrx`). Each seam is
- * wrapped with `observeSeam` for telemetry parity with the LLM legs, and the
- * checks seam carries a hard `prx ci` timeout.
+ * wrapped with `observeSeam` for telemetry parity with the LLM legs, the checks
+ * seam carries a hard `prx ci` timeout, and all telemetry is hash-chained into
+ * an `observedAnchor` folded into the signed summary (tamper-evident, no gate).
  */
 export function buildRealPilotDeps(deps: RealLegDeps = {}): PilotDeps {
   const signer = resolveSignerOrThrow(deps.signer);
   const runPrx = deps.runPrx ?? realRunPrx;
-  const emitSeam = deps.onSeamObserved ?? recordSeamObservation;
   const envChecksTimeout = Number(getEnv("PRX_PILOT_CHECKS_TIMEOUT_MS"));
   const checksTimeoutMs = deps.checksTimeoutMs
     ?? (Number.isFinite(envChecksTimeout) && envChecksTimeout > 0 ? envChecksTimeout : DEFAULT_PILOT_CHECKS_TIMEOUT_MS);
+
+  // Tee BOTH telemetry streams into the anchor AND the user/default sink, so the
+  // anchor sees every observation even when a caller injects its own sink.
+  const anchor = createTelemetryAnchor();
+  const seamSink = deps.onSeamObserved ?? recordSeamObservation;
+  const emitSeam = (info: SeamObservation) => {
+    anchor.observe(info.workUnitId, { kind: "seam", ...info });
+    seamSink(info);
+  };
+  const beatSink = deps.onLegHeartbeat ?? recordLegHeartbeat;
+  const emitBeat = (info: LegHeartbeat) => {
+    anchor.observe(info.workUnitId, { kind: "beat", ...info });
+    beatSink(info);
+  };
+
   return {
-    runLeg: buildRealLegRunner({ ...deps, signer }),
+    runLeg: buildRealLegRunner({ ...deps, signer, onLegHeartbeat: emitBeat }),
     runIntake: observeSeam("intake", emitSeam, buildRealIntake({ runPrx, signer })),
     runChecks: observeSeam(
       "checks",
@@ -492,6 +537,7 @@ export function buildRealPilotDeps(deps: RealLegDeps = {}): PilotDeps {
       }),
     ),
     signSummary: realStatementSigner(signer),
+    observedAnchor: ({ workUnitId }) => anchor.digest(workUnitId),
     runCiGate: observeSeam("ci", emitSeam, buildRealCiGate({ runPrx, signer })),
     runMerge: observeSeam("merge", emitSeam, buildRealMerge({ runPrx, signer })),
   };

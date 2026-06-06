@@ -113,6 +113,15 @@ export type PilotDeps = {
   runMerge?: MergeRunner;
   /** Signs the pilot summary statement with the pilot's authority. */
   signSummary?: StatementSigner;
+  /**
+   * Anchor the run's observability (heartbeat / seam telemetry) into the signed
+   * summary WITHOUT gating: returns the hash-chain head over all telemetry for
+   * the unit. Folded into the `prx.pilot/v1` predicate as `observed`, so the
+   * pilot's existing signature commits to the telemetry stream (tamper-evident,
+   * zero extra signatures). Returns null ⇒ no `observed` field. Health is never
+   * a gate; see docs/prx/pipeline-local-checks.md.
+   */
+  observedAnchor?: (input: { workUnitId: string }) => { digest: string; count: number } | null;
 };
 
 export type PilotContext = {
@@ -246,6 +255,7 @@ export function createPilotMachine(deps: PilotDeps | LegRunner) {
   const ciGate = d.runCiGate ?? defaultCiGate;
   const mergeRunner = d.runMerge ?? defaultMerge;
   const signSummary = d.signSummary ?? stubStatementSigner("pilot");
+  const observedAnchor = d.observedAnchor ?? (() => null);
 
   return setup({
     types: {
@@ -269,8 +279,12 @@ export function createPilotMachine(deps: PilotDeps | LegRunner) {
       ),
       // Mints the pilot's own in-toto artifact over the whole signed chain.
       sealSummary: fromPromise<Statement, { workUnitId: string; chain: LegAttestation[] }>(
-        ({ input }) =>
-          buildStatement(signSummary, {
+        ({ input }) => {
+          // Anchor observability into the signed summary (never a gate): the
+          // telemetry hash-chain head rides along, so the pilot's signature
+          // commits to it. Absent ⇒ no `observed` field (back-compatible).
+          const observed = observedAnchor({ workUnitId: input.workUnitId });
+          return buildStatement(signSummary, {
             predicateType: "prx.pilot/v1",
             subject: [{ name: input.workUnitId, digest: { sha256: digestOf(input.chain) } }],
             predicate: {
@@ -282,8 +296,10 @@ export function createPilotMachine(deps: PilotDeps | LegRunner) {
                 signedBy: l.signedBy,
                 digest: digestOf(l),
               })),
+              ...(observed ? { observed: { digest: observed.digest, count: observed.count } } : {}),
             },
-          }),
+          });
+        },
       ),
     },
     guards: {
