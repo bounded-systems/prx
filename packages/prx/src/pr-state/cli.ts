@@ -803,11 +803,12 @@ import {
   type TriagePrimeDeps,
 } from "../triage/prime.ts";
 import {
-  runCi,
+  runCiPhases,
   ciOptionsSchema,
   CI_PHASES,
   type CiOptions,
   type CiPhase,
+  type PhaseResult,
 } from "./local-ci.ts";
 import { attestCiPhases, resolveCiInputs } from "./ci-attest.ts";
 import {
@@ -3138,7 +3139,10 @@ type CliDeps = {
     output: Output,
     deps?: TriagePrimeDeps,
   ) => Promise<number>;
-  runCi?: (options: CiOptions, output: Output) => number;
+  runCiPhases?: (
+    options: CiOptions,
+    output: Output,
+  ) => { code: number; results: PhaseResult[] };
   inferOperatorScopeFromCwd?: (cwd: string) => InferredScope;
   isMainxWorktree?: (cwd: string) => boolean;
   // GH-2258: route `prx triage|intake session` onto the dedicated triage
@@ -23620,33 +23624,35 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "ci") {
-      const handler = deps.runCi ?? runCi;
+      const runPhases = deps.runCiPhases ?? runCiPhases;
       const validated: CiOptions = ciOptionsSchema.parse({
         phase: parsed.phase,
         format: parsed.format,
       });
-      const code = handler(validated, output);
-      // GH-352: a GREEN `prx ci` records a signed, content-addressed CI
-      // derivation per phase — `inputs { tree, lock, toolchain } → output
-      // { commit }`, wrapped in the same SLSA/DSSE envelope the merge-guard
-      // verifies. Carrying the validated tree as `sha256:` inputs makes it a
-      // bucket-A chain node (lineage/`isStale`/`invalidate` work, composes with
-      // scout reads), not just a commit-keyed vouch. Gated on a resolved signer
-      // + canonical ledger (no PRX_PROVENANCE_KEY ⇒ unchanged) and on
-      // `code === 0` (every requested phase passed; a failure attests nothing —
-      // absence ≡ not verified). Best-effort: never alters the CI exit code.
-      if (code !== 0) return code;
+      const { code, results } = runPhases(validated, output);
+      // GH-352: each phase that PASSED records a signed, content-addressed CI
+      // derivation — `inputs { tree, lock, toolchain } → output { commit }`,
+      // wrapped in the same SLSA/DSSE envelope the merge-guard verifies. The
+      // tree as `sha256:` inputs makes it a bucket-A chain node (lineage/
+      // `isStale`/`invalidate`, composes with scout reads), not a commit-keyed
+      // vouch. Attesting on a PARTIAL run too means a failure still leaves
+      // verified evidence for the phases that passed before it (absence of a
+      // phase's derivation ≡ that phase not verified). Gated on a resolved
+      // signer + canonical ledger (no PRX_PROVENANCE_KEY ⇒ unchanged).
+      // Best-effort: never alters the CI exit code.
+      const passedPhases: CiPhase[] = results
+        .filter((r) => r.status === 0)
+        .map((r) => r.phase);
+      if (passedPhases.length === 0) return code;
       return (async () => {
         try {
           // Attribution follows the dispatch *source* model: the signer signs
           // with the ambient actor's authority (a direct `prx ci` is sourced
           // from the human → the `claude-code` default; a leg-dispatched run
-          // would carry that leg's actor). We deliberately do NOT pin a `local_ci`
-          // tool-actor here — that would attribute the verdict to the tool rather
-          // than the authority that ran it, diverge from how the pilot's
-          // `checks/v1` signs, and risk fail-closed rejection under a trust map
-          // that doesn't pin it. `persistAttestation` reads the actor for
-          // `builder.id`, so signer and `builder.id` stay consistent.
+          // carries that leg's actor via the propagated dispatch source). We do
+          // NOT pin a `local_ci` tool-actor — that attributes the verdict to the
+          // tool rather than the authority that ran it. `persistAttestation`
+          // reads the actor for `builder.id`, so signer and `builder.id` agree.
           const signer = resolveProvenanceSigner();
           const ledger = resolveCanonicalChainLedger(process.cwd())?.ledgerPath;
           if (signer === null || ledger === undefined) return code;
@@ -23657,7 +23663,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           if (commit === "" || treeOid === "") return code;
           const lock = existsSync("bun.lock") ? readFileSync("bun.lock", "utf8") : "";
           const inputs = resolveCiInputs({ treeOid, lock, toolchain: `bun ${Bun.version}` });
-          const phases: CiPhase[] = validated.phase ? [validated.phase] : [...CI_PHASES];
           mkdirSync(dirname(ledger), { recursive: true });
           const store = openAnchoredChain(ledger);
           try {
@@ -23665,10 +23670,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               { signer, store: store.derivations },
               inputs,
               commit,
-              phases,
+              passedPhases,
             );
+            const partial =
+              code === 0 ? "" : ` (partial — ${passedPhases.length}/${results.length} phases passed)`;
             output.error(
-              `prx ci: signed ci/phase/v1 for ${recorded.length} phase(s) at ${commit.slice(0, 7)} (tree-bound) → ledger`,
+              `prx ci: signed ci/phase/v1 for ${recorded.length} phase(s) at ${commit.slice(0, 7)} (tree-bound)${partial} → ledger`,
             );
           } finally {
             store.close();
