@@ -411,6 +411,14 @@ import { runKeeperPush, type KeeperPushDeps } from "./keeper.ts";
 import { runKeeperServe, type KeeperDaemonDeps } from "../keeperd/daemon.ts";
 // GH-201/223: host-side keeperd VM lifecycle for `keeper up|down`.
 import { provisionKeeperd, stopKeeperd } from "../keeperd/lima-keeperd.ts";
+// GH-228: beadsd in-VM read daemon (`beads serve`) + the `prx lima` daemon registry.
+import { runBeadsServe, type BeadsDaemonDeps } from "../beadsd/daemon.ts";
+import {
+  LIMA_DAEMONS,
+  LIMA_DAEMON_KEYS,
+  limaDaemonStatuses,
+  selectLimaDaemons,
+} from "../lima/registry.ts";
 import { runScopeGate, ScopeGateInputError } from "./scope-gate.ts";
 import { runTestGate, TestGateInputError } from "./test-gate.ts";
 import type { GateResult } from "../provenance/gate.ts";
@@ -1987,6 +1995,26 @@ type ParsedCommand =
       repo?: string | undefined;
       dryRun: boolean;
       resolve?: "schema-prefer-remote" | undefined;
+    }
+  | {
+      // GH-228: `beads serve` runs the beadsd read daemon on a unix socket (in-VM).
+      command: "beads-serve";
+      format: "plain" | "json";
+      socket: string;
+      pidfile?: string | undefined;
+      cwd?: string | undefined;
+    }
+  | {
+      // GH-228: `prx lima <verb>` — in-VM daemon lifecycle over the daemon registry.
+      command: "lima";
+      format: "plain" | "json";
+      verb: "up" | "down" | "daemons" | "status";
+      vm?: string | undefined;
+      binary?: string | undefined;
+      cwd?: string | undefined;
+      socket?: string | undefined;
+      provenanceKeyFile?: string | undefined;
+      daemon?: string | undefined;
     }
   | {
       // GH-1990: `prx sync issues --from <src> --to <dst>`. v0 wires only the
@@ -5223,6 +5251,10 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
       // GH-1702: cross-repo fan-out of `prx dolt reconcile` over every
       // dolthub-wired registered bare repo.
       return ["beads-sync-all", ...tail];
+    }
+    if (c1 === "serve") {
+      // GH-228: the in-VM beadsd read daemon entrypoint.
+      return ["beads-serve", ...tail];
     }
     throw new CliError(`Unknown beads subcommand: ${c1}`);
   }
@@ -8495,6 +8527,96 @@ export function parseCommand(argv: string[]): ParsedCommand {
         ? { provenanceKeyFile: values["provenance-key-file"] }
         : {}),
       cwd: values.cwd,
+    };
+  }
+
+  // GH-228: `prx beads serve` runs the in-VM beadsd read daemon on a unix socket
+  // (rewritten to `beads-serve` by normalizeNamespaceArgv).
+  if (command === "beads-serve") {
+    const { values } = parseArgs({
+      args: rest,
+      options: {
+        format: { type: "string", default: "plain" },
+        socket: { type: "string" },
+        pidfile: { type: "string" },
+        cwd: { type: "string" },
+      },
+      strict: true,
+      allowPositionals: false,
+    });
+    if (typeof values.socket !== "string" || values.socket.length === 0) {
+      throw new CliError("prx beads serve requires a socket: --socket <path> (the beadsd listen path)");
+    }
+    return {
+      command: "beads-serve",
+      format: ensureChoice(values.format, ["plain", "json"], "--format"),
+      socket: values.socket,
+      ...(values.pidfile !== undefined ? { pidfile: values.pidfile } : {}),
+      ...(values.cwd !== undefined ? { cwd: values.cwd } : {}),
+    };
+  }
+
+  // GH-228: `prx lima <up|down|daemons|status>` — in-VM daemon lifecycle over the
+  // daemon registry (keeper + beads). Verb-dispatch like `keeper`.
+  if (command === "lima") {
+    const { values, positionals } = parseArgs({
+      args: rest,
+      options: {
+        format: { type: "string", default: "plain" },
+        vm: { type: "string" },
+        binary: { type: "string" },
+        cwd: { type: "string" },
+        socket: { type: "string" },
+        "provenance-key-file": { type: "string" },
+        daemon: { type: "string" },
+      },
+      strict: true,
+      allowPositionals: true,
+    });
+    const verb = positionals[0];
+    if (verb !== "up" && verb !== "down" && verb !== "daemons" && verb !== "status") {
+      throw new CliError(
+        "prx lima requires a verb: up | down | daemons | status (e.g. `prx lima up <vm> --binary <path> --cwd <path>`)",
+      );
+    }
+    // up/down/status are VM-scoped (positional <vm> or --vm); daemons is local.
+    const vm = values.vm ?? positionals[1];
+    if (verb !== "daemons" && (typeof vm !== "string" || vm.length === 0)) {
+      throw new CliError(`prx lima ${verb} requires a VM: \`prx lima ${verb} <vm>\` (or --vm <name>)`);
+    }
+    if (verb === "up") {
+      if (typeof values.binary !== "string" || values.binary.length === 0) {
+        throw new CliError(
+          "prx lima up requires --binary <path> (the Linux prx; build it with `prx-compile --target`)",
+        );
+      }
+      if (typeof values.cwd !== "string" || values.cwd.length === 0) {
+        throw new CliError("prx lima up requires --cwd <path> (the repo clone inside the VM)");
+      }
+    }
+    if (
+      values.daemon !== undefined &&
+      values.daemon !== "all" &&
+      !LIMA_DAEMON_KEYS.includes(values.daemon)
+    ) {
+      throw new CliError(`prx lima --daemon must be one of ${LIMA_DAEMON_KEYS.join(" | ")} | all`);
+    }
+    // A per-daemon --socket only makes sense for a single daemon.
+    if (values.socket !== undefined && (values.daemon === undefined || values.daemon === "all")) {
+      throw new CliError("prx lima --socket requires a single --daemon (it is the listen path for one daemon)");
+    }
+    return {
+      command: "lima",
+      format: ensureChoice(values.format, ["plain", "json"], "--format"),
+      verb,
+      ...(vm !== undefined ? { vm } : {}),
+      ...(values.binary !== undefined ? { binary: values.binary } : {}),
+      ...(values.cwd !== undefined ? { cwd: values.cwd } : {}),
+      ...(values.socket !== undefined ? { socket: values.socket } : {}),
+      ...(values["provenance-key-file"] !== undefined
+        ? { provenanceKeyFile: values["provenance-key-file"] }
+        : {}),
+      ...(values.daemon !== undefined ? { daemon: values.daemon } : {}),
     };
   }
 
@@ -24599,6 +24721,79 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       const out = formatGitExecResult(result, parsed.format);
       if (out) output.log(out);
       return result.exitCode;
+    }
+
+    if (parsed.command === "beads-serve") {
+      // GH-228: run beadsd — the read-only beads query daemon — on a unix socket.
+      // The host's IsolatedBeadsClient frames read requests (ready|list|show) to
+      // it; the daemon dispatches them to `bd` under its policy layer. Read-only,
+      // so no signer/ledger (unlike keeper serve).
+      return (async () => {
+        const deps: BeadsDaemonDeps = {};
+        if (parsed.cwd !== undefined) deps.cwd = parsed.cwd;
+        const server = await runBeadsServe({
+          socketPath: parsed.socket,
+          ...(parsed.pidfile !== undefined ? { pidfile: parsed.pidfile } : {}),
+          deps,
+        });
+        output.error(`beadsd: listening on ${parsed.socket}`);
+        // Block until the process is terminated — the daemon runs until killed.
+        await new Promise<void>((resolve) => server.on("close", () => resolve()));
+        return 0;
+      })();
+    }
+
+    if (parsed.command === "lima") {
+      // GH-228: in-VM daemon lifecycle over the registry (keeper + beads).
+      return (async () => {
+        if (parsed.verb === "daemons") {
+          const rows = LIMA_DAEMONS.map((d) => ({
+            daemon: d.key,
+            name: d.name,
+            socket: d.socket,
+            signing: d.signing,
+          }));
+          if (parsed.format === "json") {
+            output.log(JSON.stringify(rows, null, 2));
+          } else {
+            for (const r of rows) {
+              output.log(`${r.daemon}\t${r.name}\t${r.socket}${r.signing ? "\t(signing)" : ""}`);
+            }
+          }
+          return 0;
+        }
+        if (parsed.verb === "status") {
+          const statuses = limaDaemonStatuses(parsed.vm!, selectLimaDaemons(parsed.daemon));
+          if (parsed.format === "json") {
+            output.log(JSON.stringify(statuses, null, 2));
+          } else {
+            for (const s of statuses) output.log(`${s.key}\t${s.up ? "up" : "down"}\t${s.socket}`);
+          }
+          return 0;
+        }
+        const daemons = selectLimaDaemons(parsed.daemon);
+        if (parsed.verb === "up") {
+          for (const d of daemons) {
+            const handle = await d.provision({
+              vm: parsed.vm!,
+              binaryPath: parsed.binary!,
+              cwd: parsed.cwd!,
+              ...(parsed.socket !== undefined ? { socket: parsed.socket } : {}),
+              ...(parsed.provenanceKeyFile !== undefined
+                ? { provenanceKeyFile: parsed.provenanceKeyFile }
+                : {}),
+            });
+            output.error(`lima up on ${parsed.vm}: ${d.name} listening at ${handle.socket}`);
+          }
+          return 0;
+        }
+        // down
+        for (const d of daemons) {
+          await d.stop({ vm: parsed.vm!, ...(parsed.socket !== undefined ? { socket: parsed.socket } : {}) });
+          output.error(`lima down on ${parsed.vm}: ${d.name} stopped`);
+        }
+        return 0;
+      })();
     }
 
     if (parsed.command === "tools-bd") {
