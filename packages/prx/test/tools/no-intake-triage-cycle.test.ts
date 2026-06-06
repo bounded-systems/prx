@@ -9,36 +9,47 @@
 // to a leaf module (`src/intake/types.ts`) broke the back-edge.
 //
 // This test asserts the specific edge stays broken. It does NOT assert
-// codebase-wide zero cycles — there are unrelated pre-existing cycles
-// outside this PR's scope. A follow-up issue can flip madge into a
-// global gate once those are addressed.
+// codebase-wide zero cycles — there are unrelated pre-existing cycles (tracked
+// in docs/code-health.md; the `no-circular` rule is `warn` until ratcheted).
+//
+// Uses dependency-cruiser (the project's cycle tool — madge was retired). The
+// cruise is subprocess-bound and grows with src/, so give it real headroom.
 
 import { spawnSync } from "node:child_process";
 import { describe, expect, test } from "bun:test";
 
-// `madge --circular` parses every .ts under src/ — a few seconds locally,
-// ~5s+ on CI, and it creeps up as src/ grows. That brushed bun's default 5s
-// per-test limit and started flaking on green PRs (the run TIMED OUT; it never
-// found a cycle). Give the (legitimately slow, subprocess-bound) check real
-// headroom + a matching spawn timeout so a genuinely hung madge still fails
-// fast rather than hanging the suite.
-const MADGE_TIMEOUT_MS = 60_000;
+const TIMEOUT_MS = 90_000;
 
 describe("intake↔triage cycle (GH-1687)", () => {
-  test("madge reports no cycle that touches src/intake/intake.ts", () => {
+  test("no circular import involves src/intake/intake.ts", () => {
     const result = spawnSync(
       "bunx",
-      ["madge", "--circular", "--extensions", "ts", "src/"],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: MADGE_TIMEOUT_MS - 5_000 },
+      [
+        "depcruise",
+        "packages/prx/src",
+        "--config",
+        ".dependency-cruiser.cjs",
+        "--output-type",
+        "json",
+      ],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: TIMEOUT_MS - 5_000, maxBuffer: 64 * 1024 * 1024 },
     );
-    // madge exits non-zero when cycles are found; we parse stdout either way.
-    const out = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
-    const offending = out
-      .split(/\r?\n/)
-      .filter((line) => /intake\/intake\.ts/i.test(line));
+    const parsed = JSON.parse(result.stdout || "{}");
+    const violations: Array<{ rule?: { name?: string }; from?: string; to?: string; cycle?: Array<string | { name?: string }> }> =
+      parsed.summary?.violations ?? [];
+
+    const touchesIntake = (s?: string) => !!s && /intake\/intake\.ts/i.test(s);
+    const offending = violations
+      .filter((v) => v.rule?.name === "no-circular")
+      .filter((v) => {
+        if (touchesIntake(v.from) || touchesIntake(v.to)) return true;
+        return (v.cycle ?? []).some((c) => touchesIntake(typeof c === "string" ? c : c.name));
+      })
+      .map((v) => `${v.from} → ${v.to}`);
+
     expect(
       offending,
       `expected no cycle to involve src/intake/intake.ts; saw:\n${offending.join("\n")}`,
     ).toEqual([]);
-  }, MADGE_TIMEOUT_MS);
+  }, TIMEOUT_MS);
 });

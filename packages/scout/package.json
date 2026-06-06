@@ -1,8 +1,10 @@
 {
-  "name": "@bounded-systems/scout", "description": "Content-addressed surface reads (file/grep/files) with anchored-chain provenance",
+  "name": "@bounded-systems/scout",
+  "description": "Content-addressed surface reads (file/grep/files) with anchored-chain provenance",
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./src/index.ts",

@@ -1,8 +1,10 @@
 {
-  "name": "@bounded-systems/anchored-chain-sqlite", "description": "SQLite/Drizzle-backed implementation of the anchored-chain stores",
+  "name": "@bounded-systems/anchored-chain-sqlite",
+  "description": "SQLite/Drizzle-backed implementation of the anchored-chain stores",
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./src/index.ts",

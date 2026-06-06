@@ -30,7 +30,7 @@ VerbSpec (Zod — canonical, runtime + static, no build step)
 
 | candidate | verdict |
 | --- | --- |
-| **Zod → JSON Schema** | ✅ Chosen. Already pervasive in prx; runtime validation **and** static types; `z.toJSONSchema` is native in zod 4; no codegen/FFI. Matches core.md ("structured outputs as enforceable specs… use Zod"). |
+| **Zod → JSON Schema** | **Chosen.** Already pervasive in prx; runtime validation **and** static types; `z.toJSONSchema` is native in zod 4; no codegen/FFI. Matches core.md ("structured outputs as enforceable specs… use Zod"). |
 | OpenAPI as canonical | Great *projection*, awkward to *author* CLI verbs in (HTTP-resource-shaped). |
 | MCP tool as canonical | Its inputSchema *is* JSON Schema — so it's a projection target, not the authoring format (raw JSON Schema loses TS types + ergonomics). |
 | gRPC / protobuf | Adds a codegen + FFI boundary to a single-language TS monorepo; proto's type system is weaker than JSON Schema (oneofs/optionals/constraints lossy); RPC-shaped, not verb-shaped. |

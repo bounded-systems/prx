@@ -1,8 +1,10 @@
 {
-  "name": "@bounded-systems/prx-config", "description": "TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools",
+  "name": "@bounded-systems/prx-config",
+  "description": "TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools",
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./src/index.ts",

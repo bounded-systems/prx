@@ -70,7 +70,7 @@ and **capabilities** (which actor may dispatch which verb) are first-class.
 | **Smithy** | **yes — `@readonly`/`@idempotent` built-in traits; custom `@writes`; resource lifecycle** | SDK/docs/CLI | philosophically closest to the transition-contract model |
 | TypeSpec | via decorators; compiles to OpenAPI/JSON Schema/Protobuf | best authoring DX, multi-target | strong if we want author-once-emit-many |
 | CUE | constraints-as-types (great for invariants) | weak (custom tooling) | the policy/lint LAYER, not the codegen root |
-| **Zod** (current registry) ✅ | add trait fields to `CommandSpec` | custom emitters | already here (218 entries) + already generates dispatch — **CHOSEN** |
+| **Zod** (current registry) | add trait fields to `CommandSpec` | custom emitters | already here (218 entries) + already generates dispatch — **CHOSEN** |
 
 > **TypeSpec→Zod assessed & rejected (2026-05-29):** emitters exist but are
 > immature (`bterlson/typespec-zod` pre-release; `@typespec-tools/emitter-zod`

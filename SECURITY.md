@@ -9,8 +9,8 @@ pre-1.0; expect the supported range to move forward as releases ship.
 
 | Version | Supported |
 | ------- | --------- |
-| 0.1.x | ✅ |
-| < 0.1 | ❌ |
+| 0.1.x | Yes |
+| < 0.1 | No |
 
 ## Reporting a vulnerability
 
