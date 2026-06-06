@@ -9,3 +9,7 @@ result-*
 .direnv/
 *.log
 .DS_Store
+
+# Re-include the project CLAUDE.md (some contributors globally ignore it). It is
+# a tracked project file that @imports the generated .claude/context/project.md.
+!CLAUDE.md

@@ -105,11 +105,15 @@ function docTitle(path: string): string {
  * `test/markdown-coverage.test.ts` enforces that every tracked `.md` is either
  * returned here or explicitly listed there. Sorted for a stable graph.
  */
+/** Root-level Markdown that is agent/tool *config*, not project documentation. */
+const ROOT_CONFIG_MD = new Set(["CLAUDE.md", "AGENTS.md"]);
+
 export function collectDocRelPaths(): string[] {
   const paths = new Set<string>(walkMarkdown(resolve(REPO_ROOT, "docs")));
-  // Top-level docs only (non-recursive) — skips dotted tooling dirs entirely.
+  // Top-level docs only (non-recursive) — skips dotted tooling dirs entirely,
+  // and agent-instruction files (CLAUDE.md/AGENTS.md), which are config.
   for (const entry of readdirSync(REPO_ROOT, { withFileTypes: true })) {
-    if (entry.isFile() && entry.name.endsWith(".md")) {
+    if (entry.isFile() && entry.name.endsWith(".md") && !ROOT_CONFIG_MD.has(entry.name)) {
       paths.add(resolve(REPO_ROOT, entry.name));
     }
   }
