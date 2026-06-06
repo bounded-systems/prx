@@ -5,6 +5,11 @@ on:
   push:
     branches:
       - main
+  # Lets docs-regen.yml dispatch ci against its bot branch. A branch pushed
+  # with GITHUB_TOKEN never fires push/pull_request runs (GitHub's anti-
+  # recursion rule), but workflow_dispatch is the documented exception — so
+  # the docs-regen PR can still get its required `ci` check. See docs-regen.yml.
+  workflow_dispatch:
 
 # Cancel superseded runs on the same PR (a new push kills the stale run — the
 # largest Actions-minute leak on a private repo). Scoped to pull_request only:

@@ -34,6 +34,7 @@ jobs:
     permissions:
       contents: write # push the docs-regen branch
       pull-requests: write # open/update the docs PR
+      actions: write # dispatch ci against the bot branch (see below)
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -87,3 +88,13 @@ jobs:
               --title "docs: regenerate generated docs from main" \
               --body "Automated by \`.github/workflows/docs-regen.yml\`: runs \`bun run docs:render\` on main and opens this PR when a generated doc (e.g. \`docs/cli.md\`, projected from the command registry) drifts. Merge to refresh."
           fi
+
+          # This branch was just pushed with GITHUB_TOKEN, so GitHub will NOT
+          # fire ci.yml's push/pull_request runs (anti-recursion). The main
+          # ruleset requires the `ci` check, so without this the PR would sit
+          # BLOCKED forever and never auto-merge. workflow_dispatch is the
+          # documented exception that DOES run from GITHUB_TOKEN — dispatch ci
+          # against the branch head to produce the required check, then arm
+          # auto-merge so the refreshed docs land hands-free once it's green.
+          gh workflow run ci.yml --ref "$branch"
+          gh pr merge "$branch" --auto --squash
