@@ -126,6 +126,9 @@ Also landed:
       A coverage ratchet toward full `VerbSpec`; today ~1% input / 0% event.
 
 Next:
-- [ ] Scripts → `prx` verbs — template on `prx health`, then the `gen-*` codegen.
+- [~] Scripts → `prx` verbs — **template landed**: `prx health` is now a spec-driven
+      `VerbSpec` (`src/health/verb.ts`) sharing `computeHealthReport()` with the
+      `bun run health` script; dispatched via `verb-registry.ts`. Remaining: migrate
+      the `gen-*` codegen + `export-*` schema scripts onto the same pattern.
 - [ ] Decompose `pr-state/cli.ts` (ts-morph codemods, verb-by-verb) → shrink `MONOLITHS`.
 - [ ] Per-package nix derivations (spike) + flip `no-circular` to `error` once ratcheted to 0.
