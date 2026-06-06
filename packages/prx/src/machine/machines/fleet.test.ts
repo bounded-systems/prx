@@ -22,7 +22,7 @@ describe("fleet (Layer-2: supervisor, agents view, batch in-toto)", () => {
     for (const unitId of units) {
       expect(board[unitId]!.status).toBe("halted");
       expect(board[unitId]!.state).toBe("merged");
-      expect(board[unitId]!.chainLength).toBe(6); // 4 legs + ci + merge
+      expect(board[unitId]!.chainLength).toBe(7); // intake + 4 legs + ci + merge (GH-232)
     }
 
     // The fleet signed a batch statement naming every pilot summary.

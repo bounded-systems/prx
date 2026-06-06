@@ -83,9 +83,22 @@ export type MergeRunner = (input: { workUnitId: string }) => Promise<{
   attestation: LegAttestation;
 }>;
 
+/**
+ * GH-232: the intake leg — resolve the unit's source authority and pin it as the
+ * chain ROOT `<unit>:source@pinned`, signed. Deterministic (no LLM), so it is a
+ * plain seam like the CI gate / merge, not a `runLeg` subagent. Runs once at the
+ * head of the pipeline so the planner CONSUMES a real source instead of
+ * fabricating (the GH-230 failure mode); on failure the pilot blocks — no plan
+ * without a source.
+ */
+export type IntakeRunner = (input: { workUnitId: string }) => Promise<{
+  attestation: LegAttestation;
+}>;
+
 /** The injected dependencies. Only `runLeg` is required; the tail has defaults. */
 export type PilotDeps = {
   runLeg: LegRunner;
+  runIntake?: IntakeRunner;
   runCiGate?: CiGate;
   runMerge?: MergeRunner;
   /** Signs the pilot summary statement with the pilot's authority. */
@@ -120,15 +133,19 @@ export type PilotOutput = {
  * (`merged`/`abandoned`/`blocked`) are unranked — no autonomous successor.
  */
 export const pilotPhaseRank = {
-  planning: 0,
-  executing: 1,
-  testing: 2,
-  reviewing: 3,
-  awaiting_ci: 4,
-  ready_to_merge: 5,
-  sealing: 6,
+  // GH-232: `intaking` is the new head (rank 0). It has no retreat edge — entered
+  // once at start, never re-entered — so the well-founded measure is preserved
+  // (forward intaking→planning strictly decreases distance; no new cycle).
+  intaking: 0,
+  planning: 1,
+  executing: 2,
+  testing: 3,
+  reviewing: 4,
+  awaiting_ci: 5,
+  ready_to_merge: 6,
+  sealing: 7,
 } as const;
-const MERGED_RANK = 7;
+const MERGED_RANK = 8;
 
 /**
  * Well-founded termination measure: lexicographic `[retreatBudget,
@@ -179,6 +196,17 @@ const defaultMerge: MergeRunner = ({ workUnitId }) =>
     },
   });
 
+const defaultIntake: IntakeRunner = ({ workUnitId }) =>
+  Promise.resolve({
+    attestation: {
+      stage: "intake",
+      subject: `${workUnitId}:source@pinned`,
+      predicate: "source.pinned",
+      signedBy: "intake@stub",
+      sig: "stub-intake-sig",
+    },
+  });
+
 /**
  * Build the Layer-1 pilot machine. The deps are the seams; swap them to change
  * HOW legs / CI / merge run without touching the pipeline shape.
@@ -187,6 +215,7 @@ export function createPilotMachine(deps: PilotDeps | LegRunner) {
   // Accept a bare LegRunner for the common case (tail uses defaults).
   const d: PilotDeps = typeof deps === "function" ? { runLeg: deps } : deps;
   const runLeg = d.runLeg;
+  const intakeRunner = d.runIntake ?? defaultIntake;
   const ciGate = d.runCiGate ?? defaultCiGate;
   const mergeRunner = d.runMerge ?? defaultMerge;
   const signSummary = d.signSummary ?? stubStatementSigner("pilot");
@@ -199,6 +228,9 @@ export function createPilotMachine(deps: PilotDeps | LegRunner) {
     },
     actors: {
       runLeg: fromPromise<LegResult, LegInput>(({ input }) => runLeg(input)),
+      runIntake: fromPromise<{ attestation: LegAttestation }, { workUnitId: string }>(
+        ({ input }) => intakeRunner(input),
+      ),
       runCiGate: fromPromise<{ passed: boolean; attestation: LegAttestation }, { workUnitId: string }>(
         ({ input }) => ciGate(input),
       ),
@@ -245,7 +277,7 @@ export function createPilotMachine(deps: PilotDeps | LegRunner) {
     },
   }).createMachine({
     id: "pilot",
-    initial: "planning",
+    initial: "intaking",
     context: ({ input }) => ({
       workUnitId: input.workUnitId,
       chain: [],
@@ -258,6 +290,32 @@ export function createPilotMachine(deps: PilotDeps | LegRunner) {
       lastError: context.lastError ?? null,
     }),
     states: {
+      // GH-232: pin the chain ROOT before any planning. Deterministic, runs once.
+      // Success pushes `source@pinned` and advances to planning; failure BLOCKS
+      // (no source ⇒ no plan — the planner must never fabricate). No retreat edge
+      // here, so the well-founded termination measure is preserved.
+      intaking: {
+        invoke: {
+          src: "runIntake" as const,
+          input: ({ context }: { context: PilotContext }) => ({ workUnitId: context.workUnitId }),
+          onDone: {
+            target: "planning",
+            actions: {
+              type: "pushLink" as const,
+              params: ({ event }: { event: { output: { attestation: LegAttestation } } }) => ({
+                attestation: event.output.attestation,
+              }),
+            },
+          },
+          onError: {
+            target: "blocked",
+            actions: {
+              type: "recordError" as const,
+              params: ({ event }: { event: { error: unknown } }) => ({ error: event.error }),
+            },
+          },
+        },
+      },
       planning: legState("planner", "executing", "planning"),
       executing: legState("executor", "testing", "planning"),
       testing: legState("tester", "reviewing", "executing"),
