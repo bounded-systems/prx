@@ -556,22 +556,26 @@ export async function openSession(
   // signer; interactive sessions embed + mint when a key is present, and don't
   // hard-fail on a missing pin (the human can pin mid-session).
   // -------------------------------------------------------------------------
-  let resolvedSourceBody: string | undefined;
+  let embeddedBody: string | undefined;
   if (input.workUnitId) {
     const legInput = await (deps.resolveLegInput ?? resolveLegInput)(input.actor, input.workUnitId);
     if (legInput?.missing) {
       if (input.interaction === "headless") {
+        const hint =
+          input.actor === "plan"
+            ? `Pin it first: \`prx intake source ${input.workUnitId}\` (GH-288).`
+            : `Its producer must run first (e.g. the planner emits \`plan@draft\`). (GH-325)`;
         return failAt(
           machine,
           emit,
           "dispatch",
-          `${input.actor}: no signed ${legInput.ref} — the agent receives its input artifact ` +
-            `as input and must not hydrate. Pin it first: \`prx intake source ${input.workUnitId}\` (GH-288).`,
+          `${input.actor}: missing input ${legInput.ref} — the agent receives its input ` +
+            `as input and must not hydrate. ${hint}`,
           { workUnitId: input.workUnitId, workspace_id: reserveResult.workspace_id, branch },
         );
       }
     } else if (legInput) {
-      resolvedSourceBody = legInput.body;
+      embeddedBody = legInput.body;
       // GH-293: mint the signed spawn attestation over the consumed input.
       const signer = (deps.resolveSigner ?? provenanceSigner)();
       if (!signer) {
@@ -626,8 +630,11 @@ export async function openSession(
         workUnitId: input.workUnitId,
         hasPriorSession: input.hasPriorSession ?? false,
         planPath: input.planPath,
-        planBody: input.planBody,
-        sourceBody: resolvedSourceBody,
+        // GH-288/GH-325: route the consumed input body to the field the actor's
+        // profile reads — `sourceBody` for the planner, `planBody` for the
+        // executor/tester/author. A caller-supplied planBody still wins.
+        planBody: input.planBody ?? (input.actor === "plan" ? undefined : embeddedBody),
+        sourceBody: input.actor === "plan" ? embeddedBody : undefined,
         interaction: input.interaction,
         message: input.message,
       }),

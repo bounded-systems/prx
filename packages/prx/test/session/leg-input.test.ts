@@ -14,6 +14,7 @@ import { pinWorkUnitSource, workUnitSourceEdge } from "../../src/pipeline/source
 import { provenanceSigner, realStatementSigner } from "../../src/machine/machines/pilot-signing.ts";
 import type { StatementSigner } from "../../src/machine/machines/provenance.ts";
 import { legInputEdge, resolveLegInput } from "../../src/session/leg-input.ts";
+import { runPlanSave } from "../../src/plan-store/verbs.ts";
 
 const issue = (overrides: Partial<ResolvedWorkUnit> = {}): ResolvedWorkUnit => ({
   id: "GH-1",
@@ -78,6 +79,28 @@ describe("resolveLegInput (GH-288)", () => {
       source: "github",
     });
     const got = await resolveLegInput("plan", "GH-unsigned");
+    expect(got!.missing).toBe(true);
+  });
+
+  test("implement: resolves the plan body from plan@draft (executor input — GH-325)", async () => {
+    await runPlanSave({
+      unit: "GH-impl",
+      slot: "draft",
+      content: "## Scope\n\nWire the executor input.\n\n## Approach\n\nConsume plan@draft.",
+    });
+    const got = await resolveLegInput("implement", "GH-impl");
+    expect(got).not.toBeNull();
+    expect(got!.missing).toBe(false);
+    if (!got!.missing) {
+      expect(got!.ref).toBe("GH-impl:plan@draft");
+      expect(got!.body).toContain("Wire the executor input");
+      expect(got!.sha.length).toBeGreaterThan(0);
+    }
+  });
+
+  test("implement: missing when no plan@draft was saved (→ executor fails closed)", async () => {
+    const got = await resolveLegInput("implement", "GH-noplan");
+    expect(got).not.toBeNull();
     expect(got!.missing).toBe(true);
   });
 
