@@ -166,11 +166,12 @@ describe("handleBeadsRequest — writes (single-writer, policy passthrough)", ()
     expect(calls).toHaveLength(0); // short-circuited before dispatch
   });
 
-  test("close dispatches `bd close <id> --json [--reason]`", async () => {
+  test("close dispatches `bd update <id> --status closed [--notes]` (bd close is blocked)", async () => {
     const { execBd, calls } = fakeBd(okResult("{}"));
     await handleBeadsRequest({ kind: "close", id: "prx-abb", reason: "done" }, { execBd });
-    expect(calls[0]!.subcommand).toBe("close");
-    expect(calls[0]!.args).toEqual(["prx-abb", "--json", "--reason", "done"]);
+    // `bd close` is policy-blocked → the prx-canonical close is update --status closed.
+    expect(calls[0]!.subcommand).toBe("update");
+    expect(calls[0]!.args).toEqual(["prx-abb", "--json", "--status", "closed", "--notes", "done"]);
   });
 
   test("a write rejected by the bd policy layer surfaces as a bd-write error", async () => {
