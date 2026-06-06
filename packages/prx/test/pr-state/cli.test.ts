@@ -7952,7 +7952,10 @@ describe("pr_state cli", () => {
   });
 
   test("init --untracked writes .prx/ to info/exclude, skips internal .gitignores, and persists track=false", async () => {
-    const root = mkdtempSync(join(tmpdir(), "pr-state-init-untracked-"));
+    // realpathSync: on macOS `/var` symlinks to `/private/var`; mkdtempSync
+    // returns the symlinked path but `process.chdir` + the resolved config path
+    // report the realpath, so compare against the realpath to avoid a flake.
+    const root = realpathSync(mkdtempSync(join(tmpdir(), "pr-state-init-untracked-")));
     execFileSync("git", ["-C", root, "init", "-q"]);
     const previousCwd = process.cwd();
     process.chdir(root);
