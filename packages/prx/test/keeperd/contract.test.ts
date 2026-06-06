@@ -6,20 +6,17 @@ import {
 } from "../../src/keeperd/contract.ts";
 
 const VALID_REQUEST = {
-  kind: "commit-and-push" as const,
+  kind: "import-and-push" as const,
   bundleBase64: "ZGVhZGJlZWY=",
-  treeSha: "a".repeat(40),
-  parentSha: "b".repeat(40),
-  message: "GH-456: materialize submit artifact",
-  date: "2026-06-05T00:00:00Z",
+  commitSha: "a".repeat(40),
   branch: "GH-456",
   remote: "origin",
 };
 
 describe("keeperd wire contract — request", () => {
-  test("accepts a well-formed commit-and-push request", () => {
+  test("accepts a well-formed import-and-push request", () => {
     const parsed = KeeperRemoteRequestSchema.parse(VALID_REQUEST);
-    expect(parsed.kind).toBe("commit-and-push");
+    expect(parsed.kind).toBe("import-and-push");
     expect(parsed.pushArgs).toBeUndefined();
     expect(parsed.ledgerRef).toBeUndefined();
   });
@@ -34,11 +31,15 @@ describe("keeperd wire contract — request", () => {
     expect(parsed.ledgerRef).toBe("refs/prx/ledger");
   });
 
-  test("rejects a non-40-hex treeSha", () => {
-    expect(KeeperRemoteRequestSchema.safeParse({ ...VALID_REQUEST, treeSha: "xyz" }).success).toBe(false);
+  test("rejects a non-40-hex commitSha", () => {
+    expect(KeeperRemoteRequestSchema.safeParse({ ...VALID_REQUEST, commitSha: "xyz" }).success).toBe(false);
   });
 
-  test("rejects an empty bundle — no commit over objects the daemon lacks", () => {
+  test("rejects the retired commit-and-push kind", () => {
+    expect(KeeperRemoteRequestSchema.safeParse({ ...VALID_REQUEST, kind: "commit-and-push" }).success).toBe(false);
+  });
+
+  test("rejects an empty bundle — no push over objects the daemon lacks", () => {
     expect(KeeperRemoteRequestSchema.safeParse({ ...VALID_REQUEST, bundleBase64: "" }).success).toBe(false);
   });
 

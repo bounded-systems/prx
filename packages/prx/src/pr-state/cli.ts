@@ -24339,9 +24339,10 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     if (parsed.command === "keeper") {
       // GH-201: `keeper serve` runs keeperd — the persistent git-write/signing
       // daemon — on a unix socket. The host's IsolatedKeeperClient frames
-      // requests to it; the daemon dispatches each to runKeeperCommitTree +
-      // runKeeperPush under role=keeper. The in-VM signer (attest) is wired in
-      // slice 4 (gated); until then a request's ledgerRef yields a bare push.
+      // requests to it; the daemon imports the host-built commit-range bundle
+      // then pushes under role=keeper (model A — the host already committed). The
+      // in-VM signer (attest) is wired in slice 4 (gated); until then a request's
+      // ledgerRef yields a bare push.
       if (parsed.verb === "serve") {
         return (async () => {
           const deps: KeeperDaemonDeps = {};

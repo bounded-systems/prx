@@ -70,7 +70,7 @@ export function createCommitRangeBundle(
  * Idempotent: re-importing the same bundle is a no-op fetch + a same-value reset.
  */
 export function importBundleIntoRepo(
-  input: { cwd: string; bundleBase64: string; branch: string; commitSha: string },
+  input: { cwd: string | undefined; bundleBase64: string; branch: string; commitSha: string },
   deps: BundleDeps = {},
 ): void {
   if (!SHA1_RE.test(input.commitSha)) {

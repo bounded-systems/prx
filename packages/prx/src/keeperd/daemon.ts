@@ -1,21 +1,18 @@
 /**
- * keeperd daemon (GH-201, slice 2).
+ * keeperd daemon (GH-201, slices 2 + 3b-ii).
  *
- * The in-VM side of the keeper isolation: a request handler that runs a
- * {@link KeeperRemoteRequest} through the existing `role=keeper` git-write
- * primitives ({@link ../pr-state/keeper.runKeeperCommitTree} +
- * {@link ../pr-state/keeper.runKeeperPush}), plus a tiny length-prefixed-JSON
- * framing + unix-socket server so the host's
+ * The in-VM side of the keeper isolation: a request handler that imports the
+ * host-built commit-range bundle ({@link ./bundle.importBundleIntoRepo}) and
+ * pushes it under `role=keeper` ({@link ../pr-state/keeper.runKeeperPush}), plus
+ * a tiny length-prefixed-JSON framing + unix-socket server so the host's
  * {@link ./client.IsolatedKeeperClient} can reach it.
  *
- * Skeleton scope (this slice): the daemon owns the dispatch + wire framing and
- * is dependency-injected with the git/attest seams, so it is exercised end-to-end
- * over a real unix socket with a fake git — no VM, no keys, no network. Two seams
- * are deliberately deferred:
- *   - `materializeBundle` (unpack the request's git bundle into the object store)
- *     lands in slice 3; absent ⇒ the objects are assumed already present (the
- *     offline test path).
- *   - the in-VM signing key behind `attest` lands in slice 4 (gated).
+ * Object-transfer model A (slice 3b-ii): the host already did the local, keyless
+ * commit, so the daemon does NOT `commit-tree` — it imports the shipped commits
+ * and performs only the security-sensitive push. The dispatch is
+ * dependency-injected with the git/import/attest seams, so it is exercised
+ * end-to-end over a real unix socket with a fake git — no VM, no keys, no
+ * network. The in-VM signing key behind `attest` lands in slice 4 (gated).
  *
  * A handler NEVER throws to the socket: every failure becomes a typed `error`
  * response, so one bad request can't take the daemon down.
@@ -28,11 +25,11 @@ import { execGit } from "@bounded-systems/git";
 
 import {
   KeeperGitError,
-  runKeeperCommitTree,
   runKeeperPush,
   type KeeperPushDeps,
 } from "../pr-state/keeper.ts";
 import { type AttestDeps } from "../provenance/attest.ts";
+import { importBundleIntoRepo } from "./bundle.ts";
 import {
   KeeperRemoteRequestSchema,
   type KeeperRemoteRequest,
@@ -52,38 +49,41 @@ export interface KeeperDaemonDeps {
   /** The keeper worktree the git-writes run in (defaults to the daemon's cwd). */
   cwd?: string | undefined;
   /**
-   * Slice 3: unpack the request's `bundleBase64` into the repo object store so
-   * `treeSha`/`parentSha` resolve. Absent ⇒ skipped (objects assumed present).
+   * Import the request's commit-range bundle and make `commitSha` the tip of
+   * `branch` (defaults to {@link ./bundle.importBundleIntoRepo} bound to `git`).
+   * Tests stub it to stay offline / assert dispatch order.
    */
-  materializeBundle?: ((bundleBase64: string, cwd: string | undefined) => Promise<void>) | undefined;
+  importBundle?:
+    | ((input: {
+        cwd: string | undefined;
+        bundleBase64: string;
+        branch: string;
+        commitSha: string;
+      }) => void)
+    | undefined;
 }
 
 /**
- * Run one keeper request to a typed verdict. Materialize the request's objects
- * (slice 3 seam), commit the tree under `role=keeper`, push the branch, and
- * report the pushed identity — or a typed `error` for any git-write failure.
- * Pure w.r.t. the socket: returns data, never throws.
+ * Run one keeper request to a typed verdict (model A): import the host-built
+ * commit-range bundle under `role=keeper`, push the branch, and report the
+ * pushed identity — or a typed `error` for any git-write failure. The commit was
+ * already made on the host, so the daemon never `commit-tree`s; it only imports
+ * and pushes. Pure w.r.t. the socket: returns data, never throws.
  */
 export async function handleKeeperRequest(
   request: KeeperRemoteRequest,
   deps: KeeperDaemonDeps = {},
 ): Promise<KeeperRemoteResponse> {
   const git = deps.git ?? execGit;
+  const importBundle =
+    deps.importBundle ?? ((input) => importBundleIntoRepo(input, { git }));
   try {
-    if (deps.materializeBundle) {
-      await deps.materializeBundle(request.bundleBase64, deps.cwd);
-    }
-    const commitSha = await runKeeperCommitTree(
-      {
-        treeSha: request.treeSha,
-        parentSha: request.parentSha,
-        message: request.message,
-        date: request.date,
-        branch: request.branch,
-      },
-      deps.cwd,
-      { git },
-    );
+    importBundle({
+      cwd: deps.cwd,
+      bundleBase64: request.bundleBase64,
+      branch: request.branch,
+      commitSha: request.commitSha,
+    });
     const pushArgs = [request.remote, request.branch, ...(request.pushArgs ?? [])];
     const pushDeps: KeeperPushDeps =
       request.ledgerRef !== undefined && deps.attest !== undefined
@@ -98,7 +98,7 @@ export async function handleKeeperRequest(
         exitCode: pushResult.exitCode,
       };
     }
-    return { status: "ok", commitSha, pushedRef: `refs/heads/${request.branch}` };
+    return { status: "ok", commitSha: request.commitSha, pushedRef: `refs/heads/${request.branch}` };
   } catch (err) {
     if (err instanceof KeeperGitError) {
       return { status: "error", code: "git-write", message: err.message, exitCode: err.exitCode };

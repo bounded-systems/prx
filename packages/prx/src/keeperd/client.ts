@@ -47,12 +47,13 @@ export class IsolatedKeeperClient {
   constructor(private readonly transport: KeeperTransport) {}
 
   /**
-   * Ask the in-VM keeper to materialize the commit and push its branch. Returns
-   * the daemon's verdict (`ok` with the pushed identity, or a typed `error`) —
-   * a non-`ok` daemon result is data, NOT an exception; only a contract
-   * violation (unparseable request/response) throws.
+   * Ask the in-VM keeper to import the host-built commit-range bundle and push
+   * its branch (model A — the host already committed). Returns the daemon's
+   * verdict (`ok` with the pushed identity, or a typed `error`) — a non-`ok`
+   * daemon result is data, NOT an exception; only a contract violation
+   * (unparseable request/response) throws.
    */
-  async commitAndPush(request: KeeperRemoteRequest): Promise<KeeperRemoteResponse> {
+  async importAndPush(request: KeeperRemoteRequest): Promise<KeeperRemoteResponse> {
     const validRequest = parseOrThrow(
       KeeperRemoteRequestSchema,
       request,

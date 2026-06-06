@@ -10,24 +10,22 @@ import type { KeeperRemoteRequest } from "../../src/keeperd/contract.ts";
 import { runKeeperServe, type KeeperDaemonDeps } from "../../src/keeperd/daemon.ts";
 import { unixSocketTransport } from "../../src/keeperd/transport.ts";
 
+const COMMIT = "c".repeat(40);
+
 const REQUEST: KeeperRemoteRequest = {
-  kind: "commit-and-push",
+  kind: "import-and-push",
   bundleBase64: "ZGVhZGJlZWY=",
-  treeSha: "a".repeat(40),
-  parentSha: "b".repeat(40),
-  message: "GH-456: materialize submit artifact",
-  date: "2026-06-05T00:00:00Z",
+  commitSha: COMMIT,
   branch: "GH-456",
   remote: "origin",
 };
 
-const COMMIT = "c".repeat(40);
 const okResult = (stdout = ""): GitExecResult => ({ exitCode: 0, stdout, stderr: "", policy: null });
 
 function fakeGit(overrides: Partial<Record<string, GitExecResult>> = {}): typeof execGit {
   return ((opts: GitExecOptions): GitExecResult => {
     if (opts.subcommand in overrides) return overrides[opts.subcommand]!;
-    if (opts.subcommand === "commit-tree") return okResult(COMMIT);
+    if (opts.subcommand === "rev-parse") return okResult(COMMIT); // imported tip
     return okResult();
   }) as typeof execGit;
 }
@@ -47,11 +45,11 @@ describe("keeperd transport — full stack (client → transport → daemon over
     return socketPath;
   }
 
-  test("round-trips a commit-and-push to an ok verdict end-to-end", async () => {
+  test("round-trips an import-and-push to an ok verdict end-to-end", async () => {
     const socketPath = await serve({ git: fakeGit() });
     const client = new IsolatedKeeperClient(unixSocketTransport(socketPath));
 
-    const res = await client.commitAndPush(REQUEST);
+    const res = await client.importAndPush(REQUEST);
     expect(res.status).toBe("ok");
     if (res.status === "ok") {
       expect(res.commitSha).toBe(COMMIT);
@@ -63,7 +61,7 @@ describe("keeperd transport — full stack (client → transport → daemon over
     const socketPath = await serve({
       git: fakeGit({ push: { exitCode: 128, stdout: "", stderr: "rejected", policy: null } }),
     });
-    const res = await new IsolatedKeeperClient(unixSocketTransport(socketPath)).commitAndPush(REQUEST);
+    const res = await new IsolatedKeeperClient(unixSocketTransport(socketPath)).importAndPush(REQUEST);
     expect(res.status).toBe("error");
     if (res.status === "error") {
       expect(res.code).toBe("git-write");
@@ -74,8 +72,8 @@ describe("keeperd transport — full stack (client → transport → daemon over
   test("two sequential requests over fresh connections both succeed", async () => {
     const socketPath = await serve({ git: fakeGit() });
     const client = new IsolatedKeeperClient(unixSocketTransport(socketPath));
-    const a = await client.commitAndPush(REQUEST);
-    const b = await client.commitAndPush({ ...REQUEST, branch: "GH-457" });
+    const a = await client.importAndPush(REQUEST);
+    const b = await client.importAndPush({ ...REQUEST, branch: "GH-457" });
     expect(a.status).toBe("ok");
     expect(b.status).toBe("ok");
     if (b.status === "ok") expect(b.pushedRef).toBe("refs/heads/GH-457");
@@ -93,7 +91,7 @@ describe("keeperd transport — full stack (client → transport → daemon over
       s.listen(socketPath, () => resolve(s));
     });
     await expect(
-      new IsolatedKeeperClient(unixSocketTransport(socketPath)).commitAndPush(REQUEST),
+      new IsolatedKeeperClient(unixSocketTransport(socketPath)).importAndPush(REQUEST),
     ).rejects.toThrow(/closed the connection before sending a response/);
   });
 });

@@ -14,21 +14,23 @@ import {
 } from "../../src/keeperd/daemon.ts";
 import type { KeeperRemoteRequest } from "../../src/keeperd/contract.ts";
 
+const COMMIT = "c".repeat(40);
+
 const REQUEST: KeeperRemoteRequest = {
-  kind: "commit-and-push",
+  kind: "import-and-push",
   bundleBase64: "ZGVhZGJlZWY=",
-  treeSha: "a".repeat(40),
-  parentSha: "b".repeat(40),
-  message: "GH-456: materialize submit artifact",
-  date: "2026-06-05T00:00:00Z",
+  commitSha: COMMIT,
   branch: "GH-456",
   remote: "origin",
 };
 
-const COMMIT = "c".repeat(40);
 const okResult = (stdout = ""): GitExecResult => ({ exitCode: 0, stdout, stderr: "", policy: null });
 
-/** A fake `execGit` that records calls and answers the keeper commit/push flow. */
+/**
+ * A fake `execGit` that records calls and answers the model-A import+push flow:
+ * the daemon's default `importBundleIntoRepo` runs `fetch` → `switch` →
+ * `rev-parse HEAD` (which must echo the imported tip) before `runKeeperPush`.
+ */
 function fakeGit(overrides: Partial<Record<string, GitExecResult>> = {}): {
   git: typeof execGit;
   calls: GitExecOptions[];
@@ -37,14 +39,14 @@ function fakeGit(overrides: Partial<Record<string, GitExecResult>> = {}): {
   const git = ((opts: GitExecOptions): GitExecResult => {
     calls.push(opts);
     if (opts.subcommand in overrides) return overrides[opts.subcommand]!;
-    if (opts.subcommand === "commit-tree") return okResult(COMMIT);
+    if (opts.subcommand === "rev-parse") return okResult(COMMIT); // imported tip
     return okResult();
   }) as typeof execGit;
   return { git, calls };
 }
 
 describe("handleKeeperRequest", () => {
-  test("commits the tree and pushes the branch under role=keeper", async () => {
+  test("imports the bundle and pushes the branch under role=keeper", async () => {
     const { git, calls } = fakeGit();
     const res = await handleKeeperRequest(REQUEST, { git });
 
@@ -53,9 +55,10 @@ describe("handleKeeperRequest", () => {
       expect(res.commitSha).toBe(COMMIT);
       expect(res.pushedRef).toBe("refs/heads/GH-456");
     }
-    // every git-write ran as role=keeper, in order: commit-tree → switch → push.
+    // every git-write ran as role=keeper, in order: import (fetch → switch →
+    // rev-parse) then push. The daemon never commit-trees — the host already did.
     expect(calls.every((c) => c.role === "keeper")).toBe(true);
-    expect(calls.map((c) => c.subcommand)).toEqual(["commit-tree", "switch", "push"]);
+    expect(calls.map((c) => c.subcommand)).toEqual(["fetch", "switch", "rev-parse", "push"]);
     const push = calls.find((c) => c.subcommand === "push")!;
     expect(push.args).toEqual(["origin", "GH-456"]);
   });
@@ -81,14 +84,17 @@ describe("handleKeeperRequest", () => {
     }
   });
 
-  test("maps a KeeperGitError (bad commit sha) to a git-write error", async () => {
-    const { git } = fakeGit({ "commit-tree": okResult("not-a-sha") });
+  test("maps a bad import (tip mismatch) to a git-write error before pushing", async () => {
+    // rev-parse echoes a different tip than the requested commitSha, so
+    // importBundleIntoRepo throws KeeperGitError and the push never runs.
+    const { git, calls } = fakeGit({ "rev-parse": okResult("d".repeat(40)) });
     const res = await handleKeeperRequest(REQUEST, { git });
     expect(res.status).toBe("error");
     if (res.status === "error") expect(res.code).toBe("git-write");
+    expect(calls.some((c) => c.subcommand === "push")).toBe(false);
   });
 
-  test("materializes the bundle BEFORE the commit (slice-3 seam, order preserved)", async () => {
+  test("imports the bundle BEFORE the push (order preserved)", async () => {
     const order: string[] = [];
     const { git } = fakeGit();
     const trackingGit = ((opts: GitExecOptions) => {
@@ -97,14 +103,14 @@ describe("handleKeeperRequest", () => {
     }) as typeof execGit;
     const deps: KeeperDaemonDeps = {
       git: trackingGit,
-      materializeBundle: async () => {
-        order.push("materialize");
+      importBundle: () => {
+        order.push("import");
       },
     };
     const res = await handleKeeperRequest(REQUEST, deps);
     expect(res.status).toBe("ok");
-    expect(order[0]).toBe("materialize");
-    expect(order.indexOf("materialize")).toBeLessThan(order.indexOf("commit-tree"));
+    expect(order[0]).toBe("import");
+    expect(order.indexOf("import")).toBeLessThan(order.indexOf("push"));
   });
 });
 
@@ -170,7 +176,7 @@ describe("runKeeperServe (unix socket, end-to-end)", () => {
   test("replies bad-request for a frame that violates the contract (daemon stays up)", async () => {
     const { git } = fakeGit();
     const path = await start({ git });
-    const res = (await sendFrame(path, { kind: "commit-and-push", treeSha: "nope" })) as {
+    const res = (await sendFrame(path, { kind: "import-and-push", commitSha: "nope" })) as {
       status: string;
       code?: string;
     };
