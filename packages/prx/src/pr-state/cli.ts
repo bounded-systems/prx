@@ -561,7 +561,7 @@ import {
   type DoltStatusDeps,
 } from "../dolt/status.ts";
 import { runDoltStartCli } from "../dolt/start.ts";
-import { runOrchestratorVerb } from "../cli/orchestrator-cli.ts";
+import { runSpecVerb } from "../cli/orchestrator-cli.ts";
 import { runPluginVerb } from "../cli/plugin-emit.ts";
 import { runHookVerb } from "../cli/policy-guard-hook.ts";
 import {
@@ -18837,12 +18837,12 @@ function resolveTriageRepoCwd(
 
 export function runCli(argv: string[], output: Output = console, deps: CliDeps = {}): number | Promise<number> {
   try {
-    // Experimental orchestrator verbs (pilot/fleet) are handled by the
-    // spec-driven dispatch, ahead of the legacy typed-command union/executor
+    // Spec-driven verbs (pilot/fleet/health) are handled by the canonical
+    // VerbSpec dispatch, ahead of the legacy typed-command union/executor
     // machinery (which threads a shared union through bare fallthroughs).
     const [orchestratorVerb, ...orchestratorRest] = argv;
-    if (orchestratorVerb === "pilot" || orchestratorVerb === "fleet") {
-      return runOrchestratorVerb(orchestratorVerb, orchestratorRest, output);
+    if (orchestratorVerb === "pilot" || orchestratorVerb === "fleet" || orchestratorVerb === "health") {
+      return runSpecVerb(orchestratorVerb, orchestratorRest, output);
     }
     if (orchestratorVerb === "plugin") {
       return runPluginVerb(orchestratorRest, output);
