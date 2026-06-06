@@ -22,22 +22,16 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { spawnCapture } from "@bounded-systems/proc";
-
 import { IsolatedKeeperClient, type KeeperTransport } from "./client.ts";
+import { spawnRun, type Run } from "./lima-exec.ts";
 import { unixSocketTransport } from "./transport.ts";
 
-/** Result of running a command to completion. */
-export interface RunResult {
-  status: number | null;
-  stdout: string;
-  stderr: string;
-}
+export type { RunResult } from "./lima-exec.ts";
 
 /** Injected effects (default to real process/filesystem); tests stub them offline. */
 export interface LimaChannelDeps {
   /** Run a command to completion. */
-  run?: (cmd: string, args: string[]) => RunResult;
+  run?: Run;
   /** Does a path exist? (polled for the forwarded socket appearing). */
   exists?: (path: string) => boolean;
   /** Sleep between readiness polls. */
@@ -69,12 +63,6 @@ export interface LimaKeeperChannel {
 
 const POLL_MS = 50;
 
-function defaultRun(cmd: string, args: string[]): RunResult {
-  // Route through @bounded-systems/proc (ambient-authority guard: no raw spawn).
-  const res = spawnCapture([cmd, ...args]);
-  return { status: res.status, stdout: res.stdout, stderr: res.stderr };
-}
-
 /**
  * Establish a Lima-SSH-forwarded unix socket to the in-VM keeperd and return a
  * transport over it plus a `close()`. The forward uses a private ControlMaster
@@ -84,7 +72,7 @@ export async function openLimaKeeperChannel(
   opts: LimaKeeperChannelOptions,
   deps: LimaChannelDeps = {},
 ): Promise<LimaKeeperChannel> {
-  const run = deps.run ?? defaultRun;
+  const run = deps.run ?? spawnRun;
   const exists = deps.exists ?? existsSync;
   const sleep = deps.sleep ?? ((ms) => new Promise<void>((r) => setTimeout(r, ms)));
   const makeTransport = deps.makeTransport ?? unixSocketTransport;
