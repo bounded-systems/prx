@@ -125,6 +125,34 @@ tail -n0 -F "$file" 2>/dev/null \\
 `;
 
 /**
+ * The capability hook's resolver. Claude Code runs a plugin hook command in a
+ * subprocess that inherits the app's environment — which, when Claude Code is
+ * launched from a GUI/Spotlight/launchd context rather than a shell, may carry
+ * a minimal PATH that omits ~/.local/bin (the macOS "GUI apps don't inherit
+ * your shell PATH" gap). A bare `prx hook policy-guard` then fails with
+ * "command not found", silently disabling the policy guard. This script resolves
+ * `prx` robustly — PATH first, then the common install locations — so the bridge
+ * holds regardless of how Claude Code was started.
+ */
+const POLICY_GUARD_SCRIPT = `#!/usr/bin/env bash
+# prx plugin capability hook — bridge Claude Code's Bash PreToolUse event to the
+# prx policy guard, resolving the prx binary even under a minimal PATH.
+set -uo pipefail
+if command -v prx >/dev/null 2>&1; then
+  exec prx hook policy-guard
+fi
+for cand in \\
+  "\${XDG_BIN_HOME:-$HOME/.local/bin}/prx" \\
+  /opt/homebrew/bin/prx \\
+  /usr/local/bin/prx \\
+  /run/current-system/sw/bin/prx; do
+  [ -x "$cand" ] && exec "$cand" hook policy-guard
+done
+echo "prx plugin hook: 'prx' not found on PATH or common install locations" >&2
+exit 127
+`;
+
+/**
  * Project the registry to the file set of an installable Claude Code plugin.
  * Pure — returns an in-memory file list; a caller writes them to disk.
  */
@@ -278,23 +306,36 @@ export function actorAgentFiles(actors: ActorAgentSource[]): PluginFile[] {
  * Code routes it through `prx hook policy-guard`, which denies anything that
  * actor doesn't own (plus universal hard-blocks for every session). The plugin
  * is thin: the prx runtime owns the policy.
+ *
+ * Returns the hook wiring AND the resolver script it invokes. The command goes
+ * through `bin/prx-policy-guard.sh` (via `${CLAUDE_PLUGIN_ROOT}`, the same
+ * mechanism the monitor uses) rather than a bare `prx`, so the bridge survives
+ * a minimal-PATH launch context — see {@link POLICY_GUARD_SCRIPT}.
  */
-export function hooksFile(): PluginFile {
-  return {
-    path: "hooks/hooks.json",
-    content: JSON.stringify(
-      {
-        hooks: {
-          PreToolUse: [
-            {
-              matcher: "Bash",
-              hooks: [{ type: "command", command: "prx hook policy-guard" }],
-            },
-          ],
+export function hooksFile(): PluginFile[] {
+  return [
+    {
+      path: "hooks/hooks.json",
+      content: JSON.stringify(
+        {
+          hooks: {
+            PreToolUse: [
+              {
+                matcher: "Bash",
+                hooks: [
+                  {
+                    type: "command",
+                    command: `bash "\${CLAUDE_PLUGIN_ROOT}/bin/prx-policy-guard.sh"`,
+                  },
+                ],
+              },
+            ],
+          },
         },
-      },
-      null,
-      2,
-    ),
-  };
+        null,
+        2,
+      ),
+    },
+    { path: "bin/prx-policy-guard.sh", content: POLICY_GUARD_SCRIPT },
+  ];
 }
