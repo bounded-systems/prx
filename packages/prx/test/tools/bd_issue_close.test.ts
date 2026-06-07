@@ -28,9 +28,11 @@ describe("buildBdIssueCloseArgs", () => {
 describe("execBdIssueClose", () => {
   test("captures stdout/stderr and exit 0 on success", () => {
     const spawn: BdIssueCloseSpawn = (file, args) => {
-      expect(file).toBe("bd");
-      expect(args[0]).toBe("close");
-      expect(args[1]).toBe("BD-deadbeef");
+      // GH-296: routed through the daemon — `prx beads close <id>`.
+      expect(file).toBe("prx");
+      expect(args[0]).toBe("beads");
+      expect(args[1]).toBe("close");
+      expect(args[2]).toBe("BD-deadbeef");
       return {
         status: 0,
         stdout: "closed BD-deadbeef\n",

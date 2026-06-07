@@ -92,7 +92,10 @@ export function execBdIssueClose(
   const childEnv = { ...env } as Record<string, string | undefined>;
   delete childEnv.BEADS_DIR;
 
-  const result = spawn("bd", args, {
+  // GH-296 / prx-82b: route through the daemon (single writer) — `prx beads close
+  // <id> [--reason]` maps daemon-side to `bd update --status closed --notes`,
+  // instead of spawning host `bd close` against a per-clone .beads.
+  const result = spawn("prx", ["beads", ...args], {
     cwd: opts.cwd,
     env: childEnv as NodeJS.ProcessEnv,
     encoding: "utf8",
