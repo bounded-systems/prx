@@ -34,6 +34,17 @@ value prop. `exercises` is the code that delivers the claim — the refactoring 
 - [evidence] driven end-to-end to a merged PR — prx-2c4 → PR #85 (merged); chain source@pinned→plan→implement on disk; prx publisher did the merge
   - exercises: submit/stage.ts:runSubmitStage, submit/publish.ts:runSubmitPublish, pr-state/keeper.ts:runKeeperCommitTree
 
+## A derivation's identity is content-addressed: any change to its manifest changes its id.  — BACKED
+
+**Why not X:** vs a mutable build record: the id IS the hash of the manifest, so a step can't be edited after the fact without becoming a different derivation — the chain is tamper-evident.
+
+- [backed] changing any manifest field changes the derivation id
+  - exercises: provenance/derivation_chain_feature.ts:generateDerivationChainFeature, @bounded-systems/anchored-chain:digestManifest, @bounded-systems/anchored-chain:canonicalJson
+- [backed] the id is deterministic and key-order independent
+  - exercises: @bounded-systems/anchored-chain:digestManifest, @bounded-systems/anchored-chain:canonicalJson
+- [backed] a manifest round-trips through its in-toto statement
+  - exercises: @bounded-systems/anchored-chain:manifestToStatement, @bounded-systems/anchored-chain:statementToManifest
+
 ## You can see what each work unit cost.  — LEARNING GOAL
 
 **Why not X:** vs raw Claude Code: per-actor/unit usage is projected from the audit ledger.
@@ -44,6 +55,10 @@ value prop. `exercises` is the code that delivers the claim — the refactoring 
 
 ## Code → value props (pruning / refactoring lens)
 
+- `@bounded-systems/anchored-chain:canonicalJson` → "A derivation's identity is content-addressed: any change to its manifest changes its id."
+- `@bounded-systems/anchored-chain:digestManifest` → "A derivation's identity is content-addressed: any change to its manifest changes its id."
+- `@bounded-systems/anchored-chain:manifestToStatement` → "A derivation's identity is content-addressed: any change to its manifest changes its id."
+- `@bounded-systems/anchored-chain:statementToManifest` → "A derivation's identity is content-addressed: any change to its manifest changes its id."
 - `@bounded-systems/policy:allowedSubcommands` → "An agent cannot perform an action its role doesn't own."
 - `@bounded-systems/policy:findOwningRoles` → "A privileged effect not produced by its owning actor fails verification."
 - `agents/generate.ts:generateOrchestratorDoc` → "An agent cannot perform an action its role doesn't own."
@@ -52,6 +67,7 @@ value prop. `exercises` is the code that delivers the claim — the refactoring 
 - `audit/store/db.ts:openAuditDb` → "You can see what each work unit cost."
 - `audit/store/sql-asset.d.ts` → "You can see what each work unit cost."
 - `pr-state/keeper.ts:runKeeperCommitTree` → "A beads work unit can travel intake → merged PR through one signed pipeline."
+- `provenance/derivation_chain_feature.ts:generateDerivationChainFeature` → "A derivation's identity is content-addressed: any change to its manifest changes its id."
 - `provenance/effect-ownership.ts:verifyEffectOwnership` → "A privileged effect not produced by its owning actor fails verification."
 - `provenance/signer.ts:actorFromBuilderId` → "A privileged effect not produced by its owning actor fails verification."
 - `scripts/prx-compile.ts` → "You can see what each work unit cost."
