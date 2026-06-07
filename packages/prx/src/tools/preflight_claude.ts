@@ -21,10 +21,18 @@ export type ClaudePreflightResult = {
   resolved: Record<string, string>;
 };
 
-async function resolveOnPath(binary: string): Promise<string | null> {
+/** The PATH-resolution spawn seam — defaults to the real proc, injectable for tests. */
+export type PreflightExec = (req: {
+  command: string;
+  args: string[];
+}) => Promise<{ status: number; stdout: string }>;
+
+const defaultExec: PreflightExec = (req) => proc.exec(req);
+
+async function resolveOnPath(binary: string, exec: PreflightExec): Promise<string | null> {
   // `command -v` is a shell builtin; run it through /bin/sh. The binary names
   // are fixed constants (REQUIRED_BINARIES), so the interpolation is safe.
-  const result = await proc.exec({
+  const result = await exec({
     command: "/bin/sh",
     args: ["-c", `command -v ${binary}`],
   });
@@ -33,11 +41,13 @@ async function resolveOnPath(binary: string): Promise<string | null> {
   return out.length > 0 ? out : null;
 }
 
-export async function runClaudePreflight(): Promise<ClaudePreflightResult> {
+export async function runClaudePreflight(
+  exec: PreflightExec = defaultExec,
+): Promise<ClaudePreflightResult> {
   const resolved: Record<string, string> = {};
   const missing: string[] = [];
   for (const bin of REQUIRED_BINARIES) {
-    const path = await resolveOnPath(bin);
+    const path = await resolveOnPath(bin, exec);
     if (path) {
       resolved[bin] = path;
     } else {

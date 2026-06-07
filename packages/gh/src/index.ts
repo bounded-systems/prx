@@ -18,6 +18,7 @@ import {
   runCaptured,
   spawnCapture,
   type CommandResult,
+  type SpawnCaptureResult,
 } from "@bounded-systems/proc";
 import {
   checkPolicy,
@@ -30,6 +31,7 @@ import {
   BucketBudgetExhaustedError,
   gateGhArgv,
   recordGhResult,
+  type RateLimitDeps,
 } from "@bounded-systems/github-budget";
 
 export type GhExecResult = {
@@ -53,6 +55,19 @@ export type GhExecOptions = {
   /** If set, enforce policy before executing. */
   state?: PolicyState;
   role?: PolicyRole;
+};
+
+/**
+ * Injectable seams for `execGh`. All optional and default to the production
+ * implementations, so callers pass nothing and behavior is unchanged. They
+ * exist so the rate-limit authority boundary (the gate + post-call recorder)
+ * is exercisable without a live `gh` spawn or real GitHub budget state.
+ */
+export type GhExecDeps = {
+  /** The gh spawn. Defaults to the real {@link spawnCapture}. */
+  spawn?: (cmd: string[], options: { env: Record<string, string> }) => SpawnCaptureResult;
+  /** Rate-limit gate deps. Defaults (via `undefined`) to the configured budget. */
+  budget?: RateLimitDeps;
 };
 
 const ALLOWED_GROUPS = ["pr", "issue"] as const;
@@ -86,7 +101,11 @@ const GROUP_ALLOWLISTS: Record<AllowedGroup, readonly string[]> = {
 /**
  * Execute a gh subcommand with optional policy enforcement.
  */
-export function execGh(opts: GhExecOptions, env: GhExecEnv = processEnv()): GhExecResult {
+export function execGh(
+  opts: GhExecOptions,
+  env: GhExecEnv = processEnv(),
+  deps: GhExecDeps = {},
+): GhExecResult {
   // Group check — only allowed groups are accepted
   if (!(ALLOWED_GROUPS as readonly string[]).includes(opts.group)) {
     return {
@@ -136,7 +155,7 @@ export function execGh(opts: GhExecOptions, env: GhExecEnv = processEnv()): GhEx
   const argv = ["gh", group, opts.subcommand, ...opts.args];
   let gate: { bucket: "core" | "graphql" | "search"; remainingBefore: number | null } | null;
   try {
-    gate = gateGhArgv(argv);
+    gate = gateGhArgv(argv, deps.budget);
   } catch (err) {
     if (err instanceof BucketBudgetExhaustedError) {
       return {
@@ -153,24 +172,25 @@ export function execGh(opts: GhExecOptions, env: GhExecEnv = processEnv()): GhEx
   // Execute — GH-1609: route through spawnCapture so large `gh api` payloads
   // cannot hit the default 1 MiB stdout cap. Apply the GH-1554 partial-read
   // guard before recordGhResult sees the result.
-  const captured = spawnCapture(["gh", group, opts.subcommand, ...opts.args], {
+  const captured = (deps.spawn ?? spawnCapture)(["gh", group, opts.subcommand, ...opts.args], {
     env: env as Record<string, string>,
   });
+  // A null status means a signal kill or spawn error (always a capture
+  // failure), which maps to exit 1; a clean capture always carries status 0.
+  // So the same `?? 1` is exact in both arms — the success arm never sees null
+  // (see isCaptureFailure) — and there is no dead per-arm fallback.
+  const status = captured.status ?? 1;
   const cmdResult = isCaptureFailure(captured)
     ? {
         stdout: "",
         stderr: `gh-safe: ${captureFailureDetail(captured) || "gh failed"}`,
-        status: captured.status ?? 1,
+        status,
       }
-    : {
-        stdout: captured.stdout,
-        stderr: captured.stderr,
-        status: captured.status ?? 0,
-      };
+    : { stdout: captured.stdout, stderr: captured.stderr, status };
 
   if (gate) {
     try {
-      recordGhResult(argv, gate.bucket, gate.remainingBefore, cmdResult);
+      recordGhResult(argv, gate.bucket, gate.remainingBefore, cmdResult, deps.budget);
     } catch (err) {
       if (err instanceof BucketBudgetExhaustedError) {
         return {
