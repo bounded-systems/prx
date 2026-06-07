@@ -1236,6 +1236,7 @@ function capturePublishLabels(
     { log: () => undefined, error: () => undefined },
     {
       execBd: stub.exec as never,
+      run: stub.run as never,
       publishOne: ((opts: BeadsPublishOptions) => {
         captured = [...opts.extraLabels];
         return {
