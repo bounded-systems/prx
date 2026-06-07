@@ -1806,6 +1806,15 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "beads",
   },
   {
+    // GH-296: host twin of `prx lima provision-beads` — clone canonical beads
+    // into the well-known local path so the local daemon serves one healthy DB.
+    name: "beads provision",
+    parent: "beads",
+    description: "Provision the canonical local beads clone",
+    domain: "repo-plumbing",
+    actor: "beads",
+  },
+  {
     name: "beads issue",
     parent: "beads",
     description: "Look up beads row by GitHub issue",
