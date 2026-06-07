@@ -203,6 +203,9 @@ export function resolveWorktrunkBin(env: Record<string, string | undefined> = pr
 export function execWorktrunk(
   opts: ExecOptions,
   env: Record<string, string | undefined> = processEnv(),
+  // Injectable spawn seam (defaults to the real worktrunk spawn) so the
+  // directive-file lifecycle is testable without launching wt/cargo.
+  run: typeof defaultRunner = defaultRunner,
 ): ExecResult {
   const resolved = worktreeEnv(env);
   const stateRoot = resolved.vars.WT_STATE_ROOT;
@@ -233,7 +236,7 @@ export function execWorktrunk(
   // failure maps to 1 — matching the prior `result.status ?? 1`.
   const runWorktrunk = (cmd: string[]): number => {
     try {
-      return defaultRunner(cmd, { env: childEnv, stdio: childStdio, check: false }).status;
+      return run(cmd, { env: childEnv, stdio: childStdio, check: false }).status;
     } catch {
       return 1;
     }
