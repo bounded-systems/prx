@@ -963,17 +963,6 @@ export { applyParityChainActions, pruneStaleRemoteRefs } from "./parity-chain.ts
 // spawn failure (e.g. the binary is missing) maps to 1 so callers' `status
 // !== 0` checks fire — matching the prior raw spawn, which reported such
 // failures as a null status.
-// GH-1336: post-save cleanup spec for the `prx plan save` staging file.
-// `none` preserves the legacy GH-1175 behavior (file persists). `delete`
-// unlinks the `--from-file` path; `move-to` renames it under an
-// already-existing directory. Cleanup runs strictly after runPlanSave
-// returns success — the CAS writers throw on failure, so the exception
-// bubbles past the cleanup site and the staging file is never touched
-// on save failure.
-type PlanSaveCleanupSpec =
-  | { kind: "none" }
-  | { kind: "delete" }
-  | { kind: "move-to"; dest: string };
 
 type ParsedCommand =
   | {
@@ -1223,20 +1212,6 @@ type ParsedCommand =
     }
   | {
       // GH-1173: operator-facing verbs over the GH-1174 CAS plan store.
-      command: "plan-save";
-      workUnitId?: string | undefined;
-      slot: "draft" | "approved";
-      source: { kind: "stdin" } | { kind: "file"; path: string };
-      format: "plain" | "json";
-      // GH-1277: --skip-validate persists a malformed slot; CLI emits a
-      // stderr warning so operators see the escape hatch fired.
-      skipValidate: boolean;
-      // GH-1336: post-save cleanup for the staging file. `none` preserves
-      // the legacy behavior; `delete`/`move-to` run only after runPlanSave
-      // resolves so the staging file is untouched on save failure.
-      cleanup: PlanSaveCleanupSpec;
-    }
-  | {
       command: "plan-load";
       workUnitId: string;
       slot: "draft" | "approved";
@@ -2721,17 +2696,8 @@ type CliDeps = {
     output: Output,
     deps?: PlanSearchDeps,
   ) => Promise<number>;
-  /** Override for plan-save reading binary content from stdin. */
-  readStdinSync?: () => Buffer;
-  /** Override for plan-save reading binary content from a file path. */
-  readPlanFile?: (path: string) => Buffer;
   /** Override for plan-load writing binary content directly to stdout. */
   writeStdoutBinary?: (buf: Buffer) => void;
-  /** GH-1336: seams for `--cleanup` post-save FS actions. Tests inject
-   * recorders to assert atomicity (no FS touch on save failure). */
-  unlinkPlanFile?: (path: string) => void;
-  renamePlanFile?: (src: string, dest: string) => void;
-  statPath?: (path: string) => { isDirectory: () => boolean };
   reviewVerb?: typeof reviewVerb;
   findSavedClaudeSession?: (launchCwd: string, homeDir?: string) => boolean;
   writeFile?: (path: string, content: string) => void;
@@ -2993,28 +2959,6 @@ function ensureChoice<T extends string>(value: string, choices: readonly T[], fl
     return value as T;
   }
   throw new CliError(`Invalid value for ${flag}: ${value}. Valid options: ${choices.join(", ")}`);
-}
-
-// GH-1336: parse `--cleanup` into a discriminated `PlanSaveCleanupSpec`.
-// Accepts `none`, `delete`, or `move-to=<path>` (with non-empty path).
-// `=` is the only payload separator we support — operators with `=` in
-// their destination path must use a different mechanism (rejected here
-// rather than silently truncated).
-function parseCleanupSpec(raw: string): PlanSaveCleanupSpec {
-  if (raw === "none") return { kind: "none" };
-  if (raw === "delete") return { kind: "delete" };
-  if (raw.startsWith("move-to=")) {
-    const dest = raw.slice("move-to=".length);
-    if (dest.length === 0) {
-      throw new CliError(
-        "plan save: --cleanup=move-to= requires a destination path (e.g., --cleanup=move-to=/tmp/archive)",
-      );
-    }
-    return { kind: "move-to", dest };
-  }
-  throw new CliError(
-    `plan save: invalid --cleanup value: ${raw}. Valid: none, delete, move-to=<path>`,
-  );
 }
 
 /**
@@ -8344,76 +8288,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
   // GH-1173: CAS plan-store verb surface (save/load/show).
-  if (command === "plan-save") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        unit: { type: "string" },
-        slot: { type: "string", default: "draft" },
-        "from-stdin": { type: "boolean", default: false },
-        "from-file": { type: "string" },
-        format: { type: "string", default: "plain" },
-        // GH-1277: opt-out for the symmetric shape gate. Mirrors the
-        // GH-1239 `--skip-preflight` shape — loud escape hatch, not silent.
-        "skip-validate": { type: "boolean", default: false },
-        // GH-1336: post-save cleanup for the staging file. Default `none`
-        // preserves the legacy GH-1175 behavior. Discriminated values are
-        // parsed via parseCleanupSpec below; parseArgs only carries the raw
-        // string because Node's parseArgs doesn't understand `move-to=PATH`
-        // payloads.
-        cleanup: { type: "string", default: "none" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-    if (values["from-stdin"] && values["from-file"] !== undefined) {
-      throw new CliError(
-        "plan save: --from-stdin and --from-file are mutually exclusive",
-      );
-    }
-    let source: { kind: "stdin" } | { kind: "file"; path: string };
-    if (values["from-file"] !== undefined) {
-      source = { kind: "file", path: values["from-file"] };
-    } else if (values["from-stdin"]) {
-      source = { kind: "stdin" };
-    } else if (!process.stdin.isTTY) {
-      source = { kind: "stdin" };
-    } else {
-      throw new CliError(
-        "plan save: pass --from-stdin or --from-file <path> (no piped stdin detected)",
-      );
-    }
-    const cleanup = parseCleanupSpec(values.cleanup);
-    if (cleanup.kind !== "none" && source.kind !== "file") {
-      throw new CliError(
-        "plan save: --cleanup requires --from-file (no staging path to clean up when reading from stdin)",
-      );
-    }
-    // GH-1311: route through resolvePlanSessionUnit so the planner pane
-    // (which exports PRX_PLAN_SESSION_UNIT via runtime_profiles.ts) supplies
-    // the unit when --unit is omitted, ahead of cwd/branch detection.
-    const resolved = resolvePlanSessionUnit(values.unit, {
-      detect: detectWorkCommandTarget,
-    });
-    if (resolved.unit === null) {
-      throw new CliError(
-        "plan save: pass --unit GH-N or run from a feature worktree (PRX_PLAN_SESSION_UNIT must be set, or branch/cwd must match the canonical id)",
-      );
-    }
-    const workUnitId =
-      resolved.source === "flag"
-        ? parseCanonicalWorkUnitId(resolved.unit, "--unit")
-        : resolved.unit;
-    return {
-      command,
-      workUnitId,
-      slot: ensureChoice(values.slot, ["draft", "approved"] as const, "--slot"),
-      source,
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      skipValidate: values["skip-validate"] === true,
-      cleanup,
-    };
-  }
   if (command === "plan-load") {
     const slotProvided = rest.some(
       (arg) => arg === "--slot" || arg.startsWith("--slot="),
@@ -14949,10 +14823,6 @@ function collectSprintPrSnapshots(
 
 // GH-1173: stdin/stdout binary IO defaults for the plan-store verbs. Pulled
 // out so tests can inject in-memory replacements via CliDeps.
-function readStdinSyncDefault(): Buffer {
-  return readFileSync(0);
-}
-
 function writeStdoutBinaryDefault(buf: Buffer): void {
   process.stdout.write(buf);
 }
@@ -15327,6 +15197,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     if (orchestratorVerb === "plan" && orchestratorRest[0] === "close") {
       return runSpecVerb("plan-close", orchestratorRest.slice(1), output);
     }
+    if (orchestratorVerb === "plan" && orchestratorRest[0] === "save") {
+      return runSpecVerb("plan-save", orchestratorRest.slice(1), output);
+    }
+    if (orchestratorVerb === "plan-save") {
+      return runSpecVerb("plan-save", orchestratorRest, output);
+    }
     // The `contract <sub>` namespace reroutes several subcommands to verbs that
     // are now spec-driven. The early dispatch keys off the raw `argv[0]`
     // (`contract`), not the normalized rewrite, so those aliases would miss the
@@ -15608,106 +15484,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     // GH-1173: CAS plan-store verbs.
-    if (parsed.command === "plan-save") {
-      return (async () => {
-        try {
-          let content: Buffer;
-          if (parsed.source.kind === "stdin") {
-            content = (deps.readStdinSync ?? readStdinSyncDefault)();
-          } else {
-            content = (deps.readPlanFile ?? readFileSync)(parsed.source.path);
-          }
-          // GH-1336: validate the move-to destination BEFORE calling
-          // runPlanSave so a missing/non-directory dest fails fast — never
-          // a half-done state with the slot persisted but the staging
-          // file abandoned at its original path.
-          if (parsed.cleanup.kind === "move-to") {
-            const destPath = parsed.cleanup.dest;
-            const stat = deps.statPath ?? ((p: string) => statSync(p));
-            try {
-              const info = stat(destPath);
-              if (!info.isDirectory()) {
-                throw new CliError(
-                  `plan save: --cleanup=move-to=${destPath} must point to an existing directory`,
-                );
-              }
-            } catch (err) {
-              if (err instanceof CliError) throw err;
-              throw new CliError(
-                `plan save: --cleanup=move-to=${destPath} must point to an existing directory`,
-              );
-            }
-          }
-          // GH-1277: --skip-validate is the loud escape hatch for the
-          // symmetric shape gate; warn before persisting so operators see
-          // the slot will fail at consume.
-          if (parsed.skipValidate) {
-            output.error(
-              "warning: plan save skipped shape validation (--skip-validate); slot will fail at consume",
-            );
-          }
-          const result = await (deps.runPlanSave ?? runPlanSave)({
-            unit: parsed.workUnitId!,
-            slot: parsed.slot,
-            content,
-            skipValidate: parsed.skipValidate,
-          });
-          // GH-1336: cleanup runs strictly after runPlanSave returns
-          // success. CAS writers throw PlanStoreError on failure so the
-          // exception bubbles past this site — the staging file is never
-          // touched on save failure (atomicity invariant).
-          if (parsed.cleanup.kind !== "none" && parsed.source.kind === "file") {
-            const stagingPath = parsed.source.path;
-            if (parsed.cleanup.kind === "delete") {
-              (deps.unlinkPlanFile ?? unlinkSync)(stagingPath);
-            } else {
-              const destFile = join(
-                parsed.cleanup.dest,
-                basename(stagingPath),
-              );
-              (deps.renamePlanFile ?? renameSync)(stagingPath, destFile);
-            }
-          }
-          // GH-2028: persist-on-failure. The body is always written; when the
-          // shape gate flagged diagnostics (and --skip-validate did not force
-          // it consumable) emit a stderr note. Exit 0 — the write succeeded and
-          // the slot is recoverable; refusal happens at consume.
-          if (!result.validated_ok && result.diagnostics.length > 0) {
-            output.error(
-              `note: plan saved with validated_ok=false (${result.diagnostics.length} diagnostic${result.diagnostics.length === 1 ? "" : "s"}); \`prx implement agent ${parsed.workUnitId}\` will refuse until resolved:`,
-            );
-            for (const d of result.diagnostics) {
-              output.error(`  [${d.code}] ${d.path}: ${d.message}`);
-            }
-          }
-          if (parsed.format === "json") {
-            output.log(
-              JSON.stringify(
-                {
-                  unit: parsed.workUnitId,
-                  slot: parsed.slot,
-                  sha: result.sha,
-                  ref: result.ref,
-                  body_sha: result.body_sha,
-                  envelope_sha: result.envelope_sha,
-                  validated_ok: result.validated_ok,
-                  diagnostics: result.diagnostics,
-                  size: content.length,
-                },
-                null,
-                2,
-              ),
-            );
-          } else {
-            output.log(result.sha);
-          }
-          return 0;
-        } catch (error) {
-          return handleRunCliError(error, output);
-        }
-      })();
-    }
-
     if (parsed.command === "plan-load") {
       return (async () => {
         try {

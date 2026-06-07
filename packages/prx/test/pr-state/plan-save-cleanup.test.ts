@@ -8,12 +8,33 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { runCli } from "../../src/pr-state/cli.ts";
+import { parseArgs } from "../../src/cli/verbspec.ts";
+import { planSaveVerb, type PlanSaveDeps } from "../../src/pr-state/plan-save-verb.ts";
 
 type Output = {
   log: (line: string) => void;
   error: (line: string) => void;
 };
+
+// `plan save` is a VerbSpec now; drive its CLI path (parse → run → warnings →
+// render → exit) with injected deps. argv arrives as ["plan","save", …rest].
+async function runPlanSaveCli(
+  argv: string[],
+  output: Output,
+  deps: Partial<PlanSaveDeps>,
+): Promise<number> {
+  const rest = argv.slice(2);
+  try {
+    const input = parseArgs(planSaveVerb as never, rest) as Parameters<typeof planSaveVerb.run>[0];
+    const out = await planSaveVerb.run(input, { ...planSaveVerb.deps!(), ...deps });
+    for (const w of planSaveVerb.warnings!(out, input)) output.error(w);
+    output.log(planSaveVerb.render!(out, input));
+    return planSaveVerb.exitCode?.(out, input) ?? 0;
+  } catch (e) {
+    output.error(e instanceof Error ? e.message : String(e));
+    return 1;
+  }
+}
 
 function captureOutput(): { logs: string[]; errors: string[]; output: Output } {
   const logs: string[] = [];
@@ -38,7 +59,7 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
     let unlinkCalls = 0;
     let renameCalls = 0;
 
-    const exit = await runCli(
+    const exit = await runPlanSaveCli(
       ["plan", "save", "--unit", "GH-1336", "--from-file", stagingPath],
       output,
       {
@@ -66,7 +87,7 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
     let unlinkOrder = 0;
     let counter = 0;
 
-    const exit = await runCli(
+    const exit = await runPlanSaveCli(
       [
         "plan",
         "save",
@@ -104,7 +125,7 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
     const renames: Array<{ src: string; dest: string }> = [];
     const stats: string[] = [];
 
-    const exit = await runCli(
+    const exit = await runPlanSaveCli(
       [
         "plan",
         "save",
@@ -142,7 +163,7 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
     let saveCalls = 0;
     let renameCalls = 0;
 
-    const exit = await runCli(
+    const exit = await runPlanSaveCli(
       [
         "plan",
         "save",
@@ -181,7 +202,7 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
     const notADir = "/tmp/not-a-dir";
     let saveCalls = 0;
 
-    const exit = await runCli(
+    const exit = await runPlanSaveCli(
       [
         "plan",
         "save",
@@ -213,7 +234,7 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
     let unlinkCalls = 0;
     let renameCalls = 0;
 
-    const exit = await runCli(
+    const exit = await runPlanSaveCli(
       [
         "plan",
         "save",
@@ -247,7 +268,7 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
     const { errors, output } = captureOutput();
     let saveCalls = 0;
 
-    const exit = await runCli(
+    const exit = await runPlanSaveCli(
       [
         "plan",
         "save",
@@ -276,7 +297,7 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
     const { errors, output } = captureOutput();
     let saveCalls = 0;
 
-    const exit = await runCli(
+    const exit = await runPlanSaveCli(
       [
         "plan",
         "save",
@@ -305,7 +326,7 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
     const { errors, output } = captureOutput();
     let saveCalls = 0;
 
-    const exit = await runCli(
+    const exit = await runPlanSaveCli(
       [
         "plan",
         "save",
