@@ -1941,6 +1941,13 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "beads",
   },
   {
+    name: "beads reopen",
+    parent: "beads",
+    description: "Reopen a closed issue via the beadsd daemon (GH-296)",
+    domain: "repo-plumbing",
+    actor: "beads",
+  },
+  {
     // GH-1990: canonical actor surface for bd↔external reconcile. Operators
     // and agents must reach reconcile flows through this verb family rather
     // than raw `bd <verb>` / `git <verb>`. Per-pair work lives under

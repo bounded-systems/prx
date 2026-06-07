@@ -82,13 +82,18 @@ export const BeadsRequestSchema = z.discriminatedUnion("kind", [
     id: z.string().min(1),
     reason: z.string().min(1).optional(),
   }),
+  /** `bd reopen <id>` — re-open a closed issue (drift-fix status-axis sync). */
+  z.object({
+    kind: z.literal("reopen"),
+    id: z.string().min(1),
+  }),
 ]);
 export type BeadsRequest = z.infer<typeof BeadsRequestSchema>;
 
 /** The read kinds (unconditional). */
 export const BEADS_READ_KINDS = ["ready", "list", "show"] as const;
 /** The write kinds (policy-gated single-writer surface; GH-228 slice 5). */
-export const BEADS_WRITE_KINDS = ["create", "update", "close"] as const;
+export const BEADS_WRITE_KINDS = ["create", "update", "close", "reopen"] as const;
 /** Every kind beadsd exposes (the envelope), enumerable as an allowlist. */
 export const BEADS_REQUEST_KINDS = [...BEADS_READ_KINDS, ...BEADS_WRITE_KINDS] as const;
 export type BeadsRequestKind = (typeof BEADS_REQUEST_KINDS)[number];

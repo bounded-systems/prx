@@ -111,6 +111,10 @@ function beadsArgs(request: BeadsRequest): string[] {
         "closed",
         ...(request.reason !== undefined ? ["--notes", request.reason] : []),
       ];
+    case "reopen":
+      // `bd reopen` is an allowed subcommand (unlike `close`), so it dispatches
+      // directly: `bd reopen <id> --json`.
+      return [request.id, "--json"];
     default: {
       // Exhaustiveness: a new request kind is a compile error here until given args.
       const unreachable: never = request;

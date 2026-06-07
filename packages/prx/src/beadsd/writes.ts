@@ -88,3 +88,11 @@ export function closeBeadViaDaemon(
   };
   return writeViaDaemon(request, deps);
 }
+
+/** Daemon-routed `bd reopen <id>` → the reopened record (or null if none echoed). */
+export function reopenBeadViaDaemon(
+  id: string,
+  deps: WithBeadsClientDeps = {},
+): Promise<BeadsRecord | null> {
+  return writeViaDaemon({ kind: "reopen", id }, deps);
+}

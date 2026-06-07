@@ -4,6 +4,7 @@ import {
   createBeadViaDaemon,
   updateBeadViaDaemon,
   closeBeadViaDaemon,
+  reopenBeadViaDaemon,
 } from "../../src/beadsd/writes.ts";
 import type { WithBeadsClientDeps } from "../../src/beadsd/client-factory.ts";
 import type { BeadsRequest } from "../../src/beadsd/contract.ts";
@@ -71,6 +72,12 @@ describe("daemon write helpers route through beadsd (GH-296 wave 2)", () => {
     );
     // empty assignee is preserved (clear semantics); absent priority is omitted
     expect(seen).toEqual({ kind: "update", id: "prx-abb", status: "in_progress", assignee: "" });
+  });
+
+  test("reopenBeadViaDaemon sends a reopen request", async () => {
+    let seen: BeadsRequest | undefined;
+    await reopenBeadViaDaemon("prx-abb", fakeDeps({ status: "ok", result: {} }, (r) => (seen = r)));
+    expect(seen).toEqual({ kind: "reopen", id: "prx-abb" });
   });
 
   test("closeBeadViaDaemon sends a close request with the reason", async () => {

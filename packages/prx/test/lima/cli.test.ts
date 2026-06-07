@@ -124,6 +124,18 @@ describe("prx beads write-door (create/update/close via beadsd)", () => {
     }
   });
 
+  test("`beads reopen <id>`", () => {
+    expect(normalizeNamespaceArgv(["beads", "reopen", "prx-abb"])).toEqual(["beads-write", "reopen", "prx-abb"]);
+    const p = parse(["beads", "reopen", "prx-abb"]);
+    if (p.command === "beads-write") {
+      expect(p.request).toEqual({ kind: "reopen", id: "prx-abb" });
+    }
+  });
+
+  test("reopen requires an id", () => {
+    expect(() => parse(["beads", "reopen"])).toThrow(/requires an id/);
+  });
+
   test("create requires --type and --title", () => {
     expect(() => parse(["beads", "create", "--title", "x"])).toThrow(/requires --type/);
     expect(() => parse(["beads", "create", "--type", "task"])).toThrow(/requires --title/);
