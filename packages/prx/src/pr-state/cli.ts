@@ -18907,7 +18907,8 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       orchestratorVerb === "fleet" ||
       orchestratorVerb === "health" ||
       orchestratorVerb === "docs" ||
-      orchestratorVerb === "schemas"
+      orchestratorVerb === "schemas" ||
+      orchestratorVerb === "features"
     ) {
       return runSpecVerb(orchestratorVerb, orchestratorRest, output);
     }
