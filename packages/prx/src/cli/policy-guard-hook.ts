@@ -53,9 +53,12 @@ export function policyGuardHookOutput(
   });
 }
 
-async function readStdin(): Promise<string> {
+/** Drain an async byte stream to a UTF-8 string. `stream` is injectable for tests. */
+export async function readStdin(
+  stream: AsyncIterable<Buffer | string> = process.stdin,
+): Promise<string> {
   const chunks: Buffer[] = [];
-  for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
   return Buffer.concat(chunks).toString("utf8");
 }
 
@@ -63,6 +66,8 @@ async function readStdin(): Promise<string> {
 export async function runHookVerb(
   args: readonly string[],
   output: { log: (line: string) => void; error: (line: string) => void },
+  // Injectable stdin reader so the verb is testable without a real pipe.
+  readInput: () => Promise<string> = readStdin,
 ): Promise<number> {
   const [sub] = args;
   if (sub !== "policy-guard") {
@@ -72,7 +77,7 @@ export async function runHookVerb(
 
   let input: PolicyGuardHookInput;
   try {
-    input = JSON.parse(await readStdin()) as PolicyGuardHookInput;
+    input = JSON.parse(await readInput()) as PolicyGuardHookInput;
   } catch {
     return 0; // unparseable input → don't block; normal permission flow applies
   }
