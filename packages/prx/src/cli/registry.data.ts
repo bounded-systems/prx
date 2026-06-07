@@ -1815,6 +1815,14 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "beads",
   },
   {
+    // GH-296: daemon-aware session primer (the prx-beads twin of `bd prime`).
+    name: "beads prime",
+    parent: "beads",
+    description: "Prime session beads context via the daemon",
+    domain: "repo-plumbing",
+    actor: "beads",
+  },
+  {
     name: "beads issue",
     parent: "beads",
     description: "Look up beads row by GitHub issue",

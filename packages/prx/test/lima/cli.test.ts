@@ -158,6 +158,26 @@ describe("prx beads write-door (create/update/close via beadsd)", () => {
   });
 });
 
+describe("prx beads prime (daemon-aware session primer)", () => {
+  test("`beads prime` rewrites + parses (local daemon by default)", () => {
+    expect(normalizeNamespaceArgv(["beads", "prime"])).toEqual(["beads-prime"]);
+    const p = parse(["beads", "prime"]);
+    expect(p.command).toBe("beads-prime");
+    if (p.command === "beads-prime") {
+      expect(p.vm).toBeUndefined();
+      expect(p.format).toBe("plain");
+    }
+  });
+
+  test("`beads prime --vm --format json` carries through", () => {
+    const p = parse(["beads", "prime", "--vm", "myvm", "--format", "json"]);
+    if (p.command === "beads-prime") {
+      expect(p.vm).toBe("myvm");
+      expect(p.format).toBe("json");
+    }
+  });
+});
+
 describe("prx beads provision (canonical local clone)", () => {
   test("`beads provision --origin` rewrites + parses with a default cwd", () => {
     expect(normalizeNamespaceArgv(["beads", "provision", "--origin", "o/r"])).toEqual([
