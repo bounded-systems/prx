@@ -92,6 +92,59 @@ describe("prx beads read-door (ready/list/show via beadsd)", () => {
   });
 });
 
+describe("prx beads write-door (create/update/close via beadsd)", () => {
+  test("`beads create` rewrites + builds a create request", () => {
+    expect(normalizeNamespaceArgv(["beads", "create", "--type", "task", "--title", "x"])).toEqual([
+      "beads-write",
+      "create",
+      "--type",
+      "task",
+      "--title",
+      "x",
+    ]);
+    const p = parse(["beads", "create", "--type", "task", "--title", "do a thing", "--priority", "1"]);
+    expect(p.command).toBe("beads-write");
+    if (p.command === "beads-write") {
+      expect(p.request).toEqual({ kind: "create", issueType: "task", title: "do a thing", priority: 1 });
+      expect(p.vm).toBeUndefined(); // no --vm ⇒ local daemon
+    }
+  });
+
+  test("`beads update <id>` carries the changed fields", () => {
+    const p = parse(["beads", "update", "prx-abb", "--status", "in_progress", "--assignee", "alice"]);
+    if (p.command === "beads-write") {
+      expect(p.request).toEqual({ kind: "update", id: "prx-abb", status: "in_progress", assignee: "alice" });
+    }
+  });
+
+  test("`beads close <id> --reason`", () => {
+    const p = parse(["beads", "close", "prx-abb", "--reason", "done"]);
+    if (p.command === "beads-write") {
+      expect(p.request).toEqual({ kind: "close", id: "prx-abb", reason: "done" });
+    }
+  });
+
+  test("create requires --type and --title", () => {
+    expect(() => parse(["beads", "create", "--title", "x"])).toThrow(/requires --type/);
+    expect(() => parse(["beads", "create", "--type", "task"])).toThrow(/requires --title/);
+  });
+
+  test("update needs at least one field", () => {
+    expect(() => parse(["beads", "update", "prx-abb"])).toThrow(/at least one/);
+  });
+
+  test("update/close require an id", () => {
+    expect(() => parse(["beads", "update", "--status", "open"])).toThrow(/requires an id/);
+    expect(() => parse(["beads", "close"])).toThrow(/requires an id/);
+  });
+
+  test("priority out of range is rejected", () => {
+    expect(() => parse(["beads", "create", "--type", "task", "--title", "x", "--priority", "9"])).toThrow(
+      /--priority must be an integer/,
+    );
+  });
+});
+
 describe("prx beads provision (canonical local clone)", () => {
   test("`beads provision --origin` rewrites + parses with a default cwd", () => {
     expect(normalizeNamespaceArgv(["beads", "provision", "--origin", "o/r"])).toEqual([

@@ -118,6 +118,13 @@ describe("handleBeadsRequest", () => {
 });
 
 describe("handleBeadsRequest — writes (single-writer, policy passthrough)", () => {
+  test("writes dispatch under the planner role/state (so bd policy allows them)", async () => {
+    const { execBd, calls } = fakeBd(okResult("{}"));
+    await handleBeadsRequest({ kind: "create", issueType: "task", title: "t" }, { execBd });
+    expect(calls[0]!.state).toBe("planning");
+    expect(calls[0]!.role).toBe("planner");
+  });
+
   test("create dispatches `bd create --json --type --title [--priority --description]`", async () => {
     const { execBd, calls } = fakeBd(okResult(JSON.stringify({ id: "prx-new" })));
     const res = await handleBeadsRequest(
