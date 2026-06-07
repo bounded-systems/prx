@@ -20,7 +20,7 @@
  *                        a file forces removing its baseline entry in the same PR.
  *
  * Usage:
- *   bun run scripts/coverage-summary.ts [coverage/lcov.info] [--min 85] [--per-file-min 80]
+ *   bun run scripts/coverage-summary.ts [coverage/lcov.info] [--min 85] [--per-file-min 85]
  */
 
 import { appendFileSync, readFileSync } from "node:fs";
@@ -51,6 +51,7 @@ const PER_FILE_BASELINE = new Set<string>([
   "packages/prx/src/triage/type-pass.ts", // inline headless haiku call; moves to a headless actor (#502)
   "packages/prx/src/triage/prioritize-bulk.ts", // inline headless haiku call; moves to a headless actor (#502)
   "packages/prx/src/session/open.ts", // large session-open flow
+  "packages/prx/src/tools/agent_doctor.ts", // spawn-bound: real SDK probe + spawnCapture runner can't run deterministically in CI
 ]);
 
 type Totals = { lf: number; lh: number; fnf: number; fnh: number; brf: number; brh: number; files: number };
