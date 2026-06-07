@@ -34,7 +34,9 @@ jobs:
           case "$HEAD_REF" in
             changeset-release/*) echo "Version Packages PR — exempt."; exit 0 ;;
           esac
-          git fetch --no-tags --depth=1 origin "$BASE"
+          # Full fetch (NOT --depth=1): a shallow base has no merge-base, so the
+          # three-dot diff fails with "no merge base" (checkout uses fetch-depth:0).
+          git fetch --no-tags origin "$BASE"
           changed="$(git diff --name-only "origin/${BASE}...HEAD")"
           if echo "$changed" | grep -qE '^packages/'; then
             if echo "$changed" | grep -qE '^\.changeset/.+\.md$'; then
