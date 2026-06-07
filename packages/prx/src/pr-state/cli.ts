@@ -7811,10 +7811,12 @@ export function parseCommand(argv: string[]): ParsedCommand {
         ...(values.type !== undefined ? { issueType: values.type } : {}),
         ...(values["external-ref"] !== undefined ? { externalRef: values["external-ref"] } : {}),
         ...(values.notes !== undefined ? { notes: values.notes } : {}),
+        ...(values.title !== undefined ? { title: values.title } : {}),
+        ...(values.description !== undefined ? { description: values.description } : {}),
       };
       if (Object.keys(fields).length === 0) {
         throw new CliError(
-          "prx beads update needs at least one of --status / --priority / --assignee / --type / --external-ref / --notes",
+          "prx beads update needs at least one of --status / --priority / --assignee / --type / --external-ref / --notes / --title / --description",
         );
       }
       request = { kind: "update", id, ...fields };

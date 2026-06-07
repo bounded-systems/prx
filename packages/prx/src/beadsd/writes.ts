@@ -65,6 +65,8 @@ export function updateBeadViaDaemon(
     issueType?: string;
     externalRef?: string;
     notes?: string;
+    title?: string;
+    description?: string;
   },
   deps: WithBeadsClientDeps = {},
 ): Promise<BeadsRecord | null> {
@@ -77,6 +79,8 @@ export function updateBeadViaDaemon(
     ...(fields.issueType !== undefined ? { issueType: fields.issueType } : {}),
     ...(fields.externalRef !== undefined ? { externalRef: fields.externalRef } : {}),
     ...(fields.notes !== undefined ? { notes: fields.notes } : {}),
+    ...(fields.title !== undefined ? { title: fields.title } : {}),
+    ...(fields.description !== undefined ? { description: fields.description } : {}),
   };
   return writeViaDaemon(request, deps);
 }

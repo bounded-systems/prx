@@ -73,6 +73,16 @@ describe("daemon write helpers route through beadsd (GH-296 wave 2)", () => {
     expect(seen).toEqual({ kind: "dep", action: "remove", from: "prx-a", to: "prx-b" });
   });
 
+  test("updateBeadViaDaemon forwards title + description (GH-296)", async () => {
+    let seen: BeadsRequest | undefined;
+    await updateBeadViaDaemon(
+      "prx-abb",
+      { title: "t", description: "d" },
+      fakeDeps({ status: "ok", result: {} }, (r) => (seen = r)),
+    );
+    expect(seen).toEqual({ kind: "update", id: "prx-abb", title: "t", description: "d" });
+  });
+
   test("updateBeadViaDaemon forwards externalRef + notes (GH-296 write parity)", async () => {
     let seen: BeadsRequest | undefined;
     await updateBeadViaDaemon(
