@@ -303,6 +303,21 @@ function setupMocks(opts: MockOpts): MockedDeps {
     return { exitCode: 0, stdout: "", stderr: "", policy: null };
   };
 
+  // GH-296: the writer's bd update now runs `prx beads update …` through the
+  // daemon (a sync runner). Record into the same bdSpawnCalls shape (subcommand
+  // = cmd[2], args = cmd.slice(3)) so the existing update-count/failure
+  // assertions hold; reuse bdUpdateBehavior for per-row failure injection.
+  const run = (cmd: string[]): { status: number; stdout: string; stderr: string } => {
+    const subcommand = cmd[2] ?? "";
+    bdSpawnCalls.push({ subcommand, args: cmd.slice(3) });
+    if (subcommand === "update") {
+      const rowIdx = bdSpawnCalls.filter((c) => c.subcommand === "update").length - 1;
+      const beh = opts.bdUpdateBehavior?.(rowIdx) ?? { exitCode: 0 };
+      return { status: beh.exitCode, stdout: "", stderr: beh.stderr ?? "" };
+    }
+    return { status: 0, stdout: "", stderr: "" };
+  };
+
   // Watermark runner — drives `bd config get` / `bd config set`.
   const watermarkRunner = (cmd: string[]): { stdout: string; stderr: string; status: number } => {
     if (cmd[0] === "bd" && cmd[1] === "config" && cmd[2] === "get") {
@@ -361,6 +376,7 @@ function setupMocks(opts: MockOpts): MockedDeps {
     rateLimit,
     watermarkRunner,
     execBd,
+    run,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
@@ -379,11 +395,12 @@ function makeDeps(mocks: ReturnType<typeof setupMocks>) {
   const m = mocks as unknown as MockedDeps & {
     watermarkRunner: (cmd: string[]) => { stdout: string; stderr: string; status: number };
     execBd: (opts: { subcommand: string; args: string[] }) => BdExecResult;
+    run: (cmd: string[]) => { status: number; stdout: string; stderr: string };
   };
   return {
     cwd: m.cwd,
     graphql: { rawRunner: m.ghRunner, rateLimit: m.rateLimit },
-    writer: { execBd: m.execBd },
+    writer: { run: m.run },
     watermarkRunner: m.watermarkRunner,
     rateLimit: m.rateLimit,
     // GH-1649: keep the snapshot empty + resolve every row to a canonical
