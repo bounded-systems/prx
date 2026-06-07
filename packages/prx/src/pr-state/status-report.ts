@@ -116,25 +116,23 @@ export function refreshTaskSignals(taskPath: string): TaskContract {
 }
 
 /**
- * Emit the contract's derived status to `output` — the bare mode, the full
- * derived-info JSON, or the human `state (mode) - reason` line (which also
- * refreshes task signals for the default task contract when one exists).
+ * Render the contract's derived status — the bare mode, the full derived-info
+ * JSON, or the human `state (mode) - reason` line (which also refreshes task
+ * signals for the default task contract when one exists). The caller decides
+ * where the string goes (CLI stdout, a VerbSpec `output`, …).
  */
-export function printStatus(
+export function renderStatus(
   contractPath: string,
   format: "plain" | "mode" | "json",
-  output: Output,
-): number {
+): string {
   const info = deriveInfo(loadContract(contractPath));
 
   if (format === "mode") {
-    output.log(info.mode);
-    return 0;
+    return info.mode;
   }
 
   if (format === "json") {
-    output.log(JSON.stringify(info, null, 2));
-    return 0;
+    return JSON.stringify(info, null, 2);
   }
 
   const taskPath = defaultTaskPath();
@@ -143,6 +141,18 @@ export function printStatus(
   }
 
   const base = `${info.state} (${info.mode})`;
-  output.log(info.reason ? `${base} - ${info.reason}` : base);
+  return info.reason ? `${base} - ${info.reason}` : base;
+}
+
+/**
+ * `renderStatus` written to an `output` sink (returns the legacy exit code).
+ * Retained for the legacy `transition` handler.
+ */
+export function printStatus(
+  contractPath: string,
+  format: "plain" | "mode" | "json",
+  output: Output,
+): number {
+  output.log(renderStatus(contractPath, format));
   return 0;
 }

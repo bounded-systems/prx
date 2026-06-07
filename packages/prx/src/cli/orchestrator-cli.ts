@@ -32,6 +32,21 @@ export async function runSpecVerb(
     );
     return 0;
   } catch (e) {
+    // Mirror the legacy dispatcher's friendly ENOENT handling so contract-reading
+    // verbs (status, open-mode, …) surface the same "run `prx contract init`"
+    // guidance instead of a raw node error.
+    const err = e as { code?: string; path?: unknown };
+    if (
+      err?.code === "ENOENT" &&
+      typeof err.path === "string" &&
+      err.path.endsWith(".pr/local/pr.json")
+    ) {
+      output.error(`Missing PR contract at ${err.path}`);
+      output.error(
+        "Run `prx contract init` to create one, pass --contract, or use `prx overview` for a GitHub-only view.",
+      );
+      return 1;
+    }
     output.error(e instanceof Error ? e.message : String(e));
     return 1;
   }

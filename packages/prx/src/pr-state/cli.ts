@@ -1053,11 +1053,6 @@ type ParsedCommand =
       format: "plain" | "json";
     }
   | {
-      command: "status";
-      contract: string;
-      format: "plain" | "mode" | "json";
-    }
-  | {
       command: "transition";
       contract: string;
       to: LifecycleState;
@@ -8459,24 +8454,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       generatedBy: values["generated-by"],
       untracked: values.untracked,
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
-
-  if (command === "status") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        contract: { type: "string", default: ".pr/local/pr.json" },
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command,
-      contract: values.contract,
-      format: ensureChoice(values.format, ["plain", "mode", "json"], "--format"),
     };
   }
 
@@ -16166,7 +16143,8 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       orchestratorVerb === "graph" ||
       orchestratorVerb === "skills" ||
       orchestratorVerb === "open-mode" ||
-      orchestratorVerb === "stately"
+      orchestratorVerb === "stately" ||
+      orchestratorVerb === "status"
     ) {
       return runSpecVerb(orchestratorVerb, orchestratorRest, output);
     }
@@ -17214,10 +17192,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           return handleRunCliError(error, output);
         }
       })();
-    }
-
-    if (parsed.command === "status") {
-      return printStatus(parsed.contract, parsed.format, output);
     }
 
     if (parsed.command === "transition") {
