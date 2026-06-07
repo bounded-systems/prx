@@ -8,10 +8,12 @@ import { orchestratorRegistry } from "./pilot-verbs.ts";
 import { healthVerb } from "../health/verb.ts";
 import { docsVerb } from "../docs/verb.ts";
 import { schemasVerb } from "../schemas/verb.ts";
+import { featuresVerb } from "../features/verb.ts";
 
 export const verbRegistry: Registry = {
   ...orchestratorRegistry,
   [healthVerb.id]: healthVerb,
   [docsVerb.id]: docsVerb,
   [schemasVerb.id]: schemasVerb,
+  [featuresVerb.id]: featuresVerb,
 };
