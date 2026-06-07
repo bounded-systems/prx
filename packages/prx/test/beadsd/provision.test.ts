@@ -48,6 +48,7 @@ describe("provisionVmBeads", () => {
       "dolt clone https://doltremoteapi.dolthub.com/bounded-systems/prx $HOME/prx-vm-beads/.beads/dolt/io_github_bounded_systems_prx",
     );
     expect(clone).toContain("git remote add origin https://github.com/bounded-systems/prx.git");
+    expect(clone).toContain("chmod 700 $HOME/prx-vm-beads/.beads");
     expect(scripts.some((s) => s.includes("bd bootstrap"))).toBe(false);
 
     // 3. read project_id from the clone
