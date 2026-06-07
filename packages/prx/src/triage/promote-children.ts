@@ -36,7 +36,6 @@
 //                              short-id prefix matching). Upstream Go resolver
 //                              fix is tracked at GH-1479.
 
-import { processEnv } from "@bounded-systems/env";
 import { existsSync, readFileSync as defaultReadFileSync, writeFileSync } from "node:fs";
 import { join, resolve as resolvePath } from "node:path";
 
@@ -51,6 +50,7 @@ import {
 import { runIntake as defaultRunIntake } from "../intake/intake.ts";
 import type { IntakeOptions } from "../intake/intake.ts";
 import { execBd as defaultExecBd } from "@bounded-systems/bd";
+import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import { loadAllBeads, type BeadsRecord } from "./triage.ts";
 import {
   buildBeadsLookup,
@@ -83,6 +83,8 @@ export type ReadTextFile = (path: string, encoding: "utf8") => string;
 export type TriagePromoteChildrenDeps = {
   runIntake?: typeof defaultRunIntake;
   execBd?: typeof defaultExecBd;
+  /** GH-296 / prx-82b — sync runner for daemon-routed `prx beads dep add`. */
+  run?: CommandRunner;
   loadAllBeads?: (exec: typeof defaultExecBd) => BeadsRecord[];
   readFileSync?: ReadTextFile;
   writeFileSyncFn?: (path: string, data: string) => void;
@@ -253,6 +255,7 @@ export function runTriagePromoteChildren(
   const exists = deps.existsSyncFn ?? existsSync;
   const intake = deps.runIntake ?? defaultRunIntake;
   const bdExec = deps.execBd ?? defaultExecBd;
+  const run = deps.run ?? procRunner;
   const loadBeads = deps.loadAllBeads ?? loadAllBeads;
   const now = (deps.now ?? (() => new Date()))();
   const auditSink: AuditSinkDeps = {
@@ -533,24 +536,20 @@ export function runTriagePromoteChildren(
       continue;
     }
 
-    const result = bdExec(
-      {
-        subcommand: "dep",
-        args: ["add", "--type", edge.type, fromBead, toBead],
-        state: "planning",
-        role: "planner",
-      },
-      processEnv(),
+    // GH-296 / prx-82b: wire the edge via the daemon (single writer).
+    const result = run(
+      ["prx", "beads", "dep", "add", "--type", edge.type, fromBead, toBead],
+      { check: false },
     );
-    if (result.exitCode !== 0) {
+    if (result.status !== 0) {
       const stderr =
-        result.stderr.trim() || result.stdout.trim() || "bd dep add failed";
+        result.stderr.trim() || result.stdout.trim() || "prx beads dep add failed";
       writeAudit({
         ...baseDep,
         action: "error",
         fromBead,
         toBead,
-        exitCode: result.exitCode,
+        exitCode: result.status,
         stderr,
       });
       output.error(

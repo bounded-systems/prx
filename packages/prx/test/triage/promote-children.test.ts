@@ -75,6 +75,7 @@ function makeDeps(args: {
   preFiled?: Array<{ slot: string; number: number; url: string }>;
   intakeImpl?: TriagePromoteChildrenDeps["runIntake"];
   execBdImpl?: TriagePromoteChildrenDeps["execBd"];
+  runImpl?: TriagePromoteChildrenDeps["run"];
   beads?: BeadsRecord[];
 }): {
   deps: TriagePromoteChildrenDeps;
@@ -127,9 +128,19 @@ function makeDeps(args: {
       return 0;
     });
 
+  // GH-296 / prx-82b: dep edges write via the daemon (`prx beads dep add …`).
+  // The fake runner records the equivalent old `{subcommand:"dep", args}` shape
+  // so the existing bdCalls assertions hold. `runImpl` overrides for failures.
+  const run = args.runImpl ??
+    ((cmd: string[]) => {
+      bdCalls.push({ subcommand: cmd[2] ?? "", args: cmd.slice(3) });
+      return { status: 0, stdout: "", stderr: "" };
+    });
+
   const deps: TriagePromoteChildrenDeps = {
     runIntake: intakeImpl,
     execBd: execBdImpl,
+    run: run as never,
     loadAllBeads: () => args.beads ?? [],
     readFileSync: (path) => {
       const data = fs.get(path);
