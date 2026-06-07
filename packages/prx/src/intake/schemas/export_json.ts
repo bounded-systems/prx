@@ -5,7 +5,7 @@
  * heading + `actionsBearing` classification from `INTAKE_BODY_FIELDS_META`.
  * Vendor extensions (`x-prx-*`) keep the artifact valid Draft-7.
  *
- * Both `scripts/export-intake-schemas.ts` and the parity test in
+ * Both `prx schemas` and the parity test in
  * `test/intake/schemas.test.ts` import from here so they cannot drift.
  */
 

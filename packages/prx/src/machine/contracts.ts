@@ -14,7 +14,7 @@
 //
 // Zod here is the source of truth (per the reference-zod-boundary-layer
 // convention used by dispatch.ts / runtime_output.ts). JSON Schema artifacts
-// are exported by scripts/export-contract-schemas.ts so downstream tooling
+// are exported by `prx schemas` so downstream tooling
 // (CLI, audit, future actors) can consume them without importing TS.
 
 import { z } from "zod";

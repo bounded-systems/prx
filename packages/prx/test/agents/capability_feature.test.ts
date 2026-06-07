@@ -29,7 +29,7 @@ describe("capability-ownership .feature (prx-g88.7 / 7a)", () => {
     expect(existsSync(featurePath)).toBe(true);
     expect(
       readFileSync(featurePath, "utf8"),
-      "features/capability-ownership.feature is stale — run `bun packages/prx/scripts/gen-capability-feature.ts` and commit",
+      "features/capability-ownership.feature is stale — run `bun run features:render` and commit",
     ).toBe(generateCapabilityFeature());
   });
 

@@ -7,7 +7,7 @@
 //
 // The Zod schema here is the single definition of that shape: `z.infer` gives
 // the static type the codegen consumes, and `toJsonSchemaArtifact` (see
-// `scripts/export-readme-schema.ts`) projects it to the committed Draft-7
+// `prx schemas`) projects it to the committed Draft-7
 // artifact `schemas/readme/readme.schema.json`, so the intermediate type and
 // its JSON Schema cannot drift.
 

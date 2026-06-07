@@ -46,9 +46,9 @@ function trackedMarkdown(): string[] {
 
 function isNonCataloged(path: string): boolean {
   if (path in NON_CATALOGED_FILES) return true;
-  // Every package's CHANGELOG is a changesets-managed release log, not a project
-  // doc — published packages each grow one on a version bump.
-  if (path.endsWith("/CHANGELOG.md")) return true;
+  // Changesets-managed per-package release logs (packages/<name>/CHANGELOG.md);
+  // generated on version bump, one per published/versioned workspace package.
+  if (path === "CHANGELOG.md" || path.endsWith("/CHANGELOG.md")) return true;
   return NON_CATALOGED_PREFIXES.some(([prefix]) => path.startsWith(prefix));
 }
 

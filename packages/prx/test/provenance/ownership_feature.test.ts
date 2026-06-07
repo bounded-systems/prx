@@ -41,7 +41,7 @@ describe("provenance-ownership .feature (prx-1dz audit surface)", () => {
     expect(existsSync(featurePath)).toBe(true);
     expect(
       readFileSync(featurePath, "utf8"),
-      "features/provenance-ownership.feature is stale — run `bun packages/prx/scripts/gen-provenance-feature.ts` and commit",
+      "features/provenance-ownership.feature is stale — run `bun run features:render` and commit",
     ).toBe(generateProvenanceFeature());
   });
 
