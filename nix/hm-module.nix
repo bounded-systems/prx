@@ -22,6 +22,18 @@ let
   exports = lib.concatStringsSep "\n" (
     lib.optional (cfg.aiHomeRoot != null) ''export PRX_AI_HOME_ROOT="${cfg.aiHomeRoot}"''
     ++ lib.optional (cfg.claudePath != null) ''export BAKED_CLAUDE_CODE_PATH="${cfg.claudePath}"''
+    # GH-352: provenance signing. prx deployed in a dev environment IS production
+    # for prx, so signing is the identity layer, not a dev convenience. Per-actor
+    # keys derive from the master resolved at PRX_PROVENANCE_MASTER_FILE (an
+    # agenix/sops-decrypted secret); `PRX_PROVENANCE_KEY=dev` selects per-actor
+    # mode; enforcement is fail-closed.
+    ++ lib.optionals cfg.provenance.enable (
+      lib.optional (cfg.provenance.masterFile != null)
+        ''export PRX_PROVENANCE_MASTER_FILE="${cfg.provenance.masterFile}"''
+      ++ [ ''export PRX_PROVENANCE_KEY="dev"'' ]
+      ++ lib.optional cfg.provenance.requireSigned
+        ''export PRX_REQUIRE_SIGNED_DERIVATIONS="1"''
+    )
   );
 
   # The prx launcher: inject the consumer env, then exec the binary.
@@ -67,6 +79,34 @@ in
       type = lib.types.bool;
       default = false;
       description = "Also install the `wt` worktree wrapper (delegates to `prx tools wt exec`).";
+    };
+
+    provenance = {
+      enable = lib.mkEnableOption "prx provenance signing (per-actor, master-derived, enforced)";
+
+      masterFile = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        example = "/run/agenix/prx-provenance-master";
+        description = ''
+          Sets PRX_PROVENANCE_MASTER_FILE — the path to the agenix/sops-decrypted
+          base64 master secret (a 32-byte key, mode 0600). Per-actor signing keys
+          derive from it; the master never enters config or the nix store (the env
+          carries only the path). Null ⇒ the zero-config persisted dev master
+          (bootstrap; still signs, self-derived). Run `prx keymaker register` once
+          after setting this to publish the per-actor public trust map.
+        '';
+      };
+
+      requireSigned = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Sets PRX_REQUIRE_SIGNED_DERIVATIONS=1 — fail-closed verification: an
+          unsigned or untrusted derivation is rejected at the merge-guard /
+          publisher tier. The production posture; disable only to debug.
+        '';
+      };
     };
   };
 
