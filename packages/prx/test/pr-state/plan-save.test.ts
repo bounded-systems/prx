@@ -10,6 +10,8 @@
 import { describe, expect, test } from "bun:test";
 
 import { runCli } from "../../src/pr-state/cli.ts";
+import { parseArgs } from "../../src/cli/verbspec.ts";
+import { planSaveVerb, type PlanSaveDeps } from "../../src/pr-state/plan-save-verb.ts";
 import { validatePlanShape } from "../../src/plan-store/scope.ts";
 import type { RunPlanSaveResult } from "../../src/plan-store/verbs.ts";
 
@@ -17,6 +19,27 @@ type Output = {
   log: (line: string) => void;
   error: (line: string) => void;
 };
+
+// `plan save` is a VerbSpec now; drive its CLI path (parse → run → warnings →
+// render → exit) with injected deps, the way the legacy `runCli(["plan","save",
+// …], output, deps)` harness did. argv arrives as ["plan","save", …rest].
+async function runPlanSaveCli(
+  argv: string[],
+  output: Output,
+  deps: Partial<PlanSaveDeps>,
+): Promise<number> {
+  const rest = argv.slice(2);
+  try {
+    const input = parseArgs(planSaveVerb as never, rest) as Parameters<typeof planSaveVerb.run>[0];
+    const out = await planSaveVerb.run(input, { ...planSaveVerb.deps!(), ...deps });
+    for (const w of planSaveVerb.warnings!(out, input)) output.error(w);
+    output.log(planSaveVerb.render!(out, input));
+    return planSaveVerb.exitCode?.(out, input) ?? 0;
+  } catch (e) {
+    output.error(e instanceof Error ? e.message : String(e));
+    return 1;
+  }
+}
 
 function captureOutput(): { logs: string[]; errors: string[]; output: Output } {
   const logs: string[] = [];
@@ -58,7 +81,7 @@ describe("prx plan save — persist-on-failure (GH-2028)", () => {
     const planBody = "# Plan\n\n## Goals\n\nDo a thing.\n";
     let runPlanSaveCalled = false;
 
-    const exit = await runCli(
+    const exit = await runPlanSaveCli(
       ["plan", "save", "--unit", "GH-1277", "--from-stdin"],
       output,
       {
@@ -90,7 +113,7 @@ describe("prx plan save — persist-on-failure (GH-2028)", () => {
     const planBody = "# Plan\n\n## Goals\n\nNo Scope here.\n";
     let saved = false;
 
-    const exit = await runCli(
+    const exit = await runPlanSaveCli(
       ["plan", "save", "--unit", "GH-1277", "--from-stdin", "--skip-validate"],
       output,
       {
@@ -118,7 +141,7 @@ describe("prx plan save — persist-on-failure (GH-2028)", () => {
     const { logs, errors, output } = captureOutput();
     const planBody = "# Plan\n\n## Scope\n\n- Real scope.\n";
 
-    const exit = await runCli(
+    const exit = await runPlanSaveCli(
       ["plan", "save", "--unit", "GH-1277", "--from-stdin"],
       output,
       {
@@ -145,7 +168,7 @@ describe("prx plan save — persist-on-failure (GH-2028)", () => {
 
     // Save side: persists, exit 0, validated_ok=false note.
     const saveCapture = captureOutput();
-    const saveExit = await runCli(
+    const saveExit = await runPlanSaveCli(
       ["plan", "save", "--unit", "GH-1277", "--from-stdin"],
       saveCapture.output,
       {
