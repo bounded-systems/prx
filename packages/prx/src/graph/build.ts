@@ -7,8 +7,8 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, relative, resolve } from "node:path";
 
-import { findRepoRoot } from "../repo-root.ts";
-const REPO_ROOT = findRepoRoot();
+import { getRepoRoot } from "../repo-root.ts";
+const REPO_ROOT = getRepoRoot();
 import {
   GRAPH_CONTEXT,
   ProjectGraph,
