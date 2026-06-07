@@ -49,6 +49,14 @@ export type VerbSpec<I extends ZodType = ZodType, O extends ZodType = ZodType, C
    * never use `render` — they consume `output`.
    */
   render?: (output: z.infer<O>, input: z.infer<I>) => string;
+  /**
+   * Optional CLI exit code derived from a *successful* run's output — for verbs
+   * with "success but non-zero" semantics (e.g. a refusal, or a check that
+   * found drift) that the legacy handlers expressed by returning a code rather
+   * than throwing. Defaults to 0. CLI-only: thrown errors still exit 1, and the
+   * MCP/OpenAPI surfaces never consult it (they return `output`).
+   */
+  exitCode?: (output: z.infer<O>, input: z.infer<I>) => number;
 };
 
 /** Identity helper that preserves input/output/deps inference. */

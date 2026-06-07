@@ -11,6 +11,8 @@
  * live unit.
  */
 
+import { ZodError } from "zod";
+
 import { dispatch, render } from "./verbspec.ts";
 import { verbRegistry } from "./verb-registry.ts";
 
@@ -30,8 +32,15 @@ export async function runSpecVerb(
     output.log(
       v?.render ? v.render(res.output as never, res.input as never) : render(res.output),
     );
-    return 0;
+    // A verb may map its (successful) output to a non-zero exit code; default 0.
+    return v?.exitCode ? v.exitCode(res.output as never, res.input as never) : 0;
   } catch (e) {
+    // A Zod validation failure (bad/missing arg) → surface the first issue's
+    // message, not the multi-issue JSON dump, matching the legacy CliError UX.
+    if (e instanceof ZodError) {
+      output.error(e.issues[0]?.message ?? e.message);
+      return 1;
+    }
     // Mirror the legacy dispatcher's friendly ENOENT handling so contract-reading
     // verbs (status, open-mode, …) surface the same "run `prx contract init`"
     // guidance instead of a raw node error.

@@ -975,9 +975,9 @@ import {
 import { CliError } from "./cli-error.ts";
 import { type ExecutionWorkAgent, POLICY, buildWorkAutomationProfile, ensureExecutionWorkflowAgent, interactiveTimeoutMs, parseWorkAgentImplementation, validateWorkIoFormat } from "./work-agent.ts";
 import { findSavedClaudeSession, resolveCodexSessionProfile } from "./session-finder.ts";
-import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type Output, type ParityChainApplyResult, type PlanCloseReason, type PlanCloseResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
+import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type Output, type ParityChainApplyResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
 import { refreshTaskSignals } from "./status-report.ts";
-import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanCloseResult, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktreeRemove } from "./cli-format.ts";
+import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktreeRemove } from "./cli-format.ts";
 import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, detectBranchNameFromCwd, findWorktreeByDirectoryPrefix, listResolvedWorktrees, procSpawnLike, resolveRepoRootWithSpawn, runCommand, runInheritStatus, tryCommand } from "./cli-spawn.ts";
 
 // Shared default for the `SpawnLike` capture seams below. Routes through
@@ -1270,17 +1270,6 @@ type ParsedCommand =
       emitNext: boolean;
       emitFile?: string | undefined;
       force: boolean;
-    }
-  | {
-      // GH-1057: `prx plan close` — close-without-merge wrapper. Distinct
-      // from `close` (post-merge cleanup); see `planClose()` below.
-      command: "plan-close";
-      workUnitId: string;
-      reason: PlanCloseReason;
-      upstream: string | null;
-      dryRun: boolean;
-      emitNext: boolean;
-      format: "plain" | "json";
     }
   | {
       // GH-1173: operator-facing verbs over the GH-1174 CAS plan store.
@@ -2817,7 +2806,6 @@ type CliDeps = {
   applyParityChainActions?: typeof applyParityChainActions;
   checkPrxBinaryUpstream?: typeof checkPrxBinaryUpstream;
   closeSession?: typeof closeSession;
-  planClose?: typeof planClose;
   // GH-1173: CAS plan-store verb seams (save/load/show).
   runPlanSave?: typeof runPlanSave;
   runPlanLoad?: typeof runPlanLoad;
@@ -8677,47 +8665,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       force: values.force,
     };
   }
-  if (command === "plan-close") {
-    // GH-1057: close-without-merge wrapper for plan-mode sessions. The unit
-    // positional is REQUIRED — unlike `close` (post-merge cleanup, which
-    // infers from branch as a convenience), this verb performs a real GH
-    // issue close + bd sync, so operator intent must be explicit.
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-        "dry-run": { type: "boolean", default: false },
-        "no-next": { type: "boolean", default: false },
-        reason: { type: "string", default: "completed" },
-        upstream: { type: "string" },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-    if (positionals.length === 0) {
-      throw new CliError(
-        "plan close requires an explicit work-unit id (e.g., `prx plan close GH-1050`); inference from the current branch is intentionally disabled to prevent accidental closes",
-      );
-    }
-    if (positionals.length > 1) {
-      throw new CliError("plan close accepts at most one work-unit id");
-    }
-    const workUnitId = parseCanonicalWorkUnitId(positionals[0]!, "plan close");
-    const reason = ensureChoice(
-      values.reason,
-      ["completed", "not-planned", "duplicate"] as const,
-      "--reason",
-    );
-    return {
-      command,
-      workUnitId,
-      reason,
-      upstream: values.upstream ?? null,
-      dryRun: values["dry-run"],
-      emitNext: !values["no-next"],
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
   // GH-1173: CAS plan-store verb surface (save/load/show).
   if (command === "plan-save") {
     const { values } = parseArgs({
@@ -13881,202 +13828,6 @@ export function closeSession(
   };
 }
 
-// GH-1057: `prx plan close` — operator-context wrapper for issue
-// close-without-merge. Distinct from `closeSession` (post-merge cleanup) in
-// that this verb actually invokes `gh issue close` with a structured reason
-// + optional upstream-pointer comment, then runs `bd github sync` to mirror
-// the closed state into beads. Carries actor identity for hooks gating raw
-// `gh issue close` from non-plan profiles.
-// GH-1720: `gh issue close --reason` accepts {completed|not planned|duplicate}
-// (space form). Our canonical surface is hyphen form per
-// feedback_no_raw_gh_close. Translate at the spawn boundary only.
-export function planCloseReasonToGhReason(reason: PlanCloseReason): string {
-  return reason === "not-planned" ? "not planned" : reason;
-}
-
-export type PlanCloseOptions = {
-  workUnitId: string;
-  reason: PlanCloseReason;
-  upstream: string | null;
-  dryRun: boolean;
-  emitNext: boolean;
-};
-export type PlanCloseDeps = {
-  cwd?: string;
-  runner?: GithubCommandRunner;
-  bdRunner?: BdGithubRunner;
-  /**
-   * Canonical reconcile (GH-2011: replaces the retired `bdSync` slot that
-   * dispatched the bd-side reconcile shell-out). Tests override this seam
-   * to assert the chain is invoked.
-   */
-  beadsSync?: typeof runBeadsSync;
-  /**
-   * GH-2110: bd-record close seams. Tests inject stubs to assert the
-   * close-and-verify shape without spawning bd. Production wires the
-   * defaults from `tools/bd_issue_close.ts` + `tools/bd.ts` + `triage.ts`.
-   */
-  execBdIssueClose?: typeof execBdIssueClose;
-  bdShow?: typeof runBdShow;
-  loadAllBeads?: () => BeadsRecord[];
-};
-
-export async function planClose(
-  options: PlanCloseOptions,
-  deps: PlanCloseDeps = {},
-): Promise<PlanCloseResult> {
-  const cwd = deps.cwd ?? process.cwd();
-  const runner = deps.runner ?? defaultRunner;
-  const beadsSync = deps.beadsSync ?? runBeadsSync;
-
-  const issueNumberMatch = options.workUnitId.match(/-(\d+)$/);
-  const issueNumber = issueNumberMatch ? Number(issueNumberMatch[1]) : null;
-
-  const baseResult: PlanCloseResult = {
-    workUnitId: options.workUnitId,
-    issueNumber,
-    reason: options.reason,
-    upstream: options.upstream,
-    upstreamCommentPosted: false,
-    issueClosed: false,
-    bdRecord: null,
-    bdSyncExitCode: null,
-    handoff: [
-      `prx worktree-remove ${options.workUnitId} --delete-branch --force`,
-    ],
-    refusalReason: null,
-    dryRun: options.dryRun,
-  };
-  if (options.emitNext) {
-    baseResult.handoff.push("prx delegate next");
-  }
-
-  if (issueNumber === null) {
-    return {
-      ...baseResult,
-      refusalReason: `cannot extract issue number from ${options.workUnitId}`,
-    };
-  }
-
-  const repoSlug = repoNameWithOwner(cwd, runner);
-
-  // Idempotency: skip if already closed. Surface as refusal so re-runs from a
-  // shell hook don't silently no-op.
-  const issue = viewIssueFresh(repoSlug, options.workUnitId, runner);
-  const issueState = issue ? (issue.state ?? "").toUpperCase() : null;
-  if (issueState === "CLOSED") {
-    return {
-      ...baseResult,
-      refusalReason: `issue #${issueNumber} is already closed`,
-    };
-  }
-
-  if (options.dryRun) {
-    return baseResult;
-  }
-
-  let upstreamCommentPosted = false;
-  if (options.upstream) {
-    const body =
-      `Closing in favor of upstream: ${options.upstream}\n\n` +
-      `Reason: ${options.reason}`;
-    const commentResult = runner(
-      [
-        "gh",
-        "issue",
-        "comment",
-        String(issueNumber),
-        "--repo",
-        repoSlug,
-        "--body",
-        body,
-      ],
-      { check: false },
-    );
-    if (commentResult.status !== 0) {
-      return {
-        ...baseResult,
-        refusalReason:
-          `failed to post upstream pointer comment: ` +
-          (commentResult.stderr || commentResult.stdout || "unknown error").trim(),
-      };
-    }
-    upstreamCommentPosted = true;
-  }
-
-  const closeResult = runner(
-    [
-      "gh",
-      "issue",
-      "close",
-      String(issueNumber),
-      "--repo",
-      repoSlug,
-      "--reason",
-      planCloseReasonToGhReason(options.reason),
-    ],
-    { check: false },
-  );
-  if (closeResult.status !== 0) {
-    return {
-      ...baseResult,
-      upstreamCommentPosted,
-      refusalReason:
-        `gh issue close failed: ` +
-        (closeResult.stderr || closeResult.stdout || "unknown error").trim(),
-    };
-  }
-
-  // GH-2110: end-of-line bd-record close-and-verify. Done by the close *actor*
-  // for this work unit so the operator-visible outcome reflects the linked bd
-  // record's actual status — the reconcile chain below can return 0 while
-  // skipping per-pair closes (unpinned, limit, eventual-consistency lag), and
-  // the previous `bd_sync=ok` line did not distinguish those cases from a
-  // landed close.
-  const bdRecord = await resolveAndCloseLinkedBeads(
-    { issueNumber, reason: options.reason, cwd },
-    {
-      execBdIssueClose: deps.execBdIssueClose,
-      bdShow: deps.bdShow,
-      loadAllBeads: deps.loadAllBeads,
-    },
-  );
-
-  // GH-2011: chain the canonical reconcile rather than the destructive bd
-  // verb. Reconcile lag is still expected — surface the exit code so the
-  // caller can re-run.
-  const repoSlugTrimmed = repoSlug.trim();
-  const syncResult = await beadsSync(
-    {
-      repo: repoSlugTrimmed.length > 0 ? repoSlugTrimmed : undefined,
-      domain: "gh",
-      dryRun: false,
-      limit: DEFAULT_SYNC_LIMIT,
-      format: "plain",
-    },
-    { log: () => {}, error: () => {} },
-    { cwd: () => cwd },
-  );
-
-  // GH-2074 PR-3: this actor just mutated the unit — the GH issue and its
-  // linked beads are now closed. Drop the unit's read-projection entries so a
-  // subsequent read re-hydrates fresh instead of serving the stale pre-close
-  // ("open") state within the TTL window (ai-home-udqx2.12 self-mutation
-  // invalidation). Best-effort; a missing entry is a no-op.
-  invalidateUnit(repoSlug, options.workUnitId);
-  for (const per of bdRecord.perId ?? []) {
-    invalidateUnit(cwd, per.id);
-  }
-
-  return {
-    ...baseResult,
-    upstreamCommentPosted,
-    issueClosed: true,
-    bdRecord,
-    bdSyncExitCode: syncResult.exitCode,
-  };
-}
-
 export type ReviewVerbOptions = {
   workUnitId?: string | undefined;
   ultra: boolean;
@@ -16125,6 +15876,11 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       if (sub === "status") return runSpecVerb("worktree", orchestratorRest.slice(1), output);
       if (sub === undefined || sub.startsWith("-")) return runSpecVerb("worktree", orchestratorRest, output);
     }
+    // `plan close <unit>` → the plan-close verb; the rest of the `plan`
+    // namespace stays on the legacy handlers.
+    if (orchestratorVerb === "plan" && orchestratorRest[0] === "close") {
+      return runSpecVerb("plan-close", orchestratorRest.slice(1), output);
+    }
     if (orchestratorVerb === "plugin") {
       return runPluginVerb(orchestratorRest, output);
     }
@@ -16328,26 +16084,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         return 1;
       }
       return result.handoffRequired ? 2 : 0;
-    }
-
-    if (parsed.command === "plan-close") {
-      // GH-1057: plan-mode close-without-merge. Distinct from `close`
-      // (post-merge cleanup) — actually closes the GH issue + syncs beads.
-      return (deps.planClose ?? planClose)({
-        workUnitId: parsed.workUnitId,
-        reason: parsed.reason,
-        upstream: parsed.upstream,
-        dryRun: parsed.dryRun,
-        emitNext: parsed.emitNext,
-      }).then((result) => {
-        output.log(formatPlanCloseResult(result, parsed.format));
-        if (result.refusalReason) return 1;
-        // GH-2110: bd-record failure raises the verb's exit code even when
-        // the GH close succeeded — shell hooks downstream need to see the
-        // failure to avoid a silent half-close.
-        if (result.bdRecord && !result.bdRecord.ok) return 1;
-        return 0;
-      });
     }
 
     // GH-1173: CAS plan-store verbs.
