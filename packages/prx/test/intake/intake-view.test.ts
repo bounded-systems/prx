@@ -7,7 +7,6 @@ import {
   type IntakeViewOptions,
 } from "../../src/intake/intake-view.ts";
 import type { GhExecResult } from "@bounded-systems/gh";
-import type { BdExecResult } from "@bounded-systems/bd";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
 
 function makeOpts(overrides: Partial<IntakeViewOptions> = {}): IntakeViewOptions {
