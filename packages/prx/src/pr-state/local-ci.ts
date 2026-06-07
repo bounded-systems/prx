@@ -45,17 +45,29 @@ type PhaseSpec = {
   prepare?: () => void;
 };
 
-function bakedGitSha(): string {
-  const r = runCaptured(["git", "rev-parse", "--short=12", "HEAD"], { check: false });
+/**
+ * Subprocess seam (GH-955). The phase machinery spawns real tools by default;
+ * injecting `{ run, capture }` lets the spec-building, SHA-baking, and
+ * phase-running logic be driven with fakes — no heavy `bun`/`git` invocation.
+ */
+export type LocalCiRunners = {
+  run?: typeof defaultRunner;
+  capture?: typeof runCaptured;
+};
+
+function bakedGitSha(capture: typeof runCaptured = runCaptured): string {
+  const r = capture(["git", "rev-parse", "--short=12", "HEAD"], { check: false });
   if (r.status === 0) return r.stdout.trim();
   return "";
 }
 
-function ensureDistDir(): void {
-  defaultRunner(["mkdir", "-p", "dist"], { stdio: "inherit", check: false });
+function ensureDistDir(run: typeof defaultRunner = defaultRunner): void {
+  run(["mkdir", "-p", "dist"], { stdio: "inherit", check: false });
 }
 
-function phaseSpec(phase: CiPhase): PhaseSpec {
+export function phaseSpec(phase: CiPhase, deps: LocalCiRunners = {}): PhaseSpec {
+  const capture = deps.capture ?? runCaptured;
+  const run = deps.run ?? defaultRunner;
   switch (phase) {
     case "install":
       return { argv: ["bun", "install", "--frozen-lockfile"] };
@@ -72,26 +84,31 @@ function phaseSpec(phase: CiPhase): PhaseSpec {
           "build",
           "--compile",
           "--define",
-          `__PRX_BUILD_GIT_SHA__="${bakedGitSha()}"`,
+          `__PRX_BUILD_GIT_SHA__="${bakedGitSha(capture)}"`,
           "packages/prx/scripts/pr_state.ts",
           "--outfile",
           "dist/prx",
         ],
-        prepare: ensureDistDir,
+        prepare: () => ensureDistDir(run),
       };
     case "test":
       return { argv: ["bun", "test"] };
   }
 }
 
-function runPhase(phase: CiPhase, format: "plain" | "json", output: Output): PhaseResult {
-  const spec = phaseSpec(phase);
+export function runPhase(
+  phase: CiPhase,
+  format: "plain" | "json",
+  output: Output,
+  deps: LocalCiRunners = {},
+): PhaseResult {
+  const spec = phaseSpec(phase, deps);
   const start = Date.now();
   output.error(`LOCAL_CI_STARTED phase=${phase}`);
   spec.prepare?.();
   const r = format === "plain"
-    ? defaultRunner(spec.argv, { stdio: "inherit", check: false })
-    : runCaptured(spec.argv, { check: false });
+    ? (deps.run ?? defaultRunner)(spec.argv, { stdio: "inherit", check: false })
+    : (deps.capture ?? runCaptured)(spec.argv, { check: false });
   const status = r.status;
   const durationMs = Date.now() - start;
   output.error(`${status === 0 ? "LOCAL_CI_PASSED" : "LOCAL_CI_FAILED"} phase=${phase} duration_ms=${durationMs}`);
