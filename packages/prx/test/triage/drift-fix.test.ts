@@ -543,19 +543,35 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
     syncResult?: { exitCode: number; stdout: string; stderr: string };
   } = {}) {
     const audit: string[] = [];
+    // GH-296 / prx-ebo: writes now go through the daemon helpers (updateBead /
+    // reopenBead), not execBd. The fakes record the SAME {subcommand, args}
+    // shape the old `bd update`/`bd reopen` produced (id + --type/-p), so the
+    // existing call assertions hold; `bdResults` still drives failure injection
+    // (consumed in write order), mapped to the helpers' throw-on-error contract.
     const bdCalls: Array<{ subcommand: string; args: string[] }> = [];
     let bdIndex = 0;
     const bdResults = options.bdResults ?? [];
-    const execBd = (opts: { subcommand: string; args: string[] }): BdExecResult => {
-      bdCalls.push({ subcommand: opts.subcommand, args: opts.args });
-      const result = bdResults[bdIndex] ?? {
-        exitCode: 0,
-        stdout: "",
-        stderr: "",
-        policy: null,
-      };
+    const nextResult = (): BdExecResult => {
+      const result = bdResults[bdIndex] ?? { exitCode: 0, stdout: "", stderr: "", policy: null };
       bdIndex += 1;
       return result;
+    };
+    // execBd no longer carries writes; keep an inert stub for any non-write path.
+    const execBd = (): BdExecResult => ({ exitCode: 0, stdout: "", stderr: "", policy: null });
+    const updateBead = async (id: string, fields: { issueType?: string; priority?: number }) => {
+      const args = [id];
+      if (fields.issueType !== undefined) args.push("--type", fields.issueType);
+      if (fields.priority !== undefined) args.push("-p", String(fields.priority));
+      bdCalls.push({ subcommand: "update", args });
+      const r = nextResult();
+      if (r.exitCode !== 0) throw new Error(r.stderr || r.stdout || "bd update failed");
+      return null;
+    };
+    const reopenBead = async (id: string) => {
+      bdCalls.push({ subcommand: "reopen", args: [id] });
+      const r = nextResult();
+      if (r.exitCode !== 0) throw new Error(r.stderr || r.stdout || "bd reopen failed");
+      return null;
     };
     let syncCalls = 0;
     // GH-2316: status-only canonical reconcile seam (replaces the retired
@@ -571,6 +587,8 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
     const deps = {
       ...STD_DEPS_BASE,
       execBd,
+      updateBead,
+      reopenBead,
       readFileSync: () => fixture,
       loadAllBeads: () => options.beadsAtApply ?? [],
       auditSink: {
@@ -972,7 +990,7 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
     expect(code).toBe(1);
   });
 
-  test("bd update non-zero exit → row marked error, exit 1", async () => {
+  test("bd update failure → row marked error, exit 1", async () => {
     const { audit, o, deps, bdCalls } = setup([fixTypeRow()], {
       bdResults: [{ exitCode: 2, stdout: "", stderr: "bd-safe: nope", policy: null }],
     });
@@ -985,7 +1003,10 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
     expect(bdCalls).toHaveLength(1);
     const entry = JSON.parse(audit[0]!);
     expect(entry.action).toBe("error");
-    expect(entry.exitCode).toBe(2);
+    // The daemon helper throws (no bd exit code); drift-fix records exitCode 1
+    // and surfaces the daemon's error message.
+    expect(entry.exitCode).toBe(1);
+    expect(entry.stderr).toContain("bd-safe: nope");
   });
 
   test("empty plan → no writes, no sync, exit 0", async () => {
@@ -1032,9 +1053,18 @@ describe("runTriageDriftFix — one-shot apply (--apply)", () => {
           }),
         ],
         cwd: () => "/tmp/repo",
-        execBd: (opts) => {
-          bdCalls.push({ subcommand: opts.subcommand, args: opts.args });
-          return { exitCode: 0, stdout: "", stderr: "", policy: null };
+        // GH-296 / prx-ebo: writes via the daemon helpers, recorded in the same
+        // {subcommand, args} shape the old bd path produced.
+        updateBead: async (id: string, fields: { issueType?: string; priority?: number }) => {
+          const args = [id];
+          if (fields.issueType !== undefined) args.push("--type", fields.issueType);
+          if (fields.priority !== undefined) args.push("-p", String(fields.priority));
+          bdCalls.push({ subcommand: "update", args });
+          return null;
+        },
+        reopenBead: async (id: string) => {
+          bdCalls.push({ subcommand: "reopen", args: [id] });
+          return null;
         },
         auditSink: {
           stateDirOverride: "/tmp/state",
@@ -1165,9 +1195,17 @@ describe("runDriftFixActor — actor adapter (GH-1342)", () => {
           }),
         ],
         cwd: () => "/tmp/repo",
-        execBd: (opts) => {
-          bdCalls.push({ subcommand: opts.subcommand, args: opts.args });
-          return { exitCode: 0, stdout: "", stderr: "", policy: null };
+        // GH-296 / prx-ebo: writes via the daemon helpers.
+        updateBead: async (id: string, fields: { issueType?: string; priority?: number }) => {
+          const args = [id];
+          if (fields.issueType !== undefined) args.push("--type", fields.issueType);
+          if (fields.priority !== undefined) args.push("-p", String(fields.priority));
+          bdCalls.push({ subcommand: "update", args });
+          return null;
+        },
+        reopenBead: async (id: string) => {
+          bdCalls.push({ subcommand: "reopen", args: [id] });
+          return null;
         },
         auditSink: {
           stateDirOverride: "/tmp/state",
