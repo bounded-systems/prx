@@ -23,30 +23,65 @@ import {
 import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "./triage.ts";
 
 export type BeadsCache = {
-  /** First call runs `loadAllBeads(exec)`; subsequent calls return the cached array until `invalidate()`. */
+  /**
+   * Return the cached array, re-loading via `loadAllBeads(exec)` when there is no
+   * cache. With a `generation` source (GH-296), a load also re-fetches when the
+   * dataset etag (dolt HEAD) has moved since the cached copy — so a stable HEAD
+   * serves cached data even after writes elsewhere.
+   */
   load(): BeadsRecord[];
   /** Drop the cached array. Next `load()` re-reads via `loadAllBeads(exec)`. */
   invalidate(): void;
+  /**
+   * GH-296: UoW-coherent write-through. After a write, splice the mutated record
+   * into the cache by id (replace-or-insert) instead of busting the whole array —
+   * so one changed UoW doesn't force a full re-list. No-op when nothing is cached.
+   */
+  upsert(record: BeadsRecord): void;
+  /** GH-296: drop one record by id from the cache (e.g. a delete). No-op when uncached. */
+  remove(id: string): void;
 };
 
 export type CreateBeadsCacheOptions = {
   exec?: (...args: Parameters<typeof defaultExecBd>) => BdExecResult;
   loadAllBeads?: typeof defaultLoadAllBeads;
+  /**
+   * GH-296: the dataset generation (the daemon's dolt HEAD etag). When provided,
+   * `load()` re-fetches only when the generation changed since the cached copy —
+   * an unchanged HEAD avoids re-listing. Omit for the legacy memoize-once cache.
+   */
+  generation?: (() => string | undefined) | undefined;
 };
 
 export function createBeadsCache(options: CreateBeadsCacheOptions = {}): BeadsCache {
   const exec = options.exec ?? defaultExecBd;
   const loader = options.loadAllBeads ?? defaultLoadAllBeads;
+  const generation = options.generation;
   let cached: BeadsRecord[] | null = null;
+  let cachedGen: string | undefined;
   return {
     load(): BeadsRecord[] {
-      if (cached === null) {
+      const gen = generation?.();
+      // Re-fetch when uncached, or when the dataset generation moved.
+      if (cached === null || (generation !== undefined && gen !== cachedGen)) {
         cached = loader(exec);
+        cachedGen = gen;
       }
       return cached;
     },
     invalidate(): void {
       cached = null;
+      cachedGen = undefined;
+    },
+    upsert(record: BeadsRecord): void {
+      if (cached === null) return;
+      const i = cached.findIndex((r) => r.id === record.id);
+      if (i >= 0) cached[i] = record;
+      else cached.push(record);
+    },
+    remove(id: string): void {
+      if (cached === null) return;
+      cached = cached.filter((r) => r.id !== id);
     },
   };
 }
