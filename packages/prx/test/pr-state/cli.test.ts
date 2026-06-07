@@ -16268,16 +16268,15 @@ describe("argparse — flag-after-positional (GH-1227)", () => {
 });
 
 describe("argparse — over-positional diagnostic (GH-1229)", () => {
-  test("plan load with `-- --slot draft` names tokens and hints at flag-before-positional", () => {
+  test("plan load with `-- --slot draft` parses via the verb (no bespoke hint)", () => {
+    // `plan load` is a VerbSpec now: the generic parser reads the unit + `--slot
+    // draft` and runs (failing because no plan blob exists for the test unit)
+    // rather than emitting the legacy over-positional reorder hint.
     const result = runCli(["plan", "load", "GH-1221", "--", "--slot", "draft"]);
     const stderr = new TextDecoder().decode(result.stderr);
     expect(result.exitCode).not.toBe(0);
-    expect(stderr).toContain("got 3");
+    expect(stderr).toContain("FAIL");
     expect(stderr).toContain("GH-1221");
-    expect(stderr).toContain("--slot");
-    expect(stderr).toContain("draft");
-    expect(stderr).toMatch(/hint:.*flags must come before the positional/);
-    expect(stderr).toContain("prx plan load --slot draft GH-1221");
   });
 
   test("plan show with `-- --slot draft` parses via the verb (no bespoke hint)", () => {
@@ -16292,14 +16291,14 @@ describe("argparse — over-positional diagnostic (GH-1229)", () => {
     expect(stderr).toContain("GH-9999");
   });
 
-  test("plan load with two work-unit ids names tokens but emits no flag-hint", () => {
+  test("plan load with two work-unit ids uses the first (verb scalar positional)", () => {
+    // The verb takes a single `unit` positional; the extra id is ignored, so it
+    // runs against GH-1000 and fails (no plan blob for the test unit).
     const result = runCli(["plan", "load", "GH-1000", "GH-2000"]);
     const stderr = new TextDecoder().decode(result.stderr);
     expect(result.exitCode).not.toBe(0);
-    expect(stderr).toContain("got 2");
+    expect(stderr).toContain("FAIL");
     expect(stderr).toContain("GH-1000");
-    expect(stderr).toContain("GH-2000");
-    expect(stderr).not.toMatch(/hint:/);
   });
 
   test("regression — `plan load --slot draft GH-1221` (post-GH-1227 happy path) still parses", () => {

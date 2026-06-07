@@ -1209,14 +1209,6 @@ type ParsedCommand =
       force: boolean;
     }
   | {
-      // GH-1173: operator-facing verbs over the GH-1174 CAS plan store.
-      command: "plan-load";
-      workUnitId: string;
-      slot: "draft" | "approved";
-      slotExplicit: boolean;
-      format: "raw" | "json";
-    }
-  | {
       // GH-1239: deterministic pre-draft preflight (already-done /
       // allowlist-feasibility / blocked-by-open-deps).
       command: "plan-preflight";
@@ -2687,8 +2679,6 @@ type CliDeps = {
     output: Output,
     deps?: PlanSearchDeps,
   ) => Promise<number>;
-  /** Override for plan-load writing binary content directly to stdout. */
-  writeStdoutBinary?: (buf: Buffer) => void;
   reviewVerb?: typeof reviewVerb;
   findSavedClaudeSession?: (launchCwd: string, homeDir?: string) => boolean;
   writeFile?: (path: string, content: string) => void;
@@ -8294,45 +8284,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       emitNext: !values["no-next"],
       emitFile: values["emit-file"],
       force: values.force,
-    };
-  }
-  // GH-1173: CAS plan-store verb surface (save/load/show).
-  if (command === "plan-load") {
-    const slotProvided = rest.some(
-      (arg) => arg === "--slot" || arg.startsWith("--slot="),
-    );
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: {
-        slot: { type: "string", default: "approved" },
-        format: { type: "string", default: "raw" },
-        // GH-1311: lets the verb run from inside an open planner pane.
-        unit: { type: "string" },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-    if (positionals.length > 1) {
-      throw tooManyWorkUnitIdsError("plan load", positionals);
-    }
-    const explicit = positionals[0] ?? values.unit;
-    const resolved = resolvePlanSessionUnit(explicit, {
-      detect: detectWorkCommandTarget,
-    });
-    if (resolved.unit === null) {
-      throw new CliError(
-        "plan load requires a work-unit id (positional or --unit), or run from an open `prx plan session` pane",
-      );
-    }
-    return {
-      command,
-      workUnitId:
-        resolved.source === "flag"
-          ? parseCanonicalWorkUnitId(resolved.unit, "plan load")
-          : resolved.unit,
-      slot: ensureChoice(values.slot, ["draft", "approved"] as const, "--slot"),
-      slotExplicit: slotProvided,
-      format: ensureChoice(values.format, ["raw", "json"] as const, "--format"),
     };
   }
   // GH-1239: deterministic three-axis pre-draft preflight.
@@ -14790,9 +14741,6 @@ function collectSprintPrSnapshots(
 
 // GH-1173: stdin/stdout binary IO defaults for the plan-store verbs. Pulled
 // out so tests can inject in-memory replacements via CliDeps.
-function writeStdoutBinaryDefault(buf: Buffer): void {
-  process.stdout.write(buf);
-}
 
 // GH-1239: auto-step preflight wrapper used by the `session` and
 // `session-open-claude` plan-session handlers. Returns:
@@ -15176,6 +15124,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     if (orchestratorVerb === "plan-show") {
       return runSpecVerb("plan-show", orchestratorRest, output);
     }
+    if (orchestratorVerb === "plan" && orchestratorRest[0] === "load") {
+      return runSpecVerb("plan-load", orchestratorRest.slice(1), output);
+    }
+    if (orchestratorVerb === "plan-load") {
+      return runSpecVerb("plan-load", orchestratorRest, output);
+    }
     // The `contract <sub>` namespace reroutes several subcommands to verbs that
     // are now spec-driven. The early dispatch keys off the raw `argv[0]`
     // (`contract`), not the normalized rewrite, so those aliases would miss the
@@ -15457,46 +15411,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     // GH-1173: CAS plan-store verbs.
-    if (parsed.command === "plan-load") {
-      return (async () => {
-        try {
-          const result = await (deps.runPlanLoad ?? runPlanLoad)({
-            unit: parsed.workUnitId,
-            slot: parsed.slot,
-            fallbackToDraft: !parsed.slotExplicit,
-          });
-          if (result.fellBackToDraft) {
-            output.error(
-              `note: no approved plan for ${parsed.workUnitId}, falling back to draft (sha=${result.sha})`,
-            );
-          }
-          if (parsed.format === "json") {
-            output.log(
-              JSON.stringify(
-                {
-                  unit: parsed.workUnitId,
-                  slot: result.slot,
-                  sha: result.sha,
-                  size: result.content.length,
-                  body: result.content.toString("utf8"),
-                },
-                null,
-                2,
-              ),
-            );
-          } else {
-            (deps.writeStdoutBinary ?? writeStdoutBinaryDefault)(result.content);
-          }
-          return 0;
-        } catch (error) {
-          if (error instanceof PlanRefNotFound) {
-            output.error(`FAIL: ${error.message}`);
-            return 1;
-          }
-          return handleRunCliError(error, output);
-        }
-      })();
-    }
 
 
     // GH-1239: deterministic pre-draft preflight. Pure read; exit 0 on pass,
