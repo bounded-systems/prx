@@ -9,6 +9,12 @@ import { type BdSchemaProbeResult, type BdSchemaRepairResult } from "../beads/sc
 export type Output = {
   log: (line: string) => void;
   error: (line: string) => void;
+  /**
+   * Write raw bytes to stdout with no formatting/trailing newline — for verbs
+   * whose stdout is a binary/exact payload (e.g. `plan load --format=raw`).
+   * Optional: the default sink (console) falls back to `process.stdout.write`.
+   */
+  writeRaw?: (buf: Buffer) => void;
 };
 
 export type WorkUnitIssueCheckResult = {

@@ -19,7 +19,7 @@ import { verbRegistry } from "./verb-registry.ts";
 export async function runSpecVerb(
   verb: string,
   args: readonly string[],
-  output: { log: (line: string) => void; error: (line: string) => void },
+  output: { log: (line: string) => void; error: (line: string) => void; writeRaw?: (buf: Buffer) => void },
 ): Promise<number> {
   try {
     const res = await dispatch(verbRegistry, [verb, ...args]);
@@ -34,9 +34,17 @@ export async function runSpecVerb(
     if (v?.warnings) {
       for (const line of v.warnings(res.output as never, res.input as never)) output.error(line);
     }
-    output.log(
-      v?.render ? v.render(res.output as never, res.input as never) : render(res.output),
-    );
+    // Raw/binary stdout (e.g. `plan load --format=raw`): exact bytes, no
+    // trailing newline. Takes precedence over `render` when it yields a Buffer.
+    const raw = v?.renderRaw ? v.renderRaw(res.output as never, res.input as never) : null;
+    if (raw !== null) {
+      if (output.writeRaw) output.writeRaw(raw);
+      else process.stdout.write(raw);
+    } else {
+      output.log(
+        v?.render ? v.render(res.output as never, res.input as never) : render(res.output),
+      );
+    }
     // A verb may map its (successful) output to a non-zero exit code; default 0.
     return v?.exitCode ? v.exitCode(res.output as never, res.input as never) : 0;
   } catch (e) {

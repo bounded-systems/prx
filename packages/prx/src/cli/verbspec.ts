@@ -50,6 +50,12 @@ export type VerbSpec<I extends ZodType = ZodType, O extends ZodType = ZodType, C
    */
   render?: (output: z.infer<O>, input: z.infer<I>) => string;
   /**
+   * Raw/binary stdout projection — exact bytes, no trailing newline (e.g.
+   * `plan load --format=raw`). Takes precedence over `render` when it returns a
+   * Buffer; return null to defer to `render`. CLI-only.
+   */
+  renderRaw?: (output: z.infer<O>, input: z.infer<I>) => Buffer | null;
+  /**
    * Optional CLI exit code derived from a *successful* run's output — for verbs
    * with "success but non-zero" semantics (e.g. a refusal, or a check that
    * found drift) that the legacy handlers expressed by returning a code rather
