@@ -11,6 +11,7 @@ import { schemasVerb } from "../schemas/verb.ts";
 import { featuresVerb } from "../features/verb.ts";
 import { graphVerb } from "../pr-state/graph-verb.ts";
 import { actorsVerb, modelVerb } from "../pr-state/model-verb.ts";
+import { skillsVerb } from "../pr-state/skills-verb.ts";
 
 export const verbRegistry: Registry = {
   ...orchestratorRegistry,
@@ -21,4 +22,5 @@ export const verbRegistry: Registry = {
   [graphVerb.id]: graphVerb,
   [actorsVerb.id]: actorsVerb,
   [modelVerb.id]: modelVerb,
+  [skillsVerb.id]: skillsVerb,
 };
