@@ -35,6 +35,26 @@ export const CI_PHASE_BUILD_TYPE = "https://prx.dev/ci/phase/v1";
 /** The surface tag recorded in params (vs the pilot's executor-emitted checks). */
 export const CI_ATTEST_SURFACE = "prx ci";
 
+/** The env var that targets an explicit ledger for `prx ci` signing. In a bare
+ *  CI checkout `resolveCanonicalChainLedger` returns null (no workspace
+ *  reservation), so CI sets this to a known path it then uploads as the chain's
+ *  async mirror (GH-352). */
+export const CI_LEDGER_ENV = "PRX_CI_LEDGER";
+
+/**
+ * The ledger `prx ci` signs into: an explicit `PRX_CI_LEDGER` override (used in
+ * CI, where the workspace-resolved canonical ledger does not exist) wins;
+ * otherwise the canonical chain ledger. `undefined` ⇒ no ledger ⇒ no signing.
+ */
+export function ciLedgerTarget(opts: {
+  envLedger?: string | undefined;
+  canonical?: string | undefined;
+}): string | undefined {
+  const env = opts.envLedger;
+  if (env !== undefined && env.length > 0) return env;
+  return opts.canonical;
+}
+
 /** The named content inputs a CI verdict derives from — the bucket-A move.
  *  Each is a bare sha256 hex (no `sha256:` prefix); see {@link resolveCiInputs}. */
 export interface CiInputs {

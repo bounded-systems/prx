@@ -20,6 +20,7 @@ import { type AttestDeps } from "../../src/provenance/attest.ts";
 import { decodeSlsaStatement, verifySlsaDerivation } from "../../src/provenance/verify.ts";
 import {
   attestCiPhases,
+  ciLedgerTarget,
   currentCiRefs,
   CI_ATTEST_SURFACE,
   CI_PHASE_BUILD_TYPE,
@@ -131,5 +132,25 @@ describe("attestCiPhases — signed + content-addressed CI derivation (GH-352)",
     } finally {
       setAuditRuntimeContext({ actor: before.actor, verb: before.verb, source: before.source });
     }
+  });
+});
+
+describe("ciLedgerTarget — explicit PRX_CI_LEDGER override wins (GH-352)", () => {
+  test("env override wins over the canonical ledger (the CI path)", () => {
+    expect(ciLedgerTarget({ envLedger: "/ci/ledger.sqlite", canonical: "/ws/canon.sqlite" })).toBe(
+      "/ci/ledger.sqlite",
+    );
+  });
+
+  test("falls back to the canonical ledger when the override is unset/empty", () => {
+    expect(ciLedgerTarget({ envLedger: undefined, canonical: "/ws/canon.sqlite" })).toBe(
+      "/ws/canon.sqlite",
+    );
+    expect(ciLedgerTarget({ envLedger: "", canonical: "/ws/canon.sqlite" })).toBe("/ws/canon.sqlite");
+  });
+
+  test("undefined when neither is available (no ledger ⇒ no signing)", () => {
+    expect(ciLedgerTarget({ envLedger: undefined, canonical: undefined })).toBeUndefined();
+    expect(ciLedgerTarget({ envLedger: "", canonical: undefined })).toBeUndefined();
   });
 });
