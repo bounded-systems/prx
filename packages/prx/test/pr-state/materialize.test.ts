@@ -3,7 +3,34 @@
 import { existsSync, mkdirSync, mkdtempSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+
+// Isolate HOME/XDG so loadRepoInventoryConfig cannot fall back to the operator's
+// real ~/.config/prx + ~/.local/state/prx index. Without this, the `writeIndex:
+// false` case finds the operator's global index and reports `name_not_in_index`
+// instead of `no_index_file`.
+let prevHome: string | undefined;
+let prevCfg: string | undefined;
+let prevState: string | undefined;
+
+beforeEach(() => {
+  prevHome = process.env.HOME;
+  prevCfg = process.env.XDG_CONFIG_HOME;
+  prevState = process.env.XDG_STATE_HOME;
+  const isolated = mkdtempSync(join(tmpdir(), "prx-materialize-home-"));
+  process.env.HOME = isolated;
+  delete process.env.XDG_CONFIG_HOME;
+  delete process.env.XDG_STATE_HOME;
+});
+
+afterEach(() => {
+  if (prevHome === undefined) delete process.env.HOME;
+  else process.env.HOME = prevHome;
+  if (prevCfg === undefined) delete process.env.XDG_CONFIG_HOME;
+  else process.env.XDG_CONFIG_HOME = prevCfg;
+  if (prevState === undefined) delete process.env.XDG_STATE_HOME;
+  else process.env.XDG_STATE_HOME = prevState;
+});
 
 import {
   DEFAULT_MATERIALIZE_TTL_SECONDS,
