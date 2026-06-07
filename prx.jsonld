@@ -473,6 +473,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/cli-decomposition.md",
+      "name": "ADR — decomposing the `pr-state/cli.ts` monolith",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/cli-decomposition.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/cli-from-spec.md",
       "name": "ADR — a spec-driven CLI: author verbs once, project everywhere",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/cli-from-spec.md",
