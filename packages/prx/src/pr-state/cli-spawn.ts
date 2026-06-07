@@ -34,6 +34,24 @@ export function runInheritStatus(
   }
 }
 
+/** The current git branch in `cwd` via `git branch --show-current`, or null. */
+export function detectBranchNameFromCwd(cwd = process.cwd()): string | null {
+  let status: number;
+  let stdout: string;
+  try {
+    const result = procRunner(["git", "branch", "--show-current"], { cwd, check: false });
+    status = result.status;
+    stdout = result.stdout;
+  } catch {
+    return null;
+  }
+  if (status !== 0) {
+    return null;
+  }
+  const branch = stdout.trim();
+  return branch ? branch : null;
+}
+
 /** Copy `text` to the system clipboard via pbcopy. Throws if the copy fails. */
 export function copyToClipboard(text: string): void {
   let status: number | null = null;

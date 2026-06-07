@@ -5,7 +5,6 @@
 // migrating to VerbSpecs without a cli.ts import cycle. Pure move — no behavior
 // change.
 
-import type { Output } from "./cli-types.ts";
 import { deriveInfo, loadContract } from "./contract.ts";
 import { currentBranchName, fetchPrSignalInfo, loadReviewConfig } from "./github.ts";
 import {
@@ -142,17 +141,4 @@ export function renderStatus(
 
   const base = `${info.state} (${info.mode})`;
   return info.reason ? `${base} - ${info.reason}` : base;
-}
-
-/**
- * `renderStatus` written to an `output` sink (returns the legacy exit code).
- * Retained for the legacy `transition` handler.
- */
-export function printStatus(
-  contractPath: string,
-  format: "plain" | "mode" | "json",
-  output: Output,
-): number {
-  output.log(renderStatus(contractPath, format));
-  return 0;
 }

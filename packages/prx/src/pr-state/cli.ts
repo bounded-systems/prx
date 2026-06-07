@@ -18,7 +18,6 @@ import {
 } from "./contract.ts";
 import {
   appendTransitionLog,
-  validateActorOwnership,
   type TransitionEntry,
 } from "./transition_log.ts";
 import {
@@ -250,7 +249,6 @@ import {
   assertValidTransition,
   canonicalPrEventAliases,
   eventForSkill,
-  lifecycleStates,
   prSystemMachine,
   prSkillNames,
   type PrSkillName,
@@ -978,9 +976,9 @@ import { CliError } from "./cli-error.ts";
 import { type ExecutionWorkAgent, POLICY, buildWorkAutomationProfile, ensureExecutionWorkflowAgent, interactiveTimeoutMs, parseWorkAgentImplementation, validateWorkIoFormat } from "./work-agent.ts";
 import { findSavedClaudeSession, resolveCodexSessionProfile } from "./session-finder.ts";
 import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type Output, type ParityChainApplyResult, type PlanCloseReason, type PlanCloseResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
-import { printStatus, refreshTaskSignals } from "./status-report.ts";
+import { refreshTaskSignals } from "./status-report.ts";
 import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanCloseResult, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktreeRemove } from "./cli-format.ts";
-import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, findWorktreeByDirectoryPrefix, listResolvedWorktrees, procSpawnLike, resolveRepoRootWithSpawn, runCommand, runInheritStatus, tryCommand } from "./cli-spawn.ts";
+import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, detectBranchNameFromCwd, findWorktreeByDirectoryPrefix, listResolvedWorktrees, procSpawnLike, resolveRepoRootWithSpawn, runCommand, runInheritStatus, tryCommand } from "./cli-spawn.ts";
 
 // Shared default for the `SpawnLike` capture seams below. Routes through
 // @bounded-systems/proc (imported as procRunner) rather than the bucket-gated github.ts
@@ -1051,16 +1049,6 @@ type ParsedCommand =
       generatedBy: string;
       untracked: boolean;
       format: "plain" | "json";
-    }
-  | {
-      command: "transition";
-      contract: string;
-      to: LifecycleState;
-      actor: string;
-      reason?: string | null | undefined;
-      format: "plain" | "json";
-      log: string;
-      id?: string | undefined;
     }
   | {
       command: "event";
@@ -3430,23 +3418,6 @@ function detectCloseWorkUnitId(cwd = process.cwd()): string {
   throw new CliError(
     `close requires a canonical work unit id; pass GH-<n> explicitly (could not infer from branch '${branchName ?? "<none>"}' or cwd '${basename(cwd)}')`,
   );
-}
-
-function detectBranchNameFromCwd(cwd = process.cwd()): string | null {
-  let status: number;
-  let stdout: string;
-  try {
-    const result = procRunner(["git", "branch", "--show-current"], { cwd, check: false });
-    status = result.status;
-    stdout = result.stdout;
-  } catch {
-    return null;
-  }
-  if (status !== 0) {
-    return null;
-  }
-  const branch = stdout.trim();
-  return branch ? branch : null;
 }
 
 function detectWorkCommandTarget(
@@ -8454,38 +8425,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       generatedBy: values["generated-by"],
       untracked: values.untracked,
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
-
-  if (command === "transition") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        contract: { type: "string", default: ".pr/local/pr.json" },
-        to: { type: "string" },
-        actor: { type: "string", default: "codex" },
-        reason: { type: "string" },
-        format: { type: "string", default: "plain" },
-        log: { type: "string", default: ".prx/transitions.jsonl" },
-        id: { type: "string" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    if (!values.to) {
-      throw new CliError("--to is required");
-    }
-
-    return {
-      command,
-      contract: values.contract,
-      to: ensureChoice(values.to, lifecycleStates, "--to"),
-      actor: values.actor,
-      reason: values.reason,
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      log: values.log,
-      id: values.id,
     };
   }
 
@@ -16144,7 +16083,8 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       orchestratorVerb === "skills" ||
       orchestratorVerb === "open-mode" ||
       orchestratorVerb === "stately" ||
-      orchestratorVerb === "status"
+      orchestratorVerb === "status" ||
+      orchestratorVerb === "transition"
     ) {
       return runSpecVerb(orchestratorVerb, orchestratorRest, output);
     }
@@ -17192,65 +17132,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           return handleRunCliError(error, output);
         }
       })();
-    }
-
-    if (parsed.command === "transition") {
-      const contract = loadContract(parsed.contract);
-      const currentState = deriveInfo(contract).state;
-
-      try {
-        assertValidTransition(currentState, parsed.to);
-      } catch (error) {
-        output.error(`FAIL: ${(error as Error).message}`);
-        return 1;
-      }
-
-      try {
-        validateActorOwnership(parsed.actor);
-      } catch (error) {
-        output.error(`FAIL: ${(error as Error).message}`);
-        return 1;
-      }
-
-      const nextContract = applyTransition(contract, parsed.to, parsed.actor, parsed.reason);
-      writeContract(parsed.contract, nextContract);
-
-      const branch = detectBranchNameFromCwd();
-      const commit = tryCommand(["git", "rev-parse", "--short=12", "HEAD"], process.cwd());
-      const logEntry: TransitionEntry = {
-        id: parsed.id ?? crypto.randomUUID(),
-        issue: branch,
-        state_from: currentState,
-        state_to: parsed.to,
-        actor: parsed.actor,
-        artifact: branch ? `branch:${branch}` : null,
-        timestamp: new Date().toISOString(),
-        proof: { commit },
-      };
-      appendTransitionLog(parsed.log, logEntry);
-
-      const info = deriveInfo(loadContract(parsed.contract));
-      if (parsed.format === "json") {
-        output.log(
-          JSON.stringify(
-            {
-              state: info.state,
-              mode: info.mode,
-              title: info.title,
-              reason: info.reason,
-              transition: {
-                to: parsed.to,
-                actor: parsed.actor,
-                reason: parsed.reason ?? null,
-              },
-            },
-            null,
-            2,
-          ),
-        );
-        return 0;
-      }
-      return printStatus(parsed.contract, "plain", output);
     }
 
     // GH-1821: contract-trinity read path. `prx contract show --kind=...`
