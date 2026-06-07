@@ -40,7 +40,7 @@ import {
   type PublishDeps,
 } from "../../src/submit/publish.ts";
 
-const ENV_KEYS = ["PRX_PLAN_STORE", "PRX_CAS_ROOT", "PRX_AI_HOME_ROOT", "XDG_STATE_HOME", "HOME"] as const;
+const ENV_KEYS = ["PRX_PLAN_STORE", "PRX_CAS_ROOT", "PRX_AI_HOME_ROOT", "PRX_OPERATOR_CONFIG_ROOT", "XDG_STATE_HOME", "HOME"] as const;
 type EnvSnapshot = Partial<Record<(typeof ENV_KEYS)[number], string | undefined>>;
 
 const HEAD_SHA = "1234567890abcdef1234567890abcdef12345678";

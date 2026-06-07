@@ -3648,27 +3648,29 @@ describe("board-status", () => {
       };
     }
 
+    // Exercises the deprecated PRX_AI_HOME_ROOT alias (GH-411). Clears the
+    // neutral PRX_OPERATOR_CONFIG_ROOT / BAKED_OPERATOR_CONFIG_ROOT too so an
+    // operator env can't leak in and the alias path is what's under test.
     function withAiHome(aiHome: string | null, fn: () => void): void {
-      const prev = process.env.PRX_AI_HOME_ROOT;
-      const prevBaked = process.env.BAKED_AI_HOME_ROOT;
-      delete process.env.BAKED_AI_HOME_ROOT;
-      if (aiHome === null) {
-        delete process.env.PRX_AI_HOME_ROOT;
-      } else {
+      const snap: Record<string, string | undefined> = {};
+      for (const k of [
+        "PRX_AI_HOME_ROOT",
+        "BAKED_AI_HOME_ROOT",
+        "PRX_OPERATOR_CONFIG_ROOT",
+        "BAKED_OPERATOR_CONFIG_ROOT",
+      ]) {
+        snap[k] = process.env[k];
+        delete process.env[k];
+      }
+      if (aiHome !== null) {
         process.env.PRX_AI_HOME_ROOT = aiHome;
       }
       try {
         fn();
       } finally {
-        if (prev === undefined) {
-          delete process.env.PRX_AI_HOME_ROOT;
-        } else {
-          process.env.PRX_AI_HOME_ROOT = prev;
-        }
-        if (prevBaked === undefined) {
-          delete process.env.BAKED_AI_HOME_ROOT;
-        } else {
-          process.env.BAKED_AI_HOME_ROOT = prevBaked;
+        for (const [k, v] of Object.entries(snap)) {
+          if (v === undefined) delete process.env[k];
+          else process.env[k] = v;
         }
       }
     }
@@ -3860,6 +3862,39 @@ describe("board-status", () => {
         }
         if (prevOverride !== undefined) {
           process.env.PRX_AI_HOME_ROOT = prevOverride;
+        }
+      }
+    });
+
+    test("PRX_OPERATOR_CONFIG_ROOT (neutral name) drives the overlay", () => {
+      const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-op-"));
+      const opRoot = mkdtempSync(join(tmpdir(), "pr-state-identity-oproot-"));
+      writeOverlay(opRoot, "demo", "demo-web", [
+        "[sources.github]",
+        'kind = "github"',
+        "canonical_id_pattern = '^OPROOT-\\d+$'",
+        "",
+      ].join("\n"));
+      const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
+
+      const snap: Record<string, string | undefined> = {};
+      for (const k of [
+        "PRX_OPERATOR_CONFIG_ROOT",
+        "BAKED_OPERATOR_CONFIG_ROOT",
+        "PRX_AI_HOME_ROOT",
+        "BAKED_AI_HOME_ROOT",
+      ]) {
+        snap[k] = process.env[k];
+        delete process.env[k];
+      }
+      process.env.PRX_OPERATOR_CONFIG_ROOT = opRoot;
+      try {
+        const config = loadIdentityConfig(root, runner);
+        expect(effectiveCanonicalIdPattern(config).test("OPROOT-42")).toBe(true);
+      } finally {
+        for (const [k, v] of Object.entries(snap)) {
+          if (v === undefined) delete process.env[k];
+          else process.env[k] = v;
         }
       }
     });
