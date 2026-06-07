@@ -1209,13 +1209,6 @@ type ParsedCommand =
       force: boolean;
     }
   | {
-      // GH-1239: deterministic pre-draft preflight (already-done /
-      // allowlist-feasibility / blocked-by-open-deps).
-      command: "plan-preflight";
-      workUnitId: string;
-      format: "plain" | "json";
-    }
-  | {
       // GH-1186: planner-side read primitives — twins of `intake-view` /
       // `intake-search`. Pure reads that route through the shared
       // `src/issues/` core; see plan-view.ts / plan-search.ts.
@@ -8286,30 +8279,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       force: values.force,
     };
   }
-  // GH-1239: deterministic three-axis pre-draft preflight.
-  if (command === "plan-preflight") {
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-    if (positionals.length === 0) {
-      throw new CliError(
-        "plan preflight requires a work-unit id (e.g., `prx plan preflight GH-1239`)",
-      );
-    }
-    if (positionals.length > 1) {
-      throw tooManyWorkUnitIdsError("plan preflight", positionals);
-    }
-    return {
-      command,
-      workUnitId: parseCanonicalWorkUnitId(positionals[0]!, "plan preflight"),
-      format: ensureChoice(values.format, ["plain", "json"] as const, "--format"),
-    };
-  }
   // GH-1186: planner-side read primitives. Twins of `intake-view` /
   // `intake-search`; route through the shared `src/issues/` core. Pure reads,
   // no XState / no schema, mirror parseIntakeViewCommand / parseIntakeSearchCommand.
@@ -15130,6 +15099,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     if (orchestratorVerb === "plan-load") {
       return runSpecVerb("plan-load", orchestratorRest, output);
     }
+    if (orchestratorVerb === "plan" && orchestratorRest[0] === "preflight") {
+      return runSpecVerb("plan-preflight", orchestratorRest.slice(1), output);
+    }
+    if (orchestratorVerb === "plan-preflight") {
+      return runSpecVerb("plan-preflight", orchestratorRest, output);
+    }
     // The `contract <sub>` namespace reroutes several subcommands to verbs that
     // are now spec-driven. The early dispatch keys off the raw `argv[0]`
     // (`contract`), not the normalized rewrite, so those aliases would miss the
@@ -15413,30 +15388,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     // GH-1173: CAS plan-store verbs.
 
 
-    // GH-1239: deterministic pre-draft preflight. Pure read; exit 0 on pass,
-    // 1 on any axis failure (already-done / infeasible-action /
-    // infeasible-blocker / mixed-failure).
-    if (parsed.command === "plan-preflight") {
-      return (async () => {
-        try {
-          const handler = deps.runPlanPreflight ?? runPlanPreflight;
-          const result = await handler({ unit: parsed.workUnitId });
-          if (parsed.format === "json") {
-            output.log(JSON.stringify(result, null, 2));
-          } else {
-            output.log(formatPreflightPlain(result));
-          }
-          return result.status === "pass" ? 0 : 1;
-        } catch (error) {
-          // Errors from the preflight itself (network, parse) get exit 2 so
-          // operators can distinguish "the check ran and refused" (1) from
-          // "the check could not run" (2).
-          const message = error instanceof Error ? error.message : String(error);
-          output.error(`plan preflight: ${message}`);
-          return 2;
-        }
-      })();
-    }
 
     // GH-1186: planner-side read primitives. Mirror intake-view / intake-search
     // dispatch — pure reads that route through the shared `src/issues/` core.
