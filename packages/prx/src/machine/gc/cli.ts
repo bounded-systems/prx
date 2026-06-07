@@ -12,17 +12,14 @@
 
 import { parseArgs } from "node:util";
 
-import { PRX_TMUX_SOCKET } from "@bounded-systems/prx-mux";
-
 import { deleteBlob, listBlobs, listRefs, readBlob } from "../../plan-store/cas.ts";
 import type { applyParityChainActions } from "../../pr-state/cli.ts";
 import { buildParityChain } from "../../pr-state/github.ts";
 import { RepoGcError, runRepoGc } from "../../pr-state/repo_gc.ts";
 import { loadRepoInventoryConfig } from "../../pr-state/repos.ts";
-import { computeTmuxReconcile } from "../../pr-state/tmux-reconcile.ts";
 import { resolveWorktreePath } from "../../tools/worktree_path.ts";
 import { runInventory, runRun, runTeardown } from "./actor.ts";
-import type { CasGcOps, HooksGcOps, RepoGcOps, TmuxGcOps } from "./drivers/registry.ts";
+import type { CasGcOps, HooksGcOps, RepoGcOps } from "./drivers/registry.ts";
 import {
 	GC_VERBS,
 	InventoryInput,
@@ -118,8 +115,6 @@ export type GcCliDeps = {
 	/** Injected from the CLI layer (`pr-state/cli.ts` gc dispatch); absent ⇒ the
 	 * hooks driver no-ops. Lazy resolver, so a non-hooks run skips repo discovery. */
 	hooks?: HooksGcOps;
-	/** Defaults to `computeTmuxReconcile` over the prx socket; tests override. */
-	tmux?: TmuxGcOps;
 	/** Defaults to `runRepoGc` over the resolved inventory config + wt root; tests override. */
 	repo?: RepoGcOps;
 };
@@ -158,19 +153,8 @@ export async function runGcCli(args: GcCliArgs, deps: GcCliDeps = {}): Promise<G
 		// repo discovery), so it's injected from the dispatch site or the driver
 		// no-ops. Mirrors how buildParityChain is threaded.
 		hooks: deps.hooks,
-		// tmux's deps ARE safe leaf imports (computeTmuxReconcile + the prx
-		// socket), so default it here like cas; tests inject a stub.
-		tmux: deps.tmux ?? {
-			reconcile: (dryRun: boolean) =>
-				computeTmuxReconcile({
-					socket: PRX_TMUX_SOCKET,
-					configPath: undefined,
-					dryRun,
-					format: "plain",
-				}).result,
-		},
 		// repo's deps are also safe leaf imports (runRepoGc + the inventory
-		// config + wt-root resolvers), defaulted here like tmux. Lazy: the report
+		// config + wt-root resolvers), defaulted here like cas. Lazy: the report
 		// scan runs only when the repo component is marked/swept. yes:true — the
 		// gc capability token is the confirmation (no interactive prompt).
 		repo: deps.repo ?? {
@@ -185,8 +169,8 @@ export async function runGcCli(args: GcCliArgs, deps: GcCliDeps = {}): Promise<G
 				} catch (err) {
 					// No `.prx/repos` inventory in this checkout = nothing for repo-gc
 					// to reclaim; the fan-out shouldn't report `partial` just because
-					// the inventory is absent (mirrors cas → empty store, tmux → no
-					// server). The targeted `prx repo gc` still surfaces this as an error.
+					// the inventory is absent (mirrors cas → empty store). The
+					// targeted `prx repo gc` still surfaces this as an error.
 					if (err instanceof RepoGcError) {
 						return { apply, scanned: 0, orphansFound: 0, swept: 0, refused: 0, cleanedBytes: 0, durationMs: 0, entries: [] };
 					}

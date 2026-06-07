@@ -19,14 +19,12 @@ import type { buildParityChain } from "../../../pr-state/github.ts";
 import type { applyHooks, hookStatus } from "../../../pr-state/hooks.ts";
 import type { RepoGcReport } from "../../../pr-state/repo_gc.ts";
 import type { RepoInventory } from "../../../pr-state/repos.ts";
-import type { TmuxReconcileResult } from "../../../pr-state/tmux-reconcile.ts";
 import type { GcDriver } from "../capability.ts";
 import type { GcComponent } from "../schema.ts";
 import { createCasDriver } from "./cas.ts";
 import { createChainDriver } from "./chain.ts";
 import { createHooksDriver } from "./hooks.ts";
 import { createRepoDriver } from "./repo.ts";
-import { createTmuxDriver } from "./tmux.ts";
 import { createWorktreeDriver } from "./worktree.ts";
 
 /**
@@ -63,19 +61,9 @@ export type HooksGcOps = {
 };
 
 /**
- * The tmux-reconcile op the `tmux` driver needs, injected (GH-2331). `gc/cli.ts`
- * defaults it to `computeTmuxReconcile` over the prx socket (a safe leaf import,
- * like `cas`); tests inject a stub. `reconcile(dryRun)` returns the structured
- * result (the would-apply / applied deltas). Without it the driver no-ops.
- */
-export type TmuxGcOps = {
-  reconcile: (dryRun: boolean) => TmuxReconcileResult;
-};
-
-/**
  * The repo-gc op the `repo` driver needs, injected (GH-2331). `gc/cli.ts`
  * defaults it to `runRepoGc` over the resolved inventory config + wt root (safe
- * leaf imports, like `cas`/`tmux`); tests inject a stub. `run(apply)` returns
+ * leaf imports, like `cas`); tests inject a stub. `run(apply)` returns
  * the report (would-sweep entries when dry, swept/refused when applying).
  * Without it the driver no-ops.
  */
@@ -86,7 +74,7 @@ export type RepoGcOps = {
 /**
  * Deps every gc driver factory may need. Mirrors `GcTeardownDeps`
  * (`actor.ts`): runtime helpers are injected, never statically imported, so the
- * gc modules avoid the `pr-state/cli.ts` ESM cycle. `cas`/`hooks`/`tmux`/`repo`
+ * gc modules avoid the `pr-state/cli.ts` ESM cycle. `cas`/`hooks`/`repo`
  * are optional — those drivers no-op without their bundle.
  */
 export type GcDriverDeps = {
@@ -95,7 +83,6 @@ export type GcDriverDeps = {
   applyParityChainActions?: typeof applyParityChainActions | undefined;
   cas?: CasGcOps | undefined;
   hooks?: HooksGcOps | undefined;
-  tmux?: TmuxGcOps | undefined;
   repo?: RepoGcOps | undefined;
 };
 
@@ -109,7 +96,6 @@ export function buildGcRegistry(
     cas: createCasDriver(deps),
     hooks: createHooksDriver(deps),
     chain: createChainDriver(deps),
-    tmux: createTmuxDriver(deps),
     repo: createRepoDriver(deps),
   };
 }

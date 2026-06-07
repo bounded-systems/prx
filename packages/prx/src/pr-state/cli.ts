@@ -579,11 +579,6 @@ import {
   type MediatorVerb,
 } from "../mediator/schema.ts";
 import {
-  runTmuxReconcile,
-  type TmuxReconcileOptions,
-  type TmuxReconcileDeps,
-} from "./tmux-reconcile.ts";
-import {
   runIntake,
   intakeOptionsSchema,
   type IntakeOptions,
@@ -2446,13 +2441,6 @@ type ParsedCommand =
       format: "plain" | "json";
     }
   | {
-      command: "tmux-reconcile";
-      socket: string;
-      configPath?: string | undefined;
-      dryRun: boolean;
-      format: "plain" | "json";
-    }
-  | {
       command: "intake";
       type: IntakeIntent;
       title: string;
@@ -2985,11 +2973,6 @@ type CliDeps = {
     options: DoltStatusOptions,
     output: Output,
     deps?: DoltStatusDeps,
-  ) => number;
-  runTmuxReconcile?: (
-    options: TmuxReconcileOptions,
-    output: Output,
-    deps?: TmuxReconcileDeps,
   ) => number;
   runIntake?: (
     options: IntakeOptions,
@@ -5667,16 +5650,6 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
       return ["mediator-stub", c1, ...tail];
     }
     return [entry.route, ...tail];
-  }
-
-  if (c0 === "tmux") {
-    if (!c1 || c1.startsWith("-")) {
-      throw new CliError("tmux requires a subcommand: reconcile");
-    }
-    if (c1 === "reconcile") {
-      return ["tmux-reconcile", ...tail];
-    }
-    throw new CliError(`Unknown tmux subcommand: ${c1}`);
   }
 
   // GH-1474: route `prx intake [<sub>...] --help` to the registry-backed
@@ -10871,28 +10844,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       verb,
       tracking: MEDIATOR_VERB_DISPATCH[verb].tracking,
       format: ensureChoice(format, ["plain", "json"], "--format"),
-    };
-  }
-
-  if (command === "tmux-reconcile") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        socket: { type: "string", default: PRX_TMUX_SOCKET },
-        "config-path": { type: "string" },
-        "dry-run": { type: "boolean", default: false },
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command: "tmux-reconcile",
-      socket: values.socket ?? PRX_TMUX_SOCKET,
-      configPath: values["config-path"],
-      dryRun: values["dry-run"],
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
     };
   }
 
@@ -22810,19 +22761,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         output.log(result.message);
       }
       return 2;
-    }
-
-    if (parsed.command === "tmux-reconcile") {
-      const handler = deps.runTmuxReconcile ?? runTmuxReconcile;
-      return handler(
-        {
-          socket: parsed.socket,
-          configPath: parsed.configPath,
-          dryRun: parsed.dryRun,
-          format: parsed.format,
-        },
-        output,
-      );
     }
 
     if (parsed.command === "intake-view") {

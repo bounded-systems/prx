@@ -25,11 +25,10 @@ describe("buildGcRegistry", () => {
     expect(buildGcRegistry(deps).cas?.component).toBe("cas");
   });
 
-  test("registers the reshape drivers wired so far (hooks, chain, tmux, repo)", () => {
+  test("registers the reshape drivers wired so far (hooks, chain, repo)", () => {
     const reg = buildGcRegistry(deps);
     expect(reg.hooks?.component).toBe("hooks");
     expect(reg.chain?.component).toBe("chain");
-    expect(reg.tmux?.component).toBe("tmux");
     expect(reg.repo?.component).toBe("repo");
   });
 

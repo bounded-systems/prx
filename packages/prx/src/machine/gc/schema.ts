@@ -51,7 +51,6 @@ export const GcComponent = z.enum([
 	"repo", // prx repo backfill + repo_gc — stale inventory / migration orphans
 	"dolt", // prx dolt reconcile — dolt push reconcile
 	"hooks", // prx hooks status — git hooks path drift
-	"tmux", // prx tmux reconcile — tmux config drift
 	"worktree", // orphaned-worktree sweep (folds GH-803/GH-736)
 	"cas", // plan-store CAS blob GC (GH-2312) — DELETES CONTENT
 ]);
