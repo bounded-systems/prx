@@ -20,16 +20,19 @@
  */
 
 import { beadsDomainAdapter, BdDomainAdapterError, ForeignWorkspacePrefixError } from "../../adapters/beads.ts";
-import { runBdShow } from "@bounded-systems/bd";
-import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../../triage/triage.ts";
+import type { BeadsRecord } from "../../triage/triage.ts";
+// GH-296: read through beadsd (one true source). The daemon serves one
+// workspace = one repo (multi-tenant is rejected as a security risk), so the
+// resolver's `cwd` is vestigial — it routes to the single per-repo daemon.
+import { showBeadViaDaemon, loadAllBeadsViaDaemon } from "../../beadsd/reads.ts";
 import { defaultRunner, type CommandRunner } from "../github.ts";
 import type { ResolvedWorkUnit, WorkUnitResolver } from "./types.ts";
 
 export type BeadsResolverDeps = {
-  /** `bd show <id> --json` runner. Defaults to {@link runBdShow}. */
-  bdShow?: typeof runBdShow;
-  /** Snapshot loader for the BD-<8hex> arm. Defaults to {@link loadAllBeads}. */
-  loadAllBeads?: (cwd: string) => BeadsRecord[];
+  /** Targeted daemon read (`bd show <id>`). Defaults to {@link showBeadViaDaemon}. */
+  showBead?: (id: string) => Promise<BeadsRecord | null>;
+  /** Snapshot loader for the BD-<8hex>/external-ref scans. Defaults to {@link loadAllBeadsViaDaemon}. */
+  loadBeads?: () => Promise<BeadsRecord[]>;
   /**
    * GH-852: domain prefix for the external-ref lookup arm. When set, non-BD
    * canonical ids (e.g. `PROJ-5743`) resolve by scanning the snapshot for
@@ -52,16 +55,16 @@ export class BeadsResolverError extends Error {
 export class BeadsResolver implements WorkUnitResolver {
   readonly name = "beads" as const;
 
-  private readonly bdShow: typeof runBdShow;
-  private readonly loadAllBeads: (cwd: string) => BeadsRecord[];
+  private readonly showBead: (id: string) => Promise<BeadsRecord | null>;
+  private readonly loadBeads: () => Promise<BeadsRecord[]>;
   private readonly externalRefPrefix: string | null;
 
   constructor(
     private readonly cwd: string,
     deps: BeadsResolverDeps = {},
   ) {
-    this.bdShow = deps.bdShow ?? runBdShow;
-    this.loadAllBeads = deps.loadAllBeads ?? ((cwd) => defaultLoadAllBeads(undefined, undefined, cwd));
+    this.showBead = deps.showBead ?? showBeadViaDaemon;
+    this.loadBeads = deps.loadBeads ?? loadAllBeadsViaDaemon;
     this.externalRefPrefix = deps.externalRefPrefix ?? null;
   }
 
@@ -75,16 +78,18 @@ export class BeadsResolver implements WorkUnitResolver {
     // route through the external_ref arm when the source is configured
     // with an external_ref_prefix.
     const longId = beadsDomainAdapter.matchesSurfaceId(canonicalId)
-      ? this.toBdLongId(canonicalId)
-      : this.resolveByExternalRef(canonicalId);
-    const result = this.bdShow(longId, this.cwd);
-    if (!result.ok) {
-      const detail = (result.stderr || result.stdout || "").trim();
-      throw new BeadsResolverError(
-        `bd show ${longId}: exit ${result.exitCode}${detail ? ` — ${detail}` : ""}`,
-      );
+      ? await this.toBdLongId(canonicalId)
+      : await this.resolveByExternalRef(canonicalId);
+    let record: BeadsRecord | null;
+    try {
+      record = await this.showBead(longId);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      throw new BeadsResolverError(`bd show ${longId}: ${detail}`);
     }
-    const record = result.record;
+    if (!record) {
+      throw new BeadsResolverError(`bd show ${longId}: record not found`);
+    }
     const state =
       record.status === "closed" || record.status === "resolved"
         ? "closed"
@@ -92,7 +97,7 @@ export class BeadsResolver implements WorkUnitResolver {
     return {
       id: canonicalId,
       title: record.title,
-      body: record.description ?? null,
+      body: record.description.length > 0 ? record.description : null,
       state,
       url: null,
       source: "beads",
@@ -112,7 +117,7 @@ export class BeadsResolver implements WorkUnitResolver {
    *     it already looks like the bd-side id; `resolveFromBeads` validates
    *     it exists via the exact-id fallback added in this PR).
    */
-  toBdLongId(canonicalId: string): string {
+  async toBdLongId(canonicalId: string): Promise<string> {
     const trimmed = canonicalId.trim();
     if (trimmed.length === 0) {
       throw new BeadsResolverError("bd id must not be empty");
@@ -120,7 +125,7 @@ export class BeadsResolver implements WorkUnitResolver {
     const upper = trimmed.toUpperCase();
 
     if (/^BD-[0-9A-F]{8}$/.test(upper)) {
-      const beads = this.loadAllBeads(this.cwd);
+      const beads = await this.loadBeads();
       const hit = beadsDomainAdapter.resolveFromBeads(upper.slice(3), beads);
       if (!hit) {
         throw new BeadsResolverError(
@@ -156,7 +161,7 @@ export class BeadsResolver implements WorkUnitResolver {
    * — without it, the resolver has no way to derive the expected ref
    * shape from the canonical id, so callers see a structured error.
    */
-  private resolveByExternalRef(canonicalId: string): string {
+  private async resolveByExternalRef(canonicalId: string): Promise<string> {
     const trimmed = canonicalId.trim();
     if (!this.externalRefPrefix) {
       throw new BeadsResolverError(
@@ -171,9 +176,9 @@ export class BeadsResolver implements WorkUnitResolver {
     }
     const suffix = trimmed.slice(dashIndex + 1).toLowerCase();
     const externalRef = `${this.externalRefPrefix}-${suffix}`;
-    const snapshot = this.loadAllBeads(this.cwd);
+    const snapshot = await this.loadBeads();
     const hit = snapshot.find(
-      (r) =>
+      (r: BeadsRecord) =>
         r.externalRefs?.[this.externalRefPrefix!] === externalRef
         || r.externalRef === externalRef,
     );
