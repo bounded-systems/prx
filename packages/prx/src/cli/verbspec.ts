@@ -153,18 +153,28 @@ export function parseArgs<I extends ZodType>(v: VerbSpec<I, ZodType>, argv: read
 
   const raw: Record<string, unknown> = {};
   const positionalValues: string[] = [];
+  // Array fields accumulate repeated occurrences (`--k a --k b`); scalars take
+  // the last value. Either form also comma-splits below (`--k a,b`).
+  const setRaw = (key: string, value: string | true) => {
+    if (isArray(key) && value !== true) {
+      const prev = raw[key];
+      raw[key] = Array.isArray(prev) ? [...prev, value] : [value];
+    } else {
+      raw[key] = value;
+    }
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
     if (a.startsWith("--")) {
       const eq = a.indexOf("=");
       if (eq >= 0) {
-        raw[a.slice(2, eq)] = a.slice(eq + 1);
+        setRaw(a.slice(2, eq), a.slice(eq + 1));
       } else {
         const key = a.slice(2);
         const next = argv[i + 1];
-        if (next === undefined || next.startsWith("--")) raw[key] = true;
+        if (next === undefined || next.startsWith("--")) setRaw(key, true);
         else {
-          raw[key] = next;
+          setRaw(key, next);
           i++;
         }
       }
@@ -176,9 +186,12 @@ export function parseArgs<I extends ZodType>(v: VerbSpec<I, ZodType>, argv: read
   pos.forEach((name, idx) => {
     if (positionalValues[idx] !== undefined) raw[name] = positionalValues[idx];
   });
-  // comma-split array fields (a CLI-ism, kept out of the schema)
+  // comma-split array fields (a CLI-ism, kept out of the schema), flattening the
+  // accumulated occurrences so repeated and comma forms compose.
   for (const [k, val] of Object.entries(raw)) {
-    if (isArray(k) && typeof val === "string") raw[k] = val.split(",").filter(Boolean);
+    if (!isArray(k)) continue;
+    const items = Array.isArray(val) ? val : typeof val === "string" ? [val] : [];
+    raw[k] = items.flatMap((s) => (typeof s === "string" ? s.split(",") : [])).filter(Boolean);
   }
   return v.input.parse(raw);
 }
