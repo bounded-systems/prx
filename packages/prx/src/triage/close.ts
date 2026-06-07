@@ -23,11 +23,13 @@
 // concatenates after the reason prefix in the bd-side note. `--reason`
 // defaults to `not-planned` and shares vocabulary with `prx plan close`.
 
-import { processEnv } from "@bounded-systems/env";
 import { z } from "zod";
 
-import { execBd as defaultExecBd } from "@bounded-systems/bd";
-import { loadAllBeads, type BeadsRecord } from "./triage.ts";
+import type { BeadsRecord } from "./triage.ts";
+// GH-296 wave 2: read + close through beadsd (one true source), not local bd.
+// A single-id close is a targeted `show <id>` + daemon close, not a load-all.
+import { showBeadViaDaemon } from "../beadsd/reads.ts";
+import { closeBeadViaDaemon } from "../beadsd/writes.ts";
 
 export const triageCloseReasonSchema = z.enum(["completed", "not-planned", "duplicate"]);
 export type TriageCloseReason = z.infer<typeof triageCloseReasonSchema>;
@@ -51,8 +53,10 @@ export type TriageCloseResult = {
 };
 
 export type TriageCloseDeps = {
-  execBd?: typeof defaultExecBd;
-  loadAllBeads?: (exec: typeof defaultExecBd) => BeadsRecord[];
+  /** Targeted daemon read (default {@link showBeadViaDaemon}). */
+  showBead?: (id: string) => Promise<BeadsRecord | null>;
+  /** Daemon close (default {@link closeBeadViaDaemon}). */
+  closeBead?: (id: string, reason?: string) => Promise<BeadsRecord | null>;
   invalidateBeadsCache?: () => void;
 };
 
@@ -77,18 +81,18 @@ export function buildCloseNote(reason: TriageCloseReason, note: string | undefin
   return buildClosedNotePrefixed("prx triage close", reason, note);
 }
 
-export function runTriageClose(
+export async function runTriageClose(
   opts: TriageCloseOptions,
   output: Output,
   deps: TriageCloseDeps = {},
-): TriageCloseResult {
-  const bdExec = deps.execBd ?? defaultExecBd;
-  const loadBeads = deps.loadAllBeads ?? loadAllBeads;
+): Promise<TriageCloseResult> {
+  const showBead = deps.showBead ?? showBeadViaDaemon;
+  const closeBead = deps.closeBead ?? closeBeadViaDaemon;
   const note = opts.note ?? null;
 
-  let beads: BeadsRecord[];
+  let record: BeadsRecord | null;
   try {
-    beads = loadBeads(bdExec);
+    record = await showBead(opts.bdId);
   } catch (err) {
     const message = (err as Error).message;
     output.error(`triage close: ${message}`);
@@ -102,7 +106,6 @@ export function runTriageClose(
     };
   }
 
-  const record = beads.find((b) => b.id === opts.bdId);
   if (!record) {
     const refusalReason = `bd record '${opts.bdId}' not found`;
     output.error(`triage close: ${refusalReason}`);
@@ -160,19 +163,12 @@ export function runTriageClose(
     };
   }
 
-  const result = bdExec(
-    {
-      subcommand: "update",
-      args: [opts.bdId, "-s", "closed", "--notes", noteBody],
-      state: "planning",
-      role: "planner",
-    },
-    processEnv(),
-  );
-
-  if (result.exitCode !== 0) {
-    const detail =
-      result.stderr.trim() || result.stdout.trim() || `bd update exit=${result.exitCode}`;
+  try {
+    // The daemon maps close → `bd update <id> --status closed --notes <reason>`;
+    // we pass the composed note body as the reason.
+    await closeBead(opts.bdId, noteBody);
+  } catch (err) {
+    const detail = (err as Error).message;
     output.error(`triage close: bd update failed for ${opts.bdId}: ${detail}`);
     return {
       bdId: opts.bdId,
