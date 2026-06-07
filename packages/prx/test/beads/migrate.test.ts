@@ -437,5 +437,64 @@ describe("runBeadsMigrate refusals — non-embedded modes (GH-1706)", () => {
   });
 });
 
+describe("runBeadsMigrate apply path (GH-1706)", () => {
+  // export/reinit succeed; `dolt show` reports per-project; `list` is non-empty.
+  const successRunner = ((cmd: readonly string[]) => {
+    const j = cmd.join(" ");
+    if (j.includes("dolt show")) return ok("Mode: per-project\n");
+    if (/\blist\b/.test(j)) return ok("BD-1\trow\n");
+    return ok('{"id":"BD-1"}\n');
+  }) as never;
+
+  function runEmbedded(runner: unknown) {
+    const { cwd, home } = makeTmpDirs();
+    seedEmbeddedRepo(cwd);
+    seedJsonl(cwd);
+    return runBeadsMigrate(
+      {},
+      { cwd, homeDir: home, resolveRepo: () => fakeRepo(cwd), runner: runner as never, recordEvent: () => {}, now: () => new Date("2026-01-01T00:00:00.000Z") },
+    );
+  }
+
+  test("applies on a healthy embedded repo (export → reinit → patch → verify)", () => {
+    expect(runEmbedded(successRunner).kind).toBe("applied");
+  });
+
+  test("a failing bd export → failed at backup", () => {
+    const runner = ((cmd: readonly string[]) => (cmd.includes("export") ? nonZero("disk full") : ok("")));
+    expect(runEmbedded(runner).kind).toBe("failed");
+  });
+
+  test("a failing reinit → failed", () => {
+    const runner = ((cmd: readonly string[]) => {
+      const j = cmd.join(" ");
+      if (j.includes("export")) return ok('{"id":"BD-1"}\n');
+      if (j.includes("init") || j.includes("reinit")) return nonZero("reinit boom");
+      return ok("");
+    });
+    expect(runEmbedded(runner).kind).toBe("failed");
+  });
+
+  test("verify failing when `dolt show` is not per-project → failed", () => {
+    const runner = ((cmd: readonly string[]) => {
+      const j = cmd.join(" ");
+      if (j.includes("dolt show")) return ok("Mode: embedded\n");
+      if (/\blist\b/.test(j)) return ok("BD-1\trow\n");
+      return ok('{"id":"BD-1"}\n');
+    });
+    expect(runEmbedded(runner).kind).toBe("failed");
+  });
+
+  test("verify failing when `bd list` is empty → failed", () => {
+    const runner = ((cmd: readonly string[]) => {
+      const j = cmd.join(" ");
+      if (j.includes("dolt show")) return ok("Mode: per-project\n");
+      if (/\blist\b/.test(j)) return ok("");
+      return ok('{"id":"BD-1"}\n');
+    });
+    expect(runEmbedded(runner).kind).toBe("failed");
+  });
+});
+
 // suppress unused-import lint on the helpers we keep ready for future tests.
 void cpSync;
