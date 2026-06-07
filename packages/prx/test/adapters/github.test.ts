@@ -306,6 +306,17 @@ describe("GhDomainAdapter.push", () => {
       runner,
       loadAllBeads: () => [],
       execBd: bd.exec,
+      // GH-296: write-back routes through the daemon helper; record the
+      // equivalent old `bd update --external-ref` shape for the assertion.
+      updateBead: (async (id: string, fields: { externalRef?: string }) => {
+        bd.calls.push({
+          subcommand: "update",
+          args: [id, "--external-ref", fields.externalRef ?? ""],
+          state: "planning",
+          role: "planner",
+        } as never);
+        return null;
+      }) as never,
       repoNameWithOwner: () => "o/r",
       cwd: () => "/repo",
     });
@@ -834,6 +845,7 @@ describe("GhDomainAdapter — BeadsCache sharing (GH-1595)", () => {
       loadAllBeads: () => cache.load(),
       invalidateBeadsCache: cache.invalidate,
       execBd: bd.exec,
+      updateBead: (async () => null) as never,
       repoNameWithOwner: () => "o/r",
       cwd: () => "/repo",
     });
@@ -870,6 +882,7 @@ describe("GhDomainAdapter — BeadsCache sharing (GH-1595)", () => {
         invalidations += 1;
       },
       execBd: bd.exec,
+      updateBead: (async () => null) as never,
       repoNameWithOwner: () => "o/r",
       cwd: () => "/repo",
     });
