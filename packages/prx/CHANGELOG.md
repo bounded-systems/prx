@@ -1,5 +1,39 @@
 # @bounded-systems/prx
 
+## 0.7.3
+
+### Patch Changes
+
+- 3ed1866: Add the `reopen` kind to the beadsd write surface (GH-296 wave 2) — contract + daemon (`bd reopen <id>`, an allowed subcommand so it dispatches directly, unlike the policy-blocked `close`) + `reopenBeadViaDaemon` helper + `prx beads reopen <id>` CLI. This completes the **atomic** write contract (create / update / close / reopen); bulk reconcilers (promote / drift-fix) are left to a future sync agent.
+- 7cd371a: Add `prx beads create|update|close` — the single-writer surface routed through beadsd (GH-296 wave 2). Like the read door, no `--vm` ⇒ local daemon (auto-started), `--vm` ⇒ the in-VM daemon. beadsd dispatches writes under the planner role/state so bd's policy allows them (it's the trusted single writer; per-caller authority is gated at the `prx beads` invocation layer). This gives humans and agents a working write path that targets the one canonical beads instead of a worktree's broken local `.beads`.
+- 63ff3b5: Add `beadsd/writes.ts` — daemon-routed `createBeadViaDaemon` / `updateBeadViaDaemon` / `closeBeadViaDaemon`, the write twins of `beadsd/reads.ts` (GH-296 wave 2). These are the single-source replacements that internal `execBd` write call sites migrate onto, so host writes go to the one beads the daemon owns. A non-ok daemon verdict throws; the echoed bd record is parsed with the same transform the readers use.
+- 26686e6: Extend the beadsd write contract with the fields the internal write call sites need (GH-296 wave 2 parity): `create` gains `externalRef` (`--external-ref`) + `silent` (`--silent`); `update` gains `issueType` (`--type`). Wired through the daemon `beadsArgs` dispatch and the `createBeadViaDaemon`/`updateBeadViaDaemon` helpers. Unblocks flipping `promote` / `intake-mirror` (create with an external ref) and `drift-fix` (update the type axis) onto the daemon.
+- 4f75d13: `prx handoff` verbs (enqueue/status/drain/replay) gain an optional `deps` seam
+  (store / drain / audit-row) defaulting to the real bd/CAS/audit
+  implementations, so the verbs are unit-testable without a live bd substrate.
+  Existing call sites pass nothing and are unaffected.
+- d084274: The markdown-coverage guard now excludes any `CHANGELOG.md` (changesets-managed per-package release logs) generically, instead of only `packages/prx/CHANGELOG.md`. A release had added `packages/bd|gh|git/CHANGELOG.md`, which the guard flagged as uncatalogued and turned `ci` red on every PR.
+- 91fb365: GH-411 slice 1: introduce a deployment-neutral operator-config root resolver
+  (`operatorConfigRoot()` in `operator-config.ts`) and route the overlay-path
+  resolution (`pr-state/github.ts`) and the wt-hook override resolution
+  (`tools/run_hook.ts`) through it. New env names — `PRX_OPERATOR_CONFIG_ROOT`
+  (runtime) and `BAKED_OPERATOR_CONFIG_ROOT` / `__PRX_BUILD_OPERATOR_CONFIG_ROOT__`
+  (baked) — take precedence, with the old `PRX_AI_HOME_ROOT` / `BAKED_AI_HOME_ROOT`
+  / `PRX_COMPILE_AI_HOME_ROOT` kept as deprecated aliases for one release so the
+  nix wrapper and existing binaries keep working unchanged. First step toward
+  running prx standalone without the hardcoded `ai-home` deployment repo.
+- 2d66c67: GH-411 slice 2: rename the internal overlay identifiers off `ai-home` now that
+  the resolver indirection (slice 1) is in place. `resolveAiHomeOverlayPath` →
+  `resolveOperatorOverlayPath` (`pr-state/github.ts`), and the `aiHomeRoot`
+  option field / locals → `overlayRoot` (`tools/run_hook.ts`,
+  `tools/ensure_claude_settings.ts`). Pure internal rename — no behavior, env, or
+  public-API change. Repo-identity literals (`bdelanghe/ai-home`) are slice 4.
+- 51696b4: `prx provenance setup` (GH-352): promotes the signing-setup step into a first-class command — derive each actor's public key from the resolved master, publish the trust map, verify drift is clean, and report the resulting posture (idempotent; exits non-zero if drift remains). `setup-provenance-signing` is now a thin wrapper that adds a master file-perms preflight and delegates to it; the `prx provenance status` onboarding text and `docs/provenance/signing.md` point at the command.
+- 75525e0: Hardened provenance signing setup (GH-352): `scripts/setup-provenance-signing` (one-command `keymaker register` + drift check + posture report), a `programs.prx.provenance` home-manager option (declaratively wires `PRX_PROVENANCE_MASTER_FILE` / per-actor `PRX_PROVENANCE_KEY` / `PRX_REQUIRE_SIGNED_DERIVATIONS`), and `docs/provenance/signing.md` (the operator-master runbook — sops/agenix → per-actor keys → committable trust map → fail-closed enforcement).
+- 038c325: `prx provenance status` (GH-352): reports the signing posture — production / bootstrap / drifted / unconfigured — from the master source, per-actor mode, trust-map actor count + drift, and enforcement, and when it's not the production configuration bubbles up the exact onboarding next-steps. So a missing or stale signing setup is discoverable from inside prx, not just the docs. The `prx ci` fail-closed message now points at it.
+- 10d9010: refactor: remove the `prx tmux reconcile` verb and its config-drift wiring (slice 1 of removing tmux entirely). Drops the tmux `gc` component/driver and the tmux reconcile embedding in `prx home update`. The reconcile path only existed to converge a live tmux server against rendered home-manager config; with tmux on its way out (headless-first + session-host substrate) it has no replacement. Interactive sessions, the parity surface, and the `prx-mux` package are removed in later slices.
+- e4110d3: `prx triage close` now reads and closes through beadsd (GH-296 wave 2) instead of local `execBd`: a targeted `showBeadViaDaemon(<id>)` lookup + `closeBeadViaDaemon`, so the close lands on the one canonical beads. First internal write call-site flipped onto the daemon write helpers; `runTriageClose` is now async.
+
 ## 0.7.2
 
 ### Patch Changes
