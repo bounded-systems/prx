@@ -1,7 +1,7 @@
 import { processEnv } from "@bounded-systems/env";
 import { defaultRunner } from "@bounded-systems/proc";
 import { existsSync, readFileSync, readlinkSync } from "node:fs";
-import { homedir } from "node:os";
+import { homeDir as osHomeDir } from "@bounded-systems/host";
 import { resolve } from "node:path";
 
 import { readOperatorConfig, type OperatorConfigDeps } from "../operator-config.ts";
@@ -288,7 +288,7 @@ export function runHomeUpdate(
       }
     });
   const env = deps.env ?? processEnv();
-  const homeDir = deps.homeDir ?? homedir();
+  const homeDir = deps.homeDir ?? osHomeDir();
 
   const flakeDir = resolveFlakeDir(options, env, homeDir);
   const configInputs = readConfiguredHomeUpdateInputs({ readFile, pathExists, homeDir });

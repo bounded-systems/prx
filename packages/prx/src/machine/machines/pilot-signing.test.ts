@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpDir } from "@bounded-systems/host";
 import { join } from "node:path";
 import { createActor, waitFor, type AnyStateMachine } from "xstate";
 
@@ -95,7 +95,7 @@ describe("real ed25519/DSSE signing of pilot + fleet artifacts", () => {
 
   test("the real ambient resolver (dev mode) round-trips end to end", async () => {
     // Isolate the persisted dev key under a temp state dir.
-    const stateDir = mkdtempSync(join(tmpdir(), "prx-prov-"));
+    const stateDir = mkdtempSync(join(tmpDir(), "prx-prov-"));
     const env = (k: string): string | undefined =>
       ({
         PRX_PROVENANCE_KEY: "dev",

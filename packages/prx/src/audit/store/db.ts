@@ -12,7 +12,7 @@
 import { processEnv } from "@bounded-systems/env";
 import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync } from "node:fs";
-import { homedir } from "node:os";
+import { homeDir } from "@bounded-systems/host";
 import { dirname, join } from "node:path";
 import schemaSql from "./schema.sql" with { type: "text" };
 
@@ -30,7 +30,7 @@ export function resolveAuditDbPath(opts: OpenAuditDbOptions = {}): string {
   const stateDir =
     opts.stateDirOverride
     ?? env.XDG_STATE_HOME
-    ?? join(homedir(), ".local", "state");
+    ?? join(homeDir(), ".local", "state");
   return join(stateDir, "prx", "audit", "metrics.sqlite");
 }
 

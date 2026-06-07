@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { createServer, type Server } from "node:net";
 import { rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
 import { unixSocketTransport } from "../keeperd/transport.ts";
@@ -30,7 +30,7 @@ const opened: Array<{ server: Server; socketPath: string }> = [];
 let counter = 0;
 
 async function startServer(deps: SessionHostDeps): Promise<{ socketPath: string }> {
-  const socketPath = join(tmpdir(), `prx-sesshost-${process.pid}-${(counter += 1)}.sock`);
+  const socketPath = join(tmpDir(), `prx-sesshost-${process.pid}-${(counter += 1)}.sock`);
   rmSync(socketPath, { force: true });
   const server = createServer((socket) => serveSessionConnection(socket, sessionHandler(deps)));
   await new Promise<void>((resolve) => server.listen(socketPath, resolve));

@@ -21,7 +21,7 @@
  */
 
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
 import { spawnRun, type Run } from "../keeperd/lima-exec.ts";
@@ -88,7 +88,7 @@ export async function openLimaChannel<T = FramedTransport>(
   const makeTransport = deps.makeTransport ?? (unixSocketTransport as (socketPath: string) => T);
   const readyTimeoutMs = opts.readyTimeoutMs ?? 5000;
 
-  const workDir = mkdtempSync(join(tmpdir(), opts.namePrefix ?? "lima-channel-"));
+  const workDir = mkdtempSync(join(tmpDir(), opts.namePrefix ?? "lima-channel-"));
   const sshConfig = join(workDir, "ssh.config");
   const controlPath = join(workDir, "cm.sock");
   const hostSocket = opts.hostSocket ?? join(workDir, "daemon.sock");

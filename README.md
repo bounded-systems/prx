@@ -27,6 +27,7 @@ libraries it builds on. A Bun + TypeScript monorepo.
     - `gh` — GitHub CLI wrapper with policy enforcement, rate-limit gating, and budget audit logging
     - `git` — Git CLI wrapper with policy enforcement and stale-lock recovery
     - `github-budget` — Rate-limit-aware gh wrapper with bucket classification, pre-call gating, and audit trail
+    - `host` — The one sanctioned reader of host/OS ambient state (home dir, temp dir, hostname), routing ambient authority through capability imports
     - `machine-schema` — Brands, handoff envelope, and state/phase/invariant primitives for work-unit machines
     - `policy` — Tool-policy engine enforcing subcommand allowlists by tool, state, and role
     - `proc` — The one allowed subprocess spawn point, routing external-tool invocations through a capability

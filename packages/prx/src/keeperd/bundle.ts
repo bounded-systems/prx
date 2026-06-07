@@ -17,7 +17,7 @@
  */
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
 import { execGit } from "@bounded-systems/git";
@@ -42,7 +42,7 @@ export function createCommitRangeBundle(
   deps: BundleDeps = {},
 ): string {
   const git = deps.git ?? execGit;
-  const dir = mkdtempSync(join(tmpdir(), "keeper-bundle-"));
+  const dir = mkdtempSync(join(tmpDir(), "keeper-bundle-"));
   const file = join(dir, "range.bundle");
   try {
     const created = git({
@@ -77,7 +77,7 @@ export function importBundleIntoRepo(
     throw new KeeperGitError(`keeper import: expected a 40-hex commitSha, got '${input.commitSha}'`);
   }
   const git = deps.git ?? execGit;
-  const dir = mkdtempSync(join(tmpdir(), "keeper-import-"));
+  const dir = mkdtempSync(join(tmpDir(), "keeper-import-"));
   const file = join(dir, "range.bundle");
   try {
     writeFileSync(file, Buffer.from(input.bundleBase64, "base64"));

@@ -5,7 +5,7 @@ import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join, resolve } from "node:path";
 import { appendFileSync, chmodSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpDir } from "@bounded-systems/host";
 import { createHash } from "node:crypto";
 
 import {
@@ -15830,9 +15830,9 @@ async function runDepResearch(
   const runId = formatRunId(now);
   const fetchedAt = now.toISOString();
 
-  const scratchParent = mkdtempSync(join(tmpdir(), "dep-research-"));
+  const scratchParent = mkdtempSync(join(tmpDir(), "dep-research-"));
   const baseDir = parsed.dryRun
-    ? mkdtempSync(join(tmpdir(), "dep-research-out-"))
+    ? mkdtempSync(join(tmpDir(), "dep-research-out-"))
     : join(repoRoot, ".prx", "dep-research");
 
   try {

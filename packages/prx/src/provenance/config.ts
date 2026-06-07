@@ -13,7 +13,7 @@
  * the master is the persisted dev seed (`loadOrCreateDevMaster`).
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { homeDir } from "@bounded-systems/host";
 import { dirname, join } from "node:path";
 
 import { getEnv } from "@bounded-systems/env";
@@ -25,7 +25,7 @@ export const PROVENANCE_MASTER_FILE_ENV = "PRX_PROVENANCE_MASTER_FILE";
 
 /** The `~/.config/prx/config.json` path (where the public trust map lives). */
 export function provenanceConfigPath(env: EnvReader = getEnv): string {
-  const home = env("HOME") ?? homedir();
+  const home = env("HOME") ?? homeDir();
   return join(home, ".config", "prx", "config.json");
 }
 
@@ -44,7 +44,7 @@ export function readProvenanceConfig(
   read: (path: string) => string = (p) => readFileSync(p, "utf8"),
   exists: (path: string) => boolean = existsSync,
 ): ProvenanceConfigBlock {
-  const home = env("HOME") ?? homedir();
+  const home = env("HOME") ?? homeDir();
   if (!home) return {};
   const path = join(home, ".config", "prx", "config.json");
   if (!exists(path)) return {};

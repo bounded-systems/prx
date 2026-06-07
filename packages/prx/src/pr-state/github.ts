@@ -7,7 +7,7 @@ import { resolveRepoRoot } from "@bounded-systems/repo-root";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { homedir, tmpdir } from "node:os";
+import { homeDir, tmpDir } from "@bounded-systems/host";
 import { z } from "zod";
 
 import {
@@ -1678,7 +1678,7 @@ export function protectMainBranch(
     ];
 
     if (apply) {
-      const payloadDir = mkdtempSync(join(tmpdir(), "prx-protect-main-"));
+      const payloadDir = mkdtempSync(join(tmpDir(), "prx-protect-main-"));
       const payloadPath = join(payloadDir, "ruleset.json");
       try {
         writeFileSync(payloadPath, JSON.stringify(ruleset, null, 2));
@@ -1718,7 +1718,7 @@ export function protectMainBranch(
     ];
 
     if (apply) {
-      const payloadDir = mkdtempSync(join(tmpdir(), "prx-protect-main-"));
+      const payloadDir = mkdtempSync(join(tmpDir(), "prx-protect-main-"));
       const payloadPath = join(payloadDir, "branch-protection.json");
       try {
         writeFileSync(payloadPath, JSON.stringify(desired.payload, null, 2));
@@ -4115,7 +4115,7 @@ function resolveBufferRepoPath(
     return null;
   }
   const path = url.slice("file://".length);
-  const bufferPrefix = `${homedir()}/.local/state/git/buffer/`;
+  const bufferPrefix = `${homeDir()}/.local/state/git/buffer/`;
   if (!path.startsWith(bufferPrefix)) {
     return null;
   }
@@ -4975,7 +4975,7 @@ function wtCacheTtlMs(): number {
 }
 
 function wtCacheDir(): string {
-  const base = getEnv("XDG_CACHE_HOME") || join(homedir(), ".cache");
+  const base = getEnv("XDG_CACHE_HOME") || join(homeDir(), ".cache");
   return join(base, "prx", "wt-status");
 }
 

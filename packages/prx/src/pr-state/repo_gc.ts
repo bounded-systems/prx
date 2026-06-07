@@ -20,7 +20,7 @@ import {
   rmSync as defaultRmSync,
   statSync as defaultStatSync,
 } from "node:fs";
-import { homedir } from "node:os";
+import { homeDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
 import { appendAuditRow as defaultAppendAuditRow } from "../audit/sink.ts";
@@ -190,7 +190,7 @@ export function runRepoGc(
   const promptConfirm = deps.promptConfirm ?? defaultPromptConfirm;
   const appendAuditRow = deps.appendAuditRow ?? defaultAppendAuditRow;
   const getCtx = deps.getAuditRuntimeContext ?? defaultGetAuditRuntimeContext;
-  const home = deps.homeDir ?? homedir();
+  const home = deps.homeDir ?? homeDir();
   const now = deps.now ?? (() => new Date());
 
   if (!opts.config.indexPath) {

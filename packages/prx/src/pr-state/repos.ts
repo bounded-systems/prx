@@ -6,7 +6,7 @@ function resolvedHome(): string | null {
 }
 import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync, readFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
-import { homedir } from "node:os";
+import { homeDir as osHomeDir } from "@bounded-systems/host";
 import { z } from "zod";
 import { spawnCapture } from "@bounded-systems/proc";
 import {
@@ -520,7 +520,7 @@ function canonicalWorktreePathForRepo(
   repo: Pick<LocalRepo, "primaryRemote">,
   branch: string,
 ): string | null {
-  const homeDir = resolvedHome() ?? homedir();
+  const homeDir = resolvedHome() ?? osHomeDir();
   if (!repo.primaryRemote?.githubRepo) {
     return null;
   }

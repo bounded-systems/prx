@@ -12,7 +12,7 @@
 // durable memories before they age out.
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { homedir } from "node:os";
+import { homeDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
 import { parseClaudeJsonl } from "../parser.ts";
@@ -29,7 +29,7 @@ type ClaudeCodeJsonlConfig = Extract<
 
 function resolveRoot(config: ClaudeCodeJsonlConfig): string {
   if (config.inputPath && config.inputPath.length > 0) return config.inputPath;
-  return join(homedir(), ".claude", "projects");
+  return join(homeDir(), ".claude", "projects");
 }
 
 function isDir(path: string): boolean {

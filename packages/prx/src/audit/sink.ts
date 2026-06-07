@@ -16,7 +16,7 @@
 
 import { processEnv } from "@bounded-systems/env";
 import { appendFileSync, mkdirSync } from "node:fs";
-import { homedir } from "node:os";
+import { homeDir } from "@bounded-systems/host";
 import { dirname, join } from "node:path";
 
 import type { InspectionEvent } from "xstate";
@@ -52,7 +52,7 @@ function resolveStateDir(opts: AuditSinkPathOptions = {}): string {
   const env = opts.env ?? processEnv();
   const xdg = env.XDG_STATE_HOME?.trim();
   if (xdg && xdg.length > 0) return xdg;
-  return join(homedir(), ".local", "state");
+  return join(homeDir(), ".local", "state");
 }
 
 /**

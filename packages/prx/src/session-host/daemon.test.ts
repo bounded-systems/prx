@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
 import { unixSocketTransport } from "../keeperd/transport.ts";
@@ -34,7 +34,7 @@ function realishDeps(dir: string): SessionHostDeps {
 
 describe("runSessionHostServe (real unix-socket daemon)", () => {
   test("serves the client round-trip with a durable store, writing a pidfile", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "prx-sess-daemon-"));
+    const dir = mkdtempSync(join(tmpDir(), "prx-sess-daemon-"));
     const socketPath = join(dir, "sess.sock");
     const pidfile = join(dir, "sess.pid");
     const server = await runSessionHostServe({ socketPath, pidfile, deps: realishDeps(dir) });
@@ -57,7 +57,7 @@ describe("runSessionHostServe (real unix-socket daemon)", () => {
   });
 
   test("removes its pidfile on close", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "prx-sess-daemon-"));
+    const dir = mkdtempSync(join(tmpDir(), "prx-sess-daemon-"));
     const socketPath = join(dir, "s.sock");
     const pidfile = join(dir, "s.pid");
     const server = await runSessionHostServe({ socketPath, pidfile, deps: realishDeps(dir) });
