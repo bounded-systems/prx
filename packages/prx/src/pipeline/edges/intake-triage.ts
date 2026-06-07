@@ -53,24 +53,31 @@ export function normalizeUow(raw: RawUow): Uow {
 export type UowReader = (unit: string) => Promise<RawUow> | RawUow;
 
 /**
- * Default reader: `bd show <id> --json`. `bd show` returns the unit plus its
+ * Build the `bd show <id> --json` reader. `bd show` returns the unit plus its
  * dependency rows, so we select the row whose `id` matches `unit`. Routed
  * through `@bounded-systems/proc` (`defaultRunner`, `check:false`) rather than a
  * raw subprocess — the no-ambient-authority architecture guard requires it.
+ * `run` is injectable (defaults to the real spawn) so the bd-output parsing is
+ * testable without a live bd.
  */
-export const defaultUowReader: UowReader = (unit) => {
-  const r = defaultRunner(["bd", "show", unit, "--json"], { check: false });
-  if (r.status !== 0) {
-    throw new Error(`bd show ${unit} failed: ${(r.stderr || r.stdout || "").trim()}`);
-  }
-  const parsed = JSON.parse(r.stdout) as unknown;
-  const rows = (Array.isArray(parsed) ? parsed : [parsed]) as Array<
-    Record<string, unknown>
-  >;
-  const row = rows.find((x) => x?.id === unit);
-  if (!row) throw new Error(`bd show ${unit}: no record with id=${unit}`);
-  return { id: String(row.id), title: String(row.title), status: String(row.status) };
-};
+export function uowReaderWith(run: typeof defaultRunner = defaultRunner): UowReader {
+  return (unit) => {
+    const r = run(["bd", "show", unit, "--json"], { check: false });
+    if (r.status !== 0) {
+      throw new Error(`bd show ${unit} failed: ${(r.stderr || r.stdout || "").trim()}`);
+    }
+    const parsed = JSON.parse(r.stdout) as unknown;
+    const rows = (Array.isArray(parsed) ? parsed : [parsed]) as Array<
+      Record<string, unknown>
+    >;
+    const row = rows.find((x) => x?.id === unit);
+    if (!row) throw new Error(`bd show ${unit}: no record with id=${unit}`);
+    return { id: String(row.id), title: String(row.title), status: String(row.status) };
+  };
+}
+
+/** Production default reader — the real `bd show` spawn. */
+export const defaultUowReader: UowReader = uowReaderWith();
 
 /** The FOD fetcher for a uow: impure read → normalized + validated. */
 export function uowFetcher(read: UowReader = defaultUowReader): Fetcher<Uow> {
