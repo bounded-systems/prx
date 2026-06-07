@@ -35,7 +35,6 @@ import {
   prMergeStateLabel,
   viewIssueFresh,
   worktreeMap,
-  worktreeStatus,
   wtStatus,
   removeWorktree,
   lockWorktree,
@@ -993,7 +992,7 @@ import { CliError } from "./cli-error.ts";
 import { type ExecutionWorkAgent, POLICY, buildWorkAutomationProfile, ensureExecutionWorkflowAgent, interactiveTimeoutMs, parseWorkAgentImplementation, validateWorkIoFormat } from "./work-agent.ts";
 import { findSavedClaudeSession, resolveCodexSessionProfile } from "./session-finder.ts";
 import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type ParityChainApplyResult, type PlanCloseReason, type PlanCloseResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
-import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanCloseResult, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktree, formatWorktreeRemove, formatWtStatus } from "./cli-format.ts";
+import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanCloseResult, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktreeRemove } from "./cli-format.ts";
 import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, findWorktreeByDirectoryPrefix, listResolvedWorktrees, procSpawnLike, resolveRepoRootWithSpawn, runCommand, runInheritStatus, tryCommand } from "./cli-spawn.ts";
 
 // Shared default for the `SpawnLike` capture seams below. Routes through
@@ -1829,17 +1828,6 @@ type ParsedCommand =
       mode: "read" | "write";
       detachedAs: string | null;
       format: "plain" | "json";
-    }
-  | {
-      command: "worktree";
-      repoPath: string;
-      format: "plain" | "json";
-    }
-  | {
-      command: "worktrees";
-      repoPath: string;
-      format: "plain" | "json";
-      includeGitDetails: boolean;
     }
   | {
       command: "worktree-remove";
@@ -2800,7 +2788,6 @@ type CliDeps = {
   writeRepoInventoryIndex?: typeof writeRepoInventoryIndex;
   applyHooks?: typeof applyHooks;
   hookStatus?: typeof hookStatus;
-  worktreeStatus?: typeof worktreeStatus;
   wtStatus?: typeof wtStatus;
   removeWorktree?: typeof removeWorktree;
   muxHandle?: WorktreeRemoveMuxHandle;
@@ -10306,44 +10293,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  if (command === "worktree") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        "repo-path": { type: "string", default: "." },
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command,
-      repoPath: values["repo-path"],
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
-
-  if (command === "worktrees") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        "repo-path": { type: "string", default: "." },
-        format: { type: "string", default: "plain" },
-        "include-git-details": { type: "boolean", default: true },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command,
-      repoPath: values["repo-path"],
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      includeGitDetails: values["include-git-details"],
-    };
-  }
-
   if (command === "worktree-remove") {
     const { values, positionals } = parseArgs({
       args: rest,
@@ -16373,6 +16322,17 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     ) {
       return runSpecVerb("overview", orchestratorRest.slice(1), output);
     }
+    // `worktrees` (a.k.a. `worktree list`) and `worktree` (`worktree status` /
+    // bare). `worktree remove` (mux deps) stays on the legacy handler.
+    if (orchestratorVerb === "worktrees") {
+      return runSpecVerb("worktrees", orchestratorRest, output);
+    }
+    if (orchestratorVerb === "worktree") {
+      const sub = orchestratorRest[0];
+      if (sub === "list") return runSpecVerb("worktrees", orchestratorRest.slice(1), output);
+      if (sub === "status") return runSpecVerb("worktree", orchestratorRest.slice(1), output);
+      if (sub === undefined || sub.startsWith("-")) return runSpecVerb("worktree", orchestratorRest, output);
+    }
     if (orchestratorVerb === "plugin") {
       return runPluginVerb(orchestratorRest, output);
     }
@@ -22157,18 +22117,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         );
       }
       return result.status;
-    }
-
-    if (parsed.command === "worktree") {
-      const summary = (deps.worktreeStatus ?? worktreeStatus)(parsed.repoPath);
-      output.log(formatWorktree(summary, parsed.format));
-      return 0;
-    }
-
-    if (parsed.command === "worktrees") {
-      const summary = (deps.wtStatus ?? wtStatus)(parsed.repoPath, parsed.includeGitDetails);
-      output.log(formatWtStatus(summary, parsed.format));
-      return 0;
     }
 
     if (parsed.command === "worktree-remove") {

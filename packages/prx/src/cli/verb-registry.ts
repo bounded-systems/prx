@@ -15,6 +15,7 @@ import { skillsVerb } from "../pr-state/skills-verb.ts";
 import { openModeVerb } from "../pr-state/open-mode-verb.ts";
 import { statelyVerb } from "../pr-state/stately-verb.ts";
 import { overviewVerb } from "../pr-state/overview-verb.ts";
+import { worktreeVerb, worktreesVerb } from "../pr-state/worktree-verb.ts";
 
 export const verbRegistry: Registry = {
   ...orchestratorRegistry,
@@ -29,4 +30,6 @@ export const verbRegistry: Registry = {
   [openModeVerb.id]: openModeVerb,
   [statelyVerb.id]: statelyVerb,
   [overviewVerb.id]: overviewVerb,
+  [worktreeVerb.id]: worktreeVerb,
+  [worktreesVerb.id]: worktreesVerb,
 };
