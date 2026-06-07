@@ -558,6 +558,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/prx-ebo-sync-api-efficiency.md",
+      "name": "prx-ebo — Sync API efficiency: where the requests go, and how to cut them (ADR)",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/prx-ebo-sync-api-efficiency.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/value-props.md",
       "name": "prx — value props (forcing-function-backed)",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/value-props.md",
