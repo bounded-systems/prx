@@ -8924,66 +8924,10 @@ describe("pr_state cli", () => {
     });
   });
 
-  test("graph validates and writes output file", () => {
-    const dir = mkdtempSync(join(tmpdir(), "pr-state-graph-"));
-    const outputPath = join(dir, "machine.json");
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["graph", "--format", "xstate-system-json", "--validate", "--output", outputPath],
-      {
-        log: (line) => logs.push(line),
-        error: () => {},
-      },
-      {},
-    );
-
-    expect(exitCode).toBe(0);
-    expect(logs[0]!).toContain(`Wrote graph output to ${outputPath}`);
-    expect(logs[0]!).toContain("json-ok");
-    expect(JSON.parse(readFileSync(outputPath, "utf8"))).toMatchObject({
-      id: "prSystem",
-    });
-  });
-
-  test("graph validation fails for non-json formats", () => {
-    const logs: string[] = [];
-    const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["graph", "--format", "mermaid", "--validate"],
-      {
-        log: (line) => logs.push(line),
-        error: (line) => errors.push(line),
-      },
-      {},
-    );
-
-    expect(exitCode).toBe(1);
-    expect(logs).toHaveLength(0);
-    expect(errors[0]).toContain("--validate requires a JSON graph format");
-  });
-
-  test("graph --open opens URL after successful generation", () => {
-    let openedUrl = "";
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["graph", "--format", "xstate-system-json", "--validate", "--open"],
-      {
-        log: (line) => logs.push(line),
-        error: () => {},
-      },
-      {
-        openUrl: (url) => {
-          openedUrl = url;
-        },
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    expect(openedUrl).toBe("https://stately.ai/registry/editor/");
-    expect(JSON.parse(logs[0]!)).toMatchObject({
-      id: "prSystem",
-    });
-  });
+  // `graph --validate --output` (file write + json-ok render), the non-JSON
+  // validation refusal, and `--open` now live with the verb itself in
+  // test/pr-state/graph-verb.test.ts — the spec-driven graph verb owns those
+  // side effects and the render projection.
 
   test("graph supports xstate-system-ts output", () => {
     const result = runCli(["graph", "--format", "xstate-system-ts"]);
