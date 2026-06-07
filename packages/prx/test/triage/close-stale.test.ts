@@ -37,26 +37,29 @@ function makeOutput() {
 
 type BdCall = { subcommand: string; args: string[]; state?: string; role?: string };
 
-function makeBdExec(results: BdExecResult[] = []) {
+// GH-296 / prx-82b: the close write now runs `prx beads close <id> --reason …`
+// through the daemon (a sync runner), not host `bd update`. The fake runner
+// records the equivalent old `{subcommand, args, state, role}` shape so the
+// existing call assertions hold; `bdResults` still drives failure injection
+// (exitCode → process status).
+function makeRun(results: BdExecResult[] = []) {
   const calls: BdCall[] = [];
   let idx = 0;
-  const execBd = (opts: {
-    subcommand: string;
-    args: string[];
-    state?: string;
-    role?: string;
-  }): BdExecResult => {
+  const run = (cmd: string[], _opts?: { check?: boolean }) => {
+    // cmd = ["prx","beads","close", <id>, "--reason", <note>]
+    const id = cmd[3] ?? "";
+    const note = cmd[5] ?? "";
     calls.push({
-      subcommand: opts.subcommand,
-      args: opts.args,
-      ...(opts.state !== undefined ? { state: opts.state } : {}),
-      ...(opts.role !== undefined ? { role: opts.role } : {}),
+      subcommand: "update",
+      args: [id, "-s", "closed", "--notes", note],
+      state: "planning",
+      role: "planner",
     });
     const result = results[idx] ?? { exitCode: 0, stdout: "", stderr: "", policy: null };
     idx += 1;
-    return result;
+    return { status: result.exitCode, stdout: result.stdout, stderr: result.stderr };
   };
-  return { execBd, calls };
+  return { run, calls };
 }
 
 const NOW = new Date("2026-05-15T00:00:00.000Z");
@@ -67,12 +70,12 @@ function makeDeps(opts: {
   canonical?: "gh" | "bd";
   audit?: string[];
 }) {
-  const { execBd, calls } = makeBdExec(opts.bdResults ?? []);
+  const { run, calls } = makeRun(opts.bdResults ?? []);
   const audit = opts.audit ?? [];
   const invalidations: number[] = [];
   return {
     deps: {
-      execBd: execBd as never,
+      run: run as never,
       now: () => NOW,
       findStale: () => ({
         repo: "bdelanghe/ai-home",
@@ -267,7 +270,7 @@ describe("runTriageCloseStale", () => {
     expect(parsed[0]?.action).toBe("error");
     expect(parsed[0]?.stderr).toBe("bd: lock contention");
     expect(parsed[1]?.action).toBe("update");
-    expect(error.some((l) => l.includes("bd update exit=1"))).toBe(true);
+    expect(error.some((l) => l.includes("prx beads close exit=1"))).toBe(true);
   });
 
   test("canonical=bd repo: refuses with a clear message", () => {
@@ -351,7 +354,7 @@ describe("runTriageCloseStale", () => {
     );
     expect(result.errors).toBe(1);
     expect(log).toEqual([]);
-    expect(error.some((l) => l.includes("bd update exit=1"))).toBe(true);
+    expect(error.some((l) => l.includes("prx beads close exit=1"))).toBe(true);
   });
 
   test("format=plain (default): summary line still streams via output.log", () => {
