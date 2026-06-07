@@ -53,3 +53,44 @@ describe("VerbSpec exitCode projection", () => {
     }
   });
 });
+
+describe("VerbSpec warnings projection", () => {
+  // A verb's stderr lines (warnings/notes) are written before the stdout result,
+  // letting two-stream handlers (plan-save, …) keep their operator warnings.
+  const probe = defineVerb({
+    id: "warnings-probe",
+    summary: "test-only verb exercising the warnings seam",
+    actor: "work",
+    input: z.object({ noisy: z.coerce.boolean().default(false) }),
+    output: z.object({ noisy: z.boolean() }),
+    run: ({ noisy }) => ({ noisy }),
+    render: () => "result-line",
+    warnings: (out) => (out.noisy ? ["warning: one", "note: two"] : []),
+  });
+
+  test("writes warnings to stderr before the stdout result", async () => {
+    (verbRegistry as Record<string, unknown>)[probe.id] = probe;
+    try {
+      const logs: string[] = [];
+      const errs: string[] = [];
+      const out = { log: (l: string) => logs.push(l), error: (e: string) => errs.push(e) };
+      expect(await runSpecVerb("warnings-probe", ["--noisy", "true"], out)).toBe(0);
+      expect(errs).toEqual(["warning: one", "note: two"]);
+      expect(logs).toEqual(["result-line"]);
+    } finally {
+      delete (verbRegistry as Record<string, unknown>)[probe.id];
+    }
+  });
+
+  test("emits nothing to stderr when there are no warnings", async () => {
+    (verbRegistry as Record<string, unknown>)[probe.id] = probe;
+    try {
+      const errs: string[] = [];
+      const out = { log: () => {}, error: (e: string) => errs.push(e) };
+      await runSpecVerb("warnings-probe", [], out);
+      expect(errs).toEqual([]);
+    } finally {
+      delete (verbRegistry as Record<string, unknown>)[probe.id];
+    }
+  });
+});

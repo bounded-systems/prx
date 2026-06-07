@@ -29,6 +29,11 @@ export async function runSpecVerb(
     }
     // A verb may carry a CLI `render` (human view); otherwise print JSON.
     const v = verbRegistry[res.id];
+    // Stderr warnings/notes first (the stdout result follows), mirroring the
+    // legacy handlers that interleaved output.error + output.log.
+    if (v?.warnings) {
+      for (const line of v.warnings(res.output as never, res.input as never)) output.error(line);
+    }
     output.log(
       v?.render ? v.render(res.output as never, res.input as never) : render(res.output),
     );
