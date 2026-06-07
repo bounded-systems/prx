@@ -30,8 +30,6 @@ import {
   checkWorkUnitSession,
   CliError,
   ensureBeadsInitSetup,
-  findSavedClaudeSession,
-  findSavedCodexSession,
   findBeadsIssuesByGithubIssue,
   formatBeadsIssueMatches,
   ensureLocalRuntimeArtifacts,
@@ -50,6 +48,7 @@ import {
   reviewVerb,
 } from "../../src/pr-state/cli.ts";
 import { interactiveTimeoutMs } from "../../src/pr-state/work-agent.ts";
+import { findSavedClaudeSession, findSavedCodexSession } from "../../src/pr-state/session-finder.ts";
 import {
   prxSessionNotProjectedLocallyEnvelope,
   type PrxSessionNotProjectedLocallyDetails,
