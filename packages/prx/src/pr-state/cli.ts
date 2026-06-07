@@ -15562,6 +15562,22 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     if (orchestratorVerb === "plan" && orchestratorRest[0] === "close") {
       return runSpecVerb("plan-close", orchestratorRest.slice(1), output);
     }
+    // The `contract <sub>` namespace reroutes several subcommands to verbs that
+    // are now spec-driven. The early dispatch keys off the raw `argv[0]`
+    // (`contract`), not the normalized rewrite, so those aliases would miss the
+    // VerbSpec dispatch and fail against the deleted legacy handlers — route
+    // them here. The non-migrated subs (show / init / update / bare `contract`)
+    // fall through to the legacy normalize + handlers unchanged.
+    if (orchestratorVerb === "contract") {
+      const aliased: Record<string, string> = {
+        status: "status",
+        transition: "transition",
+        skills: "skills",
+        "open-mode": "open-mode",
+      };
+      const target = aliased[orchestratorRest[0] ?? ""];
+      if (target) return runSpecVerb(target, orchestratorRest.slice(1), output);
+    }
     // `remote-ci-check` (a.k.a. `repo ci` / `scout ci`) and `scout-logs`
     // (`scout logs`) — the rest of those namespaces stays on legacy.
     if (orchestratorVerb === "remote-ci-check") {
