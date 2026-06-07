@@ -26,7 +26,8 @@ import {
   resolveIssueId,
   type IssueResolvedId,
 } from "../issues/resolver.ts";
-import { execBd, type BdExecResult } from "@bounded-systems/bd";
+import { execBd } from "@bounded-systems/bd";
+import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import { execGh, type GhExecResult } from "@bounded-systems/gh";
 import { loadAllBeads } from "../triage/triage.ts";
 import {
@@ -74,6 +75,11 @@ export type IntakeCommentDeps = {
   execGh?: typeof execGh;
   execBd?: typeof execBd;
   loadAllBeads?: typeof loadAllBeads;
+  /**
+   * GH-296 / prx-82b — sync runner for the daemon-routed note write
+   * (`prx beads update <id> --notes …`). Default: procRunner.
+   */
+  run?: CommandRunner;
 };
 
 export class IntakeCommentError extends Error {
@@ -128,6 +134,7 @@ export function runIntakeComment(
   const ghExec = deps.execGh ?? execGh;
   const bdExec = deps.execBd ?? execBd;
   const loader = deps.loadAllBeads ?? loadAllBeads;
+  const run = deps.run ?? procRunner;
 
   let resolved: IssueResolvedId;
   try {
@@ -148,7 +155,7 @@ export function runIntakeComment(
   }
 
   if (resolved.kind === "bd") {
-    return runBdComment(opts, output, resolved.id, bdExec, loader);
+    return runBdComment(opts, output, resolved.id, bdExec, loader, run);
   }
 
   return runGhComment(opts, output, resolved, ghExec);
@@ -222,6 +229,7 @@ function runBdComment(
   bdId: string,
   bdExec: typeof execBd,
   loader: typeof loadAllBeads,
+  run: CommandRunner,
 ): number {
   let records;
   try {
@@ -277,22 +285,15 @@ function runBdComment(
     return 0;
   }
 
-  const updateResult: BdExecResult = bdExec(
-    {
-      subcommand: "update",
-      args: bdUpdateArgv,
-      state: "planning",
-      role: "planner",
-    },
-    processEnv(),
-  );
-  if (updateResult.exitCode !== 0) {
+  // GH-296 / prx-82b: write the note via the daemon (single writer).
+  const updateResult = run(["prx", "beads", "update", bdId, "--notes", newNotes], { check: false });
+  if (updateResult.status !== 0) {
     const detail =
       updateResult.stderr.trim() ||
       updateResult.stdout.trim() ||
-      "bd update failed";
+      "prx beads update failed";
     output.error(`${VERB}: ${detail}`);
-    return updateResult.exitCode || 1;
+    return updateResult.status || 1;
   }
 
   const render: IntakeCommentRender = {
