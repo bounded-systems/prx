@@ -225,6 +225,9 @@ Repo plumbing:
   prx beads ready            Ready issues via the in-VM beadsd daemon (GH-296)
   prx beads list             List issues via the in-VM beadsd daemon (GH-296)
   prx beads show             Show one issue via the in-VM beadsd daemon (GH-296)
+  prx beads create           Create an issue via the beadsd daemon (GH-296)
+  prx beads update           Update an issue via the beadsd daemon (GH-296)
+  prx beads close            Close an issue via the beadsd daemon (GH-296)
   prx tools wt               Wrap worktrunk wt with policy enforcement
   prx tools git              Wrap git with policy enforcement
   prx tools bd               Wrap beads CLI with policy enforcement

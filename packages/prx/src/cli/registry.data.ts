@@ -1919,6 +1919,28 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "beads",
   },
   {
+    // GH-296 wave 2: the write door — single-writer, routed through beadsd.
+    name: "beads create",
+    parent: "beads",
+    description: "Create an issue via the beadsd daemon (GH-296)",
+    domain: "repo-plumbing",
+    actor: "beads",
+  },
+  {
+    name: "beads update",
+    parent: "beads",
+    description: "Update an issue via the beadsd daemon (GH-296)",
+    domain: "repo-plumbing",
+    actor: "beads",
+  },
+  {
+    name: "beads close",
+    parent: "beads",
+    description: "Close an issue via the beadsd daemon (GH-296)",
+    domain: "repo-plumbing",
+    actor: "beads",
+  },
+  {
     // GH-1990: canonical actor surface for bd↔external reconcile. Operators
     // and agents must reach reconcile flows through this verb family rather
     // than raw `bd <verb>` / `git <verb>`. Per-pair work lives under

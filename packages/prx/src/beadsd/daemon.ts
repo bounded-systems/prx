@@ -141,9 +141,11 @@ export async function handleBeadsRequest(
   }
   let result: BdExecResult;
   try {
-    // Writes dispatch under the bd policy layer exactly like reads — bd's own
-    // allowlist + planner-role gate decides; beadsd adds no authority of its own.
-    result = execBd({ subcommand: beadsSubcommand(request), args, cwd: deps.cwd });
+    // beadsd is the trusted single writer: it dispatches under the planner
+    // role/state so bd's policy allows the write surface (create/update/close).
+    // Per-caller authority is gated at the `prx beads` invocation layer (the
+    // capability guard), not here — reaching the socket already implies it.
+    result = execBd({ subcommand: beadsSubcommand(request), args, cwd: deps.cwd, state: "planning", role: "planner" });
   } catch (err) {
     return { status: "error", code: "beadsd", message: err instanceof Error ? err.message : String(err) };
   }

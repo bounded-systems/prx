@@ -425,7 +425,7 @@ import { diagnoseBeads, healBeads } from "../beads/doctor.ts";
 import { withLimaBeadsClient } from "../beadsd/lima.ts";
 import { withBeadsClient, defaultCanonicalBeadsCwd } from "../beadsd/client-factory.ts";
 import { provisionLocalBeads } from "../beadsd/provision-local.ts";
-import type { BeadsRequest } from "../beadsd/contract.ts";
+import { BeadsRequestSchema, type BeadsRequest } from "../beadsd/contract.ts";
 // GH-296: provision beads inside a Lima VM (install bd+dolt + clone canonical).
 import { provisionVmBeads } from "../beadsd/provision.ts";
 import { runScopeGate, ScopeGateInputError } from "./scope-gate.ts";
@@ -2060,6 +2060,16 @@ type ParsedCommand =
       hostSocket?: string | undefined;
       id?: string | undefined;
       status?: string | undefined;
+    }
+  | {
+      // GH-296 wave 2: the single-writer surface — `beads create|update|close`
+      // routed through beadsd. The validated write request travels as-is.
+      command: "beads-write";
+      format: "plain" | "json";
+      request: BeadsRequest;
+      vm?: string | undefined;
+      vmSocket: string;
+      hostSocket?: string | undefined;
     }
   | {
       // GH-296: provision the canonical LOCAL beads clone (host twin of
@@ -5322,7 +5332,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "beads") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "beads requires a subcommand: ready, list, show, hydrate, provision, issue, migrate, publish, sync, sync-all, doctor",
+        "beads requires a subcommand: ready, list, show, create, update, close, hydrate, provision, issue, migrate, publish, sync, sync-all, doctor",
       );
     }
     if (c1 === "hydrate") {
@@ -5362,6 +5372,12 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
       // GH-296: host read-door — routed through beadsd (the in-VM daemon).
       // Collapse the three reads onto one command with the kind as a positional.
       return ["beads-read", c1, ...tail];
+    }
+    if (c1 === "create" || c1 === "update" || c1 === "close") {
+      // GH-296 wave 2: host write-door — the single-writer surface routed
+      // through beadsd. Collapse the three writes onto one command with the
+      // kind as a positional.
+      return ["beads-write", c1, ...tail];
     }
     throw new CliError(`Unknown beads subcommand: ${c1}`);
   }
@@ -8720,6 +8736,97 @@ export function parseCommand(argv: string[]): ParsedCommand {
       ...(values["host-socket"] !== undefined ? { hostSocket: values["host-socket"] } : {}),
       ...(kind === "show" ? { id } : {}),
       ...(values.status !== undefined ? { status: values.status } : {}),
+    };
+  }
+
+  // GH-296 wave 2: `prx beads create|update|close` — the single-writer surface,
+  // routed through beadsd (rewritten to `beads-write <kind>` by
+  // normalizeNamespaceArgv). No `--vm` ⇒ local daemon (auto-started); `--vm`
+  // ⇒ the in-VM daemon.
+  if (command === "beads-write") {
+    const { values, positionals } = parseArgs({
+      args: rest,
+      options: {
+        format: { type: "string", default: "plain" },
+        vm: { type: "string" },
+        "vm-socket": { type: "string" },
+        "host-socket": { type: "string" },
+        type: { type: "string" },
+        title: { type: "string" },
+        priority: { type: "string" },
+        description: { type: "string" },
+        status: { type: "string" },
+        assignee: { type: "string" },
+        reason: { type: "string" },
+      },
+      strict: true,
+      allowPositionals: true,
+    });
+    const kind = positionals[0];
+    const vm = values.vm ?? getEnv("PRX_BEADS_VM");
+    const priority = ((): number | undefined => {
+      if (values.priority === undefined) return undefined;
+      const n = Number(values.priority);
+      if (!Number.isInteger(n) || n < 0 || n > 4) {
+        throw new CliError("prx beads: --priority must be an integer 0–4");
+      }
+      return n;
+    })();
+
+    let request: BeadsRequest;
+    if (kind === "create") {
+      if (typeof values.type !== "string" || values.type.length === 0) {
+        throw new CliError("prx beads create requires --type <task|bug|feature|epic>");
+      }
+      if (typeof values.title !== "string" || values.title.length === 0) {
+        throw new CliError("prx beads create requires --title <title>");
+      }
+      request = {
+        kind: "create",
+        issueType: values.type,
+        title: values.title,
+        ...(priority !== undefined ? { priority } : {}),
+        ...(values.description !== undefined ? { description: values.description } : {}),
+      };
+    } else if (kind === "update") {
+      const id = positionals[1];
+      if (typeof id !== "string" || id.length === 0) {
+        throw new CliError("prx beads update requires an id: `prx beads update <id> [--status …]`");
+      }
+      const fields = {
+        ...(values.status !== undefined ? { status: values.status } : {}),
+        ...(priority !== undefined ? { priority } : {}),
+        ...(values.assignee !== undefined ? { assignee: values.assignee } : {}),
+      };
+      if (Object.keys(fields).length === 0) {
+        throw new CliError("prx beads update needs at least one of --status / --priority / --assignee");
+      }
+      request = { kind: "update", id, ...fields };
+    } else if (kind === "close") {
+      const id = positionals[1];
+      if (typeof id !== "string" || id.length === 0) {
+        throw new CliError("prx beads close requires an id: `prx beads close <id> [--reason r]`");
+      }
+      request = { kind: "close", id, ...(values.reason !== undefined ? { reason: values.reason } : {}) };
+    } else {
+      throw new CliError("prx beads write requires a kind: create | update | close");
+    }
+
+    // Validate against the wire contract for a clear error before dispatch.
+    const parsed = BeadsRequestSchema.safeParse(request);
+    if (!parsed.success) {
+      throw new CliError(
+        `invalid beads ${kind}: ${parsed.error.issues.map((i) => i.message).join("; ")}`,
+      );
+    }
+
+    return {
+      command: "beads-write",
+      format: ensureChoice(values.format, ["plain", "json"], "--format"),
+      request: parsed.data,
+      ...(typeof vm === "string" && vm.length > 0 ? { vm } : {}),
+      vmSocket: values["vm-socket"] ?? "/tmp/beadsd.sock",
+      ...(values["host-socket"] !== undefined ? { hostSocket: values["host-socket"] } : {}),
     };
   }
 
@@ -25203,6 +25310,37 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         } catch (err) {
           // BeadsUnavailableError carries the actionable "start beadsd" message.
           output.error(`beads ${parsed.kind}: ${err instanceof Error ? err.message : String(err)}`);
+          return 1;
+        }
+      })();
+    }
+
+    if (parsed.command === "beads-write") {
+      // GH-296 wave 2: the single-writer surface — the validated write request
+      // goes to the daemon (which dispatches `bd` against the one canonical
+      // clone). No `--vm` ⇒ local daemon (auto-started); `--vm` ⇒ the VM daemon.
+      return (async () => {
+        const { request } = parsed;
+        try {
+          const reply =
+            parsed.vm !== undefined
+              ? await withLimaBeadsClient(
+                  {
+                    vm: parsed.vm,
+                    vmSocket: parsed.vmSocket,
+                    ...(parsed.hostSocket !== undefined ? { hostSocket: parsed.hostSocket } : {}),
+                  },
+                  (client) => client.query(request),
+                )
+              : await withBeadsClient((client) => client.query(request));
+          if (reply.status === "error") {
+            output.error(`beads ${request.kind}: ${reply.code}: ${reply.message}`);
+            return 1;
+          }
+          output.log(JSON.stringify(reply.result, null, 2));
+          return 0;
+        } catch (err) {
+          output.error(`beads ${request.kind}: ${err instanceof Error ? err.message : String(err)}`);
           return 1;
         }
       })();
