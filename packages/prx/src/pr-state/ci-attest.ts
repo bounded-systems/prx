@@ -55,6 +55,30 @@ export function ciLedgerTarget(opts: {
   return opts.canonical;
 }
 
+/** The clear, actionable error when signing is required but no key is set. */
+export const CI_SIGNING_REQUIRED_MESSAGE =
+  "prx ci: signing is required here but no signer is configured. A provenance " +
+  "ledger is in scope (a reserved work-unit, or PRX_CI_LEDGER in CI), so the CI " +
+  "verdict must be signed into the chain. Set PRX_PROVENANCE_KEY=dev for the " +
+  "zero-config local signer (stable, offline, self-verifying), or " +
+  "PRX_PROVENANCE_KEY=ed25519:<b64> for a shared/CI key. (The checks ran; this " +
+  "fails because the signed chain could not be produced.)";
+
+/**
+ * The signing gate for `prx ci` (GH-352): local dev is the production surface,
+ * so signing is a hard requirement wherever a ledger is in scope.
+ *   - no ledger in scope  ⇒ `"skip"` (not a signing context — unchanged).
+ *   - ledger but no signer ⇒ `"fail"` (fail-closed: the chain MUST be signed).
+ *   - ledger and a signer  ⇒ `"sign"`.
+ */
+export function ciSigningDecision(
+  ledger: string | undefined,
+  signerPresent: boolean,
+): "skip" | "sign" | "fail" {
+  if (ledger === undefined) return "skip";
+  return signerPresent ? "sign" : "fail";
+}
+
 /** The named content inputs a CI verdict derives from — the bucket-A move.
  *  Each is a bare sha256 hex (no `sha256:` prefix); see {@link resolveCiInputs}. */
 export interface CiInputs {

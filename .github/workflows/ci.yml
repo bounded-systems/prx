@@ -34,12 +34,16 @@ jobs:
     # (e.g. `ed25519:<b64>`), each `prx ci` phase below signs a `ci/phase/v1`
     # derivation into `PRX_CI_LEDGER`; the "Upload signed CI provenance" step
     # then publishes that ledger as the chain's *async mirror* (consumers verify
-    # it out of band — the run never blocks on a durable-chain write). Absent the
-    # secret, `resolveProvenanceSigner()` returns null and `prx ci` is unchanged
-    # (the ledger is never created and the upload is skipped).
+    # it out of band — the run never blocks on a durable-chain write).
+    #
+    # `PRX_CI_LEDGER` is set ONLY when the secret is present. `prx ci` is
+    # fail-closed: a ledger in scope with no key is a hard error. So pointing it
+    # at a ledger without the secret would red the job — instead, no secret ⇒ no
+    # `PRX_CI_LEDGER` ⇒ no signing context ⇒ `prx ci` runs the checks unchanged.
+    # Add the secret to switch remote signing (and its fail-closed guard) on.
     env:
       PRX_PROVENANCE_KEY: ${{ secrets.PRX_PROVENANCE_KEY }}
-      PRX_CI_LEDGER: ${{ github.workspace }}/.prx/ci-provenance.sqlite
+      PRX_CI_LEDGER: ${{ secrets.PRX_PROVENANCE_KEY != '' && format('{0}/.prx/ci-provenance.sqlite', github.workspace) || '' }}
 
     steps:
       - name: Checkout
