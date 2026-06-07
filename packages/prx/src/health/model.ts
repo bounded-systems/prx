@@ -1,7 +1,7 @@
 // The typed intermediate `bun run health` emits — schema-first, like the README
 // model. `scripts/code-health.ts` gathers the metrics (knip / dependency-cruiser
 // / type-coverage / value_props), builds a `CodeHealthReport`, and `.parse()`s
-// it against THIS schema before printing `--json`. `scripts/export-health-schema.ts`
+// it against THIS schema before printing `--json`. `prx schemas`
 // projects the schema to the committed Draft-7 artifact
 // `schemas/health/health.schema.json` (via `bun run schemas:export`), so the
 // report shape and its JSON Schema cannot drift.
