@@ -1806,7 +1806,7 @@ describe("runTriageDriftFix — GH-1255 dupe + doctor surfaces", () => {
         execBd: () => ({ exitCode: 0, stdout: "", stderr: "", policy: null }),
         runBdDuplicatesDryRun: fakeDupeRunner([dupeCluster("bd-700", "bd-701")]),
         runBdDoctorJson: fakeDoctorRunner(0, 0),
-        runBdMerge: () => ({ exitCode: 2, result: null, stdout: "", stderr: "merge conflict" }),
+        runBdMerge: () => ({ exitCode: 2, result: { target: "bd-700", sources: [], applied: false }, stdout: "", stderr: "merge conflict" }),
         auditSink: {
           stateDirOverride: "/tmp/state",
           ensureDir: () => {},

@@ -21,6 +21,14 @@ import {
 
 type ContractInput = Parameters<typeof contractVerb.run>[0];
 
+// The verb is synchronous, but `defineVerb` types `run`'s return as
+// `T | Promise<T>`. Narrow it locally so the union arms are reachable.
+type ContractOut =
+  | { mode: "list-all"; agents: string[]; artifacts: string[]; transitions: string[] }
+  | { mode: "list-kind"; entries: readonly unknown[]; names: string[] }
+  | { mode: "entry"; kind: string; id: string; entry: unknown }
+  | { mode: "event"; payload: unknown };
+
 // Build a fully-defaulted input object (mirrors what parseArgs would produce)
 // so each test only spells out the flags it cares about.
 function input(overrides: Partial<Record<string, unknown>>): ContractInput {
@@ -37,7 +45,7 @@ function input(overrides: Partial<Record<string, unknown>>): ContractInput {
 }
 
 const run = (overrides: Partial<Record<string, unknown>>) =>
-  contractVerb.run(input(overrides));
+  contractVerb.run(input(overrides)) as unknown as ContractOut;
 const render = (out: unknown, fmt: "plain" | "json") =>
   contractVerb.render!(out as never, input({ format: fmt }));
 
