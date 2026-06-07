@@ -29,7 +29,7 @@ type Output = {
   error: (line: string) => void;
 };
 
-type PhaseResult = {
+export type PhaseResult = {
   phase: CiPhase;
   status: number;
   durationMs: number;
@@ -107,11 +107,23 @@ function runPhase(phase: CiPhase, format: "plain" | "json", output: Output): Pha
   return { phase, status, durationMs };
 }
 
-export function runCi(opts: CiOptions, output: Output): number {
+/** The phase executor, injectable so the partial-pass result surfacing is
+ *  testable without running the real (heavy) phases. */
+export type RunPhaseFn = (
+  phase: CiPhase,
+  format: "plain" | "json",
+  output: Output,
+) => PhaseResult;
+
+export function runCiPhases(
+  opts: CiOptions,
+  output: Output,
+  runPhaseFn: RunPhaseFn = runPhase,
+): { code: number; results: PhaseResult[] } {
   const phases: CiPhase[] = opts.phase ? [opts.phase] : [...CI_PHASES];
   const results: PhaseResult[] = [];
   for (const phase of phases) {
-    const result = runPhase(phase, opts.format, output);
+    const result = runPhaseFn(phase, opts.format, output);
     results.push(result);
     if (result.status !== 0) break;
   }
@@ -126,5 +138,5 @@ export function runCi(opts: CiOptions, output: Output): number {
       output.error(`prx ci: passed ${passed} of ${phases.length} phases`);
     }
   }
-  return results.some((r) => r.status !== 0) ? 1 : 0;
+  return { code: results.some((r) => r.status !== 0) ? 1 : 0, results };
 }
