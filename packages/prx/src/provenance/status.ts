@@ -30,7 +30,7 @@ export interface ProvenanceStatus extends ProvenanceStatusInputs {
   readonly onboarding: readonly string[];
 }
 
-const SETUP = "packages/prx/scripts/setup-provenance-signing";
+const SETUP = "prx provenance setup";
 const DOCS = "docs/provenance/signing.md";
 
 export function provenanceStatus(inputs: ProvenanceStatusInputs): ProvenanceStatus {
@@ -89,7 +89,7 @@ function onboardingFor(
     steps.push("Enable per-actor signing: `export PRX_PROVENANCE_KEY=dev`.");
   }
   if (inputs.trustedActors === 0 || posture === "unconfigured") {
-    steps.push(`Publish per-actor keys: \`${SETUP}\` (runs \`keymaker register\` + verifies).`);
+    steps.push(`Publish per-actor keys: \`${SETUP}\` (registers the trust map + verifies).`);
   }
   if (!inputs.enforced) {
     steps.push("Turn on fail-closed verification: `export PRX_REQUIRE_SIGNED_DERIVATIONS=1`.");
@@ -114,5 +114,29 @@ export function renderProvenanceStatus(status: ProvenanceStatus): string[] {
     lines.push("", "onboarding:");
     for (const step of status.onboarding) lines.push(`  - ${step}`);
   }
+  return lines;
+}
+
+/** The outcome of `prx provenance setup` — what register did + the resulting posture. */
+export interface ProvenanceSetupResult {
+  readonly trustMapPath: string;
+  readonly registered: number;
+  readonly changed: readonly string[];
+  readonly driftCount: number;
+  readonly status: ProvenanceStatus;
+}
+
+/** Render `prx provenance setup` (plain text): what it published + the posture. */
+export function renderProvenanceSetup(result: ProvenanceSetupResult): string[] {
+  const lines = [
+    "prx provenance setup:",
+    `  trust map:   ${result.registered} actor(s) → ${result.trustMapPath}`,
+    result.changed.length > 0
+      ? `  registered:  ${result.changed.join(", ")}`
+      : "  registered:  (no changes — already current)",
+    `  verify:      ${result.driftCount === 0 ? "drift clean" : `${result.driftCount} actor(s) still drifted`}`,
+    "",
+    ...renderProvenanceStatus(result.status),
+  ];
   return lines;
 }

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# setup-provenance-signing — materialize + verify hardened prx signing (GH-352).
+# setup-provenance-signing — file-system preflight, then `prx provenance setup`.
 #
-# prx deployed in a dev environment IS production for prx, so signing is the
-# identity layer. The declarative half (env wiring) is the home-manager module's
-# `programs.prx.provenance` block; this is the one imperative step it can't do:
-# derive each actor's PUBLIC key from the master and publish the trust map, then
-# verify the loop. Idempotent — safe to re-run (e.g. after a master rotation).
+# The materialize+verify step is now the `prx provenance setup` command (register
+# the per-actor trust map → verify drift → report posture). This wrapper keeps
+# the one thing the CLI deliberately doesn't do: a file-system perms check on the
+# decrypted master secret. Prefer `prx provenance setup` directly if you don't
+# need the preflight. Idempotent — safe to re-run (e.g. after a master rotation).
 #
 # Prerequisites (set by the hm-module, or export them yourself):
 #   PRX_PROVENANCE_MASTER_FILE  path to the agenix/sops-decrypted base64 master
@@ -55,23 +55,7 @@ case "${PRX_PROVENANCE_KEY:-}" in
   *) note "mode: PRX_PROVENANCE_KEY=${PRX_PROVENANCE_KEY} (not per-actor; trust-map register expects dev/actor-dev)" ;;
 esac
 
-# 3) Publish the trust map: derive every actor's PUBLIC key, write ~/.config/prx/config.json.
-echo "-- prx keymaker register --" >&2
-prx keymaker register >&2
-
-# 4) Verify: drift must be empty right after register (the trust map matches the
-#    keys the master derives). Non-empty ⇒ the published map is stale.
-echo "-- prx keymaker drift (must be clean) --" >&2
-drift="$(prx keymaker drift --format json)"
-if [[ "$drift" != '{"drift":[]}' ]]; then
-  fail "trust map drift detected after register: $drift"
-fi
-note "drift: clean."
-
-# 5) Enforcement posture.
-case "${PRX_REQUIRE_SIGNED_DERIVATIONS:-}" in
-  1 | true | on | yes) note "enforcement: ON (fail-closed verification)." ;;
-  *) note "enforcement: OFF — set PRX_REQUIRE_SIGNED_DERIVATIONS=1 to verify fail-closed." ;;
-esac
-
-echo "== signing configured: per-actor keys derived, trust map published, drift clean ==" >&2
+# 3) Materialize + verify + report — delegate to the command (register the trust
+#    map, verify drift is clean, print the resulting posture). Non-zero on drift.
+echo "-- prx provenance setup --" >&2
+exec prx provenance setup "$@"

@@ -678,7 +678,11 @@ import {
   keymakerDrift,
   keymakerRegister,
 } from "../provenance/keymaker.ts";
-import { provenanceStatus, renderProvenanceStatus } from "../provenance/status.ts";
+import {
+  provenanceStatus,
+  renderProvenanceSetup,
+  renderProvenanceStatus,
+} from "../provenance/status.ts";
 import type { ProvenanceAxis } from "../machine/machines/workflow.ts";
 // GH-2282: persisted dev provenance identity — `prx provenance dev-pubkey`.
 import {
@@ -1479,6 +1483,11 @@ type ParsedCommand =
   | {
       // GH-352: the signing posture + onboarding surface.
       command: "provenance-status";
+      format: "plain" | "json";
+    }
+  | {
+      // GH-352: publish the per-actor trust map + verify (the onboarding step).
+      command: "provenance-setup";
       format: "plain" | "json";
     }
   | {
@@ -6673,7 +6682,7 @@ function parsePublisherCommand(rest: string[]): ParsedCommand {
 }
 
 // GH-2282: `prx provenance <verb>` — read-only provenance key inspection.
-const PROVENANCE_VERBS = ["dev-pubkey", "status"] as const;
+const PROVENANCE_VERBS = ["dev-pubkey", "status", "setup"] as const;
 
 function printProvenanceHelpAndExit(): never {
   process.stdout.write(
@@ -6683,6 +6692,7 @@ function printProvenanceHelpAndExit(): never {
       "Inspect provenance signing identities (read-only).",
       "",
       "Verbs:",
+      "  setup       Publish the per-actor trust map + verify (the onboarding step)",
       "  status      Report the signing posture + onboarding next-steps",
       "  dev-pubkey  Print the persisted dev signing identity (point + keyid + path)",
       "",
@@ -6731,6 +6741,9 @@ function parseProvenanceCommand(rest: string[]): ParsedCommand {
   const format = ensureChoice(values.format, ["plain", "json"], "--format");
   if (verbArg === "status") {
     return { command: "provenance-status", format };
+  }
+  if (verbArg === "setup") {
+    return { command: "provenance-setup", format };
   }
   return { command: "provenance-dev-pubkey", format };
 }
@@ -23163,6 +23176,41 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         for (const line of renderProvenanceStatus(status)) output.log(line);
       }
       return 0;
+    }
+
+    if (parsed.command === "provenance-setup") {
+      // GH-352: the onboarding step as a command — derive each actor's public
+      // key from the resolved master, publish the trust map, verify drift is
+      // clean, and report the resulting posture. The imperative half of setup;
+      // the declarative half (the master + env) is `programs.prx.provenance`.
+      const km: KeymakerDeps = {
+        master: () => resolveProvenanceMaster(),
+        readTrust: () => readProvenanceTrustMap(),
+        writeTrust: (trust) => writeProvenanceTrustMap(trust),
+      };
+      const reg = keymakerRegister(km);
+      const drift = keymakerDrift(km);
+      const status = provenanceStatus({
+        perActor: isPerActorMode(),
+        masterSource: resolveMasterSource().source,
+        trustedActors: Object.keys(reg.trust).length,
+        drift: drift.map((d) => ({ actor: d.actor, reason: d.reason })),
+        enforced: requireSignedDerivations(),
+      });
+      const result = {
+        trustMapPath: provenanceConfigPath(),
+        registered: Object.keys(reg.trust).length,
+        changed: reg.changed,
+        driftCount: drift.length,
+        status,
+      };
+      if (parsed.format === "json") {
+        output.log(JSON.stringify(result));
+      } else {
+        for (const line of renderProvenanceSetup(result)) output.log(line);
+      }
+      // Drift after a fresh register would mean the write didn't take — fail.
+      return drift.length === 0 ? 0 : 1;
     }
 
     if (parsed.command === "keymaker") {

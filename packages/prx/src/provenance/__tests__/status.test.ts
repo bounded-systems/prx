@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   provenanceStatus,
+  renderProvenanceSetup,
   renderProvenanceStatus,
   type ProvenanceStatusInputs,
 } from "../status.ts";
@@ -94,5 +95,32 @@ describe("renderProvenanceStatus", () => {
     );
     expect(lines.join("\n")).toContain("0 actor(s)");
     expect(lines.join("\n")).not.toContain("drifted");
+  });
+});
+
+describe("renderProvenanceSetup", () => {
+  test("fresh register: lists registered actors + drift clean + the posture", () => {
+    const text = renderProvenanceSetup({
+      trustMapPath: "/h/.config/prx/config.json",
+      registered: 7,
+      changed: ["plan", "submit"],
+      driftCount: 0,
+      status: provenanceStatus(base),
+    }).join("\n");
+    expect(text).toContain("7 actor(s) → /h/.config/prx/config.json");
+    expect(text).toContain("registered:  plan, submit");
+    expect(text).toContain("verify:      drift clean");
+    expect(text).toContain("provenance signing: production");
+  });
+
+  test("re-run with no changes reads 'already current'", () => {
+    const text = renderProvenanceSetup({
+      trustMapPath: "/h/c.json",
+      registered: 7,
+      changed: [],
+      driftCount: 0,
+      status: provenanceStatus(base),
+    }).join("\n");
+    expect(text).toContain("(no changes — already current)");
   });
 });
