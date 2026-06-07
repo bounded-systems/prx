@@ -62,6 +62,10 @@ import {
 import { domainSyncMachine } from "./machine.ts";
 import type { DomainSyncPairContext, DomainSyncPairInput } from "./machine.ts";
 import type { DomainSyncPullResult } from "./schemas.ts";
+// GH-296 / prx-lzw — bd→GH push-leg short-circuit when the bead store is unchanged.
+import { readDoltHead } from "../beadsd/dolt-head.ts";
+import { createPushWatermark, type PushWatermark } from "./push-watermark.ts";
+import { shouldSkipPush, advanceLastPushedHead } from "./push-freshness-gate.ts";
 
 // ── options + deps ─────────────────────────────────────────────────────────
 
@@ -111,6 +115,19 @@ export type RunBeadsSyncDeps = {
    * inject an `adapter` directly.
    */
   invalidateBeadsCache?: () => void;
+  /**
+   * GH-296 / prx-lzw — the current bead-store dataset etag (dolt HEAD). Used to
+   * short-circuit the bd→GH push leg when the store hasn't moved since the last
+   * successful push. Default: read the served clone's dolt HEAD. Returns
+   * undefined when unknown ⇒ the push always runs (no false skip).
+   */
+  beadsHead?: (() => string | undefined) | undefined;
+  /**
+   * GH-296 / prx-lzw — the persisted "last successfully pushed HEAD" watermark
+   * for this `(repo, domain)`. Default: a per-key file under
+   * `~/.local/state/prx/sync`. Tests inject an in-memory one.
+   */
+  pushWatermark?: PushWatermark | undefined;
 };
 
 // ── summary shape ──────────────────────────────────────────────────────────
@@ -285,6 +302,13 @@ export async function runBeadsSync(
   const threshold = resolveThreshold(opts.budget);
   const limit = Number.isFinite(opts.limit) && opts.limit > 0 ? Math.floor(opts.limit) : DEFAULT_SYNC_LIMIT;
 
+  // GH-296 / prx-lzw — push-leg short-circuit. The bead-store etag (dolt HEAD)
+  // vs the last successfully-pushed watermark for this (repo, domain): when
+  // unchanged, the bd→GH push leg has nothing to do and is skipped (saving its
+  // GitHub write requests). The pull leg always runs (GH→bd is independent).
+  const beadsHead = deps.beadsHead ?? (() => readDoltHead(cwd));
+  const pushWatermark = deps.pushWatermark ?? createPushWatermark(`${repo}/${domain}`);
+
   const auditActor = getAuditRuntimeContext().actor;
 
   // ── budget gate (entry) ──────────────────────────────────────────────────
@@ -438,8 +462,20 @@ export async function runBeadsSync(
     ...pulledPairs.filter((p) => !p.pullResult.needsClose),
     ...pulledPairs.filter((p) => p.pullResult.needsClose),
   ];
-  const toPush = sortedForPush.slice(0, limit);
-  pushDeferred = sortedForPush.length - toPush.length;
+  // GH-296 / prx-lzw — skip the whole push leg when the bead store is unchanged
+  // since the last successful push (nothing bd-authoritative to write). Never on
+  // --dry-run (that's a planning preview). A skip is not a deferral: 0 deferred.
+  const currentHead = beadsHead();
+  const lastPushed = pushWatermark.read();
+  const pushSkipped = !opts.dryRun && shouldSkipPush(currentHead, lastPushed);
+  if (pushSkipped) {
+    // Diagnostic (stderr) — stdout is reserved for the rendered summary (JSON-safe).
+    output.error(
+      `beads sync: push leg skipped — bead store unchanged since last successful push (HEAD=${currentHead})`,
+    );
+  }
+  const toPush = pushSkipped ? [] : sortedForPush.slice(0, limit);
+  pushDeferred = pushSkipped ? 0 : sortedForPush.length - toPush.length;
   const pushedBeadIds = new Set<string>();
   let pushed = 0;
 
@@ -516,6 +552,18 @@ export async function runBeadsSync(
       pushed: false,
       action: "synced",
     });
+  }
+
+  // GH-296 / prx-lzw — advance the push watermark only on a fully-successful
+  // push (no deferrals, no errors); retry-safe (a partial/failed push keeps the
+  // old watermark so the next tick re-attempts). Skipped + dry-run never persist.
+  if (!pushSkipped && !opts.dryRun) {
+    const next = advanceLastPushedHead({
+      previous: lastPushed,
+      currentHead,
+      outcome: { pushDeferred, pushErrors: pushFailed },
+    });
+    if (next !== undefined && next !== lastPushed) pushWatermark.write(next);
   }
 
   const failed = pullFailed + pushFailed;
