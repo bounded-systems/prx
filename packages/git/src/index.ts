@@ -112,9 +112,22 @@ export function execGit(opts: GitExecOptions, env: GitExecEnv = processEnv()): G
   // `git diff`, and similar large reads cannot hit the default 1 MiB stdout cap.
   // ai-home-bbdm1: a lock-contention failure (stale index.lock from a crashed
   // sibling) triggers a single safe-guarded stale-lock recovery + retry.
+  // GH-388/GH-360: headless-safe signing. prx's provenance signing is ed25519
+  // over the chain (keeper's commit-tree), NEVER git's gpg/ssh commit signing —
+  // which is the OPERATOR's config and fails in non-interactive/agent contexts
+  // (e.g. 1Password SSH: "agent returned an error" → "failed to write commit
+  // object"). Disable commit/tag signing at this single git seam so every prx
+  // caller (keeper, `prx tools git`, the executor leg) is robust regardless of
+  // the operator's commit.gpgsign.
+  const signingOff =
+    opts.subcommand === "commit"
+      ? ["-c", "commit.gpgsign=false"]
+      : opts.subcommand === "tag"
+        ? ["-c", "tag.gpgsign=false"]
+        : [];
   const result = runWithGitLockRecovery(() =>
     spawnCapture(
-      ["git", "-C", opts.cwd ?? process.cwd(), opts.subcommand, ...opts.args],
+      ["git", "-C", opts.cwd ?? process.cwd(), ...signingOff, opts.subcommand, ...opts.args],
       { env: env as Record<string, string> },
     ),
   );
