@@ -26,6 +26,7 @@ import { prCommentsVerb } from "../pr-state/pr-comments-verb.ts";
 import { eventVerb } from "../pr-state/event-verb.ts";
 import { contractVerb } from "../pr-state/contract-verb.ts";
 import { planSaveVerb } from "../pr-state/plan-save-verb.ts";
+import { planShowVerb } from "../pr-state/plan-show-verb.ts";
 
 export const verbRegistry: Registry = {
   ...orchestratorRegistry,
@@ -53,4 +54,5 @@ export const verbRegistry: Registry = {
   [eventVerb.id]: eventVerb,
   [contractVerb.id]: contractVerb,
   [planSaveVerb.id]: planSaveVerb,
+  [planShowVerb.id]: planShowVerb,
 };

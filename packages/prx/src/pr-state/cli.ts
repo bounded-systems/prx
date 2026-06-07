@@ -794,8 +794,6 @@ import {
 import {
   PlanStoreError,
   getRef,
-  resolvePlanStagingDirForDisplay,
-  resolveStoreRootForDisplay,
 } from "../plan-store/cas.ts";
 // prx-lrw: submit-ref reading for the check-issue artifact-graph projection
 // fallback (a CAS submit ref proves the unit when the issue authority can't).
@@ -1217,13 +1215,6 @@ type ParsedCommand =
       slot: "draft" | "approved";
       slotExplicit: boolean;
       format: "raw" | "json";
-    }
-  | {
-      command: "plan-show";
-      workUnitId: string;
-      slot: "draft" | "approved" | undefined;
-      format: "text" | "json";
-      paths: boolean;
     }
   | {
       // GH-1239: deterministic pre-draft preflight (already-done /
@@ -8344,48 +8335,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       format: ensureChoice(values.format, ["raw", "json"] as const, "--format"),
     };
   }
-  if (command === "plan-show") {
-    const slotProvided = rest.some(
-      (arg) => arg === "--slot" || arg.startsWith("--slot="),
-    );
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: {
-        slot: { type: "string" },
-        format: { type: "string", default: "text" },
-        paths: { type: "boolean", default: false },
-        // GH-1311: lets the verb run from inside an open planner pane.
-        unit: { type: "string" },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-    if (positionals.length > 1) {
-      throw tooManyWorkUnitIdsError("plan show", positionals);
-    }
-    const explicit = positionals[0] ?? values.unit;
-    const resolved = resolvePlanSessionUnit(explicit, {
-      detect: detectWorkCommandTarget,
-    });
-    if (resolved.unit === null) {
-      throw new CliError(
-        "plan show requires a work-unit id (positional or --unit), or run from an open `prx plan session` pane",
-      );
-    }
-    return {
-      command,
-      workUnitId:
-        resolved.source === "flag"
-          ? parseCanonicalWorkUnitId(resolved.unit, "plan show")
-          : resolved.unit,
-      slot:
-        slotProvided && values.slot !== undefined
-          ? ensureChoice(values.slot, ["draft", "approved"] as const, "--slot")
-          : undefined,
-      format: ensureChoice(values.format, ["text", "json"] as const, "--format"),
-      paths: values.paths === true,
-    };
-  }
   // GH-1239: deterministic three-axis pre-draft preflight.
   if (command === "plan-preflight") {
     const { values, positionals } = parseArgs({
@@ -15221,6 +15170,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     if (orchestratorVerb === "plan-save") {
       return runSpecVerb("plan-save", orchestratorRest, output);
     }
+    if (orchestratorVerb === "plan" && orchestratorRest[0] === "show") {
+      return runSpecVerb("plan-show", orchestratorRest.slice(1), output);
+    }
+    if (orchestratorVerb === "plan-show") {
+      return runSpecVerb("plan-show", orchestratorRest, output);
+    }
     // The `contract <sub>` namespace reroutes several subcommands to verbs that
     // are now spec-driven. The early dispatch keys off the raw `argv[0]`
     // (`contract`), not the normalized rewrite, so those aliases would miss the
@@ -15543,103 +15498,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       })();
     }
 
-    if (parsed.command === "plan-show") {
-      return (async () => {
-        try {
-          // GH-1226: --paths surfaces the resolved CAS root + which env-var
-          // branch fired without reading any blob. Skips runPlanShow because
-          // the operator's question is "where would my plans land", which is
-          // useful even when no plan has been saved yet.
-          if (parsed.paths) {
-            const resolution = resolveStoreRootForDisplay("plans");
-            // GH-1175: surface the staging dir alongside cas_root so the
-            // operator can see where `prx plan save --from-file` may read
-            // from (and where the plan-profile Write allowlist carve-out
-            // lands). Resolution is best-effort — if neither
-            // XDG_CACHE_HOME nor HOME is set the staging dir is reported
-            // as null so callers can still inspect the CAS root.
-            let stagingDir: string | null = null;
-            let stagingSource: string | null = null;
-            try {
-              const staging = resolvePlanStagingDirForDisplay();
-              stagingDir = staging.dir;
-              stagingSource = staging.source;
-            } catch (error) {
-              // GH-1175 Copilot review: only swallow the documented
-              // NO_STAGING_ROOT case (env-var underpopulated). Bare
-              // `catch {}` would hide INVALID_STAGING_ROOT (forbidden
-              // chars in env value) and any unexpected runtime error.
-              if (!(error instanceof PlanStoreError) || error.code !== "NO_STAGING_ROOT") {
-                throw error;
-              }
-            }
-            if (parsed.format === "json") {
-              output.log(
-                JSON.stringify(
-                  {
-                    unit: parsed.workUnitId,
-                    domain: "plans",
-                    cas_root: resolution.root,
-                    source: resolution.source,
-                    staging: stagingDir,
-                    staging_source: stagingSource,
-                  },
-                  null,
-                  2,
-                ),
-              );
-            } else {
-              output.log(`unit:           ${parsed.workUnitId}`);
-              output.log(`domain:         plans`);
-              output.log(`cas_root:       ${resolution.root}`);
-              output.log(`source:         ${resolution.source}`);
-              output.log(`staging:        ${stagingDir ?? "(unresolved — set XDG_CACHE_HOME or HOME)"}`);
-              output.log(`staging_source: ${stagingSource ?? "(none)"}`);
-            }
-            return 0;
-          }
-          const result = await (deps.runPlanShow ?? runPlanShow)({
-            unit: parsed.workUnitId,
-            slot: parsed.slot,
-          });
-          if (parsed.format === "json") {
-            output.log(
-              JSON.stringify(
-                {
-                  unit: result.unit,
-                  slot: result.slot,
-                  sha: result.sha,
-                  size: result.size,
-                  body: result.body.toString("utf8"),
-                },
-                null,
-                2,
-              ),
-            );
-          } else {
-            output.log(`unit: ${result.unit}`);
-            output.log(`slot: ${result.slot}`);
-            output.log(`sha:  ${result.sha}`);
-            output.log(`size: ${result.size} bytes`);
-            output.log("---");
-            const text = result.body.toString("utf8");
-            const lines = text.split("\n");
-            const head = lines.slice(0, 20);
-            for (const line of head) output.log(line);
-            if (lines.length > 20) {
-              output.log(`... (${lines.length - 20} more lines; use --format json for full body)`);
-            }
-          }
-          return 0;
-        } catch (error) {
-          if (error instanceof PlanRefNotFound) {
-            output.error(`FAIL: ${error.message}`);
-            return 1;
-          }
-          return handleRunCliError(error, output);
-        }
-      })();
-    }
 
     // GH-1239: deterministic pre-draft preflight. Pure read; exit 0 on pass,
     // 1 on any axis failure (already-done / infeasible-action /
