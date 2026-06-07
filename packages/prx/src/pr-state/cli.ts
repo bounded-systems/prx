@@ -40,8 +40,6 @@ import {
   boardStatus,
   chainStatus,
   repoStatus,
-  fetchPrComments,
-  resolvePrReviewThreads,
   buildParityChain,
   buildSurfaceSyncFromBoard,
   buildSessionLayerPrune,
@@ -970,7 +968,7 @@ import { type ExecutionWorkAgent, POLICY, buildWorkAutomationProfile, ensureExec
 import { findSavedClaudeSession, resolveCodexSessionProfile } from "./session-finder.ts";
 import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type Output, type ParityChainApplyResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
 import { refreshTaskSignals } from "./status-report.ts";
-import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatRepairBdResults, formatRepoAdd, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktreeRemove } from "./cli-format.ts";
+import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanNamespaceHelp, formatRepairBdResults, formatRepoAdd, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktreeRemove } from "./cli-format.ts";
 import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, detectBranchNameFromCwd, findWorktreeByDirectoryPrefix, listResolvedWorktrees, procSpawnLike, resolveRepoRootWithSpawn, runCommand, runInheritStatus, tryCommand } from "./cli-spawn.ts";
 // GH-519/GH-520: parity-chain side-effect primitives moved to their own leaf
 // module so non-CLI consumers (the triage pruneMergedActor) no longer drag the
@@ -2093,17 +2091,6 @@ type ParsedCommand =
       fetch: boolean;
     }
   | {
-      command: "pr-comments";
-      repoPath: string;
-      action: "show" | "resolve";
-      pr?: string | undefined;
-      format: "plain" | "json";
-      outputPath?: string | undefined;
-      write: boolean;
-      threadIds: string[];
-      resolveAll: boolean;
-    }
-  | {
       command: "reconcile" | "prune" | "backfill";
       repoPath: string;
       mode: SurfaceSyncMode;
@@ -2712,8 +2699,6 @@ type CliDeps = {
   /** CommandRunner seam for the final `tmux attach-session` call. Separate from muxRunner because the attach is interactive (stdio-inherit) in prod while tests want it mocked. */
   attachRunner?: GithubCommandRunner;
   repoStatus?: typeof repoStatus;
-  fetchPrComments?: typeof fetchPrComments;
-  resolvePrReviewThreads?: typeof resolvePrReviewThreads;
   buildParityChain?: typeof buildParityChain;
   buildSessionLayerPrune?: typeof buildSessionLayerPrune;
   /** Override for testability: return the name of the current tmux session, or null. */
@@ -10922,44 +10907,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  if (command === "pr-comments") {
-    const subcommand = rest[0] === "resolve" ? "resolve" : "show";
-    const commandArgs = subcommand === "resolve" ? rest.slice(1) : rest;
-    const { values, positionals } = parseArgs({
-      args: commandArgs,
-      options: {
-        "repo-path": { type: "string", default: "." },
-        pr: { type: "string" },
-        format: { type: "string", default: "plain" },
-        output: { type: "string" },
-        write: { type: "boolean", default: false },
-        thread: { type: "string", multiple: true },
-        "all-unresolved": { type: "boolean", default: false },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-
-    const threadIds = [...positionals.map((value) => value.trim()), ...(values.thread ?? []).map((value) => value.trim())]
-      .filter((value) => value.length > 0);
-    const resolveAll = values["all-unresolved"];
-    if (subcommand === "resolve" && threadIds.length === 0 && !resolveAll) {
-      throw new CliError("pr-comments resolve requires at least one thread id or --all-unresolved");
-    }
-
-    return {
-      command,
-      repoPath: values["repo-path"],
-      action: subcommand,
-      pr: values.pr,
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      outputPath: values.output,
-      write: values.write,
-      threadIds,
-      resolveAll,
-    };
-  }
-
   if (command === "prune") {
     // GH-1133: `prx prune session <GH-N>` — narrow session/tmux-only
     // teardown. Detect the positional subverb before the flag-only
@@ -14206,10 +14153,6 @@ function formatWorkspaceAdoptResult(
   return lines.join("\n");
 }
 
-function defaultPrCommentsOutputPath(repoPath: string): string {
-  return join(repoPath, ".pr", "local", "review-comments.json");
-}
-
 /**
  * Enumerate worktrees that should be considered for bd schema repair (GH-1152).
  * Includes the main worktree plus every linked worktree that has a `.beads`
@@ -15652,6 +15595,24 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
     if (orchestratorVerb === "repo" && orchestratorRest[0] === "protect-main") {
       return runSpecVerb("protect-main", orchestratorRest.slice(1), output);
+    }
+    // `pr-comments` (a.k.a. `repo pr-comments` / `scout comments`): the `resolve`
+    // sub-token selects the action; otherwise it's `show`.
+    {
+      const runPrComments = (args: readonly string[]): Promise<number> =>
+        args[0] === "resolve"
+          ? runSpecVerb("pr-comments", ["--action=resolve", ...args.slice(1)], output)
+          : runSpecVerb("pr-comments", args, output);
+      if (orchestratorVerb === "pr-comments") return runPrComments(orchestratorRest);
+      if (orchestratorVerb === "repo" && orchestratorRest[0] === "pr-comments") {
+        return runPrComments(orchestratorRest.slice(1));
+      }
+      if (
+        orchestratorVerb === "scout" &&
+        (orchestratorRest[0] === "comments" || orchestratorRest[0] === "pr-comments")
+      ) {
+        return runPrComments(orchestratorRest.slice(1));
+      }
     }
     if (orchestratorVerb === "plugin") {
       return runPluginVerb(orchestratorRest, output);
@@ -22405,36 +22366,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       );
       output.log(formatRepoStatus(summary, parsed.format));
       return 0;
-    }
-
-    if (parsed.command === "pr-comments") {
-      if (parsed.action === "resolve") {
-        const beforeResolution = (deps.fetchPrComments ?? fetchPrComments)(parsed.repoPath, parsed.pr);
-        const threadIds = parsed.resolveAll
-          ? beforeResolution.threads.filter((thread) => !thread.isResolved).map((thread) => thread.id)
-          : parsed.threadIds;
-        if (threadIds.length === 0) {
-          throw new CliError("No unresolved review threads found to resolve");
-        }
-        const resolvedThreads = (deps.resolvePrReviewThreads ?? resolvePrReviewThreads)(parsed.repoPath, threadIds);
-        const postResolution = (deps.fetchPrComments ?? fetchPrComments)(parsed.repoPath, parsed.pr);
-        const outputPath = parsed.outputPath ?? (parsed.write ? defaultPrCommentsOutputPath(parsed.repoPath) : undefined);
-        if (outputPath) {
-          mkdirSync(dirname(outputPath), { recursive: true });
-          writeFileSync(outputPath, `${JSON.stringify(postResolution, null, 2)}\n`);
-        }
-        output.log(formatPrCommentsResolution(resolvedThreads, postResolution, parsed.format, outputPath));
-        return postResolution.unresolvedThreads === 0 ? 0 : 1;
-      }
-
-      const summary = (deps.fetchPrComments ?? fetchPrComments)(parsed.repoPath, parsed.pr);
-      const outputPath = parsed.outputPath ?? (parsed.write ? defaultPrCommentsOutputPath(parsed.repoPath) : undefined);
-      if (outputPath) {
-        mkdirSync(dirname(outputPath), { recursive: true });
-        writeFileSync(outputPath, `${JSON.stringify(summary, null, 2)}\n`);
-      }
-      output.log(formatPrComments(summary, parsed.format, outputPath));
-      return summary.unresolvedThreads === 0 ? 0 : 1;
     }
 
     if (parsed.command === "prune-session") {
