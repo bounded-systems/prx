@@ -812,7 +812,15 @@ import {
   type CiPhase,
   type PhaseResult,
 } from "./local-ci.ts";
-import { attestCiPhases, ciLedgerTarget, CI_LEDGER_ENV, currentCiRefs, resolveCiInputs } from "./ci-attest.ts";
+import {
+  attestCiPhases,
+  ciLedgerTarget,
+  ciSigningDecision,
+  CI_LEDGER_ENV,
+  CI_SIGNING_REQUIRED_MESSAGE,
+  currentCiRefs,
+  resolveCiInputs,
+} from "./ci-attest.ts";
 import { resolveCiProvenanceState } from "./ci-provenance-state.ts";
 import { readCiProvenanceState, writeCiProvenanceCache } from "./ci-provenance-cache.ts";
 import {
@@ -23708,7 +23716,18 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             envLedger: getEnv(CI_LEDGER_ENV),
             canonical: resolveCanonicalChainLedger(process.cwd())?.ledgerPath,
           });
-          if (signer === null || ledger === undefined) return code;
+          // GH-352: local dev IS the production surface — signing is a hard
+          // requirement wherever a ledger is in scope. No ledger ⇒ not a signing
+          // context (unchanged). Ledger but no key ⇒ fail closed with a clear,
+          // actionable message; the checks ran, but a green that can't be signed
+          // into the chain is a failure.
+          const decision = ciSigningDecision(ledger, signer !== null);
+          if (decision === "skip") return code;
+          if (decision === "fail") {
+            output.error(CI_SIGNING_REQUIRED_MESSAGE);
+            return code === 0 ? 1 : code;
+          }
+          if (signer === null || ledger === undefined) return code; // narrow for TS
           const head = runCommand(["git", "rev-parse", "HEAD"]);
           const commit = head.status === 0 ? head.stdout.trim() : "";
           const treeProbe = runCommand(["git", "rev-parse", "HEAD^{tree}"]);

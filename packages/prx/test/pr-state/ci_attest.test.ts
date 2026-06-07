@@ -21,9 +21,11 @@ import { decodeSlsaStatement, verifySlsaDerivation } from "../../src/provenance/
 import {
   attestCiPhases,
   ciLedgerTarget,
+  ciSigningDecision,
   currentCiRefs,
   CI_ATTEST_SURFACE,
   CI_PHASE_BUILD_TYPE,
+  CI_SIGNING_REQUIRED_MESSAGE,
   resolveCiInputs,
 } from "../../src/pr-state/ci-attest.ts";
 import { CI_PHASES } from "../../src/pr-state/local-ci.ts";
@@ -152,5 +154,25 @@ describe("ciLedgerTarget — explicit PRX_CI_LEDGER override wins (GH-352)", () 
   test("undefined when neither is available (no ledger ⇒ no signing)", () => {
     expect(ciLedgerTarget({ envLedger: undefined, canonical: undefined })).toBeUndefined();
     expect(ciLedgerTarget({ envLedger: "", canonical: undefined })).toBeUndefined();
+  });
+});
+
+describe("ciSigningDecision — fail-closed when a ledger is in scope (GH-352)", () => {
+  test("no ledger in scope ⇒ skip (not a signing context)", () => {
+    expect(ciSigningDecision(undefined, false)).toBe("skip");
+    expect(ciSigningDecision(undefined, true)).toBe("skip");
+  });
+
+  test("ledger but no signer ⇒ fail (signing is a hard requirement)", () => {
+    expect(ciSigningDecision("/ledger.sqlite", false)).toBe("fail");
+  });
+
+  test("ledger and a signer ⇒ sign", () => {
+    expect(ciSigningDecision("/ledger.sqlite", true)).toBe("sign");
+  });
+
+  test("the failure message is clear and actionable (names the env to set)", () => {
+    expect(CI_SIGNING_REQUIRED_MESSAGE).toContain("PRX_PROVENANCE_KEY=dev");
+    expect(CI_SIGNING_REQUIRED_MESSAGE).toContain("ed25519:");
   });
 });
