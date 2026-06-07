@@ -949,6 +949,7 @@ import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, detectB
 // whole CLI — and its triage machine cycle — into their import graph. Re-export
 // keeps cli.ts's existing callers (machine/gc drivers, tests) working.
 import { applyParityChainActions, pruneStaleRemoteRefs } from "./parity-chain.ts";
+import { canonicalFormatExample, detectWorkCommandTarget, ensureCanonicalHelpers, ensureIdentityConfig, parseCanonicalWorkUnitId, resetCanonicalHelpers } from "./cli-id.ts";
 
 export { applyParityChainActions, pruneStaleRemoteRefs } from "./parity-chain.ts";
 
@@ -3122,120 +3123,11 @@ function defaultHooksPath(): string {
   return `${home}/.local/share/git-hooks`;
 }
 
-// Resolved canonical-ID helpers for the current CLI invocation. Lazily loaded
-// on first validator access so `prx help` / `prx version` / other non-repo
-// commands don't pay the cost of a `git rev-parse` or fail in minimal
-// environments. resetCanonicalHelpers() at the top of runCli() ensures fresh
-// state per invocation (tests share the process and chdir between cases).
-let activeCanonicalHelpers: CanonicalWorkUnitIdHelpers | null = null;
-let activeCanonicalIsDefault = true;
-let activeIdentityConfig: IdentityConfig | null = null;
-
-function resetCanonicalHelpers(): void {
-  activeCanonicalHelpers = null;
-  activeCanonicalIsDefault = true;
-  activeIdentityConfig = null;
-}
-
-function ensureIdentityConfig(
-  runner: GithubCommandRunner = defaultRunner,
-): IdentityConfig {
-  if (activeIdentityConfig) {
-    return activeIdentityConfig;
-  }
-  activeIdentityConfig = loadIdentityConfig(process.cwd(), runner);
-  return activeIdentityConfig;
-}
-
-function ensureCanonicalHelpers(
-  runner: GithubCommandRunner = defaultRunner,
-): CanonicalWorkUnitIdHelpers {
-  if (activeCanonicalHelpers) {
-    return activeCanonicalHelpers;
-  }
-  const config = ensureIdentityConfig(runner);
-  activeCanonicalHelpers = buildCanonicalWorkUnitIdHelpers(
-    effectiveCanonicalIdPattern(config),
-  );
-  activeCanonicalIsDefault = config.isDefault;
-  return activeCanonicalHelpers;
-}
-
-function canonicalFormatExample(): string {
-  const helpers = ensureCanonicalHelpers();
-  if (activeCanonicalIsDefault) {
-    return "for example GH-456";
-  }
-  return `for example GH-456 or a canonical_id_pattern declared by a configured prx.toml [sources.<name>] (${helpers.pattern.source})`;
-}
-
 function validatePlanPath(path: string): string {
   if (/[\r\n\x00-\x1f]/.test(path)) {
     throw new CliError("--plan PATH must not contain newlines or control characters.");
   }
   return path.trim();
-}
-
-function parseCanonicalWorkUnitId(value: string, flag: string): string {
-  const helpers = ensureCanonicalHelpers();
-  const normalized = helpers.normalize(value);
-  if (helpers.isCanonical(normalized)) {
-    return normalized;
-  }
-  // GH-2015: the static `combinedCanonicalIdPattern()` regex cannot encode
-  // cwd-dependent surface ids (BD's bare-workspace arm reads
-  // `bd_workspace_prefix` from `.prx/repos/index.json` via
-  // `localWorkspacePrefix(cwd)`). Fall through to the adapter registry so
-  // ids whose recognition is runtime-only still pass the gate. Gated on
-  // `activeCanonicalIsDefault` — a per-repo `[identity] canonical_id_pattern`
-  // overlay wins outright (operator explicitly pinned a shape).
-  //
-  // Try the trimmed verbatim form first so lowercase-only adapter arms
-  // (BD's bare-workspace arm, BD long-id) preserve case for downstream bd
-  // record lookup. Fall back to the uppercased form so case-stable arms
-  // (`GH-\d+`, etc.) routed through a future adapter still match.
-  if (activeCanonicalIsDefault) {
-    const trimmed = value.trim();
-    if (trimmed.length > 0 && adapterForCanonicalId(trimmed) !== null) {
-      return trimmed;
-    }
-    if (normalized !== trimmed && adapterForCanonicalId(normalized) !== null) {
-      return normalized;
-    }
-  }
-  // A `<prefix>-<rest>` id that survives to here is most often a *recognized*
-  // bd surface id whose covering repo has no `bd_workspace_prefix` registered
-  // (a pre-GH-1657 inventory row) — the bd bare-workspace adapter arm needs
-  // that field to fire, so the id silently fails the gate. The generic
-  // "must match CANONICAL-ID format (GH-456)" misleads in that case (it cost a
-  // full debugging session to trace). Detect the bd-short shape and point at
-  // the documented `prx repo backfill` / `prx repo refresh <slug>` remedy.
-  const inputTrimmed = value.trim();
-  if (activeCanonicalIsDefault && looksLikeBeadsShortId(inputTrimmed)) {
-    const slug = localRepoForCwd(process.cwd())?.name;
-    const refreshHint = slug ? ` (or \`prx repo refresh ${slug}\`)` : "";
-    throw new CliError(
-      `${flag} "${inputTrimmed}" looks like a beads id but is not recognized. ` +
-        `This repo's bd workspace prefix is not registered in the repo inventory ` +
-        `(a pre-GH-1657 row), so the bd id arm cannot resolve it. ` +
-        `Run \`prx repo backfill\`${refreshHint} to populate bd_workspace_prefix, then retry. ` +
-        `Otherwise the id must match CANONICAL-ID format (${canonicalFormatExample()}).`,
-    );
-  }
-  throw new CliError(`${flag} must match CANONICAL-ID format (${canonicalFormatExample()})`);
-}
-
-/**
- * Heuristic: does `value` look like a bd workspace-short id (`<prefix>-<rest>`,
- * e.g. `prx-0v5`) rather than a malformed canonical id? Excludes the known
- * domain prefixes (gh / notion / bd) — those have their own surface arms and a
- * miss there is a genuine format error, not an unregistered-prefix one.
- */
-function looksLikeBeadsShortId(value: string): boolean {
-  const trimmed = value.trim();
-  if (!/^[a-z][a-z0-9-]*-[a-z0-9]+$/i.test(trimmed)) return false;
-  const prefix = trimmed.slice(0, trimmed.indexOf("-")).toLowerCase();
-  return prefix !== "gh" && prefix !== "notion" && prefix !== "bd";
 }
 
 function detectWorkUnitIdFromCwd(cwd = process.cwd()): string {
@@ -3271,27 +3163,6 @@ function detectCloseWorkUnitId(cwd = process.cwd()): string {
   throw new CliError(
     `close requires a canonical work unit id; pass GH-<n> explicitly (could not infer from branch '${branchName ?? "<none>"}' or cwd '${basename(cwd)}')`,
   );
-}
-
-function detectWorkCommandTarget(
-  cwd = process.cwd(),
-): { workUnitId: string; launchFromCurrentWorkspace: boolean } {
-  const helpers = ensureCanonicalHelpers();
-  const cwdCandidate = helpers.normalize(basename(cwd));
-  if (helpers.isCanonical(cwdCandidate)) {
-    return { workUnitId: cwdCandidate, launchFromCurrentWorkspace: false };
-  }
-
-  const branchName = detectBranchNameFromCwd(cwd);
-  const branchCandidate = branchName ? helpers.normalize(branchName) : "";
-  if (helpers.isCanonical(branchCandidate)) {
-    return { workUnitId: branchCandidate, launchFromCurrentWorkspace: false };
-  }
-
-  return {
-    workUnitId: branchName ?? basename(cwd),
-    launchFromCurrentWorkspace: true,
-  };
 }
 
 function githubIssueNumberForWorkUnit(workUnitId: string): number | null {
