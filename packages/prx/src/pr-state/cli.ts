@@ -668,6 +668,7 @@ import type { Derivation } from "@bounded-systems/anchored-chain";
 import {
   provenanceConfigPath,
   readProvenanceTrustMap,
+  resolveMasterSource,
   resolveProvenanceMaster,
   writeProvenanceTrustMap,
 } from "../provenance/config.ts";
@@ -677,6 +678,7 @@ import {
   keymakerDrift,
   keymakerRegister,
 } from "../provenance/keymaker.ts";
+import { provenanceStatus, renderProvenanceStatus } from "../provenance/status.ts";
 import type { ProvenanceAxis } from "../machine/machines/workflow.ts";
 // GH-2282: persisted dev provenance identity — `prx provenance dev-pubkey`.
 import {
@@ -1472,6 +1474,11 @@ type ParsedCommand =
       // to match resolver semantics, so it doubles as a bootstrap-and-inspect
       // command for the zero-config dev sign → enforce → verify loop.
       command: "provenance-dev-pubkey";
+      format: "plain" | "json";
+    }
+  | {
+      // GH-352: the signing posture + onboarding surface.
+      command: "provenance-status";
       format: "plain" | "json";
     }
   | {
@@ -6666,7 +6673,7 @@ function parsePublisherCommand(rest: string[]): ParsedCommand {
 }
 
 // GH-2282: `prx provenance <verb>` — read-only provenance key inspection.
-const PROVENANCE_VERBS = ["dev-pubkey"] as const;
+const PROVENANCE_VERBS = ["dev-pubkey", "status"] as const;
 
 function printProvenanceHelpAndExit(): never {
   process.stdout.write(
@@ -6676,6 +6683,7 @@ function printProvenanceHelpAndExit(): never {
       "Inspect provenance signing identities (read-only).",
       "",
       "Verbs:",
+      "  status      Report the signing posture + onboarding next-steps",
       "  dev-pubkey  Print the persisted dev signing identity (point + keyid + path)",
       "",
       "Options:",
@@ -6717,13 +6725,14 @@ function parseProvenanceCommand(rest: string[]): ParsedCommand {
   });
   if (positionals.length > 0) {
     throw new CliError(
-      "prx provenance dev-pubkey takes no positional arguments; pass options as flags",
+      `prx provenance ${verbArg} takes no positional arguments; pass options as flags`,
     );
   }
-  return {
-    command: "provenance-dev-pubkey",
-    format: ensureChoice(values.format, ["plain", "json"], "--format"),
-  };
+  const format = ensureChoice(values.format, ["plain", "json"], "--format");
+  if (verbArg === "status") {
+    return { command: "provenance-status", format };
+  }
+  return { command: "provenance-dev-pubkey", format };
 }
 
 function parseKeymakerCommand(rest: string[]): ParsedCommand {
@@ -23128,6 +23137,30 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         output.log(`keyid:  ${kp.keyid}`);
         output.log(`path:   ${path}`);
         output.log(`source: ${source}`);
+      }
+      return 0;
+    }
+
+    if (parsed.command === "provenance-status") {
+      // GH-352: the onboarding surface — posture + next-steps, read-only.
+      const km: KeymakerDeps = {
+        master: () => resolveProvenanceMaster(),
+        readTrust: () => readProvenanceTrustMap(),
+        writeTrust: () => {
+          throw new Error("provenance status is read-only");
+        },
+      };
+      const status = provenanceStatus({
+        perActor: isPerActorMode(),
+        masterSource: resolveMasterSource().source,
+        trustedActors: Object.keys(readProvenanceTrustMap()).length,
+        drift: keymakerDrift(km).map((d) => ({ actor: d.actor, reason: d.reason })),
+        enforced: requireSignedDerivations(),
+      });
+      if (parsed.format === "json") {
+        output.log(JSON.stringify(status));
+      } else {
+        for (const line of renderProvenanceStatus(status)) output.log(line);
       }
       return 0;
     }
