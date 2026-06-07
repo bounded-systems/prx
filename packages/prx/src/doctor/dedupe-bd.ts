@@ -36,7 +36,6 @@
 //     GH-1829 applied to `findDrift` for the same class. Planner output
 //     drains monotonically under repeated `--apply` runs.
 
-import { processEnv } from "@bounded-systems/env";
 import { z } from "zod";
 
 import {
@@ -44,6 +43,7 @@ import {
   type AuditSinkDeps,
 } from "../audit/sink.ts";
 import { execBd as defaultExecBd } from "@bounded-systems/bd";
+import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import { buildClosedNotePrefixed } from "../triage/close.ts";
 import {
   isCanonicalDupClose,
@@ -144,6 +144,8 @@ type Output = {
 
 export type DedupeBdDeps = {
   execBd?: typeof defaultExecBd;
+  /** GH-296 / prx-82b — sync runner for daemon-routed `prx beads dep`/`update`. */
+  run?: CommandRunner;
   loadAllBeads?: (exec: typeof defaultExecBd) => BeadsRecord[];
   now?: () => Date;
   auditSink?: AuditSinkDeps;
@@ -383,7 +385,7 @@ function buildCluster(
       dup.status === "closed" ? recycledReason : standardReason,
     );
     closeNotes.push(note);
-    closeArgv.push([dup.id, "-s", "closed", "--notes", note]);
+    closeArgv.push([dup.id, "--status", "closed", "--notes", note]);
   }
   // Cluster-level representative note (render + back-compat). The exact note
   // written per duplicate lives in `closeArgv`; `applyCluster` audits the note
@@ -499,7 +501,7 @@ function applyCluster(
   audit: (entry: unknown) => void,
   now: Date,
 ): ApplyResult {
-  const exec = deps.execBd ?? defaultExecBd;
+  const run = deps.run ?? procRunner;
   let applied = 0;
   let errors = 0;
 
@@ -538,15 +540,9 @@ function applyCluster(
       continue;
     }
 
-    const rmResult = exec(
-      {
-        subcommand: "dep",
-        args: edge.removeArgv,
-        state: "planning",
-        role: "planner",
-      },
-      processEnv(),
-    );
+    // GH-296 / prx-82b: dep edges via the daemon (single writer). removeArgv /
+    // addArgv are the `dep` positionals, so they pass straight to `prx beads dep`.
+    const rmResult = run(["prx", "beads", "dep", ...edge.removeArgv], { check: false });
     audit({
       ts: now.toISOString(),
       domain: cluster.domain,
@@ -559,10 +555,10 @@ function applyCluster(
       edgeTo: edge.to,
       actor: "claude-code",
       dryRun: false,
-      exitCode: rmResult.exitCode,
+      exitCode: rmResult.status,
       ...(rmResult.stderr.trim().length > 0 ? { stderr: rmResult.stderr.trim() } : {}),
     });
-    if (rmResult.exitCode !== 0) {
+    if (rmResult.status !== 0) {
       output.error(
         `prx doctor dedupe-bd: bd dep remove failed on (${edge.from} → ${edge.to}): ${rmResult.stderr.trim() || rmResult.stdout.trim()}`,
       );
@@ -570,15 +566,7 @@ function applyCluster(
       continue;
     }
 
-    const addResult = exec(
-      {
-        subcommand: "dep",
-        args: edge.addArgv,
-        state: "planning",
-        role: "planner",
-      },
-      processEnv(),
-    );
+    const addResult = run(["prx", "beads", "dep", ...edge.addArgv], { check: false });
     audit({
       ts: now.toISOString(),
       domain: cluster.domain,
@@ -591,10 +579,10 @@ function applyCluster(
       edgeTo: edge.direction === "outgoing" ? edge.to : cluster.canonicalId ?? "",
       actor: "claude-code",
       dryRun: false,
-      exitCode: addResult.exitCode,
+      exitCode: addResult.status,
       ...(addResult.stderr.trim().length > 0 ? { stderr: addResult.stderr.trim() } : {}),
     });
-    if (addResult.exitCode !== 0) {
+    if (addResult.status !== 0) {
       output.error(
         `prx doctor dedupe-bd: bd dep add failed on (${edge.from} → ${edge.to}): ${addResult.stderr.trim() || addResult.stdout.trim()}`,
       );
@@ -631,15 +619,9 @@ function applyCluster(
       });
       continue;
     }
-    const result = exec(
-      {
-        subcommand: "update",
-        args: argv,
-        state: "planning",
-        role: "planner",
-      },
-      processEnv(),
-    );
+    // GH-296 / prx-82b: close the dup via the daemon. closeArgv is the bd-update
+    // close (`<id> --status closed --notes <note>`), so it passes through.
+    const result = run(["prx", "beads", "update", ...argv], { check: false });
     audit({
       ts: now.toISOString(),
       domain: cluster.domain,
@@ -650,12 +632,12 @@ function applyCluster(
       note,
       actor: "claude-code",
       dryRun: false,
-      exitCode: result.exitCode,
+      exitCode: result.status,
       ...(result.stderr.trim().length > 0 ? { stderr: result.stderr.trim() } : {}),
     });
-    if (result.exitCode !== 0) {
+    if (result.status !== 0) {
       output.error(
-        `prx doctor dedupe-bd: bd update -s closed failed on ${dupId}: ${result.stderr.trim() || result.stdout.trim()}`,
+        `prx doctor dedupe-bd: bd update --status closed failed on ${dupId}: ${result.stderr.trim() || result.stdout.trim()}`,
       );
       errors += 1;
       continue;

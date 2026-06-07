@@ -66,16 +66,20 @@ function makeOutput() {
 
 type BdCall = { subcommand: string; args: string[] };
 
-function makeExecBd(results: BdExecResult[] = []) {
+// GH-296 / prx-82b: dep + close writes now run `prx beads dep …` / `prx beads
+// update …` through the daemon (a sync runner). The fake records the equivalent
+// old `{subcommand, args}` shape from the prx argv (cmd[2] = the bd subcommand,
+// cmd.slice(3) = its args) so the existing `calls` assertions hold.
+function makeRun(results: BdExecResult[] = []) {
   const calls: BdCall[] = [];
   let idx = 0;
-  const exec = ((opts: { subcommand: string; args: string[] }): BdExecResult => {
-    calls.push({ subcommand: opts.subcommand, args: opts.args });
-    const result = results[idx] ?? { exitCode: 0, stdout: "", stderr: "", policy: null };
+  const run = ((cmd: string[]) => {
+    calls.push({ subcommand: cmd[2] ?? "", args: cmd.slice(3) });
+    const r = results[idx] ?? { exitCode: 0, stdout: "", stderr: "", policy: null };
     idx += 1;
-    return result;
+    return { status: r.exitCode, stdout: r.stdout, stderr: r.stderr };
   }) as never;
-  return { exec, calls };
+  return { run, calls };
 }
 
 // ─── isAutoSyncedBdId ────────────────────────────────────────────────────────
@@ -153,7 +157,7 @@ describe("planDedupe — fixture (a): auto+manual cluster", () => {
     expect(cluster.closeArgv).toHaveLength(1);
     const argv = cluster.closeArgv[0]!;
     expect(argv[0]).toBe(manual.id);
-    expect(argv.slice(1, 3)).toEqual(["-s", "closed"]);
+    expect(argv.slice(1, 3)).toEqual(["--status", "closed"]);
     expect(argv[3]).toBe("--notes");
     expect(isCanonicalDupClose(argv[4]!)).toBe(true);
   });
@@ -381,14 +385,14 @@ describe("planDedupe — closed-as-dup clusters are suppressed (GH-1863)", () =>
       status: "closed",
       notes: dupNote,
     });
-    const { exec, calls } = makeExecBd();
+    const { run, calls } = makeRun();
     const { output, log, error } = makeOutput();
     const audit: string[] = [];
     const exitCode = runDedupeBd(
       { apply: false, only: [], format: "plain" },
       output,
       {
-        execBd: exec,
+        run,
         loadAllBeads: () => [auto, manual],
         auditSink: {
           stateDirOverride: "/tmp/state",
@@ -438,7 +442,7 @@ describe("planDedupe — recycled-short-id phantom quarantine (GH-2254)", () => 
     const { clusters } = planDedupe([auto, phantom]);
     const argv = clusters[0]!.closeArgv[0]!;
     expect(argv[0]).toBe(phantom.id);
-    expect(argv.slice(1, 4)).toEqual(["-s", "closed", "--notes"]);
+    expect(argv.slice(1, 4)).toEqual(["--status", "closed", "--notes"]);
     const note = argv[4]!;
     // §6 anchors preserved → isCanonicalDupClose matches → findDrift/I-DEDUPE-3
     // suppression fires after --apply.
@@ -564,14 +568,14 @@ describe("runDedupeBd — dry-run is read-only", () => {
   });
 
   test("dry-run emits no bd writes and exits 0", () => {
-    const { exec, calls } = makeExecBd();
+    const { run, calls } = makeRun();
     const { output, log, error } = makeOutput();
     const audit: string[] = [];
     const exitCode = runDedupeBd(
       { apply: false, only: [], format: "json" },
       output,
       {
-        execBd: exec,
+        run,
         loadAllBeads: () => [auto, manual],
         auditSink: {
           stateDirOverride: "/tmp/state",
@@ -618,14 +622,14 @@ describe("runDedupeBd — --apply writes bd update + dep argv", () => {
   });
 
   test("emits dep-remove + dep-add (re-anchor) BEFORE the bd update -s closed", () => {
-    const { exec, calls } = makeExecBd();
+    const { run, calls } = makeRun();
     const { output } = makeOutput();
     const audit: string[] = [];
     const exitCode = runDedupeBd(
       { apply: true, only: [], format: "plain" },
       output,
       {
-        execBd: exec,
+        run,
         loadAllBeads: () => [auto, manual],
         auditSink: {
           stateDirOverride: "/tmp/state",
@@ -649,7 +653,7 @@ describe("runDedupeBd — --apply writes bd update + dep argv", () => {
     const closeCall = calls[2]!;
     expect(closeCall.subcommand).toBe("update");
     expect(closeCall.args[0]).toBe(manual.id);
-    expect(closeCall.args.slice(1, 3)).toEqual(["-s", "closed"]);
+    expect(closeCall.args.slice(1, 3)).toEqual(["--status", "closed"]);
     expect(closeCall.args[3]).toBe("--notes");
     expect(isCanonicalDupClose(closeCall.args[4]!)).toBe(true);
   });
@@ -674,14 +678,14 @@ describe("runDedupeBd — conflict cluster exits non-zero", () => {
   });
 
   test("dry-run with conflict cluster: exit=1, no bd writes, conflict surfaced in render", () => {
-    const { exec, calls } = makeExecBd();
+    const { run, calls } = makeRun();
     const { output, log } = makeOutput();
     const audit: string[] = [];
     const exitCode = runDedupeBd(
       { apply: false, only: [], format: "json" },
       output,
       {
-        execBd: exec,
+        run,
         loadAllBeads: () => [a, b],
         auditSink: {
           stateDirOverride: "/tmp/state",
@@ -724,14 +728,14 @@ describe("runDedupeBd — surfaces pin collisions (GH-2254)", () => {
   });
 
   test("dry-run surfaces the collision in render; collisions do not bump exitCode; no bd writes", () => {
-    const { exec, calls } = makeExecBd();
+    const { run, calls } = makeRun();
     const { output, log, error } = makeOutput();
     const audit: string[] = [];
     const exitCode = runDedupeBd(
       { apply: false, only: [], format: "json" },
       output,
       {
-        execBd: exec,
+        run,
         loadAllBeads: () => [auto, phantom],
         auditSink: {
           stateDirOverride: "/tmp/state",
@@ -755,14 +759,14 @@ describe("runDedupeBd — surfaces pin collisions (GH-2254)", () => {
     // The phantom cluster IS a legitimate dedupe (auto canonical + closed-non-§6
     // dup), so --apply closes the phantom. The collision report is additive and
     // adds no extra bd writes of its own.
-    const { exec, calls } = makeExecBd();
+    const { run, calls } = makeRun();
     const { output, log } = makeOutput();
     const audit: string[] = [];
     const exitCode = runDedupeBd(
       { apply: true, only: [], format: "json" },
       output,
       {
-        execBd: exec,
+        run,
         loadAllBeads: () => [auto, phantom],
         auditSink: {
           stateDirOverride: "/tmp/state",
@@ -801,14 +805,14 @@ describe("runDedupeBd — surfaces pin collisions (GH-2254)", () => {
       startedAt: "2026-05-16T10:00:00Z",
       assignee: "Bob",
     });
-    const { exec, calls } = makeExecBd();
+    const { run, calls } = makeRun();
     const { output, log } = makeOutput();
     const audit: string[] = [];
     const exitCode = runDedupeBd(
       { apply: true, only: [], format: "json" },
       output,
       {
-        execBd: exec,
+        run,
         loadAllBeads: () => [inflightA, inflightB],
         auditSink: {
           stateDirOverride: "/tmp/state",
@@ -954,14 +958,14 @@ describe("runDedupeBd — --only selector scopes the apply set", () => {
 
   test("--apply --only <pin> applies only the selected cluster (required AC)", () => {
     const { auto1, manual1, auto2, manual2, auto3, manual3 } = fixture();
-    const { exec, calls } = makeExecBd();
+    const { run, calls } = makeRun();
     const { output, log, error } = makeOutput();
     const audit: string[] = [];
     const exitCode = runDedupeBd(
       { apply: true, only: [PIN1], format: "json" },
       output,
       {
-        execBd: exec,
+        run,
         loadAllBeads: () => [auto1, manual1, auto2, manual2, auto3, manual3],
         auditSink: makeSink(audit),
       },
@@ -994,14 +998,14 @@ describe("runDedupeBd — --only selector scopes the apply set", () => {
 
   test("--only resolves a cluster by its canonical bd id", () => {
     const { auto1, manual1, auto2, manual2, auto3, manual3 } = fixture();
-    const { exec, calls } = makeExecBd();
+    const { run, calls } = makeRun();
     const { output, log } = makeOutput();
     const audit: string[] = [];
     const exitCode = runDedupeBd(
       { apply: true, only: [auto1.id], format: "json" },
       output,
       {
-        execBd: exec,
+        run,
         loadAllBeads: () => [auto1, manual1, auto2, manual2, auto3, manual3],
         auditSink: makeSink(audit),
       },
@@ -1014,14 +1018,14 @@ describe("runDedupeBd — --only selector scopes the apply set", () => {
 
   test("--only resolves a cluster by a duplicate bd id", () => {
     const { auto1, manual1, auto2, manual2, auto3, manual3 } = fixture();
-    const { exec, calls } = makeExecBd();
+    const { run, calls } = makeRun();
     const { output, log } = makeOutput();
     const audit: string[] = [];
     const exitCode = runDedupeBd(
       { apply: true, only: [manual1.id], format: "json" },
       output,
       {
-        execBd: exec,
+        run,
         loadAllBeads: () => [auto1, manual1, auto2, manual2, auto3, manual3],
         auditSink: makeSink(audit),
       },
@@ -1034,14 +1038,14 @@ describe("runDedupeBd — --only selector scopes the apply set", () => {
 
   test("multiple --only flags apply the union", () => {
     const { auto1, manual1, auto2, manual2, auto3, manual3 } = fixture();
-    const { exec, calls } = makeExecBd();
+    const { run, calls } = makeRun();
     const { output, log } = makeOutput();
     const audit: string[] = [];
     const exitCode = runDedupeBd(
       { apply: true, only: [PIN1, PIN2], format: "json" },
       output,
       {
-        execBd: exec,
+        run,
         loadAllBeads: () => [auto1, manual1, auto2, manual2, auto3, manual3],
         auditSink: makeSink(audit),
       },
@@ -1060,14 +1064,14 @@ describe("runDedupeBd — --only selector scopes the apply set", () => {
 
   test("unmatched --only selector surfaces an error, exits non-zero, writes nothing", () => {
     const { auto1, manual1, auto2, manual2, auto3, manual3 } = fixture();
-    const { exec, calls } = makeExecBd();
+    const { run, calls } = makeRun();
     const { output, error } = makeOutput();
     const audit: string[] = [];
     const exitCode = runDedupeBd(
       { apply: true, only: ["ai-home-does-not-exist"], format: "json" },
       output,
       {
-        execBd: exec,
+        run,
         loadAllBeads: () => [auto1, manual1, auto2, manual2, auto3, manual3],
         auditSink: makeSink(audit),
       },
@@ -1080,14 +1084,14 @@ describe("runDedupeBd — --only selector scopes the apply set", () => {
 
   test("--only without --apply is rejected at the verb (belt-and-suspenders)", () => {
     const { auto1, manual1 } = fixture();
-    const { exec, calls } = makeExecBd();
+    const { run, calls } = makeRun();
     const { output, error } = makeOutput();
     const audit: string[] = [];
     const exitCode = runDedupeBd(
       { apply: false, only: [PIN1], format: "json" },
       output,
       {
-        execBd: exec,
+        run,
         loadAllBeads: () => [auto1, manual1],
         auditSink: makeSink(audit),
       },
@@ -1099,14 +1103,14 @@ describe("runDedupeBd — --only selector scopes the apply set", () => {
 
   test("regression — --apply with no --only applies every cluster, skipped=0", () => {
     const { auto1, manual1, auto2, manual2, auto3, manual3 } = fixture();
-    const { exec, calls } = makeExecBd();
+    const { run, calls } = makeRun();
     const { output, log } = makeOutput();
     const audit: string[] = [];
     const exitCode = runDedupeBd(
       { apply: true, only: [], format: "json" },
       output,
       {
-        execBd: exec,
+        run,
         loadAllBeads: () => [auto1, manual1, auto2, manual2, auto3, manual3],
         auditSink: makeSink(audit),
       },
