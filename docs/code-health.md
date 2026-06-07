@@ -124,6 +124,11 @@ Also landed:
 - [x] **VerbSpec coverage** lens in `health` — spec-driven-CLI readiness: share of the
       command registry declaring the GH-1242 substrate (`args` input Zod, typed `event`).
       A coverage ratchet toward full `VerbSpec`; today ~1% input / 0% event.
+- [x] **Scripts-delegate guard** (`test/architecture/scripts-delegate.test.ts`) — the §4
+      forcing function: every `scripts/*.ts` must import from `../src/` (delegate to the
+      prx library / a verb) unless baselined as standalone build/infra tooling. The
+      `SCRIPT_BASELINE` only shrinks. All five value props are now forcing-function-backed
+      (`features/*.feature`); STATUS 5/5.
 
 Next:
 - [~] Scripts → `prx` verbs — **template landed**: `prx health` is now a spec-driven
