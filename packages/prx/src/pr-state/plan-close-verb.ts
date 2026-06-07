@@ -9,8 +9,7 @@ import { z } from "zod";
 
 import { defineVerb } from "../cli/verbspec.ts";
 import { formatPlanCloseResult } from "./cli-format.ts";
-import type { PlanCloseResult } from "./cli-types.ts";
-import { planClose } from "./plan-close-bd.ts";
+import { planClose, type PlanCloseResult } from "./plan-close-bd.ts";
 import { parseCanonicalWorkUnitId } from "../machine/work_unit.ts";
 
 export type PlanCloseVerbDeps = { planClose: typeof planClose };
