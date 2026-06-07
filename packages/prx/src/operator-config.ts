@@ -6,16 +6,14 @@
  * (GH-411). Resolution precedence, highest first:
  *
  *   1. `PRX_OPERATOR_CONFIG_ROOT` — runtime override (tests / non-nix runs).
- *   2. `PRX_AI_HOME_ROOT`        — deprecated alias, honored for one release so
- *                                  the current nix wrapper keeps working.
- *   3. baked default            — `bakedOperatorConfigRoot()` (compiled-in or
- *                                  `BAKED_OPERATOR_CONFIG_ROOT` / the
- *                                  `BAKED_AI_HOME_ROOT` alias).
+ *   2. baked default            — `bakedOperatorConfigRoot()` (compiled-in or
+ *                                  `BAKED_OPERATOR_CONFIG_ROOT`).
  *
  * Returns `undefined` when no root is configured (plain dev / standalone prx) —
- * callers treat that as "no overlay".
+ * callers treat that as "no overlay". (The deprecated `PRX_AI_HOME_ROOT` /
+ * `BAKED_AI_HOME_ROOT` aliases were removed in GH-411 slice 5.)
  */
-import { firstEnv } from "@bounded-systems/env";
+import { getEnv } from "@bounded-systems/env";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
@@ -24,8 +22,8 @@ import { bakedOperatorConfigRoot } from "./build-info.ts";
 
 /** The configured operator-config root, or undefined when none is set. */
 export function operatorConfigRoot(): string | undefined {
-  const override = firstEnv("PRX_OPERATOR_CONFIG_ROOT", "PRX_AI_HOME_ROOT");
-  if (override !== null && override.length > 0) return override;
+  const override = getEnv("PRX_OPERATOR_CONFIG_ROOT");
+  if (override !== undefined && override.length > 0) return override;
   const baked = bakedOperatorConfigRoot();
   return baked && baked.length > 0 ? baked : undefined;
 }

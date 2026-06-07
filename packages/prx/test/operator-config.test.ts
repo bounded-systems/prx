@@ -1,4 +1,4 @@
-// GH-411 slice 1 — operatorConfigRoot() precedence + deprecated ai-home aliases.
+// GH-411 — operatorConfigRoot() precedence (slice 5 dropped the ai-home aliases).
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
@@ -11,9 +11,7 @@ import {
 
 const KEYS = [
   "PRX_OPERATOR_CONFIG_ROOT",
-  "PRX_AI_HOME_ROOT",
   "BAKED_OPERATOR_CONFIG_ROOT",
-  "BAKED_AI_HOME_ROOT",
 ] as const;
 
 let saved: Record<string, string | undefined>;
@@ -43,25 +41,9 @@ describe("operatorConfigRoot", () => {
     expect(operatorConfigRoot()).toBe("/op/root");
   });
 
-  test("honors the deprecated PRX_AI_HOME_ROOT alias", () => {
-    process.env.PRX_AI_HOME_ROOT = "/legacy/ai-home";
-    expect(operatorConfigRoot()).toBe("/legacy/ai-home");
-  });
-
-  test("neutral override wins over the deprecated alias", () => {
-    process.env.PRX_OPERATOR_CONFIG_ROOT = "/op/root";
-    process.env.PRX_AI_HOME_ROOT = "/legacy/ai-home";
-    expect(operatorConfigRoot()).toBe("/op/root");
-  });
-
   test("falls back to the baked default BAKED_OPERATOR_CONFIG_ROOT", () => {
     process.env.BAKED_OPERATOR_CONFIG_ROOT = "/baked/op";
     expect(operatorConfigRoot()).toBe("/baked/op");
-  });
-
-  test("honors the deprecated BAKED_AI_HOME_ROOT baked alias", () => {
-    process.env.BAKED_AI_HOME_ROOT = "/baked/legacy";
-    expect(operatorConfigRoot()).toBe("/baked/legacy");
   });
 
   test("a runtime override wins over the baked default", () => {
@@ -70,10 +52,13 @@ describe("operatorConfigRoot", () => {
     expect(operatorConfigRoot()).toBe("/op/root");
   });
 
-  test("the deprecated runtime alias still beats the baked default", () => {
-    process.env.BAKED_OPERATOR_CONFIG_ROOT = "/baked/op";
+  test("the dropped PRX_AI_HOME_ROOT alias is no longer read (slice 5)", () => {
     process.env.PRX_AI_HOME_ROOT = "/legacy/ai-home";
-    expect(operatorConfigRoot()).toBe("/legacy/ai-home");
+    try {
+      expect(operatorConfigRoot()).toBeUndefined();
+    } finally {
+      delete process.env.PRX_AI_HOME_ROOT;
+    }
   });
 
   test("treats an empty string as unset", () => {

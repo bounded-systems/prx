@@ -11,16 +11,12 @@
 //
 // When neither is present (plain dev) the getters return undefined and callers
 // fall back to runtime resolution (git rev-parse, default paths).
-import { firstEnv, getEnv } from "@bounded-systems/env";
+import { getEnv } from "@bounded-systems/env";
 
 declare const __PRX_BUILD_GIT_SHA__: string | undefined;
 declare const __PRX_BUILD_VERSION__: string | undefined;
 declare const __PRX_BUILD_CLAUDE_CODE_PATH__: string | undefined;
 declare const __PRX_BUILD_OPERATOR_CONFIG_ROOT__: string | undefined;
-// Deprecated alias kept for one release (GH-411 slice 1): older binaries / the
-// current nix wrapper still bake `__PRX_BUILD_AI_HOME_ROOT__`. Read as a
-// fallback so a rename in prx doesn't require the nix side to move in lockstep.
-declare const __PRX_BUILD_AI_HOME_ROOT__: string | undefined;
 
 function nonEmpty(value: string | undefined): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
@@ -59,16 +55,13 @@ export function bakedClaudeCodePath(): string | undefined {
 
 /**
  * The baked default for the operator-config root — the root holding per-repo
- * prx overlay config. GH-411 slice 1 renamed this from `bakedAiHomeRoot`:
- * `BAKED_AI_HOME_ROOT` / `__PRX_BUILD_AI_HOME_ROOT__` are read as deprecated
- * aliases for one release so the nix wrapper and older binaries keep working.
+ * prx overlay config. (GH-411 slice 5 removed the deprecated `bakedAiHomeRoot` /
+ * `BAKED_AI_HOME_ROOT` / `__PRX_BUILD_AI_HOME_ROOT__` aliases.)
  */
 export function bakedOperatorConfigRoot(): string | undefined {
   const compiled =
     typeof __PRX_BUILD_OPERATOR_CONFIG_ROOT__ !== "undefined"
       ? nonEmpty(__PRX_BUILD_OPERATOR_CONFIG_ROOT__)
-      : typeof __PRX_BUILD_AI_HOME_ROOT__ !== "undefined"
-        ? nonEmpty(__PRX_BUILD_AI_HOME_ROOT__)
-        : undefined;
-  return compiled ?? nonEmpty(firstEnv("BAKED_OPERATOR_CONFIG_ROOT", "BAKED_AI_HOME_ROOT") ?? undefined);
+      : undefined;
+  return compiled ?? nonEmpty(getEnv("BAKED_OPERATOR_CONFIG_ROOT"));
 }

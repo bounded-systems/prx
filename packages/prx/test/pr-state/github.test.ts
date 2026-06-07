@@ -3648,22 +3648,16 @@ describe("board-status", () => {
       };
     }
 
-    // Exercises the deprecated PRX_AI_HOME_ROOT alias (GH-411). Clears the
-    // neutral PRX_OPERATOR_CONFIG_ROOT / BAKED_OPERATOR_CONFIG_ROOT too so an
-    // operator env can't leak in and the alias path is what's under test.
-    function withAiHome(aiHome: string | null, fn: () => void): void {
+    // Sets the operator-config root via PRX_OPERATOR_CONFIG_ROOT, clearing the
+    // baked var too so an operator env can't leak into the test.
+    function withOverlayRoot(overlayRoot: string | null, fn: () => void): void {
       const snap: Record<string, string | undefined> = {};
-      for (const k of [
-        "PRX_AI_HOME_ROOT",
-        "BAKED_AI_HOME_ROOT",
-        "PRX_OPERATOR_CONFIG_ROOT",
-        "BAKED_OPERATOR_CONFIG_ROOT",
-      ]) {
+      for (const k of ["PRX_OPERATOR_CONFIG_ROOT", "BAKED_OPERATOR_CONFIG_ROOT"]) {
         snap[k] = process.env[k];
         delete process.env[k];
       }
-      if (aiHome !== null) {
-        process.env.PRX_AI_HOME_ROOT = aiHome;
+      if (overlayRoot !== null) {
+        process.env.PRX_OPERATOR_CONFIG_ROOT = overlayRoot;
       }
       try {
         fn();
@@ -3688,7 +3682,7 @@ describe("board-status", () => {
       return path;
     }
 
-    test("skips overlay when PRX_AI_HOME_ROOT points at an empty tree", () => {
+    test("skips overlay when PRX_OPERATOR_CONFIG_ROOT points at an empty tree", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-nofile-"));
       const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-empty-"));
       writeFileSync(
@@ -3702,7 +3696,7 @@ describe("board-status", () => {
       );
       const runner = makeRunner(root, "git@github.com:bdelanghe/ai-home.git");
 
-      withAiHome(aiHome, () => {
+      withOverlayRoot(aiHome, () => {
         const config = loadIdentityConfig(root, runner);
         expect(effectiveCanonicalIdPattern(config).test("PROJECT-1")).toBe(true);
         expect(findFirstSourceOfKind(config, "notion")).toBeNull();
@@ -3725,7 +3719,7 @@ describe("board-status", () => {
       ].join("\n"));
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
-      withAiHome(aiHome, () => {
+      withOverlayRoot(aiHome, () => {
         const config = loadIdentityConfig(root, runner);
         expect(config.isDefault).toBe(false);
         const effective = effectiveCanonicalIdPattern(config);
@@ -3769,7 +3763,7 @@ describe("board-status", () => {
       ].join("\n"));
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
-      withAiHome(aiHome, () => {
+      withOverlayRoot(aiHome, () => {
         const config = loadIdentityConfig(root, runner);
         expect(effectiveCanonicalIdPattern(config).test("PROJECT-9")).toBe(true);
         // Overlay replaces wholesale — base's database_id is gone.
@@ -3810,7 +3804,7 @@ describe("board-status", () => {
 
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
-      withAiHome(aiHome, () => {
+      withOverlayRoot(aiHome, () => {
         const config = loadIdentityConfig(root, runner);
         const effective = effectiveCanonicalIdPattern(config);
         expect(effective.test("RDNS-1")).toBe(true);
@@ -3829,17 +3823,17 @@ describe("board-status", () => {
       ].join("\n"));
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
-      withAiHome(aiHome, () => {
+      withOverlayRoot(aiHome, () => {
         expect(() => loadIdentityConfig(root, runner)).toThrow(
           new RegExp(`must be a TOML string.*${overlayPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}|${overlayPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}.*must be a TOML string`),
         );
       });
     });
 
-    test("BAKED_AI_HOME_ROOT used when PRX_AI_HOME_ROOT is absent", () => {
+    test("BAKED_OPERATOR_CONFIG_ROOT used when PRX_OPERATOR_CONFIG_ROOT is absent", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-baked-"));
-      const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-baked-"));
-      writeOverlay(aiHome, "demo", "demo-web", [
+      const baked = mkdtempSync(join(tmpdir(), "pr-state-identity-baked-"));
+      writeOverlay(baked, "demo", "demo-web", [
         "[sources.github]",
         'kind = "github"',
         "canonical_id_pattern = '^BAKED-\\d+$'",
@@ -3847,50 +3841,15 @@ describe("board-status", () => {
       ].join("\n"));
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
-      const prev = process.env.BAKED_AI_HOME_ROOT;
-      const prevOverride = process.env.PRX_AI_HOME_ROOT;
-      delete process.env.PRX_AI_HOME_ROOT;
-      process.env.BAKED_AI_HOME_ROOT = aiHome;
-      try {
-        const config = loadIdentityConfig(root, runner);
-        expect(effectiveCanonicalIdPattern(config).test("BAKED-42")).toBe(true);
-      } finally {
-        if (prev === undefined) {
-          delete process.env.BAKED_AI_HOME_ROOT;
-        } else {
-          process.env.BAKED_AI_HOME_ROOT = prev;
-        }
-        if (prevOverride !== undefined) {
-          process.env.PRX_AI_HOME_ROOT = prevOverride;
-        }
-      }
-    });
-
-    test("PRX_OPERATOR_CONFIG_ROOT (neutral name) drives the overlay", () => {
-      const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-op-"));
-      const opRoot = mkdtempSync(join(tmpdir(), "pr-state-identity-oproot-"));
-      writeOverlay(opRoot, "demo", "demo-web", [
-        "[sources.github]",
-        'kind = "github"',
-        "canonical_id_pattern = '^OPROOT-\\d+$'",
-        "",
-      ].join("\n"));
-      const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
-
       const snap: Record<string, string | undefined> = {};
-      for (const k of [
-        "PRX_OPERATOR_CONFIG_ROOT",
-        "BAKED_OPERATOR_CONFIG_ROOT",
-        "PRX_AI_HOME_ROOT",
-        "BAKED_AI_HOME_ROOT",
-      ]) {
+      for (const k of ["PRX_OPERATOR_CONFIG_ROOT", "BAKED_OPERATOR_CONFIG_ROOT"]) {
         snap[k] = process.env[k];
         delete process.env[k];
       }
-      process.env.PRX_OPERATOR_CONFIG_ROOT = opRoot;
+      process.env.BAKED_OPERATOR_CONFIG_ROOT = baked;
       try {
         const config = loadIdentityConfig(root, runner);
-        expect(effectiveCanonicalIdPattern(config).test("OPROOT-42")).toBe(true);
+        expect(effectiveCanonicalIdPattern(config).test("BAKED-42")).toBe(true);
       } finally {
         for (const [k, v] of Object.entries(snap)) {
           if (v === undefined) delete process.env[k];
@@ -3919,7 +3878,7 @@ describe("board-status", () => {
       ].join("\n"));
       const runner = makeRunner(root, "git@gitlab.com:demo/demo-web.git");
 
-      withAiHome(aiHome, () => {
+      withOverlayRoot(aiHome, () => {
         const config = loadIdentityConfig(root, runner);
         const effective = effectiveCanonicalIdPattern(config);
         expect(effective.test("BASE-1")).toBe(true);
@@ -3946,7 +3905,7 @@ describe("board-status", () => {
         "https://github.com/just-owner",
       ];
 
-      withAiHome(aiHome, () => {
+      withOverlayRoot(aiHome, () => {
         for (const origin of badOrigins) {
           const runner = makeRunner(root, origin);
           const config = loadIdentityConfig(root, runner);
@@ -3966,7 +3925,7 @@ describe("board-status", () => {
       ].join("\n"));
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
-      withAiHome(aiHome, () => {
+      withOverlayRoot(aiHome, () => {
         expect(() => loadIdentityConfig(root, runner)).toThrow(
           new RegExp(`is not a valid regex.*\\(at ${overlayPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)`),
         );
@@ -3985,7 +3944,7 @@ describe("board-status", () => {
       ].join("\n"));
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
-      withAiHome(aiHome, () => {
+      withOverlayRoot(aiHome, () => {
         expect(() => loadIdentityConfig(root, runner)).toThrow(
           new RegExp(`id_property is required when auth = "rest" \\(at ${overlayPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)`),
         );

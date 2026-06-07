@@ -3558,9 +3558,9 @@ function mergeIdentityTomlFields(
 
 // GH-664: Resolve the overlay path for this repo. Layered-config precedent:
 // GitHub's system → user → repo → override model. The overlay lives under the
-// operator-config root (see operator-config.ts: `PRX_OPERATOR_CONFIG_ROOT`, the
-// `PRX_AI_HOME_ROOT` alias, or the baked default injected by the nix home-manager
-// wrapper) so we can carry per-repo prx config for external repos we don't own
+// operator-config root (see operator-config.ts: `PRX_OPERATOR_CONFIG_ROOT` or
+// the baked default injected by the nix home-manager wrapper) so we can carry
+// per-repo prx config for external repos we don't own
 // without touching those repos. Uses the same reverse-DNS layout as
 // `~/.local/share/git/bare/io.github/<owner>/<repo>.git/`.
 function resolveOperatorOverlayPath(
