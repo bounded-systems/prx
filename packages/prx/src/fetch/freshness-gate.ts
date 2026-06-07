@@ -95,9 +95,14 @@ export function parseStalenessDurationMs(raw: string): number | null {
  * actor surfaces `WATERMARK_READ_FAILED` itself if the refresh trigger
  * actually runs and bd is genuinely unreachable.
  */
-export function readSubstrateWatermark(cwd: string): string | null {
+export function readSubstrateWatermark(
+  cwd: string,
+  // Injectable (defaults to the real bd-backed reader) so the read + catch are
+  // testable without a live bd substrate.
+  read: typeof getWatermark = getWatermark,
+): string | null {
   try {
-    return getWatermark({ cwd }).since;
+    return read({ cwd }).since;
   } catch {
     return null;
   }
@@ -109,15 +114,20 @@ export function readSubstrateWatermark(cwd: string): string | null {
  * bucket; any error is translated to a stale-passthrough reason so the
  * caller can continue reading from the still-stale substrate.
  */
-export function defaultSubstrateRefresher({
-  repo,
-  cwd,
-}: {
-  repo: string | undefined;
-  cwd: string;
-}): SubstrateRefreshOutcome {
+export function defaultSubstrateRefresher(
+  {
+    repo,
+    cwd,
+  }: {
+    repo: string | undefined;
+    cwd: string;
+  },
+  // Injectable (defaults to the real fetch actor) so the go/skip/fail/error
+  // arms are testable without a live gh/bd substrate.
+  fetch: typeof defaultRunFetchGhIssues = defaultRunFetchGhIssues,
+): SubstrateRefreshOutcome {
   try {
-    const result = defaultRunFetchGhIssues(
+    const result = fetch(
       {
         source: "gh-issues",
         ...(repo !== undefined ? { repo } : {}),
