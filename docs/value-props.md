@@ -45,13 +45,14 @@ value prop. `exercises` is the code that delivers the claim — the refactoring 
 - [backed] a manifest round-trips through its in-toto statement
   - exercises: @bounded-systems/anchored-chain:manifestToStatement, @bounded-systems/anchored-chain:statementToManifest
 
-## You can see what each work unit cost.  — LEARNING GOAL
+## You can see what each work unit cost.  — BACKED
 
 **Why not X:** vs raw Claude Code: per-actor/unit usage is projected from the audit ledger.
 
 - [evidence] the compiled binary opens the audit DB (schema embedded) — prx-eky / #106 — `./dist/prx services status --anthropic` exits 0 with no ENOENT; audit-DB smoke test in prx_binary.test.ts
   - exercises: audit/store/db.ts:openAuditDb, audit/store/sql-asset.d.ts, scripts/prx-compile.ts
-- [learning goal] per-unit usage is visible — learning goal: the verb + DB now work (binary blocker cleared by prx-eky); needs `prx audit ingest` data for the claim to back
+- [backed] per-unit usage is visible (cost projects to per-work-unit buckets)
+  - exercises: services/anthropic.ts:projectAnthropicUsage, services/cost_visibility_feature.ts:perUnitCostIsVisible
 
 ## Code → value props (pruning / refactoring lens)
 
@@ -71,6 +72,8 @@ value prop. `exercises` is the code that delivers the claim — the refactoring 
 - `provenance/effect-ownership.ts:verifyEffectOwnership` → "A privileged effect not produced by its owning actor fails verification."
 - `provenance/signer.ts:actorFromBuilderId` → "A privileged effect not produced by its owning actor fails verification."
 - `scripts/prx-compile.ts` → "You can see what each work unit cost."
+- `services/anthropic.ts:projectAnthropicUsage` → "You can see what each work unit cost."
+- `services/cost_visibility_feature.ts:perUnitCostIsVisible` → "You can see what each work unit cost."
 - `submit/artifact.schema.ts:submitRefFor` → "A beads work unit can travel intake → merged PR through one signed pipeline."
 - `submit/artifact.schema.ts:WORK_UNIT_RE` → "A beads work unit can travel intake → merged PR through one signed pipeline."
 - `submit/publish.ts:runSubmitPublish` → "A beads work unit can travel intake → merged PR through one signed pipeline."

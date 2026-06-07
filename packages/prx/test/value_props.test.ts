@@ -89,9 +89,9 @@ describe("value props (prx-8mx)", () => {
     expect(isValuePropBacked(vp!)).toBe(true);
   });
 
-  test("cost visibility is honestly a learning goal (not yet backed)", () => {
+  test("cost visibility is now backed (per-unit cost projects from the ledger)", () => {
     const vp = VALUE_PROPS.find((v) => v.claim.includes("what each work unit cost"));
     expect(vp).toBeDefined();
-    expect(isValuePropBacked(vp!)).toBe(false);
+    expect(isValuePropBacked(vp!)).toBe(true);
   });
 });

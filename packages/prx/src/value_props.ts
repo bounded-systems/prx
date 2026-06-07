@@ -29,6 +29,7 @@ import {
   BASELINE_MANIFEST,
   everyFieldIsTamperEvident,
 } from "./provenance/derivation_chain_feature.ts";
+import { perUnitCostIsVisible } from "./services/cost_visibility_feature.ts";
 
 export type ForcingFunction =
   // Live + pure — green/red as of now; `exercises` is the code it traces to.
@@ -155,9 +156,12 @@ export const VALUE_PROPS: readonly ValueProp[] = [
         ],
       },
       {
-        name: "per-unit usage is visible",
-        pending:
-          "the verb + DB now work (binary blocker cleared by prx-eky); needs `prx audit ingest` data for the claim to back",
+        name: "per-unit usage is visible (cost projects to per-work-unit buckets)",
+        check: () => perUnitCostIsVisible(),
+        exercises: [
+          "services/anthropic.ts:projectAnthropicUsage",
+          "services/cost_visibility_feature.ts:perUnitCostIsVisible",
+        ],
       },
     ],
   },
