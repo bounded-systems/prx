@@ -291,7 +291,7 @@ describe("runTranscriptsDigest", () => {
   test("a per-session extraction failure is surfaced as a failed session", async () => {
     const input = jsonlSessionDir();
     const r = rec();
-    const out = await runTranscriptsDigest(
+    await runTranscriptsDigest(
       digestInput({ source: "claude-code-jsonl", inputPath: input, mode: "dry-run", format: "plain" }),
       r.output,
       {
