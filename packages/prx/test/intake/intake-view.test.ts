@@ -218,9 +218,8 @@ describe("runIntakeView — bd paths", () => {
           ghCalls++;
           return ghOk();
         }) as never,
-        loadAllBeads: (() => [
-          bead({ id: "ai-home-xyz", title: "bd-only thing", externalRef: null }),
-        ]) as never,
+        showBead: (async () =>
+          bead({ id: "ai-home-xyz", title: "bd-only thing", externalRef: null })) as never,
       },
     );
     expect(exitCode).toBe(0);
@@ -241,12 +240,11 @@ describe("runIntakeView — bd paths", () => {
           ghCalls.push({ args: opts.args });
           return ghOk({ title: "from gh", url: "https://github.com/o/r/issues/123" });
         }) as never,
-        loadAllBeads: (() => [
+        showBead: (async () =>
           bead({
             id: "ai-home-xyz",
             externalRef: "https://github.com/o/r/issues/123",
-          }),
-        ]) as never,
+          })) as never,
       },
     );
     expect(ghCalls).toHaveLength(1);
@@ -261,7 +259,7 @@ describe("runIntakeView — bd paths", () => {
       { log: () => undefined, error: (l) => errors.push(l) },
       {
         execGh: (() => ghOk()) as never,
-        loadAllBeads: (() => [bead({ id: "ai-home-other" })]) as never,
+        showBead: (async () => null) as never,
       },
     );
     expect(exitCode).toBe(1);
@@ -275,7 +273,7 @@ describe("runIntakeView — bd paths", () => {
       { log: (l) => logs.push(l), error: () => undefined },
       {
         execGh: (() => ghOk()) as never,
-        loadAllBeads: (() => [bead({ id: "ai-home-xyz" })]) as never,
+        showBead: (async () => bead({ id: "ai-home-xyz" })) as never,
       },
     );
     const parsed = JSON.parse(logs[0]!) as { source: string; payload: { id: string } };

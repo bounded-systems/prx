@@ -441,38 +441,60 @@ export function loadAllBeads(
     throw new Error("triage status: expected bd list --json to return an array");
   }
 
+  return parseBeadsRecords(parsedArray ?? []);
+}
+
+/**
+ * Transform one raw `bd --json` entry (snake_case fields) into a parsed
+ * {@link BeadsRecord} (camelCase + derived `externalRefs` /
+ * `externalIssueNumber`). Returns null for non-objects or entries without a
+ * string `id` (skipped by the bulk path).
+ *
+ * GH-296: extracted so the beadsd-routed readers (`beadsd/reads.ts`) apply the
+ * SAME transform — the daemon returns raw `bd --json`, so host code must parse
+ * it identically to the local `bd list` path. Without this, daemon results
+ * carried snake_case fields cast blindly to `BeadsRecord` (e.g. `.externalRef`
+ * undefined).
+ */
+export function parseBeadsRecord(entry: unknown): BeadsRecord | null {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+  const record = entry as Record<string, unknown>;
+  const id = typeof record.id === "string" ? record.id : null;
+  if (!id) return null;
+  const externalRef = typeof record.external_ref === "string" ? record.external_ref : null;
+  const metadata =
+    record.metadata && typeof record.metadata === "object" && !Array.isArray(record.metadata)
+      ? (record.metadata as Record<string, unknown>)
+      : null;
+  const externalRefs = deriveExternalRefs(id, externalRef, metadata);
+  const dependencies = parseDependencies(record.dependencies);
+  return {
+    id,
+    title: typeof record.title === "string" ? record.title : "",
+    description: typeof record.description === "string" ? record.description : "",
+    status: typeof record.status === "string" ? record.status : "open",
+    priority: typeof record.priority === "number" ? record.priority : null,
+    issueType: typeof record.issue_type === "string" ? record.issue_type : "",
+    externalRef,
+    externalRefs,
+    metadata,
+    externalIssueNumber: extractIssueNumber(externalRefs.gh ?? externalRef),
+    sourceSystem: typeof record.source_system === "string" ? record.source_system : null,
+    updatedAt: typeof record.updated_at === "string" ? record.updated_at : null,
+    dependencies,
+    notes: typeof record.notes === "string" ? record.notes : null,
+    createdAt: typeof record.created_at === "string" ? record.created_at : null,
+    startedAt: typeof record.started_at === "string" ? record.started_at : null,
+    assignee: typeof record.assignee === "string" ? record.assignee : null,
+  };
+}
+
+/** Parse a raw `bd --json` array into {@link BeadsRecord}s, skipping malformed entries. */
+export function parseBeadsRecords(entries: unknown[]): BeadsRecord[] {
   const records: BeadsRecord[] = [];
-  for (const entry of parsedArray ?? []) {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
-    const record = entry as Record<string, unknown>;
-    const id = typeof record.id === "string" ? record.id : null;
-    if (!id) continue;
-    const externalRef = typeof record.external_ref === "string" ? record.external_ref : null;
-    const metadata =
-      record.metadata && typeof record.metadata === "object" && !Array.isArray(record.metadata)
-        ? (record.metadata as Record<string, unknown>)
-        : null;
-    const externalRefs = deriveExternalRefs(id, externalRef, metadata);
-    const dependencies = parseDependencies(record.dependencies);
-    records.push({
-      id,
-      title: typeof record.title === "string" ? record.title : "",
-      description: typeof record.description === "string" ? record.description : "",
-      status: typeof record.status === "string" ? record.status : "open",
-      priority: typeof record.priority === "number" ? record.priority : null,
-      issueType: typeof record.issue_type === "string" ? record.issue_type : "",
-      externalRef,
-      externalRefs,
-      metadata,
-      externalIssueNumber: extractIssueNumber(externalRefs.gh ?? externalRef),
-      sourceSystem: typeof record.source_system === "string" ? record.source_system : null,
-      updatedAt: typeof record.updated_at === "string" ? record.updated_at : null,
-      dependencies,
-      notes: typeof record.notes === "string" ? record.notes : null,
-      createdAt: typeof record.created_at === "string" ? record.created_at : null,
-      startedAt: typeof record.started_at === "string" ? record.started_at : null,
-      assignee: typeof record.assignee === "string" ? record.assignee : null,
-    });
+  for (const entry of entries) {
+    const parsed = parseBeadsRecord(entry);
+    if (parsed) records.push(parsed);
   }
   return records;
 }
