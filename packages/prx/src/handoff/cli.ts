@@ -20,15 +20,34 @@ import {
   type WorkUnitId,
 } from "@bounded-systems/machine-schema";
 
-import { drain, emitHandoffEvent } from "./drain.ts";
+import { drain, emitHandoffEvent, type DrainDeps } from "./drain.ts";
 import { enqueueFromFlagLayerDeny } from "./from-deny.ts";
-import { enqueueHandoff, getHandoff, listHandoffs } from "./store.ts";
+import {
+  enqueueHandoff,
+  getHandoff,
+  listHandoffs,
+  type HandoffStoreDeps,
+} from "./store.ts";
 
 // ── shared output shape ────────────────────────────────────────────────────
 
 export type HandoffCliOutput = {
   log: (line: string) => void;
   error: (line: string) => void;
+};
+
+/**
+ * Injectable seams for the handoff verbs. All optional, defaulting to the real
+ * bd/CAS/audit-backed implementations, so production call sites pass nothing —
+ * they exist so the verbs are exercisable without a live bd substrate.
+ */
+export type HandoffCliDeps = {
+  /** bd/CAS store seam for enqueue / list / get / replay. */
+  store?: HandoffStoreDeps;
+  /** Drain engine seam (bd + policy + audit). */
+  drain?: DrainDeps;
+  /** Audit-row writer for the HANDOFF_ENQUEUED telemetry on the created path. */
+  appendAuditRow?: Parameters<typeof emitHandoffEvent>[2];
 };
 
 // ── enqueue ────────────────────────────────────────────────────────────────
@@ -47,6 +66,7 @@ export type HandoffEnqueueOptions = {
 export async function runHandoffEnqueue(
   opts: HandoffEnqueueOptions,
   output: HandoffCliOutput,
+  deps: HandoffCliDeps = {},
 ): Promise<number> {
   const target = handoffTargetActor.safeParse(opts.target);
   if (!target.success) {
@@ -57,20 +77,23 @@ export async function runHandoffEnqueue(
   }
 
   const args = loadArgs(opts);
-  const result = await enqueueFromFlagLayerDeny({
-    tool: opts.verb,
-    args,
-    target: target.data,
-    // CLI ingestion seam. The envelope carrier is permissive (`min(1)`), not
-    // canonical, so we brand without re-validating shape — preserving the
-    // pre-GH-2098 pass-through behavior (no silent null of non-canonical ids).
-    workUnitId: (opts.workUnitId ?? null) as WorkUnitId | null,
-    sourceActor: opts.sourceActor,
-  });
+  const result = await enqueueFromFlagLayerDeny(
+    {
+      tool: opts.verb,
+      args,
+      target: target.data,
+      // CLI ingestion seam. The envelope carrier is permissive (`min(1)`), not
+      // canonical, so we brand without re-validating shape — preserving the
+      // pre-GH-2098 pass-through behavior (no silent null of non-canonical ids).
+      workUnitId: (opts.workUnitId ?? null) as WorkUnitId | null,
+      sourceActor: opts.sourceActor,
+    },
+    deps.store,
+  );
 
   switch (result.kind) {
     case "created":
-      emitHandoffEvent("HANDOFF_ENQUEUED", result.envelope);
+      emitHandoffEvent("HANDOFF_ENQUEUED", result.envelope, deps.appendAuditRow);
       output.log(formatEnvelope(result.envelope, opts.format, "enqueued"));
       return 0;
     case "duplicate":
@@ -106,6 +129,7 @@ export type HandoffStatusOptions = {
 export async function runHandoffStatus(
   opts: HandoffStatusOptions,
   output: HandoffCliOutput,
+  deps: HandoffCliDeps = {},
 ): Promise<number> {
   let target: HandoffEnvelope["targetActor"] | undefined;
   if (opts.target) {
@@ -118,11 +142,14 @@ export async function runHandoffStatus(
     }
     target = parsed.data;
   }
-  const envelopes = await listHandoffs({
-    ...(target ? { target } : {}),
-    ...(opts.workUnitId ? { workUnitId: opts.workUnitId } : {}),
-    ...(opts.state ? { status: opts.state } : {}),
-  });
+  const envelopes = await listHandoffs(
+    {
+      ...(target ? { target } : {}),
+      ...(opts.workUnitId ? { workUnitId: opts.workUnitId } : {}),
+      ...(opts.state ? { status: opts.state } : {}),
+    },
+    deps.store,
+  );
 
   if (opts.format === "json") {
     output.log(JSON.stringify(envelopes, null, 2));
@@ -152,6 +179,7 @@ export type HandoffDrainOptions = {
 export async function runHandoffDrain(
   opts: HandoffDrainOptions,
   output: HandoffCliOutput,
+  deps: HandoffCliDeps = {},
 ): Promise<number> {
   const parsed = handoffTargetActor.safeParse(opts.actor);
   if (!parsed.success) {
@@ -160,7 +188,7 @@ export async function runHandoffDrain(
     );
     return 2;
   }
-  const result = await drain({ target: parsed.data, max: opts.max });
+  const result = await drain({ target: parsed.data, max: opts.max }, deps.drain);
   if (opts.format === "json") {
     output.log(JSON.stringify(result, null, 2));
   } else {
@@ -186,8 +214,9 @@ export type HandoffReplayOptions = {
 export async function runHandoffReplay(
   opts: HandoffReplayOptions,
   output: HandoffCliOutput,
+  deps: HandoffCliDeps = {},
 ): Promise<number> {
-  const existing = await getHandoff(opts.id);
+  const existing = await getHandoff(opts.id, deps.store);
   if (!existing) {
     output.error(`handoff replay: no row found for id ${opts.id}`);
     return 1;
@@ -216,11 +245,12 @@ export async function runHandoffReplay(
       ...(existing.causedBy ? { causedBy: existing.causedBy } : {}),
       maxAttempts: existing.maxAttempts,
     },
+    deps.store,
   );
 
   switch (result.kind) {
     case "created":
-      emitHandoffEvent("HANDOFF_ENQUEUED", result.envelope);
+      emitHandoffEvent("HANDOFF_ENQUEUED", result.envelope, deps.appendAuditRow);
       output.log(formatEnvelope(result.envelope, opts.format, "replayed"));
       return 0;
     case "duplicate":
