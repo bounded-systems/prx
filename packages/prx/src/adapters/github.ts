@@ -35,17 +35,13 @@
  *                      post-merge handoff uses).
  */
 
-import { processEnv } from "@bounded-systems/env";
 import {
   defaultRunner,
   repoNameWithOwner as defaultRepoNameWithOwner,
 } from "../pr-state/github.ts";
 import { buildBeadsLookup, extractIssueNumber } from "../issues/dedupe.ts";
 import { extractIssueUrl } from "../tools/gh_issue_create.ts";
-import {
-  execBd as defaultExecBd,
-  type BdExecResult,
-} from "@bounded-systems/bd";
+import { execBd as defaultExecBd } from "@bounded-systems/bd";
 import { execBdIssueClose as defaultExecBdIssueClose } from "../tools/bd_issue_close.ts";
 import {
   execGhIssueEdit as defaultExecGhIssueEdit,
@@ -54,6 +50,7 @@ import {
 } from "../tools/gh_issue_edit.ts";
 import { axisLabelDiff } from "../triage/bd-axis-labels.ts";
 import { parseConditionalRead } from "../sync/conditional-read.ts";
+import { updateBeadViaDaemon } from "../beadsd/writes.ts";
 import {
   loadAllBeads as defaultLoadAllBeads,
   type BeadsRecord,
@@ -164,6 +161,13 @@ export type GhDomainAdapterDeps = {
    * run; `push()` writes change the cached read, so we drop it on success.
    */
   invalidateBeadsCache?: (() => void) | undefined;
+  /**
+   * GH-296 / prx-82b — daemon-routed bd write-back for the unlinked-create path
+   * (`bd update <id> --external-ref <url>` after `gh issue create`). Default: the
+   * beadsd helper (single writer); tests inject a fake. Routes the link write off
+   * host `bd` and onto the one beads the daemon owns.
+   */
+  updateBead?: typeof updateBeadViaDaemon | undefined;
 };
 
 // ADR §2 GitHub column — these BeadsRecord-keyed fields are GitHub-owned on
@@ -202,10 +206,6 @@ export class GhDomainAdapter implements DomainAdapter {
 
   private get runner(): AdapterCommandRunner {
     return this.deps.runner ?? (defaultRunner as AdapterCommandRunner);
-  }
-
-  private get bdExec(): typeof defaultExecBd {
-    return this.deps.execBd ?? defaultExecBd;
   }
 
   private loadBeads(): BeadsRecord[] {
@@ -475,22 +475,12 @@ export class GhDomainAdapter implements DomainAdapter {
         `gh adapter push: gh issue create stdout did not contain an issue URL: ${created.stdout.trim()}`,
       );
     }
-    // Write-back: bd update <id> --external-ref <url>.
-    const updateResult: BdExecResult = this.bdExec(
-      {
-        subcommand: "update",
-        args: [bd.id, "--external-ref", issueUrl],
-        state: "planning",
-        role: "planner",
-      },
-      processEnv(),
-    );
-    if (updateResult.exitCode !== 0) {
-      const detail =
-        updateResult.stderr.trim() || updateResult.stdout.trim() || "bd update failed";
+    // Write-back via the daemon (single writer): bd update <id> --external-ref <url>.
+    try {
+      await (this.deps.updateBead ?? updateBeadViaDaemon)(bd.id, { externalRef: issueUrl });
+    } catch (err) {
       throw new GhDomainAdapterError(
-        `gh adapter push: created ${issueUrl} but bd write-back failed: ${detail}`,
-        updateResult.exitCode || 1,
+        `gh adapter push: created ${issueUrl} but bd write-back failed: ${(err as Error).message}`,
       );
     }
     this.deps.invalidateBeadsCache?.();
