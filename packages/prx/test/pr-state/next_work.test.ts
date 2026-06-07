@@ -704,3 +704,17 @@ describe("nextWork — catalog-event audit emissions (GH-1616)", () => {
     expect((catalogEvents.at(-1) as { event: string }).event).toBe("NEXT_WORK_PROJECTED");
   });
 });
+
+describe("nextWork — per-column recommended actions", () => {
+  test("projects a board with a unit in every column (exercises the next-action switch)", () => {
+    const columns: BoardColumn[] = [
+      "no_worktree", "worktree_created", "branch_created", "committing", "pushed",
+      "pr_open", "ci_running", "review", "changes_requested", "approved",
+      "merge_ready", "cleanup_pending", "merged", "cleaned",
+    ];
+    const units = columns.map((column, i) => makeUnit({ branch: `GH-${100 + i}`, column, ticket: `GH-${100 + i}` }));
+    const result = nextWork("/dev/null", { bdReady: bdReadyResult(), board: emptyBoard(units) });
+    expect(result).toBeDefined();
+    expect(Array.isArray(result.threads)).toBe(true);
+  });
+});
