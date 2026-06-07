@@ -62,7 +62,6 @@
 // JSONL audit log: ~/.cache/prx/triage/drift-fix-<ISO>.jsonl, one row per
 // processed entry plus an optional sync row at the end.
 
-import { processEnv } from "@bounded-systems/env";
 import { readFileSync as defaultReadFileSync } from "node:fs";
 
 import { z } from "zod";
@@ -88,6 +87,10 @@ import {
   type DriftRow,
 } from "./triage.ts";
 import { execBd as defaultExecBd } from "@bounded-systems/bd";
+import {
+  updateBeadViaDaemon,
+  reopenBeadViaDaemon,
+} from "../beadsd/writes.ts";
 import {
   bdDoctorReportSchema,
   bdDuplicatesClusterSchema,
@@ -337,6 +340,14 @@ export type TriageDriftFixDeps = {
    * `bd update` in the apply phase. Missing/no-op on test paths.
    */
   invalidateBeadsCache?: () => void;
+  /**
+   * GH-296 / prx-ebo — daemon-routed bulk WRITE seams. The apply phase mutates
+   * beads through these (the trusted single writer) instead of host `bd` against
+   * a per-clone .beads. Default to the beadsd helpers; tests inject fakes. Both
+   * throw on a non-ok daemon verdict.
+   */
+  updateBead?: typeof updateBeadViaDaemon;
+  reopenBead?: typeof reopenBeadViaDaemon;
   // GH-1255: bd-substrate dedupe + health probes. Injected as functions
   // closing over the `cwd` so test fixtures can return canned shapes without
   // a real `bd` binary; production callers leave them unset and the verb
@@ -870,6 +881,9 @@ async function applyPlan(
 ): Promise<number> {
   const exec = deps.execBd ?? defaultExecBd;
   const loadBeads = deps.loadAllBeads ?? loadAllBeads;
+  // GH-296 / prx-ebo — writes go to the daemon (single writer), not host bd.
+  const updateBead = deps.updateBead ?? updateBeadViaDaemon;
+  const reopenBead = deps.reopenBead ?? reopenBeadViaDaemon;
   const now = (deps.now ?? (() => new Date()))();
   const auditSink: AuditSinkDeps = {
     ...(deps.auditSink ?? {}),
@@ -1165,56 +1179,40 @@ async function applyPlan(
     let updateError: { exitCode: number; message: string } | null = null;
 
     if (fixesType || fixesPriority) {
-      const updateArgs: string[] = [row.beadsId];
-      if (fixesType && row.type) updateArgs.push("--type", row.type.gh);
+      const updateFields: { issueType?: string; priority?: number } = {};
+      if (fixesType && row.type) updateFields.issueType = row.type.gh;
       if (fixesPriority && row.priority && row.priority.gh !== "none") {
-        updateArgs.push("-p", String(priorityToBdNumber(row.priority.gh)));
+        updateFields.priority = priorityToBdNumber(row.priority.gh);
       }
-      const updateResult = exec(
-        {
-          subcommand: "update",
-          args: updateArgs,
-          state: "planning",
-          role: "planner",
-        },
-        processEnv(),
-      );
-      if (updateResult.exitCode !== 0) {
-        updateError = {
-          exitCode: updateResult.exitCode,
-          message:
-            updateResult.stderr.trim() || updateResult.stdout.trim() || "bd update failed",
-        };
-      } else {
+      try {
+        await updateBead(row.beadsId, updateFields);
         if (fixesType) appliedAxes.push("type");
         if (fixesPriority) appliedAxes.push("priority");
+      } catch (err) {
+        // The daemon helper throws on a non-ok verdict (vs execBd's exit code);
+        // synthesize the same error shape the audit row expects.
+        updateError = { exitCode: 1, message: (err as Error).message || "bd update failed" };
       }
     }
 
     if (!updateError && fixesStatus) {
-      const reopenResult = exec(
-        {
-          subcommand: "reopen",
-          args: [row.beadsId],
-          state: "planning",
-          role: "planner",
-        },
-        processEnv(),
-      );
-      if (reopenResult.exitCode !== 0) {
+      let reopenError: string | null = null;
+      try {
+        await reopenBead(row.beadsId);
+      } catch (err) {
+        reopenError = (err as Error).message || "bd reopen failed";
+      }
+      if (reopenError !== null) {
         const entry: DriftFixAuditRowEntry = {
           ...baseEntry,
           action: "error",
           axesFixed: appliedAxes,
           beforeAfter,
-          exitCode: reopenResult.exitCode,
-          stderr:
-            reopenResult.stderr.trim() || reopenResult.stdout.trim() || "bd reopen failed",
+          exitCode: 1,
+          stderr: reopenError,
         };
         append(entry);
-        output.error(
-          `error GH-${row.issueNumber} bd reopen exit=${reopenResult.exitCode}: ${entry.stderr}`,
-        );
+        output.error(`error GH-${row.issueNumber} bd reopen failed: ${entry.stderr}`);
         // If type/priority went through but reopen failed, the row counts as
         // both a partial-write *and* an error. Track the touched issue for
         // sync, then mark error so the exit code reflects the failure.
