@@ -1,11 +1,11 @@
 {
-  "version": "0.8.0",
+  "version": "0.8.1",
   "systems": {
     "aarch64-darwin": {
-      "prx": "00ivr91p69y2za7rpn6sdwlir9rif4qia201nl6gzsvq7d2h6zff"
+      "prx": "1gyv9hxcl6fbn7h4ffzqrk632vhsyv9rfznn1if7n4l6c01wivxh"
     },
     "x86_64-linux": {
-      "prx": "18lxhbfxmi2zn784vn2z3nilrisb6r5h5y6wd97lj7pbynf88z8x"
+      "prx": "1224f4qwfiq62v4lnr3ilp85zwjmxjc7b7j4549a4w48ywvhhqja"
     }
   }
 }
