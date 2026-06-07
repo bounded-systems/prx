@@ -27,7 +27,6 @@
 //   - `bd github sync` chain after writes. GH is already closed — there is
 //     nothing to pull.
 
-import { processEnv } from "@bounded-systems/env";
 import { z } from "zod";
 
 import {
@@ -36,6 +35,7 @@ import {
   type AuditSinkDeps,
 } from "../audit/sink.ts";
 import { execBd as defaultExecBd } from "@bounded-systems/bd";
+import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import { triageCloseStaleAuditRowSchema } from "./schemas/audit.ts";
 
 import {
@@ -78,6 +78,13 @@ export type TriageCloseStaleAuditEntry = z.infer<typeof triageCloseStaleAuditRow
 
 export type TriageCloseStaleDeps = {
   execBd?: typeof defaultExecBd;
+  /**
+   * GH-296 / prx-82b — sync runner for the daemon-routed close write
+   * (`prx beads close <id> --reason …`), so the stale-close mutates the one
+   * beads the daemon owns instead of host `bd` against a per-clone .beads.
+   * Default: procRunner; tests inject a capturing fake.
+   */
+  run?: CommandRunner;
   cwd?: () => string;
   now?: () => Date;
   /** Sink-side DI for the unified daily NDJSON audit. */
@@ -121,7 +128,7 @@ export function runTriageCloseStale(
   output: Output,
   deps: TriageCloseStaleDeps = {},
 ): TriageCloseStaleResult {
-  const bdExec = deps.execBd ?? defaultExecBd;
+  const run = deps.run ?? procRunner;
   const now = (deps.now ?? (() => new Date()))();
   const auditSink: AuditSinkDeps = {
     ...(deps.auditSink ?? {}),
@@ -201,19 +208,16 @@ export function runTriageCloseStale(
       continue;
     }
 
-    const result = bdExec(
-      {
-        subcommand: "update",
-        args: [row.beadsId, "-s", "closed", "--notes", noteBody],
-        state: "planning",
-        role: "planner",
-      },
-      processEnv(),
+    // GH-296 / prx-82b: close via the daemon (single writer). `prx beads close`
+    // maps to `bd update <id> --status closed --notes <reason>` daemon-side.
+    const result = run(
+      ["prx", "beads", "close", row.beadsId, "--reason", noteBody],
+      { check: false },
     );
 
-    if (result.exitCode !== 0) {
+    if (result.status !== 0) {
       const detail =
-        result.stderr.trim() || result.stdout.trim() || `bd update exit=${result.exitCode}`;
+        result.stderr.trim() || result.stdout.trim() || `prx beads close exit=${result.status}`;
       const entry: TriageCloseStaleAuditEntry = {
         ts: now.toISOString(),
         issue: row.issueNumber,
@@ -224,12 +228,12 @@ export function runTriageCloseStale(
         note: noteBody,
         actor: "claude-code",
         dryRun: false,
-        exitCode: result.exitCode,
+        exitCode: result.status,
         stderr: detail,
       };
       appendAuditRow(entry, auditSink);
       output.error(
-        `error ${row.beadsId} GH-${row.issueNumber} bd update exit=${result.exitCode}: ${detail}`,
+        `error ${row.beadsId} GH-${row.issueNumber} prx beads close exit=${result.status}: ${detail}`,
       );
       resultRows.push({
         beadsId: row.beadsId,
