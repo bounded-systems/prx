@@ -58,6 +58,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - prx — project roadmap — `docs/roadmap/prx.md`
 - GH-1836 — PRX runtime + workspace architecture: Nix + Moon + Deno/Bun hybrid (ADR) — `docs/spikes/GH-1836-prx-runtime-architecture.md`
 - prx-3eu — Sync agent: adopt a sync framework, or build bespoke? (ADR) — `docs/spikes/prx-3eu-sync-framework-build-vs-adopt.md`
+- prx-ebo — Sync API efficiency: where the requests go, and how to cut them (ADR) — `docs/spikes/prx-ebo-sync-api-efficiency.md`
 - prx — value props (forcing-function-backed) — `docs/value-props.md`
 - @bounded-systems/cas — `packages/cas/README.md`
 - prx — `README.md`
