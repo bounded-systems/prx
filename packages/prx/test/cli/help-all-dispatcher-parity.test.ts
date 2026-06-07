@@ -17,7 +17,8 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { CliError, normalizeNamespaceArgv } from "../../src/pr-state/cli.ts";
+import { normalizeNamespaceArgv } from "../../src/pr-state/cli.ts";
+import { CliError } from "../../src/pr-state/cli-error.ts";
 import { prxCommandRegistry } from "../../src/cli/registry.data.ts";
 
 // Pre-existing drift, out of scope for GH-2129 (dolt-only). Same bug family as

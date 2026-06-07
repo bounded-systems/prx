@@ -10,7 +10,7 @@
 // mismatch on the same `repo_id` refuses with a curated `CliError`.
 
 import { isAbsolute, resolve } from "node:path";
-import { CliError } from "./cli.ts";
+import { CliError } from "./cli-error.ts";
 import {
   defaultRepoRunner,
   parseRepoUrl,

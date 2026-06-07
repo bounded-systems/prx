@@ -28,7 +28,6 @@ import {
   checkWorkUnitChain,
   checkWorkUnitIssue,
   checkWorkUnitSession,
-  CliError,
   ensureBeadsInitSetup,
   findBeadsIssuesByGithubIssue,
   ensureLocalRuntimeArtifacts,
@@ -49,6 +48,7 @@ import {
 import { interactiveTimeoutMs } from "../../src/pr-state/work-agent.ts";
 import { findSavedClaudeSession, findSavedCodexSession } from "../../src/pr-state/session-finder.ts";
 import { formatBeadsIssueMatches } from "../../src/pr-state/cli-format.ts";
+import { CliError } from "../../src/pr-state/cli-error.ts";
 import {
   prxSessionNotProjectedLocallyEnvelope,
   type PrxSessionNotProjectedLocallyDetails,

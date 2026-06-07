@@ -5,7 +5,8 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { CliError, parseCommand } from "../../src/pr-state/cli.ts";
+import { parseCommand } from "../../src/pr-state/cli.ts";
+import { CliError } from "../../src/pr-state/cli-error.ts";
 import { prxCommandRegistry } from "../../src/cli/registry.data.ts";
 
 describe("prx scratch — CLI parsing (GH-2394)", () => {

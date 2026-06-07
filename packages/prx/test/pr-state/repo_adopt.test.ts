@@ -11,7 +11,7 @@ import {
   adoptRepo,
   inferRepoFromWorktree,
 } from "../../src/pr-state/repo_adopt.ts";
-import { CliError } from "../../src/pr-state/cli.ts";
+import { CliError } from "../../src/pr-state/cli-error.ts";
 import type { RepoRunner } from "../../src/pr-state/repos.ts";
 
 type RunnerResponse = { stdout: string; stderr: string; status: number };
