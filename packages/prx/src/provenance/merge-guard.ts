@@ -59,6 +59,21 @@ export interface ProvenanceProjectionDeps {
    * that yields "unchecked".
    */
   readonly enforce: boolean;
+  /**
+   * GH-352 (uniform freshness): the chain's staleness check + the commit's
+   * current tree refs. When BOTH are present, each verified derivation is also
+   * checked for staleness — its recorded tree-inputs vs `currentRefs` — and a
+   * stale-but-verified derivation fails closed ("unsigned"): a green that no
+   * longer covers the tree is not a valid verdict. For the commit-keyed lookup
+   * this is a defensive no-op today (a derivation for commit X validated X's
+   * exact tree), but it keeps the freshness interface uniform with the local
+   * `ci` projection. Omit either to skip the check (unchanged behaviour).
+   */
+  readonly isStale?: (
+    id: Digest,
+    currentRefs: Readonly<Record<string, Digest>>,
+  ) => Promise<boolean>;
+  readonly currentRefs?: Readonly<Record<string, Digest>>;
 }
 
 /**
@@ -93,6 +108,15 @@ export async function projectProvenanceAxis(
     const verifier = deps.verifierFor ? deps.verifierFor(derivation) : deps.verifier;
     if (verifier === null || !(await verifySlsaDerivation(derivation, verifier))) {
       return "unsigned"; // no key for this actor, or absent/forged envelope, or bad sig
+    }
+    // GH-352: a verified derivation that no longer covers the current tree is
+    // not a valid verdict (uniform with the local `ci` freshness signal).
+    if (
+      deps.isStale !== undefined &&
+      deps.currentRefs !== undefined &&
+      (await deps.isStale(id, deps.currentRefs))
+    ) {
+      return "unsigned"; // verified, but stale relative to the current tree
     }
   }
   return "verified";

@@ -65,6 +65,7 @@ const actionPlanFixture: ActionPlan = {
 
 const domainStateFixture: DomainStateV1 = {
   kind: "DomainStateV1",
+  ci: { verdict: "unchecked", freshness: "unknown" },
   taskContract: null,
   prState: {
     pr: snapshotFixture.pr,

@@ -127,9 +127,19 @@ const invariantReportSchema = z.object({
   findings: z.array(invariantFindingSchema),
 }).strict();
 
+// GH-352: the local CI provenance projection — the merge-guard verdict plus a
+// freshness signal (does the recorded green still cover the current tree?).
+export const ciProvenanceStateSchema = z.object({
+  verdict: z.enum(["verified", "unsigned", "unchecked"]),
+  freshness: z.enum(["fresh", "stale", "unknown"]),
+}).strict();
+
+const DEFAULT_CI_PROVENANCE = { verdict: "unchecked", freshness: "unknown" } as const;
+
 export const domainStateV1Schema = z.object({
   kind: z.literal("DomainStateV1"),
   taskContract: taskContractSchema.nullable(),
+  ci: ciProvenanceStateSchema,
   prState: z.object({
     pr: prStatusSchema,
     system: prSystemContextSchema,
@@ -376,6 +386,11 @@ function deriveWorkflowTaskState(
 export function buildDomainState(
   repoPath: string,
   runner?: CommandRunner,
+  // GH-352: the CI provenance projection. Kept a parameter (not read inline) so
+  // `buildDomainState` stays synchronous and ledger-free; the async chain read
+  // happens at the write boundary (`prx snapshot`) and is passed in. Defaults to
+  // unchecked/unknown when no ledger is resolvable.
+  ci: z.infer<typeof ciProvenanceStateSchema> = DEFAULT_CI_PROVENANCE,
 ): DomainStateV1 {
   const repo = repoStatus(repoPath, { includeGitDetails: true, fetch: false }, runner);
   const board = boardStatus(repoPath, runner);
@@ -399,6 +414,7 @@ export function buildDomainState(
   return domainStateV1Schema.parse({
     kind: "DomainStateV1",
     taskContract: task,
+    ci,
     prState: {
       pr: repo.pr,
       system,
