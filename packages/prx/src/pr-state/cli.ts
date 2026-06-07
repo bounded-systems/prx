@@ -22856,10 +22856,24 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       return (async () => {
         const deps: BeadsDaemonDeps = {};
         if (parsed.cwd !== undefined) deps.cwd = parsed.cwd;
+        // GH-296: keep the served clone fresh — `bd dolt pull` on start + every
+        // 5 min (errors swallowed by runBeadsServe; conflicts vs local writes
+        // are the sync agent's job, prx-cu1). Only when serving a real cwd.
+        const refreshCwd = parsed.cwd;
         const server = await runBeadsServe({
           socketPath: parsed.socket,
           ...(parsed.pidfile !== undefined ? { pidfile: parsed.pidfile } : {}),
           deps,
+          ...(refreshCwd !== undefined
+            ? {
+                // Route through @bounded-systems/proc (the ambient-authority
+                // guard forbids raw spawns in src/). `check: false` ⇒ a failed
+                // pull is swallowed by runBeadsServe, not thrown.
+                refresh: () => {
+                  procRunner(["bd", "dolt", "pull"], { cwd: refreshCwd, check: false });
+                },
+              }
+            : {}),
         });
         output.error(`beadsd: listening on ${parsed.socket}`);
         // Block until the process is terminated — the daemon runs until killed.

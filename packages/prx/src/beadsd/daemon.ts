@@ -214,6 +214,9 @@ function badRequest(message: string): BeadsResponse {
   return { status: "error", code: "bad-request", message };
 }
 
+/** Default cadence for the served clone's freshness pull (5 min). */
+export const DEFAULT_BEADS_REFRESH_INTERVAL_MS = 300_000;
+
 export interface BeadsServeOptions {
   /** Unix socket path the daemon listens on. A stale socket file is removed first. */
   socketPath: string;
@@ -224,6 +227,16 @@ export interface BeadsServeOptions {
    */
   pidfile?: string | undefined;
   deps?: BeadsDaemonDeps | undefined;
+  /**
+   * GH-296: keep the served clone fresh. Invoked once on start and then every
+   * {@link refreshIntervalMs}. Errors are swallowed — a stale-but-up daemon
+   * beats a crashed one, and conflict resolution against local writes is the
+   * sync agent's job (prx-cu1). Injected so the pull is testable; the CLI wires
+   * a `bd dolt pull` in the served cwd.
+   */
+  refresh?: (() => void | Promise<void>) | undefined;
+  /** Refresh cadence in ms (default {@link DEFAULT_BEADS_REFRESH_INTERVAL_MS}; ≤0 ⇒ once on start only). */
+  refreshIntervalMs?: number | undefined;
 }
 
 /**
@@ -231,9 +244,33 @@ export interface BeadsServeOptions {
  * (close it to stop). Each connection is served by {@link serveBeadsConnection}
  * against {@link handleBeadsRequest} bound to `deps`. When `pidfile` is set the
  * daemon records its pid there (removed on close) so the host can stop it by pid.
+ * When `refresh` is set, the served clone is pulled on start and on an interval.
  */
-export function runBeadsServe(options: BeadsServeOptions): Promise<Server> {
-  const { socketPath, pidfile, deps } = options;
+export async function runBeadsServe(options: BeadsServeOptions): Promise<Server> {
+  const { socketPath, pidfile, deps, refresh, refreshIntervalMs } = options;
   const handler = (request: BeadsRequest): Promise<BeadsResponse> => handleBeadsRequest(request, deps);
-  return runFramedServe(socketPath, pidfile, (socket) => serveBeadsConnection(socket, handler));
+  const server = await runFramedServe(socketPath, pidfile, (socket) =>
+    serveBeadsConnection(socket, handler),
+  );
+
+  if (refresh) {
+    const runRefresh = (): void => {
+      try {
+        const r = refresh();
+        if (r instanceof Promise) r.catch(() => {});
+      } catch {
+        /* stale-but-up beats a crash; sync agent reconciles conflicts */
+      }
+    };
+    runRefresh(); // initial pull so a cold-started daemon serves current data
+    const interval = refreshIntervalMs ?? DEFAULT_BEADS_REFRESH_INTERVAL_MS;
+    if (interval > 0) {
+      const timer = setInterval(runRefresh, interval);
+      // Don't let the refresh timer alone keep the process alive.
+      (timer as unknown as { unref?: () => void }).unref?.();
+      server.on("close", () => clearInterval(timer));
+    }
+  }
+
+  return server;
 }
