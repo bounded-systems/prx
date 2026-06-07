@@ -16,6 +16,7 @@ import { basename } from "node:path";
 import { spawnCapture } from "@bounded-systems/proc";
 
 import { parseGithubRepo } from "./github.js";
+import { readOperatorConfigStringMap } from "../operator-config.ts";
 
 export type CommandRunner = (
   cmd: string,
@@ -41,13 +42,19 @@ export type InferredScope =
     };
 
 /**
- * Owner/repo → conventional-commits scope. Seed values reflect the prefixes
- * already used in this ecosystem's commit history (`feat(prx): …`,
- * `feat(demo-web): …`). Add new entries as new repos opt into prx.
+ * Owner/repo → conventional-commits scope. GH-411 slice 4: this map is no longer
+ * hardcoded to a personal repo — it's read from `scopeMap` in
+ * `~/.config/prx/config.json` (e.g. `{"scopeMap": {"owner/repo": "prx"}}`). An
+ * unconfigured operator gets `{}` → inference returns `no-mapping` and the caller
+ * falls back to requiring an explicit `--scope`.
  */
-const KNOWN_SCOPE_MAP: Readonly<Record<string, string>> = {
-  "bdelanghe/ai-home": "prx",
-};
+export function readConfiguredScopeMap(deps?: {
+  readFile?: (path: string) => string;
+  pathExists?: (path: string) => boolean;
+  homeDir?: string;
+}): Record<string, string> {
+  return readOperatorConfigStringMap("scopeMap", deps ?? {});
+}
 
 /**
  * Pure predicate: a worktree path points at the read-only `mainx` replica.
@@ -83,6 +90,7 @@ export function isMainxWorktree(
 export function inferOperatorScopeFromCwd(
   cwd: string,
   runner: CommandRunner = defaultRunner,
+  scopeMap: Record<string, string> = readConfiguredScopeMap(),
 ): InferredScope {
   const remote = runner("git", ["-C", cwd, "remote", "get-url", "origin"], { cwd });
   if ((remote.status ?? 1) !== 0) {
@@ -98,7 +106,7 @@ export function inferOperatorScopeFromCwd(
     return { scope: null, source: "skipped", reason: "mainx" };
   }
 
-  const scope = KNOWN_SCOPE_MAP[key];
+  const scope = scopeMap[key];
   if (!scope) {
     return { scope: null, source: "skipped", reason: "no-mapping" };
   }

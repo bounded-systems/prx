@@ -2,7 +2,12 @@
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { operatorConfigRoot } from "../src/operator-config.ts";
+import {
+  operatorConfigRoot,
+  operatorConfigPath,
+  readOperatorConfig,
+  readOperatorConfigStringMap,
+} from "../src/operator-config.ts";
 
 const KEYS = [
   "PRX_OPERATOR_CONFIG_ROOT",
@@ -74,5 +79,42 @@ describe("operatorConfigRoot", () => {
   test("treats an empty string as unset", () => {
     process.env.PRX_OPERATOR_CONFIG_ROOT = "";
     expect(operatorConfigRoot()).toBeUndefined();
+  });
+});
+
+describe("readOperatorConfig / readOperatorConfigStringMap (GH-411 slice 4)", () => {
+  const withConfig = (obj: unknown) => ({
+    homeDir: "/home/op",
+    pathExists: (p: string) => p === "/home/op/.config/prx/config.json",
+    readFile: () => JSON.stringify(obj),
+  });
+
+  test("operatorConfigPath joins ~/.config/prx/config.json", () => {
+    expect(operatorConfigPath({ homeDir: "/home/op" })).toBe(
+      "/home/op/.config/prx/config.json",
+    );
+  });
+
+  test("readOperatorConfig parses the file, {} when absent or malformed", () => {
+    expect(readOperatorConfig(withConfig({ a: 1 }))).toEqual({ a: 1 });
+    expect(readOperatorConfig({ homeDir: "/home/op", pathExists: () => false })).toEqual({});
+    expect(
+      readOperatorConfig({ homeDir: "/home/op", pathExists: () => true, readFile: () => "{ bad" }),
+    ).toEqual({});
+  });
+
+  test("readOperatorConfigStringMap extracts a string map, trims, drops non-strings/empties", () => {
+    expect(
+      readOperatorConfigStringMap(
+        "scopeMap",
+        withConfig({ scopeMap: { "o/r": " prx ", "a/b": "", "c/d": 5, "e/f": "x" } }),
+      ),
+    ).toEqual({ "o/r": "prx", "e/f": "x" });
+  });
+
+  test("readOperatorConfigStringMap → {} when the block is absent or not an object", () => {
+    expect(readOperatorConfigStringMap("scopeMap", withConfig({}))).toEqual({});
+    expect(readOperatorConfigStringMap("scopeMap", withConfig({ scopeMap: ["x"] }))).toEqual({});
+    expect(readOperatorConfigStringMap("scopeMap", withConfig({ scopeMap: "nope" }))).toEqual({});
   });
 });
