@@ -13,6 +13,7 @@ import { graphVerb } from "../pr-state/graph-verb.ts";
 import { actorsVerb, modelVerb } from "../pr-state/model-verb.ts";
 import { skillsVerb } from "../pr-state/skills-verb.ts";
 import { openModeVerb } from "../pr-state/open-mode-verb.ts";
+import { statelyVerb } from "../pr-state/stately-verb.ts";
 
 export const verbRegistry: Registry = {
   ...orchestratorRegistry,
@@ -25,4 +26,5 @@ export const verbRegistry: Registry = {
   [modelVerb.id]: modelVerb,
   [skillsVerb.id]: skillsVerb,
   [openModeVerb.id]: openModeVerb,
+  [statelyVerb.id]: statelyVerb,
 };

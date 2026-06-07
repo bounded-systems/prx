@@ -21,7 +21,7 @@
 
 import { z, type ZodType } from "zod";
 
-export type VerbSpec<I extends ZodType = ZodType, O extends ZodType = ZodType> = {
+export type VerbSpec<I extends ZodType = ZodType, O extends ZodType = ZodType, C = unknown> = {
   /** Stable verb id — the CLI subcommand, MCP tool name, OpenAPI operationId. */
   id: string;
   summary: string;
@@ -31,7 +31,17 @@ export type VerbSpec<I extends ZodType = ZodType, O extends ZodType = ZodType> =
   output: O;
   /** Input keys parsed as positionals (in order) rather than `--flags`. */
   positionals?: readonly string[];
-  run: (input: z.infer<I>) => Promise<z.infer<O>> | z.infer<O>;
+  /**
+   * Build the verb's default capability/deps slice — the real implementations
+   * the CLI / MCP / OpenAPI surfaces run with. Omit for pure verbs (whose only
+   * side effects are the fs/proc capabilities they import directly). This is the
+   * per-verb seam that replaces the cli.ts 188-field `CliDeps` bag: each verb
+   * declares the small slice it needs, defaults it to reals here, and a test
+   * passes its own slice straight to `run`. Surfaces never see it — the
+   * MCP/OpenAPI/Anthropic projections consume only `input`/`output`.
+   */
+  deps?: () => C;
+  run: (input: z.infer<I>, deps?: C) => Promise<z.infer<O>> | z.infer<O>;
   /**
    * Optional CLI projection of the structured output. The `output` schema is the
    * canonical, multi-surface contract (MCP result / OpenAPI response); `render`
@@ -41,8 +51,10 @@ export type VerbSpec<I extends ZodType = ZodType, O extends ZodType = ZodType> =
   render?: (output: z.infer<O>, input: z.infer<I>) => string;
 };
 
-/** Identity helper that preserves input/output inference. */
-export function defineVerb<I extends ZodType, O extends ZodType>(spec: VerbSpec<I, O>): VerbSpec<I, O> {
+/** Identity helper that preserves input/output/deps inference. */
+export function defineVerb<I extends ZodType, O extends ZodType, C = unknown>(
+  spec: VerbSpec<I, O, C>,
+): VerbSpec<I, O, C> {
   return spec;
 }
 
@@ -165,7 +177,12 @@ export function parseArgs<I extends ZodType>(v: VerbSpec<I, ZodType>, argv: read
 
 // ── the thin router ───────────────────────────────────────────────────────────
 
-export type Registry = Record<string, VerbSpec>;
+// Verbs in a registry carry heterogeneous input/output/deps types; erase them
+// at the registry boundary (each verb's `run` only ever sees its own parsed
+// input and its own `deps()` default, so the registry never needs the precise
+// per-verb types — `defineVerb` keeps those for authoring).
+export type AnyVerbSpec = VerbSpec<any, any, any>;
+export type Registry = Record<string, AnyVerbSpec>;
 
 export type DispatchResult =
   | { kind: "help"; text: string }
@@ -179,7 +196,9 @@ export async function dispatch(reg: Registry, argv: readonly string[]): Promise<
   if (!v) throw new Error(`unknown verb: ${id}`);
   if (rest.includes("--help") || rest.includes("-h")) return { kind: "help", text: toHelp(v) };
   const input = parseArgs(v, rest);
-  const output = await v.run(input);
+  // Each verb runs against its own default deps slice (reals); pure verbs omit
+  // `deps` and ignore the argument.
+  const output = await v.run(input, v.deps?.());
   return { kind: "ok", id, output, input };
 }
 

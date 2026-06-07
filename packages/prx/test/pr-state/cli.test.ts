@@ -7769,52 +7769,10 @@ describe("pr_state cli", () => {
     expect(errors[0]).toContain("--work-unit-id must match CANONICAL-ID format");
   });
 
-  test("stately copies machine output and opens url after prompt", () => {
-    const logs: string[] = [];
-    let copied = "";
-    let openedUrl = "";
-    const exitCode = runCliDirect(
-      ["stately", "--url", "https://stately.ai/registry/editor/"],
-      {
-        log: (line) => logs.push(line),
-        error: () => {},
-      },
-      {
-        copyToClipboard: (text) => {
-          copied = text;
-        },
-        openAfterEnter: (url) => {
-          openedUrl = url;
-        },
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    expect(copied).toContain('import { createMachine } from "xstate";');
-    expect(openedUrl).toBe("https://stately.ai/registry/editor/");
-    expect(logs[0]!).toContain("Copied machine to clipboard and opened https://stately.ai/registry/editor/");
-  });
-
-  test("stately supports the system model", () => {
-    let copied = "";
-    const exitCode = runCliDirect(
-      ["stately", "--model", "system"],
-      {
-        log: () => {},
-        error: () => {},
-      },
-      {
-        copyToClipboard: (text) => {
-          copied = text;
-        },
-        openAfterEnter: () => {},
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    expect(copied).toContain('"id": "prSystem"');
-    expect(copied).toContain("isMergeable");
-  });
+  // `stately` is a spec-driven VerbSpec now — its clipboard/open side effects
+  // are the verb's StatelyDeps slice, injected and asserted directly in
+  // test/pr-state/stately-verb.test.ts (the deps-seam that replaced the
+  // CliDeps copyToClipboard/openAfterEnter injection used here).
 
   test("contract init bootstraps a contract with sensible defaults", async () => {
     const logs: string[] = [];
