@@ -82,7 +82,9 @@ describe("runPromoteActor", () => {
       { from: "/tmp/p.json", dryRun: false, limit: 0 },
       {
         ...STD_DEPS_BASE,
-        execBd: () => ({ exitCode: 0, stdout: "bd-9000\n", stderr: "", policy: null }),
+        // GH-296: create runs `prx beads create …` through the daemon (sync
+        // runner) which echoes the record as JSON.
+        run: (() => ({ status: 0, stdout: JSON.stringify({ id: "bd-9000" }), stderr: "" })) as never,
         execGh: () => ({ exitCode: 0, stdout: "", stderr: "", policy: null }),
         readFileSync: () => fixture,
         loadAllBeads: noBeads,
