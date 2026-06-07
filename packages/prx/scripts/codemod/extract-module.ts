@@ -56,9 +56,23 @@ if (missing.length) {
   process.exit(1);
 }
 
-// Identifiers referenced anywhere inside the moved block.
+// Free identifiers referenced inside the moved block — i.e. names that could
+// resolve to an import. Excludes the `.name` side of a property access
+// (`x.join`), shorthand/keyed property names, and the name part of a qualified
+// type (`ns.Foo`): those are member names, never references to a top-level
+// import, so carrying an import that merely shares the spelling is wrong.
 const usedIds = new Set<string>();
-for (const s of moved) for (const id of s.getDescendantsOfKind(SyntaxKind.Identifier)) usedIds.add(id.getText());
+for (const s of moved) {
+  for (const id of s.getDescendantsOfKind(SyntaxKind.Identifier)) {
+    const parent = id.getParent();
+    if (Node.isPropertyAccessExpression(parent) && parent.getNameNode() === id) continue;
+    if (Node.isQualifiedName(parent) && parent.getRight() === id) continue;
+    if (Node.isPropertyAssignment(parent) && parent.getNameNode() === id) continue;
+    if (Node.isPropertySignature(parent) && parent.getNameNode() === id) continue;
+    if (Node.isMethodDeclaration(parent) && parent.getNameNode() === id) continue;
+    usedIds.add(id.getText());
+  }
+}
 
 // Imports the moved block needs — carried to the target verbatim (same dir).
 const carried = source.getImportDeclarations().flatMap((imp) => {
