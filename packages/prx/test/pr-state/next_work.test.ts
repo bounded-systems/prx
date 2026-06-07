@@ -3,7 +3,9 @@
 // GH-1617 — adds triage_backlog and plan_paused thread classification tests.
 
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import type { AuditSinkDeps } from "../../src/audit/sink.ts";
 import {
@@ -716,5 +718,85 @@ describe("nextWork — per-column recommended actions", () => {
     const result = nextWork("/dev/null", { bdReady: bdReadyResult(), board: emptyBoard(units) });
     expect(result).toBeDefined();
     expect(Array.isArray(result.threads)).toBe(true);
+  });
+});
+
+describe("nextWork — prx.toml [next_work] config readers", () => {
+  function repoWithConfig(body: string): string {
+    const dir = mkdtempSync(join(tmpdir(), "next-work-cfg-"));
+    writeFileSync(join(dir, "prx.toml"), body);
+    return dir;
+  }
+
+  test("thread_order from [next_work] reorders the surface (front-loads listed kinds)", () => {
+    // loadThreadOrder: listed kinds first (deduped), then the remaining
+    // defaults appended so the result stays exhaustive.
+    const dir = repoWithConfig(
+      [
+        "[next_work]",
+        '# a comment, and a blank line follow',
+        "",
+        'thread_order = ["blocked", "blocked", "ready_to_start"]',
+        "plan_paused_ttl_seconds = 4242",
+      ].join("\n"),
+    );
+    const result = nextWork(dir, { bdReady: bdReadyResult([], []), board: emptyBoard() });
+    const kinds = result.threads.map((t) => t.kind);
+    expect(kinds.slice(0, 2)).toEqual(["blocked", "ready_to_start"]);
+    // Exhaustive: every default kind is still present exactly once.
+    expect(new Set(kinds)).toEqual(new Set(DEFAULT_THREAD_ORDER));
+    expect(kinds.length).toBe(DEFAULT_THREAD_ORDER.length);
+  });
+
+  test("a non-array thread_order value is ignored → default order", () => {
+    const dir = repoWithConfig('[next_work]\nthread_order = "blocked"\n');
+    const result = nextWork(dir, { bdReady: bdReadyResult([], []), board: emptyBoard() });
+    expect(result.threads.map((t) => t.kind)).toEqual([...DEFAULT_THREAD_ORDER]);
+  });
+
+  test("keys outside the [next_work] section are ignored", () => {
+    const dir = repoWithConfig('[other]\nthread_order = ["blocked"]\n');
+    const result = nextWork(dir, { bdReady: bdReadyResult([], []), board: emptyBoard() });
+    expect(result.threads.map((t) => t.kind)).toEqual([...DEFAULT_THREAD_ORDER]);
+  });
+});
+
+describe("nextWork — priorityLabelToNumber via stale triage rows", () => {
+  // priority is intentionally widened to string (one case feeds an
+  // out-of-vocab label to exercise priorityLabelToNumber's default arm).
+  function staleRow(
+    priority: string,
+    beadsId: string,
+    issueNumber: number,
+  ): TriageStatusResult["stale"][number] {
+    return {
+      beadsId,
+      issueNumber,
+      url: `https://github.com/owner/repo/issues/${issueNumber}`,
+      title: `stale ${priority}`,
+      status: "open",
+      priority,
+      issueType: "task",
+      reason: "gh-issue-closed",
+    } as TriageStatusResult["stale"][number];
+  }
+
+  test("critical/high/low/unknown labels map to 0/1/3/3", () => {
+    const triage = makeTriageSnapshot({
+      stale: [
+        staleRow("critical", "bd-crit", 1),
+        staleRow("high", "bd-high", 2),
+        staleRow("low", "bd-low", 3),
+        staleRow("garbage", "bd-unk", 4),
+      ],
+    });
+    const result = nextWork("/dev/null", { bdReady: bdReadyResult([], []), board: emptyBoard(), triage });
+    const byId = new Map(
+      result.threads.find((t) => t.kind === "triage_backlog")!.candidates.map((c) => [c.bd_id, c.priority]),
+    );
+    expect(byId.get("bd-crit")).toBe(0);
+    expect(byId.get("bd-high")).toBe(1);
+    expect(byId.get("bd-low")).toBe(3);
+    expect(byId.get("bd-unk")).toBe(3); // unknown label sinks to low
   });
 });
