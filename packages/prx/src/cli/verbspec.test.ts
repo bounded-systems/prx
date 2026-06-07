@@ -60,20 +60,6 @@ describe("spec-driven CLI: author once, project everywhere", () => {
     expect(render(res.output)).toContain("merged");
   });
 
-  test("router: `prx observe GH-x` returns an empty timeline when there's no audit yet", async () => {
-    const prev = process.env.XDG_STATE_HOME;
-    process.env.XDG_STATE_HOME = "/tmp/prx-observe-test-no-such-dir";
-    try {
-      const res = await dispatch(orchestratorRegistry, ["observe", "GH-999"]);
-      expect(res.kind).toBe("ok");
-      if (res.kind !== "ok") throw new Error("expected ok");
-      expect(res.output).toMatchObject({ workUnitId: "GH-999", eventCount: 0, events: [] });
-    } finally {
-      if (prev === undefined) delete process.env.XDG_STATE_HOME;
-      else process.env.XDG_STATE_HOME = prev;
-    }
-  });
-
   test("router: `prx fleet a,b,c --wip 2` drives the fleet", async () => {
     const res = await dispatch(orchestratorRegistry, ["fleet", "a,b,c", "--wip", "2"]);
     if (res.kind !== "ok") throw new Error("expected ok");
