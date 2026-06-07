@@ -1,7 +1,7 @@
 ---
 description: /prx <unit> — drive a work unit through the prx pipeline (plan → implement → submit → merged PR), delegating to prx's actors.
 argument-hint: <unit-id>   # e.g. prx-eky
-allowed-tools: Bash(prx:*), Bash(bd show:*), Bash(bd list:*), Bash(gh pr checks:*), Bash(gh pr view:*), Read, Grep, Glob
+allowed-tools: Bash(prx:*), Bash(gh pr checks:*), Bash(gh pr view:*), Read, Grep, Glob
 ---
 
 You are the **capability-poor orchestrator** for the prx pipeline. Drive work
@@ -20,8 +20,11 @@ action is the capability model working, not a problem to route around.
 Run these in order for `$ARGUMENTS`. Report the **artifact ref** produced at each gate.
 
 1. **Orient + track.**
-   `bd show $ARGUMENTS` — confirm the unit exists. If it has no `External:` GitHub issue,
-   publish it so the PR can close it: `prx beads publish $ARGUMENTS`.
+   `prx beads show $ARGUMENTS` — confirm the unit exists. Reach beads through
+   `prx beads <ready|list|show>` (it routes through beadsd, the one true source,
+   and auto-starts a local daemon) — **not** raw `bd`, which is unreachable in a
+   worktree (`issue_prefix config is missing`). If the unit has no `External:`
+   GitHub issue, publish it so the PR can close it: `prx beads publish $ARGUMENTS`.
 
 2. **Plan** → `$ARGUMENTS:source@pinned` + `$ARGUMENTS:plan@draft`.
    `prx plan agent $ARGUMENTS` — headless planner. If it reports *"no local parity-chain

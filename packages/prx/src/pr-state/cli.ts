@@ -423,6 +423,7 @@ import {
 import { diagnoseBeads, healBeads } from "../beads/doctor.ts";
 // GH-296: the host read-door — route `prx beads ready|list|show` through beadsd.
 import { withLimaBeadsClient } from "../beadsd/lima.ts";
+import { withBeadsClient } from "../beadsd/client-factory.ts";
 import type { BeadsRequest } from "../beadsd/contract.ts";
 // GH-296: provision beads inside a Lima VM (install bd+dolt + clone canonical).
 import { provisionVmBeads } from "../beadsd/provision.ts";
@@ -2045,11 +2046,13 @@ type ParsedCommand =
       cwd?: string | undefined;
     }
   | {
-      // GH-296: `beads ready|list|show` routed through beadsd in a Lima VM (the read door).
+      // GH-296: `beads ready|list|show` routed through beadsd — the reachable
+      // beads surface for any shell. No `--vm` ⇒ local daemon (auto-started);
+      // `--vm <name>` (or PRX_BEADS_VM) ⇒ the in-VM daemon (the read door).
       command: "beads-read";
       format: "plain" | "json";
       kind: "ready" | "list" | "show";
-      vm: string;
+      vm?: string | undefined;
       vmSocket: string;
       hostSocket?: string | undefined;
       id?: string | undefined;
@@ -8665,10 +8668,11 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  // GH-296: `prx beads ready|list|show` — read through beadsd in a Lima VM
-  // (rewritten to `beads-read <kind>` by normalizeNamespaceArgv). The host holds
-  // no beads DB; it asks the daemon. `--vm` is required (the VM running beadsd);
-  // `PRX_BEADS_VM` is the fallback so the operator need not repeat it.
+  // GH-296: `prx beads ready|list|show` — the reachable beads surface for any
+  // shell (rewritten to `beads-read <kind>` by normalizeNamespaceArgv). The host
+  // holds no beads DB; it asks the daemon. With no `--vm` it routes through the
+  // local daemon (auto-started by `withBeadsClient`); `--vm <name>` (or
+  // `PRX_BEADS_VM`) targets the in-VM daemon explicitly.
   if (command === "beads-read") {
     const { values, positionals } = parseArgs({
       args: rest,
@@ -8687,18 +8691,15 @@ export function parseCommand(argv: string[]): ParsedCommand {
       throw new CliError("prx beads read requires a kind: ready | list | show");
     }
     const vm = values.vm ?? getEnv("PRX_BEADS_VM");
-    if (typeof vm !== "string" || vm.length === 0) {
-      throw new CliError("prx beads " + kind + " requires --vm <name> (or PRX_BEADS_VM) — the VM running beadsd");
-    }
     const id = positionals[1];
     if (kind === "show" && (typeof id !== "string" || id.length === 0)) {
-      throw new CliError("prx beads show requires an id: `prx beads show <id> --vm <name>`");
+      throw new CliError("prx beads show requires an id: `prx beads show <id>`");
     }
     return {
       command: "beads-read",
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
       kind,
-      vm,
+      ...(typeof vm === "string" && vm.length > 0 ? { vm } : {}),
       vmSocket: values["vm-socket"] ?? "/tmp/beadsd.sock",
       ...(values["host-socket"] !== undefined ? { hostSocket: values["host-socket"] } : {}),
       ...(kind === "show" ? { id } : {}),
@@ -25098,8 +25099,10 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "beads-read") {
-      // GH-296: read through beadsd in the VM — the host holds no beads DB, it asks
-      // the daemon over the Lima channel. The single source for the human, too.
+      // GH-296: read through beadsd — the reachable beads surface for any shell.
+      // The host holds no beads DB, it asks the daemon (the single source for the
+      // human too). No `--vm` ⇒ local daemon (auto-started); `--vm` ⇒ the VM
+      // daemon over the Lima channel.
       return (async () => {
         const request: BeadsRequest =
           parsed.kind === "show"
@@ -25109,18 +25112,29 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
                 ? { kind: "list", status: parsed.status }
                 : { kind: "list" }
               : { kind: "ready" };
-        const channelOpts = {
-          vm: parsed.vm,
-          vmSocket: parsed.vmSocket,
-          ...(parsed.hostSocket !== undefined ? { hostSocket: parsed.hostSocket } : {}),
-        };
-        const reply = await withLimaBeadsClient(channelOpts, (client) => client.query(request));
-        if (reply.status === "error") {
-          output.error(`beads ${parsed.kind}: ${reply.code}: ${reply.message}`);
+        try {
+          const reply =
+            parsed.vm !== undefined
+              ? await withLimaBeadsClient(
+                  {
+                    vm: parsed.vm,
+                    vmSocket: parsed.vmSocket,
+                    ...(parsed.hostSocket !== undefined ? { hostSocket: parsed.hostSocket } : {}),
+                  },
+                  (client) => client.query(request),
+                )
+              : await withBeadsClient((client) => client.query(request));
+          if (reply.status === "error") {
+            output.error(`beads ${parsed.kind}: ${reply.code}: ${reply.message}`);
+            return 1;
+          }
+          output.log(JSON.stringify(reply.result, null, 2));
+          return 0;
+        } catch (err) {
+          // BeadsUnavailableError carries the actionable "start beadsd" message.
+          output.error(`beads ${parsed.kind}: ${err instanceof Error ? err.message : String(err)}`);
           return 1;
         }
-        output.log(JSON.stringify(reply.result, null, 2));
-        return 0;
       })();
     }
 
