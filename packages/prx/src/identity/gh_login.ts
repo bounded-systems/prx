@@ -44,14 +44,16 @@ export function resetGhLoginCacheForTests(): void {
   cachedLogin = null;
 }
 
-export function runGhAuthStatus(): { ok: boolean } {
-  const result = spawnCapture(["gh", "auth", "status"]);
+// `spawn` is injectable (defaults to the real proc) so the gh-output handling
+// is testable without spawning a live gh / hitting the GitHub API.
+export function runGhAuthStatus(spawn: typeof spawnCapture = spawnCapture): { ok: boolean } {
+  const result = spawn(["gh", "auth", "status"]);
   if (result.error || result.signal) return { ok: false };
   return { ok: (result.status ?? 1) === 0 };
 }
 
-export function runGhApiUserLogin(): string | null {
-  const result = spawnCapture(["gh", "api", "user", "--jq", ".login"]);
+export function runGhApiUserLogin(spawn: typeof spawnCapture = spawnCapture): string | null {
+  const result = spawn(["gh", "api", "user", "--jq", ".login"]);
   if (result.error || result.signal) return null;
   if ((result.status ?? 1) !== 0) return null;
   const trimmed = (result.stdout ?? "").trim();
