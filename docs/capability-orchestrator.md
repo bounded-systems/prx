@@ -3,6 +3,8 @@
 **Status:** Implemented (prx-g88) · **Owner:** bobby · **Spec'd:** 2026-06-04 ·
 **Updated:** 2026-06-06
 
+> **Diagnostic note (GH-373).** Throwaway pipeline-exercise unit driving the #360 tester-loop (pilot implement↔test retreat loop) diagnosis under the new pilot-state telemetry.
+
 > **Implementation status.** This started as a draft spec ("no code lands from
 > this PR"). The epic has since landed and this document has been re-grounded
 > against the shipped code: the original `[NEEDS CLARIFICATION]` markers below are
