@@ -1,5 +1,12 @@
 # @bounded-systems/prx
 
+## 0.8.1
+
+### Patch Changes
+
+- 9346a94: Add `prx beads prime` — the daemon-aware session primer (the prx-beads twin of `bd prime`, GH-296). It prints how to reach beads (`prx beads <verb>` through the per-repo daemon, not raw `bd`) plus live ready-work from the daemon. Resilient by design: an unreachable daemon still prints the guidance and exits 0, so it's safe as a SessionStart hook. This is the in-repo enabler for repointing the SessionStart hook off raw `bd prime`.
+- 47843a4: beadsd now keeps its served clone fresh (GH-296): `runBeadsServe` runs an injected `refresh` on start and every 5 minutes, and `prx beads serve --cwd <clone>` wires that to `bd dolt pull` in the served clone. Refresh errors are swallowed (a stale-but-up daemon beats a crashed one); conflict resolution against local writes is left to the sync agent. So a long-lived local daemon no longer serves indefinitely-stale beads.
+
 ## 0.8.0
 
 ### Minor Changes
