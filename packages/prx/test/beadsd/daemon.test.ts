@@ -191,6 +191,27 @@ describe("handleBeadsRequest — writes (single-writer, policy passthrough)", ()
     expect(calls[0]!.args).toEqual(["prx-abb", "--json", "--type", "bug"]);
   });
 
+  test("update passes --external-ref and --notes (GH-296 write parity)", async () => {
+    const { execBd, calls } = fakeBd(okResult("{}"));
+    await handleBeadsRequest(
+      {
+        kind: "update",
+        id: "prx-abb",
+        externalRef: "https://github.com/o/r/issues/9",
+        notes: "linked by mirror",
+      },
+      { execBd },
+    );
+    expect(calls[0]!.args).toEqual([
+      "prx-abb",
+      "--json",
+      "--external-ref",
+      "https://github.com/o/r/issues/9",
+      "--notes",
+      "linked by mirror",
+    ]);
+  });
+
   test("reopen dispatches `bd reopen <id> --json` directly (allowed subcommand)", async () => {
     const { execBd, calls } = fakeBd(okResult("{}"));
     await handleBeadsRequest({ kind: "reopen", id: "prx-abb" }, { execBd });
