@@ -3143,7 +3143,7 @@ type CliDeps = {
     options: TriageCloseOptions,
     output: Output,
     deps?: TriageCloseDeps,
-  ) => TriageCloseResult;
+  ) => Promise<TriageCloseResult>;
   runTriageCloseStale?: (
     options: TriageCloseStaleOptions,
     output: Output,
@@ -23560,15 +23560,16 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         dryRun: parsed.dryRun,
         format: parsed.format,
       });
-      const result = handler(validated, output, {
-        loadAllBeads: () => beadsCache.load(),
-        invalidateBeadsCache: beadsCache.invalidate,
-      });
-      if (parsed.format === "json") {
-        output.log(formatTriageCloseResult(result, "json"));
-      }
-      if (result.refusalReason !== null) return 1;
-      return 0;
+      return (async () => {
+        // GH-296: reads + closes route through beadsd via the handler defaults.
+        const result = await handler(validated, output, {
+          invalidateBeadsCache: beadsCache.invalidate,
+        });
+        if (parsed.format === "json") {
+          output.log(formatTriageCloseResult(result, "json"));
+        }
+        return result.refusalReason !== null ? 1 : 0;
+      })();
     }
 
     if (parsed.command === "triage-close-stale") {
