@@ -53,6 +53,7 @@ import {
   type GhIssueEditOptions,
 } from "../tools/gh_issue_edit.ts";
 import { axisLabelDiff } from "../triage/bd-axis-labels.ts";
+import { parseConditionalRead } from "../sync/conditional-read.ts";
 import {
   loadAllBeads as defaultLoadAllBeads,
   type BeadsRecord,
@@ -95,6 +96,24 @@ export type LinkedReconcileResult = {
   removeLabels: string[];
 };
 
+/**
+ * GH-296 / prx-lzw — a cached conditional-read entry for one external issue:
+ * the last ETag GitHub returned plus the `ResolvedWorkUnitPatch` JSON we derived
+ * from that response (reused verbatim on a `304`).
+ */
+export type GhConditionalReadEntry = { etag: string; value: string };
+
+/**
+ * The structural slice of the pull-etag store that `GhDomainAdapter` needs. The
+ * adapter only reads/writes per-issue entries; `runBeadsSync` owns creating and
+ * flushing the backing store, so the adapter never imports it (keeps the
+ * adapter→sync edge a single pure-parser import, no cycle).
+ */
+export type GhConditionalReadCache = {
+  get(externalId: string): GhConditionalReadEntry | undefined;
+  set(externalId: string, entry: GhConditionalReadEntry): void;
+};
+
 export class GhDomainAdapterError extends Error {
   exitCode: number;
   constructor(message: string, exitCode = 1) {
@@ -125,6 +144,16 @@ export type GhDomainAdapterDeps = {
   execGhIssueEdit?: typeof defaultExecGhIssueEdit | undefined;
   /** OWNER/REPO resolver. Defaults to `repoNameWithOwner`. */
   repoNameWithOwner?: ((path: string) => string) | undefined;
+  /**
+   * GH-296 / prx-lzw (lever 1) — per-issue conditional-read cache (last
+   * `If-None-Match` etag + the patch JSON derived from that response). When
+   * wired (by `runBeadsSync`'s pull leg), `pull()` issues a GitHub conditional
+   * request via `gh api … -i` and reuses the cached patch on a free `304`,
+   * cutting the reconcile's per-tick rate-limit spend on unchanged issues.
+   * Absent (the default) ⇒ `pull()` does an unconditional `gh issue view`
+   * (unchanged behavior).
+   */
+  conditionalRead?: GhConditionalReadCache | undefined;
   /** cwd source. Defaults to `process.cwd`. */
   cwd?: (() => string) | undefined;
   /**
@@ -240,7 +269,39 @@ export class GhDomainAdapter implements DomainAdapter {
     return runner(["gh", ...args], { cwd: opts?.cwd ?? (this.deps.cwd ?? (() => process.cwd()))(), check: false });
   }
 
+  /**
+   * Map a GitHub issue object (from `gh issue view --json` OR the REST
+   * `/issues/{n}` body) to the GitHub-owned patch. Tolerant of both shapes:
+   * `state` is upper/lowercased the same way; `assignees`/`milestone` are
+   * `{login}` / `{title}` in both.
+   */
+  private parseIssuePatch(
+    r: Record<string, unknown>,
+    fallbackNumber: number,
+  ): ResolvedWorkUnitPatch {
+    const issueNumber =
+      typeof r.number === "number" && Number.isFinite(r.number) ? r.number : fallbackNumber;
+    const state = typeof r.state === "string" ? r.state.toUpperCase() : "";
+    const status = state === "CLOSED" ? "closed" : state === "OPEN" ? "open" : "unknown";
+    const assignees = Array.isArray(r.assignees)
+      ? r.assignees
+          .map((a) => (a && typeof a === "object" ? (a as Record<string, unknown>).login : null))
+          .filter((login): login is string => typeof login === "string")
+      : [];
+    const milestone =
+      r.milestone && typeof r.milestone === "object"
+        ? (() => {
+            const title = (r.milestone as Record<string, unknown>).title;
+            return typeof title === "string" ? title : null;
+          })()
+        : null;
+    return { externalIssueNumber: issueNumber, status, assignees, milestone };
+  }
+
   async pull(externalId: string, opts?: AdapterIoOpts): Promise<ResolvedWorkUnitPatch> {
+    if (this.deps.conditionalRead) {
+      return this.pullConditional(externalId, this.deps.conditionalRead, opts);
+    }
     const { repo, number } = this.parseExternalId(externalId);
     const args = [
       "issue",
@@ -264,24 +325,106 @@ export class GhDomainAdapter implements DomainAdapter {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       throw new GhDomainAdapterError("gh adapter pull: gh issue view --json returned non-object");
     }
-    const r = parsed as Record<string, unknown>;
-    const issueNumber =
-      typeof r.number === "number" && Number.isFinite(r.number) ? r.number : number;
-    const state = typeof r.state === "string" ? r.state.toUpperCase() : "";
-    const status = state === "CLOSED" ? "closed" : state === "OPEN" ? "open" : "unknown";
-    const assignees = Array.isArray(r.assignees)
-      ? r.assignees
-          .map((a) => (a && typeof a === "object" ? (a as Record<string, unknown>).login : null))
-          .filter((login): login is string => typeof login === "string")
-      : [];
-    const milestone =
-      r.milestone && typeof r.milestone === "object"
-        ? (() => {
-            const title = (r.milestone as Record<string, unknown>).title;
-            return typeof title === "string" ? title : null;
-          })()
-        : null;
-    return { externalIssueNumber: issueNumber, status, assignees, milestone };
+    return this.parseIssuePatch(parsed as Record<string, unknown>, number);
+  }
+
+  /**
+   * GH-296 / prx-lzw (lever 1) — the conditional-read pull. Issues
+   * `gh api repos/{owner}/{repo}/issues/{n} -i [-H "If-None-Match: <etag>"]`:
+   *   - `304 Not Modified` (free against the rate limit) ⇒ reuse the cached
+   *     patch — GitHub is authoritative on changed-vs-unchanged, so this is
+   *     provably correct, not a heuristic.
+   *   - `2xx` ⇒ parse the fresh REST body, cache `{etag, patch}`, return it.
+   *   - anything else ⇒ throw (same failure surface as the unconditional path).
+   * `gh api` exits non-zero on BOTH a 304 and a real error, so the decision is
+   * made from the HTTP status line (see `parseConditionalRead`), never the code.
+   */
+  private async pullConditional(
+    externalId: string,
+    cache: GhConditionalReadCache,
+    opts?: AdapterIoOpts,
+  ): Promise<ResolvedWorkUnitPatch> {
+    const { repo, number } = this.parseExternalId(externalId);
+    // `gh api` fills `{owner}/{repo}` from the base repo when none is in the
+    // path — covers a bare `#N`/`N` id; sync ids are issue URLs (repo set).
+    const path = repo
+      ? `repos/${repo}/issues/${number}`
+      : `repos/{owner}/{repo}/issues/${number}`;
+    const cached = cache.get(externalId);
+
+    const decision = this.apiRead(path, cached?.etag, opts);
+    if (decision.kind === "not-modified") {
+      // A 304 is only possible when we sent If-None-Match ⇒ `cached` exists.
+      const patch = cached ? this.deserializeCachedPatch(cached.value) : undefined;
+      if (patch) return patch;
+      // Cache value unusable (shouldn't happen — we wrote it) ⇒ refetch fresh,
+      // unconditionally (no If-None-Match), and re-derive.
+      return this.applyFreshRead(externalId, number, this.apiRead(path, undefined, opts), cache);
+    }
+    return this.applyFreshRead(externalId, number, decision, cache);
+  }
+
+  /** Run `gh api <path> -i [-H "If-None-Match: <etag>"]` → a classified result. */
+  private apiRead(
+    path: string,
+    etag: string | undefined,
+    opts?: AdapterIoOpts,
+  ): ReturnType<typeof parseConditionalRead> {
+    const args = ["api", path, "-i"];
+    if (etag && etag.length > 0) args.push("-H", `If-None-Match: ${etag}`);
+    const result = this.runGh(args, opts);
+    return parseConditionalRead({
+      exitCode: result.status,
+      output: result.stdout.includes("HTTP/")
+        ? result.stdout
+        : `${result.stdout}\n${result.stderr}`.trim(),
+    });
+  }
+
+  /** Turn a fresh (`modified`/`error`) conditional read into a patch, caching it. */
+  private applyFreshRead(
+    externalId: string,
+    fallbackNumber: number,
+    decision: ReturnType<typeof parseConditionalRead>,
+    cache: GhConditionalReadCache,
+  ): ResolvedWorkUnitPatch {
+    if (decision.kind === "modified") {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(decision.body);
+      } catch {
+        throw new GhDomainAdapterError("gh adapter pull: gh api returned invalid JSON");
+      }
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new GhDomainAdapterError("gh adapter pull: gh api returned a non-object body");
+      }
+      const patch = this.parseIssuePatch(parsed as Record<string, unknown>, fallbackNumber);
+      // Only cache with a usable etag — without one we can't condition the next
+      // read, so don't poison the cache with an empty If-None-Match.
+      if (decision.etag && decision.etag.length > 0) {
+        cache.set(externalId, { etag: decision.etag, value: JSON.stringify(patch) });
+      }
+      return patch;
+    }
+    if (decision.kind === "error") {
+      throw new GhDomainAdapterError(`gh adapter pull: ${decision.detail}`, decision.status ?? 1);
+    }
+    // not-modified on an unconditional read is impossible — surface it loudly.
+    throw new GhDomainAdapterError("gh adapter pull: unexpected 304 on an unconditional read");
+  }
+
+  /** Parse a cached patch JSON; undefined when absent/corrupt (⇒ force refetch). */
+  private deserializeCachedPatch(value: string): ResolvedWorkUnitPatch | undefined {
+    if (!value || value.length === 0) return undefined;
+    try {
+      const obj = JSON.parse(value) as unknown;
+      if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+        return obj as ResolvedWorkUnitPatch;
+      }
+    } catch {
+      // fall through
+    }
+    return undefined;
   }
 
   async push(

@@ -66,6 +66,8 @@ import type { DomainSyncPullResult } from "./schemas.ts";
 import { readDoltHead } from "../beadsd/dolt-head.ts";
 import { createPushWatermark, type PushWatermark } from "./push-watermark.ts";
 import { shouldSkipPush, advanceLastPushedHead } from "./push-freshness-gate.ts";
+// GH-296 / prx-lzw (lever 1) — GH→bd pull-leg conditional reads (free 304s).
+import { createPullEtagStore, type PullEtagStore } from "./pull-etag-store.ts";
 
 // ── options + deps ─────────────────────────────────────────────────────────
 
@@ -128,6 +130,13 @@ export type RunBeadsSyncDeps = {
    * `~/.local/state/prx/sync`. Tests inject an in-memory one.
    */
   pushWatermark?: PushWatermark | undefined;
+  /**
+   * GH-296 / prx-lzw (lever 1) — per-issue conditional-read cache for the GH→bd
+   * pull leg. Default: a per-(repo,domain) file under `~/.local/state/prx/sync`.
+   * Wired into the gh adapter so unchanged issues return a free `304`; flushed
+   * once after the pull leg. Tests inject an in-memory one.
+   */
+  pullEtagStore?: PullEtagStore | undefined;
 };
 
 // ── summary shape ──────────────────────────────────────────────────────────
@@ -309,6 +318,12 @@ export async function runBeadsSync(
   const beadsHead = deps.beadsHead ?? (() => readDoltHead(cwd));
   const pushWatermark = deps.pushWatermark ?? createPushWatermark(`${repo}/${domain}`);
 
+  // GH-296 / prx-lzw (lever 1) — pull-leg conditional reads. A per-issue
+  // If-None-Match cache wired into the gh adapter: unchanged issues return a
+  // free 304 instead of spending a rate-limit point. Flushed once after the
+  // pull leg (one file write per tick).
+  const pullEtagStore = deps.pullEtagStore ?? createPullEtagStore(`${repo}/${domain}`);
+
   const auditActor = getAuditRuntimeContext().actor;
 
   // ── budget gate (entry) ──────────────────────────────────────────────────
@@ -353,6 +368,7 @@ export async function runBeadsSync(
       ? new GhDomainAdapter({
           loadAllBeads: deps.loadAllBeads,
           invalidateBeadsCache: deps.invalidateBeadsCache,
+          conditionalRead: pullEtagStore,
         })
       : adapterForDomain(domain) ?? undefined);
 
@@ -425,6 +441,10 @@ export async function runBeadsSync(
       pulledPairs.push({ bead, externalId, pullResult: ctx.pullResult });
     }
   }
+
+  // Persist the pull leg's conditional-read etags once (the adapter wrote them
+  // in memory during the loop above; this is the single per-tick file write).
+  pullEtagStore.flush();
 
   const pulled = pulledPairs.length;
   const closedByPull = pulledPairs.filter((p) => p.pullResult.needsClose).length;

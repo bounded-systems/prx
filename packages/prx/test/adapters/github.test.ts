@@ -197,6 +197,102 @@ describe("GhDomainAdapter.pull", () => {
   });
 });
 
+describe("GhDomainAdapter.pull — conditional reads (GH-296 / prx-lzw lever 1)", () => {
+  // An in-memory GhConditionalReadCache.
+  function memCache(): {
+    cache: { get: (id: string) => { etag: string; value: string } | undefined; set: (id: string, e: { etag: string; value: string }) => void };
+    map: Map<string, { etag: string; value: string }>;
+  } {
+    const map = new Map<string, { etag: string; value: string }>();
+    return { map, cache: { get: (id) => map.get(id), set: (id, e) => void map.set(id, e) } };
+  }
+
+  // `gh api -i` 200 response: status line, headers, blank, JSON body.
+  const resp200 = (etag: string, body: object) => ({
+    status: 0,
+    stderr: "",
+    stdout: `HTTP/2.0 200 OK\nEtag: ${etag}\n\n${JSON.stringify(body)}`,
+  });
+  // `gh api -i -H If-None-Match` on an unchanged issue: 304, exit 1, no body.
+  const resp304 = (etag: string) => ({
+    status: 1,
+    stderr: "gh: HTTP 304",
+    stdout: `HTTP/2.0 304 Not Modified\nEtag: ${etag}\n`,
+  });
+
+  test("cold read: no If-None-Match, hits gh api -i, parses + caches {etag, patch}", async () => {
+    const { cache, map } = memCache();
+    const { runner, calls } = recordingRunner(() =>
+      resp200('W/"v1"', { number: 204, state: "open", assignees: [{ login: "alice" }], milestone: { title: "v2" } }),
+    );
+    const adapter = new GhDomainAdapter({ runner, cwd: () => "/repo", conditionalRead: cache });
+    const patch = await adapter.pull("https://github.com/o/r/issues/204");
+    expect(patch).toEqual({ externalIssueNumber: 204, status: "open", assignees: ["alice"], milestone: "v2" });
+    // gh api against the REST issue path, with -i, and NO If-None-Match (cold).
+    expect(calls[0]!.cmd).toEqual(["gh", "api", "repos/o/r/issues/204", "-i"]);
+    // cached for next tick.
+    expect(map.get("https://github.com/o/r/issues/204")).toEqual({
+      etag: 'W/"v1"',
+      value: JSON.stringify(patch),
+    });
+  });
+
+  test("warm read: sends If-None-Match, a free 304 reuses the cached patch (no body parse)", async () => {
+    const { cache, map } = memCache();
+    const cachedPatch = { externalIssueNumber: 204, status: "open", assignees: ["alice"], milestone: "v2" };
+    map.set("https://github.com/o/r/issues/204", { etag: 'W/"v1"', value: JSON.stringify(cachedPatch) });
+    const { runner, calls } = recordingRunner(() => resp304('W/"v1"'));
+    const adapter = new GhDomainAdapter({ runner, cwd: () => "/repo", conditionalRead: cache });
+    const patch = await adapter.pull("https://github.com/o/r/issues/204");
+    expect(patch).toEqual(cachedPatch); // reused, NOT an error despite exit 1
+    expect(calls[0]!.cmd).toEqual([
+      "gh", "api", "repos/o/r/issues/204", "-i", "-H", 'If-None-Match: W/"v1"',
+    ]);
+  });
+
+  test("warm read that CHANGED (200) re-parses fresh state and updates the cache", async () => {
+    const { cache, map } = memCache();
+    map.set("https://github.com/o/r/issues/204", {
+      etag: 'W/"v1"',
+      value: JSON.stringify({ externalIssueNumber: 204, status: "open", assignees: [], milestone: null }),
+    });
+    const { runner } = recordingRunner(() => resp200('W/"v2"', { number: 204, state: "closed", assignees: [], milestone: null }));
+    const adapter = new GhDomainAdapter({ runner, cwd: () => "/repo", conditionalRead: cache });
+    const patch = await adapter.pull("https://github.com/o/r/issues/204");
+    expect(patch.status).toBe("closed"); // REST lowercase state maps through
+    expect(map.get("https://github.com/o/r/issues/204")!.etag).toBe('W/"v2"');
+  });
+
+  test("a genuine error (404, also exit 1) throws — not mistaken for a 304", async () => {
+    const { cache } = memCache();
+    const { runner } = recordingRunner(() => ({
+      status: 1,
+      stderr: "gh: HTTP 404",
+      stdout: 'HTTP/2.0 404 Not Found\n\n{"message":"Not Found"}',
+    }));
+    const adapter = new GhDomainAdapter({ runner, cwd: () => "/repo", conditionalRead: cache });
+    await expect(adapter.pull("https://github.com/o/r/issues/9")).rejects.toThrow(/gh adapter pull/i);
+  });
+
+  test("304 with an unusable cached value refetches unconditionally and re-derives", async () => {
+    const { cache, map } = memCache();
+    map.set("https://github.com/o/r/issues/204", { etag: 'W/"v1"', value: "{corrupt" });
+    let n = 0;
+    const { runner, calls } = recordingRunner(() => {
+      n += 1;
+      return n === 1
+        ? resp304('W/"v1"') // first (conditional) → 304 but cache is corrupt
+        : resp200('W/"v3"', { number: 204, state: "open", assignees: [], milestone: null }); // refetch
+    });
+    const adapter = new GhDomainAdapter({ runner, cwd: () => "/repo", conditionalRead: cache });
+    const patch = await adapter.pull("https://github.com/o/r/issues/204");
+    expect(patch.status).toBe("open");
+    // second call is the unconditional refetch (no If-None-Match).
+    expect(calls[1]!.cmd).toEqual(["gh", "api", "repos/o/r/issues/204", "-i"]);
+    expect(map.get("https://github.com/o/r/issues/204")!.etag).toBe('W/"v3"');
+  });
+});
+
 describe("GhDomainAdapter.push", () => {
   test("create path: dedup-clean → gh issue create + bd write-back", async () => {
     const { runner, calls } = recordingRunner((cmd) => {
