@@ -1,5 +1,31 @@
 # @bounded-systems/prx
 
+## 0.8.2
+
+### Patch Changes
+
+- 7d44141: `createBeadsCache` is now UoW-coherent and generation-aware (GH-296, prx-ebk): `upsert(record)` patches one record by id (write-through) and `remove(id)` drops one — so a write no longer busts the whole cache. With an optional `generation` source (the daemon's dolt HEAD etag), `load()` re-fetches only when the dataset moved, so a stable HEAD serves cached data. Existing `load()`/`invalidate()` callers are unchanged.
+- 33fdb36: beadsd now surfaces a **dataset etag** on every `ok` reply (GH-296, prx-ebk): the served clone's dolt HEAD hash — one cheap content-addressed generation token for the whole bead store. The daemon caches it (read on start + after each reconcile via `prx beads serve`'s `readHead`), so reads don't spawn dolt per request. Unchanged HEAD ⇒ nothing moved, so callers can validate caches and sync can short-circuit (skip redundant GitHub API calls) when the bead DB hasn't advanced. The field is optional; the daemon omits it when no HEAD source is wired.
+- 0b70ce5: `prx beads list` now accepts `--all` and `--limit <n>` (GH-296), exposing the aggregate read the wire contract already supported (`list { all, limit }`). `prx beads list --all --limit 0` returns every record across statuses — the shape the bulk readers need. First step of routing the bulk readers through the daemon (epic prx-697 / prx-fda).
+- 02e3ae4: beadsd writes are now durable (GH-296, sync-agent epic prx-697): the daemon's periodic refresh upgrades from a pull-only freshness step to a **full dolt reconcile** (commit local writes → pull → push). Daemon writes (create/update/close/reopen, which land in the served clone) are committed and pushed to the canonical remote on the interval, instead of sitting local until the next re-provision. Reuses the `dolt-reconcile` pipeline; quiet and non-throwing — if the push step lacks remote creds it's swallowed, and commit+pull still run (writes stay local, never lost). Leverages dolt's native sync (the data-sync framework) rather than a bespoke pusher.
+- c8ec403: Additive testability seams (behavior-preserving): `defaultProbe` and
+  `bdDelegatingSpawn` in dolt/start take an injectable spawn (default real), and
+  `defaultReadLedger`/`defaultWriteLedger` are now exported, so the bd-backed
+  start defaults are unit-testable. Production call sites pass nothing.
+- 0c8fec1: Additive testability seams (behavior-preserving): `readSubstrateWatermark` and
+  `defaultSubstrateRefresher` in the fetch freshness-gate take an injectable
+  reader/fetch (default to the real bd/gh implementations) so their outcomes are
+  unit-testable. Production call sites pass nothing.
+- a34de92: test(prx): cover the `prx ci` (local-ci) phase internals via a `{ run, capture }` subprocess seam
+
+  `phaseSpec` and `runPhase` now accept an optional `LocalCiRunners` seam
+  (defaulting to the real `defaultRunner`/`runCaptured`) and are exported, so the
+  spec-building, git-SHA bake, dist-dir prepare, and plain/json phase dispatch are
+  testable without spawning the heavy `bun`/`git` tools. Behavior is unchanged for
+  existing callers. Coverage 37% → 100%.
+
+- e6f4c58: Add the sync-agent build-vs-adopt decision (docs/spikes/prx-3eu): keep dolt as the data-sync framework (already adopted; the daemon's push durability leverages it), keep the bd↔GitHub reconcile bespoke (it's a cross-system transform, not replica sync), and do not adopt a generic sync/CRDT framework. The sync agent is an orchestrator over dolt + the existing reconciler.
+
 ## 0.8.1
 
 ### Patch Changes
