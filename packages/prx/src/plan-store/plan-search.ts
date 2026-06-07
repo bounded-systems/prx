@@ -21,9 +21,10 @@ import {
   searchGh,
   type IssueSearchHit,
 } from "../issues/search.ts";
-import { execBd } from "@bounded-systems/bd";
 import { execGh } from "@bounded-systems/gh";
-import { loadAllBeads, type BeadsRecord } from "../triage/triage.ts";
+import type { BeadsRecord } from "../triage/triage.ts";
+// GH-296: search is a scout-shaped aggregate read — route it through the daemon.
+import { loadAllBeadsViaDaemon } from "../beadsd/reads.ts";
 
 export const planSearchOptionsSchema = z.object({
   query: z.string().trim().min(1, "query must not be empty"),
@@ -51,20 +52,19 @@ export type PlanSearchRender = {
 
 export type PlanSearchDeps = {
   execGh?: typeof execGh;
-  execBd?: typeof execBd;
-  loadAllBeads?: typeof loadAllBeads;
+  /** GH-296: daemon-routed aggregate read (default {@link loadAllBeadsViaDaemon}). */
+  loadBeads?: () => Promise<BeadsRecord[]>;
 };
 
 const VERB = "prx plan search";
 
-export function runPlanSearch(
+export async function runPlanSearch(
   opts: PlanSearchOptions,
   output: Output,
   deps: PlanSearchDeps = {},
-): number {
+): Promise<number> {
   const ghExec = deps.execGh ?? execGh;
-  const bdExec = deps.execBd ?? execBd;
-  const loader = deps.loadAllBeads ?? loadAllBeads;
+  const loadBeads = deps.loadBeads ?? loadAllBeadsViaDaemon;
 
   let ghHits: PlanSearchHit[] = [];
   if (opts.source === "gh" || opts.source === "both") {
@@ -87,8 +87,8 @@ export function runPlanSearch(
       // set (for cross-source dedupe by external_ref). `searchBd` re-loads
       // internally, so we accept the small redundancy to keep the dedupe
       // path purely a function of the loaded records.
-      bdRecords = loader(bdExec, output.error);
-      bdHits = searchBd(opts.query, () => bdRecords ?? [], bdExec, opts.state);
+      bdRecords = await loadBeads();
+      bdHits = searchBd(opts.query, bdRecords, opts.state);
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       const fallback =

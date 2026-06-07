@@ -7,7 +7,6 @@ import {
   type PlanSearchOptions,
 } from "../../src/plan-store/plan-search.ts";
 import type { GhExecResult } from "@bounded-systems/gh";
-import type { BdExecResult } from "@bounded-systems/bd";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
 
 function makeOpts(overrides: Partial<PlanSearchOptions> = {}): PlanSearchOptions {
@@ -59,10 +58,10 @@ function bead(overrides: Partial<BeadsRecord> = {}): BeadsRecord {
   };
 }
 
-describe("runPlanSearch — GH paths", () => {
-  test("invokes gh issue list with --search/--state/--limit/--json", () => {
+describe("runPlanSearch — GH paths", async () => {
+  test("invokes gh issue list with --search/--state/--limit/--json", async () => {
     const calls: Array<{ group: string; subcommand: string; args: string[] }> = [];
-    runPlanSearch(
+    await runPlanSearch(
       makeOpts({ query: "plan session", state: "open", limit: 50 }),
       { log: () => undefined, error: () => undefined },
       {
@@ -70,7 +69,7 @@ describe("runPlanSearch — GH paths", () => {
           calls.push(opts);
           return ghList([]);
         }) as never,
-        loadAllBeads: (() => []) as never,
+        loadBeads: (async () => []) as never,
       },
     );
     expect(calls).toHaveLength(1);
@@ -82,9 +81,9 @@ describe("runPlanSearch — GH paths", () => {
     expect(calls[0]!.args).toContain("--json");
   });
 
-  test("--source beads skips the gh call entirely", () => {
+  test("--source beads skips the gh call entirely", async () => {
     let ghCalls = 0;
-    runPlanSearch(
+    await runPlanSearch(
       makeOpts({ query: "plan", source: "beads" }),
       { log: () => undefined, error: () => undefined },
       {
@@ -92,15 +91,15 @@ describe("runPlanSearch — GH paths", () => {
           ghCalls++;
           return ghList([]);
         }) as never,
-        loadAllBeads: (() => []) as never,
+        loadBeads: (async () => []) as never,
       },
     );
     expect(ghCalls).toBe(0);
   });
 
-  test("--source gh skips the bd loader entirely", () => {
+  test("--source gh skips the bd loader entirely", async () => {
     let bdCalls = 0;
-    runPlanSearch(
+    await runPlanSearch(
       makeOpts({ query: "plan", source: "gh" }),
       { log: () => undefined, error: () => undefined },
       {
@@ -108,7 +107,7 @@ describe("runPlanSearch — GH paths", () => {
           ghList([
             { number: 1, title: "plan thing", state: "OPEN", url: "u/1" },
           ])) as never,
-        loadAllBeads: (() => {
+        loadBeads: (async () => {
           bdCalls++;
           return [];
         }) as never,
@@ -117,14 +116,14 @@ describe("runPlanSearch — GH paths", () => {
     expect(bdCalls).toBe(0);
   });
 
-  test("propagates gh exit code on failure", () => {
+  test("propagates gh exit code on failure", async () => {
     const errors: string[] = [];
-    const exitCode = runPlanSearch(
+    const exitCode = await runPlanSearch(
       makeOpts(),
       { log: () => undefined, error: (l) => errors.push(l) },
       {
         execGh: (() => ghFail("gh: rate-limited", 2)) as never,
-        loadAllBeads: (() => []) as never,
+        loadBeads: (async () => []) as never,
       },
     );
     expect(exitCode).toBe(2);
@@ -132,10 +131,10 @@ describe("runPlanSearch — GH paths", () => {
   });
 });
 
-describe("runPlanSearch — dedupe by external_ref", () => {
-  test("collapses GH+bd pairs into a single hit with source='both'", () => {
+describe("runPlanSearch — dedupe by external_ref", async () => {
+  test("collapses GH+bd pairs into a single hit with source='both'", async () => {
     const logs: string[] = [];
-    runPlanSearch(
+    await runPlanSearch(
       makeOpts({ query: "plan", format: "json" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
@@ -148,7 +147,7 @@ describe("runPlanSearch — dedupe by external_ref", () => {
               url: "https://github.com/o/r/issues/1186",
             },
           ])) as never,
-        loadAllBeads: (() => [
+        loadBeads: (async () => [
           bead({
             id: "ai-home-aaa",
             title: "plan view + search",
@@ -167,9 +166,9 @@ describe("runPlanSearch — dedupe by external_ref", () => {
     expect(parsed.hits[0]!.beadId).toBe("ai-home-aaa");
   });
 
-  test("matches by issue number when bd record lacks external_ref but has externalIssueNumber", () => {
+  test("matches by issue number when bd record lacks external_ref but has externalIssueNumber", async () => {
     const logs: string[] = [];
-    runPlanSearch(
+    await runPlanSearch(
       makeOpts({ query: "plan", format: "json" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
@@ -182,7 +181,7 @@ describe("runPlanSearch — dedupe by external_ref", () => {
               url: "https://github.com/o/r/issues/7",
             },
           ])) as never,
-        loadAllBeads: (() => [
+        loadBeads: (async () => [
           bead({
             id: "ai-home-bbb",
             title: "plan thing",
@@ -199,14 +198,14 @@ describe("runPlanSearch — dedupe by external_ref", () => {
     expect(parsed.hits[0]!.beadId).toBe("ai-home-bbb");
   });
 
-  test("bd-only hits (no matching GH search hit) pass through with source='bd'", () => {
+  test("bd-only hits (no matching GH search hit) pass through with source='bd'", async () => {
     const logs: string[] = [];
-    runPlanSearch(
+    await runPlanSearch(
       makeOpts({ query: "alpha", format: "json" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
         execGh: (() => ghList([])) as never,
-        loadAllBeads: (() => [
+        loadBeads: (async () => [
           bead({ id: "ai-home-ccc", title: "alpha-only thing" }),
         ]) as never,
       },
@@ -219,9 +218,9 @@ describe("runPlanSearch — dedupe by external_ref", () => {
     expect(parsed.hits[0]!.source).toBe("bd");
   });
 
-  test("GH-only hits (no bd record claims the URL) pass through with source='gh'", () => {
+  test("GH-only hits (no bd record claims the URL) pass through with source='gh'", async () => {
     const logs: string[] = [];
-    runPlanSearch(
+    await runPlanSearch(
       makeOpts({ query: "lonely", format: "json" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
@@ -229,7 +228,7 @@ describe("runPlanSearch — dedupe by external_ref", () => {
           ghList([
             { number: 99, title: "lonely gh", state: "OPEN", url: "u/99" },
           ])) as never,
-        loadAllBeads: (() => [
+        loadBeads: (async () => [
           bead({ id: "ai-home-ddd", title: "unrelated" }),
         ]) as never,
       },
@@ -243,11 +242,11 @@ describe("runPlanSearch — dedupe by external_ref", () => {
   });
 });
 
-describe("runPlanSearch — graceful degradation", () => {
-  test("bd unreachable warns once and continues with GH-only results", () => {
+describe("runPlanSearch — graceful degradation", async () => {
+  test("bd unreachable warns once and continues with GH-only results", async () => {
     const errors: string[] = [];
     const logs: string[] = [];
-    const exitCode = runPlanSearch(
+    const exitCode = await runPlanSearch(
       makeOpts({ query: "plan" }),
       { log: (l) => logs.push(l), error: (l) => errors.push(l) },
       {
@@ -255,7 +254,7 @@ describe("runPlanSearch — graceful degradation", () => {
           ghList([
             { number: 1, title: "plan", state: "OPEN", url: "u/1" },
           ])) as never,
-        loadAllBeads: (() => {
+        loadBeads: (async () => {
           throw new Error("bd: database not found");
         }) as never,
       },
@@ -268,62 +267,19 @@ describe("runPlanSearch — graceful degradation", () => {
     expect(logs[0]).toContain("GH-1");
   });
 
-  test("bd list exits non-zero but emits a valid array: keeps the bd leg, warns, dedupes", () => {
-    const errors: string[] = [];
-    const logs: string[] = [];
-    const exitCode = runPlanSearch(
-      makeOpts({ query: "plan", format: "json" }),
-      { log: (l) => logs.push(l), error: (l) => errors.push(l) },
-      {
-        execGh: (() =>
-          ghList([
-            {
-              number: 1186,
-              title: "plan view + search",
-              state: "OPEN",
-              url: "https://github.com/o/r/issues/1186",
-            },
-          ])) as never,
-        // Real `loadAllBeads` (no deps override) so the parse-then-warn path runs.
-        execBd: (() =>
-          ({
-            exitCode: 1,
-            stdout: JSON.stringify([
-              {
-                id: "ai-home-aaa",
-                title: "plan view + search",
-                status: "open",
-                priority: 2,
-                issue_type: "task",
-                external_ref: "https://github.com/o/r/issues/1186",
-                metadata: null,
-              },
-            ]),
-            stderr: "dolt: push rejected (non-fast-forward)\n",
-            policy: null,
-          } as BdExecResult)) as never,
-      },
-    );
-    expect(exitCode).toBe(0);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain("exited non-zero but emitted a valid array");
-    expect(errors[0]).not.toContain("bd unreachable");
-    const parsed = JSON.parse(logs[0]!) as {
-      hits: Array<{ id: string; source: string; beadId?: string }>;
-    };
-    expect(parsed.hits).toHaveLength(1);
-    expect(parsed.hits[0]!.source).toBe("both");
-    expect(parsed.hits[0]!.beadId).toBe("ai-home-aaa");
-  });
+  // (Removed: "bd list exits non-zero but emits a valid array" — that tolerance
+  // lived in the local `loadAllBeads`; under the daemon (server-mode dolt) the
+  // post-listing push-rejection that produced it cannot occur, and the daemon
+  // owns the parse. The bd-unreachable → GH-only path below still covers errors.)
 
-  test("bd unreachable with --source beads warns 'no results' (no GH fallback)", () => {
+  test("bd unreachable with --source beads warns 'no results' (no GH fallback)", async () => {
     const errors: string[] = [];
-    const exitCode = runPlanSearch(
+    const exitCode = await runPlanSearch(
       makeOpts({ query: "plan", source: "beads" }),
       { log: () => undefined, error: (l) => errors.push(l) },
       {
         execGh: (() => ghList([])) as never,
-        loadAllBeads: (() => {
+        loadBeads: (async () => {
           throw new Error("bd: database not found");
         }) as never,
       },
@@ -334,14 +290,14 @@ describe("runPlanSearch — graceful degradation", () => {
     expect(errors[0]).not.toContain("GH-only");
   });
 
-  test("--state closed filters bd records by status (GH-1186 review)", () => {
+  test("--state closed filters bd records by status (GH-1186 review)", async () => {
     const logs: string[] = [];
-    runPlanSearch(
+    await runPlanSearch(
       makeOpts({ query: "plan", state: "closed", source: "beads", format: "json" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
         execGh: (() => ghList([])) as never,
-        loadAllBeads: (() => [
+        loadBeads: (async () => [
           bead({ id: "ai-home-open", title: "plan one", status: "open" }),
           bead({ id: "ai-home-closed", title: "plan two", status: "closed" }),
         ]) as never,
@@ -354,14 +310,14 @@ describe("runPlanSearch — graceful degradation", () => {
     expect(parsed.hits[0]!.id).toBe("ai-home-closed");
   });
 
-  test("plain output emits no-hits notice when both sources empty", () => {
+  test("plain output emits no-hits notice when both sources empty", async () => {
     const logs: string[] = [];
-    runPlanSearch(
+    await runPlanSearch(
       makeOpts({ query: "nonsense-xyzzy" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
         execGh: (() => ghList([])) as never,
-        loadAllBeads: (() => []) as never,
+        loadBeads: (async () => []) as never,
       },
     );
     expect(logs[0]).toContain("no hits");
@@ -369,13 +325,13 @@ describe("runPlanSearch — graceful degradation", () => {
   });
 });
 
-describe("planSearchOptionsSchema", () => {
-  test("rejects empty query", () => {
+describe("planSearchOptionsSchema", async () => {
+  test("rejects empty query", async () => {
     expect(() => planSearchOptionsSchema.parse({ query: "" })).toThrow();
     expect(() => planSearchOptionsSchema.parse({ query: "   " })).toThrow();
   });
 
-  test("defaults state=all, source=both, limit=20, format=plain", () => {
+  test("defaults state=all, source=both, limit=20, format=plain", async () => {
     const parsed = planSearchOptionsSchema.parse({ query: "x" });
     expect(parsed.state).toBe("all");
     expect(parsed.source).toBe("both");
@@ -383,21 +339,21 @@ describe("planSearchOptionsSchema", () => {
     expect(parsed.format).toBe("plain");
   });
 
-  test("rejects invalid state", () => {
+  test("rejects invalid state", async () => {
     expect(() =>
       planSearchOptionsSchema.parse({ query: "x", state: "bogus" }),
     ).toThrow();
   });
 
-  test("rejects invalid source", () => {
+  test("rejects invalid source", async () => {
     expect(() =>
       planSearchOptionsSchema.parse({ query: "x", source: "notion" }),
     ).toThrow();
   });
 });
 
-describe("formatPlanSearchRender", () => {
-  test("plain render with hits shows id/state/source/bd-id/title columns", () => {
+describe("formatPlanSearchRender", async () => {
+  test("plain render with hits shows id/state/source/bd-id/title columns", async () => {
     const out = formatPlanSearchRender(
       {
         query: "q",
@@ -426,7 +382,7 @@ describe("formatPlanSearchRender", () => {
     expect(lines[2]).toContain("ai-home-bbbb");
   });
 
-  test("json render is well-formed JSON with the full envelope", () => {
+  test("json render is well-formed JSON with the full envelope", async () => {
     const out = formatPlanSearchRender(
       { query: "q", state: "all", source: "both", hits: [] },
       "json",
