@@ -211,6 +211,23 @@ describe("runBeadsSync — push-leg short-circuit (GH-296 prx-lzw)", () => {
   });
 });
 
+describe("runBeadsSync — pull-leg conditional-read store (GH-296 prx-lzw)", () => {
+  test("flushes the pull-etag store once after the pull leg", async () => {
+    let flushes = 0;
+    const { deps, output } = baseDeps({
+      loadAllBeads: () => [pinned("bd-1", 101), pinned("bd-2", 102)],
+      adapter: fakeAdapter({ pull: async () => ({ status: "open" }) }),
+      pullEtagStore: {
+        get: () => undefined,
+        set: () => undefined,
+        flush: () => void (flushes += 1),
+      },
+    });
+    await runBeadsSync(opts(), output, deps);
+    expect(flushes).toBe(1); // one persist per tick, not per pair
+  });
+});
+
 describe("runBeadsSync — budget gate", () => {
   test("GraphQL remaining below threshold ⇒ budgetPaused, zero pairs, exit 0", async () => {
     let pullCalls = 0;
