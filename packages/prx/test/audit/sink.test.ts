@@ -186,6 +186,29 @@ describe("makeAuditInspector", () => {
     expect(exitB.durationMs).toBe(2_000);
   });
 
+  test("emits machine:pilot rows so pilot transitions are observable (GH-360)", () => {
+    const cap = makeCapture();
+    const m = setup({
+      types: {} as { events: { type: "ADVANCE" } },
+    }).createMachine({
+      id: "pilot",
+      initial: "planning",
+      states: {
+        planning: { on: { ADVANCE: "executing" } },
+        executing: { type: "final" },
+      },
+    });
+    const actor = createActor(m, {
+      inspect: makeAuditInspector("pilot", { workUnitId: "GH-360", deps: { ...cap.deps, stateDirOverride: "/tmp/s" } }),
+    });
+    actor.start();
+    actor.send({ type: "ADVANCE" });
+
+    const rows = cap.writes.map((w) => JSON.parse(w.line.trimEnd()));
+    expect(rows[0]).toMatchObject({ machine: "pilot", kind: "entry", state: "planning", workUnitId: "GH-360" });
+    expect(rows.find((r) => r.kind === "entry" && r.state === "executing")).toBeDefined();
+  });
+
   test("does not emit when state value is unchanged", () => {
     const cap = makeCapture();
     const m = setup({
