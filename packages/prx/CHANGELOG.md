@@ -1,5 +1,32 @@
 # @bounded-systems/prx
 
+## 0.8.0
+
+### Minor Changes
+
+- 3ffdce8: GH-411 slice 5 (finale): **remove the deprecated `ai-home` env-name aliases** and
+  flip the nix home-manager module to the neutral name. Breaking, by design.
+
+  - `operator-config.ts` / `build-info.ts` / `prx-compile.ts`: drop the
+    `PRX_AI_HOME_ROOT`, `BAKED_AI_HOME_ROOT`, `__PRX_BUILD_AI_HOME_ROOT__`, and
+    `PRX_COMPILE_AI_HOME_ROOT` read-aliases. Only the neutral names
+    (`PRX_OPERATOR_CONFIG_ROOT` / `BAKED_OPERATOR_CONFIG_ROOT` /
+    `__PRX_BUILD_OPERATOR_CONFIG_ROOT__` / `PRX_COMPILE_OPERATOR_CONFIG_ROOT`) are
+    read now.
+  - `nix/hm-module.nix`: the `programs.prx.aiHomeRoot` option →
+    `programs.prx.operatorConfigRoot` (exports `PRX_OPERATOR_CONFIG_ROOT`).
+
+  **Breaking — consumer action required.** Any home-manager config that sets
+  `programs.prx.aiHomeRoot` must rename it to `programs.prx.operatorConfigRoot`,
+  and any shell/env that exported `PRX_AI_HOME_ROOT` must export
+  `PRX_OPERATOR_CONFIG_ROOT`. Without the rename, `home-manager switch` fails with
+  an unknown-option error.
+
+### Patch Changes
+
+- 7b12e6a: Remove dead code (knip): the unused `machine/{index,events,state,derive-phase,invariants}.ts` re-export shims and the never-wired `pr-state/personal_sprintx.ts`. The personal-sprint metric/goal model is captured as a backlog idea in #438 for a future, properly-wired implementation.
+- c3a8b84: `BeadsResolver` (the canonical=bd hydrate path) now reads through beadsd (GH-296): the `BD-<8hex>` + external-ref snapshot scans use `loadAllBeadsViaDaemon` and the record fetch uses `showBeadViaDaemon`, instead of local `runBdShow`/`loadAllBeads`. Per the per-repo/single-workspace decision (one daemon = one repo; multi-tenant rejected), the resolver's `cwd` is vestigial — it routes to the single per-repo daemon. `toBdLongId` (used by `primePlanSession`'s canonical=bd fork) is now async.
+
 ## 0.7.4
 
 ### Patch Changes
