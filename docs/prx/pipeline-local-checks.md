@@ -1,10 +1,12 @@
 # Local CI in the pipeline — the `checking` gate + where health/OTEL belongs
 
-**Status:** slices 1–4 implemented (the signed `checking` gate, the real
+**Status:** shipped. Slices 1–4 implemented (the signed `checking` gate, the real
 `prx ci` seam, seam telemetry + the `prx ci` timeout, and the anchored telemetry
-digest in the signed summary); slice 6 (doc fold) is the only remainder. Pairs
-with the `ci: add job timeouts` workflow-hygiene PR and the act local-CI work
-(`docs/local-ci.md`).
+digest in the signed summary) plus the operator surface (`prx observe`); the
+canonical pipeline overview now lives in
+[`pipeline-orchestrator.md`](./pipeline-orchestrator.md) — this doc is the
+detailed design + rationale it links to. Pairs with the `ci: add job timeouts`
+workflow-hygiene PR and the act local-CI work (`docs/local-ci.md`).
 
 This answers two asks:
 
@@ -94,10 +96,11 @@ cycle, no new unbounded edge — the proof is preserved by construction.
 
 ### Naming cleanup (sub-decision)
 
-With a real local gate, disambiguate: local = `gate@checks-local`, remote =
-`gate@ci-remote`, and rename the `tester` LLM leg's `signs` from `gate@ci` to
-something honest (`review@validated`). **[NEEDS DECISION]** keep `tester` as an
-LLM validation leg after `checking`, or fold it in.
+With a real local gate, the names are disambiguated: local = `gate@checks-local`,
+remote = `gate@ci-remote`, and the `tester` LLM leg now signs `review@validated`
+(was the ambiguous `gate@ci`). **Decided:** `tester` stays an LLM validation leg
+after `checking` (the deterministic gate runs the checks; the tester leg reviews)
+— not folded in.
 
 ## 3. Where health / heartbeat / OTEL belongs
 
@@ -215,7 +218,9 @@ unreachable). Each is an independent, testable PR.
    `createTelemetryAnchor`)
 5. **✅ Naming cleanup (partial).** `tester` now signs `review@validated`; local
    gate is `gate@checks-local`, remote stays `gate@ci-remote`.
-6. **Docs.** Fold this into `docs/prx/pipeline-orchestrator.md`.
+6. **✅ Docs.** Folded the canonical overview (checking gate, the two hard-block
+   gates, observability + `prx observe`) into
+   `docs/prx/pipeline-orchestrator.md`; this doc remains the linked design detail.
 
 Shipped: **slices 1 + 2 (+ the §2 naming)** — local CI is now a signed gate in
 the pipeline. 3–4 harden health (incl. the deferred `prx ci` timeout); 6 is
