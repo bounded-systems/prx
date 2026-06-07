@@ -16,7 +16,6 @@
  * actor.
  */
 
-import { processEnv } from "@bounded-systems/env";
 import { defaultRunner } from "@bounded-systems/proc";
 import {
   readFileSync as nodeReadFileSync,
@@ -25,7 +24,8 @@ import {
 import { basename, relative } from "node:path";
 import { z } from "zod";
 
-import { execBd, type BdExecResult } from "@bounded-systems/bd";
+import { execBd } from "@bounded-systems/bd";
+import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import {
   publishOne,
   type BeadsPublishRender,
@@ -174,6 +174,8 @@ export type IntakeResult = {
 
 export type IntakeDeps = {
   execBd?: typeof execBd;
+  /** GH-296 / prx-82b — sync runner for the daemon-routed `prx beads create`. */
+  run?: CommandRunner;
   publishOne?: typeof publishOne;
   detectBranchName?: (cwd: string) => string | null;
   getRepoRoot?: (cwd: string) => string | null;
@@ -469,6 +471,7 @@ export function runIntake(
   const cwd = (deps.cwd ?? process.cwd)();
   const readStdin = deps.readStdin ?? defaultReadStdin;
   const readFile = deps.readFile ?? ((p: string) => nodeReadFileSync(p, "utf8"));
+  const run = deps.run ?? procRunner;
   const bdExec = deps.execBd ?? execBd;
   const publish = deps.publishOne ?? publishOne;
   const isStdinTTY = deps.isStdinTTY ?? defaultIsStdinTTY;
@@ -588,18 +591,10 @@ export function runIntake(
 
   // Step 1: bd create — the primary, canonical write. Planning-tier override
   // is required because the default executor role can't bd create/update.
-  const bdResult: BdExecResult = bdExec(
-    {
-      subcommand: "create",
-      args: bdCreateArgs,
-      state: "planning",
-      role: "planner",
-    },
-    processEnv(),
-  );
-  if (bdResult.exitCode !== 0) {
+  const bdResult = run(["prx", "beads", "create", ...bdCreateArgs], { check: false });
+  if (bdResult.status !== 0) {
     const detail =
-      bdResult.stderr.trim() || bdResult.stdout.trim() || "bd create failed";
+      bdResult.stderr.trim() || bdResult.stdout.trim() || "prx beads create failed";
     output.error(`prx intake: ${detail}`);
     const result: IntakeResult = {
       title,
@@ -612,25 +607,27 @@ export function runIntake(
       bdCreate: {
         args: bdCreateArgs,
         bdId: null,
-        exitCode: bdResult.exitCode,
+        exitCode: bdResult.status,
         stderr: bdResult.stderr,
       },
       publish: null,
-      exitCode: bdResult.exitCode || 1,
+      exitCode: bdResult.status || 1,
     };
     if (opts.format === "json") output.log(formatIntakeResult(result, "json"));
     return result.exitCode;
   }
 
-  // bd create --silent prints only the new id; be tolerant of trailing
-  // newlines or stray status lines by taking the last non-empty line.
-  const stdoutLines = bdResult.stdout
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-  const bdId = stdoutLines[stdoutLines.length - 1] ?? "";
+  // `prx beads create` echoes the created record as JSON; parse its id.
+  let bdId = "";
+  try {
+    const record = JSON.parse(bdResult.stdout) as { id?: unknown };
+    if (typeof record.id === "string") bdId = record.id;
+  } catch {
+    output.error("prx intake: prx beads create returned unparseable output");
+    return 1;
+  }
   if (!bdId) {
-    output.error("prx intake: bd create returned empty stdout");
+    output.error("prx intake: prx beads create returned no id");
     return 1;
   }
 
@@ -655,7 +652,7 @@ export function runIntake(
         extraLabels: labels,
         format: "plain",
       },
-      { execBd: bdExec },
+      { execBd: bdExec, run },
     );
     publishRender = publishResult.render;
     if (publishResult.exitCode !== 0) {
@@ -707,7 +704,9 @@ function buildBdCreateArgs(parts: {
   body: string;
   issueType: IntakeType;
 }): string[] {
-  const args: string[] = ["--silent", "--type", parts.issueType, "--title", parts.title];
+  // GH-296: `prx beads create` echoes the created record as JSON, so no `--silent`
+  // id-line is needed — we parse the record's id.
+  const args: string[] = ["--type", parts.issueType, "--title", parts.title];
   if (parts.body.length > 0) args.push("--description", parts.body);
   return args;
 }
