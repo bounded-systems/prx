@@ -1,7 +1,7 @@
 {
   "name": "@bounded-systems/git",
   "description": "Git CLI wrapper with policy enforcement and stale-lock recovery",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "sideEffects": false,
