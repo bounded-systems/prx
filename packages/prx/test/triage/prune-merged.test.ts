@@ -11,7 +11,7 @@ import { describe, expect, test } from "bun:test";
 
 import { runPruneMergedActor } from "../../src/triage/prune-merged.ts";
 import type { SurfaceSyncResult } from "@bounded-systems/surface-sync";
-import type { ParityChainApplyResult } from "../../src/pr-state/cli.ts";
+import type { ParityChainApplyResult } from "../../src/pr-state/cli-types.ts";
 import { makeRunBeadsSyncMock } from "./sync-mock.ts";
 import { invariantSpecs } from "@bounded-systems/machine-schema";
 

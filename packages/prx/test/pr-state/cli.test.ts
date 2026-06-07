@@ -31,7 +31,6 @@ import {
   CliError,
   ensureBeadsInitSetup,
   findBeadsIssuesByGithubIssue,
-  formatBeadsIssueMatches,
   ensureLocalRuntimeArtifacts,
   initContract,
   applyParityChainActions,
@@ -49,6 +48,7 @@ import {
 } from "../../src/pr-state/cli.ts";
 import { interactiveTimeoutMs } from "../../src/pr-state/work-agent.ts";
 import { findSavedClaudeSession, findSavedCodexSession } from "../../src/pr-state/session-finder.ts";
+import { formatBeadsIssueMatches } from "../../src/pr-state/cli-format.ts";
 import {
   prxSessionNotProjectedLocallyEnvelope,
   type PrxSessionNotProjectedLocallyDetails,
