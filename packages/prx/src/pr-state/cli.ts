@@ -997,6 +997,12 @@ import {
   readRateLimitAuditRows,
   type RateLimitAuditEntry,
 } from "@bounded-systems/github-budget";
+import { CliError } from "./cli-error.ts";
+import { type ExecutionWorkAgent, POLICY, buildWorkAutomationProfile, ensureExecutionWorkflowAgent, interactiveTimeoutMs, parseWorkAgentImplementation, validateWorkIoFormat } from "./work-agent.ts";
+
+// Re-export so the many `import { CliError } from ".../pr-state/cli.ts"` sites keep
+// working; the implementation now lives in the cli-error leaf.
+export { CliError, type CliErrorDetails } from "./cli-error.ts";
 
 // Shared default for the `SpawnLike` capture seams below. Routes through
 // @bounded-systems/proc (imported as procRunner) rather than the bucket-gated github.ts
@@ -3238,40 +3244,6 @@ type RuntimeArtifactStatus = {
   // and the `beads` workflow actor is `kind: cli`, not `mcp_server`.)
   mcpServers: string[];
 };
-
-/**
- * GH-2067: optional structured payload carried by {@link CliError}. The
- * session-plan command's `--format json` catch reads `details` to render a
- * stderr JSON envelope on a typed error branch (e.g. the not-yet-materialized
- * branch); when `details` is absent the error renders as today's plain-text
- * stderr line via `handleRunCliError`. Designed as a discriminated union so
- * additional sibling branches (no source, source closed, source not found,
- * unit complete, parity cleanup, epic refusal, board-read failure) can be
- * adopted one-at-a-time in follow-ups without further refactor.
- */
-export type CliErrorDetails = {
-  code: "PRX_SESSION_NOT_PROJECTED_LOCALLY";
-  message: string;
-  workUnitId: string;
-  source: string;
-  title: string;
-  url: string | null;
-  suggestedNextCommands: string[];
-};
-
-export class CliError extends Error {
-  exitCode: number;
-  details?: CliErrorDetails;
-
-  constructor(message: string, exitCode = 1, details?: CliErrorDetails) {
-    super(message);
-    this.exitCode = exitCode;
-    if (details !== undefined) {
-      this.details = details;
-    }
-  }
-}
-
 const buildMalformedAllowlistWarning = (path: string): string =>
   `warning: ${path} contains malformed JSON or is not a JSON object — leaving prx allowlist untouched; prx commands may prompt for permission`;
 
@@ -3435,118 +3407,6 @@ function defaultHooksPath(): string {
     );
   }
   return `${home}/.local/share/git-hooks`;
-}
-
-const workAgentAliases = {
-  "gh-copilot": "copilot",
-} as const satisfies Record<string, WorkAgentImplementation>;
-
-const executionWorkAgents = ["claude", "codex"] as const satisfies readonly WorkAgentImplementation[];
-type ExecutionWorkAgent = (typeof executionWorkAgents)[number];
-const executionWorkAgentSet = new Set<WorkAgentImplementation>(executionWorkAgents);
-
-type ExecutionPolicy = {
-  timeout_ms: number;
-  max_retries: number;
-  allowed_agents: readonly WorkAgentImplementation[];
-  temperature?: number;
-};
-
-export const POLICY: ExecutionPolicy = {
-  timeout_ms: 30000,
-  max_retries: 1,
-  allowed_agents: executionWorkAgents,
-  temperature: 0,
-};
-
-/** Returns undefined (no timeout) for interactive plain sessions; returns the policy timeout for automated json runs. */
-export function interactiveTimeoutMs(format: "plain" | "json", timeoutMs: number): number | undefined {
-  return format === "plain" ? undefined : timeoutMs;
-}
-
-function supportsExecutionWorkflowAgent(agent: WorkAgentImplementation): agent is ExecutionWorkAgent {
-  return executionWorkAgentSet.has(agent);
-}
-
-function ensureExecutionWorkflowAgent(agent: WorkAgentImplementation, flag = "--agent"): ExecutionWorkAgent {
-  if (supportsExecutionWorkflowAgent(agent)) {
-    return agent;
-  }
-  throw new CliError(
-    `Invalid value for ${flag}: ${agent}. Execution workflows currently support: ${POLICY.allowed_agents.join(", ")}.`,
-  );
-}
-
-function formatWorkAgentAliasMappings(): string {
-  return Object.entries(workAgentAliases)
-    .map(([alias, target]) => `${alias} -> ${target}`)
-    .join(", ");
-}
-
-function formatSupportedWorkAgents(): string {
-  const aliases = formatWorkAgentAliasMappings();
-  const base = workAgentImplementations.join(", ");
-  return aliases ? `${base} (aliases: ${aliases})` : base;
-}
-
-function validateWorkIoFormat(
-  agent: WorkAgentImplementation,
-  ioFormat: RuntimeIoFormat,
-): RuntimeIoFormat {
-  if (agent === "copilot" && ioFormat === "stream-json") {
-    throw new CliError("--io-format stream-json is not supported with --agent copilot");
-  }
-  return ioFormat;
-}
-
-function parseWorkAgentImplementation(value: string, flag: string): WorkAgentImplementation {
-  const normalized = workAgentAliases[value as keyof typeof workAgentAliases] ?? value;
-  if (workAgentImplementations.includes(normalized as WorkAgentImplementation)) {
-    return normalized as WorkAgentImplementation;
-  }
-  throw new CliError(`Invalid value for ${flag}: ${value}. Valid options: ${formatSupportedWorkAgents()}`);
-}
-
-function buildWorkAutomationProfile(
-  agent: WorkAgentImplementation,
-  workUnitId: string,
-  ioFormat: RuntimeIoFormat,
-  mode: RuntimeMode,
-): RuntimeProfileProjection {
-  if (agent === "codex") {
-    return buildWorkUnitCodexRuntimeProfile({
-      workUnitId,
-      ioFormat,
-      mode,
-    });
-  }
-  if (agent === "copilot") {
-    return buildWorkUnitCopilotRuntimeProfile({
-      workUnitId,
-      ioFormat,
-      mode,
-    });
-  }
-  if (agent === "gemini") {
-    return buildWorkUnitGeminiRuntimeProfile({
-      workUnitId,
-      ioFormat,
-      mode,
-    });
-  }
-  if (agent === "cursor") {
-    return buildWorkUnitCursorRuntimeProfile({
-      workUnitId,
-      ioFormat,
-      mode,
-    });
-  }
-  return buildWorkUnitClaudeRuntimeProfile({
-    agentId: workUnitId,
-    workUnitId,
-    ioFormat,
-    mode,
-  });
 }
 
 // Resolved canonical-ID helpers for the current CLI invocation. Lazily loaded
