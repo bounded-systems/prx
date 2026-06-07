@@ -15188,6 +15188,7 @@ describe("pr_state cli", () => {
       {
         buildDomainState: () => ({
           kind: "DomainStateV1",
+          ci: { verdict: "unchecked", freshness: "unknown" },
           taskContract: null,
           prState: {
             pr: {

@@ -93,6 +93,7 @@ describe("domain state", () => {
 
       expect(state).toMatchObject({
         kind: "DomainStateV1",
+        ci: { verdict: "unchecked", freshness: "unknown" },
         taskContract: {
           identity: {
             workUnitId: "GH-339",
