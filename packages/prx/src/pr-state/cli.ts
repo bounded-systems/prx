@@ -250,12 +250,6 @@ import {
   hookStatusHasDrift,
 } from "./hooks.ts";
 import {
-  actorsForScope,
-  eventOwnersForScope,
-  rawFieldOwnersForScope,
-  type ActorScope,
-} from "./actors.ts";
-import {
   allowedTransitions,
   assertValidTransition,
   canonicalPrEventAliases,
@@ -1001,7 +995,7 @@ import { CliError } from "./cli-error.ts";
 import { type ExecutionWorkAgent, POLICY, buildWorkAutomationProfile, ensureExecutionWorkflowAgent, interactiveTimeoutMs, parseWorkAgentImplementation, validateWorkIoFormat } from "./work-agent.ts";
 import { findSavedClaudeSession, resolveCodexSessionProfile } from "./session-finder.ts";
 import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type ParityChainApplyResult, type PlanCloseReason, type PlanCloseResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
-import { formatActionExecutionResult, formatActionPlan, formatActors, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatCreateCommand, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatGraph, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatModel, formatNextWork, formatOverview, formatParityChainApplyResults, formatPhase, formatPlanCloseResult, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatReadyCommand, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSkillCatalog, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktree, formatWorktreeRemove, formatWtStatus } from "./cli-format.ts";
+import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatCreateCommand, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatGraph, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatOverview, formatParityChainApplyResults, formatPhase, formatPlanCloseResult, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatReadyCommand, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSkillCatalog, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktree, formatWorktreeRemove, formatWtStatus } from "./cli-format.ts";
 import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, findWorktreeByDirectoryPrefix, listResolvedWorktrees, procSpawnLike, resolveRepoRootWithSpawn, runCommand, runInheritStatus, tryCommand } from "./cli-spawn.ts";
 
 // Shared default for the `SpawnLike` capture seams below. Routes through
@@ -2312,16 +2306,6 @@ type ParsedCommand =
   | {
       command: "phase";
       repoPath: string;
-      format: "plain" | "json";
-    }
-  | {
-      command: "actors";
-      scope: ActorScope;
-      format: "plain" | "json";
-    }
-  | {
-      command: "model";
-      scope: ActorScope;
       format: "plain" | "json";
     }
   | {
@@ -11894,42 +11878,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     return parseActionDoCommand(rest);
   }
 
-  if (command === "actors") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        scope: { type: "string", default: "pr" },
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command,
-      scope: ensureChoice(values.scope, ["pr", "workflow"], "--scope"),
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
-
-  if (command === "model") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        scope: { type: "string", default: "pr" },
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command,
-      scope: ensureChoice(values.scope, ["pr", "workflow"], "--scope"),
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
-
   if (command === "sprint") {
     const [action, ...sprintArgs] = rest;
     const sprintAction = ensureChoice(
@@ -16529,10 +16477,19 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     ) {
       return runSpecVerb(orchestratorVerb, orchestratorRest, output);
     }
-    // `model graph` is the documented catalog alias for the top-level `graph`
-    // verb (the legacy `model` namespace normalized it to `graph`).
-    if (orchestratorVerb === "model" && orchestratorRest[0] === "graph") {
-      return runSpecVerb("graph", orchestratorRest.slice(1), output);
+    // The `model` namespace's spec-driven catalog reads. `model graph` aliases
+    // the top-level `graph` verb; `model actors` → `actors`; `model show` and
+    // bare `model` → `model`. `model stately` (clipboard/open) is not yet a verb
+    // and falls through to the legacy handler.
+    if (orchestratorVerb === "model") {
+      const sub = orchestratorRest[0];
+      if (sub === "graph") return runSpecVerb("graph", orchestratorRest.slice(1), output);
+      if (sub === "actors") return runSpecVerb("actors", orchestratorRest.slice(1), output);
+      if (sub === "show") return runSpecVerb("model", orchestratorRest.slice(1), output);
+      if (sub === undefined || sub.startsWith("-")) return runSpecVerb("model", orchestratorRest, output);
+    }
+    if (orchestratorVerb === "actors") {
+      return runSpecVerb("actors", orchestratorRest, output);
     }
     if (orchestratorVerb === "plugin") {
       return runPluginVerb(orchestratorRest, output);
@@ -23856,16 +23813,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     if (parsed.command === "statusline") {
       const plan = (deps.nextAction ?? nextAction)(parsed.repoPath);
       output.log(formatStatusLine(plan, parsed.format));
-      return 0;
-    }
-
-    if (parsed.command === "actors") {
-      output.log(formatActors(parsed.scope, parsed.format));
-      return 0;
-    }
-
-    if (parsed.command === "model") {
-      output.log(formatModel(parsed.scope, parsed.format));
       return 0;
     }
 
