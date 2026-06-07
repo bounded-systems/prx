@@ -4,6 +4,7 @@ import {
   runHomeUpdate,
   resolveFlakeDir,
   resolveInputNames,
+  readConfiguredHomeUpdateInputs,
   type HomeUpdateOptions,
   type HomeUpdateDeps,
   type HomeUpdateSpawnResult,
@@ -103,19 +104,31 @@ describe("resolveFlakeDir", () => {
 });
 
 describe("resolveInputNames", () => {
-  test("flag beats env beats default ai-home", () => {
+  test("flag beats env beats config beats the ['prx'] default (GH-411 slice 3)", () => {
+    // flag wins over everything
     expect(
-      resolveInputNames({ input: "custom", dryRun: false, format: "plain" }, {}),
+      resolveInputNames(
+        { input: "custom", dryRun: false, format: "plain" },
+        { PRX_HOME_FLAKE_INPUT: "env-input" },
+        ["cfg"],
+      ),
     ).toEqual(["custom"]);
+    // env wins over config
     expect(
       resolveInputNames(
         { dryRun: false, format: "plain" },
         { PRX_HOME_FLAKE_INPUT: "env-input" },
+        ["cfg"],
       ),
     ).toEqual(["env-input"]);
-    expect(resolveInputNames({ dryRun: false, format: "plain" }, {})).toEqual([
-      "ai-home",
-    ]);
+    // config wins over the standalone default
+    expect(
+      resolveInputNames({ dryRun: false, format: "plain" }, {}, ["prx", "ai-home"]),
+    ).toEqual(["prx", "ai-home"]);
+    // nothing requested or configured → standalone default ['prx']
+    expect(resolveInputNames({ dryRun: false, format: "plain" }, {})).toEqual(["prx"]);
+    expect(resolveInputNames({ dryRun: false, format: "plain" }, {}, [])).toEqual(["prx"]);
+    expect(resolveInputNames({ dryRun: false, format: "plain" }, {}, null)).toEqual(["prx"]);
   });
 
   test("prx-9lc: splits a comma-separated list, trims, drops empties", () => {
@@ -128,10 +141,50 @@ describe("resolveInputNames", () => {
         {},
       ),
     ).toEqual(["prx", "ai-home"]);
-    // An all-empty list falls back to the bare default.
+    // An all-empty list falls back to config, then the standalone default.
+    expect(
+      resolveInputNames({ input: ",,", dryRun: false, format: "plain" }, {}, ["prx", "ai-home"]),
+    ).toEqual(["prx", "ai-home"]);
     expect(
       resolveInputNames({ input: ",,", dryRun: false, format: "plain" }, {}),
-    ).toEqual(["ai-home"]);
+    ).toEqual(["prx"]);
+  });
+});
+
+describe("readConfiguredHomeUpdateInputs (GH-411 slice 3)", () => {
+  const config = (obj: unknown) => ({
+    homeDir: "/home/op",
+    pathExists: (p: string) => p === "/home/op/.config/prx/config.json",
+    readFile: () => JSON.stringify(obj),
+  });
+
+  test("reads homeUpdate.inputs, trims, drops empties", () => {
+    expect(
+      readConfiguredHomeUpdateInputs(config({ homeUpdate: { inputs: [" prx ", "", "ai-home"] } })),
+    ).toEqual(["prx", "ai-home"]);
+  });
+
+  test("null when no config file", () => {
+    expect(
+      readConfiguredHomeUpdateInputs({ homeDir: "/home/op", pathExists: () => false }),
+    ).toBeNull();
+  });
+
+  test("null when the block / inputs are absent or non-array", () => {
+    expect(readConfiguredHomeUpdateInputs(config({}))).toBeNull();
+    expect(readConfiguredHomeUpdateInputs(config({ homeUpdate: {} }))).toBeNull();
+    expect(readConfiguredHomeUpdateInputs(config({ homeUpdate: { inputs: "prx" } }))).toBeNull();
+    expect(readConfiguredHomeUpdateInputs(config({ homeUpdate: { inputs: [] } }))).toBeNull();
+  });
+
+  test("null on malformed JSON (never breaks upgrade)", () => {
+    expect(
+      readConfiguredHomeUpdateInputs({
+        homeDir: "/home/op",
+        pathExists: () => true,
+        readFile: () => "{ not json",
+      }),
+    ).toBeNull();
   });
 });
 
@@ -350,7 +403,7 @@ describe("runHomeUpdate", () => {
     });
 
     const exit = runHomeUpdate(
-      { flakeDir: "/fake/flake", dryRun: false, format: "plain" },
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "plain" },
       fx.output,
       fx.deps,
     );
@@ -454,7 +507,7 @@ describe("runHomeUpdate", () => {
     });
 
     const exit = runHomeUpdate(
-      { flakeDir: "/fake/flake", dryRun: true, format: "plain" },
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: true, format: "plain" },
       fx.output,
       fx.deps,
     );
@@ -475,7 +528,7 @@ describe("runHomeUpdate", () => {
     });
 
     const exit = runHomeUpdate(
-      { flakeDir: "/fake/flake", dryRun: true, format: "json" },
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: true, format: "json" },
       fx.output,
       fx.deps,
     );
@@ -548,7 +601,7 @@ describe("runHomeUpdate", () => {
     });
 
     const exit = runHomeUpdate(
-      { flakeDir: "/fake/flake", dryRun: false, format: "plain" },
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "plain" },
       fx.output,
       fx.deps,
     );
@@ -566,7 +619,7 @@ describe("runHomeUpdate", () => {
     });
 
     const exit = runHomeUpdate(
-      { flakeDir: "/fake/flake", dryRun: false, format: "plain" },
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "plain" },
       fx.output,
       fx.deps,
     );
@@ -584,7 +637,7 @@ describe("runHomeUpdate", () => {
     });
 
     const exit = runHomeUpdate(
-      { flakeDir: "/fake/flake", dryRun: false, format: "plain" },
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "plain" },
       fx.output,
       fx.deps,
     );
@@ -631,7 +684,7 @@ describe("runHomeUpdate", () => {
     });
 
     const exit = runHomeUpdate(
-      { flakeDir: "/fake/flake", dryRun: false, format: "plain" },
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "plain" },
       fx.output,
       fx.deps,
     );
@@ -650,7 +703,7 @@ describe("runHomeUpdate", () => {
     });
 
     const exit = runHomeUpdate(
-      { flakeDir: "/fake/flake", dryRun: false, format: "plain" },
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "plain" },
       fx.output,
       fx.deps,
     );
@@ -667,7 +720,7 @@ describe("runHomeUpdate", () => {
     });
 
     const exit = runHomeUpdate(
-      { flakeDir: "/fake/flake", dryRun: false, format: "plain" },
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "plain" },
       fx.output,
       fx.deps,
     );
@@ -764,7 +817,7 @@ describe("runHomeUpdate", () => {
     });
 
     const exit = runHomeUpdate(
-      { flakeDir: "/fake/flake", dryRun: false, format: "json" },
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "json" },
       fx.output,
       fx.deps,
     );
@@ -786,7 +839,7 @@ describe("runHomeUpdate", () => {
     });
 
     runHomeUpdate(
-      { flakeDir: "/fake/flake", dryRun: false, format: "plain" },
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "plain" },
       fx.output,
       fx.deps,
     );
@@ -803,7 +856,7 @@ describe("runHomeUpdate", () => {
     });
 
     const exit = runHomeUpdate(
-      { flakeDir: "/fake/flake", dryRun: false, format: "json" },
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "json" },
       fx.output,
       fx.deps,
     );

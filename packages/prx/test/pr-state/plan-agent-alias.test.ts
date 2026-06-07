@@ -30,28 +30,22 @@ describe("prx plan agent alias (prx-383)", () => {
   });
 });
 
-describe("prx upgrade self-update alias (prx-1ab, prx-9lc)", () => {
-  test("`prx upgrade` updates the coupled prx,ai-home pair via home-update", () => {
-    // prx-9lc: prx and ai-home must move together — ai-home consumes prx's hm
-    // modules, so bumping only `prx` lets a stale ai-home reference a removed
-    // option and abort `home-manager switch`.
-    expect(normalizeNamespaceArgv(["upgrade"])).toEqual([
-      "home-update",
-      "--input",
-      "prx,ai-home",
-    ]);
+describe("prx upgrade self-update alias (prx-1ab, prx-9lc, GH-411 slice 3)", () => {
+  test("`prx upgrade` passes through to home-update (coupled set comes from config)", () => {
+    // GH-411 slice 3: the coupled input set is no longer hardcoded here —
+    // home-update resolves it from `homeUpdate.inputs` in ~/.config/prx/config.json
+    // (falling back to `["prx"]`). `prx upgrade` is now a thin alias.
+    expect(normalizeNamespaceArgv(["upgrade"])).toEqual(["home-update"]);
   });
 
   test("tail flags pass through", () => {
     expect(normalizeNamespaceArgv(["upgrade", "--dry-run"])).toEqual([
       "home-update",
-      "--input",
-      "prx,ai-home",
       "--dry-run",
     ]);
   });
 
-  test("an explicit --input overrides the prx,ai-home default", () => {
+  test("an explicit --input still overrides the configured set", () => {
     expect(normalizeNamespaceArgv(["upgrade", "--input", "ai-home"])).toEqual([
       "home-update",
       "--input",
