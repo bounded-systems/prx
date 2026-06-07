@@ -13566,9 +13566,11 @@ describe("pr_state cli", () => {
     expect(errors[0]).toContain("CI is not pending or running");
   });
 
-  test("do executes an enabled skill action through the gated command path", () => {
+  test("do executes an enabled skill action through the gated command path", async () => {
     const contractPath = makeContractFile("drafting", false);
-    const exitCode = runCliDirect(
+    // `do` dispatches the skill action through the `event` VerbSpec, so the
+    // gated path is async now.
+    const exitCode = await runCliDirect(
       ["do", "pr.validate", "--contract", contractPath],
       {
         log: () => {},
@@ -13675,9 +13677,9 @@ describe("pr_state cli", () => {
     expect(contract.pr!.lifecycle!.reason).toBe("CI is still pending/running");
   });
 
-  test("do lets explicit actor and reason override derived action metadata", () => {
+  test("do lets explicit actor and reason override derived action metadata", async () => {
     const contractPath = makeContractFile("drafting", false);
-    const exitCode = runCliDirect(
+    const exitCode = await runCliDirect(
       ["do", "pr.validate", "--contract", contractPath, "--actor", "codex", "--reason", "manual override"],
       {
         log: () => {},
