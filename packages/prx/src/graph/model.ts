@@ -2,7 +2,7 @@
 // schema.org, with `@id`s rooted at the GitHub repo. It is the *token store*
 // the README (and any external consumer) reads its facts from — `build.ts`
 // projects `community/community.json` + each package's `description` into this
-// graph, `scripts/gen-jsonld.ts` serializes it to the hostable `prx.jsonld`,
+// graph, the `prx docs` verb serializes it to the hostable `prx.jsonld`,
 // and `src/readme/build.ts` reads its tokens back out of it.
 //
 // schema.org covers most of it (`SoftwareSourceCode`, `CreativeWork`,

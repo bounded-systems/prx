@@ -67,17 +67,24 @@ export const docsVerb = defineVerb({
   actor: "work",
   input: z.object({
     check: z.boolean().optional().describe("validate drift instead of writing files"),
+    only: z.string().optional().describe("restrict to one target: jsonld|readme|community|cli|claude-context"),
   }),
   output: DocsReport,
-  run: async ({ check = false }): Promise<DocsReport> => {
+  run: async ({ check = false, only }): Promise<DocsReport> => {
     const root = getRepoRoot();
-    const targets = await collectTargets(root);
+    const all = await collectTargets(root);
+    // `--only X` selects target X (and community:* for `--only community`); an
+    // explicit selection is always checked, even cli (which the aggregate skips).
+    const targets = only ? all.filter((t) => t.name === only || t.name.startsWith(`${only}:`)) : all;
+    if (only && targets.length === 0) {
+      throw new Error(`unknown docs target: ${only} (expected jsonld|readme|community|cli|claude-context)`);
+    }
     const results: DocsReport["targets"] = [];
     let driftCount = 0;
     for (const t of targets) {
       const path = relative(root, t.path) || t.path;
       if (check) {
-        if (!t.gated) {
+        if (!t.gated && !only) {
           results.push({ name: t.name, path, status: "skipped" });
           continue;
         }

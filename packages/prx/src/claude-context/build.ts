@@ -4,7 +4,7 @@
 // it auto-loads, while the committed file stays verifiable in CI.
 //
 // Everything here is projected from existing sources, so the doc can never go
-// stale: `scripts/gen-claude-context.ts` (--check) and the markdown drift tests
+// stale: the `prx docs` verb (--check) and the markdown drift tests
 // fail if it drifts from the graph or the scripts.
 
 import { readFileSync } from "node:fs";

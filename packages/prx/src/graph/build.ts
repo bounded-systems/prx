@@ -1,6 +1,6 @@
 // Project `community/community.json` + per-package descriptions into the
 // JSON-LD `@graph` defined in `model.ts`. This is the single place the facts
-// are assembled into linked data; `scripts/gen-jsonld.ts` serializes the result
+// are assembled into linked data; the `prx docs` verb serializes the result
 // to the hostable `prx.jsonld`, and `src/readme/build.ts` reads its tokens back
 // out, so the README and the published graph cannot disagree.
 
