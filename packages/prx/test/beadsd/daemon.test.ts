@@ -281,6 +281,39 @@ describe("runBeadsServe (unix socket, end-to-end)", () => {
     expect(res.result).toEqual([{ id: "prx-abb" }]);
   });
 
+  test("runs the freshness refresh on start, then on the interval (GH-296)", async () => {
+    const { execBd } = fakeBd();
+    let refreshes = 0;
+    socketPath = join(tmpdir(), `beadsd-refresh-${process.pid}-${counter++}.sock`);
+    server = await runBeadsServe({
+      socketPath,
+      deps: { execBd },
+      refresh: () => {
+        refreshes += 1;
+      },
+      refreshIntervalMs: 20,
+    });
+    expect(refreshes).toBe(1); // initial pull, synchronously on start
+    await new Promise((r) => setTimeout(r, 70));
+    expect(refreshes).toBeGreaterThan(1); // interval fired at least once more
+  });
+
+  test("a throwing refresh never crashes the daemon", async () => {
+    const { execBd } = fakeBd(okResult(JSON.stringify([{ id: "prx-abb" }])));
+    socketPath = join(tmpdir(), `beadsd-refresh-throw-${process.pid}-${counter++}.sock`);
+    server = await runBeadsServe({
+      socketPath,
+      deps: { execBd },
+      refresh: () => {
+        throw new Error("pull failed");
+      },
+      refreshIntervalMs: 0, // once on start only
+    });
+    // The daemon still serves despite the refresh throwing.
+    const res = (await sendFrame(socketPath, READY)) as { status: string };
+    expect(res.status).toBe("ok");
+  });
+
   test("replies bad-request for a frame that violates the contract (daemon stays up)", async () => {
     const { execBd } = fakeBd();
     const path = await start({ execBd });
