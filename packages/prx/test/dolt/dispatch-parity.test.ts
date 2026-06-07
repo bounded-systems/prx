@@ -16,10 +16,10 @@ import {
   DOLT_VERB_DISPATCH,
 } from "../../src/dolt/schema.ts";
 import {
-  CliError,
   normalizeNamespaceArgv,
   parseCommand,
 } from "../../src/pr-state/cli.ts";
+import { CliError } from "../../src/pr-state/cli-error.ts";
 import { prxCommandRegistry } from "../../src/cli/registry.data.ts";
 
 describe("dolt dispatch parity (GH-2129)", () => {

@@ -1003,10 +1003,6 @@ import { findSavedClaudeSession, resolveCodexSessionProfile } from "./session-fi
 import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type ParityChainApplyResult, type PlanCloseReason, type PlanCloseResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
 import { formatActionExecutionResult, formatActionPlan, formatActors, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatCreateCommand, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatGraph, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatModel, formatNextWork, formatOverview, formatParityChainApplyResults, formatPhase, formatPlanCloseResult, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatReadyCommand, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSkillCatalog, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktree, formatWorktreeRemove, formatWtStatus } from "./cli-format.ts";
 
-// Re-export so the many `import { CliError } from ".../pr-state/cli.ts"` sites keep
-// working; the implementation now lives in the cli-error leaf.
-export { CliError, type CliErrorDetails } from "./cli-error.ts";
-
 // Shared default for the `SpawnLike` capture seams below. Routes through
 // @bounded-systems/proc (imported as procRunner) rather than the bucket-gated github.ts
 // defaultRunner — these are plain git/bd/tmux capture calls that must stay

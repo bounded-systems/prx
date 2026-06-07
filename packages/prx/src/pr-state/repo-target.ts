@@ -3,7 +3,7 @@
 // from the inline block in `primePlanSession` so both verbs error with the
 // same byte-for-byte phrasing and route the same materialize call.
 
-import { CliError } from "./cli.ts";
+import { CliError } from "./cli-error.ts";
 import {
   discoverLocalRepos,
   findRepoBySlug,

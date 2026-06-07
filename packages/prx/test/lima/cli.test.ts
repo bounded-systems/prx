@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { CliError, normalizeNamespaceArgv, parseCommand } from "../../src/pr-state/cli.ts";
+import { normalizeNamespaceArgv, parseCommand } from "../../src/pr-state/cli.ts";
+import { CliError } from "../../src/pr-state/cli-error.ts";
 
 /** Mirror runCli: normalize the namespace argv, then parse. */
 const parse = (argv: string[]) => parseCommand(normalizeNamespaceArgv(argv));

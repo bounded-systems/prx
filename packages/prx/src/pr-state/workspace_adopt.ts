@@ -12,7 +12,7 @@
 // preserves `adopted_at`; only `dirty` is allowed to drift on re-adopt.
 
 import { resolve } from "node:path";
-import { CliError } from "./cli.ts";
+import { CliError } from "./cli-error.ts";
 import { defaultRepoRunner, type RepoRunner } from "./repos.ts";
 import {
   BranchStore,

@@ -11,7 +11,7 @@
 // returns `already-adopted` and preserves `adopted_at`.
 
 import { resolve } from "node:path";
-import { CliError } from "./cli.ts";
+import { CliError } from "./cli-error.ts";
 import { defaultRepoRunner, type RepoRunner } from "./repos.ts";
 import {
   BranchStore,
