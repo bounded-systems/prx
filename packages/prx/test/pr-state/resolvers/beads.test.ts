@@ -1,9 +1,10 @@
 // GH-1766 — BeadsResolver: hydrate path for canonical=bd plan sessions.
+// GH-296: reads route through beadsd (one daemon = one repo); the resolver's
+// deps are the daemon readers (showBead / loadBeads).
 
 import { describe, expect, test } from "bun:test";
 
 import { BeadsResolver } from "../../../src/pr-state/resolvers/beads.ts";
-import type { BdShowResult } from "@bounded-systems/bd";
 import type { BeadsRecord } from "../../../src/triage/triage.ts";
 
 const longId = "ai-home-1777747201085-737-407f177f";
@@ -25,29 +26,13 @@ function bead(overrides: Partial<BeadsRecord> = {}): BeadsRecord {
   };
 }
 
-function showOk(record: BeadsRecord): BdShowResult {
-  return {
-    ok: true,
-    record: {
-      id: record.id,
-      title: record.title,
-      description: record.description,
-      status: record.status,
-      priority: record.priority,
-      issueType: record.issueType,
-    },
-    stdout: "",
-    stderr: "",
-  };
-}
-
 describe("BeadsResolver.fetch", () => {
   test("BD-<8hex> input resolves via the snapshot, hydrates open record", async () => {
     const resolver = new BeadsResolver("/tmp/repo", {
-      loadAllBeads: () => [bead()],
-      bdShow: (id) => {
+      loadBeads: async () => [bead()],
+      showBead: async (id) => {
         expect(id).toBe(longId);
-        return showOk(bead());
+        return bead();
       },
     });
     const resolved = await resolver.fetch("BD-407F177F");
@@ -63,8 +48,8 @@ describe("BeadsResolver.fetch", () => {
 
   test("closed bd record surfaces as state=closed", async () => {
     const resolver = new BeadsResolver("/tmp/repo", {
-      loadAllBeads: () => [bead({ status: "closed" })],
-      bdShow: () => showOk(bead({ status: "closed" })),
+      loadBeads: async () => [bead({ status: "closed" })],
+      showBead: async () => bead({ status: "closed" }),
     });
     const resolved = await resolver.fetch("BD-407F177F");
     expect(resolved.state).toBe("closed");
@@ -75,51 +60,56 @@ describe("BeadsResolver.fetch", () => {
     expect(resolver.name).toBe("beads");
   });
 
-  test("toBdLongId — BD-<8hex> short form resolves through the snapshot", () => {
+  test("toBdLongId — BD-<8hex> short form resolves through the snapshot", async () => {
     const resolver = new BeadsResolver("/tmp/repo", {
-      loadAllBeads: () => [bead()],
-      bdShow: () => showOk(bead()),
+      loadBeads: async () => [bead()],
+      showBead: async () => bead(),
     });
-    expect(resolver.toBdLongId("BD-407F177F")).toBe(longId);
+    expect(await resolver.toBdLongId("BD-407F177F")).toBe(longId);
   });
 
-  test("toBdLongId — BD-<workspace>-<tail> long form delegates to the adapter", () => {
+  test("toBdLongId — BD-<workspace>-<tail> long form delegates to the adapter", async () => {
     const resolver = new BeadsResolver("/tmp/repo", {
-      loadAllBeads: () => [],
-      bdShow: () => showOk(bead()),
+      loadBeads: async () => [],
+      showBead: async () => bead(),
     });
     // The covering BdDomainAdapter consults process.cwd() for the local
     // workspace prefix; for this synthetic test we accept the foreign-prefix
     // throw and just verify the dispatch reaches the adapter path.
-    expect(() => resolver.toBdLongId("BD-foreign-prefix-1778515181936-7-edba9d4a")).toThrow();
+    await expect(resolver.toBdLongId("BD-foreign-prefix-1778515181936-7-edba9d4a")).rejects.toThrow();
   });
 
-  test("toBdLongId — bare bd-native long id passes through verbatim", () => {
+  test("toBdLongId — bare bd-native long id passes through verbatim", async () => {
     const resolver = new BeadsResolver("/tmp/repo");
-    expect(resolver.toBdLongId(longId)).toBe(longId);
+    expect(await resolver.toBdLongId(longId)).toBe(longId);
   });
 
   test("missing bd record (snapshot empty) → BeadsResolverError", async () => {
     const resolver = new BeadsResolver("/tmp/repo", {
-      loadAllBeads: () => [],
-      bdShow: () => showOk(bead()),
+      loadBeads: async () => [],
+      showBead: async () => bead(),
     });
     await expect(resolver.fetch("BD-deadbeef")).rejects.toThrow(
       /bd record not found/,
     );
   });
 
-  test("bd show non-zero exit → BeadsResolverError", async () => {
+  test("bd show failure → BeadsResolverError", async () => {
     const resolver = new BeadsResolver("/tmp/repo", {
-      loadAllBeads: () => [bead()],
-      bdShow: () => ({
-        ok: false,
-        exitCode: 2,
-        stdout: "",
-        stderr: "boom",
-      }),
+      loadBeads: async () => [bead()],
+      showBead: async () => {
+        throw new Error("beadsd show: bd-read: boom");
+      },
     });
-    await expect(resolver.fetch("BD-407F177F")).rejects.toThrow(/bd show .* exit 2/);
+    await expect(resolver.fetch("BD-407F177F")).rejects.toThrow(/bd show .*boom/);
+  });
+
+  test("bd show returns null (not found) → BeadsResolverError", async () => {
+    const resolver = new BeadsResolver("/tmp/repo", {
+      loadBeads: async () => [bead()],
+      showBead: async () => null,
+    });
+    await expect(resolver.fetch("BD-407F177F")).rejects.toThrow(/record not found/);
   });
 
   // GH-852: external_ref lookup arm — non-BD canonical ids resolve via
@@ -130,10 +120,10 @@ describe("BeadsResolver.fetch", () => {
     });
     const resolver = new BeadsResolver("/tmp/repo", {
       externalRefPrefix: "proj",
-      loadAllBeads: () => [bead({ id: "other", externalRefs: { proj: "proj-1" } }), tagged],
-      bdShow: (id) => {
+      loadBeads: async () => [bead({ id: "other", externalRefs: { proj: "proj-1" } }), tagged],
+      showBead: async (id) => {
         expect(id).toBe(longId);
-        return showOk(tagged);
+        return tagged;
       },
     });
     const resolved = await resolver.fetch("PROJ-5743");
@@ -154,8 +144,8 @@ describe("BeadsResolver.fetch", () => {
     const tagged = bead({ externalRef: "proj-5743", externalRefs: {} });
     const resolver = new BeadsResolver("/tmp/repo", {
       externalRefPrefix: "proj",
-      loadAllBeads: () => [tagged],
-      bdShow: () => showOk(tagged),
+      loadBeads: async () => [tagged],
+      showBead: async () => tagged,
     });
     const resolved = await resolver.fetch("PROJ-5743");
     expect(resolved.id).toBe("PROJ-5743");
@@ -165,8 +155,8 @@ describe("BeadsResolver.fetch", () => {
   test("external_ref miss — empty snapshot throws structured error", async () => {
     const resolver = new BeadsResolver("/tmp/repo", {
       externalRefPrefix: "proj",
-      loadAllBeads: () => [],
-      bdShow: () => showOk(bead()),
+      loadBeads: async () => [],
+      showBead: async () => bead(),
     });
     await expect(resolver.fetch("PROJ-5743")).rejects.toThrow(
       /no bd row with external_ref proj-5743 in \/tmp\/repo/,
@@ -179,8 +169,8 @@ describe("BeadsResolver.fetch", () => {
       // Row carries a `product` external-ref, not the configured `proj`
       // domain — the registry walk landed on proj-beads, so this row
       // should not satisfy the lookup.
-      loadAllBeads: () => [bead({ externalRefs: { product: "product-5743" } })],
-      bdShow: () => showOk(bead()),
+      loadBeads: async () => [bead({ externalRefs: { product: "product-5743" } })],
+      showBead: async () => bead(),
     });
     await expect(resolver.fetch("PROJ-5743")).rejects.toThrow(
       /no bd row with external_ref proj-5743/,
@@ -189,8 +179,8 @@ describe("BeadsResolver.fetch", () => {
 
   test("no external_ref_prefix configured — non-BD canonical id is a structured error", async () => {
     const resolver = new BeadsResolver("/tmp/repo", {
-      loadAllBeads: () => [bead({ externalRefs: { proj: "proj-5743" } })],
-      bdShow: () => showOk(bead()),
+      loadBeads: async () => [bead({ externalRefs: { proj: "proj-5743" } })],
+      showBead: async () => bead(),
     });
     await expect(resolver.fetch("PROJ-5743")).rejects.toThrow(
       /no external_ref_prefix configured/,

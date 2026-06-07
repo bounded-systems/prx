@@ -15692,7 +15692,7 @@ async function primePlanSession(
     const beadsResolver = new BeadsResolver(targetRepoCwd);
     let longId: string;
     try {
-      longId = beadsResolver.toBdLongId(input.workUnitId);
+      longId = await beadsResolver.toBdLongId(input.workUnitId);
     } catch (error) {
       // recognizeBareWorkspaceLongId is the only remaining input shape the
       // resolver does not auto-detect (it does not consult the workspace
