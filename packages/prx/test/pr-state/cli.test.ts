@@ -16206,12 +16206,17 @@ describe("argparse — flag-after-positional (GH-1227)", () => {
     expect(stdout).toContain("staging_source:");
   });
 
-  test("`prx <verb> --help` after a positional renders registry help (no Unknown option)", () => {
+  test("`prx <verb> --help` after a positional renders help (no Unknown option)", () => {
+    // `plan show` is a VerbSpec now: `--help` after a positional renders the
+    // verb's help (not the legacy namespace help), and crucially does NOT error
+    // with "Unknown option".
     const result = runCli(["plan", "show", "GH-9999", "--help"]);
     expect(result.exitCode).toBe(0);
     const stdout = new TextDecoder().decode(result.stdout);
-    expect(stdout).toContain("prx plan show");
-    expect(stdout).toContain("domain:");
+    const stderr = new TextDecoder().decode(result.stderr);
+    expect(stdout).toContain("prx plan-show");
+    expect(stdout).toContain("--paths");
+    expect(`${stdout}${stderr}`).not.toContain("Unknown option");
   });
 
   test("`prx intake bug … --help` does NOT file an intake (renders help instead)", () => {
@@ -16275,13 +16280,16 @@ describe("argparse — over-positional diagnostic (GH-1229)", () => {
     expect(stderr).toContain("prx plan load --slot draft GH-1221");
   });
 
-  test("plan show with `-- --slot draft` produces the same enriched message", () => {
+  test("plan show with `-- --slot draft` parses via the verb (no bespoke hint)", () => {
+    // `plan show` is a VerbSpec now: the generic argv parser reads `--slot
+    // draft` and the unit, so the command runs (and fails because no plan blob
+    // exists for the test unit) rather than emitting the legacy over-positional
+    // reorder hint. Non-zero exit is preserved.
     const result = runCli(["plan", "show", "GH-9999", "--", "--slot", "draft"]);
     const stderr = new TextDecoder().decode(result.stderr);
     expect(result.exitCode).not.toBe(0);
-    expect(stderr).toContain("got 3");
-    expect(stderr).toMatch(/hint:.*flags must come before the positional/);
-    expect(stderr).toContain("prx plan show --slot draft GH-9999");
+    expect(stderr).toContain("FAIL");
+    expect(stderr).toContain("GH-9999");
   });
 
   test("plan load with two work-unit ids names tokens but emits no flag-hint", () => {
