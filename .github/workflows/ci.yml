@@ -30,6 +30,17 @@ jobs:
     # A hung step otherwise burns Actions minutes up to the 6-hour default.
     timeout-minutes: 20
 
+    # GH-352: opt-in remote signing. When the `PRX_PROVENANCE_KEY` secret is set
+    # (e.g. `ed25519:<b64>`), each `prx ci` phase below signs a `ci/phase/v1`
+    # derivation into `PRX_CI_LEDGER`; the "Upload signed CI provenance" step
+    # then publishes that ledger as the chain's *async mirror* (consumers verify
+    # it out of band — the run never blocks on a durable-chain write). Absent the
+    # secret, `resolveProvenanceSigner()` returns null and `prx ci` is unchanged
+    # (the ledger is never created and the upload is skipped).
+    env:
+      PRX_PROVENANCE_KEY: ${{ secrets.PRX_PROVENANCE_KEY }}
+      PRX_CI_LEDGER: ${{ github.workspace }}/.prx/ci-provenance.sqlite
+
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -60,3 +71,17 @@ jobs:
 
       - name: prx ci (test)
         run: dist/prx ci --phase=test
+
+      # GH-352: publish the signed CI provenance ledger as the chain's async
+      # mirror. `if: always()` so a partial run still uploads the phases that
+      # passed before a failure (the `prx ci` partial-pass attestation). Guarded
+      # on the file existing — absent the signing secret it is never written, so
+      # this is a no-op (no signer ⇒ no ledger ⇒ nothing to upload).
+      - name: Upload signed CI provenance (async mirror)
+        if: ${{ always() && hashFiles('.prx/ci-provenance.sqlite') != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-provenance
+          path: .prx/ci-provenance.sqlite
+          if-no-files-found: ignore
+          retention-days: 14

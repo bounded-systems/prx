@@ -810,7 +810,7 @@ import {
   type CiPhase,
   type PhaseResult,
 } from "./local-ci.ts";
-import { attestCiPhases, resolveCiInputs } from "./ci-attest.ts";
+import { attestCiPhases, ciLedgerTarget, CI_LEDGER_ENV, resolveCiInputs } from "./ci-attest.ts";
 import {
   inferOperatorScopeFromCwd,
   isMainxPath,
@@ -23654,7 +23654,13 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           // tool rather than the authority that ran it. `persistAttestation`
           // reads the actor for `builder.id`, so signer and `builder.id` agree.
           const signer = resolveProvenanceSigner();
-          const ledger = resolveCanonicalChainLedger(process.cwd())?.ledgerPath;
+          // PRX_CI_LEDGER overrides the workspace-resolved canonical ledger —
+          // CI has no workspace reservation, so it points `prx ci` at a known
+          // file it uploads as the chain's async mirror (GH-352).
+          const ledger = ciLedgerTarget({
+            envLedger: getEnv(CI_LEDGER_ENV),
+            canonical: resolveCanonicalChainLedger(process.cwd())?.ledgerPath,
+          });
           if (signer === null || ledger === undefined) return code;
           const head = runCommand(["git", "rev-parse", "HEAD"]);
           const commit = head.status === 0 ? head.stdout.trim() : "";
