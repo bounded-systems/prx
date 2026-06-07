@@ -2269,13 +2269,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "work",
   },
   {
-    name: "tmux reconcile",
-    parent: "tmux",
-    description: "Apply rendered tmux config to socket",
-    domain: "system",
-    actor: "tmux",
-  },
-  {
     name: "init",
     description: "Scaffold cross-agent convention layer (AGENTS.md + project Claude settings)",
     domain: "system",

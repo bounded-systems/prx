@@ -4,16 +4,6 @@ import { existsSync, readFileSync, readlinkSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 
-import { PRX_TMUX_SOCKET } from "@bounded-systems/prx-mux";
-
-import {
-  computeTmuxReconcile,
-  formatTmuxReconcile,
-  type TmuxReconcileDeps,
-  type TmuxReconcileOptions,
-  type TmuxReconcileResult,
-} from "./tmux-reconcile.ts";
-
 export type HomeUpdateSpawnResult = {
   status: number | null;
   stdout?: string | Buffer | null;
@@ -44,15 +34,6 @@ export type HomeUpdateDeps = {
   readlink?: (path: string) => string | null;
   env?: NodeJS.ProcessEnv;
   homeDir?: string;
-  /**
-   * Compute reconcile result without printing — `runHomeUpdate` composes the
-   * payload itself so plain output gets one block and JSON output stays a
-   * single parseable payload (GH-838).
-   */
-  computeTmuxReconcile?: (
-    options: TmuxReconcileOptions,
-    deps?: TmuxReconcileDeps,
-  ) => { result: TmuxReconcileResult; exitCode: number };
 };
 
 export type HomeUpdateOptions = {
@@ -349,17 +330,6 @@ export function runHomeUpdate(
   const hmSwitchCmd = ["home-manager", "switch", "--flake", flakeDir];
 
   if (options.dryRun) {
-    // GH-838: in dry-run mode also preview the tmux reconcile so operators
-    // see what would change on the live socket after the switch.
-    const computeReconcile = deps.computeTmuxReconcile ?? computeTmuxReconcile;
-    const reconcile = computeReconcile(
-      {
-        socket: PRX_TMUX_SOCKET,
-        dryRun: true,
-        format: options.format,
-      },
-      { env, homeDir },
-    );
     if (options.format === "json") {
       output.log(
         JSON.stringify(
@@ -371,8 +341,6 @@ export function runHomeUpdate(
               from: fromRevs.get(name) ?? null,
             })),
             commands: [nixUpdateCmd, gitCommitCmd, hmSwitchCmd],
-            tmuxReconcile: reconcile.result,
-            tmuxReconcileNote: "preview based on current rendered config (pre-switch)",
           },
           null,
           2,
@@ -389,8 +357,6 @@ export function runHomeUpdate(
       output.log(`    ${nixUpdateCmd.join(" ")}`);
       output.log(`    ${gitCommitCmd.join(" ")}   (only if a rev moved)`);
       output.log(`    ${hmSwitchCmd.join(" ")}`);
-      output.log(`  note: tmux reconcile preview is based on current rendered config (pre-switch)`);
-      output.log(formatTmuxReconcile(reconcile.result, "plain", true));
     }
     return 0;
   }
@@ -513,23 +479,6 @@ export function runHomeUpdate(
   const genAfter = readGeneration(readlink, env, homeDir);
   const noop = moved.length === 0;
 
-  // GH-838: after home-manager switch, the rendered ~/.config/tmux/tmux.conf
-  // is up to date but the live `-L prx` server still holds its old in-memory
-  // option values. Run reconcile so scalar options (focus-events,
-  // allow-rename, set-titles, allow-passthrough, mouse, future knobs)
-  // converge without manual `tmux set -g`. Reconcile failure is non-fatal —
-  // the switch already succeeded — but the result is reported so operators
-  // can see drift.
-  const computeReconcile = deps.computeTmuxReconcile ?? computeTmuxReconcile;
-  const reconcile = computeReconcile(
-    {
-      socket: PRX_TMUX_SOCKET,
-      dryRun: options.dryRun,
-      format: options.format,
-    },
-    { env, homeDir },
-  );
-
   if (options.format === "json") {
     output.log(
       JSON.stringify(
@@ -541,7 +490,6 @@ export function runHomeUpdate(
             return { name, from, to, noop: from === to };
           }),
           switched: true,
-          tmuxReconcile: reconcile.result,
         },
         null,
         2,
@@ -558,7 +506,6 @@ export function runHomeUpdate(
       }
     }
     output.log(switchSummaryLine(noop, genBefore, genAfter));
-    output.log(formatTmuxReconcile(reconcile.result, "plain", options.dryRun));
   }
 
   return 0;

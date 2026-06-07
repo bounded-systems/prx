@@ -261,7 +261,6 @@ System:
   prx run smoke                 Smoke-test agent runtime for a unit
   prx run desktop               Open worktree in Codex Desktop
   prx run task                  Run a task spec across roles
-  prx tmux reconcile            Apply rendered tmux config to socket
   prx init                      Scaffold cross-agent convention layer (AGENTS.md + project Claude settings)
   prx --version                 Print prx CLI version
 
