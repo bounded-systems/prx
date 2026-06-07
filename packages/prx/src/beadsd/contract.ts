@@ -114,6 +114,14 @@ export const BeadsResponseSchema = z.discriminatedUnion("status", [
     status: z.literal("ok"),
     /** The bd query result (e.g. the issues array / issue object). Opaque here. */
     result: z.unknown(),
+    /**
+     * GH-296: the dataset generation — the served clone's dolt HEAD hash at
+     * reply time. A cheap content-addressed etag for the WHOLE bead store:
+     * unchanged HEAD ⇒ nothing moved, so callers can serve cached data and
+     * sync can short-circuit (no redundant GitHub API calls). Optional — the
+     * daemon omits it when it has no HEAD source wired.
+     */
+    etag: z.string().min(1).optional(),
   }),
   z.object({
     status: z.literal("error"),

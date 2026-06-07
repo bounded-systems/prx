@@ -87,6 +87,20 @@ describe("handleBeadsRequest", () => {
     expect(calls[0]!.cwd).toBe("/repo/clone");
   });
 
+  test("includes the dataset etag on ok replies when an etag source is wired (GH-296)", async () => {
+    const { execBd } = fakeBd(okResult("[]"));
+    const res = await handleBeadsRequest(READY, { execBd, etag: () => "head-abc123" });
+    expect(res.status).toBe("ok");
+    if (res.status === "ok") expect(res.etag).toBe("head-abc123");
+  });
+
+  test("omits etag when no source is wired", async () => {
+    const { execBd } = fakeBd(okResult("[]"));
+    const res = await handleBeadsRequest(READY, { execBd });
+    expect(res.status).toBe("ok");
+    if (res.status === "ok") expect(res.etag).toBeUndefined();
+  });
+
   test("maps a non-zero bd exit to a typed `bd-read` error carrying stderr", async () => {
     const { execBd } = fakeBd({ exitCode: 1, stdout: "", stderr: "bd-safe: nope", policy: null });
     const res = await handleBeadsRequest(READY, { execBd });
@@ -279,6 +293,25 @@ describe("runBeadsServe (unix socket, end-to-end)", () => {
     const res = (await sendFrame(path, READY)) as { status: string; result?: unknown };
     expect(res.status).toBe("ok");
     expect(res.result).toEqual([{ id: "prx-abb" }]);
+  });
+
+  test("surfaces the dataset etag (readHead) on socket replies, re-read after refresh (GH-296)", async () => {
+    const { execBd } = fakeBd(okResult(JSON.stringify([{ id: "prx-abb" }])));
+    let head = "head-1";
+    socketPath = join(tmpdir(), `beadsd-etag-${process.pid}-${counter++}.sock`);
+    server = await runBeadsServe({
+      socketPath,
+      deps: { execBd },
+      readHead: () => head,
+      refresh: () => {
+        head = "head-2"; // a reconcile that moved HEAD
+      },
+      refreshIntervalMs: 0, // refresh once on start
+    });
+    // refresh ran on start → HEAD moved to head-2, re-read into the cached etag.
+    const res = (await sendFrame(socketPath, READY)) as { status: string; etag?: string };
+    expect(res.status).toBe("ok");
+    expect(res.etag).toBe("head-2");
   });
 
   test("runs the freshness refresh on start, then on the interval (GH-296)", async () => {

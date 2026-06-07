@@ -22636,6 +22636,29 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
                     { log: () => undefined, error: () => undefined },
                   );
                 },
+                // GH-296 prx-ebk: the dataset etag — the served clone's dolt
+                // HEAD hash. Cached by runBeadsServe (read on start + after each
+                // reconcile), surfaced on every `ok` reply so callers validate
+                // caches and sync short-circuits when nothing moved. Best-effort:
+                // any failure ⇒ undefined ⇒ etag simply omitted.
+                readHead: () => {
+                  try {
+                    const doltRoot = `${refreshCwd}/.beads/dolt`;
+                    const db = readdirSync(doltRoot, { withFileTypes: true }).find(
+                      (e) => e.isDirectory() && !e.name.startsWith("."),
+                    )?.name;
+                    if (db === undefined) return undefined;
+                    const r = procRunner(
+                      ["dolt", "sql", "-q", "select hashof('HEAD')", "-r", "csv"],
+                      { cwd: `${doltRoot}/${db}`, check: false },
+                    );
+                    if (r.status !== 0) return undefined;
+                    const last = r.stdout.trim().split("\n").pop()?.trim();
+                    return last && last !== "head" ? last : undefined;
+                  } catch {
+                    return undefined;
+                  }
+                },
               }
             : {}),
         });

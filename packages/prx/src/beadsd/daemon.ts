@@ -43,6 +43,14 @@ export interface BeadsDaemonDeps {
   execBd?: typeof defaultExecBd | undefined;
   /** The repo clone whose beads DB the reads run against (defaults to the daemon's cwd). */
   cwd?: string | undefined;
+  /**
+   * GH-296: the dataset generation source — returns the served clone's current
+   * dolt HEAD hash (a content-addressed etag for the whole bead store), or
+   * undefined when unknown. Included on every `ok` reply so callers can validate
+   * caches and sync can short-circuit when nothing moved. The daemon caches this
+   * (refreshed on the reconcile cycle), so reads don't spawn dolt per request.
+   */
+  etag?: (() => string | undefined) | undefined;
 }
 
 /** A write `update` with no field to change — surfaced as a bad-request, not sent to bd. */
@@ -173,7 +181,8 @@ export async function handleBeadsRequest(
       message: `bd ${request.kind} --json returned unparseable output`,
     };
   }
-  return { status: "ok", result: parsed };
+  const etag = deps.etag?.();
+  return { status: "ok", result: parsed, ...(etag !== undefined ? { etag } : {}) };
 }
 
 /**
@@ -237,6 +246,13 @@ export interface BeadsServeOptions {
   refresh?: (() => void | Promise<void>) | undefined;
   /** Refresh cadence in ms (default {@link DEFAULT_BEADS_REFRESH_INTERVAL_MS}; ≤0 ⇒ once on start only). */
   refreshIntervalMs?: number | undefined;
+  /**
+   * GH-296: read the served clone's current dolt HEAD hash (the dataset etag).
+   * Called once on start and after each refresh, and cached — so reads carry the
+   * etag without spawning dolt per request. When set, the daemon includes `etag`
+   * on every `ok` reply (overriding any `deps.etag`).
+   */
+  readHead?: (() => string | undefined) | undefined;
 }
 
 /**
@@ -247,8 +263,23 @@ export interface BeadsServeOptions {
  * When `refresh` is set, the served clone is pulled on start and on an interval.
  */
 export async function runBeadsServe(options: BeadsServeOptions): Promise<Server> {
-  const { socketPath, pidfile, deps, refresh, refreshIntervalMs } = options;
-  const handler = (request: BeadsRequest): Promise<BeadsResponse> => handleBeadsRequest(request, deps);
+  const { socketPath, pidfile, deps, refresh, refreshIntervalMs, readHead } = options;
+  // GH-296: cache the dataset etag (dolt HEAD); reads read it without spawning
+  // dolt. Refreshed on start + after each reconcile, when the HEAD may have moved.
+  const safeReadHead = (): string | undefined => {
+    if (!readHead) return undefined;
+    try {
+      return readHead();
+    } catch {
+      return undefined;
+    }
+  };
+  let currentEtag: string | undefined = safeReadHead();
+  const effectiveDeps: BeadsDaemonDeps = readHead
+    ? { ...deps, etag: () => currentEtag }
+    : deps ?? {};
+  const handler = (request: BeadsRequest): Promise<BeadsResponse> =>
+    handleBeadsRequest(request, effectiveDeps);
   const server = await runFramedServe(socketPath, pidfile, (socket) =>
     serveBeadsConnection(socket, handler),
   );
@@ -261,6 +292,9 @@ export async function runBeadsServe(options: BeadsServeOptions): Promise<Server>
       } catch {
         /* stale-but-up beats a crash; sync agent reconciles conflicts */
       }
+      // Re-read HEAD after the reconcile — it may have moved (local commits
+      // pushed, remote commits pulled).
+      currentEtag = safeReadHead();
     };
     runRefresh(); // initial pull so a cold-started daemon serves current data
     const interval = refreshIntervalMs ?? DEFAULT_BEADS_REFRESH_INTERVAL_MS;
