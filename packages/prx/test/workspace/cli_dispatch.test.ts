@@ -19,11 +19,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 
-import {
-  parseWorkspaceArgs,
-  runWorkspaceCli,
-  WorkspaceCliError,
-} from "../../src/workspace/cli.ts";
+import { parseWorkspaceArgs, runWorkspaceCli } from "../../src/workspace/cli.ts";
 
 function sh(cwd: string, file: string, args: string[]): void {
   const r = spawnSync(file, args, { cwd, encoding: "utf8" });
