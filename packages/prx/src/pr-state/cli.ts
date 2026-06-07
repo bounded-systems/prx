@@ -74,7 +74,6 @@ import {
   resolveFeatureForPrefix,
   validateBeadsIssue,
   validateGitHubIssue,
-  loadReviewConfig,
   loadWorkspaceConfig,
   persistWorkspaceTrack,
   defaultRunner,
@@ -362,16 +361,7 @@ import {
   deriveTaskStatus,
   failTaskRole,
   loadTaskContract,
-  setTaskMergeConflict,
-  setTaskNeedsRebase,
-  setTaskReviewAdded,
-  setTaskReviewApproved,
-  setTaskAgentReview,
-  setTaskHumanReview,
-  setTaskCommentsResolved,
-  setTaskAutoMergeEnabled,
   startTaskRole,
-  setTaskSuccessRequirements,
   syncTaskContract,
   taskContractExists,
   taskContractSchema,
@@ -379,10 +369,6 @@ import {
   type TaskContract,
 } from "./task.ts";
 import { invalidateUnit } from "./projection.ts";
-import {
-  fetchPrSignalInfo,
-  currentBranchName,
-} from "./github.ts";
 // GH-885 + GH-882: doctor actor — PR readiness diagnostician.
 import { runInventory as doctorRunInventory } from "./doctor.ts";
 // GH-1559 (GH-1398 ADR §4): publisher actor — PR publication transitions.
@@ -991,7 +977,8 @@ import {
 import { CliError } from "./cli-error.ts";
 import { type ExecutionWorkAgent, POLICY, buildWorkAutomationProfile, ensureExecutionWorkflowAgent, interactiveTimeoutMs, parseWorkAgentImplementation, validateWorkIoFormat } from "./work-agent.ts";
 import { findSavedClaudeSession, resolveCodexSessionProfile } from "./session-finder.ts";
-import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type ParityChainApplyResult, type PlanCloseReason, type PlanCloseResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
+import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type Output, type ParityChainApplyResult, type PlanCloseReason, type PlanCloseResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
+import { printStatus, refreshTaskSignals } from "./status-report.ts";
 import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanCloseResult, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktreeRemove } from "./cli-format.ts";
 import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, findWorktreeByDirectoryPrefix, listResolvedWorktrees, procSpawnLike, resolveRepoRootWithSpawn, runCommand, runInheritStatus, tryCommand } from "./cli-spawn.ts";
 
@@ -1005,11 +992,6 @@ import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, findWor
 // spawn failure (e.g. the binary is missing) maps to 1 so callers' `status
 // !== 0` checks fire — matching the prior raw spawn, which reported such
 // failures as a null status.
-type Output = {
-  log: (line: string) => void;
-  error: (line: string) => void;
-};
-
 // GH-1336: post-save cleanup spec for the `prx plan save` staging file.
 // `none` preserves the legacy GH-1175 behavior (file persists). `delete`
 // unlinks the `--from-file` path; `move-to` renames it under an
@@ -13299,91 +13281,6 @@ export async function initContract(
   };
 }
 
-function refreshTaskSignals(taskPath: string): TaskContract {
-  if (!taskContractExists(taskPath)) {
-    throw new Error(`task contract missing at ${taskPath}`);
-  }
-
-  let updated = loadTaskContract(taskPath);
-  let dirty = false;
-
-  const reviewConfig = loadReviewConfig(updated.identity.worktree);
-  const successPatch = {
-    requireCommentsResolved: reviewConfig.requireCommentsResolved,
-    requireAgentReview: reviewConfig.requireAgentReview,
-    requireHumanReview: reviewConfig.requireHumanReview,
-    requireAutoMergeEnabled: reviewConfig.requireAutoMergeEnabled,
-  };
-  const successUpdated =
-    updated.success.requireCommentsResolved !== successPatch.requireCommentsResolved ||
-    updated.success.requireAgentReview !== successPatch.requireAgentReview ||
-    updated.success.requireHumanReview !== successPatch.requireHumanReview ||
-    updated.success.requireAutoMergeEnabled !== successPatch.requireAutoMergeEnabled;
-  if (successUpdated) {
-    updated = setTaskSuccessRequirements(updated, successPatch);
-    dirty = true;
-  }
-
-  const branch = currentBranchName(updated.identity.worktree);
-  if (!branch) {
-    if (dirty) {
-      writeTaskContract(taskPath, updated);
-    }
-    return updated;
-  }
-
-  const info = fetchPrSignalInfo(updated.identity.worktree, branch);
-  if (!info) {
-    if (dirty) {
-      writeTaskContract(taskPath, updated);
-    }
-    return updated;
-  }
-
-  if (info.reviewAdded && !updated.signals.reviewAdded) {
-    updated = setTaskReviewAdded(updated, true);
-    dirty = true;
-  }
-  if (info.reviewApproved && !updated.signals.reviewApproved) {
-    updated = setTaskReviewApproved(updated, true);
-    dirty = true;
-  }
-  if (info.agentReview !== updated.signals.agentReview) {
-    updated = setTaskAgentReview(updated, info.agentReview);
-    dirty = true;
-  }
-  if (info.humanReview !== updated.signals.humanReview) {
-    updated = setTaskHumanReview(updated, info.humanReview);
-    dirty = true;
-  }
-  if (info.commentsResolved !== updated.signals.commentsResolved) {
-    updated = setTaskCommentsResolved(updated, info.commentsResolved);
-    dirty = true;
-  }
-  if (info.autoMergeEnabled !== updated.signals.autoMergeEnabled) {
-    updated = setTaskAutoMergeEnabled(updated, info.autoMergeEnabled);
-    dirty = true;
-  }
-
-  const needsRebaseSignal = info.mergeStateStatus === "BEHIND";
-  if (needsRebaseSignal !== updated.signals.needsRebase) {
-    updated = setTaskNeedsRebase(updated, needsRebaseSignal);
-    dirty = true;
-  }
-
-  const mergeConflictSignal = info.mergeable === "CONFLICTING";
-  if (mergeConflictSignal !== updated.signals.mergeConflict) {
-    updated = setTaskMergeConflict(updated, mergeConflictSignal);
-    dirty = true;
-  }
-
-  if (dirty) {
-    writeTaskContract(taskPath, updated);
-  }
-
-  return updated;
-}
-
 function missingExecutorConfirmations(task: TaskContract): string[] {
   const missing: string[] = [];
   if (!task.confirmations.specSynced) {
@@ -13396,29 +13293,6 @@ function missingExecutorConfirmations(task: TaskContract): string[] {
     missing.push("success criteria not confirmed");
   }
   return missing;
-}
-
-function printStatus(contractPath: string, format: "plain" | "mode" | "json", output: Output): number {
-  const info = deriveInfo(loadContract(contractPath));
-
-  if (format === "mode") {
-    output.log(info.mode);
-    return 0;
-  }
-
-  if (format === "json") {
-    output.log(JSON.stringify(info, null, 2));
-    return 0;
-  }
-
-  const taskPath = defaultTaskPath();
-  if (taskContractExists(taskPath)) {
-    refreshTaskSignals(taskPath);
-  }
-
-  const base = `${info.state} (${info.mode})`;
-  output.log(info.reason ? `${base} - ${info.reason}` : base);
-  return 0;
 }
 
 function loadOrCreateTaskContract(taskPath: string, workUnitId: string, beadId?: string): TaskContract {

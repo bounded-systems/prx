@@ -6,6 +6,12 @@ import { type BdSchemaProbeResult, type BdSchemaRepairResult } from "../beads/sc
 // Extracted from packages/prx/src/pr-state/cli.ts by scripts/codemod/extract-module.ts — part of the
 // §4 decomposition of the pr-state/cli.ts monolith into focused modules.
 
+/** The CLI output sink (stdout/stderr), threaded through every handler. */
+export type Output = {
+  log: (line: string) => void;
+  error: (line: string) => void;
+};
+
 export type WorkUnitIssueCheckResult = {
   workUnitId: string;
   repo: string;
