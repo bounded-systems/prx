@@ -25,7 +25,8 @@ import { getCurrentSessionContext } from "./help/session-context.ts";
 import { depResearchMachine } from "../dep-research/machine.ts";
 import { domainSyncMachine } from "../sync/machine.ts";
 import { fetchMachine } from "../machine/machines/fetch.ts";
-import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type ParityChainApplyResult, type PlanCloseResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
+import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type ParityChainApplyResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
+import { type PlanCloseResult } from "./plan-close-bd.ts";
 
 // Extracted from packages/prx/src/pr-state/cli.ts by scripts/codemod/extract-module.ts — part of the
 // §4 decomposition of the pr-state/cli.ts monolith into focused modules.

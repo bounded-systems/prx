@@ -1,6 +1,5 @@
 import type { SurfaceSyncAction } from "@bounded-systems/surface-sync";
 import { type TaskContract } from "./task.ts";
-import { type PlanCloseBdRecordOutcome } from "./plan-close-bd.ts";
 import { type BdSchemaProbeResult, type BdSchemaRepairResult } from "../beads/schema_repair.ts";
 
 // Extracted from packages/prx/src/pr-state/cli.ts by scripts/codemod/extract-module.ts — part of the
@@ -119,32 +118,8 @@ export type CloseSessionResult = {
   dryRun: boolean;
 };
 
-export type PlanCloseReason = "completed" | "not-planned" | "duplicate";
-
-export type PlanCloseResult = {
-  workUnitId: string;
-  issueNumber: number | null;
-  reason: PlanCloseReason;
-  upstream: string | null;
-  upstreamCommentPosted: boolean;
-  issueClosed: boolean;
-  /**
-   * GH-2110: outcome of the bd-record close-and-verify pass that runs after
-   * `gh issue close` succeeds. The headline operator-facing signal — distinct
-   * from `bdSyncExitCode` (the broader reconcile tick), which can still
-   * report `ok` even when this pass leaves the linked bd record open.
-   */
-  bdRecord: PlanCloseBdRecordOutcome | null;
-  /**
-   * Exit code from the canonical reconcile tick (`runBeadsSync`). Narrower
-   * meaning post-GH-2110 — "did the periodic-reconcile shell out cleanly?",
-   * not "is the linked bd record CLOSED?". The latter is `bdRecord`.
-   */
-  bdSyncExitCode: number | null;
-  handoff: string[];
-  refusalReason: string | null;
-  dryRun: boolean;
-};
+// `PlanCloseReason` / `PlanCloseResult` live in ./plan-close-bd.ts (next to the
+// `planClose` driver) so the two modules don't form an import cycle.
 
 export type ParityChainApplyResult = {
   action: SurfaceSyncAction;

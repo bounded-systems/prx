@@ -19,8 +19,8 @@ import {
   type PlanCloseOptions,
   planCloseReasonToBdReason,
   type PlanCloseBdRecordOutcome,
+  type PlanCloseResult,
 } from "../../src/pr-state/plan-close-bd.ts";
-import type { PlanCloseResult } from "../../src/pr-state/cli-types.ts";
 import { parseArgs } from "../../src/cli/verbspec.ts";
 import {
   planCloseVerb,

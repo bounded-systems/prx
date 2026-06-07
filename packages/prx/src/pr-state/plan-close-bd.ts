@@ -31,7 +31,6 @@ import {
 } from "../triage/triage.ts";
 import { buildBeadsLookup } from "../issues/dedupe.ts";
 // `prx plan close` driver deps (moved with planClose from cli.ts).
-import { type PlanCloseResult } from "./cli-types.ts";
 import {
   defaultRunner,
   repoNameWithOwner,
@@ -64,6 +63,36 @@ export type PlanCloseBdRecordOutcome = {
   ok: boolean;
   /** Per-bead detail; empty when no beads were linked. */
   perId: PlanCloseBdPerId[];
+};
+
+/**
+ * Result of a `prx plan close` run. Lives here (next to the `planClose` driver
+ * that produces it) rather than in cli-types so the two don't form an import
+ * cycle — `PlanCloseResult` references `PlanCloseBdRecordOutcome` above.
+ */
+export type PlanCloseResult = {
+  workUnitId: string;
+  issueNumber: number | null;
+  reason: PlanCloseReason;
+  upstream: string | null;
+  upstreamCommentPosted: boolean;
+  issueClosed: boolean;
+  /**
+   * GH-2110: outcome of the bd-record close-and-verify pass that runs after
+   * `gh issue close` succeeds. The headline operator-facing signal — distinct
+   * from `bdSyncExitCode` (the broader reconcile tick), which can still
+   * report `ok` even when this pass leaves the linked bd record open.
+   */
+  bdRecord: PlanCloseBdRecordOutcome | null;
+  /**
+   * Exit code from the canonical reconcile tick (`runBeadsSync`). Narrower
+   * meaning post-GH-2110 — "did the periodic-reconcile shell out cleanly?",
+   * not "is the linked bd record CLOSED?". The latter is `bdRecord`.
+   */
+  bdSyncExitCode: number | null;
+  handoff: string[];
+  refusalReason: string | null;
+  dryRun: boolean;
 };
 
 /**
