@@ -5,7 +5,6 @@ import {
   runIntakeMerge,
   type IntakeMergeOptions,
 } from "../../src/intake/intake-merge.ts";
-import type { BdExecResult } from "@bounded-systems/bd";
 import type { BdIssueCloseResult } from "../../src/tools/bd_issue_close.ts";
 import type { GhExecResult } from "@bounded-systems/gh";
 import type { GhIssueCloseResult } from "../../src/tools/gh_issue_close.ts";
@@ -23,16 +22,23 @@ type BdCallTag = {
 type BdCloseCallTag = { kind: "bd-close"; id: string; reason?: string | undefined };
 type CallTag = GhCallTag | CloseCallTag | BdCallTag | BdCloseCallTag;
 
-function bdOk(stdout = ""): BdExecResult {
-  return { exitCode: 0, stdout, stderr: "", policy: null };
-}
-
 function bdCloseOk(stdout = ""): BdIssueCloseResult {
   return { exitCode: 0, stdout, stderr: "" };
 }
 
 function bdCloseFail(stderr: string, code = 1): BdIssueCloseResult {
   return { exitCode: code, stdout: "", stderr };
+}
+
+// GH-296 / prx-82b: the bd↔bd pointer-note write now runs `prx beads update <id>
+// --notes …` through the daemon (a sync runner). The fake records the equivalent
+// old `bd update` BdCallTag shape so the existing assertions hold.
+const bdRunOk = () => ({ status: 0, stdout: "", stderr: "" });
+function recordingRun(calls: CallTag[]) {
+  return ((cmd: string[]) => {
+    calls.push({ kind: "bd", subcommand: cmd[2] ?? "", args: cmd.slice(3), state: "planning", role: "planner" });
+    return bdRunOk();
+  }) as never;
 }
 
 function bdRecord(overrides: Partial<BeadsRecord> = {}): BeadsRecord {
@@ -396,16 +402,7 @@ describe("runIntakeMerge — bd↔bd arm", () => {
       makeOpts({ dupId: "ai-home-dup", canonicalId: "ai-home-can" }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: ((opts: { subcommand: string; args: string[]; state?: string; role?: string }) => {
-          calls.push({
-            kind: "bd",
-            subcommand: opts.subcommand,
-            args: opts.args,
-            state: opts.state,
-            role: opts.role,
-          });
-          return bdOk();
-        }) as never,
+        run: recordingRun(calls),
         execBdIssueClose: ((opts: { id: string; reason?: string }) => {
           calls.push({ kind: "bd-close", id: opts.id, reason: opts.reason });
           return bdCloseOk();
@@ -443,10 +440,7 @@ describe("runIntakeMerge — bd↔bd arm", () => {
       makeOpts({ dupId: "ai-home-dup", canonicalId: "ai-home-can" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          calls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk();
-        }) as never,
+        run: recordingRun(calls),
         execBdIssueClose: ((opts: { id: string }) => {
           calls.push({ kind: "bd-close", id: opts.id });
           return bdCloseOk();
@@ -467,7 +461,7 @@ describe("runIntakeMerge — bd↔bd arm", () => {
       makeOpts({ dupId: "ai-home-dup", canonicalId: "ai-home-can" }),
       { log: () => undefined, error: (l) => errors.push(l) },
       {
-        execBd: (() => bdOk()) as never,
+        run: bdRunOk as never,
         execBdIssueClose: (() => bdCloseOk()) as never,
         loadAllBeads: (() => [
           bdRecord({
@@ -493,7 +487,7 @@ describe("runIntakeMerge — bd↔bd arm", () => {
       }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: (() => bdOk()) as never,
+        run: bdRunOk as never,
         execBdIssueClose: ((opts: { reason?: string }) => {
           closeReason = opts.reason;
           return bdCloseOk();
@@ -510,7 +504,7 @@ describe("runIntakeMerge — bd↔bd arm", () => {
       makeOpts({ dupId: "ai-home-dup", canonicalId: "ai-home-can" }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: (() => bdOk()) as never,
+        run: bdRunOk as never,
         execBdIssueClose: ((opts: { reason?: string }) => {
           closeReason = opts.reason;
           return bdCloseOk();
@@ -531,7 +525,7 @@ describe("runIntakeMerge — bd↔bd arm", () => {
       }),
       { log: () => undefined, error: (l) => errors.push(l) },
       {
-        execBd: (() => bdOk()) as never,
+        run: bdRunOk as never,
         execBdIssueClose: (() => bdCloseOk()) as never,
         loadAllBeads: (() => [bdRecord({ id: "ai-home-dup", notes: null })]) as never,
       },
@@ -547,10 +541,7 @@ describe("runIntakeMerge — bd↔bd arm", () => {
       makeOpts({ dupId: "ai-home-missing", canonicalId: "ai-home-can" }),
       { log: () => undefined, error: (l) => errors.push(l) },
       {
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          calls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk();
-        }) as never,
+        run: recordingRun(calls),
         execBdIssueClose: ((opts: { id: string }) => {
           calls.push({ kind: "bd-close", id: opts.id });
           return bdCloseOk();
@@ -571,10 +562,7 @@ describe("runIntakeMerge — bd↔bd arm", () => {
       makeOpts({ dupId: "ai-home-dup", canonicalId: "ai-home-can" }),
       { log: () => undefined, error: (l) => errors.push(l) },
       {
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          calls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk();
-        }) as never,
+        run: recordingRun(calls),
         execBdIssueClose: ((opts: { id: string }) => {
           calls.push({ kind: "bd-close", id: opts.id });
           return bdCloseFail("bd close: unauthorized", 3);
@@ -597,10 +585,7 @@ describe("runIntakeMerge — bd↔bd arm", () => {
       makeOpts({ dupId: "ai-home-dup", canonicalId: "ai-home-can" }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          firstRunCalls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk();
-        }) as never,
+        run: recordingRun(firstRunCalls),
         execBdIssueClose: (() => bdCloseOk()) as never,
         loadAllBeads: (() => [bdRecord({ id: "ai-home-dup", notes: null })]) as never,
       },
@@ -615,10 +600,7 @@ describe("runIntakeMerge — bd↔bd arm", () => {
       makeOpts({ dupId: "ai-home-dup", canonicalId: "ai-home-can" }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          calls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk();
-        }) as never,
+        run: recordingRun(calls),
         execBdIssueClose: ((opts: { id: string }) => {
           calls.push({ kind: "bd-close", id: opts.id });
           return bdCloseOk();
@@ -642,10 +624,7 @@ describe("runIntakeMerge — bd↔bd arm", () => {
       }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          calls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk();
-        }) as never,
+        run: recordingRun(calls),
         execBdIssueClose: ((opts: { id: string }) => {
           calls.push({ kind: "bd-close", id: opts.id });
           return bdCloseOk();
@@ -676,7 +655,7 @@ describe("runIntakeMerge — bd↔bd arm", () => {
       }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
-        execBd: (() => bdOk()) as never,
+        run: bdRunOk as never,
         execBdIssueClose: (() => bdCloseOk()) as never,
         loadAllBeads: (() => [bdRecord({ id: "ai-home-dup", notes: null })]) as never,
       },

@@ -28,7 +28,8 @@ import {
   resolveIssueId,
   type IssueResolvedId,
 } from "../issues/resolver.ts";
-import { execBd, type BdExecResult } from "@bounded-systems/bd";
+import { execBd } from "@bounded-systems/bd";
+import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import {
   execBdIssueClose,
   buildBdIssueCloseArgs,
@@ -105,6 +106,8 @@ export type IntakeMergeDeps = {
   execGh?: typeof execGh;
   execGhIssueClose?: typeof execGhIssueClose;
   execBd?: typeof execBd;
+  /** GH-296 / prx-82b — sync runner for the daemon-routed pointer-note write. */
+  run?: CommandRunner;
   execBdIssueClose?: typeof execBdIssueClose;
   loadAllBeads?: typeof loadAllBeads;
 };
@@ -212,6 +215,7 @@ export function runIntakeMerge(
   const ghExec = deps.execGh ?? execGh;
   const ghClose = deps.execGhIssueClose ?? execGhIssueClose;
   const bdExec = deps.execBd ?? execBd;
+  const run = deps.run ?? procRunner;
   const bdClose = deps.execBdIssueClose ?? execBdIssueClose;
   const loader = deps.loadAllBeads ?? loadAllBeads;
 
@@ -260,7 +264,7 @@ export function runIntakeMerge(
       );
       return 1;
     }
-    return runBdMerge(opts, output, dup.id, canonical.id, bdExec, bdClose, loader);
+    return runBdMerge(opts, output, dup.id, canonical.id, bdExec, run, bdClose, loader);
   }
 
   // Unreachable: notion was refused, kind-mismatch was refused, leaving only
@@ -464,6 +468,7 @@ function runBdMerge(
   dupId: string,
   canonicalId: string,
   bdExec: typeof execBd,
+  run: CommandRunner,
   bdClose: typeof execBdIssueClose,
   loader: typeof loadAllBeads,
 ): number {
@@ -554,22 +559,15 @@ function runBdMerge(
   } else {
     const newNotes = composeAppendedNotes(dupRecord.notes, marker, body);
     bdUpdateArgv = buildBdUpdateArgs(dupId, newNotes);
-    const updateResult: BdExecResult = bdExec(
-      {
-        subcommand: "update",
-        args: bdUpdateArgv,
-        state: "planning",
-        role: "planner",
-      },
-      processEnv(),
-    );
-    if (updateResult.exitCode !== 0) {
+    // GH-296 / prx-82b: pointer-note write via the daemon (single writer).
+    const updateResult = run(["prx", "beads", "update", ...bdUpdateArgv], { check: false });
+    if (updateResult.status !== 0) {
       const detail =
         updateResult.stderr.trim() ||
         updateResult.stdout.trim() ||
-        "bd update failed";
+        "prx beads update failed";
       output.error(`${VERB}: ${detail}`);
-      return updateResult.exitCode || 1;
+      return updateResult.status || 1;
     }
   }
 
