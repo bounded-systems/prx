@@ -36,7 +36,6 @@ import {
   formatBeadsIssueMatches,
   ensureLocalRuntimeArtifacts,
   initContract,
-  interactiveTimeoutMs,
   applyParityChainActions,
   findWorktreeByDirectoryPrefix,
   materializeWorkUnitBranch,
@@ -50,6 +49,7 @@ import {
   closeSession,
   reviewVerb,
 } from "../../src/pr-state/cli.ts";
+import { interactiveTimeoutMs } from "../../src/pr-state/work-agent.ts";
 import {
   prxSessionNotProjectedLocallyEnvelope,
   type PrxSessionNotProjectedLocallyDetails,
