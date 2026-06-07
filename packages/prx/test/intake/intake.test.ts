@@ -19,6 +19,7 @@ import type { PublishCoreResult, BeadsPublishOptions, BeadsPublishDeps } from ".
 function makeBdCreateStub(bdId = "ai-home-001"): {
   invocations: Array<{ subcommand: string; args: string[]; state?: string; role?: string }>;
   exec: (opts: { subcommand: string; args: string[]; state?: string; role?: string }) => BdExecResult;
+  run: (cmd: string[], o?: { check?: boolean }) => { status: number; stdout: string; stderr: string };
 } {
   const invocations: Array<{ subcommand: string; args: string[]; state?: string; role?: string }> = [];
   return {
@@ -29,6 +30,13 @@ function makeBdCreateStub(bdId = "ai-home-001"): {
         return { exitCode: 0, stdout: `${bdId}\n`, stderr: "", policy: null };
       }
       return { exitCode: 0, stdout: "", stderr: "", policy: null };
+    },
+    // GH-296 / prx-82b: bd create now runs `prx beads create …` through the
+    // daemon (a sync runner) which echoes the record as JSON. Records the
+    // equivalent invocation shape so the existing assertions hold.
+    run: (cmd: string[]) => {
+      invocations.push({ subcommand: cmd[2] ?? "", args: cmd.slice(3), state: "planning", role: "planner" });
+      return { status: 0, stdout: JSON.stringify({ id: bdId }), stderr: "" };
     },
   };
 }
@@ -352,6 +360,7 @@ describe("runIntake — bd-first default (GH-1607)", () => {
       { log: (l) => logs.push(l), error: () => undefined },
       {
         execBd: stub.exec as never,
+        run: stub.run as never,
         publishOne: (() => {
           publishCallCount++;
           return {
@@ -379,18 +388,19 @@ describe("runIntake — bd-first default (GH-1607)", () => {
     expect(logs[0]).toBe("ai-home-042");
   });
 
-  test("bd create receives --silent, --type, --title, planning role", () => {
+  test("bd create receives --type, --title, planning role", () => {
     const stub = makeBdCreateStub();
     runIntake(
       makeOptions({ type: "spike", title: "explore" }),
       { log: () => undefined, error: () => undefined },
       {
         execBd: stub.exec as never,
+        run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
       },
     );
-    expect(stub.invocations[0]!.args).toEqual(["--silent", "--type", "task", "--title", "spike: explore"]);
+    expect(stub.invocations[0]!.args).toEqual(["--type", "task", "--title", "spike: explore"]);
     expect(stub.invocations[0]!.state).toBe("planning");
     expect(stub.invocations[0]!.role).toBe("planner");
   });
@@ -408,6 +418,7 @@ describe("runIntake — --to gh projection (GH-1607)", () => {
       { log: (l) => logs.push(l), error: () => undefined },
       {
         execBd: stub.exec as never,
+        run: stub.run as never,
         publishOne: ((opts: BeadsPublishOptions, _deps: BeadsPublishDeps) => {
           publishCalls.push(opts);
           return {
@@ -448,6 +459,7 @@ describe("runIntake — --to gh projection (GH-1607)", () => {
       { log: () => undefined, error: () => undefined },
       {
         execBd: stub.exec as never,
+        run: stub.run as never,
         publishOne: ((opts: BeadsPublishOptions) => {
           publishCalls.push(opts);
           return {
@@ -474,6 +486,7 @@ describe("runIntake — --to gh projection (GH-1607)", () => {
       { log: () => undefined, error: () => undefined },
       {
         execBd: stub.exec as never,
+        run: stub.run as never,
         publishOne: ((opts: BeadsPublishOptions) => {
           publishCalls.push(opts);
           return {
@@ -502,6 +515,7 @@ describe("runIntake — --to gh projection (GH-1607)", () => {
       { log: (l) => logs.push(l), error: () => undefined },
       {
         execBd: stub.exec as never,
+        run: stub.run as never,
         publishOne: (() => ({
           exitCode: 0,
           outcome: "noop",
@@ -532,12 +546,7 @@ describe("runIntake — --to gh projection (GH-1607)", () => {
       makeOptions({ type: "task", title: "x", to: "gh" }),
       { log: () => undefined, error: (l) => errors.push(l) },
       {
-        execBd: (() => ({
-          exitCode: 1,
-          stdout: "",
-          stderr: "bd: out of space\n",
-          policy: null,
-        })) as never,
+        run: (() => ({ status: 1, stdout: "", stderr: "bd: out of space\n" })) as never,
         publishOne: (() => {
           publishCallCount++;
           return { exitCode: 0, outcome: "noop", bdId: "x", render: { bdId: "x", repo: "", title: "", outcome: "noop", dryRun: false, exitCode: 0 } } as PublishCoreResult;
@@ -558,7 +567,7 @@ describe("runIntake — --to gh projection (GH-1607)", () => {
       makeOptions({ type: "task", title: "x", to: "gh" }),
       { log: (l) => logs.push(l), error: (l) => errors.push(l) },
       {
-        execBd: makeBdCreateStub("ai-home-bad").exec as never,
+        run: makeBdCreateStub("ai-home-bad").run as never,
         publishOne: (() => ({
           exitCode: 1,
           outcome: "error",
@@ -749,6 +758,7 @@ describe("runIntake — structured fields", () => {
       { log: () => undefined, error: () => undefined },
       {
         execBd: stub.exec as never,
+        run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
       },
@@ -847,6 +857,7 @@ describe("runIntake — --to gh projection failure", () => {
       { log: () => undefined, error: () => undefined },
       {
         execBd: stub.exec as never,
+        run: stub.run as never,
         publishOne: (() => ({
           exitCode: 2,
           outcome: "error",
@@ -886,6 +897,7 @@ describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
       { log: () => undefined, error: () => undefined },
       {
         execBd: stub.exec as never,
+        run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
         isStdinTTY: () => true,
@@ -909,6 +921,7 @@ describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
       { log: () => undefined, error: (line) => errors.push(line) },
       {
         execBd: stub.exec as never,
+        run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
         isStdinTTY: () => true,
@@ -930,6 +943,7 @@ describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
       { log: () => undefined, error: () => undefined },
       {
         execBd: stub.exec as never,
+        run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
         isStdinTTY: () => true,
@@ -953,6 +967,7 @@ describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
       { log: () => undefined, error: () => undefined },
       {
         execBd: stub.exec as never,
+        run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
         isStdinTTY: () => false,
@@ -976,6 +991,7 @@ describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
       { log: () => undefined, error: () => undefined },
       {
         execBd: stub.exec as never,
+        run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
         isStdinTTY: () => true,
@@ -999,6 +1015,7 @@ describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
       { log: () => undefined, error: () => undefined },
       {
         execBd: stub.exec as never,
+        run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
         isStdinTTY: () => true,
@@ -1022,6 +1039,7 @@ describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
       { log: () => undefined, error: () => undefined },
       {
         execBd: stub.exec as never,
+        run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
         isStdinTTY: () => true,
@@ -1045,6 +1063,7 @@ describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
       { log: () => undefined, error: () => undefined },
       {
         execBd: stub.exec as never,
+        run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
         isStdinTTY: () => true,
@@ -1217,6 +1236,7 @@ function capturePublishLabels(
     { log: () => undefined, error: () => undefined },
     {
       execBd: stub.exec as never,
+      run: stub.run as never,
       publishOne: ((opts: BeadsPublishOptions) => {
         captured = [...opts.extraLabels];
         return {
