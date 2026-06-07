@@ -24,6 +24,53 @@ function bead(id: string): BeadsRecord {
   };
 }
 
+describe("createBeadsCache — UoW coherence + generation (GH-296)", () => {
+  test("upsert patches one record by id, not a full re-list", () => {
+    let calls = 0;
+    const cache = createBeadsCache({ loadAllBeads: () => (calls++, [bead("a"), bead("b")]) });
+    cache.load();
+    cache.upsert({ ...bead("b"), title: "b-updated" });
+    cache.upsert(bead("c")); // insert
+    const out = cache.load();
+    expect(calls).toBe(1); // no re-list
+    expect(out.find((r) => r.id === "b")?.title).toBe("b-updated");
+    expect(out.map((r) => r.id).sort()).toEqual(["a", "b", "c"]);
+  });
+
+  test("remove drops one record by id without re-listing", () => {
+    let calls = 0;
+    const cache = createBeadsCache({ loadAllBeads: () => (calls++, [bead("a"), bead("b")]) });
+    cache.load();
+    cache.remove("a");
+    expect(cache.load().map((r) => r.id)).toEqual(["b"]);
+    expect(calls).toBe(1);
+  });
+
+  test("upsert/remove are no-ops when nothing is cached", () => {
+    let calls = 0;
+    const cache = createBeadsCache({ loadAllBeads: () => (calls++, [bead("a")]) });
+    cache.upsert(bead("z")); // before any load
+    cache.remove("a");
+    expect(cache.load().map((r) => r.id)).toEqual(["a"]); // load is authoritative
+    expect(calls).toBe(1);
+  });
+
+  test("generation: stable HEAD serves cached; moved HEAD re-fetches", () => {
+    let calls = 0;
+    let head = "h1";
+    const cache = createBeadsCache({
+      loadAllBeads: () => (calls++, [bead(`gen-${calls}`)]),
+      generation: () => head,
+    });
+    cache.load();
+    cache.load(); // same HEAD → cached
+    expect(calls).toBe(1);
+    head = "h2"; // HEAD moved (e.g. a write or a reconcile pulled commits)
+    cache.load();
+    expect(calls).toBe(2);
+  });
+});
+
 describe("createBeadsCache", () => {
   test("memoizes the canonical read across N load() calls", () => {
     let calls = 0;
