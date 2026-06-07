@@ -1,11 +1,13 @@
 name: coverage
 
-# Code coverage with an 85% line-coverage gate. Runs the test suite with Bun's
-# native coverage, parses the lcov report into the workflow summary, uploads it
-# as an artifact, and FAILS the job when line coverage drops below 85%
-# (`coverage-summary.ts --min 85`). The test run itself stays `continue-on-error`
-# so the `ci` workflow remains the authority on test pass/fail; this job is the
-# authority on the coverage floor.
+# Code coverage with two gates. Runs the test suite with Bun's native coverage,
+# parses the lcov report into the workflow summary, uploads it as an artifact,
+# and FAILS the job (a required check) on a breach of either:
+#   • global  — project-total line coverage below 85% (`--min 85`)
+#   • per-file — any `src/` file below 80% that isn't in PER_FILE_BASELINE, or a
+#                stale baseline entry (`--per-file-min 80`, a shrink-only ratchet)
+# The test run itself stays `continue-on-error` so the `ci` workflow remains the
+# authority on test pass/fail; this job is the authority on the coverage floor.
 on:
   pull_request:
   push:
@@ -59,12 +61,14 @@ jobs:
         continue-on-error: true
         run: bun test --coverage --coverage-reporter=text --coverage-reporter=lcov
 
-      # The 85% line-coverage gate: coverage-summary.ts exits non-zero below the
-      # threshold, failing this job. (Make `coverage` a required status check in
-      # the branch ruleset to block merges on it.)
-      - name: Coverage summary + 85% gate
+      # Coverage gates (coverage-summary.ts exits non-zero on a breach, failing
+      # this job — which is a required status check, so it blocks merges):
+      #   --min 85          global project line-coverage floor
+      #   --per-file-min 80 per-file ratchet: every src/ file ≥ 80% unless it's
+      #                     in PER_FILE_BASELINE (which may only shrink)
+      - name: Coverage summary + gates (global 85% / per-file 80%)
         if: always()
-        run: bun run packages/prx/scripts/coverage-summary.ts coverage/lcov.info --min 85
+        run: bun run packages/prx/scripts/coverage-summary.ts coverage/lcov.info --min 85 --per-file-min 80
 
       # GitHub Code Quality wants Cobertura XML; Bun only emits lcov.
       - name: Convert lcov to Cobertura

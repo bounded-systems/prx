@@ -8,39 +8,88 @@
  * up on the workflow run page. No external service, no third-party action.
  *
  * A missing or empty report prints a note and exits 0 (a report-without-data
- * must not wedge CI). With `--min <pct>`, the script becomes a GATE: it exits 1
- * when the parsed LINE coverage is below `<pct>`, so the coverage job fails the
- * threshold.
+ * must not wedge CI). Two gates layer on top:
+ *
+ *   --min <pct>          GLOBAL: exit 1 when the project-total LINE coverage is
+ *                        below <pct>.
+ *   --per-file-min <pct> PER-FILE RATCHET: exit 1 when any in-scope SOURCE file
+ *                        (`packages/.../src/**`, excluding tests) is below <pct>
+ *                        unless it's in PER_FILE_BASELINE. The baseline can only
+ *                        SHRINK: a baselined file that has climbed to/above the
+ *                        floor (or vanished) is "stale" and also fails, so fixing
+ *                        a file forces removing its baseline entry in the same PR.
  *
  * Usage:
- *   bun run scripts/coverage-summary.ts [coverage/lcov.info] [--min 85]
+ *   bun run scripts/coverage-summary.ts [coverage/lcov.info] [--min 85] [--per-file-min 80]
  */
 
 import { appendFileSync, readFileSync } from "node:fs";
 
 const args = process.argv.slice(2);
-const minIdx = args.indexOf("--min");
-const minLinePct = minIdx >= 0 ? Number(args[minIdx + 1]) : null;
-const lcovPath = args.find((a, i) => !a.startsWith("--") && i !== minIdx + 1) ?? "coverage/lcov.info";
+function flagValue(name: string): number | null {
+  const i = args.indexOf(name);
+  return i >= 0 ? Number(args[i + 1]) : null;
+}
+const minLinePct = flagValue("--min");
+const perFileMin = flagValue("--per-file-min");
+const flagValueIdxs = new Set<number>();
+for (const name of ["--min", "--per-file-min"]) {
+  const i = args.indexOf(name);
+  if (i >= 0) flagValueIdxs.add(i + 1);
+}
+const lcovPath = args.find((a, i) => !a.startsWith("--") && !flagValueIdxs.has(i)) ?? "coverage/lcov.info";
+
+// PER-FILE RATCHET baseline: source files allowed below the per-file floor, each
+// with a reason. The gate fails if a NON-baselined source file drops below the
+// floor, or if a baselined entry goes stale (now at/above the floor, or gone) —
+// so the list only shrinks. Repo-relative paths (normalized to `packages/...`).
+const PER_FILE_BASELINE = new Set<string>([
+  "packages/prx/src/pr-state/tui.ts", // deprecated TUI surface
+  "packages/prx/src/pr-state/cli.ts", // 23k-line CLI, mid §4 decomposition
+  "packages/prx/src/pr-state/cli-spawn.ts", // cli.ts spawn helpers, decomposed alongside it
+  "packages/prx/src/triage/actors.ts", // thin XState wrappers; haiku-headless-actor reshape pending (#502)
+  "packages/prx/src/triage/type-pass.ts", // inline headless haiku call; moves to a headless actor (#502)
+  "packages/prx/src/triage/prioritize-bulk.ts", // inline headless haiku call; moves to a headless actor (#502)
+  "packages/prx/src/session/open.ts", // large session-open flow
+]);
 
 type Totals = { lf: number; lh: number; fnf: number; fnh: number; brf: number; brh: number; files: number };
+type FileCov = { path: string; lf: number; lh: number };
 
-function parse(lcov: string): Totals {
+function normalizePath(sf: string): string {
+  const m = sf.match(/(packages\/.*)$/);
+  return m ? m[1]! : sf;
+}
+
+// In-scope for the per-file gate: product source only — `.../src/**`, no tests.
+function isGatedSource(path: string): boolean {
+  return (
+    path.includes("/src/") &&
+    path.endsWith(".ts") &&
+    !path.endsWith(".test.ts") &&
+    !path.includes("/__tests__/")
+  );
+}
+
+function parse(lcov: string): { totals: Totals; perFile: FileCov[] } {
   const t: Totals = { lf: 0, lh: 0, fnf: 0, fnh: 0, brf: 0, brh: 0, files: 0 };
+  const perFile: FileCov[] = [];
+  let cur: FileCov | null = null;
   for (const line of lcov.split("\n")) {
     const [tag, rawValue] = line.split(":", 2);
     const n = Number(rawValue);
     switch (tag) {
-      case "SF": t.files += 1; break;
-      case "LF": t.lf += n; break;
-      case "LH": t.lh += n; break;
+      case "SF": t.files += 1; cur = { path: normalizePath(rawValue ?? ""), lf: 0, lh: 0 }; break;
+      case "LF": t.lf += n; if (cur) cur.lf = n; break;
+      case "LH": t.lh += n; if (cur) cur.lh = n; break;
       case "FNF": t.fnf += n; break;
       case "FNH": t.fnh += n; break;
       case "BRF": t.brf += n; break;
       case "BRH": t.brh += n; break;
     }
+    if (line === "end_of_record" && cur) { perFile.push(cur); cur = null; }
   }
-  return t;
+  return { totals: t, perFile };
 }
 
 function pct(hit: number, found: number): string {
@@ -69,7 +118,7 @@ function main(): void {
     return;
   }
 
-  const t = parse(lcov);
+  const { totals: t, perFile } = parse(lcov);
   const lineParts = [
     "### Coverage",
     "",
@@ -83,14 +132,53 @@ function main(): void {
   ];
   emit(lineParts.join("\n"));
 
+  let failed = false;
+
+  // ── global line-coverage gate ────────────────────────────────────────────
   if (minLinePct !== null && Number.isFinite(minLinePct)) {
     const linePct = t.lf === 0 ? 0 : (t.lh / t.lf) * 100;
     if (linePct < minLinePct) {
-      emit(`\n❌ **Coverage gate failed:** line coverage ${linePct.toFixed(2)}% is below the ${minLinePct}% minimum.`);
-      process.exit(1);
+      emit(`\n❌ **Global coverage gate failed:** line coverage ${linePct.toFixed(2)}% is below the ${minLinePct}% minimum.`);
+      failed = true;
+    } else {
+      emit(`\n✅ Global coverage gate passed: line coverage ${linePct.toFixed(2)}% ≥ ${minLinePct}%.`);
     }
-    emit(`\n✅ Coverage gate passed: line coverage ${linePct.toFixed(2)}% ≥ ${minLinePct}%.`);
   }
+
+  // ── per-file ratchet gate ────────────────────────────────────────────────
+  if (perFileMin !== null && Number.isFinite(perFileMin)) {
+    const filePct = (f: FileCov) => (f.lf === 0 ? 100 : (f.lh / f.lf) * 100);
+    const gated = perFile.filter((f) => isGatedSource(f.path));
+    const seen = new Set(gated.map((f) => f.path));
+
+    // New offenders: in-scope source below the floor and NOT baselined.
+    const violations = gated.filter((f) => filePct(f) < perFileMin && !PER_FILE_BASELINE.has(f.path));
+    // Stale baseline: a baselined path that is now at/above the floor, or absent
+    // from the report (deleted/renamed). The list may only shrink.
+    const stale = [...PER_FILE_BASELINE].filter((p) => {
+      const f = gated.find((g) => g.path === p);
+      return !seen.has(p) || (f !== undefined && filePct(f) >= perFileMin);
+    });
+
+    if (violations.length > 0) {
+      emit(`\n❌ **Per-file coverage gate failed:** ${violations.length} source file(s) below ${perFileMin}% (not baselined):`);
+      for (const f of violations.sort((a, b) => filePct(a) - filePct(b))) {
+        emit(`  - ${f.path} — ${filePct(f).toFixed(2)}%`);
+      }
+      emit(`  Raise their coverage, or add them to PER_FILE_BASELINE in coverage-summary.ts with a reason.`);
+      failed = true;
+    }
+    if (stale.length > 0) {
+      emit(`\n❌ **Stale per-file baseline:** ${stale.length} entr(y/ies) at/above ${perFileMin}% or missing — remove them (the baseline only shrinks):`);
+      for (const p of stale.sort()) emit(`  - ${p}`);
+      failed = true;
+    }
+    if (violations.length === 0 && stale.length === 0) {
+      emit(`\n✅ Per-file coverage gate passed: every source file ≥ ${perFileMin}% (or baselined), baseline has ${PER_FILE_BASELINE.size} entr(y/ies).`);
+    }
+  }
+
+  if (failed) process.exit(1);
 }
 
 main();
