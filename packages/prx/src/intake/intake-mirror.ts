@@ -26,7 +26,8 @@
 import { processEnv } from "@bounded-systems/env";
 import { z } from "zod";
 
-import { execBd, type BdExecResult } from "@bounded-systems/bd";
+import { execBd } from "@bounded-systems/bd";
+import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import { execGh, type GhExecResult } from "@bounded-systems/gh";
 import { repoNameWithOwner as defaultRepoNameWithOwner } from "../pr-state/github.ts";
 import {
@@ -64,6 +65,8 @@ export type IntakeMirrorRender = {
 export type IntakeMirrorDeps = {
   execGh?: typeof execGh;
   execBd?: typeof execBd;
+  /** GH-296 / prx-82b — sync runner for the daemon-routed `prx beads create`. */
+  run?: CommandRunner;
   loadAllBeads?: typeof defaultLoadAllBeads;
   repoNameWithOwner?: typeof defaultRepoNameWithOwner;
   cwd?: () => string;
@@ -104,7 +107,10 @@ function renderArgvLine(args: string[]): string {
 // Args after the `create` subcommand. `execBd` prepends the subcommand
 // itself; for dry-run rendering we re-prepend it via renderBdCreateArgvLine.
 function buildBdCreateArgs(issueUrl: string, title: string): string[] {
-  return ["--silent", "--external-ref", issueUrl, "--title", title];
+  // GH-296: `prx beads create` requires --type and echoes the created record as
+  // JSON, so we no longer need `--silent` for clean id output (we parse the
+  // record). Mirrored GH issues default to type `task`.
+  return ["--type", "task", "--external-ref", issueUrl, "--title", title];
 }
 
 function renderBdCreateArgvLine(args: string[]): string {
@@ -197,6 +203,7 @@ export function runIntakeMirror(
 ): number {
   const ghExec = deps.execGh ?? execGh;
   const bdExec = deps.execBd ?? execBd;
+  const run = deps.run ?? procRunner;
   const loader = deps.loadAllBeads ?? defaultLoadAllBeads;
   const resolveRepo = deps.repoNameWithOwner ?? defaultRepoNameWithOwner;
   const getCwd = deps.cwd ?? process.cwd;
@@ -301,32 +308,26 @@ export function runIntakeMirror(
     return 0;
   }
 
-  // Step 3: bd create.
-  const createResult: BdExecResult = bdExec(
-    {
-      subcommand: "create",
-      args: createArgs,
-      state: "planning",
-      role: "planner",
-    },
-    processEnv(),
-  );
-  if (createResult.exitCode !== 0) {
+  // Step 3: bd create via the daemon (single writer). `prx beads create` echoes
+  // the created record as JSON; we parse its `id` (no `--silent` id-line needed).
+  const createResult = run(["prx", "beads", "create", ...createArgs], { check: false });
+  if (createResult.status !== 0) {
     const detail =
       createResult.stderr.trim() ||
       createResult.stdout.trim() ||
-      "bd create failed";
+      "prx beads create failed";
     output.error(`prx intake mirror: ${detail}`);
-    return createResult.exitCode || 1;
+    return createResult.status || 1;
   }
 
-  // bd create --silent prints only the new id. Take the last non-empty line
-  // to be tolerant of trailing newlines or stray status lines.
-  const stdoutLines = createResult.stdout
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-  const createdBdId = stdoutLines[stdoutLines.length - 1] ?? "";
+  let createdBdId = "";
+  try {
+    const record = JSON.parse(createResult.stdout) as { id?: unknown };
+    if (typeof record.id === "string") createdBdId = record.id;
+  } catch {
+    output.error("prx intake mirror: prx beads create returned unparseable output");
+    return 1;
+  }
   if (!createdBdId) {
     output.error("prx intake mirror: bd create returned empty stdout");
     return 1;
