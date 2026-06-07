@@ -64,7 +64,13 @@ XState lives); only the four roles are subagents. No nesting, no conflict.
 
 **Proven by** `pilot.test.ts`: the stub runner walks a unit to `done` with zero
 events fed in, and the **signed provenance chain accumulates in order** —
-`plan@draft → implement@latest → gate@ci → submit@ready`, one link per leg.
+`source@pinned → plan@draft → implement@latest → gate@checks-local →
+review@validated → submit@ready → gate@ci-remote → merged@pr`. The four LLM
+**legs** (planner/executor/tester/reviewer) sign `plan@draft / implement@latest /
+review@validated / submit@ready`; the **deterministic seams** (intake, the local
+`prx ci` gate, remote CI, merge) sign the rest. See
+[`pipeline-local-checks.md`](./pipeline-local-checks.md) for the local-CI gate +
+observability in detail.
 
 ## Provenance — a signed in-toto tree (legs → pilot → fleet)
 
@@ -105,15 +111,25 @@ dev-mode resolver round-trips end to end. Open: store each leg's `outputHash` on
 its link so step links are verifiable from the chain alone (today `verifyLeg`
 needs the hash passed in).
 
-## CI is a hard block — by construction
+## CI is a hard block — by construction (twice)
 
-The pilot tail is `reviewing → awaiting_ci → ready_to_merge → sealing → merged`.
-`awaiting_ci` invokes the CI gate, which **resolves only when CI has settled** —
-pending never resolves, so there is literally no edge from `awaiting_ci` to
-merge while CI is pending or red. Green → `ready_to_merge`; red → retreat to
-`executing` (spends budget) or `abandoned`. The "CI pending is a HARD BLOCK"
-rule stops being a prompt instruction and becomes a property of the graph.
-Proven: a permanently-red gate never produces a `merged@pr` link.
+There are **two** signed gates, both deterministic seams that share one
+`gateState` helper (green → advance; red → retreat to `executing`, budget-bounded;
+budget spent → `abandoned`):
+
+- **`checking`** (local) sits between `executing` and `testing`. It runs the full
+  `prx ci` surface (install→typecheck→docs→build→test) in the unit's worktree and
+  signs `gate@checks-local` — failing fast on the real CI surface *before* the
+  LLM tester/reviewer legs and before remote CI. Runs under a hard timeout (the
+  pipeline analogue of a GitHub job `timeout-minutes`).
+- **`awaiting_ci`** (remote) is the tail `reviewing → awaiting_ci →
+  ready_to_merge → sealing → merged`. It polls remote CI and **resolves only when
+  CI has settled** — pending never resolves, so there is literally no edge to
+  merge while CI is pending or red.
+
+The "CI pending is a HARD BLOCK" rule stops being a prompt instruction and
+becomes a property of the graph — at both the local and remote gate. Proven: a
+permanently-red gate (either one) never produces a `merged@pr` link.
 
 ## No tmux — "claude over ssh"
 
@@ -210,12 +226,27 @@ A live probe (`PRX_PILOT_REAL=1 prx pilot prx-eky`) confirmed the path reaches
 timeout — now 30 min in real mode vs. 4 s for stubs — and (b) the beads/Dolt
 server being up (attached actors hydrate beads at session start).
 
-The **tail is real too**: `buildRealCiGate` polls `prx scout ci <unit>` until CI
-SETTLES — pending never advances (the hard block, now against the live status
-rather than a stub) — and `buildRealMerge` runs `prx publisher merge <unit>`;
-both sign their links. They shell out through an injected `runPrx`, so the whole
-tail is tested driven to `merged` with real signatures. `buildRealPilotDeps`
-wires all of it.
+The **tail is real too**: `buildRealChecks` resolves the implement worktree and
+runs `prx ci` there (signing `gate@checks-local`, under a hard timeout),
+`buildRealCiGate` polls `prx scout ci <unit>` until CI SETTLES — pending never
+advances (the hard block, now against the live status rather than a stub) — and
+`buildRealMerge` runs `prx publisher merge <unit>`; all sign their links. They
+shell out through an injected `runPrx`, so the whole tail is tested driven to
+`merged` with real signatures. `buildRealPilotDeps` wires all of it.
+
+## Observability — off the chain, signed once
+
+Telemetry is **orthogonal to the authority chain**: it surfaces *what's
+happening*, never gates a merge. Each LLM leg emits a progress **heartbeat**
+(`TELEMETRY_LEG_OBSERVED`, with an IDLE watchdog that retreats a silent leg), and
+each deterministic seam emits **start/done** (`TELEMETRY_SEAM_OBSERVED`) — both as
+`catalog-event` rows in the daily audit NDJSON, so a run is observable with
+`tail`/`jq`, `PRX_AUDIT_STDOUT=1`, or `prx observe <unit>` (a read-only timeline).
+For tamper-evidence without per-event signing, all telemetry folds into a per-unit
+hash chain whose head rides in the `prx.pilot/v1` summary predicate as `observed:
+{ digest, count }` — the pilot's existing signature commits to it. That anchored
+digest is the *only* place health touches the chain; gates decide merge, health
+rides along. Full rationale: [`pipeline-local-checks.md`](./pipeline-local-checks.md).
 
 ## No agent acts unsigned — and the CLI is a tty-actor
 
