@@ -38,6 +38,24 @@ function bdFail(stderr: string, code = 1): BdExecResult {
   return { exitCode: code, stdout: "", stderr, policy: null };
 }
 
+// GH-296 / prx-82b: the bd note write now runs `prx beads update <id> --notes …`
+// through the daemon (a sync runner). The fake records the equivalent old
+// `bd update` BdCallTag shape so the existing assertions hold; `result` drives
+// the exit status.
+function recordingRun(bdCalls: BdCallTag[], result: BdExecResult = bdOk()) {
+  return (cmd: string[], _opts?: { check?: boolean }) => {
+    // cmd = ["prx","beads","update", <id>, "--notes", <notes>]
+    bdCalls.push({
+      kind: "bd",
+      subcommand: "update",
+      args: cmd.slice(3),
+      state: "planning",
+      role: "planner",
+    });
+    return { status: result.exitCode, stdout: result.stdout, stderr: result.stderr };
+  };
+}
+
 function bdRecord(overrides: Partial<BeadsRecord> = {}): BeadsRecord {
   return {
     id: "ai-home-gmkwh",
@@ -192,16 +210,7 @@ describe("runIntakeComment — id dispatch", () => {
           ghCalls.push({ kind: "gh", subcommand: opts.subcommand, args: opts.args });
           return ghOk();
         }) as never,
-        execBd: ((opts: { subcommand: string; args: string[]; state?: string; role?: string }) => {
-          bdCalls.push({
-            kind: "bd",
-            subcommand: opts.subcommand,
-            args: opts.args,
-            state: opts.state,
-            role: opts.role,
-          });
-          return bdOk();
-        }) as never,
+        run: recordingRun(bdCalls) as never,
         loadAllBeads: (() => [bdRecord({ id: "ai-home-gmkwh", notes: null })]) as never,
       },
     );
@@ -259,10 +268,7 @@ describe("runIntakeComment — bd arm", () => {
       makeOpts({ canonicalId: "ai-home-gmkwh", body: "first note" }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          bdCalls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk();
-        }) as never,
+        run: recordingRun(bdCalls) as never,
         loadAllBeads: (() => [bdRecord({ id: "ai-home-gmkwh", notes: null })]) as never,
       },
     );
@@ -277,10 +283,7 @@ describe("runIntakeComment — bd arm", () => {
       makeOpts({ canonicalId: "ai-home-gmkwh", body: "second" }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          bdCalls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk();
-        }) as never,
+        run: recordingRun(bdCalls) as never,
         loadAllBeads: (() => [
           bdRecord({ id: "ai-home-gmkwh", notes: "existing hand note" }),
         ]) as never,
@@ -301,10 +304,7 @@ describe("runIntakeComment — bd arm", () => {
       makeOpts({ canonicalId: "ai-home-gmkwh", body: "follow-up" }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          firstRunCalls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk();
-        }) as never,
+        run: recordingRun(firstRunCalls) as never,
         loadAllBeads: (() => [bdRecord({ id: "ai-home-gmkwh", notes: null })]) as never,
       },
     );
@@ -315,10 +315,7 @@ describe("runIntakeComment — bd arm", () => {
       makeOpts({ canonicalId: "ai-home-gmkwh", body: "follow-up" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          bdCalls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk();
-        }) as never,
+        run: recordingRun(bdCalls) as never,
         loadAllBeads: (() => [
           bdRecord({ id: "ai-home-gmkwh", notes: seededNotes }),
         ]) as never,
@@ -337,10 +334,7 @@ describe("runIntakeComment — bd arm", () => {
       makeOpts({ canonicalId: "ai-home-missing", body: "x" }),
       { log: () => undefined, error: (l) => errors.push(l) },
       {
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          bdCalls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk();
-        }) as never,
+        run: recordingRun(bdCalls) as never,
         loadAllBeads: (() => []) as never,
       },
     );
@@ -372,7 +366,7 @@ describe("runIntakeComment — bd arm", () => {
       makeOpts({ canonicalId: "ai-home-gmkwh", body: "x" }),
       { log: () => undefined, error: (l) => errors.push(l) },
       {
-        execBd: (() => bdFail("bd-safe: blocked", 2)) as never,
+        run: recordingRun([], bdFail("bd-safe: blocked", 2)) as never,
         loadAllBeads: (() => [bdRecord({ id: "ai-home-gmkwh", notes: null })]) as never,
       },
     );
@@ -387,10 +381,7 @@ describe("runIntakeComment — bd arm", () => {
       makeOpts({ canonicalId: "ai-home-gmkwh", body: "x", repo: "o/r" }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          bdCalls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk();
-        }) as never,
+        run: recordingRun(bdCalls) as never,
         loadAllBeads: (() => [bdRecord({ id: "ai-home-gmkwh", notes: null })]) as never,
       },
     );
@@ -406,10 +397,7 @@ describe("runIntakeComment — bd arm", () => {
       makeOpts({ canonicalId: "ai-home-gmkwh", body: "preview", dryRun: true }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          bdCalls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk();
-        }) as never,
+        run: recordingRun(bdCalls) as never,
         loadAllBeads: (() => [bdRecord({ id: "ai-home-gmkwh", notes: null })]) as never,
       },
     );
