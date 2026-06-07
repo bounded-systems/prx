@@ -40,9 +40,6 @@ import {
   boardStatus,
   chainStatus,
   repoStatus,
-  remoteCiCheck,
-  resolveCurrentPrRef,
-  scoutLogs,
   repoCheckNames,
   fetchPrComments,
   resolvePrReviewThreads,
@@ -977,7 +974,7 @@ import { type ExecutionWorkAgent, POLICY, buildWorkAutomationProfile, ensureExec
 import { findSavedClaudeSession, resolveCodexSessionProfile } from "./session-finder.ts";
 import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type Output, type ParityChainApplyResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
 import { refreshTaskSignals } from "./status-report.ts";
-import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktreeRemove } from "./cli-format.ts";
+import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktreeRemove } from "./cli-format.ts";
 import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, detectBranchNameFromCwd, findWorktreeByDirectoryPrefix, listResolvedWorktrees, procSpawnLike, resolveRepoRootWithSpawn, runCommand, runInheritStatus, tryCommand } from "./cli-spawn.ts";
 
 // Shared default for the `SpawnLike` capture seams below. Routes through
@@ -2093,19 +2090,6 @@ type ParsedCommand =
       fetch: boolean;
     }
   | {
-      command: "remote-ci-check";
-      repoPath: string;
-      pr?: string | undefined;
-      format: "plain" | "json";
-    }
-  | {
-      command: "scout-logs";
-      repoPath: string;
-      pr?: string | undefined;
-      maxLines: number;
-      format: "plain" | "json";
-    }
-  | {
       command: "pr-comments";
       repoPath: string;
       action: "show" | "resolve";
@@ -2750,8 +2734,6 @@ type CliDeps = {
   /** CommandRunner seam for the final `tmux attach-session` call. Separate from muxRunner because the attach is interactive (stdio-inherit) in prod while tests want it mocked. */
   attachRunner?: GithubCommandRunner;
   repoStatus?: typeof repoStatus;
-  remoteCiCheck?: typeof remoteCiCheck;
-  scoutLogs?: typeof scoutLogs;
   fetchPrComments?: typeof fetchPrComments;
   resolvePrReviewThreads?: typeof resolvePrReviewThreads;
   repoCheckNames?: typeof repoCheckNames;
@@ -2801,7 +2783,6 @@ type CliDeps = {
   findBeadsIssuesByGithubIssue?: typeof findBeadsIssuesByGithubIssue;
   checkWorkUnitSession?: typeof checkWorkUnitSession;
   checkWorkUnitChain?: typeof checkWorkUnitChain;
-  resolveCurrentPrRef?: typeof resolveCurrentPrRef;
   pruneStaleRemoteRefs?: typeof pruneStaleRemoteRefs;
   applyParityChainActions?: typeof applyParityChainActions;
   checkPrxBinaryUpstream?: typeof checkPrxBinaryUpstream;
@@ -10993,48 +10974,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  if (command === "remote-ci-check") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        "repo-path": { type: "string", default: "." },
-        pr: { type: "string" },
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command,
-      repoPath: values["repo-path"],
-      pr: values.pr ?? undefined,
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
-
-  if (command === "scout-logs") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        "repo-path": { type: "string", default: "." },
-        pr: { type: "string" },
-        "max-lines": { type: "string", default: "200" },
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command,
-      repoPath: values["repo-path"],
-      pr: values.pr ?? undefined,
-      maxLines: parseInt(values["max-lines"] ?? "200", 10),
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
-
   if (command === "pr-comments") {
     const subcommand = rest[0] === "resolve" ? "resolve" : "show";
     const commandArgs = subcommand === "resolve" ? rest.slice(1) : rest;
@@ -15880,6 +15819,23 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     // namespace stays on the legacy handlers.
     if (orchestratorVerb === "plan" && orchestratorRest[0] === "close") {
       return runSpecVerb("plan-close", orchestratorRest.slice(1), output);
+    }
+    // `remote-ci-check` (a.k.a. `repo ci` / `scout ci`) and `scout-logs`
+    // (`scout logs`) — the rest of those namespaces stays on legacy.
+    if (orchestratorVerb === "remote-ci-check") {
+      return runSpecVerb("remote-ci-check", orchestratorRest, output);
+    }
+    if (orchestratorVerb === "scout-logs") {
+      return runSpecVerb("scout-logs", orchestratorRest, output);
+    }
+    if (
+      (orchestratorVerb === "repo" || orchestratorVerb === "scout") &&
+      orchestratorRest[0] === "ci"
+    ) {
+      return runSpecVerb("remote-ci-check", orchestratorRest.slice(1), output);
+    }
+    if (orchestratorVerb === "scout" && orchestratorRest[0] === "logs") {
+      return runSpecVerb("scout-logs", orchestratorRest.slice(1), output);
     }
     if (orchestratorVerb === "plugin") {
       return runPluginVerb(orchestratorRest, output);
@@ -22633,20 +22589,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       );
       output.log(formatRepoStatus(summary, parsed.format));
       return 0;
-    }
-
-    if (parsed.command === "remote-ci-check") {
-      const prRef = parsed.pr ?? (deps.resolveCurrentPrRef ?? resolveCurrentPrRef)(parsed.repoPath);
-      const summary = (deps.remoteCiCheck ?? remoteCiCheck)(parsed.repoPath, prRef);
-      output.log(formatRemoteCiCheck(summary, parsed.format));
-      return summary.failingChecks.length > 0 ? 1 : 0;
-    }
-
-    if (parsed.command === "scout-logs") {
-      const prRef = parsed.pr ?? (deps.resolveCurrentPrRef ?? resolveCurrentPrRef)(parsed.repoPath);
-      const result = (deps.scoutLogs ?? scoutLogs)(parsed.repoPath, prRef, undefined, parsed.maxLines);
-      output.log(formatScoutLogs(result, parsed.format));
-      return result.checks.length > 0 ? 1 : 0;
     }
 
     if (parsed.command === "pr-comments") {

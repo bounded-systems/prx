@@ -12498,95 +12498,10 @@ describe("pr_state cli", () => {
     });
   });
 
-  test("remote-ci-check supports plain output", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["remote-ci-check", "--pr", "16230"],
-      {
-        log: (line) => logs.push(line),
-        error: () => {},
-      },
-      {
-        remoteCiCheck: () => ({
-          repoPath: ".",
-          pr: "16230",
-          failingChecks: [
-            {
-              name: "continuous-integration/codebuild",
-              state: "FAILURE",
-              description: "The CodeBuild build has failed",
-              link: "https://console.aws.amazon.com/codebuild/home?region=us-east-1#/builds/WebCodeBuildProject-X:view/new",
-              codebuild: {
-                buildId: "WebCodeBuildProject-X:view",
-                reportArn: "arn:aws:codebuild:us-east-1:123:report/X",
-                error: null,
-                failures: [
-                  {
-                    name: "test_lin_loop_item",
-                    suite: "OrderfulInventoryInquiryAdviceTest",
-                    status: "FAILED",
-                    message: null,
-                    details: "Expected: \"1\" Actual: nil",
-                    duration_ns: 69930102,
-                  },
-                ],
-              },
-            },
-          ],
-        }),
-      },
-    );
-
-    expect(exitCode).toBe(1);
-    expect(logs[0]!).toContain("remote ci check");
-    expect(logs[0]!).toContain("continuous-integration/codebuild");
-    expect(logs[0]!).toContain("failed_tests: 1");
-  });
-
-  test("remote-ci-check supports json output", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["remote-ci-check", "--pr", "16230", "--format", "json"],
-      {
-        log: (line) => logs.push(line),
-        error: () => {},
-      },
-      {
-        remoteCiCheck: () => ({
-          repoPath: "/repo",
-          pr: "16230",
-          failingChecks: [],
-        }),
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    expect(JSON.parse(logs[0]!)).toMatchObject({
-      repoPath: "/repo",
-      pr: "16230",
-      failingChecks: [],
-    });
-  });
-
-  test("remote-ci-check without --pr auto-resolves from current branch", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["remote-ci-check"],
-      {
-        log: (line) => logs.push(line),
-        error: () => {},
-      },
-      {
-        resolveCurrentPrRef: () => "42",
-        remoteCiCheck: (_repoPath, prRef) => {
-          expect(prRef).toBe("42");
-          return { repoPath: ".", pr: prRef, failingChecks: [] };
-        },
-      },
-    );
-
-    expect(exitCode).toBe(0);
-  });
+  // `remote-ci-check` (a.k.a. `repo ci` / `scout ci`) and `scout-logs`
+  // (`scout logs`) are deps-bearing VerbSpecs now — their plain/json output,
+  // ref auto-resolution, and the failing-checks→exit-1 mapping (the `exitCode`
+  // projection) live with the verbs in test/pr-state/ci-check-verb.test.ts.
 
   test("scout comments routes to pr-comments", () => {
     const logs: string[] = [];
@@ -12615,25 +12530,6 @@ describe("pr_state cli", () => {
     expect(output).toContain('"unresolvedThreads": 0');
   });
 
-  test("scout ci routes to remote-ci-check", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["scout", "ci", "--pr", "123"],
-      {
-        log: (line) => logs.push(line),
-        error: () => {},
-      },
-      {
-        remoteCiCheck: (_repoPath, prRef) => {
-          expect(prRef).toBe("123");
-          return { repoPath: ".", pr: prRef, failingChecks: [] };
-        },
-      },
-    );
-
-    expect(exitCode).toBe(0);
-  });
-
   test("scout checks routes to repo-checks", () => {
     const logs: string[] = [];
     const exitCode = runCliDirect(
@@ -12649,56 +12545,6 @@ describe("pr_state cli", () => {
 
     // exit 1 because no checks found (empty)
     expect(exitCode).toBe(1);
-  });
-
-  test("scout logs routes to scout-logs with failing checks", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["scout", "logs", "--pr", "42", "--format", "json"],
-      {
-        log: (line) => logs.push(line),
-        error: () => {},
-      },
-      {
-        scoutLogs: (_repoPath, prRef, _runner, _maxLines) => {
-          expect(prRef).toBe("42");
-          return {
-            repoPath: ".",
-            pr: prRef,
-            checks: [{
-              name: "ci",
-              state: "FAILURE",
-              link: "https://github.com/owner/repo/actions/runs/123",
-              runId: "123",
-              logs: "Error: test failed",
-              error: null,
-            }],
-          };
-        },
-      },
-    );
-
-    expect(exitCode).toBe(1); // failing checks
-    const output = logs.join("\n");
-    expect(output).toContain('"runId": "123"');
-    expect(output).toContain("Error: test failed");
-  });
-
-  test("scout logs with no failures returns exit 0", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["scout", "logs", "--pr", "42"],
-      {
-        log: (line) => logs.push(line),
-        error: () => {},
-      },
-      {
-        scoutLogs: () => ({ repoPath: ".", pr: "42", checks: [] }),
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    expect(logs.join("\n")).toContain("no failing checks");
   });
 
   test("scout unknown subcommand errors", () => {
