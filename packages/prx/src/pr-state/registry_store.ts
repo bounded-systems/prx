@@ -26,7 +26,7 @@ const remoteUrl = z.string().min(1).refine(
 );
 
 export const RepoRowSchema = z.object({
-  // `<host>/<owner>/<name>`, e.g. `github.com/bdelanghe/ai-home`.
+  // `<host>/<owner>/<name>`, e.g. `github.com/example-owner/example-repo`.
   repo_id: z.string().min(1),
   bare_path: z.string().min(1),
   remote_url: remoteUrl,
@@ -37,7 +37,7 @@ export const RepoRowSchema = z.object({
 export type RepoRow = z.infer<typeof RepoRowSchema>;
 
 export const BranchRowSchema = z.object({
-  // `<repo_id>:<name>`, e.g. `github.com/bdelanghe/ai-home:GH-1760`.
+  // `<repo_id>:<name>`, e.g. `github.com/example-owner/example-repo:GH-1760`.
   branch_id: z.string().min(1),
   repo_id: z.string().min(1),
   name: z.string().min(1),

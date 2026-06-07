@@ -4,6 +4,7 @@ import {
   inferOperatorScopeFromCwd,
   isMainxPath,
   isMainxWorktree,
+  readConfiguredScopeMap,
   type CommandRunner,
 } from "../../src/pr-state/scope-inference.ts";
 
@@ -30,19 +31,19 @@ function makeRunner(
 }
 
 describe("inferOperatorScopeFromCwd", () => {
-  test("ai-home cwd → prx scope", () => {
+  test("configured repo cwd → mapped scope", () => {
     const { runner } = makeRunner({
       "git -C /repo remote get-url origin": {
-        stdout: "git@github.com:bdelanghe/ai-home.git\n",
+        stdout: "git@github.com:example-owner/example-repo.git\n",
       },
       "git -C /repo rev-parse --show-toplevel": {
         stdout: "/Users/dev/.local/state/wt/worktrees/main/gh_876_vjg\n",
       },
     });
-    expect(inferOperatorScopeFromCwd("/repo", runner)).toEqual({
+    expect(inferOperatorScopeFromCwd("/repo", runner, { "example-owner/example-repo": "prx" })).toEqual({
       scope: "prx",
       source: "git-remote",
-      mapping: "bdelanghe/ai-home",
+      mapping: "example-owner/example-repo",
     });
   });
 
@@ -65,7 +66,7 @@ describe("inferOperatorScopeFromCwd", () => {
   test("mainx worktree → skipped, even when origin maps", () => {
     const { runner } = makeRunner({
       "git -C /repo remote get-url origin": {
-        stdout: "git@github.com:bdelanghe/ai-home.git",
+        stdout: "git@github.com:example-owner/example-repo.git",
       },
       "git -C /repo rev-parse --show-toplevel": {
         stdout: "/Users/dev/.local/state/wt/worktrees/main/mainx",
@@ -117,15 +118,30 @@ describe("inferOperatorScopeFromCwd", () => {
   test("toplevel command failure does not block inference (treats as not-mainx)", () => {
     const { runner } = makeRunner({
       "git -C /repo remote get-url origin": {
-        stdout: "git@github.com:bdelanghe/ai-home.git",
+        stdout: "git@github.com:example-owner/example-repo.git",
       },
       "git -C /repo rev-parse --show-toplevel": { status: 128 },
     });
-    expect(inferOperatorScopeFromCwd("/repo", runner)).toEqual({
+    expect(inferOperatorScopeFromCwd("/repo", runner, { "example-owner/example-repo": "prx" })).toEqual({
       scope: "prx",
       source: "git-remote",
-      mapping: "bdelanghe/ai-home",
+      mapping: "example-owner/example-repo",
     });
+  });
+});
+
+describe("readConfiguredScopeMap (GH-411 slice 4)", () => {
+  test("reads scopeMap from ~/.config/prx/config.json via the shared reader", () => {
+    const map = readConfiguredScopeMap({
+      homeDir: "/home/op",
+      pathExists: (p) => p === "/home/op/.config/prx/config.json",
+      readFile: () => JSON.stringify({ scopeMap: { "owner/repo": "prx" } }),
+    });
+    expect(map).toEqual({ "owner/repo": "prx" });
+  });
+
+  test("{} when unconfigured (→ inference falls back to no-mapping)", () => {
+    expect(readConfiguredScopeMap({ homeDir: "/home/op", pathExists: () => false })).toEqual({});
   });
 });
 

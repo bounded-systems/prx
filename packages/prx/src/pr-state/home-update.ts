@@ -4,6 +4,8 @@ import { existsSync, readFileSync, readlinkSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 
+import { readOperatorConfig, type OperatorConfigDeps } from "../operator-config.ts";
+
 export type HomeUpdateSpawnResult = {
   status: number | null;
   stdout?: string | Buffer | null;
@@ -60,41 +62,25 @@ const DEFAULT_FLAKE_DIR = "~/.config/home-manager";
 // repo name — see readConfiguredHomeUpdateInputs / `homeUpdate.inputs`.
 const STANDALONE_DEFAULT_INPUTS = ["prx"];
 
-type ConfigReaderDeps = {
-  readFile?: (path: string) => string;
-  pathExists?: (path: string) => boolean;
-  homeDir?: string;
-};
-
 // GH-411 slice 3: the coupled flake-input set for `prx home update` / `prx
 // upgrade`, read from `~/.config/prx/config.json` `homeUpdate.inputs`. The
 // operator declares which inputs move together (prx + whatever consumer flake
 // imports its hm modules) instead of the name being baked into prx. Returns null
 // when unconfigured/malformed (caller falls back to the standalone default).
+// Shares the single operator-config reader (operator-config.ts) with scopeMap /
+// provenance (GH-411 slice 4).
 export function readConfiguredHomeUpdateInputs(
-  deps: ConfigReaderDeps = {},
+  deps: OperatorConfigDeps = {},
 ): string[] | null {
-  const home = deps.homeDir ?? homedir();
-  if (!home) return null;
-  const path = resolve(home, ".config", "prx", "config.json");
-  const exists = deps.pathExists ?? ((p: string) => existsSync(p));
-  const read = deps.readFile ?? ((p: string) => readFileSync(p, "utf8"));
-  if (!exists(path)) return null;
-  try {
-    const parsed = JSON.parse(read(path)) as {
-      homeUpdate?: { inputs?: unknown };
-    };
-    const raw = parsed.homeUpdate?.inputs;
-    if (!Array.isArray(raw)) return null;
-    const names = raw
-      .filter((v): v is string => typeof v === "string")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-    return names.length > 0 ? names : null;
-  } catch {
-    // A malformed config must not break upgrade — treat as unconfigured.
-    return null;
-  }
+  const raw = readOperatorConfig(deps).homeUpdate;
+  if (!raw || typeof raw !== "object") return null;
+  const inputs = (raw as { inputs?: unknown }).inputs;
+  if (!Array.isArray(inputs)) return null;
+  const names = inputs
+    .filter((v): v is string => typeof v === "string")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  return names.length > 0 ? names : null;
 }
 
 function resolveTildePath(path: string, homeDir: string): string {

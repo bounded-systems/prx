@@ -10,8 +10,8 @@
  *   URL path segment 1: {dolt_user}  (who hosts the mirror)
  *   URL path segment 2: {repo}       (gh repo name, operator-friendly)
  *
- *   git@github.com:bdelanghe/ai-home.git
- *     → https://doltremoteapi.dolthub.com/bdelanghe/ai-home
+ *   git@github.com:example-owner/example-repo.git
+ *     → https://doltremoteapi.dolthub.com/example-owner/example-repo
  *
  * The org prefix is intentionally absent — {dolt_user} already disambiguates
  * ownership at the host. {dolt_user} and {gh_owner} are distinct axes:
