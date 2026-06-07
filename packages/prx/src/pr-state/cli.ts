@@ -995,7 +995,7 @@ import { CliError } from "./cli-error.ts";
 import { type ExecutionWorkAgent, POLICY, buildWorkAutomationProfile, ensureExecutionWorkflowAgent, interactiveTimeoutMs, parseWorkAgentImplementation, validateWorkIoFormat } from "./work-agent.ts";
 import { findSavedClaudeSession, resolveCodexSessionProfile } from "./session-finder.ts";
 import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type ParityChainApplyResult, type PlanCloseReason, type PlanCloseResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
-import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatCreateCommand, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatGraph, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatOverview, formatParityChainApplyResults, formatPhase, formatPlanCloseResult, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatReadyCommand, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktree, formatWorktreeRemove, formatWtStatus } from "./cli-format.ts";
+import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatGraph, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatOverview, formatParityChainApplyResults, formatPhase, formatPlanCloseResult, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktree, formatWorktreeRemove, formatWtStatus } from "./cli-format.ts";
 import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, findWorktreeByDirectoryPrefix, listResolvedWorktrees, procSpawnLike, resolveRepoRootWithSpawn, runCommand, runInheritStatus, tryCommand } from "./cli-spawn.ts";
 
 // Shared default for the `SpawnLike` capture seams below. Routes through
@@ -1110,12 +1110,6 @@ type ParsedCommand =
       kind?: "agent" | "artifact" | "transition" | undefined;
       list?: boolean | undefined;
       id?: string | undefined;
-    }
-  | {
-      command: "open-mode";
-      contract: string;
-      format: "mode" | "json" | "gh-create" | "gh-ready";
-      pr?: string | undefined;
     }
   | {
       command: "runtime-profile";
@@ -8554,26 +8548,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
       log: values.log,
       id: values.id,
-    };
-  }
-
-  if (command === "open-mode") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        contract: { type: "string", default: ".pr/local/pr.json" },
-        format: { type: "string", default: "mode" },
-        pr: { type: "string" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command,
-      contract: values.contract,
-      format: ensureChoice(values.format, ["mode", "json", "gh-create", "gh-ready"], "--format"),
-      pr: values.pr,
     };
   }
 
@@ -16451,7 +16425,8 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       orchestratorVerb === "schemas" ||
       orchestratorVerb === "features" ||
       orchestratorVerb === "graph" ||
-      orchestratorVerb === "skills"
+      orchestratorVerb === "skills" ||
+      orchestratorVerb === "open-mode"
     ) {
       return runSpecVerb(orchestratorVerb, orchestratorRest, output);
     }
@@ -17719,33 +17694,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       }
 
       output.log(`${payload.state} (${payload.mode}) - ${payload.event} via ${skill}`);
-      return 0;
-    }
-
-    if (parsed.command === "open-mode") {
-      const info = deriveInfo(loadContract(parsed.contract));
-
-      if (parsed.format === "mode") {
-        output.log(info.mode);
-        return 0;
-      }
-
-      if (parsed.format === "json") {
-        output.log(JSON.stringify(info, null, 2));
-        return 0;
-      }
-
-      if (parsed.format === "gh-create") {
-        output.log(formatCreateCommand(info.mode));
-        return 0;
-      }
-
-      if (!parsed.pr) {
-        output.error("--pr is required with --format gh-ready");
-        return 1;
-      }
-
-      output.log(formatReadyCommand(info.mode, info.state, parsed.pr));
       return 0;
     }
 
