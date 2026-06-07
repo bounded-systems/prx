@@ -33,7 +33,14 @@ async function writeViaDaemon(
 
 /** Daemon-routed `bd create` → the created record (or null if none echoed). */
 export function createBeadViaDaemon(
-  input: { issueType: string; title: string; priority?: number; description?: string },
+  input: {
+    issueType: string;
+    title: string;
+    priority?: number;
+    description?: string;
+    externalRef?: string;
+    silent?: boolean;
+  },
   deps: WithBeadsClientDeps = {},
 ): Promise<BeadsRecord | null> {
   const request: BeadsRequest = {
@@ -42,6 +49,8 @@ export function createBeadViaDaemon(
     title: input.title,
     ...(input.priority !== undefined ? { priority: input.priority } : {}),
     ...(input.description !== undefined ? { description: input.description } : {}),
+    ...(input.externalRef !== undefined ? { externalRef: input.externalRef } : {}),
+    ...(input.silent !== undefined ? { silent: input.silent } : {}),
   };
   return writeViaDaemon(request, deps);
 }
@@ -49,7 +58,7 @@ export function createBeadViaDaemon(
 /** Daemon-routed `bd update <id>` → the updated record (or null if none echoed). */
 export function updateBeadViaDaemon(
   id: string,
-  fields: { status?: string; priority?: number; assignee?: string },
+  fields: { status?: string; priority?: number; assignee?: string; issueType?: string },
   deps: WithBeadsClientDeps = {},
 ): Promise<BeadsRecord | null> {
   const request: BeadsRequest = {
@@ -58,6 +67,7 @@ export function updateBeadViaDaemon(
     ...(fields.status !== undefined ? { status: fields.status } : {}),
     ...(fields.priority !== undefined ? { priority: fields.priority } : {}),
     ...(fields.assignee !== undefined ? { assignee: fields.assignee } : {}),
+    ...(fields.issueType !== undefined ? { issueType: fields.issueType } : {}),
   };
   return writeViaDaemon(request, deps);
 }

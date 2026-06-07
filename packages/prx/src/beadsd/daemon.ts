@@ -86,15 +86,18 @@ function beadsArgs(request: BeadsRequest): string[] {
         request.title,
         ...(request.priority !== undefined ? ["--priority", String(request.priority)] : []),
         ...(request.description !== undefined ? ["--description", request.description] : []),
+        ...(request.externalRef !== undefined ? ["--external-ref", request.externalRef] : []),
+        ...(request.silent === true ? ["--silent"] : []),
       ];
     case "update": {
       const fields = [
         ...(request.status !== undefined ? ["--status", request.status] : []),
         ...(request.priority !== undefined ? ["--priority", String(request.priority)] : []),
         ...(request.assignee !== undefined ? ["--assignee", request.assignee] : []),
+        ...(request.issueType !== undefined ? ["--type", request.issueType] : []),
       ];
       if (fields.length === 0) {
-        throw new EmptyUpdateError("update requires at least one of status / priority / assignee");
+        throw new EmptyUpdateError("update requires at least one of status / priority / assignee / type");
       }
       return [request.id, "--json", ...fields];
     }
