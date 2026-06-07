@@ -96,6 +96,15 @@ export const docsVerb = defineVerb({
         results.push({ name: t.name, path, status: "wrote" });
       }
     }
+    // In --check mode, a drift is a failure: throw so the CLI exits non-zero
+    // (this verb backs `docs:check` / `prx ci --phase=docs`). Render mode never
+    // throws — it just reports what it wrote.
+    if (check && driftCount > 0) {
+      const drifted = results.filter((t) => t.status === "drifted").map((t) => t.path);
+      throw new Error(
+        `docs out of date: ${drifted.join(", ")}\nrun \`bun run docs:render\` and commit the result.`,
+      );
+    }
     return { check, driftCount, targets: results };
   },
 });
