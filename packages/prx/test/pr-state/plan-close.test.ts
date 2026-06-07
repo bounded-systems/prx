@@ -17,8 +17,8 @@ import {
   planCloseReasonToGhReason,
   runCli as runCliDirect,
   type PlanCloseOptions,
-  type PlanCloseResult,
 } from "../../src/pr-state/cli.ts";
+import type { PlanCloseResult } from "../../src/pr-state/cli-types.ts";
 import {
   planCloseReasonToBdReason,
   type PlanCloseBdRecordOutcome,
