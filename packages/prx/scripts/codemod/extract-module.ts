@@ -1,18 +1,22 @@
 #!/usr/bin/env bun
 // ts-morph codemod — extract named top-level declarations from a source module
-// into a new SIBLING module (same directory), carrying the imports they use and
+// into a SIBLING module (same directory), carrying the imports they use and
 // re-importing the moved symbols back into the source where still referenced.
 // The first concrete tool for the §4 decomposition of pr-state/cli.ts: move a
 // cohesive cluster out, verb-by-verb, with the AST (not hand cut/paste).
 //
 //   bun run packages/prx/scripts/codemod/extract-module.ts <source> <target> <Name...>
 //
-// Paths are repo-relative; source and target MUST share a directory so the moved
-// imports' relative specifiers stay valid (copied verbatim). The codemod REFUSES
-// to run if the block depends on a symbol still defined in the source (that would
-// create a source⇄target import cycle) — extract that symbol to a shared leaf, or
-// include it in the move list, first. Always re-run typecheck + tests afterward.
+// The target may be NEW (created with a banner) or an EXISTING leaf (the moved
+// declarations are appended and their imports merged into it — deduped against
+// what the target already imports/declares). Paths are repo-relative; source and
+// target MUST share a directory so the moved imports' relative specifiers stay
+// valid (copied verbatim). The codemod REFUSES to run if the block depends on a
+// symbol still defined in the source (that would create a source⇄target import
+// cycle) — extract that symbol to a shared leaf, or include it in the move list,
+// first. Always re-run typecheck + tests (and `depcruise`) afterward.
 
+import { existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { Node, Project, SyntaxKind, type Statement } from "ts-morph";
 
@@ -100,22 +104,57 @@ for (const s of moved) s.remove();
 const remaining = source.getFullText();
 const reimport = [...movedNames].filter((n) => new RegExp(`\\b${n}\\b`).test(remaining)).sort();
 
-const target = project.createSourceFile(targetRel, "", { overwrite: true });
-target.insertText(0,
-  `// Extracted from ${sourceRel} by scripts/codemod/extract-module.ts — part of the\n` +
-  `// §4 decomposition of the pr-state/cli.ts monolith into focused modules.\n\n`,
-);
-for (const c of carried) {
-  target.addImportDeclaration({
-    moduleSpecifier: c.moduleSpecifier,
-    ...(c.isTypeOnly ? { isTypeOnly: true } : {}),
-    ...(c.defaultImport ? { defaultImport: c.defaultImport } : {}),
-    ...(c.namespaceImport ? { namespaceImport: c.namespaceImport } : {}),
-    namedImports: c.namedImports,
-  });
+// New target ⇒ create + banner. Existing target ⇒ load and append into it.
+const targetExists = existsSync(targetRel);
+const target = targetExists
+  ? project.addSourceFileAtPath(targetRel)
+  : project.createSourceFile(targetRel, "", { overwrite: true });
+if (!targetExists) {
+  target.insertText(0,
+    `// Extracted from ${sourceRel} by scripts/codemod/extract-module.ts — part of the\n` +
+    `// §4 decomposition of the pr-state/cli.ts monolith into focused modules.\n\n`,
+  );
 }
+
+// Symbols the target already has in scope (imported or declared top-level) — a
+// carried import for one of these would duplicate, so skip it. Merge carried
+// named imports into an existing same-specifier import when one exists.
+const targetTopLevel = new Set(target.getStatements().flatMap(statementNames));
+const alreadyInScope = new Set<string>(targetTopLevel);
+const importBySpec = new Map<string, ReturnType<typeof target.getImportDeclarations>[number]>();
+for (const imp of target.getImportDeclarations()) {
+  importBySpec.set(`${imp.isTypeOnly()}::${imp.getModuleSpecifierValue()}`, imp);
+  for (const ni of imp.getNamedImports()) alreadyInScope.add((ni.getAliasNode() ?? ni.getNameNode()).getText());
+  const d = imp.getDefaultImport(); if (d) alreadyInScope.add(d.getText());
+  const n = imp.getNamespaceImport(); if (n) alreadyInScope.add(n.getText());
+}
+
+for (const c of carried) {
+  const named = c.namedImports.filter((n) => !alreadyInScope.has(n.alias ?? n.name));
+  const wantDef = !!c.defaultImport && !alreadyInScope.has(c.defaultImport);
+  const wantNs = !!c.namespaceImport && !alreadyInScope.has(c.namespaceImport);
+  const existing = importBySpec.get(`${c.isTypeOnly}::${c.moduleSpecifier}`);
+  if (existing && named.length) {
+    for (const n of named) existing.addNamedImport(n);
+  } else if (!existing && (named.length || wantDef || wantNs)) {
+    const decl = target.addImportDeclaration({
+      moduleSpecifier: c.moduleSpecifier,
+      ...(c.isTypeOnly ? { isTypeOnly: true } : {}),
+      ...(wantDef ? { defaultImport: c.defaultImport! } : {}),
+      ...(wantNs ? { namespaceImport: c.namespaceImport! } : {}),
+      namedImports: named,
+    });
+    importBySpec.set(`${c.isTypeOnly}::${c.moduleSpecifier}`, decl);
+  }
+  for (const n of named) alreadyInScope.add(n.alias ?? n.name);
+  if (wantDef) alreadyInScope.add(c.defaultImport!);
+  if (wantNs) alreadyInScope.add(c.namespaceImport!);
+}
+
+// Append the moved declarations; export only those re-imported by the source.
+const beforeCount = target.getStatements().length;
 target.addStatements(`\n${movedText}\n`);
-for (const s of target.getStatements()) {
+for (const s of target.getStatements().slice(beforeCount)) {
   if (Node.isExportable(s) && statementNames(s).some((n) => reimport.includes(n)) && !s.isExported()) {
     s.setIsExported(true);
   }
