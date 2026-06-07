@@ -2023,6 +2023,8 @@ type ParsedCommand =
       hostSocket?: string | undefined;
       id?: string | undefined;
       status?: string | undefined;
+      all?: boolean | undefined;
+      limit?: number | undefined;
     }
   | {
       // GH-296 wave 2: the single-writer surface — `beads create|update|close`
@@ -8144,6 +8146,8 @@ export function parseCommand(argv: string[]): ParsedCommand {
         "vm-socket": { type: "string" },
         "host-socket": { type: "string" },
         status: { type: "string" },
+        all: { type: "boolean" },
+        limit: { type: "string" },
       },
       strict: true,
       allowPositionals: true,
@@ -8157,6 +8161,14 @@ export function parseCommand(argv: string[]): ParsedCommand {
     if (kind === "show" && (typeof id !== "string" || id.length === 0)) {
       throw new CliError("prx beads show requires an id: `prx beads show <id>`");
     }
+    const limit = ((): number | undefined => {
+      if (values.limit === undefined) return undefined;
+      const n = Number(values.limit);
+      if (!Number.isInteger(n) || n < 0) {
+        throw new CliError("prx beads list: --limit must be a non-negative integer (0 = no cap)");
+      }
+      return n;
+    })();
     return {
       command: "beads-read",
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
@@ -8166,6 +8178,8 @@ export function parseCommand(argv: string[]): ParsedCommand {
       ...(values["host-socket"] !== undefined ? { hostSocket: values["host-socket"] } : {}),
       ...(kind === "show" ? { id } : {}),
       ...(values.status !== undefined ? { status: values.status } : {}),
+      ...(values.all === true ? { all: true } : {}),
+      ...(limit !== undefined ? { limit } : {}),
     };
   }
 
@@ -22807,9 +22821,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           parsed.kind === "show"
             ? { kind: "show", id: parsed.id! }
             : parsed.kind === "list"
-              ? parsed.status !== undefined
-                ? { kind: "list", status: parsed.status }
-                : { kind: "list" }
+              ? {
+                  kind: "list",
+                  ...(parsed.status !== undefined ? { status: parsed.status } : {}),
+                  ...(parsed.all === true ? { all: true } : {}),
+                  ...(parsed.limit !== undefined ? { limit: parsed.limit } : {}),
+                }
               : { kind: "ready" };
         try {
           const reply =
