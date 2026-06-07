@@ -86,6 +86,12 @@ describe("beadsd wire contract — response", () => {
     expect(parsed.status).toBe("ok");
   });
 
+  test("accepts an ok verdict with an etag (dataset generation)", () => {
+    const parsed = BeadsResponseSchema.parse({ status: "ok", result: [], etag: "uoev8kinb09rfg" });
+    expect(parsed.status).toBe("ok");
+    if (parsed.status === "ok") expect(parsed.etag).toBe("uoev8kinb09rfg");
+  });
+
   test("accepts an error verdict with code + message", () => {
     const parsed = BeadsResponseSchema.parse({ status: "error", code: "not-found", message: "no such id" });
     expect(parsed.status).toBe("error");
