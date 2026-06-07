@@ -54,10 +54,48 @@ type Output = {
 };
 
 const DEFAULT_FLAKE_DIR = "~/.config/home-manager";
-// prx-9lc: the bare `prx home update` default. `prx upgrade` requests the
-// coupled `prx,ai-home` pair so the consumer (ai-home) never drifts ahead of
-// the hm modules it imports from prx.
-const DEFAULT_INPUTS = ["ai-home"];
+// GH-411 slice 3: the standalone fallback when no inputs are requested and none
+// are configured. prx always updates its own flake input; the operator's coupled
+// consumer set (e.g. `["prx", "ai-home"]`) comes from config, not a hardcoded
+// repo name — see readConfiguredHomeUpdateInputs / `homeUpdate.inputs`.
+const STANDALONE_DEFAULT_INPUTS = ["prx"];
+
+type ConfigReaderDeps = {
+  readFile?: (path: string) => string;
+  pathExists?: (path: string) => boolean;
+  homeDir?: string;
+};
+
+// GH-411 slice 3: the coupled flake-input set for `prx home update` / `prx
+// upgrade`, read from `~/.config/prx/config.json` `homeUpdate.inputs`. The
+// operator declares which inputs move together (prx + whatever consumer flake
+// imports its hm modules) instead of the name being baked into prx. Returns null
+// when unconfigured/malformed (caller falls back to the standalone default).
+export function readConfiguredHomeUpdateInputs(
+  deps: ConfigReaderDeps = {},
+): string[] | null {
+  const home = deps.homeDir ?? homedir();
+  if (!home) return null;
+  const path = resolve(home, ".config", "prx", "config.json");
+  const exists = deps.pathExists ?? ((p: string) => existsSync(p));
+  const read = deps.readFile ?? ((p: string) => readFileSync(p, "utf8"));
+  if (!exists(path)) return null;
+  try {
+    const parsed = JSON.parse(read(path)) as {
+      homeUpdate?: { inputs?: unknown };
+    };
+    const raw = parsed.homeUpdate?.inputs;
+    if (!Array.isArray(raw)) return null;
+    const names = raw
+      .filter((v): v is string => typeof v === "string")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    return names.length > 0 ? names : null;
+  } catch {
+    // A malformed config must not break upgrade — treat as unconfigured.
+    return null;
+  }
+}
 
 function resolveTildePath(path: string, homeDir: string): string {
   if (path === "~") return homeDir;
@@ -78,18 +116,23 @@ export function resolveFlakeDir(
 
 // prx-9lc: `--input` / PRX_HOME_FLAKE_INPUT carry a comma-separated list so a
 // single run can update a coupled set of inputs (e.g. `prx,ai-home`). Empty /
-// whitespace-only entries are dropped; an empty list falls back to the bare
-// default.
+// whitespace-only entries are dropped. Precedence: `--input` flag →
+// PRX_HOME_FLAKE_INPUT env → `homeUpdate.inputs` config (GH-411 slice 3) →
+// the standalone `["prx"]` default. Config is read by the caller and passed in
+// (keeps this pure); pass null/[] when unconfigured.
 export function resolveInputNames(
   options: HomeUpdateOptions,
   env: NodeJS.ProcessEnv,
+  configInputs?: string[] | null,
 ): string[] {
   const raw = options.input ?? env.PRX_HOME_FLAKE_INPUT ?? "";
   const names = raw
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
-  return names.length > 0 ? names : [...DEFAULT_INPUTS];
+  if (names.length > 0) return names;
+  if (configInputs && configInputs.length > 0) return [...configInputs];
+  return [...STANDALONE_DEFAULT_INPUTS];
 }
 
 type LockRevsResult =
@@ -262,7 +305,8 @@ export function runHomeUpdate(
   const homeDir = deps.homeDir ?? homedir();
 
   const flakeDir = resolveFlakeDir(options, env, homeDir);
-  const requestedInputs = resolveInputNames(options, env);
+  const configInputs = readConfiguredHomeUpdateInputs({ readFile, pathExists, homeDir });
+  const requestedInputs = resolveInputNames(options, env, configInputs);
   const lockPath = resolve(flakeDir, "flake.lock");
 
   if (!pathExists(flakeDir)) {

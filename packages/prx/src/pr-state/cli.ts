@@ -5617,14 +5617,15 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   // update a different input. Tail flags (--dry-run/--format/--flake-dir) pass
   // through. (Distinct from `prx update`, which renders/updates the GitHub PR.)
   //
-  // prx-9lc: the default updates the coupled `prx,ai-home` pair in a single
-  // `nix flake update` + `home-manager switch`. prx and ai-home must move
-  // together (ai-home consumes prx's hm modules); bumping only `prx` lets a
-  // stale ai-home reference a removed prx option and abort the switch.
+  // prx-9lc / GH-411 slice 3: the coupled set (prx + whatever consumer flake
+  // imports its hm modules) must move together — bumping only `prx` lets a stale
+  // consumer reference a removed prx option and abort the switch. The set is no
+  // longer hardcoded here: `home-update` reads it from `homeUpdate.inputs` in
+  // `~/.config/prx/config.json` (falling back to `["prx"]`), so `prx upgrade`
+  // just passes through and an explicit `--input` still overrides.
   if (c0 === "upgrade") {
     const argv = [c1, ...tail].filter((a): a is string => a !== undefined);
-    const hasInput = argv.some((a) => a === "--input" || a.startsWith("--input="));
-    return hasInput ? ["home-update", ...argv] : ["home-update", "--input", "prx,ai-home", ...argv];
+    return ["home-update", ...argv];
   }
 
   if (c0 === "review") {
