@@ -113,7 +113,7 @@ export function provisionVmBeads(
       "limactl",
       limaBash(
         opts.vm,
-        `set -e; rm -rf ${ws}; mkdir -p ${ws}/.beads/dolt; cd ${ws}; ` +
+        `set -e; rm -rf ${ws}; mkdir -p ${ws}/.beads/dolt; chmod 700 ${ws}/.beads; cd ${ws}; ` +
           `git init -q; git remote add origin https://github.com/${opts.originSlug}.git; ` +
           `printf 'sync.remote: "${remote}"\\n' > .beads/config.yaml; ` +
           `dolt clone ${remote} ${ws}/.beads/dolt/${database}`,
