@@ -6,6 +6,7 @@ import type { BdExecOptions, BdExecResult } from "@bounded-systems/bd";
 type Recorder = {
   calls: BdExecOptions[];
   exec: (opts: BdExecOptions) => BdExecResult;
+  run: (cmd: string[], o?: { cwd?: string; check?: boolean }) => { status: number; stdout: string; stderr: string };
 };
 
 function makeExec(
@@ -13,21 +14,33 @@ function makeExec(
 ): Recorder {
   const calls: BdExecOptions[] = [];
   let i = 0;
+  const resolve = (opts: BdExecOptions): BdExecResult => ({
+    exitCode: 0,
+    stdout: "",
+    stderr: "",
+    policy: null,
+    ...(typeof results === "function" ? results(opts) : (results[i++] ?? {})),
+  });
   const exec = (opts: BdExecOptions): BdExecResult => {
     calls.push(opts);
-    const r =
-      typeof results === "function"
-        ? results(opts)
-        : (results[i++] ?? {});
-    return {
-      exitCode: 0,
-      stdout: "",
-      stderr: "",
-      policy: null,
-      ...r,
-    };
+    return resolve(opts);
   };
-  return { calls, exec };
+  // GH-296 / prx-82b: assign now runs `prx beads update <id> --assignee <to>`
+  // through the daemon (a sync runner). The fake records the equivalent old
+  // `bd assign` BdExecOptions shape so the existing assign assertions hold.
+  const run = (cmd: string[], o?: { cwd?: string; check?: boolean }) => {
+    const opts = {
+      subcommand: "assign",
+      args: [cmd[3]!, cmd[5]!],
+      ...(o?.cwd !== undefined ? { cwd: o.cwd } : {}),
+      state: "planning",
+      role: "planner",
+    } as BdExecOptions;
+    calls.push(opts);
+    const r = resolve(opts);
+    return { status: r.exitCode, stdout: r.stdout, stderr: r.stderr };
+  };
+  return { calls, exec, run };
 }
 
 const FROM_NAME = "Bounded Systems";
@@ -44,7 +57,7 @@ describe("runRepairAssignees — input validation", () => {
     const rec = makeExec([]);
     const result = runRepairAssignees(
       { from: "", to: TO_LOGIN, apply: false, repoPath: "." },
-      { execBd: rec.exec },
+      { execBd: rec.exec, run: rec.run },
     );
     expect(result.exitCode).toBe(2);
     expect(result.message).toMatch(/--from/);
@@ -55,7 +68,7 @@ describe("runRepairAssignees — input validation", () => {
     const rec = makeExec([]);
     const result = runRepairAssignees(
       { from: FROM_NAME, to: "  ", apply: false, repoPath: "." },
-      { execBd: rec.exec },
+      { execBd: rec.exec, run: rec.run },
     );
     expect(result.exitCode).toBe(2);
     expect(result.message).toMatch(/--to/);
@@ -76,7 +89,7 @@ describe("runRepairAssignees — dry-run", () => {
     ]);
     const result = runRepairAssignees(
       { from: FROM_NAME, to: TO_LOGIN, apply: false, repoPath: "." },
-      { execBd: rec.exec },
+      { execBd: rec.exec, run: rec.run },
     );
     expect(result.exitCode).toBe(0);
     expect(result.message).toMatch(/2 record\(s\) would be rewritten/);
@@ -93,7 +106,7 @@ describe("runRepairAssignees — dry-run", () => {
     const rec = makeExec([{ exitCode: 0, stdout: "[]" }]);
     const result = runRepairAssignees(
       { from: FROM_NAME, to: TO_LOGIN, apply: false, repoPath: "." },
-      { execBd: rec.exec },
+      { execBd: rec.exec, run: rec.run },
     );
     expect(result.exitCode).toBe(0);
     expect(result.message).toMatch(/0 record\(s\) matched/);
@@ -116,7 +129,7 @@ describe("runRepairAssignees — apply", () => {
     });
     const result = runRepairAssignees(
       { from: FROM_NAME, to: TO_LOGIN, apply: true, repoPath: "/repo" },
-      { execBd: rec.exec },
+      { execBd: rec.exec, run: rec.run },
     );
     expect(result.exitCode).toBe(0);
     expect(result.message).toMatch(/rewrote 2 record/);
@@ -157,7 +170,7 @@ describe("runRepairAssignees — apply", () => {
     });
     const result = runRepairAssignees(
       { from: FROM_NAME, to: TO_LOGIN, apply: true, repoPath: "." },
-      { execBd: rec.exec },
+      { execBd: rec.exec, run: rec.run },
     );
     expect(result.exitCode).toBe(1);
     expect(result.message).toMatch(/1\/2/);
@@ -181,7 +194,7 @@ describe("runRepairAssignees — defensive equality filter", () => {
     ]);
     const result = runRepairAssignees(
       { from: FROM_NAME, to: TO_LOGIN, apply: false, repoPath: "." },
-      { execBd: rec.exec },
+      { execBd: rec.exec, run: rec.run },
     );
     expect(result.exitCode).toBe(0);
     expect(result.message).toMatch(/1 record\(s\) would be rewritten/);
@@ -198,7 +211,7 @@ describe("runRepairAssignees — bd list failure", () => {
     ]);
     const result = runRepairAssignees(
       { from: FROM_NAME, to: TO_LOGIN, apply: false, repoPath: "." },
-      { execBd: rec.exec },
+      { execBd: rec.exec, run: rec.run },
     );
     expect(result.exitCode).toBe(2);
     expect(result.message).toMatch(/cannot read db/);
@@ -208,7 +221,7 @@ describe("runRepairAssignees — bd list failure", () => {
     const rec = makeExec([{ exitCode: 0, stdout: "not json" }]);
     const result = runRepairAssignees(
       { from: FROM_NAME, to: TO_LOGIN, apply: false, repoPath: "." },
-      { execBd: rec.exec },
+      { execBd: rec.exec, run: rec.run },
     );
     expect(result.exitCode).toBe(1);
     expect(result.message).toMatch(/invalid JSON/);
