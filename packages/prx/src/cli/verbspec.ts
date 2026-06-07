@@ -57,6 +57,15 @@ export type VerbSpec<I extends ZodType = ZodType, O extends ZodType = ZodType, C
    * MCP/OpenAPI surfaces never consult it (they return `output`).
    */
   exitCode?: (output: z.infer<O>, input: z.infer<I>) => number;
+  /**
+   * Optional CLI stderr lines derived from a *successful* run — operator
+   * warnings/notes/diagnostics that the legacy handlers wrote to `output.error`
+   * alongside the stdout result (e.g. `--skip-validate` warnings, persist-on-
+   * failure notes). The bridge writes each line to stderr before `render`'s
+   * stdout. CLI-only: MCP/OpenAPI consume `output` and never see these (the
+   * data they convey should also live in `output`).
+   */
+  warnings?: (output: z.infer<O>, input: z.infer<I>) => readonly string[];
 };
 
 /** Identity helper that preserves input/output/deps inference. */
