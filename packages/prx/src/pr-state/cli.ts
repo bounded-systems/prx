@@ -13,7 +13,6 @@ import {
   loadContract,
   type StateMode,
 } from "./contract.ts";
-import { applySkillEvent } from "./event-verb.ts";
 import {
   syncGitHubIssuesToBeads,
   syncStatus,
@@ -237,21 +236,6 @@ import {
   type LifecycleState,
 } from "./machine.ts";
 import { invariantSpecs, phasePrecedence } from "./raw_state.ts";
-import {
-  // GH-1821: contract-trinity registry read path consumed by
-  // `prx contract show --kind=...` and `--list`.
-  getAgentContract,
-  listAgentContracts,
-} from "../machine/contracts/instances.ts";
-import {
-  getArtifactContract,
-  listArtifactContracts,
-} from "../machine/contracts/artifacts.ts";
-import {
-  getTransitionContract,
-  listTransitionContracts,
-  transitionKey,
-} from "../machine/contracts/transitions.ts";
 import {
   assertSprintInvariants,
   createSprintState,
@@ -1037,19 +1021,6 @@ type ParsedCommand =
       generatedBy: string;
       untracked: boolean;
       format: "plain" | "json";
-    }
-  | {
-      command: "contract";
-      contract: string;
-      actor: string;
-      reason?: string | null | undefined;
-      format: "plain" | "json";
-      // GH-1821: contract-trinity read path. When `kind` or `list` is set,
-      // serve from the AgentContract / ArtifactContract / TransitionContract
-      // registries instead of the legacy pr.json contract.
-      kind?: "agent" | "artifact" | "transition" | undefined;
-      list?: boolean | undefined;
-      id?: string | undefined;
     }
   | {
       command: "runtime-profile";
@@ -8310,39 +8281,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  if (command === "contract") {
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: {
-        contract: { type: "string", default: ".pr/local/pr.json" },
-        actor: { type: "string", default: "codex" },
-        reason: { type: "string" },
-        format: { type: "string", default: "plain" },
-        // GH-1821: contract-trinity flags. `--kind=agent|artifact|transition`
-        // pivots to the new registries; `--list` enumerates the active
-        // `--kind` (or all kinds when `--kind` is omitted). Positional id is
-        // the role / artifact-type / transition-key to inspect.
-        kind: { type: "string" },
-        list: { type: "boolean", default: false },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-
-    return {
-      command,
-      contract: values.contract,
-      actor: values.actor,
-      reason: values.reason,
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      kind: values.kind
-        ? ensureChoice(values.kind, ["agent", "artifact", "transition"] as const, "--kind")
-        : undefined,
-      list: values.list,
-      id: positionals[0],
-    };
-  }
-
   if (command === "runtime-profile") {
     const { values } = parseArgs({
       args: rest,
@@ -15525,8 +15463,14 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         "open-mode": "open-mode",
         event: "event",
       };
-      const target = aliased[orchestratorRest[0] ?? ""];
+      const sub = orchestratorRest[0];
+      const target = aliased[sub ?? ""];
       if (target) return runSpecVerb(target, orchestratorRest.slice(1), output);
+      // The `contract` verb owns bare `contract` (apply), `contract show …`
+      // (trinity), and flag-led forms (`contract --kind/--list/--contract …`).
+      // `contract init` and unknown subcommands fall through to legacy.
+      if (sub === "show") return runSpecVerb("contract", orchestratorRest.slice(1), output);
+      if (sub === undefined || sub.startsWith("-")) return runSpecVerb("contract", orchestratorRest, output);
     }
     // `remote-ci-check` (a.k.a. `repo ci` / `scout ci`) and `scout-logs`
     // (`scout logs`) — the rest of those namespaces stays on legacy.
@@ -16567,133 +16511,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           return handleRunCliError(error, output);
         }
       })();
-    }
-
-    // GH-1821: contract-trinity read path. `prx contract show --kind=...`
-    // pivots to the AgentContract / ArtifactContract / TransitionContract
-    // registries; `--list` enumerates the registry; positional id selects a
-    // single entry. Falls through to the legacy pr.json path when neither
-    // flag is set.
-    if (
-      parsed.command === "contract" &&
-      (parsed.kind !== undefined || parsed.list === true)
-    ) {
-      const fmt = parsed.format === "json" ? "json" : "plain";
-      const writeOne = (kind: string, entry: unknown, slug: string): number => {
-        if (fmt === "json") {
-          output.log(JSON.stringify({ kind, id: slug, entry }, null, 2));
-        } else {
-          output.log(`# ${kind} ${slug}`);
-          output.log(JSON.stringify(entry, null, 2));
-        }
-        return 0;
-      };
-
-      if (parsed.list === true && parsed.kind === undefined) {
-        const payload = {
-          agents: listAgentContracts().map((c) => c.role),
-          artifacts: listArtifactContracts().map((c) => c.type),
-          transitions: listTransitionContracts().map((c) => transitionKey(c)),
-        };
-        if (fmt === "json") {
-          output.log(JSON.stringify(payload, null, 2));
-        } else {
-          output.log(`agents:`);
-          for (const r of payload.agents) output.log(`  - ${r}`);
-          output.log(`artifacts:`);
-          for (const t of payload.artifacts) output.log(`  - ${t}`);
-          output.log(`transitions:`);
-          for (const k of payload.transitions) output.log(`  - ${k}`);
-        }
-        return 0;
-      }
-
-      if (parsed.kind === "agent") {
-        if (parsed.list === true) {
-          const entries = listAgentContracts();
-          if (fmt === "json") {
-            output.log(JSON.stringify(entries, null, 2));
-          } else {
-            for (const e of entries) output.log(e.role);
-          }
-          return 0;
-        }
-        if (!parsed.id) {
-          output.error("FAIL: prx contract show --kind=agent requires a role (e.g. executor)");
-          return 1;
-        }
-        const entry = getAgentContract(parsed.id);
-        if (!entry) {
-          output.error(`FAIL: no agent contract registered for role ${parsed.id}`);
-          return 1;
-        }
-        return writeOne("agent", entry, parsed.id);
-      }
-
-      if (parsed.kind === "artifact") {
-        if (parsed.list === true) {
-          const entries = listArtifactContracts();
-          if (fmt === "json") {
-            output.log(JSON.stringify(entries, null, 2));
-          } else {
-            for (const e of entries) output.log(e.type);
-          }
-          return 0;
-        }
-        if (!parsed.id) {
-          output.error("FAIL: prx contract show --kind=artifact requires a type (e.g. test_run)");
-          return 1;
-        }
-        const entry = getArtifactContract(parsed.id);
-        if (!entry) {
-          output.error(`FAIL: no artifact contract registered for type ${parsed.id}`);
-          return 1;
-        }
-        return writeOne("artifact", entry, parsed.id);
-      }
-
-      if (parsed.kind === "transition") {
-        if (parsed.list === true) {
-          const entries = listTransitionContracts();
-          if (fmt === "json") {
-            output.log(JSON.stringify(entries, null, 2));
-          } else {
-            for (const e of entries) output.log(transitionKey(e));
-          }
-          return 0;
-        }
-        if (!parsed.id) {
-          output.error(
-            "FAIL: prx contract show --kind=transition requires a key (e.g. role:testing->reviewing)",
-          );
-          return 1;
-        }
-        const entry = getTransitionContract(parsed.id);
-        if (!entry) {
-          output.error(`FAIL: no transition contract registered for key ${parsed.id}`);
-          return 1;
-        }
-        return writeOne("transition", entry, parsed.id);
-      }
-
-      output.error(`FAIL: unknown --kind=${parsed.kind ?? ""}`);
-      return 1;
-    }
-
-    if (parsed.command === "contract") {
-      // The skill-event apply shared with the `event` verb (which now owns the
-      // CLI surface); `contract` fixes the skill to `pr-contract` and does NOT
-      // append a transition-log entry.
-      const payload = applySkillEvent(
-        { contract: parsed.contract, skill: "pr-contract", actor: parsed.actor, reason: parsed.reason, log: "" },
-        { logTransition: false },
-      );
-      if (parsed.format === "json") {
-        output.log(JSON.stringify(payload, null, 2));
-        return 0;
-      }
-      output.log(`${payload.state} (${payload.mode}) - ${payload.event} via ${payload.skill}`);
-      return 0;
     }
 
     if (parsed.command === "runtime-profile") {
