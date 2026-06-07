@@ -95,13 +95,26 @@ export const BeadsRequestSchema = z.discriminatedUnion("kind", [
     kind: z.literal("reopen"),
     id: z.string().min(1),
   }),
+  /**
+   * `bd dep add --type <t> <from> <to>` / `bd dep remove <from> <to>` — the
+   * dependency-edge write surface (promote-children parent-child wiring; dedupe
+   * edge rewire). GH-296: routes those off host `bd`. `depType` applies to add
+   * (e.g. `parent-child`, `blocks`); remove ignores it.
+   */
+  z.object({
+    kind: z.literal("dep"),
+    action: z.enum(["add", "remove"]),
+    from: z.string().min(1),
+    to: z.string().min(1),
+    depType: z.string().min(1).optional(),
+  }),
 ]);
 export type BeadsRequest = z.infer<typeof BeadsRequestSchema>;
 
 /** The read kinds (unconditional). */
 export const BEADS_READ_KINDS = ["ready", "list", "show"] as const;
 /** The write kinds (policy-gated single-writer surface; GH-228 slice 5). */
-export const BEADS_WRITE_KINDS = ["create", "update", "close", "reopen"] as const;
+export const BEADS_WRITE_KINDS = ["create", "update", "close", "reopen", "dep"] as const;
 /** Every kind beadsd exposes (the envelope), enumerable as an allowlist. */
 export const BEADS_REQUEST_KINDS = [...BEADS_READ_KINDS, ...BEADS_WRITE_KINDS] as const;
 export type BeadsRequestKind = (typeof BEADS_REQUEST_KINDS)[number];

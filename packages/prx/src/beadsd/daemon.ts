@@ -127,6 +127,16 @@ function beadsArgs(request: BeadsRequest): string[] {
       // `bd reopen` is an allowed subcommand (unlike `close`), so it dispatches
       // directly: `bd reopen <id> --json`.
       return [request.id, "--json"];
+    case "dep":
+      // `bd dep add --type <t> <from> <to>` / `bd dep remove <from> <to>`.
+      return request.action === "add"
+        ? [
+            "add",
+            ...(request.depType !== undefined ? ["--type", request.depType] : []),
+            request.from,
+            request.to,
+          ]
+        : ["remove", request.from, request.to];
     default: {
       // Exhaustiveness: a new request kind is a compile error here until given args.
       const unreachable: never = request;
@@ -174,6 +184,12 @@ export async function handleBeadsRequest(
       code: isBeadsWriteKind(request.kind) ? "bd-write" : "bd-read",
       message: (result.stderr || result.stdout).trim() || `bd ${request.kind} failed`,
     };
+  }
+  // `bd dep add/remove` is not a `--json` surface — it echoes no record. On a
+  // zero exit it succeeded; reply ok with no result (callers don't expect one).
+  if (request.kind === "dep") {
+    const etag = deps.etag?.();
+    return { status: "ok", result: null, ...(etag !== undefined ? { etag } : {}) };
   }
   let parsed: unknown;
   try {

@@ -5,6 +5,7 @@ import {
   updateBeadViaDaemon,
   closeBeadViaDaemon,
   reopenBeadViaDaemon,
+  depViaDaemon,
 } from "../../src/beadsd/writes.ts";
 import type { WithBeadsClientDeps } from "../../src/beadsd/client-factory.ts";
 import type { BeadsRequest } from "../../src/beadsd/contract.ts";
@@ -61,6 +62,15 @@ describe("daemon write helpers route through beadsd (GH-296 wave 2)", () => {
     let seen: BeadsRequest | undefined;
     await updateBeadViaDaemon("prx-abb", { issueType: "bug" }, fakeDeps({ status: "ok", result: {} }, (r) => (seen = r)));
     expect(seen).toEqual({ kind: "update", id: "prx-abb", issueType: "bug" });
+  });
+
+  test("depViaDaemon sends a dep add/remove request (GH-296)", async () => {
+    let seen: BeadsRequest | undefined;
+    await depViaDaemon("add", "prx-a", "prx-b", "parent-child", fakeDeps({ status: "ok", result: null }, (r) => (seen = r)));
+    expect(seen).toEqual({ kind: "dep", action: "add", from: "prx-a", to: "prx-b", depType: "parent-child" });
+
+    await depViaDaemon("remove", "prx-a", "prx-b", undefined, fakeDeps({ status: "ok", result: null }, (r) => (seen = r)));
+    expect(seen).toEqual({ kind: "dep", action: "remove", from: "prx-a", to: "prx-b" });
   });
 
   test("updateBeadViaDaemon forwards externalRef + notes (GH-296 write parity)", async () => {

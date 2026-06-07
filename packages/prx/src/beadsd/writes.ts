@@ -105,3 +105,27 @@ export function reopenBeadViaDaemon(
 ): Promise<BeadsRecord | null> {
   return writeViaDaemon({ kind: "reopen", id }, deps);
 }
+
+/**
+ * Daemon-routed dependency-edge write: `bd dep add --type <t> <from> <to>` /
+ * `bd dep remove <from> <to>`. Returns null (dep is not a record-echoing
+ * surface); throws on a non-ok daemon verdict.
+ */
+export function depViaDaemon(
+  action: "add" | "remove",
+  from: string,
+  to: string,
+  depType?: string,
+  deps: WithBeadsClientDeps = {},
+): Promise<BeadsRecord | null> {
+  return writeViaDaemon(
+    {
+      kind: "dep",
+      action,
+      from,
+      to,
+      ...(depType !== undefined ? { depType } : {}),
+    },
+    deps,
+  );
+}
