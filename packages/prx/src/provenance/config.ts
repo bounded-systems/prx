@@ -76,6 +76,20 @@ export function readProvenanceTrustMap(
  * unreadable configured file falls through to the dev master rather than
  * throwing, so a half-provisioned deploy degrades to dev rather than failing.
  */
+/** Where the resolved master comes from — for `prx provenance status`. Mirrors
+ *  the precedence in {@link resolveProvenanceMaster} without reading the bytes. */
+export function resolveMasterSource(
+  env: EnvReader = getEnv,
+  read: (path: string) => string = (p) => readFileSync(p, "utf8"),
+  exists: (path: string) => boolean = existsSync,
+): { source: "operator-file" | "config-file" | "dev-bootstrap"; path: string | null } {
+  const envFile = env(PROVENANCE_MASTER_FILE_ENV);
+  if (envFile && exists(envFile)) return { source: "operator-file", path: envFile };
+  const cfgFile = readProvenanceConfig(env, read, exists).masterFile;
+  if (cfgFile && exists(cfgFile)) return { source: "config-file", path: cfgFile };
+  return { source: "dev-bootstrap", path: null };
+}
+
 export function resolveProvenanceMaster(
   env: EnvReader = getEnv,
   read: (path: string) => string = (p) => readFileSync(p, "utf8"),
