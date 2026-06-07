@@ -25,11 +25,26 @@ import {
 } from "./task.ts";
 
 /**
+ * Injectable seams for the git/gh reads {@link refreshTaskSignals} performs, so
+ * the signal-reconciliation logic is testable without a live worktree branch or
+ * a GitHub round-trip. Defaults to the real implementations.
+ */
+export type StatusSignalsDeps = {
+  loadReviewConfig?: typeof loadReviewConfig;
+  currentBranchName?: typeof currentBranchName;
+  fetchPrSignalInfo?: typeof fetchPrSignalInfo;
+};
+
+/**
  * Reconcile a task contract's review-config requirements and live PR signals
  * (review/approval/comments/auto-merge/rebase/conflict), persisting only when a
  * field actually changed. Returns the (possibly updated) contract.
  */
-export function refreshTaskSignals(taskPath: string): TaskContract {
+export function refreshTaskSignals(taskPath: string, deps: StatusSignalsDeps = {}): TaskContract {
+  const loadRC = deps.loadReviewConfig ?? loadReviewConfig;
+  const curBranch = deps.currentBranchName ?? currentBranchName;
+  const fetchPr = deps.fetchPrSignalInfo ?? fetchPrSignalInfo;
+
   if (!taskContractExists(taskPath)) {
     throw new Error(`task contract missing at ${taskPath}`);
   }
@@ -37,7 +52,7 @@ export function refreshTaskSignals(taskPath: string): TaskContract {
   let updated = loadTaskContract(taskPath);
   let dirty = false;
 
-  const reviewConfig = loadReviewConfig(updated.identity.worktree);
+  const reviewConfig = loadRC(updated.identity.worktree);
   const successPatch = {
     requireCommentsResolved: reviewConfig.requireCommentsResolved,
     requireAgentReview: reviewConfig.requireAgentReview,
@@ -54,7 +69,7 @@ export function refreshTaskSignals(taskPath: string): TaskContract {
     dirty = true;
   }
 
-  const branch = currentBranchName(updated.identity.worktree);
+  const branch = curBranch(updated.identity.worktree);
   if (!branch) {
     if (dirty) {
       writeTaskContract(taskPath, updated);
@@ -62,7 +77,7 @@ export function refreshTaskSignals(taskPath: string): TaskContract {
     return updated;
   }
 
-  const info = fetchPrSignalInfo(updated.identity.worktree, branch);
+  const info = fetchPr(updated.identity.worktree, branch);
   if (!info) {
     if (dirty) {
       writeTaskContract(taskPath, updated);
@@ -123,6 +138,7 @@ export function refreshTaskSignals(taskPath: string): TaskContract {
 export function renderStatus(
   contractPath: string,
   format: "plain" | "mode" | "json",
+  deps: StatusSignalsDeps = {},
 ): string {
   const info = deriveInfo(loadContract(contractPath));
 
@@ -136,7 +152,7 @@ export function renderStatus(
 
   const taskPath = defaultTaskPath();
   if (taskContractExists(taskPath)) {
-    refreshTaskSignals(taskPath);
+    refreshTaskSignals(taskPath, deps);
   }
 
   const base = `${info.state} (${info.mode})`;
