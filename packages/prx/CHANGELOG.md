@@ -1,5 +1,40 @@
 # @bounded-systems/prx
 
+## 0.7.4
+
+### Patch Changes
+
+- 6ab3bf8: Additive testability seams (behavior-preserving): the intake→triage default
+  UoW reader is now built via `uowReaderWith(run = defaultRunner)`, and
+  `runGhAuthStatus` / `runGhApiUserLogin` take an injectable `spawn` (defaults to
+  the real proc). Production call sites pass nothing.
+- 038eef8: GH-411 slice 3: make the `prx home update` / `prx upgrade` coupled flake-input
+  set config-driven instead of hardcoding `ai-home`. The default now reads
+  `homeUpdate.inputs` from `~/.config/prx/config.json` (e.g. `["prx", "ai-home"]`),
+  falling back to `["prx"]` when unconfigured — prx always updates its own input.
+  `prx upgrade` is now a thin pass-through (no baked `--input prx,ai-home`); an
+  explicit `--input` / `PRX_HOME_FLAKE_INPUT` still overrides. Also resolves #21
+  (home update now includes `prx`, not just the consumer).
+
+  Operator note: to keep `prx upgrade` bumping the consumer flake, add
+  `{"homeUpdate": {"inputs": ["prx", "ai-home"]}}` to `~/.config/prx/config.json`.
+
+- c5c0f96: GH-411 slice 4: make the repo→commit-scope map config-driven instead of
+  hardcoding `bdelanghe/ai-home`. `inferOperatorScopeFromCwd` (the `--scope`
+  default for `prx intake`) now reads `scopeMap` from `~/.config/prx/config.json`
+  (e.g. `{"scopeMap": {"owner/repo": "prx"}}`) — unconfigured → `no-mapping`, so
+  the caller requires an explicit `--scope`. Adds a single shared operator-config
+  reader (`operator-config.ts`: `readOperatorConfig` / `readOperatorConfigStringMap`)
+  that `homeUpdate.inputs` (slice 3) now also uses, de-duplicating the config.json
+  parse. Repo-identity doc examples in `registry_store.ts` / `beads/hydrate.ts`
+  reworded off the personal repo to `example-owner/example-repo`.
+
+  Operator note: to keep `prx intake` auto-scoping your repo, add
+  `{"scopeMap": {"<owner>/<repo>": "prx"}}` to `~/.config/prx/config.json`.
+
+- 5d4bacd: `scout read` signing is now fail-closed in a signing context (GH-352), mirroring `prx ci`: when a read is in scope of a provenance ledger (a reserved work-unit / pipeline) but no signer is configured, the read is refused with a clear message (`prx provenance setup` / `prx provenance status`) — an unsigned in-pipeline read is not trusted. A bare read outside a work-unit (no canonical ledger) is unaffected, and a transient signing-execution error when a signer IS configured stays best-effort (never drops the read).
+- 12ac1f2: `prx plan search` and `prx intake search` now read beads through the beadsd daemon (GH-296): the case-insensitive title filter (`searchBd`) is refactored into a pure function over records, and the verbs load via `loadAllBeadsViaDaemon` (search is a legitimate scout-shaped aggregate read). No local `bd` in the search path. The local-only "bd list exited non-zero but emitted a valid array" tolerance no longer applies at the verb level — the daemon (server-mode dolt) owns the parse and that post-listing condition can't occur; bd-unreachable still degrades to GH-only.
+
 ## 0.7.3
 
 ### Patch Changes
