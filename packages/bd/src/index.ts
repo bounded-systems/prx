@@ -75,9 +75,11 @@ const ALLOWED_SUBCOMMANDS = [
   "admin",
 ] as const;
 
-const BLOCKED_SUBCOMMANDS = [
-  "close", "delete", "archive", "import", "export",
-] as const;
+// bd's hard-blocked subcommands (close/delete/archive/import/export) are owned
+// by the policy engine's `BLOCKED.bd` set and enforced via `isBlocked("bd", …)`
+// below — there is no separate bd-local list. A `blockedSubcommands("bd")`
+// parity test (src/__tests__/runners.test.ts) pins the set so a future divergence
+// trips a test rather than silently relying on a dead second runtime check.
 
 // GH-1473: bd short-id structural guard ---------------------------------------
 //
@@ -149,16 +151,6 @@ export function execBd(
 ): BdExecResult {
   // Hard-block check
   if (isBlocked("bd", opts.subcommand)) {
-    return {
-      exitCode: 1,
-      stdout: "",
-      stderr: `bd-safe: blocked subcommand '${opts.subcommand}'`,
-      policy: null,
-    };
-  }
-
-  // Static block check (bd has its own blocked list beyond what policy.ts tracks)
-  if ((BLOCKED_SUBCOMMANDS as readonly string[]).includes(opts.subcommand)) {
     return {
       exitCode: 1,
       stdout: "",
