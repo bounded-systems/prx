@@ -4,7 +4,7 @@
  * Two surfaces share these schemas:
  *
  *   1. **JSON Schema artifact** (`schemas/intake/<type>.json`) — derived
- *      from `INTAKE_BODY_SCHEMAS` via `scripts/export-intake-schemas.ts`.
+ *      from `INTAKE_BODY_SCHEMAS` via `prx schemas`.
  *      Documents the full target shape per type for downstream consumers
  *      (scout JSONL, audit instruments, future tooling).
  *

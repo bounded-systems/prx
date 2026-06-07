@@ -9,7 +9,7 @@
 // The projection layer (`project.ts`) is the only writer; rules consume
 // positional `Constant[]` tuples through the engine API. The Zod schemas
 // gate the projection boundary; they're also exported to JSON Schema via
-// `scripts/export-derive-schemas.ts` so downstream consumers can lint
+// `prx schemas` so downstream consumers can lint
 // fact streams without importing the TS module.
 
 import { z } from "zod";

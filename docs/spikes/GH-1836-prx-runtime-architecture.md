@@ -108,7 +108,7 @@ applies; no special-case carve-out.
 | Artifact registry | `src/machine/contracts/artifacts.ts:126` | Where the `plan` slot this ADR fills is registered. |
 | Audit predicates | `src/audit/invariants.ts:1` | Hard-fail predicates Phase B must not regress. |
 | CAS substrate | `src/plan-store/cas.ts:321` (`writeBlob`), `src/plan-store/uri.ts:8` (URI codec) | Axis 5 (coexistence); POC `packages/cas/` mirrors this URI shape, does not replace it. |
-| JSON-schema export boundary | `scripts/export-contract-schemas.ts:34`, `schemas/contracts/{agent,artifact,transition}.json` | Phase C (Deno-side actors) depends on this boundary serving non-Bun consumers — exercised by the POC's schema-export probe. |
+| JSON-schema export boundary | `prx schemas`, `schemas/contracts/{agent,artifact,transition}.json` | Phase C (Deno-side actors) depends on this boundary serving non-Bun consumers — exercised by the POC's schema-export probe. |
 | Bun-compile activation | `nix/home-manager/prx.nix:100` | Axis 3 (binary distribution) cites this as the reason to retain Bun for the product surface. |
 | Root workspace boundary | `package.json:5` (`workspaces: ["packages/*"]`), `tsconfig.json:24` (`include: ["scripts/**/*.ts", "src/**/*.ts", "test/**/*.ts", "packages/*/src/**/*.ts"]`) | `spikes/**` naturally excluded from both — confirms the POC is mechanically isolated. |
 
@@ -556,7 +556,7 @@ spikes/runtime-eval/
 Deno script. Imports `schemas/contracts/artifact.json` (absolute repo
 path), validates a sample artifact against it using `ajv` via `npm:`
 import, prints pass/fail. Proves the JSON-Schema export boundary at
-`scripts/export-contract-schemas.ts:34` already serves Deno consumers
+`prx schemas` already serves Deno consumers
 without TS rebuild — precondition for Phase C.
 
 ## 7. Verification (run-sheet)
