@@ -22,7 +22,7 @@ describe("prx mcp serve (registry mounted as an MCP server)", () => {
   test("tools/list returns the projected toolset", async () => {
     const res = await handleMcpRequest(orchestratorRegistry, call("tools/list"));
     const tools = (res!.result as { tools: { name: string }[] }).tools;
-    expect(tools.map((t) => t.name).sort()).toEqual(["fleet", "pilot"]);
+    expect(tools.map((t) => t.name).sort()).toEqual(["fleet", "observe", "pilot"]);
   });
 
   test("tools/call drives the pilot machine and returns its rendered output", async () => {

@@ -41,7 +41,7 @@ describe("spec-driven CLI: author once, project everywhere", () => {
     expect(paths["/pilot"]!.post.operationId).toBe("pilot");
     expect(paths["/fleet"]!.post.operationId).toBe("fleet");
     // The toolset projects every verb.
-    expect(toMcpToolset(orchestratorRegistry).map((t) => t.name).sort()).toEqual(["fleet", "pilot"]);
+    expect(toMcpToolset(orchestratorRegistry).map((t) => t.name).sort()).toEqual(["fleet", "observe", "pilot"]);
   });
 
   test("help renders usage + flags from the schema", () => {

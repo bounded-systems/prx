@@ -170,8 +170,15 @@ PRX_AUDIT_STDOUT=1 prx pilot GH-123
 > best-effort wrapper swallowed it — seam telemetry never reached the log.
 > Registering it (owner `telemetry`) is what makes the seam stream observable.
 
-A dedicated `prx pilot observe <unit>` reader (pretty timeline over these rows)
-is the natural next step; the tailable NDJSON is the substrate it would read.
+Or read a unit's timeline directly:
+
+```bash
+prx observe GH-123            # all TELEMETRY_* rows for the unit (legs + seams)
+prx observe GH-123 --limit 20 # just the most recent 20
+```
+
+`prx observe` is a read-only projection of that same NDJSON (`audit/observe.ts`
+→ the `observe` orchestrator verb) — never a gate, just a view.
 
 ## 4. Implementation slices
 
