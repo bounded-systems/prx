@@ -6,7 +6,6 @@ import {
   type IntakeSearchOptions,
 } from "../../src/intake/intake-search.ts";
 import type { GhExecResult } from "@bounded-systems/gh";
-import type { BdExecResult } from "@bounded-systems/bd";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
 
 function makeOpts(overrides: Partial<IntakeSearchOptions> = {}): IntakeSearchOptions {
@@ -51,10 +50,10 @@ function bead(overrides: Partial<BeadsRecord> = {}): BeadsRecord {
   };
 }
 
-describe("runIntakeSearch — GH paths", () => {
-  test("invokes gh issue list with --search/--state/--limit/--json", () => {
+describe("runIntakeSearch — GH paths", async () => {
+  test("invokes gh issue list with --search/--state/--limit/--json", async () => {
     const calls: Array<{ group: string; subcommand: string; args: string[] }> = [];
-    const exitCode = runIntakeSearch(
+    const exitCode = await runIntakeSearch(
       makeOpts({ query: "ship search", state: "open" }),
       { log: () => undefined, error: () => undefined },
       {
@@ -62,7 +61,7 @@ describe("runIntakeSearch — GH paths", () => {
           calls.push(opts);
           return ghList([]);
         }) as never,
-        loadAllBeads: (() => []) as never,
+        loadBeads: (async () => []) as never,
       },
     );
     expect(exitCode).toBe(0);
@@ -78,9 +77,9 @@ describe("runIntakeSearch — GH paths", () => {
     expect(calls[0]!.args).toContain("--json");
   });
 
-  test("plain output renders a unified id/state/source/bd-id/title table", () => {
+  test("plain output renders a unified id/state/source/bd-id/title table", async () => {
     const logs: string[] = [];
-    runIntakeSearch(
+    await runIntakeSearch(
       makeOpts({ query: "intake", format: "plain" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
@@ -93,7 +92,7 @@ describe("runIntakeSearch — GH paths", () => {
               url: "https://github.com/o/r/issues/999",
             },
           ])) as never,
-        loadAllBeads: (() => []) as never,
+        loadBeads: (async () => []) as never,
       },
     );
     expect(logs).toHaveLength(1);
@@ -109,9 +108,9 @@ describe("runIntakeSearch — GH paths", () => {
     expect(out).toContain("task(prx): add prx intake search");
   });
 
-  test("json output wraps hits with query/state envelope", () => {
+  test("json output wraps hits with query/state envelope", async () => {
     const logs: string[] = [];
-    runIntakeSearch(
+    await runIntakeSearch(
       makeOpts({ query: "intake", state: "open", format: "json" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
@@ -124,7 +123,7 @@ describe("runIntakeSearch — GH paths", () => {
               url: "https://github.com/o/r/issues/999",
             },
           ])) as never,
-        loadAllBeads: (() => []) as never,
+        loadBeads: (async () => []) as never,
       },
     );
     const parsed = JSON.parse(logs[0]!) as {
@@ -140,14 +139,14 @@ describe("runIntakeSearch — GH paths", () => {
     expect(parsed.hits[0]!.url).toBe("https://github.com/o/r/issues/999");
   });
 
-  test("propagates gh exit code on failure with stderr message", () => {
+  test("propagates gh exit code on failure with stderr message", async () => {
     const errors: string[] = [];
-    const exitCode = runIntakeSearch(
+    const exitCode = await runIntakeSearch(
       makeOpts(),
       { log: () => undefined, error: (l) => errors.push(l) },
       {
         execGh: (() => ghFail("gh: rate-limited", 2)) as never,
-        loadAllBeads: (() => []) as never,
+        loadBeads: (async () => []) as never,
       },
     );
     expect(exitCode).toBe(2);
@@ -155,10 +154,10 @@ describe("runIntakeSearch — GH paths", () => {
   });
 });
 
-describe("runIntakeSearch — bd paths", () => {
-  test("bd hits append to gh hits, filtered by case-insensitive title substring", () => {
+describe("runIntakeSearch — bd paths", async () => {
+  test("bd hits append to gh hits, filtered by case-insensitive title substring", async () => {
     const logs: string[] = [];
-    runIntakeSearch(
+    await runIntakeSearch(
       makeOpts({ query: "INTAKE" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
@@ -166,7 +165,7 @@ describe("runIntakeSearch — bd paths", () => {
           ghList([
             { number: 999, title: "intake search", state: "OPEN", url: "u/999" },
           ])) as never,
-        loadAllBeads: (() => [
+        loadBeads: (async () => [
           bead({ id: "ai-home-aaa", title: "intake matches lowercase needle" }),
           bead({ id: "ai-home-bbb", title: "unrelated" }),
         ]) as never,
@@ -178,10 +177,10 @@ describe("runIntakeSearch — bd paths", () => {
     expect(out).not.toContain("ai-home-bbb");
   });
 
-  test("bd unreachable warns once and continues with GH-only results", () => {
+  test("bd unreachable warns once and continues with GH-only results", async () => {
     const logs: string[] = [];
     const errors: string[] = [];
-    const exitCode = runIntakeSearch(
+    const exitCode = await runIntakeSearch(
       makeOpts({ query: "intake" }),
       { log: (l) => logs.push(l), error: (l) => errors.push(l) },
       {
@@ -189,7 +188,7 @@ describe("runIntakeSearch — bd paths", () => {
           ghList([
             { number: 999, title: "intake search", state: "OPEN", url: "u/999" },
           ])) as never,
-        loadAllBeads: (() => {
+        loadBeads: (async () => {
           throw new Error("bd: database not found");
         }) as never,
       },
@@ -202,53 +201,19 @@ describe("runIntakeSearch — bd paths", () => {
     expect(logs[0]).toContain("GH-999");
   });
 
-  test("bd list exits non-zero but emits a valid array: keeps the bd leg, warns once", () => {
-    const logs: string[] = [];
-    const errors: string[] = [];
-    const exitCode = runIntakeSearch(
-      makeOpts({ query: "intake" }),
-      { log: (l) => logs.push(l), error: (l) => errors.push(l) },
-      {
-        execGh: (() =>
-          ghList([
-            { number: 999, title: "intake search", state: "OPEN", url: "u/999" },
-          ])) as never,
-        // Real `loadAllBeads` (no deps override) so the parse-then-warn path runs.
-        execBd: (() =>
-          ({
-            exitCode: 1,
-            stdout: JSON.stringify([
-              {
-                id: "ai-home-aaa",
-                title: "intake matches",
-                status: "open",
-                priority: 2,
-                issue_type: "task",
-                external_ref: null,
-                metadata: null,
-              },
-            ]),
-            stderr: "dolt: push rejected (non-fast-forward)\n",
-            policy: null,
-          } as BdExecResult)) as never,
-      },
-    );
-    expect(exitCode).toBe(0);
-    expect(logs[0]).toContain("GH-999");
-    expect(logs[0]).toContain("ai-home-aaa");
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toContain("exited non-zero but emitted a valid array");
-    expect(errors[0]).not.toContain("bd unreachable");
-  });
+  // (Removed: "bd list exits non-zero but emits a valid array" — that tolerance
+  // lived in the local `loadAllBeads`; the daemon (server-mode dolt) owns the
+  // parse now and the post-listing push-rejection can't occur. bd-unreachable →
+  // GH-only is still covered above.)
 
-  test("bd json output sets source='bd' and omits url", () => {
+  test("bd json output sets source='bd' and omits url", async () => {
     const logs: string[] = [];
-    runIntakeSearch(
+    await runIntakeSearch(
       makeOpts({ query: "bd-only", format: "json" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
         execGh: (() => ghList([])) as never,
-        loadAllBeads: (() => [
+        loadBeads: (async () => [
           bead({ id: "ai-home-aaa", title: "bd-only thing" }),
         ]) as never,
       },
@@ -263,10 +228,10 @@ describe("runIntakeSearch — bd paths", () => {
   });
 });
 
-describe("runIntakeSearch — dedupe by external_ref", () => {
-  test("collapses GH+bd pairs sharing externalRef URL into a single source='both' row with beadId", () => {
+describe("runIntakeSearch — dedupe by external_ref", async () => {
+  test("collapses GH+bd pairs sharing externalRef URL into a single source='both' row with beadId", async () => {
     const logs: string[] = [];
-    runIntakeSearch(
+    await runIntakeSearch(
       makeOpts({ query: "intake", format: "json" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
@@ -279,7 +244,7 @@ describe("runIntakeSearch — dedupe by external_ref", () => {
               url: "https://github.com/o/r/issues/1759",
             },
           ])) as never,
-        loadAllBeads: (() => [
+        loadBeads: (async () => [
           bead({
             id: "ai-home-gs15d",
             title: "epic(prx): operationalize GH-1754",
@@ -298,9 +263,9 @@ describe("runIntakeSearch — dedupe by external_ref", () => {
     expect(parsed.hits[0]!.beadId).toBe("ai-home-gs15d");
   });
 
-  test("merged row surfaces bd-id in plain output column", () => {
+  test("merged row surfaces bd-id in plain output column", async () => {
     const logs: string[] = [];
-    runIntakeSearch(
+    await runIntakeSearch(
       makeOpts({ query: "intake", format: "plain" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
@@ -313,7 +278,7 @@ describe("runIntakeSearch — dedupe by external_ref", () => {
               url: "https://github.com/o/r/issues/1759",
             },
           ])) as never,
-        loadAllBeads: (() => [
+        loadBeads: (async () => [
           bead({
             id: "ai-home-gs15d",
             title: "intake thing",
@@ -329,9 +294,9 @@ describe("runIntakeSearch — dedupe by external_ref", () => {
     expect(out).toContain("ai-home-gs15d");
   });
 
-  test("no duplicate row when the same issue is in both sources", () => {
+  test("no duplicate row when the same issue is in both sources", async () => {
     const logs: string[] = [];
-    runIntakeSearch(
+    await runIntakeSearch(
       makeOpts({ query: "intake", format: "json" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
@@ -344,7 +309,7 @@ describe("runIntakeSearch — dedupe by external_ref", () => {
               url: "https://github.com/o/r/issues/1759",
             },
           ])) as never,
-        loadAllBeads: (() => [
+        loadBeads: (async () => [
           bead({
             id: "ai-home-gs15d",
             title: "intake thing",
@@ -362,29 +327,29 @@ describe("runIntakeSearch — dedupe by external_ref", () => {
   });
 });
 
-describe("runIntakeSearch — empty hits", () => {
-  test("plain output emits a no-hits notice", () => {
+describe("runIntakeSearch — empty hits", async () => {
+  test("plain output emits a no-hits notice", async () => {
     const logs: string[] = [];
-    runIntakeSearch(
+    await runIntakeSearch(
       makeOpts({ query: "nonsense-xyzzy" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
         execGh: (() => ghList([])) as never,
-        loadAllBeads: (() => []) as never,
+        loadBeads: (async () => []) as never,
       },
     );
     expect(logs[0]).toContain("no hits");
     expect(logs[0]).toContain("nonsense-xyzzy");
   });
 
-  test("json output emits an empty hits array", () => {
+  test("json output emits an empty hits array", async () => {
     const logs: string[] = [];
-    runIntakeSearch(
+    await runIntakeSearch(
       makeOpts({ query: "nonsense-xyzzy", format: "json" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
         execGh: (() => ghList([])) as never,
-        loadAllBeads: (() => []) as never,
+        loadBeads: (async () => []) as never,
       },
     );
     const parsed = JSON.parse(logs[0]!) as { hits: unknown[] };
@@ -392,27 +357,27 @@ describe("runIntakeSearch — empty hits", () => {
   });
 });
 
-describe("intakeSearchOptionsSchema", () => {
-  test("rejects empty query", () => {
+describe("intakeSearchOptionsSchema", async () => {
+  test("rejects empty query", async () => {
     expect(() => intakeSearchOptionsSchema.parse({ query: "" })).toThrow();
     expect(() => intakeSearchOptionsSchema.parse({ query: "   " })).toThrow();
   });
 
-  test("defaults state=all and format=plain", () => {
+  test("defaults state=all and format=plain", async () => {
     const parsed = intakeSearchOptionsSchema.parse({ query: "x" });
     expect(parsed.state).toBe("all");
     expect(parsed.format).toBe("plain");
   });
 
-  test("rejects invalid state", () => {
+  test("rejects invalid state", async () => {
     expect(() =>
       intakeSearchOptionsSchema.parse({ query: "x", state: "bogus" }),
     ).toThrow();
   });
 });
 
-describe("formatIntakeSearchRender", () => {
-  test("plain render with hits column-aligns id/state/source/bd-id/title", () => {
+describe("formatIntakeSearchRender", async () => {
+  test("plain render with hits column-aligns id/state/source/bd-id/title", async () => {
     const out = formatIntakeSearchRender(
       {
         query: "q",
@@ -440,7 +405,7 @@ describe("formatIntakeSearchRender", () => {
     expect(lines[2]).toContain("ai-home-bbbb");
   });
 
-  test("json render is well-formed JSON with the full envelope", () => {
+  test("json render is well-formed JSON with the full envelope", async () => {
     const out = formatIntakeSearchRender(
       { query: "q", state: "all", hits: [] },
       "json",

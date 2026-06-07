@@ -22,9 +22,10 @@ import {
   searchGh,
   type IssueSearchHit,
 } from "../issues/search.ts";
-import { execBd } from "@bounded-systems/bd";
 import { execGh } from "@bounded-systems/gh";
-import { loadAllBeads, type BeadsRecord } from "../triage/triage.ts";
+import type { BeadsRecord } from "../triage/triage.ts";
+// GH-296: search is a scout-shaped aggregate read — route it through the daemon.
+import { loadAllBeadsViaDaemon } from "../beadsd/reads.ts";
 
 export const intakeSearchOptionsSchema = z.object({
   query: z.string().trim().min(1, "query must not be empty"),
@@ -49,22 +50,21 @@ export type IntakeSearchRender = {
 
 export type IntakeSearchDeps = {
   execGh?: typeof execGh;
-  execBd?: typeof execBd;
-  loadAllBeads?: typeof loadAllBeads;
+  /** GH-296: daemon-routed aggregate read (default {@link loadAllBeadsViaDaemon}). */
+  loadBeads?: () => Promise<BeadsRecord[]>;
 };
 
 export { IssueSearchError as IntakeSearchError };
 
 const VERB = "prx intake search";
 
-export function runIntakeSearch(
+export async function runIntakeSearch(
   opts: IntakeSearchOptions,
   output: Output,
   deps: IntakeSearchDeps = {},
-): number {
+): Promise<number> {
   const ghExec = deps.execGh ?? execGh;
-  const bdExec = deps.execBd ?? execBd;
-  const loader = deps.loadAllBeads ?? loadAllBeads;
+  const loadBeads = deps.loadBeads ?? loadAllBeadsViaDaemon;
 
   let ghHits: IntakeSearchHit[];
   try {
@@ -88,8 +88,8 @@ export function runIntakeSearch(
     // `output.error`; warn and throw are mutually exclusive in `loadAllBeads`,
     // so the `catch` below still owns *genuine* bd-unreachable failures with
     // no double message.
-    bdRecords = loader(bdExec, output.error);
-    bdHits = searchBd(opts.query, () => bdRecords ?? [], bdExec, opts.state);
+    bdRecords = await loadBeads();
+    bdHits = searchBd(opts.query, bdRecords, opts.state);
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     output.error(

@@ -2972,7 +2972,7 @@ type CliDeps = {
     options: PlanSearchOptions,
     output: Output,
     deps?: PlanSearchDeps,
-  ) => number;
+  ) => Promise<number>;
   /** Override for plan-save reading binary content from stdin. */
   readStdinSync?: () => Buffer;
   /** Override for plan-save reading binary content from a file path. */
@@ -3041,7 +3041,7 @@ type CliDeps = {
     options: IntakeSearchOptions,
     output: Output,
     deps?: IntakeSearchDeps,
-  ) => number;
+  ) => Promise<number>;
   runIntakeStatus?: (
     options: IntakeStatusOptions,
     output: Output,

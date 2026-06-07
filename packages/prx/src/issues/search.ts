@@ -9,9 +9,8 @@
  */
 
 import { processEnv } from "@bounded-systems/env";
-import type { execBd } from "@bounded-systems/bd";
 import type { execGh, GhExecResult } from "@bounded-systems/gh";
-import type { loadAllBeads } from "../triage/triage.ts";
+import type { BeadsRecord } from "../triage/triage.ts";
 
 export type IssueSearchHit = {
   id: string;
@@ -94,12 +93,9 @@ export function searchGh(
 
 export function searchBd(
   query: string,
-  loader: typeof loadAllBeads,
-  exec: typeof execBd,
+  records: BeadsRecord[],
   state: "open" | "closed" | "all" = "all",
-  warn: (line: string) => void = () => {},
 ): IssueSearchHit[] {
-  const records = loader(exec, warn);
   const needle = query.toLowerCase();
   const hits: IssueSearchHit[] = [];
   for (const record of records) {
