@@ -92,6 +92,32 @@ describe("prx beads read-door (ready/list/show via beadsd)", () => {
   });
 });
 
+describe("prx beads provision (canonical local clone)", () => {
+  test("`beads provision --origin` rewrites + parses with a default cwd", () => {
+    expect(normalizeNamespaceArgv(["beads", "provision", "--origin", "o/r"])).toEqual([
+      "beads-provision",
+      "--origin",
+      "o/r",
+    ]);
+    const p = parse(["beads", "provision", "--origin", "o/r"]);
+    expect(p.command).toBe("beads-provision");
+    if (p.command === "beads-provision") {
+      expect(p.origin).toBe("o/r");
+      // default cwd = the well-known ~/.local/state/prx/beads (HOME is set in CI/dev)
+      expect(p.cwd.endsWith("/.local/state/prx/beads")).toBe(true);
+    }
+  });
+
+  test("`--cwd` overrides the canonical path", () => {
+    const p = parse(["beads", "provision", "--origin", "o/r", "--cwd", "/canon"]);
+    expect(p.command === "beads-provision" && p.cwd).toBe("/canon");
+  });
+
+  test("requires --origin", () => {
+    expect(() => parse(["beads", "provision"])).toThrow(/requires --origin/);
+  });
+});
+
 describe("prx lima parsing", () => {
   test("`up <vm>` with --binary/--cwd", () => {
     const p = parse(["lima", "up", "myvm", "--binary", "dist/prx", "--cwd", "/vm/clone"]);
