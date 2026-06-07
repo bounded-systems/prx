@@ -11,18 +11,47 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deleteEnv, getEnv, setEnv } from "@bounded-systems/env";
+import { ZodError } from "zod";
 import { getUnit, putUnit } from "../../src/pr-state/projection.ts";
 import {
   planClose,
   planCloseReasonToGhReason,
-  runCli as runCliDirect,
   type PlanCloseOptions,
-} from "../../src/pr-state/cli.ts";
-import type { PlanCloseResult } from "../../src/pr-state/cli-types.ts";
-import {
   planCloseReasonToBdReason,
   type PlanCloseBdRecordOutcome,
 } from "../../src/pr-state/plan-close-bd.ts";
+import type { PlanCloseResult } from "../../src/pr-state/cli-types.ts";
+import { parseArgs } from "../../src/cli/verbspec.ts";
+import {
+  planCloseVerb,
+  type PlanCloseVerbDeps,
+} from "../../src/pr-state/plan-close-verb.ts";
+
+// `prx plan close` is a VerbSpec now; this drives the CLI path (parse → run →
+// render → exit) with injected deps, the way the legacy `runCliDirect(..., {
+// planClose })` harness used to. argv arrives as ["plan","close", ...rest].
+async function runCliDirect(
+  argv: string[],
+  output: { log: (l: string) => void; error: (l: string) => void },
+  deps: PlanCloseVerbDeps,
+): Promise<number> {
+  const rest = argv.slice(2);
+  try {
+    const input = parseArgs(planCloseVerb as never, rest) as Parameters<
+      typeof planCloseVerb.run
+    >[0];
+    const out = await planCloseVerb.run(input, deps);
+    output.log(planCloseVerb.render!(out, input));
+    return planCloseVerb.exitCode!(out, input);
+  } catch (e) {
+    if (e instanceof ZodError) {
+      output.error(e.issues[0]?.message ?? e.message);
+      return 1;
+    }
+    output.error(e instanceof Error ? e.message : String(e));
+    return 1;
+  }
+}
 import type { CommandRunner as GithubCommandRunner } from "../../src/pr-state/github.ts";
 import type { BdShowResult } from "@bounded-systems/bd";
 import type { BdIssueCloseResult } from "../../src/tools/bd_issue_close.ts";
