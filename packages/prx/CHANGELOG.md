@@ -1,5 +1,24 @@
 # @bounded-systems/prx
 
+## 0.7.2
+
+### Patch Changes
+
+- 537a118: `prx ci` is now fail-closed on signing (GH-352): local dev is the production surface, so wherever a provenance ledger is in scope (a reserved work-unit, or `PRX_CI_LEDGER` in CI) and no `PRX_PROVENANCE_KEY` is set, the run fails with a clear, actionable message (`set PRX_PROVENANCE_KEY=dev` for the zero-config local signer, or `ed25519:<b64>` for a shared/CI key) instead of silently skipping. Outside a signing context it is unchanged. `.github/workflows/ci.yml` sets `PRX_CI_LEDGER` only when the secret is present, so the `ci` job stays green until remote signing is switched on.
+- df7cb2e: Additive testability seams + a dead-code dedupe, all behavior-preserving:
+
+  - `@bounded-systems/gh` — `execGh` gains optional `deps.spawn` / `deps.budget`
+    seams so the rate-limit authority boundary is testable without a live `gh`
+    spawn or real GitHub budget state. Existing call sites pass nothing.
+  - `@bounded-systems/bd` — removed the redundant static `BLOCKED_SUBCOMMANDS`
+    check (the policy `isBlocked` gate already enforced the identical list);
+    policy is now the single source of truth, pinned by a `blockedSubcommands`
+    parity test.
+  - `@bounded-systems/prx` — `execWorktrunk`, `runClaudePreflight`, and
+    `runHookVerb`/`readStdin` gain optional injectable spawn/exec/stdin seams
+    (default to the real implementations) so their subprocess/stdin boundaries
+    are unit-testable.
+
 ## 0.7.1
 
 ### Patch Changes
