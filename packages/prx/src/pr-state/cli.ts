@@ -5371,9 +5371,9 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
       // Collapse the three reads onto one command with the kind as a positional.
       return ["beads-read", c1, ...tail];
     }
-    if (c1 === "create" || c1 === "update" || c1 === "close") {
+    if (c1 === "create" || c1 === "update" || c1 === "close" || c1 === "reopen") {
       // GH-296 wave 2: host write-door — the single-writer surface routed
-      // through beadsd. Collapse the three writes onto one command with the
+      // through beadsd. Collapse the atomic writes onto one command with the
       // kind as a positional.
       return ["beads-write", c1, ...tail];
     }
@@ -8798,8 +8798,14 @@ export function parseCommand(argv: string[]): ParsedCommand {
         throw new CliError("prx beads close requires an id: `prx beads close <id> [--reason r]`");
       }
       request = { kind: "close", id, ...(values.reason !== undefined ? { reason: values.reason } : {}) };
+    } else if (kind === "reopen") {
+      const id = positionals[1];
+      if (typeof id !== "string" || id.length === 0) {
+        throw new CliError("prx beads reopen requires an id: `prx beads reopen <id>`");
+      }
+      request = { kind: "reopen", id };
     } else {
-      throw new CliError("prx beads write requires a kind: create | update | close");
+      throw new CliError("prx beads write requires a kind: create | update | close | reopen");
     }
 
     // Validate against the wire contract for a clear error before dispatch.

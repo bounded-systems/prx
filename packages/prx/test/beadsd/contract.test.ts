@@ -12,8 +12,8 @@ import {
 describe("beadsd wire contract — request envelope", () => {
   test("the envelope is an enumerable read+write allowlist", () => {
     expect(BEADS_READ_KINDS).toEqual(["ready", "list", "show"]);
-    expect(BEADS_WRITE_KINDS).toEqual(["create", "update", "close"]);
-    expect(BEADS_REQUEST_KINDS).toEqual(["ready", "list", "show", "create", "update", "close"]);
+    expect(BEADS_WRITE_KINDS).toEqual(["create", "update", "close", "reopen"]);
+    expect(BEADS_REQUEST_KINDS).toEqual(["ready", "list", "show", "create", "update", "close", "reopen"]);
   });
 
   test("isBeadsWriteKind classifies reads vs writes", () => {
@@ -59,6 +59,12 @@ describe("beadsd wire contract — request envelope", () => {
       }).success,
     ).toBe(true);
     expect(BeadsRequestSchema.safeParse({ kind: "update", id: "prx-abb", issueType: "bug" }).success).toBe(true);
+  });
+
+  test("accepts the reopen envelope", () => {
+    expect(BeadsRequestSchema.safeParse({ kind: "reopen", id: "prx-abb" }).success).toBe(true);
+    expect(BeadsRequestSchema.safeParse({ kind: "reopen" }).success).toBe(false); // no id
+    expect(isBeadsWriteKind("reopen")).toBe(true);
   });
 
   test("rejects malformed requests", () => {

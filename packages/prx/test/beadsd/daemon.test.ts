@@ -177,6 +177,13 @@ describe("handleBeadsRequest — writes (single-writer, policy passthrough)", ()
     expect(calls[0]!.args).toEqual(["prx-abb", "--json", "--type", "bug"]);
   });
 
+  test("reopen dispatches `bd reopen <id> --json` directly (allowed subcommand)", async () => {
+    const { execBd, calls } = fakeBd(okResult("{}"));
+    await handleBeadsRequest({ kind: "reopen", id: "prx-abb" }, { execBd });
+    expect(calls[0]!.subcommand).toBe("reopen");
+    expect(calls[0]!.args).toEqual(["prx-abb", "--json"]);
+  });
+
   test("update dispatches `bd update <id> --json <fields>`", async () => {
     const { execBd, calls } = fakeBd(okResult("{}"));
     await handleBeadsRequest(
