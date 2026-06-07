@@ -45,10 +45,7 @@ import {
   buildParityChain,
   buildSurfaceSyncFromBoard,
   buildSessionLayerPrune,
-  checkMainBranchProtection,
-  protectMainBranch,
   viewPr,
-  type ProtectMainBackend,
   type ScoutLogsResult,
   type PrView,
   type OverviewResult,
@@ -973,13 +970,14 @@ import { type ExecutionWorkAgent, POLICY, buildWorkAutomationProfile, ensureExec
 import { findSavedClaudeSession, resolveCodexSessionProfile } from "./session-finder.ts";
 import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type Output, type ParityChainApplyResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
 import { refreshTaskSignals } from "./status-report.ts";
-import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRepairBdResults, formatRepoAdd, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktreeRemove } from "./cli-format.ts";
+import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatRepairBdResults, formatRepoAdd, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktreeRemove } from "./cli-format.ts";
 import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, detectBranchNameFromCwd, findWorktreeByDirectoryPrefix, listResolvedWorktrees, procSpawnLike, resolveRepoRootWithSpawn, runCommand, runInheritStatus, tryCommand } from "./cli-spawn.ts";
 // GH-519/GH-520: parity-chain side-effect primitives moved to their own leaf
 // module so non-CLI consumers (the triage pruneMergedActor) no longer drag the
 // whole CLI — and its triage machine cycle — into their import graph. Re-export
 // keeps cli.ts's existing callers (machine/gc drivers, tests) working.
 import { applyParityChainActions, pruneStaleRemoteRefs } from "./parity-chain.ts";
+
 export { applyParityChainActions, pruneStaleRemoteRefs } from "./parity-chain.ts";
 
 // Shared default for the `SpawnLike` capture seams below. Routes through
@@ -2129,24 +2127,6 @@ type ParsedCommand =
       format: "plain" | "json";
     }
   | {
-      command: "protect-main";
-      repoPath: string;
-      backend: ProtectMainBackend;
-      repo?: string | undefined;
-      branch: string;
-      apply: boolean;
-      check: boolean;
-      solo: boolean;
-      allow: string[];
-      strict: boolean;
-      enforceAdmins?: boolean | undefined;
-      requireConversationResolution?: boolean | undefined;
-      requireLastPushApproval?: boolean | undefined;
-      requireLinearHistory?: boolean | undefined;
-      requiredStatusChecks?: string[] | undefined;
-      format: "plain" | "json";
-    }
-  | {
       command: "chains";
       repoPath: string;
       remote: boolean;
@@ -2738,8 +2718,6 @@ type CliDeps = {
   buildSessionLayerPrune?: typeof buildSessionLayerPrune;
   /** Override for testability: return the name of the current tmux session, or null. */
   tmuxCurrentSession?: () => string | null;
-  checkMainBranchProtection?: typeof checkMainBranchProtection;
-  protectMainBranch?: typeof protectMainBranch;
   boardStatus?: typeof boardStatus;
   chainStatus?: typeof chainStatus;
   validateGitHubIssue?: typeof validateGitHubIssue;
@@ -3072,33 +3050,6 @@ type RuntimeArtifactStatus = {
 };
 const buildMalformedAllowlistWarning = (path: string): string =>
   `warning: ${path} contains malformed JSON or is not a JSON object — leaving prx allowlist untouched; prx commands may prompt for permission`;
-
-const protectMainAllowChoices = [
-  "strict",
-  "enforce-admins",
-  "conversation-resolution",
-  "last-push-approval",
-  "linear-history",
-] as const;
-
-type ProtectMainAllowChoice = (typeof protectMainAllowChoices)[number];
-
-function parseProtectMainAllow(value: string): { type: ProtectMainAllowChoice | "status-check"; value?: string } {
-  const normalized = value.trim();
-  if (protectMainAllowChoices.includes(normalized as ProtectMainAllowChoice)) {
-    return { type: normalized as ProtectMainAllowChoice };
-  }
-  if (normalized.startsWith("status-check:")) {
-    const checkName = normalized.slice("status-check:".length).trim();
-    if (!checkName) {
-      throw new CliError("--allow status-check:<name> requires a non-empty check name");
-    }
-    return { type: "status-check", value: checkName };
-  }
-  throw new CliError(
-    `Invalid value for --allow: ${value}. Expected one of ${protectMainAllowChoices.join(", ")}, or status-check:<name>`,
-  );
-}
 
 function ensureChoice<T extends string>(value: string, choices: readonly T[], flag: string): T {
   if (choices.includes(value as T)) {
@@ -11009,77 +10960,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  if (command === "protect-main") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        "repo-path": { type: "string", default: "." },
-        ruleset: { type: "boolean", default: false },
-        backend: { type: "string" },
-        repo: { type: "string" },
-        branch: { type: "string", default: "main" },
-        apply: { type: "boolean", default: false },
-        check: { type: "boolean", default: false },
-        solo: { type: "boolean", default: false },
-        allow: { type: "string", multiple: true },
-        strict: { type: "boolean", default: false },
-        "enforce-admins": { type: "boolean", default: false },
-        "require-conversation-resolution": { type: "boolean", default: false },
-        "require-last-push-approval": { type: "boolean", default: false },
-        "require-linear-history": { type: "boolean", default: false },
-        "require-status-check": { type: "string", multiple: true },
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    const allowEntries = (values.allow ?? []).map(parseProtectMainAllow);
-    const strictFromAllow = allowEntries.some((entry) => entry.type === "strict");
-    const effectiveStrict = values.strict || strictFromAllow;
-    const allowedStatusChecks = allowEntries
-      .filter((entry): entry is { type: "status-check"; value: string } => entry.type === "status-check")
-      .map((entry) => entry.value);
-
-    return {
-      command,
-      repoPath: values["repo-path"],
-      backend: values.ruleset ? "ruleset" : ensureChoice(values.backend ?? "branch-protection", ["branch-protection", "ruleset"], "--backend") as ProtectMainBackend,
-      repo: values.repo,
-      branch: values.branch,
-      apply: values.check ? false : values.apply,
-      check: values.check,
-      solo: values.solo,
-      allow: values.allow ?? [],
-      strict: effectiveStrict,
-      enforceAdmins: effectiveStrict || values["enforce-admins"] || allowEntries.some((entry) => entry.type === "enforce-admins")
-        ? true
-        : undefined,
-      requireConversationResolution:
-        effectiveStrict ||
-        values["require-conversation-resolution"] ||
-        allowEntries.some((entry) => entry.type === "conversation-resolution")
-          ? true
-          : undefined,
-      requireLastPushApproval:
-        effectiveStrict ||
-        values["require-last-push-approval"] ||
-        allowEntries.some((entry) => entry.type === "last-push-approval")
-          ? true
-          : undefined,
-      requireLinearHistory:
-        effectiveStrict ||
-        values["require-linear-history"] ||
-        allowEntries.some((entry) => entry.type === "linear-history")
-          ? true
-          : undefined,
-      requiredStatusChecks: [...(values["require-status-check"] ?? []), ...allowedStatusChecks].length > 0
-        ? [...(values["require-status-check"] ?? []), ...allowedStatusChecks]
-        : undefined,
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
-
   if (command === "prune") {
     // GH-1133: `prx prune session <GH-N>` — narrow session/tmux-only
     // teardown. Detect the positional subverb before the flag-only
@@ -15765,6 +15645,13 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       orchestratorRest[0] === "checks"
     ) {
       return runSpecVerb("repo-checks", orchestratorRest.slice(1), output);
+    }
+    // `protect-main` (a.k.a. `repo protect-main`).
+    if (orchestratorVerb === "protect-main") {
+      return runSpecVerb("protect-main", orchestratorRest, output);
+    }
+    if (orchestratorVerb === "repo" && orchestratorRest[0] === "protect-main") {
+      return runSpecVerb("protect-main", orchestratorRest.slice(1), output);
     }
     if (orchestratorVerb === "plugin") {
       return runPluginVerb(orchestratorRest, output);
@@ -22548,39 +22435,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       }
       output.log(formatPrComments(summary, parsed.format, outputPath));
       return summary.unresolvedThreads === 0 ? 0 : 1;
-    }
-
-    if (parsed.command === "protect-main") {
-      if (parsed.check) {
-        const result = (deps.checkMainBranchProtection ?? checkMainBranchProtection)(parsed.repoPath, {
-          backend: parsed.backend,
-          repo: parsed.repo,
-          branch: parsed.branch,
-          solo: parsed.solo,
-          enforceAdmins: parsed.enforceAdmins,
-          requireConversationResolution: parsed.requireConversationResolution,
-          requireLastPushApproval: parsed.requireLastPushApproval,
-          requireLinearHistory: parsed.requireLinearHistory,
-          requiredStatusChecks: parsed.requiredStatusChecks,
-        });
-        output.log(formatProtectMainCheck(result, parsed.format));
-        return result.matches ? 0 : 1;
-      }
-
-      const result = (deps.protectMainBranch ?? protectMainBranch)(parsed.repoPath, {
-        backend: parsed.backend,
-        repo: parsed.repo,
-        branch: parsed.branch,
-        solo: parsed.solo,
-        apply: parsed.apply,
-        enforceAdmins: parsed.enforceAdmins,
-        requireConversationResolution: parsed.requireConversationResolution,
-        requireLastPushApproval: parsed.requireLastPushApproval,
-        requireLinearHistory: parsed.requireLinearHistory,
-        requiredStatusChecks: parsed.requiredStatusChecks,
-      });
-      output.log(formatProtectMain(result, parsed.format));
-      return 0;
     }
 
     if (parsed.command === "prune-session") {
