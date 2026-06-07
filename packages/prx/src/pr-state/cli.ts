@@ -423,7 +423,8 @@ import {
 import { diagnoseBeads, healBeads } from "../beads/doctor.ts";
 // GH-296: the host read-door — route `prx beads ready|list|show` through beadsd.
 import { withLimaBeadsClient } from "../beadsd/lima.ts";
-import { withBeadsClient } from "../beadsd/client-factory.ts";
+import { withBeadsClient, defaultCanonicalBeadsCwd } from "../beadsd/client-factory.ts";
+import { provisionLocalBeads } from "../beadsd/provision-local.ts";
 import type { BeadsRequest } from "../beadsd/contract.ts";
 // GH-296: provision beads inside a Lima VM (install bd+dolt + clone canonical).
 import { provisionVmBeads } from "../beadsd/provision.ts";
@@ -2057,6 +2058,14 @@ type ParsedCommand =
       hostSocket?: string | undefined;
       id?: string | undefined;
       status?: string | undefined;
+    }
+  | {
+      // GH-296: provision the canonical LOCAL beads clone (host twin of
+      // `prx lima provision-beads`). Default cwd: the resolved canonical path.
+      command: "beads-provision";
+      format: "plain" | "json";
+      origin: string;
+      cwd: string;
     }
   | {
       // GH-228: `prx lima <verb>` — in-VM daemon lifecycle over the daemon registry.
@@ -5311,11 +5320,16 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "beads") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "beads requires a subcommand: ready, list, show, hydrate, issue, migrate, publish, sync, sync-all, doctor",
+        "beads requires a subcommand: ready, list, show, hydrate, provision, issue, migrate, publish, sync, sync-all, doctor",
       );
     }
     if (c1 === "hydrate") {
       return ["beads-hydrate", ...tail];
+    }
+    if (c1 === "provision") {
+      // GH-296: provision the canonical local beads clone (host twin of
+      // `prx lima provision-beads`).
+      return ["beads-provision", ...tail];
     }
     if (c1 === "issue") {
       return ["beads-issue", ...tail];
@@ -8704,6 +8718,36 @@ export function parseCommand(argv: string[]): ParsedCommand {
       ...(values["host-socket"] !== undefined ? { hostSocket: values["host-socket"] } : {}),
       ...(kind === "show" ? { id } : {}),
       ...(values.status !== undefined ? { status: values.status } : {}),
+    };
+  }
+
+  // GH-296: `prx beads provision` — provision the canonical LOCAL beads clone
+  // (host twin of `prx lima provision-beads`). Default cwd: the well-known
+  // ~/.local/state/prx/beads, which resolveLocalBeadsCwd then auto-serves.
+  if (command === "beads-provision") {
+    const { values } = parseArgs({
+      args: rest,
+      options: {
+        format: { type: "string", default: "plain" },
+        origin: { type: "string" },
+        cwd: { type: "string" },
+      },
+      strict: true,
+      allowPositionals: false,
+    });
+    const origin = values.origin;
+    if (typeof origin !== "string" || origin.length === 0) {
+      throw new CliError("prx beads provision requires --origin <owner/repo> (the canonical beads remote)");
+    }
+    const cwd = values.cwd ?? defaultCanonicalBeadsCwd(getEnv) ?? undefined;
+    if (typeof cwd !== "string" || cwd.length === 0) {
+      throw new CliError("prx beads provision: cannot resolve a default cwd (HOME unset) — pass --cwd <path>");
+    }
+    return {
+      command: "beads-provision",
+      format: ensureChoice(values.format, ["plain", "json"], "--format"),
+      origin,
+      cwd,
     };
   }
 
@@ -25139,6 +25183,29 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         } catch (err) {
           // BeadsUnavailableError carries the actionable "start beadsd" message.
           output.error(`beads ${parsed.kind}: ${err instanceof Error ? err.message : String(err)}`);
+          return 1;
+        }
+      })();
+    }
+
+    if (parsed.command === "beads-provision") {
+      // GH-296: provision the canonical LOCAL beads clone so the local daemon
+      // serves one healthy beads from every worktree (host twin of
+      // `prx lima provision-beads`).
+      return (async () => {
+        try {
+          const result = provisionLocalBeads({ originSlug: parsed.origin, cwd: parsed.cwd });
+          if (parsed.format === "json") {
+            output.log(JSON.stringify(result, null, 2));
+          } else {
+            output.error(
+              `beads provision: cloned ${result.database} → ${result.workspace}; ` +
+                `the local daemon now serves it (set PRX_BEADS_CWD to override).`,
+            );
+          }
+          return 0;
+        } catch (err) {
+          output.error(`beads provision: ${err instanceof Error ? err.message : String(err)}`);
           return 1;
         }
       })();
