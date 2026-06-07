@@ -17,6 +17,7 @@ import {
   execBd as defaultExecBd,
   type BdExecResult,
 } from "@bounded-systems/bd";
+import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 
 export type RepairAssigneesInput = {
   from: string;
@@ -27,6 +28,8 @@ export type RepairAssigneesInput = {
 
 export type RepairAssigneesDeps = {
   execBd?: typeof defaultExecBd;
+  /** GH-296 / prx-82b — sync runner for the daemon-routed assign write. */
+  run?: CommandRunner;
 };
 
 export type RepairAssigneesResult = {
@@ -82,6 +85,7 @@ export function runRepairAssignees(
   }
 
   const exec = deps.execBd ?? defaultExecBd;
+  const run = deps.run ?? procRunner;
   const listResult: BdExecResult = exec({
     subcommand: "list",
     args: ["--assignee", from, "--all", "--json", "--limit", "0"],
@@ -137,14 +141,12 @@ export function runRepairAssignees(
   const failures: string[] = [];
   const succeeded: string[] = [];
   for (const row of matched) {
-    const result = exec({
-      subcommand: "assign",
-      args: [row.id, to],
+    // GH-296 / prx-82b: assign via the daemon (`bd assign` == `update --assignee`).
+    const result = run(["prx", "beads", "update", row.id, "--assignee", to], {
       cwd: input.repoPath,
-      state: "planning",
-      role: "planner",
+      check: false,
     });
-    if (result.exitCode !== 0) {
+    if (result.status !== 0) {
       failures.push(row.id);
     } else {
       succeeded.push(row.id);
