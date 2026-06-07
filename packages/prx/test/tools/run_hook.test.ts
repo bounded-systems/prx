@@ -19,7 +19,7 @@ type Fixture = {
   root: string;
   work: string;
   excludePath: string;
-  aiHome: string;
+  overlayRoot: string;
   overrideDir: string;
   overridePath: string;
   sentinelPath: string;
@@ -38,8 +38,8 @@ function makeFixture(): Fixture {
     encoding: "utf8",
   });
 
-  const aiHome = join(root, "ai-home");
-  const overrideDir = join(aiHome, ".prx", "repos", "io.github", OWNER, REPO, "hooks");
+  const overlayRoot = join(root, "ai-home");
+  const overrideDir = join(overlayRoot, ".prx", "repos", "io.github", OWNER, REPO, "hooks");
   const overridePath = join(overrideDir, "ensure-prx-excludes");
   const sentinelPath = join(root, "sentinel.txt");
 
@@ -47,7 +47,7 @@ function makeFixture(): Fixture {
     root,
     work,
     excludePath: join(work, ".git", "info", "exclude"),
-    aiHome,
+    overlayRoot,
     overrideDir,
     overridePath,
     sentinelPath,
@@ -78,7 +78,7 @@ describe("runHook", () => {
       event: "ensure-prx-excludes",
       cwd: fx.root,
       runner: failingRevParse,
-      aiHomeRoot: fx.aiHome,
+      overlayRoot: fx.overlayRoot,
     });
     expect(result.source).toBe("skipped");
     expect(result.reason).toBe("no-repo");
@@ -89,7 +89,7 @@ describe("runHook", () => {
     const result = runHook({
       event: "ensure-prx-excludes",
       cwd: fx.work,
-      aiHomeRoot: fx.aiHome, // exists, but no override file in it
+      overlayRoot: fx.overlayRoot, // exists, but no override file in it
     });
     expect(result.source).toBe("builtin");
     expect(result.exitCode).toBe(0);
@@ -112,7 +112,7 @@ describe("runHook", () => {
     const result = runHook({
       event: "ensure-prx-excludes",
       cwd: fx.work,
-      aiHomeRoot: fx.aiHome,
+      overlayRoot: fx.overlayRoot,
     });
     expect(result.source).toBe("override");
     expect(result.overridePath).toBe(fx.overridePath);
@@ -136,11 +136,11 @@ describe("runHook", () => {
     const result = runHook({
       event: "ensure-prx-excludes",
       cwd: fx.work,
-      aiHomeRoot: fx.aiHome,
+      overlayRoot: fx.overlayRoot,
     });
     expect(result.overridePath).toBe(
       join(
-        fx.aiHome,
+        fx.overlayRoot,
         ".prx",
         "repos",
         "io.github",
@@ -160,7 +160,7 @@ describe("runHook", () => {
     const result = runHook({
       event: "ensure-prx-excludes",
       cwd: fx.work,
-      aiHomeRoot: fx.aiHome,
+      overlayRoot: fx.overlayRoot,
     });
     expect(result.source).toBe("skipped");
     expect(result.reason).toBe("override-not-executable");
@@ -176,7 +176,7 @@ describe("runHook", () => {
     const result = runHook({
       event: "does-not-exist",
       cwd: fx.work,
-      aiHomeRoot: fx.aiHome,
+      overlayRoot: fx.overlayRoot,
     });
     expect(result.source).toBe("skipped");
     expect(result.reason).toBe("unknown-event");
@@ -194,18 +194,18 @@ describe("runHook", () => {
     const result = runHook({
       event: "pre-commit",
       cwd: fx.work,
-      aiHomeRoot: fx.aiHome,
+      overlayRoot: fx.overlayRoot,
     });
     expect(result.source).toBe("override");
     expect(result.overridePath).toBe(overridePath);
     expect(result.exitCode).toBe(7);
   });
 
-  test("missing aiHomeRoot → built-in fires (no override possible)", () => {
+  test("missing overlayRoot → built-in fires (no override possible)", () => {
     const result = runHook({
       event: "ensure-prx-excludes",
       cwd: fx.work,
-      aiHomeRoot: null,
+      overlayRoot: null,
     });
     expect(result.source).toBe("builtin");
     expect(result.exitCode).toBe(0);
@@ -213,7 +213,7 @@ describe("runHook", () => {
   });
 
   test("ensure-claude-settings: built-in stamps from canonical when present", () => {
-    const sourceDir = join(fx.aiHome, "claude");
+    const sourceDir = join(fx.overlayRoot, "claude");
     mkdirSync(sourceDir, { recursive: true });
     const canonical = `{"permissions":{"allow":["Read(**)"],"deny":[]}}\n`;
     writeFileSync(join(sourceDir, "worktree-settings.json"), canonical);
@@ -221,7 +221,7 @@ describe("runHook", () => {
     const result = runHook({
       event: "ensure-claude-settings",
       cwd: fx.work,
-      aiHomeRoot: fx.aiHome,
+      overlayRoot: fx.overlayRoot,
     });
     expect(result.source).toBe("builtin");
     expect(result.exitCode).toBe(0);
@@ -233,7 +233,7 @@ describe("runHook", () => {
   });
 
   test("ensure-claude-settings: per-repo override is preferred when present", () => {
-    const sourceDir = join(fx.aiHome, "claude");
+    const sourceDir = join(fx.overlayRoot, "claude");
     mkdirSync(sourceDir, { recursive: true });
     writeFileSync(
       join(sourceDir, "worktree-settings.json"),
@@ -251,7 +251,7 @@ describe("runHook", () => {
     const result = runHook({
       event: "ensure-claude-settings",
       cwd: fx.work,
-      aiHomeRoot: fx.aiHome,
+      overlayRoot: fx.overlayRoot,
     });
     expect(result.source).toBe("override");
     expect(result.overridePath).toBe(overridePath);
@@ -265,7 +265,7 @@ describe("runHook", () => {
     const result = runHook({
       event: "ensure-claude-settings",
       cwd: fx.work,
-      aiHomeRoot: fx.aiHome, // exists, but no claude/worktree-settings.json
+      overlayRoot: fx.overlayRoot, // exists, but no claude/worktree-settings.json
     });
     expect(result.source).toBe("builtin");
     expect(result.exitCode).toBe(0);

@@ -3563,7 +3563,7 @@ function mergeIdentityTomlFields(
 // wrapper) so we can carry per-repo prx config for external repos we don't own
 // without touching those repos. Uses the same reverse-DNS layout as
 // `~/.local/share/git/bare/io.github/<owner>/<repo>.git/`.
-function resolveAiHomeOverlayPath(
+function resolveOperatorOverlayPath(
   repoPath: string,
   runner: CommandRunner,
 ): string | null {
@@ -3827,7 +3827,7 @@ export function loadIdentityConfig(
     ? parseIdentityTomlFields(readFileSync(configPath, "utf8"), configPath)
     : emptyIdentityTomlFields();
 
-  const overlayPath = resolveAiHomeOverlayPath(repoPath, runner);
+  const overlayPath = resolveOperatorOverlayPath(repoPath, runner);
   const overlayFields =
     overlayPath && existsSync(overlayPath)
       ? parseIdentityTomlFields(readFileSync(overlayPath, "utf8"), overlayPath)

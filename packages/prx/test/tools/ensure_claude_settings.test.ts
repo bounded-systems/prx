@@ -15,7 +15,7 @@ import { ensureClaudeSettings } from "../../src/tools/ensure_claude_settings.ts"
 type Fixture = {
   root: string;
   repoRoot: string;
-  aiHome: string;
+  overlayRoot: string;
   sourcePath: string;
   targetPath: string;
   localPath: string;
@@ -35,14 +35,14 @@ const CANONICAL = JSON.stringify(
 function makeFixture(): Fixture {
   const root = mkdtempSync(join(tmpdir(), "prx-ensure-claude-settings-"));
   const repoRoot = join(root, "work");
-  const aiHome = join(root, "ai-home");
+  const overlayRoot = join(root, "ai-home");
   mkdirSync(repoRoot, { recursive: true });
-  mkdirSync(join(aiHome, "claude"), { recursive: true });
-  const sourcePath = join(aiHome, "claude", "worktree-settings.json");
+  mkdirSync(join(overlayRoot, "claude"), { recursive: true });
+  const sourcePath = join(overlayRoot, "claude", "worktree-settings.json");
   return {
     root,
     repoRoot,
-    aiHome,
+    overlayRoot,
     sourcePath,
     targetPath: join(repoRoot, ".claude", "settings.json"),
     localPath: join(repoRoot, ".claude", "settings.local.json"),
@@ -63,7 +63,7 @@ describe("ensureClaudeSettings", () => {
 
     const result = ensureClaudeSettings({
       repoRoot: fx.repoRoot,
-      aiHomeRoot: fx.aiHome,
+      overlayRoot: fx.overlayRoot,
     });
 
     expect(result.wrote).toBe(true);
@@ -81,7 +81,7 @@ describe("ensureClaudeSettings", () => {
 
     const result = ensureClaudeSettings({
       repoRoot: fx.repoRoot,
-      aiHomeRoot: fx.aiHome,
+      overlayRoot: fx.overlayRoot,
     });
 
     expect(result.wrote).toBe(false);
@@ -96,7 +96,7 @@ describe("ensureClaudeSettings", () => {
 
     const result = ensureClaudeSettings({
       repoRoot: fx.repoRoot,
-      aiHomeRoot: fx.aiHome,
+      overlayRoot: fx.overlayRoot,
     });
 
     expect(result.wrote).toBe(true);
@@ -104,10 +104,10 @@ describe("ensureClaudeSettings", () => {
     expect(readFileSync(fx.targetPath, "utf8")).toBe(CANONICAL);
   });
 
-  test("aiHomeRoot null → no-source, exits clean", () => {
+  test("overlayRoot null → no-source, exits clean", () => {
     const result = ensureClaudeSettings({
       repoRoot: fx.repoRoot,
-      aiHomeRoot: null,
+      overlayRoot: null,
     });
 
     expect(result.wrote).toBe(false);
@@ -116,11 +116,11 @@ describe("ensureClaudeSettings", () => {
     expect(existsSync(fx.targetPath)).toBe(false);
   });
 
-  test("source missing under aiHomeRoot → no-source, target untouched", () => {
+  test("source missing under overlayRoot → no-source, target untouched", () => {
     // No file written at fx.sourcePath.
     const result = ensureClaudeSettings({
       repoRoot: fx.repoRoot,
-      aiHomeRoot: fx.aiHome,
+      overlayRoot: fx.overlayRoot,
     });
 
     expect(result.wrote).toBe(false);
@@ -137,7 +137,7 @@ describe("ensureClaudeSettings", () => {
 
     ensureClaudeSettings({
       repoRoot: fx.repoRoot,
-      aiHomeRoot: fx.aiHome,
+      overlayRoot: fx.overlayRoot,
     });
 
     expect(existsSync(fx.localPath)).toBe(true);
@@ -150,7 +150,7 @@ describe("ensureClaudeSettings", () => {
 
     const result = ensureClaudeSettings({
       repoRoot: fx.repoRoot,
-      aiHomeRoot: fx.aiHome,
+      overlayRoot: fx.overlayRoot,
     });
 
     expect(result.wrote).toBe(true);

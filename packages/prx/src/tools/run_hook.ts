@@ -10,7 +10,7 @@
  * This dispatcher inverts that: worktrunk calls one uniform command —
  * `prx tools wt run-hook <event>` — and prx resolves the active repo,
  * prefers a per-repo override at
- *   `<aiHomeRoot>/.prx/repos/io.github/<owner>/<repo>/hooks/<event>`,
+ *   `<overlayRoot>/.prx/repos/io.github/<owner>/<repo>/hooks/<event>`,
  * and falls back to a built-in registry. Per-repo overrides ship in
  * ai-home alongside the existing `prx.toml` overlays.
  *
@@ -59,7 +59,7 @@ export type RunHookOptions = {
   cwd: string;
   runner?: CommandRunner;
   /** Override the env-derived ai-home root (tests). */
-  aiHomeRoot?: string | null;
+  overlayRoot?: string | null;
   /** Override origin URL lookup (tests). When set, skips `git remote get-url`. */
   originUrl?: string;
 };
@@ -67,7 +67,7 @@ export type RunHookOptions = {
 type BuiltinHandler = (ctx: {
   repoRoot: string;
   runner: CommandRunner;
-  aiHomeRoot: string | null;
+  overlayRoot: string | null;
 }) => RunHookResult;
 
 const BUILTINS: Record<string, BuiltinHandler> = {
@@ -93,15 +93,15 @@ export function runHook(opts: RunHookOptions): RunHookResult {
     };
   }
 
-  const aiHomeRoot =
-    opts.aiHomeRoot !== undefined
-      ? opts.aiHomeRoot
+  const overlayRoot =
+    opts.overlayRoot !== undefined
+      ? opts.overlayRoot
       : operatorConfigRoot() ?? null;
 
   const overridePath = resolveOverridePath({
     repoRoot,
     runner,
-    aiHomeRoot,
+    overlayRoot,
     event,
     originUrl: opts.originUrl,
   });
@@ -143,7 +143,7 @@ export function runHook(opts: RunHookOptions): RunHookResult {
     };
   }
 
-  return builtin({ repoRoot, runner, aiHomeRoot });
+  return builtin({ repoRoot, runner, overlayRoot });
 }
 
 function resolveRepoRoot(cwd: string, runner: CommandRunner): string | null {
@@ -163,12 +163,12 @@ function resolveRepoRoot(cwd: string, runner: CommandRunner): string | null {
 function resolveOverridePath(args: {
   repoRoot: string;
   runner: CommandRunner;
-  aiHomeRoot: string | null;
+  overlayRoot: string | null;
   event: string;
   originUrl?: string | undefined;
 }): string | null {
-  const { repoRoot, runner, aiHomeRoot, event } = args;
-  if (!aiHomeRoot || aiHomeRoot.length === 0) return null;
+  const { repoRoot, runner, overlayRoot, event } = args;
+  if (!overlayRoot || overlayRoot.length === 0) return null;
 
   let originUrl = args.originUrl;
   if (originUrl === undefined) {
@@ -193,7 +193,7 @@ function resolveOverridePath(args: {
   // does for owner/repo.
   if (!isSafeEventName(event)) return null;
 
-  return join(aiHomeRoot, ".prx", "repos", ...segments, "hooks", event);
+  return join(overlayRoot, ".prx", "repos", ...segments, "hooks", event);
 }
 
 function isSafeEventName(s: string): boolean {
@@ -221,7 +221,7 @@ function isExecutable(path: string): boolean {
 function runEnsurePrxExcludes(ctx: {
   repoRoot: string;
   runner: CommandRunner;
-  aiHomeRoot: string | null;
+  overlayRoot: string | null;
 }): RunHookResult {
   const persisted = loadWorkspaceConfig(ctx.repoRoot, ctx.runner);
   const details = ensurePrxExcludes({
@@ -240,11 +240,11 @@ function runEnsurePrxExcludes(ctx: {
 function runEnsureClaudeSettings(ctx: {
   repoRoot: string;
   runner: CommandRunner;
-  aiHomeRoot: string | null;
+  overlayRoot: string | null;
 }): RunHookResult {
   const details = ensureClaudeSettings({
     repoRoot: ctx.repoRoot,
-    aiHomeRoot: ctx.aiHomeRoot,
+    overlayRoot: ctx.overlayRoot,
   });
   return {
     event: "ensure-claude-settings",
