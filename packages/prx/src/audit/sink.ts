@@ -122,7 +122,10 @@ export type MakeAuditInspectorOptions = {
  * the underlying machine run.
  */
 export function makeAuditInspector(
-  machine: "triage" | "session-entry",
+  // GH-360: `pilot`/`fleet` added so the autonomous machines' own state
+  // transitions reach the audit sink (the monitor already greps machine:pilot) —
+  // without them a pilot retreat loop is invisible.
+  machine: "triage" | "session-entry" | "pilot" | "fleet",
   opts: MakeAuditInspectorOptions = {},
 ): (event: InspectionEvent) => void {
   let prevState: string | undefined;

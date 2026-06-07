@@ -13,6 +13,7 @@ import { z } from "zod";
 import { createFleetMachine, type FleetContext } from "../machine/machines/fleet.ts";
 import { createPilotMachine, stubLegRunner } from "../machine/machines/pilot.ts";
 import { buildRealPilotDeps, wantsRealPilot } from "./pilot-real.ts";
+import { makeAuditInspector } from "../audit/sink.ts";
 import { defineVerb } from "./verbspec.ts";
 
 export const pilotVerb = defineVerb({
@@ -43,6 +44,9 @@ export const pilotVerb = defineVerb({
     const timeout = real ? 30 * 60_000 : 4000;
     const actor = createActor(createPilotMachine(deps), {
       input: { workUnitId, ...(retreatBudget !== undefined ? { retreatBudget } : {}) },
+      // GH-360: emit the pilot machine's own state transitions to the audit sink
+      // (machine:pilot) so retreats/loops are observable on the monitor.
+      inspect: makeAuditInspector("pilot", { workUnitId }),
     }).start();
     const done = await waitFor(actor, (s) => s.status === "done", { timeout });
     return {
@@ -73,6 +77,8 @@ export const fleetVerb = defineVerb({
       createPilotMachine(stubLegRunner) as AnyStateMachine;
     const fleet = createActor(createFleetMachine(makePilot), {
       input: { units, ...(wip !== undefined ? { wip } : {}) },
+      // GH-360: emit fleet state transitions to the audit sink (machine:fleet).
+      inspect: makeAuditInspector("fleet"),
     }).start();
     const drained = await waitFor(fleet, (s) => s.status === "done", { timeout: 8000 });
     const ctx = drained.context as FleetContext;

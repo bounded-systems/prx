@@ -383,7 +383,9 @@ export type MigrateAxisValueAudit = z.infer<typeof migrateAxisValueAuditSchema>;
 // process identity (test harness, prx CLI, or the claude-code session).
 export const machineEventAuditSchema = z.object({
   ts: z.string(),
-  machine: z.enum(["triage", "session-entry"]),
+  // GH-360: `pilot`/`fleet` so the autonomous machines' own state transitions
+  // are valid audit rows (the monitor already greps machine:pilot).
+  machine: z.enum(["triage", "session-entry", "pilot", "fleet"]),
   kind: z.enum(["entry", "exit", "dispatch"]),
   workUnitId: z.string().optional(),
   state: z.string(),
