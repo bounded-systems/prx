@@ -148,9 +148,11 @@ function readBuffer(b: string | Buffer): string {
   return typeof b === "string" ? b : b.toString("utf8");
 }
 
-/** F2: discovery via `bd dolt show` (same source of truth as `prx dolt status`). */
-export function defaultProbe(cwd: string): StartProbe {
-  const r = spawnCapture(["bd", "dolt", "show", "--format=json"], { cwd, env: processEnv() });
+/** F2: discovery via `bd dolt show` (same source of truth as `prx dolt status`).
+ * `spawn` defaults to the real proc; injectable so the JSON-shape arms are
+ * testable without a live bd server. */
+export function defaultProbe(cwd: string, spawn: typeof spawnCapture = spawnCapture): StartProbe {
+  const r = spawn(["bd", "dolt", "show", "--format=json"], { cwd, env: processEnv() });
   if (r.error || (r.status ?? 1) !== 0) return { reachable: false, port: null, database: null };
   try {
     const j = JSON.parse(readBuffer(r.stdout)) as { connection_ok?: boolean; port?: number; database?: string };
@@ -163,7 +165,7 @@ export function defaultProbe(cwd: string): StartProbe {
   return { reachable: false, port: null, database: null };
 }
 
-function defaultReadLedger(ledgerPath: string): DoltLedger | null {
+export function defaultReadLedger(ledgerPath: string): DoltLedger | null {
   if (!existsSync(ledgerPath)) return null;
   try {
     return JSON.parse(readFileSync(ledgerPath, "utf8")) as DoltLedger;
@@ -172,7 +174,7 @@ function defaultReadLedger(ledgerPath: string): DoltLedger | null {
   }
 }
 
-function defaultWriteLedger(
+export function defaultWriteLedger(
   ledgerPath: string,
   ledger: DoltLedger & { pid: number; port: number; dsn: string },
 ): void {
@@ -191,8 +193,12 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
  * probe. (For a standalone prx-owned server instead, swap this for
  * `spawnDetached(buildServerArgv(...))` — F1's direct path.)
  */
-export function bdDelegatingSpawn(_argv: string[], cwd: string): { pid: number } {
-  const r = spawnCapture(["bd", "dolt", "start"], { cwd, env: processEnv() });
+export function bdDelegatingSpawn(
+  _argv: string[],
+  cwd: string,
+  spawn: typeof spawnCapture = spawnCapture,
+): { pid: number } {
+  const r = spawn(["bd", "dolt", "start"], { cwd, env: processEnv() });
   const text = `${readBuffer(r.stdout)}\n${readBuffer(r.stderr)}`;
   if ((r.status ?? 1) !== 0 && !/already running|PID/i.test(text)) {
     throw new Error(`dolt start: \`bd dolt start\` failed — ${text.trim() || `exit ${r.status}`}`);
