@@ -12447,61 +12447,11 @@ describe("pr_state cli", () => {
     expect(logs[0]!).toContain("enforce_admins=true");
   });
 
-  test("repo-checks supports plain output", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["repo-checks"],
-      {
-        log: (line) => logs.push(line),
-        error: () => {},
-      },
-      {
-        repoCheckNames: () => ({
-          repo: "bdelanghe/ai-home",
-          branch: "main",
-          sha: "abc123",
-          checks: ["ci / test", "lint"],
-        }),
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    expect(logs[0]!).toContain("check names for bdelanghe/ai-home @ main");
-    expect(logs[0]!).toContain("sha=abc123");
-    expect(logs[0]!).toContain("- ci / test");
-  });
-
-  test("repo-checks supports json output", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["repo-checks", "--format", "json"],
-      {
-        log: (line) => logs.push(line),
-        error: () => {},
-      },
-      {
-        repoCheckNames: () => ({
-          repo: "bdelanghe/ai-home",
-          branch: "main",
-          sha: "abc123",
-          checks: ["ci / test", "lint"],
-        }),
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    expect(JSON.parse(logs[0]!)).toEqual({
-      repo: "bdelanghe/ai-home",
-      branch: "main",
-      sha: "abc123",
-      checks: ["ci / test", "lint"],
-    });
-  });
-
-  // `remote-ci-check` (a.k.a. `repo ci` / `scout ci`) and `scout-logs`
-  // (`scout logs`) are deps-bearing VerbSpecs now — their plain/json output,
-  // ref auto-resolution, and the failing-checks→exit-1 mapping (the `exitCode`
-  // projection) live with the verbs in test/pr-state/ci-check-verb.test.ts.
+  // `remote-ci-check` (a.k.a. `repo ci` / `scout ci`), `scout-logs` (`scout
+  // logs`), and `repo-checks` (`repo checks` / `scout checks`) are deps-bearing
+  // VerbSpecs now — their plain/json output, ref auto-resolution, and the
+  // empty/failing→exit-1 mapping (the `exitCode` projection) live with the verbs
+  // in test/pr-state/ci-check-verb.test.ts and repo-checks-verb.test.ts.
 
   test("scout comments routes to pr-comments", () => {
     const logs: string[] = [];
@@ -12528,23 +12478,6 @@ describe("pr_state cli", () => {
     expect(exitCode).toBe(0);
     const output = logs.join("\n");
     expect(output).toContain('"unresolvedThreads": 0');
-  });
-
-  test("scout checks routes to repo-checks", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["scout", "checks"],
-      {
-        log: (line) => logs.push(line),
-        error: () => {},
-      },
-      {
-        repoCheckNames: () => ({ checks: [], repo: "bdelanghe/ai-home", branch: "main", sha: "abc123" }),
-      },
-    );
-
-    // exit 1 because no checks found (empty)
-    expect(exitCode).toBe(1);
   });
 
   test("scout unknown subcommand errors", () => {

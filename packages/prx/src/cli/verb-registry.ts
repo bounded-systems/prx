@@ -20,6 +20,7 @@ import { statusVerb } from "../pr-state/status-verb.ts";
 import { transitionVerb } from "../pr-state/transition-verb.ts";
 import { planCloseVerb } from "../pr-state/plan-close-verb.ts";
 import { remoteCiCheckVerb, scoutLogsVerb } from "../pr-state/ci-check-verb.ts";
+import { repoChecksVerb } from "../pr-state/repo-checks-verb.ts";
 
 export const verbRegistry: Registry = {
   ...orchestratorRegistry,
@@ -41,4 +42,5 @@ export const verbRegistry: Registry = {
   [planCloseVerb.id]: planCloseVerb,
   [remoteCiCheckVerb.id]: remoteCiCheckVerb,
   [scoutLogsVerb.id]: scoutLogsVerb,
+  [repoChecksVerb.id]: repoChecksVerb,
 };
