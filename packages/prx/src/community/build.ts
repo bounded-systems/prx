@@ -1,4 +1,4 @@
-// The community-health rendering, extracted from `scripts/render-community.ts`
+// The community-health rendering, shared by the `prx docs` verb
 // so both the script AND the spec-driven `prx docs` verb render the SAME files
 // from one place. `community/community.json` (validated against its JSON Schema
 // with ajv) is slotted into the pinned templates in `community/templates/`.

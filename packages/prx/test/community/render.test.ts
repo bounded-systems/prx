@@ -9,11 +9,12 @@ import { fileURLToPath } from "node:url";
 // guard the schema-export scripts use.
 
 const here = dirname(fileURLToPath(import.meta.url));
-const scriptPath = resolve(here, "..", "..", "scripts", "render-community.ts");
+// Community files are rendered/checked via the `prx docs` verb (--only community).
+const cliEntry = resolve(here, "..", "..", "scripts", "pr_state.ts");
 
 describe("community health files", () => {
   test("committed files match a fresh render (no drift) and data is schema-valid", () => {
-    const result = Bun.spawnSync(["bun", "run", scriptPath, "--check"], {
+    const result = Bun.spawnSync(["bun", "run", cliEntry, "docs", "--only", "community", "--check"], {
       stdout: "pipe",
       stderr: "pipe",
     });

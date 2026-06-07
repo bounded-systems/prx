@@ -1,7 +1,7 @@
 // Read the README's tokens out of the JSON-LD project graph (the token store)
 // and render the pinned template. The graph — not `community.json` directly —
 // is the source the README is projected from, so the published `prx.jsonld` and
-// the README cannot disagree. Shared by `scripts/gen-readme.ts` (write /
+// the README cannot disagree. Shared by the `prx docs` verb (write /
 // --check) and `test/scripts/readme.test.ts` (drift parity).
 
 import { readFileSync } from "node:fs";

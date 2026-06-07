@@ -2,7 +2,7 @@
 //
 // `community/community.json` (variable governance facts) and the per-package
 // `description` fields in `packages/*/package.json` are the two sources of
-// truth. `build.ts` projects them into a `ReadmeModel`; `scripts/gen-readme.ts`
+// truth. `build.ts` projects them into a `ReadmeModel`; the `prx docs` verb
 // renders that model through `community/templates/readme.md`.
 //
 // The Zod schema here is the single definition of that shape: `z.infer` gives
