@@ -56,6 +56,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Pilot & fleet — Claude subagents as a signed pipeline — `docs/prx/pipeline-orchestrator.md`
 - prx — project roadmap — `docs/roadmap/prx.md`
 - GH-1836 — PRX runtime + workspace architecture: Nix + Moon + Deno/Bun hybrid (ADR) — `docs/spikes/GH-1836-prx-runtime-architecture.md`
+- prx-3eu — Sync agent: adopt a sync framework, or build bespoke? (ADR) — `docs/spikes/prx-3eu-sync-framework-build-vs-adopt.md`
 - prx — value props (forcing-function-backed) — `docs/value-props.md`
 - @bounded-systems/cas — `packages/cas/README.md`
 - prx — `README.md`
