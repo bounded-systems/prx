@@ -200,7 +200,7 @@ describe("createCasDriver — TOCTOU + grace + capability", () => {
 });
 
 describe("createCasDriver — real temp CAS e2e (data-loss guard against a real store)", () => {
-  const ENV = ["PRX_CAS_ROOT", "PRX_PLAN_STORE", "PRX_AI_HOME_ROOT", "BAKED_AI_HOME_ROOT", "XDG_STATE_HOME", "HOME"] as const;
+  const ENV = ["PRX_CAS_ROOT", "PRX_PLAN_STORE", "PRX_AI_HOME_ROOT", "BAKED_AI_HOME_ROOT", "PRX_OPERATOR_CONFIG_ROOT", "BAKED_OPERATOR_CONFIG_ROOT", "XDG_STATE_HOME", "HOME"] as const;
   let snap: Record<string, string | undefined>;
   beforeEach(() => {
     snap = {};

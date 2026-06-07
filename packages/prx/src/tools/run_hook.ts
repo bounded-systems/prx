@@ -18,8 +18,7 @@
  * unknown event, or override failure — a wt-hook must not turn into a
  * `wt switch` failure.
  */
-import { bakedAiHomeRoot } from "../build-info.ts";
-import { getEnv } from "@bounded-systems/env";
+import { operatorConfigRoot } from "../operator-config.ts";
 import { existsSync, statSync, constants as fsConstants, accessSync } from "node:fs";
 import { join } from "node:path";
 
@@ -97,7 +96,7 @@ export function runHook(opts: RunHookOptions): RunHookResult {
   const aiHomeRoot =
     opts.aiHomeRoot !== undefined
       ? opts.aiHomeRoot
-      : getEnv("PRX_AI_HOME_ROOT") ?? bakedAiHomeRoot() ?? null;
+      : operatorConfigRoot() ?? null;
 
   const overridePath = resolveOverridePath({
     repoRoot,

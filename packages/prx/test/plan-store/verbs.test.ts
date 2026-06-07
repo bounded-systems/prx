@@ -19,7 +19,7 @@ import {
 } from "../../src/plan-store/verbs.ts";
 import { parseEnvelope, serializeEnvelope } from "../../src/plan-store/envelope.ts";
 
-const ENV_KEYS = ["PRX_PLAN_STORE", "PRX_AI_HOME_ROOT", "BAKED_AI_HOME_ROOT"] as const;
+const ENV_KEYS = ["PRX_PLAN_STORE", "PRX_AI_HOME_ROOT", "BAKED_AI_HOME_ROOT", "PRX_OPERATOR_CONFIG_ROOT", "BAKED_OPERATOR_CONFIG_ROOT"] as const;
 type EnvSnapshot = Partial<Record<(typeof ENV_KEYS)[number], string | undefined>>;
 
 function snapshotEnv(): EnvSnapshot {
