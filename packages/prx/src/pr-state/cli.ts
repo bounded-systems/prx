@@ -18898,7 +18898,8 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       orchestratorVerb === "pilot" ||
       orchestratorVerb === "fleet" ||
       orchestratorVerb === "health" ||
-      orchestratorVerb === "docs"
+      orchestratorVerb === "docs" ||
+      orchestratorVerb === "schemas"
     ) {
       return runSpecVerb(orchestratorVerb, orchestratorRest, output);
     }
