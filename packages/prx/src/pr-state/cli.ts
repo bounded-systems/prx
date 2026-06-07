@@ -22805,11 +22805,18 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           deps,
           ...(refreshCwd !== undefined
             ? {
-                // Route through @bounded-systems/proc (the ambient-authority
-                // guard forbids raw spawns in src/). `check: false` ⇒ a failed
-                // pull is swallowed by runBeadsServe, not thrown.
+                // GH-296 prx-57l: full reconcile (commit local writes → pull →
+                // push) on the interval, so daemon writes become DURABLE on the
+                // canonical remote — not just pull-fresh (prx-43b). Reuses the
+                // dolt-reconcile pipeline (sanctioned proc spawns, not raw).
+                // Quiet + non-throwing: a failed step returns non-zero and is
+                // swallowed by runBeadsServe (push needs remote creds; absent
+                // them, commit+pull still run and writes stay local, not lost).
                 refresh: () => {
-                  procRunner(["bd", "dolt", "pull"], { cwd: refreshCwd, check: false });
+                  runDoltReconcile(
+                    { repoPath: refreshCwd, dryRun: false, format: "plain", mode: "full" },
+                    { log: () => undefined, error: () => undefined },
+                  );
                 },
               }
             : {}),
