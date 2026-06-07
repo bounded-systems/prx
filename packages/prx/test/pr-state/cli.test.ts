@@ -8618,6 +8618,22 @@ describe("pr_state cli", () => {
     expect(new TextDecoder().decode(result.stdout)).toContain("drafting (draft) - SKILL_CONTRACT via pr-contract");
   });
 
+  // Regression: `contract <sub>` aliases that reroute to now-VerbSpec verbs
+  // (status / transition / skills / open-mode) must still resolve — the early
+  // dispatch routes them since the rewrite happens after `argv[0]` is read.
+  test("contract status alias routes to the status verb", () => {
+    const contractPath = makeContractFile("drafting", false);
+    const result = runCli(["contract", "status", "--contract", contractPath]);
+    expect(result.exitCode).toBe(0);
+    expect(new TextDecoder().decode(result.stdout).trim()).toBe("drafting (draft)");
+  });
+
+  test("contract skills alias routes to the skills verb", () => {
+    const result = runCli(["contract", "skills"]);
+    expect(result.exitCode).toBe(0);
+    expect(new TextDecoder().decode(result.stdout)).toContain("pr skill catalog");
+  });
+
   test("contract supports json output", () => {
     const contractPath = makeContractFile("drafting", false);
     const result = runCli([
