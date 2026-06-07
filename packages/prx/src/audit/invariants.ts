@@ -17,7 +17,7 @@ import {
   type ArtifactSlot,
 } from "./artifact-types.ts";
 
-// Re-export so single-import sites don't need to reach into machine/state.
+// Re-export so single-import sites don't need to reach into machine-schema.
 export type { InvariantFinding } from "@bounded-systems/machine-schema";
 
 export type AuditEvent = {
