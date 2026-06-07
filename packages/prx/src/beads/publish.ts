@@ -50,7 +50,8 @@ import {
   execGhIssueCreate as defaultExecGhIssueCreate,
   type GhIssueCreateResult,
 } from "../tools/gh_issue_create.ts";
-import { execBd as defaultExecBd, type BdExecResult } from "@bounded-systems/bd";
+import { execBd as defaultExecBd } from "@bounded-systems/bd";
+import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import { execGh as defaultExecGh, type GhExecResult } from "@bounded-systems/gh";
 import {
   extractIssueNumber,
@@ -109,6 +110,11 @@ type Output = {
 export type BeadsPublishDeps = {
   execGhIssueCreate?: typeof defaultExecGhIssueCreate;
   execBd?: typeof defaultExecBd;
+  /**
+   * GH-296 / prx-82b — sync runner for the daemon-routed external-ref write-back
+   * (`prx beads update <id> --external-ref <url>`). Default: procRunner.
+   */
+  run?: CommandRunner;
   execGh?: typeof defaultExecGh;
   loadAllBeads?: typeof defaultLoadAllBeads;
   repoNameWithOwner?: typeof defaultRepoNameWithOwner;
@@ -231,7 +237,7 @@ function linkExistingResult(
   outcome: "linked" | "adopted",
   reason: string,
   opts: BeadsPublishOptions,
-  bdExec: typeof defaultExecBd,
+  run: CommandRunner,
   invalidateBeadsCache?: () => void,
 ): PublishCoreResult {
   if (opts.dryRun) {
@@ -252,19 +258,12 @@ function linkExistingResult(
       },
     };
   }
-  const updateResult: BdExecResult = bdExec(
-    {
-      subcommand: "update",
-      args: [bdId, "--external-ref", url],
-      state: "planning",
-      role: "planner",
-    },
-    processEnv(),
-  );
-  if (updateResult.exitCode !== 0) {
+  // GH-296 / prx-82b: link via the daemon (single writer).
+  const updateResult = run(["prx", "beads", "update", bdId, "--external-ref", url], { check: false });
+  if (updateResult.status !== 0) {
     const detail =
-      updateResult.stderr.trim() || updateResult.stdout.trim() || "bd update failed";
-    return errorResult(bdId, repo, `prx beads publish: ${detail}`, updateResult.exitCode || 1);
+      updateResult.stderr.trim() || updateResult.stdout.trim() || "prx beads update failed";
+    return errorResult(bdId, repo, `prx beads publish: ${detail}`, updateResult.status || 1);
   }
   invalidateBeadsCache?.();
   return {
@@ -288,6 +287,7 @@ function linkExistingResult(
 export function publishOne(opts: BeadsPublishOptions, deps: BeadsPublishDeps): PublishCoreResult {
   const ghCreate = deps.execGhIssueCreate ?? defaultExecGhIssueCreate;
   const bdExec = deps.execBd ?? defaultExecBd;
+  const run = deps.run ?? procRunner;
   const ghExec = deps.execGh ?? defaultExecGh;
   const loadBeads = deps.loadAllBeads ?? defaultLoadAllBeads;
   const resolveRepo = deps.repoNameWithOwner ?? defaultRepoNameWithOwner;
@@ -302,7 +302,7 @@ export function publishOne(opts: BeadsPublishOptions, deps: BeadsPublishDeps): P
   const pushAdapter = deps.pushAdapter ?? new GhDomainAdapter();
 
   const result = publishOneInner(opts, {
-    ghCreate, bdExec, ghExec, loadBeads, resolveRepo, listIssues, getCwd,
+    ghCreate, bdExec, run, ghExec, loadBeads, resolveRepo, listIssues, getCwd,
     invalidateBeadsCache: deps.invalidateBeadsCache,
     pushAdapter,
   });
@@ -341,6 +341,7 @@ export function publishOne(opts: BeadsPublishOptions, deps: BeadsPublishDeps): P
 type PublishInnerDeps = {
   ghCreate: typeof defaultExecGhIssueCreate;
   bdExec: typeof defaultExecBd;
+  run: CommandRunner;
   ghExec: typeof defaultExecGh;
   loadBeads: typeof defaultLoadAllBeads;
   resolveRepo: typeof defaultRepoNameWithOwner;
@@ -351,7 +352,7 @@ type PublishInnerDeps = {
 };
 
 function publishOneInner(opts: BeadsPublishOptions, deps: PublishInnerDeps): PublishCoreResult {
-  const { ghCreate, bdExec, ghExec, loadBeads, resolveRepo, listIssues, getCwd, pushAdapter } = deps;
+  const { ghCreate, bdExec, run, ghExec, loadBeads, resolveRepo, listIssues, getCwd, pushAdapter } = deps;
 
   // Step 1: resolve <bd-id>. Refuse GH-form input — the publish direction is
   // bd → GH; GH → bd is `prx intake mirror`.
@@ -511,7 +512,7 @@ function publishOneInner(opts: BeadsPublishOptions, deps: PublishInnerDeps): Pub
       "linked",
       `bd record ${r.id} already published this title`,
       opts,
-      bdExec,
+      run,
       deps.invalidateBeadsCache,
     );
   }
@@ -536,7 +537,7 @@ function publishOneInner(opts: BeadsPublishOptions, deps: PublishInnerDeps): Pub
         "adopted",
         `existing GitHub issue GH-${match.number} matched by title`,
         opts,
-        bdExec,
+        run,
         deps.invalidateBeadsCache,
       );
     }
@@ -577,18 +578,11 @@ function publishOneInner(opts: BeadsPublishOptions, deps: PublishInnerDeps): Pub
   // Step 10: write the URL back to external_ref. If this fails the GH issue is
   // stranded — but a re-run picks it up via the bd-side / GH-side title dedupe
   // (steps 7–8), so report partial-error and exit 1 rather than losing it.
-  const updateResult: BdExecResult = bdExec(
-    {
-      subcommand: "update",
-      args: [bdId, "--external-ref", ghUrl],
-      state: "planning",
-      role: "planner",
-    },
-    processEnv(),
-  );
-  if (updateResult.exitCode !== 0) {
+  // GH-296 / prx-82b: write-back via the daemon (single writer).
+  const updateResult = run(["prx", "beads", "update", bdId, "--external-ref", ghUrl], { check: false });
+  if (updateResult.status !== 0) {
     const detail =
-      updateResult.stderr.trim() || updateResult.stdout.trim() || "bd update failed";
+      updateResult.stderr.trim() || updateResult.stdout.trim() || "prx beads update failed";
     return {
       exitCode: 1,
       outcome: "partial-error",

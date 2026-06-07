@@ -176,13 +176,20 @@ function harness(opts: {
       ghExecCalls.push(execOpts);
       return opts.ghCommentResult ?? ghExecOk();
     }) as never,
-    execBd: ((bdOpts: BdUpdateCall) => {
-      bdCalls.push(bdOpts);
-      if (bdOpts.subcommand !== "update") {
-        throw new Error(`unexpected bd subcommand: ${bdOpts.subcommand}`);
-      }
-      if (!opts.bdUpdateResult) throw new Error("execBd update called unexpectedly");
-      return opts.bdUpdateResult;
+    // GH-296 / prx-82b: the external-ref write-back now runs `prx beads update
+    // <id> --external-ref <url>` through the daemon (a sync runner). The fake
+    // records the equivalent old `bd update` shape so the bdCalls assertions
+    // hold; `bdUpdateResult` drives the exit status (exitCode → process status).
+    run: ((cmd: string[]) => {
+      bdCalls.push({
+        subcommand: "update",
+        args: cmd.slice(3),
+        state: "planning",
+        role: "planner",
+      } as BdUpdateCall);
+      if (!opts.bdUpdateResult) throw new Error("prx beads update called unexpectedly");
+      const r = opts.bdUpdateResult;
+      return { status: r.exitCode, stdout: r.stdout, stderr: r.stderr };
     }) as never,
   };
   return { deps, ghCreateCalls, ghExecCalls, bdCalls, listIssuesCalls, auditRows, reconcileEditCalls };
