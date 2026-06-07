@@ -441,6 +441,89 @@ describe("buildDriftFixPlan", () => {
       }),
     ).toThrow(/status/);
   });
+
+  // Residual superRefine arms (GH-1255) — the fix / fix:dupe / non-fix branches
+  // each gate cross-field shape; the row schema is the contract for hand-built
+  // `--from` plans, so every refusal must be exercised.
+  test("plan schema rejects fix decision with a non-positive issueNumber", async () => {
+    const { driftFixPlanRowSchema } = require("../../src/triage/drift-fix.ts");
+    const r = driftFixPlanRowSchema.safeParse({
+      issueNumber: 0,
+      beadsId: "bd-9",
+      decision: "fix",
+      reason: "type drift",
+      axesFixed: ["type"],
+      type: { gh: "bug", bd: "task" },
+    });
+    expect(r.success).toBe(false);
+    expect(JSON.stringify(r.error)).toContain("positive GH issue number");
+  });
+
+  test("plan schema rejects a fix row carrying a dupe payload", async () => {
+    const { driftFixPlanRowSchema } = require("../../src/triage/drift-fix.ts");
+    const r = driftFixPlanRowSchema.safeParse({
+      issueNumber: 7,
+      beadsId: "bd-7",
+      decision: "fix",
+      reason: "type drift",
+      axesFixed: ["type"],
+      type: { gh: "bug", bd: "task" },
+      dupe: { target: "bd-1", source: "bd-7", parityOk: true, parityReason: null },
+    });
+    expect(r.success).toBe(false);
+    expect(JSON.stringify(r.error)).toContain("dupe carrier only allowed when decision=fix:dupe");
+  });
+
+  test("plan schema rejects a fix:dupe row missing its dupe carrier", async () => {
+    const { driftFixPlanRowSchema } = require("../../src/triage/drift-fix.ts");
+    const r = driftFixPlanRowSchema.safeParse({
+      issueNumber: 8,
+      beadsId: "bd-8",
+      decision: "fix:dupe",
+      reason: "dupe",
+    });
+    expect(r.success).toBe(false);
+    expect(JSON.stringify(r.error)).toContain("requires a dupe carrier");
+  });
+
+  test("plan schema rejects a fix:dupe row carrying axesFixed", async () => {
+    const { driftFixPlanRowSchema } = require("../../src/triage/drift-fix.ts");
+    const r = driftFixPlanRowSchema.safeParse({
+      issueNumber: 9,
+      beadsId: "bd-9",
+      decision: "fix:dupe",
+      reason: "dupe",
+      axesFixed: ["type"],
+      dupe: { target: "bd-1", source: "bd-9", parityOk: true, parityReason: null },
+    });
+    expect(r.success).toBe(false);
+    expect(JSON.stringify(r.error)).toContain("axesFixed only allowed when decision=fix");
+  });
+
+  test("plan schema rejects a non-fix row with a non-positive issueNumber", async () => {
+    const { driftFixPlanRowSchema } = require("../../src/triage/drift-fix.ts");
+    const r = driftFixPlanRowSchema.safeParse({
+      issueNumber: 0,
+      beadsId: "bd-10",
+      decision: "skip:no-axis-drift",
+      reason: "title only",
+    });
+    expect(r.success).toBe(false);
+    expect(JSON.stringify(r.error)).toContain("non-fix rows require a positive GH issue number");
+  });
+
+  test("plan schema rejects a non-fix row carrying a dupe payload", async () => {
+    const { driftFixPlanRowSchema } = require("../../src/triage/drift-fix.ts");
+    const r = driftFixPlanRowSchema.safeParse({
+      issueNumber: 11,
+      beadsId: "bd-11",
+      decision: "skip:no-pair",
+      reason: "out-of-vocab",
+      dupe: { target: "bd-1", source: "bd-11", parityOk: true, parityReason: null },
+    });
+    expect(r.success).toBe(false);
+    expect(JSON.stringify(r.error)).toContain("dupe carrier only allowed when decision=fix:dupe");
+  });
 });
 
 describe("runTriageDriftFix — scan phase", () => {
@@ -1638,6 +1721,155 @@ describe("runTriageDriftFix — GH-1255 dupe + doctor surfaces", () => {
     expect(doctorEntries[0]!.applied).toBe(false);
     expect(doctorEntries[1]!.applied).toBe(true);
     expect(result.substrateHealth.fixed).toBe(true);
+  });
+
+  // 6b. Parity-ok cluster but --no-apply-dupes ⇒ surfaced + skipped, no merge.
+  // Driven through `runTriageDriftFix` directly: `runDriftFixActor` force-sets
+  // `applyDupes: true`, so the disabled path is only reachable on the raw verb.
+  test("parity-ok cluster with applyDupes=false skips the merge (apply-dupes-disabled)", async () => {
+    const audit: string[] = [];
+    const o = makeOutput();
+    let mergeCalls = 0;
+    const code = await runTriageDriftFix(
+      {
+        apply: true,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: false,
+        ...DRIFT_FIX_DEFAULTS,
+        applyDupes: false,
+      },
+      o.output,
+      {
+        ...STD_DEPS_BASE,
+        listOpenIssues: () => [
+          { number: 600, title: "twin", url: "https://github.com/bdelanghe/ai-home/issues/600", labels: [{ name: "area::prx" }] },
+          { number: 601, title: "twin", url: "https://github.com/bdelanghe/ai-home/issues/601", labels: [{ name: "area::prx" }] },
+        ],
+        repoNameWithOwner: () => "bdelanghe/ai-home",
+        loadAllBeads: () => [
+          bead({ id: "bd-600", priority: 2, externalIssueNumber: 600 }),
+          bead({ id: "bd-601", priority: 2, externalIssueNumber: 601 }),
+        ],
+        cwd: () => "/tmp/repo",
+        execBd: () => ({ exitCode: 0, stdout: "", stderr: "", policy: null }),
+        runBdDuplicatesDryRun: fakeDupeRunner([dupeCluster("bd-600", "bd-601")]),
+        runBdDoctorJson: fakeDoctorRunner(0, 0),
+        runBdMerge: () => {
+          mergeCalls += 1;
+          return { exitCode: 0, result: { target: "x", sources: ["y"], applied: true }, stdout: "", stderr: "" };
+        },
+        auditSink: {
+          stateDirOverride: "/tmp/state",
+          ensureDir: () => {},
+          appendFn: (_path: string, line: string) => audit.push(line),
+        },
+        runBeadsSync: makeRunBeadsSyncMock({ exitCode: 0 }),
+      },
+    );
+    expect(code).toBe(0);
+    expect(mergeCalls).toBe(0);
+    const mergeEntry = gatherDupeAudit(audit).find(
+      (e) => (e as { action: string }).action === "dupe-merge",
+    ) as { applied: boolean; parityOk: boolean; reason?: string };
+    expect(mergeEntry.applied).toBe(false);
+    expect(mergeEntry.parityOk).toBe(true);
+    expect(mergeEntry.reason).toBe("apply-dupes-disabled");
+    expect(o.log.some((l) => l.includes("apply-dupes-disabled"))).toBe(true);
+  });
+
+  // 6c. Real `bd merge` exec fails ⇒ error entry, errors counted, exit 1.
+  test("parity-ok cluster whose bd merge fails ⇒ error entry + exit 1", async () => {
+    const audit: string[] = [];
+    const result = await runDriftFixActor(
+      {
+        apply: true,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: false,
+        ...DRIFT_FIX_DEFAULTS,
+      },
+      {
+        ...STD_DEPS_BASE,
+        listOpenIssues: () => [
+          { number: 700, title: "twin", url: "https://github.com/bdelanghe/ai-home/issues/700", labels: [{ name: "area::prx" }] },
+          { number: 701, title: "twin", url: "https://github.com/bdelanghe/ai-home/issues/701", labels: [{ name: "area::prx" }] },
+        ],
+        repoNameWithOwner: () => "bdelanghe/ai-home",
+        loadAllBeads: () => [
+          bead({ id: "bd-700", priority: 2, externalIssueNumber: 700 }),
+          bead({ id: "bd-701", priority: 2, externalIssueNumber: 701 }),
+        ],
+        cwd: () => "/tmp/repo",
+        execBd: () => ({ exitCode: 0, stdout: "", stderr: "", policy: null }),
+        runBdDuplicatesDryRun: fakeDupeRunner([dupeCluster("bd-700", "bd-701")]),
+        runBdDoctorJson: fakeDoctorRunner(0, 0),
+        runBdMerge: () => ({ exitCode: 2, result: { target: "bd-700", sources: [], applied: false }, stdout: "", stderr: "merge conflict" }),
+        auditSink: {
+          stateDirOverride: "/tmp/state",
+          ensureDir: () => {},
+          appendFn: (_path: string, line: string) => audit.push(line),
+        },
+        runBeadsSync: makeRunBeadsSyncMock({ exitCode: 0 }),
+      },
+    );
+    // A failed `bd merge` raises the internal error counter (→ exit 1) but is
+    // recorded as a `dupe-merge` audit row, not an `error` row, so the actor's
+    // audit-projected `errors` total stays 0.
+    expect(result.exitCode).toBe(1);
+    expect(result.mergesApplied).toBe(0);
+    const mergeEntry = gatherDupeAudit(audit).find(
+      (e) => (e as { action: string }).action === "dupe-merge",
+    ) as { applied: boolean; exitCode: number; stderr?: string };
+    expect(mergeEntry.applied).toBe(false);
+    expect(mergeEntry.exitCode).toBe(2);
+    expect(mergeEntry.stderr).toContain("merge conflict");
+  });
+
+  // 6d. --doctor-fix whose `bd doctor --fix` exec fails ⇒ error + exit 1.
+  test("--doctor-fix failure emits an error doctor-health row and exits 1", async () => {
+    const audit: string[] = [];
+    const result = await runDriftFixActor(
+      {
+        apply: true,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: false,
+        ...DRIFT_FIX_DEFAULTS,
+        doctorFix: true,
+      },
+      {
+        ...STD_DEPS_BASE,
+        listOpenIssues: () => [],
+        repoNameWithOwner: () => "bdelanghe/ai-home",
+        loadAllBeads: () => [],
+        cwd: () => "/tmp/repo",
+        execBd: () => ({ exitCode: 0, stdout: "", stderr: "", policy: null }),
+        runBdDuplicatesDryRun: fakeDupeRunner([]),
+        runBdDoctorJson: fakeDoctorRunner(3, 2),
+        runBdDoctorFix: () => ({ exitCode: 1, report: { total: 0, fixable: 0, issues: [] }, stdout: "", stderr: "doctor --fix blew up" }),
+        auditSink: {
+          stateDirOverride: "/tmp/state",
+          ensureDir: () => {},
+          appendFn: (_path: string, line: string) => audit.push(line),
+        },
+        runBeadsSync: makeRunBeadsSyncMock({ exitCode: 0 }),
+      },
+    );
+    // The failed `bd doctor --fix` raises the internal error counter (→ exit 1)
+    // but is recorded as a `doctor-health` audit row, not an `error` row.
+    expect(result.exitCode).toBe(1);
+    const doctorEntries = gatherDupeAudit(audit).filter(
+      (e) => (e as { action: string }).action === "doctor-health",
+    ) as Array<{ applied: boolean; exitCode: number; stderr?: string }>;
+    expect(doctorEntries).toHaveLength(2);
+    const failed = doctorEntries[1]!;
+    expect(failed.applied).toBe(false);
+    expect(failed.exitCode).toBe(1);
+    expect(failed.stderr).toContain("doctor --fix blew up");
   });
 
   // 7. Machine actor: dupes on, doctor-fix off — mirrors `prx triage prime
