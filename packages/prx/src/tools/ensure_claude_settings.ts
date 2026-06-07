@@ -1,7 +1,7 @@
 /**
  * ensure-claude-settings — idempotently stamp the per-worktree
  * `<repoRoot>/.claude/settings.json` from the canonical template at
- * `<aiHomeRoot>/claude/worktree-settings.json` (GH-593).
+ * `<overlayRoot>/claude/worktree-settings.json` (GH-593).
  *
  * The user-scope `claude/settings.json` (deployed to ~/.config/claude/) covers
  * global concerns (hooks, statusLine, enabledPlugins). The project-scope
@@ -24,11 +24,11 @@ export type EnsureClaudeSettingsOptions = {
   /** Resolved repo root (`git rev-parse --show-toplevel`). */
   repoRoot: string;
   /**
-   * ai-home flake root. The canonical template is read from
-   * `<aiHomeRoot>/claude/worktree-settings.json`. When null, the hook is a
-   * no-op (best-effort contract — non-flake shells must not fail).
+   * Operator-config root (see operator-config.ts). The canonical template is
+   * read from `<overlayRoot>/claude/worktree-settings.json`. When null, the
+   * hook is a no-op (best-effort contract — non-flake shells must not fail).
    */
-  aiHomeRoot: string | null;
+  overlayRoot: string | null;
 };
 
 export type EnsureClaudeSettingsResult = {
@@ -45,13 +45,13 @@ export type EnsureClaudeSettingsResult = {
 export function ensureClaudeSettings(
   opts: EnsureClaudeSettingsOptions,
 ): EnsureClaudeSettingsResult {
-  const { repoRoot, aiHomeRoot } = opts;
+  const { repoRoot, overlayRoot } = opts;
   const targetPath = join(repoRoot, ".claude", "settings.json");
 
-  if (!aiHomeRoot || aiHomeRoot.length === 0) {
+  if (!overlayRoot || overlayRoot.length === 0) {
     return { targetPath, sourcePath: null, wrote: false, reason: "no-source" };
   }
-  const sourcePath = join(aiHomeRoot, "claude", "worktree-settings.json");
+  const sourcePath = join(overlayRoot, "claude", "worktree-settings.json");
   if (!existsSync(sourcePath)) {
     return { targetPath, sourcePath, wrote: false, reason: "no-source" };
   }
