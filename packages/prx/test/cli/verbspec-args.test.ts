@@ -52,3 +52,39 @@ describe("parseArgs array flags", () => {
     expect(out.n).toBe(3);
   });
 });
+
+// A variadic (array-typed) positional collects every positional value, merged
+// with same-name flag occurrences — `cmd resolve a b --id c`-style verbs.
+const variadic = defineVerb({
+  id: "variadic-probe",
+  summary: "test-only verb with a variadic positional",
+  actor: "work",
+  positionals: ["ids"],
+  input: z.object({ ids: z.array(z.string()).default([]) }),
+  output: z.object({}),
+  run: () => ({}),
+});
+
+const ids = (argv: string[]) => (parseArgs(variadic, argv) as { ids: string[] }).ids;
+
+describe("parseArgs variadic positionals", () => {
+  test("collects all positional values", () => {
+    expect(ids(["a", "b", "c"])).toEqual(["a", "b", "c"]);
+  });
+
+  test("merges positionals ahead of same-name flag occurrences", () => {
+    expect(ids(["a", "b", "--ids", "c"])).toEqual(["a", "b", "c"]);
+  });
+
+  test("flag-only still works", () => {
+    expect(ids(["--ids", "a", "--ids", "b"])).toEqual(["a", "b"]);
+  });
+
+  test("comma-splits positional values too", () => {
+    expect(ids(["a,b", "c"])).toEqual(["a", "b", "c"]);
+  });
+
+  test("empty when nothing is given", () => {
+    expect(ids([])).toEqual([]);
+  });
+});

@@ -184,7 +184,18 @@ export function parseArgs<I extends ZodType>(v: VerbSpec<I, ZodType>, argv: read
   }
   const pos = v.positionals ?? [];
   pos.forEach((name, idx) => {
-    if (positionalValues[idx] !== undefined) raw[name] = positionalValues[idx];
+    if (isArray(name)) {
+      // A variadic (array-typed) positional collects every positional from its
+      // index onward, merged ahead of any same-name flag occurrences
+      // (`cmd a b --name c` → [a, b, c]). Only sensible as the last positional.
+      const rest = positionalValues.slice(idx);
+      if (rest.length) {
+        const prev = raw[name];
+        raw[name] = Array.isArray(prev) ? [...rest, ...prev] : rest;
+      }
+    } else if (positionalValues[idx] !== undefined) {
+      raw[name] = positionalValues[idx];
+    }
   });
   // comma-split array fields (a CLI-ism, kept out of the schema), flattening the
   // accumulated occurrences so repeated and comma forms compose.
