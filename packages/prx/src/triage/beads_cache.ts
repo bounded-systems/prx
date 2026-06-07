@@ -21,6 +21,7 @@ import {
   type BdExecResult,
 } from "@bounded-systems/bd";
 import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "./triage.ts";
+import { loadAllBeadsViaCli } from "./beads-daemon-loader.ts";
 
 export type BeadsCache = {
   /**
@@ -44,6 +45,12 @@ export type BeadsCache = {
 
 export type CreateBeadsCacheOptions = {
   exec?: (...args: Parameters<typeof defaultExecBd>) => BdExecResult;
+  /**
+   * Aggregate bead loader. When omitted, the cache reads through the daemon
+   * (GH-296 / prx-fda — a sync `prx beads list --all` spawn), NOT the host `bd`.
+   * Inject a `() => BeadsRecord[]` in tests, or a local-`bd` loader to opt back
+   * out. When injected, `exec` is forwarded to it (legacy `loadAllBeads(exec)`).
+   */
   loadAllBeads?: typeof defaultLoadAllBeads;
   /**
    * GH-296: the dataset generation (the daemon's dolt HEAD etag). When provided,
@@ -55,7 +62,11 @@ export type CreateBeadsCacheOptions = {
 
 export function createBeadsCache(options: CreateBeadsCacheOptions = {}): BeadsCache {
   const exec = options.exec ?? defaultExecBd;
-  const loader = options.loadAllBeads ?? defaultLoadAllBeads;
+  // GH-296 / prx-fda: default to the daemon (one true source) rather than the
+  // host `bd` against a per-clone .beads. An injected loader (tests, or an
+  // explicit local-bd loader) wins and receives `exec` for the legacy signature.
+  const injectedLoader = options.loadAllBeads;
+  const load = injectedLoader ? () => injectedLoader(exec) : () => loadAllBeadsViaCli();
   const generation = options.generation;
   let cached: BeadsRecord[] | null = null;
   let cachedGen: string | undefined;
@@ -64,7 +75,7 @@ export function createBeadsCache(options: CreateBeadsCacheOptions = {}): BeadsCa
       const gen = generation?.();
       // Re-fetch when uncached, or when the dataset generation moved.
       if (cached === null || (generation !== undefined && gen !== cachedGen)) {
-        cached = loader(exec);
+        cached = load();
         cachedGen = gen;
       }
       return cached;
