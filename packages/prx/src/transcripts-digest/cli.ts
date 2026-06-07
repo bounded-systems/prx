@@ -11,7 +11,7 @@
 // `inputRefs` (I-AUD1/I-AUD2). Per-session rows fire when at least one
 // candidate is committed/staged for that session.
 
-import { homedir } from "node:os";
+import { homeDir } from "@bounded-systems/host";
 import { join } from "node:path";
 import { existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 
@@ -68,7 +68,7 @@ function encodePath(path: string): string {
 }
 
 function defaultMemoryDirFor(cwd: string): string {
-  const home = homedir();
+  const home = homeDir();
   const encoded = encodePath(cwd);
   return join(home, ".config", "claude", "projects", encoded, "memory");
 }
@@ -300,7 +300,7 @@ export function runTranscriptsStatus(
   const cwd = (deps.cwd ?? (() => process.cwd()))();
   const memoryDir =
     (deps.resolveMemoryDir ?? defaultMemoryDirFor)(cwd);
-  const projectsRoot = join(homedir(), ".claude", "projects");
+  const projectsRoot = join(homeDir(), ".claude", "projects");
 
   const liveSessions: Array<{ project: string; session: string; ageDays: number }> = [];
 

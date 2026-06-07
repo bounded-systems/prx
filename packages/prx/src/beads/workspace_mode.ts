@@ -17,7 +17,7 @@
 // modes; it returns `null` for per-project and shared-server (both ready).
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { homedir } from "node:os";
+import { homeDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
 import {
@@ -47,7 +47,7 @@ export function classifyBeadsWorkspace(
   // metadata.json before the per-project / embedded disk-shape ladders run.
   const metadata = readBeadsMetadata(beadsDir);
   if (metadata.dolt_mode === "server" && metadata.dolt_database) {
-    const home = opts.homeDir ?? homedir();
+    const home = opts.homeDir ?? homeDir();
     const sharedDir = join(
       home,
       ".beads",

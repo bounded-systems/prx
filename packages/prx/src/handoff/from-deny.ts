@@ -19,7 +19,7 @@
 // the documented primary recipient (GH-1398 ADR §5).
 
 import { getEnv } from "@bounded-systems/env";
-import { hostname } from "node:os";
+import { hostName } from "@bounded-systems/host";
 
 import type { HandoffTargetActor, WorkUnitId } from "@bounded-systems/machine-schema";
 
@@ -98,7 +98,7 @@ export function buildPolicyEnqueueAdapter(
     const repoSlug =
       deps.repoSlug?.() ??
       tryRepoSlug(defaultRepoNameWithOwner) ??
-      hostname() ??
+      hostName() ??
       "unknown-repo";
     const result = await enqueueHandoff(
       buildEnvelopeInput({

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { mkdtemp, readFile, stat } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { tmpDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
 import { runPluginVerb } from "./plugin-emit.ts";
@@ -17,7 +17,7 @@ function sink() {
 
 describe("prx plugin emit", () => {
   test("materializes the plugin projection to disk (manifest, mcp, monitor, watcher)", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "prx-plugin-"));
+    const dir = await mkdtemp(join(tmpDir(), "prx-plugin-"));
     const { out, lines } = sink();
 
     const code = await runPluginVerb(["emit", dir], out);
@@ -83,7 +83,7 @@ describe("prx plugin emit", () => {
       }
     };
 
-    const lean = await mkdtemp(join(tmpdir(), "prx-plugin-"));
+    const lean = await mkdtemp(join(tmpDir(), "prx-plugin-"));
     await runPluginVerb(["emit", lean], sink().out);
     // pilot/fleet + promoted verbs present …
     expect(await exists(join(lean, "commands/prx-pilot.md"))).toBe(true);
@@ -91,13 +91,13 @@ describe("prx plugin emit", () => {
     // … but a non-promoted verb is omitted by default (it's still `prx upgrade`).
     expect(await exists(join(lean, "commands/prx-upgrade.md"))).toBe(false);
 
-    const full = await mkdtemp(join(tmpdir(), "prx-plugin-"));
+    const full = await mkdtemp(join(tmpDir(), "prx-plugin-"));
     await runPluginVerb(["emit", full, "--all"], sink().out);
     expect(await exists(join(full, "commands/prx-upgrade.md"))).toBe(true);
   });
 
   test("honors --name", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "prx-plugin-"));
+    const dir = await mkdtemp(join(tmpDir(), "prx-plugin-"));
     const { out } = sink();
     await runPluginVerb(["emit", dir, "--name", "prx-dev"], out);
     const manifest = JSON.parse(await readFile(join(dir, ".claude-plugin/plugin.json"), "utf8"));

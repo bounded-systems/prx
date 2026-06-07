@@ -21,7 +21,7 @@
 
 import { processEnv } from "@bounded-systems/env";
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { homeDir } from "@bounded-systems/host";
 import { dirname, join } from "node:path";
 
 export type CrossRepoCursor = {
@@ -41,7 +41,7 @@ export type CrossRepoCursorOptions = {
 function resolveStateDir(env: NodeJS.ProcessEnv): string {
   const xdg = env.XDG_STATE_HOME?.trim();
   if (xdg && xdg.length > 0) return xdg;
-  return join(homedir(), ".local", "state");
+  return join(homeDir(), ".local", "state");
 }
 
 export function crossRepoCursorPath(opts: CrossRepoCursorOptions = {}): string {

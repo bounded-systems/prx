@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
 import {
@@ -24,7 +24,7 @@ afterEach(() => {
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
 });
 function tmp(): string {
-  const d = mkdtempSync(join(tmpdir(), "prx-sess-def-"));
+  const d = mkdtempSync(join(tmpDir(), "prx-sess-def-"));
   dirs.push(d);
   return d;
 }

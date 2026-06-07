@@ -1,7 +1,8 @@
 // Repo-wide "no ambient authority" guard.
 //
 // The capability packages own the sanctioned access to ambient authority:
-// @bounded-systems/env reads/writes the environment, @bounded-systems/proc spawns subprocesses,
+// @bounded-systems/env reads/writes the environment, @bounded-systems/host reads
+// host/OS state (home/temp dir, hostname), @bounded-systems/proc spawns subprocesses,
 // @bounded-systems/auth resolves credentials, @bounded-systems/build-info exposes baked build values.
 // This guard extends the rule to the whole src/ tree so the import graph stays
 // the complete dependency graph — a hidden process.env read or raw spawn is a
@@ -22,6 +23,7 @@ import { fileURLToPath } from "node:url";
 const SRC_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../src");
 
 const ENV_RE = /\bprocess\.env\b|\bBun\.env\b/;
+const OS_RE = /\bfrom\s+["']node:os["']/;
 const SPAWN_RE = /\bchild_process\b|\bspawnSync\b|\bBun\.spawn\b|\bexecSync\b|\bexecFileSync\b|\bDeno\.Command\b/;
 
 // Files in src/ that still spawn subprocesses directly. The @bounded-systems/proc
@@ -55,6 +57,14 @@ function matching(re: RegExp): Set<string> {
 describe("no ambient authority — repo-wide guard", () => {
   test("src/ reads/writes the environment only through @bounded-systems/env (zero raw process.env)", () => {
     expect([...matching(ENV_RE)].sort()).toEqual([]);
+  });
+
+  test("src/ reads host/OS ambient state only through @bounded-systems/host (zero raw node:os)", () => {
+    // homedir/tmpdir/hostname are ambient host authority; route them through
+    // @bounded-systems/host so the read is a visible import edge (and so $HOME can
+    // redirect homeDir in tests). osConstants (a static signal table) lives in
+    // @bounded-systems/proc, not here, so prx/src needs node:os for nothing.
+    expect([...matching(OS_RE)].sort()).toEqual([]);
   });
 
   test("no NEW src/ file spawns subprocesses raw (route through @bounded-systems/proc)", () => {

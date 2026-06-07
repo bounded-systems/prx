@@ -34,7 +34,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { homedir } from "node:os";
+import { homeDir } from "@bounded-systems/host";
 import { join } from "node:path";
 import { z } from "zod";
 
@@ -161,7 +161,7 @@ export function runBeadsMigrate(
 ): MigrateResult {
   const opts = migrateOptionsSchema.parse(rawOpts);
   const cwd = deps.cwd ?? process.cwd();
-  const home = deps.homeDir ?? homedir();
+  const home = deps.homeDir ?? homeDir();
   const now = deps.now ?? (() => new Date());
   const runner = deps.runner ?? defaultBdMigrateRunner;
   const recordEvent: MigrateRecordEvent =

@@ -107,6 +107,9 @@
           "@id": "https://github.com/bounded-systems/prx/tree/main/packages/github-budget"
         },
         {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/host"
+        },
+        {
           "@id": "https://github.com/bounded-systems/prx/tree/main/packages/machine-schema"
         },
         {
@@ -250,6 +253,16 @@
       "@id": "https://github.com/bounded-systems/prx/tree/main/packages/github-budget",
       "name": "@bounded-systems/github-budget",
       "description": "Rate-limit-aware gh wrapper with bucket classification, pre-call gating, and audit trail",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/host",
+      "name": "@bounded-systems/host",
+      "description": "The one sanctioned reader of host/OS ambient state (home dir, temp dir, hostname), routing ambient authority through capability imports",
       "codeRepository": "https://github.com/bounded-systems/prx",
       "isPartOf": {
         "@id": "https://github.com/bounded-systems/prx"

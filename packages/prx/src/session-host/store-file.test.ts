@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
 import { type SessionRecord } from "./contract.ts";
@@ -9,7 +9,7 @@ import { createFileSessionStore } from "./store-file.ts";
 
 const dirs: string[] = [];
 function tmp(): string {
-  const d = mkdtempSync(join(tmpdir(), "prx-sess-store-"));
+  const d = mkdtempSync(join(tmpDir(), "prx-sess-store-"));
   dirs.push(d);
   return d;
 }

@@ -13,7 +13,7 @@ import { bakedClaudeCodePath } from "../build-info.ts";
 import { getEnv, processEnv } from "@bounded-systems/env";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { homedir } from "node:os";
+import { homeDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
 import { z } from "zod";
@@ -261,7 +261,7 @@ export function resolveClaudeExecutablePath(
   candidates: ReadonlyArray<string | undefined> = [
     getEnv("PRX_CLAUDE_CODE_PATH"),
     bakedClaudeCodePath(),
-    join(homedir(), ".local/bin/claude"),
+    join(homeDir(), ".local/bin/claude"),
   ],
   exists: (path: string) => boolean = existsSync,
 ): string | undefined {
@@ -282,8 +282,8 @@ export function resolveClaudeExecutablePath(
 export function resolveBunDir(
   candidates: ReadonlyArray<string | undefined> = [
     getEnv("PRX_BUN_DIR"),
-    join(homedir(), ".local/share/bun-home/bin"),
-    join(homedir(), ".bun/bin"),
+    join(homeDir(), ".local/share/bun-home/bin"),
+    join(homeDir(), ".bun/bin"),
   ],
   exists: (path: string) => boolean = existsSync,
 ): string | undefined {

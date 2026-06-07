@@ -116,6 +116,13 @@
         "zod": "^3.25.0 || ^4.0.0",
       },
     },
+    "packages/host": {
+      "name": "@bounded-systems/host",
+      "version": "0.0.0",
+      "dependencies": {
+        "@bounded-systems/env": "workspace:*",
+      },
+    },
     "packages/machine-schema": {
       "name": "@bounded-systems/machine-schema",
       "version": "0.0.0",
@@ -140,7 +147,7 @@
     },
     "packages/prx": {
       "name": "@bounded-systems/prx",
-      "version": "0.7.2",
+      "version": "0.8.2",
       "bin": {
         "prx": "./dist/prx",
       },
@@ -222,6 +229,8 @@
     "@bounded-systems/git": ["@bounded-systems/git@workspace:packages/git"],
 
     "@bounded-systems/github-budget": ["@bounded-systems/github-budget@workspace:packages/github-budget"],
+
+    "@bounded-systems/host": ["@bounded-systems/host@workspace:packages/host"],
 
     "@bounded-systems/machine-schema": ["@bounded-systems/machine-schema@workspace:packages/machine-schema"],
 

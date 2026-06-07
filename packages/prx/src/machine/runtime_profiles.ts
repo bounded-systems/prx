@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpDir } from "@bounded-systems/host";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -2375,7 +2375,7 @@ export function resolveScratchSandboxSettingsPath(cwd: string): string {
   if (existsSync(runtimeDir)) {
     return join(runtimeDir, scratchSandboxSettingsFilename);
   }
-  return join(mkdtempSync(join(tmpdir(), "prx-scratch-")), scratchSandboxSettingsFilename);
+  return join(mkdtempSync(join(tmpDir(), "prx-scratch-")), scratchSandboxSettingsFilename);
 }
 
 /**

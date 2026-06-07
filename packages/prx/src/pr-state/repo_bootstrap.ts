@@ -41,7 +41,7 @@
 // same way.
 
 import { mkdirSync, rmSync } from "node:fs";
-import { homedir } from "node:os";
+import { homeDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
 import { runBdInit } from "../beads/init.ts";
@@ -263,7 +263,7 @@ function defaultTempHomeFactory(slug: string, now: Date): string {
   // reboots (NOT `/tmp`) so a forensic operator can still inspect a
   // failed-arm tempHome the next day.
   const stamp = now.toISOString().replace(/\.\d{3}Z$/, "Z").replace(/:/g, "-");
-  const dir = join(homedir(), ".local", "state", "prx", "bd-init", `${slug}-${stamp}`);
+  const dir = join(homeDir(), ".local", "state", "prx", "bd-init", `${slug}-${stamp}`);
   mkdirSync(dir, { recursive: true });
   return dir;
 }
@@ -415,8 +415,8 @@ export function runRepoBootstrap(
     shipMetadata: opts.shipMetadata,
   });
 
-  if (legacyHomeProbe(homedir())) {
-    emit("BD_BOOTSTRAP_LEGACY_HOME_DETECTED", { homeDir: homedir() });
+  if (legacyHomeProbe(homeDir())) {
+    emit("BD_BOOTSTRAP_LEGACY_HOME_DETECTED", { homeDir: homeDir() });
   }
 
   const tempHome = tempHomeFactory(repo.name, now());

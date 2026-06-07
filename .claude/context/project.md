@@ -27,6 +27,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - `@bounded-systems/gh` — GitHub CLI wrapper with policy enforcement, rate-limit gating, and budget audit logging
 - `@bounded-systems/git` — Git CLI wrapper with policy enforcement and stale-lock recovery
 - `@bounded-systems/github-budget` — Rate-limit-aware gh wrapper with bucket classification, pre-call gating, and audit trail
+- `@bounded-systems/host` — The one sanctioned reader of host/OS ambient state (home dir, temp dir, hostname), routing ambient authority through capability imports
 - `@bounded-systems/machine-schema` — Brands, handoff envelope, and state/phase/invariant primitives for work-unit machines
 - `@bounded-systems/policy` — Tool-policy engine enforcing subcommand allowlists by tool, state, and role
 - `@bounded-systems/proc` — The one allowed subprocess spawn point, routing external-tool invocations through a capability

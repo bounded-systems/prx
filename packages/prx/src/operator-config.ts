@@ -15,7 +15,7 @@
  */
 import { getEnv } from "@bounded-systems/env";
 import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { homeDir } from "@bounded-systems/host";
 import { resolve } from "node:path";
 
 import { bakedOperatorConfigRoot } from "./build-info.ts";
@@ -37,7 +37,7 @@ export type OperatorConfigDeps = {
 
 /** The path to the operator config (`~/.config/prx/config.json`). */
 export function operatorConfigPath(deps: OperatorConfigDeps = {}): string | null {
-  const home = deps.homeDir ?? homedir();
+  const home = deps.homeDir ?? homeDir();
   if (!home) return null;
   return resolve(home, ".config", "prx", "config.json");
 }
