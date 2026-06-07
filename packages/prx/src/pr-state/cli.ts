@@ -18894,7 +18894,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     // VerbSpec dispatch, ahead of the legacy typed-command union/executor
     // machinery (which threads a shared union through bare fallthroughs).
     const [orchestratorVerb, ...orchestratorRest] = argv;
-    if (orchestratorVerb === "pilot" || orchestratorVerb === "fleet" || orchestratorVerb === "health") {
+    if (
+      orchestratorVerb === "pilot" ||
+      orchestratorVerb === "fleet" ||
+      orchestratorVerb === "health" ||
+      orchestratorVerb === "docs"
+    ) {
       return runSpecVerb(orchestratorVerb, orchestratorRest, output);
     }
     if (orchestratorVerb === "plugin") {

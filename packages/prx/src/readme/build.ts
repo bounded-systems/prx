@@ -7,8 +7,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { findRepoRoot } from "../repo-root.ts";
-const REPO_ROOT = findRepoRoot();
+import { getRepoRoot } from "../repo-root.ts";
+const REPO_ROOT = getRepoRoot();
 import {
   CLI_PACKAGE,
   buildGraph,
