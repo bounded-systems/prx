@@ -63,6 +63,21 @@ describe("daemon write helpers route through beadsd (GH-296 wave 2)", () => {
     expect(seen).toEqual({ kind: "update", id: "prx-abb", issueType: "bug" });
   });
 
+  test("updateBeadViaDaemon forwards externalRef + notes (GH-296 write parity)", async () => {
+    let seen: BeadsRequest | undefined;
+    await updateBeadViaDaemon(
+      "prx-abb",
+      { externalRef: "https://github.com/o/r/issues/9", notes: "linked" },
+      fakeDeps({ status: "ok", result: {} }, (r) => (seen = r)),
+    );
+    expect(seen).toEqual({
+      kind: "update",
+      id: "prx-abb",
+      externalRef: "https://github.com/o/r/issues/9",
+      notes: "linked",
+    });
+  });
+
   test("updateBeadViaDaemon sends only the changed fields", async () => {
     let seen: BeadsRequest | undefined;
     await updateBeadViaDaemon(

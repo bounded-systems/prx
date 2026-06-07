@@ -7968,6 +7968,8 @@ export function parseCommand(argv: string[]): ParsedCommand {
         status: { type: "string" },
         assignee: { type: "string" },
         reason: { type: "string" },
+        "external-ref": { type: "string" },
+        notes: { type: "string" },
       },
       strict: true,
       allowPositionals: true,
@@ -8007,9 +8009,14 @@ export function parseCommand(argv: string[]): ParsedCommand {
         ...(values.status !== undefined ? { status: values.status } : {}),
         ...(priority !== undefined ? { priority } : {}),
         ...(values.assignee !== undefined ? { assignee: values.assignee } : {}),
+        ...(values.type !== undefined ? { issueType: values.type } : {}),
+        ...(values["external-ref"] !== undefined ? { externalRef: values["external-ref"] } : {}),
+        ...(values.notes !== undefined ? { notes: values.notes } : {}),
       };
       if (Object.keys(fields).length === 0) {
-        throw new CliError("prx beads update needs at least one of --status / --priority / --assignee");
+        throw new CliError(
+          "prx beads update needs at least one of --status / --priority / --assignee / --type / --external-ref / --notes",
+        );
       }
       request = { kind: "update", id, ...fields };
     } else if (kind === "close") {

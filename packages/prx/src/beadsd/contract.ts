@@ -64,8 +64,12 @@ export const BeadsRequestSchema = z.discriminatedUnion("kind", [
     silent: z.boolean().optional(),
   }),
   /**
-   * `bd update <id> [--status s] [--priority N] [--assignee a] [--type t]` —
-   * at least one field. `issueType` retargets the bd type (drift-fix axis sync).
+   * `bd update <id> [--status s] [--priority N] [--assignee a] [--type t]
+   * [--external-ref <url>] [--notes <text>]` — at least one field. `issueType`
+   * retargets the bd type (drift-fix axis sync); `externalRef` (re)links the
+   * GH/external mirror (adapter write-back, `prx beads publish`); `notes`
+   * appends a note (intake-comment). GH-296: these extend the single-writer
+   * surface so the bulk write reconcilers stop reaching host `bd` directly.
    */
   z.object({
     kind: z.literal("update"),
@@ -75,6 +79,10 @@ export const BeadsRequestSchema = z.discriminatedUnion("kind", [
     /** Assignee; empty string clears it (bd assignee semantics). */
     assignee: z.string().optional(),
     issueType: z.string().min(1).optional(),
+    /** (Re)link the external mirror URL — `bd update --external-ref <url>`. */
+    externalRef: z.string().min(1).optional(),
+    /** Append a note — `bd update --notes <text>`. */
+    notes: z.string().min(1).optional(),
   }),
   /** `bd close <id> [--reason r]`. */
   z.object({

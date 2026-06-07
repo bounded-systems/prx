@@ -58,7 +58,14 @@ export function createBeadViaDaemon(
 /** Daemon-routed `bd update <id>` → the updated record (or null if none echoed). */
 export function updateBeadViaDaemon(
   id: string,
-  fields: { status?: string; priority?: number; assignee?: string; issueType?: string },
+  fields: {
+    status?: string;
+    priority?: number;
+    assignee?: string;
+    issueType?: string;
+    externalRef?: string;
+    notes?: string;
+  },
   deps: WithBeadsClientDeps = {},
 ): Promise<BeadsRecord | null> {
   const request: BeadsRequest = {
@@ -68,6 +75,8 @@ export function updateBeadViaDaemon(
     ...(fields.priority !== undefined ? { priority: fields.priority } : {}),
     ...(fields.assignee !== undefined ? { assignee: fields.assignee } : {}),
     ...(fields.issueType !== undefined ? { issueType: fields.issueType } : {}),
+    ...(fields.externalRef !== undefined ? { externalRef: fields.externalRef } : {}),
+    ...(fields.notes !== undefined ? { notes: fields.notes } : {}),
   };
   return writeViaDaemon(request, deps);
 }

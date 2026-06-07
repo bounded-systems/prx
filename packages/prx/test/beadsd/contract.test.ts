@@ -61,6 +61,17 @@ describe("beadsd wire contract — request envelope", () => {
     expect(BeadsRequestSchema.safeParse({ kind: "update", id: "prx-abb", issueType: "bug" }).success).toBe(true);
   });
 
+  test("accepts update --external-ref / --notes (GH-296 write parity)", () => {
+    expect(
+      BeadsRequestSchema.safeParse({
+        kind: "update",
+        id: "prx-abb",
+        externalRef: "https://github.com/o/r/issues/9",
+        notes: "linked by mirror",
+      }).success,
+    ).toBe(true);
+  });
+
   test("accepts the reopen envelope", () => {
     expect(BeadsRequestSchema.safeParse({ kind: "reopen", id: "prx-abb" }).success).toBe(true);
     expect(BeadsRequestSchema.safeParse({ kind: "reopen" }).success).toBe(false); // no id
