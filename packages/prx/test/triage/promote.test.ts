@@ -265,6 +265,22 @@ describe("runTriagePromote — apply phase", () => {
       bdIndex += 1;
       return result;
     };
+    // GH-296 / prx-82b: create runs `prx beads create …` through the daemon (a
+    // sync runner) which echoes the record as JSON. Wrap the bdResults' raw id
+    // stdout as the JSON record the new code parses; consume the same queue.
+    const run = (_cmd: string[]) => {
+      const result = bdResults[bdIndex] ?? {
+        exitCode: 0,
+        stdout: `bd-${1000 + bdIndex}`,
+        stderr: "",
+        policy: null,
+      };
+      bdIndex += 1;
+      const idRaw = result.stdout.trim();
+      const stdout =
+        result.exitCode === 0 ? JSON.stringify(idRaw.length > 0 ? { id: idRaw } : {}) : "";
+      return { status: result.exitCode, stdout, stderr: result.stderr };
+    };
     const execGh = () => {
       const result = ghResults[ghIndex] ?? {
         exitCode: 0,
@@ -280,6 +296,7 @@ describe("runTriagePromote — apply phase", () => {
     const deps = {
       ...STD_DEPS_BASE,
       execBd,
+      run,
       execGh,
       readFileSync: () => fixture,
       loadAllBeads: () => options.beadsAtApply ?? [],
@@ -359,10 +376,10 @@ describe("runTriagePromote — apply phase", () => {
       o.output,
       {
         ...STD_DEPS_BASE,
-        execBd: (opts) => {
-          bdCalls.push({ args: opts.args });
-          return { exitCode: 0, stdout: "bd-9000\n", stderr: "", policy: null };
-        },
+        run: ((cmd: string[]) => {
+          bdCalls.push({ args: cmd.slice(3) });
+          return { status: 0, stdout: JSON.stringify({ id: "bd-9000" }), stderr: "" };
+        }) as never,
         execGh: (opts) => {
           ghCalls.push({ args: opts.args });
           return { exitCode: 0, stdout: "", stderr: "", policy: null };
@@ -382,9 +399,8 @@ describe("runTriagePromote — apply phase", () => {
     expect(bdCalls[0]!.args).toContain("https://github.com/bdelanghe/ai-home/issues/42");
     expect(bdCalls[0]!.args).toContain("--type");
     expect(bdCalls[0]!.args).toContain("feature");
-    expect(bdCalls[0]!.args).toContain("-p");
+    expect(bdCalls[0]!.args).toContain("--priority");
     expect(bdCalls[0]!.args).toContain("2");
-    expect(bdCalls[0]!.args).toContain("--silent");
     expect(ghCalls).toHaveLength(1);
     expect(ghCalls[0]!.args).toContain("42");
     expect(ghCalls[0]!.args).toContain("--body");
@@ -412,10 +428,10 @@ describe("runTriagePromote — apply phase", () => {
         o.output,
         {
           ...STD_DEPS_BASE,
-          execBd: (opts) => {
-            captured.push({ args: opts.args });
-            return { exitCode: 0, stdout: "bd-1", stderr: "", policy: null };
-          },
+          run: ((cmd: string[]) => {
+            captured.push({ args: cmd.slice(3) });
+            return { status: 0, stdout: JSON.stringify({ id: "bd-1" }), stderr: "" };
+          }) as never,
           execGh: () => ({ exitCode: 0, stdout: "", stderr: "", policy: null }),
           readFileSync: () => fixture,
           loadAllBeads: () => [],
@@ -426,7 +442,7 @@ describe("runTriagePromote — apply phase", () => {
           },
         },
       );
-      const idx = captured[0]!.args.indexOf("-p");
+      const idx = captured[0]!.args.indexOf("--priority");
       expect(captured[0]!.args[idx + 1]).toBe(expected);
     }
   });
@@ -542,7 +558,7 @@ describe("runTriagePromote — apply phase", () => {
     expect(ghCalls()).toBe(0);
     const entry = JSON.parse(audit[0]!);
     expect(entry.action).toBe("error");
-    expect(entry.stderr).toMatch(/empty stdout/);
+    expect(entry.stderr).toMatch(/no parseable id/);
   });
 
   test("rejects plan that fails schema validation", () => {

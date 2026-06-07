@@ -57,6 +57,7 @@ import {
   type BeadsRecord,
 } from "./triage.ts";
 import { execBd as defaultExecBd } from "@bounded-systems/bd";
+import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import { execGh as defaultExecGh, type GhExecResult } from "@bounded-systems/gh";
 import {
   buildBeadsLookup as buildBeadsLookupShared,
@@ -120,6 +121,8 @@ export type ReadTextFile = (path: string, encoding: "utf8") => string;
 
 export type TriagePromoteDeps = {
   execBd?: typeof defaultExecBd;
+  /** GH-296 / prx-82b — sync runner for the daemon-routed `prx beads create`. */
+  run?: CommandRunner;
   execGh?: typeof defaultExecGh;
   listOpenIssues?: typeof defaultListOpenIssues;
   repoNameWithOwner?: typeof defaultRepoNameWithOwner;
@@ -358,6 +361,7 @@ function runApplyPhase(
   deps: TriagePromoteDeps,
 ): number {
   const exec = deps.execBd ?? defaultExecBd;
+  const run = deps.run ?? procRunner;
   const ghExec = deps.execGh ?? defaultExecGh;
   const loadBeads = deps.loadAllBeads ?? loadAllBeads;
   const now = (deps.now ?? (() => new Date()))();
@@ -484,51 +488,56 @@ function runApplyPhase(
       continue;
     }
 
-    const bdResult = exec(
-      {
-        subcommand: "create",
-        args: [
-          "--silent",
-          "--external-ref",
-          row.url,
-          "--type",
-          row.type,
-          "-p",
-          String(priorityToBdNumber(row.priority)),
-          "--title",
-          row.title,
-        ],
-        state: "planning",
-        role: "planner",
-      },
-      processEnv(),
+    // GH-296 / prx-82b: create via the daemon. `prx beads create` echoes the
+    // created record as JSON; parse its id (no `--silent` id-line; `--priority`).
+    const bdResult = run(
+      [
+        "prx",
+        "beads",
+        "create",
+        "--external-ref",
+        row.url,
+        "--type",
+        row.type,
+        "--priority",
+        String(priorityToBdNumber(row.priority)),
+        "--title",
+        row.title,
+      ],
+      { check: false },
     );
 
-    if (bdResult.exitCode !== 0) {
+    if (bdResult.status !== 0) {
       const entry: PromoteAuditEntry = {
         ...baseEntry,
         action: "error",
-        exitCode: bdResult.exitCode,
-        stderr: bdResult.stderr.trim() || bdResult.stdout.trim() || "bd create failed",
+        exitCode: bdResult.status,
+        stderr: bdResult.stderr.trim() || bdResult.stdout.trim() || "prx beads create failed",
       };
       append(entry);
       output.error(
-        `error GH-${row.number} bd create exit=${bdResult.exitCode}: ${entry.stderr}`,
+        `error GH-${row.number} prx beads create exit=${bdResult.status}: ${entry.stderr}`,
       );
       errors += 1;
       continue;
     }
 
-    const beadId = bdResult.stdout.trim();
+    let beadId = "";
+    try {
+      const record = JSON.parse(bdResult.stdout) as { id?: unknown };
+      if (typeof record.id === "string") beadId = record.id;
+    } catch {
+      beadId = "";
+    }
     if (!beadId) {
       const entry: PromoteAuditEntry = {
         ...baseEntry,
         action: "error",
         exitCode: 1,
-        stderr: "bd create returned empty stdout",
+        stderr: "prx beads create returned no parseable id",
       };
       append(entry);
-      output.error(`error GH-${row.number}: bd create returned empty stdout`);
+      output.error(`error GH-${row.number}: prx beads create returned no parseable id`);
       errors += 1;
       continue;
     }
