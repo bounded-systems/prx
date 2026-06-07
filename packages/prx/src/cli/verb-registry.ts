@@ -23,6 +23,7 @@ import { remoteCiCheckVerb, scoutLogsVerb } from "../pr-state/ci-check-verb.ts";
 import { repoChecksVerb } from "../pr-state/repo-checks-verb.ts";
 import { protectMainVerb } from "../pr-state/protect-main-verb.ts";
 import { prCommentsVerb } from "../pr-state/pr-comments-verb.ts";
+import { eventVerb } from "../pr-state/event-verb.ts";
 
 export const verbRegistry: Registry = {
   ...orchestratorRegistry,
@@ -47,4 +48,5 @@ export const verbRegistry: Registry = {
   [repoChecksVerb.id]: repoChecksVerb,
   [protectMainVerb.id]: protectMainVerb,
   [prCommentsVerb.id]: prCommentsVerb,
+  [eventVerb.id]: eventVerb,
 };

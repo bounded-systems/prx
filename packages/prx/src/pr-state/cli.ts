@@ -9,17 +9,11 @@ import { tmpDir } from "@bounded-systems/host";
 import { createHash } from "node:crypto";
 
 import {
-  applyTransition,
   deriveInfo,
   loadContract,
-  recordEvent,
-  writeContract,
   type StateMode,
 } from "./contract.ts";
-import {
-  appendTransitionLog,
-  type TransitionEntry,
-} from "./transition_log.ts";
+import { applySkillEvent } from "./event-verb.ts";
 import {
   syncGitHubIssuesToBeads,
   syncStatus,
@@ -237,13 +231,9 @@ import {
 } from "./hooks.ts";
 import {
   allowedTransitions,
-  assertValidTransition,
   canonicalPrEventAliases,
-  eventForSkill,
   prSystemMachine,
-  prSkillNames,
   type PrSkillName,
-  type SkillEventDefinition,
   type LifecycleState,
 } from "./machine.ts";
 import { invariantSpecs, phasePrecedence } from "./raw_state.ts";
@@ -1047,16 +1037,6 @@ type ParsedCommand =
       generatedBy: string;
       untracked: boolean;
       format: "plain" | "json";
-    }
-  | {
-      command: "event";
-      contract: string;
-      skill: PrSkillName;
-      actor: string;
-      reason?: string | null | undefined;
-      format: "plain" | "json";
-      log: string;
-      id?: string | undefined;
     }
   | {
       command: "contract";
@@ -8330,38 +8310,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  if (command === "event") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        contract: { type: "string", default: ".pr/local/pr.json" },
-        skill: { type: "string" },
-        actor: { type: "string", default: "codex" },
-        reason: { type: "string" },
-        format: { type: "string", default: "plain" },
-        log: { type: "string", default: ".prx/transitions.jsonl" },
-        id: { type: "string" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    if (!values.skill) {
-      throw new CliError("--skill is required");
-    }
-
-    return {
-      command,
-      contract: values.contract,
-      skill: ensureChoice(values.skill, prSkillNames, "--skill"),
-      actor: values.actor,
-      reason: values.reason,
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      log: values.log,
-      id: values.id,
-    };
-  }
-
   if (command === "contract") {
     const { values, positionals } = parseArgs({
       args: rest,
@@ -15516,7 +15464,8 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       orchestratorVerb === "open-mode" ||
       orchestratorVerb === "stately" ||
       orchestratorVerb === "status" ||
-      orchestratorVerb === "transition"
+      orchestratorVerb === "transition" ||
+      orchestratorVerb === "event"
     ) {
       return runSpecVerb(orchestratorVerb, orchestratorRest, output);
     }
@@ -15574,6 +15523,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         transition: "transition",
         skills: "skills",
         "open-mode": "open-mode",
+        event: "event",
       };
       const target = aliased[orchestratorRest[0] ?? ""];
       if (target) return runSpecVerb(target, orchestratorRest.slice(1), output);
@@ -16730,73 +16680,19 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       return 1;
     }
 
-    if (parsed.command === "event" || parsed.command === "contract") {
-      const skill: PrSkillName = parsed.command === "contract" ? "pr-contract" : parsed.skill;
-      const contract = loadContract(parsed.contract);
-      const from = deriveInfo(contract).state;
-      const definition: SkillEventDefinition = eventForSkill(skill);
-      // Assigned on every branch below before it is read.
-      let nextContract: typeof contract;
-      let appliedTransition = false;
-      let blockedTransition: { from: LifecycleState; to: LifecycleState } | null = null;
-
-      if (definition.kind === "transition") {
-        try {
-          assertValidTransition(from, definition.to);
-          nextContract = applyTransition(contract, definition.to, parsed.actor, parsed.reason ?? definition.event);
-          appliedTransition = true;
-        } catch {
-          nextContract = recordEvent(
-            contract,
-            definition.event,
-            parsed.actor,
-            parsed.reason ?? `Transition blocked from ${from} to ${definition.to}`,
-          );
-          blockedTransition = { from, to: definition.to };
-        }
-      } else {
-        nextContract = recordEvent(contract, definition.event, parsed.actor, parsed.reason);
-      }
-
-      writeContract(parsed.contract, nextContract);
-
-      if (appliedTransition && definition.kind === "transition" && parsed.command === "event") {
-        const branch = detectBranchNameFromCwd();
-        const commit = tryCommand(["git", "rev-parse", "--short=12", "HEAD"], process.cwd());
-        const logEntry: TransitionEntry = {
-          id: parsed.id ?? crypto.randomUUID(),
-          issue: branch,
-          state_from: from,
-          state_to: definition.to,
-          actor: parsed.actor,
-          artifact: branch ? `branch:${branch}` : null,
-          timestamp: new Date().toISOString(),
-          proof: { commit },
-        };
-        appendTransitionLog(parsed.log, logEntry);
-      }
-
-      const info = deriveInfo(loadContract(parsed.contract));
-      const payload = {
-        skill,
-        event: definition.event,
-        kind: definition.kind === "transition" && !appliedTransition ? "observe" : definition.kind,
-        from,
-        to: definition.kind === "transition" ? definition.to : from,
-        transitionApplied: appliedTransition,
-        blockedTransition,
-        state: info.state,
-        mode: info.mode,
-        title: info.title,
-        reason: info.reason,
-      };
-
+    if (parsed.command === "contract") {
+      // The skill-event apply shared with the `event` verb (which now owns the
+      // CLI surface); `contract` fixes the skill to `pr-contract` and does NOT
+      // append a transition-log entry.
+      const payload = applySkillEvent(
+        { contract: parsed.contract, skill: "pr-contract", actor: parsed.actor, reason: parsed.reason, log: "" },
+        { logTransition: false },
+      );
       if (parsed.format === "json") {
         output.log(JSON.stringify(payload, null, 2));
         return 0;
       }
-
-      output.log(`${payload.state} (${payload.mode}) - ${payload.event} via ${skill}`);
+      output.log(`${payload.state} (${payload.mode}) - ${payload.event} via ${payload.skill}`);
       return 0;
     }
 
