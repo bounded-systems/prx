@@ -40,7 +40,6 @@ import {
   boardStatus,
   chainStatus,
   repoStatus,
-  repoCheckNames,
   fetchPrComments,
   resolvePrReviewThreads,
   buildParityChain,
@@ -974,7 +973,7 @@ import { type ExecutionWorkAgent, POLICY, buildWorkAutomationProfile, ensureExec
 import { findSavedClaudeSession, resolveCodexSessionProfile } from "./session-finder.ts";
 import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type Output, type ParityChainApplyResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
 import { refreshTaskSignals } from "./status-report.ts";
-import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktreeRemove } from "./cli-format.ts";
+import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRepairBdResults, formatRepoAdd, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktreeRemove } from "./cli-format.ts";
 import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, detectBranchNameFromCwd, findWorktreeByDirectoryPrefix, listResolvedWorktrees, procSpawnLike, resolveRepoRootWithSpawn, runCommand, runInheritStatus, tryCommand } from "./cli-spawn.ts";
 
 // Shared default for the `SpawnLike` capture seams below. Routes through
@@ -2101,13 +2100,6 @@ type ParsedCommand =
       resolveAll: boolean;
     }
   | {
-      command: "repo-checks";
-      repoPath: string;
-      repo?: string | undefined;
-      branch: string;
-      format: "plain" | "json";
-    }
-  | {
       command: "reconcile" | "prune" | "backfill";
       repoPath: string;
       mode: SurfaceSyncMode;
@@ -2736,7 +2728,6 @@ type CliDeps = {
   repoStatus?: typeof repoStatus;
   fetchPrComments?: typeof fetchPrComments;
   resolvePrReviewThreads?: typeof resolvePrReviewThreads;
-  repoCheckNames?: typeof repoCheckNames;
   buildParityChain?: typeof buildParityChain;
   buildSessionLayerPrune?: typeof buildSessionLayerPrune;
   /** Override for testability: return the name of the current tmux session, or null. */
@@ -11012,28 +11003,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  if (command === "repo-checks") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        "repo-path": { type: "string", default: "." },
-        repo: { type: "string" },
-        branch: { type: "string", default: "main" },
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command,
-      repoPath: values["repo-path"],
-      repo: values.repo,
-      branch: values.branch,
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
-
   if (command === "protect-main") {
     const { values } = parseArgs({
       args: rest,
@@ -15836,6 +15805,16 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
     if (orchestratorVerb === "scout" && orchestratorRest[0] === "logs") {
       return runSpecVerb("scout-logs", orchestratorRest.slice(1), output);
+    }
+    // `repo-checks` (a.k.a. `repo checks` / `scout checks`).
+    if (orchestratorVerb === "repo-checks") {
+      return runSpecVerb("repo-checks", orchestratorRest, output);
+    }
+    if (
+      (orchestratorVerb === "repo" || orchestratorVerb === "scout") &&
+      orchestratorRest[0] === "checks"
+    ) {
+      return runSpecVerb("repo-checks", orchestratorRest.slice(1), output);
     }
     if (orchestratorVerb === "plugin") {
       return runPluginVerb(orchestratorRest, output);
@@ -22619,15 +22598,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       }
       output.log(formatPrComments(summary, parsed.format, outputPath));
       return summary.unresolvedThreads === 0 ? 0 : 1;
-    }
-
-    if (parsed.command === "repo-checks") {
-      const summary = (deps.repoCheckNames ?? repoCheckNames)(parsed.repoPath, {
-        repo: parsed.repo,
-        branch: parsed.branch,
-      });
-      output.log(formatRepoChecks(summary, parsed.format));
-      return summary.checks.length > 0 ? 0 : 1;
     }
 
     if (parsed.command === "protect-main") {
