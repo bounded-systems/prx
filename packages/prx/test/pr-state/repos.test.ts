@@ -265,40 +265,58 @@ describe("discoverLocalRepos", () => {
       ),
     );
 
-    const config = loadRepoInventoryConfig(
-      repoRoot,
-      (cmd, options = {}) => {
-        const key = `${cmd.join(" ")}|${options.cwd ?? ""}`;
-        if (key === `git rev-parse --show-toplevel|${repoRoot}`) {
-          return { stdout: `${repoRoot}\n`, stderr: "", status: 0 };
-        }
-        return { stdout: "", stderr: "missing", status: 1 };
-      },
-    );
+    // Isolate HOME (and XDG) to the empty fixture root so the operator's real
+    // ~/.config/prx/config.json + ~/.local/state/prx index don't override the
+    // repo-local config under test (the repo-local path must win here).
+    const prevHome = process.env.HOME;
+    const prevCfg = process.env.XDG_CONFIG_HOME;
+    const prevState = process.env.XDG_STATE_HOME;
+    process.env.HOME = root;
+    delete process.env.XDG_CONFIG_HOME;
+    delete process.env.XDG_STATE_HOME;
+    try {
+      const config = loadRepoInventoryConfig(
+        repoRoot,
+        (cmd, options = {}) => {
+          const key = `${cmd.join(" ")}|${options.cwd ?? ""}`;
+          if (key === `git rev-parse --show-toplevel|${repoRoot}`) {
+            return { stdout: `${repoRoot}\n`, stderr: "", status: 0 };
+          }
+          return { stdout: "", stderr: "missing", status: 1 };
+        },
+      );
 
-    expect(config).toMatchObject({
-      repoRoot,
-      bareRoot: "/tmp/bare-repos",
-      roots: ["/tmp/bare-repos", "/tmp/worktrees"],
-      everywhereRoots: ["/tmp/bare-repos", "/tmp/worktrees", "/tmp/dev"],
-      configPath: join(repoRoot, ".prx", "repos", "config.json"),
-      indexPath: join(repoRoot, ".prx", "repos", "index.json"),
-    });
+      expect(config).toMatchObject({
+        repoRoot,
+        bareRoot: "/tmp/bare-repos",
+        roots: ["/tmp/bare-repos", "/tmp/worktrees"],
+        everywhereRoots: ["/tmp/bare-repos", "/tmp/worktrees", "/tmp/dev"],
+        configPath: join(repoRoot, ".prx", "repos", "config.json"),
+        indexPath: join(repoRoot, ".prx", "repos", "index.json"),
+      });
 
-    writeRepoInventoryIndex(config.indexPath!, {
-      roots: config.roots,
-      bareRoot: config.bareRoot,
-      indexPath: config.indexPath,
-      repos: [],
-      generatedAt: "2026-03-20T00:00:00.000Z",
-    });
+      writeRepoInventoryIndex(config.indexPath!, {
+        roots: config.roots,
+        bareRoot: config.bareRoot,
+        indexPath: config.indexPath,
+        repos: [],
+        generatedAt: "2026-03-20T00:00:00.000Z",
+      });
 
-    expect(existsSync(config.indexPath!)).toBe(true);
-    expect(JSON.parse(readFileSync(config.indexPath!, "utf8"))).toMatchObject({
-      bareRoot: "/tmp/bare-repos",
-      roots: ["/tmp/bare-repos", "/tmp/worktrees"],
-      repos: [],
-    });
+      expect(existsSync(config.indexPath!)).toBe(true);
+      expect(JSON.parse(readFileSync(config.indexPath!, "utf8"))).toMatchObject({
+        bareRoot: "/tmp/bare-repos",
+        roots: ["/tmp/bare-repos", "/tmp/worktrees"],
+        repos: [],
+      });
+    } finally {
+      if (prevHome === undefined) delete process.env.HOME;
+      else process.env.HOME = prevHome;
+      if (prevCfg === undefined) delete process.env.XDG_CONFIG_HOME;
+      else process.env.XDG_CONFIG_HOME = prevCfg;
+      if (prevState === undefined) delete process.env.XDG_STATE_HOME;
+      else process.env.XDG_STATE_HOME = prevState;
+    }
   });
 
   test("loads global config when repo-local config is absent", () => {
