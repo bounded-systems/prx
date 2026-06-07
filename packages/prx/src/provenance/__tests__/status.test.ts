@@ -1,7 +1,11 @@
 // GH-352: `prx provenance status` posture + onboarding decision.
 import { describe, expect, test } from "bun:test";
 
-import { provenanceStatus, type ProvenanceStatusInputs } from "../status.ts";
+import {
+  provenanceStatus,
+  renderProvenanceStatus,
+  type ProvenanceStatusInputs,
+} from "../status.ts";
 
 const base: ProvenanceStatusInputs = {
   perActor: true,
@@ -56,5 +60,39 @@ describe("provenanceStatus — posture", () => {
     const s = provenanceStatus({ ...base, perActor: false });
     expect(s.posture).toBe("unconfigured");
     expect(s.onboarding.join("\n")).toContain("PRX_PROVENANCE_KEY=dev");
+  });
+});
+
+describe("renderProvenanceStatus", () => {
+  test("production renders the posture line + no onboarding section", () => {
+    const lines = renderProvenanceStatus(provenanceStatus(base));
+    const text = lines.join("\n");
+    expect(text).toContain("provenance signing: production");
+    expect(text).toContain("mode:        per-actor");
+    expect(text).toContain("enforcement: on (fail-closed)");
+    expect(text).not.toContain("onboarding:");
+  });
+
+  test("a drifted (published) map shows the drifted count + onboarding", () => {
+    const lines = renderProvenanceStatus(
+      provenanceStatus({ ...base, drift: [{ actor: "implement", reason: "key changed" }] }),
+    );
+    const text = lines.join("\n");
+    expect(text).toContain("7 actor(s) — 1 drifted");
+    expect(text).toContain("onboarding:");
+  });
+
+  test("an empty map does NOT render a drifted count (never-registered ≠ stale)", () => {
+    const lines = renderProvenanceStatus(
+      provenanceStatus({
+        ...base,
+        masterSource: "dev-bootstrap",
+        trustedActors: 0,
+        drift: [{ actor: "plan", reason: "missing" }],
+        enforced: false,
+      }),
+    );
+    expect(lines.join("\n")).toContain("0 actor(s)");
+    expect(lines.join("\n")).not.toContain("drifted");
   });
 });
