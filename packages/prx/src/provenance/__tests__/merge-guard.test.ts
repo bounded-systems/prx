@@ -86,6 +86,38 @@ describe("projectProvenanceAxis", () => {
     );
   });
 
+  // GH-352: the uniform freshness check. When isStale + currentRefs are wired, a
+  // verified-but-stale derivation fails closed; a fresh one stays verified.
+  test("verified but stale (isStale ⇒ true) ⇒ unsigned (fail closed)", async () => {
+    const store = fakeStore();
+    const { deps, verifier } = mkAttest(store);
+    await emitPush(deps, OID);
+    expect(
+      await projectProvenanceAxis(OID, {
+        store,
+        verifier,
+        enforce: true,
+        currentRefs: {},
+        isStale: async () => true,
+      }),
+    ).toBe("unsigned");
+  });
+
+  test("verified and fresh (isStale ⇒ false) ⇒ verified", async () => {
+    const store = fakeStore();
+    const { deps, verifier } = mkAttest(store);
+    await emitPush(deps, OID);
+    expect(
+      await projectProvenanceAxis(OID, {
+        store,
+        verifier,
+        enforce: true,
+        currentRefs: {},
+        isStale: async () => false,
+      }),
+    ).toBe("verified");
+  });
+
   test("a signed derivation under a wrong-key verifier ⇒ unsigned (fail closed)", async () => {
     const store = fakeStore();
     const { deps } = mkAttest(store);

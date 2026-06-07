@@ -25979,6 +25979,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "snapshot") {
+      // NOTE (GH-352): `snapshot` stays synchronous and ledger-free by design
+      // (session_contract.test asserts it), so the DomainStateV1 `ci` field is
+      // left at its unchecked/unknown default here. The live CI verdict +
+      // freshness is computed by `resolveCiProvenanceState` (async, ledger I/O)
+      // and consumed by the merge-guard tier; populating it into a *read* would
+      // require making snapshot async — a deliberate follow-up.
       const state = (deps.buildDomainState ?? buildDomainState)(parsed.repoPath);
       output.log(formatSnapshot(state, parsed.format));
       return 0;
