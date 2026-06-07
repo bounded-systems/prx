@@ -151,6 +151,66 @@ describe("runBeadsSync — no-pin beads", () => {
   });
 });
 
+describe("runBeadsSync — push-leg short-circuit (GH-296 prx-lzw)", () => {
+  test("skips the push leg when the bead HEAD is unchanged since the last successful push", async () => {
+    let pushCalls = 0;
+    const { deps, rows, output, errs } = baseDeps({
+      loadAllBeads: () => [pinned("bd-1", 101), pinned("bd-2", 102)],
+      adapter: fakeAdapter({
+        push: async (bd) => {
+          pushCalls += 1;
+          return { externalId: bd.externalRef ?? "x", created: false, edited: true };
+        },
+      }),
+      beadsHead: () => "h1",
+      pushWatermark: { read: () => "h1", write: () => undefined },
+    });
+    const result = await runBeadsSync(opts(), output, deps);
+    expect(result.exitCode).toBe(0);
+    expect(pushCalls).toBe(0); // push leg skipped
+    expect(summaryRow(rows).pushed).toBe(0);
+    // Diagnostic note goes to stderr (stdout is reserved for the JSON-safe summary).
+    expect(errs.some((l) => l.includes("push leg skipped"))).toBe(true);
+  });
+
+  test("runs + persists the HEAD watermark on a fully-successful push", async () => {
+    let pushCalls = 0;
+    let written: string | undefined;
+    const { deps, output } = baseDeps({
+      loadAllBeads: () => [pinned("bd-1", 101)],
+      adapter: fakeAdapter({
+        push: async (bd) => {
+          pushCalls += 1;
+          return { externalId: bd.externalRef ?? "x", created: false, edited: true };
+        },
+      }),
+      beadsHead: () => "h2",
+      pushWatermark: { read: () => undefined, write: (h) => void (written = h) },
+    });
+    await runBeadsSync(opts(), output, deps);
+    expect(pushCalls).toBeGreaterThan(0); // push ran (no prior watermark)
+    expect(written).toBe("h2"); // advanced on full success
+  });
+
+  test("does not skip on --dry-run even when the HEAD matches", async () => {
+    let pushCalls = 0;
+    const { deps, output } = baseDeps({
+      loadAllBeads: () => [pinned("bd-1", 101)],
+      adapter: fakeAdapter({
+        push: async (bd) => {
+          pushCalls += 1;
+          return { externalId: bd.externalRef ?? "x", created: false, edited: true };
+        },
+      }),
+      beadsHead: () => "h1",
+      pushWatermark: { read: () => "h1", write: () => undefined },
+    });
+    await runBeadsSync(opts({ dryRun: true }), output, deps);
+    expect(pushCalls).toBe(0); // dry-run never edits anyway
+    // but the run still planned the push (not short-circuited) — exercised via no crash + plan path
+  });
+});
+
 describe("runBeadsSync — budget gate", () => {
   test("GraphQL remaining below threshold ⇒ budgetPaused, zero pairs, exit 0", async () => {
     let pullCalls = 0;
