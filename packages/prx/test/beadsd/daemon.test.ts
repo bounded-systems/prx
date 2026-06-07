@@ -153,6 +153,30 @@ describe("handleBeadsRequest — writes (single-writer, policy passthrough)", ()
     expect(calls[0]!.args).toEqual(["--json", "--type", "bug", "--title", "t"]);
   });
 
+  test("create passes --external-ref and --silent (write parity)", async () => {
+    const { execBd, calls } = fakeBd(okResult("{}"));
+    await handleBeadsRequest(
+      { kind: "create", issueType: "task", title: "t", externalRef: "https://github.com/o/r/issues/9", silent: true },
+      { execBd },
+    );
+    expect(calls[0]!.args).toEqual([
+      "--json",
+      "--type",
+      "task",
+      "--title",
+      "t",
+      "--external-ref",
+      "https://github.com/o/r/issues/9",
+      "--silent",
+    ]);
+  });
+
+  test("update passes --type (write parity)", async () => {
+    const { execBd, calls } = fakeBd(okResult("{}"));
+    await handleBeadsRequest({ kind: "update", id: "prx-abb", issueType: "bug" }, { execBd });
+    expect(calls[0]!.args).toEqual(["prx-abb", "--json", "--type", "bug"]);
+  });
+
   test("update dispatches `bd update <id> --json <fields>`", async () => {
     const { execBd, calls } = fakeBd(okResult("{}"));
     await handleBeadsRequest(

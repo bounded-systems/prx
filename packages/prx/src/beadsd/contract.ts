@@ -49,15 +49,24 @@ export const BeadsRequestSchema = z.discriminatedUnion("kind", [
   /** `bd show <id>` — one issue's detail. */
   z.object({ kind: z.literal("show"), id: z.string().min(1) }),
   // ── writes (policy-gated; dispatched to `bd` --json) ──
-  /** `bd create --type <t> --title <title> [--priority N] [--description d]`. */
+  /**
+   * `bd create --type <t> --title <title> [--priority N] [--description d]
+   * [--external-ref <url>] [--silent]`. `externalRef` pins a GH/external URL
+   * (the reverse-orphan mirror shape); `silent` suppresses bd's output line.
+   */
   z.object({
     kind: z.literal("create"),
     issueType: z.string().min(1),
     title: z.string().min(1),
     priority: z.number().int().min(0).max(4).optional(),
     description: z.string().min(1).optional(),
+    externalRef: z.string().min(1).optional(),
+    silent: z.boolean().optional(),
   }),
-  /** `bd update <id> [--status s] [--priority N] [--assignee a]` — at least one field. */
+  /**
+   * `bd update <id> [--status s] [--priority N] [--assignee a] [--type t]` —
+   * at least one field. `issueType` retargets the bd type (drift-fix axis sync).
+   */
   z.object({
     kind: z.literal("update"),
     id: z.string().min(1),
@@ -65,6 +74,7 @@ export const BeadsRequestSchema = z.discriminatedUnion("kind", [
     priority: z.number().int().min(0).max(4).optional(),
     /** Assignee; empty string clears it (bd assignee semantics). */
     assignee: z.string().optional(),
+    issueType: z.string().min(1).optional(),
   }),
   /** `bd close <id> [--reason r]`. */
   z.object({

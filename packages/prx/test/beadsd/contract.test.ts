@@ -48,6 +48,19 @@ describe("beadsd wire contract — request envelope", () => {
     expect(BeadsRequestSchema.safeParse({ kind: "close", id: "prx-abb", reason: "done" }).success).toBe(true);
   });
 
+  test("accepts the wave-2 write parity fields (create --external-ref/--silent, update --type)", () => {
+    expect(
+      BeadsRequestSchema.safeParse({
+        kind: "create",
+        issueType: "task",
+        title: "x",
+        externalRef: "https://github.com/o/r/issues/1",
+        silent: true,
+      }).success,
+    ).toBe(true);
+    expect(BeadsRequestSchema.safeParse({ kind: "update", id: "prx-abb", issueType: "bug" }).success).toBe(true);
+  });
+
   test("rejects malformed requests", () => {
     expect(BeadsRequestSchema.safeParse({ kind: "show" }).success).toBe(false);
     expect(BeadsRequestSchema.safeParse({ kind: "list", status: "" }).success).toBe(false);
