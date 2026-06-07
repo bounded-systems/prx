@@ -19,7 +19,6 @@
  *   PRX_COMPILE_GIT_SHA       baked git SHA (default: rev-parse --short=12)
  *   PRX_COMPILE_CLAUDE_PATH   baked native claude CLI path (default: $HOME/.local/bin/claude)
  *   PRX_COMPILE_OPERATOR_CONFIG_ROOT  bake the operator-config root (nix only; else omitted)
- *   PRX_COMPILE_AI_HOME_ROOT  deprecated alias of the above (one-release back-compat)
  *   PRX_COMPILE_TARGET        bun --compile target (default: host; CLI --target wins)
  *   BUN                       bun binary to invoke (default: bun)
  */
@@ -88,11 +87,9 @@ const defines = [
   "--define", `__PRX_BUILD_CLAUDE_CODE_PATH__="${claudePath}"`,
 ];
 
-// GH-411 slice 1: bake the operator-config root. New env name preferred;
-// PRX_COMPILE_AI_HOME_ROOT honored as a deprecated alias for one release (the
-// current nix wrapper still passes it). build-info reads the new define first.
-const operatorConfigRoot =
-  process.env.PRX_COMPILE_OPERATOR_CONFIG_ROOT ?? process.env.PRX_COMPILE_AI_HOME_ROOT;
+// GH-411: bake the operator-config root. (Slice 5 removed the deprecated
+// PRX_COMPILE_AI_HOME_ROOT alias.)
+const operatorConfigRoot = process.env.PRX_COMPILE_OPERATOR_CONFIG_ROOT;
 if (operatorConfigRoot) {
   defines.push("--define", `__PRX_BUILD_OPERATOR_CONFIG_ROOT__="${operatorConfigRoot}"`);
 }

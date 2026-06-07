@@ -6,7 +6,7 @@
 #   # ... then:
 #   programs.prx = {
 #     enable = true;
-#     aiHomeRoot = "${config.home.homeDirectory}/.config/ai-home"; # optional
+#     operatorConfigRoot = "${config.home.homeDirectory}/.config/prx-overlays"; # optional
 #     installWt  = true;   # optional `wt` worktree wrapper
 #   };
 #
@@ -20,7 +20,7 @@ let
   zshBin = "${pkgs.zsh}/bin/zsh";
 
   exports = lib.concatStringsSep "\n" (
-    lib.optional (cfg.aiHomeRoot != null) ''export PRX_AI_HOME_ROOT="${cfg.aiHomeRoot}"''
+    lib.optional (cfg.operatorConfigRoot != null) ''export PRX_OPERATOR_CONFIG_ROOT="${cfg.operatorConfigRoot}"''
     ++ lib.optional (cfg.claudePath != null) ''export BAKED_CLAUDE_CODE_PATH="${cfg.claudePath}"''
     # GH-352: provenance signing. prx deployed in a dev environment IS production
     # for prx, so signing is the identity layer, not a dev convenience. Per-actor
@@ -58,13 +58,14 @@ in
       description = "The prx package to install (defaults to the released binary for this system).";
     };
 
-    aiHomeRoot = lib.mkOption {
+    operatorConfigRoot = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
-      example = "/home/you/.config/ai-home";
+      example = "/home/you/.config/prx-overlays";
       description = ''
-        Sets PRX_AI_HOME_ROOT — the root holding per-repo overlay config at
+        Sets PRX_OPERATOR_CONFIG_ROOT — the root holding per-repo overlay config at
         <root>/.prx/repos/<reverse-dns>/prx.toml. Leave null if you don't use overlays.
+        (Renamed from `aiHomeRoot` / PRX_AI_HOME_ROOT in GH-411.)
       '';
     };
 
