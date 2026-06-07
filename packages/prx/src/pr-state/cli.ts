@@ -979,6 +979,12 @@ import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessio
 import { refreshTaskSignals } from "./status-report.ts";
 import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanCloseResult, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktreeRemove } from "./cli-format.ts";
 import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, detectBranchNameFromCwd, findWorktreeByDirectoryPrefix, listResolvedWorktrees, procSpawnLike, resolveRepoRootWithSpawn, runCommand, runInheritStatus, tryCommand } from "./cli-spawn.ts";
+// GH-519/GH-520: parity-chain side-effect primitives moved to their own leaf
+// module so non-CLI consumers (the triage pruneMergedActor) no longer drag the
+// whole CLI — and its triage machine cycle — into their import graph. Re-export
+// keeps cli.ts's existing callers (machine/gc drivers, tests) working.
+import { applyParityChainActions, pruneStaleRemoteRefs } from "./parity-chain.ts";
+export { applyParityChainActions, pruneStaleRemoteRefs } from "./parity-chain.ts";
 
 // Shared default for the `SpawnLike` capture seams below. Routes through
 // @bounded-systems/proc (imported as procRunner) rather than the bucket-gated github.ts
@@ -14503,29 +14509,6 @@ function resolveWorkUnitLaunchCwdUsingDefaults(workUnitId: string, cwd: string, 
   return resolveWorkUnitLaunchCwd(workUnitId, cwd, undefined, undefined, undefined, noVerify);
 }
 
-/**
- * GH-519: drop stale origin/GH-NNN remote-tracking refs before the parity
- * chain evaluates remote state.
- *
- * After a PR merges with `--delete-branch`, the remote branch is gone but
- * the local `origin/GH-NNN` ref lingers. The parity chain then sees a
- * "dirty" remote branch and demands `delete_remote_branch` against a ref
- * that's already gone, blocking `prx session open`.
- *
- * Best-effort: network errors or detached/sandbox runs should not abort
- * session open — we silently ignore fetch failures.
- */
-export function pruneStaleRemoteRefs(
-  cwd: string = process.cwd(),
-  spawn: SpawnLike = procSpawnLike,
-): void {
-  const repoRoot = resolveRepoRootWithSpawn(cwd, spawn);
-  spawn("git", ["-C", repoRoot, "fetch", "--prune", "origin"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-  });
-}
-
 function withWorktreeRuntimeLock<T>(
   worktreePath: string,
   reason: string,
@@ -14686,39 +14669,6 @@ function formatWorkspaceAdoptResult(
 
 function defaultPrCommentsOutputPath(repoPath: string): string {
   return join(repoPath, ".pr", "local", "review-comments.json");
-}
-
-/**
- * GH-520: execute each surface-sync action, returning one result per action.
- * Continue-on-error: a failure in one action does not halt the remaining
- * actions — they are independent reconciliation steps and the caller decides
- * the overall exit status.
- *
- * The action is an env-agnostic intent; this executor maps it to a command via
- * `commandForSurfaceSyncAction(intent, ctx)` (github.ts implements the spec),
- * then invokes `/bin/sh -c "<command>"`. The derived command is recorded on
- * the result.
- */
-export function applyParityChainActions(
-  summary: SurfaceSyncResult,
-  cwd: string = process.cwd(),
-  spawn: SpawnLike = procSpawnLike,
-  ctx: SurfaceSyncExecContext = surfaceSyncExecContext(cwd),
-): ParityChainApplyResult[] {
-  return summary.actions.map((action) => {
-    const command = commandForSurfaceSyncAction(action, ctx);
-    const result = spawn("/bin/sh", ["-c", command], {
-      cwd,
-      encoding: "utf8",
-    });
-    return {
-      action,
-      command,
-      status: result.status ?? 1,
-      stdout: (result.stdout ?? "").toString(),
-      stderr: (result.stderr ?? "").toString(),
-    };
-  });
 }
 
 /**

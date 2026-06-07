@@ -25,7 +25,7 @@
 import {
   applyParityChainActions,
   pruneStaleRemoteRefs,
-} from "../pr-state/cli.ts";
+} from "../pr-state/parity-chain.ts";
 import type { ParityChainApplyResult } from "../pr-state/cli-types.ts";
 import { buildParityChain, repoNameWithOwner } from "../pr-state/github.ts";
 import type { SurfaceSyncAction } from "@bounded-systems/surface-sync";
