@@ -64,30 +64,33 @@ yourself.
 
 ### 4. Publish the trust map + verify
 
-The declarative wiring can't derive keys; that one imperative step:
+The declarative wiring can't derive keys; one command does that imperative step
+— register the per-actor trust map, verify drift, report the posture:
 
 ```bash
-packages/prx/scripts/setup-provenance-signing
+prx provenance setup
 ```
 
 ```
-== prx provenance signing ==
-  master: /run/agenix/prx-provenance-master (operator-supplied)
-  mode: per-actor signing (PRX_PROVENANCE_KEY=dev)
--- prx keymaker register --
-keymaker register: 7 actors → ~/.config/prx/config.json
-  changed: author, implement, intake, plan, scratch, submit, triage
--- prx keymaker drift (must be clean) --
-  drift: clean.
-  enforcement: ON (fail-closed verification).
-== signing configured: per-actor keys derived, trust map published, drift clean ==
+prx provenance setup:
+  trust map:   7 actor(s) → ~/.config/prx/config.json
+  registered:  author, implement, intake, plan, scratch, submit, triage
+  verify:      drift clean
+
+provenance signing: production
+  production — operator master, per-actor trust map, fail-closed verification.
+  mode:        per-actor
+  master:      operator-file
+  trust map:   7 actor(s)
+  enforcement: on (fail-closed)
 ```
 
-`keymaker register` derives each actor's **public** key from the master and
-writes `provenance.trust`; `keymaker drift` confirms the published map matches
-the master's derived keys (it must be empty right after register). **Commit the
-trust map** (`~/.config/prx/config.json` `provenance.trust`) — it's public and is
-the verification anchor.
+It derives each actor's **public** key from the master, writes
+`provenance.trust`, and confirms drift is clean (the published map matches the
+master's derived keys). **Commit the trust map** (`~/.config/prx/config.json`
+`provenance.trust`) — it's public and is the verification anchor.
+(`packages/prx/scripts/setup-provenance-signing` wraps this with a file-perms
+preflight on the master.)
 
 ## The loop, verified
 
@@ -99,9 +102,9 @@ trusted. (See `docs/prx/ci-as-derivation.md`.)
 
 ## Rotation
 
-Rotate the master (re-encrypt, redeploy), then re-run
-`setup-provenance-signing`. `keymaker drift` will list the actors whose keys
-changed; `register` republishes them — commit the updated trust map. Old
+Rotate the master (re-encrypt, redeploy), then re-run `prx provenance setup`. It
+republishes the changed actor keys (and `prx provenance status` will show the
+`drifted` posture beforehand if you check); commit the updated trust map. Old
 signatures no longer verify, which is the point of a rotation.
 
 ## Bootstrap / dev fallback
