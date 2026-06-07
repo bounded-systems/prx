@@ -995,7 +995,7 @@ import { CliError } from "./cli-error.ts";
 import { type ExecutionWorkAgent, POLICY, buildWorkAutomationProfile, ensureExecutionWorkflowAgent, interactiveTimeoutMs, parseWorkAgentImplementation, validateWorkIoFormat } from "./work-agent.ts";
 import { findSavedClaudeSession, resolveCodexSessionProfile } from "./session-finder.ts";
 import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type ParityChainApplyResult, type PlanCloseReason, type PlanCloseResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
-import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatGraph, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatOverview, formatParityChainApplyResults, formatPhase, formatPlanCloseResult, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktree, formatWorktreeRemove, formatWtStatus } from "./cli-format.ts";
+import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatOverview, formatParityChainApplyResults, formatPhase, formatPlanCloseResult, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktree, formatWorktreeRemove, formatWtStatus } from "./cli-format.ts";
 import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, findWorktreeByDirectoryPrefix, listResolvedWorktrees, procSpawnLike, resolveRepoRootWithSpawn, runCommand, runInheritStatus, tryCommand } from "./cli-spawn.ts";
 
 // Shared default for the `SpawnLike` capture seams below. Routes through
@@ -2357,12 +2357,6 @@ type ParsedCommand =
       format: "plain" | "json";
     }
   | {
-      command: "stately";
-      url: string;
-      noWait: boolean;
-      model: "lifecycle" | "system";
-    }
-  | {
       command: "hooks-apply";
       hooksPath: string;
       everywhere: boolean;
@@ -2851,9 +2845,6 @@ type CliDeps = {
   buildDomainState?: typeof buildDomainState;
   viewPr?: typeof viewPr;
   initContract?: typeof initContract;
-  copyToClipboard?: (text: string) => void;
-  openAfterEnter?: (url: string) => void;
-  openUrl?: (url: string) => void;
   execRuntime?: RuntimeExecutor;
   execOpen?: (command: string, args: string[], cwd?: string) => {
     status: number;
@@ -12081,26 +12072,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  if (command === "stately") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        url: { type: "string", default: "https://stately.ai/registry/editor/" },
-        "no-wait": { type: "boolean", default: false },
-        model: { type: "string", default: "lifecycle" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command,
-      url: values.url,
-      noWait: values["no-wait"],
-      model: ensureChoice(values.model, ["lifecycle", "system"], "--model"),
-    };
-  }
-
   if (command === "intake") {
     // GH-950: `prx intake agent` is the operator-session shape (search →
     // file-or-merge → mirror → comment, no edits). Route it to the
@@ -14904,36 +14875,6 @@ function maybeWithWorktreeRuntimeLock<T>(
   return withWorktreeRuntimeLock(worktreePath, reason, deps, run);
 }
 
-function copyToClipboard(text: string): void {
-  let status: number | null = null;
-  try {
-    status = procRunner(["/usr/bin/pbcopy"], { input: text, check: false }).status;
-  } catch {
-    // procRunner throws if pbcopy can't be spawned (e.g. not macOS); the
-    // prior raw spawn surfaced that as a null status, which fails the check.
-    status = null;
-  }
-  if (status !== 0) {
-    throw new Error("Failed to copy machine output to clipboard.");
-  }
-}
-
-function openAfterEnter(url: string): void {
-  const promptStatus = runInheritStatus(["/bin/zsh", "-lc", 'printf "Machine copied. Press Enter to open Stately..."; read -r _']);
-  if (promptStatus !== 0) {
-    throw new Error("Interactive prompt cancelled.");
-  }
-  if (runInheritStatus(["/usr/bin/open", url]) !== 0) {
-    throw new Error(`Failed to open ${url}`);
-  }
-}
-
-function openUrl(url: string): void {
-  if (runInheritStatus(["/usr/bin/open", url]) !== 0) {
-    throw new Error(`Failed to open ${url}`);
-  }
-}
-
 // GH-1701: pick the best fs cwd to read a repo's `.beads/` and origin from.
 // Prefers an attached worktree (where per-project `.beads/` lives after
 // hydrate); falls back to the bare commonDir, which classifies as `none` or
@@ -16440,18 +16381,19 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       orchestratorVerb === "features" ||
       orchestratorVerb === "graph" ||
       orchestratorVerb === "skills" ||
-      orchestratorVerb === "open-mode"
+      orchestratorVerb === "open-mode" ||
+      orchestratorVerb === "stately"
     ) {
       return runSpecVerb(orchestratorVerb, orchestratorRest, output);
     }
-    // The `model` namespace's spec-driven catalog reads. `model graph` aliases
-    // the top-level `graph` verb; `model actors` → `actors`; `model show` and
-    // bare `model` → `model`. `model stately` (clipboard/open) is not yet a verb
-    // and falls through to the legacy handler.
+    // The `model` namespace's spec-driven verbs. `model graph` aliases the
+    // top-level `graph` verb; `model actors` → `actors`; `model show` and bare
+    // `model` → `model`; `model stately` → `stately`.
     if (orchestratorVerb === "model") {
       const sub = orchestratorRest[0];
       if (sub === "graph") return runSpecVerb("graph", orchestratorRest.slice(1), output);
       if (sub === "actors") return runSpecVerb("actors", orchestratorRest.slice(1), output);
+      if (sub === "stately") return runSpecVerb("stately", orchestratorRest.slice(1), output);
       if (sub === "show") return runSpecVerb("model", orchestratorRest.slice(1), output);
       if (sub === undefined || sub.startsWith("-")) return runSpecVerb("model", orchestratorRest, output);
     }
@@ -17708,22 +17650,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       }
 
       output.log(`${payload.state} (${payload.mode}) - ${payload.event} via ${skill}`);
-      return 0;
-    }
-
-    if (parsed.command === "stately") {
-      const machineText = formatGraph("xstate-ts");
-      (deps.copyToClipboard ?? copyToClipboard)(machineText);
-
-      if (parsed.noWait) {
-        if (runInheritStatus(["/usr/bin/open", parsed.url]) !== 0) {
-          throw new Error(`Failed to open ${parsed.url}`);
-        }
-      } else {
-        (deps.openAfterEnter ?? openAfterEnter)(parsed.url);
-      }
-
-      output.log(`Copied machine to clipboard and opened ${parsed.url}`);
       return 0;
     }
 

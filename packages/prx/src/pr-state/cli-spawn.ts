@@ -34,6 +34,32 @@ export function runInheritStatus(
   }
 }
 
+/** Copy `text` to the system clipboard via pbcopy. Throws if the copy fails. */
+export function copyToClipboard(text: string): void {
+  let status: number | null = null;
+  try {
+    status = procRunner(["/usr/bin/pbcopy"], { input: text, check: false }).status;
+  } catch {
+    // procRunner throws if pbcopy can't be spawned (e.g. not macOS); the
+    // prior raw spawn surfaced that as a null status, which fails the check.
+    status = null;
+  }
+  if (status !== 0) {
+    throw new Error("Failed to copy machine output to clipboard.");
+  }
+}
+
+/** Prompt for Enter, then `open` the URL. Throws if the prompt or open fails. */
+export function openAfterEnter(url: string): void {
+  const promptStatus = runInheritStatus(["/bin/zsh", "-lc", 'printf "Machine copied. Press Enter to open Stately..."; read -r _']);
+  if (promptStatus !== 0) {
+    throw new Error("Interactive prompt cancelled.");
+  }
+  if (runInheritStatus(["/usr/bin/open", url]) !== 0) {
+    throw new Error(`Failed to open ${url}`);
+  }
+}
+
 export type CommandRunnerResult = {
   status: number | null;
   stdout: string;
