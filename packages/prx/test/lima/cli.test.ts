@@ -76,8 +76,15 @@ describe("prx beads read-door (ready/list/show via beadsd)", () => {
     if (p.command === "beads-read") expect(p.id).toBe("prx-abb");
   });
 
-  test("reads require a vm (no --vm, no PRX_BEADS_VM)", () => {
-    expect(() => parse(["beads", "ready"])).toThrow(/requires --vm/);
+  test("no --vm ⇒ local daemon (vm undefined, reachable from any shell)", () => {
+    // GH-296: `prx beads ready` with no VM routes through the local daemon via
+    // withBeadsClient (auto-started) — the reachable surface for any shell.
+    const p = parse(["beads", "ready"]);
+    expect(p.command).toBe("beads-read");
+    if (p.command === "beads-read") {
+      expect(p.kind).toBe("ready");
+      expect(p.vm).toBeUndefined();
+    }
   });
 
   test("show requires an id", () => {
