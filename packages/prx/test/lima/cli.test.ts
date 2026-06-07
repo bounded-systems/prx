@@ -71,6 +71,18 @@ describe("prx beads read-door (ready/list/show via beadsd)", () => {
     if (p.command === "beads-read") expect(p.status).toBe("open");
   });
 
+  test("`beads list --all --limit 0` carries the aggregate flags", () => {
+    const p = parse(["beads", "list", "--all", "--limit", "0"]);
+    if (p.command === "beads-read") {
+      expect(p.all).toBe(true);
+      expect(p.limit).toBe(0);
+    }
+  });
+
+  test("a negative --limit is rejected", () => {
+    expect(() => parse(["beads", "list", "--limit=-1"])).toThrow(/--limit must be a non-negative integer/);
+  });
+
   test("`beads show <id> --vm` carries the id", () => {
     const p = parse(["beads", "show", "prx-abb", "--vm", "myvm"]);
     expect(p.command === "beads-read" && p.kind).toBe("show");
