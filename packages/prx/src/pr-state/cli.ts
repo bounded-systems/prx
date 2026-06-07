@@ -2078,6 +2078,14 @@ type ParsedCommand =
       cwd: string;
     }
   | {
+      // GH-296: daemon-aware session primer — the prx-beads twin of `bd prime`.
+      command: "beads-prime";
+      format: "plain" | "json";
+      vm?: string | undefined;
+      vmSocket: string;
+      hostSocket?: string | undefined;
+    }
+  | {
       // GH-228: `prx lima <verb>` — in-VM daemon lifecycle over the daemon registry.
       command: "lima";
       format: "plain" | "json";
@@ -4797,8 +4805,12 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "beads") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "beads requires a subcommand: ready, list, show, create, update, close, hydrate, provision, issue, migrate, publish, sync, sync-all, doctor",
+        "beads requires a subcommand: ready, list, show, create, update, close, reopen, prime, hydrate, provision, issue, migrate, publish, sync, sync-all, doctor",
       );
+    }
+    if (c1 === "prime") {
+      // GH-296: daemon-aware session primer (the prx-beads twin of `bd prime`).
+      return ["beads-prime", ...tail];
     }
     if (c1 === "hydrate") {
       return ["beads-hydrate", ...tail];
@@ -8142,6 +8154,29 @@ export function parseCommand(argv: string[]): ParsedCommand {
   // holds no beads DB; it asks the daemon. With no `--vm` it routes through the
   // local daemon (auto-started by `withBeadsClient`); `--vm <name>` (or
   // `PRX_BEADS_VM`) targets the in-VM daemon explicitly.
+  if (command === "beads-prime") {
+    // GH-296: daemon-aware session primer (prx-beads twin of `bd prime`).
+    const { values } = parseArgs({
+      args: rest,
+      options: {
+        format: { type: "string", default: "plain" },
+        vm: { type: "string" },
+        "vm-socket": { type: "string" },
+        "host-socket": { type: "string" },
+      },
+      strict: true,
+      allowPositionals: false,
+    });
+    const vm = values.vm ?? getEnv("PRX_BEADS_VM");
+    return {
+      command: "beads-prime",
+      format: ensureChoice(values.format, ["plain", "json"], "--format"),
+      ...(typeof vm === "string" && vm.length > 0 ? { vm } : {}),
+      vmSocket: values["vm-socket"] ?? "/tmp/beadsd.sock",
+      ...(values["host-socket"] !== undefined ? { hostSocket: values["host-socket"] } : {}),
+    };
+  }
+
   if (command === "beads-read") {
     const { values, positionals } = parseArgs({
       args: rest,
@@ -22908,6 +22943,69 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         output.error("beads: re-bootstrap did not restore a prefix — see `bd doctor` / `bd help init-safety`");
       }
       return res.repaired || res.action === "none" ? 0 : 1;
+    }
+
+    if (parsed.command === "beads-prime") {
+      // GH-296: daemon-aware session primer (prx-beads twin of `bd prime`).
+      // Resilient — a SessionStart hook must never fail: an unreachable daemon
+      // still prints the guidance banner and exits 0.
+      return (async () => {
+        let ready: unknown[] = [];
+        let reachError: string | null = null;
+        try {
+          const reply =
+            parsed.vm !== undefined
+              ? await withLimaBeadsClient(
+                  {
+                    vm: parsed.vm,
+                    vmSocket: parsed.vmSocket,
+                    ...(parsed.hostSocket !== undefined ? { hostSocket: parsed.hostSocket } : {}),
+                  },
+                  (client) => client.query({ kind: "ready" }),
+                )
+              : await withBeadsClient((client) => client.query({ kind: "ready" }));
+          if (reply.status === "ok" && Array.isArray(reply.result)) {
+            ready = reply.result;
+          } else if (reply.status === "error") {
+            reachError = `${reply.code}: ${reply.message}`;
+          }
+        } catch (err) {
+          reachError = err instanceof Error ? err.message : String(err);
+        }
+
+        if (parsed.format === "json") {
+          output.log(JSON.stringify({ ready, reachError }, null, 2));
+          return 0;
+        }
+
+        const lines: string[] = [
+          "# Beads via prx (GH-296)",
+          "",
+          "Reach beads through the daemon — `prx beads <ready|list|show|create|update|close|reopen>`.",
+          "It serves the one canonical beads for THIS repo (one daemon = one repo); raw `bd` is",
+          "unreachable in a worktree. Writes land in the daemon's clone; reconcile/push is the",
+          "sync agent's job — do not `bd dolt push` from a worktree.",
+          "",
+        ];
+        if (reachError) {
+          lines.push(`beads daemon not reachable: ${reachError}`);
+          lines.push("Start it: `prx beads serve --socket <path> --cwd <clone>` (or set PRX_BEADS_VM).");
+        } else {
+          lines.push(`## Ready work (${ready.length})`);
+          if (ready.length === 0) {
+            lines.push("✨ No ready issues");
+          } else {
+            for (const entry of ready) {
+              const r = entry as { id?: unknown; title?: unknown };
+              const id = typeof r.id === "string" ? r.id : "?";
+              const title = typeof r.title === "string" ? r.title : "";
+              lines.push(`- ${id}  ${title}`);
+            }
+          }
+        }
+        output.log(lines.join("\n"));
+        return 0;
+      })();
     }
 
     if (parsed.command === "beads-read") {

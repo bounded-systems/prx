@@ -219,6 +219,7 @@ Repo plumbing:
   prx worktree refresh       Rebase work-unit branch onto origin main
   prx beads hydrate          Hydrate beads database for current repo
   prx beads provision        Provision the canonical local beads clone
+  prx beads prime            Prime session beads context via the daemon
   prx beads issue            Look up beads row by GitHub issue
   prx beads sync-all         Fan out prx dolt reconcile across dolthub-wired registered repos
   prx beads doctor           Diagnose the beads workspace; --fix re-bootstraps an unhealthy clone (GH-228)
