@@ -3,22 +3,36 @@ import { describe, expect, test } from "bun:test";
 import { runDelegateAssign } from "../../src/delegate/assign.ts";
 import type { BdExecOptions, BdExecResult } from "@bounded-systems/bd";
 
-type Recorder = { calls: BdExecOptions[]; exec: (opts: BdExecOptions) => BdExecResult };
+// GH-296 / prx-82b: the assign write now runs `prx beads update <id> --assignee
+// <name>` through the daemon (a sync runner), not host `bd assign`. The fake
+// runner records the equivalent old `bd assign` BdExecOptions shape so the
+// existing call assertions hold; `result` still drives failure injection.
+type Recorder = {
+  calls: BdExecOptions[];
+  run: (cmd: string[], opts?: { cwd?: string; check?: boolean }) => {
+    status: number;
+    stdout: string;
+    stderr: string;
+  };
+};
 
 function recordingExec(result: Partial<BdExecResult> = {}): Recorder {
-  const merged: BdExecResult = {
-    exitCode: 0,
-    stdout: "",
-    stderr: "",
-    policy: null,
-    ...result,
-  };
+  const merged: BdExecResult = { exitCode: 0, stdout: "", stderr: "", policy: null, ...result };
   const calls: BdExecOptions[] = [];
   return {
     calls,
-    exec: (opts: BdExecOptions) => {
-      calls.push(opts);
-      return merged;
+    run: (cmd: string[], opts?: { cwd?: string; check?: boolean }) => {
+      // cmd = ["prx","beads","update", <id>, "--assignee", <target>]
+      const id = cmd[3] ?? "";
+      const target = cmd[5] ?? "";
+      calls.push({
+        subcommand: "assign",
+        args: [id, target],
+        ...(opts?.cwd !== undefined ? { cwd: opts.cwd } : {}),
+        state: "planning",
+        role: "planner",
+      } as BdExecOptions);
+      return { status: merged.exitCode, stdout: merged.stdout, stderr: merged.stderr };
     },
   };
 }
@@ -52,7 +66,7 @@ describe("runDelegateAssign — mode dispatch", () => {
     const rec = recordingExec();
     const result = runDelegateAssign(
       { id: "GH-1", repoPath: "." },
-      { execBd: rec.exec, runBdShow: showOk("GH-1") },
+      { run: rec.run, runBdShow: showOk("GH-1") },
     );
     expect(result.exitCode).toBe(2);
     expect(result.message).toMatch(/requires one of/);
@@ -63,7 +77,7 @@ describe("runDelegateAssign — mode dispatch", () => {
     const rec = recordingExec();
     const result = runDelegateAssign(
       { id: "GH-1", self: true, unassign: true, repoPath: "." },
-      { execBd: rec.exec, runBdShow: showOk("GH-1") },
+      { run: rec.run, runBdShow: showOk("GH-1") },
     );
     expect(result.exitCode).toBe(2);
     expect(result.message).toMatch(/exactly one/);
@@ -74,7 +88,7 @@ describe("runDelegateAssign — mode dispatch", () => {
     const rec = recordingExec();
     const result = runDelegateAssign(
       { id: "GH-1", agent: "alice", unassign: true, repoPath: "." },
-      { execBd: rec.exec, runBdShow: showOk("GH-1") },
+      { run: rec.run, runBdShow: showOk("GH-1") },
     );
     expect(result.exitCode).toBe(2);
     expect(rec.calls).toEqual([]);
@@ -84,7 +98,7 @@ describe("runDelegateAssign — mode dispatch", () => {
     const rec = recordingExec();
     const result = runDelegateAssign(
       { id: "GH-1", agent: "   ", repoPath: "." },
-      { execBd: rec.exec, runBdShow: showOk("GH-1") },
+      { run: rec.run, runBdShow: showOk("GH-1") },
     );
     expect(result.exitCode).toBe(2);
     expect(rec.calls).toEqual([]);
@@ -96,7 +110,7 @@ describe("runDelegateAssign — eligibility", () => {
     const rec = recordingExec();
     const result = runDelegateAssign(
       { id: "GH-999999", agent: "alice", repoPath: "." },
-      { execBd: rec.exec, runBdShow: showFail() },
+      { run: rec.run, runBdShow: showFail() },
     );
     expect(result.exitCode).toBe(1);
     expect(result.message).toMatch(/not eligible/);
@@ -107,7 +121,7 @@ describe("runDelegateAssign — eligibility", () => {
     const rec = recordingExec();
     const result = runDelegateAssign(
       { id: "GH-7", agent: "alice", repoPath: "." },
-      { execBd: rec.exec, runBdShow: showOk("GH-7", "closed") },
+      { run: rec.run, runBdShow: showOk("GH-7", "closed") },
     );
     expect(result.exitCode).toBe(1);
     expect(result.message).toMatch(/closed/);
@@ -120,7 +134,7 @@ describe("runDelegateAssign — agent passthrough", () => {
     const rec = recordingExec();
     const result = runDelegateAssign(
       { id: "GH-456", agent: "alice", repoPath: "/repo" },
-      { execBd: rec.exec, runBdShow: showOk("GH-456") },
+      { run: rec.run, runBdShow: showOk("GH-456") },
     );
     expect(result).toEqual({
       exitCode: 0,
@@ -141,7 +155,7 @@ describe("runDelegateAssign — agent passthrough", () => {
     const rec = recordingExec();
     runDelegateAssign(
       { id: "GH-1", agent: "  bob  ", repoPath: "." },
-      { execBd: rec.exec, runBdShow: showOk("GH-1") },
+      { run: rec.run, runBdShow: showOk("GH-1") },
     );
     expect(rec.calls[0]?.args).toEqual(["GH-1", "bob"]);
   });
@@ -150,7 +164,7 @@ describe("runDelegateAssign — agent passthrough", () => {
     const rec = recordingExec({ exitCode: 1, stderr: "bd error" });
     const result = runDelegateAssign(
       { id: "GH-1", agent: "alice", repoPath: "." },
-      { execBd: rec.exec, runBdShow: showOk("GH-1") },
+      { run: rec.run, runBdShow: showOk("GH-1") },
     );
     expect(result.exitCode).toBe(1);
     expect(result.message).toMatch(/bd error/);
@@ -163,7 +177,7 @@ describe("runDelegateAssign — --self resolver (GH-2012 login-shape)", () => {
     const result = runDelegateAssign(
       { id: "GH-1", self: true, repoPath: "." },
       {
-        execBd: rec.exec,
+        run: rec.run,
         runBdShow: showOk("GH-1"),
         resolveSelfOperator: () => ({ ok: true, agent: "bdelanghe" }),
       },
@@ -180,7 +194,7 @@ describe("runDelegateAssign — --self resolver (GH-2012 login-shape)", () => {
     const result = runDelegateAssign(
       { id: "GH-1", self: true, repoPath: "." },
       {
-        execBd: rec.exec,
+        run: rec.run,
         runBdShow: showOk("GH-1"),
         resolveSelfOperator: () => ({
           ok: false,
@@ -199,7 +213,7 @@ describe("runDelegateAssign — --unassign", () => {
     const rec = recordingExec();
     const result = runDelegateAssign(
       { id: "GH-9", unassign: true, repoPath: "/r" },
-      { execBd: rec.exec, runBdShow: showOk("GH-9") },
+      { run: rec.run, runBdShow: showOk("GH-9") },
     );
     expect(result).toEqual({
       exitCode: 0,

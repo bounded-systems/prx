@@ -17,7 +17,8 @@
  *   - `unassign: true` → clear the bd assignee (`bd assign <id> ""`).
  */
 
-import { execBd as defaultExecBd, runBdShow as defaultRunBdShow } from "@bounded-systems/bd";
+import { runBdShow as defaultRunBdShow } from "@bounded-systems/bd";
+import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import {
   resolveSelfOperator as defaultResolveSelfOperator,
   type ResolveSelfOperatorDeps,
@@ -32,7 +33,12 @@ export type DelegateAssignInput = {
 };
 
 export type DelegateAssignDeps = {
-  execBd?: typeof defaultExecBd;
+  /**
+   * GH-296 / prx-82b — sync runner for the daemon-routed assign write
+   * (`prx beads update <id> --assignee <name>`), so assignment mutates the one
+   * beads the daemon owns instead of host `bd`. Default: procRunner.
+   */
+  run?: CommandRunner;
   runBdShow?: typeof defaultRunBdShow;
   resolveSelfOperator?: (deps?: ResolveSelfOperatorDeps) => ReturnType<typeof defaultResolveSelfOperator>;
 };
@@ -110,19 +116,18 @@ export function runDelegateAssign(
     }
   }
 
-  // bd write — `bd assign <id> <name>` (empty string clears, per bd CLI).
-  const exec = deps.execBd ?? defaultExecBd;
-  const result = exec({
-    subcommand: "assign",
-    args: [input.id, target],
-    cwd: input.repoPath,
-    state: "planning",
-    role: "planner",
-  });
-  if (result.exitCode !== 0) {
-    const detail = result.stderr.trim() || result.stdout.trim() || "bd assign failed";
+  // GH-296 / prx-82b: write via the daemon. `bd assign <id> <name>` is shorthand
+  // for `bd update <id> --assignee <name>` (empty string clears); route it as
+  // `prx beads update <id> --assignee <name>` through the single writer.
+  const run = deps.run ?? procRunner;
+  const result = run(
+    ["prx", "beads", "update", input.id, "--assignee", target],
+    { cwd: input.repoPath, check: false },
+  );
+  if (result.status !== 0) {
+    const detail = result.stderr.trim() || result.stdout.trim() || "prx beads update failed";
     return {
-      exitCode: result.exitCode || 1,
+      exitCode: result.status || 1,
       message: `prx delegate assign: ${detail}`,
     };
   }
