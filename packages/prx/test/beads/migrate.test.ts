@@ -398,5 +398,44 @@ describe("runBeadsMigrate apply (GH-1706)", () => {
     expect(events).not.toContain("BD_MIGRATION_VERIFIED");
   });
 });
+describe("runBeadsMigrate refusals — non-embedded modes (GH-1706)", () => {
+  test("none (no .beads) → not-embedded with the beads-init hint", () => {
+    const { cwd, home } = makeTmpDirs();
+    const r = runBeadsMigrate({}, { cwd, homeDir: home, resolveRepo: () => fakeRepo(cwd) });
+    expect(r.kind).toBe("refused");
+    if (r.kind === "refused") {
+      expect(r.reason).toBe("not-embedded");
+      expect(r.hint).toContain("beads-init");
+    }
+  });
+
+  test("shared_server (metadata server mode) → not-embedded with the add-dolthub hint", () => {
+    const { cwd, home } = makeTmpDirs();
+    mkdirSync(join(cwd, ".beads"), { recursive: true });
+    writeFileSync(
+      join(cwd, ".beads", "metadata.json"),
+      JSON.stringify({ dolt_mode: "server", dolt_database: "demo_db" }),
+    );
+    mkdirSync(join(home, ".beads", "shared-server", "dolt", "demo_db"), { recursive: true });
+    const r = runBeadsMigrate({}, { cwd, homeDir: home, resolveRepo: () => fakeRepo(cwd) });
+    expect(r.kind).toBe("refused");
+    if (r.kind === "refused") {
+      expect(r.reason).toBe("not-embedded");
+      expect(r.hint).toContain("add-dolthub");
+    }
+  });
+
+  test("ambiguous (.beads with no dolt subtree) → not-embedded with the refresh hint", () => {
+    const { cwd, home } = makeTmpDirs();
+    mkdirSync(join(cwd, ".beads"), { recursive: true });
+    const r = runBeadsMigrate({}, { cwd, homeDir: home, resolveRepo: () => fakeRepo(cwd) });
+    expect(r.kind).toBe("refused");
+    if (r.kind === "refused") {
+      expect(r.reason).toBe("not-embedded");
+      expect(r.hint).toContain("refresh");
+    }
+  });
+});
+
 // suppress unused-import lint on the helpers we keep ready for future tests.
 void cpSync;
