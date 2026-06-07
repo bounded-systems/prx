@@ -1,5 +1,18 @@
 # @bounded-systems/prx
 
+## 0.7.1
+
+### Patch Changes
+
+- b5fa4b1: `prx beads provision` (and `prx lima provision-beads`) now `chmod 700` the `.beads` directory it creates, so bd no longer warns about insecure `0755` permissions on the provisioned canonical clone.
+- edf2fbb: `prx snapshot` now surfaces the CI provenance verdict + freshness in `DomainStateV1.ci` via a cached layer (GH-352): `prx ci` writes the verdict to `.pr/local/ci-provenance.json` while the ledger is open, and `snapshot` reads it synchronously and recomputes freshness against HEAD (`fresh` while the cached commit is still HEAD, `stale` once it moves) — so the read stays synchronous and ledger-free.
+- 92cc8db: Make the test suite hermetic against the operator's git signing config. Many tests
+  `git commit` throwaway fixture repos that fell back to the operator's global
+  `~/.config/git/config` — which, with an interactive signer (e.g. 1Password SSH),
+  fails headless and broke `prx ci` (and so the pilot's local `checking` gate,
+  GH-360). The bun-test preload now points git's global/system config at a hermetic
+  file (identity set, signing off), isolating fixture commits from the operator setup.
+
 ## 0.7.0
 
 ### Minor Changes
