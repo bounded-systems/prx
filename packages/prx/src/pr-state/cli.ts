@@ -1002,6 +1002,7 @@ import { type ExecutionWorkAgent, POLICY, buildWorkAutomationProfile, ensureExec
 import { findSavedClaudeSession, resolveCodexSessionProfile } from "./session-finder.ts";
 import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type ParityChainApplyResult, type PlanCloseReason, type PlanCloseResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
 import { formatActionExecutionResult, formatActionPlan, formatActors, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatCreateCommand, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatGraph, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatModel, formatNextWork, formatOverview, formatParityChainApplyResults, formatPhase, formatPlanCloseResult, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatReadyCommand, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSkillCatalog, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktree, formatWorktreeRemove, formatWtStatus } from "./cli-format.ts";
+import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, findWorktreeByDirectoryPrefix, listResolvedWorktrees, procSpawnLike, resolveRepoRootWithSpawn, runCommand, runInheritStatus, tryCommand } from "./cli-spawn.ts";
 
 // Shared default for the `SpawnLike` capture seams below. Routes through
 // @bounded-systems/proc (imported as procRunner) rather than the bucket-gated github.ts
@@ -1009,37 +1010,10 @@ import { formatActionExecutionResult, formatActionPlan, formatActors, formatArti
 // ungated — and maps a thrown spawn error back to the { status: null, error }
 // result shape the seam callers branch on. (SpawnLike / SpawnLikeResult are
 // declared later in the file; type aliases hoist.)
-const procSpawnLike: SpawnLike = (file, args, options) => {
-  try {
-    const result = procRunner([file, ...args], {
-      cwd: options.cwd,
-      env: options.env ?? processEnv(),
-      check: false,
-    });
-    return { status: result.status, stdout: result.stdout, stderr: result.stderr };
-  } catch (error) {
-    return {
-      status: null,
-      error: error instanceof Error ? error : new Error(String(error)),
-    };
-  }
-};
-
 // Run an interactive (stdio-inherit) command and return its exit status. A
 // spawn failure (e.g. the binary is missing) maps to 1 so callers' `status
 // !== 0` checks fire — matching the prior raw spawn, which reported such
 // failures as a null status.
-function runInheritStatus(
-  cmd: string[],
-  options: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
-): number {
-  try {
-    return procRunner(cmd, { ...options, stdio: "inherit", check: false }).status;
-  } catch {
-    return 1;
-  }
-}
-
 type Output = {
   log: (line: string) => void;
   error: (line: string) => void;
@@ -3225,14 +3199,6 @@ type NodeError = Error & {
   code?: string;
   path?: string;
 };
-
-type CommandRunnerResult = {
-  status: number | null;
-  stdout: string;
-  stderr: string;
-  error?: Error | undefined;
-};
-
 type CommandRunner = (command: string[], cwd?: string) => CommandRunnerResult;
 
 type RuntimeArtifactStatus = {
@@ -13076,40 +13042,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
 
 const repoRootPath = fileURLToPath(new URL("../../", import.meta.url));
 
-function runCommand(command: string[], cwd = process.cwd()): CommandRunnerResult {
-  const file = command[0] ?? "";
-  const args = command.slice(1);
-  try {
-    const result = procRunner([file, ...args], {
-      cwd,
-      env: commandEnv(command),
-      check: false,
-    });
-    return {
-      status: result.status,
-      stdout: result.stdout,
-      stderr: result.stderr,
-    };
-  } catch (error) {
-    return {
-      status: null,
-      stdout: "",
-      stderr: "",
-      error: error instanceof Error ? error : new Error(String(error)),
-    };
-  }
-}
-
-function tryCommand(command: string[], cwd?: string): string | null {
-  const result = runCommand(command, cwd);
-
-  if (result.status !== 0) {
-    return null;
-  }
-
-  return result.stdout.trim() || null;
-}
-
 function canonicalBeadsRepoIdFromGithubRepo(githubRepo: string): string | null {
   const [owner, repo] = githubRepo.split("/");
   if (!owner || !repo) {
@@ -14074,78 +14006,6 @@ export function ensureLocalRuntimeArtifacts(
   writeFileSync(join(cwd, paths.schemaPath), JSON.stringify(outputSchema, null, 2));
 
   return status;
-}
-
-type SpawnLikeResult = {
-  status: number | null;
-  stdout?: string | null;
-  stderr?: string | null;
-  error?: Error;
-};
-
-type SpawnLike = (
-  file: string,
-  args: string[],
-  options: { cwd: string; encoding: "utf8"; env?: NodeJS.ProcessEnv },
-) => SpawnLikeResult;
-
-type WorktreeResolutionEntry = {
-  branch: string;
-  path: string;
-  states: string[];
-};
-
-function resolveRepoRootWithSpawn(
-  cwd: string,
-  spawn: SpawnLike,
-): string {
-  const repoRootResult = spawn("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" });
-  if (repoRootResult.error) {
-    throw repoRootResult.error;
-  }
-  if ((repoRootResult.status ?? 1) !== 0) {
-    const msg = (repoRootResult.stderr ?? repoRootResult.stdout ?? "").trim() || "git rev-parse failed";
-    throw new CliError(msg);
-  }
-  return (repoRootResult.stdout ?? "").trim();
-}
-
-function listResolvedWorktrees(
-  repoRoot: string,
-  runner: GithubCommandRunner,
-): WorktreeResolutionEntry[] {
-  // prx-native: read worktrees straight from git. Detached worktrees (branch
-  // null) are kept with an empty branch so findWorktreeByDirectoryPrefix can
-  // still match a drifted work-unit directory by its on-disk name.
-  return listWorktrees(repoRoot, runner).map((entry) => ({
-    branch: entry.branch ?? "",
-    path: entry.path,
-    states: [],
-  }));
-}
-
-/**
- * GH-521: match a Worktrunk-created worktree directory to the canonical
- * work unit id. Worktrunk names work-unit worktrees `gh_<num>_<suffix>`
- * (e.g., `gh_515_azi` for GH-515). When a worktree exists at that path
- * but its branch has drifted (reset to main, detached, etc.), the exact
- * `entry.branch === workUnitId` match fails — but the user still wants
- * to reuse that directory rather than materialize a new one.
- *
- * Returns the first entry whose path basename begins with the expected
- * `gh_<num>_` prefix, or `undefined` if none match.
- */
-export function findWorktreeByDirectoryPrefix(
-  entries: ReadonlyArray<WorktreeResolutionEntry>,
-  workUnitId: string,
-): WorktreeResolutionEntry | undefined {
-  const normalized = workUnitId.toLowerCase();
-  const match = /^([a-z]+)-(\d+)$/.exec(normalized);
-  if (!match) {
-    return undefined;
-  }
-  const prefix = `${match[1]}_${match[2]}_`;
-  return entries.find((entry) => basename(entry.path).toLowerCase().startsWith(prefix));
 }
 
 function materializeWorkUnitBranchWithGit(
