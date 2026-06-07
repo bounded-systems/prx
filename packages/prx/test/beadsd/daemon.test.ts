@@ -219,6 +219,26 @@ describe("handleBeadsRequest — writes (single-writer, policy passthrough)", ()
     expect(calls[0]!.args).toEqual(["prx-abb", "--json"]);
   });
 
+  test("dep add dispatches `bd dep add --type <t> <from> <to>` (GH-296)", async () => {
+    const { execBd, calls } = fakeBd(okResult(""));
+    const reply = await handleBeadsRequest(
+      { kind: "dep", action: "add", from: "prx-a", to: "prx-b", depType: "parent-child" },
+      { execBd },
+    );
+    expect(calls[0]!.subcommand).toBe("dep");
+    expect(calls[0]!.args).toEqual(["add", "--type", "parent-child", "prx-a", "prx-b"]);
+    // dep is not a --json surface: empty stdout on exit 0 ⇒ ok/null (not bad-output).
+    expect(reply.status).toBe("ok");
+    if (reply.status === "ok") expect(reply.result).toBeNull();
+  });
+
+  test("dep remove dispatches `bd dep remove <from> <to>` (GH-296)", async () => {
+    const { execBd, calls } = fakeBd(okResult(""));
+    await handleBeadsRequest({ kind: "dep", action: "remove", from: "prx-a", to: "prx-b" }, { execBd });
+    expect(calls[0]!.subcommand).toBe("dep");
+    expect(calls[0]!.args).toEqual(["remove", "prx-a", "prx-b"]);
+  });
+
   test("update dispatches `bd update <id> --json <fields>`", async () => {
     const { execBd, calls } = fakeBd(okResult("{}"));
     await handleBeadsRequest(

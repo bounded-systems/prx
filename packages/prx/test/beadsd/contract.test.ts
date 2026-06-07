@@ -12,8 +12,19 @@ import {
 describe("beadsd wire contract — request envelope", () => {
   test("the envelope is an enumerable read+write allowlist", () => {
     expect(BEADS_READ_KINDS).toEqual(["ready", "list", "show"]);
-    expect(BEADS_WRITE_KINDS).toEqual(["create", "update", "close", "reopen"]);
-    expect(BEADS_REQUEST_KINDS).toEqual(["ready", "list", "show", "create", "update", "close", "reopen"]);
+    expect(BEADS_WRITE_KINDS).toEqual(["create", "update", "close", "reopen", "dep"]);
+    expect(BEADS_REQUEST_KINDS).toEqual([
+      "ready", "list", "show", "create", "update", "close", "reopen", "dep",
+    ]);
+  });
+
+  test("accepts the dep write envelope (GH-296)", () => {
+    expect(
+      BeadsRequestSchema.safeParse({ kind: "dep", action: "add", from: "a", to: "b", depType: "parent-child" }).success,
+    ).toBe(true);
+    expect(BeadsRequestSchema.safeParse({ kind: "dep", action: "remove", from: "a", to: "b" }).success).toBe(true);
+    expect(BeadsRequestSchema.safeParse({ kind: "dep", action: "bogus", from: "a", to: "b" }).success).toBe(false);
+    expect(BeadsRequestSchema.safeParse({ kind: "dep", action: "add", from: "a" }).success).toBe(false);
   });
 
   test("isBeadsWriteKind classifies reads vs writes", () => {

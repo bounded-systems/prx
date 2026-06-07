@@ -4346,7 +4346,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "beads") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "beads requires a subcommand: ready, list, show, create, update, close, reopen, prime, hydrate, provision, issue, migrate, publish, sync, sync-all, doctor",
+        "beads requires a subcommand: ready, list, show, create, update, close, reopen, dep, prime, hydrate, provision, issue, migrate, publish, sync, sync-all, doctor",
       );
     }
     if (c1 === "prime") {
@@ -4391,7 +4391,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
       // Collapse the three reads onto one command with the kind as a positional.
       return ["beads-read", c1, ...tail];
     }
-    if (c1 === "create" || c1 === "update" || c1 === "close" || c1 === "reopen") {
+    if (c1 === "create" || c1 === "update" || c1 === "close" || c1 === "reopen" || c1 === "dep") {
       // GH-296 wave 2: host write-door — the single-writer surface routed
       // through beadsd. Collapse the atomic writes onto one command with the
       // kind as a positional.
@@ -7846,8 +7846,26 @@ export function parseCommand(argv: string[]): ParsedCommand {
         throw new CliError("prx beads reopen requires an id: `prx beads reopen <id>`");
       }
       request = { kind: "reopen", id };
+    } else if (kind === "dep") {
+      // `prx beads dep add [--type <t>] <from> <to>` / `prx beads dep remove <from> <to>`
+      const action = positionals[1];
+      const from = positionals[2];
+      const to = positionals[3];
+      if (action !== "add" && action !== "remove") {
+        throw new CliError("prx beads dep requires an action: `prx beads dep add|remove <from> <to>`");
+      }
+      if (typeof from !== "string" || from.length === 0 || typeof to !== "string" || to.length === 0) {
+        throw new CliError(`prx beads dep ${action} requires <from> <to>`);
+      }
+      request = {
+        kind: "dep",
+        action,
+        from,
+        to,
+        ...(values.type !== undefined ? { depType: values.type } : {}),
+      };
     } else {
-      throw new CliError("prx beads write requires a kind: create | update | close | reopen");
+      throw new CliError("prx beads write requires a kind: create | update | close | reopen | dep");
     }
 
     // Validate against the wire contract for a clear error before dispatch.
