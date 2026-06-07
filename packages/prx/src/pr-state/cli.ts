@@ -811,7 +811,9 @@ import {
   type CiPhase,
   type PhaseResult,
 } from "./local-ci.ts";
-import { attestCiPhases, ciLedgerTarget, CI_LEDGER_ENV, resolveCiInputs } from "./ci-attest.ts";
+import { attestCiPhases, ciLedgerTarget, CI_LEDGER_ENV, currentCiRefs, resolveCiInputs } from "./ci-attest.ts";
+import { resolveCiProvenanceState } from "./ci-provenance-state.ts";
+import { readCiProvenanceState, writeCiProvenanceCache } from "./ci-provenance-cache.ts";
 import {
   inferOperatorScopeFromCwd,
   isMainxPath,
@@ -23684,6 +23686,19 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             output.error(
               `prx ci: signed ci/phase/v1 for ${recorded.length} phase(s) at ${commit.slice(0, 7)} (tree-bound)${partial} → ledger`,
             );
+            // GH-352: cache the verdict so `prx snapshot` (sync, ledger-free)
+            // can surface it without opening the chain; freshness is recomputed
+            // at read time against HEAD.
+            const ciState = await resolveCiProvenanceState({
+              store,
+              commit,
+              currentRefs: currentCiRefs(inputs),
+              verifier: resolveProvenanceVerifier(),
+              ...(isPerActorMode()
+                ? { verifierFor: (d: Derivation) => resolveActorVerifierForDerivation(d) }
+                : {}),
+            });
+            writeCiProvenanceCache(process.cwd(), { commit, verdict: ciState.verdict });
           } finally {
             store.close();
           }
@@ -25979,13 +25994,14 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "snapshot") {
-      // NOTE (GH-352): `snapshot` stays synchronous and ledger-free by design
-      // (session_contract.test asserts it), so the DomainStateV1 `ci` field is
-      // left at its unchecked/unknown default here. The live CI verdict +
-      // freshness is computed by `resolveCiProvenanceState` (async, ledger I/O)
-      // and consumed by the merge-guard tier; populating it into a *read* would
-      // require making snapshot async — a deliberate follow-up.
-      const state = (deps.buildDomainState ?? buildDomainState)(parsed.repoPath);
+      // GH-352: surface the CI provenance verdict + freshness via the CACHE —
+      // `snapshot` stays synchronous and ledger-free (session_contract asserts
+      // it). `prx ci` writes the verdict while the ledger is open; here we read
+      // that cache (sync fs) and recompute freshness cheaply against HEAD.
+      const headProbe = runCommand(["git", "rev-parse", "HEAD"], parsed.repoPath);
+      const currentCommit = headProbe.status === 0 ? headProbe.stdout.trim() : "";
+      const ci = readCiProvenanceState(parsed.repoPath, currentCommit);
+      const state = (deps.buildDomainState ?? buildDomainState)(parsed.repoPath, undefined, ci);
       output.log(formatSnapshot(state, parsed.format));
       return 0;
     }
