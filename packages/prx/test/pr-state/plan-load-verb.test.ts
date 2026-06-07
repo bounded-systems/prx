@@ -17,7 +17,7 @@ const deps = (
   rec?: { fallbackToDraft?: boolean },
 ): PlanLoadDeps => ({
   runPlanLoad: async ({ slot, fallbackToDraft }) => {
-    if (rec) rec.fallbackToDraft = fallbackToDraft;
+    if (rec) rec.fallbackToDraft = fallbackToDraft ?? false;
     return {
       slot: over.fellBackToDraft ? "draft" : (slot as "draft" | "approved"),
       sha: "sha256:abc",
@@ -27,7 +27,7 @@ const deps = (
   },
 });
 
-const run = (input: { unit?: string; slot?: "draft" | "approved"; format: "raw" | "json" }, d: PlanLoadDeps) =>
+const run = (input: { unit?: string; slot?: string; format: string }, d: PlanLoadDeps) =>
   planLoadVerb.run(input as never, d) as Promise<never>;
 
 describe("plan-load verb", () => {
