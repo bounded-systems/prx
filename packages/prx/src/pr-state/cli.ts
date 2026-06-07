@@ -1129,24 +1129,6 @@ type ParsedCommand =
       pr?: string | undefined;
     }
   | {
-      command: "graph";
-      format:
-        | "plain"
-        | "json"
-        | "xstate-json"
-        | "xstate-ts"
-        | "xstate-mermaid"
-        | "mermaid"
-        | "xstate-system-json"
-        | "xstate-system-ts"
-        | "xstate-system-mermaid"
-        | "system-mermaid";
-      outputPath?: string | undefined;
-      validate: boolean;
-      open: boolean;
-      url: string;
-    }
-  | {
       command: "runtime-profile";
       profile: RuntimeProfileName;
       mode: RuntimeMode;
@@ -4348,9 +4330,6 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     if (!c1 || c1.startsWith("-")) {
       return argv;
     }
-    if (c1 === "graph") {
-      return ["graph", ...tail];
-    }
     if (c1 === "actors") {
       return ["actors", ...tail];
     }
@@ -4359,6 +4338,12 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     }
     if (c1 === "stately") {
       return ["stately", ...tail];
+    }
+    // `model graph` is the catalog alias for the top-level `graph` verb (now a
+    // spec-driven VerbSpec, dispatched early in runCli). The rewrite keeps the
+    // namespace→verb routing contract honest for the parity guard.
+    if (c1 === "graph") {
+      return ["graph", ...tail];
     }
     throw new CliError(`Unknown model subcommand: ${c1}`);
   }
@@ -8693,45 +8678,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       command,
       contract: values.contract,
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
-
-  if (command === "graph") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-        output: { type: "string" },
-        validate: { type: "boolean", default: false },
-        open: { type: "boolean", default: false },
-        url: { type: "string", default: "https://stately.ai/registry/editor/" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command,
-      format: ensureChoice(
-        values.format,
-        [
-          "plain",
-          "json",
-          "xstate-json",
-          "xstate-ts",
-          "xstate-mermaid",
-          "mermaid",
-          "xstate-system-json",
-          "xstate-system-ts",
-          "xstate-system-mermaid",
-          "system-mermaid",
-        ],
-        "--format",
-      ),
-      outputPath: values.output,
-      validate: values.validate,
-      open: values.open,
-      url: values.url,
     };
   }
 
@@ -15075,22 +15021,6 @@ function openUrl(url: string): void {
   }
 }
 
-function isJsonGraphFormat(
-  format:
-    | "plain"
-    | "json"
-    | "xstate-json"
-    | "xstate-ts"
-    | "xstate-mermaid"
-    | "mermaid"
-    | "xstate-system-json"
-    | "xstate-system-ts"
-    | "xstate-system-mermaid"
-    | "system-mermaid",
-): boolean {
-  return format === "json" || format === "xstate-json" || format === "xstate-system-json";
-}
-
 // GH-1701: pick the best fs cwd to read a repo's `.beads/` and origin from.
 // Prefers an attached worktree (where per-project `.beads/` lives after
 // hydrate); falls back to the bare commonDir, which classifies as `none` or
@@ -16594,9 +16524,15 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       orchestratorVerb === "health" ||
       orchestratorVerb === "docs" ||
       orchestratorVerb === "schemas" ||
-      orchestratorVerb === "features"
+      orchestratorVerb === "features" ||
+      orchestratorVerb === "graph"
     ) {
       return runSpecVerb(orchestratorVerb, orchestratorRest, output);
+    }
+    // `model graph` is the documented catalog alias for the top-level `graph`
+    // verb (the legacy `model` namespace normalized it to `graph`).
+    if (orchestratorVerb === "model" && orchestratorRest[0] === "graph") {
+      return runSpecVerb("graph", orchestratorRest.slice(1), output);
     }
     if (orchestratorVerb === "plugin") {
       return runPluginVerb(orchestratorRest, output);
@@ -17875,38 +17811,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       }
 
       output.log(formatReadyCommand(info.mode, info.state, parsed.pr));
-      return 0;
-    }
-
-    if (parsed.command === "graph") {
-      const graphText = formatGraph(parsed.format);
-      if (parsed.validate) {
-        if (!isJsonGraphFormat(parsed.format)) {
-          output.error(`--validate requires a JSON graph format; got ${parsed.format}`);
-          return 1;
-        }
-        try {
-          JSON.parse(graphText);
-        } catch (error) {
-          output.error(`Graph JSON validation failed: ${(error as Error).message}`);
-          return 1;
-        }
-      }
-
-      if (parsed.outputPath) {
-        writeFileSync(parsed.outputPath, graphText);
-        const details = [
-          `Wrote graph output to ${parsed.outputPath}`,
-          ...(parsed.validate ? ["json-ok"] : []),
-        ];
-        output.log(details.join(" | "));
-      } else {
-        output.log(graphText);
-      }
-
-      if (parsed.open) {
-        (deps.openUrl ?? openUrl)(parsed.url);
-      }
       return 0;
     }
 

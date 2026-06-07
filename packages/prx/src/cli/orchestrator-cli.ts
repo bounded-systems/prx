@@ -21,7 +21,15 @@ export async function runSpecVerb(
 ): Promise<number> {
   try {
     const res = await dispatch(verbRegistry, [verb, ...args]);
-    output.log(res.kind === "help" ? res.text : render(res.output));
+    if (res.kind === "help") {
+      output.log(res.text);
+      return 0;
+    }
+    // A verb may carry a CLI `render` (human view); otherwise print JSON.
+    const v = verbRegistry[res.id];
+    output.log(
+      v?.render ? v.render(res.output as never, res.input as never) : render(res.output),
+    );
     return 0;
   } catch (e) {
     output.error(e instanceof Error ? e.message : String(e));

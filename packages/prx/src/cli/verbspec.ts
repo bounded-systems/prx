@@ -32,6 +32,13 @@ export type VerbSpec<I extends ZodType = ZodType, O extends ZodType = ZodType> =
   /** Input keys parsed as positionals (in order) rather than `--flags`. */
   positionals?: readonly string[];
   run: (input: z.infer<I>) => Promise<z.infer<O>> | z.infer<O>;
+  /**
+   * Optional CLI projection of the structured output. The `output` schema is the
+   * canonical, multi-surface contract (MCP result / OpenAPI response); `render`
+   * is the human-facing CLI view. When absent the CLI prints JSON. MCP/OpenAPI
+   * never use `render` — they consume `output`.
+   */
+  render?: (output: z.infer<O>, input: z.infer<I>) => string;
 };
 
 /** Identity helper that preserves input/output inference. */
@@ -162,7 +169,7 @@ export type Registry = Record<string, VerbSpec>;
 
 export type DispatchResult =
   | { kind: "help"; text: string }
-  | { kind: "ok"; id: string; output: unknown };
+  | { kind: "ok"; id: string; output: unknown; input: unknown };
 
 /** Resolve verb → parse → run. This is ALL `cli.ts` needs to be. */
 export async function dispatch(reg: Registry, argv: readonly string[]): Promise<DispatchResult> {
@@ -173,7 +180,7 @@ export async function dispatch(reg: Registry, argv: readonly string[]): Promise<
   if (rest.includes("--help") || rest.includes("-h")) return { kind: "help", text: toHelp(v) };
   const input = parseArgs(v, rest);
   const output = await v.run(input);
-  return { kind: "ok", id, output };
+  return { kind: "ok", id, output, input };
 }
 
 /** Default pretty-printer (a verb may carry its own later). */
