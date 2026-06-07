@@ -5,6 +5,8 @@
 -->
 # {{project.name}}
 
+> {{project.description}}
+
 `{{project.name}}` — {{project.tagline}}, plus the `@{{project.org}}/*`
 libraries it builds on. A Bun + TypeScript monorepo.
 
