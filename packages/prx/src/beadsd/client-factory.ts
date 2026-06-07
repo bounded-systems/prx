@@ -13,6 +13,8 @@
  * follow-up). Existing code is untouched until call sites adopt `withBeadsClient`.
  */
 
+import { existsSync } from "node:fs";
+
 import { getEnv } from "@bounded-systems/env";
 import { spawnDetached } from "@bounded-systems/proc";
 
@@ -50,6 +52,52 @@ export function resolveBeadsEndpoint(env: typeof getEnv = getEnv): BeadsEndpoint
     return { kind: "lima", vm, vmSocket: env("PRX_BEADS_VM_SOCKET") ?? DEFAULT_VM_BEADS_SOCKET };
   }
   return { kind: "local", socket: env("PRX_BEADS_SOCKET") ?? DEFAULT_LOCAL_BEADS_SOCKET };
+}
+
+// ── which beads the LOCAL daemon serves ───────────────────────────────────────
+
+/** Deps for {@link resolveLocalBeadsCwd} (all injectable for tests). */
+export interface ResolveLocalBeadsCwdDeps {
+  /** Env lookup (default {@link getEnv}). */
+  env?: typeof getEnv;
+  /** Path-existence probe (default `fs.existsSync`). */
+  exists?: ((path: string) => boolean) | undefined;
+  /** Repo-root fallback (default {@link findRepoRoot}). */
+  repoRoot?: (() => string) | undefined;
+}
+
+/**
+ * The well-known host-canonical beads clone, matching the `~/.local/state/prx/*`
+ * convention (cf. the registry store). A single clone the local daemon serves so
+ * every worktree reads the same beads — not each clone's own `.beads`.
+ */
+export function defaultCanonicalBeadsCwd(env: typeof getEnv = getEnv): string | null {
+  const home = env("HOME");
+  return home && home.length > 0 ? `${home}/.local/state/prx/beads` : null;
+}
+
+/**
+ * Resolve the cwd the LOCAL beadsd serves — deliberately DECOUPLED from the
+ * current worktree (GH-296) so every shell's `prx beads` hits one healthy beads,
+ * not whichever clone's (possibly broken) `.beads` happens to be underfoot:
+ *
+ *   1. `PRX_BEADS_CWD` — explicit canonical clone (operator override), else
+ *   2. the well-known host-canonical clone `~/.local/state/prx/beads` when it
+ *      exists (zero-config once provisioned), else
+ *   3. {@link findRepoRoot} — back-compat fallback (serves the local clone).
+ */
+export function resolveLocalBeadsCwd(deps: ResolveLocalBeadsCwdDeps = {}): string {
+  const env = deps.env ?? getEnv;
+  const exists = deps.exists ?? existsSync;
+  const repoRoot = deps.repoRoot ?? findRepoRoot;
+
+  const override = env("PRX_BEADS_CWD");
+  if (typeof override === "string" && override.length > 0) return override;
+
+  const canonical = defaultCanonicalBeadsCwd(env);
+  if (canonical && exists(canonical)) return canonical;
+
+  return repoRoot();
 }
 
 /** Heuristic: did this error come from a connect-time failure (no daemon listening)? */
@@ -176,8 +224,11 @@ export async function withBeadsClient<T>(
     }
   }
 
-  // Require beadsd up: auto-start a local daemon if needed (seamless), then connect.
-  const ensureUp = deps.ensureUp ?? ((socket: string) => ensureLocalBeadsd({ socket }));
+  // Require beadsd up: auto-start a local daemon if needed (seamless), then
+  // connect. The daemon serves the resolved canonical beads (decoupled from the
+  // current worktree), not whichever `.beads` is underfoot.
+  const ensureUp =
+    deps.ensureUp ?? ((socket: string) => ensureLocalBeadsd({ socket, cwd: resolveLocalBeadsCwd() }));
   await ensureUp(endpoint.socket);
 
   const makeTransport = deps.localTransport ?? unixSocketTransport;

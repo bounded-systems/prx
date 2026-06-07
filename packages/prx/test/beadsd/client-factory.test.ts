@@ -4,8 +4,10 @@ import type { FramedTransport } from "../../src/keeperd/transport.ts";
 import type { RunResult } from "../../src/keeperd/lima-exec.ts";
 import {
   BeadsUnavailableError,
+  defaultCanonicalBeadsCwd,
   ensureLocalBeadsd,
   resolveBeadsEndpoint,
+  resolveLocalBeadsCwd,
   withBeadsClient,
   DEFAULT_LOCAL_BEADS_SOCKET,
   DEFAULT_VM_BEADS_SOCKET,
@@ -44,6 +46,45 @@ describe("resolveBeadsEndpoint", () => {
       vm: "myvm",
       vmSocket: "/v/x.sock",
     });
+  });
+});
+
+describe("resolveLocalBeadsCwd — which beads the local daemon serves (GH-296)", () => {
+  const neverExists = () => false;
+  const alwaysExists = () => true;
+  const repoRoot = () => "/repo/clone";
+
+  test("PRX_BEADS_CWD wins (explicit canonical clone)", () => {
+    expect(
+      resolveLocalBeadsCwd({
+        env: fakeEnv({ PRX_BEADS_CWD: "/canon/beads", HOME: "/home/u" }),
+        exists: alwaysExists,
+        repoRoot,
+      }),
+    ).toBe("/canon/beads");
+  });
+
+  test("falls back to the well-known ~/.local/state/prx/beads when it exists", () => {
+    expect(
+      resolveLocalBeadsCwd({ env: fakeEnv({ HOME: "/home/u" }), exists: alwaysExists, repoRoot }),
+    ).toBe("/home/u/.local/state/prx/beads");
+  });
+
+  test("falls back to the repo root when no override and no canonical clone", () => {
+    expect(
+      resolveLocalBeadsCwd({ env: fakeEnv({ HOME: "/home/u" }), exists: neverExists, repoRoot }),
+    ).toBe("/repo/clone");
+  });
+
+  test("ignores an empty PRX_BEADS_CWD", () => {
+    expect(
+      resolveLocalBeadsCwd({ env: fakeEnv({ PRX_BEADS_CWD: "", HOME: "/home/u" }), exists: neverExists, repoRoot }),
+    ).toBe("/repo/clone");
+  });
+
+  test("defaultCanonicalBeadsCwd is null without HOME", () => {
+    expect(defaultCanonicalBeadsCwd(fakeEnv({}))).toBeNull();
+    expect(defaultCanonicalBeadsCwd(fakeEnv({ HOME: "/home/u" }))).toBe("/home/u/.local/state/prx/beads");
   });
 });
 
