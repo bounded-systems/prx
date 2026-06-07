@@ -33,6 +33,7 @@ export const ReadmeModel = z
       .object({
         name: z.string().min(1),
         tagline: z.string().min(1),
+        description: z.string().min(1),
         org: z.string().min(1),
         repo: z.string().min(1),
         url: z.string().min(1),

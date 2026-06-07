@@ -53,6 +53,7 @@ export function buildReadmeModel(): ReadmeModel {
     project: {
       name: project.name,
       tagline: project.slogan,
+      description: project.description,
       org,
       repo,
       url: project.codeRepository,
@@ -80,6 +81,7 @@ function templateDict(model: ReadmeModel): Map<string, string> {
   return new Map<string, string>([
     ["project.name", model.project.name],
     ["project.tagline", model.project.tagline],
+    ["project.description", model.project.description],
     ["project.org", model.project.org],
     ["project.repo", model.project.repo],
     ["project.url", model.project.url],
