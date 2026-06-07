@@ -22,7 +22,7 @@ describe("capability envelope (prx-g88.7 / 7b)", () => {
     expect(existsSync(featurePath)).toBe(true);
     expect(
       readFileSync(featurePath, "utf8"),
-      "features/capability-envelope.feature is stale — run `bun packages/prx/scripts/gen-envelope-feature.ts` and commit",
+      "features/capability-envelope.feature is stale — run `bun run features:render` and commit",
     ).toBe(generateEnvelopeFeature());
   });
 
