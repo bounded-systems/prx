@@ -6,7 +6,6 @@ import {
   type IntakeMirrorOptions,
 } from "../../src/intake/intake-mirror.ts";
 import type { GhExecResult } from "@bounded-systems/gh";
-import type { BdExecResult } from "@bounded-systems/bd";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
 
 type GhCallTag = { kind: "gh"; group?: string | undefined; subcommand: string; args: string[] };
@@ -30,13 +29,19 @@ function ghFail(stderr: string, code = 1): GhExecResult {
   return { exitCode: code, stdout: "", stderr, policy: null };
 }
 
-function bdOk(stdout = ""): BdExecResult {
-  return { exitCode: 0, stdout, stderr: "", policy: null };
+// GH-296 / prx-82b: bd create now runs `prx beads create …` through the daemon
+// (a sync runner) which echoes the created record as JSON. These helpers record
+// the equivalent old `{kind:"bd", subcommand, args}` shape from the prx argv.
+type RunResult = { status: number; stdout: string; stderr: string };
+const createdJson = (id: string): string => JSON.stringify({ id });
+function recordingRun(calls: CallTag[], stdout = "", status = 0) {
+  return ((cmd: string[]) => {
+    calls.push({ kind: "bd", subcommand: cmd[2] ?? "", args: cmd.slice(3) });
+    return { status, stdout, stderr: status === 0 ? "" : stdout } as RunResult;
+  }) as never;
 }
-
-function bdFail(stderr: string, code = 1): BdExecResult {
-  return { exitCode: code, stdout: "", stderr, policy: null };
-}
+const runOk = (stdout = ""): RunResult => ({ status: 0, stdout, stderr: "" });
+const runFail = (stderr: string, status = 1): RunResult => ({ status, stdout: "", stderr });
 
 function makeBead(
   overrides: Partial<BeadsRecord> = {},
@@ -80,10 +85,7 @@ describe("runIntakeMirror — happy path (creates new bd)", () => {
             ghTitleStdout("Hello world", "https://github.com/bdelanghe/ai-home/issues/100"),
           );
         }) as never,
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          calls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk("ai-home-new123\n");
-        }) as never,
+        run: recordingRun(calls, createdJson("ai-home-new123")),
       },
     );
 
@@ -103,31 +105,14 @@ describe("runIntakeMirror — happy path (creates new bd)", () => {
     );
     expect(bdCall.args).toContain("--title");
     expect(bdCall.args[bdCall.args.indexOf("--title") + 1]).toBe("Hello world");
-    expect(bdCall.args).toContain("--silent");
+    // GH-296: mirrored issues create as type `task` (no more `--silent` id-line —
+    // the daemon echoes the record as JSON and we parse its id).
+    expect(bdCall.args).toContain("--type");
+    expect(bdCall.args[bdCall.args.indexOf("--type") + 1]).toBe("task");
     expect(logs[0]).toBe("ai-home-new123");
   });
-
-  test("bd create call uses planning/planner policy slot", () => {
-    const policyCalls: Array<{ state?: string | undefined; role?: string | undefined }> = [];
-    runIntakeMirror(
-      makeOpts({ ghId: "GH-100" }),
-      { log: () => undefined, error: () => undefined },
-      {
-        loadAllBeads: (() => []) as never,
-        repoNameWithOwner: (() => REPO) as never,
-        cwd: () => "/tmp/cwd",
-        execGh: (() =>
-          ghOk(
-            ghTitleStdout("t", "https://github.com/bdelanghe/ai-home/issues/100"),
-          )) as never,
-        execBd: ((opts: { state?: string; role?: string }) => {
-          policyCalls.push({ state: opts.state, role: opts.role });
-          return bdOk("ai-home-x");
-        }) as never,
-      },
-    );
-    expect(policyCalls[0]).toEqual({ state: "planning", role: "planner" });
-  });
+  // GH-296: the planning/planner policy slot is now the daemon's concern
+  // (handleBeadsRequest dispatches under planner) — covered in beadsd/daemon.test.
 });
 
 describe("runIntakeMirror — idempotent no-op (existing external_ref)", () => {
@@ -145,10 +130,7 @@ describe("runIntakeMirror — idempotent no-op (existing external_ref)", () => {
           calls.push({ kind: "gh", subcommand: opts.subcommand, args: opts.args });
           return ghOk(ghTitleStdout("t", "u"));
         }) as never,
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          calls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk("never-called");
-        }) as never,
+        run: recordingRun(calls),
       },
     );
 
@@ -182,10 +164,7 @@ describe("runIntakeMirror — recycled-short-id phantom (GH-2254)", () => {
           calls.push({ kind: "gh", subcommand: opts.subcommand, args: opts.args });
           return ghOk(ghTitleStdout("t", "u"));
         }) as never,
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          calls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk("never-called");
-        }) as never,
+        run: recordingRun(calls),
       },
     );
 
@@ -216,10 +195,7 @@ describe("runIntakeMirror — sync race (matching by issue number, different URL
           calls.push({ kind: "gh", subcommand: opts.subcommand, args: opts.args });
           return ghOk(ghTitleStdout("t", "u"));
         }) as never,
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          calls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk("never-called");
-        }) as never,
+        run: recordingRun(calls),
       },
     );
 
@@ -247,10 +223,7 @@ describe("runIntakeMirror — sync race (matching by issue number, different URL
           calls.push({ kind: "gh", subcommand: opts.subcommand, args: opts.args });
           return ghOk(ghTitleStdout("t", "https://github.com/other/repo/issues/100"));
         }) as never,
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          calls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk("ai-home-new\n");
-        }) as never,
+        run: recordingRun(calls, createdJson("ai-home-new")),
       },
     );
     // New record gets created; bd-list match was disambiguated by repo prefix.
@@ -269,7 +242,7 @@ describe("runIntakeMirror — id rejection", () => {
         repoNameWithOwner: (() => REPO) as never,
         cwd: () => "/tmp/cwd",
         execGh: (() => ghOk("")) as never,
-        execBd: (() => bdOk("")) as never,
+        run: (() => runOk()) as never,
       },
     );
     expect(exitCode).toBe(1);
@@ -286,7 +259,7 @@ describe("runIntakeMirror — id rejection", () => {
         repoNameWithOwner: (() => REPO) as never,
         cwd: () => "/tmp/cwd",
         execGh: (() => ghOk("")) as never,
-        execBd: (() => bdOk("")) as never,
+        run: (() => runOk()) as never,
       },
     );
     expect(exitCode).toBe(1);
@@ -312,10 +285,7 @@ describe("runIntakeMirror — URL form supplies repo", () => {
           calls.push({ kind: "gh", subcommand: opts.subcommand, args: opts.args });
           return ghOk(ghTitleStdout("t", "https://github.com/o/r/issues/100"));
         }) as never,
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          calls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk("ai-home-x");
-        }) as never,
+        run: recordingRun(calls, createdJson("ai-home-x")),
       },
     );
     expect(resolveCalls).toBe(0);
@@ -344,10 +314,7 @@ describe("runIntakeMirror — URL form supplies repo", () => {
           calls.push({ kind: "gh", subcommand: opts.subcommand, args: opts.args });
           return ghOk(ghTitleStdout("t", "https://github.com/explicit/repo/issues/100"));
         }) as never,
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          calls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk("ai-home-x");
-        }) as never,
+        run: recordingRun(calls, createdJson("ai-home-x")),
       },
     );
     const ghCall = calls.find((c) => c.kind === "gh") as GhCallTag;
@@ -372,10 +339,7 @@ describe("runIntakeMirror — --dry-run", () => {
             ghTitleStdout("Demo title", "https://github.com/bdelanghe/ai-home/issues/100"),
           );
         }) as never,
-        execBd: ((opts: { subcommand: string; args: string[] }) => {
-          calls.push({ kind: "bd", subcommand: opts.subcommand, args: opts.args });
-          return bdOk("never-called");
-        }) as never,
+        run: recordingRun(calls),
       },
     );
 
@@ -406,7 +370,7 @@ describe("runIntakeMirror — --format json", () => {
           ghOk(
             ghTitleStdout("title", "https://github.com/bdelanghe/ai-home/issues/100"),
           )) as never,
-        execBd: (() => bdOk("ai-home-new\n")) as never,
+        run: (() => runOk(createdJson("ai-home-new"))) as never,
       },
     );
     const parsed = JSON.parse(logs[0]!) as {
@@ -431,7 +395,7 @@ describe("runIntakeMirror — --format json", () => {
         repoNameWithOwner: (() => REPO) as never,
         cwd: () => "/tmp/cwd",
         execGh: (() => ghOk("never")) as never,
-        execBd: (() => bdOk("never")) as never,
+        run: (() => runOk()) as never,
       },
     );
     const parsed = JSON.parse(logs[0]!) as {
@@ -457,7 +421,7 @@ describe("runIntakeMirror — failures", () => {
         repoNameWithOwner: (() => REPO) as never,
         cwd: () => "/tmp/cwd",
         execGh: (() => ghOk("")) as never,
-        execBd: (() => bdOk("")) as never,
+        run: (() => runOk()) as never,
       },
     );
     expect(exitCode).toBe(1);
@@ -478,7 +442,7 @@ describe("runIntakeMirror — failures", () => {
           ghOk(
             ghTitleStdout("title", "https://github.com/bdelanghe/ai-home/issues/100"),
           )) as never,
-        execBd: (() => bdFail("dolt offline", 7)) as never,
+        run: (() => runFail("dolt offline", 7)) as never,
       },
     );
     expect(exitCode).toBe(7);
@@ -495,14 +459,14 @@ describe("runIntakeMirror — failures", () => {
         repoNameWithOwner: (() => REPO) as never,
         cwd: () => "/tmp/cwd",
         execGh: (() => ghFail("HTTP 404", 4)) as never,
-        execBd: (() => bdOk("")) as never,
+        run: (() => runOk()) as never,
       },
     );
     expect(exitCode).toBe(4);
     expect(errors[0]).toContain("HTTP 404");
   });
 
-  test("bd create returns empty stdout → error, exit 1", () => {
+  test("bd create returns unparseable stdout → error, exit 1", () => {
     const errors: string[] = [];
     const exitCode = runIntakeMirror(
       makeOpts({ ghId: "GH-100" }),
@@ -515,11 +479,11 @@ describe("runIntakeMirror — failures", () => {
           ghOk(
             ghTitleStdout("t", "https://github.com/bdelanghe/ai-home/issues/100"),
           )) as never,
-        execBd: (() => bdOk("")) as never,
+        run: (() => runOk()) as never,
       },
     );
     expect(exitCode).toBe(1);
-    expect(errors[0]).toContain("empty stdout");
+    expect(errors[0]).toContain("unparseable output");
   });
 });
 

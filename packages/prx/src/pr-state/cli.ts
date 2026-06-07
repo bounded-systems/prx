@@ -7766,6 +7766,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
         reason: { type: "string" },
         "external-ref": { type: "string" },
         notes: { type: "string" },
+        silent: { type: "boolean" },
       },
       strict: true,
       allowPositionals: true,
@@ -7795,6 +7796,8 @@ export function parseCommand(argv: string[]): ParsedCommand {
         title: values.title,
         ...(priority !== undefined ? { priority } : {}),
         ...(values.description !== undefined ? { description: values.description } : {}),
+        ...(values["external-ref"] !== undefined ? { externalRef: values["external-ref"] } : {}),
+        ...(values.silent === true ? { silent: true } : {}),
       };
     } else if (kind === "update") {
       const id = positionals[1];
