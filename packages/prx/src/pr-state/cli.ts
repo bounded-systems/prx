@@ -22,7 +22,6 @@ import {
   type TransitionEntry,
 } from "./transition_log.ts";
 import {
-  overviewStatus,
   syncGitHubIssuesToBeads,
   syncStatus,
   updatePrFromContract,
@@ -228,7 +227,6 @@ import {
   RepoBootstrapError,
   runRepoBootstrap,
 } from "./repo_bootstrap.ts";
-import { locateRepo } from "./repo_locate.ts";
 import {
   materializeBareRepo,
   MaterializeError,
@@ -995,7 +993,7 @@ import { CliError } from "./cli-error.ts";
 import { type ExecutionWorkAgent, POLICY, buildWorkAutomationProfile, ensureExecutionWorkflowAgent, interactiveTimeoutMs, parseWorkAgentImplementation, validateWorkIoFormat } from "./work-agent.ts";
 import { findSavedClaudeSession, resolveCodexSessionProfile } from "./session-finder.ts";
 import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type ParityChainApplyResult, type PlanCloseReason, type PlanCloseResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
-import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatOverview, formatParityChainApplyResults, formatPhase, formatPlanCloseResult, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktree, formatWorktreeRemove, formatWtStatus } from "./cli-format.ts";
+import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanCloseResult, formatPlanNamespaceHelp, formatPrComments, formatPrCommentsResolution, formatProtectMain, formatProtectMainCheck, formatRemoteCiCheck, formatRepairBdResults, formatRepoAdd, formatRepoChecks, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatScoutLogs, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktree, formatWorktreeRemove, formatWtStatus } from "./cli-format.ts";
 import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, findWorktreeByDirectoryPrefix, listResolvedWorktrees, procSpawnLike, resolveRepoRootWithSpawn, runCommand, runInheritStatus, tryCommand } from "./cli-spawn.ts";
 
 // Shared default for the `SpawnLike` capture seams below. Routes through
@@ -1831,16 +1829,6 @@ type ParsedCommand =
       mode: "read" | "write";
       detachedAs: string | null;
       format: "plain" | "json";
-    }
-  | {
-      command: "overview";
-      // GH-1757: optional slug positional — when set, resolve the target
-      // repo via `locateRepo` (registered slug → mainWorktree) instead of
-      // using `repoPath`. When null, preserve the cwd / `--repo-path` flow.
-      slug: string | null;
-      repoPath: string;
-      format: "plain" | "json";
-      includeDiffStats: boolean;
     }
   | {
       command: "worktree";
@@ -2775,7 +2763,6 @@ type CliDeps = {
   syncGitHubIssuesToBeads?: typeof syncGitHubIssuesToBeads;
   syncStatus?: typeof syncStatus;
   updatePrFromContract?: typeof updatePrFromContract;
-  overviewStatus?: typeof overviewStatus;
   discoverLocalRepos?: typeof discoverLocalRepos;
   normalizeLocalRepos?: typeof normalizeLocalRepos;
   addLocalRepo?: typeof addLocalRepo;
@@ -9723,32 +9710,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  if (command === "overview") {
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: {
-        "repo-path": { type: "string", default: "." },
-        format: { type: "string", default: "plain" },
-        "include-diff-stats": { type: "boolean", default: true },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-    if (positionals.length > 1) {
-      throw new CliError(
-        `repo overview takes at most one <slug> positional; got ${positionals.length}: ${positionals.join(", ")}`,
-      );
-    }
-
-    return {
-      command,
-      slug: positionals[0] ?? null,
-      repoPath: values["repo-path"],
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      includeDiffStats: values["include-diff-stats"],
-    };
-  }
-
   if (command === "repos") {
     const [repoActionCandidate = "", ...repoArgs] = rest;
     const repoAction = repoActionCandidate === "normalize" ? "normalize" : "list";
@@ -16400,6 +16361,18 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     if (orchestratorVerb === "actors") {
       return runSpecVerb("actors", orchestratorRest, output);
     }
+    // `overview` is reachable top-level and as `repo overview` / `scout
+    // overview` (both normalize to `overview`); route just that subcommand to
+    // the verb, leaving the rest of those namespaces to the legacy dispatch.
+    if (orchestratorVerb === "overview") {
+      return runSpecVerb("overview", orchestratorRest, output);
+    }
+    if (
+      (orchestratorVerb === "repo" || orchestratorVerb === "scout") &&
+      orchestratorRest[0] === "overview"
+    ) {
+      return runSpecVerb("overview", orchestratorRest.slice(1), output);
+    }
     if (orchestratorVerb === "plugin") {
       return runPluginVerb(orchestratorRest, output);
     }
@@ -19407,40 +19380,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         writeTaskContract(parsed.taskPath, task);
       }
       output.log(formatTaskStatus(task, parsed.format));
-      return 0;
-    }
-
-    if (parsed.command === "overview") {
-      // GH-1757: when a slug positional is supplied, resolve via the
-      // shared `locateRepo` helper (sibling `repo *` verbs already use
-      // the same pattern) so `prx repo overview <slug>` works from any
-      // cwd. When no slug is given, fall through to the cwd / `--repo-path`
-      // flow that existed before this change.
-      let resolvedRepoPath = parsed.repoPath;
-      if (parsed.slug !== null) {
-        const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(process.cwd());
-        if (!repoInventoryConfig.indexPath) {
-          throw new CliError(
-            "No `.prx/repos/index.json` resolved from this cwd. Run `prx repo overview` from a prx-managed checkout, or omit the slug to use the current directory.",
-          );
-        }
-        const inventory = (deps.loadRepoInventoryIndex ?? loadRepoInventoryIndex)(repoInventoryConfig.indexPath);
-        if (!inventory) {
-          throw new CliError(
-            `No repo inventory index at ${repoInventoryConfig.indexPath}. Run \`prx repo add\` first to create one.`,
-          );
-        }
-        const located = locateRepo(inventory, { slug: parsed.slug, cwd: process.cwd() });
-        if (located.kind === "not_found") {
-          throw new CliError(located.detail);
-        }
-        resolvedRepoPath = located.repo.mainWorktree ?? located.repo.commonDir;
-      }
-      const overview = (deps.overviewStatus ?? overviewStatus)(
-        resolvedRepoPath,
-        parsed.includeDiffStats,
-      );
-      output.log(formatOverview(overview, parsed.format));
       return 0;
     }
 
