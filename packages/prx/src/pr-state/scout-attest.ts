@@ -21,6 +21,13 @@ import { type AttestDeps, persistAttestation } from "../provenance/attest.ts";
  *  bespoke `scout.read/v1` ledger record, keyed the same way (source→envelope). */
 export const SCOUT_READ_BUILD_TYPE = "https://prx.dev/scout/read/v1";
 
+/** Fail-closed message when an in-pipeline scout read can't be signed. */
+export const SCOUT_SIGNING_REQUIRED_MESSAGE =
+  "scout read: signing is required here but no signer is configured. This read " +
+  "is in a provenance ledger's scope (a reserved work-unit / pipeline), so a " +
+  "scout/read/v1 must be signed into the chain. Run `prx provenance setup` (or " +
+  "set PRX_PROVENANCE_KEY=dev); `prx provenance status` shows your posture.";
+
 /**
  * Record a signed `scout/read/v1` derivation for a completed read: the file's
  * content digest is the input (`source`), the emitted envelope's digest is the

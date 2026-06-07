@@ -19,7 +19,12 @@ import { formatScoutReadJson, type ScoutReadResult } from "@bounded-systems/scou
 
 import { type AttestDeps } from "../../src/provenance/attest.ts";
 import { decodeSlsaStatement, verifySlsaDerivation } from "../../src/provenance/verify.ts";
-import { attestScoutRead, SCOUT_READ_BUILD_TYPE } from "../../src/pr-state/scout-attest.ts";
+import {
+  attestScoutRead,
+  SCOUT_READ_BUILD_TYPE,
+  SCOUT_SIGNING_REQUIRED_MESSAGE,
+} from "../../src/pr-state/scout-attest.ts";
+import { ciSigningDecision } from "../../src/pr-state/ci-attest.ts";
 
 const RESULT: ScoutReadResult = {
   path: "packages/prx/src/pr-state/cli.ts",
@@ -86,5 +91,24 @@ describe("attestScoutRead — signed scout/read/v1 (GH-352)", () => {
     const a = await attestScoutRead(deps, RESULT);
     const b = await attestScoutRead(deps, { ...RESULT, sha256: "b".repeat(64) });
     expect(a.derivationId).not.toBe(b.derivationId);
+  });
+});
+
+describe("scout read signing gate — fail-closed in a signing context (GH-352)", () => {
+  test("no ledger in scope ⇒ skip (a bare read outside a work-unit is unaffected)", () => {
+    expect(ciSigningDecision(undefined, false)).toBe("skip");
+  });
+
+  test("ledger in scope but no signer ⇒ fail (in-pipeline read must be signed)", () => {
+    expect(ciSigningDecision("/wu/ledger.sqlite", false)).toBe("fail");
+  });
+
+  test("ledger + signer ⇒ sign", () => {
+    expect(ciSigningDecision("/wu/ledger.sqlite", true)).toBe("sign");
+  });
+
+  test("the fail message is actionable (points at the setup/status commands)", () => {
+    expect(SCOUT_SIGNING_REQUIRED_MESSAGE).toContain("prx provenance setup");
+    expect(SCOUT_SIGNING_REQUIRED_MESSAGE).toContain("prx provenance status");
   });
 });

@@ -897,7 +897,7 @@ import {
   recordScoutReadDerivation,
   scoutReadProvenance,
 } from "@bounded-systems/scout";
-import { attestScoutRead } from "./scout-attest.ts";
+import { attestScoutRead, SCOUT_SIGNING_REQUIRED_MESSAGE } from "./scout-attest.ts";
 import { openAnchoredChain } from "@bounded-systems/anchored-chain-sqlite";
 import {
   runMapCreate,
@@ -19587,16 +19587,25 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               store.close();
             }
           }
-          // GH-352: when a signer is configured, also record the SIGNED
-          // `scout/read/v1` into the canonical chain — the merge-guard-verifiable
-          // counterpart of the unsigned record above, attributed to the
-          // dispatch source's authority (a leg, when this read was dispatched).
-          // Best-effort: a signing failure never fails the read. No
-          // PRX_PROVENANCE_KEY ⇒ no signer ⇒ no-op (unchanged behavior).
-          try {
-            const signer = resolveProvenanceSigner();
-            const signedLedger = resolveCanonicalChainLedger(process.cwd())?.ledgerPath;
-            if (signer !== null && signedLedger !== undefined) {
+          // GH-352: record the SIGNED `scout/read/v1` into the canonical chain —
+          // the merge-guard-verifiable counterpart of the unsigned record above,
+          // attributed to the dispatch source's authority (a leg, when this read
+          // was dispatched). Fail-closed, mirroring `prx ci`: in a signing
+          // context (a reserved work-unit / pipeline) with no signer, the read is
+          // refused — an unsigned in-pipeline read is not trusted. Outside a
+          // signing context (no canonical ledger) it is a no-op (unchanged).
+          const signer = resolveProvenanceSigner();
+          const signedLedger = resolveCanonicalChainLedger(process.cwd())?.ledgerPath;
+          const decision = ciSigningDecision(signedLedger, signer !== null);
+          if (decision === "fail") {
+            output.error(SCOUT_SIGNING_REQUIRED_MESSAGE);
+            return 65;
+          }
+          if (decision === "sign" && signer !== null && signedLedger !== undefined) {
+            // Signing EXECUTION stays best-effort (a transient ledger I/O error
+            // must not drop a read whose signer IS configured); the hard
+            // requirement is only "a signer must exist", handled above.
+            try {
               mkdirSync(dirname(signedLedger), { recursive: true });
               const store = openAnchoredChain(signedLedger);
               try {
@@ -19604,10 +19613,10 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               } finally {
                 store.close();
               }
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              output.error(`scout read: scout/read/v1 attestation skipped (read result is unaffected): ${msg}`);
             }
-          } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            output.error(`scout read: scout/read/v1 attestation skipped (read result is unaffected): ${msg}`);
           }
           output.log(
             parsed.provenance
