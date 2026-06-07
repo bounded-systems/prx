@@ -15,11 +15,9 @@ import { describe, expect, test } from "bun:test";
 import {
   writePage,
   FetchWriteError,
-  type BdExecRunner,
   type FetchCreateBeadResult,
   type FetchWriteDeps,
 } from "../../src/fetch/gh-issues-writer.ts";
-import { execBd as realExecBd, type BdSpawnFn } from "@bounded-systems/bd";
 import { GhDomainAdapter } from "../../src/adapters/github.ts";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
 import type { GhIssueRow } from "../../src/fetch/gh-issues-graphql.ts";
@@ -64,29 +62,26 @@ function row(n: number, overrides: Partial<GhIssueRow> = {}): GhIssueRow {
  * configurable exit (default success). Wrapping the real `execBd` with it
  * exercises the actual policy + short-id guard without a live bd binary.
  */
-function makeRecordingExecBd(
+// GH-296 / prx-82b: the writer's bd update now runs `prx beads update …` through
+// the daemon (a sync runner). This records every prx argv and returns a
+// configurable exit, so the argv-shape pins (positional id placement) still hold.
+function makeRecordingRun(
   behavior: (callIndex: number) => { status: number; stderr?: string } = () => ({
     status: 0,
   }),
-): { execBd: BdExecRunner; recorded: string[][] } {
+): { run: (cmd: string[], o?: { check?: boolean }) => { status: number; stdout: string; stderr: string }; recorded: string[][] } {
   const recorded: string[][] = [];
-  const spawn: BdSpawnFn = (cmd) => {
+  const run = (cmd: string[]) => {
     const idx = recorded.length;
     recorded.push([...cmd]);
     const beh = behavior(idx);
-    return {
-      status: beh.status,
-      signal: null,
-      stdout: "",
-      stderr: beh.stderr ?? "",
-    };
+    return { status: beh.status, stdout: "", stderr: beh.stderr ?? "" };
   };
-  const execBd: BdExecRunner = (opts, env) => realExecBd(opts, env, spawn);
-  return { execBd, recorded };
+  return { run, recorded };
 }
 
 const updateCalls = (recorded: string[][]): string[][] =>
-  recorded.filter((c) => c[0] === "bd" && c[1] === "update");
+  recorded.filter((c) => c[0] === "prx" && c[1] === "beads" && c[2] === "update");
 
 describe("writePage — resolve-by-URL + positional-id write (I-F7)", () => {
   test("matched rows write `bd update <canonical-long-id> --external-ref …` — id at positional index 2, never last-touched", () => {
@@ -105,10 +100,10 @@ describe("writePage — resolve-by-URL + positional-id write (I-F7)", () => {
     ];
     // Drive the *real* resolver seam, not a stub.
     const adapter = new GhDomainAdapter({ loadAllBeads: () => beads });
-    const { execBd, recorded } = makeRecordingExecBd();
+    const { run, recorded } = makeRecordingRun();
 
     const deps: FetchWriteDeps = {
-      execBd,
+      run,
       resolveBdId: (url) => adapter.resolveFromBeads(url, beads),
       repo: "x/y",
       // createBead must never be reached — both rows resolve.
@@ -129,26 +124,27 @@ describe("writePage — resolve-by-URL + positional-id write (I-F7)", () => {
       [rows[1]!.url]: LONG_ID_2,
     };
     for (const cmd of updates) {
-      const bdId = cmd[2]!;
+      // cmd = ["prx","beads","update",<bdId>,"--external-ref",<url>,…].
+      const bdId = cmd[3]!;
       // I-F7: the positional id is present and is a canonical long id —
       // not a flag, not absent (the last-touched footgun).
       expect(bdId.startsWith("-")).toBe(false);
       expect(bdId).toMatch(BD_LONG_ID_RE);
-      expect(cmd[3]).toBe("--external-ref");
-      const url = cmd[4]!;
+      expect(cmd[4]).toBe("--external-ref");
+      const url = cmd[5]!;
       expect(bdId).toBe(expectedById[url]!);
     }
-    // No update call is positional-less (cmd[2] would be a flag).
-    expect(updates.some((c) => c[2]!.startsWith("-"))).toBe(false);
+    // No update call is positional-less (cmd[3] would be a flag).
+    expect(updates.some((c) => c[3]!.startsWith("-"))).toBe(false);
   });
 
   test("unmatched row mirrors via createBead, then writes positional `bd update <createdBdId> …` (I-BF2)", () => {
     const rows = [row(42)];
-    const { execBd, recorded } = makeRecordingExecBd();
+    const { run, recorded } = makeRecordingRun();
     const createCalls: Array<{ ghId: string; repo: string }> = [];
 
     const deps: FetchWriteDeps = {
-      execBd,
+      run,
       // Empty snapshot ⇒ resolver returns null ⇒ create path.
       resolveBdId: () => null,
       repo: "x/y",
@@ -166,9 +162,9 @@ describe("writePage — resolve-by-URL + positional-id write (I-F7)", () => {
 
     const updates = updateCalls(recorded);
     expect(updates).toHaveLength(1);
-    expect(updates[0]![2]).toBe(LONG_ID_1);
-    expect(updates[0]![2]).toMatch(BD_LONG_ID_RE);
-    expect(updates[0]![3]).toBe("--external-ref");
+    expect(updates[0]![3]).toBe(LONG_ID_1);
+    expect(updates[0]![3]).toMatch(BD_LONG_ID_RE);
+    expect(updates[0]![4]).toBe("--external-ref");
   });
 
   test("I-F4 — a row whose bd update exits non-zero throws FetchWriteError (no further rows, watermark not advanced)", () => {
@@ -179,12 +175,12 @@ describe("writePage — resolve-by-URL + positional-id write (I-F7)", () => {
     ];
     const adapter = new GhDomainAdapter({ loadAllBeads: () => beads });
     // Second bd update (call index 1) fails.
-    const { execBd, recorded } = makeRecordingExecBd((i) =>
+    const { run, recorded } = makeRecordingRun((i) =>
       i === 1 ? { status: 1, stderr: "bd: connection refused" } : { status: 0 },
     );
 
     const deps: FetchWriteDeps = {
-      execBd,
+      run,
       resolveBdId: (url) => adapter.resolveFromBeads(url, beads),
       repo: "x/y",
     };
@@ -209,10 +205,10 @@ describe("writePage — resolve-by-URL + positional-id write (I-F7)", () => {
 
   test("I-F4 — a failed createBead aborts the page before any bd update for that row", () => {
     const rows = [row(7)];
-    const { execBd, recorded } = makeRecordingExecBd();
+    const { run, recorded } = makeRecordingRun();
 
     const deps: FetchWriteDeps = {
-      execBd,
+      run,
       resolveBdId: () => null,
       repo: "x/y",
       createBead: (): FetchCreateBeadResult => ({ exitCode: 1 }),

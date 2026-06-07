@@ -83,6 +83,10 @@ export const BeadsRequestSchema = z.discriminatedUnion("kind", [
     externalRef: z.string().min(1).optional(),
     /** Append a note — `bd update --notes <text>`. */
     notes: z.string().min(1).optional(),
+    /** Retitle — `bd update --title <t>` (GH→bd sync of the canonical title). */
+    title: z.string().min(1).optional(),
+    /** Rewrite the description — `bd update --description <d>`. */
+    description: z.string().min(1).optional(),
   }),
   /** `bd close <id> [--reason r]`. */
   z.object({

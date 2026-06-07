@@ -191,6 +191,22 @@ describe("handleBeadsRequest — writes (single-writer, policy passthrough)", ()
     expect(calls[0]!.args).toEqual(["prx-abb", "--json", "--type", "bug"]);
   });
 
+  test("update passes --title and --description (GH-296 GH→bd sync parity)", async () => {
+    const { execBd, calls } = fakeBd(okResult("{}"));
+    await handleBeadsRequest(
+      { kind: "update", id: "prx-abb", title: "new title", description: "new body" },
+      { execBd },
+    );
+    expect(calls[0]!.args).toEqual([
+      "prx-abb",
+      "--json",
+      "--title",
+      "new title",
+      "--description",
+      "new body",
+    ]);
+  });
+
   test("update passes --external-ref and --notes (GH-296 write parity)", async () => {
     const { execBd, calls } = fakeBd(okResult("{}"));
     await handleBeadsRequest(

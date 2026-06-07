@@ -105,10 +105,12 @@ function beadsArgs(request: BeadsRequest): string[] {
         ...(request.issueType !== undefined ? ["--type", request.issueType] : []),
         ...(request.externalRef !== undefined ? ["--external-ref", request.externalRef] : []),
         ...(request.notes !== undefined ? ["--notes", request.notes] : []),
+        ...(request.title !== undefined ? ["--title", request.title] : []),
+        ...(request.description !== undefined ? ["--description", request.description] : []),
       ];
       if (fields.length === 0) {
         throw new EmptyUpdateError(
-          "update requires at least one of status / priority / assignee / type / external-ref / notes",
+          "update requires at least one of status / priority / assignee / type / external-ref / notes / title / description",
         );
       }
       return [request.id, "--json", ...fields];

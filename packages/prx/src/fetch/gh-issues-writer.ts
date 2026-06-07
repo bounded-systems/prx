@@ -19,8 +19,8 @@
 // `bd import` is blocked at `src/tools/bd.ts:69-71`, so per-row writes
 // are not just stylistic — they're the only admitted shape.
 
-import { processEnv } from "@bounded-systems/env";
-import { execBd as defaultExecBd, type BdExecResult } from "@bounded-systems/bd";
+import { execBd as defaultExecBd } from "@bounded-systems/bd";
+import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import type { GhIssueRow } from "./gh-issues-graphql.ts";
 
 export type BdExecRunner = typeof defaultExecBd;
@@ -37,6 +37,8 @@ export type FetchCreateBeadResult = {
 export type FetchWriteDeps = {
   /** Injected so tests can drive the bd boundary without a real binary. */
   execBd?: BdExecRunner;
+  /** GH-296 / prx-82b — sync runner for the daemon-routed `prx beads update`. */
+  run?: CommandRunner;
   /** Forwarded to `execBd` so the bd spawn inherits the operator env. */
   env?: NodeJS.ProcessEnv;
   /**
@@ -110,8 +112,7 @@ export function writePage(
   priorWatermark: string | null,
   deps: FetchWriteDeps = {},
 ): WritePageResult {
-  const exec = deps.execBd ?? defaultExecBd;
-  const env = deps.env ?? processEnv();
+  const run = deps.run ?? procRunner;
 
   if (rows.length === 0) {
     return {
@@ -156,26 +157,25 @@ export function writePage(
       }
     }
 
-    const result: BdExecResult = exec(
-      {
-        subcommand: "update",
-        args: [
-          bdId,
-          "--external-ref",
-          row.url,
-          "--status",
-          bdStatusFromGhState(row.state),
-          "--title",
-          row.title,
-        ],
-        state: "planning",
-        role: "planner",
-      },
-      env as NodeJS.ProcessEnv,
+    // GH-296 / prx-82b: GH→bd sync write via the daemon (single writer).
+    const result = run(
+      [
+        "prx",
+        "beads",
+        "update",
+        bdId,
+        "--external-ref",
+        row.url,
+        "--status",
+        bdStatusFromGhState(row.state),
+        "--title",
+        row.title,
+      ],
+      { check: false },
     );
-    if (result.exitCode !== 0) {
+    if (result.status !== 0) {
       const stderr =
-        result.stderr.trim() || result.stdout.trim() || "bd update failed";
+        result.stderr.trim() || result.stdout.trim() || "prx beads update failed";
       throw new FetchWriteError(pageNumber, i, priorWatermark, stderr);
     }
     lastUpdatedAt = row.updatedAt;
