@@ -179,6 +179,7 @@
       "name": "@bounded-systems/slack",
       "version": "0.0.0",
       "dependencies": {
+        "@bounded-systems/anchored-chain": "workspace:*",
         "@bounded-systems/cas": "workspace:*",
         "@bounded-systems/policy": "workspace:*",
       },

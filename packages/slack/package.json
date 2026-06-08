@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@bounded-systems/policy": "workspace:*",
-    "@bounded-systems/cas": "workspace:*"
+    "@bounded-systems/cas": "workspace:*",
+    "@bounded-systems/anchored-chain": "workspace:*"
   }
 }

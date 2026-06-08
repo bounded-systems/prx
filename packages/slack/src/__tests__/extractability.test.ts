@@ -21,6 +21,7 @@ const MODULE_ROOT = resolve(HERE, "..");
 const PROD_ALLOWLIST = new Set<string>([
   "@bounded-systems/policy", // .3 — the policy gate
   "@bounded-systems/cas", // .5 — content-addressing
+  "@bounded-systems/anchored-chain", // .6 — the provenance ledger
 ]);
 
 const TEST_ALLOWLIST = new Set<string>([
@@ -30,6 +31,8 @@ const TEST_ALLOWLIST = new Set<string>([
   "node:path",
   "node:url",
   "@bounded-systems/slack",
+  // .6 provenance tests exercise the bridge against a real store
+  "@bounded-systems/anchored-chain-sqlite",
 ]);
 
 const IMPORT_RE =
