@@ -30,6 +30,7 @@
 // bounds blast radius by CONVENTION + short TTL + (if wired) egress, not by
 // in-process sandboxing. See [[prx-capability-enforcement-level]].
 
+import { SlackReadError } from "./types.ts";
 import type { SlackReadOp } from "./types.ts";
 
 /** The authority a single minted key grants — least authority by construction. */
@@ -92,4 +93,85 @@ export interface SlackKeyGrant {
  */
 export interface SlackKeymaker {
   mint(grant: SlackKeyGrant): ScopedSlackKey;
+}
+
+// ── slack-typed scope wrapper over a generic credential keymaker ────────────
+//
+// The secret stays out of this package: the slack keymaker WRAPS an opaque
+// "base" credential keymaker (structurally `@bounded-systems/auth`'s
+// CredentialKeymaker — but imported by VALUE nowhere here, only matched by
+// shape) and adds the slack-specific scope typing + op/channel enforcement.
+// The base holds the root token in its closure and does TTL + auth injection;
+// this layer only knows ops/channels. Composition root wires them:
+//   slackScopedKeymaker(createServiceKeymaker("slack"))
+
+/** A minted base credential (structural mirror of auth's ScopedCredential). */
+export interface BaseScopedCredential {
+  readonly keyId: string;
+  readonly expiresAt: number;
+  authorize(req: SlackRequest): AuthorizedSlackRequest;
+}
+
+/** A generic credential keymaker (structural mirror of auth's CredentialKeymaker). */
+export interface BaseKeymaker {
+  mint(grant: { ttlMs: number; keyId?: string | undefined }): BaseScopedCredential;
+}
+
+export interface SlackScopedKeymakerOptions {
+  /** Injectable clock for the scope-layer expiry check. Defaults to Date.now. */
+  now?: () => number;
+}
+
+/**
+ * Wrap a generic credential keymaker into a slack-scoped one. The returned
+ * keymaker mints a `ScopedSlackKey` whose `authorize()` enforces, in order:
+ * not expired → op in scope → channel in scope, then delegates credential
+ * injection to the base. Scope is refused (SCOPE_DENIED) BEFORE the credential
+ * is touched, so an out-of-grant request never reaches the secret.
+ */
+export function slackScopedKeymaker(
+  base: BaseKeymaker,
+  opts: SlackScopedKeymakerOptions = {},
+): SlackKeymaker {
+  const now = opts.now ?? (() => Date.now());
+  return {
+    mint(grant: SlackKeyGrant): ScopedSlackKey {
+      const credential = base.mint({ ttlMs: grant.ttlMs });
+      const scope = grant.scope;
+      return {
+        keyId: credential.keyId,
+        scope,
+        expiresAt: credential.expiresAt,
+        authorize(
+          op: SlackReadOp,
+          channel: string | undefined,
+          req: SlackRequest,
+        ): AuthorizedSlackRequest {
+          if (now() >= credential.expiresAt) {
+            throw new SlackReadError(
+              `slack key ${credential.keyId} expired`,
+              "KEY_EXPIRED",
+            );
+          }
+          if (!scope.ops.includes(op)) {
+            throw new SlackReadError(
+              `slack key ${credential.keyId} is not scoped for op '${op}'`,
+              "SCOPE_DENIED",
+            );
+          }
+          if (
+            scope.channels !== undefined &&
+            channel !== undefined &&
+            !scope.channels.includes(channel)
+          ) {
+            throw new SlackReadError(
+              `slack key ${credential.keyId} is not scoped for channel '${channel}'`,
+              "SCOPE_DENIED",
+            );
+          }
+          return credential.authorize(req);
+        },
+      };
+    },
+  };
 }

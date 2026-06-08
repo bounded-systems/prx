@@ -53,3 +53,16 @@ export function requireAuthToken(
   }
   return token;
 }
+
+// The keymaker (credential broker) — mints scoped, expiring credentials from a
+// held root token. See ./keymaker.ts. Re-exported after requireAuthToken so the
+// (intra-package) circular import resolves with no load-time TDZ.
+export type {
+  CredentialRequest,
+  AuthorizedCredentialRequest,
+  ScopedCredential,
+  CredentialGrant,
+  CredentialKeymaker,
+  ServiceKeymakerOptions,
+} from "./keymaker.ts";
+export { CredentialExpiredError, createServiceKeymaker } from "./keymaker.ts";

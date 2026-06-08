@@ -14,8 +14,10 @@ const MODULE_ROOT = resolve(HERE, "..");
 //   .6 provenance → @bounded-systems/anchored-chain
 //   .8 CLI xport → @bounded-systems/proc          (the sanctioned spawn seam)
 // Each widening is a reviewed edge, not a silent reach. Notably absent forever:
-// @bounded-systems/auth — the surface holds ZERO authority logic; it receives a
-// minted ScopedSlackKey and never resolves credentials itself.
+// @bounded-systems/auth — this package never RESOLVES a credential or touches a
+// secret. It may CONTAIN scope logic (slackScopedKeymaker) but only wraps an
+// opaque, structurally-typed base keymaker whose closure holds the token; the
+// secret never enters this package. The composition root supplies the base.
 const PROD_ALLOWLIST = new Set<string>([]);
 
 const TEST_ALLOWLIST = new Set<string>([

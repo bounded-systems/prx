@@ -24,6 +24,10 @@ export type {
   ScopedSlackKey,
   SlackKeyGrant,
   SlackKeymaker,
+  BaseScopedCredential,
+  BaseKeymaker,
+  SlackScopedKeymakerOptions,
 } from "./keymaker.ts";
+export { slackScopedKeymaker } from "./keymaker.ts";
 
 export type { SlackReadTransport } from "./transport.ts";
