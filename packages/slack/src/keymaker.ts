@@ -14,15 +14,21 @@
 //
 // ENFORCEMENT LEVEL (honest threat model — do not overclaim). The "use,
 // don't read / secret never exposed" guarantee below is a DISCIPLINE
-// guarantee, not an ISOLATION one. It is enforced at the Bun/TypeScript
-// source+lint tier (capability seams + the package's extractability test),
-// NOT by the runtime or the OS: nothing stops malicious or transitive
-// in-process code from reading process memory, env, or spawning. The honest
-// spectrum is  nothing → source/lint discipline (Bun, where we are) →
-// runtime permission gates (Deno --allow-env/--allow-run, WASM, seccomp —
-// GH-1836's hybrid, our target) → kernel/microVM (not pursued). We sit at
-// tier 2 aiming at tier 3. So a leaked/minted key bounds blast radius by
-// CONVENTION + short TTL, not by sandboxing. See [[prx-capability-enforcement-level]].
+// guarantee at the IN-PROCESS layer, not an ISOLATION one. Isolation in prx is
+// a LAYERED PROFILE, not a single tier (composable defense in depth; a boundary
+// is only as strong as the layer enforcing it):
+//   - in-process (this code): Bun source+lint — capability seams + the package
+//     extractability test. Trusts our own code; nothing stops malicious or
+//     transitive in-process code from reading memory/env or spawning.
+//   - agent: under `--vm` the whole agent runs in a Lima microVM (beadsd/dolt
+//     already; the Claude session is being routed in — prx-69j/prx-bst). Strong.
+//   - upgrade paths (fill the in-process gap): SES/hardened-JS Compartments
+//     (ambient authority unreachable WITHOUT leaving Bun), Deno --allow-* gates
+//     (GH-1836), WASI component model (capability-native, the structural endgame).
+// Orthogonal axes bound credential USE regardless of isolation: network egress
+// control (proxy → slack.com only) + this key's scope/TTL. So a leaked/minted key
+// bounds blast radius by CONVENTION + short TTL + (if wired) egress, not by
+// in-process sandboxing. See [[prx-capability-enforcement-level]].
 
 import type { SlackReadOp } from "./types.ts";
 
