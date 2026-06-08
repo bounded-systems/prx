@@ -32,7 +32,6 @@ libraries it builds on. A Bun + TypeScript monorepo.
     - `policy` — Tool-policy engine enforcing subcommand allowlists by tool, state, and role
     - `proc` — The one allowed subprocess spawn point, routing external-tool invocations through a capability
     - `prx-config` — TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools
-    - `prx-mux` — Tmux session layout compilation, spawning, and config-driven state restoration
     - `repo-root` — Repo-root resolution capability: lazy git-based runtime root plus the eager .git-marker walk for build/codegen, the one sanctioned root-resolution point
     - `scout` — Content-addressed surface reads (file/grep/files) with anchored-chain provenance
     - `surface-sync` — Type ontology for work-unit change-detection across GH/branch/worktree/tmux/beads
