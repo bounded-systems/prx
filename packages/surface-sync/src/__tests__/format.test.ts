@@ -41,12 +41,12 @@ describe("formatSurfaceSync — GH-2147 blockers", () => {
         actions: [
           { type: "delete_local_branch", branch: "GH-2", ticket: "GH-2", reason: "orphan" },
         ],
-        blockers: ["live tmux session present — refusing to prune."],
+        blockers: ["worktree has uncommitted changes — refusing to prune."],
       }),
       "plain",
     );
     expect(out).toContain("  - delete_local_branch: orphan");
-    expect(out).toContain("  ! blocked: live tmux session present — refusing to prune.");
+    expect(out).toContain("  ! blocked: worktree has uncommitted changes — refusing to prune.");
   });
 
   test("plain: unchanged 'no actions' message when there are neither actions nor blockers", () => {

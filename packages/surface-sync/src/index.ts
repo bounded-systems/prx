@@ -2,7 +2,7 @@
  * Surface-sync type ontology.
  *
  * The type surface for change-detection + syncing a unit of work across its
- * surfaces (GH issue ↔ branch ↔ worktree ↔ tmux session ↔ beads). Mostly the
+ * surfaces (GH issue ↔ branch ↔ worktree ↔ beads). Mostly the
  * type surface plus the pure output formatter; the board reader (boardStatus)
  * and the plan builders (buildSurfaceSyncFromBoard, …) still live in
  * `src/pr-state/github.ts` pending shared-infrastructure decoupling (see

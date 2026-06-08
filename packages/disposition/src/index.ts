@@ -29,7 +29,6 @@ export type ClassifyInput = {
     conflicts: number | null;
   };
   artifacts: { worktree: boolean; branch: boolean; pr: boolean };
-  tmux: { present: boolean; sessionName: string | null; conflicted?: boolean | undefined };
   issueFeatureEnabled: boolean;
   /**
    * `clean` / `dirty` / `completed` from `status.remote.gh_issue` (or
@@ -48,15 +47,10 @@ function localOperatorStateClean(local: ClassifyInput["local"]): boolean {
 }
 
 export function classify(input: ClassifyInput): Disposition {
-  const { status, tmux, issueFeatureEnabled, issueStatus, artifacts, local } = input;
+  const { status, issueFeatureEnabled, issueStatus, artifacts, local } = input;
 
   // Structural/authority ambiguity → review. Operator must adjudicate.
   if (status.remote.problem === "yes" || status.local.problem === "yes") {
-    return "review";
-  }
-
-  // Multiple sessions for the same work unit is a structural conflict.
-  if (tmux.conflicted) {
     return "review";
   }
 
@@ -69,7 +63,6 @@ export function classify(input: ClassifyInput): Disposition {
     issueCompleted
     && prCompleted
     && localClean
-    && !tmux.present
   ) {
     return "prune";
   }
@@ -96,8 +89,8 @@ export function classify(input: ClassifyInput): Disposition {
     return "review";
   }
 
-  // Authority active. Compute parity per surface against the "all five
-  // present" expectation: worktree + local branch + remote branch + PR + tmux.
+  // Authority active. Compute parity per surface against the "all four
+  // present" expectation: worktree + local branch + remote branch + PR.
   //
   // Presence semantics:
   //   local.branch: "missing" = no branch; "clean"/"dirty" = branch exists
@@ -108,20 +101,13 @@ export function classify(input: ClassifyInput): Disposition {
   const localBranchPresent = artifacts.branch;
   const remoteBranchPresent = status.remote.branch !== "missing";
   const prPresent = status.remote.pr === "dirty" && artifacts.pr;
-  const tmuxPresent = tmux.present;
 
-  if (worktreePresent && localBranchPresent && remoteBranchPresent && prPresent && tmuxPresent) {
+  if (worktreePresent && localBranchPresent && remoteBranchPresent && prPresent) {
     return "ok";
   }
 
-  // Repair only when there's no operator state at risk (clean local, or only
-  // tmux missing). Otherwise the operator should look at it.
-  const onlyTmuxMissing =
-    worktreePresent && localBranchPresent && remoteBranchPresent && prPresent && !tmuxPresent;
-  if (onlyTmuxMissing) {
-    return "repair";
-  }
-
+  // Repair only when there's no operator state at risk (clean local).
+  // Otherwise the operator should look at it.
   if (localClean) {
     return "repair";
   }

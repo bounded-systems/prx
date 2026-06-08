@@ -1528,9 +1528,8 @@ export function formatChainsStatus(summary: ChainStatusResult, format: "plain" |
     const status = row.status
       ? ` | remote=gh_issue:${row.status.remote.gh_issue},beads_issue:${row.status.remote.beads_issue},project_item:${row.status.remote.project_item},branch:${row.status.remote.branch},pr:${row.status.remote.pr},merge_state:${row.status.remote.merge_state},ci:${row.status.remote.ci},problem:${row.status.remote.problem} | local=branch:${row.status.local.branch},worktree:${row.status.local.worktree},dir:${row.status.local.dir},problem:${row.status.local.problem}`
       : ` | ${local}`;
-    const tmux = row.tmux ? ` | tmux=${row.tmux.present ? "✓" : "✗"}` : "";
     const disposition = row.disposition ? ` | disposition=${row.disposition}` : "";
-    lines.push(`${identifier} | ${row.state} | ${pr}${status}${tmux}${disposition}`);
+    lines.push(`${identifier} | ${row.state} | ${pr}${status}${disposition}`);
   }
 
   return lines.join("\n");

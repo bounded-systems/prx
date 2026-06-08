@@ -89,13 +89,6 @@ const deleteWorktree: SurfaceSyncAction = {
   ticket: "GH-1234",
   reason: "stale",
 };
-const killTmux: SurfaceSyncAction = {
-  type: "kill_tmux_session",
-  branch: "GH-1234",
-  ticket: "GH-1234",
-  reason: "live",
-  sessionName: "gh_1234",
-};
 const deleteLocalBranch: SurfaceSyncAction = {
   type: "delete_local_branch",
   branch: "GH-1234",
@@ -213,17 +206,17 @@ describe("runGcCli — run (sweep, dry-run by default, capability-gated)", () =>
 
 describe("runGcCli — teardown (targeted, acts by default)", () => {
   test("acts by default and tears down → torn-down, exit 0", async () => {
-    const deps = gcDeps([deleteWorktree, killTmux]);
+    const deps = gcDeps([deleteWorktree]);
     const r = await runGcCli(parseGcArgs(["teardown", "GH-1234", "--format", "json"]), deps);
     expect(deps.applied).toBe(true);
     expect(r.exitCode).toBe(0);
     const payload = JSON.parse(r.output);
     expect(payload.status).toBe("torn-down");
-    expect(payload.removed).toEqual(["worktree", "tmux"]);
+    expect(payload.removed).toEqual(["worktree"]);
   });
 
   test("--dry-run yields would-tear-down without applying, exit 0", async () => {
-    const deps = gcDeps([deleteWorktree, killTmux]);
+    const deps = gcDeps([deleteWorktree]);
     const r = await runGcCli(
       parseGcArgs(["teardown", "GH-1234", "--dry-run", "--format", "json"]),
       deps,
@@ -232,7 +225,7 @@ describe("runGcCli — teardown (targeted, acts by default)", () => {
     expect(r.exitCode).toBe(0);
     const payload = JSON.parse(r.output);
     expect(payload.status).toBe("would-tear-down");
-    expect(payload.removed).toEqual(["worktree", "tmux"]);
+    expect(payload.removed).toEqual(["worktree"]);
   });
 
   test("no actions for the unit → not-found, exit 1", async () => {
@@ -245,7 +238,7 @@ describe("runGcCli — teardown (targeted, acts by default)", () => {
   });
 
   test("an apply failure → partial, exit 1", async () => {
-    const deps = gcDeps([deleteWorktree, killTmux], [0, 1]);
+    const deps = gcDeps([deleteWorktree, deleteLocalBranch], [0, 1]);
     const r = await runGcCli(parseGcArgs(["teardown", "GH-1234", "--format", "json"]), deps);
     expect(r.exitCode).toBe(1);
     const payload = JSON.parse(r.output);
@@ -256,7 +249,7 @@ describe("runGcCli — teardown (targeted, acts by default)", () => {
     const deps = gcDeps([closeIssue, deleteLocalBranch]);
     const r = await runGcCli(parseGcArgs(["teardown", "GH-1234", "--format", "json"]), deps);
     const payload = JSON.parse(r.output);
-    // REMOVED_ORDER: worktree, tmux, beads, branch, gh-verified
+    // REMOVED_ORDER: worktree, beads, branch, gh-verified
     expect(payload.removed).toEqual(["branch", "gh-verified"]);
   });
 

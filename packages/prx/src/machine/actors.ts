@@ -21,7 +21,6 @@ export const toolActors = [
   "executor_agent",
   "tester_agent",
   "reviewer_agent",
-  "tmux",
   "dep_research",
   "domain_sync",
   // GH-1245: 2-day spike for the external→substrate refresh chokepoint
@@ -446,20 +445,6 @@ export const toolActorCatalog: Record<ToolActor, ToolActorSpec> = {
     emits: ["ROLE_REVIEWER_STARTED", "ROLE_REVIEWER_COMPLETED", "ROLE_REVIEWER_FAILED"],
     accepts: ["review", "approve_or_reject"],
   },
-  tmux: {
-    actor: "tmux",
-    tier: "execution",
-    kind: "cli",
-    domain: "terminal_multiplexer",
-    emits: [
-      "TMUX_OPTION_SHOWN",
-      "TMUX_OPTION_SET",
-      "TMUX_RECONCILE_STARTED",
-      "TMUX_RECONCILE_COMPLETED",
-      "TMUX_RECONCILE_DRIFT_WARNED",
-    ],
-    accepts: ["show", "set", "list-sessions", "has-session"],
-  },
   // GH-1275 (PR-3 of GH-1261): the per-run dep-research lifecycle. Drives
   // fetch → snapshot → diff → classify on a single dep entry; PR-4 extends
   // the `reporting` terminal state to invoke the GH-issue filing actor.
@@ -781,7 +766,6 @@ export const actorScopes: Record<ActorScope, ToolActor[]> = {
     "publisher",
     "local_ci",
     "remote_ci",
-    "tmux",
     "dep_research",
     "domain_sync",
     "fetch",
@@ -896,11 +880,6 @@ export const eventOwnerMap: Record<string, ToolActor> = {
   TASK_SPEC_SYNCED: "prx",
   TASK_SCOPE_CONFIRMED: "planner_agent",
   TASK_SUCCESS_CRITERIA_CONFIRMED: "planner_agent",
-  TMUX_OPTION_SHOWN: "tmux",
-  TMUX_OPTION_SET: "tmux",
-  TMUX_RECONCILE_STARTED: "tmux",
-  TMUX_RECONCILE_COMPLETED: "tmux",
-  TMUX_RECONCILE_DRIFT_WARNED: "tmux",
 
   // GH-885: doctor actor event (PR readiness diagnosis — inventory read).
   // GH-1558 (GH-1398 ADR): the request/effect events that drive PR ready/
@@ -1164,9 +1143,6 @@ export const rawFieldOwnerMap: Record<string, ToolActor> = {
   "task.specSynced": "prx",
   "ticket.exists": "notion_mcp",
   "ticket.id": "notion_mcp",
-  "tmux.socket.exists": "tmux",
-  "tmux.option.live_value": "tmux",
-  "tmux.option.config_value": "tmux",
   // GH-2009: per-repo dolt-server ledger fields. Mirrors the wt/gh
   // raw-field pattern so the audit substrate sees lifecycle state
   // alongside existing PR/workspace state. Stored atomically (I-DOLT3)

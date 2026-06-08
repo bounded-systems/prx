@@ -167,7 +167,6 @@ export type GcTeardownDeps = {
 // action type.
 const REMOVED_ORDER = [
 	"worktree",
-	"tmux",
 	"beads",
 	"branch",
 	"gh-verified",
@@ -180,10 +179,6 @@ function mapRemoved(actions: readonly SurfaceSyncAction[]): TeardownOutput["remo
 		switch (action.type) {
 			case "delete_worktree":
 				seen.add("worktree");
-				break;
-			case "kill_tmux_session":
-			case "close_prx_session":
-				seen.add("tmux");
 				break;
 			case "delete_local_branch":
 			case "delete_remote_branch":

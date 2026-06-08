@@ -784,13 +784,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     domain: "state",
     actor: "chain",
   },
-  {
-    name: "prune session",
-    parent: "prune",
-    description: "Tear down tmux + resurrect state for a unit (worktree intact)",
-    domain: "state",
-    actor: "prune",
-  },
   // GH-2026/GH-2327: unified housekeeping actor `prx gc <verb>`. Three verbs,
   // two classes — sweep (`inventory`/`run`, dry-run by default) and targeted
   // (`teardown`, acts by default). Drivers are a `--component` dimension of

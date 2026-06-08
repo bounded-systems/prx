@@ -23,7 +23,6 @@ import {
   type StateMode,
 } from "./contract.ts";
 import { loadTaskContract, taskContractExists } from "./task.ts";
-import { pickPrimaryTmuxEntry, readTmuxSurface, type TmuxSurfaceMap } from "./surfaces/tmux.ts";
 import { classify, type Disposition } from "@bounded-systems/disposition";
 // GH-1966: issue-parity type ontology relocated to a concern-grouped
 // sub-package. Runtime values (consts/functions) still live here.
@@ -55,11 +54,6 @@ export type { PrefixRoutingConfig } from "@bounded-systems/surface-sync";
 import { execBd } from "@bounded-systems/bd";
 import { runBeadsSync } from "../sync/run.ts";
 import { DEFAULT_SYNC_LIMIT } from "../sync/limits.ts";
-import {
-  muxSessionName,
-  resurrectSaveMentions,
-  PRX_TMUX_SOCKET,
-} from "@bounded-systems/prx-mux";
 import { withBucketGate } from "@bounded-systems/github-budget";
 import { classifyTraceCmd, traceEnabled, traceSync } from "./trace.ts";
 import { getUnit, ProjectionMiss, projectionBypass, putUnit } from "./projection.ts";
@@ -2144,23 +2138,6 @@ export function unlockWorktree(worktreePath: string, runner: CommandRunner = def
   runner(["git", "-C", worktreePath, "worktree", "unlock", "."]);
 }
 
-/**
- * Opaque handle letting `removeWorktree` shut down a tmux session + clear its
- * resurrect entry before the `git worktree remove` call. Injected rather than
- * imported so this module stays independent of `@bounded-systems/prx-mux` (avoids a cycle
- * and keeps the seam explicit for tests).
- *
- * `cleanup` receives the resolved worktree path (the path that's about to be
- * removed), not the user-provided target — callers typing `prx worktree-remove
- * GH-678` hand `removeWorktree` a ticket id, but the tmux session name derives
- * from the on-disk basename (`gh_678_<slug>`). Passing the resolved path here
- * lets the handle call `muxSessionName(worktreePath)` on the correct input.
- */
-export interface WorktreeRemoveMuxHandle {
-  /** Synchronous cleanup: `tmux detach-client` → `kill-session` → clear resurrect. */
-  cleanup(worktreePath: string): void;
-}
-
 export function removeWorktree(
   repoPath: string,
   target: string,
@@ -2170,7 +2147,6 @@ export function removeWorktree(
     deleteBranch?: boolean;
     dryRun?: boolean;
     isPidAlive?: PidAliveProbe;
-    muxHandle?: WorktreeRemoveMuxHandle;
   } = {},
   runner: CommandRunner = defaultRunner,
 ): WorktreeRemoveResult {
@@ -2239,24 +2215,6 @@ export function removeWorktree(
   }
 
   if (!dryRun) {
-    // Tear down the tmux session before running `git worktree remove` so no
-    // pane holds a CWD handle on the directory we're about to delete. Decision
-    // doc §4 / §9.2: "Default path: detach clients → tmux kill-session →
-    // remove the session's entry from the resurrect save file → git worktree
-    // remove". Running against dry-run is skipped — the whole block below is.
-    //
-    // Best-effort: a cleanup throw (tmux missing, permissions, etc.) should
-    // not abort the git-level removal, which is the user's actual intent.
-    // We swallow here; the worst case is a stale session that `tmux kill-session`
-    // would have killed anyway once the server notices the dead CWD.
-    if (options.muxHandle) {
-      try {
-        options.muxHandle.cleanup(normalizedPath);
-      } catch {
-        // intentional — see comment above.
-      }
-    }
-
     const removeArgs = ["git", "-C", repoPath, "worktree", "remove"];
     if (force) {
       removeArgs.push("--force");
@@ -3023,17 +2981,6 @@ export type BoardUnit = {
     };
   } | undefined;
   /**
-   * GH-872: 5th parity surface. Read once per `boardStatus` from the
-   * prx-owned tmux server. `present: false, sessionName: null` means
-   * the row was joined against an empty surface (no tmux server, or
-   * no session for this work unit).
-   */
-  tmux?: {
-    present: boolean;
-    sessionName: string | null;
-    conflicted?: boolean | undefined;
-  } | undefined;
-  /**
    * GH-914: HEAD authorship of `origin/<branch>`, populated on any unit
    * whose branch exists on origin regardless of which pass produced it.
    * Used by the action enumerator to gate destructive remote ops:
@@ -3080,7 +3027,6 @@ export type ChainStatusRow = {
   pr: BoardUnit["pr"];
   local: BoardUnit["local"];
   status?: BoardUnit["status"] | undefined;
-  tmux?: BoardUnit["tmux"] | undefined;
   state: BoardColumn;
   disposition?: Disposition | undefined;
   reasons: string[];
@@ -4662,12 +4608,6 @@ export function commandForSurfaceSyncAction(
       return shellCommand("git", "push", "-u", "origin", action.branch);
     case "open_pr":
       return shellCommand("gh", "pr", "create", "--head", action.branch, "--base", "main", "--draft");
-    case "open_tmux_session":
-      return shellCommand("prx", "session", "open", action.ticket ?? action.branch);
-    case "kill_tmux_session":
-      return shellCommand("tmux", "-L", PRX_TMUX_SOCKET, "kill-session", "-t", action.sessionName);
-    case "close_prx_session":
-      return shellCommand("prx", "tools", "mux", "clear-resurrect", action.sessionName);
     case "close_issue": {
       const prRef = action.pr !== null ? `#${action.pr}` : null;
       return shellCommand(
@@ -5362,26 +5302,6 @@ function deriveBoardColumn(
   return { column: "review", reasons };
 }
 
-function joinTmuxSurface(
-  unit: Omit<BoardUnit, "column" | "reasons" | "tmux">,
-  surface: TmuxSurfaceMap,
-): BoardUnit["tmux"] {
-  if (!unit.ticket) {
-    return { present: false, sessionName: null };
-  }
-  const entries = surface.get(unit.ticket);
-  if (!entries || entries.length === 0) {
-    return { present: false, sessionName: null, conflicted: false };
-  }
-  // GH-1172: a unit may now host plan + implement sessions concurrently.
-  // The board projection still exposes a single sessionName, so pick the
-  // primary entry (implement > plan > others) and keep `conflicted` for
-  // genuine same-(ticket, mode) collisions.
-  const primary = pickPrimaryTmuxEntry(entries) ?? entries[0]!;
-  const conflicted = entries.some((e) => e.conflicted);
-  return { present: true, sessionName: primary.sessionName, conflicted };
-}
-
 export function boardStatus(repoPath: string, runner?: CommandRunner): BoardStatusResult;
 export function boardStatus(repoPath: string, options: BoardStatusOptions, runner?: CommandRunner): BoardStatusResult;
 export function boardStatus(
@@ -5406,9 +5326,6 @@ export function boardStatus(
   const worktrees = wtStatus(root, true, effectiveRunner);
   const prs = listRepoOpenPrs(repo, effectiveRunner);
   const remote = remoteStatus(root, effectiveRunner);
-  // GH-872: read the prx tmux server once per board call and stamp the
-  // 5th surface on every unit below.
-  const tmuxSurface = readTmuxSurface(effectiveRunner);
 
   const prByBranch = new Map<string, OpenPr>();
   for (const pr of prs) {
@@ -5469,7 +5386,6 @@ export function boardStatus(
                 local: localStatusForUnit(root, wt.branch, base, wt.structural.mismatch, effectiveRunner),
               }
             : undefined,
-          tmux: joinTmuxSurface(base, tmuxSurface),
           column: derived.column,
           reasons: derived.reasons,
         };
@@ -5523,7 +5439,6 @@ export function boardStatus(
               local: localStatusForUnit(root, pr.headRefName, base, false, effectiveRunner),
             }
           : undefined,
-        tmux: joinTmuxSurface(base, tmuxSurface),
         column: derived.column,
         reasons: derived.reasons,
       });
@@ -5578,7 +5493,6 @@ export function boardStatus(
               local: localStatusForUnit(root, remoteBranch, base, false, effectiveRunner),
             }
           : undefined,
-        tmux: joinTmuxSurface(base, tmuxSurface),
         column: derived.column,
         reasons: derived.reasons,
       });
@@ -5655,7 +5569,6 @@ export function boardStatus(
               local: localStatus,
             }
           : undefined,
-        tmux: joinTmuxSurface(base, tmuxSurface),
         column,
         reasons,
       });
@@ -5716,7 +5629,6 @@ function dispositionForUnit(
 ): Disposition | undefined {
   const status = unit.status;
   if (!status) return undefined;
-  const tmux = unit.tmux ?? { present: false, sessionName: null };
 
   let issueFeatureEnabled = false;
   // Assigned on both branches below before it is read.
@@ -5737,7 +5649,6 @@ function dispositionForUnit(
     status,
     local: unit.local,
     artifacts: unit.artifacts,
-    tmux,
     issueFeatureEnabled,
     issueStatus,
   });
@@ -5763,7 +5674,6 @@ export function chainStatusFromBoard(
       pr: unit.pr,
       local: unit.local,
       status: unit.status,
-      tmux: unit.tmux,
       state: unit.column,
       ...(unit.status ? { disposition: dispositionForUnit(unit, parityConfig, routingConfig) } : {}),
       reasons: unit.reasons,
@@ -5949,122 +5859,6 @@ export function buildParityChain(
 ): SurfaceSyncResult {
   const board = boardStatus(repoPath, { remote: true }, runner);
   return buildSurfaceSyncFromBoard(repoPath, board, options, runner);
-}
-
-/**
- * GH-1133: session-layer prune builder. Narrow sibling of
- * `buildSurfaceSyncFromBoard` for the work done by
- * `prx prune session <GH-N>`. Emits at most two action types —
- * `kill_tmux_session` and `close_prx_session` — and never touches
- * refs, worktrees, beads, or GH issue state.
- *
- * Authority chain (lighter than the worktree-layer prune): only
- * requires that *some* session-layer artifact exists for `workUnitId`
- * (a live tmux session on the prx socket OR a tmux-resurrect save-file
- * entry). When neither is present the result is a clean no-op
- * (`actions=0`), so re-runs are idempotent.
- *
- * Self-destruct safety lives in the dispatcher (`runCli`) — it reads
- * `$TMUX` and emits a fresh-shell handoff block when the caller is
- * inside the target's own session. Keeping the builder pure /
- * runner-driven preserves testability.
- */
-export function buildSessionLayerPrune(
-  repoPath: string,
-  workUnitId: string,
-  options: { apply?: boolean; resurrectDir?: string } = {},
-  runner: CommandRunner = defaultRunner,
-): SurfaceSyncResult {
-  const apply = options.apply ?? false;
-
-  // Resolve the worktree path for `workUnitId`. Branch-name match wins
-  // (in this project the branch name IS the canonical id). For detached-HEAD
-  // worktrees (`branch: null`) fall back to the path-basename prefix pattern
-  // used by removeWorktree — `gh_<n>_<slug>`.
-  const worktrees = listWorktrees(repoPath, runner);
-  const ticketMatch = workUnitId.match(/^GH-(\d+)$/i);
-  const entryByBranch =
-    worktrees.find((w) => w.branch === workUnitId) ??
-    (ticketMatch
-      ? worktrees.find(
-          (w) => w.branch === null && basename(w.path).startsWith(`gh_${ticketMatch[1]}_`),
-        )
-      : null) ??
-    null;
-  const tmuxSurface = readTmuxSurface(runner);
-  const surfaceEntries = tmuxSurface.get(workUnitId) ?? [];
-
-  const worktreePath = entryByBranch?.path
-    ?? surfaceEntries[0]?.sessionPath
-    ?? null;
-  // GH-1172: a unit may have multiple live sessions (plan + implement).
-  // Build the kill-target list from all live entries; fall back to the
-  // worktree-derived name (un-suffixed) so we still emit a teardown when
-  // the resurrect entry lingers without a live session.
-  const liveSessionNames = surfaceEntries.map((e) => e.sessionName);
-  const fallbackSessionName = worktreePath ? muxSessionName(worktreePath) : null;
-
-  const actions: SurfaceSyncAction[] = [];
-
-  for (const sessionName of liveSessionNames) {
-    actions.push({
-      type: "kill_tmux_session",
-      branch: workUnitId,
-      ticket: workUnitId,
-      reason: "Live tmux session present; tear down without removing worktree",
-      sessionName,
-    });
-  }
-
-  // Resurrect cleanup: emit one close_prx_session per live session, plus
-  // one for the un-suffixed fallback when a stale resurrect entry exists
-  // without any live session.
-  const closeTargets = new Set<string>(liveSessionNames);
-  if (liveSessionNames.length === 0 && fallbackSessionName) {
-    const resurrectMentioned = resurrectSaveMentions({
-      name: fallbackSessionName,
-      ...(options.resurrectDir !== undefined ? { resurrectDir: options.resurrectDir } : {}),
-    });
-    if (resurrectMentioned) {
-      closeTargets.add(fallbackSessionName);
-    }
-  }
-  for (const sessionName of closeTargets) {
-    actions.push({
-      type: "close_prx_session",
-      branch: workUnitId,
-      ticket: workUnitId,
-      reason: liveSessionNames.includes(sessionName)
-        ? "Drop persistent prx session state (tmux-resurrect entry)"
-        : "Tmux server gone but resurrect entry lingers",
-      sessionName,
-    });
-  }
-
-  let repoSlug: string;
-  try {
-    repoSlug = repoNameWithOwner(repoPath, runner);
-  } catch {
-    repoSlug = repoPath;
-  }
-
-  return {
-    source: "surface-sync",
-    repo: repoSlug,
-    mode: "prune",
-    authority: "local",
-    scope: "all",
-    apply,
-    ticket: workUnitId,
-    units: [
-      {
-        branch: workUnitId,
-        ticket: workUnitId,
-        actions,
-      },
-    ],
-    actions,
-  };
 }
 
 function diffStatsForPr(

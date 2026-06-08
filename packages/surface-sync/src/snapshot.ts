@@ -36,9 +36,6 @@ export type BoardSnapshotUnit = {
     untracked: number | null;
     conflicts: number | null;
   };
-  tmux?:
-    | { present: boolean; sessionName: string | null; conflicted?: boolean | undefined }
-    | undefined;
   remote_branch_author?: { isOperator: boolean | null } | undefined;
 };
 

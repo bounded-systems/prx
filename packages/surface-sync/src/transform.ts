@@ -78,12 +78,10 @@ export function computeSurfaceSync(args: {
     const issueFeatureEnabled = issueFeature ? issueParityFeatureEnabled(parityConfig, issueFeature) : false;
     const issueStatus = issueFeatureStatus(status, issueFeature);
     const normalizedIssueStatus = normalizeIssueStatus(issueStatus, issueFeatureEnabled);
-    const tmux = unit.tmux ?? { present: false, sessionName: null };
     const disposition = classify({
       status,
       local: unit.local,
       artifacts: unit.artifacts,
-      tmux,
       issueFeatureEnabled,
       issueStatus: normalizedIssueStatus,
     });
@@ -199,8 +197,8 @@ export function computeSurfaceSync(args: {
       // GH-1126: when the lifecycle is fully completed (issue closed AND PR
       // merged) but the worktree is still on disk, emit a single
       // `delete_worktree` action routed through
-      // `prx worktree-remove --delete-branch`. That verb wraps tmux
-      // teardown, lock-pid liveness checks, and a dirty-tree refusal, so
+      // `prx worktree-remove --delete-branch`. That verb wraps
+      // lock-pid liveness checks and a dirty-tree refusal, so
       // safety lives in one place. Using `unit.ticket ?? unit.branch` lets
       // detached-HEAD worktrees resolve via the basename `gh_<n>_*` matcher
       // in `removeWorktree` (GH-756).
@@ -224,8 +222,7 @@ export function computeSurfaceSync(args: {
           (issueFeatureEnabled && issueStatus === "completed")
           || status.remote.pr === "completed"
         ) &&
-        localOperatorClean &&
-        !tmux.present
+        localOperatorClean
       ) {
         actions.push({
           type: "delete_worktree",
@@ -250,11 +247,6 @@ export function computeSurfaceSync(args: {
         if (!localOperatorClean) {
           blockers.push(
             `worktree has uncommitted changes — refusing to prune. Commit or stash, then re-run; or remove manually with \`prx worktree-remove ${target}\`.`,
-          );
-        }
-        if (tmux.present) {
-          blockers.push(
-            `live tmux session present — refusing to prune. Close it first with \`prx prune session ${target}\`, then re-run.`,
           );
         }
       }
@@ -313,30 +305,6 @@ export function computeSurfaceSync(args: {
           reason: "Remote branch exists without an open PR",
         });
       }
-    }
-
-    // GH-872: 5th surface — emit `open_tmux_session` only when the
-    // operator state is otherwise clean and the only missing surface is
-    // tmux. The disposition classifier already enforces this (`repair`
-    // requires no operator state at risk); we double-gate here on the
-    // exact condition this ticket services so we don't emit the action
-    // for unrelated `repair` cases that #804 will cover.
-    if (
-      (mode === "backfill" || mode === "full") &&
-      disposition === "repair" &&
-      tmux.present === false &&
-      status.local.dir === "present" &&
-      status.local.branch !== "missing" &&
-      status.remote.branch !== "missing" &&
-      status.remote.pr === "dirty" &&
-      unit.artifacts.pr
-    ) {
-      actions.push({
-        type: "open_tmux_session",
-        branch: unit.branch,
-        ticket: unit.ticket,
-        reason: "Worktree and branch present but no tmux session",
-      });
     }
 
     return {
