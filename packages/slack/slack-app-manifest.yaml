@@ -52,15 +52,18 @@ oauth_config:
     - http://localhost:8080/callback
   scopes:
     user:
-      # --- maps 1:1 to the @bounded-systems/slack read ops ---
-      - channels:read     # conversations.list (public)        -> `channels` op
-      - groups:read       # conversations.list (private)       -> `channels` op
-      - channels:history  # conversations.history/.replies     -> `history`/`thread` ops
-      - groups:history    # private-channel history/replies    -> `history`/`thread` ops
-      - users:read        # users.list / users.info            -> `users` op
-      # --- Real-Time Search API (assistant.search.context) — deferred `search` op ---
-      - search:read.public
-      # --- add for DM coverage if needed later ---
+      # Least privilege: ONLY what .5's read ops use on PUBLIC channels today.
+      # Everything else is commented out until a concrete op needs it (adding a
+      # scope later requires a re-install to update the token's grants).
+      - channels:read     # conversations.list (public)    -> `channels` op
+      - channels:history  # conversations.history/.replies -> `history`/`thread` ops
+      - users:read        # users.list / users.info        -> `users` op
+      # --- add when you need PRIVATE channels ---
+      # - groups:read       # conversations.list (private)
+      # - groups:history    # private-channel history/replies
+      # --- add when the `search` op ships (Real-Time Search API) ---
+      # - search:read.public
+      # --- add for DM coverage ---
       # - im:history
       # - mpim:history
       # - search:read.im
@@ -69,5 +72,8 @@ oauth_config:
 settings:
   org_deploy_enabled: false
   socket_mode_enabled: false
-  token_rotation_enabled: false  # off => non-expiring token (simplest first proof).
-  # Flip to true later for real keymaker TTL (rotating ~12h access tokens + refresh).
+  token_rotation_enabled: true   # rotating ~12h access tokens + a refresh token.
+  # Bounded leak window + real keymaker TTL. The install yields a refresh token;
+  # the access token expires, so prefer the MCP/OAuth path (client_id/secret,
+  # which refreshes) over a static long-lived bearer. For a one-shot Web API
+  # proof, just use a freshly-minted access token within its ~12h window.
