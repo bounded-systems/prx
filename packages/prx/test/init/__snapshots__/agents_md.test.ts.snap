@@ -16,7 +16,6 @@ This repo uses **prx** as the operator surface. The promoted entry points:
 - \`prx plan session GH-<n>\` — open a planning session for a work unit
 - \`prx next\` — recommend the next action on the current work unit
 - \`prx do\` — drive the recommended action
-- \`prx review\` — surface review-readiness signals
 - \`prx plan handoff\` — post-merge teardown / handoff to next work
 
 Run \`prx help-all\` for the full subcommand catalog.

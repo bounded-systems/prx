@@ -69,14 +69,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     promoted_in: ["mainx"],
     actor: "work",
   },
-  {
-    name: "review",
-    description: "Send review into the live tmux pane",
-    domain: "work-units",
-    binding: "work-unit",
-    promoted_in: ["mainx"],
-    actor: "work",
-  },
 
   // ─── Other session-entry profiles (verb-object, §4) ────────────────────────
 
@@ -262,18 +254,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "plan",
   },
   {
-    // GH-1057: dropped from plan-promoted set to make room for `plan close`
-    // (§6.2 cap of six). Operators reach this verb as `prx ultrareview` from
-    // mainx-context; the `plan ultrareview` namespaced spelling still resolves.
-    name: "plan ultrareview",
-    parent: "plan",
-    description: "Pre-fill ultrareview into the work-unit pane",
-    domain: "work-units",
-    binding: "work-unit",
-    session_role: "preflight",
-    actor: "plan",
-  },
-  {
     name: "plan ci",
     parent: "plan",
     description: "Run canonical pre-push validation locally",
@@ -411,13 +391,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
 
   // ─── Other work-unit verbs ─────────────────────────────────────────────────
 
-  {
-    name: "ultrareview",
-    description: "Pre-fill ultrareview into the pane",
-    domain: "work-units",
-    binding: "work-unit",
-    actor: "work",
-  },
   {
     name: "ci",
     description: "Run canonical pre-push validation locally",

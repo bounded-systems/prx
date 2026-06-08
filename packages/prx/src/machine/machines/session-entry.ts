@@ -64,9 +64,8 @@ export type SessionEntryEvent =
       // outright (pattern-mismatch is an error). When absent, dispatch
       // walks the registry by first-pattern-match.
       sourceCtx?: { source?: string | undefined } | undefined;
-      // GH-2014: foreground vs background tmux attach. Default is
-      // "foreground" (legacy behaviour); "background" tells the cli
-      // handler to skip `attachMuxSession` and print a re-entry hint.
+      // Foreground vs background boot. Default is "foreground"; "background"
+      // is a boot-only request carried through to the cli handler.
       attachMode?: "foreground" | "background" | undefined;
       // GH-196: headless-first axis. Unlike the four ops actors (whose
       // `agent` verbs default to SDK), plan's CLI entry is the interactive
@@ -124,9 +123,8 @@ export type SessionEntryEvent =
       planBody?: string | undefined;
       // GH-1421: optional source-registry binding. See OPEN_PLAN_SESSION.
       sourceCtx?: { source?: string | undefined } | undefined;
-      // GH-2014: foreground vs background tmux attach. Default is
-      // "foreground" (legacy behaviour); "background" tells the cli
-      // handler to skip `attachMuxSession` and print a re-entry hint.
+      // Foreground vs background boot. Default is "foreground"; "background"
+      // is a boot-only request carried through to the cli handler.
       attachMode?: "foreground" | "background" | undefined;
       // GH-196: headless-first axis. See OPEN_PLAN_SESSION — the DEFAULT stays
       // interactive (the `prx implement --interactive` tmux path dispatches

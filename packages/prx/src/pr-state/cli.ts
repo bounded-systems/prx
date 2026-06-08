@@ -78,17 +78,6 @@ import type {
   SurfaceSyncScope,
 } from "@bounded-systems/surface-sync";
 import { formatSurfaceSync } from "@bounded-systems/surface-sync";
-import {
-  attachMuxSession,
-  clearResurrectEntry,
-  killMuxSession,
-  muxSessionName,
-  muxSessionState,
-  restoreMuxSession,
-  sendMuxKeys,
-  spawnMuxSession,
-  PRX_TMUX_SOCKET,
-} from "@bounded-systems/prx-mux";
 import { shellQuote as shellQuoteArg } from "./executor.ts";
 import { emit } from "../cli/emit.ts";
 import {
@@ -115,7 +104,6 @@ const IMPLEMENT_CHECK_STEPS: readonly CheckStep[] = [
   { command: "bun", args: ["run", "typecheck"] },
   { command: "bun", args: ["test"] },
 ];
-import { pickPrimaryTmuxEntry, readTmuxSurface } from "./surfaces/tmux.ts";
 import { resolverForCanonicalId } from "./resolvers/dispatch.ts";
 import { BeadsResolver } from "./resolvers/beads.ts";
 import type { ResolvedWorkUnit, WorkUnitSource } from "./resolvers/types.ts";
@@ -1097,9 +1085,9 @@ type ParsedCommand =
       format: "plain" | "json";
       dryRun: boolean;
       noAttach: boolean;
-      // GH-2014: when "background", the handler skips `attachMuxSession`
-      // and prints a re-entry hint instead of inheriting the tmux TTY.
-      // Distinct from --no-attach (which is scripted/silent).
+      // slice 3 (headless-only): "background"/--no-attach are boot-only flags;
+      // with tmux removed the handler just prints the resolved profile and
+      // returns instead of running the live foreground session.
       attachMode: "foreground" | "background";
       invokedViaDeprecatedWorkAlias?: boolean | undefined;
       invokedViaPlanSession?: boolean | undefined;
@@ -1127,20 +1115,7 @@ type ParsedCommand =
       launchFromCurrentWorkspace?: boolean | undefined;
       format: "plain" | "json";
       dryRun: boolean;
-      noAttach: boolean;
-      // GH-2014: foreground vs background tmux attach. Distinct from --no-attach
-      // (which is scripted/silent).
-      attachMode: "foreground" | "background";
       planPath?: string | undefined;
-      // headless-first step 2b-i: run the implement work as an async SDK job
-      // (buildWorkUnitClaudeImplementSdkRuntimeProfile via executeAgentProfile)
-      // in-process — no tmux, typed envelope result. Opt-in for now; becomes the
-      // default in 2b-ii. See docs/spikes/headless-first-profiles.md.
-      headless?: boolean | undefined;
-      // headless-first step 2b-ii: explicit opt-in to the interactive tmux/PTY
-      // pairing path. Absent (the new default) dispatches an async detached
-      // headless job instead of opening a tmux session.
-      interactive?: boolean | undefined;
       // GH-1981: set when the operator entered via the deprecated
       // `prx implement session <UoW>` shape (renamed to `agent`). The
       // dispatcher emits a one-shot stderr hint and proceeds with the
@@ -1159,12 +1134,6 @@ type ParsedCommand =
       create: boolean;
       noVerify: boolean;
       from?: WorkUnitSource | undefined;
-      format: "plain" | "json";
-    }
-  | {
-      command: "review";
-      workUnitId?: string | undefined;
-      ultra: boolean;
       format: "plain" | "json";
     }
   | {
@@ -2003,11 +1972,6 @@ type ParsedCommand =
       format: "plain" | "json";
     }
   | {
-      command: "tools-mux-clear-resurrect";
-      sessionName: string;
-      format: "plain" | "json";
-    }
-  | {
       command: "chains";
       repoPath: string;
       remote: boolean;
@@ -2587,10 +2551,6 @@ type CliDeps = {
   hookStatus?: typeof hookStatus;
   wtStatus?: typeof wtStatus;
   removeWorktree?: typeof removeWorktree;
-  /** CommandRunner seam for all tmux IPC (has-session, display-message, new-session, split-window, send-keys, kill-session). Tests inject a recording runner. */
-  muxRunner?: GithubCommandRunner;
-  /** CommandRunner seam for the final `tmux attach-session` call. Separate from muxRunner because the attach is interactive (stdio-inherit) in prod while tests want it mocked. */
-  attachRunner?: GithubCommandRunner;
   repoStatus?: typeof repoStatus;
   buildParityChain?: typeof buildParityChain;
   boardStatus?: typeof boardStatus;
@@ -2659,7 +2619,6 @@ type CliDeps = {
     output: Output,
     deps?: PlanSearchDeps,
   ) => Promise<number>;
-  reviewVerb?: typeof reviewVerb;
   findSavedClaudeSession?: (launchCwd: string, homeDir?: string) => boolean;
   writeFile?: (path: string, content: string) => void;
   autoRebaseOnSessionOpen?: (repoPath: string, options?: AutoRebaseOptions) => AutoRebaseResult;
@@ -4275,16 +4234,6 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
       }
       throw new CliError(`Unknown tools labels subcommand: ${c2}`);
     }
-    if (c1 === "mux") {
-      const c2 = tail[0];
-      if (!c2 || c2.startsWith("-")) {
-        throw new CliError("tools mux requires a subcommand: clear-resurrect");
-      }
-      if (c2 === "clear-resurrect") {
-        return ["tools-mux-clear-resurrect", ...tail.slice(1)];
-      }
-      throw new CliError(`Unknown tools mux subcommand: ${c2}`);
-    }
     throw new CliError(`Unknown tools subcommand: ${c1}`);
   }
 
@@ -4498,7 +4447,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "plan") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "plan requires a subcommand: session | agent | prime | preflight | handoff | ultrareview | ci | status | next | save | load | show | view | search | dispatch",
+        "plan requires a subcommand: session | agent | prime | preflight | handoff | ci | status | next | save | load | show | view | search | dispatch",
       );
     }
     // GH-1194: per-actor dispatch envelope.
@@ -4527,9 +4476,6 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
       // `plan close` performs an actual issue close-without-merge with reason
       // + optional upstream pointer comment + bd github sync.
       return ["plan-close", ...tail];
-    }
-    if (c1 === "ultrareview") {
-      return ["review", "--ultra", ...tail];
     }
     if (c1 === "ci") {
       return ["ci", ...tail];
@@ -4607,13 +4553,6 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "upgrade") {
     const argv = [c1, ...tail].filter((a): a is string => a !== undefined);
     return ["home-update", ...argv];
-  }
-
-  if (c0 === "review") {
-    return argv;
-  }
-  if (c0 === "ultrareview") {
-    return ["review", "--ultra", ...argv.slice(1)];
   }
 
   // GH-955: `prx ci` is the CLI surface for the `local_ci` actor's `run`
@@ -4956,31 +4895,6 @@ function parsePlanPrimeCommand(rest: string[]): ParsedCommand {
   };
 }
 
-function parseReviewCommand(rest: string[]): ParsedCommand {
-  if (rest.includes("--help") || rest.includes("-h")) {
-    return { command: "plan-namespace-help" };
-  }
-  const { values, positionals } = parseArgs({
-    args: rest,
-    options: {
-      ultra: { type: "boolean", default: false },
-      format: { type: "string", default: "plain" },
-    },
-    strict: true,
-    allowPositionals: true,
-  });
-  if (positionals.length > 1) {
-    throw new CliError("review accepts at most one work-unit id; pass options as flags");
-  }
-  const workUnitArg = positionals[0];
-  return {
-    command: "review",
-    workUnitId: workUnitArg ? parseCanonicalWorkUnitId(workUnitArg, "review") : undefined,
-    ultra: values.ultra,
-    format: ensureChoice(values.format, ["plain", "json"], "--format"),
-  };
-}
-
 function parseSessionOpenClaudeCommand(rest: string[]): ParsedCommand {
   if (rest.includes("--help") || rest.includes("-h")) {
     return { command: "session-help" };
@@ -5038,17 +4952,12 @@ function printImplementHelpAndExit(): never {
     [
       "Usage: prx implement agent [GH-NNN] [options]",
       "",
-      "Run the implementation for a work unit. Default: a headless SDK job run",
-      "in-process (no tmux); state via the typed envelope + worktree lock. Use",
-      "--interactive for the attached tmux/PTY pairing session.",
+      "Run the implementation for a work unit: a headless SDK job run in-process",
+      "(no tmux); state via the typed envelope + worktree lock.",
       "",
       "Options:",
       "  --plan PATH            Append 'Execute the plan at PATH.' to the session prompt",
       "  --dry-run              Print the resolved profile without launching the session",
-      "  --interactive          Open the attached tmux/PTY pairing session (the pre-2b default)",
-      "  --headless             Explicit synonym for the default in-process headless run",
-      "  --no-attach            (interactive) start the session without attaching",
-      "  --background           (interactive) boot the session and print a re-entry hint (GH-2014)",
       "  --format <plain|json>  Output format (default: plain)",
       "  -h, --help             Show this help",
       "",
@@ -5094,21 +5003,12 @@ function parseImplementCommand(rest: string[]): ParsedCommand {
       "prx implement: removed; use prx implement agent [GH-N]",
     );
   }
-  if (normalized.includes("--detached") || normalized.includes("--detached=true")) {
-    throw new CliError(
-      "--detached is not supported on `prx implement agent` (avoids the git detached-HEAD collision flagged in GH-1983); use --background to boot the session without attaching.",
-    );
-  }
   const { values, positionals } = parseArgs({
     args: normalized,
     options: {
       format: { type: "string", default: "plain" },
       "dry-run": { type: "boolean", default: false },
-      "no-attach": { type: "boolean", default: false },
       plan: { type: "string" },
-      background: { type: "boolean", default: false },
-      headless: { type: "boolean", default: false },
-      interactive: { type: "boolean", default: false },
     },
     strict: true,
     allowPositionals: true,
@@ -5130,11 +5030,7 @@ function parseImplementCommand(rest: string[]): ParsedCommand {
     launchFromCurrentWorkspace: undefined,
     format: ensureChoice(values.format, ["plain", "json"], "--format"),
     dryRun: values["dry-run"],
-    noAttach: values["no-attach"],
-    attachMode: values.background === true ? "background" : "foreground",
     planPath: values.plan !== undefined ? validatePlanPath(values.plan) : undefined,
-    headless: values.headless === true ? true : undefined,
-    interactive: values.interactive === true ? true : undefined,
     invokedViaDeprecatedImplementSession: invokedViaDeprecatedImplementSession || undefined,
   };
 }
@@ -6569,22 +6465,19 @@ function parseSessionPlanCommand(
   if (rest.includes("--help") || rest.includes("-h")) {
     return { command: "session-help" };
   }
-  // GH-2014: --detached is reserved by the git vocabulary (detached HEAD per
-  // GH-1983); refuse here with a structured hint pointing at --background
-  // even though print-mode does not own a tmux attach step. Surfacing the
-  // refusal at the parser keeps the message identical between the print and
-  // --interactive paths.
+  // GH-1983: --detached is reserved by the git vocabulary (detached HEAD);
+  // refuse here with a structured hint. Surfacing the refusal at the parser
+  // keeps the message identical between the print and --interactive paths.
   if (rest.includes("--detached") || rest.includes("--detached=true")) {
     throw new CliError(
-      "--detached is not supported on `prx plan session` (avoids the git detached-HEAD collision flagged in GH-1983); use --interactive --background to boot a tmux session without attaching.",
+      "--detached is not supported on `prx plan session` (avoids the git detached-HEAD collision flagged in GH-1983).",
     );
   }
-  // GH-2014: --background is meaningful only on the --interactive branch
-  // (which routes to `session-open-claude`); the print path does not own a
-  // tmux attach step. Refuse early so the operator sees the dependency.
+  // --background is meaningful only on the --interactive branch (which routes
+  // to the live foreground session); the print path is one-shot stdout.
   if (rest.includes("--background") && !rest.includes("--interactive")) {
     throw new CliError(
-      "--background requires --interactive on `prx plan session` (the print path does not attach a tmux session).",
+      "--background requires --interactive on `prx plan session` (the print path is one-shot stdout).",
     );
   }
   // GH-1982: alias path sets `invokedViaPlanSession: true` for the dispatch
@@ -7475,9 +7368,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     return parsePlanPrimeCommand(rest);
   }
 
-  if (command === "review") {
-    return parseReviewCommand(rest);
-  }
 
   if (command === "implement") {
     return parseImplementCommand(rest);
@@ -9766,34 +9656,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       subcommand,
       passArgs: [...positionals.slice(1), ...passthrough],
       cwd: values.cwd,
-    };
-  }
-
-  if (command === "tools-mux-clear-resurrect") {
-    // GH-1133: thin CLI wrapper over `clearResurrectEntry` from
-    // @bounded-systems/prx-mux. Invoked by the `close_prx_session` parity-chain
-    // action; not generally operator-facing.
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-    const sessionName = positionals[0];
-    if (!sessionName) {
-      throw new CliError("tools mux clear-resurrect requires a tmux session name");
-    }
-    if (positionals.length > 1) {
-      throw new CliError(
-        `tools mux clear-resurrect takes a single session name; got ${positionals.length}`,
-      );
-    }
-    return {
-      command: "tools-mux-clear-resurrect",
-      sessionName,
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
     };
   }
 
@@ -13054,109 +12916,6 @@ export function closeSession(
   };
 }
 
-export type ReviewVerbOptions = {
-  workUnitId?: string | undefined;
-  ultra: boolean;
-};
-
-export type ReviewVerbDeps = {
-  cwd?: string | undefined;
-  runner?: GithubCommandRunner | undefined;
-  muxRunner?: GithubCommandRunner | undefined;
-  spawn?: SpawnLike | undefined;
-  sendMuxKeys?: typeof sendMuxKeys | undefined;
-  muxSessionState?: typeof muxSessionState | undefined;
-  worktreeMap?: typeof worktreeMap | undefined;
-};
-
-export type ReviewVerbResult = {
-  workUnitId: string | null;
-  worktreePath: string;
-  sessionName: string;
-  sent: { keys: string; submit: boolean };
-  handoff: string[];
-};
-
-/**
- * GH-review: send `/review` or `/ultrareview` into the work unit's
- * claude pane via `tmux send-keys`. The wrapper never executes the
- * skill directly — `/review` is interactive-only in Claude Code, and
- * `/ultrareview` requires the human to confirm the billing dialog.
- * Refuses (and nudges toward `prx session open`) when the mux session
- * is absent or only resurrectable.
- */
-export function reviewVerb(
-  options: ReviewVerbOptions,
-  deps: ReviewVerbDeps = {},
-): ReviewVerbResult {
-  const cwd = deps.cwd ?? process.cwd();
-  const runner = deps.runner ?? defaultRunner;
-  const muxRunner = deps.muxRunner ?? defaultRunner;
-  const spawn = deps.spawn ?? procSpawnLike;
-  const stateFn = deps.muxSessionState ?? muxSessionState;
-  const send = deps.sendMuxKeys ?? sendMuxKeys;
-  const worktrees = deps.worktreeMap ?? worktreeMap;
-
-  let worktreePath: string;
-  let workUnitId: string | null = null;
-  if (options.workUnitId) {
-    const repoRoot = resolveRepoRootWithSpawn(cwd, spawn);
-    const map = worktrees(repoRoot, runner);
-    const found = map[options.workUnitId];
-    if (!found) {
-      throw new CliError(
-        `no worktree for ${options.workUnitId}; run \`prx plan session ${options.workUnitId}\` to materialize it.`,
-      );
-    }
-    worktreePath = found;
-    workUnitId = options.workUnitId;
-  } else {
-    worktreePath = resolveRepoRootWithSpawn(cwd, spawn);
-  }
-
-  // GH-1172: a worktree may now host plan + implement sessions
-  // concurrently. Prefer the implement-tagged session (where edits land)
-  // and fall back to plan, then to the legacy un-suffixed name. The
-  // surface map is the single source of truth for which sessions are
-  // actually live.
-  const surface = readTmuxSurface(muxRunner);
-  let sessionName: string;
-  if (workUnitId) {
-    const entries = surface.get(workUnitId);
-    const primary = entries ? pickPrimaryTmuxEntry(entries) : null;
-    sessionName = primary?.sessionName ?? muxSessionName(worktreePath);
-  } else {
-    sessionName = muxSessionName(worktreePath);
-  }
-  const state = stateFn(sessionName, worktreePath, muxRunner);
-  if (state === "absent" || state === "exited-resurrectable") {
-    const hint = workUnitId
-      ? `prx implement agent ${workUnitId}`
-      : `prx plan session`;
-    throw new CliError(
-      `no live tmux session for ${sessionName}; run \`${hint}\` first.`,
-    );
-  }
-
-  const keys = options.ultra ? "/ultrareview" : "/review";
-  const submit = !options.ultra;
-  send({ name: sessionName, keys, submit, run: muxRunner });
-
-  const handoff = [`tmux -L ${PRX_TMUX_SOCKET} attach-session -t ${sessionName}`];
-  if (options.ultra) {
-    handoff.push(
-      "/ultrareview is pre-filled and not submitted — press Enter in the pane to see Claude Code's billing confirmation (~$5–20/run).",
-    );
-  }
-  return {
-    workUnitId,
-    worktreePath,
-    sessionName,
-    sent: { keys, submit },
-    handoff,
-  };
-}
-
 export function runBeadsInit(
   cwd: string,
   importGh: boolean,
@@ -15732,19 +15491,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       })();
     }
 
-    if (parsed.command === "review") {
-      const result = (deps.reviewVerb ?? reviewVerb)(
-        { workUnitId: parsed.workUnitId, ultra: parsed.ultra },
-        { muxRunner: deps.muxRunner },
-      );
-      if (parsed.format === "json") {
-        output.log(JSON.stringify(result, null, 2));
-      } else {
-        for (const line of result.handoff) output.log(line);
-      }
-      return 0;
-    }
-
     if (parsed.command === "beads-init") {
       return runBeadsInit(process.cwd(), parsed.importGh, parsed.dryRun, output);
     }
@@ -16030,89 +15776,8 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         output.log(formatRuntimeProfile(codexResolved.profile, parsed.format));
         return 0;
       }
-      // GH-678: session execution runs inside a durable tmux session so the
-      // agent survives terminal close and (with tmux-resurrect) reboot.
-      // The outer `prx session open` process spawns/attaches the mux session;
-      // the agent runtime lives inside the session's agent pane as a
-      // bootstrap_command. Telemetry + appendExecutionLog that was attached
-      // to the old synchronous execRuntime path is dropped here (plan D1):
-      // the agent no longer has an owning parent process for us to
-      // observe. `agent-smoke` keeps the execRuntime path separately — it's
-      // non-interactive and doesn't need the mux layer.
-      //
-      // GH-685: for interactive claude (no prompt), codexResolved.profile is
-      // the new buildWorkUnitClaudeInteractiveRuntimeProfile output — so the
-      // bootstrap_command is --permission-mode plan + --append-system-prompt,
-      // not the bound-agent print-mode shape. Tmux-attach supplies the TTY.
-      const muxRunner = deps.muxRunner ?? defaultRunner;
-      const muxName = muxSessionName(launchCwd);
-      const fullBootstrapCommand = [codexResolved.profile.command, ...codexResolved.profile.args]
-        .map(shellQuoteArg)
-        .join(" ");
-      // GH-780: `tmux send-keys` replays the bootstrap command as typed input
-      // through the pane's PTY. `new-session -d` returns before zsh finishes
-      // its init (.zshrc, .zprofile) — during that window the PTY is still in
-      // default canonical mode, whose line buffer drops bytes past MAX_CANON
-      // (1024 on Darwin). The interactive executor's --append-system-prompt
-      // pushes the full command past that threshold, so the tail (including
-      // the closing quote's content, not the quote itself) gets silently
-      // dropped before ZLE takes over. Write the command to a per-worktree
-      // runtime artifact and send a short POSIX `.` replay instead — the
-      // typed input stays well under MAX_CANON and tmux-resurrect replays
-      // the same short line on restore. `writeFileSync(..., { mode })` only
-      // applies mode on create, so an explicit chmod guarantees the bootstrap
-      // is 0o600 even when the file pre-existed from a prior session open.
-      const bootstrapPath = getLocalRuntimeArtifactPaths().bootstrapPath;
-      const bootstrapAbsPath = join(launchCwd, bootstrapPath);
-      mkdirSync(dirname(bootstrapAbsPath), { recursive: true });
-      writeFileSync(bootstrapAbsPath, `${fullBootstrapCommand}\n`, { mode: 0o600 });
-      chmodSync(bootstrapAbsPath, 0o600);
-      const bootstrapCommand = `. ${shellQuoteArg(bootstrapPath)}`;
-      const initialMuxState = muxSessionState(muxName, launchCwd, muxRunner);
-      const spawnFresh = () => {
-        spawnMuxSession({
-          name: muxName,
-          cwd: launchCwd,
-          layout: { bootstrap_command: bootstrapCommand },
-          run: muxRunner,
-        });
-      };
-
-      if (initialMuxState === "absent") {
-        spawnFresh();
-      } else if (initialMuxState === "exited-resurrectable") {
-        // Slice 5: restoreMuxSession discovers the resurrect plugin's
-        // restore.sh via the `@prx-resurrect-script` user option that
-        // home-manager bakes in at build time. If the option isn't set
-        // (user hasn't re-switched, server predates Slice 5, or tmux-prx
-        // isn't enabled), the call throws and we fall back to fresh spawn.
-        //
-        // Copilot #716: post-restore flow also re-runs muxSessionState so
-        // the D2 collision guard gets a second pass — `restore.sh` is
-        // server-wide and can materialize a session whose `session_path`
-        // doesn't match the caller's `launchCwd`.
-        try {
-          restoreMuxSession({ run: muxRunner });
-          const postRestoreState = muxSessionState(muxName, launchCwd, muxRunner);
-          // Restore didn't actually bring this session back (or resurrect
-          // wasn't configured to include it) — spawn a fresh one.
-          if (postRestoreState === "absent" || postRestoreState === "exited-resurrectable") {
-            spawnFresh();
-          }
-          // On running-detached / running-attached after restore, fall
-          // through to attach. muxSessionState's collision guard will have
-          // raised if session_path mismatched.
-        } catch {
-          spawnFresh();
-        }
-      }
-      // running-detached and running-attached (and post-restore running-*)
-      // all fall through to attach.
-
-      // GH-678 Copilot #716: in JSON mode we skip attach entirely so the
-      // JSON payload lands on stdout without tmux UI escapes mixing in,
-      // and without blocking until the user detaches. Emit the same
-      // metadata shape with `attached: false` and return 0.
+      // slice 3 (headless-only): JSON mode emits the resolved profile metadata
+      // without a tmux session payload.
       if (parsed.format === "json") {
         output.log(
           JSON.stringify(
@@ -16121,12 +15786,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               cwd: launchCwd,
               runtimeArtifacts,
               policy,
-              mux: {
-                socket: PRX_TMUX_SOCKET,
-                session: muxName,
-                state: initialMuxState,
-              },
-              attached: false,
               status: 0,
             },
             null,
@@ -16136,8 +15795,18 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         return 0;
       }
 
-      const attachResult = attachMuxSession({ name: muxName, run: deps.attachRunner });
-      return attachResult.status;
+      // slice 3: run the session profile directly in the foreground terminal
+      // (stdio-inherit) instead of spawning + attaching a tmux pane. The
+      // former durable-tmux behaviour (survive terminal close / reboot via
+      // tmux-resurrect) is gone with tmux; the agent now runs as a child of
+      // this process.
+      const result = (deps.execRuntime ?? localRuntimeExecutor)(
+        codexResolved.profile,
+        "plain",
+        launchCwd,
+        interactiveTimeoutMs("plain", POLICY.timeout_ms),
+      );
+      return result.status;
 
       } finally {
         deleteEnv(PRX_SESSION_OPEN_ENV);
@@ -16244,44 +15913,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           output.log(formatRuntimeProfile(sessionProfile, parsed.format));
           return 0;
         }
-        const muxRunner = deps.muxRunner ?? defaultRunner;
-        // GH-1172: tag the tmux session with `-plan` so it coexists with
-        // a same-worktree implement session on the prx socket.
-        const muxName = muxSessionName(launchCwd, "plan");
-        // GH-819: still write .pr/local/runtime/bootstrap.sh as a side
-        // artifact so manual replay / debugging keeps working. The pane
-        // itself does NOT source it — tmux execs the argv directly.
-        const fullBootstrapCommand = [sessionProfile.command, ...sessionProfile.args]
-          .map(shellQuoteArg)
-          .join(" ");
-        const bootstrapPath = getLocalRuntimeArtifactPaths().bootstrapPath;
-        const bootstrapAbsPath = join(launchCwd, bootstrapPath);
-        mkdirSync(dirname(bootstrapAbsPath), { recursive: true });
-        writeFileSync(bootstrapAbsPath, `${fullBootstrapCommand}\n`, { mode: 0o600 });
-        chmodSync(bootstrapAbsPath, 0o600);
-        const paneArgv = [sessionProfile.command, ...sessionProfile.args];
-        const initialMuxState = muxSessionState(muxName, launchCwd, muxRunner);
-        const spawnFresh = () => {
-          spawnMuxSession({
-            name: muxName,
-            cwd: launchCwd,
-            layout: { pane_command: { argv: paneArgv, remain_on_exit: true } },
-            run: muxRunner,
-          });
-        };
-        if (initialMuxState === "absent") {
-          spawnFresh();
-        } else if (initialMuxState === "exited-resurrectable") {
-          try {
-            restoreMuxSession({ run: muxRunner });
-            const postRestoreState = muxSessionState(muxName, launchCwd, muxRunner);
-            if (postRestoreState === "absent" || postRestoreState === "exited-resurrectable") {
-              spawnFresh();
-            }
-          } catch {
-            spawnFresh();
-          }
-        }
         if (parsed.format === "json") {
           output.log(
             JSON.stringify(
@@ -16290,13 +15921,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
                 cwd: launchCwd,
                 runtimeArtifacts,
                 policy,
-                mux: {
-                  socket: PRX_TMUX_SOCKET,
-                  session: muxName,
-                  state: initialMuxState,
-                  paneCommand: paneArgv,
-                },
-                attached: false,
                 status: 0,
               },
               null,
@@ -16305,22 +15929,22 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           );
           return 0;
         }
-        if (parsed.noAttach) {
+        // slice 3 (headless-only): --no-attach / --background no longer have a
+        // tmux session to attach to. Both boot-only flags collapse to "build
+        // the profile, don't run" — print the resolved profile and return.
+        if (parsed.noAttach || sessionProfile.attachMode === "background") {
+          output.log(formatRuntimeProfile(sessionProfile, parsed.format));
           return 0;
         }
-        // GH-2014: --background skips the interactive attach and prints a
-        // re-entry hint instead, so the operator can boot the session and
-        // return control to their shell. A follow-up `prx plan session <id>`
-        // reuses the running mux session via the existing `running-detached`
-        // branch above.
-        if (sessionProfile.attachMode === "background") {
-          output.error(
-            `session booted in background — re-enter with: prx plan session ${parsed.workUnitId}`,
-          );
-          return 0;
-        }
-        const attachResult = attachMuxSession({ name: muxName, run: deps.attachRunner });
-        return attachResult.status;
+        // slice 3: run the plan session profile directly in the foreground
+        // terminal (stdio-inherit) instead of spawning + attaching a tmux pane.
+        const result = (deps.execRuntime ?? localRuntimeExecutor)(
+          sessionProfile,
+          "plain",
+          launchCwd,
+          interactiveTimeoutMs("plain", POLICY.timeout_ms),
+        );
+        return result.status;
       } finally {
         deleteEnv(PRX_SESSION_OPEN_ENV);
       }
@@ -16424,7 +16048,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
                 );
               }
             }
-            const policy = POLICY;
             const primed = await primePlanSession(
               {
                 workUnitId: parsed.workUnitId,
@@ -16432,25 +16055,21 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
                 create: false,
                 noVerify: false,
                 agent: "claude",
-                isInteractiveClaude: parsed.interactive === true,
+                isInteractiveClaude: false,
                 format: parsed.format,
               },
               output,
               deps,
             );
             const launchCwd = primed.launchCwd;
-            // headless-first step 2b-ii: the DEFAULT (and explicit --headless)
-            // runs the implement work as a headless SDK job in-process and
-            // awaits it — no tmux. State is the typed envelope, liveness is the
-            // worktree runtime lock. `--interactive` is the explicit opt-in to
-            // the tmux/PTY pairing path below. Guardrail: the GH-1238 plan-gate
-            // above already refused unless an approved/draft plan exists, and
-            // the profile's acceptEdits+allowlist posture bounds the run.
-            //
-            // "Outlives the shell" (detached self-reexec) is a deferred
-            // follow-up: it needs a real-machine smoke test before it's trusted
-            // on the autonomous path, so the default stays run-and-wait for now.
-            if (!parsed.interactive) {
+            // headless-only (slice 3): `prx implement agent` runs the implement
+            // work as a headless SDK job in-process and awaits it — no tmux.
+            // State is the typed envelope, liveness is the worktree runtime
+            // lock. The former `--interactive` tmux/PTY pairing path is removed.
+            // Guardrail: the GH-1238 plan-gate above already refused unless an
+            // approved/draft plan exists, and the profile's acceptEdits+allowlist
+            // posture bounds the run.
+            {
               const headlessProfile = buildWorkUnitClaudeImplementSdkRuntimeProfile({
                 workUnitId: parsed.workUnitId,
                 ...(parsed.planPath !== undefined ? { planPath: parsed.planPath } : {}),
@@ -16566,97 +16185,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               }
               return result.status;
             }
-            const runtimeArtifacts = primed.runtimeArtifacts;
-            const hasPriorClaudeSession = primed.hasPriorClaudeSession;
-            // GH-1172: dispatch the dedicated implement event so the executor
-            // gets the Edit/Write-enabled toolset (was OPEN_PLAN_SESSION).
-            // GH-1238: forward the auto-primed draft slot body when the operator
-            // did NOT pass --plan PATH; the system prompt embeds the plan inline.
-            // GH-2014: thread --background through so the projection carries
-            // attachMode for the post-spawn gate below.
-            const sessionProfile: RuntimeProfileProjection = dispatchSessionEntryEvent({
-              type: "OPEN_IMPLEMENT_SESSION",
-              workUnitId: parsed.workUnitId,
-              hasPriorSession: hasPriorClaudeSession,
-              planPath: parsed.planPath,
-              planBody: primedPlanBody,
-              attachMode: parsed.attachMode,
-            });
-            if (parsed.dryRun) {
-              output.log(formatRuntimeProfile(sessionProfile, parsed.format));
-              return 0;
-            }
-            const muxRunner = deps.muxRunner ?? defaultRunner;
-            // GH-1172: tag the tmux session with `-implement` so it coexists
-            // with a same-worktree plan session on the prx socket.
-            const muxName = muxSessionName(launchCwd, "implement");
-            const fullBootstrapCommand = [sessionProfile.command, ...sessionProfile.args]
-              .map(shellQuoteArg)
-              .join(" ");
-            const bootstrapPath = getLocalRuntimeArtifactPaths().bootstrapPath;
-            const bootstrapAbsPath = join(launchCwd, bootstrapPath);
-            mkdirSync(dirname(bootstrapAbsPath), { recursive: true });
-            writeFileSync(bootstrapAbsPath, `${fullBootstrapCommand}\n`, { mode: 0o600 });
-            chmodSync(bootstrapAbsPath, 0o600);
-            const paneArgv = [sessionProfile.command, ...sessionProfile.args];
-            const initialMuxState = muxSessionState(muxName, launchCwd, muxRunner);
-            const spawnFresh = () => {
-              spawnMuxSession({
-                name: muxName,
-                cwd: launchCwd,
-                layout: { pane_command: { argv: paneArgv, remain_on_exit: true } },
-                run: muxRunner,
-              });
-            };
-            if (initialMuxState === "absent") {
-              spawnFresh();
-            } else if (initialMuxState === "exited-resurrectable") {
-              try {
-                restoreMuxSession({ run: muxRunner });
-                const postRestoreState = muxSessionState(muxName, launchCwd, muxRunner);
-                if (postRestoreState === "absent" || postRestoreState === "exited-resurrectable") {
-                  spawnFresh();
-                }
-              } catch {
-                spawnFresh();
-              }
-            }
-            if (parsed.format === "json") {
-              output.log(
-                JSON.stringify(
-                  {
-                    profile: sessionProfile,
-                    cwd: launchCwd,
-                    runtimeArtifacts,
-                    policy,
-                    mux: {
-                      socket: PRX_TMUX_SOCKET,
-                      session: muxName,
-                      state: initialMuxState,
-                      paneCommand: paneArgv,
-                    },
-                    attached: false,
-                    status: 0,
-                  },
-                  null,
-                  2,
-                ),
-              );
-              return 0;
-            }
-            if (parsed.noAttach) {
-              return 0;
-            }
-            // GH-2014: --background skips the interactive attach and prints a
-            // re-entry hint pointing at the canonical implement re-entry verb.
-            if (sessionProfile.attachMode === "background") {
-              output.error(
-                `session booted in background — re-enter with: prx implement agent ${parsed.workUnitId}`,
-              );
-              return 0;
-            }
-            const attachResult = attachMuxSession({ name: muxName, run: deps.attachRunner });
-            return attachResult.status;
           } finally {
             deleteEnv(PRX_SESSION_OPEN_ENV);
           }
@@ -21092,19 +20620,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         dryRun: parsed.dryRun,
       });
       output.log(formatSyncLabelsResult(result, parsed.format));
-      return 0;
-    }
-
-    if (parsed.command === "tools-mux-clear-resurrect") {
-      // GH-1133: idempotent persistent-state cleanup. The helper is a
-      // no-op when the resurrect save file is missing or the session
-      // name is not mentioned, so this verb is safe to re-run.
-      clearResurrectEntry({ name: parsed.sessionName });
-      if (parsed.format === "json") {
-        output.log(JSON.stringify({ session: parsed.sessionName, cleared: true }));
-      } else {
-        output.log(`cleared resurrect entry for ${parsed.sessionName}`);
-      }
       return 0;
     }
 

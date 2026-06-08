@@ -11,24 +11,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
 
-import type { CommandRunner as GithubCommandRunner } from "../../src/pr-state/github.ts";
 import type {
   LocalRepo,
   RepoInventory,
   RepoInventoryConfig,
 } from "../../src/pr-state/repos.ts";
 import { runCli as runCliDirect } from "../../src/pr-state/cli.ts";
-
-const benignMuxRunner: GithubCommandRunner = (cmd) => {
-  if (cmd[0] !== "tmux") {
-    return { stdout: "", stderr: "", status: 0 };
-  }
-  const verb = cmd[3];
-  if (verb === "has-session") {
-    return { stdout: "", stderr: "", status: 1 };
-  }
-  return { stdout: "", stderr: "", status: 0 };
-};
 
 function bareRepo(name: string, commonDir: string, ownerName?: string): LocalRepo {
   return {
@@ -75,8 +63,6 @@ function issueBackedDeps(workUnitId: string) {
     // the host repo (TMPDIR override) where the GitHub-Actions checkout
     // is on a detached HEAD.
     assertWorktreeOnNamedBranch: () => null,
-    muxRunner: benignMuxRunner,
-    attachRunner: (() => ({ stdout: "", stderr: "", status: 0 })) as GithubCommandRunner,
     boardStatus: () => ({
       source: "derived-board" as const,
       repo: "owner/repo",

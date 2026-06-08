@@ -11,7 +11,6 @@ Primary workflow:
   prx plan session  Open plan-mode work session for a unit
   prx next          Show next recommended action
   prx do            Execute an enabled derived action
-  prx review        Send review into the live tmux pane
   prx plan handoff  Post-merge handoff from feature worktree
 
 Pointers:
@@ -95,7 +94,6 @@ Work units:
   prx plan session               Open plan-mode work session for a unit
   prx next                       Show next recommended action
   prx do                         Execute an enabled derived action
-  prx review                     Send review into the live tmux pane
   prx intake agent               Run the mainx intake operator (headless by default, --interactive for tmux/PTY)
   prx triage agent               Run the mainx triage operator (headless by default, --interactive for tmux/PTY)
   prx submit agent               Run the work-unit submit operator (headless by default, --interactive for tmux/PTY)
@@ -106,7 +104,6 @@ Work units:
   prx claude                     Internal claude runtime launcher (formerly session open-claude)
   prx plan handoff               Post-merge handoff from feature worktree
   prx plan close                 Close work unit issue with operator context
-  prx plan ultrareview           Pre-fill ultrareview into the work-unit pane
   prx plan ci                    Run canonical pre-push validation locally
   prx plan status                Show current phase for the unit
   prx plan next                  Show next recommended action
@@ -117,7 +114,6 @@ Work units:
   prx plan view                  View an issue (GH/bd/Notion id, URL)
   prx plan search                Search GH+bd issue queue (deduped)
   prx plan preflight             Pre-draft three-axis check before a plan session
-  prx ultrareview                Pre-fill ultrareview into the pane
   prx ci                         Run canonical pre-push validation locally
   prx phase                      Show current phase for the unit
   prx snapshot                   Emit full session snapshot json
