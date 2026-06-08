@@ -125,9 +125,6 @@
           "@id": "https://github.com/bounded-systems/prx/tree/main/packages/prx-config"
         },
         {
-          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/prx-mux"
-        },
-        {
           "@id": "https://github.com/bounded-systems/prx/tree/main/packages/repo-root"
         },
         {
@@ -313,16 +310,6 @@
       "@id": "https://github.com/bounded-systems/prx/tree/main/packages/prx-config",
       "name": "@bounded-systems/prx-config",
       "description": "TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools",
-      "codeRepository": "https://github.com/bounded-systems/prx",
-      "isPartOf": {
-        "@id": "https://github.com/bounded-systems/prx"
-      }
-    },
-    {
-      "@type": "SoftwareSourceCode",
-      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/prx-mux",
-      "name": "@bounded-systems/prx-mux",
-      "description": "Tmux session layout compilation, spawning, and config-driven state restoration",
       "codeRepository": "https://github.com/bounded-systems/prx",
       "isPartOf": {
         "@id": "https://github.com/bounded-systems/prx"

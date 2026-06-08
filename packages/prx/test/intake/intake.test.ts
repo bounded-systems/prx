@@ -1363,10 +1363,6 @@ describe("inferScope — unit (GH-1520)", () => {
     expect(inferScope("GH-123", "/repo/src/claude", "/repo")).toBe("claude-code");
   });
 
-  test("maps packages/prx-mux → tmux", () => {
-    expect(inferScope("GH-123", "/repo/packages/prx-mux", "/repo")).toBe("tmux");
-  });
-
   test("maps nix → home-manager", () => {
     expect(inferScope("GH-123", "/repo/nix", "/repo")).toBe("home-manager");
   });

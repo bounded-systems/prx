@@ -11,14 +11,13 @@
  * probe so callers can short-circuit before re-fetching the full payload.
  *
  * The `CommandRunner` is injected (default: `defaultRunner` from
- * `@bounded-systems/prx-mux`, mirroring `tmux.ts`) so tests and the
- * fixture-mode example wire a stubbed runner without touching the
- * network.
+ * `@bounded-systems/proc`) so tests and the fixture-mode example wire a
+ * stubbed runner without touching the network.
  */
 import {
   defaultRunner,
   type CommandRunner,
-} from "@bounded-systems/prx-mux";
+} from "@bounded-systems/proc";
 
 import {
   canonicalJson,
