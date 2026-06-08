@@ -47,10 +47,8 @@ import type {
   WorkUnitResolver,
   ResolvedWorkUnit,
 } from "../pr-state/resolvers/types.ts";
-import {
-  execBd as defaultExecBd,
-  type BdExecResult,
-} from "@bounded-systems/bd";
+import { execBd as defaultExecBd } from "@bounded-systems/bd";
+import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import {
   loadAllBeads as defaultLoadAllBeads,
   type BeadsRecord,
@@ -93,6 +91,8 @@ export type NotionDomainAdapterDeps = {
   fetchImpl?: typeof fetch;
   /** bd CLI exec. Defaults to `execBd`. */
   execBd?: typeof defaultExecBd;
+  /** GH-296 / prx-82b — sync runner for daemon-routed `prx beads update`. */
+  run?: CommandRunner;
   /** Loader for the full bd record set. Defaults to `loadAllBeads`. */
   loadAllBeads?: typeof defaultLoadAllBeads;
   /** `prx.toml` identity loader. Defaults to `loadIdentityConfig`. */
@@ -148,8 +148,8 @@ export class NotionDomainAdapter implements DomainAdapter {
     return this.deps.fetchImpl ?? fetch;
   }
 
-  private get bdExec(): typeof defaultExecBd {
-    return this.deps.execBd ?? defaultExecBd;
+  private get run(): CommandRunner {
+    return this.deps.run ?? procRunner;
   }
 
   private loadIdentity(cwd: string): IdentityConfig {
@@ -355,20 +355,16 @@ export class NotionDomainAdapter implements DomainAdapter {
         "notion adapter push: POST /pages response did not include an id",
       );
     }
-    const update: BdExecResult = this.bdExec(
-      {
-        subcommand: "update",
-        args: [bd.id, "--metadata", `external_refs.notion=${pageId}`],
-        state: "planning",
-        role: "planner",
-      },
-      processEnv(),
+    // GH-296 / prx-82b: write-back via the daemon (single writer).
+    const update = this.run(
+      ["prx", "beads", "update", bd.id, "--metadata", `external_refs.notion=${pageId}`],
+      { check: false },
     );
-    if (update.exitCode !== 0) {
-      const detail = update.stderr.trim() || update.stdout.trim() || "bd update failed";
+    if (update.status !== 0) {
+      const detail = update.stderr.trim() || update.stdout.trim() || "prx beads update failed";
       throw new NotionDomainAdapterError(
         `notion adapter push: created ${pageId} but bd write-back failed: ${detail}`,
-        update.exitCode || 1,
+        update.status || 1,
       );
     }
     return { externalId: pageId, created: true, edited: true };
@@ -410,21 +406,16 @@ export class NotionDomainAdapter implements DomainAdapter {
     const stdoutParts: string[] = [];
     const stderrParts: string[] = [];
     for (const beadId of opts.beadIds) {
-      const result = this.bdExec(
-        {
-          subcommand: "update",
-          args: [beadId, "--status", "closed"],
-          cwd: opts.cwd,
-          state: "planning",
-          role: "planner",
-        },
-        processEnv(),
+      // GH-296 / prx-82b: close via the daemon (single writer).
+      const result = this.run(
+        ["prx", "beads", "update", beadId, "--status", "closed"],
+        { cwd: opts.cwd, check: false },
       );
       if (result.stdout) stdoutParts.push(result.stdout);
       if (result.stderr) stderrParts.push(result.stderr);
-      if (result.exitCode !== 0) {
+      if (result.status !== 0) {
         return {
-          exitCode: result.exitCode,
+          exitCode: result.status,
           stdout: stdoutParts.join("\n"),
           stderr: stderrParts.join("\n"),
         };
