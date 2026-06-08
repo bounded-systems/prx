@@ -178,6 +178,10 @@
     "packages/slack": {
       "name": "@bounded-systems/slack",
       "version": "0.0.0",
+      "dependencies": {
+        "@bounded-systems/cas": "workspace:*",
+        "@bounded-systems/policy": "workspace:*",
+      },
     },
     "packages/surface-sync": {
       "name": "@bounded-systems/surface-sync",

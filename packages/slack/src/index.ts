@@ -31,3 +31,8 @@ export type {
 export { slackScopedKeymaker } from "./keymaker.ts";
 
 export type { SlackReadTransport } from "./transport.ts";
+
+export type { ExecSlackReadDeps, SlackReadEnvelope } from "./read.ts";
+export { execSlackRead, formatSlackReadEnvelope, DEFAULT_KEY_TTL_MS } from "./read.ts";
+
+export { canonicalJson } from "./canonical.ts";

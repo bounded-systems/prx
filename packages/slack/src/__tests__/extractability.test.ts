@@ -18,7 +18,10 @@ const MODULE_ROOT = resolve(HERE, "..");
 // secret. It may CONTAIN scope logic (slackScopedKeymaker) but only wraps an
 // opaque, structurally-typed base keymaker whose closure holds the token; the
 // secret never enters this package. The composition root supplies the base.
-const PROD_ALLOWLIST = new Set<string>([]);
+const PROD_ALLOWLIST = new Set<string>([
+  "@bounded-systems/policy", // .3 — the policy gate
+  "@bounded-systems/cas", // .5 — content-addressing
+]);
 
 const TEST_ALLOWLIST = new Set<string>([
   ...PROD_ALLOWLIST,

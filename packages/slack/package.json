@@ -11,5 +11,8 @@
       "default": "./src/index.ts"
     }
   },
-  "dependencies": {}
+  "dependencies": {
+    "@bounded-systems/policy": "workspace:*",
+    "@bounded-systems/cas": "workspace:*"
+  }
 }
