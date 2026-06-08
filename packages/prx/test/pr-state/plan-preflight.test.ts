@@ -9,13 +9,41 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { runCli } from "../../src/pr-state/cli.ts";
+import { parseArgs, CliExitError } from "../../src/cli/verbspec.ts";
+import {
+  planPreflightVerb,
+  type PlanPreflightDeps,
+} from "../../src/pr-state/plan-preflight-verb.ts";
+import { preflightExitCode } from "../../src/plan/preflight_schema.ts";
 import type { PreflightResult } from "../../src/plan/preflight_schema.ts";
 
 type Output = {
   log: (line: string) => void;
   error: (line: string) => void;
 };
+
+// `plan preflight` is a VerbSpec now; drive its CLI path (parse → run → render
+// → exit, with CliExitError → exit code) the way the legacy `runCli(["plan",
+// "preflight", …], output, deps)` harness did. argv arrives as ["plan",
+// "preflight", …rest].
+async function runPlanPreflightCli(
+  argv: string[],
+  output: Output,
+  deps: Partial<PlanPreflightDeps>,
+): Promise<number> {
+  const rest = argv.slice(2);
+  try {
+    const input = parseArgs(planPreflightVerb as never, rest) as Parameters<
+      typeof planPreflightVerb.run
+    >[0];
+    const out = await planPreflightVerb.run(input, { ...planPreflightVerb.deps!(), ...deps });
+    output.log(planPreflightVerb.render!(out, input));
+    return preflightExitCode((out as { result: PreflightResult }).result.status);
+  } catch (e) {
+    output.error(e instanceof Error ? e.message : String(e));
+    return e instanceof CliExitError ? e.exitCode : 1;
+  }
+}
 
 function captureOutput(): { logs: string[]; errors: string[]; output: Output } {
   const logs: string[] = [];
@@ -73,7 +101,7 @@ describe("prx plan preflight (standalone verb)", () => {
   test("exit 0 on pass; plain output renders the safe-to-draft summary", async () => {
     const { logs, errors, output } = captureOutput();
     let called = false;
-    const exit = await runCli(
+    const exit = await runPlanPreflightCli(
       ["plan", "preflight", "GH-1239"],
       output,
       {
@@ -94,7 +122,7 @@ describe("prx plan preflight (standalone verb)", () => {
 
   test("exit 1 on non-pass; plain output names the offending action shape", async () => {
     const { logs, errors, output } = captureOutput();
-    const exit = await runCli(
+    const exit = await runPlanPreflightCli(
       ["plan", "preflight", "GH-1199"],
       output,
       {
@@ -110,7 +138,7 @@ describe("prx plan preflight (standalone verb)", () => {
 
   test("exit 2 when the preflight throws (network/parse error)", async () => {
     const { logs, errors, output } = captureOutput();
-    const exit = await runCli(
+    const exit = await runPlanPreflightCli(
       ["plan", "preflight", "GH-1239"],
       output,
       {
@@ -126,7 +154,7 @@ describe("prx plan preflight (standalone verb)", () => {
 
   test("--format json emits the schema-shape result on stdout", async () => {
     const { logs, output } = captureOutput();
-    const exit = await runCli(
+    const exit = await runPlanPreflightCli(
       ["plan", "preflight", "GH-1239", "--format", "json"],
       output,
       {
@@ -140,7 +168,7 @@ describe("prx plan preflight (standalone verb)", () => {
 
   test("missing positional → CliError with usage hint", async () => {
     const { errors, output } = captureOutput();
-    const exit = await runCli(["plan", "preflight"], output, {});
+    const exit = await runPlanPreflightCli(["plan", "preflight"], output, {});
     expect(exit).not.toBe(0);
     expect(errors.join("\n")).toContain(
       "plan preflight requires a work-unit id",

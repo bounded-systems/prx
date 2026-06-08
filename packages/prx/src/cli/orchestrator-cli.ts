@@ -13,7 +13,7 @@
 
 import { ZodError } from "zod";
 
-import { dispatch, render } from "./verbspec.ts";
+import { dispatch, render, CliExitError } from "./verbspec.ts";
 import { verbRegistry } from "./verb-registry.ts";
 
 export async function runSpecVerb(
@@ -48,6 +48,13 @@ export async function runSpecVerb(
     // A verb may map its (successful) output to a non-zero exit code; default 0.
     return v?.exitCode ? v.exitCode(res.output as never, res.input as never) : 0;
   } catch (e) {
+    // A verb that mapped its failure to an explicit exit code (e.g. plan
+    // preflight's exit 2 for "could not run"): stderr message, that code, no
+    // stdout (render was never reached).
+    if (e instanceof CliExitError) {
+      output.error(e.message);
+      return e.exitCode;
+    }
     // A Zod validation failure (bad/missing arg) → surface the first issue's
     // message, not the multi-issue JSON dump, matching the legacy CliError UX.
     if (e instanceof ZodError) {

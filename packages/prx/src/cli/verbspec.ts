@@ -84,6 +84,23 @@ export function defineVerb<I extends ZodType, O extends ZodType, C = unknown>(
 export type JsonSchema = Record<string, unknown>;
 
 /**
+ * A verb-thrown error carrying an explicit CLI exit code. The bridge
+ * (`runSpecVerb`) maps it to `output.error(message)` + that code, with NO
+ * stdout — for verbs that distinguish "the check ran and refused" from "the
+ * check could not run" (e.g. `plan preflight` uses exit 2 for a thrown
+ * network/parse error vs exit 1 for a refusal). CLI-only.
+ */
+export class CliExitError extends Error {
+  constructor(
+    message: string,
+    readonly exitCode: number,
+  ) {
+    super(message);
+    this.name = "CliExitError";
+  }
+}
+
+/**
  * MCP/OpenAPI-safe token for a verb id: spaces → `_` (MCP tool names and
  * OpenAPI operationIds can't contain spaces). `plan session` → `plan_session`;
  * single-token ids are unchanged.
