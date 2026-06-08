@@ -35,7 +35,6 @@ import {
   repoStatus,
   buildParityChain,
   buildSurfaceSyncFromBoard,
-  buildSessionLayerPrune,
   viewPr,
   type ScoutLogsResult,
   type PrView,
@@ -70,7 +69,6 @@ import {
   type PidAliveProbe,
   type IdentityConfig,
   type NotionIdentityConfig,
-  type WorktreeRemoveMuxHandle,
 } from "./github.ts";
 import type {
   SurfaceSyncAction,
@@ -2005,13 +2003,6 @@ type ParsedCommand =
       format: "plain" | "json";
     }
   | {
-      command: "prune-session";
-      repoPath: string;
-      workUnitId: string;
-      apply: boolean;
-      format: "plain" | "json";
-    }
-  | {
       command: "tools-mux-clear-resurrect";
       sessionName: string;
       format: "plain" | "json";
@@ -2596,16 +2587,12 @@ type CliDeps = {
   hookStatus?: typeof hookStatus;
   wtStatus?: typeof wtStatus;
   removeWorktree?: typeof removeWorktree;
-  muxHandle?: WorktreeRemoveMuxHandle;
   /** CommandRunner seam for all tmux IPC (has-session, display-message, new-session, split-window, send-keys, kill-session). Tests inject a recording runner. */
   muxRunner?: GithubCommandRunner;
   /** CommandRunner seam for the final `tmux attach-session` call. Separate from muxRunner because the attach is interactive (stdio-inherit) in prod while tests want it mocked. */
   attachRunner?: GithubCommandRunner;
   repoStatus?: typeof repoStatus;
   buildParityChain?: typeof buildParityChain;
-  buildSessionLayerPrune?: typeof buildSessionLayerPrune;
-  /** Override for testability: return the name of the current tmux session, or null. */
-  tmuxCurrentSession?: () => string | null;
   boardStatus?: typeof boardStatus;
   chainStatus?: typeof chainStatus;
   validateGitHubIssue?: typeof validateGitHubIssue;
@@ -10440,40 +10427,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
   }
 
   if (command === "prune") {
-    // GH-1133: `prx prune session <GH-N>` — narrow session/tmux-only
-    // teardown. Detect the positional subverb before the flag-only
-    // `prx prune` parser runs (the latter rejects positionals).
-    if (rest[0] === "session") {
-      const sessionRest = rest.slice(1);
-      const { values, positionals } = parseArgs({
-        args: sessionRest,
-        options: {
-          "repo-path": { type: "string", default: "." },
-          "dry-run": { type: "boolean", default: false },
-          format: { type: "string", default: "plain" },
-        },
-        strict: true,
-        allowPositionals: true,
-      });
-      const workUnitArg = positionals[0];
-      if (!workUnitArg) {
-        throw new CliError(
-          "prx prune session requires a work-unit id (e.g., `prx prune session GH-1133`)",
-        );
-      }
-      if (positionals.length > 1) {
-        throw new CliError(
-          `prx prune session takes a single work-unit id; got ${positionals.length}`,
-        );
-      }
-      return {
-        command: "prune-session",
-        repoPath: values["repo-path"],
-        workUnitId: parseCanonicalWorkUnitId(workUnitArg, "prune session"),
-        apply: !values["dry-run"],
-        format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      };
-    }
 
     if (rest.includes("--apply")) {
       throw new CliError(
@@ -20449,34 +20402,11 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "worktree-remove") {
-      const muxHandle: WorktreeRemoveMuxHandle = deps.muxHandle ?? {
-        cleanup: (worktreePath) => {
-          // GH-1172: a worktree may host plan + implement sessions
-          // concurrently. Kill every session whose path matches this
-          // worktree, plus the legacy un-suffixed name as a safety net.
-          // Surface map is the source of truth for which sessions are live.
-          const surface = readTmuxSurface();
-          const matching = Array.from(surface.values())
-            .flatMap((entries) => entries)
-            .filter((e) => e.sessionPath.replace(/\/+$/, "") === worktreePath.replace(/\/+$/, ""));
-          const targets = new Set<string>(matching.map((e) => e.sessionName));
-          // Derive the un-suffixed name from the *resolved* worktree path
-          // that `removeWorktree` hands us — not from `parsed.target`,
-          // which may be a ticket id (`GH-678`) whose basename wouldn't
-          // match the actual session tied to the on-disk worktree
-          // (`gh_678_<slug>`).
-          targets.add(muxSessionName(worktreePath));
-          for (const name of targets) {
-            killMuxSession({ name });
-          }
-        },
-      };
       const summary = (deps.removeWorktree ?? removeWorktree)(parsed.repoPath, parsed.target, {
         force: parsed.force,
         prune: parsed.prune,
         deleteBranch: parsed.deleteBranch,
         dryRun: parsed.dryRun,
-        muxHandle,
       });
       output.log(formatWorktreeRemove(summary, parsed.format));
       return 0;
@@ -21496,83 +21426,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         { includeGitDetails: parsed.includeGitDetails, fetch: parsed.fetch },
       );
       output.log(formatRepoStatus(summary, parsed.format));
-      return 0;
-    }
-
-    if (parsed.command === "prune-session") {
-      output.error(PRX_PRUNE_GC_ALIAS_HINT); // 2l4ua: prune is deprecated
-      // GH-1133: session-layer prune — kill_tmux_session +
-      // close_prx_session, nothing else. Self-destruct guard: when the
-      // caller is inside the target unit's own tmux session, refuse
-      // the kill and emit a fresh-shell handoff block (mirrors the
-      // worktree self-destruct pattern in closeSession).
-      const result = (deps.buildSessionLayerPrune ?? buildSessionLayerPrune)(
-        parsed.repoPath,
-        parsed.workUnitId,
-        { apply: parsed.apply },
-      );
-
-      const insideOwnSession = (() => {
-        if (!getEnv("TMUX")) return false;
-        const killAction = result.actions.find((a) => a.type === "kill_tmux_session");
-        if (!killAction || killAction.type !== "kill_tmux_session") return false;
-        const currentName = deps.tmuxCurrentSession
-          ? deps.tmuxCurrentSession()
-          : (() => {
-              let probe;
-              try {
-                probe = procRunner(
-                  ["tmux", "-L", PRX_TMUX_SOCKET, "display-message", "-p", "#S"],
-                  { check: false },
-                );
-              } catch {
-                return null;
-              }
-              if (probe.status !== 0) return null;
-              const name = probe.stdout.trim();
-              return name || null;
-            })();
-        if (!currentName) return false;
-        // Use the structured sessionName field (avoids parsing the shell-quoted command).
-        return currentName === killAction.sessionName;
-      })();
-
-      if (insideOwnSession && parsed.apply) {
-        const handoff = [
-          `prx prune session ${parsed.workUnitId}`,
-        ];
-        if (parsed.format === "json") {
-          output.log(
-            JSON.stringify(
-              { ...result, handoffRequired: true, handoff, applied: false },
-              null,
-              2,
-            ),
-          );
-        } else {
-          output.log(formatSurfaceSync(result, "plain"));
-          output.log("");
-          output.log(
-            "refused: prx prune session would kill the caller's own tmux session.",
-          );
-          output.log("Run from a fresh shell:");
-          for (const line of handoff) {
-            output.log(`  ${line}`);
-          }
-        }
-        return 2;
-      }
-
-      output.log(formatSurfaceSync(result, parsed.format));
-      if (parsed.apply && result.actions.length > 0) {
-        const applyResults = (deps.applyParityChainActions ?? applyParityChainActions)(
-          result,
-          parsed.repoPath,
-        );
-        const applyOutput = formatParityChainApplyResults(applyResults, parsed.format);
-        if (applyOutput) output.log(applyOutput);
-        if (applyResults.some((r) => r.status !== 0)) return 1;
-      }
       return 0;
     }
 

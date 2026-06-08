@@ -55,34 +55,6 @@ export type SurfaceSyncAction =
       reason: string;
     }
   | {
-      type: "open_tmux_session";
-      branch: string;
-      ticket: string | null;
-      reason: string;
-    }
-  | {
-      // GH-1133: session-layer teardown subset of #804. Kills the live
-      // tmux session for a unit; siblings to `close_prx_session`.
-      type: "kill_tmux_session";
-      branch: string;
-      ticket: string | null;
-      reason: string;
-      // Structured session name — avoids parsing the shell-quoted command string
-      // in the self-destruct guard and in tests.
-      sessionName: string;
-    }
-  | {
-      // GH-1133: drops the persistent prx state for a unit (today, the
-      // tmux-resurrect save-file entry under `~/.local/state/prx/`).
-      // Sibling to `kill_tmux_session`; either may emit independently.
-      type: "close_prx_session";
-      branch: string;
-      ticket: string | null;
-      reason: string;
-      // The resurrect entry to clear (drives the clear-resurrect command).
-      sessionName: string;
-    }
-  | {
       // GH-1125: close a GH issue whose PR is already merged. Emitted when
       // `prx prune --merged-only` discovers an open issue + completed PR.
       // Branch is omitted because the action targets the issue, not a ref;

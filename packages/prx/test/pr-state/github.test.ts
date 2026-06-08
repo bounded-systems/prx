@@ -12,7 +12,6 @@ import type {
 import {
   buildParityChain,
   buildSurfaceSyncFromBoard,
-  buildSessionLayerPrune,
   commandForSurfaceSyncAction,
   boardStatus,
   branchProtectionPayloadJsonSchema,
@@ -4453,7 +4452,6 @@ describe("board-status", () => {
                 problem: "no",
               },
             },
-            tmux: { present: false, sessionName: null },
             column: "cleaned",
             reasons: [],
           },
@@ -4477,12 +4475,11 @@ describe("board-status", () => {
   });
 
   // GH-2147 / ai-home-rh8e9: a completed unit whose worktree is still present
-  // but ineligible for delete_worktree (dirty / live tmux) must surface an
+  // but ineligible for delete_worktree (dirty worktree) must surface an
   // explicit blocker instead of a silent zero-action result.
   const completedPresentUnit = (
     overrides: {
       local?: Partial<{ clean: boolean; staged: number; unstaged: number; untracked: number; conflicts: number }>;
-      tmux?: { present: boolean; sessionName: string | null };
     },
   ) => ({
     ticket: "GH-2147",
@@ -4498,7 +4495,6 @@ describe("board-status", () => {
       },
       local: { branch: "clean", worktree: "clean", dir: "present", problem: "no" },
     },
-    tmux: overrides.tmux ?? { present: false, sessionName: null },
     column: "cleaned" as const,
     reasons: [],
   });
@@ -4538,14 +4534,6 @@ describe("board-status", () => {
     // ...but the operator is told why, not left with a silent no-op.
     expect(result.units[0]?.blockers ?? []).toEqual([
       expect.stringContaining("uncommitted changes"),
-    ]);
-  });
-
-  test("buildParityChain blocks prune of a completed unit with a live tmux session (GH-2147)", () => {
-    const result = pruneCompletedPresent({ tmux: { present: true, sessionName: "GH-2147-impl" } });
-    expect(result.actions.some((a) => a.type === "delete_worktree")).toBe(false);
-    expect(result.units[0]?.blockers ?? []).toEqual([
-      expect.stringContaining("live tmux session"),
     ]);
   });
 
@@ -4605,7 +4593,6 @@ describe("board-status", () => {
                 problem: "yes",
               },
             },
-            tmux: { present: false, sessionName: null },
             column: "pushed",
             reasons: [],
           },
@@ -4675,7 +4662,6 @@ describe("board-status", () => {
                 problem: "no",
               },
             },
-            tmux: { present: false, sessionName: null },
             column: "cleaned",
             reasons: [],
           },
@@ -4690,69 +4676,6 @@ describe("board-status", () => {
     // delete_local_branch path remains, and it idempotently no-ops via
     // continue-on-error if the branch ref is already gone.
     expect(result.actions.find((a) => a.type === "delete_worktree")).toBeUndefined();
-  });
-
-  test("buildParityChain skips delete_worktree when tmux session is still attached (GH-1126)", () => {
-    const root = mkdtempSync(join(tmpdir(), "pr-state-prune-tmux-attached-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      [
-        "[parity_chain]",
-        "gh_issue = true",
-        "",
-      ].join("\n"),
-    );
-    const runner: CommandRunner = (cmd) => {
-      if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
-        return { stdout: `${root}\n`, stderr: "", status: 0 };
-      }
-      throw new Error(`Unexpected command: ${cmd.join(" ")}`);
-    };
-
-    const result = buildSurfaceSyncFromBoard(
-      root,
-      {
-        source: "derived-board",
-        repo: "owner/repo",
-        remote_freshness: "fresh",
-        units: [
-          {
-            ticket: "GH-1048",
-            branch: "GH-1048",
-            worktree_path: `${root}/gh_1048_a8a`,
-            pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
-            artifacts: { worktree: true, branch: true, pr: false, ticket: true },
-            local: { clean: true, staged: 0, unstaged: 0, untracked: 0, conflicts: 0 },
-            status: {
-              remote: {
-                gh_issue: "completed",
-                beads_issue: "clean",
-                project_item: "clean",
-                branch: "clean",
-                pr: "completed",
-                merge_state: "clean",
-                ci: "clean",
-                problem: "no",
-              },
-              local: {
-                branch: "clean",
-                worktree: "clean",
-                dir: "present",
-                problem: "no",
-              },
-            },
-            tmux: { present: true, sessionName: "gh_1048_a8a" },
-            column: "cleaned",
-            reasons: [],
-          },
-        ],
-      },
-      { mode: "prune", authority: "issue", scope: "local" },
-      runner,
-    );
-
-    expect(result.actions).toEqual([]);
-    expect(result.units[0]?.disposition).toBe("review");
   });
 
   test("buildParityChain skips delete_worktree on dirty local — operator state at risk (GH-1126)", () => {
@@ -4804,7 +4727,6 @@ describe("board-status", () => {
                 problem: "no",
               },
             },
-            tmux: { present: false, sessionName: null },
             column: "cleaned",
             reasons: [],
           },
@@ -5017,71 +4939,6 @@ describe("board-status", () => {
     expect(result.actions).toEqual([]);
   });
 
-  test("buildParityChain emits open_tmux_session when worktree+branch+remote+PR present and tmux missing (GH-872)", () => {
-    const root = mkdtempSync(join(tmpdir(), "pr-state-872-tmux-repair-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      [
-        "[parity_chain]",
-        "gh_issue = true",
-        "",
-      ].join("\n"),
-    );
-    const runner: CommandRunner = (cmd) => {
-      if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
-        return { stdout: `${root}\n`, stderr: "", status: 0 };
-      }
-      throw new Error(`Unexpected command: ${cmd.join(" ")}`);
-    };
-
-    const result = buildSurfaceSyncFromBoard(
-      root,
-      {
-        source: "derived-board",
-        repo: "owner/repo",
-        remote_freshness: "fresh",
-        units: [
-          {
-            ticket: "GH-872",
-            branch: "GH-872",
-            worktree_path: "/wt/gh_872_bpt",
-            pr: { exists: true, number: 9, title: "t", url: "u", draft: false, checks: "green", review: "approved", approvals: 1, mergeable: "mergeable" },
-            artifacts: { worktree: true, branch: true, pr: true, ticket: true },
-            local: { clean: true, staged: 0, unstaged: 0, untracked: 0, conflicts: 0 },
-            tmux: { present: false, sessionName: null },
-            status: {
-              remote: {
-                gh_issue: "dirty",
-                beads_issue: "clean",
-                project_item: "clean",
-                branch: "dirty",
-                pr: "dirty",
-                merge_state: "clean",
-                ci: "clean",
-                problem: "no",
-              },
-              local: { branch: "dirty", worktree: "clean", dir: "present", problem: "no" },
-            },
-            column: "review",
-            reasons: [],
-          },
-        ],
-      },
-      { mode: "full", authority: "issue", scope: "all" },
-      runner,
-    );
-
-    expect(result.actions).toEqual([
-      {
-        type: "open_tmux_session",
-        branch: "GH-872",
-        ticket: "GH-872",
-        reason: "Worktree and branch present but no tmux session",
-      },
-    ]);
-    expect(result.units[0]?.disposition).toBe("repair");
-  });
-
   // GH-1125 — `--merged-only` discovery filter on `prx prune`. Selects
   // units where the PR is merged but the issue is still open and prepends
   // a `close_issue` action; non-matching units short-circuit with no
@@ -5114,7 +4971,6 @@ describe("board-status", () => {
             pr: { exists: true, number: 1234, title: null, url: null, draft: false, checks: null, review: null, approvals: null, mergeable: null },
             artifacts: { worktree: false, branch: false, pr: true, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
-            tmux: { present: false, sessionName: null },
             status: {
               remote: {
                 gh_issue: "dirty",
@@ -5139,7 +4995,6 @@ describe("board-status", () => {
             pr: { exists: true, number: 1235, title: null, url: null, draft: false, checks: null, review: null, approvals: null, mergeable: null },
             artifacts: { worktree: false, branch: false, pr: true, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
-            tmux: { present: false, sessionName: null },
             status: {
               remote: {
                 gh_issue: "completed",
@@ -5164,7 +5019,6 @@ describe("board-status", () => {
             pr: { exists: true, number: 1236, title: null, url: null, draft: true, checks: null, review: null, approvals: null, mergeable: null },
             artifacts: { worktree: false, branch: true, pr: true, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
-            tmux: { present: false, sessionName: null },
             status: {
               remote: {
                 gh_issue: "dirty",
@@ -5238,7 +5092,6 @@ describe("board-status", () => {
             pr: { exists: true, number: 9000, title: null, url: null, draft: false, checks: null, review: null, approvals: null, mergeable: null },
             artifacts: { worktree: false, branch: false, pr: true, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
-            tmux: { present: false, sessionName: null },
             status: {
               remote: {
                 gh_issue: "dirty",
@@ -5297,7 +5150,6 @@ describe("board-status", () => {
             pr: { exists: true, number: 9100, title: null, url: null, draft: false, checks: null, review: null, approvals: null, mergeable: null },
             artifacts: { worktree: false, branch: false, pr: true, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
-            tmux: { present: false, sessionName: null },
             status: {
               remote: {
                 gh_issue: "dirty",
@@ -5349,7 +5201,6 @@ describe("board-status", () => {
             pr: { exists: true, number: 9101, title: null, url: null, draft: false, checks: null, review: null, approvals: null, mergeable: null },
             artifacts: { worktree: false, branch: false, pr: true, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
-            tmux: { present: false, sessionName: null },
             // gh_issue is a non-canonical string ("unknown") — e.g. when
             // `gh issue view` failed and the resolver fell back to a
             // default. `normalizeIssueStatus` returns "disabled" for any
@@ -5379,7 +5230,7 @@ describe("board-status", () => {
     expect(result.actions.some((a) => a.type === "close_issue")).toBe(false);
   });
 
-  test("buildParityChain classifies merged-PR row as prune and skips open_tmux_session (GH-872)", () => {
+  test("buildParityChain classifies merged-PR row as prune (GH-872)", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-872-prune-disposition-"));
     writeFileSync(
       join(root, "prx.toml"),
@@ -5410,7 +5261,6 @@ describe("board-status", () => {
             pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
             artifacts: { worktree: false, branch: false, pr: false, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
-            tmux: { present: false, sessionName: null },
             status: {
               remote: {
                 gh_issue: "completed",
@@ -5434,7 +5284,6 @@ describe("board-status", () => {
     );
 
     expect(result.units[0]?.disposition).toBe("prune");
-    expect(result.actions.some((action) => action.type === "open_tmux_session")).toBe(false);
   });
 
   test("board remote status honors disabled parity-chain features from prx.toml", () => {
@@ -6024,196 +5873,6 @@ describe("pr comments", () => {
     const result = fetchPrComments("/repo", "GH-885", runner);
     expect(result.pr.autoMergeEnabled).toBeTrue();
     expect(result.pr.autoMergeRequest).toEqual({ enabledBy: "doctor-bot", mergeMethod: "SQUASH" });
-  });
-});
-
-// GH-1133 — `prx prune session <GH-N>` builder
-describe("buildSessionLayerPrune", () => {
-  type SessionFixture = {
-    worktreeListing: string; // contents emitted by `git worktree list --porcelain`
-    tmuxListing: string; // contents emitted by `tmux -L prx list-sessions -F ...`
-  };
-
-  function makeRunner(repoRoot: string, fixture: SessionFixture): CommandRunner {
-    return (cmd) => {
-      const joined = cmd.join(" ");
-      if (joined === `git -C ${repoRoot} worktree list --porcelain`) {
-        return { stdout: fixture.worktreeListing, stderr: "", status: 0 };
-      }
-      if (cmd[0] === "tmux" && cmd.includes("list-sessions")) {
-        return { stdout: fixture.tmuxListing, stderr: "", status: fixture.tmuxListing ? 0 : 1 };
-      }
-      if (
-        cmd[0] === "gh"
-        && cmd[1] === "repo"
-        && cmd[2] === "view"
-        && cmd.includes("nameWithOwner")
-      ) {
-        return { stdout: "owner/repo\n", stderr: "", status: 0 };
-      }
-      throw new Error(`Unexpected command: ${joined}`);
-    };
-  }
-
-  function writeResurrectFixture(dir: string, sessionLines: string[]): void {
-    mkdirSync(dir, { recursive: true });
-    // `resolveResurrectLast` first tries to readlink `last`; on EINVAL
-    // (regular file) it returns the path itself and reads its contents
-    // as the save file. So write the tmux-resurrect tab-separated lines
-    // directly into `last`.
-    const lines: string[] = [];
-    for (const name of sessionLines) {
-      // tmux-resurrect format: tab-separated; column 2 == session name.
-      lines.push(`pane\t${name}\t1\t1\tbash\t1\t1\t1\t:\t/tmp\t1\t/bin/bash`);
-    }
-    writeFileSync(join(dir, "last"), lines.join("\n") + (lines.length ? "\n" : ""));
-  }
-
-  test("emits both actions when tmux session is live and resurrect entry exists", () => {
-    const root = mkdtempSync(join(tmpdir(), "prune-session-both-"));
-    const wtPath = join(root, "gh_1133_test");
-    const resurrectDir = mkdtempSync(join(tmpdir(), "prune-session-resurrect-"));
-    writeResurrectFixture(resurrectDir, ["gh_1133_test"]);
-
-    const runner = makeRunner(root, {
-      worktreeListing: [
-        `worktree ${wtPath}`,
-        "HEAD aaaa",
-        "branch refs/heads/GH-1133",
-        "",
-      ].join("\n"),
-      tmuxListing: `gh_1133_test\t${wtPath}\n`,
-    });
-
-    const result = buildSessionLayerPrune(root, "GH-1133", { resurrectDir }, runner);
-
-    expect(result.mode).toBe("prune");
-    expect(result.authority).toBe("local");
-    expect(result.scope).toBe("all");
-    expect(result.ticket).toBe("GH-1133");
-    expect(result.actions.map((a) => a.type)).toEqual([
-      "kill_tmux_session",
-      "close_prx_session",
-    ]);
-    const execCtx = { repoPath: ".", bufferPath: null, worktreeConfig: { manager: "git" as const, command: "git" } };
-    const kill = result.actions[0]!;
-    expect(commandForSurfaceSyncAction(kill, execCtx)).toBe("'tmux' '-L' 'prx' 'kill-session' '-t' 'gh_1133_test'");
-    const close = result.actions[1]!;
-    expect(commandForSurfaceSyncAction(close, execCtx)).toBe(
-      "'prx' 'tools' 'mux' 'clear-resurrect' 'gh_1133_test'",
-    );
-  });
-
-  test("emits only kill_tmux_session when tmux is live but no resurrect entry", () => {
-    const root = mkdtempSync(join(tmpdir(), "prune-session-kill-only-"));
-    const wtPath = join(root, "gh_1133_test");
-    const resurrectDir = mkdtempSync(join(tmpdir(), "prune-session-resurrect-"));
-    // no save/last files written → resurrectSaveMentions returns false.
-
-    const runner = makeRunner(root, {
-      worktreeListing: [
-        `worktree ${wtPath}`,
-        "HEAD aaaa",
-        "branch refs/heads/GH-1133",
-        "",
-      ].join("\n"),
-      tmuxListing: `gh_1133_test\t${wtPath}\n`,
-    });
-
-    const result = buildSessionLayerPrune(root, "GH-1133", { resurrectDir }, runner);
-
-    // The `close_prx_session` action still emits because the tmux session
-    // is live — the post-kill cleanup must also drop any save-file entry
-    // tmux-resurrect would record. The reason text reflects that path.
-    expect(result.actions.map((a) => a.type)).toEqual([
-      "kill_tmux_session",
-      "close_prx_session",
-    ]);
-    expect(result.actions[1]!.reason).toMatch(/persistent prx session state/i);
-  });
-
-  test("emits only close_prx_session when tmux server has no session but resurrect entry lingers", () => {
-    const root = mkdtempSync(join(tmpdir(), "prune-session-orphan-resurrect-"));
-    const wtPath = join(root, "gh_1133_test");
-    const resurrectDir = mkdtempSync(join(tmpdir(), "prune-session-resurrect-"));
-    writeResurrectFixture(resurrectDir, ["gh_1133_test"]);
-
-    const runner = makeRunner(root, {
-      worktreeListing: [
-        `worktree ${wtPath}`,
-        "HEAD aaaa",
-        "branch refs/heads/GH-1133",
-        "",
-      ].join("\n"),
-      tmuxListing: "",
-    });
-
-    const result = buildSessionLayerPrune(root, "GH-1133", { resurrectDir }, runner);
-
-    expect(result.actions.map((a) => a.type)).toEqual(["close_prx_session"]);
-    expect(result.actions[0]!.reason).toMatch(/resurrect entry lingers/i);
-  });
-
-  test("is a clean no-op when neither tmux session nor resurrect entry exists", () => {
-    const root = mkdtempSync(join(tmpdir(), "prune-session-noop-"));
-    const wtPath = join(root, "gh_1133_test");
-    const resurrectDir = mkdtempSync(join(tmpdir(), "prune-session-resurrect-"));
-
-    const runner = makeRunner(root, {
-      worktreeListing: [
-        `worktree ${wtPath}`,
-        "HEAD aaaa",
-        "branch refs/heads/GH-1133",
-        "",
-      ].join("\n"),
-      tmuxListing: "",
-    });
-
-    const result = buildSessionLayerPrune(root, "GH-1133", { resurrectDir }, runner);
-
-    expect(result.actions).toEqual([]);
-    expect(result.units[0]!.actions).toEqual([]);
-  });
-
-  test("does not require a closed issue or merged PR (lighter authority gate)", () => {
-    // GH-1133 explicitly says the verb is decoupled from issue/PR
-    // lifecycle. The builder takes no BoardStatus at all and never
-    // probes gh issue/pr state — the "lighter authority" property is
-    // structural. This test asserts the builder runs to a meaningful
-    // result without any gh issue/pr fixture present.
-    const root = mkdtempSync(join(tmpdir(), "prune-session-light-auth-"));
-    const wtPath = join(root, "gh_999_active");
-    const resurrectDir = mkdtempSync(join(tmpdir(), "prune-session-resurrect-"));
-
-    const runner = makeRunner(root, {
-      worktreeListing: [
-        `worktree ${wtPath}`,
-        "HEAD bbbb",
-        "branch refs/heads/GH-999",
-        "",
-      ].join("\n"),
-      tmuxListing: `gh_999_active\t${wtPath}\n`,
-    });
-
-    const result = buildSessionLayerPrune(root, "GH-999", { resurrectDir }, runner);
-
-    expect(result.actions.length).toBeGreaterThan(0);
-    expect(result.actions.some((a) => a.type === "kill_tmux_session")).toBe(true);
-  });
-
-  test("returns no-op result when the work unit has neither worktree nor tmux session", () => {
-    const root = mkdtempSync(join(tmpdir(), "prune-session-missing-"));
-    const resurrectDir = mkdtempSync(join(tmpdir(), "prune-session-resurrect-"));
-
-    const runner = makeRunner(root, {
-      worktreeListing: "", // no worktrees on disk
-      tmuxListing: "", // no live tmux sessions
-    });
-
-    const result = buildSessionLayerPrune(root, "GH-7777", { resurrectDir }, runner);
-
-    expect(result.actions).toEqual([]);
-    expect(result.ticket).toBe("GH-7777");
   });
 });
 

@@ -29,8 +29,8 @@ export type SurfaceSyncResult = {
     disposition?: Disposition;
     /**
      * GH-2147: operator-facing reasons this unit was NOT auto-reconciled
-     * (e.g. a completed unit whose worktree is dirty or has a live tmux
-     * session). Present so prune never silently no-ops on a live worktree;
+     * (e.g. a completed unit whose worktree is dirty). Present so prune
+     * never silently no-ops on a live worktree;
      * surfaced by `formatSurfaceSync` even when the unit emits zero actions.
      */
     blockers?: string[];

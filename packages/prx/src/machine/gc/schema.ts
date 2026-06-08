@@ -143,7 +143,7 @@ export const TeardownOutput = z.object({
 	]),
 	/** Footprint classes removed (or, in dry-run, that would be removed). */
 	removed: z.array(
-		z.enum(["worktree", "tmux", "beads", "branch", "gh-verified"]),
+		z.enum(["worktree", "beads", "branch", "gh-verified"]),
 	),
 	error: z.string().optional(),
 });

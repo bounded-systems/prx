@@ -33,7 +33,6 @@ State:
   prx chain check-issue      Check issue parity for a unit
   prx chain check-session    Check session parity for a unit
   prx chain prune            Prune stale parity chain leaves
-  prx prune session          Tear down tmux + resurrect state for a unit (worktree intact)
   prx gc                     Reclaim and reconcile housekeeping across the system
   prx gc inventory           Discover reclaimable housekeeping items without mutating anything
   prx gc run                 Sweep reclaimable items (dry-run by default; --apply acts)
