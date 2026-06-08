@@ -393,18 +393,6 @@ describe("prx intake session (GH-950)", () => {
     expect(out).not.toMatch(/^prx\n==========\nWork-unit/m);
   });
 
-  test("`prx plan ultrareview --help` reaches plan-namespace-help, not the generic banner", async () => {
-    const { logs, output } = captureOutput();
-    const exit = await runCli(["plan", "ultrareview", "--help"], output, {});
-
-    expect(exit).toBe(0);
-    const out = logs.join("\n");
-    expect(out).toContain("prx plan");
-    expect(out).toContain("Subcommands:");
-    expect(out).toContain("prx plan ultrareview");
-    expect(out).not.toMatch(/^prx\n==========\nWork-unit/m);
-  });
-
   test("`prx plan ci --help` reaches plan-namespace-help, not the generic banner", async () => {
     const { logs, output } = captureOutput();
     const exit = await runCli(["plan", "ci", "--help"], output, {});

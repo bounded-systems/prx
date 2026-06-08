@@ -42,7 +42,6 @@ import {
   assertLaunchCwdNotMainx,
   runCli as runCliDirect,
   closeSession,
-  reviewVerb,
 } from "../../src/pr-state/cli.ts";
 import { interactiveTimeoutMs } from "../../src/pr-state/work-agent.ts";
 import { findSavedClaudeSession, findSavedCodexSession } from "../../src/pr-state/session-finder.ts";
@@ -180,13 +179,6 @@ function issueBackedWorkDeps(workUnitIds: string | string[]) {
     // in noOpWorktreeLockDeps for the CI-only TMPDIR-override rationale.
     // Tests exercising the refusal explicitly override with the real helper.
     assertWorktreeOnNamedBranch: () => null,
-    // GH-678: session-open drives a tmux spawn/attach under the mux
-    // persistence layer. Fixtures need a benign mux runner (and a
-    // benign attach runner) so tests don't shell out to real tmux.
-    // Tests that want to assert on tmux IPC override muxRunner via
-    // `captureMuxInvocations()` instead.
-    muxRunner: benignMuxRunner,
-    attachRunner: (() => ({ stdout: "", stderr: "", status: 0 })) as GithubCommandRunner,
     boardStatus: () => ({
       source: "derived-board" as const,
       repo: "owner/repo",
@@ -233,96 +225,12 @@ function issueBackedWorkDeps(workUnitIds: string | string[]) {
   };
 }
 
-/**
- * Benign tmux runner for session-open tests that don't want to inspect the
- * mux wiring. Models `has-session` as "absent" so the spawn path fires,
- * and every other tmux IPC call as exit 0 with empty stdout. Tests that DO
- * want to inspect tmux invocations override `muxRunner` directly.
- */
-const benignMuxRunner: GithubCommandRunner = (cmd) => {
-  if (cmd[0] !== "tmux") {
-    return { stdout: "", stderr: "", status: 0 };
-  }
-  // Skip "-L prx" (args 1, 2) to find the verb at arg 3.
-  const verb = cmd[3];
-  if (verb === "has-session") {
-    return { stdout: "", stderr: "", status: 1 };
-  }
-  return { stdout: "", stderr: "", status: 0 };
-};
-
 const noOpWorktreeLockDeps = {
   lockWorktree: () => {},
   unlockWorktree: () => {},
-  // muxRunner / attachRunner come in via issueBackedWorkDeps below, which
-  // also injects the GH-1983 detached-HEAD preflight stub.
+  // GH-1983 detached-HEAD preflight stub comes in via issueBackedWorkDeps.
   ...issueBackedWorkDeps(["GH-5431", "GH-5480", "GH-7777", "GH-171"]),
 };
-
-/**
- * Captures tmux invocations for session-open tests that want to inspect the
- * bootstrap_command (i.e. the claude/codex invocation the agent pane would run).
- * Wraps `benignMuxRunner` so the runner still returns sane pane ids, but also
- * records every call and exposes a getter for the send-keys text that landed
- * on the agent pane.
- */
-function captureMuxInvocations(): {
-  runner: GithubCommandRunner;
-  invocations: string[][];
-  bootstrapCommand(): string | null;
-  rawBootstrapCommand(): string | null;
-  newSessionCwd(): string | null;
-} {
-  const invocations: string[][] = [];
-  const runner: GithubCommandRunner = (cmd, options) => {
-    invocations.push([...cmd]);
-    return benignMuxRunner(cmd, options);
-  };
-  const rawBootstrap = (): string | null => {
-    // GH-767: single-pane layout sends the bootstrap to the session's
-    // only pane. Shape is `tmux -L prx send-keys -t <session> <cmd> Enter`
-    // → cmd[6].
-    const sendKeys = invocations.find((inv) => inv[3] === "send-keys");
-    return sendKeys ? sendKeys[6] ?? null : null;
-  };
-  return {
-    runner,
-    invocations,
-    rawBootstrapCommand: rawBootstrap,
-    bootstrapCommand() {
-      // GH-780: when the bootstrap exceeds MAX_CANON on Darwin, `prx session
-      // open` writes it to .pr/local/runtime/bootstrap.sh and sends a short
-      // POSIX `. <path>` line through tmux send-keys instead. Dereference the
-      // wrapper transparently so existing assertions still see the full
-      // claude invocation.
-      const raw = rawBootstrap();
-      if (!raw) return null;
-      const match = raw.match(/^\.\s+(\S+)\s*$/);
-      if (!match || !match[1]) return raw;
-      const sessionCwd = (() => {
-        const newSession = invocations.find((inv) => inv[3] === "new-session");
-        if (!newSession) return null;
-        const cIdx = newSession.indexOf("-c");
-        return cIdx >= 0 ? newSession[cIdx + 1] ?? null : null;
-      })();
-      const filePath = match[1];
-      const absolute = sessionCwd && !filePath.startsWith("/")
-        ? join(sessionCwd, filePath)
-        : filePath;
-      try {
-        return readFileSync(absolute, "utf8").replace(/\n+$/, "");
-      } catch {
-        return raw;
-      }
-    },
-    newSessionCwd() {
-      const newSession = invocations.find((inv) => inv[3] === "new-session");
-      if (!newSession) return null;
-      const cIdx = newSession.indexOf("-c");
-      return cIdx >= 0 ? newSession[cIdx + 1] ?? null : null;
-    },
-  };
-}
 
 function repoInventoryConfigFixture() {
   return {
@@ -386,14 +294,15 @@ describe("pr_state cli", () => {
     expect(stdout).toContain("prx");
     expect(stdout).toContain("Work-unit identity: GH-NNN");
     expect(stdout).toContain("Primary workflow:");
-    // Canonical six (registry §6.2; GH-1166: bare-session retired, slots
-    // renamed to `prx next` and `prx plan handoff`):
+    // Canonical promoted set (registry §6.2; GH-1166: bare-session retired,
+    // slots renamed to `prx next` and `prx plan handoff`; slice 3 removed the
+    // tmux send-keys `prx review` slot):
     expect(stdout).toContain("prx tui");
     expect(stdout).toContain("prx plan session");
     expect(stdout).toContain("prx next");
     expect(stdout).toContain("prx do");
-    expect(stdout).toContain("prx review");
     expect(stdout).toContain("prx plan handoff");
+    expect(stdout).not.toContain("prx review");
     // Footer pointers:
     expect(stdout).toContain("prx help-all");
     expect(stdout).toContain("prx <cmd> --help");
@@ -1338,148 +1247,7 @@ describe("pr_state cli", () => {
     expect(interactiveTimeoutMs("json", 30000)).toBe(30000);
   });
 
-  test("open sends the canonical work-unit runtime profile into the tmux agent pane and materializes local runtime files", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-work-"));
-    const previousCwd = process.cwd();
-    process.chdir(cwd);
-    const mux = captureMuxInvocations();
-    const exitCode = await runCliDirect(
-      ["open", "gh-5431"],
-      {
-        log: () => {},
-        error: () => {},
-      },
-      {
-        ...issueBackedWorkDeps("GH-5431"),
-        muxRunner: mux.runner,
-        attachRunner: () => ({ stdout: "", stderr: "", status: 0 }),
-        resolveWorkUnitCwd: () => cwd,
-      },
-    );
-    process.chdir(previousCwd);
-
-    expect(exitCode).toBe(0);
-    // GH-834: canonical entry routes through session-open-claude (direct-exec).
-    // No send-keys; claude argv lands in the new-session trailing tokens.
-    const sendKeys = mux.invocations.filter((inv) => inv[3] === "send-keys");
-    expect(sendKeys).toHaveLength(0);
-    const newSession = mux.invocations.find((inv) => inv[3] === "new-session");
-    expect(newSession).toBeDefined();
-    const nIdx = newSession!.indexOf("-n");
-    const afterWindow = newSession!.slice(nIdx + 2);
-    // GH-685 interactive shape: no bound-agent flags, no --print.
-    expect(afterWindow[0]).toBe("claude");
-    expect(afterWindow).toContain("--permission-mode");
-    expect(afterWindow).toContain("plan");
-    expect(afterWindow).toContain("--append-system-prompt");
-    expect(afterWindow).toContain("--strict-mcp-config");
-    expect(afterWindow).toContain("--mcp-config");
-    // GH-1147: plan profile passes --allowedTools / --disallowedTools as
-    // capability-layer enforcement.
-    expect(afterWindow).toContain("--allowedTools");
-    expect(afterWindow).toContain("--disallowedTools");
-    expect(afterWindow).not.toContain("--agent");
-    expect(afterWindow).not.toContain("--agents");
-    expect(afterWindow).not.toContain("--tools");
-    expect(afterWindow).not.toContain("--json-schema");
-    expect(afterWindow).not.toContain("--output-format");
-    expect(afterWindow).not.toContain("--print");
-    // Session CWD is what resolveWorkUnitCwd returned; asserts the
-    // `new-session -c <cwd>` path the tmux driver emits.
-    expect(mux.newSessionCwd()).toBe(cwd);
-    // Runtime artifacts are still generated (consumed by automation paths:
-    // agent-smoke, task run, role start — not by the interactive profile).
-    expect(existsSync(join(cwd, ".pr/local/runtime/agents.json"))).toBe(true);
-    expect(existsSync(join(cwd, ".pr/local/runtime/mcp.json"))).toBe(true);
-    expect(existsSync(join(cwd, ".pr/local/runtime/output.schema.json"))).toBe(true);
-    const agentsConfig = JSON.parse(readFileSync(join(cwd, ".pr/local/runtime/agents.json"), "utf8"));
-    const outputSchema = JSON.parse(readFileSync(join(cwd, ".pr/local/runtime/output.schema.json"), "utf8"));
-    expect(agentsConfig["GH-5431"].prompt).toContain("xstate-system-ts");
-    expect(agentsConfig["GH-5431"].prompt).toContain("Zod schemas");
-    expect(agentsConfig["GH-5431"].prompt).toContain("JSON schema boundaries");
-    expect(outputSchema.type).toBe("object");
-    expect(outputSchema.properties.workUnitId.pattern).toBe(
-      "^(GH-\\d+|NOTION-([0-9a-fA-F]{32}|\\d+)|BD-[0-9A-F]{8}|BD-[a-z][a-z0-9-]*-\\d{13,}-\\d+-[0-9a-f]{8})$",
-    );
-    expect(outputSchema.properties.phase.enum).toContain("ready_to_merge");
-    expect(outputSchema.properties.parityChain).toBeDefined();
-    expect(outputSchema.properties.modelBoundary).toBeDefined();
-    expect(outputSchema.properties.implementationPlan).toBeDefined();
-    expect(outputSchema.properties.verification).toBeDefined();
-    expect(outputSchema.properties.role.enum).toEqual(taskAgentRoles);
-    expect(outputSchema.required).toEqual([...runtimeRequiredFields]);
-  });
-
-  test("session open-claude exec's claude as pane PID 1 via new-session trailing argv (GH-819)", async () => {
-    // GH-819: open-claude skips the shell + bootstrap.sh send-keys
-    // indirection. The tmux `new-session` call itself carries the claude
-    // argv as trailing tokens, so tmux execs claude directly and the
-    // pane's PID 1 is claude — no shell parent.
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-open-claude-"));
-    const previousCwd = process.cwd();
-    const previousEnv = process.env.PRX_SESSION_OPEN;
-    let exitCode: number;
-    try {
-      delete process.env.PRX_SESSION_OPEN;
-      process.chdir(cwd);
-      const mux = captureMuxInvocations();
-      exitCode = await runCliDirect(
-        ["claude", "GH-5431"],
-        { log: () => {}, error: () => {} },
-        {
-          ...issueBackedWorkDeps("GH-5431"),
-          muxRunner: mux.runner,
-          attachRunner: () => ({ stdout: "", stderr: "", status: 0 }),
-          resolveWorkUnitCwd: () => cwd,
-        },
-      );
-      expect(exitCode).toBe(0);
-
-      // No send-keys replay — the whole point.
-      const sendKeys = mux.invocations.filter((inv) => inv[3] === "send-keys");
-      expect(sendKeys).toHaveLength(0);
-
-      // new-session carries the claude argv as trailing shell-command tokens.
-      const newSession = mux.invocations.find((inv) => inv[3] === "new-session");
-      expect(newSession).toBeDefined();
-      const nIdx = newSession!.indexOf("-n");
-      const afterWindow = newSession!.slice(nIdx + 2); // after `-n worktree`
-      expect(afterWindow[0]).toBe("claude");
-      expect(afterWindow).toContain("--permission-mode");
-      expect(afterWindow).toContain("plan");
-      expect(afterWindow).toContain("--append-system-prompt");
-      expect(afterWindow).toContain("--strict-mcp-config");
-      expect(afterWindow).toContain("--name");
-      expect(afterWindow).toContain("GH-5431");
-      // Negative: none of the automation-shape flags leak into the interactive argv.
-      expect(afterWindow).not.toContain("--agent");
-      expect(afterWindow).not.toContain("--agents");
-      expect(afterWindow).not.toContain("--tools");
-      expect(afterWindow).not.toContain("--print");
-
-      // remain-on-exit=failed: pane sticks around as [exited] only on
-      // non-zero claude exit; clean /exit closes the pane (GH-856).
-      const remainOnExit = mux.invocations.find(
-        (inv) => inv[3] === "set-window-option" && inv.includes("remain-on-exit"),
-      );
-      expect(remainOnExit).toBeDefined();
-      expect(remainOnExit!).toContain("failed");
-
-      // session CWD is the resolved launchCwd.
-      expect(mux.newSessionCwd()).toBe(cwd);
-
-      // Runtime artifacts are still generated (MCP config, agents.json, etc.).
-      expect(existsSync(join(cwd, ".pr/local/runtime/mcp.json"))).toBe(true);
-      // bootstrap.sh is still written as a side artifact for manual replay,
-      // even though the pane itself does not source it.
-      expect(existsSync(join(cwd, ".pr/local/runtime/bootstrap.sh"))).toBe(true);
-    } finally {
-      process.chdir(previousCwd);
-      if (previousEnv !== undefined) process.env.PRX_SESSION_OPEN = previousEnv;
-    }
-  }, 15000);
-
-  test("session open-claude --dry-run prints the interactive runtime profile without spawning tmux (GH-819)", async () => {
+  test("session open-claude --dry-run prints the interactive runtime profile (GH-819)", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-open-claude-dry-"));
     const previousCwd = process.cwd();
     const previousEnv = process.env.PRX_SESSION_OPEN;
@@ -1487,19 +1255,15 @@ describe("pr_state cli", () => {
     try {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
-      const mux = captureMuxInvocations();
       const exitCode = await runCliDirect(
         ["claude", "GH-5431", "--dry-run"],
         { log: (line) => logs.push(line), error: () => {} },
         {
           ...issueBackedWorkDeps("GH-5431"),
-          muxRunner: mux.runner,
           resolveWorkUnitCwd: () => cwd,
         },
       );
       expect(exitCode).toBe(0);
-      // No tmux IPC at all under --dry-run.
-      expect(mux.invocations).toHaveLength(0);
       // The printed profile matches the same interactive shape used by
       // `session open` (claude, --permission-mode plan, etc.).
       const combined = logs.join("\n");
@@ -1718,30 +1482,6 @@ describe("pr_state cli", () => {
       expect(exitCode).toBe(1);
       expect(errors.some((line) => line.includes("open must match CANONICAL-ID format"))).toBe(true);
     });
-  });
-
-  test("session open propagates the tmux attach exit status (GH-678)", async () => {
-    // Replaces the prior "work releases the worktree lock when runtime
-    // execution fails" test: under the tmux persistence layer (GH-678)
-    // session-open no longer holds a git worktree lock around an inner
-    // execRuntime call. The mux session's presence on the socket is the
-    // liveness signal instead (Slice 3a). This test asserts the post-mux
-    // invariant: whatever tmux attach returns is what `prx session open`
-    // returns.
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-work-attach-"));
-    const errors: string[] = [];
-
-    const exitCode = await runCliDirect(
-      ["open", "GH-5431"],
-      { log: () => {}, error: (line) => errors.push(line) },
-      {
-        ...issueBackedWorkDeps("GH-5431"),
-        resolveWorkUnitCwd: () => cwd,
-        attachRunner: () => ({ status: 130, stdout: "", stderr: "" }),
-      },
-    );
-
-    expect(exitCode).toBe(130);
   });
 
   test("work --check prints machine-derived task status without launching runtime", async () => {
@@ -1966,62 +1706,6 @@ describe("pr_state cli", () => {
     expect(parsed.mcpServers.notion).toBeUndefined();
   });
 
-  test("work --prompt keeps print-mode flags and appends --print prompt (GH-678: via tmux agent-pane bootstrap)", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-work-prompt-"));
-    const previousCwd = process.cwd();
-    process.chdir(cwd);
-    const mux = captureMuxInvocations();
-    const exitCode = await runCliDirect(
-      ["open", "GH-5431", "--prompt", "summarize current state"],
-      { log: () => {}, error: () => {} },
-      {
-        ...noOpWorktreeLockDeps,
-        muxRunner: mux.runner,
-        resolveWorkUnitCwd: () => cwd,
-      },
-    );
-    process.chdir(previousCwd);
-
-    expect(exitCode).toBe(0);
-    const bootstrap = mux.bootstrapCommand();
-    expect(bootstrap).not.toBeNull();
-    expect(bootstrap!).toContain("--json-schema");
-    expect(bootstrap!).toContain("--output-format");
-    expect(bootstrap!).toContain("--print");
-    expect(bootstrap!).toContain("summarize current state");
-    expect(bootstrap!).not.toContain("--continue");
-  });
-
-  test("work --agent codex launches the codex runner (GH-678: via tmux agent-pane bootstrap)", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-work-codex-"));
-    const codexHome = mkdtempSync(join(tmpdir(), "pr-state-codex-home-"));
-    const previousCodexHome = process.env.CODEX_HOME;
-    process.env.CODEX_HOME = codexHome;
-
-    const mux = captureMuxInvocations();
-    const exitCode = await runCliDirect(
-      ["open", "GH-5431", "--agent", "codex"],
-      { log: () => {}, error: () => {} },
-      {
-        ...noOpWorktreeLockDeps,
-        resolveWorkUnitCwd: () => cwd,
-        muxRunner: mux.runner,
-      },
-    );
-    process.env.CODEX_HOME = previousCodexHome;
-
-    expect(exitCode).toBe(0);
-    const bootstrap = mux.bootstrapCommand();
-    expect(bootstrap).not.toBeNull();
-    // The command is `codex` launched as the agent-pane bootstrap.
-    expect(bootstrap!).toMatch(/(^|\s)codex(\s|$)/);
-    expect(bootstrap!).toContain("-s");
-    expect(bootstrap!).toContain("workspace-write");
-    expect(bootstrap!).toContain("-a");
-    expect(bootstrap!).toContain("on-request");
-    expect(bootstrap!).toContain("GH-5431");
-  });
-
   test("findSavedCodexSession returns the newest session for the worktree", () => {
     const codexHome = mkdtempSync(join(tmpdir(), "pr-state-find-codex-session-"));
     const launchCwd = "/repo/GH-5431";
@@ -2054,48 +1738,6 @@ describe("pr_state cli", () => {
       cwd: launchCwd,
       timestamp: "2026-04-17T11:00:00.000Z",
     });
-  });
-
-  test("work --agent codex resumes the saved session for the worktree (GH-678: via tmux agent-pane bootstrap)", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-work-codex-resume-"));
-    const codexHome = mkdtempSync(join(tmpdir(), "pr-state-work-codex-home-"));
-    const previousCodexHome = process.env.CODEX_HOME;
-    process.env.CODEX_HOME = codexHome;
-    mkdirSync(join(codexHome, "sessions", "2026", "04", "17"), { recursive: true });
-    writeFileSync(
-      join(codexHome, "sessions", "2026", "04", "17", "rollout-2026-04-17T11-00-00-019abc.jsonl"),
-      `${JSON.stringify({
-        type: "session_meta",
-        payload: {
-          id: "019abc",
-          cwd,
-          timestamp: "2026-04-17T11:00:00.000Z",
-        },
-      })}\n`,
-    );
-
-    const mux = captureMuxInvocations();
-    const exitCode = await runCliDirect(
-      ["open", "GH-5431", "--agent", "codex"],
-      { log: () => {}, error: () => {} },
-      {
-        ...noOpWorktreeLockDeps,
-        resolveWorkUnitCwd: () => cwd,
-        muxRunner: mux.runner,
-      },
-    );
-    process.env.CODEX_HOME = previousCodexHome;
-
-    expect(exitCode).toBe(0);
-    const bootstrap = mux.bootstrapCommand();
-    expect(bootstrap).not.toBeNull();
-    expect(bootstrap!).toContain("resume");
-    expect(bootstrap!).toContain("-s");
-    expect(bootstrap!).toContain("workspace-write");
-    expect(bootstrap!).toContain("-a");
-    expect(bootstrap!).toContain("on-request");
-    expect(bootstrap!).toContain("019abc");
-    expect(bootstrap!).toContain("GH-5431");
   });
 
   test("work rejects non execution-grade agents", async () => {
@@ -2242,33 +1884,6 @@ describe("pr_state cli", () => {
       "- success criteria not confirmed",
     ]);
     expect(readFileSync(taskPath, "utf8")).toBe(before);
-  });
-
-  test("work --agent codex --prompt uses codex exec with schema output (GH-678: via tmux agent-pane bootstrap)", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-work-codex-prompt-"));
-
-    const mux = captureMuxInvocations();
-    const exitCode = await runCliDirect(
-      ["open", "GH-5431", "--agent", "codex", "--prompt", "summarize current state"],
-      { log: () => {}, error: () => {} },
-      {
-        ...noOpWorktreeLockDeps,
-        resolveWorkUnitCwd: () => cwd,
-        muxRunner: mux.runner,
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    const bootstrap = mux.bootstrapCommand();
-    expect(bootstrap).not.toBeNull();
-    expect(bootstrap!).toMatch(/(^|\s)codex(\s|$)/);
-    expect(bootstrap!).toContain("exec");
-    expect(bootstrap!).toContain("-s");
-    expect(bootstrap!).toContain("workspace-write");
-    expect(bootstrap!).toContain("--output-schema");
-    expect(bootstrap!).toContain(".pr/local/runtime/output.schema.json");
-    expect(bootstrap!).toContain("--json");
-    expect(bootstrap!).toContain("summarize current state");
   });
 
   test("work --dry-run prints the exact executed command", async () => {
@@ -2510,102 +2125,8 @@ describe("pr_state cli", () => {
     }
   });
 
-  test("plan session (canonical) --interactive: opts into tmux session and skips runPlanSave chain", async () => {
-    let executed: { args: string[] } | null = null;
-    let saveCalls = 0;
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-plan-session-interactive-"));
-    const previousCwd = process.cwd();
-    delete process.env.PRX_SESSION_OPEN;
-    process.chdir(cwd);
-    const mux = captureMuxInvocations();
-    try {
-      const exitCode = await runCliDirect(
-        // `--skip-preflight` keeps the GH-1239 preflight from shelling out
-        // to `gh issue view` in the mocked-world fixture; orthogonal to the
-        // chain assertion this test is exercising.
-        ["plan", "session", "GH-5431", "--interactive", "--skip-preflight"],
-        { log: () => {}, error: () => {} },
-        {
-          ...noOpWorktreeLockDeps,
-          ...issueBackedWorkDeps("GH-5431"),
-          muxRunner: mux.runner,
-          attachRunner: () => ({ stdout: "", stderr: "", status: 0 }),
-          resolveWorkUnitCwd: () => cwd,
-          findSavedClaudeSession: () => false,
-          execRuntime: (profile) => {
-            executed = { args: profile.args };
-            return { status: 0, stdout: "## Scope\n- x\n", stderr: "" };
-          },
-          runPlanSave: async () => {
-            saveCalls += 1;
-            return { sha: "deadbeef", ref: "GH-5431:plan@draft", body_sha: "deadbeef", envelope_sha: "deadbeef", validated_ok: true, diagnostics: [] };
-          },
-        },
-      );
-      expect(exitCode).toBe(0);
-      // `--interactive` routes through the session-open-claude direct-exec
-      // path (tmux pane PID 1) — no --print, no runPlanSave chain.
-      expect(saveCalls).toBe(0);
-      const newSession = mux.invocations.find((inv) => inv[3] === "new-session");
-      expect(newSession).toBeDefined();
-      // Interactive path may go through tmux without calling execRuntime
-      // directly (mux runner handles spawn). If execRuntime *was* called,
-      // assert the interactive (no --print) shape; either way no chain ran.
-      const ex = executed as { args: string[] } | null;
-      if (ex) {
-        expect(ex.args).not.toContain("--print");
-      }
-    } finally {
-      process.chdir(previousCwd);
-      delete process.env.PRX_SESSION_OPEN;
-    }
-  });
-
-  // GH-2014: --background skips attachMuxSession and prints a re-entry hint
-  test("plan session (canonical) --background: skips tmux attach + emits re-entry hint", async () => {
-    let attachCalls = 0;
-    const errors: string[] = [];
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-plan-session-background-"));
-    const previousCwd = process.cwd();
-    delete process.env.PRX_SESSION_OPEN;
-    process.chdir(cwd);
-    const mux = captureMuxInvocations();
-    try {
-      const exitCode = await runCliDirect(
-        ["plan", "session", "GH-2014", "--interactive", "--skip-preflight", "--background"],
-        {
-          log: () => {},
-          error: (line) => errors.push(line),
-        },
-        {
-          ...noOpWorktreeLockDeps,
-          ...issueBackedWorkDeps("GH-2014"),
-          muxRunner: mux.runner,
-          attachRunner: () => {
-            attachCalls += 1;
-            return { stdout: "", stderr: "", status: 0 };
-          },
-          resolveWorkUnitCwd: () => cwd,
-          findSavedClaudeSession: () => false,
-        },
-      );
-      expect(exitCode).toBe(0);
-      // The mux session must still be spawned (so a follow-up re-entry can
-      // reuse it) — `--background` only suppresses the attach step.
-      const newSession = mux.invocations.find((inv) => inv[3] === "new-session");
-      expect(newSession).toBeDefined();
-      expect(attachCalls).toBe(0);
-      const hint = errors.find((line) => line.includes("session booted in background"));
-      expect(hint).toBeDefined();
-      expect(hint).toContain("prx plan session GH-2014");
-    } finally {
-      process.chdir(previousCwd);
-      delete process.env.PRX_SESSION_OPEN;
-    }
-  });
-
-  // GH-2014: --detached is a typed refusal pointing at --background
-  test("plan session (canonical) --detached: typed refusal pointing at --background", async () => {
+  // GH-1983: --detached is a typed refusal (git detached-HEAD vocabulary collision)
+  test("plan session (canonical) --detached: typed refusal", async () => {
     const errors: string[] = [];
     const exitCode = await runCliDirect(
       ["plan", "session", "GH-2014", "--detached"],
@@ -2618,7 +2139,7 @@ describe("pr_state cli", () => {
       },
     );
     expect(exitCode).not.toBe(0);
-    const refusal = errors.find((line) => line.includes("--detached") && line.includes("--background"));
+    const refusal = errors.find((line) => line.includes("--detached") && line.includes("not supported"));
     expect(refusal).toBeDefined();
   });
 
@@ -3273,204 +2794,6 @@ describe("pr_state cli", () => {
     expect(findSavedClaudeSession(launchCwd, home)).toBe(true);
   });
 
-  test("session open --agent claude (no prompt) routes through the direct-exec path — no send-keys replay (GH-834)", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-open-claude-"));
-    const previousCwd = process.cwd();
-    delete process.env.PRX_SESSION_OPEN;
-    process.chdir(cwd);
-    const mux = captureMuxInvocations();
-    try {
-      const exitCode = await runCliDirect(
-        ["open","GH-5431", "--agent", "claude"],
-        { log: () => {}, error: () => {} },
-        {
-          ...noOpWorktreeLockDeps,
-          ...issueBackedWorkDeps("GH-5431"),
-          muxRunner: mux.runner,
-          attachRunner: () => ({ stdout: "", stderr: "", status: 0 }),
-          resolveWorkUnitCwd: () => cwd,
-          findSavedClaudeSession: () => false,
-        },
-      );
-      expect(exitCode).toBe(0);
-      // GH-834: canonical entry now forwards to the session-open-claude
-      // runner, so tmux execs claude directly (pane PID 1) and no
-      // `. .pr/local/runtime/bootstrap.sh` line is typed via send-keys.
-      const sendKeys = mux.invocations.filter((inv) => inv[3] === "send-keys");
-      expect(sendKeys).toHaveLength(0);
-      const newSession = mux.invocations.find((inv) => inv[3] === "new-session");
-      expect(newSession).toBeDefined();
-      const nIdx = newSession!.indexOf("-n");
-      const afterWindow = newSession!.slice(nIdx + 2); // after `-n <window>`
-      expect(afterWindow[0]).toBe("claude");
-      // GH-685 interactive shape: --permission-mode plan + --append-system-prompt,
-      // no bound-agent / --print flags. GH-1147: plan profile now adds
-      // --allowedTools / --disallowedTools for toolset-layer enforcement.
-      expect(afterWindow).toContain("--permission-mode");
-      expect(afterWindow).toContain("plan");
-      expect(afterWindow).toContain("--append-system-prompt");
-      expect(afterWindow).toContain("--strict-mcp-config");
-      expect(afterWindow).toContain("--mcp-config");
-      expect(afterWindow).toContain("--allowedTools");
-      expect(afterWindow).toContain("--disallowedTools");
-      expect(afterWindow).not.toContain("--continue");
-      expect(afterWindow).not.toContain("--agent");
-      expect(afterWindow).not.toContain("--agents");
-      expect(afterWindow).not.toContain("--tools");
-      expect(afterWindow).not.toContain("--json-schema");
-      expect(afterWindow).not.toContain("--output-format");
-      expect(afterWindow).not.toContain("--print");
-      // GH-1147: planner-role prompt carries both the role binding and the
-      // work-unit identity through --append-system-prompt's argument.
-      const appendIdx = afterWindow.indexOf("--append-system-prompt");
-      expect(appendIdx).toBeGreaterThanOrEqual(0);
-      const systemPrompt = afterWindow[appendIdx + 1]!;
-      expect(systemPrompt).toContain("planner");
-      expect(systemPrompt).toContain("GH-5431");
-      // bootstrap.sh is still written as a side artifact for manual replay.
-      expect(existsSync(join(cwd, ".pr/local/runtime/bootstrap.sh"))).toBe(true);
-    } finally {
-      process.chdir(previousCwd);
-      delete process.env.PRX_SESSION_OPEN;
-    }
-  }, 15000);
-
-  test("session open GH-<id> (no flags) routes through the direct-exec path — claude is the default agent (GH-834)", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-open-default-"));
-    const previousCwd = process.cwd();
-    delete process.env.PRX_SESSION_OPEN;
-    process.chdir(cwd);
-    const mux = captureMuxInvocations();
-    try {
-      const exitCode = await runCliDirect(
-        ["open","GH-5431"],
-        { log: () => {}, error: () => {} },
-        {
-          ...noOpWorktreeLockDeps,
-          ...issueBackedWorkDeps("GH-5431"),
-          muxRunner: mux.runner,
-          attachRunner: () => ({ stdout: "", stderr: "", status: 0 }),
-          resolveWorkUnitCwd: () => cwd,
-          findSavedClaudeSession: () => false,
-        },
-      );
-      expect(exitCode).toBe(0);
-      const sendKeys = mux.invocations.filter((inv) => inv[3] === "send-keys");
-      expect(sendKeys).toHaveLength(0);
-      const newSession = mux.invocations.find((inv) => inv[3] === "new-session");
-      expect(newSession).toBeDefined();
-      const nIdx = newSession!.indexOf("-n");
-      const afterWindow = newSession!.slice(nIdx + 2);
-      expect(afterWindow[0]).toBe("claude");
-      expect(afterWindow).toContain("--append-system-prompt");
-    } finally {
-      process.chdir(previousCwd);
-      delete process.env.PRX_SESSION_OPEN;
-    }
-  }, 15000);
-
-  test("session open --agent claude (no prompt) resume appends --continue on the pane argv (GH-834)", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-open-claude-resume-"));
-    const previousCwd = process.cwd();
-    delete process.env.PRX_SESSION_OPEN;
-    process.chdir(cwd);
-    const mux = captureMuxInvocations();
-    try {
-      const exitCode = await runCliDirect(
-        ["open","GH-5431", "--agent", "claude"],
-        { log: () => {}, error: () => {} },
-        {
-          ...noOpWorktreeLockDeps,
-          ...issueBackedWorkDeps("GH-5431"),
-          muxRunner: mux.runner,
-          attachRunner: () => ({ stdout: "", stderr: "", status: 0 }),
-          resolveWorkUnitCwd: () => cwd,
-          findSavedClaudeSession: () => true,
-        },
-      );
-      expect(exitCode).toBe(0);
-      const newSession = mux.invocations.find((inv) => inv[3] === "new-session");
-      expect(newSession).toBeDefined();
-      const nIdx = newSession!.indexOf("-n");
-      const afterWindow = newSession!.slice(nIdx + 2);
-      expect(afterWindow).toContain("--continue");
-      expect(afterWindow).not.toContain("--agent");
-    } finally {
-      process.chdir(previousCwd);
-      delete process.env.PRX_SESSION_OPEN;
-    }
-  }, 15000);
-
-  test("session open --agent claude --prompt stays on the print-mode automation path (bound-agent flags intact)", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-open-claude-prompt-"));
-    const previousCwd = process.cwd();
-    delete process.env.PRX_SESSION_OPEN;
-    process.chdir(cwd);
-    const mux = captureMuxInvocations();
-    try {
-      const exitCode = await runCliDirect(
-        ["open","GH-5431", "--agent", "claude", "--prompt", "hi"],
-        { log: () => {}, error: () => {} },
-        {
-          ...noOpWorktreeLockDeps,
-          ...issueBackedWorkDeps("GH-5431"),
-          muxRunner: mux.runner,
-          attachRunner: () => ({ stdout: "", stderr: "", status: 0 }),
-          resolveWorkUnitCwd: () => cwd,
-        },
-      );
-      expect(exitCode).toBe(0);
-      const bootstrap = mux.bootstrapCommand();
-      expect(bootstrap).not.toBeNull();
-      // Print-mode: agents.json bound flags are present, and --print <prompt> is appended.
-      expect(bootstrap!).toContain("--agent ");
-      expect(bootstrap!).toContain("--tools ");
-      expect(bootstrap!).toContain("--print");
-      expect(bootstrap!).toContain(" hi");
-      expect(bootstrap!).not.toContain("--append-system-prompt");
-    } finally {
-      process.chdir(previousCwd);
-      delete process.env.PRX_SESSION_OPEN;
-    }
-  });
-
-  test("session open --plan PATH suffixes the system prompt with 'Execute the plan at <path>.' (GH-1044)", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-open-plan-"));
-    const previousCwd = process.cwd();
-    delete process.env.PRX_SESSION_OPEN;
-    process.chdir(cwd);
-    const mux = captureMuxInvocations();
-    try {
-      const exitCode = await runCliDirect(
-        ["open","GH-5431", "--plan", "/tmp/plan.md"],
-        { log: () => {}, error: () => {} },
-        {
-          ...noOpWorktreeLockDeps,
-          ...issueBackedWorkDeps("GH-5431"),
-          muxRunner: mux.runner,
-          attachRunner: () => ({ stdout: "", stderr: "", status: 0 }),
-          resolveWorkUnitCwd: () => cwd,
-          findSavedClaudeSession: () => false,
-        },
-      );
-      expect(exitCode).toBe(0);
-      const newSession = mux.invocations.find((inv) => inv[3] === "new-session");
-      expect(newSession).toBeDefined();
-      const nIdx = newSession!.indexOf("-n");
-      const afterWindow = newSession!.slice(nIdx + 2);
-      const appendIdx = afterWindow.indexOf("--append-system-prompt");
-      expect(appendIdx).toBeGreaterThanOrEqual(0);
-      const systemPrompt = afterWindow[appendIdx + 1]!;
-      expect(systemPrompt.endsWith("Execute the plan at /tmp/plan.md.")).toBe(true);
-      // GH-1147: canonical session-open builds the planner profile (read-only
-      // allowlist); operator ratchets to Edit/Write from inside claude.
-      expect(systemPrompt).toContain("planner");
-    } finally {
-      process.chdir(previousCwd);
-      delete process.env.PRX_SESSION_OPEN;
-    }
-  }, 15000);
-
   test("session open --plan combined with --check is rejected as a CliError (GH-1044)", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-open-plan-check-"));
     const previousCwd = process.cwd();
@@ -3495,42 +2818,7 @@ describe("pr_state cli", () => {
     }
   });
 
-  test("prx implement agent GH-<id> --plan PATH dispatches through session-open-claude with plan injected (GH-1044)", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-implement-plan-"));
-    const previousCwd = process.cwd();
-    delete process.env.PRX_SESSION_OPEN;
-    process.chdir(cwd);
-    const mux = captureMuxInvocations();
-    try {
-      const exitCode = await runCliDirect(
-        ["implement", "agent", "GH-5431", "--plan", "/tmp/plan.md", "--interactive"],
-        { log: () => {}, error: () => {} },
-        {
-          ...noOpWorktreeLockDeps,
-          ...issueBackedWorkDeps("GH-5431"),
-          muxRunner: mux.runner,
-          attachRunner: () => ({ stdout: "", stderr: "", status: 0 }),
-          resolveWorkUnitCwd: () => cwd,
-          findSavedClaudeSession: () => false,
-        },
-      );
-      expect(exitCode).toBe(0);
-      const newSession = mux.invocations.find((inv) => inv[3] === "new-session");
-      expect(newSession).toBeDefined();
-      const nIdx = newSession!.indexOf("-n");
-      const afterWindow = newSession!.slice(nIdx + 2);
-      expect(afterWindow[0]).toBe("claude");
-      const appendIdx = afterWindow.indexOf("--append-system-prompt");
-      expect(appendIdx).toBeGreaterThanOrEqual(0);
-      const systemPrompt = afterWindow[appendIdx + 1]!;
-      expect(systemPrompt.endsWith("Execute the plan at /tmp/plan.md.")).toBe(true);
-    } finally {
-      process.chdir(previousCwd);
-      delete process.env.PRX_SESSION_OPEN;
-    }
-  }, 15000);
-
-  test("prx implement agent --headless --dry-run resolves the headless SDK profile (step 2b-i)", async () => {
+  test("prx implement agent --dry-run resolves the headless SDK profile (step 2b-i)", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-implement-headless-dry-"));
     const previousCwd = process.cwd();
     delete process.env.PRX_SESSION_OPEN;
@@ -3538,7 +2826,7 @@ describe("pr_state cli", () => {
     const logs: string[] = [];
     try {
       const exitCode = await runCliDirect(
-        ["implement", "agent", "GH-5431", "--plan", "/tmp/plan.md", "--headless", "--dry-run", "--format", "json"],
+        ["implement", "agent", "GH-5431", "--plan", "/tmp/plan.md", "--dry-run", "--format", "json"],
         { log: (l) => logs.push(l), error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -3559,44 +2847,11 @@ describe("pr_state cli", () => {
     }
   }, 15000);
 
-  test("prx implement agent --headless runs the SDK job and spawns no tmux session (step 2b-i)", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-implement-headless-run-"));
-    const previousCwd = process.cwd();
-    delete process.env.PRX_SESSION_OPEN;
-    process.chdir(cwd);
-    const mux = captureMuxInvocations();
-    const logs: string[] = [];
-    try {
-      const exitCode = await runCliDirect(
-        ["implement", "agent", "GH-5431", "--plan", "/tmp/plan.md", "--headless"],
-        { log: (l) => logs.push(l), error: () => {} },
-        {
-          ...noOpWorktreeLockDeps,
-          ...issueBackedWorkDeps("GH-5431"),
-          muxRunner: mux.runner,
-          resolveWorkUnitCwd: () => cwd,
-          findSavedClaudeSession: () => false,
-          // The headless branch routes through executeAgentProfile; the
-          // execRuntime seam stands in for the SDK so the test stays offline.
-          execRuntime: () => ({ status: 0, stdout: "implemented", stderr: "" }),
-        },
-      );
-      expect(exitCode).toBe(0);
-      expect(logs.join("\n")).toContain("implemented");
-      // Headless = no tmux: no new-session was spawned.
-      expect(mux.invocations.find((inv) => inv[3] === "new-session")).toBeUndefined();
-    } finally {
-      process.chdir(previousCwd);
-      delete process.env.PRX_SESSION_OPEN;
-    }
-  }, 15000);
-
-  test("prx implement agent default runs the headless SDK job in-process, no tmux (step 2b-ii)", async () => {
+  test("prx implement agent runs the headless SDK job in-process, no tmux", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-implement-default-headless-"));
     const previousCwd = process.cwd();
     delete process.env.PRX_SESSION_OPEN;
     process.chdir(cwd);
-    const mux = captureMuxInvocations();
     const logs: string[] = [];
     try {
       const exitCode = await runCliDirect(
@@ -3605,78 +2860,15 @@ describe("pr_state cli", () => {
         {
           ...noOpWorktreeLockDeps,
           ...issueBackedWorkDeps("GH-5431"),
-          muxRunner: mux.runner,
           resolveWorkUnitCwd: () => cwd,
           findSavedClaudeSession: () => false,
-          // Default (no --interactive) runs the headless SDK job in-process and
-          // awaits it; the execRuntime seam stands in for the SDK offline.
+          // The implement path runs the headless SDK job in-process and awaits
+          // it; the execRuntime seam stands in for the SDK offline.
           execRuntime: () => ({ status: 0, stdout: "implemented", stderr: "" }),
         },
       );
       expect(exitCode).toBe(0);
       expect(logs.join("\n")).toContain("implemented");
-      // Default is no longer tmux: nothing spawned a session.
-      expect(mux.invocations.find((inv) => inv[3] === "new-session")).toBeUndefined();
-    } finally {
-      process.chdir(previousCwd);
-      delete process.env.PRX_SESSION_OPEN;
-    }
-  }, 15000);
-
-  test("prx implement agent GH-<id> without --plan auto-primes from the saved draft slot (GH-1238)", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-implement-noplan-"));
-    const previousCwd = process.cwd();
-    delete process.env.PRX_SESSION_OPEN;
-    process.chdir(cwd);
-    const mux = captureMuxInvocations();
-    const planBody = "## Scope\n\n- Implement the thing.\n";
-    try {
-      const exitCode = await runCliDirect(
-        ["implement", "agent", "GH-5431", "--interactive"],
-        { log: () => {}, error: () => {} },
-        {
-          ...noOpWorktreeLockDeps,
-          ...issueBackedWorkDeps("GH-5431"),
-          muxRunner: mux.runner,
-          attachRunner: () => ({ stdout: "", stderr: "", status: 0 }),
-          resolveWorkUnitCwd: () => cwd,
-          findSavedClaudeSession: () => false,
-          runPlanShow: async () => ({
-            unit: "GH-5431",
-            slot: "draft" as const,
-            sha: "fakesha" as never,
-            size: planBody.length,
-            body: Buffer.from(planBody),
-            validated_ok: true,
-            diagnostics: [],
-          }),
-        },
-      );
-      expect(exitCode).toBe(0);
-      const newSession = mux.invocations.find((inv) => inv[3] === "new-session");
-      expect(newSession).toBeDefined();
-      const nIdx = newSession!.indexOf("-n");
-      const afterWindow = newSession!.slice(nIdx + 2);
-      // GH-1287: when claude supports --append-system-prompt-file (typical case
-      // on this dev machine), the auto-primed body is written to disk and
-      // passed by path. Read the file to verify the body. Otherwise (older
-      // claude binaries / CI), the fallback path inlines a short directive that
-      // tells the agent to load the plan via dispatch (GH-1530 PR-6).
-      const fileFlagIdx = afterWindow.indexOf("--append-system-prompt-file");
-      if (fileFlagIdx >= 0) {
-        const promptPath = afterWindow[fileFlagIdx + 1]!;
-        const fileBody = readFileSync(promptPath, "utf8");
-        expect(fileBody).not.toContain("Execute the plan at");
-        expect(fileBody).toContain("Implement the thing.");
-        expect(fileBody).toContain("Saved plan (slot=draft):");
-        expect(afterWindow).not.toContain("--append-system-prompt");
-      } else {
-        const inlineIdx = afterWindow.indexOf("--append-system-prompt");
-        expect(inlineIdx).toBeGreaterThanOrEqual(0);
-        const inline = afterWindow[inlineIdx + 1]!;
-        expect(inline).toContain("prx implement dispatch --actor=plan -- show GH-5431");
-        expect(inline).not.toContain("Implement the thing.");
-      }
     } finally {
       process.chdir(previousCwd);
       delete process.env.PRX_SESSION_OPEN;
@@ -3722,67 +2914,6 @@ describe("pr_state cli", () => {
       else process.env.PRX_SESSION_CONTEXT = previousCtx;
     }
   });
-
-  test("prx implement agent opens an implement-tagged tmux session distinct from plan (GH-1172)", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-implement-tagged-"));
-    const previousCwd = process.cwd();
-    const previousCtx = process.env.PRX_SESSION_CONTEXT;
-    delete process.env.PRX_SESSION_OPEN;
-    delete process.env.PRX_SESSION_CONTEXT;
-    process.chdir(cwd);
-    const mux = captureMuxInvocations();
-    const planBody = "## Scope\n\n- Implement the thing.\n";
-    try {
-      const exitCode = await runCliDirect(
-        ["implement", "agent", "GH-5431", "--interactive"],
-        { log: () => {}, error: () => {} },
-        {
-          ...noOpWorktreeLockDeps,
-          ...issueBackedWorkDeps("GH-5431"),
-          muxRunner: mux.runner,
-          attachRunner: () => ({ stdout: "", stderr: "", status: 0 }),
-          resolveWorkUnitCwd: () => cwd,
-          findSavedClaudeSession: () => false,
-          // GH-1238: provide a draft slot so auto-prime succeeds; this test
-          // is about tmux tagging and the executor allow/deny shape, not
-          // the refusal contract.
-          runPlanShow: async () => ({
-            unit: "GH-5431",
-            slot: "draft" as const,
-            sha: "fakesha" as never,
-            size: planBody.length,
-            body: Buffer.from(planBody),
-            validated_ok: true,
-            diagnostics: [],
-          }),
-        },
-      );
-      expect(exitCode).toBe(0);
-      const newSession = mux.invocations.find((inv) => inv[3] === "new-session");
-      expect(newSession).toBeDefined();
-      // The session name carries the `-implement` mode suffix so it coexists
-      // with a same-worktree plan session.
-      const sIdx = newSession!.indexOf("-s");
-      const sessionName = newSession![sIdx + 1]!;
-      expect(sessionName.endsWith("-implement")).toBe(true);
-      // The pane argv also pins claude `--name GH-5431` so /resume picks it up.
-      const nIdx = newSession!.indexOf("-n");
-      const afterWindow = newSession!.slice(nIdx + 2);
-      expect(afterWindow[0]).toBe("claude");
-      // The implement profile must enable Edit/Write at the flag layer —
-      // that's the bug GH-1172 fixes.
-      const allowedIdx = afterWindow.indexOf("--allowedTools");
-      expect(allowedIdx).toBeGreaterThanOrEqual(0);
-      const allowedTools = afterWindow[allowedIdx + 1]!.split(",");
-      expect(allowedTools).toContain("Edit");
-      expect(allowedTools).toContain("Write");
-    } finally {
-      process.chdir(previousCwd);
-      delete process.env.PRX_SESSION_OPEN;
-      if (previousCtx === undefined) delete process.env.PRX_SESSION_CONTEXT;
-      else process.env.PRX_SESSION_CONTEXT = previousCtx;
-    }
-  }, 15000);
 
   test("prx implement <id> (flat, GH-1981) rejects with removal error", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-implement-flat-"));
@@ -3841,20 +2972,19 @@ describe("pr_state cli", () => {
     const previousCwd = process.cwd();
     delete process.env.PRX_SESSION_OPEN;
     process.chdir(cwd);
-    const mux = captureMuxInvocations();
     const planBody = "## Scope\n\n- Implement the thing.\n";
     const errors: string[] = [];
+    const logs: string[] = [];
     try {
       const exitCode = await runCliDirect(
-        ["implement", "session", "GH-5431", "--interactive"],
-        { log: () => {}, error: (line) => errors.push(line) },
+        ["implement", "session", "GH-5431"],
+        { log: (line) => logs.push(line), error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
           ...issueBackedWorkDeps("GH-5431"),
-          muxRunner: mux.runner,
-          attachRunner: () => ({ stdout: "", stderr: "", status: 0 }),
           resolveWorkUnitCwd: () => cwd,
           findSavedClaudeSession: () => false,
+          execRuntime: () => ({ status: 0, stdout: "implemented", stderr: "" }),
           runPlanShow: async () => ({
             unit: "GH-5431",
             slot: "draft" as const,
@@ -3870,9 +3000,8 @@ describe("pr_state cli", () => {
       expect(errors.join("\n")).toContain(
         "prx implement session is deprecated; use `prx implement agent [GH-NNN]`.",
       );
-      // Canonical handler still ran: a tmux new-session was issued.
-      const newSession = mux.invocations.find((inv) => inv[3] === "new-session");
-      expect(newSession).toBeDefined();
+      // Canonical handler still ran: the headless SDK job executed.
+      expect(logs.join("\n")).toContain("implemented");
     } finally {
       process.chdir(previousCwd);
       delete process.env.PRX_SESSION_OPEN;
@@ -4446,70 +3575,11 @@ describe("pr_state cli", () => {
     const parsed = JSON.parse(logs[0]!);
     expect(parsed.runtimeArtifacts).toEqual({ mcpServers: [] });
     expect(parsed.policy.allowed_agents).toEqual(["claude", "codex"]);
-    // GH-678 D1: telemetry + appendExecutionLog were removed from session-open
-    // because the agent no longer runs as a child of this process (it runs
-    // inside the tmux agent pane's bootstrap_command). The new JSON shape
-    // carries `mux` info instead.
+    // GH-678 D1: telemetry was removed from session-open. Slice 3 removed the
+    // tmux `mux` payload too — the JSON shape carries profile + cwd + policy.
     expect(parsed.telemetry).toBeUndefined();
-    expect(parsed.mux).toEqual({
-      socket: "prx",
-      session: expect.any(String),
-      state: "absent",
-      paneCommand: expect.any(Array),
-    });
-  });
-
-  test("work uses the current worktree directory name when no id is provided (GH-678: via tmux agent-pane bootstrap)", async () => {
-    const parent = mkdtempSync(join(tmpdir(), "pr-state-worktree-parent-"));
-    const cwd = join(parent, "GH-7777");
-    mkdirSync(cwd, { recursive: true });
-    const previousCwd = process.cwd();
-    process.chdir(cwd);
-    const mux = captureMuxInvocations();
-    const exitCode = await runCliDirect(
-      ["work"],
-      { log: () => {}, error: () => {} },
-      {
-        ...noOpWorktreeLockDeps,
-        muxRunner: mux.runner,
-        resolveWorkUnitCwd: () => cwd,
-      },
-    );
-    process.chdir(previousCwd);
-
-    expect(exitCode).toBe(0);
-    // GH-834: routes through session-open-claude; work-unit id threads into
-    // the --append-system-prompt arg in the new-session direct-exec argv.
-    const newSession = mux.invocations.find((inv) => inv[3] === "new-session");
-    expect(newSession).toBeDefined();
-    const nIdx = newSession!.indexOf("-n");
-    const afterWindow = newSession!.slice(nIdx + 2);
-    const appendIdx = afterWindow.indexOf("--append-system-prompt");
-    expect(appendIdx).toBeGreaterThanOrEqual(0);
-    expect(afterWindow[appendIdx + 1]).toContain("GH-7777");
-  });
-
-  test("work launches from the resolved switched worktree path (GH-678: tmux session-path matches)", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-work-launch-"));
-    const launchCwd = join(cwd, "GH-5480");
-    mkdirSync(launchCwd, { recursive: true });
-
-    const mux = captureMuxInvocations();
-    const exitCode = await runCliDirect(
-      ["open", "GH-5480"],
-      { log: () => {}, error: () => {} },
-      {
-        ...noOpWorktreeLockDeps,
-        resolveWorkUnitCwd: () => launchCwd,
-        muxRunner: mux.runner,
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    // GH-678 Slice 2: tmux driver passes -c <launchCwd> on `new-session`, so
-    // the session is anchored to the resolved worktree path.
-    expect(mux.newSessionCwd()).toBe(launchCwd);
-    expect(existsSync(join(launchCwd, ".pr/local/runtime/agents.json"))).toBe(true);
+    expect(parsed.mux).toBeUndefined();
+    expect(parsed.profile).toBeDefined();
   });
 
   test("work fails loudly when worktree resolution detects a branch/worktree mismatch", async () => {
@@ -7144,65 +6214,6 @@ describe("pr_state cli", () => {
     expect(exitCode).toBe(1);
     expect(errors[0]).toContain("must match CANONICAL-ID format");
     expect(errors[0]).toContain("GH-456");
-  });
-
-  test("work bootstraps an open GH issue even when no parity-chain unit exists yet (GH-678: mux spawn on resolved cwd)", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-work-gh-bootstrap-"));
-    const previousCwd = process.cwd();
-    process.chdir(cwd);
-    const calls: string[] = [];
-    const mux = captureMuxInvocations();
-
-    const exitCode = await runCliDirect(
-      ["open", "GH-171"],
-      { log: () => {}, error: () => {} },
-      {
-        pruneStaleRemoteRefs: () => {},
-        // GH-1983: bypass the detached-HEAD preflight (see comment in
-        // noOpWorktreeLockDeps for the CI-only TMPDIR-override reason).
-        assertWorktreeOnNamedBranch: () => null,
-        boardStatus: () => ({
-          source: "derived-board",
-          repo: "owner/repo",
-          remote_freshness: "fresh",
-          units: [],
-        }),
-        buildParityChain: () => ({
-          source: "surface-sync",
-          repo: "owner/repo",
-          mode: "full",
-          authority: "issue",
-          scope: "all",
-          apply: false,
-          units: [],
-          actions: [],
-        }),
-        validateGitHubIssue: () => ({ number: 171, title: "Open issue", state: "OPEN" }),
-        resolveWorkUnitCwd: (workUnitId) => {
-          calls.push(`resolve:${workUnitId}`);
-          return cwd;
-        },
-        muxRunner: mux.runner,
-        attachRunner: () => ({ stdout: "", stderr: "", status: 0 }),
-      },
-    );
-
-    process.chdir(previousCwd);
-
-    expect(exitCode).toBe(0);
-    expect(calls).toContain("resolve:GH-171");
-    // GH-678: the post-resolve action is spawning a tmux session with the
-    // resolved cwd as the session's base directory.
-    expect(mux.newSessionCwd()).toBe(cwd);
-    // GH-834: routes through session-open-claude; work-unit id is in the
-    // --append-system-prompt arg on the new-session direct-exec argv.
-    const newSession = mux.invocations.find((inv) => inv[3] === "new-session");
-    expect(newSession).toBeDefined();
-    const nIdx = newSession!.indexOf("-n");
-    const afterWindow = newSession!.slice(nIdx + 2);
-    const appendIdx = afterWindow.indexOf("--append-system-prompt");
-    expect(appendIdx).toBeGreaterThanOrEqual(0);
-    expect(afterWindow[appendIdx + 1]).toContain("GH-171");
   });
 
   test("work rejects closed GH issues before bootstrapping a missing unit", async () => {
@@ -15187,152 +14198,6 @@ describe("plan handoff command (GH-643; renamed from session close in GH-1166)",
   });
 });
 
-describe("review / ultrareview commands", () => {
-  type ReviewOptions = Parameters<typeof reviewVerb>[0];
-  type ReviewResult = ReturnType<typeof reviewVerb>;
-
-  function stubResult(overrides: Partial<ReviewResult> = {}): ReviewResult {
-    return {
-      workUnitId: "GH-100",
-      worktreePath: "/wt/gh_100_abc",
-      sessionName: "gh_100_abc",
-      sent: { keys: "/review", submit: true },
-      handoff: ["tmux -L prx attach-session -t gh_100_abc"],
-      ...overrides,
-    };
-  }
-
-  test("prx review GH-100 dispatches to reviewVerb with ultra=false and emits attach handoff", () => {
-    const logs: string[] = [];
-    let received: ReviewOptions | undefined;
-    const exitCode = runCliDirect(
-      ["review", "GH-100"],
-      { log: (line) => logs.push(line), error: () => {} },
-      {
-        reviewVerb: (options) => {
-          received = options;
-          return stubResult();
-        },
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    expect(received).toEqual({ workUnitId: "GH-100", ultra: false });
-    expect(logs.join("\n")).toContain("tmux -L prx attach-session -t gh_100_abc");
-  });
-
-  test("prx review GH-100 --format json emits the full ReviewVerbResult", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["review", "GH-100", "--format", "json"],
-      { log: (line) => logs.push(line), error: () => {} },
-      {
-        reviewVerb: () => stubResult(),
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    const out = logs.join("\n");
-    expect(out).toContain('"keys": "/review"');
-    expect(out).toContain('"submit": true');
-    expect(out).toContain('"sessionName": "gh_100_abc"');
-  });
-
-  test("prx ultrareview GH-100 dispatches with ultra=true and appends the billing-hint handoff line", () => {
-    const logs: string[] = [];
-    let received: ReviewOptions | undefined;
-    const exitCode = runCliDirect(
-      ["ultrareview", "GH-100"],
-      { log: (line) => logs.push(line), error: () => {} },
-      {
-        reviewVerb: (options) => {
-          received = options;
-          return stubResult({
-            sent: { keys: "/ultrareview", submit: false },
-            handoff: [
-              "tmux -L prx attach-session -t gh_100_abc",
-              "/ultrareview is pre-filled and not submitted — press Enter in the pane to see Claude Code's billing confirmation (~$5–20/run).",
-            ],
-          });
-        },
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    expect(received).toEqual({ workUnitId: "GH-100", ultra: true });
-    const out = logs.join("\n");
-    expect(out).toContain("tmux -L prx attach-session -t gh_100_abc");
-    expect(out).toContain("/ultrareview is pre-filled and not submitted");
-  });
-
-  test("prx ultrareview GH-100 --format json marks submit=false and keys=/ultrareview", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["ultrareview", "GH-100", "--format", "json"],
-      { log: (line) => logs.push(line), error: () => {} },
-      {
-        reviewVerb: () => stubResult({
-          sent: { keys: "/ultrareview", submit: false },
-        }),
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    const out = logs.join("\n");
-    expect(out).toContain('"keys": "/ultrareview"');
-    expect(out).toContain('"submit": false');
-  });
-
-  test("bare prx review (no positional) dispatches with workUnitId undefined", () => {
-    let received: ReviewOptions | undefined;
-    const exitCode = runCliDirect(
-      ["review"],
-      { log: () => {}, error: () => {} },
-      {
-        reviewVerb: (options) => {
-          received = options;
-          return stubResult({ workUnitId: null });
-        },
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    expect(received).toEqual({ workUnitId: undefined, ultra: false });
-  });
-
-  test("prx review errors with exit 1 when reviewVerb throws (no live session)", () => {
-    const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["review", "GH-999"],
-      { log: () => {}, error: (line) => errors.push(line) },
-      {
-        reviewVerb: () => {
-          const err = new Error("no live tmux session for gh_999_abc; run `prx session open GH-999` first.");
-          // runCli wraps arbitrary Error with exit 1 — that's fine.
-          throw err;
-        },
-      },
-    );
-
-    expect(exitCode).toBe(1);
-    expect(errors.join("\n")).toContain("prx session open GH-999");
-  });
-
-  test("prx review rejects non-canonical positional", () => {
-    const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["review", "not-a-canonical-id"],
-      { log: () => {}, error: (line) => errors.push(line) },
-    );
-
-    expect(exitCode).toBe(1);
-    // `not-a-canonical-id` has the bd-short shape → unregistered-prefix hint;
-    // the canonical-format guidance and verb label are still present.
-    expect(errors.join("\n")).toContain("review");
-    expect(errors.join("\n")).toContain("must match CANONICAL-ID format");
-  });
-});
-
 describe("prx intake (GH-666)", () => {
   test("requires a type positional", () => {
     const errors: string[] = [];
@@ -15746,15 +14611,15 @@ describe("prx plan prime (GH-1056)", () => {
     expect(errors.some((line) => line.includes("does not accept --check or --dry-run"))).toBe(true);
   });
 
-  test("does not spawn a tmux session", async () => {
+  test("plan prime runs the pre-session setup and returns cleanly", async () => {
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-plan-prime-no-tmux-"));
     const previousCwd = process.cwd();
     const previousEnv = process.env.PRX_SESSION_OPEN;
-    const muxCalls: string[][] = [];
+    let exitCode = -1;
     try {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
-      await runCliDirect(
+      exitCode = await runCliDirect(
         ["plan", "prime", "GH-5431"],
         { log: () => {}, error: () => {} },
         {
@@ -15771,19 +14636,13 @@ describe("prx plan prime (GH-1056)", () => {
           ensureRuntimeArtifacts: () => ({ mcpServers: [] }),
           ensureClaudeAllowlist: () => ({ status: "unchanged", path: `${cwd}/.claude/settings.local.json` }),
           findSavedClaudeSession: () => false,
-          muxRunner: ((cmd) => {
-            muxCalls.push([...cmd]);
-            return { stdout: "", stderr: "", status: 0 };
-          }) as GithubCommandRunner,
         },
       );
     } finally {
       process.chdir(previousCwd);
       if (previousEnv !== undefined) process.env.PRX_SESSION_OPEN = previousEnv;
     }
-    // plan-prime never invokes muxRunner — no `tmux new-session`, no
-    // `tmux send-keys`, no `tmux has-session`.
-    expect(muxCalls.length).toBe(0);
+    expect(exitCode).toBe(0);
   }, 15000);
 
   test("--format=json emits a structured payload instead of the plain status line", async () => {
@@ -15826,30 +14685,6 @@ describe("prx plan prime (GH-1056)", () => {
     expect(payload.allowlistStatus).toBe("unchanged");
     expect(payload.runtimeArtifacts).toEqual({ mcpServers: [] });
   }, 15000);
-});
-
-// GH-1133: `prx prune session <GH-N>` — narrow session/tmux teardown verb.
-describe("prx tools mux clear-resurrect (GH-1133)", () => {
-  test("`prx tools mux clear-resurrect` requires a session name", () => {
-    const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["tools", "mux", "clear-resurrect"],
-      { log: () => {}, error: (line) => errors.push(line) },
-    );
-    expect(exitCode).toBe(1);
-    expect(errors.join("\n")).toMatch(/session name/i);
-  });
-
-  test("`prx tools mux clear-resurrect <name>` succeeds idempotently for an unknown session", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["tools", "mux", "clear-resurrect", "gh_9999_nope"],
-      { log: (line) => logs.push(line), error: () => {} },
-    );
-    expect(exitCode).toBe(0);
-    expect(logs.join("\n")).toMatch(/cleared resurrect entry/i);
-  });
-
 });
 
 describe("argparse — flag-after-positional (GH-1227)", () => {

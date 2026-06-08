@@ -535,15 +535,11 @@ export type RuntimeProfileProjection = {
   disallowedActors: string[];
   notes: string[];
   /**
-   * GH-2014: how the caller wants the tmux session to be presented after
-   * boot. `"foreground"` (default) attaches the operator into the live mux
-   * session; `"background"` skips the attach and prints a re-entry hint
-   * instead, returning control to the caller's shell.
-   *
-   * Carried on the projection so the value flows through the session-entry
-   * machine into the CLI handler that owns the actual `attachMuxSession`
-   * call. Only `OPEN_PLAN_SESSION` and `OPEN_IMPLEMENT_SESSION` consult
-   * this today; absence means `"foreground"`.
+   * How the caller wants the session presented after boot. `"foreground"`
+   * (default) runs the live session in the caller's terminal; `"background"`
+   * is a boot-only request. Carried on the projection so the value flows
+   * through the session-entry machine into the CLI handler; absence means
+   * `"foreground"`. (Slice 3 removed the tmux attach this once gated.)
    */
   attachMode?: "foreground" | "background" | undefined;
 };
@@ -1928,8 +1924,8 @@ export function buildOpsPlanClaudeRuntimeProfile(input: {
   hasPriorSession: boolean;
   planPath?: string | undefined;
   /**
-   * GH-2014: foreground vs background tmux attach. Carried verbatim onto
-   * the projection so the CLI handler can gate `attachMuxSession` on it.
+   * Foreground vs background boot. Carried verbatim onto the projection so
+   * the value flows through to the CLI handler.
    */
   attachMode?: "foreground" | "background" | undefined;
 }): RuntimeProfileProjection {
@@ -2053,8 +2049,8 @@ export interface BuildOpsImplementClaudeRuntimeProfileInput {
    */
   repoRoot?: string;
   /**
-   * GH-2014: foreground vs background tmux attach. Carried verbatim onto
-   * the projection so the CLI handler can gate `attachMuxSession` on it.
+   * Foreground vs background boot. Carried verbatim onto the projection so
+   * the value flows through to the CLI handler.
    */
   attachMode?: "foreground" | "background" | undefined;
 }

@@ -32,7 +32,6 @@ describe("buildAgentsMd", () => {
     expect(md).toContain("prx plan session");
     expect(md).toContain("prx next");
     expect(md).toContain("prx do");
-    expect(md).toContain("prx review");
     expect(md).toContain("prx plan handoff");
   });
 });
