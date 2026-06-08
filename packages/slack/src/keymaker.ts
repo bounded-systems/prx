@@ -11,6 +11,18 @@
 // @bounded-systems/auth (slack .4b) and satisfies these structurally. Prior art
 // + design rationale: spike prx-5u1 (biscuit/macaroon attenuation + Fulcio/Rekor
 // provenance shape via the existing anchored-chain + RFC 8693 upgrade path).
+//
+// ENFORCEMENT LEVEL (honest threat model — do not overclaim). The "use,
+// don't read / secret never exposed" guarantee below is a DISCIPLINE
+// guarantee, not an ISOLATION one. It is enforced at the Bun/TypeScript
+// source+lint tier (capability seams + the package's extractability test),
+// NOT by the runtime or the OS: nothing stops malicious or transitive
+// in-process code from reading process memory, env, or spawning. The honest
+// spectrum is  nothing → source/lint discipline (Bun, where we are) →
+// runtime permission gates (Deno --allow-env/--allow-run, WASM, seccomp —
+// GH-1836's hybrid, our target) → kernel/microVM (not pursued). We sit at
+// tier 2 aiming at tier 3. So a leaked/minted key bounds blast radius by
+// CONVENTION + short TTL, not by sandboxing. See [[prx-capability-enforcement-level]].
 
 import type { SlackReadOp } from "./types.ts";
 

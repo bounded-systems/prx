@@ -70,6 +70,13 @@ describe("slack read-surface extractability", () => {
 // handed a minted key; authority enters only via that key. This guard holds for
 // the life of the package — adapters route spawning through @bounded-systems/proc,
 // never raw child_process, and never reach for process.env.
+//
+// SCOPE OF THIS GUARANTEE: this is a SOURCE-LEVEL LINT at the Bun runtime tier,
+// not a runtime sandbox. It catches *accidental* ambient reach in our own
+// source; it cannot stop malicious or transitive in-process code from touching
+// env/spawn (no syscall gate, no memory isolation). True enforcement needs
+// runtime permission gates (Deno --allow-env/--allow-run, WASM, seccomp —
+// GH-1836's target) or a microVM (not pursued). See [[prx-capability-enforcement-level]].
 const FORBIDDEN_AMBIENT: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bchild_process\b/, "child_process"],
   [/\bspawnSync\b|\bBun\.spawn\b|\bexecSync\b|\bexecFileSync\b/, "process spawn"],
