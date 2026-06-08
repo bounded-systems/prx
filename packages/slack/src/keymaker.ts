@@ -1,0 +1,77 @@
+// slack .2 (prx-src) — keymaker capability PORT (interfaces only).
+//
+// ocap boundary: auth is factored out of the transport entirely. A keymaker is
+// a credential BROKER that mints scoped, self-expiring keys from a held root
+// authority — it does NOT authenticate (the OAuth login upstream does that); it
+// ATTENUATES an already-held authority into least-authority keys.
+//
+// These are the port contracts the read surface depends on (dependency
+// inversion: the consumer declares what it needs). The concrete keymaker —
+// resolveSlackKeymaker() holding the root OAuth/refresh authority — lands in
+// @bounded-systems/auth (slack .4b) and satisfies these structurally. Prior art
+// + design rationale: spike prx-5u1 (biscuit/macaroon attenuation + Fulcio/Rekor
+// provenance shape via the existing anchored-chain + RFC 8693 upgrade path).
+
+import type { SlackReadOp } from "./types.ts";
+
+/** The authority a single minted key grants — least authority by construction. */
+export interface SlackKeyScope {
+  /** Read ops this key authorizes. A `history` key cannot list `users`. */
+  ops: readonly SlackReadOp[];
+  /**
+   * Channel allowlist. `undefined` = any channel within the root grant;
+   * a list = exactly those. Enforced capability-side by {@link ScopedSlackKey.authorize}.
+   */
+  channels?: readonly string[] | undefined;
+}
+
+/** Request the transport hands to `authorize()` for credential injection. */
+export interface SlackRequest {
+  url?: string | undefined;
+  headers?: Record<string, string> | undefined;
+}
+
+/** A request after the key has injected its authorization (e.g. bearer header). */
+export interface AuthorizedSlackRequest extends SlackRequest {
+  headers: Record<string, string>;
+}
+
+/**
+ * A minted credential capability — *use, don't read*. Self-expiring and
+ * scope-self-enforcing: `authorize()` throws (SCOPE_DENIED / KEY_EXPIRED) for
+ * any op/channel outside {@link scope} or past {@link expiresAt}. The secret is
+ * never exposed; `keyId` is a provenance handle (anchored into the read's
+ * Derivation), NOT the credential itself.
+ */
+export interface ScopedSlackKey {
+  /** Stable, non-secret identifier for provenance attribution. */
+  readonly keyId: string;
+  readonly scope: SlackKeyScope;
+  /** Expiry, epoch ms. Real TTL via Slack OAuth token rotation (spike prx-5u1). */
+  readonly expiresAt: number;
+  /**
+   * Attach authorization to a request, refusing out-of-scope or expired use.
+   * @throws SlackReadError SCOPE_DENIED | KEY_EXPIRED
+   */
+  authorize(
+    op: SlackReadOp,
+    channel: string | undefined,
+    req: SlackRequest,
+  ): AuthorizedSlackRequest;
+}
+
+/** A request to mint a key: the scope to grant and how long it lives. */
+export interface SlackKeyGrant {
+  scope: SlackKeyScope;
+  /** Time-to-live in ms; the keymaker stamps `expiresAt = now + ttlMs`. */
+  ttlMs: number;
+}
+
+/**
+ * The broker. Holds root authority (in its closure) and mints least-authority,
+ * expiring keys on demand. Lives only in the composition root (the `prx slack`
+ * verb); the read core receives a keymaker, never the root secret.
+ */
+export interface SlackKeymaker {
+  mint(grant: SlackKeyGrant): ScopedSlackKey;
+}

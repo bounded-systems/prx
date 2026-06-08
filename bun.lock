@@ -175,6 +175,10 @@
         "@bounded-systems/cas": "workspace:*",
       },
     },
+    "packages/slack": {
+      "name": "@bounded-systems/slack",
+      "version": "0.0.0",
+    },
     "packages/surface-sync": {
       "name": "@bounded-systems/surface-sync",
       "version": "0.0.0",
@@ -247,6 +251,8 @@
     "@bounded-systems/repo-root": ["@bounded-systems/repo-root@workspace:packages/repo-root"],
 
     "@bounded-systems/scout": ["@bounded-systems/scout@workspace:packages/scout"],
+
+    "@bounded-systems/slack": ["@bounded-systems/slack@workspace:packages/slack"],
 
     "@bounded-systems/surface-sync": ["@bounded-systems/surface-sync@workspace:packages/surface-sync"],
 

@@ -35,6 +35,7 @@ libraries it builds on. A Bun + TypeScript monorepo.
     - `prx-mux` — Tmux session layout compilation, spawning, and config-driven state restoration
     - `repo-root` — Repo-root resolution capability: lazy git-based runtime root plus the eager .git-marker walk for build/codegen, the one sanctioned root-resolution point
     - `scout` — Content-addressed surface reads (file/grep/files) with anchored-chain provenance
+    - `slack` — Policy-gated, provenance-tracked Slack read surface: bounded read ops behind a swappable transport port, with keymaker-minted scoped credentials
     - `surface-sync` — Type ontology for work-unit change-detection across GH/branch/worktree/tmux/beads
 - `spec/` — the prx effect/contract spec (`schema.cue`)
 
