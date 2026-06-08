@@ -30,7 +30,9 @@ import {
 } from "../machine/gc/schema.ts";
 
 const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
-  // ─── Promoted on mainx (help-surface.md §6.2: exactly six, in canonical order) ─
+  // ─── Promoted on mainx (help-surface.md §6.2: canonical order) ─
+  // tmux removal (prx-519) dropped `review` (a tmux-pane keystroke sender),
+  // so the promoted mainx set is now five.
 
   {
     name: "tui",

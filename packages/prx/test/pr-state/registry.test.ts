@@ -96,17 +96,19 @@ describe("IA invariants", () => {
     }
   });
 
-  test("§6.2 — mainx promotion is the canonical six (GH-1166)", () => {
+  test("§6.2 — mainx promotion is the canonical five (GH-1166)", () => {
     // GH-1166: bare-session retirement renamed two slots:
     //   `session next`  → `next`
     //   `session close` → `plan handoff` (also stays plan-promoted)
+    // tmux removal (prx-519): `review` was a tmux-pane keystroke sender
+    // (send `/review` into the live pane); with tmux gone it was removed,
+    // dropping the canonical mainx set from six to five.
     const promoted = promotedFor("mainx").map((c) => c.name);
     expect(promoted).toEqual([
       "tui",
       "plan session",
       "next",
       "do",
-      "review",
       "plan handoff",
     ]);
   });
@@ -379,7 +381,6 @@ describe("session_role tagging (GH-1311)", () => {
       "plan load": "toolset",
       "plan show": "toolset",
       "plan ci": "preflight",
-      "plan ultrareview": "preflight",
       "plan status": "preflight",
       "plan next": "preflight",
       "plan preflight": "preflight",
