@@ -29,8 +29,21 @@
 
 display_information:
   name: slack-scout
-  description: prx read-only Slack surface - content-addressed, provenance-tracked reads
+  description: Read-only, provenance-tracked Slack reads for prx - least-authority by design.
   background_color: "#1a1d21"
+  long_description: >-
+    slack-scout is the read-only Slack surface for prx, an agent-run,
+    capability-secured work-unit CLI. It performs read operations only - listing
+    channels, reading channel history and threads, and resolving users - and
+    content-addresses every result, recording it as a derivation in an anchored
+    provenance chain so each read becomes a verifiable, queryable artifact rather
+    than an ephemeral API call. slack-scout is read-only by construction: it
+    requests read scopes only and holds no ability to post, edit, or delete -
+    mirroring the prx policy engine, where every Slack write verb is hard-blocked.
+    Each read is authorized by a short-lived, least-authority credential scoped to
+    exactly the operation and channel requested, so a leaked or logged token can
+    perform only a narrow read for a brief window. slack-scout is part of the
+    source-available prx project at github.com/bounded-systems/prx.
 
 oauth_config:
   redirect_urls:
