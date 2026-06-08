@@ -67,6 +67,7 @@ export function updateBeadViaDaemon(
     notes?: string;
     title?: string;
     description?: string;
+    metadata?: string;
   },
   deps: WithBeadsClientDeps = {},
 ): Promise<BeadsRecord | null> {
@@ -81,6 +82,7 @@ export function updateBeadViaDaemon(
     ...(fields.notes !== undefined ? { notes: fields.notes } : {}),
     ...(fields.title !== undefined ? { title: fields.title } : {}),
     ...(fields.description !== undefined ? { description: fields.description } : {}),
+    ...(fields.metadata !== undefined ? { metadata: fields.metadata } : {}),
   };
   return writeViaDaemon(request, deps);
 }

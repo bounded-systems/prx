@@ -87,6 +87,11 @@ export const BeadsRequestSchema = z.discriminatedUnion("kind", [
     title: z.string().min(1).optional(),
     /** Rewrite the description — `bd update --description <d>`. */
     description: z.string().min(1).optional(),
+    /**
+     * Set a metadata field — `bd update --metadata <key=value>` (e.g.
+     * `external_refs.notion=<pageId>` for the Notion mirror link).
+     */
+    metadata: z.string().min(1).optional(),
   }),
   /** `bd close <id> [--reason r]`. */
   z.object({

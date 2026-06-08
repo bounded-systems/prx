@@ -62,12 +62,28 @@ function bead(overrides: Partial<BeadsRecord> = {}): BeadsRecord {
 
 function recordingBdExec(
   result: BdExecResult = { exitCode: 0, stdout: "", stderr: "", policy: null },
-): { exec: (opts: BdExecOptions) => BdExecResult; calls: BdExecOptions[] } {
+): {
+  exec: (opts: BdExecOptions) => BdExecResult;
+  run: (cmd: string[], o?: { cwd?: string; check?: boolean }) => { status: number; stdout: string; stderr: string };
+  calls: BdExecOptions[];
+} {
   const calls: BdExecOptions[] = [];
   return {
     exec: (opts: BdExecOptions) => {
       calls.push(opts);
       return result;
+    },
+    // GH-296 / prx-82b: writes now run `prx beads update …` through the daemon (a
+    // sync runner). Record the equivalent old BdExecOptions shape so assertions hold.
+    run: (cmd: string[], o?: { cwd?: string; check?: boolean }) => {
+      calls.push({
+        subcommand: cmd[2] ?? "",
+        args: cmd.slice(3),
+        ...(o?.cwd !== undefined ? { cwd: o.cwd } : {}),
+        state: "planning",
+        role: "planner",
+      } as BdExecOptions);
+      return { status: result.exitCode, stdout: result.stdout, stderr: result.stderr };
     },
     calls,
   };
@@ -261,7 +277,7 @@ describe("NotionDomainAdapter.push", () => {
   test("linked path: PATCH /pages/<id> with title property; no bd write-back", async () => {
     const { fetchImpl, calls } = recordingFetch(() => jsonResponse({ id: "page-id" }));
     const bd = recordingBdExec();
-    const adapter = makeAdapter({ fetchImpl, execBd: bd.exec });
+    const adapter = makeAdapter({ fetchImpl, run: bd.run });
     const result = await adapter.push(
       bead({ externalRefs: { notion: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } }),
       { title: "Renamed" },
@@ -299,7 +315,7 @@ describe("NotionDomainAdapter.push", () => {
     const bd = recordingBdExec();
     const adapter = makeAdapter({
       fetchImpl,
-      execBd: bd.exec,
+      run: bd.run,
       loadAllBeads: () => [],
     });
     const result = await adapter.push(bead(), { title: "Brand new", body: "hello" });
@@ -333,7 +349,7 @@ describe("NotionDomainAdapter.push", () => {
     const bd = recordingBdExec();
     const adapter = makeAdapter({
       fetchImpl,
-      execBd: bd.exec,
+      run: bd.run,
       loadAllBeads: () => [
         bead({
           id: "ai-home-other",
@@ -406,7 +422,7 @@ describe("NotionDomainAdapter.resolve / resolveFromBeads", () => {
 describe("NotionDomainAdapter.bulkClose", () => {
   test("loops bd update <id> --status closed for each provided bead id", () => {
     const bd = recordingBdExec();
-    const adapter = makeAdapter({ execBd: bd.exec });
+    const adapter = makeAdapter({ run: bd.run });
     const result = adapter.bulkClose({
       cwd: "/repo",
       beadIds: ["ai-home-1", "ai-home-2", "ai-home-3"],
@@ -440,13 +456,13 @@ describe("NotionDomainAdapter.bulkClose", () => {
   test("first non-zero exit short-circuits and propagates", () => {
     let n = 0;
     const adapter = makeAdapter({
-      execBd: (_opts) => {
+      run: ((_cmd: string[]) => {
         n += 1;
         if (n === 2) {
-          return { exitCode: 7, stdout: "", stderr: "boom", policy: null };
+          return { status: 7, stdout: "", stderr: "boom" };
         }
-        return { exitCode: 0, stdout: "", stderr: "", policy: null };
-      },
+        return { status: 0, stdout: "", stderr: "" };
+      }) as never,
     });
     const result = adapter.bulkClose({
       cwd: "/repo",
@@ -459,7 +475,7 @@ describe("NotionDomainAdapter.bulkClose", () => {
 
   test("no beadIds → no-op exit 0", () => {
     const bd = recordingBdExec();
-    const adapter = makeAdapter({ execBd: bd.exec });
+    const adapter = makeAdapter({ run: bd.run });
     expect(adapter.bulkClose({ cwd: "/repo", beadIds: [] })).toEqual({
       exitCode: 0,
       stdout: "",

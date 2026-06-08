@@ -7766,6 +7766,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
         reason: { type: "string" },
         "external-ref": { type: "string" },
         notes: { type: "string" },
+        metadata: { type: "string" },
         silent: { type: "boolean" },
       },
       strict: true,
@@ -7813,6 +7814,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
         ...(values.notes !== undefined ? { notes: values.notes } : {}),
         ...(values.title !== undefined ? { title: values.title } : {}),
         ...(values.description !== undefined ? { description: values.description } : {}),
+        ...(values.metadata !== undefined ? { metadata: values.metadata } : {}),
       };
       if (Object.keys(fields).length === 0) {
         throw new CliError(
