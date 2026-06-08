@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import type { CommandRunner } from "@bounded-systems/prx-mux";
+import type { CommandRunner } from "@bounded-systems/proc";
 
 import {
   digestManifest,

@@ -8,7 +8,6 @@
         "@anthropic-ai/claude-agent-sdk": "^0.3.167",
         "@bounded-systems/machine-schema": "workspace:*",
         "@bounded-systems/prx-config": "workspace:*",
-        "@bounded-systems/prx-mux": "workspace:*",
         "@statelyai/inspect": "^0.7.1",
         "xstate": "^5.32.0",
         "zod": "^4.4.3",
@@ -156,13 +155,6 @@
       "name": "@bounded-systems/prx-config",
       "version": "0.0.0",
     },
-    "packages/prx-mux": {
-      "name": "@bounded-systems/prx-mux",
-      "version": "0.0.0",
-      "dependencies": {
-        "@bounded-systems/proc": "workspace:*",
-      },
-    },
     "packages/repo-root": {
       "name": "@bounded-systems/repo-root",
       "version": "0.0.0",
@@ -241,8 +233,6 @@
     "@bounded-systems/prx": ["@bounded-systems/prx@workspace:packages/prx"],
 
     "@bounded-systems/prx-config": ["@bounded-systems/prx-config@workspace:packages/prx-config"],
-
-    "@bounded-systems/prx-mux": ["@bounded-systems/prx-mux@workspace:packages/prx-mux"],
 
     "@bounded-systems/repo-root": ["@bounded-systems/repo-root@workspace:packages/repo-root"],
 

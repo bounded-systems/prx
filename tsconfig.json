@@ -22,7 +22,6 @@
       "@bounded-systems/github-budget": ["./packages/github-budget/src/index.ts"],
       "@bounded-systems/machine-schema": ["./packages/machine-schema/src/index.ts"],
       "@bounded-systems/prx-config": ["./packages/prx-config/src/index.ts"],
-      "@bounded-systems/prx-mux": ["./packages/prx-mux/src/index.ts"],
       "@bounded-systems/env": ["./packages/env/src/index.ts"],
       "@bounded-systems/host": ["./packages/host/src/index.ts"],
       "@bounded-systems/auth": ["./packages/auth/src/index.ts"],

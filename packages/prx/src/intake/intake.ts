@@ -342,7 +342,6 @@ function defaultGetRepoRoot(cwd: string): string | null {
 const SCOPE_PATH_MAP: ReadonlyArray<readonly [string, LabelArea]> = [
   ["src/beads", "beads"],
   ["src/claude", "claude-code"],
-  ["packages/prx-mux", "tmux"],
   ["nix", "home-manager"],
   [".github", "ci"],
   ["src", "prx"],
