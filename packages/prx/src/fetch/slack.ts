@@ -16,6 +16,8 @@
 import { sha256Hex, type BlobStore, type Digest } from "@bounded-systems/cas";
 import { canonicalJson } from "@bounded-systems/slack";
 
+import { projectSlackContent } from "./slack-content.ts";
+
 export interface SlackFetchInput {
   channel: string;
   /** Last-synced Slack ts; only messages strictly newer are persisted. */
@@ -75,9 +77,14 @@ const DEFAULT_LIMIT = 100;
 const DEFAULT_MAX_PAGES = 1000;
 const enc = new TextEncoder();
 
-/** Stable bytes for a message — channel-scoped + canonical (key-order-stable). */
+/**
+ * Stable bytes for a message — channel-scoped + canonical (key-order-stable),
+ * over the CONTENT projection (not the whole message). Reaction/reply-count
+ * churn dedups to nothing; only a content edit busts the digest. See
+ * ./slack-content.ts for the projection + its zod/JSON schema.
+ */
 function messageBytes(channel: string, message: SlackMessage): Uint8Array {
-  return enc.encode(canonicalJson({ channel, message }));
+  return enc.encode(canonicalJson({ channel, content: projectSlackContent(message) }));
 }
 
 /**

@@ -76,6 +76,25 @@ describe("runFetchSlack — freshness + CAS", () => {
     expect(blobs.size).toBe(6); // no cross-channel collision
   });
 
+  test("metadata churn (reactions/replies) dedups — content digest is unchanged (prx-psj)", async () => {
+    const { blobs, store } = memStore();
+    await runFetchSlack({ channel: "C1" }, { readHistory: reader(MSGS).readHistory, store });
+    expect(blobs.size).toBe(3);
+    // same messages, now with reactions + a grown reply_count: content unchanged.
+    const withChurn = MSGS.map((m) => ({
+      ...m,
+      reactions: [{ name: "+1", count: 2 }],
+      reply_count: 5,
+      latest_reply: "200.0",
+    }));
+    const again = await runFetchSlack(
+      { channel: "C1" },
+      { readHistory: reader(withChurn).readHistory, store },
+    );
+    expect(again.deduped).toBe(3); // all dedup on content
+    expect(blobs.size).toBe(3); // nothing re-stored despite the metadata churn
+  });
+
   test("empty fetch leaves the watermark unchanged", async () => {
     const { store } = memStore();
     const { readHistory } = reader([]);
