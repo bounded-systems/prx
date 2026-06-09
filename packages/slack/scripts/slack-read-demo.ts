@@ -31,8 +31,8 @@ function paramsFor(): Record<string, unknown> {
     case "users":
       return { limit: 5 };
     case "history":
-      if (!a) throw new Error("usage: ... history <channelId>");
-      return { channel: a, limit: 5 };
+      if (!a) throw new Error("usage: ... history <channelId> [limit]");
+      return { channel: a, limit: b ? Number(b) : 20 };
     case "thread":
       if (!a || !b) throw new Error("usage: ... thread <channelId> <ts>");
       return { channel: a, ts: b, limit: 5 };
@@ -75,10 +75,18 @@ console.log(
 const data = envelope.result.data as {
   channels?: Array<{ id: string; name: string }>;
   members?: Array<{ id: string; name: string }>;
-  messages?: Array<{ ts: string; text?: string }>;
+  messages?: Array<{ ts: string; user?: string; text?: string }>;
 };
-const rows = data.channels ?? data.members ?? data.messages ?? [];
-console.log(
-  "first results:",
-  rows.slice(0, 5).map((x) => ("name" in x ? x.name : "ts" in x ? x.ts : x.id)),
-);
+if (data.messages) {
+  console.log(`messages (${data.messages.length}):`);
+  for (const m of data.messages) {
+    const text = (m.text ?? "").replace(/\s+/g, " ").trim();
+    console.log(`- [${m.ts}] ${m.user ?? "?"}: ${text}`);
+  }
+} else {
+  const rows = data.channels ?? data.members ?? [];
+  console.log(
+    "first results:",
+    rows.slice(0, 10).map((x) => ("name" in x ? x.name : x.id)),
+  );
+}
