@@ -44,8 +44,12 @@ import {
   type WorkspaceVerb,
 } from "./schema.ts";
 import { hydrate as hydrateBeads } from "../beads/hydrate.ts";
-import { runKeeperRemoveWorktree } from "../pr-state/keeper.ts";
+import { attestWorktreeAdd, runKeeperRemoveWorktree } from "../pr-state/keeper.ts";
 import { ensureClaudeWorktreeHooks } from "../machine/claude_local_settings.ts";
+import { resolveCanonicalChainLedger } from "./actor.ts";
+import { resolveProvenanceSigner } from "../provenance/signer.ts";
+import { openAnchoredChain } from "@bounded-systems/anchored-chain-sqlite";
+import { execGit } from "@bounded-systems/git";
 import {
   runWorktreeCreateHook,
   runWorktreeRemoveHook,
@@ -297,7 +301,43 @@ export type WorktreeHookCliDeps = {
   removeWorktree?: typeof runKeeperRemoveWorktree;
   resolveContext?: typeof resolveWorkspaceContext;
   ensureHooks?: typeof ensureClaudeWorktreeHooks;
+  emitProvenance?: (input: { branch: string; targetPath: string; cwd: string }) => Promise<void>;
 };
+
+/**
+ * prx-3qc: default production wiring for worktree-add provenance — emit a signed
+ * `worktree-add/v1` (keeper's {@link attestWorktreeAdd}) for a freshly
+ * materialized worktree. Opt-in + fail-safe, mirroring keeper push: no provenance
+ * key (`resolveProvenanceSigner` → null) ⇒ no emission; no resolvable per-workspace
+ * ledger ⇒ no emission. The base commit (`origin/main`, what the branch was cut
+ * from) is recorded as a material when resolvable.
+ */
+async function emitWorktreeAddProvenance(input: {
+  branch: string;
+  targetPath: string;
+  cwd: string;
+}): Promise<void> {
+  const signer = resolveProvenanceSigner();
+  if (!signer) return;
+  const ledger = resolveCanonicalChainLedger(input.targetPath);
+  if (!ledger) return;
+  const base = execGit({
+    subcommand: "rev-parse",
+    args: ["origin/main"],
+    cwd: input.cwd,
+    role: "keeper",
+  });
+  const baseCommit = base.exitCode === 0 ? base.stdout.trim() : undefined;
+  const store = openAnchoredChain(ledger.ledgerPath);
+  await attestWorktreeAdd(
+    { signer, store: store.derivations },
+    {
+      branch: input.branch,
+      targetPath: input.targetPath,
+      ...(baseCommit ? { baseCommit } : {}),
+    },
+  );
+}
 
 /**
  * Adapter from Claude Code's `WorktreeCreate`/`WorktreeRemove` hook envelope
@@ -327,6 +367,7 @@ export async function runWorktreeHookCli(
   const removeWorktree = deps.removeWorktree ?? runKeeperRemoveWorktree;
   const resolveContext = deps.resolveContext ?? resolveWorkspaceContext;
   const ensureHooks = deps.ensureHooks ?? ensureClaudeWorktreeHooks;
+  const emitProvenance = deps.emitProvenance ?? emitWorktreeAddProvenance;
 
   if (verb === "worktree-create") {
     return runWorktreeCreateHook({
@@ -352,6 +393,16 @@ export async function runWorktreeHookCli(
           ensureHooks(mat.worktree_path);
         } catch {
           // ignore — the worktree is materialized; hook registration is a convenience
+        }
+        // prx-3qc: emit a signed worktree-add/v1 for a real placement (opt-in on
+        // a provenance key + ledger). Best-effort — provenance must never abort
+        // creation. `exists` (idempotent) was already attested on first placement.
+        if (mat.status === "created") {
+          try {
+            await emitProvenance({ branch: name, targetPath: mat.worktree_path, cwd });
+          } catch {
+            // ignore — the worktree is materialized; attestation is non-blocking
+          }
         }
         return mat.worktree_path;
       },
