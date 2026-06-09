@@ -2802,7 +2802,7 @@ describe("pr_state cli", () => {
     const errors: string[] = [];
     try {
       const exitCode = await runCliDirect(
-        ["open","GH-5431", "--plan", "/tmp/plan.md", "--check"],
+        ["open","GH-5431", "--plan", join(cwd, "plan.md"), "--check"],
         { log: () => {}, error: (m: string) => errors.push(m) },
         {
           ...noOpWorktreeLockDeps,
@@ -2826,7 +2826,7 @@ describe("pr_state cli", () => {
     const logs: string[] = [];
     try {
       const exitCode = await runCliDirect(
-        ["implement", "agent", "GH-5431", "--plan", "/tmp/plan.md", "--dry-run", "--format", "json"],
+        ["implement", "agent", "GH-5431", "--plan", join(cwd, "plan.md"), "--dry-run", "--format", "json"],
         { log: (l) => logs.push(l), error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -2855,7 +2855,7 @@ describe("pr_state cli", () => {
     const logs: string[] = [];
     try {
       const exitCode = await runCliDirect(
-        ["implement", "agent", "GH-5431", "--plan", "/tmp/plan.md"],
+        ["implement", "agent", "GH-5431", "--plan", join(cwd, "plan.md")],
         { log: (l) => logs.push(l), error: () => {} },
         {
           ...noOpWorktreeLockDeps,

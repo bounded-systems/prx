@@ -206,7 +206,7 @@ describe("prx implement agent auto-prime + refusal contract (GH-1238)", () => {
     // existing handleRunCliError path. The point of this test is to assert
     // that `runPlanShow` is NEVER consulted when --plan is provided.
     await runCli(
-      ["implement", "agent", "GH-1238", "--plan", "/tmp/plan.md", "--dry-run"],
+      ["implement", "agent", "GH-1238", "--plan", "plan.md", "--dry-run"],
       output,
       {
         runPlanShow: async () => {

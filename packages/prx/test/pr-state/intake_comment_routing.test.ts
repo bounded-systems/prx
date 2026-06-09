@@ -123,7 +123,7 @@ describe("runCli — `prx intake comment` parser routing", () => {
   test("--body and --body-file together are rejected at parse layer", async () => {
     const { errors, output } = captureOutput();
     const exit = await runCli(
-      ["intake", "comment", "GH-200", "--body", "x", "--body-file", "/tmp/x"],
+      ["intake", "comment", "GH-200", "--body", "x", "--body-file", "body.md"],
       output,
       {},
     );
@@ -145,7 +145,7 @@ describe("runCli — `prx intake comment` parser routing", () => {
         "comment",
         "GH-200",
         "--body-file",
-        "/tmp/x",
+        "body.md",
         "--body-stdin",
       ],
       output,
