@@ -26,13 +26,18 @@ import type { execGit, GitExecOptions, GitExecResult } from "@bounded-systems/gi
 import { runCli } from "../../src/pr-state/cli.ts";
 import {
   KeeperGitError,
+  attestWorktreeAdd,
   runKeeperCommitTree,
   runKeeperEnsureWorktree,
   runKeeperPush,
   runKeeperRemoveWorktree,
   runKeeperWriteTree,
 } from "../../src/pr-state/keeper.ts";
-import { GIT_PUSH_BUILD_TYPE, type AttestDeps } from "../../src/provenance/attest.ts";
+import {
+  GIT_PUSH_BUILD_TYPE,
+  WORKTREE_ADD_BUILD_TYPE,
+  type AttestDeps,
+} from "../../src/provenance/attest.ts";
 import { slsaProvenanceStatement, verifySlsaEnvelope } from "../../src/provenance/slsa.ts";
 
 describe("runKeeperEnsureWorktree — worktree placement + self-heal (prx-0yf / prx-5h0)", () => {
@@ -304,6 +309,109 @@ describe("runKeeperPush attestation (GH-2348.2)", () => {
     expect(result.exitCode).toBe(0);
     expect(git.calls).toEqual(["push"]); // no rev-parse, no attestation
     expect(store.appended).toHaveLength(0);
+  });
+});
+
+describe("attestWorktreeAdd — signed worktree-add/v1 (prx-hc5)", () => {
+  const BUILDER_ID = "prx://claude-code/keeper";
+  const NOW = 1000;
+  const WT_OID = "0123456789abcdef0123456789abcdef01234567";
+  const BASE_OID = "89abcdef0123456789abcdef0123456789abcdef";
+
+  type FakeStore = Pick<DerivationStore, "append" | "get"> & { readonly appended: Derivation[] };
+  function fakeStore(): FakeStore {
+    const map = new Map<string, Derivation>();
+    const appended: Derivation[] = [];
+    return {
+      appended,
+      async append(d) { map.set(d.derivationId as string, d); appended.push(d); },
+      async get(id) { return map.get(id as string) ?? null; },
+    };
+  }
+  function mkAttest(store: FakeStore) {
+    const kp = generateEd25519Keypair();
+    const deps: AttestDeps = {
+      signer: ed25519Signer(kp.privateKey, kp.keyid),
+      store,
+      builderId: BUILDER_ID,
+      now: () => NOW,
+    };
+    return { deps, publicKey: kp.publicKey };
+  }
+  // HEAD resolves to WT_OID in the target worktree (or fails when headOk=false).
+  function fakeGit(headOk = true): typeof execGit & { calls: GitExecOptions[] } {
+    const calls: GitExecOptions[] = [];
+    const fn = ((opts: GitExecOptions): GitExecResult => {
+      calls.push(opts);
+      if (opts.subcommand === "rev-parse") {
+        return { exitCode: headOk ? 0 : 1, stdout: headOk ? `${WT_OID}\n` : "", stderr: "", policy: null };
+      }
+      return { exitCode: 0, stdout: "", stderr: "", policy: null };
+    }) as typeof execGit & { calls: GitExecOptions[] };
+    fn.calls = calls;
+    return fn;
+  }
+
+  test("emits a signed worktree-add/v1: subject = new worktree HEAD, base as material", async () => {
+    const store = fakeStore();
+    const { deps, publicKey } = mkAttest(store);
+    const git = fakeGit();
+    const d = await attestWorktreeAdd(deps, {
+      branch: "feat-x",
+      targetPath: "/wt/feat-x",
+      baseCommit: BASE_OID,
+      git,
+    });
+    expect(d).not.toBeNull();
+    // HEAD resolved IN THE TARGET worktree (declared subject, not cwd-describing)
+    expect(git.calls.some((c) => c.subcommand === "rev-parse" && c.cwd === "/wt/feat-x")).toBe(true);
+    expect(store.appended).toHaveLength(1);
+
+    const stored = store.appended[0]!;
+    expect(stored.manifest.outputs["feat-x"]).toBe(`gitCommit:${WT_OID}` as Digest);
+    const stmt = slsaProvenanceStatement({
+      buildType: WORKTREE_ADD_BUILD_TYPE,
+      builderId: BUILDER_ID,
+      subject: [{ name: "feat-x", digest: { gitCommit: WT_OID } }],
+      resolvedDependencies: [{ name: "base", digest: { gitCommit: BASE_OID } }],
+      externalParameters: { branch: "feat-x", targetPath: "/wt/feat-x" },
+      invocationId: stored.derivationId as string,
+      startedOn: new Date(NOW).toISOString(),
+    });
+    expect(await verifySlsaEnvelope(stmt, stored.envelope!, ed25519Verifier(publicKey))).toBe(true);
+  });
+
+  test("a missing/malformed HEAD → null, no attestation (no malformed link)", async () => {
+    const store = fakeStore();
+    const { deps } = mkAttest(store);
+    const d = await attestWorktreeAdd(deps, {
+      branch: "feat-x",
+      targetPath: "/wt/feat-x",
+      git: fakeGit(false),
+    });
+    expect(d).toBeNull();
+    expect(store.appended).toHaveLength(0);
+  });
+
+  test("no baseCommit → subject only, signed without resolvedDependencies", async () => {
+    const store = fakeStore();
+    const { deps, publicKey } = mkAttest(store);
+    const d = await attestWorktreeAdd(deps, {
+      branch: "feat-x",
+      targetPath: "/wt/feat-x",
+      git: fakeGit(),
+    });
+    expect(d).not.toBeNull();
+    const stored = store.appended[0]!;
+    const stmt = slsaProvenanceStatement({
+      buildType: WORKTREE_ADD_BUILD_TYPE,
+      builderId: BUILDER_ID,
+      subject: [{ name: "feat-x", digest: { gitCommit: WT_OID } }],
+      externalParameters: { branch: "feat-x", targetPath: "/wt/feat-x" },
+      invocationId: stored.derivationId as string,
+      startedOn: new Date(NOW).toISOString(),
+    });
+    expect(await verifySlsaEnvelope(stmt, stored.envelope!, ed25519Verifier(publicKey))).toBe(true);
   });
 });
 

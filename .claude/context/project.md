@@ -55,6 +55,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - `prx dolt start` — the dolt actor's start driver (GH-555) — `docs/prx/dolt-start.md`
 - Local CI in the pipeline — the `checking` gate + where health/OTEL belongs — `docs/prx/pipeline-local-checks.md`
 - Pilot & fleet — Claude subagents as a signed pipeline — `docs/prx/pipeline-orchestrator.md`
+- ADR — signed provenance for `claude --worktree` materialization (prx-hc5) — `docs/prx/worktree-provenance.md`
 - prx — project roadmap — `docs/roadmap/prx.md`
 - GH-1836 — PRX runtime + workspace architecture: Nix + Moon + Deno/Bun hybrid (ADR) — `docs/spikes/GH-1836-prx-runtime-architecture.md`
 - prx-3eu — Sync agent: adopt a sync framework, or build bespoke? (ADR) — `docs/spikes/prx-3eu-sync-framework-build-vs-adopt.md`
