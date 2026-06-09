@@ -2,6 +2,7 @@
 // slack-setup.ts — provision + prove the slack-scout read token. Secrets live in
 // 1Password; this script never writes them to disk or shell history.
 //
+//   export OP_ACCOUNT=pushd.1password.com OP_VAULT=Employee       # your 1Password target
 //   export SLACK_CLIENT_ID=...                                    # not secret
 //   read -rs SLACK_CLIENT_SECRET && export SLACK_CLIENT_SECRET    # hidden, in YOUR shell
 //   bun run packages/slack/scripts/slack-setup.ts store           # store ID + Secret in 1Password
@@ -19,9 +20,22 @@
 
 import { $ } from "bun";
 
-const OP_ACCOUNT = process.env.OP_ACCOUNT ?? "my.1password.com";
-const OP_VAULT = process.env.OP_VAULT ?? "Private";
+// Operator-specific — supplied via the environment so no 1Password account/vault
+// is baked into the repo. Set them in your shell (or a gitignored local file):
+//   export OP_ACCOUNT=pushd.1password.com OP_VAULT=Employee
+const OP_ACCOUNT = process.env.OP_ACCOUNT ?? "";
+const OP_VAULT = process.env.OP_VAULT ?? "";
 const OP_ITEM = process.env.OP_ITEM ?? "slack-scout";
+
+function requireOpTarget(): void {
+  if (!OP_ACCOUNT || !OP_VAULT) {
+    throw new Error(
+      "set OP_ACCOUNT and OP_VAULT for your 1Password target, e.g.:\n" +
+        "  export OP_ACCOUNT=pushd.1password.com OP_VAULT=Employee\n" +
+        "(discover them: `op account list`, `op vault list --account <acct>`)",
+    );
+  }
+}
 const REDIRECT_URI = "http://localhost:8080/callback";
 const USER_SCOPES = "channels:read,channels:history,users:read";
 
@@ -94,7 +108,10 @@ async function cmdStore(): Promise<void> {
 
 async function cmdAuthorize(): Promise<void> {
   let cid = process.env.SLACK_CLIENT_ID ?? "";
-  if (!cid && (await itemExists())) cid = await opRead("client_id");
+  if (!cid) {
+    requireOpTarget();
+    if (await itemExists()) cid = await opRead("client_id");
+  }
   if (!cid) throw new Error("set SLACK_CLIENT_ID or run 'store' first");
   const url =
     `https://slack.com/oauth/v2/authorize?client_id=${cid}` +
@@ -175,18 +192,22 @@ const [cmd, ...rest] = process.argv.slice(2);
 try {
   switch (cmd) {
     case "store":
+      requireOpTarget();
       await cmdStore();
       break;
     case "authorize":
       await cmdAuthorize();
       break;
     case "exchange":
+      requireOpTarget();
       await cmdExchange(rest[0] ?? "");
       break;
     case "token":
+      requireOpTarget();
       await cmdToken();
       break;
     case "prove":
+      requireOpTarget();
       await cmdProve();
       break;
     default:

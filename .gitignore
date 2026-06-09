@@ -15,3 +15,6 @@ result-*
 # a tracked project file that @imports the generated .claude/context/project.md.
 !CLAUDE.md
 _site/
+
+# operator-specific 1Password reference file (use slack.env.example as template)
+packages/slack/slack.env
