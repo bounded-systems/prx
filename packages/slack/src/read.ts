@@ -62,10 +62,31 @@ export interface SlackReadEnvelope<Op extends SlackReadOp = SlackReadOp> {
   policy: PolicyDecision;
 }
 
-/** Channel a read targets, if any (history/thread carry one; channels/users do not). */
-function channelOf(params: Record<string, unknown>): string | undefined {
-  const ch = params["channel"];
-  return typeof ch === "string" ? ch : undefined;
+/** A string param field, or undefined when absent/non-string. */
+function strField(params: Record<string, unknown>, key: string): string | undefined {
+  const v = params[key];
+  return typeof v === "string" ? v : undefined;
+}
+
+/**
+ * The org/channel/thread a read reaches, for the least-authority per-read
+ * scope: `team_id` → org (workspace/enterprise), `channel` → channel, and the
+ * thread parent ts (`thread_ts`, or the `ts` of a `thread`/replies read).
+ * Each is undefined when the read doesn't reach that level (org ⊃ channel ⊃
+ * thread).
+ */
+function targetOf(
+  op: SlackReadOp,
+  params: Record<string, unknown>,
+): { org?: string; channel?: string; thread?: string } {
+  const org = strField(params, "team_id");
+  const channel = strField(params, "channel");
+  const thread = strField(params, "thread_ts") ?? (op === "thread" ? strField(params, "ts") : undefined);
+  const target: { org?: string; channel?: string; thread?: string } = {};
+  if (org !== undefined) target.org = org;
+  if (channel !== undefined) target.channel = channel;
+  if (thread !== undefined) target.thread = thread;
+  return target;
 }
 
 export async function execSlackRead<Op extends SlackReadOp>(
@@ -87,11 +108,14 @@ export async function execSlackRead<Op extends SlackReadOp>(
     );
   }
 
-  // Mint a key scoped to exactly this read: this op, and this channel if any.
-  const channel = channelOf(params as Record<string, unknown>);
+  // Mint a key scoped to exactly this read: this op, and the org/channel/thread
+  // it reaches — least authority across all three dimensions.
+  const { org, channel, thread } = targetOf(op, params as Record<string, unknown>);
   const scope: SlackKeyScope = {
     ops: [op],
+    ...(org !== undefined ? { orgs: [org] } : {}),
     ...(channel !== undefined ? { channels: [channel] } : {}),
+    ...(thread !== undefined ? { threads: [thread] } : {}),
   };
   const key = deps.keymaker.mint({ scope, ttlMs: deps.ttlMs ?? DEFAULT_KEY_TTL_MS });
 

@@ -18,7 +18,7 @@ function recordingKeymaker(): { km: SlackKeymaker; minted: ScopedSlackKey[] } {
         keyId: `k-${grant.scope.ops.join(",")}`,
         scope: grant.scope,
         expiresAt: 10_000,
-        authorize: (_op, _ch, req) => ({
+        authorize: (_target, req) => ({
           ...req,
           headers: { ...(req.headers ?? {}), Authorization: "Bearer T" },
         }),
@@ -82,6 +82,23 @@ describe("execSlackRead", () => {
     const { transport } = recordingTransport();
     await execSlackRead("channels", { limit: 5 }, { keymaker: km, transport });
     expect(minted[0]!.scope).toEqual({ ops: ["channels"] });
+  });
+
+  test("derives the narrowest scope across org/channel/thread (prx-q7r least authority)", async () => {
+    const { km, minted } = recordingKeymaker();
+    const { transport } = recordingTransport();
+    // team_id → orgs, channel → channels, the replies parent ts → threads.
+    await execSlackRead(
+      "thread",
+      { channel: "C1", ts: "169.1", team_id: "T1" } as never,
+      { keymaker: km, transport },
+    );
+    expect(minted[0]!.scope).toEqual({
+      ops: ["thread"],
+      orgs: ["T1"],
+      channels: ["C1"],
+      threads: ["169.1"],
+    });
   });
 
   test("a denied (state, role) is refused before any transport call (POLICY_BLOCKED)", async () => {

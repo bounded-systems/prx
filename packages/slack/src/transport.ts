@@ -15,10 +15,11 @@ import type { SlackReadOp, SlackReadParams, SlackRawResult } from "./types.ts";
 
 export interface SlackReadTransport {
   /**
-   * Execute one read op. Implementations exercise `key.authorize(op, channel,
-   * req)` to authorize the underlying request and return the provider-shaped
-   * envelope. Must reject (SlackReadError TRANSPORT_FAILED/UNAUTHORIZED) rather
-   * than return a partial result.
+   * Execute one read op. Implementations exercise `key.authorize(target, req)`
+   * — building the {@link SlackAuthTarget} (op + the org/channel/thread the
+   * read reaches) from `params` — to authorize the underlying request and
+   * return the provider-shaped envelope. Must reject (SlackReadError
+   * TRANSPORT_FAILED/UNAUTHORIZED) rather than return a partial result.
    */
   call<Op extends SlackReadOp>(
     op: Op,

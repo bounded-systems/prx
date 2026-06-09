@@ -38,10 +38,38 @@ export interface SlackKeyScope {
   /** Read ops this key authorizes. A `history` key cannot list `users`. */
   ops: readonly SlackReadOp[];
   /**
+   * Org / workspace allowlist — Slack team (`T…`) or enterprise (`E…`) id. The
+   * broadest target dimension (org ⊃ channel ⊃ thread). `undefined` = any org
+   * within the root grant; a list = exactly those. This is the seam slackd
+   * (prx-tgy) mints an org-scoped grant against.
+   */
+  orgs?: readonly string[] | undefined;
+  /**
    * Channel allowlist. `undefined` = any channel within the root grant;
    * a list = exactly those. Enforced capability-side by {@link ScopedSlackKey.authorize}.
    */
   channels?: readonly string[] | undefined;
+  /**
+   * Thread allowlist — parent-message ts of a `conversations.replies` read.
+   * The narrowest dimension. `undefined` = any thread within the channel grant;
+   * a list = exactly those.
+   */
+  threads?: readonly string[] | undefined;
+}
+
+/**
+ * What a single read targets — the context {@link ScopedSlackKey.authorize}
+ * checks against the key's {@link SlackKeyScope}. `org`/`channel`/`thread` are
+ * each `undefined` when the read doesn't reach that level (a `users` read has
+ * no channel; a single-workspace token may declare no org). An undefined
+ * target dimension is unconstrained — uniform across all three (org ⊃ channel
+ * ⊃ thread).
+ */
+export interface SlackAuthTarget {
+  op: SlackReadOp;
+  org?: string | undefined;
+  channel?: string | undefined;
+  thread?: string | undefined;
 }
 
 /** Request the transport hands to `authorize()` for credential injection. */
@@ -58,9 +86,9 @@ export interface AuthorizedSlackRequest extends SlackRequest {
 /**
  * A minted credential capability — *use, don't read*. Self-expiring and
  * scope-self-enforcing: `authorize()` throws (SCOPE_DENIED / KEY_EXPIRED) for
- * any op/channel outside {@link scope} or past {@link expiresAt}. The secret is
- * never exposed; `keyId` is a provenance handle (anchored into the read's
- * Derivation), NOT the credential itself.
+ * any op/org/channel/thread outside {@link scope} or past {@link expiresAt}.
+ * The secret is never exposed; `keyId` is a provenance handle (anchored into
+ * the read's Derivation), NOT the credential itself.
  */
 export interface ScopedSlackKey {
   /** Stable, non-secret identifier for provenance attribution. */
@@ -69,12 +97,13 @@ export interface ScopedSlackKey {
   /** Expiry, epoch ms. Real TTL via Slack OAuth token rotation (spike prx-5u1). */
   readonly expiresAt: number;
   /**
-   * Attach authorization to a request, refusing out-of-scope or expired use.
+   * Attach authorization to a request, refusing expired or out-of-scope use.
+   * The {@link SlackAuthTarget} carries the op + the org/channel/thread the
+   * read reaches; each dimension is checked against {@link scope}.
    * @throws SlackReadError SCOPE_DENIED | KEY_EXPIRED
    */
   authorize(
-    op: SlackReadOp,
-    channel: string | undefined,
+    target: SlackAuthTarget,
     req: SlackRequest,
   ): AuthorizedSlackRequest;
 }
@@ -143,8 +172,7 @@ export function slackScopedKeymaker(
         scope,
         expiresAt: credential.expiresAt,
         authorize(
-          op: SlackReadOp,
-          channel: string | undefined,
+          target: SlackAuthTarget,
           req: SlackRequest,
         ): AuthorizedSlackRequest {
           if (now() >= credential.expiresAt) {
@@ -153,22 +181,30 @@ export function slackScopedKeymaker(
               "KEY_EXPIRED",
             );
           }
-          if (!scope.ops.includes(op)) {
+          if (!scope.ops.includes(target.op)) {
             throw new SlackReadError(
-              `slack key ${credential.keyId} is not scoped for op '${op}'`,
+              `slack key ${credential.keyId} is not scoped for op '${target.op}'`,
               "SCOPE_DENIED",
             );
           }
-          if (
-            scope.channels !== undefined &&
-            channel !== undefined &&
-            !scope.channels.includes(channel)
-          ) {
-            throw new SlackReadError(
-              `slack key ${credential.keyId} is not scoped for channel '${channel}'`,
-              "SCOPE_DENIED",
-            );
-          }
+          // org ⊃ channel ⊃ thread. Refuse only when the key constrains a
+          // dimension AND the read targets it — an undefined scope (any) or an
+          // undefined target (level not reached) passes. Same rule for all three.
+          const denyIfOutside = (
+            dim: "org" | "channel" | "thread",
+            allow: readonly string[] | undefined,
+            value: string | undefined,
+          ): void => {
+            if (allow !== undefined && value !== undefined && !allow.includes(value)) {
+              throw new SlackReadError(
+                `slack key ${credential.keyId} is not scoped for ${dim} '${value}'`,
+                "SCOPE_DENIED",
+              );
+            }
+          };
+          denyIfOutside("org", scope.orgs, target.org);
+          denyIfOutside("channel", scope.channels, target.channel);
+          denyIfOutside("thread", scope.threads, target.thread);
           return credential.authorize(req);
         },
       };
