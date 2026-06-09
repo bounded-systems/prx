@@ -125,4 +125,47 @@ describe("runFetchSlackSync — watermark wiring", () => {
       runFetchSlackSync({ channel: "C1" }, { cwd: "/repo", readHistory, store, watermarkRunner: runner }),
     ).rejects.toBeInstanceOf(FetchSlackError);
   });
+
+  test("drains pages then advances once to the global max (prx-13x)", async () => {
+    const { blobs, store } = memStore();
+    const { runner, sets } = watermark(null);
+    // Paginating reader: two pages, then drained.
+    let i = 0;
+    const pages: SlackMessage[][] = [[{ ts: "1.1" }, { ts: "1.2" }], [{ ts: "1.3" }]];
+    const readHistory = async () => {
+      const messages = pages[i] ?? [];
+      const hasNext = i < pages.length - 1;
+      i += 1;
+      return { messages, ...(hasNext ? { cursor: `c${i}` } : {}) };
+    };
+
+    const r = await runFetchSlackSync(
+      { channel: "C1" },
+      { cwd: "/repo", readHistory, store, watermarkRunner: runner },
+    );
+
+    expect(r.pages).toBe(2);
+    expect(r.fetched).toBe(3);
+    expect(blobs.size).toBe(3);
+    // watermark persisted exactly once, to the global max across pages.
+    expect(sets).toEqual([{ key: "prx.fetch.slack.C1.watermark", value: "1.3" }]);
+  });
+
+  test("forwards maxPages to the core to bound the drain", async () => {
+    const { store } = memStore();
+    const { runner } = watermark(null);
+    let calls = 0;
+    const readHistory = async () => {
+      calls += 1;
+      return { messages: [{ ts: `2.${calls}` }], cursor: `more-${calls}` }; // always more, advancing
+    };
+
+    const r = await runFetchSlackSync(
+      { channel: "C1", maxPages: 3 },
+      { cwd: "/repo", readHistory, store, watermarkRunner: runner },
+    );
+
+    expect(r.pages).toBe(3);
+    expect(calls).toBe(3);
+  });
 });

@@ -82,5 +82,81 @@ describe("runFetchSlack — freshness + CAS", () => {
     const r = await runFetchSlack({ channel: "C1", watermark: "100.3" }, { readHistory, store });
     expect(r.fetched).toBe(0);
     expect(r.watermark).toBe("100.3");
+    expect(r.pages).toBe(1);
+  });
+});
+
+// A reader that hands back one page per call, attaching the next cursor until
+// the supplied pages are drained. Records every (oldest, cursor) it saw.
+function pagingReader(pages: SlackMessage[][]) {
+  const calls: Array<{ oldest?: string | undefined; cursor?: string | undefined }> = [];
+  let i = 0;
+  const readHistory = async (args: {
+    channel: string;
+    oldest?: string | undefined;
+    cursor?: string | undefined;
+    limit: number;
+  }) => {
+    calls.push({ oldest: args.oldest, cursor: args.cursor });
+    const messages = pages[i] ?? [];
+    const hasNext = i < pages.length - 1;
+    i += 1;
+    return { messages, ...(hasNext ? { cursor: `cur-${i}` } : {}) };
+  };
+  return { readHistory, calls };
+}
+
+describe("runFetchSlack — cursor pagination (prx-13x)", () => {
+  test("drains every page, collecting all messages across the channel delta", async () => {
+    const { blobs, store } = memStore();
+    const { readHistory, calls } = pagingReader([
+      [{ ts: "100.1" }, { ts: "100.2" }],
+      [{ ts: "100.3" }, { ts: "100.4" }],
+      [{ ts: "100.5" }],
+    ]);
+    const r = await runFetchSlack({ channel: "C1", limit: 2 }, { readHistory, store });
+    expect(r.pages).toBe(3);
+    expect(r.fetched).toBe(5);
+    expect(blobs.size).toBe(5);
+    expect(r.watermark).toBe("100.5"); // global max across all pages
+    // oldest is undefined (cold start) on every page; the cursor advances.
+    expect(calls.map((c) => c.cursor)).toEqual([undefined, "cur-1", "cur-2"]);
+  });
+
+  test("maxPages bounds the drain (resumes next run from the advanced watermark)", async () => {
+    const { store } = memStore();
+    const { readHistory, calls } = pagingReader([
+      [{ ts: "1.1" }],
+      [{ ts: "1.2" }],
+      [{ ts: "1.3" }],
+    ]);
+    const r = await runFetchSlack({ channel: "C1", limit: 1, maxPages: 2 }, { readHistory, store });
+    expect(r.pages).toBe(2);
+    expect(calls).toHaveLength(2); // stopped before the 3rd page
+    expect(r.fetched).toBe(2);
+    expect(r.watermark).toBe("1.2");
+  });
+
+  test("a stuck cursor (never advances) cannot loop forever", async () => {
+    const { store } = memStore();
+    let n = 0;
+    const readHistory = async () => {
+      n += 1;
+      return { messages: [{ ts: `9.${n}` }], cursor: "STUCK" }; // same cursor every page
+    };
+    const r = await runFetchSlack({ channel: "C1", maxPages: 50 }, { readHistory, store });
+    // first page accepted, second sees the repeat and breaks → 2 reads, not 50.
+    expect(r.pages).toBe(2);
+  });
+
+  test("strictly-newer filter spans pages; the boundary message is not re-counted", async () => {
+    const { store } = memStore();
+    const { readHistory } = pagingReader([
+      [{ ts: "5.0" }, { ts: "5.1" }], // 5.0 == watermark (inclusive boundary)
+      [{ ts: "5.2" }],
+    ]);
+    const r = await runFetchSlack({ channel: "C1", watermark: "5.0" }, { readHistory, store });
+    expect(r.fetched).toBe(2); // 5.1 + 5.2, not 5.0
+    expect(r.watermark).toBe("5.2");
   });
 });

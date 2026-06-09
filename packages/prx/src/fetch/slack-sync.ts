@@ -45,8 +45,13 @@ export class FetchSlackError extends Error {
 
 export interface FetchSlackInput {
   channel: string;
-  /** Page size for the underlying read (default per the core). */
+  /** Page size for each underlying read (default per the core). */
   limit?: number | undefined;
+  /**
+   * Max history pages to drain in one run. Defaults (in the core) to draining
+   * the full delta; set to 1 to fetch a single page.
+   */
+  maxPages?: number | undefined;
 }
 
 export interface FetchSlackResult {
@@ -65,6 +70,8 @@ export interface FetchSlackResult {
     /** Whether the run advanced (and persisted) the watermark. */
     advanced: boolean;
   };
+  /** History pages read this run (cursor pagination). */
+  pages: number;
 }
 
 export type FetchSlackDeps = {
@@ -81,18 +88,21 @@ export type FetchSlackDeps = {
 };
 
 /**
- * Default read adapter: run one gated `conversations.history` read at/after
- * `oldest` and project the Slack payload's `messages[]` (keeping only entries
- * with a string `ts`, the one load-bearing field) into the core's shape.
- * A malformed envelope is a hard parse failure rather than a silent empty read.
+ * Default read adapter: run one gated `conversations.history` page at/after
+ * `oldest` (continuing from `cursor` when paginating), project the Slack
+ * payload's `messages[]` (keeping only entries with a string `ts`, the one
+ * load-bearing field), and surface the next-page `cursor` so the core can
+ * drain the channel. A malformed envelope is a hard parse failure rather than
+ * a silent empty read.
  */
 function defaultReadHistory(): SlackFetchDeps["readHistory"] {
-  return async ({ channel, oldest, limit }) => {
+  return async ({ channel, oldest, cursor, limit }) => {
     const json = await execSlackScoutRead({
       op: "history",
       channel,
       limit,
       ...(oldest !== undefined ? { oldest } : {}),
+      ...(cursor !== undefined ? { cursor } : {}),
     });
     let envelope: SlackReadEnvelope<"history">;
     try {
@@ -115,7 +125,13 @@ function defaultReadHistory(): SlackFetchDeps["readHistory"] {
       (m): m is SlackMessage =>
         typeof m === "object" && m !== null && typeof (m as { ts?: unknown }).ts === "string",
     );
-    return { messages };
+    // The read surface carries the provider's next_cursor on `result.cursor`
+    // (null/empty when the history is drained).
+    const next = envelope.result?.cursor;
+    return {
+      messages,
+      ...(typeof next === "string" && next.length > 0 ? { cursor: next } : {}),
+    };
   };
 }
 
@@ -173,6 +189,7 @@ export async function runFetchSlackSync(
       channel: input.channel,
       ...(from !== null ? { watermark: from } : {}),
       ...(input.limit !== undefined ? { limit: input.limit } : {}),
+      ...(input.maxPages !== undefined ? { maxPages: input.maxPages } : {}),
     },
     { readHistory, store },
   );
@@ -199,6 +216,7 @@ export async function runFetchSlackSync(
     deduped: core.deduped,
     digests: core.digests,
     watermark: { from, to: core.watermark, advanced },
+    pages: core.pages,
   };
 }
 
@@ -215,6 +233,7 @@ export function formatFetchSlackJson(result: FetchSlackResult): string {
         watermarkFrom: result.watermark.from,
         watermarkTo: result.watermark.to ?? null,
         advanced: result.watermark.advanced,
+        pages: result.pages,
         digests: result.digests,
       },
     },
