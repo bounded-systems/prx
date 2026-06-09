@@ -74,23 +74,40 @@ Feature: Actor capability ownership
       Then "<tool> <subcommand>" is denied for every actor
 
       Examples: hard-blocked
-      | tool | subcommand  |
-      | git  | cherry-pick |
-      | git  | clean       |
-      | git  | clone       |
-      | git  | config      |
-      | git  | gc          |
-      | git  | init        |
-      | git  | rebase      |
-      | git  | remote      |
-      | git  | reset       |
-      | gh   | close       |
-      | gh   | reopen      |
-      | bd   | archive     |
-      | bd   | close       |
-      | bd   | delete      |
-      | bd   | export      |
-      | bd   | import      |
+      | tool  | subcommand  |
+      | git   | cherry-pick |
+      | git   | clean       |
+      | git   | clone       |
+      | git   | config      |
+      | git   | gc          |
+      | git   | init        |
+      | git   | rebase      |
+      | git   | remote      |
+      | git   | reset       |
+      | gh    | close       |
+      | gh    | reopen      |
+      | bd    | archive     |
+      | bd    | close       |
+      | bd    | delete      |
+      | bd    | export      |
+      | bd    | import      |
+      | slack | archive     |
+      | slack | create      |
+      | slack | delete      |
+      | slack | invite      |
+      | slack | join        |
+      | slack | kick        |
+      | slack | leave       |
+      | slack | pin         |
+      | slack | post        |
+      | slack | react       |
+      | slack | rename      |
+      | slack | schedule    |
+      | slack | send        |
+      | slack | set         |
+      | slack | unpin       |
+      | slack | update      |
+      | slack | upload      |
 
   Rule: the capability-poor orchestrator owns nothing
 

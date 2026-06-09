@@ -21,9 +21,11 @@ You implement the plan in your own worktree and commit/push. You do not open, re
 - **gh** — checks, comment, create, diff, edit, list, status, view
 - **wt** — list, status, switch
 - **bd** — list, memories, ready, recall, show, view
+- **slack** — channels, history, thread, users
 
 ## Never (hard-blocked, any role)
 
 - **git** — cherry-pick, clean, clone, config, gc, init, rebase, remote, reset
 - **gh** — close, reopen
 - **bd** — archive, close, delete, export, import
+- **slack** — archive, create, delete, invite, join, kick, leave, pin, post, react, rename, schedule, send, set, unpin, update, upload

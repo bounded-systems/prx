@@ -131,6 +131,9 @@
           "@id": "https://github.com/bounded-systems/prx/tree/main/packages/scout"
         },
         {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/slack"
+        },
+        {
           "@id": "https://github.com/bounded-systems/prx/tree/main/packages/surface-sync"
         }
       ]
@@ -330,6 +333,16 @@
       "@id": "https://github.com/bounded-systems/prx/tree/main/packages/scout",
       "name": "@bounded-systems/scout",
       "description": "Content-addressed surface reads (file/grep/files) with anchored-chain provenance",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/slack",
+      "name": "@bounded-systems/slack",
+      "description": "Policy-gated, provenance-tracked Slack read surface: bounded read ops behind a swappable transport port, with keymaker-minted scoped credentials",
       "codeRepository": "https://github.com/bounded-systems/prx",
       "isPartOf": {
         "@id": "https://github.com/bounded-systems/prx"

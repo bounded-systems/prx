@@ -34,6 +34,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - `@bounded-systems/prx-config` — TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools
 - `@bounded-systems/repo-root` — Repo-root resolution capability: lazy git-based runtime root plus the eager .git-marker walk for build/codegen, the one sanctioned root-resolution point
 - `@bounded-systems/scout` — Content-addressed surface reads (file/grep/files) with anchored-chain provenance
+- `@bounded-systems/slack` — Policy-gated, provenance-tracked Slack read surface: bounded read ops behind a swappable transport port, with keymaker-minted scoped credentials
 - `@bounded-systems/surface-sync` — Type ontology for work-unit change-detection across GH/branch/worktree/tmux/beads
 
 ## Docs

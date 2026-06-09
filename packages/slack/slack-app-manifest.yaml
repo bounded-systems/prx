@@ -1,0 +1,79 @@
+# Slack app manifest — "slack-scout" (prx's READ-ONLY Slack surface).
+#
+# slack-scout is prx's content-addressed, provenance-tracked reader; this app
+# mints the USER OAuth token (xoxp-) that @bounded-systems/slack reads Slack
+# through. Kept in-repo so the app definition is versioned + reproducible.
+#
+# READ-ONLY BY CONSTRUCTION: the scopes below are all read scopes — there is no
+# chat:write or any write scope, ever. This mirrors @bounded-systems/policy,
+# where every Slack write verb is hard-blocked. The app literally cannot post,
+# edit, or delete; a leaked token can only read.
+#
+# CREATE:  https://api.slack.com/apps -> Create New App -> From an app manifest
+#          -> pick your workspace -> paste this file.
+#   (Any dev can CREATE an app; no admin needed for this step.)
+# INSTALL: OAuth & Permissions -> Install to Workspace -> authorize -> copy the
+#          "User OAuth Token" (xoxp-...).  This step MAY require workspace-admin
+#          approval depending on your workspace's app-install policy.
+#   For the MCP confidential-OAuth path also note Client ID / Client Secret
+#   under Basic Information.
+#
+# USE (epic prx-zes):
+#   - Web API transport (.8):  export SLACK_TOKEN=xoxp-...   (keymaker reads it)
+#   - MCP transport (.7):      claude mcp add --transport http slack \
+#                                https://mcp.slack.com/mcp \
+#                                --client-id <id> --client-secret --callback-port 8080
+#
+# NOTE: USER scopes only — Slack's MCP server and the Real-Time Search API both
+# require a user token (xoxp-), NOT a bot token (xoxb-).
+
+display_information:
+  name: slack-scout
+  description: Read-only, provenance-tracked Slack reads for prx - least-authority by design.
+  background_color: "#1a1d21"
+  long_description: >-
+    slack-scout is the read-only Slack surface for prx, an agent-run,
+    capability-secured work-unit CLI. It performs read operations only - listing
+    channels, reading channel history and threads, and resolving users - and
+    content-addresses every result, recording it as a derivation in an anchored
+    provenance chain so each read becomes a verifiable, queryable artifact rather
+    than an ephemeral API call. slack-scout is read-only by construction: it
+    requests read scopes only and holds no ability to post, edit, or delete -
+    mirroring the prx policy engine, where every Slack write verb is hard-blocked.
+    Each read is authorized by a short-lived, least-authority credential scoped to
+    exactly the operation and channel requested, so a leaked or logged token can
+    perform only a narrow read for a brief window. slack-scout is part of the
+    source-available prx project at github.com/bounded-systems/prx.
+
+oauth_config:
+  redirect_urls:
+    # Only needed for the MCP confidential-OAuth flow (--callback-port 8080).
+    # Not required to mint a user token via "Install to Workspace".
+    - http://localhost:8080/callback
+  scopes:
+    user:
+      # Least privilege: ONLY what .5's read ops use on PUBLIC channels today.
+      # Everything else is commented out until a concrete op needs it (adding a
+      # scope later requires a re-install to update the token's grants).
+      - channels:read     # conversations.list (public)    -> `channels` op
+      - channels:history  # conversations.history/.replies -> `history`/`thread` ops
+      - users:read        # users.list / users.info        -> `users` op
+      # --- add when you need PRIVATE channels ---
+      # - groups:read       # conversations.list (private)
+      # - groups:history    # private-channel history/replies
+      # --- add when the `search` op ships (Real-Time Search API) ---
+      # - search:read.public
+      # --- add for DM coverage ---
+      # - im:history
+      # - mpim:history
+      # - search:read.im
+      # - search:read.mpim
+
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: true   # rotating ~12h access tokens + a refresh token.
+  # Bounded leak window + real keymaker TTL. The install yields a refresh token;
+  # the access token expires, so prefer the MCP/OAuth path (client_id/secret,
+  # which refreshes) over a static long-lived bearer. For a one-shot Web API
+  # proof, just use a freshly-minted access token within its ~12h window.

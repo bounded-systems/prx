@@ -24,3 +24,4 @@ You own git refs for one unit, in your own ephemeral worktree. You materialize a
 - **git** — cherry-pick, clean, clone, config, gc, init, rebase, remote, reset
 - **gh** — close, reopen
 - **bd** — archive, close, delete, export, import
+- **slack** — archive, create, delete, invite, join, kick, leave, pin, post, react, rename, schedule, send, set, unpin, update, upload

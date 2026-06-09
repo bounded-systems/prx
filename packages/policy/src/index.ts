@@ -2,12 +2,12 @@
  * Tool policy engine — TypeScript port of scripts/tool-policy.sh.
  *
  * Enforces which subcommands are allowed based on:
- *   - tool: git, gh, wt, bd, prx
+ *   - tool: git, gh, wt, bd, prx, slack
  *   - state: planning, validating, merging
  *   - role: planner, executor, reviewer, tester
  */
 
-export type PolicyTool = "git" | "gh" | "wt" | "bd" | "prx";
+export type PolicyTool = "git" | "gh" | "wt" | "bd" | "prx" | "slack";
 export type PolicyState = "planning" | "validating" | "merging";
 // GH-2348.3: `keeper` is the git-write / ref-custody role (the actor that owns
 // push + branch ops). It holds the same git-write capability as `executor` at
@@ -140,6 +140,26 @@ const POLICY_TABLE: Record<string, readonly string[]> = {
   "bd:merging:executor":     ["ready", "list", "show", "view", "recall", "memories"],
   "bd:merging:reviewer":     ["ready", "list", "show", "view", "recall", "memories"],
   "bd:merging:tester":       ["ready", "list", "show", "view", "recall", "memories"],
+
+  // slack — epic prx-zes. A READ-ONLY surface: the only subcommands are the four
+  // bounded read ops (conversations.list / .history / .replies / users). All four
+  // are pure reads, so they're granted to every base role at every state, same
+  // trust class as bd's `list`/`show` reads. Every Slack *write* verb is
+  // hard-blocked below (BLOCKED.slack) — defense in depth alongside the wrapper's
+  // own SLACK_READ_OPS allowlist. keeper/forge (git/gh custody) have no slack rows
+  // → no slack access, which is correct: they own ref/GitHub writes, not chat reads.
+  "slack:planning:planner":    ["channels", "history", "thread", "users"],
+  "slack:planning:executor":   ["channels", "history", "thread", "users"],
+  "slack:planning:reviewer":   ["channels", "history", "thread", "users"],
+  "slack:planning:tester":     ["channels", "history", "thread", "users"],
+  "slack:validating:planner":  ["channels", "history", "thread", "users"],
+  "slack:validating:executor": ["channels", "history", "thread", "users"],
+  "slack:validating:reviewer": ["channels", "history", "thread", "users"],
+  "slack:validating:tester":   ["channels", "history", "thread", "users"],
+  "slack:merging:planner":     ["channels", "history", "thread", "users"],
+  "slack:merging:executor":    ["channels", "history", "thread", "users"],
+  "slack:merging:reviewer":    ["channels", "history", "thread", "users"],
+  "slack:merging:tester":      ["channels", "history", "thread", "users"],
 };
 
 /** Hard-blocked subcommands (never allowed regardless of state/role). */
@@ -149,6 +169,13 @@ const BLOCKED: Record<PolicyTool, readonly string[]> = {
   wt:  [],
   bd:  ["close", "delete", "archive", "import", "export"],
   prx: [],
+  // slack is a READ-ONLY surface (epic prx-zes): every write verb is hard-blocked,
+  // independent of state/role, alongside the wrapper's own read-op allowlist.
+  slack: [
+    "post", "send", "update", "delete", "invite", "kick", "archive",
+    "create", "join", "leave", "upload", "react", "pin", "unpin",
+    "schedule", "rename", "set",
+  ],
 };
 
 export function isBlocked(tool: PolicyTool, subcommand: string): boolean {
@@ -168,6 +195,7 @@ const KNOWN_SUBCOMMANDS: Record<PolicyTool, Set<string>> = (() => {
     wt: new Set(),
     bd: new Set(),
     prx: new Set(),
+    slack: new Set(),
   };
   for (const [key, subs] of Object.entries(POLICY_TABLE)) {
     const tool = key.split(":", 1)[0] as PolicyTool;
@@ -185,7 +213,7 @@ export function isKnownSubcommand(tool: PolicyTool, subcommand: string): boolean
   return KNOWN_SUBCOMMANDS[tool]?.has(subcommand) ?? false;
 }
 
-export const POLICY_TOOLS: readonly PolicyTool[] = ["git", "gh", "wt", "bd", "prx"];
+export const POLICY_TOOLS: readonly PolicyTool[] = ["git", "gh", "wt", "bd", "prx", "slack"];
 
 // prx-g88.1: the canonical role + state vocabularies, exported so generators
 // (e.g. the actor sub-agent codegen) and `findOwningRoles` iterate ONE list
@@ -225,6 +253,8 @@ const READ_ONLY: Record<PolicyTool, ReadonlySet<string>> = {
   bd: new Set(["list", "show", "view", "ready", "memories", "recall", "dep", "sql"]),
   wt: new Set(["list", "status"]),
   prx: new Set<string>(),
+  // slack: the whole surface is read-only — all four ops are unconditional reads.
+  slack: new Set(["channels", "history", "thread", "users"]),
 };
 
 /** True iff this subcommand is an unconditional read for the tool (cacheable). */

@@ -1,0 +1,19 @@
+{
+  "name": "@bounded-systems/slack",
+  "description": "Policy-gated, provenance-tracked Slack read surface: bounded read ops behind a swappable transport port, with keymaker-minted scoped credentials",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@bounded-systems/policy": "workspace:*",
+    "@bounded-systems/cas": "workspace:*",
+    "@bounded-systems/anchored-chain": "workspace:*"
+  }
+}

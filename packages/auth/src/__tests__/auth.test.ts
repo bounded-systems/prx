@@ -27,6 +27,19 @@ describe("@bounded-systems/auth", () => {
     expect(authToken("notion", {} as NodeJS.ProcessEnv)).toBeNull();
   });
 
+  test("slack token resolves with SLACK_BOT_TOKEN precedence over SLACK_TOKEN", () => {
+    // root authority for the slack keymaker (epic prx-zes); bot token wins.
+    expect(authToken("slack", {} as NodeJS.ProcessEnv)).toBeNull();
+    expect(authToken("slack", { SLACK_TOKEN: "xoxb_generic" } as NodeJS.ProcessEnv)).toBe(
+      "xoxb_generic",
+    );
+    const both = {
+      SLACK_TOKEN: "xoxb_generic",
+      SLACK_BOT_TOKEN: "xoxb_bot",
+    } as NodeJS.ProcessEnv;
+    expect(authToken("slack", both)).toBe("xoxb_bot");
+  });
+
   test("an injected env is read instead of the ambient environment", () => {
     // process.env has no token, but the injected env does — proves the seam.
     expect(authToken("github")).toBeNull();

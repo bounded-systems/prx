@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   checkPolicy,
   isBlocked,
+  isReadOnly,
   isFeasibleForRole,
   phaseToState,
   formatPolicyDecision,
@@ -181,5 +182,51 @@ describe("formatPolicyDecision", () => {
     const json = JSON.parse(formatPolicyDecision(d, "json"));
     expect(json.allowed).toBe(false);
     expect(json.tool).toBe("git");
+  });
+});
+
+// slack — read-only surface (epic prx-zes). Reads allowed for every base role at
+// every state; all write verbs hard-blocked; keeper/forge have no slack access.
+describe("slack read surface policy", () => {
+  const SLACK_READ_OPS = ["channels", "history", "thread", "users"] as const;
+  const BASE_ROLES: readonly PolicyRole[] = ["planner", "executor", "reviewer", "tester"];
+  const STATES: readonly PolicyState[] = ["planning", "validating", "merging"];
+
+  test("every base role may run every read op at every state", () => {
+    for (const op of SLACK_READ_OPS) {
+      for (const role of BASE_ROLES) {
+        for (const state of STATES) {
+          expect(checkPolicy("slack", op, state, role).allowed).toBe(true);
+        }
+      }
+    }
+  });
+
+  test("all read ops are classified read-only (cacheable)", () => {
+    for (const op of SLACK_READ_OPS) {
+      expect(isReadOnly("slack", op)).toBe(true);
+    }
+  });
+
+  test("write verbs are hard-blocked regardless of state/role", () => {
+    for (const verb of ["post", "send", "update", "delete", "invite", "kick", "archive", "create"]) {
+      expect(isBlocked("slack", verb)).toBe(true);
+      // hard-block wins even for the most-privileged base role
+      expect(checkPolicy("slack", verb, "validating", "planner").allowed).toBe(false);
+    }
+  });
+
+  test("read ops are never hard-blocked", () => {
+    for (const op of SLACK_READ_OPS) {
+      expect(isBlocked("slack", op)).toBe(false);
+    }
+  });
+
+  test("keeper/forge (git/gh custody) have no slack access", () => {
+    for (const role of ["keeper", "forge"] as const) {
+      for (const op of SLACK_READ_OPS) {
+        expect(checkPolicy("slack", op, "validating", role).allowed).toBe(false);
+      }
+    }
   });
 });

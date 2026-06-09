@@ -10,13 +10,20 @@
  */
 import { processEnv } from "@bounded-systems/env";
 
-export type AuthService = "github" | "notion";
+export type AuthService = "github" | "notion" | "slack";
 
 // Per-service token env keys, in precedence order. GitHub follows the
 // conventional GH_TOKEN → GITHUB_TOKEN order (matching gh).
+//
+// slack (epic prx-zes): this resolves the ROOT authority only. It is consumed
+// solely by the slack keymaker (resolveSlackKeymaker, slack .4b), which mints
+// scoped, expiring ScopedSlackKeys from it; the slack read transports must
+// NEVER call authToken("slack") directly — they receive a minted key. Bot-token
+// precedence (xoxb-) over a generic SLACK_TOKEN.
 const TOKEN_KEYS: Record<AuthService, readonly string[]> = {
   github: ["GH_TOKEN", "GITHUB_TOKEN"],
   notion: ["NOTION_TOKEN"],
+  slack: ["SLACK_BOT_TOKEN", "SLACK_TOKEN"],
 };
 
 /**
@@ -46,3 +53,16 @@ export function requireAuthToken(
   }
   return token;
 }
+
+// The keymaker (credential broker) — mints scoped, expiring credentials from a
+// held root token. See ./keymaker.ts. Re-exported after requireAuthToken so the
+// (intra-package) circular import resolves with no load-time TDZ.
+export type {
+  CredentialRequest,
+  AuthorizedCredentialRequest,
+  ScopedCredential,
+  CredentialGrant,
+  CredentialKeymaker,
+  ServiceKeymakerOptions,
+} from "./keymaker.ts";
+export { CredentialExpiredError, createServiceKeymaker } from "./keymaker.ts";
