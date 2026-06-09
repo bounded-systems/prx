@@ -35,13 +35,26 @@ on the 2016 ACIC datasets show the scaffolding is what makes the LLM useful, and
 that the Critic's diagnostic-driven grade separates reliable estimates from
 unreliable ones.
 
+The open-source [`oci-agent`](https://github.com/Netflix-Skunkworks/oci-agent)
+makes the workflow concrete, and the structure is what matters here. The loop is
+explicit — `plan → actor.draft → spec → nb_runner → results.json →
+critic.evaluate → oci_report.md`, with `actor.revise ← critique.json` closing
+it — and each persona is a module (`actor.py`, `critic.py`, `nb_runner.py`). Two
+details sharpen the mapping below: (1) the **Critic's verdict is graded, not
+binary** — `fully_satisfactory` / `satisfactory_with_caveats` /
+`not_satisfactory`; and (2) the **scaffolding is runtime-loaded markdown
+"skills"** (`writing-specs`, `running-notebooks`, `suggesting-remedies`, …), not
+hard-coded logic. The eval punchline: the scaffolded loop reaches mean |error|
+**0.054** vs **2.572** (~48×) for a single unscaffolded model call on the same
+plan — the scaffolding, not the model, is the product.
+
 ## 2. The three personas map straight onto prx's role model
 
 | Netflix persona | Responsibility | prx equivalent |
 |-----------------|----------------|----------------|
 | **Principal** (human) | Frames the question, names the threats/confounders, picks the tools and data, audits artifacts | the human operator; the `planner`/`Plan` tier writes the plan, the operator approves |
 | **Actor** (software) | Refines plan → spec, uses *only* provided tools, runs the core analysis **plus** all four diagnostics, emits checkable artifacts, reports remediations | `executor` actor under `@bounded-systems/policy` (subcommand allowlists by tool/state/role) + capability seams (`fs`/`proc`/`env`) |
-| **Critic** (software) | Synthesizes results, checks plan↔spec↔execution alignment, assigns a **credibility level**, flags how the estimand differs from the target, suggests alternatives | `reviewer` + `@bounded-systems/disposition` (the pure `ok/prune/repair/review` classifier) — but prx has no persona *named* "critic" (§6) |
+| **Critic** (`critic.py`) | Synthesizes results, checks plan↔spec↔execution alignment, assigns a graded **verdict** (`fully_satisfactory`/`satisfactory_with_caveats`/`not_satisfactory`), flags how the estimand differs from the target, suggests alternatives | `reviewer` + `@bounded-systems/disposition` (the pure `ok/prune/repair/review` classifier) — but prx has no persona *named* "critic" (§6) |
 
 The "Actor uses only the tools the Principal provided" rule is exactly prx's
 policy engine: an allowlist of subcommands by tool, state, and role. Netflix
@@ -85,7 +98,8 @@ The substrate is already present:
 |-----------------|---------------|------|
 | Actor-critic loop over a human principal | actor subagents + `capability-orchestrator` | none — orchestrator owns no privileged tool |
 | Process audits over outcome evals | `ci-as-derivation`, `anchored-chain` | none conceptually; not yet generalized past CI |
-| Critic grades satisfactory/unsatisfactory | `@bounded-systems/disposition` (`ok/prune/repair/review`) | the *axis* exists; no "credibility level" semantics |
+| Critic grades a **3-level verdict** (`fully`/`with-caveats`/`not` satisfactory) | `@bounded-systems/disposition` (`ok/prune/repair/review`) | the *graded axis* exists; the caveats-tier maps cleanly to `review` (see §6/§7) |
+| Scaffolding as **runtime-loaded markdown skills** (`writing-specs`, `suggesting-remedies`, …) | prx's Skill mechanism (skills loaded by name, e.g. the `prx` work-unit skill) | none — both load prose playbooks at runtime rather than hard-coding them |
 | Diagnostics as gates | `prx ci` phases / `checking` gate (`pipeline-local-checks.md`) | gates are pass/fail, not a *suite of named diagnostics* with per-check artifacts |
 | Remediation playbook (Crump trimming → record it) | `repair` disposition + actor remediation loop | none; prx already requires remediations be recorded |
 | Tools restricted to what the principal allowed | `@bounded-systems/policy` allowlists | none — stronger than the source |
@@ -127,7 +141,9 @@ Adopt the **vocabulary and the framing**, not a causal-inference engine:
    diagnostics + remediation playbook is a reusable template: a named set of
    checks, each emitting an artifact, each with a recorded remediation on
    failure. prx's gates are currently pass/fail; a "diagnostic suite" with
-   per-check provenance is the richer form.
+   per-check provenance is the richer form. `oci-agent` ships these as
+   runtime-loaded markdown skills — the same shape as prx's Skill mechanism, so
+   the template can be *authored as a skill*, not built into the CLI.
 
 What prx should **not** do: pull statistics/`EconML`/notebook execution into the
 CLI, or take a dependency on `oci-agent`. The value here is structural.
@@ -140,8 +156,13 @@ CLI, or take a dependency on `oci-agent`. The value here is structural.
   unit and was explicitly scoped out of this spike.
 - **Open:** is the Critic a rename of `reviewer`, or a new disposition-driven
   role? (Recommendation §1 defers this.)
-- **Open:** does "credibility level" want to live on `disposition`'s axis
-  (a graded `review`), or is it an orthogonal annotation on the derivation?
-- **Source:** Netflix open-sourced a standalone `oci-agent` with ACIC evals;
-  if the demonstrator in §5 is ever pursued, that repo is the reference for the
-  diagnostic suite and the actor-critic prompts.
+- **Mostly settled:** the graded "credibility level" maps onto `disposition`'s
+  existing axis — `oci-agent`'s `fully_satisfactory`/`satisfactory_with_caveats`/
+  `not_satisfactory` is `ok` / `review` / `repair`. The residual question is
+  only whether the caveat text rides on the derivation or on the disposition.
+- **Source:** the standalone [`oci-agent`](https://github.com/Netflix-Skunkworks/oci-agent)
+  (`actor.py`/`critic.py`/`nb_runner.py`, EconML DRLearner backend, ACIC-2016
+  smoketest + scaffolded-vs-baseline evals) is the reference if the §5
+  demonstrator is ever pursued — but it is research code (no PRs, no maintenance
+  commitment, single hard-coded notebook), so it is a *shape* to copy, not a
+  dependency to take.
