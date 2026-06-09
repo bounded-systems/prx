@@ -48,8 +48,17 @@ async function itemExists(): Promise<boolean> {
   return r.exitCode === 0;
 }
 
+/** Run an `op` command, surfacing its real stderr on failure (never echoing args, which may hold a secret). */
+async function op(args: string[], what: string): Promise<string> {
+  const r = await $`op ${args}`.quiet().nothrow();
+  if (r.exitCode !== 0) {
+    throw new Error(`${what} failed (op exit ${r.exitCode}):\n${r.stderr.toString().trim()}`);
+  }
+  return r.stdout.toString();
+}
+
 async function opRead(field: string): Promise<string> {
-  return (await $`op read --account ${OP_ACCOUNT} ${ref(field)}`.text()).trim();
+  return (await op(["read", "--account", OP_ACCOUNT, ref(field)], `op read ${ref(field)}`)).trim();
 }
 
 async function cmdStore(): Promise<void> {
@@ -66,11 +75,19 @@ async function cmdStore(): Promise<void> {
   const idField = `client_id[text]=${cid}`;
   const secretField = `credential[password]=${secret}`;
   if (await itemExists()) {
-    await $`op item edit ${OP_ITEM} --account ${OP_ACCOUNT} --vault ${OP_VAULT} ${idField} ${secretField}`.quiet();
+    await op(
+      ["item", "edit", OP_ITEM, "--account", OP_ACCOUNT, "--vault", OP_VAULT, idField, secretField],
+      "op item edit",
+    );
     console.log(`updated 1Password item '${OP_ITEM}'.`);
   } else {
-    const category = "API Credential";
-    await $`op item create --account ${OP_ACCOUNT} --vault ${OP_VAULT} --category ${category} --title ${OP_ITEM} ${idField} ${secretField}`.quiet();
+    await op(
+      [
+        "item", "create", "--account", OP_ACCOUNT, "--vault", OP_VAULT,
+        "--category", "API Credential", "--title", OP_ITEM, idField, secretField,
+      ],
+      "op item create",
+    );
     console.log(`created 1Password item '${OP_ITEM}'.`);
   }
 }
@@ -108,7 +125,10 @@ async function cmdExchange(code: string): Promise<void> {
     throw new Error(`exchange failed: ${json.error ?? "no access_token in response"}`);
   }
   const tokenField = `token[password]=${json.authed_user.access_token}`;
-  await $`op item edit ${OP_ITEM} --account ${OP_ACCOUNT} --vault ${OP_VAULT} ${tokenField}`.quiet();
+  await op(
+    ["item", "edit", OP_ITEM, "--account", OP_ACCOUNT, "--vault", OP_VAULT, tokenField],
+    "op item edit (store token)",
+  );
   console.log(
     `stored user token in '${OP_ITEM}' (scope: ${json.authed_user.scope ?? "?"}, ` +
       `expires_in: ${json.authed_user.expires_in ?? "n/a"}s).`,
@@ -121,7 +141,10 @@ async function cmdToken(): Promise<void> {
     "read -rs SLACK_USER_TOKEN && export SLACK_USER_TOKEN   # paste xoxp- token, hidden",
   );
   const tokenField = `token[password]=${token}`;
-  await $`op item edit ${OP_ITEM} --account ${OP_ACCOUNT} --vault ${OP_VAULT} ${tokenField}`.quiet();
+  await op(
+    ["item", "edit", OP_ITEM, "--account", OP_ACCOUNT, "--vault", OP_VAULT, tokenField],
+    "op item edit (store token)",
+  );
   console.log(`stored user token in '${OP_ITEM}'.`);
 }
 
