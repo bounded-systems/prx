@@ -43,6 +43,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Contributing to prx — `CONTRIBUTING.md`
 - Build & release — `docs/build-and-release.md`
 - Capability-Poor Orchestrator — `docs/capability-orchestrator.md`
+- Claims-calibration audit — instrument v0 — `docs/claims-audit-instrument-v0.md`
 - prx — CLI reference — `docs/cli.md`
 - prx — code health & modernization status — `docs/code-health.md`
 - Companion repo inventory — `docs/companion-repos.md`
