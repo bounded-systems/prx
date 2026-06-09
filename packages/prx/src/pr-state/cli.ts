@@ -1433,10 +1433,12 @@ type ParsedCommand =
     }
   | {
       // prx-agd: `prx fetch slack <channel>` — read newer messages since the
-      // per-channel watermark, persist to CAS, advance the watermark.
+      // per-channel watermark, persist to CAS, advance the watermark. prx-13x:
+      // drains the history cursor by default; `--max-pages` bounds the drain.
       command: "fetch-slack";
       channel: string;
       limit?: number | undefined;
+      maxPages?: number | undefined;
       format: "json";
     }
   | {
@@ -8658,11 +8660,13 @@ export function parseCommand(argv: string[]): ParsedCommand {
   }
   // prx-agd: `prx fetch slack <channel> [--limit N]`. The channel is a
   // required positional; the watermark is read from bd config (not a flag).
+  // prx-13x: drains the history cursor by default; `--max-pages N` bounds it.
   if (command === "fetch-slack") {
     const { values, positionals } = parseArgs({
       args: rest,
       options: {
         limit: { type: "string" },
+        "max-pages": { type: "string" },
         format: { type: "string", default: "json" },
       },
       strict: true,
@@ -8685,10 +8689,19 @@ export function parseCommand(argv: string[]): ParsedCommand {
       }
       limit = n;
     }
+    let maxPages: number | undefined;
+    if (values["max-pages"] !== undefined) {
+      const n = Number.parseInt(values["max-pages"], 10);
+      if (!Number.isFinite(n) || n <= 0) {
+        throw new CliError("--max-pages must be a positive integer");
+      }
+      maxPages = n;
+    }
     return {
       command,
       channel,
       limit,
+      maxPages,
       format: ensureChoice(values.format, ["json"] as const, "--format"),
     };
   }
@@ -15529,6 +15542,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             {
               channel: parsed.channel,
               ...(parsed.limit !== undefined ? { limit: parsed.limit } : {}),
+              ...(parsed.maxPages !== undefined ? { maxPages: parsed.maxPages } : {}),
             },
             { cwd: process.cwd() },
           );

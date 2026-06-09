@@ -51,6 +51,12 @@ describe("prx fetch slack — dispatch + validation", () => {
     expect(r.code).not.toBe(0);
     expect(r.stderr + r.stdout).toContain("--limit");
   });
+
+  test("a bad --max-pages is refused (prx-13x)", () => {
+    const r = runCli(["fetch", "slack", "C1", "--max-pages", "0"]);
+    expect(r.code).not.toBe(0);
+    expect(r.stderr + r.stdout).toContain("--max-pages");
+  });
 });
 
 describe("prx fetch slack — handler wires the composition root", () => {
