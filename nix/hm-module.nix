@@ -46,6 +46,18 @@ let
 
   wtWrapper = pkgs.writeShellScriptBin "wt"
     (builtins.readFile (self + "/packages/prx/scripts/wt-wrapper.sh"));
+
+  # `slack-scout` — an installed CLI command for the read-only Slack surface.
+  # Same injected env as the prx launcher; delegates to `prx scout slack` so it
+  # reuses the prx binary (the verb already lives there — "still in prx"). The
+  # self-contained dist/slack-scout binary is a separate artifact for slackd /
+  # extraction (prx-hkm / prx-tgy); this is the zero-new-release install path.
+  slackScoutWrapper = ''
+    #!${zshBin}
+    set -euo pipefail
+    ${exports}
+    exec ${cfg.package}/bin/prx scout slack "$@"
+  '';
 in
 {
   options.programs.prx = {
@@ -82,6 +94,12 @@ in
       description = "Also install the `wt` worktree wrapper (delegates to `prx tools wt exec`).";
     };
 
+    installSlackScout = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Also install the `slack-scout` command (delegates to `prx scout slack`).";
+    };
+
     provenance = {
       enable = lib.mkEnableOption "prx provenance signing (per-actor, master-derived, enforced)";
 
@@ -116,6 +134,11 @@ in
 
     home.file.".local/bin/wt" = lib.mkIf cfg.installWt {
       source = "${wtWrapper}/bin/wt";
+      executable = true;
+    };
+
+    home.file.".local/bin/slack-scout" = lib.mkIf cfg.installSlackScout {
+      text = slackScoutWrapper;
       executable = true;
     };
   };
