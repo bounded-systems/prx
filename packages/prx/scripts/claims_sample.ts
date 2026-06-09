@@ -248,12 +248,19 @@ function main(): void {
   }
   const today = new Date().toISOString().slice(0, 10);
   const target = resolveWritePath(writePath, today);
-  if (existsSync(target) && !force) {
-    console.error(`claims_sample: refusing to overwrite existing file ${target} (pass --force to replace it)`);
-    process.exit(2);
-  }
   mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, rendered);
+  // Atomic exclusive create (no existsSync→write gap): "wx" fails with EEXIST if
+  // the file already exists, so a scorer never loses a half-finished audit to a
+  // concurrent run. --force overwrites with the default flag.
+  try {
+    writeFileSync(target, rendered, force ? undefined : { flag: "wx" });
+  } catch (err) {
+    if (!force && (err as NodeJS.ErrnoException).code === "EEXIST") {
+      console.error(`claims_sample: refusing to overwrite existing file ${target} (pass --force to replace it)`);
+      process.exit(2);
+    }
+    throw err;
+  }
   console.log(target);
 }
 
