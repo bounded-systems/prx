@@ -77,7 +77,7 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
   {
     name: "intake agent",
     parent: "intake",
-    description: "Run the mainx intake operator (headless by default, --interactive for tmux/PTY)",
+    description: "Run the mainx intake operator (headless by default, --interactive for PTY)",
     domain: "work-units",
     binding: "mainx",
     session_profile: "intake",
@@ -86,7 +86,7 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
   {
     name: "triage agent",
     parent: "triage",
-    description: "Run the mainx triage operator (headless by default, --interactive for tmux/PTY)",
+    description: "Run the mainx triage operator (headless by default, --interactive for PTY)",
     domain: "work-units",
     binding: "mainx",
     session_profile: "triage",
@@ -100,7 +100,7 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     // `prx submit publish --from-cas <ref>`.
     name: "submit agent",
     parent: "submit",
-    description: "Run the work-unit submit operator (headless by default, --interactive for tmux/PTY)",
+    description: "Run the work-unit submit operator (headless by default, --interactive for PTY)",
     domain: "work-units",
     binding: "work-unit",
     session_profile: "submit",
@@ -109,7 +109,7 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
   {
     // GH-1172: executor-profile entry for a planned work unit. Distinct
     // from `plan session` (read-only planner): implement opens with
-    // Edit/Write enabled and tags the tmux session with `-implement`.
+    // Edit/Write enabled for the implement role.
     // GH-1981: renamed `implement session` → `implement agent` (the verb
     // token `agent` says "this spawns a Claude agent", per the GH-1943
     // ADR). `implement session` lives on for one cycle as a deprecation
@@ -131,7 +131,7 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     // (no Edit/Write on source, no `git push`, no `gh pr merge`).
     name: "author agent",
     parent: "author",
-    description: "Run the work-unit PR author (headless by default, --interactive for tmux/PTY)",
+    description: "Run the work-unit PR author (headless by default, --interactive for PTY)",
     domain: "work-units",
     binding: "work-unit",
     session_profile: "author",
@@ -285,14 +285,14 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     promoted_in: ["plan"],
     actor: "plan",
   },
-  // GH-1056: pre-tmux setup of `plan session` exposed as its own verb.
+  // GH-1056: pre-session setup of `plan session` exposed as its own verb.
   // Non-promoted by IA decision GH-1082: `plan prime` is a sub-step of
   // `plan session` (scripting / recovery), not a daily-loop slot. Stays
   // discoverable via `prx plan --help` and `prx help-all`.
   {
     name: "plan prime",
     parent: "plan",
-    description: "Pre-stage worktree rebase and hydrate without tmux",
+    description: "Pre-stage worktree rebase and hydrate",
     domain: "work-units",
     binding: "work-unit",
     session_role: "lifecycle",

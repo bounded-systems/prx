@@ -12,7 +12,7 @@ CLI, MCP toolset, help text, and this page are all projections of it.
 | --- | --- | --- | --- |
 | `actions` | List suggested actions for the unit | work | work-unit |
 | `audit uow` | Project per-UoW artifact chain and invariant findings | audit | work-unit |
-| `author agent` | Run the work-unit PR author (headless by default, --interactive for tmux/PTY) | author | work-unit |
+| `author agent` | Run the work-unit PR author (headless by default, --interactive for PTY) | author | work-unit |
 | `author body-template` | Render PR body from plan and diff | author | work-unit |
 | `beads publish` | Publish a beads record to GitHub (bd→GH mirror) | beads | mainx |
 | `ci` | Run canonical pre-push validation locally | work | work-unit |
@@ -29,7 +29,7 @@ CLI, MCP toolset, help text, and this page are all projections of it.
 | `doctor ready` | Deprecated alias for publisher ready | publisher | work-unit, deprecated → `publisher ready` |
 | `implement agent` | Open implement-mode work session for a unit | work | work-unit |
 | `implement session` | Deprecated alias for implement agent | work | work-unit, deprecated → `implement agent` |
-| `intake agent` | Run the mainx intake operator (headless by default, --interactive for tmux/PTY) | intake | mainx |
+| `intake agent` | Run the mainx intake operator (headless by default, --interactive for PTY) | intake | mainx |
 | `intake bd ls` | List bd issues (narrow `bd list` wrapper) | intake | mainx |
 | `intake bd memory get` | Read a bd memory by key (narrow `bd recall` wrapper) | intake | mainx |
 | `intake bd memory ls` | List or search bd memories (narrow `bd memories` wrapper) | intake | mainx |
@@ -71,7 +71,7 @@ CLI, MCP toolset, help text, and this page are all projections of it.
 | `plan load` | Load a plan blob from the CAS plan store | plan | work-unit |
 | `plan next` | Show next recommended action | plan | work-unit |
 | `plan preflight` | Pre-draft three-axis check before a plan session | plan | work-unit |
-| `plan prime` | Pre-stage worktree rebase and hydrate without tmux | plan | work-unit |
+| `plan prime` | Pre-stage worktree rebase and hydrate | plan | work-unit |
 | `plan save` | Persist a plan blob (see plan show --paths for location) | plan | work-unit |
 | `plan search` | Search GH+bd issue queue (deduped) | plan | work-unit |
 | `plan session` | Open plan-mode work session for a unit | plan | work-unit |
@@ -92,14 +92,14 @@ CLI, MCP toolset, help text, and this page are all projections of it.
 | `scratch` | Open safe-by-default ad-hoc Claude session (--unsafe for ambient authority) | scratch | mainx |
 | `snapshot` | Emit full session snapshot json | work | work-unit |
 | `statusline` | Emit single-line statusline projection | work | work-unit |
-| `submit agent` | Run the work-unit submit operator (headless by default, --interactive for tmux/PTY) | submit | work-unit |
+| `submit agent` | Run the work-unit submit operator (headless by default, --interactive for PTY) | submit | work-unit |
 | `submit body-template` | Render PR body with Closes/Refs lines per unit | submit | work-unit |
 | `submit postmerge` | Sweep merged PR body, close referenced units missed | submit | work-unit |
 | `submit publish` | Publish a CAS-backed submit artifact (push + gh pr create) | submit | work-unit |
 | `submit stage` | Stage git state into a CAS submit artifact (publish producer) | submit | work-unit |
 | `test-gate` | Run the checks the executor skipped, as a signed gate | test-gate | — |
 | `test-gate run` | Run typecheck + test on the commit; emit a signed gate/v1 verdict | test-gate | work-unit |
-| `triage agent` | Run the mainx triage operator (headless by default, --interactive for tmux/PTY) | triage | mainx |
+| `triage agent` | Run the mainx triage operator (headless by default, --interactive for PTY) | triage | mainx |
 | `triage apply` | Apply classifier output to GitHub labels | triage | mainx |
 | `triage classify` | Classify open issues by axis | triage | mainx |
 | `triage close` | Close a bd-only record (no GH mirror) | triage | mainx |

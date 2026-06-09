@@ -86,7 +86,7 @@ ones, which are already split-ready).
    - **Wave 0 (leaves):** `cas`, `env`, `disposition`, `audit-context`,
      `machine-schema`, `prx-config`, `policy`
    - **Wave 1:** `proc`, `auth`, `anchored-chain`, `surface-sync`
-   - **Wave 2:** `prx-mux`, `github-budget`, `anchored-chain-sqlite`, `bd`, `git`
+   - **Wave 2:** `github-budget`, `anchored-chain-sqlite`, `bd`, `git`
    - **Wave 3:** `gh`, `scout`
    - **Then** the Track-B `src/` modules (`fetch`, `surface-sync` runtime,
      `scout`) once they land as packages.

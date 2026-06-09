@@ -94,11 +94,11 @@ Work units:
   prx plan session               Open plan-mode work session for a unit
   prx next                       Show next recommended action
   prx do                         Execute an enabled derived action
-  prx intake agent               Run the mainx intake operator (headless by default, --interactive for tmux/PTY)
-  prx triage agent               Run the mainx triage operator (headless by default, --interactive for tmux/PTY)
-  prx submit agent               Run the work-unit submit operator (headless by default, --interactive for tmux/PTY)
+  prx intake agent               Run the mainx intake operator (headless by default, --interactive for PTY)
+  prx triage agent               Run the mainx triage operator (headless by default, --interactive for PTY)
+  prx submit agent               Run the work-unit submit operator (headless by default, --interactive for PTY)
   prx implement agent            Open implement-mode work session for a unit
-  prx author agent               Run the work-unit PR author (headless by default, --interactive for tmux/PTY)
+  prx author agent               Run the work-unit PR author (headless by default, --interactive for PTY)
   prx author body-template       Render PR body from plan and diff
   prx scratch                    Open safe-by-default ad-hoc Claude session (--unsafe for ambient authority)
   prx claude                     Internal claude runtime launcher (formerly session open-claude)
@@ -107,7 +107,7 @@ Work units:
   prx plan ci                    Run canonical pre-push validation locally
   prx plan status                Show current phase for the unit
   prx plan next                  Show next recommended action
-  prx plan prime                 Pre-stage worktree rebase and hydrate without tmux
+  prx plan prime                 Pre-stage worktree rebase and hydrate
   prx plan save                  Persist a plan blob (see plan show --paths for location)
   prx plan load                  Load a plan blob from the CAS plan store
   prx plan show                  Show plan blob; --slot pins, default approved with draft fallback
