@@ -16,6 +16,7 @@ import { join } from "node:path";
 
 import {
   computeWorkspaceId,
+  firstNonBareWorktree,
   resolveCanonicalChainLedger,
   resolveWorkspaceContext,
   runMaterialize,
@@ -410,5 +411,34 @@ describe("resolveCanonicalChainLedger", () => {
     const ctx = resolveWorkspaceContext({ cwd: repo, branch: "main" });
     writeLedgerFor(repo, ctx!.workspaceId, { branch: "main", worktree_path: join(repo, "mainx") });
     expect(resolveCanonicalChainLedger(repo)).toBeNull();
+  });
+});
+
+describe("firstNonBareWorktree — bare-repo layout resolution (prx-ph7)", () => {
+  // `claude --worktree` runs hooks from the bare repo; its `git worktree list
+  // --porcelain` lists the bare entry first (with a `bare` line), then the real
+  // worktrees. We skip the bare entry and take the first real worktree.
+  const porcelain = [
+    "worktree /home/u/.local/share/git/bare/x.git\nbare\n",
+    "worktree /home/u/.local/state/wt/worktrees/x.git/mainx\nHEAD abc123\nbranch refs/heads/main\n",
+    "worktree /home/u/.local/state/wt/worktrees/x.git/feat\nHEAD def456\nbranch refs/heads/feat",
+  ].join("\n");
+
+  test("skips the bare entry, returns the first real worktree", () => {
+    expect(firstNonBareWorktree(porcelain)).toBe(
+      "/home/u/.local/state/wt/worktrees/x.git/mainx",
+    );
+  });
+
+  test("a non-bare repo's list (no `bare` line) returns its first worktree", () => {
+    expect(
+      firstNonBareWorktree("worktree /repo/mainx\nHEAD abc\nbranch refs/heads/main"),
+    ).toBe("/repo/mainx");
+  });
+
+  test("null / empty input → null (no worktrees to anchor on)", () => {
+    expect(firstNonBareWorktree(null)).toBeNull();
+    expect(firstNonBareWorktree("")).toBeNull();
+    expect(firstNonBareWorktree("worktree /only/bare.git\nbare")).toBeNull();
   });
 });

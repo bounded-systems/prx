@@ -137,7 +137,33 @@ function tryGit(args: string[], cwd: string): string | null {
 }
 
 function resolveRepoToplevel(cwd: string): string | null {
-  return tryGit(["rev-parse", "--show-toplevel"], cwd);
+  const top = tryGit(["rev-parse", "--show-toplevel"], cwd);
+  if (top) return top;
+  // prx-ph7: a bare repo has no working tree, so `--show-toplevel` fails — but
+  // that is exactly the cwd Claude Code runs `claude --worktree` hooks from (the
+  // git common dir). Rather than depend on being launched inside a worktree, prx
+  // resolves the layout itself: anchor on an existing sibling worktree (its
+  // dirname is the worktree-root the convention places new worktrees under).
+  // keeper's `git worktree add` already works from the bare repo; this just
+  // feeds reserve/materialize a real worktree path to compute against.
+  return firstNonBareWorktree(tryGit(["worktree", "list", "--porcelain"], cwd));
+}
+
+/**
+ * Pick the first non-bare worktree path from `git worktree list --porcelain`.
+ * The porcelain output is newline-separated attribute lines, one blank line
+ * between entries; the bare repo's own entry carries a `bare` line, which we
+ * skip. Pure (parses the captured text) so it is unit-testable without git.
+ */
+export function firstNonBareWorktree(porcelain: string | null): string | null {
+  if (!porcelain) return null;
+  for (const block of porcelain.split("\n\n")) {
+    const lines = block.split("\n");
+    if (lines.some((l) => l.trim() === "bare")) continue;
+    const wt = lines.find((l) => l.startsWith("worktree "));
+    if (wt) return wt.slice("worktree ".length).trim();
+  }
+  return null;
 }
 
 function resolveCommonDir(cwd: string): string | null {
