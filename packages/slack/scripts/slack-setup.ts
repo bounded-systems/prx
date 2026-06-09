@@ -2,15 +2,19 @@
 // slack-setup.ts — provision + prove the slack-scout read token. Secrets live in
 // 1Password; this script never writes them to disk or shell history.
 //
-//   bun run packages/slack/scripts/slack-setup.ts store           # store Client ID + Secret
+//   export SLACK_CLIENT_ID=...                                    # not secret
+//   read -rs SLACK_CLIENT_SECRET && export SLACK_CLIENT_SECRET    # hidden, in YOUR shell
+//   bun run packages/slack/scripts/slack-setup.ts store           # store ID + Secret in 1Password
 //   bun run packages/slack/scripts/slack-setup.ts authorize       # print the OAuth URL to open
 //   bun run packages/slack/scripts/slack-setup.ts exchange <code> # auth code -> user token, store it
-//   bun run packages/slack/scripts/slack-setup.ts token           # paste an xoxp- token, store it
+//   read -rs SLACK_USER_TOKEN && export SLACK_USER_TOKEN          # (alt) paste a token directly
+//   bun run packages/slack/scripts/slack-setup.ts token           # store that token
 //   bun run packages/slack/scripts/slack-setup.ts prove           # auth.test + conversations.list
 //
-// Secret input is read hidden from the TTY (requires an interactive terminal).
-// Storage/retrieval go through 1Password (`op`); the sibling slack.env holds only
-// op:// references for ad-hoc `op run --env-file=slack.env -- <cmd>` use.
+// Secrets are passed via env vars YOU set with your shell's own `read -rs` (the
+// script does NO interactive TTY reading — that proved fragile). Storage/retrieval
+// go through 1Password (`op`); the sibling slack.env holds only op:// references
+// for ad-hoc `op run --env-file=slack.env -- <cmd>` use.
 // Override target with OP_ACCOUNT / OP_VAULT / OP_ITEM env vars.
 
 import { $ } from "bun";
@@ -23,29 +27,18 @@ const USER_SCOPES = "channels:read,channels:history,users:read";
 
 const ref = (field: string): string => `op://${OP_VAULT}/${OP_ITEM}/${field}`;
 
-/** Read one line of hidden input from the TTY (echo off). Needs an interactive terminal. */
-async function readSecret(prompt: string): Promise<string> {
-  if (!process.stdin.isTTY) {
-    throw new Error("no TTY — run this in an interactive terminal so secret input stays hidden");
-  }
-  process.stderr.write(prompt);
-  // Delegate the hidden read to the shell's `read -rs` over the inherited TTY.
-  const proc = Bun.spawn(["bash", "-c", 'IFS= read -rs v; printf %s "$v"'], {
-    stdin: "inherit",
-    stdout: "pipe",
-    stderr: "inherit",
-  });
-  const secret = await new Response(proc.stdout).text();
-  await proc.exited;
-  process.stderr.write("\n");
-  return secret;
-}
+// NOTE: this script does NO interactive TTY reading — that proved fragile across
+// shells/terminals. Secrets are passed in via env vars that YOU set with your
+// shell's own `read -rs` (hidden, reliable), e.g.:
+//   read -rs SLACK_CLIENT_SECRET && export SLACK_CLIENT_SECRET
+// The script reads them from the env, stores them in 1Password, and unsets
+// nothing in your shell (you do that). HTTP + `op` calls are non-interactive
+// (op may pop a 1Password/Touch-ID GUI prompt, which is fine).
 
-/** Read one line of visible input (for non-secret values like Client ID). */
-async function readLine(prompt: string): Promise<string> {
-  process.stderr.write(prompt);
-  for await (const line of console) return line.trim();
-  return "";
+function requireEnv(name: string, how: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`set ${name} first:\n  ${how}`);
+  return v;
 }
 
 async function itemExists(): Promise<boolean> {
@@ -60,9 +53,14 @@ async function opRead(field: string): Promise<string> {
 }
 
 async function cmdStore(): Promise<void> {
-  let cid = process.env.SLACK_CLIENT_ID ?? "";
-  if (!cid) cid = await readLine("Client ID (visible): ");
-  const secret = await readSecret("Client Secret (hidden): ");
+  const cid = requireEnv(
+    "SLACK_CLIENT_ID",
+    "export SLACK_CLIENT_ID=<your app's Client ID>",
+  );
+  const secret = requireEnv(
+    "SLACK_CLIENT_SECRET",
+    "read -rs SLACK_CLIENT_SECRET && export SLACK_CLIENT_SECRET   # paste secret, hidden",
+  );
   // Build field assignments as whole strings so Bun shell passes them verbatim
   // (the [text]/[password] brackets must not be glob-expanded).
   const idField = `client_id[text]=${cid}`;
@@ -118,7 +116,10 @@ async function cmdExchange(code: string): Promise<void> {
 }
 
 async function cmdToken(): Promise<void> {
-  const token = await readSecret("Paste the xoxp- user token (hidden): ");
+  const token = requireEnv(
+    "SLACK_USER_TOKEN",
+    "read -rs SLACK_USER_TOKEN && export SLACK_USER_TOKEN   # paste xoxp- token, hidden",
+  );
   const tokenField = `token[password]=${token}`;
   await $`op item edit ${OP_ITEM} --account ${OP_ACCOUNT} --vault ${OP_VAULT} ${tokenField}`.quiet();
   console.log(`stored user token in '${OP_ITEM}'.`);
