@@ -164,12 +164,24 @@ export function ensureClaudeSessionProfileAllowlist(
  * already owns and the per-worktree stamper never clobbers. Idempotent: only
  * the two worktree hook events are set (other hooks/keys are preserved); a file
  * already carrying them returns `unchanged`. Refuses to stomp malformed JSON.
+ *
+ * prx-hot: when `repoAnchor` is given, the baked hook commands carry
+ * `--repo <repoAnchor>` so they resolve the repo explicitly and run from ANY
+ * cwd (Claude invokes `--worktree` hooks from the bare repo / git common dir).
+ * `repoAnchor` may be a directory or a repo-registry slug — `worktree-create`
+ * resolves either. Omitted → plain commands (resolution falls back to the
+ * invocation cwd + the bare-repo fallback from prx-ph7).
  */
-export function ensureClaudeWorktreeHooks(cwd: string): EnsureClaudeAllowlistResult {
+export function ensureClaudeWorktreeHooks(
+  cwd: string,
+  repoAnchor?: string,
+): EnsureClaudeAllowlistResult {
   const absPath = join(cwd, CLAUDE_LOCAL_SETTINGS_RELATIVE_PATH);
+  const suffix =
+    repoAnchor && repoAnchor.trim().length > 0 ? ` --repo ${shellQuote(repoAnchor)}` : "";
   const desired = buildWorktreeHookSettings(
-    WORKTREE_CREATE_HOOK_COMMAND,
-    WORKTREE_REMOVE_HOOK_COMMAND,
+    `${WORKTREE_CREATE_HOOK_COMMAND}${suffix}`,
+    `${WORKTREE_REMOVE_HOOK_COMMAND}${suffix}`,
   ).hooks;
 
   let raw: string | null = null;
@@ -219,4 +231,9 @@ export function ensureClaudeWorktreeHooks(cwd: string): EnsureClaudeAllowlistRes
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** POSIX single-quote wrap so a baked `--repo <path|slug>` survives the shell. */
+function shellQuote(s: string): string {
+  return `'${s.replace(/'/g, "'\\''")}'`;
 }

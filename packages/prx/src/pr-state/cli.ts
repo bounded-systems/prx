@@ -13370,6 +13370,47 @@ function maybeWithWorktreeRuntimeLock<T>(
   return withWorktreeRuntimeLock(worktreePath, reason, deps, run);
 }
 
+// prx-hot: parse `--repo <value>` (or `--repo=<value>`) from a raw argv tail.
+// The worktree hook verbs bypass parseArgs (they read the envelope from stdin),
+// so the flag is scanned directly here.
+export function parseRepoFlag(argv: readonly string[]): string | undefined {
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--repo") return argv[i + 1];
+    if (arg && arg.startsWith("--repo=")) return arg.slice("--repo=".length);
+  }
+  return undefined;
+}
+
+// prx-hot: resolve a `--repo <value>` into an anchor directory for the workspace
+// resolution. `value` may be an existing directory (used as-is) OR a repo-registry
+// slug, resolved to its main worktree / common dir via the same path
+// `prx plan session --repo <slug>` uses. Unresolved → returned verbatim so the
+// downstream cwd resolution (+ the prx-ph7 bare-repo fallback) still gets a shot.
+export function resolveWorktreeRepoAnchor(
+  value: string,
+  deps: {
+    loadRepoInventoryConfig?: typeof loadRepoInventoryConfig;
+    loadRepoInventoryIndex?: typeof loadRepoInventoryIndex;
+    findRepoBySlug?: typeof findRepoBySlug;
+  } = {},
+): string {
+  try {
+    if (statSync(value).isDirectory()) return value;
+  } catch {
+    // not a directory — fall through to slug resolution
+  }
+  const cfg = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)();
+  if (cfg.indexPath) {
+    const inventory = (deps.loadRepoInventoryIndex ?? loadRepoInventoryIndex)(cfg.indexPath);
+    if (inventory) {
+      const lookup = (deps.findRepoBySlug ?? findRepoBySlug)(inventory, value);
+      if (lookup.ok) return lookup.repo.mainWorktree ?? lookup.repo.commonDir;
+    }
+  }
+  return value;
+}
+
 // GH-1701: pick the best fs cwd to read a repo's `.beads/` and origin from.
 // Prefers an attached worktree (where per-project `.beads/` lives after
 // hydrate); falls back to the bare commonDir, which classifies as `none` or
@@ -20065,6 +20106,11 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // worktree add; the workspace actor owns the ledger).
       const workspaceVerb = parsed.argv[0] ?? "";
       if (isWorktreeHookVerb(workspaceVerb)) {
+        // prx-hot: a baked `--repo <dir|slug>` makes the hook dir-agnostic — it
+        // resolves the repo explicitly instead of depending on Claude's cwd (the
+        // bare repo). Absent → fall back to the invocation cwd (+ prx-ph7).
+        const repoFlag = parseRepoFlag(parsed.argv.slice(1));
+        const anchorCwd = repoFlag ? resolveWorktreeRepoAnchor(repoFlag) : process.cwd();
         return (async (): Promise<number> => {
           let stdin = "";
           try {
@@ -20072,7 +20118,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           } catch {
             stdin = "";
           }
-          const hookResult = await runWorktreeHookCli(workspaceVerb, stdin, process.cwd());
+          const hookResult = await runWorktreeHookCli(workspaceVerb, stdin, anchorCwd);
           if (hookResult.message) {
             if (hookResult.stream === "stdout") {
               output.log(hookResult.message);
@@ -20086,13 +20132,18 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // prx-5q3: register the worktree hooks in the current worktree's
       // settings.local.json (the prx-owned, never-clobbered surface). Idempotent;
       // arms a root/existing worktree the actor won't touch (mainx is I-WS5 guarded).
+      // prx-hot: `--repo <dir|slug>` bakes an explicit anchor into the registered
+      // commands so they run from any cwd; omitted → plain commands (prx-ph7).
       if (workspaceVerb === "worktree-hooks") {
-        const res = ensureClaudeWorktreeHooks(process.cwd());
+        const repoAnchor = parseRepoFlag(parsed.argv.slice(1));
+        const res = ensureClaudeWorktreeHooks(process.cwd(), repoAnchor);
         if (res.status === "skipped-malformed") {
           output.error(`worktree-hooks: ${res.path} is malformed JSON — left untouched`);
           return 1;
         }
-        output.log(`worktree-hooks: ${res.status} ${res.path}`);
+        output.log(
+          `worktree-hooks: ${res.status} ${res.path}${repoAnchor ? ` (--repo ${repoAnchor})` : ""}`,
+        );
         return 0;
       }
       try {

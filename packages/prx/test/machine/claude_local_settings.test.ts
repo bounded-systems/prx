@@ -297,4 +297,32 @@ describe("ensureClaudeWorktreeHooks (prx-5q3)", () => {
     writeFileSync(join(cwd, CLAUDE_LOCAL_SETTINGS_RELATIVE_PATH), "{ not: valid json");
     expect(ensureClaudeWorktreeHooks(cwd).status).toBe("skipped-malformed");
   });
+
+  test("prx-hot: a repoAnchor dir bakes --repo into the commands (shell-quoted)", () => {
+    const cwd = mkTmp();
+    ensureClaudeWorktreeHooks(cwd, "/bare/prx.git");
+    const settings = readSettings(cwd) as Record<string, any>;
+    expect(settings.hooks.WorktreeCreate[0].hooks[0].command).toBe(
+      `${WORKTREE_CREATE_HOOK_COMMAND} --repo '/bare/prx.git'`,
+    );
+    expect(settings.hooks.WorktreeRemove[0].hooks[0].command).toBe(
+      `${WORKTREE_REMOVE_HOOK_COMMAND} --repo '/bare/prx.git'`,
+    );
+  });
+
+  test("prx-hot: a repoAnchor slug bakes through too", () => {
+    const cwd = mkTmp();
+    ensureClaudeWorktreeHooks(cwd, "bounded-systems/prx");
+    const settings = readSettings(cwd) as Record<string, any>;
+    expect(settings.hooks.WorktreeCreate[0].hooks[0].command).toBe(
+      `${WORKTREE_CREATE_HOOK_COMMAND} --repo 'bounded-systems/prx'`,
+    );
+  });
+
+  test("prx-hot: no anchor → plain commands (unchanged from prx-5q3)", () => {
+    const cwd = mkTmp();
+    ensureClaudeWorktreeHooks(cwd);
+    const settings = readSettings(cwd) as Record<string, any>;
+    expect(settings.hooks.WorktreeCreate[0].hooks[0].command).toBe(WORKTREE_CREATE_HOOK_COMMAND);
+  });
 });
