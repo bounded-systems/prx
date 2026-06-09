@@ -43,6 +43,11 @@ import {
 
 export const GIT_COMMIT_BUILD_TYPE = "https://prx.dev/git/commit/v1";
 export const GIT_PUSH_BUILD_TYPE = "https://prx.dev/git/push/v1";
+// prx-hc5: keeper's `git worktree add` as a signed step. Unlike commit/push
+// (self-describing via the cwd's HEAD), the subject is the NEW worktree's branch
+// tip — declared by the caller (see `attestWorktreeAdd`), since `git worktree
+// add` doesn't move the cwd's HEAD.
+export const WORKTREE_ADD_BUILD_TYPE = "https://prx.dev/git/worktree-add/v1";
 // prx-ux2: the verify step (typecheck/test) as a signed predicate. The subject
 // is the commit under test, so a `checks/v1` derivation is the SLSA-shaped,
 // DSSE-signed answer to "did this commit pass its checks?" — replacing a

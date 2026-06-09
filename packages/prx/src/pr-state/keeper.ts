@@ -17,7 +17,13 @@ import { join, resolve } from "node:path";
 import { processEnv } from "@bounded-systems/env";
 import { execGit, type GitExecResult } from "@bounded-systems/git";
 
-import { attestingGit, type AttestDeps } from "../provenance/attest.ts";
+import {
+  attestingGit,
+  persistAttestation,
+  WORKTREE_ADD_BUILD_TYPE,
+  type AttestDeps,
+} from "../provenance/attest.ts";
+import type { Derivation } from "@bounded-systems/anchored-chain";
 
 export interface KeeperPushDeps {
   /**
@@ -325,6 +331,50 @@ export function runKeeperRemoveWorktree(
   git({ subcommand: "worktree", args: ["prune"], cwd, role: "keeper" });
 
   return { worktree_path: target, status: registered ? "removed" : "absent" };
+}
+
+export interface AttestWorktreeAddInput {
+  /** The branch the worktree was placed on (the attestation subject's name). */
+  branch: string;
+  /** Absolute path of the materialized worktree (its HEAD is the subject). */
+  targetPath: string;
+  /** The base commit the branch was cut from (e.g. `origin/main`), recorded as a material. */
+  baseCommit?: string | undefined;
+  /** Injectable git seam (defaults to `execGit`); tests stub it offline. */
+  git?: typeof execGit | undefined;
+}
+
+/**
+ * prx-hc5: emit a signed `worktree-add/v1` SLSA step for a keeper-materialized
+ * worktree — the provenance counterpart of {@link runKeeperPush}'s `push/v1`.
+ * Keeper is the one git-knower AND the provenance signer, so the worktree
+ * placement is an attestable keeper git-write like push.
+ *
+ * Unlike commit/push ({@link attestingGit}, self-describing via the cwd's HEAD),
+ * `git worktree add` does not move the cwd's HEAD — the artifact is the NEW
+ * worktree's branch tip, so the subject is DECLARED here: resolve `HEAD` in the
+ * target worktree post-add. Opt-in + fail-safe: callers invoke this only when a
+ * signer + ledger are configured and the placement was real (`created` /
+ * `recreated`, not `exists`); a missing/malformed HEAD yields `null` (no link)
+ * rather than a malformed attestation.
+ */
+export async function attestWorktreeAdd(
+  attest: AttestDeps,
+  input: AttestWorktreeAddInput,
+): Promise<Derivation | null> {
+  const git = input.git ?? execGit;
+  const target = resolve(input.targetPath);
+  const head = git({ subcommand: "rev-parse", args: ["HEAD"], cwd: target, role: "keeper" });
+  const oid = head.stdout.trim();
+  if (head.exitCode !== 0 || !SHA1_RE.test(oid)) return null;
+  return persistAttestation(attest, {
+    buildType: WORKTREE_ADD_BUILD_TYPE,
+    subject: [{ name: input.branch, digest: { gitCommit: oid } }],
+    ...(input.baseCommit && SHA1_RE.test(input.baseCommit)
+      ? { resolvedDependencies: [{ name: "base", digest: { gitCommit: input.baseCommit } }] }
+      : {}),
+    externalParameters: { branch: input.branch, targetPath: target },
+  });
 }
 
 /** Parse `git worktree list --porcelain` for a `worktree <target>` line. */
