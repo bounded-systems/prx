@@ -20,7 +20,8 @@
  *
  * Same helper is invoked from `prx init` (so its existing `excludeRules`/
  * `excludeUpdatedRules`/`excludeRemovedRules` reporting stays intact) and
- * from `prx tools wt ensure-prx-excludes` (the worktrunk hook entry-point).
+ * from the `prx workspace worktree-create` hook's post-create bootstrap
+ * (prx-arl — formerly `prx tools wt ensure-prx-excludes` under worktrunk).
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

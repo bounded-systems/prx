@@ -67,12 +67,6 @@ describe("safe tool wrappers", () => {
     expect(stderrText(result)).toContain("blocked subcommand 'merge'");
   });
 
-  test("wt-safe blocks add", () => {
-    const result = run([join(repoRoot, "scripts/wt-safe"), "add", "foo"]);
-    expect(result.exitCode).toBe(1);
-    expect(stderrText(result)).toContain("blocked subcommand 'add'");
-  });
-
   test("bd-safe blocks close", () => {
     const result = run([join(repoRoot, "scripts/bd-safe"), "close", "BEAD-1"]);
     expect(result.exitCode).toBe(1);
@@ -128,32 +122,6 @@ describe("safe tool wrappers", () => {
     );
     expect(stderrText(result)).toContain(
       "gh-safe: prefer 'prx review' (this is a safety wrapper)",
-    );
-  });
-
-  test("wt-safe nudges 'prx worktree list' on list", () => {
-    const result = runWithEnv(
-      [join(repoRoot, "scripts/wt-safe"), "list"],
-      {
-        PRX_CAPABILITY_STATE: "validating",
-        PRX_SAFE_DRY_RUN: "1",
-      },
-    );
-    expect(stderrText(result)).toContain(
-      "wt-safe: prefer 'prx worktree list' (this is a safety wrapper)",
-    );
-  });
-
-  test("wt-safe nudges 'prx session open GH-N' on switch", () => {
-    const result = runWithEnv(
-      [join(repoRoot, "scripts/wt-safe"), "switch", "some-branch"],
-      {
-        PRX_CAPABILITY_STATE: "validating",
-        PRX_SAFE_DRY_RUN: "1",
-      },
-    );
-    expect(stderrText(result)).toContain(
-      "wt-safe: prefer 'prx session open GH-N' (this is a safety wrapper)",
     );
   });
 

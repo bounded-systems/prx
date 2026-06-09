@@ -1,8 +1,9 @@
 /**
  * ensure-branch — idempotently create a remote branch from a base ref.
  *
- * Invoked by `prx tools wt ensure-branch <name>`, which the worktrunk
- * pre-switch hook calls before attempting a switch. Semantics:
+ * Invoked by the workspace reserve/materialize path (prx-arl — formerly also
+ * `prx tools wt ensure-branch <name>` from worktrunk's pre-switch hook).
+ * Semantics:
  *
  *   - no-op, exit 0, when <name> already exists as refs/heads/<name> locally
  *   - no-op, exit 0, when <name> already exists as refs/remotes/<any>/<name>

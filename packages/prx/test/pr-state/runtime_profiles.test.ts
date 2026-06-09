@@ -786,7 +786,8 @@ describe("session profiles config (GH-950)", () => {
     // covers `prx triage dispatch --actor=intake -- …`.
     expect(triage.allowedTools).toContain("Bash(prx triage:*)");
     expect(triage.allowedTools).not.toContain("Bash(prx triage classify:*)");
-    expect(triage.allowedTools).toContain("Bash(prx tools labels sync:*)");
+    // prx-arl: `prx tools labels sync` retired (dead operator surface).
+    expect(triage.allowedTools).not.toContain("Bash(prx tools labels sync:*)");
     expect(triage.allowedTools).toContain("Bash(bd create:*)");
     expect(triage.allowedTools).toContain("Bash(bd update:*)");
     expect(triage.allowedTools).toContain("Bash(bd dep:*)");
@@ -905,13 +906,14 @@ describe("session profiles config (GH-950)", () => {
     expect(implement.allowedTools).not.toContain("Bash(prx plan show:*)");
     expect(implement.allowedTools).not.toContain("Bash(prx plan load:*)");
     expect(implement.allowedTools).not.toContain("Bash(prx plan close:*)");
-    // Policy-enforcing wrapped CLIs for code/branch/worktree writes.
+    // Policy-enforcing wrapped CLIs for code/branch writes.
     // GH-874: `prx tools gh` was hard-removed; internal callers use execGh()
-    // directly through other actor-scoped verbs.
+    // directly through other actor-scoped verbs. prx-arl: `prx tools wt`
+    // retired (worktrunk gone; prx owns the worktree lifecycle).
     expect(implement.allowedTools).toContain("Bash(prx tools git:*)");
     expect(implement.allowedTools).not.toContain("Bash(prx tools gh:*)");
     expect(implement.allowedTools).toContain("Bash(prx tools bd:*)");
-    expect(implement.allowedTools).toContain("Bash(prx tools wt:*)");
+    expect(implement.allowedTools).not.toContain("Bash(prx tools wt:*)");
     // GH-1238: the long pre-collapse tail must NOT be on the implement
     // allowlist anymore. Discovery via `prx implement agent --help`.
     expect(implement.allowedTools).not.toContain("Bash(prx model:*)");
@@ -1006,7 +1008,8 @@ describe("session profiles config (GH-950)", () => {
     expect(plan.allowedTools).toContain("Bash(prx tools git:*)");
     expect(plan.allowedTools).not.toContain("Bash(prx tools gh:*)");
     expect(plan.allowedTools).toContain("Bash(prx tools bd:*)");
-    expect(plan.allowedTools).toContain("Bash(prx tools wt:*)");
+    // prx-arl: `prx tools wt` retired (worktrunk gone).
+    expect(plan.allowedTools).not.toContain("Bash(prx tools wt:*)");
     // Capability boundary: Edit blocked. GH-1175: bare Write is intentionally
     // NOT in disallowedTools — it would override the path-scoped
     // `Write(<staging>/**)` carve-out injected by

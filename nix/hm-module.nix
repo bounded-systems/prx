@@ -7,7 +7,6 @@
 #   programs.prx = {
 #     enable = true;
 #     operatorConfigRoot = "${config.home.homeDirectory}/.config/prx-overlays"; # optional
-#     installWt  = true;   # optional `wt` worktree wrapper
 #   };
 #
 # Installs the released binary (hermetic fetchurl, no sandbox tweak) and wraps it
@@ -43,9 +42,6 @@ let
     ${exports}
     exec ${cfg.package}/bin/prx "$@"
   '';
-
-  wtWrapper = pkgs.writeShellScriptBin "wt"
-    (builtins.readFile (self + "/packages/prx/scripts/wt-wrapper.sh"));
 
   # `slack-scout` — an installed CLI command for the read-only Slack surface.
   # Same injected env as the prx launcher; delegates to `prx scout slack` so it
@@ -88,12 +84,6 @@ in
       description = "Sets BAKED_CLAUDE_CODE_PATH — the claude binary prx shells out to.";
     };
 
-    installWt = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
-      description = "Also install the `wt` worktree wrapper (delegates to `prx tools wt exec`).";
-    };
-
     installSlackScout = lib.mkOption {
       type = lib.types.bool;
       default = false;
@@ -131,11 +121,6 @@ in
 
   config = lib.mkIf cfg.enable {
     home.file.".local/bin/prx" = { text = wrapper; executable = true; };
-
-    home.file.".local/bin/wt" = lib.mkIf cfg.installWt {
-      source = "${wtWrapper}/bin/wt";
-      executable = true;
-    };
 
     home.file.".local/bin/slack-scout" = lib.mkIf cfg.installSlackScout {
       text = slackScoutWrapper;

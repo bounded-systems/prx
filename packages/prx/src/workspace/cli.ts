@@ -51,6 +51,12 @@ import { resolveProvenanceSigner } from "../provenance/signer.ts";
 import { openAnchoredChain } from "@bounded-systems/anchored-chain-sqlite";
 import { execGit } from "@bounded-systems/git";
 import {
+  bootstrapWorktree,
+  buildDefaultDeps as buildDefaultBootstrapDeps,
+} from "../tools/bootstrap_worktree.ts";
+import { ensurePrxExcludes } from "../tools/ignore_sync.ts";
+import { loadWorkspaceConfig } from "../pr-state/github.ts";
+import {
   runWorktreeCreateHook,
   runWorktreeRemoveHook,
   type WorktreeHookResult,
@@ -302,6 +308,17 @@ export type WorktreeHookCliDeps = {
   resolveContext?: typeof resolveWorkspaceContext;
   ensureHooks?: typeof ensureClaudeWorktreeHooks;
   emitProvenance?: (input: { branch: string; targetPath: string; cwd: string }) => Promise<void>;
+  /**
+   * prx-arl: bootstrap the freshly-materialized worktree (beads `.redirect` +
+   * `.pr/local/pr.json`) — the post-create work worktrunk's `[post-create]`
+   * hook used to fire via `prx tools wt bootstrap`. Injected (not statically
+   * imported) so the create hook never reaches back into the heavy
+   * `pr-state/cli.ts` graph. When absent (e.g. tests), the contract step is
+   * skipped; the exclude sync still runs (it needs no injected dep).
+   */
+  initContract?: (outputPath: string) => Promise<unknown>;
+  /** Override the bootstrap engine (tests inject a stub). */
+  bootstrap?: typeof bootstrapWorktree;
 };
 
 /**
@@ -355,6 +372,35 @@ async function emitWorktreeAddProvenance(input: {
  * The git/workspace split mirrors materialize: keeper owns the git ref/registry
  * mutation, the workspace actor owns the lifecycle ledger.
  */
+/**
+ * prx-arl: post-create bootstrap for a freshly materialized worktree. Mirrors
+ * what `prx tools wt bootstrap` + worktrunk's `[post-create]` hook did:
+ *   - ensure `.git/info/exclude` carries the prx rules (`.pr/` [+ `.prx/`]);
+ *   - write the beads `.redirect` + `.pr/local/pr.json` contract.
+ * Every step is best-effort and isolated — a failure here must never abort
+ * worktree creation. The contract step is skipped when no `initContract` dep
+ * is injected (e.g. unit tests); the exclude sync needs no injected dep.
+ */
+async function bootstrapNewWorktree(
+  worktreePath: string,
+  deps: WorktreeHookCliDeps,
+  bootstrap: typeof bootstrapWorktree,
+): Promise<void> {
+  try {
+    const persisted = loadWorkspaceConfig(worktreePath);
+    ensurePrxExcludes({ repoRoot: worktreePath, workspaceTrack: persisted.track });
+  } catch {
+    // exclude sync is a convenience — never block creation
+  }
+  if (!deps.initContract) return;
+  try {
+    const bootstrapDeps = buildDefaultBootstrapDeps(deps.initContract);
+    await bootstrap(worktreePath, bootstrapDeps);
+  } catch {
+    // beads/contract bootstrap is best-effort — the worktree is materialized
+  }
+}
+
 export async function runWorktreeHookCli(
   verb: WorktreeHookVerb,
   stdin: string,
@@ -368,6 +414,7 @@ export async function runWorktreeHookCli(
   const resolveContext = deps.resolveContext ?? resolveWorkspaceContext;
   const ensureHooks = deps.ensureHooks ?? ensureClaudeWorktreeHooks;
   const emitProvenance = deps.emitProvenance ?? emitWorktreeAddProvenance;
+  const bootstrap = deps.bootstrap ?? bootstrapWorktree;
 
   if (verb === "worktree-create") {
     return runWorktreeCreateHook({
@@ -386,6 +433,14 @@ export async function runWorktreeHookCli(
         if (mat.status === "error") {
           throw new Error(mat.error ?? `workspace.materialize failed for ${name}`);
         }
+        // prx-arl: bootstrap the fresh worktree so it's self-sufficient —
+        // worktrunk's [post-create] hook used to fire this (`prx tools wt
+        // bootstrap`). All best-effort against the NEW worktree path: a
+        // materialized worktree must not be torn down by a bootstrap hiccup,
+        // and we must not mutate the path the create hook echoes (Claude reads
+        // it as the session cwd and validates it exists) — we only ADD files
+        // inside the worktree.
+        await bootstrapNewWorktree(mat.worktree_path, deps, bootstrap);
         // Self-propagate: arm the new worktree's settings.local.json so a
         // `claude --worktree` launched from inside it also routes through prx
         // (prx-5q3). Best-effort — a settings write must never abort creation.

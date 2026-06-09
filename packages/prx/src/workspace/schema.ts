@@ -3,10 +3,10 @@
  *
  * Zod input/output schemas for the six accepts of the `workspace`
  * actor: reserve, materialize, prepare, sync, service, teardown. Every
- * driver (worktrunk today; devcontainer / nix devShell / CI pre-job
- * tomorrow) shares this contract. The contract MUST NOT leak driver
- * vocabulary: no "worktrunk", no "post-start", no hook names. If a
- * driver adds a field here, it has stopped being a driver.
+ * driver (prx's own WorktreeCreate/Remove hook today; devcontainer / nix
+ * devShell / CI pre-job tomorrow) shares this contract. The contract MUST
+ * NOT leak driver vocabulary: no "post-start", no hook names. If a driver
+ * adds a field here, it has stopped being a driver.
  *
  * Lifecycle states are reserved → materialized → prepared → ready ⇄
  * running → torn_down. `workspace_id` is a 12-hex stable identifier for
@@ -32,8 +32,8 @@ export const ReserveInput = z.object({
    * Create the branch ref locally only — do not push it to the remote.
    * Set by ephemeral session-open (intake/triage), whose branches must
    * never reach GitHub origin (ai-home-rkg1w.1 §3.5 / GH-2271). The
-   * worktrunk pre-switch hook leaves this `false` and keeps publishing
-   * the remote branch ref.
+   * default `false` keeps publishing the remote branch ref (the normal
+   * create path).
    */
   local_only: z.boolean().default(false),
 });

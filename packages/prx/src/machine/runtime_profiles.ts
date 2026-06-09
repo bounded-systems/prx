@@ -159,7 +159,7 @@ export const SESSION_PROFILES: Record<SessionProfileName, SessionProfileConfig> 
     // (slice A) makes those dispatches admissible without re-granting here.
     // What stays direct: the top-level operator reads (next/phase/snapshot/
     // statusline/actions/run — owned by `work`, not the planner's foreign
-    // namespace) and the sanctioned `prx tools git|bd|wt` write-policy wrappers.
+    // namespace) and the sanctioned `prx tools git|bd` write-policy wrappers.
     ...actorRuleset("plan", {
       role: "reader",
       denyWrite: false,
@@ -173,7 +173,6 @@ export const SESSION_PROFILES: Record<SessionProfileName, SessionProfileConfig> 
         "Bash(prx run profile:*)",
         "Bash(prx tools git:*)",
         "Bash(prx tools bd:*)",
-        "Bash(prx tools wt:*)",
       ],
     }),
     allowedActors: ["git", "gh", "wt", "beads", "prx", "llm_agent"],
@@ -211,14 +210,13 @@ export const SESSION_PROFILES: Record<SessionProfileName, SessionProfileConfig> 
     // GH-1530 PR-6 (target-authoritative ocap flip): the cross-namespace
     // `prx intake search` read migrates to `prx triage dispatch --actor=intake
     // -- search` (own `Bash(prx triage:*)` glob covers the dispatch verb; intake
-    // admits triage as a caller). The `prx tools labels sync` wrapper stays
-    // direct, and the raw `bd`/`gh issue` writes the triage operator runs stay
-    // — they survive the shared raw-CLI deny documentarily via most-specific-
-    // match, and are not `prx <actor>` namespaces the lint governs.
+    // admits triage as a caller). The raw `bd`/`gh issue` writes the triage
+    // operator runs stay — they survive the shared raw-CLI deny documentarily
+    // via most-specific-match, and are not `prx <actor>` namespaces the lint
+    // governs.
     ...actorRuleset("triage", {
       role: "reader",
       extraAllow: [
-        "Bash(prx tools labels sync:*)",
         "Bash(bd create:*)",
         "Bash(bd update:*)",
         "Bash(bd dep:*)",
@@ -241,7 +239,7 @@ export const SESSION_PROFILES: Record<SessionProfileName, SessionProfileConfig> 
     name: "implement",
     binding: "work-unit",
     banner:
-      "prx implement agent — executor profile with Edit/Write enabled. Stay scoped to the saved plan slot; route writes through `prx tools git/bd/wt` wrappers; do not widen scope. Read your plan with `prx implement dispatch --actor=plan -- show <id>` (returns a CAS handle to dereference). When the work is ready to ship, stage it with `prx implement dispatch --actor=submit -- stage <id>` and exit to `prx submit agent` for the push/PR/merge cycle — do not open PRs from here. Exit and re-enter via `prx plan session` to return to read-only planning.",
+      "prx implement agent — executor profile with Edit/Write enabled. Stay scoped to the saved plan slot; route writes through `prx tools git/bd` wrappers; do not widen scope. Read your plan with `prx implement dispatch --actor=plan -- show <id>` (returns a CAS handle to dereference). When the work is ready to ship, stage it with `prx implement dispatch --actor=submit -- stage <id>` and exit to `prx submit agent` for the push/PR/merge cycle — do not open PRs from here. Exit and re-enter via `prx plan session` to return to read-only planning.",
     // GH-1530: registry-derived via `actorRuleset("implement", { role:
     // "executor", … })`. The executor base toolset (Edit/Write/Task*/bun) +
     // the own `prx implement:*` namespace glob come from the helper.
@@ -252,7 +250,7 @@ export const SESSION_PROFILES: Record<SessionProfileName, SessionProfileConfig> 
     // plan reads (show/load/close) — now go through `prx implement dispatch
     // --actor=<target> -- <verb>` (own `Bash(prx implement:*)` glob covers the
     // dispatch verb; doctor/publisher/submit/plan each admit `implement`). Only
-    // the `prx tools git|bd|wt` write-policy wrappers stay direct.
+    // the `prx tools git|bd` write-policy wrappers stay direct.
     //
     // ai-home-emsht (st3a3): the executor stages + hands off and NEVER opens a
     // PR — `submit stage` (read-only producer, now dispatched) is the sanctioned
@@ -262,10 +260,9 @@ export const SESSION_PROFILES: Record<SessionProfileName, SessionProfileConfig> 
     ...actorRuleset("implement", {
       role: "executor",
       extraAllow: [
-        // Policy-enforcing wrapped CLIs for code/branch/worktree writes.
+        // Policy-enforcing wrapped CLIs for code/branch writes.
         "Bash(prx tools git:*)",
         "Bash(prx tools bd:*)",
-        "Bash(prx tools wt:*)",
       ],
       extraDeny: [
         // Specific destructive flags — subsumed by the shared `git`/`gh`/`rm`
@@ -571,7 +568,6 @@ const workUnitAllowedActors = ["git", "gh", "wt", "beads", "prx", "llm_agent"] a
 const workUnitDisallowedActors = ["gmail", "gcal"] as const;
 const gitSafePath = fileURLToPath(new URL("../../scripts/git-safe", import.meta.url));
 const ghSafePath = fileURLToPath(new URL("../../scripts/gh-safe", import.meta.url));
-const wtSafePath = fileURLToPath(new URL("../../scripts/wt-safe", import.meta.url));
 const bdSafePath = fileURLToPath(new URL("../../scripts/bd-safe", import.meta.url));
 const prxSafePath = fileURLToPath(new URL("../../scripts/prx-safe", import.meta.url));
 const runtimeAgentsPath = ".pr/local/runtime/agents.json";
@@ -632,7 +628,7 @@ function buildHeadlessExecutorStableSystemPrompt(): string {
     "Stay strictly scoped to your work unit, its current directory, and the configured tool boundaries. Do not invent or switch identities.",
     "Your confirmed scope is the approved plan embedded in the task prompt; it already carries the model-first analysis (workflow states, actor ownership, event/schema boundaries). Implement exactly that scope and do not widen it.",
     "Do NOT run `prx`, `bd`, `gh`, or raw `git` to re-derive scope or inspect the model — they are intentionally outside your headless toolset. Read the codebase directly with Read/Grep/Glob instead.",
-    "Use only your granted tools: edit and write files directly, run the project checks, and route git / beads / worktree writes through the `prx tools git|bd|wt` wrappers.",
+    "Use only your granted tools: edit and write files directly, run the project checks, and route git / beads writes through the `prx tools git|bd` wrappers.",
     "If the embedded plan is insufficient to proceed safely, stop and report precisely what is missing — do not guess or fabricate work.",
   ].join(" ");
 }
@@ -672,7 +668,7 @@ export function buildWorkUnitClaudeRuntimeProfile(input: {
     "--tools",
     "Read,Edit,Bash",
     "--allowedTools",
-    `Read,Edit,Bash(${gitSafePath}:*),Bash(${ghSafePath}:*),Bash(${wtSafePath}:*),Bash(${bdSafePath}:*),Bash(${prxSafePath}:*)`,
+    `Read,Edit,Bash(${gitSafePath}:*),Bash(${ghSafePath}:*),Bash(${bdSafePath}:*),Bash(${prxSafePath}:*)`,
     "--permission-mode",
     "plan",
     "--json-schema",
@@ -684,7 +680,7 @@ export function buildWorkUnitClaudeRuntimeProfile(input: {
   const devArgs = [
     ...baseArgs,
     "--allowedTools",
-    `Read,Edit,Bash(${gitSafePath}:*),Bash(${ghSafePath}:*),Bash(${wtSafePath}:*),Bash(${prxSafePath}:*)`,
+    `Read,Edit,Bash(${gitSafePath}:*),Bash(${ghSafePath}:*),Bash(${prxSafePath}:*)`,
     "--permission-mode",
     "plan",
     "--output-format",
@@ -1184,13 +1180,13 @@ export function buildWorkUnitCursorRuntimeProfile(input: {
 
 function buildAllowedToolsForRole(role: TaskAgentRole): string {
   if (role === "planner") {
-    return `Read,Bash(${ghSafePath}:*),Bash(${bdSafePath}:*),Bash(${prxSafePath}:*),Bash(${wtSafePath}:*)`;
+    return `Read,Bash(${ghSafePath}:*),Bash(${bdSafePath}:*),Bash(${prxSafePath}:*)`;
   }
   if (role === "executor") {
-    return `Read,Edit,Bash(${gitSafePath}:*),Bash(${ghSafePath}:*),Bash(${wtSafePath}:*),Bash(${bdSafePath}:*),Bash(${prxSafePath}:*)`;
+    return `Read,Edit,Bash(${gitSafePath}:*),Bash(${ghSafePath}:*),Bash(${bdSafePath}:*),Bash(${prxSafePath}:*)`;
   }
   if (role === "tester") {
-    return `Read,Bash(${ghSafePath}:*),Bash(${wtSafePath}:*),Bash(${prxSafePath}:*),Bash(${gitSafePath}:*)`;
+    return `Read,Bash(${ghSafePath}:*),Bash(${prxSafePath}:*),Bash(${gitSafePath}:*)`;
   }
   return `Read,Bash(${ghSafePath}:*),Bash(${prxSafePath}:*),Bash(${gitSafePath}:*)`;
 }
@@ -1512,7 +1508,7 @@ export function buildOpsImplementPrompt(
     machineFirst,
     "You are on the prx implement profile: full executor toolset with Edit/Write enabled.",
     "Implement only the already-confirmed scope from the plan; do not widen scope.",
-    "Route writes through `prx tools git/gh/bd/wt` wrappers; raw destructive operations (force-push, hard reset, recursive rm) are blocked at the flag layer.",
+    "Route writes through `prx tools git/bd` wrappers; raw destructive operations (force-push, hard reset, recursive rm) are blocked at the flag layer.",
     "If scope needs to shift, exit to `prx plan session` (read-only) before reopening.",
     `Allowed tools: ${allowed}.`,
     `Disallowed tools: ${disallowed}.`,
@@ -1552,7 +1548,7 @@ export function buildOpsImplementFallbackPrompt(workUnitId: string): string {
     machineFirst,
     "You are on the prx implement profile: full executor toolset with Edit/Write enabled.",
     "Implement only the already-confirmed scope from the plan; do not widen scope.",
-    "Route writes through `prx tools git/gh/bd/wt` wrappers; raw destructive operations (force-push, hard reset, recursive rm) are blocked at the flag layer.",
+    "Route writes through `prx tools git/bd` wrappers; raw destructive operations (force-push, hard reset, recursive rm) are blocked at the flag layer.",
     "If scope needs to shift, exit to `prx plan session` (read-only) before reopening.",
     `Allowed tools: ${allowed}.`,
     `Disallowed tools: ${disallowed}.`,

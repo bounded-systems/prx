@@ -2045,13 +2045,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "transcripts",
   },
   {
-    name: "tools wt",
-    parent: "tools",
-    description: "Wrap worktrunk wt with policy enforcement",
-    domain: "repo-plumbing",
-    actor: "tools",
-  },
-  {
     name: "tools git",
     parent: "tools",
     description: "Wrap git with policy enforcement",
@@ -2062,13 +2055,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     name: "tools bd",
     parent: "tools",
     description: "Wrap beads CLI with policy enforcement",
-    domain: "repo-plumbing",
-    actor: "tools",
-  },
-  {
-    name: "tools labels sync",
-    parent: "tools",
-    description: "Sync triage label vocab onto GitHub",
     domain: "repo-plumbing",
     actor: "tools",
   },

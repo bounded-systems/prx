@@ -370,14 +370,7 @@ import {
 import { runServicesStatus } from "../services/cli.ts";
 import { taskRoleMachine, taskRoles, type TaskRole } from "../machine/machines/task.ts";
 import { workflowMachine } from "../machine/machines/workflow.ts";
-import {
-  resolveWorktreePath,
-  worktreeEnv,
-  execWorktrunk,
-  formatWorktreePath,
-  formatWorktreeEnv,
-  formatExecResult,
-} from "../tools/worktree_path.ts";
+import { resolveWorktreePath } from "../tools/worktree_path.ts";
 import {
   addWorktreeForBranch,
   expectedWorktreePath,
@@ -390,16 +383,6 @@ import {
   runWithGitLockRecovery,
   withGitLockRecovery,
 } from "@bounded-systems/git";
-import {
-  ensureBranch,
-  formatEnsureBranchResult,
-  type EnsureBranchResult,
-} from "../tools/ensure_branch.ts";
-import {
-  bootstrapWorktree,
-  buildDefaultDeps as buildDefaultBootstrapDeps,
-  formatBootstrapResult,
-} from "../tools/bootstrap_worktree.ts";
 import { execGh } from "@bounded-systems/gh";
 import {
   execBd,
@@ -413,7 +396,6 @@ import {
   resolveAndCloseLinkedBeads,
   type PlanCloseBdRecordOutcome,
 } from "./plan-close-bd.ts";
-import { syncLabels, formatSyncLabelsResult } from "../tools/labels.ts";
 import {
   runClaudePreflight,
   formatClaudePreflight,
@@ -430,7 +412,6 @@ import {
   ensurePrxExcludes,
   type EnsurePrxExcludesResult,
 } from "../tools/ignore_sync.ts";
-import { runHook, formatRunHookResult } from "../tools/run_hook.ts";
 import { hydrate as hydrateBeads, formatHydrateResult, type HydrateStatus } from "../beads/hydrate.ts";
 import {
   parseWorkspaceArgs,
@@ -1715,26 +1696,6 @@ type ParsedCommand =
       viaAlias?: boolean;
     }
   | {
-      command: "tools-wt";
-      action:
-        | "path"
-        | "env"
-        | "exec"
-        | "ensure-branch"
-        | "ensure-prx-excludes"
-        | "run-hook"
-        | "bootstrap";
-      format: "plain" | "json";
-      execArgs: string[];
-      source: boolean;
-      parentPid?: string | undefined;
-      branchName?: string | undefined;
-      base?: string | undefined;
-      skip?: string[] | undefined;
-      hookEvent?: string | undefined;
-      strict?: boolean | undefined;
-    }
-  | {
       command: "tools-git";
       format: "plain" | "json";
       subcommand: string;
@@ -1768,13 +1729,6 @@ type ParsedCommand =
       subcommand: string;
       passArgs: string[];
       cwd?: string | undefined;
-    }
-  | {
-      command: "tools-labels-sync";
-      format: "plain" | "json";
-      repo?: string | undefined;
-      prune: boolean;
-      dryRun: boolean;
     }
   | {
       command: "preflight-claude";
@@ -2944,7 +2898,7 @@ const VERBS_WITH_NATIVE_HELP: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * GH-1227: split argv for passthrough verbs (`tools wt|git|bd`).
+ * GH-1227: split argv for passthrough verbs (`tools git|bd`).
  *
  * Walks tokens collecting positionals plus any flag declared in
  * `knownStringFlags` / `knownBoolFlags` into `prxArgs`. The first unknown
@@ -3988,10 +3942,10 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   // GH-1762: registry-side workspace namespace. `prx workspace adopt`
   // produces the `workspace_id` every downstream adopt-flow verb keys off.
   // GH-1978: workspace lifecycle actor (reserve/prepare/sync/service/teardown)
-  // retires wtctl's sync / ignore sync / up / down surface. Drivers
-  // (worktrunk today; devcontainer / nix devShell / CI pre-job tomorrow) call
-  // into the actor only through these verbs; the verb-level parser/dispatcher
-  // lives in `src/workspace/cli.ts`.
+  // retires wtctl's sync / ignore sync / up / down surface. Drivers (prx's own
+  // WorktreeCreate/Remove hook today; devcontainer / nix devShell / CI pre-job
+  // tomorrow) call into the actor only through these verbs; the verb-level
+  // parser/dispatcher lives in `src/workspace/cli.ts`.
   if (c0 === "workspace") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
@@ -4268,26 +4222,13 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
 
   if (c0 === "tools") {
     if (!c1 || c1.startsWith("-")) {
-      throw new CliError("tools requires a subcommand: wt, git, bd, labels");
-    }
-    if (c1 === "wt") {
-      return ["tools-wt", ...tail];
+      throw new CliError("tools requires a subcommand: git, bd");
     }
     if (c1 === "git") {
       return ["tools-git", ...tail];
     }
     if (c1 === "bd") {
       return ["tools-bd", ...tail];
-    }
-    if (c1 === "labels") {
-      const c2 = tail[0];
-      if (!c2 || c2.startsWith("-")) {
-        throw new CliError("tools labels requires a subcommand: sync");
-      }
-      if (c2 === "sync") {
-        return ["tools-labels-sync", ...tail.slice(1)];
-      }
-      throw new CliError(`Unknown tools labels subcommand: ${c2}`);
     }
     throw new CliError(`Unknown tools subcommand: ${c1}`);
   }
@@ -9662,89 +9603,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  if (command === "tools-wt") {
-    // GH-1227: auto-split prx flags from pass-through args; explicit `--`
-    // still works for backwards compat.
-    const { prxArgs, passthrough } = splitPassthroughArgv(
-      rest,
-      new Set(["format", "parent-pid", "base", "skip"]),
-      new Set(["source", "strict"]),
-    );
-
-    const { values, positionals } = parseArgs({
-      args: prxArgs,
-      options: {
-        format: { type: "string", default: "plain" },
-        source: { type: "boolean", default: false },
-        "parent-pid": { type: "string" },
-        base: { type: "string" },
-        skip: { type: "string" },
-        strict: { type: "boolean", default: false },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-
-    const action = positionals[0] ?? "path";
-    if (
-      action !== "path" &&
-      action !== "env" &&
-      action !== "exec" &&
-      action !== "ensure-branch" &&
-      action !== "ensure-prx-excludes" &&
-      action !== "run-hook" &&
-      action !== "bootstrap"
-    ) {
-      throw new CliError(
-        `Unknown tools wt action: ${action}. Expected: path, env, exec, ensure-branch, ensure-prx-excludes, run-hook, bootstrap`,
-      );
-    }
-
-    let branchName: string | undefined;
-    if (action === "ensure-branch") {
-      branchName = positionals[1];
-      if (!branchName) {
-        throw new CliError("tools wt ensure-branch requires <name>");
-      }
-    }
-
-    let hookEvent: string | undefined;
-    if (action === "run-hook") {
-      hookEvent = positionals[1];
-      if (!hookEvent) {
-        throw new CliError("tools wt run-hook requires <event>");
-      }
-    }
-
-    const skip = values.skip
-      ? values.skip
-          .split(",")
-          .map((s) => s.trim())
-          .filter((s) => s.length > 0)
-      : undefined;
-
-    return {
-      command,
-      action: action as
-        | "path"
-        | "env"
-        | "exec"
-        | "ensure-branch"
-        | "ensure-prx-excludes"
-        | "run-hook"
-        | "bootstrap",
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      execArgs: [...positionals.slice(1), ...passthrough],
-      source: values.source ?? false,
-      parentPid: values["parent-pid"],
-      branchName,
-      base: values.base,
-      skip,
-      hookEvent,
-      strict: values.strict ?? false,
-    };
-  }
-
   if (command === "tools-git") {
     // prx tools git <subcommand> [args...] [--format plain|json] [--cwd PATH]
     // GH-1227: auto-split — unknown flags forward to git automatically;
@@ -9808,28 +9666,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       subcommand,
       passArgs: [...positionals.slice(1), ...passthrough],
       cwd: values.cwd,
-    };
-  }
-
-  if (command === "tools-labels-sync") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-        repo: { type: "string" },
-        prune: { type: "boolean", default: false },
-        "dry-run": { type: "boolean", default: false },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-    const repo = values.repo?.trim();
-    return {
-      command,
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      repo: repo && repo.length > 0 ? repo : undefined,
-      prune: values.prune ?? false,
-      dryRun: values["dry-run"] ?? false,
     };
   }
 
@@ -20220,7 +20056,21 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           } catch {
             stdin = "";
           }
-          const hookResult = await runWorktreeHookCli(workspaceVerb, stdin, anchorCwd);
+          // prx-arl: inject the real initContract so the create hook can
+          // bootstrap the fresh worktree (beads redirect + .pr/local/pr.json)
+          // that worktrunk's [post-create] hook used to fire. Injected (not
+          // imported in workspace/cli.ts) to avoid an ESM cycle back into this
+          // file. New-worktree contracts are draft + feature, like
+          // `prx tools wt bootstrap` was.
+          const hookResult = await runWorktreeHookCli(workspaceVerb, stdin, anchorCwd, {
+            initContract: (outputPath) =>
+              initContract(outputPath, {
+                ready: false,
+                forceBeads: false,
+                changeType: ["feature"],
+                generatedBy: "codex",
+              }),
+          });
           if (hookResult.message) {
             if (hookResult.stream === "stdout") {
               output.log(hookResult.message);
@@ -20325,124 +20175,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           throw err;
         }
       })();
-    }
-
-    if (parsed.command === "tools-wt") {
-      if (parsed.action === "path") {
-        const result = resolveWorktreePath();
-        output.log(formatWorktreePath(result, parsed.format));
-        return 0;
-      }
-      if (parsed.action === "env") {
-        const result = worktreeEnv();
-        output.log(formatWorktreeEnv(result, parsed.format));
-        return 0;
-      }
-      if (parsed.action === "exec") {
-        const result = execWorktrunk({
-          args: parsed.execArgs,
-          source: parsed.source,
-          parentPid: parsed.parentPid,
-        });
-        const out = formatExecResult(result, parsed.format);
-        if (out) output.log(out);
-        return result.exitCode;
-      }
-      if (parsed.action === "ensure-branch") {
-        const result: EnsureBranchResult = ensureBranch({
-          name: parsed.branchName!,
-          base: parsed.base,
-          skip: parsed.skip,
-        });
-        const out = formatEnsureBranchResult(result, parsed.format);
-        if (out) {
-          if (result.status === "error" || result.status === "base-unresolved") {
-            output.error(out);
-          } else {
-            output.log(out);
-          }
-        }
-        // Best-effort: always exit 0. The pre-switch hook must not turn a
-        // real wt-switch failure into a hook failure.
-        return 0;
-      }
-      if (parsed.action === "ensure-prx-excludes") {
-        const repoRoot = tryCommand(["git", "rev-parse", "--show-toplevel"], process.cwd());
-        if (!repoRoot) {
-          output.error("ensure-prx-excludes: not inside a git repository");
-          // Best-effort: hooks must not turn this into a worktrunk failure.
-          return 0;
-        }
-        const persisted = loadWorkspaceConfig(repoRoot);
-        const result = ensurePrxExcludes({
-          repoRoot,
-          workspaceTrack: persisted.track,
-        });
-        if (parsed.format === "json") {
-          output.log(JSON.stringify(result, null, 2));
-        } else {
-          if (result.excludePath) {
-            for (const rule of result.excludeRemovedRules) {
-              output.log(`Removed legacy ${rule} from ${result.excludePath}`);
-            }
-            for (const rule of result.excludeRules) {
-              output.log(
-                result.excludeUpdatedRules.includes(rule)
-                  ? `Added ${rule} to ${result.excludePath}`
-                  : `${rule} already present in ${result.excludePath}`,
-              );
-            }
-          }
-        }
-        return 0;
-      }
-      if (parsed.action === "run-hook") {
-        const result = runHook({
-          event: parsed.hookEvent!,
-          cwd: process.cwd(),
-        });
-        const out = formatRunHookResult(result, parsed.format);
-        if (out) {
-          if (result.source === "skipped" && parsed.format !== "json") {
-            output.error(out);
-          } else {
-            output.log(out);
-          }
-        }
-        // Default: best-effort, always exit 0 — a worktrunk lifecycle hook
-        // (pre-start, post-switch, post-start) must not turn into a
-        // worktrunk failure. Strict callers (e.g. the git pre-commit shim,
-        // GH-1124) opt in to exit-code propagation.
-        if (parsed.strict) {
-          return result.exitCode;
-        }
-        return 0;
-      }
-      if (parsed.action === "bootstrap") {
-        return (async () => {
-          const bootstrapDeps = buildDefaultBootstrapDeps(async (outputPath) => {
-            await (deps.initContract ?? initContract)(outputPath, {
-              ready: false,
-              forceBeads: false,
-              changeType: ["feature"],
-              generatedBy: "codex",
-            });
-          });
-          const result = await bootstrapWorktree(process.cwd(), bootstrapDeps);
-          const out = formatBootstrapResult(result, parsed.format);
-          if (out) {
-            if (result.exitCode !== 0) {
-              output.error(out);
-            } else {
-              output.log(out);
-            }
-          }
-          // Best-effort: always exit 0. The post-create hook must not turn a
-          // real wt-switch failure into a hook failure.
-          return 0;
-        })();
-      }
-      return 0;
     }
 
     if (parsed.command === "tools-git") {
@@ -20915,16 +20647,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       const out = formatBdExecResult(result, parsed.format);
       if (out) output.log(out);
       return result.exitCode;
-    }
-
-    if (parsed.command === "tools-labels-sync") {
-      const result = syncLabels({
-        repo: parsed.repo,
-        prune: parsed.prune,
-        dryRun: parsed.dryRun,
-      });
-      output.log(formatSyncLabelsResult(result, parsed.format));
-      return 0;
     }
 
     if (parsed.command === "preflight-claude") {
