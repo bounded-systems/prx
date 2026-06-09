@@ -19,6 +19,7 @@ export { SLACK_READ_OPS, SlackReadError } from "./types.ts";
 
 export type {
   SlackKeyScope,
+  SlackAuthTarget,
   SlackRequest,
   AuthorizedSlackRequest,
   ScopedSlackKey,

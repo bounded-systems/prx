@@ -6,7 +6,7 @@
 // `key.authorize()` to inject the bearer; it never reads env or resolves auth.
 // `fetch` is injectable for hermetic tests.
 
-import type { ScopedSlackKey } from "./keymaker.ts";
+import type { ScopedSlackKey, SlackAuthTarget } from "./keymaker.ts";
 import type { SlackReadTransport } from "./transport.ts";
 import {
   SlackReadError,
@@ -66,11 +66,24 @@ export function webApiSlackTransport(deps: WebApiTransportDeps = {}): SlackReadT
     ): Promise<SlackRawResult> {
       const method = METHOD[op];
       const record = params as Record<string, unknown>;
-      const channel = typeof record["channel"] === "string" ? (record["channel"] as string) : undefined;
+      const str = (k: string): string | undefined =>
+        typeof record[k] === "string" ? (record[k] as string) : undefined;
+      const channel = str("channel");
       const url = `${base}/${method}${buildQuery(record)}`;
 
-      // The key authorizes the request (and enforces scope/TTL) before it leaves.
-      const authed = key.authorize(op, channel, { url, headers: {} });
+      // Build the capability target from the params the read carries: team_id →
+      // org (workspace/enterprise), channel, and the thread parent ts (the `ts`
+      // of a conversations.replies call, or an explicit thread_ts). The key
+      // enforces scope/TTL against this target before the request leaves.
+      const target: SlackAuthTarget = {
+        op,
+        ...(str("team_id") !== undefined ? { org: str("team_id") } : {}),
+        ...(channel !== undefined ? { channel } : {}),
+        ...(str("thread_ts") ?? (op === "thread" ? str("ts") : undefined)) !== undefined
+          ? { thread: str("thread_ts") ?? str("ts") }
+          : {},
+      };
+      const authed = key.authorize(target, { url, headers: {} });
 
       let resp: Response;
       try {

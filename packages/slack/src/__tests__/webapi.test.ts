@@ -3,18 +3,18 @@ import {
   webApiSlackTransport,
   SlackReadError,
   type ScopedSlackKey,
-  type SlackReadOp,
+  type SlackAuthTarget,
 } from "@bounded-systems/slack";
 
-// A key that records its authorize() args and injects a bearer header.
-function fakeKey(seen: { op?: SlackReadOp; channel?: string | undefined }): ScopedSlackKey {
+// A key that records the capability target authorize() was handed and injects a
+// bearer header.
+function fakeKey(seen: { target?: SlackAuthTarget }): ScopedSlackKey {
   return {
     keyId: "k1",
     scope: { ops: ["channels", "history", "thread", "users"] },
     expiresAt: 9e15,
-    authorize(op, channel, req) {
-      seen.op = op;
-      seen.channel = channel;
+    authorize(target, req) {
+      seen.target = target;
       return { ...req, headers: { ...(req.headers ?? {}), Authorization: "Bearer T" } };
     },
   };
@@ -39,7 +39,7 @@ function fakeFetch(
 describe("webApiSlackTransport", () => {
   test("channels -> conversations.list, with bearer injected by the key", async () => {
     const cap: { url?: string; auth?: string } = {};
-    const seen: { op?: SlackReadOp; channel?: string } = {};
+    const seen: { target?: SlackAuthTarget } = {};
     const t = webApiSlackTransport({
       fetch: fakeFetch(cap, {
         ok: true,
@@ -51,22 +51,24 @@ describe("webApiSlackTransport", () => {
     const r = await t.call("channels", { limit: 5, types: "public_channel" }, fakeKey(seen));
     expect(cap.url).toBe("https://x/api/conversations.list?limit=5&types=public_channel");
     expect(cap.auth).toBe("Bearer T");
-    expect(seen.op).toBe("channels");
-    expect(seen.channel).toBeUndefined();
+    expect(seen.target?.op).toBe("channels");
+    expect(seen.target?.channel).toBeUndefined();
+    expect(seen.target?.org).toBeUndefined();
     expect(r.ok).toBe(true);
     expect(r.cursor).toBe("CURSOR2");
   });
 
   test("history -> conversations.history, passing the channel to authorize()", async () => {
     const cap: { url?: string } = {};
-    const seen: { op?: SlackReadOp; channel?: string } = {};
+    const seen: { target?: SlackAuthTarget } = {};
     const t = webApiSlackTransport({
       fetch: fakeFetch(cap, { ok: true, messages: [] }),
       baseUrl: "https://x/api",
     });
     await t.call("history", { channel: "C1", limit: 2 }, fakeKey(seen));
     expect(cap.url).toBe("https://x/api/conversations.history?channel=C1&limit=2");
-    expect(seen.channel).toBe("C1");
+    expect(seen.target?.channel).toBe("C1");
+    expect(seen.target?.thread).toBeUndefined();
   });
 
   test("thread -> conversations.replies with channel + ts", async () => {
@@ -77,6 +79,24 @@ describe("webApiSlackTransport", () => {
     });
     await t.call("thread", { channel: "C1", ts: "169.1" }, fakeKey({}));
     expect(cap.url).toBe("https://x/api/conversations.replies?channel=C1&ts=169.1");
+  });
+
+  test("builds the org/channel/thread target from params (prx-q7r)", async () => {
+    const cap: { url?: string } = {};
+    const seen: { target?: SlackAuthTarget } = {};
+    const t = webApiSlackTransport({
+      fetch: fakeFetch(cap, { ok: true, messages: [] }),
+      baseUrl: "https://x/api",
+    });
+    // team_id → org; channel → channel; a thread (replies) read's ts → thread.
+    await t.call(
+      "thread",
+      { channel: "C1", ts: "169.1", team_id: "T1" } as never,
+      fakeKey(seen),
+    );
+    expect(seen.target).toEqual({ op: "thread", org: "T1", channel: "C1", thread: "169.1" });
+    // team_id is also forwarded to Slack on the wire.
+    expect(cap.url).toContain("team_id=T1");
   });
 
   test("users -> users.list; empty next_cursor becomes null", async () => {
