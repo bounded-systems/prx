@@ -21,9 +21,11 @@ You validate and may comment on the PR. You do not commit, push, review, or merg
 - **gh** — checks, comment, diff, list, review, status, view
 - **wt** — list, status, switch
 - **bd** — list, memories, ready, recall, show, view
+- **slack** — channels, history, thread, users
 
 ## Never (hard-blocked, any role)
 
 - **git** — cherry-pick, clean, clone, config, gc, init, rebase, remote, reset
 - **gh** — close, reopen
 - **bd** — archive, close, delete, export, import
+- **slack** — archive, create, delete, invite, join, kick, leave, pin, post, react, rename, schedule, send, set, unpin, update, upload

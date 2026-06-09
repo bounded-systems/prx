@@ -21,9 +21,11 @@ You draft plans and file/triage bd issues. You do not write code, push, or opera
 - **gh** — checks, diff, list, review, status, view
 - **wt** — list, status, switch
 - **bd** — admin, assign, claim, create, dep, list, memories, ready, recall, remember, reopen, show, sql, update, view
+- **slack** — channels, history, thread, users
 
 ## Never (hard-blocked, any role)
 
 - **git** — cherry-pick, clean, clone, config, gc, init, rebase, remote, reset
 - **gh** — close, reopen
 - **bd** — archive, close, delete, export, import
+- **slack** — archive, create, delete, invite, join, kick, leave, pin, post, react, rename, schedule, send, set, unpin, update, upload
