@@ -21,8 +21,15 @@ jobs:
         include:
           - os: macos-14
             target: aarch64-darwin
+            bunTarget: bun-darwin-arm64
           - os: ubuntu-latest
             target: x86_64-linux
+            bunTarget: bun-linux-x64
+          # Cross-compiled on the x86 runner via `bun --target` (no arm64 runner
+          # needed) — the binary the aarch64-linux box + prx-zj8 fleet need.
+          - os: ubuntu-latest
+            target: aarch64-linux
+            bunTarget: bun-linux-arm64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     # Build only uploads an artifact (the release is published once, later, by
@@ -41,7 +48,7 @@ jobs:
           PRX_COMPILE_GIT_SHA="$(git rev-parse --short=12 HEAD)" \
           PRX_COMPILE_VERSION="${{ github.ref_name }}" \
           BUN="$(which bun)" \
-            bun packages/prx/scripts/prx-compile.ts ./prx-${{ matrix.target }}
+            bun packages/prx/scripts/prx-compile.ts ./prx-${{ matrix.target }} --target=${{ matrix.bunTarget }}
       - name: Upload binary artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -130,6 +137,7 @@ jobs:
           files: |
             release-assets/prx-aarch64-darwin
             release-assets/prx-x86_64-linux
+            release-assets/prx-aarch64-linux
       - name: Publish — flip draft → published (locks immutable with all assets present)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -158,7 +166,7 @@ jobs:
           ver="${GITHUB_REF_NAME#v}"
           base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
           json=$(jq -n --arg v "$ver" '{version:$v, systems:{}}')
-          for sys in aarch64-darwin x86_64-linux; do
+          for sys in aarch64-darwin x86_64-linux aarch64-linux; do
             h=$(nix-prefetch-url "$base/prx-$sys")
             json=$(printf '%s' "$json" | jq --arg s "$sys" --arg h "$h" '.systems[$s].prx=$h')
           done
@@ -167,6 +175,7 @@ jobs:
           # Homebrew formula needs hex sha256 (nix stores base32) — convert.
           d_hex=$(nix hash convert --hash-algo sha256 --to base16 "$(jq -r '.systems."aarch64-darwin".prx' release-hashes.json)")
           l_hex=$(nix hash convert --hash-algo sha256 --to base16 "$(jq -r '.systems."x86_64-linux".prx' release-hashes.json)")
+          l_arm_hex=$(nix hash convert --hash-algo sha256 --to base16 "$(jq -r '.systems."aarch64-linux".prx' release-hashes.json)")
           mkdir -p Formula
           cat > Formula/prx.rb <<RUBY
           # Homebrew formula for prx. This repo doubles as a tap:
@@ -189,6 +198,10 @@ jobs:
               on_intel do
                 url "https://github.com/bounded-systems/prx/releases/download/v$ver/prx-x86_64-linux"
                 sha256 "$l_hex"
+              end
+              on_arm do
+                url "https://github.com/bounded-systems/prx/releases/download/v$ver/prx-aarch64-linux"
+                sha256 "$l_arm_hex"
               end
             end
 
