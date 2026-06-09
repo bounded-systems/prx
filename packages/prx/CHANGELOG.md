@@ -1,5 +1,77 @@
 # @bounded-systems/prx
 
+## 0.10.0
+
+### Minor Changes
+
+- 00ba898: feat(fetch): `prx fetch slack` drains the history cursor so one run gets the whole channel (prx-13x)
+
+  The pure core now pages `conversations.history` from the watermark to the end
+  of the delta (cursor pagination) instead of reading a single page, so
+  `prx fetch slack <channel>` fetches **all** messages newer than the watermark
+  in one run — no gap when a channel has more than `--limit` new messages. The
+  read adapter surfaces the provider's `next_cursor`; the core loops until the
+  cursor drains, a `--max-pages N` bound is hit, or the cursor stops advancing
+  (defensive against a stuck cursor). Messages are deduped by `ts` across pages;
+  the watermark advances once to the global max; the JSON summary reports
+  `pages`.
+
+  Defaults to draining the full delta; `--max-pages N` caps the pages per run
+  (`--max-pages 1` restores the old single-page behaviour). Rate-limit/budget
+  gating remains a follow-on (blocked on slackd, prx-tgy) — Slack has no
+  github-budget points bucket.
+
+- 731fd15: feat(fetch): content-scoped digest + SlackMessageContent zod/JSON schema for `prx fetch slack` (prx-psj)
+
+  `prx fetch slack` now content-addresses each message by a **content projection**
+  instead of the whole message: `sha256(canonical({channel, content}))` where
+  `content` = identity (`ts`, `user`, `type`/`subtype`) + content (`text`,
+  `blocks`, `files`, `attachments`). Volatile metadata — reactions,
+  `reply_count`/`latest_reply`/`reply_users*`, `subscribed`, `is_locked`,
+  `last_read`, `client_msg_id`, `team`, the `edited` wrapper — is dropped, so
+  reaction/reply churn **dedups to nothing** and only a real content edit busts a
+  message's digest. `ts` stays in the projection as identity (so identical text
+  like "lgtm" doesn't collide into one blob).
+
+  Adds `fetch/slack-content.ts`: the `SlackMessageContent` **zod** schema (source
+  of truth), `projectSlackContent()`, and `slackMessageContentJsonSchema` (derived
+  via `z.toJSONSchema`) — the typed contract a read-back/query surface can emit
+  against.
+
+  Migration: digests change shape, so the first fetch after this re-stores each
+  message once under its content digest (pre-1.0, channels are small — negligible).
+  Parent epic: prx-zes.
+
+### Patch Changes
+
+- 972325b: fix(beadsd): resolve the runtime repo root from cwd, not the binary dir (prx-ag7)
+
+  beadsd's `client-factory` used `findRepoRoot()` — the build-time `.git`-marker
+  walk whose default start is `import.meta.dir` — as its _runtime_ fallback. In a
+  `bun --compile` binary (e.g. prx inside claude-box) that's `/$bunfs/root`, so
+  repo-scoped verbs crashed with `findRepoRoot: no .git ancestor of /$bunfs/root`.
+  Use `getRepoRoot()` (the `git rev-parse --show-toplevel` cwd resolver) for the
+  runtime path; `findRepoRoot` stays for build/codegen.
+
+- 91d21f8: feat(workspace): emit signed worktree-add/v1 in production (prx-hc5 slice 2 / prx-3qc)
+
+  Wires keeper's `attestWorktreeAdd` (slice 1) into the live `claude --worktree`
+  path. After a real materialization, the create hook emits a signed
+  `worktree-add/v1` for the new worktree — opt-in + fail-safe, mirroring keeper
+  push:
+
+  - `resolveProvenanceSigner()` (the `PRX_PROVENANCE_KEY` env seam) → no key ⇒ no
+    emission;
+  - `resolveCanonicalChainLedger(targetPath)` → the per-workspace anchored-chain
+    ledger (I-WS5: never under the mainx replica) ⇒ no ledger, no emission;
+  - base commit (`origin/main`, what the branch was cut from) recorded as a
+    material when resolvable;
+  - only on a real placement (`status: "created"`, not the idempotent `exists`);
+  - best-effort — a signing/ledger failure never aborts worktree creation.
+
+  Injectable (`WorktreeHookCliDeps.emitProvenance`) for tests. Completes
+  `docs/prx/worktree-provenance.md`'s slice 2.
+
 ## 0.9.0
 
 ### Minor Changes
