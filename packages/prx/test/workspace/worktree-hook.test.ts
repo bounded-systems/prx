@@ -147,6 +147,39 @@ describe("runWorktreeHookCli — engine wiring (prx-6jb)", () => {
     expect(calls).toEqual(["reserve:feat-x", "materialize:abc123abc123"]);
   });
 
+  const stubMaterialize = {
+    reserve: () => ({ workspace_id: "abc123abc123", branch_ref: "feat-x", status: "created" as const }),
+    materialize: () => ({
+      workspace_id: "abc123abc123",
+      worktree_path: "/wt/feat-x",
+      branch: "feat-x",
+      status: "created" as const,
+    }),
+  };
+
+  test("create: self-propagates — arms the new worktree's settings.local.json (prx-5q3)", async () => {
+    const armed: string[] = [];
+    const r = await runWorktreeHookCli("worktree-create", JSON.stringify({ name: "feat-x" }), "/repo", {
+      ...stubMaterialize,
+      ensureHooks: (cwd) => {
+        armed.push(cwd);
+        return { status: "created", path: `${cwd}/.claude/settings.local.json` };
+      },
+    });
+    expect(r.exitCode).toBe(0);
+    expect(armed).toEqual(["/wt/feat-x"]); // the NEW worktree, not the launch cwd /repo
+  });
+
+  test("create: a failing ensureHooks never aborts creation (best-effort)", async () => {
+    const r = await runWorktreeHookCli("worktree-create", JSON.stringify({ name: "feat-x" }), "/repo", {
+      ...stubMaterialize,
+      ensureHooks: () => {
+        throw new Error("disk full");
+      },
+    });
+    expect(r).toEqual({ exitCode: 0, stream: "stdout", message: "/wt/feat-x" });
+  });
+
   test("create: a reserve error aborts creation (non-zero, materialize not called)", async () => {
     let materialized = false;
     const r = await runWorktreeHookCli(

@@ -6,8 +6,11 @@ import { tmpdir } from "node:os";
 import {
   CLAUDE_LOCAL_SETTINGS_RELATIVE_PATH,
   PRX_BASH_ALLOW_PATTERN,
+  WORKTREE_CREATE_HOOK_COMMAND,
+  WORKTREE_REMOVE_HOOK_COMMAND,
   ensureClaudeInteractiveAllowlist,
   ensureClaudeSessionProfileAllowlist,
+  ensureClaudeWorktreeHooks,
   sessionProfileBashAllowPatterns,
 } from "../../src/machine/claude_local_settings.ts";
 import { SESSION_PROFILES } from "../../src/machine/runtime_profiles.ts";
@@ -247,5 +250,51 @@ describe("ensureClaudeSessionProfileAllowlist (GH-1545)", () => {
     expect(readFileSync(join(cwd, CLAUDE_LOCAL_SETTINGS_RELATIVE_PATH), "utf8")).toBe(
       "{ not: valid json",
     );
+  });
+});
+
+describe("ensureClaudeWorktreeHooks (prx-5q3)", () => {
+  const expectedHooks = {
+    WorktreeCreate: [{ hooks: [{ type: "command", command: WORKTREE_CREATE_HOOK_COMMAND }] }],
+    WorktreeRemove: [{ hooks: [{ type: "command", command: WORKTREE_REMOVE_HOOK_COMMAND }] }],
+  };
+
+  test("creates settings.local.json with the WorktreeCreate/WorktreeRemove hooks when missing", () => {
+    const cwd = mkTmp();
+    const result = ensureClaudeWorktreeHooks(cwd);
+    expect(result.status).toBe("created");
+    expect(readSettings(cwd)).toEqual({ hooks: expectedHooks });
+  });
+
+  test("is idempotent — a file already carrying the hooks is unchanged", () => {
+    const cwd = mkTmp();
+    expect(ensureClaudeWorktreeHooks(cwd).status).toBe("created");
+    expect(ensureClaudeWorktreeHooks(cwd).status).toBe("unchanged");
+  });
+
+  test("merges into existing hooks + permissions without clobbering them", () => {
+    const cwd = mkTmp();
+    mkdirSync(join(cwd, ".claude"));
+    writeFileSync(
+      join(cwd, CLAUDE_LOCAL_SETTINGS_RELATIVE_PATH),
+      JSON.stringify({
+        permissions: { allow: ["Bash(prx:*)"] },
+        hooks: { SessionStart: [{ matcher: "", hooks: [{ type: "command", command: "prx beads prime" }] }] },
+      }),
+    );
+    const result = ensureClaudeWorktreeHooks(cwd);
+    expect(result.status).toBe("updated");
+    const settings = readSettings(cwd) as Record<string, any>;
+    expect(settings.permissions).toEqual({ allow: ["Bash(prx:*)"] });
+    expect(settings.hooks.SessionStart).toBeDefined(); // preserved
+    expect(settings.hooks.WorktreeCreate).toEqual(expectedHooks.WorktreeCreate);
+    expect(settings.hooks.WorktreeRemove).toEqual(expectedHooks.WorktreeRemove);
+  });
+
+  test("refuses to stomp malformed JSON", () => {
+    const cwd = mkTmp();
+    mkdirSync(join(cwd, ".claude"));
+    writeFileSync(join(cwd, CLAUDE_LOCAL_SETTINGS_RELATIVE_PATH), "{ not: valid json");
+    expect(ensureClaudeWorktreeHooks(cwd).status).toBe("skipped-malformed");
   });
 });
