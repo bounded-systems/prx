@@ -868,6 +868,11 @@ import {
   formatFetchGhIssuesJson,
   runFetchGhIssues,
 } from "../fetch/gh-issues.ts";
+import {
+  FetchSlackError,
+  formatFetchSlackJson,
+  runFetchSlackSync,
+} from "../fetch/slack-sync.ts";
 import { BucketBudgetExhaustedError } from "@bounded-systems/github-budget";
 import {
   DepManifestError,
@@ -1424,6 +1429,14 @@ type ParsedCommand =
       since?: string | undefined;
       budget?: number | undefined;
       dryRun: boolean;
+      format: "json";
+    }
+  | {
+      // prx-agd: `prx fetch slack <channel>` — read newer messages since the
+      // per-channel watermark, persist to CAS, advance the watermark.
+      command: "fetch-slack";
+      channel: string;
+      limit?: number | undefined;
       format: "json";
     }
   | {
@@ -4139,13 +4152,21 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "fetch") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "fetch requires a subcommand: gh-issues",
+        "fetch requires a subcommand: gh-issues | slack",
       );
     }
     if (c1 === "gh-issues") {
       return ["fetch-gh-issues", ...tail];
     }
-    throw new CliError(`Unknown fetch subcommand: ${c1}. Available: gh-issues`);
+    // prx-agd: `prx fetch slack <channel>` — sync a channel's reads to CAS,
+    // advancing the per-channel watermark. The channel rides in `tail` as a
+    // positional.
+    if (c1 === "slack") {
+      return ["fetch-slack", ...tail];
+    }
+    throw new CliError(
+      `Unknown fetch subcommand: ${c1}. Available: gh-issues | slack`,
+    );
   }
 
   // GH-1261: dep-research routine. PR-1 ships `dep manifest`, PR-2 ships
@@ -8632,6 +8653,42 @@ export function parseCommand(argv: string[]): ParsedCommand {
       since: values.since,
       budget: budgetVal,
       dryRun: values["dry-run"] === true,
+      format: ensureChoice(values.format, ["json"] as const, "--format"),
+    };
+  }
+  // prx-agd: `prx fetch slack <channel> [--limit N]`. The channel is a
+  // required positional; the watermark is read from bd config (not a flag).
+  if (command === "fetch-slack") {
+    const { values, positionals } = parseArgs({
+      args: rest,
+      options: {
+        limit: { type: "string" },
+        format: { type: "string", default: "json" },
+      },
+      strict: true,
+      allowPositionals: true,
+    });
+    const channel = positionals[0];
+    if (typeof channel !== "string" || channel.length === 0) {
+      throw new CliError(
+        "fetch slack requires a channel: `prx fetch slack <channel>` (e.g. C0123)",
+      );
+    }
+    if (positionals.length > 1) {
+      throw new CliError("fetch slack takes exactly one channel positional");
+    }
+    let limit: number | undefined;
+    if (values.limit !== undefined) {
+      const n = Number.parseInt(values.limit, 10);
+      if (!Number.isFinite(n) || n <= 0) {
+        throw new CliError("--limit must be a positive integer");
+      }
+      limit = n;
+    }
+    return {
+      command,
+      channel,
+      limit,
       format: ensureChoice(values.format, ["json"] as const, "--format"),
     };
   }
@@ -15453,6 +15510,37 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           }
           if (err instanceof BucketBudgetExhaustedError) {
             output.error(`fetch gh-issues BUDGET_EXHAUSTED: ${err.message}`);
+            return 65;
+          }
+          return handleRunCliError(err, output);
+        }
+      })();
+    }
+
+    // prx-agd: `prx fetch slack <channel>` handler — composes the gated slack
+    // read surface, the on-disk CAS, and the per-channel watermark (see
+    // ../fetch/slack-sync.ts). Emits one JSON envelope. Failure-mode → exit:
+    //   • SlackReadError (gate/auth/transport) ⇒ 64 (MISSING_PARAM) else 65
+    //   • FetchSlackError (watermark/parse)     ⇒ 65
+    if (parsed.command === "fetch-slack") {
+      return (async () => {
+        try {
+          const result = await runFetchSlackSync(
+            {
+              channel: parsed.channel,
+              ...(parsed.limit !== undefined ? { limit: parsed.limit } : {}),
+            },
+            { cwd: process.cwd() },
+          );
+          output.log(formatFetchSlackJson(result));
+          return 0;
+        } catch (err) {
+          if (err instanceof SlackReadError) {
+            output.error(`fetch slack ${err.code}: ${err.message}`);
+            return err.code === "MISSING_PARAM" ? 64 : 65;
+          }
+          if (err instanceof FetchSlackError) {
+            output.error(`fetch slack ${err.code}: ${err.message}`);
             return 65;
           }
           return handleRunCliError(err, output);

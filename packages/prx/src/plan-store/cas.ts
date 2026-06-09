@@ -392,6 +392,20 @@ export async function readBlob(sha: CasSha, opts?: DomainOptions): Promise<Buffe
   return buf;
 }
 
+/**
+ * Cheap presence check — does a blob exist for this sha? Stat-only
+ * (`existsSync` on the object path); never reads or sha-verifies content, so
+ * it's the right primitive for a content-addressed dedup gate (the fetch
+ * actor's `BlobStore.has`). Use `readBlob` when you need the verified bytes.
+ */
+export async function hasBlob(sha: CasSha, opts?: DomainOptions): Promise<boolean> {
+  const domain = opts?.domain ?? DEFAULT_DOMAIN;
+  const hex = parseSha(sha);
+  const root = resolveStoreRoot(domain);
+  const { file } = objectPathFor(root, hex);
+  return existsSync(file);
+}
+
 export async function setRef(
   name: string,
   sha: CasSha,
