@@ -45,6 +45,7 @@ import {
 } from "./schema.ts";
 import { hydrate as hydrateBeads } from "../beads/hydrate.ts";
 import { runKeeperRemoveWorktree } from "../pr-state/keeper.ts";
+import { ensureClaudeWorktreeHooks } from "../machine/claude_local_settings.ts";
 import {
   runWorktreeCreateHook,
   runWorktreeRemoveHook,
@@ -295,6 +296,7 @@ export type WorktreeHookCliDeps = {
   teardown?: typeof runTeardown;
   removeWorktree?: typeof runKeeperRemoveWorktree;
   resolveContext?: typeof resolveWorkspaceContext;
+  ensureHooks?: typeof ensureClaudeWorktreeHooks;
 };
 
 /**
@@ -324,6 +326,7 @@ export async function runWorktreeHookCli(
   const teardown = deps.teardown ?? runTeardown;
   const removeWorktree = deps.removeWorktree ?? runKeeperRemoveWorktree;
   const resolveContext = deps.resolveContext ?? resolveWorkspaceContext;
+  const ensureHooks = deps.ensureHooks ?? ensureClaudeWorktreeHooks;
 
   if (verb === "worktree-create") {
     return runWorktreeCreateHook({
@@ -341,6 +344,14 @@ export async function runWorktreeHookCli(
         );
         if (mat.status === "error") {
           throw new Error(mat.error ?? `workspace.materialize failed for ${name}`);
+        }
+        // Self-propagate: arm the new worktree's settings.local.json so a
+        // `claude --worktree` launched from inside it also routes through prx
+        // (prx-5q3). Best-effort — a settings write must never abort creation.
+        try {
+          ensureHooks(mat.worktree_path);
+        } catch {
+          // ignore — the worktree is materialized; hook registration is a convenience
         }
         return mat.worktree_path;
       },

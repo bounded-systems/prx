@@ -23,9 +23,14 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { SESSION_PROFILES, type SessionProfileName } from "./runtime_profiles.ts";
+import { buildWorktreeHookSettings } from "../workspace/worktree-hook.ts";
 
 export const PRX_BASH_ALLOW_PATTERN = "Bash(prx:*)";
 export const CLAUDE_LOCAL_SETTINGS_RELATIVE_PATH = ".claude/settings.local.json";
+
+/** The prx verbs Claude Code's `--worktree` hooks invoke (prx-6jb). */
+export const WORKTREE_CREATE_HOOK_COMMAND = "prx workspace worktree-create";
+export const WORKTREE_REMOVE_HOOK_COMMAND = "prx workspace worktree-remove";
 
 export type EnsureClaudeAllowlistStatus =
   | "created"
@@ -42,6 +47,7 @@ type SettingsShape = Record<string, unknown> & {
   permissions?: Record<string, unknown> & {
     allow?: unknown;
   };
+  hooks?: Record<string, unknown>;
 };
 
 /**
@@ -144,6 +150,71 @@ export function ensureClaudeSessionProfileAllowlist(
   profile: SessionProfileName,
 ): EnsureClaudeAllowlistResult {
   return ensureClaudeAllowlistPatterns(cwd, sessionProfileBashAllowPatterns(profile));
+}
+
+/**
+ * Ensure the worktree's `.claude/settings.local.json` registers prx's
+ * `WorktreeCreate`/`WorktreeRemove` hooks (prx-5q3), so `claude --worktree`
+ * routes isolation through prx's worktree lifecycle (the verbs from prx-6jb)
+ * instead of Claude's default `git worktree add` — which can't handle the
+ * bare-repo + external-worktree layout.
+ *
+ * Registration lives in `settings.local.json` (not project `settings.json`,
+ * which is permissions-only by design) because it is the per-user surface prx
+ * already owns and the per-worktree stamper never clobbers. Idempotent: only
+ * the two worktree hook events are set (other hooks/keys are preserved); a file
+ * already carrying them returns `unchanged`. Refuses to stomp malformed JSON.
+ */
+export function ensureClaudeWorktreeHooks(cwd: string): EnsureClaudeAllowlistResult {
+  const absPath = join(cwd, CLAUDE_LOCAL_SETTINGS_RELATIVE_PATH);
+  const desired = buildWorktreeHookSettings(
+    WORKTREE_CREATE_HOOK_COMMAND,
+    WORKTREE_REMOVE_HOOK_COMMAND,
+  ).hooks;
+
+  let raw: string | null = null;
+  try {
+    raw = readFileSync(absPath, "utf8");
+  } catch {
+    raw = null;
+  }
+
+  if (raw === null) {
+    mkdirSync(dirname(absPath), { recursive: true });
+    const fresh: SettingsShape = { hooks: { ...desired } };
+    writeFileSync(absPath, `${JSON.stringify(fresh, null, 2)}\n`);
+    return { status: "created", path: absPath };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { status: "skipped-malformed", path: absPath };
+  }
+  if (!isPlainObject(parsed)) {
+    return { status: "skipped-malformed", path: absPath };
+  }
+
+  const settings = parsed as SettingsShape;
+  const existingHooks = isPlainObject(settings.hooks) ? settings.hooks : {};
+  const alreadyPresent =
+    JSON.stringify(existingHooks.WorktreeCreate) === JSON.stringify(desired.WorktreeCreate) &&
+    JSON.stringify(existingHooks.WorktreeRemove) === JSON.stringify(desired.WorktreeRemove);
+  if (alreadyPresent) {
+    return { status: "unchanged", path: absPath };
+  }
+
+  const nextSettings: SettingsShape = {
+    ...settings,
+    hooks: {
+      ...existingHooks,
+      WorktreeCreate: desired.WorktreeCreate,
+      WorktreeRemove: desired.WorktreeRemove,
+    },
+  };
+  writeFileSync(absPath, `${JSON.stringify(nextSettings, null, 2)}\n`);
+  return { status: "updated", path: absPath };
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

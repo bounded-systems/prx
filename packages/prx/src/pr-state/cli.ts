@@ -257,6 +257,7 @@ import { hasEpicLabel } from "../triage/labels.ts";
 import {
   ensureClaudeInteractiveAllowlist,
   ensureClaudeSessionProfileAllowlist,
+  ensureClaudeWorktreeHooks,
   type EnsureClaudeAllowlistResult,
 } from "../machine/claude_local_settings.ts";
 import {
@@ -3961,7 +3962,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "workspace") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "workspace requires a subcommand: adopt | reserve | materialize | prepare | sync | service | teardown | worktree-create | worktree-remove",
+        "workspace requires a subcommand: adopt | reserve | materialize | prepare | sync | service | teardown | worktree-create | worktree-remove | worktree-hooks",
       );
     }
     if (c1 === "adopt") {
@@ -3976,7 +3977,9 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
       c1 === "teardown" ||
       // prx-6jb: Claude Code worktree hooks (envelope on stdin, not flags).
       c1 === "worktree-create" ||
-      c1 === "worktree-remove"
+      c1 === "worktree-remove" ||
+      // prx-5q3: register those hooks in the current worktree's settings.local.json.
+      c1 === "worktree-hooks"
     ) {
       return ["workspace", c1, ...tail];
     }
@@ -19973,6 +19976,18 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           }
           return hookResult.exitCode;
         })();
+      }
+      // prx-5q3: register the worktree hooks in the current worktree's
+      // settings.local.json (the prx-owned, never-clobbered surface). Idempotent;
+      // arms a root/existing worktree the actor won't touch (mainx is I-WS5 guarded).
+      if (workspaceVerb === "worktree-hooks") {
+        const res = ensureClaudeWorktreeHooks(process.cwd());
+        if (res.status === "skipped-malformed") {
+          output.error(`worktree-hooks: ${res.path} is malformed JSON — left untouched`);
+          return 1;
+        }
+        output.log(`worktree-hooks: ${res.status} ${res.path}`);
+        return 0;
       }
       try {
         const args = parseWorkspaceArgs(parsed.argv);
