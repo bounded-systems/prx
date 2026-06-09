@@ -835,16 +835,11 @@ import {
 } from "@bounded-systems/scout";
 import { attestScoutRead, SCOUT_SIGNING_REQUIRED_MESSAGE } from "./scout-attest.ts";
 import {
-  execSlackRead,
-  slackScopedKeymaker,
-  webApiSlackTransport,
-  recordSlackReadDerivation,
-  slackReadProvenance,
   SlackReadError,
   SLACK_READ_OPS,
   type SlackReadOp,
 } from "@bounded-systems/slack";
-import { createServiceKeymaker } from "@bounded-systems/auth";
+import { execSlackScoutRead } from "../slack/scout-cli.ts";
 import { openAnchoredChain } from "@bounded-systems/anchored-chain-sqlite";
 import {
   runMapCreate,
@@ -15586,34 +15581,19 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     if (parsed.command === "scout-slack") {
       return (async () => {
         try {
-          const params: Record<string, unknown> = {};
-          if (parsed.channel !== undefined) params.channel = parsed.channel;
-          if (parsed.ts !== undefined) params.ts = parsed.ts;
-          if (parsed.limit !== undefined) params.limit = parsed.limit;
-          if (parsed.cursor !== undefined) params.cursor = parsed.cursor;
-          if (parsed.types !== undefined) params.types = parsed.types;
-          // Secret enters only here, sealed into the keymaker closure; the
-          // transport stays auth-free. (Future: swap for daemonSlackTransport — prx-tgy.)
-          const keymaker = slackScopedKeymaker(createServiceKeymaker("slack"));
-          const transport = webApiSlackTransport();
-          const envelope = await execSlackRead(
-            parsed.op,
-            params as Parameters<typeof execSlackRead>[1],
-            { keymaker, transport },
-          );
-          if (parsed.ledger !== undefined) {
-            const store = openAnchoredChain(parsed.ledger);
-            try {
-              await recordSlackReadDerivation(store.derivations, envelope);
-            } finally {
-              store.close();
-            }
-          }
-          output.log(
-            parsed.provenance
-              ? JSON.stringify(slackReadProvenance(envelope))
-              : JSON.stringify(envelope),
-          );
+          // Shared composition root (../slack/scout-cli.ts) — same wiring as the
+          // standalone slack-scout binary (prx-hkm).
+          const json = await execSlackScoutRead({
+            op: parsed.op,
+            channel: parsed.channel,
+            ts: parsed.ts,
+            limit: parsed.limit,
+            cursor: parsed.cursor,
+            types: parsed.types,
+            provenance: parsed.provenance,
+            ledger: parsed.ledger,
+          });
+          output.log(json);
           return 0;
         } catch (err) {
           if (err instanceof SlackReadError) {
