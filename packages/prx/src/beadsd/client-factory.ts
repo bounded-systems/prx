@@ -21,7 +21,7 @@ import { spawnDetached } from "@bounded-systems/proc";
 import { IsolatedBeadsClient } from "./client.ts";
 import { withLimaBeadsClient, type LimaBeadsChannelDeps } from "./lima.ts";
 import { unixSocketTransport, type FramedTransport } from "../keeperd/transport.ts";
-import { findRepoRoot } from "../repo-root.ts";
+import { getRepoRoot } from "../repo-root.ts";
 
 /** Where beadsd lives: a local unix socket, or a daemon inside a Lima VM. */
 export type BeadsEndpoint =
@@ -62,7 +62,7 @@ export interface ResolveLocalBeadsCwdDeps {
   env?: typeof getEnv;
   /** Path-existence probe (default `fs.existsSync`). */
   exists?: ((path: string) => boolean) | undefined;
-  /** Repo-root fallback (default {@link findRepoRoot}). */
+  /** Repo-root fallback (default {@link getRepoRoot} — cwd, not source-file). */
   repoRoot?: (() => string) | undefined;
 }
 
@@ -84,12 +84,14 @@ export function defaultCanonicalBeadsCwd(env: typeof getEnv = getEnv): string | 
  *   1. `PRX_BEADS_CWD` — explicit canonical clone (operator override), else
  *   2. the well-known host-canonical clone `~/.local/state/prx/beads` when it
  *      exists (zero-config once provisioned), else
- *   3. {@link findRepoRoot} — back-compat fallback (serves the local clone).
+ *   3. {@link getRepoRoot} — back-compat fallback: the cwd's repo root via
+ *      `git rev-parse` (NOT `findRepoRoot`, whose source-file default resolves
+ *      to `/$bunfs/root` in a compiled binary → prx-ag7).
  */
 export function resolveLocalBeadsCwd(deps: ResolveLocalBeadsCwdDeps = {}): string {
   const env = deps.env ?? getEnv;
   const exists = deps.exists ?? existsSync;
-  const repoRoot = deps.repoRoot ?? findRepoRoot;
+  const repoRoot = deps.repoRoot ?? getRepoRoot;
 
   const override = env("PRX_BEADS_CWD");
   if (typeof override === "string" && override.length > 0) return override;
@@ -134,7 +136,7 @@ export interface EnsureLocalBeadsdDeps {
 export interface EnsureLocalBeadsdOptions {
   /** The unix socket beadsd should listen on. */
   socket: string;
-  /** The repo clone beadsd serves (default: {@link findRepoRoot}). */
+  /** The repo clone beadsd serves (default: {@link getRepoRoot} — the cwd). */
   cwd?: string | undefined;
   /** The prx binary to spawn (default `prx`). */
   prxBin?: string | undefined;
@@ -162,7 +164,7 @@ export async function ensureLocalBeadsd(
 
   if (await isUp(opts.socket)) return;
 
-  const cwd = opts.cwd ?? findRepoRoot();
+  const cwd = opts.cwd ?? getRepoRoot();
   const prxBin = opts.prxBin ?? "prx";
   const pidfile = opts.pidfile ?? `${opts.socket}.pid`;
   const cmd = [prxBin, "beads", "serve", "--socket", opts.socket, "--cwd", cwd, "--pidfile", pidfile];
