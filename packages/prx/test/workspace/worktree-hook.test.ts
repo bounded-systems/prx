@@ -180,6 +180,51 @@ describe("runWorktreeHookCli — engine wiring (prx-6jb)", () => {
     expect(r).toEqual({ exitCode: 0, stream: "stdout", message: "/wt/feat-x" });
   });
 
+  const noopHooks = () => ({ status: "created" as const, path: "/wt/feat-x/.claude/settings.local.json" });
+
+  test("create: emits provenance for the new worktree (prx-3qc)", async () => {
+    const emitted: Array<{ branch: string; targetPath: string; cwd: string }> = [];
+    const r = await runWorktreeHookCli("worktree-create", JSON.stringify({ name: "feat-x" }), "/repo", {
+      ...stubMaterialize,
+      ensureHooks: noopHooks,
+      emitProvenance: async (input) => {
+        emitted.push(input);
+      },
+    });
+    expect(r.exitCode).toBe(0);
+    expect(emitted).toEqual([{ branch: "feat-x", targetPath: "/wt/feat-x", cwd: "/repo" }]);
+  });
+
+  test("create: no provenance when the worktree already existed (status=exists)", async () => {
+    let emitted = false;
+    const r = await runWorktreeHookCli("worktree-create", JSON.stringify({ name: "feat-x" }), "/repo", {
+      reserve: stubMaterialize.reserve,
+      materialize: () => ({
+        workspace_id: "abc123abc123",
+        worktree_path: "/wt/feat-x",
+        branch: "feat-x",
+        status: "exists" as const,
+      }),
+      ensureHooks: noopHooks,
+      emitProvenance: async () => {
+        emitted = true;
+      },
+    });
+    expect(r.exitCode).toBe(0);
+    expect(emitted).toBe(false); // already attested on first placement
+  });
+
+  test("create: a failing emitProvenance never aborts creation (best-effort)", async () => {
+    const r = await runWorktreeHookCli("worktree-create", JSON.stringify({ name: "feat-x" }), "/repo", {
+      ...stubMaterialize,
+      ensureHooks: noopHooks,
+      emitProvenance: async () => {
+        throw new Error("ledger locked");
+      },
+    });
+    expect(r).toEqual({ exitCode: 0, stream: "stdout", message: "/wt/feat-x" });
+  });
+
   test("create: a reserve error aborts creation (non-zero, materialize not called)", async () => {
     let materialized = false;
     const r = await runWorktreeHookCli(
