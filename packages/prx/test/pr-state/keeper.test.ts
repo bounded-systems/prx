@@ -29,6 +29,7 @@ import {
   runKeeperCommitTree,
   runKeeperEnsureWorktree,
   runKeeperPush,
+  runKeeperRemoveWorktree,
   runKeeperWriteTree,
 } from "../../src/pr-state/keeper.ts";
 import { GIT_PUSH_BUILD_TYPE, type AttestDeps } from "../../src/provenance/attest.ts";
@@ -97,6 +98,47 @@ describe("runKeeperEnsureWorktree — worktree placement + self-heal (prx-0yf / 
     expect(() => runKeeperEnsureWorktree({ branch: "GH-7", targetPath: "/wt/GH-7" }, "/repo", s)).toThrow(
       KeeperGitError,
     );
+  });
+});
+
+describe("runKeeperRemoveWorktree — keeper-owned git worktree removal (prx-6jb)", () => {
+  function stub(opts: { registered?: boolean; targetExistsOnDisk?: boolean }) {
+    const calls: string[][] = [];
+    const removed: string[] = [];
+    const git = (({ subcommand, args }: GitExecOptions): GitExecResult => {
+      calls.push([subcommand, ...args]);
+      if (subcommand === "worktree" && args[0] === "list") {
+        return { exitCode: 0, stdout: opts.registered ? "worktree /wt/GH-7\n" : "", stderr: "" } as GitExecResult;
+      }
+      return { exitCode: 0, stdout: "", stderr: "" } as GitExecResult;
+    }) as typeof execGit;
+    const exists = (_p: string) => opts.targetExistsOnDisk === true;
+    const remove = (p: string) => { removed.push(p); };
+    return { git, exists, remove, calls, removed };
+  }
+
+  test("registered worktree → removed (worktree remove --force + prune)", () => {
+    const s = stub({ registered: true, targetExistsOnDisk: true });
+    const out = runKeeperRemoveWorktree({ targetPath: "/wt/GH-7" }, "/repo", s);
+    expect(out.status).toBe("removed");
+    expect(s.calls.some((c) => c.join(" ").includes("worktree remove --force"))).toBe(true);
+    expect(s.calls.some((c) => c.join(" ").includes("worktree prune"))).toBe(true);
+    expect(s.removed).toContain("/wt/GH-7"); // leftover dir cleared too
+  });
+
+  test("unregistered target → absent (idempotent, no remove call)", () => {
+    const s = stub({ registered: false, targetExistsOnDisk: false });
+    const out = runKeeperRemoveWorktree({ targetPath: "/wt/GH-7" }, "/repo", s);
+    expect(out.status).toBe("absent");
+    expect(s.calls.some((c) => c.join(" ").includes("worktree remove"))).toBe(false);
+    expect(s.calls.some((c) => c.join(" ").includes("worktree prune"))).toBe(true);
+  });
+
+  test("unregistered but leftover dir on disk → still cleared", () => {
+    const s = stub({ registered: false, targetExistsOnDisk: true });
+    const out = runKeeperRemoveWorktree({ targetPath: "/wt/GH-7" }, "/repo", s);
+    expect(out.status).toBe("absent");
+    expect(s.removed).toContain("/wt/GH-7");
   });
 });
 

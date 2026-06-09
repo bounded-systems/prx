@@ -283,6 +283,50 @@ export function runKeeperEnsureWorktree(
   return { worktree_path: target, status: hadLeftover ? "recreated" : "created" };
 }
 
+export interface KeeperRemoveWorktreeInput {
+  /** Absolute path of the worktree to remove. */
+  targetPath: string;
+}
+
+export interface KeeperRemoveWorktreeResult {
+  worktree_path: string;
+  /** `removed` = was a registered worktree; `absent` = nothing registered. */
+  status: "removed" | "absent";
+}
+
+/**
+ * Keeper-owned `git worktree` removal — the symmetric counterpart of
+ * {@link runKeeperEnsureWorktree}. Keeper is the sole git-knower, so tearing the
+ * worktree out of the git registry (and clearing the leftover dir) lives here,
+ * not in the workspace actor (which owns only the lifecycle ledger). The Claude
+ * Code `WorktreeRemove` hook routes its git half through this; the ledger half
+ * stays in `runTeardown`. Idempotent: an unregistered/absent target returns
+ * `absent` without error.
+ */
+export function runKeeperRemoveWorktree(
+  input: KeeperRemoveWorktreeInput,
+  cwd: string,
+  deps: KeeperEnsureWorktreeDeps = {},
+): KeeperRemoveWorktreeResult {
+  const git = deps.git ?? execGit;
+  const exists = deps.exists ?? existsSync;
+  const remove = deps.remove ?? ((p: string) => rmSync(p, { recursive: true, force: true }));
+  const target = resolve(input.targetPath);
+
+  const registered = worktreeIsRegistered(git, cwd, target);
+  if (registered) {
+    git({ subcommand: "worktree", args: ["remove", "--force", target], cwd, role: "keeper" });
+  }
+  // Clear any leftover dir `git worktree remove` left behind (or a dir that was
+  // never a registered worktree), then drop stale registrations.
+  if (exists(target)) {
+    remove(target);
+  }
+  git({ subcommand: "worktree", args: ["prune"], cwd, role: "keeper" });
+
+  return { worktree_path: target, status: registered ? "removed" : "absent" };
+}
+
 /** Parse `git worktree list --porcelain` for a `worktree <target>` line. */
 function worktreeIsRegistered(
   git: typeof execGit,
