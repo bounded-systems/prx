@@ -834,6 +834,17 @@ import {
   scoutReadProvenance,
 } from "@bounded-systems/scout";
 import { attestScoutRead, SCOUT_SIGNING_REQUIRED_MESSAGE } from "./scout-attest.ts";
+import {
+  execSlackRead,
+  slackScopedKeymaker,
+  webApiSlackTransport,
+  recordSlackReadDerivation,
+  slackReadProvenance,
+  SlackReadError,
+  SLACK_READ_OPS,
+  type SlackReadOp,
+} from "@bounded-systems/slack";
+import { createServiceKeymaker } from "@bounded-systems/auth";
 import { openAnchoredChain } from "@bounded-systems/anchored-chain-sqlite";
 import {
   runMapCreate,
@@ -1391,6 +1402,18 @@ type ParsedCommand =
       // Emit the SLSA Provenance v1 statement instead of the read envelope.
       provenance: boolean;
       // Record the read as a derivation in the anchored-chain ledger at this path.
+      ledger?: string | undefined;
+    }
+  | {
+      // prx-zes (.9): read-only Slack op as a scout source, behind the keymaker.
+      command: "scout-slack";
+      op: SlackReadOp;
+      channel?: string | undefined;
+      ts?: string | undefined;
+      limit?: number | undefined;
+      cursor?: string | undefined;
+      types?: string | undefined;
+      provenance: boolean;
       ledger?: string | undefined;
     }
   | {
@@ -4046,7 +4069,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "scout") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "scout requires a subcommand: comments, ci, checks, logs, status, overview, dispatch, grep, files, read, notion, issues",
+        "scout requires a subcommand: comments, ci, checks, logs, status, overview, dispatch, grep, files, read, slack, notion, issues",
       );
     }
     // GH-1194: per-actor dispatch envelope. The leading `--source=<actor>`
@@ -4066,6 +4089,12 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     // GH-1384 PR-2: bounded text-only read.
     if (c1 === "read") {
       return ["scout-read", ...tail];
+    }
+    // prx-zes (.9): slack as a scout source — read-only Slack ops behind the
+    // keymaker; emits one JSON envelope the dispatch layer turns into a
+    // slack://sha256 handle.
+    if (c1 === "slack") {
+      return ["scout-slack", ...tail];
     }
     // GH-1420: Notion page UUID / Task-ID resolver.
     if (c1 === "notion") {
@@ -8499,6 +8528,56 @@ export function parseCommand(argv: string[]): ParsedCommand {
       in: values.in,
       maxBytes,
       format: ensureChoice(values.format, ["json"] as const, "--format"),
+      provenance: values.provenance === true,
+      ledger: values.ledger,
+    };
+  }
+  // prx-zes (.9): scout slack <op> — read-only Slack op behind the keymaker.
+  if (command === "scout-slack") {
+    const { values, positionals } = parseArgs({
+      args: rest,
+      options: {
+        channel: { type: "string" },
+        ts: { type: "string" },
+        limit: { type: "string" },
+        cursor: { type: "string" },
+        types: { type: "string" },
+        format: { type: "string", default: "json" },
+        provenance: { type: "boolean", default: false },
+        ledger: { type: "string" },
+      },
+      strict: true,
+      allowPositionals: true,
+    });
+    const op = positionals[0];
+    if (typeof op !== "string" || !(SLACK_READ_OPS as readonly string[]).includes(op)) {
+      throw new CliError(
+        `scout slack requires an op: ${SLACK_READ_OPS.join(" | ")} ` +
+          "(e.g. `prx scout slack history --channel C123`)",
+      );
+    }
+    if ((op === "history" || op === "thread") && values.channel === undefined) {
+      throw new CliError(`scout slack ${op} requires --channel <id>`);
+    }
+    if (op === "thread" && values.ts === undefined) {
+      throw new CliError("scout slack thread requires --ts <message-ts>");
+    }
+    let limit: number | undefined;
+    if (values.limit !== undefined) {
+      const n = Number.parseInt(values.limit, 10);
+      if (!Number.isFinite(n) || n <= 0) {
+        throw new CliError("--limit must be a positive integer");
+      }
+      limit = n;
+    }
+    return {
+      command,
+      op: op as SlackReadOp,
+      channel: values.channel,
+      ts: values.ts,
+      limit,
+      cursor: values.cursor,
+      types: values.types,
       provenance: values.provenance === true,
       ledger: values.ledger,
     };
@@ -15493,6 +15572,53 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               "INVALID_MAX_BYTES",
             ]);
             return usageCodes.has(err.code) ? 64 : 65;
+          }
+          return handleRunCliError(err, output);
+        }
+      })();
+    }
+
+    // prx-zes (.9): scout slack handler — the composition root. Wires the
+    // keymaker (over the Slack credential) to the Web API transport and drives
+    // execSlackRead, so a Slack read is policy-gated, authorized by a per-read
+    // scoped key, content-addressed, and provenance-ready. Emits one JSON
+    // envelope the dispatch layer turns into a slack://sha256 handle.
+    if (parsed.command === "scout-slack") {
+      return (async () => {
+        try {
+          const params: Record<string, unknown> = {};
+          if (parsed.channel !== undefined) params.channel = parsed.channel;
+          if (parsed.ts !== undefined) params.ts = parsed.ts;
+          if (parsed.limit !== undefined) params.limit = parsed.limit;
+          if (parsed.cursor !== undefined) params.cursor = parsed.cursor;
+          if (parsed.types !== undefined) params.types = parsed.types;
+          // Secret enters only here, sealed into the keymaker closure; the
+          // transport stays auth-free. (Future: swap for daemonSlackTransport — prx-tgy.)
+          const keymaker = slackScopedKeymaker(createServiceKeymaker("slack"));
+          const transport = webApiSlackTransport();
+          const envelope = await execSlackRead(
+            parsed.op,
+            params as Parameters<typeof execSlackRead>[1],
+            { keymaker, transport },
+          );
+          if (parsed.ledger !== undefined) {
+            const store = openAnchoredChain(parsed.ledger);
+            try {
+              await recordSlackReadDerivation(store.derivations, envelope);
+            } finally {
+              store.close();
+            }
+          }
+          output.log(
+            parsed.provenance
+              ? JSON.stringify(slackReadProvenance(envelope))
+              : JSON.stringify(envelope),
+          );
+          return 0;
+        } catch (err) {
+          if (err instanceof SlackReadError) {
+            output.error(`scout slack ${err.code}: ${err.message}`);
+            return err.code === "MISSING_PARAM" ? 64 : 65;
           }
           return handleRunCliError(err, output);
         }
