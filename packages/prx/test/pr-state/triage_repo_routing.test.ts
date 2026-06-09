@@ -137,7 +137,7 @@ const VERBS: VerbProbe[] = [
       "triage",
       "apply",
       "--plan",
-      "/tmp/plan.json",
+      "plan.json",
       ...(repo ? ["--repo", repo] : []),
     ],
     injectRunner: (capture) => ({ runTriageApply: syncProbe(capture) }),

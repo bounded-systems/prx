@@ -145,7 +145,7 @@ describe("runCli — `prx intake comment` parser routing", () => {
         "comment",
         "GH-200",
         "--body-file",
-        "/tmp/x",
+        "body.md",
         "--body-stdin",
       ],
       output,
