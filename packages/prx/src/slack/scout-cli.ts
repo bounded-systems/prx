@@ -26,6 +26,10 @@ export interface SlackScoutInput {
   limit?: number | undefined;
   cursor?: string | undefined;
   types?: string | undefined;
+  /** `history` only — inclusive lower bound (Slack ts); the fetch watermark. */
+  oldest?: string | undefined;
+  /** `history` only — inclusive upper bound (Slack ts). */
+  latest?: string | undefined;
   /** Emit the SLSA Provenance v1 statement instead of the read envelope. */
   provenance?: boolean | undefined;
   /** Record the read as a slack.read/v1 derivation in the anchored-chain ledger at this path. */
@@ -44,6 +48,8 @@ export async function execSlackScoutRead(input: SlackScoutInput): Promise<string
   if (input.limit !== undefined) params.limit = input.limit;
   if (input.cursor !== undefined) params.cursor = input.cursor;
   if (input.types !== undefined) params.types = input.types;
+  if (input.oldest !== undefined) params.oldest = input.oldest;
+  if (input.latest !== undefined) params.latest = input.latest;
 
   const keymaker = slackScopedKeymaker(createServiceKeymaker("slack"));
   const transport = webApiSlackTransport();

@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   deleteBlob,
   getRef,
+  hasBlob,
   listBlobs,
   listRefs,
   PlanStoreError,
@@ -98,6 +99,24 @@ describe("plan-store/cas", () => {
     const { sha } = await writeBlob("plan-body");
     await setRef("GH-1174:plan", sha);
     expect(await getRef("GH-1174:plan")).toBe(sha);
+  });
+
+  test("hasBlob: true after write, false for an absent sha (prx-agd dedup gate)", async () => {
+    const { sha } = await writeBlob("present");
+    expect(await hasBlob(sha)).toBe(true);
+    const absent = `sha256:${"0".repeat(64)}`;
+    expect(await hasBlob(absent)).toBe(false);
+  });
+
+  test("hasBlob: rejects a malformed sha", async () => {
+    await expect(hasBlob("not-a-sha")).rejects.toBeInstanceOf(PlanStoreError);
+  });
+
+  test("hasBlob: false after the blob is deleted", async () => {
+    const { sha } = await writeBlob("ephemeral");
+    expect(await hasBlob(sha)).toBe(true);
+    await deleteBlob(sha);
+    expect(await hasBlob(sha)).toBe(false);
   });
 
   test("5. ref overwrite: latest setRef wins", async () => {

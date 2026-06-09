@@ -25,7 +25,7 @@
  * today. These are the `<domain>://<sha>` namespaces — the axis gc aligns to
  * (spike §3 "artifact / source domain", internal).
  */
-export const CAS_DOMAINS = ["plans", "submit", "scout", "handoff"] as const;
+export const CAS_DOMAINS = ["plans", "submit", "scout", "handoff", "slack"] as const;
 export type CasDomain = (typeof CAS_DOMAINS)[number];
 
 /**
@@ -187,6 +187,18 @@ export const CAS_PRODUCERS: readonly CasProducer[] = [
       "(`emitArtifact` → `putArtifact`). Domain = the edge's `domain` per call " +
       "(defaults to `plans`); validate-then-emit, same dynamic precedent as " +
       "dispatch.handler. The cross-actor pass is the CAS ref `<unit>:<kind>@<slot>`.",
+  },
+  {
+    source: "fetch.slack_sync",
+    callSite: "src/fetch/slack-sync.ts",
+    domain: "slack",
+    serviceDomain: "slack",
+    catalogDomains: ["slack_read"],
+    note:
+      "`prx fetch slack <channel>` (prx-agd, epic prx-zes) content-addresses " +
+      "each fetched conversations.history message under the `slack` domain, " +
+      "deduping on its digest. The read is the scout slack surface; this is the " +
+      "freshness loop that persists + advances the per-channel watermark.",
   },
 ];
 
