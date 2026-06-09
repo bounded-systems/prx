@@ -1,5 +1,84 @@
 # @bounded-systems/prx
 
+## 0.9.0
+
+### Minor Changes
+
+- 14d2832: feat(fetch): `prx fetch slack <channel>` — sync a channel's reads to CAS with a per-channel watermark (prx-agd)
+
+  Wraps the pure freshness/CAS core (`runFetchSlack`) with its three production
+  seams: the gated `scout slack` read surface (now accepting `oldest`/`latest`),
+  the on-disk plan-store CAS on a new `slack` domain (deduping each
+  `conversations.history` message by content digest), and a per-channel
+  `bd config` watermark (`prx.fetch.slack.<channel>.watermark`) advanced to
+  `max(ts)` after each successful fetch. Idempotent end-to-end.
+
+  Scope (v0): one read per run. Multi-page pagination (the `cursor` carry) and
+  rate-limit/budget gating are deliberate follow-ons — Slack has no
+  github-budget points bucket, so meaningful gating belongs with slackd
+  (prx-tgy). Parent epic: prx-zes.
+
+### Patch Changes
+
+- 10136a1: feat(keeper): signed `worktree-add/v1` provenance for worktree materialization (prx-hc5)
+
+  Worktree materialization (`claude --worktree` → keeper's `git worktree add`) was
+  the one keeper git-write with no signed record. Keeper can now attest it, like
+  `push/v1`:
+
+  - `WORKTREE_ADD_BUILD_TYPE` (`https://prx.dev/git/worktree-add/v1`).
+  - `attestWorktreeAdd(attest, {branch, targetPath, baseCommit?})` — emits a signed
+    SLSA derivation whose **subject is the new worktree's branch tip** (declared,
+    resolved via `HEAD` in the target worktree — `git worktree add` doesn't move the
+    cwd's HEAD, so the self-describing `attestingGit` strategy doesn't apply), with
+    the base commit as a material. Opt-in (only with a signer+ledger) and fail-safe
+    (missing/malformed HEAD → no link), mirroring `runKeeperPush`.
+
+  `runKeeperEnsureWorktree` stays synchronous; the attestation is a separate
+  composable async step so `reserve`/`materialize`/the hook adapter don't inherit
+  an async cascade.
+
+  This replaces the rejected "route resolution reads through scout" framing
+  (scout is for file-content reads, not git-state/infra reads — audited in the
+  ADR). Production wiring (threading keeper's signer+ledger from the hook) is the
+  deferred second slice. See `docs/prx/worktree-provenance.md`.
+
+- 289550c: feat(workspace): `--repo <dir|slug>` makes `claude --worktree` dir-agnostic (prx-hot)
+
+  The worktree hooks should resolve the repo explicitly rather than depend on
+  whatever cwd Claude runs them from. `prx workspace worktree-create|worktree-remove`
+  now accept `--repo <value>`:
+
+  - an existing **directory** → used as the resolution anchor;
+  - otherwise a **repo-registry slug** → resolved to its `mainWorktree ?? commonDir`
+    via the same `loadRepoInventoryConfig → loadRepoInventoryIndex → findRepoBySlug`
+    path `prx plan session --repo <slug>` uses.
+
+  `prx workspace worktree-hooks [--repo <value>]` bakes `--repo <value>` (shell-quoted)
+  into the registered `settings.local.json` hook command, so the hook runs from any
+  cwd. Omitted → plain commands (resolution falls back to the invocation cwd + the
+  prx-ph7 bare-repo fallback). Verified end-to-end from `/tmp` with both a bare-repo
+  dir and the `prx` slug.
+
+- fe6d721: fix(workspace): resolve the repo from a bare repo so `claude --worktree` works (prx-ph7)
+
+  `claude --worktree <name>` failed with `workspace.reserve: cwd is not a
+recognized GitHub repo`. Claude Code runs `WorktreeCreate`/`WorktreeRemove`
+  hooks from the **bare repo** (the git common dir), which has no working tree, so
+  `resolveRepoToplevel` (`git rev-parse --show-toplevel`) returned null and both
+  `reserve` and `materialize` failed closed.
+
+  prx now resolves the layout itself instead of depending on being launched inside
+  a worktree: when `--show-toplevel` fails, `resolveRepoToplevel` falls back to the
+  first non-bare worktree from `git worktree list --porcelain` (origin + the
+  worktree list both resolve fine from a bare repo). keeper's `git worktree add`
+  already worked from the bare repo — this just feeds reserve/materialize a real
+  worktree path to compute the sibling placement against. Extracted
+  `firstNonBareWorktree` as a pure, unit-tested parser.
+
+  Fixes the live `claude --worktree` smoke-test failure from the prx-6jb/prx-5q3
+  rollout.
+
 ## 0.8.3
 
 ### Patch Changes
