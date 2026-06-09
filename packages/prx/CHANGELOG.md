@@ -1,5 +1,374 @@
 # @bounded-systems/prx
 
+## 0.8.3
+
+### Patch Changes
+
+- f90dbdc: feat(adapters): route the gh mirror write-back through the daemon (GH-296)
+
+  `GhDomainAdapter.push()`'s unlinked-create path wrote the new issue URL back to
+  bd with host `bd update <id> --external-ref <url>` against the per-clone `.beads`.
+  That write-back now goes through `updateBeadViaDaemon` (the single writer), using
+  the `update --external-ref` field added to the daemon contract. `push()` is async,
+  so it awaits the helper directly; the writer is injectable (`deps.updateBead`) for
+  tests and defaults to the daemon helper in production. The cache `invalidate()` on
+  success is unchanged. Another bulk write reconciler off host bd, toward prx-82b.
+
+- 6ba5079: feat(tools): route the bd close primitive through the daemon (GH-296)
+
+  `execBdIssueClose` — the single `bd close` wrapper behind `submit postmerge`, the
+  gh adapter's `bulkClose`, and `intake merge`'s dup close — spawned host `bd close
+<id>` against the per-clone `.beads`. It now spawns `prx beads close <id>
+[--reason]`, which the daemon maps to `bd update --status closed --notes`. One
+  spawn-target change migrates all three callers' close path off host bd at once.
+  Toward removing host bd (prx-82b).
+
+- 3f51a14: feat(triage): route close-stale's WRITE through the daemon (GH-296)
+
+  `triage close-stale` closed stale beads with host `bd update -s closed --notes …`
+  against the per-clone `.beads`. Its write now runs `prx beads close <id> --reason …`
+  through the daemon (the trusted single writer; maps daemon-side to
+  `bd update --status closed --notes`). A sync subprocess keeps `runTriageCloseStale`
+  synchronous (no async ripple to its 14 call sites / the CLI), matching the prx-fda
+  read pattern; the runner is injectable for tests. Another bulk write reconciler
+  off host bd, toward prx-82b.
+
+- 207cd7f: ci(coverage): add an 85% line-coverage gate + cover the last sub-80% files
+
+  `coverage-summary.ts` gains a `--min <pct>` flag that exits non-zero when parsed
+  line coverage is below the threshold; the coverage workflow now runs it with
+  `--min 85`, so the `coverage` job fails below the 85% floor (the project sits at
+  ~87%). Also raises the remaining sub-80% files: `beads/workspace_mode` 77→96%
+  (probeSharedServerHasIssues + readBeadsMetadata arms), `tools/agent_doctor`
+  76→83% (classifyError categories + truncate), and `beads/migrate` 79→82%
+  (the non-embedded refusal modes).
+
+- 7e490e1: test(prx): make pr-state/status-report testable + cover it → 100%
+
+  `refreshTaskSignals` read the worktree branch + live PR signals through direct
+  git/gh imports, so its signal-reconciliation logic was untestable (the file sat
+  at ~19%). Add a `StatusSignalsDeps` seam (loadReviewConfig / currentBranchName /
+  fetchPrSignalInfo, defaulting to the real impls), threaded through `renderStatus`,
+  so every reconciliation branch is drivable against an on-disk task-contract
+  fixture with no git branch or GitHub round-trip. 19% → 100%.
+
+- f93d4ec: feat(beadsd): add a `dep` write kind to the daemon (GH-296)
+
+  The daemon write contract gains a structured `dep` kind —
+  `bd dep add --type <t> <from> <to>` / `bd dep remove <from> <to>` — threaded
+  through the wire contract, the daemon dispatch (with a special-case: `bd dep` is
+  not a `--json` surface, so a zero exit replies ok/null), a `depViaDaemon` helper,
+  and a `prx beads dep add|remove` CLI. This is the last missing daemon write
+  capability; it unblocks the dependency-edge reconcilers still on host bd
+  (promote-children parent-child wiring, dedupe edge rewire) — toward prx-82b.
+
+- af67dca: feat(beadsd): extend the daemon `update` write with `--external-ref` / `--notes` (GH-296)
+
+  The daemon write contract's `update` kind gained `externalRef` and `notes`
+  (both valid `bd update` flags) — threaded through the wire contract, the daemon's
+  `bd` dispatch, the `updateBeadViaDaemon` helper, and the `prx beads update` CLI
+  (which also now exposes the already-contracted `--type`). This is the Group-B
+  infra that unblocks the remaining bulk write reconcilers still on host bd: the
+  adapter mirror write-back and `prx beads publish` (`--external-ref`), and
+  intake-comment (`--notes`). No behavior change to existing callers — purely
+  additive optional fields. A step toward removing host bd (prx-82b).
+
+- 4718b8c: feat(doctor): route dedupe-bd's edge + close WRITES through the daemon (GH-296)
+
+  `prx doctor dedupe-bd`'s apply phase rewrote dependency edges and closed
+  duplicates with host `bd dep remove`/`bd dep add`/`bd update -s closed` against
+  the per-clone `.beads`. All three now run through the daemon — `prx beads dep
+remove|add` (the `dep` kind from #537) and `prx beads update <id> --status closed
+--notes` (the close). The close argv switched `-s` → `--status` so it passes to
+  the typed CLI. A sync runner keeps `runDedupeBd` synchronous; injectable for
+  tests. Toward removing host bd (prx-82b).
+
+- 5a6a586: feat(delegate): route `delegate assign`'s WRITE through the daemon (GH-296)
+
+  `prx delegate assign` wrote the owner with host `bd assign <id> <name>` against
+  the per-clone `.beads`. The write now runs `prx beads update <id> --assignee
+<name>` through the daemon (single writer; `bd assign` is shorthand for
+  `bd update --assignee`, empty string clears). A sync subprocess keeps
+  `runDelegateAssign` synchronous; the runner is injectable for tests. The
+  eligibility read (`runBdShow`) is a separate no-cache path for a later pass.
+  Toward removing host bd (prx-82b).
+
+- 6887963: feat(triage): route drift-fix WRITES through the daemon (GH-296 prx-ebo)
+
+  `triage drift-fix`'s apply phase mutated beads with host `bd update`/`bd reopen`
+  against the per-clone `.beads` — the broken store GH-296 is retiring. Its two
+  write seams now go through the daemon (the trusted single writer):
+
+  - type/priority fix → `updateBeadViaDaemon(id, { issueType, priority })`
+  - status fix → `reopenBeadViaDaemon(id)`
+
+  Both default to the beadsd helpers and are injectable (`deps.updateBead` /
+  `deps.reopenBead`) for tests. The helpers throw on a non-ok daemon verdict
+  (vs `execBd`'s exit code), so a failed write records `exitCode: 1` + the daemon's
+  message in the audit row (partial-write accounting unchanged). The aggregate read
+  already routes through the daemon via the BeadsCache loader (prx-fda).
+
+  A step toward removing host bd (prx-82b): the remaining bulk write reconcilers
+  (promote, intake-mirror/merge/comment, close-stale, dedupe deps, adapters
+  write-back) are the next sites.
+
+- 374beb1: feat(beads): route the aggregate bead read through the daemon by default (GH-296)
+
+  The per-invocation `BeadsCache` — threaded by runCli into every read verb (sync,
+  intake, triage, scout, adapters) — now reads through the daemon (the GH-296 one
+  true source) instead of spawning host `bd list` against the broken per-clone
+  `.beads`. This flips the production aggregate-read path off host bd in a single
+  move (prx-fda).
+
+  - New `triage/beads-daemon-loader.ts` `loadAllBeadsViaCli`: a SYNC
+    `prx beads list --all --limit 0` spawn (same daemon query as
+    `loadAllBeadsViaDaemon`: `{kind:"list", all:true, limit:0}`), parsed with the
+    existing `parseBeadsRecords`. Sync on purpose — `loadAllBeads`/`BeadsCache.load`
+    are called deep inside sync verb code, so a subprocess avoids an async ripple
+    across ~24 call sites. Recursion-safe (`prx beads list` reads via the socket
+    door, not this cache). Fail-loud on an unreachable daemon — never silently
+    reports zero beads. Honors a `prxBinary` override for non-PATH invocation.
+  - `createBeadsCache` defaults to this daemon loader; an injected `loadAllBeads`
+    (tests, or an explicit local-bd loader) still wins and receives `exec`.
+
+  A step toward removing host bd (prx-82b): the bulk WRITE reconcilers and any
+  no-cache `?? defaultLoadAllBeads` fallbacks remain on bd and are the next steps.
+
+- 4398eab: feat(fetch): route the GH→bd sync writer's update through the daemon (GH-296)
+
+  The fetch writer mirrored GH issue state into bd with host `bd update <id>
+--external-ref … --status … --title …` against the per-clone `.beads`. It now
+  runs `prx beads update …` through the daemon. This also extends the daemon `update`
+  write contract with `--title` and `--description` (threaded through contract,
+  daemon dispatch, the `updateBeadViaDaemon` helper, and the `prx beads update`
+  CLI) — the last update fields the bulk reconcilers needed. A sync runner keeps
+  `writePage` synchronous; injectable for tests. Toward removing host bd (prx-82b).
+
+- 1357b7d: feat: add @bounded-systems/host capability; route all prx/src node:os ambient reads through it
+
+  `os.homedir()` / `os.tmpdir()` / `os.hostname()` are ambient host authority that
+  was being read raw from `node:os` across ~20 prx/src files — a hidden dependency
+  that escaped import analysis and (because `os.homedir()` ignores `$HOME` on
+  macOS) could not be redirected in tests.
+
+  New `@bounded-systems/host` package is the one sanctioned reader of that state,
+  mirroring `@bounded-systems/env` for `process.env`:
+
+  - `homeDir()` honors an explicit `$HOME` override (via @bounded-systems/env)
+    before falling back to `os.homedir()`, so tests/sandboxes can redirect it;
+  - `tmpDir()` / `hostName()` wrap `os.tmpdir()` / `os.hostname()`.
+
+  Every `prx/src` caller now imports from `@bounded-systems/host`, and the
+  ambient-authority guard gains a rule forbidding raw `node:os` in `prx/src`
+  (a hard guarantee, mirroring the existing `process.env` ban).
+
+- e9add44: feat(intake): route intake-comment's bd note WRITE through the daemon (GH-296)
+
+  `prx intake comment` on a bd-shaped id appended its note with host `bd update <id>
+--notes …` against the per-clone `.beads`. It now runs `prx beads update <id>
+--notes …` through the daemon (using the `update --notes` field added in #528). A
+  sync subprocess keeps `runIntakeComment` synchronous; runner injectable for tests.
+  Toward removing host bd (prx-82b).
+
+- 23c9cf9: feat(intake): route `prx intake`'s bd create through the daemon (GH-296)
+
+  `prx intake` created its bd record with host `bd create --silent --type … --title
+…` against the per-clone `.beads`. It now runs `prx beads create --type … --title
+… [--description]` through the daemon and parses the created id from the JSON echo
+  (no `--silent`). The `--to gh` publish leg is threaded the same sync runner so its
+  write-back also routes through the daemon. Toward removing host bd (prx-82b).
+
+- 23fb674: feat(intake): route intake-merge's pointer-note WRITE through the daemon (GH-296)
+
+  `prx intake merge`'s bd↔bd arm appended the merge pointer note with host `bd
+update <id> --notes …` against the per-clone `.beads`. It now runs `prx beads
+update <id> --notes …` through the daemon. A sync runner keeps `runIntakeMerge`
+  synchronous; injectable for tests. The dup close still flows through
+  `execBdIssueClose` (migrated separately at the close primitive). Toward removing
+  host bd (prx-82b).
+
+- 5181fb9: feat(intake): route intake-mirror's bd create through the daemon (GH-296)
+
+  `prx intake mirror` created the bd record for a GH issue with host `bd create
+--silent --external-ref … --title …` against the per-clone `.beads`. It now runs
+  `prx beads create --type task --external-ref … --title …` through the daemon and
+  parses the created record's id from the JSON echo (no `--silent` id-line needed).
+  Also exposes `--external-ref` / `--silent` on the `prx beads create` CLI (the
+  contract already carried them). A sync runner keeps `runIntakeMirror`
+  synchronous; injectable for tests. Toward removing host bd (prx-82b).
+
+- 106f3f1: feat(adapters): route the notion adapter's writes through the daemon (GH-296)
+
+  `NotionDomainAdapter` wrote bd with host `bd update <id> --metadata
+external_refs.notion=<pageId>` (the mirror write-back) and `bd update <id>
+--status closed` (bulkClose) against the per-clone `.beads`. Both now run
+  `prx beads update …` through the daemon. This also adds `--metadata` to the daemon
+  `update` write contract (threaded through contract, dispatch, the
+  `updateBeadViaDaemon` helper, and the `prx beads update` CLI). A sync runner
+  replaces the `bdExec` getter; injectable for tests. This was the last bd WRITE
+  reconciler on host bd — toward removing host bd (prx-82b).
+
+- 91cd966: ci(coverage): add a per-file coverage ratchet (every src/ file ≥ 80%) alongside the global 85% gate
+
+  `coverage-summary.ts` gains `--per-file-min <pct>`: every product source file
+  (`packages/**/src/**`, tests excluded) must clear the floor unless it is in
+  `PER_FILE_BASELINE`. The baseline only SHRINKS — a baselined file that climbs
+  to/above the floor (or is deleted) goes "stale" and fails the gate, so fixing a
+  file forces dropping its baseline entry. The coverage workflow runs the gates at
+  `--min 85 --per-file-min 80`; the seven currently-exempt files (deprecated tui,
+  the in-decomposition cli.ts/cli-spawn, the triage haiku files pending #502, and
+  session/open) are baselined with reasons.
+
+- c89a5f2: feat(triage): route promote-children's dep-edge WRITE through the daemon (GH-296)
+
+  `triage promote-children` wired parent-child / blocks edges with host `bd dep add
+--type <t> <from> <to>` against the per-clone `.beads`. It now runs `prx beads dep
+add …` through the daemon (the `dep` write kind added in #537). A sync subprocess
+  keeps `runTriagePromoteChildren` synchronous; runner injectable for tests. Toward
+  removing host bd (prx-82b).
+
+- bc16fa4: feat(triage): route `triage promote`'s bd create through the daemon (GH-296)
+
+  `prx triage promote` created bd records for GH issues with host `bd create
+--silent --external-ref … --type … -p … --title …` against the per-clone
+  `.beads`. It now runs `prx beads create --external-ref … --type … --priority …
+--title …` through the daemon and parses the created id from the JSON echo (no
+  `--silent`; `-p` → `--priority`). The GH pointer-comment leg stays on gh. A sync
+  runner keeps `runTriagePromote` synchronous; injectable for tests. Toward
+  removing host bd (prx-82b).
+
+- 09f5ee8: feat(workspace): prx registers its own `claude --worktree` hooks in settings.local.json (prx-5q3)
+
+  Follow-up to prx-6jb (the `prx workspace worktree-create|worktree-remove` verbs):
+  prx now owns the _registration_ too, with no ai-home / `home-manager switch`
+  dependency. Hooks are written to `.claude/settings.local.json` — the per-user
+  surface prx already manages and the per-worktree stamper never clobbers — not
+  project `.claude/settings.json`, which stays permissions-only by design.
+
+  - `ensureClaudeWorktreeHooks(cwd)` (machine/claude_local_settings.ts): idempotent
+    merge of the `WorktreeCreate`/`WorktreeRemove` hook block (pointing at the prx
+    verbs) into `settings.local.json`; preserves other hooks/permissions; refuses
+    to stomp malformed JSON.
+  - `prx workspace worktree-hooks`: register the hooks in the current worktree —
+    the one-shot for a root/existing worktree the workspace actor won't touch
+    (`mainx` is I-WS5 guarded).
+  - Self-propagation: `prx workspace worktree-create` now arms the newly
+    materialized worktree's `settings.local.json` (best-effort — never aborts
+    creation), so a `claude --worktree` launched from inside it also routes
+    through prx.
+
+  Activation still requires a release that ships the verbs (the installed prx is a
+  release binary). Replaces the ai-home-registration framing of prx-5q3.
+
+- 22b106e: feat(workspace): prx owns the `claude --worktree` lifecycle via WorktreeCreate/WorktreeRemove hooks (prx-6jb)
+
+  `claude --worktree` errors in the bare-repo + external-worktree layout ("not in
+  a git repository and no WorktreeCreate hooks are configured"). prx now satisfies
+  Claude Code's documented hook contract through its own verbs:
+
+  - `prx workspace worktree-create` — reads the `{ name }` envelope from stdin,
+    reserves + materializes a worktree (keeper does the `git worktree add`), and
+    echoes the absolute path (Claude reads it as the session cwd; a non-zero exit
+    aborts creation).
+  - `prx workspace worktree-remove` — reads the `{ worktree_path }` envelope,
+    removes the git worktree (keeper) and marks the lifecycle ledger torn_down
+    (workspace actor).
+
+  Keeper gains `runKeeperRemoveWorktree`, the symmetric counterpart of
+  `runKeeperEnsureWorktree`, so keeper is the sole owner of both `git worktree add`
+  and `git worktree remove`/prune; the workspace actor owns only the ledger. The
+  adapter (`runWorktreeHookCli`) wires Claude's envelope to that split over the
+  existing `worktree-hook.ts` boundary. Hook registration (a thin pointer to these
+  verbs) and the wt/wtctl retirement follow separately (prx-arl).
+
+- 07e4320: feat(beads): route `prx beads publish`'s external-ref write-back through the daemon (GH-296)
+
+  `publish`'s link/adopt and create-then-link paths wrote the GH issue URL back to
+  bd with host `bd update <id> --external-ref <url>` against the per-clone `.beads`.
+  Both write-backs now run `prx beads update <id> --external-ref <url>` through the
+  daemon (single writer), using the `update --external-ref` field added in #528. A
+  sync runner is threaded through `publishOne`/`publishOneInner`/`linkExistingResult`
+  (injectable for tests); the dedup read stays on the existing loader. Toward
+  removing host bd (prx-82b).
+
+- 024118d: feat(sync): pull-leg conditional-read core — ETag parser + per-issue ETag store (GH-296)
+
+  The reconcile pull leg (GH→bd) re-reads every pinned GitHub issue every tick and
+  is not `--limit`-gated — the sync API hog. This lands the pure, isolated core for
+  GitHub conditional requests, ahead of wiring it into the adapter:
+
+  - `sync/conditional-read.ts` — `parseConditionalRead` classifies a `gh api … -i`
+    result as not-modified / modified / error. It keys on the HTTP status line, not
+    the exit code, because `gh api` exits non-zero on BOTH a `304 Not Modified` and
+    a real error (404/410/5xx); a 304 must never be mistaken for a failure, nor a
+    failure for "unchanged".
+  - `sync/pull-etag-store.ts` — per-(repo,domain) persisted `If-None-Match` cache
+    (etag + last derived state) under `~/.local/state/prx/sync/<key>/pull-etags.json`,
+    loaded once into memory and flushed in a single write per tick.
+
+  A `304` is free against the GitHub rate limit and GitHub is authoritative on
+  changed-vs-unchanged, so reusing cached state on a 304 is provably correct. No
+  behavior change yet — nothing calls these until the adapter wiring (prx-lzw step b2).
+
+- e6fca38: feat(sync): wire pull-leg conditional reads into the gh adapter + reconcile (GH-296)
+
+  The reconcile pull leg now does GitHub conditional requests, cutting its per-tick
+  rate-limit spend on unchanged issues (prx-lzw lever 1, building on the core in #504):
+
+  - `GhDomainAdapter.pull()` gains an optional `conditionalRead` cache. When wired,
+    it issues `gh api repos/{owner}/{repo}/issues/{n} -i -H "If-None-Match: <etag>"`:
+    a `304 Not Modified` (free against the rate limit) reuses the cached patch; a
+    `2xx` re-parses the fresh REST body and updates the cache; anything else throws.
+    The decision is made from the HTTP status line, not the exit code (`gh api`
+    exits non-zero on both a 304 and a real error). Absent ⇒ unconditional
+    `gh issue view` (unchanged behavior). The REST and `gh issue view` bodies share
+    one `parseIssuePatch`.
+  - `runBeadsSync` constructs a per-(repo,domain) `createPullEtagStore`, wires it into
+    the gh adapter, and flushes it once after the pull leg (one file write per tick).
+
+  A 304 is free and GitHub is authoritative on changed-vs-unchanged, so reusing
+  cached state is provably correct (not a client-side heuristic).
+
+- 6435da5: perf(sync): short-circuit the bd→GH push leg when the bead store hasn't moved
+
+  runBeadsSync now reads the dolt clone's `hashof('HEAD')` and compares it against a
+  per-(repo,domain) "last successfully pushed HEAD" watermark. When the bead store is
+  unchanged since the last fully-successful push, the push leg is skipped entirely —
+  no per-bead GitHub mirror writes. The watermark only advances on a clean push
+  (no deferrals, no errors), so a partial failure safely retries next tick. `--dry-run`
+  never skips. (GH-296 / prx-lzw step a)
+
+- 5b7e625: chore: delete the `@bounded-systems/prx-mux` package (slice 4 of removing tmux entirely). After slices 1–3 removed every tmux caller, the package had no remaining consumers in `packages/prx/src` except a re-export of `CommandRunner`/`defaultRunner` from `@bounded-systems/proc`. Those imports (`gh-pr-fetcher` + example + test) are repointed directly at `@bounded-systems/proc`; the package is removed from the workspace deps + tsconfig paths and deleted along with its tests.
+- caf24c4: docs: scrub remaining tmux references after the full tmux removal (slice 5). Updates the agent-session command descriptions (`--interactive for PTY`, no longer "tmux/PTY"), drops the deleted `prx-mux` package from the companion-repos extraction table and the roadmap wave list, refreshes the pipeline-orchestrator "No tmux" note to reflect that tmux is gone entirely (surface, actor, interactive attach, and the `prx-mux` package), and regenerates the derived docs (cli.md, README, jsonld, project.md). Historical design records (the GH-1836 substrate ADR) are left intact.
+- ce8b266: refactor: remove the interactive tmux/PTY session path (slice 3 of removing tmux entirely). prx sessions are now headless-only — `prx plan session`, `prx session open`, and `prx implement agent` no longer spawn or attach a durable tmux session; the live session runs directly in the foreground terminal (stdio-inherit) and the implement path runs the headless SDK job in-process. The `prx review` / `prx ultrareview` send-keys verbs (which only existed to inject `/review` into the live tmux pane) and the internal `prx tools mux clear-resurrect` verb are removed, along with the `pr-state/surfaces/tmux.ts` surface reader and the `--interactive`/`--headless` flags on `prx implement agent` (headless is the only mode). The `@bounded-systems/prx-mux` package itself is removed in a later slice.
+- de3154f: refactor: remove the tmux parity surface, the tmux/session board actions, and the `prx prune session` command (slice 2 of removing tmux entirely). The board projection no longer reads or stamps a tmux session surface; disposition classifies a unit as complete on the four durable surfaces (worktree + local branch + remote branch + PR) without requiring a tmux session; `worktree-remove` no longer tears down a tmux session; and the `tmux` actor + its reconcile events/facts are dropped from the machine catalog. The interactive `prx review` send-keys path and the `prx-mux` package are removed in later slices. (`prx prune` itself is slated for replacement by `gc`.)
+- 5aabf05: feat(delegate): route repair-assignees' assign WRITE through the daemon (GH-296)
+
+  `prx delegate repair-assignees --apply` rewrote bd assignees with host `bd assign
+<id> <to>` against the per-clone `.beads`. It now runs `prx beads update <id>
+--assignee <to>` through the daemon (`bd assign` == `update --assignee`). A sync
+  runner keeps `runRepairAssignees` synchronous; injectable for tests. The matched
+  `bd list --assignee` read stays for the reads sweep. Toward removing host bd (prx-82b).
+
+- 77dd2ea: Add the sync API-efficiency design (docs/spikes/prx-ebo): grounds the "sync ate more API requests than necessary" concern — the reconcile's pull leg re-reads every pinned GitHub issue every tick (not --limit-gated) — and sequences the two fixes: pull-leg conditional reads (GitHub ETags / GraphQL batching, the hog) and a push-leg bead-etag short-circuit with retry-safety (the cheap, safe win).
+- 0299c53: Add the correctness core of the bd→GH push-leg short-circuit (GH-296, prx-lzw): pure, tested decisions (`shouldSkipPush`, `pushFullySucceeded`, `advanceLastPushedHead`) that let the reconcile skip the push leg — and its GitHub write requests — when the bead store (the daemon's dolt HEAD etag) hasn't moved since the last _successful_ push. Retry-safe: a deferred (`--limit`) or errored push never advances the watermark, so transient failures retry rather than being skipped forever. The `runBeadsSync` wiring (read the etag, persist the watermark) is a thin follow-up over these.
+- 23ca06a: refactor(triage): break the triage actors↔machine import cycle; make the per-run actors testable
+
+  `triage/actors.ts` could not be loaded in isolation — `actors → prune-merged →
+pr-state/cli → prime → machine → actors` formed an import cycle that threw a TDZ
+  on `statusActor` (and dragged the 23k-line CLI in at load time, hanging tests).
+  Root cause: `pruneMergedActor`'s delegate reached into `pr-state/cli.ts` for two
+  surface-sync/git primitives that never belonged there.
+
+  - Extract `pruneStaleRemoteRefs` + `applyParityChainActions` into a focused leaf
+    module `pr-state/parity-chain.ts`; `cli.ts` re-exports them so its existing
+    callers (gc drivers, tests) are unaffected, and `prune-merged.ts` imports them
+    directly — breaking the cycle and the CLI's load-time pull.
+  - Forward an optional, test-only `deps` seam through every real triage actor's
+    input to its delegate (mirroring `dep-research/actors`'s `fetcher` seam), so a
+    wrapper can be driven hermetically. The machine never supplies it (production
+    uses the real deps); behavior is unchanged.
+
 ## 0.8.2
 
 ### Patch Changes
