@@ -137,7 +137,9 @@ tmux was only the *interactive-attach* mechanism (`attachMuxSession`). A headles
 pipeline never needs it: each leg is a headless `query()` against a role
 subagent — local, or against a remote Claude (ssh). The `interaction: "headless"`
 axis already exists; the tmux/attach path simply drops out of the pilot lane.
-Interactive `prx plan session` etc. keep tmux; the *pipeline* doesn't.
+tmux has since been removed entirely — the parity surface, the interactive
+session attach, the `tmux` actor, and the `prx-mux` package are all gone.
+Interactive `prx plan session` etc. now run directly in the foreground terminal.
 
 ## `next` is ocap-with-priority — and termination is proven, not assumed
 

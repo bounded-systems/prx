@@ -16,7 +16,6 @@
 | safe-exec | `scripts/{git,gh,wt,bd,prx}-safe` + `scripts/tool-policy.sh` | `bounded-systems/safe-exec` | no | not-started |
 | gh-state-reader | `src/pr-state/github.ts` (5,419 LOC, 139 exports) | `bounded-systems/gh-state-reader` | no | not-started |
 | runtime-profile | `src/machine/runtime_profiles.ts` (578 LOC) | `bounded-systems/runtime-profile` | no | not-started |
-| prx-mux | `packages/prx-mux/` (483 LOC, 3 src files + local runner) — already workspace-staged | `bounded-systems/prx-mux` | no | in-progress |
 
 > **Targets retargeted to the `bounded-systems` org** (npm scope `@bounded-systems/*`,
 > GitHub org `github.com/bounded-systems`) per `docs/roadmap/prx.md` Track C.

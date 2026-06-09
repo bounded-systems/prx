@@ -98,8 +98,8 @@ Silicon macOS 13+, which is fast; `qemu` elsewhere).
 - **The test phase fails under act, and that's expected.** act checks the repo
   out by copying the working tree into the container with `docker cp` — there is
   **no `.git`** inside. Tests that shell out to `git` (`markdown-coverage`,
-  `no-operational-python`, …) hit `fatal: not a git repository`, and the tmux/
-  PTY session tests have no terminal. For "did I break the checks", run
+  `no-operational-python`, …) hit `fatal: not a git repository`, and the PTY
+  session tests have no terminal. For "did I break the checks", run
   `dist/prx ci` instead — act is for proving the *workflow YAML* runs.
 - **`act -l` validates every workflow** and rejects `coverage.yml`'s
   `code-quality:` permission (`Unknown Property code-quality` — act's schema
