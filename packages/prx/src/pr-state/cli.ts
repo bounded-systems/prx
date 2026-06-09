@@ -435,6 +435,8 @@ import {
   parseWorkspaceArgs,
   runWorkspaceCli,
   WorkspaceCliError,
+  isWorktreeHookVerb,
+  runWorktreeHookCli,
 } from "../workspace/cli.ts";
 // GH-2026/GH-2327: `prx gc <verb>` unified housekeeping actor. Verb parser +
 // dispatch live in `src/machine/gc/cli.ts`; this surface only routes argv and
@@ -3959,7 +3961,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "workspace") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "workspace requires a subcommand: adopt | reserve | materialize | prepare | sync | service | teardown",
+        "workspace requires a subcommand: adopt | reserve | materialize | prepare | sync | service | teardown | worktree-create | worktree-remove",
       );
     }
     if (c1 === "adopt") {
@@ -3971,7 +3973,10 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
       c1 === "prepare" ||
       c1 === "sync" ||
       c1 === "service" ||
-      c1 === "teardown"
+      c1 === "teardown" ||
+      // prx-6jb: Claude Code worktree hooks (envelope on stdin, not flags).
+      c1 === "worktree-create" ||
+      c1 === "worktree-remove"
     ) {
       return ["workspace", c1, ...tail];
     }
@@ -19944,6 +19949,31 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // GH-1978: `prx workspace <verb>` retires wtctl's
       // sync / ignore sync / up / down surface. The actor lives at
       // src/workspace/actor.ts; the verb parser at src/workspace/cli.ts.
+      // prx-6jb: the Claude Code `WorktreeCreate`/`WorktreeRemove` hooks pass
+      // their envelope on stdin (not flags), so they bypass parseWorkspaceArgs
+      // and drive the worktree lifecycle via the hook adapter. This is what
+      // makes `claude --worktree` materialize through prx (keeper does the git
+      // worktree add; the workspace actor owns the ledger).
+      const workspaceVerb = parsed.argv[0] ?? "";
+      if (isWorktreeHookVerb(workspaceVerb)) {
+        return (async (): Promise<number> => {
+          let stdin = "";
+          try {
+            stdin = readFileSync(0, "utf8");
+          } catch {
+            stdin = "";
+          }
+          const hookResult = await runWorktreeHookCli(workspaceVerb, stdin, process.cwd());
+          if (hookResult.message) {
+            if (hookResult.stream === "stdout") {
+              output.log(hookResult.message);
+            } else {
+              output.error(hookResult.message);
+            }
+          }
+          return hookResult.exitCode;
+        })();
+      }
       try {
         const args = parseWorkspaceArgs(parsed.argv);
         const result = runWorkspaceCli(args);

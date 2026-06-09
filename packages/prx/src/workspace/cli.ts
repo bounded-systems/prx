@@ -44,6 +44,12 @@ import {
   type WorkspaceVerb,
 } from "./schema.ts";
 import { hydrate as hydrateBeads } from "../beads/hydrate.ts";
+import { runKeeperRemoveWorktree } from "../pr-state/keeper.ts";
+import {
+  runWorktreeCreateHook,
+  runWorktreeRemoveHook,
+  type WorktreeHookResult,
+} from "./worktree-hook.ts";
 
 export type WorkspaceCliFormat = "plain" | "json";
 
@@ -271,6 +277,88 @@ export function runWorkspaceCli(
   }
 
   throw new WorkspaceCliError(`Unhandled workspace verb: ${args.verb}`);
+}
+
+/** The Claude Code worktree-hook verbs, dispatched separately (they read the
+ * hook envelope from stdin rather than flags — see {@link runWorktreeHookCli}). */
+export const WORKTREE_HOOK_VERBS = ["worktree-create", "worktree-remove"] as const;
+export type WorktreeHookVerb = (typeof WORKTREE_HOOK_VERBS)[number];
+
+export function isWorktreeHookVerb(verb: string): verb is WorktreeHookVerb {
+  return (WORKTREE_HOOK_VERBS as readonly string[]).includes(verb);
+}
+
+/** Injectable seam for {@link runWorktreeHookCli} (real engine by default). */
+export type WorktreeHookCliDeps = {
+  reserve?: typeof runReserve;
+  materialize?: typeof runMaterialize;
+  teardown?: typeof runTeardown;
+  removeWorktree?: typeof runKeeperRemoveWorktree;
+  resolveContext?: typeof resolveWorkspaceContext;
+};
+
+/**
+ * Adapter from Claude Code's `WorktreeCreate`/`WorktreeRemove` hook envelope
+ * (stdin JSON) to prx's worktree lifecycle — the slice that makes `claude
+ * --worktree` materialize through prx in the bare-repo + external-worktree
+ * layout. The boundary (parse / exit semantics) lives in `worktree-hook.ts`;
+ * here we satisfy its two ports with the real engine:
+ *
+ *   create:  name → workspace.reserve → workspace.materialize (keeper does the
+ *            `git worktree add`) → print the absolute path (Claude reads it as
+ *            the session cwd; a non-zero exit aborts creation).
+ *   remove:  worktree_path → keeper removes the git worktree (the git half) +
+ *            workspace.teardown marks the ledger torn_down (the lifecycle half).
+ *
+ * The git/workspace split mirrors materialize: keeper owns the git ref/registry
+ * mutation, the workspace actor owns the lifecycle ledger.
+ */
+export async function runWorktreeHookCli(
+  verb: WorktreeHookVerb,
+  stdin: string,
+  cwd: string,
+  deps: WorktreeHookCliDeps = {},
+): Promise<WorktreeHookResult> {
+  const reserve = deps.reserve ?? runReserve;
+  const materialize = deps.materialize ?? runMaterialize;
+  const teardown = deps.teardown ?? runTeardown;
+  const removeWorktree = deps.removeWorktree ?? runKeeperRemoveWorktree;
+  const resolveContext = deps.resolveContext ?? resolveWorkspaceContext;
+
+  if (verb === "worktree-create") {
+    return runWorktreeCreateHook({
+      stdin,
+      materialize: async (name) => {
+        const reserved = reserve(ReserveInput.parse({ branch: name }), cwd);
+        if (reserved.status === "error" || reserved.status === "base-unresolved") {
+          throw new Error(
+            reserved.error ?? `workspace.reserve failed for ${name} (${reserved.status})`,
+          );
+        }
+        const mat = materialize(
+          MaterializeInput.parse({ workspace_id: reserved.workspace_id }),
+          cwd,
+        );
+        if (mat.status === "error") {
+          throw new Error(mat.error ?? `workspace.materialize failed for ${name}`);
+        }
+        return mat.worktree_path;
+      },
+    });
+  }
+
+  return runWorktreeRemoveHook({
+    stdin,
+    teardown: async (worktreePath) => {
+      // Resolve the ledger id while the worktree dir still exists, then remove
+      // the git worktree (keeper) and mark the ledger torn_down (workspace).
+      const ctx = resolveContext({ cwd: worktreePath });
+      removeWorktree({ targetPath: worktreePath }, cwd);
+      if (ctx) {
+        teardown(TeardownInput.parse({ workspace_id: ctx.workspaceId, force: true }), cwd);
+      }
+    },
+  });
 }
 
 function defaultHydrateBeads(cwd: string): boolean {

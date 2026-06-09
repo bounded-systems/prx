@@ -6,6 +6,7 @@ import {
   runWorktreeCreateHook,
   runWorktreeRemoveHook,
 } from "../../src/workspace/worktree-hook.ts";
+import { isWorktreeHookVerb, runWorktreeHookCli } from "../../src/workspace/cli.ts";
 
 // ai-home-ozbjp — envelope-first tests for the workcell worktree hooks. Mock
 // the Claude Code envelope + the runtime port; the real reserve→materialize
@@ -109,6 +110,120 @@ describe("runWorktreeRemoveHook (ai-home-ozbjp)", () => {
     });
     expect(r.exitCode).toBe(0);
     expect(called).toBe(false);
+  });
+});
+
+describe("runWorktreeHookCli — engine wiring (prx-6jb)", () => {
+  test("isWorktreeHookVerb recognizes only the two hook verbs", () => {
+    expect(isWorktreeHookVerb("worktree-create")).toBe(true);
+    expect(isWorktreeHookVerb("worktree-remove")).toBe(true);
+    expect(isWorktreeHookVerb("materialize")).toBe(false);
+    expect(isWorktreeHookVerb("")).toBe(false);
+  });
+
+  test("create: reserve → materialize → prints the worktree path (exit 0)", async () => {
+    const calls: string[] = [];
+    const r = await runWorktreeHookCli(
+      "worktree-create",
+      JSON.stringify({ name: "feat-x" }),
+      "/repo",
+      {
+        reserve: (input) => {
+          calls.push(`reserve:${input.branch}`);
+          return { workspace_id: "abc123abc123", branch_ref: input.branch, status: "created" };
+        },
+        materialize: (input) => {
+          calls.push(`materialize:${input.workspace_id}`);
+          return {
+            workspace_id: input.workspace_id,
+            worktree_path: "/wt/feat-x",
+            branch: "feat-x",
+            status: "created",
+          };
+        },
+      },
+    );
+    expect(r).toEqual({ exitCode: 0, stream: "stdout", message: "/wt/feat-x" });
+    expect(calls).toEqual(["reserve:feat-x", "materialize:abc123abc123"]);
+  });
+
+  test("create: a reserve error aborts creation (non-zero, materialize not called)", async () => {
+    let materialized = false;
+    const r = await runWorktreeHookCli(
+      "worktree-create",
+      JSON.stringify({ name: "feat-x" }),
+      "/repo",
+      {
+        reserve: () => ({
+          workspace_id: "abc123abc123",
+          branch_ref: "feat-x",
+          status: "error",
+          error: "boom",
+        }),
+        materialize: () => {
+          materialized = true;
+          return {
+            workspace_id: "abc123abc123",
+            worktree_path: "/wt/feat-x",
+            branch: "feat-x",
+            status: "created",
+          };
+        },
+      },
+    );
+    expect(r.exitCode).not.toBe(0);
+    expect(r.message).toContain("boom");
+    expect(materialized).toBe(false);
+  });
+
+  test("remove: keeper removes the git worktree + workspace tears down the ledger (exit 0)", async () => {
+    const calls: string[] = [];
+    const r = await runWorktreeHookCli(
+      "worktree-remove",
+      JSON.stringify({ worktree_path: "/wt/feat-x" }),
+      "/repo",
+      {
+        resolveContext: () => ({
+          workspaceId: "abc123abc123",
+          hostRepoSlug: "io.github/x/y",
+          branch: "feat-x",
+          worktreePath: "/wt/feat-x",
+          ledgerPath: "/c/abc.json",
+        }),
+        removeWorktree: (input) => {
+          calls.push(`keeper-remove:${input.targetPath}`);
+          return { worktree_path: input.targetPath, status: "removed" };
+        },
+        teardown: (input) => {
+          calls.push(`teardown:${input.workspace_id}`);
+          return { workspace_id: input.workspace_id, status: "torn-down", cleaned: [] };
+        },
+      },
+    );
+    expect(r.exitCode).toBe(0);
+    expect(calls).toEqual(["keeper-remove:/wt/feat-x", "teardown:abc123abc123"]);
+  });
+
+  test("remove: keeper still runs even when no ledger context resolves (exit 0)", async () => {
+    const calls: string[] = [];
+    const r = await runWorktreeHookCli(
+      "worktree-remove",
+      JSON.stringify({ worktree_path: "/wt/orphan" }),
+      "/repo",
+      {
+        resolveContext: () => null,
+        removeWorktree: (input) => {
+          calls.push(`keeper-remove:${input.targetPath}`);
+          return { worktree_path: input.targetPath, status: "absent" };
+        },
+        teardown: () => {
+          calls.push("teardown");
+          return { workspace_id: "abc123abc123", status: "skipped", cleaned: [] };
+        },
+      },
+    );
+    expect(r.exitCode).toBe(0);
+    expect(calls).toEqual(["keeper-remove:/wt/orphan"]); // teardown skipped (no ctx)
   });
 });
 
