@@ -132,7 +132,7 @@ describe("sessionProfileBashAllowPatterns (GH-1545)", () => {
       "Bash(prx triage:*)",
       // GH-1530 PR-6: the dedupe-search read migrated to dispatch
       // (prx triage dispatch --actor=intake -- search) — no direct grant.
-      "Bash(prx tools labels sync:*)",
+      // prx-arl: `prx tools labels sync` retired (dead operator surface).
       "Bash(bd create:*)",
       "Bash(bd update:*)",
       "Bash(bd dep:*)",
@@ -232,7 +232,6 @@ describe("ensureClaudeSessionProfileAllowlist (GH-1545)", () => {
       // patterns are appended, in profile order. GH-1530 PR-6: intake search
       // migrated to dispatch, so it is no longer in the projected subset.
       "Bash(prx triage:*)",
-      "Bash(prx tools labels sync:*)",
       "Bash(bd create:*)",
       "Bash(bd update:*)",
       "Bash(bd dep:*)",

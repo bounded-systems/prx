@@ -568,7 +568,6 @@ const workUnitAllowedActors = ["git", "gh", "wt", "beads", "prx", "llm_agent"] a
 const workUnitDisallowedActors = ["gmail", "gcal"] as const;
 const gitSafePath = fileURLToPath(new URL("../../scripts/git-safe", import.meta.url));
 const ghSafePath = fileURLToPath(new URL("../../scripts/gh-safe", import.meta.url));
-const wtSafePath = fileURLToPath(new URL("../../scripts/wt-safe", import.meta.url));
 const bdSafePath = fileURLToPath(new URL("../../scripts/bd-safe", import.meta.url));
 const prxSafePath = fileURLToPath(new URL("../../scripts/prx-safe", import.meta.url));
 const runtimeAgentsPath = ".pr/local/runtime/agents.json";
@@ -669,7 +668,7 @@ export function buildWorkUnitClaudeRuntimeProfile(input: {
     "--tools",
     "Read,Edit,Bash",
     "--allowedTools",
-    `Read,Edit,Bash(${gitSafePath}:*),Bash(${ghSafePath}:*),Bash(${wtSafePath}:*),Bash(${bdSafePath}:*),Bash(${prxSafePath}:*)`,
+    `Read,Edit,Bash(${gitSafePath}:*),Bash(${ghSafePath}:*),Bash(${bdSafePath}:*),Bash(${prxSafePath}:*)`,
     "--permission-mode",
     "plan",
     "--json-schema",
@@ -681,7 +680,7 @@ export function buildWorkUnitClaudeRuntimeProfile(input: {
   const devArgs = [
     ...baseArgs,
     "--allowedTools",
-    `Read,Edit,Bash(${gitSafePath}:*),Bash(${ghSafePath}:*),Bash(${wtSafePath}:*),Bash(${prxSafePath}:*)`,
+    `Read,Edit,Bash(${gitSafePath}:*),Bash(${ghSafePath}:*),Bash(${prxSafePath}:*)`,
     "--permission-mode",
     "plan",
     "--output-format",
@@ -1181,13 +1180,13 @@ export function buildWorkUnitCursorRuntimeProfile(input: {
 
 function buildAllowedToolsForRole(role: TaskAgentRole): string {
   if (role === "planner") {
-    return `Read,Bash(${ghSafePath}:*),Bash(${bdSafePath}:*),Bash(${prxSafePath}:*),Bash(${wtSafePath}:*)`;
+    return `Read,Bash(${ghSafePath}:*),Bash(${bdSafePath}:*),Bash(${prxSafePath}:*)`;
   }
   if (role === "executor") {
-    return `Read,Edit,Bash(${gitSafePath}:*),Bash(${ghSafePath}:*),Bash(${wtSafePath}:*),Bash(${bdSafePath}:*),Bash(${prxSafePath}:*)`;
+    return `Read,Edit,Bash(${gitSafePath}:*),Bash(${ghSafePath}:*),Bash(${bdSafePath}:*),Bash(${prxSafePath}:*)`;
   }
   if (role === "tester") {
-    return `Read,Bash(${ghSafePath}:*),Bash(${wtSafePath}:*),Bash(${prxSafePath}:*),Bash(${gitSafePath}:*)`;
+    return `Read,Bash(${ghSafePath}:*),Bash(${prxSafePath}:*),Bash(${gitSafePath}:*)`;
   }
   return `Read,Bash(${ghSafePath}:*),Bash(${prxSafePath}:*),Bash(${gitSafePath}:*)`;
 }

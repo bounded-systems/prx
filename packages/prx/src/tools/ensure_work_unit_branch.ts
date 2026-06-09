@@ -13,11 +13,11 @@
  * state that downstream worktree creation assumes.
  *
  * Callers:
- *   - src/pr-state/cli.ts :: materializeWorkUnitBranch — before the
- *     `wt switch` step, so wt can attach an existing local branch to a
- *     worktree without --create and without losing upstream tracking.
- *   - prx tools wt ensure-branch (pre-switch hook, GH-531) — when wt is
- *     about to switch to a branch that doesn't exist locally yet.
+ *   - src/pr-state/cli.ts :: materializeWorkUnitBranch — before worktree
+ *     placement, so an existing local branch can be attached to a worktree
+ *     without --create and without losing upstream tracking.
+ *   (prx-arl removed the worktrunk pre-switch `prx tools wt ensure-branch`
+ *    caller, GH-531 — prx owns the worktree lifecycle now.)
  *
  * When a spawn injector is provided (tests, or the materialize flow
  * threading its SpawnLike through), every git call uses it. Otherwise

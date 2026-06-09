@@ -1,8 +1,9 @@
 // Triage label vocabulary — Zod-first source of truth (GH-918).
 //
 // GH labels are a projection of this schema. `prx triage status` reads
-// required-fields from here; `prx tools labels sync` writes the schema → GH
-// idempotently. The four axes are independent: an issue's full triage label
+// required-fields from here. (prx-arl retired the `prx tools labels sync`
+// writer verb; the schema stays the canonical source of the label vocab.)
+// The four axes are independent: an issue's full triage label
 // state is a `Label` object (type + priority required, area + effort optional).
 //
 // Triage produces no XState events; this module is read-only metadata.
@@ -205,8 +206,9 @@ export function defaultLabelDefinitions(): LabelDefinition[] {
   return defs;
 }
 
-// Set of names a `gh label list` projection should contain. Used by
-// `prx tools labels sync` to compute the create/update/delete diff.
+// Set of names a `gh label list` projection should contain — the canonical
+// label vocab derived from the schema (the create/update/delete diff against
+// GH was computed by the retired `prx tools labels sync`, prx-arl).
 export function schemaLabelNames(): Set<string> {
   return new Set(defaultLabelDefinitions().map((d) => d.name));
 }

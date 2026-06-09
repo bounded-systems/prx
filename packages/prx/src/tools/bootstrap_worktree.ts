@@ -7,9 +7,10 @@
  *   2. PRX contract: run the normal init flow so `.pr/local/pr.json` exists
  *      and `prx contract status` / `/pr-state` work without manual `prx init`.
  *
- * Invoked by `prx tools wt bootstrap`, which the worktrunk `[post-create]`
- * hook calls exactly once per new worktree. Best-effort: every branch has a
- * "skipped-<reason>" status so the hook never blocks a real switch.
+ * Invoked once per new worktree by the `prx workspace worktree-create` hook
+ * (prx-arl — formerly `prx tools wt bootstrap` via worktrunk's `[post-create]`).
+ * Best-effort: every branch has a "skipped-<reason>" status so it never blocks
+ * worktree creation.
  *
  * The redirect format matches upstream `bd worktree create`: a single line
  * with the relative path from `<worktree>/.beads/` to `<main>/.beads`,

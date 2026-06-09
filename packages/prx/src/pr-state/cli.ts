@@ -2898,7 +2898,7 @@ const VERBS_WITH_NATIVE_HELP: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * GH-1227: split argv for passthrough verbs (`tools wt|git|bd`).
+ * GH-1227: split argv for passthrough verbs (`tools git|bd`).
  *
  * Walks tokens collecting positionals plus any flag declared in
  * `knownStringFlags` / `knownBoolFlags` into `prxArgs`. The first unknown
