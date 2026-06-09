@@ -225,10 +225,8 @@ Repo plumbing:
   prx beads update           Update an issue via the beadsd daemon (GH-296)
   prx beads close            Close an issue via the beadsd daemon (GH-296)
   prx beads reopen           Reopen a closed issue via the beadsd daemon (GH-296)
-  prx tools wt               Wrap worktrunk wt with policy enforcement
   prx tools git              Wrap git with policy enforcement
   prx tools bd               Wrap beads CLI with policy enforcement
-  prx tools labels sync      Sync triage label vocab onto GitHub
   prx dolt provision         Provision per-repo dolt database and initial push (GH-1685)
   prx dolt start             Start prx-owned dolt sql-server for this repo
   prx dolt stop              Stop prx-owned dolt sql-server for this repo

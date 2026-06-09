@@ -225,6 +225,55 @@ describe("runWorktreeHookCli — engine wiring (prx-6jb)", () => {
     expect(r).toEqual({ exitCode: 0, stream: "stdout", message: "/wt/feat-x" });
   });
 
+  test("create: bootstraps the NEW worktree via the injected seam (prx-arl)", async () => {
+    const bootstrapped: string[] = [];
+    const r = await runWorktreeHookCli("worktree-create", JSON.stringify({ name: "feat-x" }), "/repo", {
+      ...stubMaterialize,
+      ensureHooks: noopHooks,
+      initContract: async () => ({}),
+      bootstrap: async (cwd) => {
+        bootstrapped.push(cwd);
+        return {
+          beads: { status: "wrote-redirect", redirectPath: null, redirectTarget: null },
+          contract: { status: "wrote-contract", contractPath: `${cwd}/.pr/local/pr.json` },
+          exitCode: 0,
+        };
+      },
+    });
+    expect(r).toEqual({ exitCode: 0, stream: "stdout", message: "/wt/feat-x" });
+    expect(bootstrapped).toEqual(["/wt/feat-x"]); // the NEW worktree, not the launch cwd /repo
+  });
+
+  test("create: skips the contract bootstrap when no initContract is injected", async () => {
+    let called = false;
+    const r = await runWorktreeHookCli("worktree-create", JSON.stringify({ name: "feat-x" }), "/repo", {
+      ...stubMaterialize,
+      ensureHooks: noopHooks,
+      bootstrap: async () => {
+        called = true;
+        return {
+          beads: { status: "skipped-no-beads", redirectPath: null, redirectTarget: null },
+          contract: { status: "skipped-no-repo-root", contractPath: null },
+          exitCode: 0,
+        };
+      },
+    });
+    expect(r.exitCode).toBe(0);
+    expect(called).toBe(false); // no initContract → contract bootstrap is skipped
+  });
+
+  test("create: a failing bootstrap never aborts creation (best-effort)", async () => {
+    const r = await runWorktreeHookCli("worktree-create", JSON.stringify({ name: "feat-x" }), "/repo", {
+      ...stubMaterialize,
+      ensureHooks: noopHooks,
+      initContract: async () => ({}),
+      bootstrap: async () => {
+        throw new Error("bootstrap blew up");
+      },
+    });
+    expect(r).toEqual({ exitCode: 0, stream: "stdout", message: "/wt/feat-x" });
+  });
+
   test("create: a reserve error aborts creation (non-zero, materialize not called)", async () => {
     let materialized = false;
     const r = await runWorktreeHookCli(
