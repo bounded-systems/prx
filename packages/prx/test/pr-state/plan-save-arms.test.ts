@@ -46,7 +46,7 @@ describe("prx plan save — residual arms", () => {
     let saveCalls = 0;
 
     const exit = await runPlanSaveCli(
-      ["plan", "save", "--unit", "GH-1277", "--from-stdin", "--from-file", "/tmp/x.md"],
+      ["plan", "save", "--unit", "GH-1277", "--from-stdin", "--from-file", "x.md"],
       output,
       {
         readStdinSync: () => Buffer.from(VALID_BODY),
