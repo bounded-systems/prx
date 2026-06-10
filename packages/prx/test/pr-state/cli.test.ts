@@ -19,6 +19,7 @@ import { provenanceSigner, realStatementSigner } from "../../src/machine/machine
 import type { RawStateV1 } from "@bounded-systems/machine-schema";
 import type { DomainStateV1 } from "../../src/pr-state/domain_state.ts";
 import {
+  actionableCliErrorLines,
   assertWorktreeOnNamedBranch,
   autoRebaseOnSessionOpen,
   buildInitialPrContract,
@@ -7466,6 +7467,24 @@ describe("pr_state cli", () => {
     expect(result.exitCode).toBe(1);
     expect(new TextDecoder().decode(result.stderr)).toContain("Missing PR contract at");
     expect(new TextDecoder().decode(result.stderr)).toContain("prx contract init");
+  });
+
+  test("actionableCliErrorLines swaps the raw git fatal for a prx onboarding hint", () => {
+    // git's stderr when prx is launched outside a working tree (e.g. a fresh
+    // sandbox that came up in the home dir with no repo cloned).
+    const raw = "fatal: not a git repository (or any of the parent directories): .git";
+    const lines = actionableCliErrorLines(raw, "/home/claude");
+
+    expect(lines).not.toBeNull();
+    const text = lines!.join("\n");
+    expect(text).toContain("Not inside a git repository (cwd: /home/claude)");
+    expect(text).toContain("prx repo add");
+    expect(text).toContain("prx repo list");
+  });
+
+  test("actionableCliErrorLines passes unrelated errors through untranslated", () => {
+    expect(actionableCliErrorLines("Executable not found in $PATH: \"gh\"", "/x")).toBeNull();
+    expect(actionableCliErrorLines("some other failure", "/x")).toBeNull();
   });
 
   test("status supports mode and json output", () => {

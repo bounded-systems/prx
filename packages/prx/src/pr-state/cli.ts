@@ -14584,8 +14584,42 @@ function handleRunCliError(error: unknown, output: Output): number {
     output.error("Run `prx contract init` to create one, pass --contract, or use `prx overview` for a GitHub-only view.");
     return 1;
   }
-  output.error(error instanceof Error ? error.message : String(error));
+  // Most work-unit verbs (`prx next`, `prx do`, `prx status`, …) resolve a repo
+  // root from the cwd. When prx is launched outside a git working tree — e.g. a
+  // freshly-provisioned sandbox that came up in the home dir with no repo cloned
+  // — git's underlying `rev-parse` fails with a raw "not a git repository"
+  // fatal. Swap that for an actionable hint pointing at `prx repo add` / cd,
+  // the same way the missing-contract ENOENT case above does.
+  const message = error instanceof Error ? error.message : String(error);
+  const actionable = actionableCliErrorLines(message, process.cwd());
+  if (actionable) {
+    for (const line of actionable) {
+      output.error(line);
+    }
+    return 1;
+  }
+  output.error(message);
   return 1;
+}
+
+/**
+ * Translate a raw underlying error message into an actionable, prx-flavoured
+ * hint, or `null` when no translation applies (the caller then prints the raw
+ * message). Pure — no I/O — so the mapping is unit-testable without spawning
+ * the CLI or depending on which external tool (git, gh, …) happens to be on
+ * PATH in the test environment.
+ */
+export function actionableCliErrorLines(message: string, cwd: string): string[] | null {
+  if (/not a git repository/i.test(message)) {
+    return [
+      `Not inside a git repository (cwd: ${cwd}).`,
+      "`prx next` and most work-unit verbs run against a repo. To get started:",
+      "  • cd into a repo worktree you've already added, or",
+      "  • add one with `prx repo add <git-url>`, then cd into its worktree.",
+      "Run `prx repo list` to see the repos prx already knows about.",
+    ];
+  }
+  return null;
 }
 
 // GH-1533: map a `ParsedCommand` to the short verb name stamped onto `gh_call`
