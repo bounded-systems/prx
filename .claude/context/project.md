@@ -58,6 +58,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Pilot & fleet — Claude subagents as a signed pipeline — `docs/prx/pipeline-orchestrator.md`
 - ADR — signed provenance for `claude --worktree` materialization (prx-hc5) — `docs/prx/worktree-provenance.md`
 - prx — project roadmap — `docs/roadmap/prx.md`
+- Agentic causal inference — Netflix's human-augmenting OCI workflow, mapped to prx (spike) — `docs/spikes/agentic-causal-inference.md`
 - GH-1836 — PRX runtime + workspace architecture: Nix + Moon + Deno/Bun hybrid (ADR) — `docs/spikes/GH-1836-prx-runtime-architecture.md`
 - prx-3eu — Sync agent: adopt a sync framework, or build bespoke? (ADR) — `docs/spikes/prx-3eu-sync-framework-build-vs-adopt.md`
 - prx-ebo — Sync API efficiency: where the requests go, and how to cut them (ADR) — `docs/spikes/prx-ebo-sync-api-efficiency.md`
