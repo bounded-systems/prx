@@ -2210,6 +2210,17 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "preflight",
   },
   {
+    // OCAP self-report (the Chinese-Room translation surface): what this box
+    // CAN and CANNOT do, grounded in actually-present capabilities, plus how to
+    // enable the rest. Zero-dependency by design so it works in a bare box
+    // where git / bd / gh / repos are all absent and every other verb
+    // dead-ends.
+    name: "capabilities",
+    description: "Report available capabilities and how to enable them",
+    domain: "system",
+    actor: "preflight",
+  },
+  {
     name: "run profile",
     parent: "run",
     description: "Print runtime profile projection",
