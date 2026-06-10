@@ -14888,4 +14888,14 @@ describe("parseCommand — doctor dedupe-bd --only", () => {
     expect(parsed.only).toEqual([]);
     expect(parsed.apply).toBe(false);
   });
+
+  test("`capabilities` and its `caps` / `can` aliases all route to the capabilities command", () => {
+    for (const argv of [["capabilities"], ["caps"], ["can"]]) {
+      const parsed = parseCommand(argv);
+      expect(parsed.command).toBe("capabilities");
+    }
+    const json = parseCommand(["caps", "--format", "json"]);
+    if (json.command !== "capabilities") throw new Error("unreachable");
+    expect(json.format).toBe("json");
+  });
 });

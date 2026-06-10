@@ -401,6 +401,10 @@ import {
   formatClaudePreflight,
 } from "../tools/preflight_claude.ts";
 import {
+  probeCapabilities,
+  formatCapabilities,
+} from "../tools/capabilities.ts";
+import {
   runNotionMcpPreflight,
   formatNotionMcpPreflight,
 } from "../tools/preflight_notion_mcp.ts";
@@ -1729,6 +1733,10 @@ type ParsedCommand =
       subcommand: string;
       passArgs: string[];
       cwd?: string | undefined;
+    }
+  | {
+      command: "capabilities";
+      format: "plain" | "json";
     }
   | {
       command: "preflight-claude";
@@ -7325,6 +7333,10 @@ export function parseCommand(argv: string[]): ParsedCommand {
   if (command === "next") {
     return parseCommand(["next-action", ...rest]);
   }
+  // prx capabilities — OCAP self-report. `caps` / `can` are convenience aliases.
+  if (command === "caps" || command === "can") {
+    return parseCommand(["capabilities", ...rest]);
+  }
 
   if (command === "session") {
     return parseSessionNamespace(rest);
@@ -9666,6 +9678,21 @@ export function parseCommand(argv: string[]): ParsedCommand {
       subcommand,
       passArgs: [...positionals.slice(1), ...passthrough],
       cwd: values.cwd,
+    };
+  }
+
+  if (command === "capabilities") {
+    const { values } = parseArgs({
+      args: rest,
+      options: {
+        format: { type: "string", default: "plain" },
+      },
+      strict: true,
+      allowPositionals: false,
+    });
+    return {
+      command,
+      format: ensureChoice(values.format, ["plain", "json"], "--format"),
     };
   }
 
@@ -20681,6 +20708,17 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       const out = formatBdExecResult(result, parsed.format);
       if (out) output.log(out);
       return result.exitCode;
+    }
+
+    if (parsed.command === "capabilities") {
+      return (async () => {
+        const report = await probeCapabilities();
+        output.log(formatCapabilities(report, parsed.format));
+        // Always exit 0 — a bare box reporting "everything is unavailable" is a
+        // successful self-report, not a failure. The whole point is that this
+        // command works (and tells the truth) when nothing else does.
+        return 0;
+      })();
     }
 
     if (parsed.command === "preflight-claude") {

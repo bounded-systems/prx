@@ -252,6 +252,7 @@ System:
   prx hooks status              Report git hooks path drift
   prx preflight claude          Verify claude agent runtime dependencies
   prx preflight notion          Verify notion MCP runtime dependencies
+  prx capabilities              Report available capabilities and how to enable them
   prx run profile               Print runtime profile projection
   prx run smoke                 Smoke-test agent runtime for a unit
   prx run desktop               Open worktree in Codex Desktop
