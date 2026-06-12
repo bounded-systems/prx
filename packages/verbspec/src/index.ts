@@ -11,7 +11,9 @@
  *           ├─ toCli      ──▶ argv parser + `--help`   (thin router + printer)
  *           ├─ toMcpTool  ──▶ MCP tool { name, description, inputSchema }
  *           ├─ toAnthropicTool ──▶ tool-use { name, description, input_schema }
- *           └─ toOpenApiOperation ──▶ POST /{id}
+ *           ├─ toOpenApiOperation ──▶ POST /{id}  (the HTTP surface)
+ *           ├─ toOpenRpcMethod ──▶ OpenRPC method  (the JSON-RPC surface)
+ *           └─ dispatchNdjson ──▶ line-delimited JSON-RPC 2.0  (daemon transport)
  *
  * `cli.ts` collapses to: resolve verb → parse argv (validated by the Zod input)
  * → `run` → pretty-print. No per-verb handler boilerplate, no drift between the
@@ -147,6 +149,109 @@ export const toOpenApiPaths = (reg: Registry): JsonSchema =>
 
 /** Project a whole registry to an MCP toolset. */
 export const toMcpToolset = (reg: Registry): McpTool[] => Object.values(reg).map(toMcpTool);
+
+// ── OpenRPC projection (the JSON-RPC analogue of OpenAPI) ─────────────────────
+//
+// OpenRPC describes a JSON-RPC service the way OpenAPI describes an HTTP one.
+// It's the natural document for a verb registry exposed over a JSON-RPC /
+// NDJSON transport (e.g. a daemon protocol): each verb is a Method Object whose
+// `params` are Content Descriptors projected from the input schema's top-level
+// properties, and whose `result` wraps the output schema — the same Zod source
+// the CLI/MCP/OpenAPI surfaces already read, seen from one more side.
+
+export type ContentDescriptor = { name: string; required: boolean; schema: JsonSchema };
+
+/** Top-level input properties → OpenRPC Content Descriptors (by-name params). */
+const toContentDescriptors = (v: VerbSpec): ContentDescriptor[] => {
+  const js = toInputJsonSchema(v) as { properties?: Record<string, JsonSchema>; required?: string[] };
+  const props = js.properties ?? {};
+  const required = new Set(js.required ?? []);
+  return Object.entries(props).map(([name, schema]) => ({ name, required: required.has(name), schema }));
+};
+
+/** Project one verb to an OpenRPC Method Object. */
+export const toOpenRpcMethod = (v: VerbSpec): JsonSchema => ({
+  name: verbToken(v.id),
+  summary: v.summary,
+  "x-prx-actor": v.actor,
+  params: toContentDescriptors(v),
+  result: { name: `${verbToken(v.id)}_result`, schema: toOutputJsonSchema(v) },
+});
+
+/** Project a whole registry to an OpenRPC document. */
+export const toOpenRpcDocument = (
+  reg: Registry,
+  info: { title: string; version: string } = { title: "verbspec", version: "0.0.0" },
+): JsonSchema => ({
+  openrpc: "1.3.2",
+  info,
+  methods: Object.values(reg).map(toOpenRpcMethod),
+});
+
+// ── JSON-RPC / NDJSON projection (the daemon transport) ───────────────────────
+//
+// A line-delimited JSON-RPC 2.0 surface over the same registry: read a request
+// `{ method, params }`, resolve the verb (by its token), validate `params`
+// against the verb's Zod input (the single source of validation, exactly as the
+// CLI's `parseArgs` does), `run`, and answer `{ result }` / `{ error }`. The
+// daemon protocol becomes one more projection — its client types derive from
+// the same `output` schema, so there is no drift between server and client.
+
+export type JsonRpcId = string | number | null;
+export type JsonRpcRequest = { jsonrpc?: "2.0"; id?: JsonRpcId; method: string; params?: unknown };
+export type JsonRpcError = { code: number; message: string; data?: unknown };
+export type JsonRpcResponse =
+  | { jsonrpc: "2.0"; id: JsonRpcId; result: unknown }
+  | { jsonrpc: "2.0"; id: JsonRpcId; error: JsonRpcError };
+
+// Standard JSON-RPC 2.0 error codes.
+const RPC = { parse: -32700, invalidRequest: -32600, methodNotFound: -32601, invalidParams: -32602, internal: -32603 } as const;
+
+const err = (id: JsonRpcId, code: number, message: string, data?: unknown): JsonRpcResponse => ({
+  jsonrpc: "2.0",
+  id,
+  ...(data === undefined ? { error: { code, message } } : { error: { code, message, data } }),
+});
+
+/** Resolve a JSON-RPC method name (verb token) back to its registry entry. */
+const resolveByToken = (reg: Registry, method: string): AnyVerbSpec | undefined =>
+  reg[method] ?? Object.values(reg).find((v) => verbToken(v.id) === method);
+
+/**
+ * Handle a single JSON-RPC request against the registry. Never throws: a verb
+ * that throws maps to an internal error (a `CliExitError` carries no transport
+ * meaning here — the daemon reports it as a normal failure with its message).
+ */
+export async function handleJsonRpc(reg: Registry, req: JsonRpcRequest): Promise<JsonRpcResponse> {
+  const id = req.id ?? null;
+  if (typeof req?.method !== "string") return err(id, RPC.invalidRequest, "missing method");
+  const v = resolveByToken(reg, req.method);
+  if (!v) return err(id, RPC.methodNotFound, `unknown method: ${req.method}`);
+  const parsed = v.input.safeParse(req.params ?? {});
+  if (!parsed.success) return err(id, RPC.invalidParams, "invalid params", parsed.error.issues);
+  try {
+    const result = await v.run(parsed.data, v.deps?.());
+    return { jsonrpc: "2.0", id, result };
+  } catch (e) {
+    return err(id, RPC.internal, e instanceof Error ? e.message : String(e));
+  }
+}
+
+/**
+ * Drive one NDJSON line: parse → handle → serialize to a single response line
+ * (no trailing newline). A malformed line is a JSON-RPC parse error with a null
+ * id. This is the whole daemon read-loop body: `for await (line) write(await
+ * dispatchNdjson(reg, line) + "\n")`.
+ */
+export async function dispatchNdjson(reg: Registry, line: string): Promise<string> {
+  let req: JsonRpcRequest;
+  try {
+    req = JSON.parse(line) as JsonRpcRequest;
+  } catch {
+    return JSON.stringify(err(null, RPC.parse, "parse error"));
+  }
+  return JSON.stringify(await handleJsonRpc(reg, req));
+}
 
 // ── CLI projection: help + argv parser ───────────────────────────────────────
 
