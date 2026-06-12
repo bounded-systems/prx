@@ -40,6 +40,40 @@
             "pattern": "^[a-z][a-z0-9_]*$"
           }
         },
+        "requiredPredicates": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "artifact": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "passed",
+                  "present"
+                ]
+              },
+              "binding": {
+                "type": "string",
+                "enum": [
+                  "property",
+                  "event"
+                ]
+              }
+            },
+            "required": [
+              "artifact",
+              "status",
+              "binding"
+            ],
+            "additionalProperties": false
+          }
+        },
         "guardId": {
           "type": "string",
           "minLength": 1

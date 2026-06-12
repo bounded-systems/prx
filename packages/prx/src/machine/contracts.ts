@@ -130,6 +130,47 @@ export const aggregateUowKinds = [
 export type AggregateUowKind = (typeof aggregateUowKinds)[number];
 export const aggregateUowKindSchema = z.enum(aggregateUowKinds);
 
+// ── predicate binding semantics ───────────────────────────────────────────
+//
+// A transition's gate is a *bundle* of predicates, and each member declares
+// how it binds to the artifact it asserts over. That tag is the thing that
+// stops an event from being laundered as a property:
+//
+//   - "property" — holds by construction, re-derivable hermetically against
+//                  the head it names (a test suite passed against H; I04 over
+//                  a RawStateV1). Re-run it and it is true or it is not; it
+//                  cannot be rubber-stamped.
+//   - "event"    — a re-attributable assertion that some actor produced an
+//                  event over H (a non-author *findings* attestation; a human
+//                  approval). It does not certify adequacy — only that the
+//                  assertion exists and by whom. It never stands alone; it
+//                  earns weight only as one member of the bundle.
+//
+// This is the type-level precursor only: the binding tag plus the bundle
+// member shape. The verdict that *weighs* the bundle, the capability-
+// footprint → required-predicate mapping, and the weighting of event-bound
+// (e.g. differently-conditioned critic) members are the queued follow-ups.
+export const predicateBindings = ["property", "event"] as const;
+export type PredicateBinding = (typeof predicateBindings)[number];
+export const predicateBindingSchema = z.enum(predicateBindings);
+
+/** Status an artifact must hold for a predicate to be satisfied. Shared with
+ *  the legacy singular `requiredStatus` so the two forms cannot drift. */
+export const predicateStatusSchema = z.enum(["passed", "present"]);
+
+export const requiredPredicateSchema = z
+  .object({
+    /** The artifact type this predicate asserts over. */
+    artifact: artifactTypeIdSchema,
+    /** The status the artifact must hold. */
+    status: predicateStatusSchema,
+    /** How the predicate binds to its artifact (see above). */
+    binding: predicateBindingSchema,
+  })
+  .strict();
+
+export type RequiredPredicate = z.infer<typeof requiredPredicateSchema>;
+
 export const transitionContractSchema = z
   .object({
     axis: z.enum(transitionAxes),
@@ -137,14 +178,54 @@ export const transitionContractSchema = z
     toPhase: z.string().min(1),
     /** Exactly one required artifact (bundle via composedOf for multi-artifact gates). */
     requiredArtifact: artifactTypeIdSchema,
-    requiredStatus: z.enum(["passed", "present"]),
+    requiredStatus: predicateStatusSchema,
     forbiddenArtifacts: z.array(artifactTypeIdSchema),
+    /**
+     * The predicate bundle for this transition. Optional and backward-
+     * compatible: when absent, the gate is the singleton property-bound
+     * predicate `{ artifact: requiredArtifact, status: requiredStatus,
+     * binding: "property" }` — exactly today's behaviour. Contracts that need
+     * event-bound members (a non-author findings attestation, a human
+     * approval) or more than one predicate declare them here. Read the
+     * normalized bundle through {@link requiredPredicatesOf}, never these
+     * fields directly, so consumers don't have to know which form a contract
+     * was authored in.
+     */
+    requiredPredicates: z.array(requiredPredicateSchema).min(1).optional(),
     /** Pure-function id; implementation lives in src/machine/contracts/guards.ts. */
     guardId: z.string().min(1),
   })
   .strict();
 
 export type TransitionContract = z.infer<typeof transitionContractSchema>;
+
+/** Binding the legacy singular `requiredArtifact`/`requiredStatus` pair
+ *  projects to: property-bound — the conservative, re-derivable reading that
+ *  matches every guard shipping today. */
+export const LEGACY_PREDICATE_BINDING: PredicateBinding = "property";
+
+/**
+ * Normalize a contract to its predicate bundle. When `requiredPredicates` is
+ * declared it is authoritative; otherwise the singular `requiredArtifact`/
+ * `requiredStatus` pair projects to a one-member property-bound bundle. This
+ * is the single seam both the intake-to-plan lifecycle contracts and the
+ * merge-verdict bundle read through, so neither has to branch on which form a
+ * contract was authored in.
+ */
+export function requiredPredicatesOf(
+  contract: TransitionContract,
+): readonly RequiredPredicate[] {
+  if (contract.requiredPredicates && contract.requiredPredicates.length > 0) {
+    return contract.requiredPredicates;
+  }
+  return [
+    {
+      artifact: contract.requiredArtifact,
+      status: contract.requiredStatus,
+      binding: LEGACY_PREDICATE_BINDING,
+    },
+  ];
+}
 
 // ── curry helper ──────────────────────────────────────────────────────────
 //
