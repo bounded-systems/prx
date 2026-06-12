@@ -372,6 +372,73 @@ permissions formalize.
 mapping is documented inline in `runtime_profiles.ts` comments as part
 of Phase B's exit checkpoint (filed as a follow-up).
 
+### 3.7 Prior art — object-capability languages
+
+Axes 2 and 6 reason about the Deno permission model purely from PRX's
+own profile builders. That is sufficient to *decide* the axes, but it
+leaves the design ungrounded in the lineage it is actually re-deriving:
+**object-capability (ocap) security**, the discipline of "no ambient
+authority — a component can only affect what it was explicitly handed."
+This subsection records that lineage so the Axis 2/6 verdict reads as a
+deliberate ocap choice rather than an incidental Deno feature.
+
+**The lineage.** The principle traces to Dennis & van Horn (1966) and
+is named POLA — the Principle of Least Authority — in Miller's E
+language. A family of languages makes capability security a
+*first-class language property*:
+
+| Language | Where the capability lives | One-line relevance to PRX |
+|----------|----------------------------|---------------------------|
+| **E** (Miller) | Object references *are* capabilities; POLA is the design axiom | The conceptual root; "authority follows the reference" is the rule every PRX seam encodes. |
+| **Pony** | Reference capabilities (`iso`, `val`, `ref`, `box`, `tag`) checked by the type system; actor-model + "capabilities-secure" | Closest structural analogue: ocap **and** actors, exactly PRX's two axes (`src/machine/actors.ts` tiers + the seams). |
+| **Newspeak** | Object-capability platform; no global namespace, all authority passed in as constructor args | The "no ambient" rule PRX enforces via the single-sanctioned-access-point packages. |
+| **Monte** | POLA + capability object model over a Python-like surface | Demonstrates ocap retrofit onto a mainstream-feeling language — PRX's situation in TS. |
+| **Cadence** | Capability security in the static type system (resources / linear types) | Type-level authority; domain-locked to Flow, but the down-casting-for-access-control pattern mirrors PRX's policy gates. |
+| **Austral** | Linear types + capability security; capabilities are unforgeable values threaded explicitly | The "authority is a value you must be given" model the dispatch envelope approximates. |
+
+**Why PRX gets the property at two lower layers instead of the
+language.** TypeScript has no reference-capability system; the Agent SDK
+constrains the host language (Axis-3 reasoning). So PRX cannot adopt a
+Pony-style *type-checked* capability and instead realizes the same
+invariant at the two layers it does control:
+
+1. **Architecture layer (today).** The "one sanctioned access point"
+   packages — `@bounded-systems/{fs,env,host,proc}` plus the `policy`
+   engine and per-actor tool allowlists — are an ocap discipline
+   enforced by module boundaries and review. This is the Newspeak
+   "authority passed in, never ambient" rule applied to a TS monorepo:
+   nothing reads `process.env` except `env`, nothing spawns except
+   `proc`.
+2. **OS layer (this ADR).** Deno's `--allow-*` flags (§3.2, §3.6) make
+   the same authority **unforgeable at the process boundary** — the
+   property Pony gets from its type checker, PRX gets from the kernel.
+   This is what closes the gap §2 #2 names: I-AUD4
+   (`src/audit/invariants.ts:159`) is a *post-hoc string match* on the
+   action verb today; the Deno gate makes "the executor *cannot*
+   `git push --force` even if the prompt says so" an OS guarantee, not
+   an audit observation.
+
+**The mapping, made explicit.** Pony's reference capabilities annotate
+*what a reference may do with the object it points at*; the Deno tier
+flags annotate *what a process may do with the host it runs on*. The
+shapes line up:
+
+| ocap concept | Pony form | PRX form (this ADR) |
+|--------------|-----------|---------------------|
+| Read-only authority | `val` / `box` reference | `planning` tier: `--allow-read=$REPO_ROOT`, no write/run/net |
+| Write + side-effect authority | `iso` / `ref` reference | `execution` tier: `--allow-write=$WORKTREE,$CAS_ROOT --allow-run=git,gh,bun` |
+| Scoped outbound authority | capability passed to one actor | `verification_publication` tier: `--allow-net=api.github.com` (host-scoped) |
+| Unforgeable identity, no authority | `tag` reference | An actor with no `--allow-*` flag for a resource simply cannot reach it |
+
+**Verdict (prior art).** No new decision — this subsection *grounds*
+Axes 2 and 6. The takeaway for any future "should we swap to a
+capabilities-secure language?" question: the property those languages
+sell is already obtained, at the architecture layer (in place) and the
+OS layer (Phases A–D), without paying the ecosystem cost of leaving the
+Agent-SDK-bearing TS runtime. A language swap would re-acquire a
+property PRX already holds and forfeit the libraries the product is
+built on.
+
 ## 4. Comparison matrix
 
 Rows: candidate workspace+runtime architectures. Columns: 1–5 scoring
