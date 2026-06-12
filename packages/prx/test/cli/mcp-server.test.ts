@@ -9,7 +9,7 @@ import { Readable } from "node:stream";
 import { z } from "zod";
 
 import { handleMcpRequest, serveStdio, MCP_PROTOCOL_VERSION } from "../../src/cli/mcp-server.ts";
-import { verbToken, type Registry, type VerbSpec } from "../../src/cli/verbspec.ts";
+import { verbToken, type Registry, type VerbSpec } from "@bounded-systems/verbspec";
 
 const echo: VerbSpec = {
   id: "test.echo",

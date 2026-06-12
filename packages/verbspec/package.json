@@ -1,0 +1,17 @@
+{
+  "name": "@bounded-systems/verbspec",
+  "description": "Spec-driven CLI core: author a verb once as a typed VerbSpec, project it to CLI, MCP, OpenAPI, and Anthropic tool surfaces",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "peerDependencies": {
+    "zod": "^3.25.0 || ^4.0.0"
+  }
+}

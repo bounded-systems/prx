@@ -10,7 +10,7 @@
 
 import { z } from "zod";
 
-import { defineVerb } from "../cli/verbspec.ts";
+import { defineVerb } from "@bounded-systems/verbspec";
 import { applySkillEvent, type SkillEventPayload } from "./event-verb.ts";
 import {
   getAgentContract,

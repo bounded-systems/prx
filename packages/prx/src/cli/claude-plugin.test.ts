@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 
-import { defineVerb, type Registry } from "./verbspec.ts";
+import { defineVerb, type Registry } from "@bounded-systems/verbspec";
 import { actorAgentFiles, commandSlashFiles, mcpToolRef, toClaudePlugin } from "./claude-plugin.ts";
 import { fleetVerb, pilotVerb } from "./pilot-verbs.ts";
 import { CommandSpec } from "./registry.ts";

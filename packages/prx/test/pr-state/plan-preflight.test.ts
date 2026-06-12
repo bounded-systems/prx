@@ -9,7 +9,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { parseArgs, CliExitError } from "../../src/cli/verbspec.ts";
+import { parseArgs, CliExitError } from "@bounded-systems/verbspec";
 import {
   planPreflightVerb,
   type PlanPreflightDeps,

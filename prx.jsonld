@@ -135,6 +135,9 @@
         },
         {
           "@id": "https://github.com/bounded-systems/prx/tree/main/packages/surface-sync"
+        },
+        {
+          "@id": "https://github.com/bounded-systems/prx/tree/main/packages/verbspec"
         }
       ]
     },
@@ -353,6 +356,16 @@
       "@id": "https://github.com/bounded-systems/prx/tree/main/packages/surface-sync",
       "name": "@bounded-systems/surface-sync",
       "description": "Type ontology for work-unit change-detection across GH/branch/worktree/tmux/beads",
+      "codeRepository": "https://github.com/bounded-systems/prx",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://github.com/bounded-systems/prx/tree/main/packages/verbspec",
+      "name": "@bounded-systems/verbspec",
+      "description": "Spec-driven CLI core: author a verb once as a typed VerbSpec, project it to CLI, MCP, OpenAPI, and Anthropic tool surfaces",
       "codeRepository": "https://github.com/bounded-systems/prx",
       "isPartOf": {
         "@id": "https://github.com/bounded-systems/prx"

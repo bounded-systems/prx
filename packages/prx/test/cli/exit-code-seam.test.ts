@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 
-import { defineVerb } from "../../src/cli/verbspec.ts";
+import { defineVerb } from "@bounded-systems/verbspec";
 import { runSpecVerb } from "../../src/cli/orchestrator-cli.ts";
 import { verbRegistry } from "../../src/cli/verb-registry.ts";
 

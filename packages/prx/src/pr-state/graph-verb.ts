@@ -8,7 +8,7 @@ import { writeFileSync } from "node:fs";
 
 import { z } from "zod";
 
-import { defineVerb } from "../cli/verbspec.ts";
+import { defineVerb } from "@bounded-systems/verbspec";
 import { formatGraph } from "./cli-format.ts";
 import { runInheritStatus } from "./cli-spawn.ts";
 

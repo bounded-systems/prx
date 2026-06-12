@@ -13,7 +13,7 @@
 
 import { ZodError } from "zod";
 
-import { dispatch, render, CliExitError } from "./verbspec.ts";
+import { dispatch, render, CliExitError } from "@bounded-systems/verbspec";
 import { verbRegistry } from "./verb-registry.ts";
 
 export async function runSpecVerb(

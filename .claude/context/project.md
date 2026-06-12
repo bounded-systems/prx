@@ -36,6 +36,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - `@bounded-systems/scout` — Content-addressed surface reads (file/grep/files) with anchored-chain provenance
 - `@bounded-systems/slack` — Policy-gated, provenance-tracked Slack read surface: bounded read ops behind a swappable transport port, with keymaker-minted scoped credentials
 - `@bounded-systems/surface-sync` — Type ontology for work-unit change-detection across GH/branch/worktree/tmux/beads
+- `@bounded-systems/verbspec` — Spec-driven CLI core: author a verb once as a typed VerbSpec, project it to CLI, MCP, OpenAPI, and Anthropic tool surfaces
 
 ## Docs
 

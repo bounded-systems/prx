@@ -11,7 +11,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { z } from "zod";
 
-import { defineVerb } from "../cli/verbspec.ts";
+import { defineVerb } from "@bounded-systems/verbspec";
 import { CliError } from "./cli-error.ts";
 import { formatPrComments, formatPrCommentsResolution } from "./cli-format.ts";
 import {

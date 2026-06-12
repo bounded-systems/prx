@@ -6,7 +6,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { dispatch } from "../../src/cli/verbspec.ts";
+import { dispatch } from "@bounded-systems/verbspec";
 import { verbRegistry } from "../../src/cli/verb-registry.ts";
 import { DocsReport, docsVerb } from "../../src/docs/verb.ts";
 

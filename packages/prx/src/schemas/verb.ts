@@ -12,7 +12,7 @@ import { dirname, relative } from "node:path";
 import { z } from "zod";
 
 import { getRepoRoot } from "@bounded-systems/repo-root";
-import { defineVerb } from "../cli/verbspec.ts";
+import { defineVerb } from "@bounded-systems/verbspec";
 
 export const SchemasReport = z
   .object({

@@ -7,7 +7,7 @@
 
 import { z } from "zod";
 
-import { defineVerb } from "../cli/verbspec.ts";
+import { defineVerb } from "@bounded-systems/verbspec";
 import { formatRemoteCiCheck, formatScoutLogs } from "./cli-format.ts";
 import {
   remoteCiCheck,

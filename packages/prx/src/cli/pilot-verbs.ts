@@ -1,7 +1,7 @@
 /**
  * SPIKE — `pilot` and `fleet` authored as spec-driven verbs. These are the
  * first canonical `VerbSpec`s: one Zod schema each, projected to CLI / MCP /
- * OpenAPI / tools by `verbspec.ts`, with `run` driving the real machines.
+ * OpenAPI / tools by `@bounded-systems/verbspec`, with `run` driving the real machines.
  *
  * (Uses `stubLegRunner` for the spike; prod swaps in the SDK leg-runner +
  * `resolveProvenanceSigner` — see pilot-runner.ts / pilot-signing.ts.)
@@ -15,7 +15,7 @@ import { createFleetMachine, type FleetContext } from "../machine/machines/fleet
 import { createPilotMachine, stubLegRunner } from "../machine/machines/pilot.ts";
 import { buildRealPilotDeps, wantsRealPilot } from "./pilot-real.ts";
 import { makeAuditInspector } from "../audit/sink.ts";
-import { defineVerb } from "./verbspec.ts";
+import { defineVerb } from "@bounded-systems/verbspec";
 
 export const pilotVerb = defineVerb({
   id: "pilot",

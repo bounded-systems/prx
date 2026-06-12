@@ -11,7 +11,7 @@
 // CAS blob. So the digest is content + identity, minus the volatile metadata.
 //
 // The zod schema is the source of truth; `slackMessageContentJsonSchema` is the
-// derived JSON Schema (zod 4 `z.toJSONSchema`, the same IR `cli/verbspec.ts`
+// derived JSON Schema (zod 4 `z.toJSONSchema`, the same IR `@bounded-systems/verbspec`
 // emits) — the typed contract a read-back/query surface emits against.
 
 import { z } from "zod";

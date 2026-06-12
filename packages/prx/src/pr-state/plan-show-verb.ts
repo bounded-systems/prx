@@ -5,7 +5,7 @@
 
 import { z } from "zod";
 
-import { defineVerb } from "../cli/verbspec.ts";
+import { defineVerb } from "@bounded-systems/verbspec";
 import { CliError } from "./cli-error.ts";
 import { detectWorkCommandTarget, parseCanonicalWorkUnitId } from "./cli-id.ts";
 import {

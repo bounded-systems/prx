@@ -13,7 +13,7 @@
  * the spirit of `roleProfile` (pilot.ts) one level up, at the actor.
  */
 
-import type { VerbSpec } from "./verbspec.ts";
+import type { VerbSpec } from "@bounded-systems/verbspec";
 
 export type ToolPolicy = { allow: readonly string[]; deny: readonly string[] };
 export type ActorPolicies = Record<string, ToolPolicy>;

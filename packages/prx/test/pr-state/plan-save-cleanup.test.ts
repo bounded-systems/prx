@@ -8,7 +8,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { parseArgs } from "../../src/cli/verbspec.ts";
+import { parseArgs } from "@bounded-systems/verbspec";
 import { planSaveVerb, type PlanSaveDeps } from "../../src/pr-state/plan-save-verb.ts";
 
 type Output = {
