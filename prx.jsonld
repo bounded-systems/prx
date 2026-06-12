@@ -540,6 +540,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/predicate-bundle-verdict.md",
+      "name": "ADR — `MergeabilityVerdict` as a policy over a predicate bundle (GH-592)",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/predicate-bundle-verdict.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/worktree-provenance.md",
       "name": "ADR — signed provenance for `claude --worktree` materialization (prx-hc5)",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/worktree-provenance.md",
