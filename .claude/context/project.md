@@ -56,6 +56,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - `prx dolt start` — the dolt actor's start driver (GH-555) — `docs/prx/dolt-start.md`
 - Local CI in the pipeline — the `checking` gate + where health/OTEL belongs — `docs/prx/pipeline-local-checks.md`
 - Pilot & fleet — Claude subagents as a signed pipeline — `docs/prx/pipeline-orchestrator.md`
+- ADR — `MergeabilityVerdict` as a policy over a predicate bundle (GH-592) — `docs/prx/predicate-bundle-verdict.md`
 - ADR — signed provenance for `claude --worktree` materialization (prx-hc5) — `docs/prx/worktree-provenance.md`
 - prx — project roadmap — `docs/roadmap/prx.md`
 - Agentic causal inference — Netflix's human-augmenting OCI workflow, mapped to prx (spike) — `docs/spikes/agentic-causal-inference.md`
