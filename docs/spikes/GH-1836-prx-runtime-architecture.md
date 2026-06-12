@@ -380,7 +380,9 @@ leaves the design ungrounded in the lineage it is actually re-deriving:
 **object-capability (ocap) security**, the discipline of "no ambient
 authority — a component can only affect what it was explicitly handed."
 This subsection records that lineage so the Axis 2/6 verdict reads as a
-deliberate ocap choice rather than an incidental Deno feature.
+deliberate ocap choice rather than an incidental Deno feature. The fuller
+survey lives in [`docs/object-capability-languages.md`](../object-capability-languages.md);
+the cut below is the decision-specific grounding.
 
 **The lineage.** The principle traces to Dennis & van Horn (1966) and
 is named POLA — the Principle of Least Authority — in Miller's E

@@ -490,6 +490,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/object-capability-languages.md",
+      "name": "Object-capability languages — prior art for prx's capability model",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/object-capability-languages.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/provenance/signing.md",
       "name": "Provenance signing — setup",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/provenance/signing.md",
