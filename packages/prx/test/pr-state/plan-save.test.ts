@@ -10,7 +10,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { runCli } from "../../src/pr-state/cli.ts";
-import { parseArgs } from "../../src/cli/verbspec.ts";
+import { parseArgs } from "@bounded-systems/verbspec";
 import { planSaveVerb, type PlanSaveDeps } from "../../src/pr-state/plan-save-verb.ts";
 import { validatePlanShape } from "../../src/plan-store/scope.ts";
 import type { RunPlanSaveResult } from "../../src/plan-store/verbs.ts";

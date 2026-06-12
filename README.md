@@ -36,6 +36,7 @@ libraries it builds on. A Bun + TypeScript monorepo.
     - `scout` — Content-addressed surface reads (file/grep/files) with anchored-chain provenance
     - `slack` — Policy-gated, provenance-tracked Slack read surface: bounded read ops behind a swappable transport port, with keymaker-minted scoped credentials
     - `surface-sync` — Type ontology for work-unit change-detection across GH/branch/worktree/tmux/beads
+    - `verbspec` — Spec-driven CLI core: author a verb once as a typed VerbSpec, project it to CLI, MCP, OpenAPI, and Anthropic tool surfaces
 - `spec/` — the prx effect/contract spec (`schema.cue`)
 
 ## Build & test

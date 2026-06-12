@@ -7,7 +7,7 @@
 
 import { z } from "zod";
 
-import { defineVerb } from "../cli/verbspec.ts";
+import { defineVerb } from "@bounded-systems/verbspec";
 import { renderStatus } from "./status-report.ts";
 
 export const StatusOutput = z.object({ rendered: z.string() }).strict();

@@ -9,7 +9,7 @@ import {
   toOpenApiPaths,
   parseArgs,
   render,
-} from "./verbspec.ts";
+} from "@bounded-systems/verbspec";
 import { fleetVerb, orchestratorRegistry, pilotVerb } from "./pilot-verbs.ts";
 
 describe("spec-driven CLI: author once, project everywhere", () => {

@@ -7,7 +7,7 @@
 
 import { z } from "zod";
 
-import { defineVerb } from "../cli/verbspec.ts";
+import { defineVerb } from "@bounded-systems/verbspec";
 import { formatActors, formatModel } from "./cli-format.ts";
 
 const CatalogInput = z.object({

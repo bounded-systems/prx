@@ -146,7 +146,7 @@
     },
     "packages/prx": {
       "name": "@bounded-systems/prx",
-      "version": "0.8.2",
+      "version": "0.10.0",
       "bin": {
         "prx": "./dist/prx",
       },
@@ -169,7 +169,7 @@
     },
     "packages/slack": {
       "name": "@bounded-systems/slack",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "dependencies": {
         "@bounded-systems/anchored-chain": "workspace:*",
         "@bounded-systems/cas": "workspace:*",
@@ -181,6 +181,13 @@
       "version": "0.0.0",
       "dependencies": {
         "@bounded-systems/disposition": "workspace:*",
+      },
+    },
+    "packages/verbspec": {
+      "name": "@bounded-systems/verbspec",
+      "version": "0.0.0",
+      "peerDependencies": {
+        "zod": "^3.25.0 || ^4.0.0",
       },
     },
   },
@@ -250,6 +257,8 @@
     "@bounded-systems/slack": ["@bounded-systems/slack@workspace:packages/slack"],
 
     "@bounded-systems/surface-sync": ["@bounded-systems/surface-sync@workspace:packages/surface-sync"],
+
+    "@bounded-systems/verbspec": ["@bounded-systems/verbspec@workspace:packages/verbspec"],
 
     "@drizzle-team/brocli": ["@drizzle-team/brocli@0.10.2", "", {}, "sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w=="],
 

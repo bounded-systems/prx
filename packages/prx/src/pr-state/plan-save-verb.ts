@@ -10,7 +10,7 @@ import { readFileSync, renameSync, statSync, unlinkSync } from "node:fs";
 import { basename, join } from "node:path";
 import { z } from "zod";
 
-import { defineVerb } from "../cli/verbspec.ts";
+import { defineVerb } from "@bounded-systems/verbspec";
 import { CliError } from "./cli-error.ts";
 import { detectWorkCommandTarget, parseCanonicalWorkUnitId } from "./cli-id.ts";
 import { resolvePlanSessionUnit } from "../plan-store/session-context.ts";

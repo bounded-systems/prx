@@ -6,7 +6,7 @@
 
 import { z } from "zod";
 
-import { defineVerb } from "../cli/verbspec.ts";
+import { defineVerb } from "@bounded-systems/verbspec";
 import { formatRepoChecks } from "./cli-format.ts";
 import { repoCheckNames, type RepoCheckNamesResult } from "./github.ts";
 

@@ -7,7 +7,7 @@
 
 import { z } from "zod";
 
-import { defineVerb } from "../cli/verbspec.ts";
+import { defineVerb } from "@bounded-systems/verbspec";
 import { CliError } from "./cli-error.ts";
 import { formatOverview } from "./cli-format.ts";
 import { loadRepoInventoryConfig, loadRepoInventoryIndex } from "./repos.ts";

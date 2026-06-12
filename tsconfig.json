@@ -38,7 +38,8 @@
       "@bounded-systems/anchored-chain-sqlite": ["./packages/anchored-chain-sqlite/src/index.ts"],
       "@bounded-systems/scout": ["./packages/scout/src/index.ts"],
       "@bounded-systems/slack": ["./packages/slack/src/index.ts"],
-      "@bounded-systems/surface-sync": ["./packages/surface-sync/src/index.ts"]
+      "@bounded-systems/surface-sync": ["./packages/surface-sync/src/index.ts"],
+      "@bounded-systems/verbspec": ["./packages/verbspec/src/index.ts"]
     }
   },
   "include": [

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { actorsVerb, type CatalogOutput, modelVerb } from "../../src/pr-state/model-verb.ts";
-import type { VerbSpec } from "../../src/cli/verbspec.ts";
+import type { VerbSpec } from "@bounded-systems/verbspec";
 
 // The `actors` / `model` catalog reads migrated off cli.ts to spec-driven
 // VerbSpecs (ADR docs/prx/cli-decomposition.md). These cover scope × format at

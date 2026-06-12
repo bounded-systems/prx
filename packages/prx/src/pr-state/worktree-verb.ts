@@ -7,7 +7,7 @@
 
 import { z } from "zod";
 
-import { defineVerb } from "../cli/verbspec.ts";
+import { defineVerb } from "@bounded-systems/verbspec";
 import { formatWorktree, formatWtStatus } from "./cli-format.ts";
 import { worktreeStatus, wtStatus } from "./github.ts";
 

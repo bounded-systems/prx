@@ -21,7 +21,7 @@ import {
   type PlanCloseBdRecordOutcome,
   type PlanCloseResult,
 } from "../../src/pr-state/plan-close-bd.ts";
-import { parseArgs } from "../../src/cli/verbspec.ts";
+import { parseArgs } from "@bounded-systems/verbspec";
 import {
   planCloseVerb,
   type PlanCloseVerbDeps,

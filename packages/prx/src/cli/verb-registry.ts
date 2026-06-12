@@ -3,7 +3,7 @@
 // grows as scripts/handlers migrate to VerbSpecs ("scripts → prx verbs") — each
 // added here is one verb, one Zod schema, projected to CLI / MCP / OpenAPI.
 
-import type { Registry } from "./verbspec.ts";
+import type { Registry } from "@bounded-systems/verbspec";
 import { orchestratorRegistry } from "./pilot-verbs.ts";
 import { healthVerb } from "../health/verb.ts";
 import { docsVerb } from "../docs/verb.ts";

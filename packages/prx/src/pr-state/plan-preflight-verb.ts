@@ -7,7 +7,7 @@
 
 import { z } from "zod";
 
-import { CliExitError, defineVerb } from "../cli/verbspec.ts";
+import { CliExitError, defineVerb } from "@bounded-systems/verbspec";
 import { CliError } from "./cli-error.ts";
 import { parseCanonicalWorkUnitId } from "./cli-id.ts";
 import { formatPreflightPlain, runPlanPreflight } from "../plan/preflight.ts";

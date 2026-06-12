@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 
-import { defineVerb } from "./verbspec.ts";
+import { defineVerb } from "@bounded-systems/verbspec";
 import {
   READ_ONLY,
   pluginAllowedTools,

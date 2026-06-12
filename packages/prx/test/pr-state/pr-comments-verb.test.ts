@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { parseArgs } from "../../src/cli/verbspec.ts";
+import { parseArgs } from "@bounded-systems/verbspec";
 import {
   prCommentsVerb,
   type PrCommentsDeps,

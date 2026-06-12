@@ -23,7 +23,7 @@
  */
 
 import { pluginAllowedTools, type ActorPolicies } from "./permissions.ts";
-import { verbToken, type Registry, type VerbSpec } from "./verbspec.ts";
+import { verbToken, type Registry, type VerbSpec } from "@bounded-systems/verbspec";
 
 export type PluginFile = { path: string; content: string };
 

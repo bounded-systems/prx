@@ -2,7 +2,7 @@
  * SPIKE — namespaced router for the spec-driven CLI.
  *
  * Real prx verb ids are multi-token: `plan session`, `intake spike`,
- * `triage classify`. `dispatch` in verbspec.ts only resolves single-token ids;
+ * `triage classify`. `dispatch` in `@bounded-systems/verbspec` only resolves single-token ids;
  * this resolves the **longest matching verb id** as a token prefix of argv, and
  * surfaces namespaces (`prx plan` with no subcommand → list its children) so
  * the whole registry is reachable from one router.
@@ -13,7 +13,7 @@
  * the verb's argv.
  */
 
-import { parseArgs, toHelp, type Registry, type VerbSpec } from "./verbspec.ts";
+import { parseArgs, toHelp, type Registry, type VerbSpec } from "@bounded-systems/verbspec";
 
 export type ResolveResult =
   | { kind: "verb"; verb: VerbSpec; rest: string[] }

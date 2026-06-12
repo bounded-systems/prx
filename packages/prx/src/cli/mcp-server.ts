@@ -14,7 +14,7 @@
  * arrays) — no CLI-isms; the Zod schema is the only validation.
  */
 
-import { render, toMcpToolset, verbToken, type Registry } from "./verbspec.ts";
+import { render, toMcpToolset, verbToken, type Registry } from "@bounded-systems/verbspec";
 
 export const MCP_PROTOCOL_VERSION = "2025-06-18";
 

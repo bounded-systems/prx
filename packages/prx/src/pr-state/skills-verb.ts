@@ -6,7 +6,7 @@
 
 import { z } from "zod";
 
-import { defineVerb } from "../cli/verbspec.ts";
+import { defineVerb } from "@bounded-systems/verbspec";
 import { formatSkillCatalog } from "./cli-format.ts";
 
 export const SkillsOutput = z.object({ rendered: z.string() }).strict();

@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { dispatch } from "../../src/cli/verbspec.ts";
+import { dispatch } from "@bounded-systems/verbspec";
 import { verbRegistry } from "../../src/cli/verb-registry.ts";
 import { SchemasReport, schemasVerb } from "../../src/schemas/verb.ts";
 

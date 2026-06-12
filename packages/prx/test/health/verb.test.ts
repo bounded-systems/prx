@@ -7,7 +7,7 @@ import { describe, expect, test } from "bun:test";
 import { CodeHealthReport } from "../../src/health/model.ts";
 import { computeHealthReport, renderHealthMarkdown, type HealthIo } from "../../src/health/report.ts";
 import { healthVerb } from "../../src/health/verb.ts";
-import { dispatch } from "../../src/cli/verbspec.ts";
+import { dispatch } from "@bounded-systems/verbspec";
 import { verbRegistry } from "../../src/cli/verb-registry.ts";
 
 const stubIo: HealthIo = {
