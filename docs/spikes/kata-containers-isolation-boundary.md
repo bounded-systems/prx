@@ -18,7 +18,7 @@ changing the interface** Podman/Kubernetes sees. prx makes the identical move on
 agent effects: it converts `effect = ambient Bash call` (a convention the
 orchestrator is trusted to honor) into `effect = signed owning-actor derivation`
 (a structural boundary the verify gate enforces) — without changing the verb
-surface the operator sees. The transferable framing (§5): **an isolation
+surface the operator sees. The transferable framing (§6): **an isolation
 hierarchy is a cost ladder, and you climb it only as far as the threat model
 pays for.** This spike records the mapping; it forces no build.
 
@@ -112,9 +112,70 @@ the sandbox* — for Kata the container's result, for prx "the only durable stat
 is the signed CAS artifact the actor hands off." Two tenants never share a
 kernel; two actors never share a worktree or branch checkout.
 
-## 3. The nested case — Lima, and when a second boundary stops paying
+## 3. Sandbox ≠ VM — policy boundary vs hardware boundary, and prx has both
 
-A second message in this thread raised running Kata *inside* a Lima VM on macOS:
+A sandbox and a VM are related but not the same, and the difference is the whole
+point of the mapping. A **sandbox** is a *restriction mechanism*: the process
+keeps running on the shared kernel, but namespaces / cgroups / seccomp /
+capabilities / AppArmor narrow what it may touch (`can read /tmp/work`, `cannot
+read ~/.ssh`, `cannot mount()`). A **VM** is a *virtual machine*: the hypervisor
+emulates a kernel, memory, disk, and NIC, so the application believes it is on a
+different computer. Sandbox is "you get your own room"; VM is "you get your own
+house." The crisp slogans:
+
+> **Sandbox = policy boundary** — *"the kernel promises not to let you do that."*
+> **VM = hardware boundary** — *"you are running on what looks like a different
+> machine."*
+
+Most of the substrate prx operators actually touch is the *sandbox* kind —
+Claude's sandbox, Bubblewrap, a Docker/Podman container are all sandboxes;
+gVisor is a very strong sandbox; Kata, Lima, Firecracker, QEMU are VMs (Kata
+being "a VM wearing a container costume").
+
+**prx has one of each kind, and the distinction is load-bearing.** Its two inner
+boundaries are *policy* boundaries — the authored allowlist and the `PreToolUse`
+policy hook are pure "the kernel promises not to let you": they depend on the
+runtime behaving, exactly as a sandbox depends on the shared kernel honoring the
+namespace. Its outer/structural boundary is the *hardware-grade* kind — a signed
+owning-actor derivation is verifiable **independent of whether the runtime
+behaved**, the way a VM boundary holds even if the guest is fully owned. This is
+why `capability-orchestrator.md` makes the verify gate **fail closed** on an
+orphan effect rather than trusting the hook to have caught it: the policy
+boundary is the sandbox; the signed derivation is the VM. Kata's lesson —
+*put the boundary that matters on the hardware/structural layer, not the policy
+layer* — is the same instinct that makes prx's authority story cryptographic
+rather than merely allowlisted.
+
+### Rooted vs rootless — the runtime's own authority is part of the boundary
+
+There is a second axis the container world makes vivid: **how much authority the
+runtime itself holds.** Traditional ("rooted") Docker runs `dockerd` as a root
+daemon — `App → container → dockerd(root) → host`. Control the daemon and you can
+mount the host (`docker run -v /:/host … ; chroot /host`), launch privileged
+containers, read secrets — which is why "in the `docker` group" ≈ root. That is a
+**large trusted computing base**: one always-on, all-powerful principal sits in
+the path of every effect. Rootless Podman/Docker removes it — `App → container →
+podman → user namespace → host`, where container-uid-0 maps to an unprivileged
+host uid. No always-root daemon, so compromising the convenient central thing no
+longer grants the host.
+
+This is **exactly prx's capability-poor orchestrator**, in a different substrate.
+`dockerd`-as-root is ambient authority incarnate: the one principal that holds
+the capability "merely by virtue of its execution environment." prx's orchestrator
+is the *rootless* move — it "owns nothing" (`tools: Agent, Read, Grep, Glob` — no
+`Bash`), and authority is pushed out to narrowly-scoped actors that each hold only
+their policy-table allowlist. Removing `Bash` from the orchestrator is precisely
+removing `dockerd`-as-root: it shrinks the trusted computing base so that the
+convenient central component can no longer perform host/repo effects on its own.
+"Rooted vs rootless" changes *how much authority the runtime has over the host*;
+"ambient orchestrator vs capability-poor orchestrator" changes *how much authority
+the driver has over the repo* — the same TCB-reduction argument, and the reason
+the orchestrator doc treats ambient `Bash` as the threat to remove rather than the
+convenience to guard.
+
+## 4. The nested case — Lima, ordering, and when a second boundary stops paying
+
+A later message raised running Kata *inside* a Lima VM on macOS:
 
 ```
 macOS → Apple Virtualization.framework / QEMU → Lima VM → Linux
@@ -164,7 +225,69 @@ sequencing rationale ("C1 is the cheapest demonstrable slice … C4/C5 make
 violations structurally impossible") is exactly the "climb the ladder only as far
 as the threat model pays for" discipline, stated for prx's substrate.
 
-## 4. Where the analogy breaks (and why that's the interesting part)
+### Ordering matters: strong boundary outermost
+
+Layering is not just *how many* boundaries but *in what order*. The sensible
+nesting is **strong outer, weak inner** — "a room in a house":
+
+```
+Lima VM (house)  →  container/sandbox (room)  →  agent (person in the room)
+```
+
+If the inner sandbox is escaped, the attacker lands *inside the VM*, still behind
+the strong boundary. The inverted "house in a room" — a VM inside a sandbox —
+usually pays poorly: the VM needs virtualization features the sandbox may not
+expose, file/network sharing gets awkward, and once the VM exists the outer
+sandbox adds little. Security folklore: prefer `strong → weak` over
+`weak → strong`, because **if the outermost layer fails you want the next one in
+to still be the strong one.** Cloud providers nest `physical → VM → container →
+app` for exactly this reason; Kata is the deliberate twist that hides a *VM*
+behind the *container API* so the outermost-meaningful boundary is the strong one
+even though the interface says "container."
+
+prx already orders this way, and it's worth naming. **Intake signs the root
+first** — `<unit>:source@pinned` is established and signed before any actor leg
+opens (`pipeline/source-pin.ts`), and `openSession` *consumes-or-fails* that
+signed input before it will mint a spawn (`session/open.ts`). The strong,
+structural, cryptographic boundary is the **outermost** thing in the lifecycle;
+the runtime policy hook is the weaker inner boundary nested inside it. That is
+`strong → weak`: if the inner policy hook were somehow bypassed, the effect still
+has to produce a signed owning-actor derivation to survive the verify gate. prx
+should resist any change that inverts this — gating cheaply up front and only
+signing deep inside would be "house in a room," strong boundary wasted behind a
+weak one that already lost.
+
+### The two axes are orthogonal — prx, like the modern Mac stack, wants both
+
+A final clarification worth preserving: **"VM vs sandbox" and "how much authority
+the runtime holds" are independent axes**, and the appealing setups win on both.
+"Rootless/rootful" is a property of *Podman* (rootless: `user → podman →
+container`, no root daemon, container-root mapped to an unprivileged host uid;
+rootful: `sudo podman`). *Lima* is not "rootless/rootful" at all — it's a VM; the
+question is *who controls it* (the unprivileged macOS user) versus *what's inside
+it* (an ordinary Linux root account). So the modern `macOS → Lima → rootless
+Podman → container` stack buys **two orthogonal properties at once**: (1) a VM
+boundary between the container world and macOS, and (2) no root daemon inside the
+VM. The "house" still has a root user, but the person in the room doesn't get the
+house keys.
+
+prx's posture is the same conjunction, and neither axis substitutes for the other:
+
+| Axis | Mac stack | prx |
+|---|---|---|
+| **Boundary strength** (sandbox vs VM) | Lima VM under the container | signed owning-actor derivation under the policy hook |
+| **Runtime authority** (rooted vs rootless) | rootless Podman, no root daemon | capability-poor orchestrator, no ambient `Bash` |
+
+A strong boundary with an over-privileged runtime (rootful Podman *in* a VM) still
+hands an attacker the daemon's authority on the way in; a de-privileged runtime
+with no real boundary (rootless containers, shared kernel, no VM) is one kernel
+bug from the host. prx needs **both** — the structural verify gate *and* the
+capability-poor orchestrator — for the same reason the Mac stack runs rootless
+Podman *inside* Lima rather than picking one. Collapsing prx's story to "we sign
+things" (boundary only) or "the orchestrator owns nothing" (authority only) would
+drop one independent axis of the defense.
+
+## 5. Where the analogy breaks (and why that's the interesting part)
 
 The mapping is tight, but two seams differ, and each is informative:
 
@@ -178,7 +301,7 @@ The mapping is tight, but two seams differ, and each is informative:
 - **Kata pays at runtime; prx pays mostly at verify time.** Kata's cost is real
   resources (a VM per workload, every workload, forever). prx's strong boundary
   is the verify gate + signing — cheap per call, concentrated at the merge/handoff
-  seam. This is why prx can afford to keep *all* the layers in §3 where a
+  seam. This is why prx can afford to keep *all* the layers in §4 where a
   multi-tenant cloud must ration VMs: prx's "VM per tenant" is a signature, not a
   kernel.
 
@@ -189,7 +312,7 @@ operators had to learn a new verb surface to get the stronger boundary. The
 ergonomics are the whole point; the isolation is free to the caller precisely
 because the *interface* didn't move when the *boundary* did.
 
-## 5. The transferable lesson, for prx specifically
+## 6. The transferable lesson, for prx specifically
 
 1. **Name the ladder, and the jump.** Kata's value is legible because the
    isolation hierarchy is explicit and the container→VM jump is named as the big
@@ -211,7 +334,7 @@ because the *interface* didn't move when the *boundary* did.
    be treated as suspect by this analogy — it has given up the thing that makes
    the move adoptable.
 
-## 6. Non-goals & open questions
+## 7. Non-goals & open questions
 
 - **Non-goal:** running Kata anywhere in prx's own toolchain, or proposing VM
   isolation for prx actors. The microVM is the *metaphor* for prx's structural
@@ -224,7 +347,7 @@ because the *interface* didn't move when the *boundary* did.
   the integrity/auditability model `capability-orchestrator.md` §1 sets, which
   explicitly is "not a sandbox/escape defense against a malicious local
   operator.")
-- **Open:** can the §3 ladder be made *as legible as Kata's table* — a generated
+- **Open:** can the §4 ladder be made *as legible as Kata's table* — a generated
   artifact that, per violation class, names the cheapest boundary that closes it?
   The capability features in `features/` are the natural home for it.
 - **Tension:** prx's boundary being legible (signed, on-chain) is a strength over
