@@ -607,6 +607,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/kata-containers-isolation-boundary.md",
+      "name": "Kata Containers — VM-grade isolation with container ergonomics, mapped to prx (spike)",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/kata-containers-isolation-boundary.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/prx-3eu-sync-framework-build-vs-adopt.md",
       "name": "prx-3eu — Sync agent: adopt a sync framework, or build bespoke? (ADR)",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/prx-3eu-sync-framework-build-vs-adopt.md",
