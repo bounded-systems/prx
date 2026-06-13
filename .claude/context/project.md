@@ -50,6 +50,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Companion repo inventory — `docs/companion-repos.md`
 - GitHub App: `bounded-systems-prx` — `docs/github-app.md`
 - Running CI locally — `docs/local-ci.md`
+- Object-capability languages — prior art for prx's capability model — `docs/object-capability-languages.md`
 - Provenance signing — setup — `docs/provenance/signing.md`
 - ADR — `prx ci` as a signed derivation chain (GH-352) — `docs/prx/ci-as-derivation.md`
 - ADR — decomposing the `pr-state/cli.ts` monolith — `docs/prx/cli-decomposition.md`
