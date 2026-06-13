@@ -625,6 +625,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/scout-bounded-interaction-space.md",
+      "name": "Capability-scoped DCI — a bounded interaction space for scout (spike)",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/scout-bounded-interaction-space.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/two-clock-policy.md",
       "name": "Two-clock policy — Netflix's slow-planner / fast-executor split, mapped to prx (spike)",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/two-clock-policy.md",
