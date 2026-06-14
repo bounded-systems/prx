@@ -7541,11 +7541,17 @@ export function parseCommand(argv: string[]): ParsedCommand {
       strict: true,
       allowPositionals: false,
     });
+    // GH-296: the canonical beads live in the daemon's one-true-source clone
+    // (~/.local/state/prx/beads), not a per-worktree `.beads/`. Diagnose/heal
+    // that store — like every other `prx beads` verb (mirrors `beads-provision`)
+    // — so a daemon-served repo (no local `.beads/`) is not misread as an
+    // unhealthy "issue_prefix not set". An explicit `--cwd` still overrides.
+    const cwd = values.cwd ?? defaultCanonicalBeadsCwd(getEnv) ?? undefined;
     return {
       command: "beads-doctor",
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
       fix: values.fix ?? false,
-      ...(values.cwd !== undefined ? { cwd: values.cwd } : {}),
+      ...(cwd !== undefined ? { cwd } : {}),
     };
   }
 
