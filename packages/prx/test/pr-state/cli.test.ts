@@ -18,6 +18,7 @@ import { provenanceSigner, realStatementSigner } from "../../src/machine/machine
 // in for validated raw state) at the single cast point per block.
 import type { RawStateV1 } from "@bounded-systems/machine-schema";
 import type { DomainStateV1 } from "../../src/pr-state/domain_state.ts";
+import { defaultCanonicalBeadsCwd } from "../../src/beadsd/client-factory.ts";
 import {
   actionableCliErrorLines,
   assertWorktreeOnNamedBranch,
@@ -14851,6 +14852,36 @@ describe("argparse — over-positional diagnostic (GH-1229)", () => {
     const stderr = new TextDecoder().decode(result.stderr);
     expect(stderr).not.toContain("accepts at most one");
     expect(stderr).not.toContain("Unknown option");
+  });
+});
+
+// GH-296: `prx beads doctor` must diagnose/heal the canonical one-true-source
+// clone (~/.local/state/prx/beads) that beadsd serves — not the process cwd. A
+// daemon-served repo has no local `.beads/`, so probing the cwd misreads it as
+// an unhealthy "issue_prefix not set" and `--fix` no-ops. The fix defaults the
+// doctor's cwd to defaultCanonicalBeadsCwd, the same store every other `prx
+// beads` verb uses (mirrors `beads-provision`).
+describe("parseCommand — beads doctor targets the canonical daemon clone (GH-296)", () => {
+  const canonical = defaultCanonicalBeadsCwd();
+
+  test("defaults cwd to the canonical clone when --cwd is absent", () => {
+    const parsed = parseCommand(["beads", "doctor"]);
+    expect(parsed.command).toBe("beads-doctor");
+    if (parsed.command !== "beads-doctor") throw new Error("unreachable");
+    expect(parsed.cwd).toBe(canonical ?? undefined);
+  });
+
+  test("--fix also targets the canonical clone (heal the real store, not the cwd)", () => {
+    const parsed = parseCommand(["beads", "doctor", "--fix"]);
+    if (parsed.command !== "beads-doctor") throw new Error("unreachable");
+    expect(parsed.fix).toBe(true);
+    expect(parsed.cwd).toBe(canonical ?? undefined);
+  });
+
+  test("an explicit --cwd still wins (the GH-228 worktree-clone escape hatch)", () => {
+    const parsed = parseCommand(["beads", "doctor", "--cwd", "/wt"]);
+    if (parsed.command !== "beads-doctor") throw new Error("unreachable");
+    expect(parsed.cwd).toBe("/wt");
   });
 });
 
