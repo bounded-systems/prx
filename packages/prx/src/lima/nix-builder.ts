@@ -13,14 +13,14 @@
  * and run colocate, no host transfer.
  *
  * Mirrors {@link ../beadsd/provision.provisionVmBeads}: the in-VM effects run
- * through the injected {@link ../keeperd/lima-exec.Run} seam (every effect is a
+ * through the injected {@link ../door/lima-exec.Run} seam (every effect is a
  * `limactl shell … bash -lc <script>`), so the orchestration is unit-tested
  * offline and the live path runs against a real VM. The host-side registration
  * is a PURE descriptor — prx renders the machines line, it never edits
  * `/etc/nix/*` here (that host-config write is the operator's, out of scope).
  */
 
-import { spawnRun, type Run, type RunResult } from "../keeperd/lima-exec.ts";
+import { spawnRun, type Run, type RunResult } from "../door/lima-exec.ts";
 
 /** Determinate Systems installer — the prx ecosystem's nix (works headless). */
 const DEFAULT_NIX_INSTALLER_URL = "https://install.determinate.systems/nix";
