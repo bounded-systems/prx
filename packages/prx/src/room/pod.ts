@@ -121,12 +121,18 @@ export function resolvePodDoors(pod: PodSpec): {
 
 /** Project a single resolved door to the env vars that wire it for the consumer. */
 function doorEnv(door: ResolvedDoor): Record<string, string> {
-  // beadsd is the wired door today: its env IS the bd-door gate's signal
-  // (PRX_BEADS_DOOR flips isBdDoorMode; PRX_BEADS_SOCKET is the transport
-  // address resolveBeadsEndpoint dials). keeperd/others get their projection
-  // when their client-endpoint env is defined — a one-line addition here.
+  // Each daemon door projects a {DOOR, SOCKET} env pair: DOOR is the box-mode
+  // signal (its presence routes the client through the door), SOCKET is the
+  // transport address the client dials.
+  //   - beadsd → PRX_BEADS_DOOR / PRX_BEADS_SOCKET (fires the bd-door gate;
+  //     read by isBdDoorMode + resolveBeadsEndpoint).
+  //   - keeperd → PRX_KEEPER_DOOR / PRX_KEEPER_SOCKET (read by isKeeperDoorMode
+  //     + resolveKeeperEndpoint; keeperd/endpoint.ts).
   if (door.door === "beadsd") {
     return { PRX_BEADS_DOOR: door.door, PRX_BEADS_SOCKET: door.socket };
+  }
+  if (door.door === "keeperd") {
+    return { PRX_KEEPER_DOOR: door.door, PRX_KEEPER_SOCKET: door.socket };
   }
   return {};
 }

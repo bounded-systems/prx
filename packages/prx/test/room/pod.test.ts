@@ -98,6 +98,22 @@ describe("podRoomEnv — the keystone", () => {
     });
   });
 
+  test("projects PRX_KEEPER_DOOR + PRX_KEEPER_SOCKET into the keeperd consumer", () => {
+    const c = consumer([
+      { name: "keeperd", direction: "consume", capability: "git:write", socket: "/x" },
+    ]);
+    const keeperdProvider: RoomInput = {
+      name: "keeperd-room",
+      doors: [
+        { name: "keeperd", direction: "expose", capability: "git:write", socket: "/run/prx/doors/keeperd.sock" },
+      ],
+    };
+    expect(podRoomEnv(pod([c, keeperdProvider]), "consumer")).toEqual({
+      PRX_KEEPER_DOOR: "keeperd",
+      PRX_KEEPER_SOCKET: "/run/prx/doors/keeperd.sock",
+    });
+  });
+
   test("a room with no wired beadsd door gets no gate env", () => {
     expect(podRoomEnv(pod([beadsdProvider]), "beadsd-room")).toEqual({});
   });
@@ -126,10 +142,12 @@ describe("perRepoPod", () => {
     expect(resolved.some((r) => r.capability === "session:control")).toBe(false);
   });
 
-  test("fires the gate env into claude-room", () => {
+  test("fires the gate env into claude-room (beadsd + keeperd doors)", () => {
     expect(podRoomEnv(perRepoPod, "claude-room")).toEqual({
       PRX_BEADS_DOOR: "beadsd",
       PRX_BEADS_SOCKET: "/run/prx/doors/beadsd.sock",
+      PRX_KEEPER_DOOR: "keeperd",
+      PRX_KEEPER_SOCKET: "/run/prx/doors/keeperd.sock",
     });
   });
 });
