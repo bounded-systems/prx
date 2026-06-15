@@ -14,9 +14,9 @@
  * profile (prx-9s14), brokered by authd (prx-6194), is what *opens* it later —
  * a state flip from `closed` → `open`, no structural change.
  *
- * The executor (the claude-box runtime image, prx-d4o) is intentionally minimal
- * here — this instance is about the door topology, not the image. In a pod the
- * executor is inherited from the Pod's house; standalone it would carry its own.
+ * As a member of the per-repo pod it carries **no executor** — it inherits the
+ * pod's shared house (the VM). Its container image (the claude-box runtime,
+ * prx-d4o) is a later concern; this instance is about the door topology.
  */
 
 import type { RoomSpec } from "./spec.ts";
@@ -26,10 +26,9 @@ const DOORS = "/run/prx/doors";
 export const claudeRoom: RoomSpec = {
   name: "claude-room",
   // A sandbox-tier room: the policy boundary is the container; the hardware
-  // boundary (the VM house) belongs to the Pod, not this room.
+  // boundary (the VM house) belongs to the Pod, not this room. No executor —
+  // inherited from the pod's house.
   tier: "sandbox",
-  // Minimal placeholder — runs the pinned claude-box runtime OCI image (prx-d4o).
-  executor: { name: "prx-claude-room" },
   doors: [
     // Privileged egress: the only way out is through these daemon doors.
     { name: "beadsd", direction: "consume", capability: "beads:read", socket: `${DOORS}/beadsd.sock`, state: "open" },

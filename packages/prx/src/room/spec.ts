@@ -78,8 +78,13 @@ export type RoomTier = z.infer<typeof RoomTierSchema>;
  */
 export const RoomSpecSchema = z.object({
   name: z.string().min(1),
-  /** The house — the isolated executor this room occupies. */
-  executor: ExecutorSpecSchema,
+  /**
+   * The house — the isolated executor this room occupies. **Optional**: a
+   * standalone room (e.g. builder-room, itself a whole VM) carries its own; a
+   * room that is a member of a {@link ../room/pod.PodSpec} omits it and inherits
+   * the pod's shared house (co-resident rooms share one house).
+   */
+  executor: ExecutorSpecSchema.optional(),
   /** The boundary the executor provides (default: a policy-only sandbox). */
   tier: RoomTierSchema.default("sandbox"),
   /** The capability seams to daemons (consumed) and the services offered (exposed). */

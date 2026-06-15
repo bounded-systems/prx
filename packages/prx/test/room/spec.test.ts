@@ -40,7 +40,7 @@ describe("RoomSpecSchema", () => {
 
   test("composes a full ExecutorSpec (the house)", () => {
     const r = room({ executor: { name: "h", arch: "aarch64", cpus: 2 }, tier: "vm" });
-    expect(r.executor.arch).toBe("aarch64");
+    expect(r.executor?.arch).toBe("aarch64");
     expect(r.tier).toBe("vm");
   });
 });
