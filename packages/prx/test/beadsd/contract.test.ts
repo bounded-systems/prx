@@ -11,10 +11,11 @@ import {
 
 describe("beadsd wire contract — request envelope", () => {
   test("the envelope is an enumerable read+write allowlist", () => {
-    expect(BEADS_READ_KINDS).toEqual(["ready", "list", "show", "children"]);
-    expect(BEADS_WRITE_KINDS).toEqual(["create", "update", "close", "reopen", "dep"]);
+    expect(BEADS_READ_KINDS).toEqual(["ready", "list", "show", "children", "recall", "memories"]);
+    expect(BEADS_WRITE_KINDS).toEqual(["create", "update", "close", "reopen", "dep", "remember"]);
     expect(BEADS_REQUEST_KINDS).toEqual([
-      "ready", "list", "show", "children", "create", "update", "close", "reopen", "dep",
+      "ready", "list", "show", "children", "recall", "memories",
+      "create", "update", "close", "reopen", "dep", "remember",
     ]);
   });
 
@@ -33,6 +34,19 @@ describe("beadsd wire contract — request envelope", () => {
     expect(BeadsRequestSchema.safeParse({ kind: "children" }).success).toBe(false);
     expect(BeadsRequestSchema.safeParse({ kind: "children", id: "" }).success).toBe(false);
     expect(isBeadsWriteKind("children")).toBe(false);
+  });
+
+  test("accepts the memory surface envelopes; classifies remember as a write, recall/memories as reads (prx-44y)", () => {
+    expect(BeadsRequestSchema.safeParse({ kind: "remember", key: "handoff/a", body: "{}" }).success).toBe(true);
+    expect(BeadsRequestSchema.safeParse({ kind: "recall", key: "handoff/a" }).success).toBe(true);
+    expect(BeadsRequestSchema.safeParse({ kind: "memories", prefix: "handoff/" }).success).toBe(true);
+    expect(BeadsRequestSchema.safeParse({ kind: "memories" }).success).toBe(true); // prefix optional
+    // required fields
+    expect(BeadsRequestSchema.safeParse({ kind: "remember", key: "k" }).success).toBe(false); // no body
+    expect(BeadsRequestSchema.safeParse({ kind: "recall" }).success).toBe(false); // no key
+    expect(isBeadsWriteKind("remember")).toBe(true);
+    expect(isBeadsWriteKind("recall")).toBe(false);
+    expect(isBeadsWriteKind("memories")).toBe(false);
   });
 
   test("isBeadsWriteKind classifies reads vs writes", () => {

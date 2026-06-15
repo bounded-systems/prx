@@ -57,7 +57,20 @@ export const BeadsRequestSchema = z.discriminatedUnion("kind", [
    * (opaque here; shaped by the beads layer).
    */
   z.object({ kind: z.literal("children"), id: z.string().min(1) }),
+  // ── memory surface (GH-1003: recall/remember/memories) ──
+  // The structured-handoff queue (GH-1397) and memory/compact store rows on the
+  // bd memory surface. Routing them through the daemon (prx-44y) is what makes a
+  // worktree-side write land in the ONE canonical store instead of a phantom
+  // per-clone write that `prx handoff status` can't read back. `remember` is a
+  // WRITE (upsert); `recall`/`memories` are READS. `forget` (destructive) is
+  // intentionally absent — it is not on the bd allowlist.
+  /** `bd recall <key>` — one memory row by key (READ). */
+  z.object({ kind: z.literal("recall"), key: z.string().min(1) }),
+  /** `bd memories [<prefix>]` — memory rows whose key starts with prefix (READ). */
+  z.object({ kind: z.literal("memories"), prefix: z.string().min(1).optional() }),
   // ── writes (policy-gated; dispatched to `bd` --json) ──
+  /** `bd remember <body> --key <key>` — upsert a memory row (WRITE). */
+  z.object({ kind: z.literal("remember"), key: z.string().min(1), body: z.string() }),
   /**
    * `bd create --type <t> --title <title> [--priority N] [--description d]
    * [--external-ref <url>] [--silent]`. `externalRef` pins a GH/external URL
@@ -130,9 +143,9 @@ export const BeadsRequestSchema = z.discriminatedUnion("kind", [
 export type BeadsRequest = z.infer<typeof BeadsRequestSchema>;
 
 /** The read kinds (unconditional). */
-export const BEADS_READ_KINDS = ["ready", "list", "show", "children"] as const;
+export const BEADS_READ_KINDS = ["ready", "list", "show", "children", "recall", "memories"] as const;
 /** The write kinds (policy-gated single-writer surface; GH-228 slice 5). */
-export const BEADS_WRITE_KINDS = ["create", "update", "close", "reopen", "dep"] as const;
+export const BEADS_WRITE_KINDS = ["create", "update", "close", "reopen", "dep", "remember"] as const;
 /** Every kind beadsd exposes (the envelope), enumerable as an allowlist. */
 export const BEADS_REQUEST_KINDS = [...BEADS_READ_KINDS, ...BEADS_WRITE_KINDS] as const;
 export type BeadsRequestKind = (typeof BEADS_REQUEST_KINDS)[number];

@@ -94,6 +94,15 @@ function beadsArgs(request: BeadsRequest): string[] {
       // an epic are the `direction=up`, `type=parent-child` dep edges. `--json`
       // so the reply is structured (parsed like any other read).
       return ["list", request.id, "--direction", "up", "--type", "parent-child", "--json"];
+    case "recall":
+      // `bd recall <key> --json` — one memory row by key.
+      return [request.key, "--json"];
+    case "memories":
+      // `bd memories [<prefix>] --json` — memory rows by key prefix.
+      return [...(request.prefix !== undefined ? [request.prefix] : []), "--json"];
+    case "remember":
+      // `bd remember <body> --key <key> --json` — upsert a memory row.
+      return [request.body, "--key", request.key, "--json"];
     case "create":
       return [
         "--json",
