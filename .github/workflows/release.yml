@@ -8,6 +8,17 @@ name: release
 #   PR with a changeset merges to main -> this runs -> `changeset publish`
 #   publishes any package whose version is not yet on npm and pushes its git tag.
 # `changeset publish` is idempotent: nothing to publish is a no-op.
+#
+# Auth: npm **trusted publishing (OIDC)** — no long-lived NPM_TOKEN. The
+# `id-token: write` permission below lets npm exchange a short-lived GitHub OIDC
+# token for publish rights, provided a Trusted Publisher is configured for each
+# package on npmjs.com (org/repo = bounded-systems/prx, workflow = release.yml).
+# Provenance (SLSA attestation) is automatic under OIDC.
+#
+# Gate: publishing is a no-op until the repo variable `NPM_PUBLISH` is `true`.
+# This keeps the workflow green before the npm-side Trusted Publisher exists;
+# flip the variable once it's configured. (Set via: gh variable set NPM_PUBLISH
+# --body true --repo bounded-systems/prx)
 
 on:
   push:
@@ -22,13 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # changeset publish pushes version tags
-      id-token: write # npm provenance (SLSA build provenance attestation)
-    env:
-      # Job-level so the publish steps can gate on its presence (step-level env
-      # is not visible to a step's own `if:`). Until NPM_TOKEN is configured,
-      # the build + standalone gate still run, but publishing is skipped — so
-      # this workflow is green without a token and starts publishing once it's set.
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      id-token: write # npm trusted publishing (OIDC) + SLSA provenance
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -54,21 +59,22 @@ jobs:
         # authority. Must pass standalone before anything leaves the repo.
         run: bun test packages/cas/src/__tests__/extractability.test.ts packages/cas/src/__tests__/digest.test.ts
 
-      - name: Configure npm auth
-        if: ${{ env.NPM_TOKEN != '' }}
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > "${HOME}/.npmrc"
+      - name: Ensure npm supports OIDC trusted publishing
+        # `changeset publish` shells out to the system `npm`; OIDC trusted
+        # publishing needs npm >= 11.5.1. The runner's bundled npm may be older.
+        if: ${{ vars.NPM_PUBLISH == 'true' }}
+        run: npm install -g npm@latest
 
-      - name: Publish to npm
-        # Provenance is carried by each package's publishConfig.provenance; the
-        # id-token: write permission above lets npm mint the SLSA attestation.
-        # Skipped when NPM_TOKEN is unset (no creds → nothing to publish yet).
-        if: ${{ env.NPM_TOKEN != '' }}
+      - name: Publish to npm (OIDC trusted publishing)
+        # No NPM_TOKEN: npm exchanges the GitHub OIDC token (id-token: write) for
+        # publish rights via the package's configured Trusted Publisher.
+        # Provenance is minted automatically under OIDC (publishConfig.provenance).
+        if: ${{ vars.NPM_PUBLISH == 'true' }}
         run: bun run release
         env:
           NPM_CONFIG_PROVENANCE: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish skipped (no NPM_TOKEN)
-        if: ${{ env.NPM_TOKEN == '' }}
-        run: echo "::notice::NPM_TOKEN not set — built + gated @bounded-systems/cas but skipped npm publish. Set the NPM_TOKEN secret to enable publishing."
+      - name: Publish skipped (NPM_PUBLISH not enabled)
+        if: ${{ vars.NPM_PUBLISH != 'true' }}
+        run: echo "::notice::NPM_PUBLISH variable not 'true' — built + gated @bounded-systems/cas but skipped npm publish. Configure a Trusted Publisher on npmjs.com, then set the NPM_PUBLISH repo variable to enable OIDC publishing."
