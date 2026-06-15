@@ -215,6 +215,24 @@ function resolveBdViaDoor(
 }
 
 /**
+ * Door-gate a raw `bd` command array — the reusable primitive every bd-spawn
+ * seam shares. Returns a {@link BdExecResult} when door mode handled the call
+ * (dialed the door, or failed closed because the op isn't expressible there),
+ * or `null` when the caller should run its own spawn — i.e. the command is not
+ * `bd`, or we're off-profile (no `PRX_BEADS_DOOR`). This is how the scattered
+ * direct `bd` spawn sites (and {@link defaultBdGithubRunner}) keep "no local bd
+ * in the box profile" without each re-implementing the gate.
+ */
+export function bdDoorGate(
+  cmd: string[],
+  env: BdExecEnv = processEnv(),
+  dialer: BdDoorDialer | undefined = registeredDoorDialer,
+): BdExecResult | null {
+  if (cmd[0] !== "bd" || !isBdDoorMode(env)) return null;
+  return resolveBdViaDoor({ subcommand: cmd[1] ?? "", args: cmd.slice(2) }, env, dialer, null);
+}
+
+/**
  * Execute a bd subcommand with optional policy enforcement.
  *
  * `spawn` is injectable (last positional, mirrors `BdGithubRunner`) so tests
@@ -383,21 +401,14 @@ export type BdGithubRunner = (
 ) => BdGithubRunResult;
 
 export const defaultBdGithubRunner: BdGithubRunner = (cmd, options = {}) => {
-  const env = (options.env ?? processEnv()) as BdExecEnv;
-
-  // Door mode (box profile): this runner is the second bd-spawn seam (the
-  // `runBd*` helpers — show/update/sync/doctor/merge/compact). Gate `bd`
-  // invocations the same way execBd does — dial the door or fail closed, never
-  // spawn a local `bd`. Non-`bd` commands (e.g. the `gh auth token` probe) are
-  // unaffected (prx-asr / prx-634; AC: no local bd in the box profile).
-  if (cmd[0] === "bd" && isBdDoorMode(env)) {
-    const res = resolveBdViaDoor(
-      { subcommand: cmd[1] ?? "", args: cmd.slice(2) },
-      env,
-      registeredDoorDialer,
-      null,
-    );
-    return { stdout: res.stdout, stderr: res.stderr, status: res.exitCode };
+  // Door mode (box profile): this runner is one bd-spawn seam (the `runBd*`
+  // helpers — show/update/sync/doctor/merge/compact). The shared gate dials the
+  // door or fails closed for `bd` invocations, never spawning a local `bd`;
+  // non-`bd` commands (e.g. the `gh auth token` probe) pass through untouched
+  // (prx-asr / prx-634; AC: no local bd in the box profile).
+  const gated = bdDoorGate(cmd, (options.env ?? processEnv()) as BdExecEnv);
+  if (gated) {
+    return { stdout: gated.stdout, stderr: gated.stderr, status: gated.exitCode };
   }
 
   // GH-1609: route through spawnCapture so `bd github sync` and the `gh auth
