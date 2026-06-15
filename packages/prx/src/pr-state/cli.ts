@@ -386,6 +386,7 @@ import {
 } from "@bounded-systems/git";
 import { execGh } from "@bounded-systems/gh";
 import {
+  bdDoorGate,
   execBd,
   formatBdExecResult,
   registerBdDoorDialer,
@@ -13545,7 +13546,17 @@ function readBdLabels(repoPath: string, bdId: string): string[] | null {
   // bd auto-discovers `.beads/*.db` from cwd; passing repoPath as the
   // child's cwd is the right surface — `bd --db` takes a .db file path,
   // not a directory.
-  const raw = tryCommand(["bd", "show", bdId, "--json"], repoPath);
+  //
+  // GH-296 / prx-zbsi: in the box profile (PRX_BEADS_DOOR) this `bd show`
+  // read routes through the beadsd door, never a local `bd`; off-profile the
+  // gate returns null and we fall back to `tryCommand` exactly as before
+  // (null-on-failure preserved).
+  const gated = bdDoorGate(["bd", "show", bdId, "--json"]);
+  const raw = gated
+    ? gated.exitCode === 0
+      ? gated.stdout
+      : null
+    : tryCommand(["bd", "show", bdId, "--json"], repoPath);
   if (!raw) return null;
   return parseLabelsFromBdShow(raw);
 }
