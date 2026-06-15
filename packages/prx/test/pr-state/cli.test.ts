@@ -39,6 +39,7 @@ import {
   parseCommand,
   prepareMainxWorktree,
   pruneStaleRemoteRefs,
+  resolveEpicChildBdIds,
   runBeadsInit,
   resolveWorkUnitLaunchCwd,
   assertLaunchCwdNotMainx,
@@ -14928,5 +14929,64 @@ describe("parseCommand — doctor dedupe-bd --only", () => {
     const json = parseCommand(["caps", "--format", "json"]);
     if (json.command !== "capabilities") throw new Error("unreachable");
     expect(json.format).toBe("json");
+  });
+});
+
+describe("resolveEpicChildBdIds — door-backed reads (prx-zbsi)", () => {
+  test("finds the epic via list+external_ref substring, then its children", () => {
+    const calls: string[][] = [];
+    const read = (cmd: string[]): string | null => {
+      calls.push(cmd);
+      if (cmd[1] === "list") {
+        return JSON.stringify([
+          { id: "prx-epic", external_ref: "https://github.com/o/r/issues/42" },
+          { id: "prx-other", external_ref: "https://github.com/o/r/issues/7" },
+        ]);
+      }
+      if (cmd[1] === "children") {
+        return JSON.stringify([{ id: "prx-c1" }, { id: "prx-c2" }]);
+      }
+      return null;
+    };
+    const out = resolveEpicChildBdIds("/repo", "issues/42", read);
+    expect([...out].sort()).toEqual(["prx-c1", "prx-c2"]);
+    // No `bd query` — the epic lookup is the door-backed `bd list --all`.
+    expect(calls[0]).toEqual(["bd", "list", "--all", "--json"]);
+    expect(calls.some((c) => c[1] === "query")).toBe(false);
+    expect(calls).toContainEqual(["bd", "children", "prx-epic", "--json"]);
+  });
+
+  test("matches the legacy GH-N token in external_ref too", () => {
+    const read = (cmd: string[]): string | null =>
+      cmd[1] === "list"
+        ? JSON.stringify([{ id: "prx-epic", external_ref: "GH-42" }])
+        : JSON.stringify([{ id: "prx-c1" }]);
+    expect([...resolveEpicChildBdIds("/repo", "GH-42", read)]).toEqual(["prx-c1"]);
+  });
+
+  test("tolerates the door children shape (child issue rows with extra fields)", () => {
+    const read = (cmd: string[]): string | null =>
+      cmd[1] === "list"
+        ? JSON.stringify([{ id: "prx-epic", external_ref: "issues/42" }])
+        : JSON.stringify([
+            { id: "prx-c1", dependency_type: "parent-child", title: "x" },
+          ]);
+    expect([...resolveEpicChildBdIds("/repo", "issues/42", read)]).toEqual(["prx-c1"]);
+  });
+
+  test("returns empty when no external_ref matches (no children read)", () => {
+    const calls: string[][] = [];
+    const read = (cmd: string[]): string | null => {
+      calls.push(cmd);
+      return cmd[1] === "list"
+        ? JSON.stringify([{ id: "prx-x", external_ref: "issues/99" }])
+        : null;
+    };
+    expect([...resolveEpicChildBdIds("/repo", "issues/42", read)]).toEqual([]);
+    expect(calls.some((c) => c[1] === "children")).toBe(false);
+  });
+
+  test("a fail-closed/absent list read yields an empty set (graceful degrade)", () => {
+    expect([...resolveEpicChildBdIds("/repo", "issues/42", () => null)]).toEqual([]);
   });
 });

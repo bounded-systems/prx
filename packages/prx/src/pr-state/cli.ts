@@ -13549,21 +13549,24 @@ function buildDelegateEnrichment(
   return enrichment;
 }
 
+/**
+ * `tryCommand` for a `bd` read, door-gated (prx-zbsi). In the box profile
+ * (PRX_BEADS_DOOR) the read routes through the beadsd door — never a local
+ * `bd`; off-profile the gate returns null and we fall back to `tryCommand`
+ * exactly as before. Returns the read's stdout, or null on any failure /
+ * fail-closed door result (`tryCommand`'s null-on-failure preserved).
+ */
+function bdReadOrNull(cmd: string[], cwd: string): string | null {
+  const gated = bdDoorGate(cmd);
+  if (gated) return gated.exitCode === 0 ? gated.stdout : null;
+  return tryCommand(cmd, cwd);
+}
+
 function readBdLabels(repoPath: string, bdId: string): string[] | null {
   // bd auto-discovers `.beads/*.db` from cwd; passing repoPath as the
   // child's cwd is the right surface — `bd --db` takes a .db file path,
   // not a directory.
-  //
-  // GH-296 / prx-zbsi: in the box profile (PRX_BEADS_DOOR) this `bd show`
-  // read routes through the beadsd door, never a local `bd`; off-profile the
-  // gate returns null and we fall back to `tryCommand` exactly as before
-  // (null-on-failure preserved).
-  const gated = bdDoorGate(["bd", "show", bdId, "--json"]);
-  const raw = gated
-    ? gated.exitCode === 0
-      ? gated.stdout
-      : null
-    : tryCommand(["bd", "show", bdId, "--json"], repoPath);
+  const raw = bdReadOrNull(["bd", "show", bdId, "--json"], repoPath);
   if (!raw) return null;
   return parseLabelsFromBdShow(raw);
 }
@@ -13581,33 +13584,44 @@ function parseLabelsFromBdShow(raw: string): string[] | null {
   }
 }
 
-function resolveEpicChildBdIds(repoPath: string, epic: string): Set<string> {
+/**
+ * The bd ids of an epic's parent-child children, both reads door-backed
+ * (prx-zbsi). `read` is injectable for tests; production uses {@link
+ * bdReadOrNull} so the box profile reaches the beadsd door.
+ */
+export function resolveEpicChildBdIds(
+  repoPath: string,
+  epic: string,
+  read: (cmd: string[], cwd: string) => string | null = bdReadOrNull,
+): Set<string> {
   const out = new Set<string>();
-  // Step 1: locate the bd id whose external_ref matches the GH-N issue.
-  // `bd query "external_ref contains <epic>"` does a substring match on
-  // the URL — works for both `https://github.com/.../issues/N` and the
-  // legacy `GH-N` token. The result set is small (≤ 1 expected).
-  const queryRaw = tryCommand(
-    ["bd", "query", `external_ref contains ${epic}`, "--json"],
-    repoPath,
-  );
-  if (!queryRaw) return out;
-  let queryParsed: unknown;
+  // Step 1: locate the bd id whose external_ref matches the epic ref. The old
+  // `bd query "external_ref contains <epic>"` is not on the beadsd read
+  // surface, so we read the door-backed `bd list --all` and apply the same
+  // substring match in-process — it works for both the issue URL
+  // (`https://github.com/.../issues/N`) and the legacy `GH-N` token. The
+  // expected match set is tiny (≤ 1).
+  const listRaw = read(["bd", "list", "--all", "--json"], repoPath);
+  if (!listRaw) return out;
+  let listParsed: unknown;
   try {
-    queryParsed = JSON.parse(queryRaw);
+    listParsed = JSON.parse(listRaw);
   } catch {
     return out;
   }
-  const rows = Array.isArray(queryParsed) ? queryParsed : [];
+  const rows = Array.isArray(listParsed) ? listParsed : [];
   for (const row of rows) {
     if (!row || typeof row !== "object") continue;
-    const epicBdId = (row as Record<string, unknown>).id;
+    const rec = row as Record<string, unknown>;
+    const externalRef = rec.external_ref;
+    if (typeof externalRef !== "string" || !externalRef.includes(epic)) continue;
+    const epicBdId = rec.id;
     if (typeof epicBdId !== "string") continue;
-    // Step 2: list children via `bd children <epic-bd-id> --json`.
-    const childrenRaw = tryCommand(
-      ["bd", "children", epicBdId, "--json"],
-      repoPath,
-    );
+    // Step 2: list children via the door-backed `bd children <epic-bd-id>`
+    // verb (served as `bd dep list ... --type parent-child` in the daemon;
+    // off-profile this is a real `bd children` spawn). Both shapes carry the
+    // child id in `id`.
+    const childrenRaw = read(["bd", "children", epicBdId, "--json"], repoPath);
     if (!childrenRaw) continue;
     let childrenParsed: unknown;
     try {
