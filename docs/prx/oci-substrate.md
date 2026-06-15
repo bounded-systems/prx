@@ -1,13 +1,14 @@
 # ADR — the prx OCI substrate: containerize the service fleet, retire the daemon-VM (prx-zj8)
 
-> Status: **proposed** (capstone). The typed half of this is **built and merged**
-> — the bd-door gate, the room/pod model, and the podman driver (see "Already
-> built" below). This ADR specs the remaining **infra** half: the pinned OCI
-> images and the runtime that assembles + runs them. None of the infra is built
-> here — dockerTools images are Linux-only and the dev host is darwin with no
-> Linux builder (prx-62h), so this is the design + concrete starting points, not
-> a buildable slice. Companion ADRs: `claude-runtime.md` (prx-d4o, the agent
-> runtime), `beadsd-door-wiring.md` (prx-asr, the door fabric).
+> Status: **proposed** (capstone), now **partially built**. The typed half is
+> **built and merged** — the bd-door gate, the room/pod model, the podman driver
+> (see "Already built" below). The first **image** is also built + validated:
+> **beadsd-box** (prx-634) on the registered Linux remote builder (see §1). What
+> remains: keeperd-box (prx-anj), and pod assembly + retiring the Lima VM
+> (prx-asr). The earlier "darwin has no Linux builder" caveat was wrong — the
+> dev host registers the Lima devshell VM as an `aarch64-linux` remote builder,
+> so the images build from darwin. Companion ADRs: `claude-runtime.md` (prx-d4o,
+> the agent runtime), `beadsd-door-wiring.md` (prx-asr, the door fabric).
 
 ## Problem
 
@@ -54,50 +55,55 @@ sha-pin), built from a pinned nixpkgs. They share a common builder helper.
   **without** `bd`/`git`, so AC #3 ("no local bd in the box") holds by absence +
   the gate.
 
-Concrete starting point (beadsd-box; keeperd-box mirrors it), **not yet wired
-into flake.nix and not buildable here** — replace every `TODO`:
+**beadsd-box is built — `nix/beadsd-box.nix` + `nix/fetch-bd.nix`, wired into
+`flake.nix`** under `lib.optionalAttrs pkgs.stdenv.isLinux` (so darwin still
+evaluates). The earlier "no Linux builder, not buildable here" blocker was wrong:
+the dev host has a **registered `aarch64-linux` remote builder** (the Lima
+devshell VM, `/etc/nix/machines`), so the image builds + validates from darwin:
 
-```nix
-# nix/beadsd-box.nix — STARTING POINT. Linux-only; validate on a Linux builder.
-self: { pkgs, system ? pkgs.stdenv.hostPlatform.system, bins }:
-let
-  inherit (pkgs) lib;
-  # bd is not in nixpkgs / not tracked here — fetch it FOD like nix/fetch-release.nix.
-  bd = pkgs.runCommand "bd-TODO" { } ''
-    mkdir -p "$out/bin"
-    install -m755 ${pkgs.fetchurl {
-      url = "https://example.invalid/bd-${system}"; # TODO: real bd release URL
-      sha256 = lib.fakeSha256;                       # TODO: real sha256
-    }} "$out/bin/bd"
-  '';
-in
-pkgs.dockerTools.buildLayeredImage {
-  name = "beadsd-box";
-  tag = bins.version;
-  contents = [ bins.prx bd pkgs.dolt pkgs.cacert pkgs.git pkgs.coreutils ];
-  extraCommands = "mkdir -p ./run/prx/doors ./var/lib/prx/beads";
-  config = {
-    # Foreground — confirmed. No init wrapper.
-    Entrypoint = [ "prx" "beads" "serve"
-      "--socket" "/run/prx/doors/beadsd.sock"
-      "--cwd" "/var/lib/prx/beads" "--pidfile" "/run/prx/beadsd.pid" ];
-    Env = [ "PATH=/bin" "PRX_BEADS_CWD=/var/lib/prx/beads" ];
-    User = "1000:1000";
-    WorkingDir = "/var/lib/prx/beads";
-  };
-}
-# flake.nix (Linux-only so darwin still evaluates):
-#   // lib.optionalAttrs pkgs.stdenv.isLinux {
-#        beadsd-box = import ./nix/beadsd-box.nix self { inherit pkgs system bins; };
-#      }
+```sh
+nix build .#packages.aarch64-linux.beadsd-box   # offloads to the linux-builder
 ```
+
+Two realities the minimal-image surface forced (both fixed in `beadsd-box.nix`):
+
+- **`bd` is pinned hermetically** (`nix/fetch-bd.nix`) — per-system FOD fetch of
+  the `gastownhall/beads` release tarball (v1.0.3, sha256 per linux system),
+  replacing the unpinned `curl … | tar` in `packages/prx/src/beadsd/provision.ts`.
+- **The released prx/bd binaries are FHS-dynamically-linked** (Bun/Go expecting
+  `/lib/ld-linux-…`), which a `dockerTools` image lacks. They are run through
+  `autoPatchelfHook` (glibc + libstdc++) so they execute in the image. dolt is
+  nix-built and already store-patched.
+- **`dockerTools.fakeNss` + `HOME`** — dolt/git need a uid-0 `/etc/passwd` entry
+  and a writable home (set to the beads volume).
+
+Validated end-to-end (2026-06-15): image built on the remote builder →
+`podman load` → all four binaries run under aarch64 Linux (prx v0.9.0, bd 1.0.3,
+dolt, git 2.54.0) → the default entrypoint comes up as PID 1 and logs
+`beadsd: listening on /run/prx/doors/beadsd.sock`, with the socket bound in
+`/run/prx/doors/`.
+
+Open follow-ups (not blockers for the image itself):
+
+- **dolt version** — the image uses nixpkgs `dolt` (2.1.x); the provision recipe
+  pinned 1.86.2. Confirm bd↔dolt compat on the live `bd dolt commit/pull/push`
+  reconcile path (needs a real dolt remote — see open questions).
+- **non-root** — runs as root for now; non-root + volume ownership land with
+  prx-asr / prx-5p5 where the door tmpfs and beads volume define ownership.
+
+keeperd-box (prx-anj) mirrors this shape (`prx keeper serve` + git + the signing
+key as a runtime secret); it is the next image, in its own PR.
 
 ### 2. The build substrate — prx-62h (the builder-room)
 
-dockerTools images are Linux-only; on darwin they need a Linux builder. That
-builder is already modeled as `builderRoom` (a VM-tier room, prx-62h) exposing a
-`nix:build`/`oci:image` door. prx-zj8 depends on prx-62h existing so the images
-can be built (and on a darwin host, a `nix build --builders ssh://…` into it).
+dockerTools images are Linux-only; on darwin they need a Linux builder. One
+already exists and works: the Lima devshell VM is registered as an
+`aarch64-linux` remote builder in `/etc/nix/machines`, so `nix build
+.#packages.aarch64-linux.beadsd-box` from darwin offloads transparently (no
+per-build `--builders` flag). prx-62h's remaining scope is to make prx *own* that
+builder's supervision + registration (the `builderRoom`, a VM-tier room exposing
+a `nix:build`/`oci:image` door) rather than relying on the ad-hoc `/etc/nix/machines`
+entry. The images build today regardless.
 
 ### 3. Assembly + runtime — prx-asr
 
@@ -131,8 +137,11 @@ is a prerequisite before keeperd reads/writes route through its door in-box.
 ## Sequencing
 
 ```
-prx-62h  (Linux builder substrate — the builder-room)
-   └─ prx-634 / prx-anj / prx-d4o  (the beadsd-box / keeperd-box / claude-box images)
+prx-62h  (Linux builder substrate)  ✅ works ad-hoc (Lima VM registered as remote builder);
+   │                                    prx-owned supervision/registration still TODO
+   ├─ prx-634  beadsd-box   ✅ built + validated (nix/beadsd-box.nix + nix/fetch-bd.nix)
+   ├─ prx-anj  keeperd-box  ◻ next (mirrors beadsd-box + signing key as runtime secret)
+   └─ prx-d4o  claude-box   ◻
         └─ prx-asr  (provision door volume + `podman kube play` the rendered pod)
              └─ retire the Lima daemon-VM
 ```
@@ -140,8 +149,9 @@ prx-62h  (Linux builder substrate — the builder-room)
 ## Validation
 
 The typed half is unit-tested and merged (`packages/prx/test/room/*`,
-`packages/bd/src/__tests__/runners.test.ts`). The infra half cannot run here (no
-podman, no Linux builder); first real validation is on a Linux builder: build an
-image, `podman kube play` the rendered `perRepoPod`, and confirm `prx intake bd
-ls` in `claude-room` returns the same rows as a host `prx beads list` — the AC
-from the bd-door routing bead (prx-438).
+`packages/bd/src/__tests__/runners.test.ts`). The infra half **does** run here:
+beadsd-box was built on the Lima remote builder, `podman load`ed into
+`podman-machine-default`, and its entrypoint confirmed serving (PID 1, socket
+bound). The remaining end-to-end AC — `podman kube play` the rendered
+`perRepoPod` and confirm `prx intake bd ls` in `claude-room` returns the same
+rows as a host `prx beads list` (prx-438) — waits on keeperd-box + prx-asr.

@@ -32,6 +32,11 @@
         # released binary, so the flake's packages ARE the released binaries.
         bins = import ./nix/fetch-release.nix self { inherit pkgs system; };
 
+        # The hermetically-pinned `bd` (beads) CLI, for the daemon images.
+        # Linux-only (the images are Linux-only); a no-op on darwin.
+        bdRel = lib.optionalAttrs pkgs.stdenv.isLinux
+          (import ./nix/fetch-bd.nix { inherit pkgs system; });
+
         # Opt-in CodeQL (the bundle is ~1.3GB, so it is kept out of the default
         # devShell). Only exposed on systems pinned in nix/codeql-hashes.json.
         codeqlManifest = builtins.fromJSON (builtins.readFile ./nix/codeql-hashes.json);
@@ -49,7 +54,18 @@
         packages = {
           prx = bins.prx;
           default = bins.prx;
-        } // lib.optionalAttrs codeqlSupported { inherit codeql; };
+        } // lib.optionalAttrs codeqlSupported { inherit codeql; }
+        # The OCI service-fleet images (prx-zj8) are Linux-only (dockerTools).
+        # Exposed on linux systems; build from a darwin host via the registered
+        # linux remote builder: `nix build .#packages.aarch64-linux.beadsd-box`.
+        // lib.optionalAttrs pkgs.stdenv.isLinux {
+          beadsd-box = import ./nix/beadsd-box.nix {
+            inherit pkgs;
+            prx = bins.prx;
+            bd = bdRel.bd;
+            version = bins.version;
+          };
+        };
 
         devShells = {
           default = pkgs.mkShell { buildInputs = [ pkgs.bun ]; };
