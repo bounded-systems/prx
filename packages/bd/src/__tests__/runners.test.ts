@@ -7,6 +7,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  bdDoorGate,
   defaultBdGithubRunner,
   execBd,
   formatBdExecResult,
@@ -187,6 +188,39 @@ describe("execBd door mode (prx-asr / prx-634)", () => {
     } finally {
       registerBdDoorDialer(undefined);
     }
+  });
+});
+
+// ── bdDoorGate (the shared primitive) ────────────────────────────────────────
+
+describe("bdDoorGate", () => {
+  test("off-profile → null (caller runs its own spawn)", () => {
+    expect(bdDoorGate(["bd", "list"], {})).toBeNull();
+  });
+
+  test("non-bd command → null even in door mode (gh/git pass through)", () => {
+    expect(bdDoorGate(["gh", "auth", "token"], { PRX_BEADS_DOOR: "host.sock" })).toBeNull();
+  });
+
+  test("bd + door mode → dials via the supplied dialer", () => {
+    const r = bdDoorGate(
+      ["bd", "show", "prx-1", "--json"],
+      { PRX_BEADS_DOOR: "host.sock" },
+      (opts) => ({
+        exitCode: 0,
+        stdout: `door:${opts.subcommand}:${opts.args.join(",")}`,
+        stderr: "",
+        policy: null,
+      }),
+    );
+    expect(r).toEqual({ exitCode: 0, stdout: "door:show:prx-1,--json", stderr: "", policy: null });
+  });
+
+  test("bd + door mode + no dialer → fails closed naming the op", () => {
+    const r = bdDoorGate(["bd", "list"], { PRX_BEADS_DOOR: "host.sock" }, undefined);
+    expect(r?.exitCode).toBe(1);
+    expect(r?.stderr).toMatch(/not wired for 'bd list'/);
+    expect(r?.stderr).not.toMatch(/no beads database found/);
   });
 });
 

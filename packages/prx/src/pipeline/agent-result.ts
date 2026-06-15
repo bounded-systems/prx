@@ -15,8 +15,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { defaultRunner } from "@bounded-systems/proc";
 import { z } from "zod";
+
+import { bdCommandRunner } from "../beadsd/bd-command-runner.ts";
 
 import {
   type ArtifactDiagnostic,
@@ -130,7 +131,7 @@ const defaultBeadIdReader: BeadIdReader = (cwd) => {
   // no beads workspace) makes defaultRunner THROW, and a non-zero exit returns
   // status≠0 — both yield [] so the result-capture never breaks the agent run.
   try {
-    const r = defaultRunner(["bd", "list", "--json"], { cwd, check: false });
+    const r = bdCommandRunner(["bd", "list", "--json"], { cwd, check: false });
     if (r.status !== 0) return [];
     const rows = JSON.parse(r.stdout) as Array<{ id?: unknown }>;
     return rows

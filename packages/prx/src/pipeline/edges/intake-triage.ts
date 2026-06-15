@@ -12,7 +12,9 @@
  * The impure read is injected ({@link UowReader}); the default shells
  * `bd show <id> --json`. So the edge is fully testable without bd/gh.
  */
-import { defaultRunner } from "@bounded-systems/proc";
+import type { CommandRunner } from "@bounded-systems/proc";
+
+import { bdCommandRunner } from "../../beadsd/bd-command-runner.ts";
 
 import {
   type Uow,
@@ -55,12 +57,13 @@ export type UowReader = (unit: string) => Promise<RawUow> | RawUow;
 /**
  * Build the `bd show <id> --json` reader. `bd show` returns the unit plus its
  * dependency rows, so we select the row whose `id` matches `unit`. Routed
- * through `@bounded-systems/proc` (`defaultRunner`, `check:false`) rather than a
- * raw subprocess — the no-ambient-authority architecture guard requires it.
- * `run` is injectable (defaults to the real spawn) so the bd-output parsing is
- * testable without a live bd.
+ * through the door-gated proc runner (`bdCommandRunner`, `check:false`) rather
+ * than a raw subprocess — the no-ambient-authority architecture guard requires
+ * it, and in the box profile the read routes through the beadsd door instead of
+ * a local `bd`. `run` is injectable (defaults to the gated spawn) so the
+ * bd-output parsing is testable without a live bd.
  */
-export function uowReaderWith(run: typeof defaultRunner = defaultRunner): UowReader {
+export function uowReaderWith(run: CommandRunner = bdCommandRunner): UowReader {
   return (unit) => {
     const r = run(["bd", "show", unit, "--json"], { check: false });
     if (r.status !== 0) {

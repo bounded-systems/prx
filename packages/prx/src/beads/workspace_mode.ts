@@ -22,9 +22,10 @@ import { join } from "node:path";
 
 import {
   isCaptureFailure,
-  spawnCapture,
   type SpawnCaptureFn,
 } from "@bounded-systems/proc";
+
+import { bdSpawnCapture } from "../beadsd/bd-command-runner.ts";
 
 export type BeadsWorkspaceMode =
   | { kind: "none" }
@@ -158,7 +159,7 @@ export function probeSharedServerHasIssues(
   cwd: string,
   deps: { spawn?: SpawnCaptureFn } = {},
 ): boolean {
-  const spawn = deps.spawn ?? spawnCapture;
+  const spawn = deps.spawn ?? bdSpawnCapture;
   const result = spawn(["bd", "list", "--json", "--limit", "1"], { cwd });
   if (isCaptureFailure(result)) return false;
   const trimmed = result.stdout.trim();
