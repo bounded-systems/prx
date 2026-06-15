@@ -1324,6 +1324,15 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     domain: "work-units",
     actor: "keeper",
   },
+  {
+    // prx-62h: install nix in the VM + register it as a nix remote builder so
+    // aarch64-linux/OCI fleet images build off it (flavor B of the OCI ADR).
+    name: "lima provision-builder",
+    parent: "lima",
+    description: "Install nix in a Lima VM as a remote builder (prx-62h)",
+    domain: "work-units",
+    actor: "keeper",
+  },
 
   // ─── Provenance — read-only signing-identity inspection (GH-2282) ──────────
   // `provenance dev-pubkey` prints (and bootstraps on first use) the persisted

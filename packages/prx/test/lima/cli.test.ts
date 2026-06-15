@@ -254,6 +254,46 @@ describe("prx lima parsing", () => {
     expect(() => parse(["lima", "provision-beads", "myvm"])).toThrow(/requires --origin/);
   });
 
+  test("`provision-builder <vm>` parses with defaults", () => {
+    const p = parse(["lima", "provision-builder", "myvm"]);
+    expect(p.command === "lima" && p.verb).toBe("provision-builder");
+    if (p.command === "lima") {
+      expect(p.vm).toBe("myvm");
+      expect(p.maxJobs).toBeUndefined();
+      expect(p.systems).toBeUndefined();
+      expect(p.installerUrl).toBeUndefined();
+    }
+  });
+
+  test("`provision-builder` carries --max-jobs/--systems/--installer-url", () => {
+    const p = parse([
+      "lima",
+      "provision-builder",
+      "myvm",
+      "--max-jobs",
+      "8",
+      "--systems",
+      "aarch64-linux",
+      "--installer-url",
+      "https://nixos.org/nix/install",
+    ]);
+    if (p.command === "lima") {
+      expect(p.maxJobs).toBe(8);
+      expect(p.systems).toBe("aarch64-linux");
+      expect(p.installerUrl).toBe("https://nixos.org/nix/install");
+    }
+  });
+
+  test("`provision-builder` requires a VM and rejects a bad --max-jobs", () => {
+    expect(() => parse(["lima", "provision-builder"])).toThrow(/requires a VM/);
+    expect(() => parse(["lima", "provision-builder", "myvm", "--max-jobs", "0"])).toThrow(
+      /--max-jobs must be a positive integer/,
+    );
+    expect(() => parse(["lima", "provision-builder", "myvm", "--max-jobs", "x"])).toThrow(
+      /--max-jobs must be a positive integer/,
+    );
+  });
+
   test("up requires --binary and --cwd", () => {
     expect(() => parse(["lima", "up", "myvm"])).toThrow(/--binary/);
     expect(() => parse(["lima", "up", "myvm", "--binary", "b"])).toThrow(/--cwd/);

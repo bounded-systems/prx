@@ -167,6 +167,7 @@ Work units:
   prx lima daemons               List the registered in-VM daemons and their default sockets
   prx lima status                Show which in-VM daemons are up on a Lima VM
   prx lima provision-beads       Install bd+dolt and clone canonical beads into a Lima VM (GH-296)
+  prx lima provision-builder     Install nix in a Lima VM as a remote builder (prx-62h)
   prx audit uow                  Project per-UoW artifact chain and invariant findings
   prx scope-gate                 Gate a commit's diff against the plan's declared scope
   prx scope-gate run             Check files_changed ⊆ plan.paths; emit a signed gate/v1 verdict
