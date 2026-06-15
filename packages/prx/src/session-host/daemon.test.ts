@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
-import { unixSocketTransport } from "../keeperd/transport.ts";
+import { unixSocketTransport } from "../door/transport.ts";
 import { SessionHostClient } from "./client.ts";
 import { runSessionHostServe } from "./daemon.ts";
 import { type SessionHostDeps } from "./handler.ts";

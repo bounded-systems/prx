@@ -9,7 +9,7 @@
 import { describe, expect, test } from "bun:test";
 import { createServer } from "node:net";
 
-import { encodeFrame, FrameDecoder } from "./daemon.ts";
+import { encodeFrame, FrameDecoder } from "./framing.ts";
 import { parseDoorEndpoint, resolveFramedTransport } from "./transport.ts";
 
 describe("parseDoorEndpoint", () => {

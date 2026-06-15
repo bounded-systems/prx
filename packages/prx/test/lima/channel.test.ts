@@ -6,7 +6,7 @@ import {
   type LimaChannelDeps,
   type RunResult,
 } from "../../src/lima/channel.ts";
-import type { FramedTransport } from "../../src/keeperd/transport.ts";
+import type { FramedTransport } from "../../src/door/transport.ts";
 
 const ok = (stdout = ""): RunResult => ({ status: 0, stdout, stderr: "" });
 const fail = (stderr: string): RunResult => ({ status: 1, stdout: "", stderr });

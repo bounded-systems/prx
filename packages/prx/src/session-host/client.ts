@@ -8,12 +8,12 @@
  * {@link ../keeperd/client.IsolatedKeeperClient}.
  *
  * The transport is the generic framed channel
- * ({@link ../keeperd/transport.FramedTransport}) — a fake in tests, the
+ * ({@link ../door/transport.FramedTransport}) — a fake in tests, the
  * `ssh -L`-forwarded VM socket in slice 3. The host only *asks* the in-VM host to
  * start/observe/stop processes; it never spawns or holds them itself.
  */
 
-import { type FramedTransport } from "../keeperd/transport.ts";
+import { type FramedTransport } from "../door/transport.ts";
 import {
   SessionRequestSchema,
   SessionResponseSchema,

@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 import { execBd as defaultExecBd, type BdExecOptions, type BdExecResult } from "@bounded-systems/bd";
 
-import { FrameDecoder, encodeFrame } from "../../src/keeperd/daemon.ts";
+import { FrameDecoder, encodeFrame } from "../../src/door/framing.ts";
 import {
   handleBeadsRequest,
   runBeadsServe,

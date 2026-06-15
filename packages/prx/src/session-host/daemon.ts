@@ -14,7 +14,7 @@
 
 import { type Server } from "node:net";
 
-import { runFramedServe } from "../keeperd/daemon.ts";
+import { runFramedServe } from "../door/framing.ts";
 import { type SessionRequest, type SessionResponse } from "./contract.ts";
 import { handleSessionRequest, type SessionHostDeps } from "./handler.ts";
 import { serveSessionConnection } from "./serve.ts";

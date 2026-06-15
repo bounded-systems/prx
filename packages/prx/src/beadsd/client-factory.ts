@@ -20,7 +20,7 @@ import { spawnDetached } from "@bounded-systems/proc";
 
 import { IsolatedBeadsClient } from "./client.ts";
 import { withLimaBeadsClient, type LimaBeadsChannelDeps } from "./lima.ts";
-import { unixSocketTransport, type FramedTransport } from "../keeperd/transport.ts";
+import { unixSocketTransport, type FramedTransport } from "../door/transport.ts";
 import { getRepoRoot } from "../repo-root.ts";
 
 /** Where beadsd lives: a local unix socket, or a daemon inside a Lima VM. */

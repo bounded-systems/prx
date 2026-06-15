@@ -12,12 +12,12 @@
  * without leaking them into argv.
  *
  * A future `prx lima` enumerates these specs to bring the VM's daemons up/down
- * from one place. All process effects route through the {@link ../keeperd/lima-exec}
+ * from one place. All process effects route through the {@link ../door/lima-exec}
  * seam (→ `@bounded-systems/proc`), so the orchestration is unit-tested offline;
  * the live path runs against a real VM.
  */
 
-import { spawnRun, type Run, type RunResult } from "../keeperd/lima-exec.ts";
+import { spawnRun, type Run, type RunResult } from "../door/lima-exec.ts";
 
 const DEFAULT_VM_BIN = "/tmp/prx";
 const POLL_MS = 50;
