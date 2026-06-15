@@ -54,6 +54,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Provenance signing — setup — `docs/provenance/signing.md`
 - ADR — wiring the beadsd door into the claude-box pod (prx-asr / prx-634) — `docs/prx/beadsd-door-wiring.md`
 - ADR — `prx ci` as a signed derivation chain (GH-352) — `docs/prx/ci-as-derivation.md`
+- ADR — the Claude runtime as a pinned OCI fleet (prx-d4o / prx-zj8) — `docs/prx/claude-runtime.md`
 - ADR — decomposing the `pr-state/cli.ts` monolith — `docs/prx/cli-decomposition.md`
 - ADR — a spec-driven CLI: author verbs once, project everywhere — `docs/prx/cli-from-spec.md`
 - `prx dolt start` — the dolt actor's start driver (GH-555) — `docs/prx/dolt-start.md`

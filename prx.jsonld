@@ -526,6 +526,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/claude-runtime.md",
+      "name": "ADR — the Claude runtime as a pinned OCI fleet (prx-d4o / prx-zj8)",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/claude-runtime.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/cli-decomposition.md",
       "name": "ADR — decomposing the `pr-state/cli.ts` monolith",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/cli-decomposition.md",
