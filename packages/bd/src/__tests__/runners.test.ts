@@ -10,12 +10,15 @@ import {
   defaultBdGithubRunner,
   execBd,
   formatBdExecResult,
+  isBdDoorMode,
+  registerBdDoorDialer,
   runBdAdminCompact,
   runBdDoctorFix,
   runBdDoctorJson,
   runBdDuplicatesDryRun,
   runBdMerge,
   runBdShow,
+  type BdDoorDialer,
   type BdExecResult,
   type BdGithubRunner,
   type BdGithubRunResult,
@@ -88,6 +91,146 @@ describe("execBd", () => {
       spy,
     );
     expect(seen[0]).toEqual(["bd", "sql", "--readonly", "SELECT 1"]);
+  });
+});
+
+// ── execBd door mode (box profile: no local bd) ──────────────────────────────
+
+describe("execBd door mode (prx-asr / prx-634)", () => {
+  // A spawn that fails the test if it is ever reached — proves AC: no code path
+  // execs a local `bd` binary from inside the box profile.
+  const forbiddenSpawn: BdSpawnFn = (() => {
+    throw new Error("execBd spawned a local bd in door mode");
+  }) as unknown as BdSpawnFn;
+
+  const doorEnv = { PRX_BEADS_DOOR: "host.sock" };
+
+  test("isBdDoorMode keys off a non-empty PRX_BEADS_DOOR", () => {
+    expect(isBdDoorMode({})).toBe(false);
+    expect(isBdDoorMode({ PRX_BEADS_DOOR: "" })).toBe(false);
+    expect(isBdDoorMode({ PRX_BEADS_DOOR: "  " })).toBe(false);
+    expect(isBdDoorMode({ PRX_BEADS_DOOR: "host.sock" })).toBe(true);
+  });
+
+  test("door-resolvable: dials the door and returns its result, never spawns bd", () => {
+    const dialed: string[] = [];
+    let sawDoor: string | undefined;
+    const dialer: BdDoorDialer = (opts, env) => {
+      dialed.push(opts.subcommand);
+      sawDoor = env.PRX_BEADS_DOOR;
+      return { exitCode: 0, stdout: "issues-over-door", stderr: "", policy: null };
+    };
+    const r = execBd(
+      { subcommand: "list", args: ["--limit", "20"], state: "planning", role: "planner" },
+      doorEnv,
+      forbiddenSpawn,
+      dialer,
+    );
+    expect(r.exitCode).toBe(0);
+    expect(r.stdout).toBe("issues-over-door");
+    expect(dialed).toEqual(["list"]);
+    expect(sawDoor).toBe("host.sock");
+  });
+
+  test("door-absent (no dialer): fails closed naming the door + provisioning, never spawns bd", () => {
+    const r = execBd(
+      { subcommand: "list", args: [], state: "planning", role: "planner" },
+      doorEnv,
+      forbiddenSpawn,
+      undefined,
+    );
+    expect(r.exitCode).toBe(1);
+    expect(r.stdout).toBe("");
+    expect(r.stderr).toMatch(/beadsd door 'host\.sock'/);
+    expect(r.stderr).toMatch(/prx-asr \/ prx-634/);
+    // Must NOT leak bd's opaque workspace error.
+    expect(r.stderr).not.toMatch(/no beads database found/);
+  });
+
+  test("door op not expressible (dialer returns null): fails closed, never spawns bd", () => {
+    const nullDialer: BdDoorDialer = () => null;
+    const r = execBd(
+      { subcommand: "recall", args: ["k"], state: "planning", role: "planner" },
+      doorEnv,
+      forbiddenSpawn,
+      nullDialer,
+    );
+    expect(r.exitCode).toBe(1);
+    expect(r.stderr).toMatch(/not wired for 'bd recall'/);
+  });
+
+  test("door mode does not bypass the policy/block gates", () => {
+    // A hard-blocked subcommand fails as blocked even in door mode — the door
+    // branch sits after the gates, so behavior is identical across profiles.
+    const r = execBd(
+      { subcommand: "delete", args: ["x"] },
+      doorEnv,
+      forbiddenSpawn,
+      () => ({ exitCode: 0, stdout: "should-not-reach-door", stderr: "", policy: null }),
+    );
+    expect(r.exitCode).toBe(1);
+    expect(r.stderr).toMatch(/blocked subcommand/);
+  });
+
+  test("host profile (no PRX_BEADS_DOOR) still spawns bd — no regression", () => {
+    let spawned = false;
+    const spy: BdSpawnFn = (() => {
+      spawned = true;
+      return { status: 0, signal: null, stdout: "host-bd", stderr: "" };
+    }) as unknown as BdSpawnFn;
+    // Register a dialer to prove it is ignored off-profile.
+    registerBdDoorDialer(() => ({ exitCode: 0, stdout: "via-door", stderr: "", policy: null }));
+    try {
+      const r = execBd({ subcommand: "list", args: [], state: "planning", role: "planner" }, {}, spy);
+      expect(spawned).toBe(true);
+      expect(r.stdout).toBe("host-bd");
+    } finally {
+      registerBdDoorDialer(undefined);
+    }
+  });
+});
+
+// ── defaultBdGithubRunner door mode (the runBd* helper seam) ─────────────────
+
+describe("defaultBdGithubRunner door mode (prx-asr / prx-634)", () => {
+  test("a bd read dials the door (via the registered dialer), never spawns bd", () => {
+    registerBdDoorDialer((opts) => ({
+      exitCode: 0,
+      stdout: `door:${opts.subcommand}:${opts.args.join(",")}`,
+      stderr: "",
+      policy: null,
+    }));
+    try {
+      const r = defaultBdGithubRunner(["bd", "show", "prx-1", "--json"], {
+        env: { PRX_BEADS_DOOR: "host.sock" },
+      });
+      expect(r.status).toBe(0);
+      expect(r.stdout).toBe("door:show:prx-1,--json");
+    } finally {
+      registerBdDoorDialer(undefined);
+    }
+  });
+
+  test("a bd op the door can't express fails closed, never spawns bd", () => {
+    registerBdDoorDialer(() => null);
+    try {
+      const r = defaultBdGithubRunner(["bd", "github", "sync", "--pull-only"], {
+        env: { PRX_BEADS_DOOR: "host.sock" },
+      });
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/beadsd door 'host\.sock' is not wired for 'bd github'/);
+      expect(r.stderr).not.toMatch(/no beads database found/);
+    } finally {
+      registerBdDoorDialer(undefined);
+    }
+  });
+
+  test("non-bd commands (the gh auth token probe) are not gated and really spawn", () => {
+    // No dialer registered; if the gh probe were wrongly gated it would fail
+    // closed instead of running. `echo` stands in for a clean real spawn.
+    const r = defaultBdGithubRunner(["echo", "hi"], { env: { PRX_BEADS_DOOR: "host.sock" } });
+    expect(r.status).toBe(0);
+    expect(r.stdout.trim()).toBe("hi");
   });
 });
 

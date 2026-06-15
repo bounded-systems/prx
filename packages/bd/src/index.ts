@@ -45,6 +45,13 @@ export type BdExecEnv = {
   PRX_CAPABILITY_STATE?: string;
   PRX_AGENT_ROLE?: string;
   BEADS_DIR?: string;
+  /**
+   * The beadsd door name, set by the box profile (prx-asr / prx-634). Its
+   * presence flips {@link execBd} into door mode: no local `bd` binary is
+   * spawned — bd-backed work routes through the door or fails closed. Empty /
+   * unset = host profile (spawn `bd` as before).
+   */
+  PRX_BEADS_DOOR?: string;
   [key: string]: string | undefined;
 };
 
@@ -137,6 +144,76 @@ export type BdSpawnResult = SpawnCaptureResult;
 export type BdSpawnFn = SpawnCaptureFn;
 export const defaultBdSpawn: BdSpawnFn = spawnCapture;
 
+// beadsd door seam (prx-asr / prx-634) ---------------------------------------
+//
+// Inside the box profile there is no local `bd` binary (prx-82b): bd-backed
+// work must reach the canonical store through the beadsd DOOR — the same path
+// `prx beads <verb>` already uses. The box profile signals this by exporting
+// `PRX_BEADS_DOOR=<door-name>`. In door mode {@link execBd} MUST NOT spawn
+// `bd`; instead it asks the registered dialer to express the op over the door,
+// and fails CLOSED (naming the door + provisioning path) when it can't —
+// never bubbling bd's opaque "no beads database found".
+//
+// `@bounded-systems/bd` stays daemon-agnostic: it knows only this function
+// type and never imports the beadsd client. prx owns the door knowledge and
+// registers the production dialer at CLI startup ({@link registerBdDoorDialer}).
+// A dialer returns a {@link BdExecResult} when it served the request over the
+// door, or `null` when the op is not expressible there (caller fails closed).
+export type BdDoorDialer = (opts: BdExecOptions, env: BdExecEnv) => BdExecResult | null;
+
+let registeredDoorDialer: BdDoorDialer | undefined;
+
+/**
+ * Register (or, with `undefined`, clear) the process-wide beadsd door dialer.
+ * prx calls this once at CLI startup; tests inject directly via execBd's 4th
+ * positional and need not touch the registry.
+ */
+export function registerBdDoorDialer(dialer: BdDoorDialer | undefined): void {
+  registeredDoorDialer = dialer;
+}
+
+/**
+ * True iff the box profile has declared a beadsd door — i.e. there is no local
+ * `bd` binary and bd-backed work must route through the door.
+ */
+export function isBdDoorMode(env: BdExecEnv): boolean {
+  const door = env.PRX_BEADS_DOOR;
+  return typeof door === "string" && door.trim().length > 0;
+}
+
+/** The fail-closed stderr for a bd op the door can't express (no local bd). */
+function doorNotWiredStderr(subcommand: string, env: BdExecEnv): string {
+  const door = (env.PRX_BEADS_DOOR ?? "").trim();
+  return (
+    `bd-safe: beadsd door '${door}' is not wired for 'bd ${subcommand}' — ` +
+    `bd-backed work in the box profile must route through the beadsd door, ` +
+    `and this op is not available over it. Provision the box pod doors ` +
+    `(prx-asr / prx-634); there is no local bd to fall back to.`
+  );
+}
+
+/**
+ * Door-mode resolution for a bd op that has already cleared every gate: dial
+ * the door, or fail closed. Shared by both bd-spawn seams ({@link execBd} and
+ * {@link defaultBdGithubRunner}) so the box profile behaves identically across
+ * them — neither ever reaches a local `bd` binary.
+ */
+function resolveBdViaDoor(
+  opts: BdExecOptions,
+  env: BdExecEnv,
+  dialer: BdDoorDialer | undefined,
+  decision: PolicyDecision | null,
+): BdExecResult {
+  const viaDoor = dialer?.(opts, env) ?? null;
+  if (viaDoor) return viaDoor;
+  return {
+    exitCode: 1,
+    stdout: "",
+    stderr: doorNotWiredStderr(opts.subcommand, env),
+    policy: decision,
+  };
+}
+
 /**
  * Execute a bd subcommand with optional policy enforcement.
  *
@@ -148,6 +225,7 @@ export function execBd(
   opts: BdExecOptions,
   env: BdExecEnv = processEnv(),
   spawn: BdSpawnFn = defaultBdSpawn,
+  doorDialer: BdDoorDialer | undefined = registeredDoorDialer,
 ): BdExecResult {
   // Hard-block check
   if (isBlocked("bd", opts.subcommand)) {
@@ -234,7 +312,17 @@ export function execBd(
       ? ["--readonly", ...opts.args]
       : opts.args;
 
-  // Execute
+  // Door mode (box profile): never spawn a local `bd`. The op has already
+  // cleared the block/allowlist/short-id/policy gates above, so behavior is
+  // identical to the host profile up to this point. Now either the dialer
+  // serves it over the beadsd door, or we fail closed — naming the door and
+  // the provisioning path rather than letting bd's "no beads database found"
+  // surface (prx-asr / prx-634; AC: no local bd in the box profile).
+  if (isBdDoorMode(env)) {
+    return resolveBdViaDoor(opts, env, doorDialer, decision);
+  }
+
+  // Execute (host profile: spawn the local bd binary).
   const result = spawn(["bd", opts.subcommand, ...spawnArgs], { cwd: opts.cwd, env: childEnv });
 
   // GH-1554: a spawn error, killing signal, or non-zero exit means the stdout
@@ -295,6 +383,23 @@ export type BdGithubRunner = (
 ) => BdGithubRunResult;
 
 export const defaultBdGithubRunner: BdGithubRunner = (cmd, options = {}) => {
+  const env = (options.env ?? processEnv()) as BdExecEnv;
+
+  // Door mode (box profile): this runner is the second bd-spawn seam (the
+  // `runBd*` helpers — show/update/sync/doctor/merge/compact). Gate `bd`
+  // invocations the same way execBd does — dial the door or fail closed, never
+  // spawn a local `bd`. Non-`bd` commands (e.g. the `gh auth token` probe) are
+  // unaffected (prx-asr / prx-634; AC: no local bd in the box profile).
+  if (cmd[0] === "bd" && isBdDoorMode(env)) {
+    const res = resolveBdViaDoor(
+      { subcommand: cmd[1] ?? "", args: cmd.slice(2) },
+      env,
+      registeredDoorDialer,
+      null,
+    );
+    return { stdout: res.stdout, stderr: res.stderr, status: res.exitCode };
+  }
+
   // GH-1609: route through spawnCapture so `bd github sync` and the `gh auth
   // token` probe both stream stdout through a temp file (no in-memory 1 MiB
   // cap). Apply the partial-read guard so a SIGTERM'd / errored child can

@@ -387,10 +387,12 @@ import { execGh } from "@bounded-systems/gh";
 import {
   execBd,
   formatBdExecResult,
+  registerBdDoorDialer,
   runBdShow,
   runBdUpdateClaim,
   type BdGithubRunner,
 } from "@bounded-systems/bd";
+import { prxBeadsDoorDialer } from "../beadsd/bd-door-dialer.ts";
 import { execBdIssueClose } from "../tools/bd_issue_close.ts";
 import {
   resolveAndCloseLinkedBeads,
@@ -14765,6 +14767,11 @@ function resolveTriageRepoCwd(
 }
 
 export function runCli(argv: string[], output: Output = console, deps: CliDeps = {}): number | Promise<number> {
+  // Wire the beadsd door dialer (idempotent, process-wide). In the box profile
+  // (PRX_BEADS_DOOR set) this is how `execBd` reaches the canonical store
+  // instead of spawning a local `bd`; off-profile it is never consulted
+  // (prx-asr / prx-634).
+  registerBdDoorDialer(prxBeadsDoorDialer);
   try {
     // Spec-driven verbs (pilot/fleet/health) are handled by the canonical
     // VerbSpec dispatch, ahead of the legacy typed-command union/executor
