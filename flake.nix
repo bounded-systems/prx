@@ -49,7 +49,12 @@
         packages = {
           prx = bins.prx;
           default = bins.prx;
-        } // lib.optionalAttrs codeqlSupported { inherit codeql; };
+        } // lib.optionalAttrs codeqlSupported { inherit codeql; }
+        # OCI fleet images (prx-zj8) are Linux-only; build them on the prx-62h
+        # linux builder, e.g. `nix build .#packages.aarch64-linux.beadsd-box`.
+        // lib.optionalAttrs pkgs.stdenv.isLinux {
+          beadsd-box = import ./nix/oci/beadsd-box.nix self { inherit pkgs system; };
+        };
 
         devShells = {
           default = pkgs.mkShell { buildInputs = [ pkgs.bun ]; };
