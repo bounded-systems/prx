@@ -119,6 +119,26 @@ describe("prx beads read-door (ready/list/show via beadsd)", () => {
     expect(() => parse(["beads", "children"])).toThrow(/requires an id/);
   });
 
+  test("`beads recall <key>` carries the key; requires one (prx-44y)", () => {
+    expect(normalizeNamespaceArgv(["beads", "recall", "handoff/a"])).toEqual([
+      "beads-read",
+      "recall",
+      "handoff/a",
+    ]);
+    const p = parse(["beads", "recall", "handoff/a"]);
+    expect(p.command === "beads-read" && p.kind).toBe("recall");
+    if (p.command === "beads-read") expect(p.key).toBe("handoff/a");
+    expect(() => parse(["beads", "recall"])).toThrow(/requires a key/);
+  });
+
+  test("`beads memories [<prefix>]` carries an optional prefix (prx-44y)", () => {
+    const withPrefix = parse(["beads", "memories", "handoff/"]);
+    expect(withPrefix.command === "beads-read" && withPrefix.kind).toBe("memories");
+    if (withPrefix.command === "beads-read") expect(withPrefix.prefix).toBe("handoff/");
+    const noPrefix = parse(["beads", "memories"]);
+    if (noPrefix.command === "beads-read") expect(noPrefix.prefix).toBeUndefined();
+  });
+
   test("reads tolerate a forwarded --json flag (the door dialer forwards it; prx-zbsi)", () => {
     // `bd show <id> --json` → `prx beads show <id> --json` over the door, so the
     // read parser must accept --json rather than reject it under strict parsing.
@@ -170,6 +190,26 @@ describe("prx beads write-door (create/update/close via beadsd)", () => {
 
   test("reopen requires an id", () => {
     expect(() => parse(["beads", "reopen"])).toThrow(/requires an id/);
+  });
+
+  test("`beads remember <body> --key <key>` builds a remember write (prx-44y)", () => {
+    expect(normalizeNamespaceArgv(["beads", "remember", "{}", "--key", "handoff/a"])).toEqual([
+      "beads-write",
+      "remember",
+      "{}",
+      "--key",
+      "handoff/a",
+    ]);
+    const p = parse(["beads", "remember", '{"id":"h1"}', "--key", "handoff/a"]);
+    expect(p.command).toBe("beads-write");
+    if (p.command === "beads-write") {
+      expect(p.request).toEqual({ kind: "remember", key: "handoff/a", body: '{"id":"h1"}' });
+    }
+  });
+
+  test("remember requires --key and a body", () => {
+    expect(() => parse(["beads", "remember", "{}"])).toThrow(/requires --key/);
+    expect(() => parse(["beads", "remember", "--key", "k"])).toThrow(/requires a body/);
   });
 
   test("create requires --type and --title", () => {
