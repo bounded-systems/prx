@@ -51,7 +51,7 @@ import {
 // importers that reach for them via this module keep working.
 export { resolveFeatureForPrefix } from "@bounded-systems/surface-sync";
 export type { PrefixRoutingConfig } from "@bounded-systems/surface-sync";
-import { execBd } from "@bounded-systems/bd";
+import { execBd, bdDoorGate } from "@bounded-systems/bd";
 import { runBeadsSync } from "../sync/run.ts";
 import { DEFAULT_SYNC_LIMIT } from "../sync/limits.ts";
 import { withBucketGate } from "@bounded-systems/github-budget";
@@ -4215,7 +4215,14 @@ export function hydrateBeads(
     return;
   }
   let view: BeadsIssueView | null = null;
-  const result = runner(["bd", "show", beadId, "--json"], { cwd: repoPath, check: false });
+  // GH-296 / prx-zbsi: in the box profile (PRX_BEADS_DOOR) this `bd show` read
+  // routes through the beadsd door, never a local `bd`; off-profile the gate
+  // returns null and we spawn via the injected runner exactly as before. Gating
+  // here also keeps this bd read off `defaultRunner`'s GitHub rate-limit bucket.
+  const gated = bdDoorGate(["bd", "show", beadId, "--json"]);
+  const result = gated
+    ? { stdout: gated.stdout, stderr: gated.stderr, status: gated.exitCode }
+    : runner(["bd", "show", beadId, "--json"], { cwd: repoPath, check: false });
   if (result.status === 0) {
     try {
       const parsed = JSON.parse(result.stdout) as unknown;

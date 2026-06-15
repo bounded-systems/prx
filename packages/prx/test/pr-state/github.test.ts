@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { deleteEnv, getEnv, setEnv } from "@bounded-systems/env";
+import { registerBdDoorDialer } from "@bounded-systems/bd";
 
 import type {
   BoardStatusResult,
@@ -5977,6 +5978,39 @@ describe("GH-2083 (.3.2) — view seams read a hydrated projection, never an inl
   test("an un-hydrated read raises ProjectionMiss — never falls back to a shell-out", () => {
     expect(() => maybeViewIssue("owner/repo", "GH-9999")).toThrow(ProjectionMiss);
     expect(() => maybeViewBeadsIssue("/repo", "ai-home-absent")).toThrow(ProjectionMiss);
+  });
+
+  test("prx-zbsi: in the box profile the bd show read routes through the door, not the local runner", () => {
+    const prev = getEnv("PRX_BEADS_DOOR");
+    setEnv("PRX_BEADS_DOOR", "host.sock");
+    const dialedSubs: string[] = [];
+    registerBdDoorDialer((opts) => {
+      dialedSubs.push(opts.subcommand);
+      return {
+        exitCode: 0,
+        stdout: JSON.stringify({ id: "ai-home-door1", status: "open" }),
+        stderr: "",
+        policy: null,
+      };
+    });
+    let innerCalled = false;
+    const runner: CommandRunner = () => {
+      innerCalled = true;
+      return { stdout: "", stderr: "", status: 1 };
+    };
+    try {
+      hydrateBeads("/repo", "ai-home-door1", runner);
+      expect(dialedSubs).toEqual(["show"]);
+      expect(innerCalled).toBe(false);
+      expect(maybeViewBeadsIssue("/repo", "ai-home-door1")).toEqual({
+        id: "ai-home-door1",
+        status: "open",
+      });
+    } finally {
+      registerBdDoorDialer(undefined);
+      if (prev === undefined) deleteEnv("PRX_BEADS_DOOR");
+      else setEnv("PRX_BEADS_DOOR", prev);
+    }
   });
 
   test("hydrateIssue is fresh-or-fetch: a second hydrate is a cache hit (no re-run)", () => {
