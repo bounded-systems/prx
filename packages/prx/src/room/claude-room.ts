@@ -25,6 +25,8 @@ const DOORS = "/run/prx/doors";
 
 export const claudeRoom: RoomSpec = {
   name: "claude-room",
+  // The room is filled by the claude-box runtime image (prx-d4o).
+  image: "claude-box",
   // A sandbox-tier room: the policy boundary is the container; the hardware
   // boundary (the VM house) belongs to the Pod, not this room. No executor —
   // inherited from the pod's house.

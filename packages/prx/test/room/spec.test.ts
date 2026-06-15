@@ -43,6 +43,13 @@ describe("RoomSpecSchema", () => {
     expect(r.executor?.arch).toBe("aarch64");
     expect(r.tier).toBe("vm");
   });
+
+  test("carries an optional -box image (absent by default)", () => {
+    expect(room().image).toBeUndefined();
+    expect(room({ image: "claude-box" }).image).toBe("claude-box");
+    // empty image is rejected.
+    expect(() => RoomSpecSchema.parse({ name: "r", image: "" })).toThrow();
+  });
 });
 
 describe("roomGrants", () => {

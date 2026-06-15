@@ -14,10 +14,9 @@
  *     projection, i.e. `PRX_BEADS_DOOR`/`PRX_BEADS_SOCKET` for the beadsd
  *     consumer. A closed/unresolved door contributes no env (it isn't wired).
  *
- * The container *image* is not in the RoomSpec yet (the room is the isolation
- * unit; the `-box` image that fills it is a separate concern — prx-zj8). Until
- * that lands, the image is rendered as a deterministic placeholder ref and a
- * TODO; everything else is real.
+ * The container *image* is the room's `RoomSpec.image` (its `-box`) when
+ * declared, else a deterministic placeholder ref. The full registry ref is a
+ * deploy concern (prx-zj8); everything else is real.
  */
 
 import { PodSpecSchema, podRoomEnv, type PodSpec } from "./pod.ts";
@@ -65,9 +64,13 @@ export function renderPodmanKube(pod: PodSpec): string {
 
   for (const room of p.rooms) {
     lines.push(`    - name: ${dq(room.name)}`);
-    // TODO(prx-zj8): the room's `-box` image ref. Placeholder until RoomSpec
-    // carries an image (or the pod resolves one per room).
-    lines.push(`      image: ${dq(`prx/${room.name}:latest`)} # TODO(prx-zj8): real -box image`);
+    // The room's `-box` image when declared; else a deterministic placeholder
+    // (a room with no image yet — the full registry ref is a prx-zj8 concern).
+    if (room.image) {
+      lines.push(`      image: ${dq(room.image)}`);
+    } else {
+      lines.push(`      image: ${dq(`prx/${room.name}:latest`)} # TODO(prx-zj8): no image declared`);
+    }
     lines.push("      volumeMounts:");
     lines.push(`        - name: ${DOOR_VOLUME}`);
     lines.push(`          mountPath: ${dq(p.doorDir)}`);

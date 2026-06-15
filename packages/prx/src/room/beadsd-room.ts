@@ -13,6 +13,8 @@ import type { RoomSpec } from "./spec.ts";
 
 export const beadsdRoom: RoomSpec = {
   name: "beadsd-room",
+  // Filled by the beadsd-box image (prx-634).
+  image: "beadsd-box",
   tier: "sandbox",
   doors: [
     {
