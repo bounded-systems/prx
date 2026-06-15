@@ -57,6 +57,20 @@ export function makePrxBeadsDoorDialer(deps: PrxBeadsDoorDialerDeps = {}): BdDoo
   const bin = deps.prxBinary ?? DEFAULT_PRX_BINARY;
 
   return (opts): BdExecResult | null => {
+    // prx-zbsi: `bd dep list <id> --direction up --type parent-child [...]` is a
+    // READ (an epic's parent-child children) expressed over the otherwise-write
+    // `dep` subcommand. Route it via the door's `children` verb so the existing
+    // epic-children dep-list read (epic_children.ts) reaches the door with its
+    // argv — and result shape — unchanged. Only the parent-child *list* form
+    // maps; `dep add`/`remove` (writes) fall through to fail-closed.
+    if (opts.subcommand === "dep" && opts.args[0] === "list" && opts.args.includes("parent-child")) {
+      const epicId = opts.args[1];
+      if (typeof epicId === "string" && epicId.length > 0 && !epicId.startsWith("-")) {
+        const result = run([bin, "beads", "children", epicId, "--json"], { check: false });
+        return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr, policy: null };
+      }
+    }
+
     const verb = DOOR_READ_VERBS[opts.subcommand];
     if (!verb) {
       // Not expressible over the door read surface — caller fails closed.

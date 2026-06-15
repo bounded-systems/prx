@@ -1,4 +1,6 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+
+import { registerBdDoorDialer } from "@bounded-systems/bd";
 
 import { findEpicChildren } from "../../src/beads/epic_children.ts";
 import type { CommandRunner } from "../../src/pr-state/github.ts";
@@ -263,5 +265,44 @@ describe("findEpicChildren (GH-935)", () => {
     expect(calls[0]!.cmd[0]).toBe("bd");
     expect(calls[0]!.cmd).toContain("--all");
     expect(calls[0]!.cmd).toContain("--json");
+  });
+});
+
+describe("findEpicChildren — door-routed in the box profile (prx-zbsi)", () => {
+  afterEach(() => {
+    registerBdDoorDialer(undefined);
+    delete process.env.PRX_BEADS_DOOR;
+  });
+
+  test("both reads dial the door (list + dep-list parent-child); the local runner is never spawned", () => {
+    process.env.PRX_BEADS_DOOR = "host.sock";
+    const dialed: string[] = [];
+    registerBdDoorDialer((opts) => {
+      dialed.push(opts.subcommand);
+      if (opts.subcommand === "list") {
+        return {
+          exitCode: 0,
+          stdout: JSON.stringify([
+            { id: "epic", title: "Epic", status: "open", external_ref: "https://x/issues/10" },
+            { id: "c1", title: "Child", status: "open", external_ref: "https://x/issues/11" },
+          ]),
+          stderr: "",
+          policy: null,
+        };
+      }
+      // `bd dep list <id> --direction up --type parent-child` arrives as subcommand "dep".
+      return {
+        exitCode: 0,
+        stdout: JSON.stringify([{ from: "c1", to: "epic", type: "parent-child" }]),
+        stderr: "",
+        policy: null,
+      };
+    });
+    const throwingRunner: CommandRunner = () => {
+      throw new Error("local bd must not be spawned in the box profile");
+    };
+    const children = findEpicChildren("/repo", 10, throwingRunner);
+    expect(children).toEqual([{ ghNumber: 11, title: "Child", state: "open" }]);
+    expect(dialed).toEqual(["list", "dep"]);
   });
 });
