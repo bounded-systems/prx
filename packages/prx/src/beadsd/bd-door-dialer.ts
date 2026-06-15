@@ -34,6 +34,10 @@ const DOOR_READ_VERBS: Readonly<Record<string, string>> = {
   list: "list",
   ready: "ready",
   show: "show",
+  // prx-zbsi: `bd children <id> --json` → `prx beads children <id> --json`.
+  // The `prx beads children` verb serves the read over the allowed `dep`
+  // subcommand inside the daemon (bd children is not on the bd allowlist).
+  children: "children",
 };
 
 export type PrxBeadsDoorDialerDeps = {

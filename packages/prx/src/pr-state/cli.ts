@@ -1817,7 +1817,7 @@ type ParsedCommand =
       // `--vm <name>` (or PRX_BEADS_VM) ⇒ the in-VM daemon (the read door).
       command: "beads-read";
       format: "plain" | "json";
-      kind: "ready" | "list" | "show";
+      kind: "ready" | "list" | "show" | "children";
       vm?: string | undefined;
       vmSocket: string;
       hostSocket?: string | undefined;
@@ -4268,7 +4268,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "beads") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "beads requires a subcommand: ready, list, show, create, update, close, reopen, dep, prime, hydrate, provision, issue, migrate, publish, sync, sync-all, doctor",
+        "beads requires a subcommand: ready, list, show, children, create, update, close, reopen, dep, prime, hydrate, provision, issue, migrate, publish, sync, sync-all, doctor",
       );
     }
     if (c1 === "prime") {
@@ -4308,9 +4308,11 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
       // GH-228: beads workspace self-heal (diagnose / --fix re-bootstrap).
       return ["beads-doctor", ...tail];
     }
-    if (c1 === "ready" || c1 === "list" || c1 === "show") {
+    if (c1 === "ready" || c1 === "list" || c1 === "show" || c1 === "children") {
       // GH-296: host read-door — routed through beadsd (the in-VM daemon).
-      // Collapse the three reads onto one command with the kind as a positional.
+      // Collapse the reads onto one command with the kind as a positional.
+      // `children <id>` (prx-zbsi) serves an epic's parent-child children over
+      // the allowed `dep` subcommand.
       return ["beads-read", c1, ...tail];
     }
     if (c1 === "create" || c1 === "update" || c1 === "close" || c1 === "reopen" || c1 === "dep") {
@@ -7602,18 +7604,23 @@ export function parseCommand(argv: string[]): ParsedCommand {
         status: { type: "string" },
         all: { type: "boolean" },
         limit: { type: "string" },
+        // Accepted and ignored: reads always emit JSON. The beadsd door dialer
+        // forwards a bd read's `--json` flag verbatim (`bd show <id> --json` →
+        // `prx beads show <id> --json`), so the read parser must tolerate it or
+        // every door read fails strict parsing (prx-zbsi).
+        json: { type: "boolean" },
       },
       strict: true,
       allowPositionals: true,
     });
     const kind = positionals[0];
-    if (kind !== "ready" && kind !== "list" && kind !== "show") {
-      throw new CliError("prx beads read requires a kind: ready | list | show");
+    if (kind !== "ready" && kind !== "list" && kind !== "show" && kind !== "children") {
+      throw new CliError("prx beads read requires a kind: ready | list | show | children");
     }
     const vm = values.vm ?? getEnv("PRX_BEADS_VM");
     const id = positionals[1];
-    if (kind === "show" && (typeof id !== "string" || id.length === 0)) {
-      throw new CliError("prx beads show requires an id: `prx beads show <id>`");
+    if ((kind === "show" || kind === "children") && (typeof id !== "string" || id.length === 0)) {
+      throw new CliError(`prx beads ${kind} requires an id: \`prx beads ${kind} <id>\``);
     }
     const limit = ((): number | undefined => {
       if (values.limit === undefined) return undefined;
@@ -7630,7 +7637,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
       ...(typeof vm === "string" && vm.length > 0 ? { vm } : {}),
       vmSocket: values["vm-socket"] ?? "/tmp/beadsd.sock",
       ...(values["host-socket"] !== undefined ? { hostSocket: values["host-socket"] } : {}),
-      ...(kind === "show" ? { id } : {}),
+      ...(kind === "show" || kind === "children" ? { id } : {}),
       ...(values.status !== undefined ? { status: values.status } : {}),
       ...(values.all === true ? { all: true } : {}),
       ...(limit !== undefined ? { limit } : {}),
@@ -20550,7 +20557,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         const lines: string[] = [
           "# Beads via prx (GH-296)",
           "",
-          "Reach beads through the daemon — `prx beads <ready|list|show|create|update|close|reopen>`.",
+          "Reach beads through the daemon — `prx beads <ready|list|show|children|create|update|close|reopen>`.",
           "It serves the one canonical beads for THIS repo (one daemon = one repo); raw `bd` is",
           "unreachable in a worktree. Writes land in the daemon's clone; reconcile/push is the",
           "sync agent's job — do not `bd dolt push` from a worktree.",
@@ -20586,14 +20593,16 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         const request: BeadsRequest =
           parsed.kind === "show"
             ? { kind: "show", id: parsed.id! }
-            : parsed.kind === "list"
-              ? {
-                  kind: "list",
-                  ...(parsed.status !== undefined ? { status: parsed.status } : {}),
-                  ...(parsed.all === true ? { all: true } : {}),
-                  ...(parsed.limit !== undefined ? { limit: parsed.limit } : {}),
-                }
-              : { kind: "ready" };
+            : parsed.kind === "children"
+              ? { kind: "children", id: parsed.id! }
+              : parsed.kind === "list"
+                ? {
+                    kind: "list",
+                    ...(parsed.status !== undefined ? { status: parsed.status } : {}),
+                    ...(parsed.all === true ? { all: true } : {}),
+                    ...(parsed.limit !== undefined ? { limit: parsed.limit } : {}),
+                  }
+                : { kind: "ready" };
         try {
           const reply =
             parsed.vm !== undefined

@@ -57,12 +57,16 @@ export interface BeadsDaemonDeps {
 class EmptyUpdateError extends Error {}
 
 /**
- * The bd subcommand for a request kind. Identity for every kind EXCEPT `close`:
- * `bd close` is blocked by the bd policy wrapper, so a close is dispatched as
- * `bd update <id> --status closed` (the prx-canonical close).
+ * The bd subcommand for a request kind. Identity for every kind EXCEPT:
+ *  - `close` → `update` (`bd close` is blocked by the bd policy wrapper, so a
+ *    close is dispatched as `bd update <id> --status closed`).
+ *  - `children` → `dep` (`bd children` is not on the bd allowlist; the children
+ *    read is served as `bd dep list <id> ...` over the already-allowed `dep`).
  */
 function beadsSubcommand(request: BeadsRequest): string {
-  return request.kind === "close" ? "update" : request.kind;
+  if (request.kind === "close") return "update";
+  if (request.kind === "children") return "dep";
+  return request.kind;
 }
 
 /**
@@ -85,6 +89,11 @@ function beadsArgs(request: BeadsRequest): string[] {
     case "show":
       // `bd show <id> --json` — id first, mirroring runBdShow.
       return [request.id, "--json"];
+    case "children":
+      // Served over the allowed `dep` subcommand: the parent-child children of
+      // an epic are the `direction=up`, `type=parent-child` dep edges. `--json`
+      // so the reply is structured (parsed like any other read).
+      return ["list", request.id, "--direction", "up", "--type", "parent-child", "--json"];
     case "create":
       return [
         "--json",

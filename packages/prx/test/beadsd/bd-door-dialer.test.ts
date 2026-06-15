@@ -45,6 +45,14 @@ describe("prxBeadsDoorDialer", () => {
     expect(calls[1]).toEqual(["prx", "beads", "show", "prx-1", "--json"]);
   });
 
+  test("children → `prx beads children <id>` over the door (prx-zbsi)", () => {
+    const { run, calls } = recordingRunner(ok("[]"));
+    const dialer = makePrxBeadsDoorDialer({ run });
+    const r = dialer({ subcommand: "children", args: ["prx-epic", "--json"] }, env);
+    expect(calls[0]).toEqual(["prx", "beads", "children", "prx-epic", "--json"]);
+    expect(r).toEqual({ exitCode: 0, stdout: "[]", stderr: "", policy: null });
+  });
+
   test("honors a custom prx binary", () => {
     const { run, calls } = recordingRunner(ok("[]"));
     const dialer = makePrxBeadsDoorDialer({ run, prxBinary: "/opt/prx" });

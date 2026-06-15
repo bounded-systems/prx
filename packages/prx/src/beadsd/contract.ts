@@ -48,6 +48,15 @@ export const BeadsRequestSchema = z.discriminatedUnion("kind", [
   }),
   /** `bd show <id>` — one issue's detail. */
   z.object({ kind: z.literal("show"), id: z.string().min(1) }),
+  /**
+   * The parent-child children of an epic. A READ dispatched to the
+   * already-allowed `bd dep` subcommand as `bd dep list <id> --direction up
+   * --type parent-child --json` — no capability-surface expansion (`bd
+   * children` is not on the bd allowlist; `bd dep` is). Door-backs in-box
+   * epic-children resolution (prx-zbsi). `result` carries the child edge rows
+   * (opaque here; shaped by the beads layer).
+   */
+  z.object({ kind: z.literal("children"), id: z.string().min(1) }),
   // ── writes (policy-gated; dispatched to `bd` --json) ──
   /**
    * `bd create --type <t> --title <title> [--priority N] [--description d]
@@ -121,7 +130,7 @@ export const BeadsRequestSchema = z.discriminatedUnion("kind", [
 export type BeadsRequest = z.infer<typeof BeadsRequestSchema>;
 
 /** The read kinds (unconditional). */
-export const BEADS_READ_KINDS = ["ready", "list", "show"] as const;
+export const BEADS_READ_KINDS = ["ready", "list", "show", "children"] as const;
 /** The write kinds (policy-gated single-writer surface; GH-228 slice 5). */
 export const BEADS_WRITE_KINDS = ["create", "update", "close", "reopen", "dep"] as const;
 /** Every kind beadsd exposes (the envelope), enumerable as an allowlist. */
