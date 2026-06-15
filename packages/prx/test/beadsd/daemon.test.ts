@@ -107,6 +107,25 @@ describe("handleBeadsRequest", () => {
     if (res.status === "error") expect(res.code).toBe("bd-read");
   });
 
+  test("dispatches `recall` to `bd recall <key> --json` (prx-44y)", async () => {
+    const { execBd, calls } = fakeBd(okResult(JSON.stringify({ key: "handoff/a", body: "{}" })));
+    const res = await handleBeadsRequest({ kind: "recall", key: "handoff/a" }, { execBd });
+    expect(res.status).toBe("ok");
+    expect(calls[0]!.subcommand).toBe("recall");
+    expect(calls[0]!.args).toEqual(["handoff/a", "--json"]);
+  });
+
+  test("dispatches `memories` to `bd memories <prefix> --json`; prefix is optional (prx-44y)", async () => {
+    const withPrefix = fakeBd();
+    await handleBeadsRequest({ kind: "memories", prefix: "handoff/" }, { execBd: withPrefix.execBd });
+    expect(withPrefix.calls[0]!.subcommand).toBe("memories");
+    expect(withPrefix.calls[0]!.args).toEqual(["handoff/", "--json"]);
+
+    const noPrefix = fakeBd();
+    await handleBeadsRequest({ kind: "memories" }, { execBd: noPrefix.execBd });
+    expect(noPrefix.calls[0]!.args).toEqual(["--json"]);
+  });
+
   test("threads cwd through to the bd runner", async () => {
     const { execBd, calls } = fakeBd();
     await handleBeadsRequest(READY, { execBd, cwd: "/repo/clone" });
@@ -279,6 +298,20 @@ describe("handleBeadsRequest — writes (single-writer, policy passthrough)", ()
     await handleBeadsRequest({ kind: "dep", action: "remove", from: "prx-a", to: "prx-b" }, { execBd });
     expect(calls[0]!.subcommand).toBe("dep");
     expect(calls[0]!.args).toEqual(["remove", "prx-a", "prx-b"]);
+  });
+
+  test("remember dispatches `bd remember <body> --key <key> --json` under the planner role (prx-44y)", async () => {
+    const { execBd, calls } = fakeBd(okResult(JSON.stringify({ key: "handoff/a" })));
+    const res = await handleBeadsRequest(
+      { kind: "remember", key: "handoff/a", body: '{"id":"h1"}' },
+      { execBd },
+    );
+    expect(res.status).toBe("ok");
+    expect(calls[0]!.subcommand).toBe("remember");
+    expect(calls[0]!.args).toEqual(['{"id":"h1"}', "--key", "handoff/a", "--json"]);
+    // It is the single-writer surface — dispatched under planner role/state.
+    expect(calls[0]!.state).toBe("planning");
+    expect(calls[0]!.role).toBe("planner");
   });
 
   test("update dispatches `bd update <id> --json <fields>`", async () => {
