@@ -1,0 +1,9 @@
+# Code owners — reviewers are auto-requested on matching paths.
+# https://docs.github.com/repositories/managing-your-repos-settings-and-features/customizing-your-repository/about-code-owners
+
+# Require review from the maintainers team on everything.
+*       @bounded-systems/maintainers
+
+# Finer-grained owners for sensitive paths can be added here (e.g. a dedicated
+# team for the provenance / signing code) once those teams exist; until then the
+# maintainers team owns all paths above.
