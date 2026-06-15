@@ -54,6 +54,7 @@
         # linux builder, e.g. `nix build .#packages.aarch64-linux.beadsd-box`.
         // lib.optionalAttrs pkgs.stdenv.isLinux {
           beadsd-box = import ./nix/oci/beadsd-box.nix self { inherit pkgs system; };
+          keeperd-box = import ./nix/oci/keeperd-box.nix self { inherit pkgs system; };
         };
 
         devShells = {
