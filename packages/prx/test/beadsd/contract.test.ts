@@ -11,10 +11,10 @@ import {
 
 describe("beadsd wire contract — request envelope", () => {
   test("the envelope is an enumerable read+write allowlist", () => {
-    expect(BEADS_READ_KINDS).toEqual(["ready", "list", "show"]);
+    expect(BEADS_READ_KINDS).toEqual(["ready", "list", "show", "children"]);
     expect(BEADS_WRITE_KINDS).toEqual(["create", "update", "close", "reopen", "dep"]);
     expect(BEADS_REQUEST_KINDS).toEqual([
-      "ready", "list", "show", "create", "update", "close", "reopen", "dep",
+      "ready", "list", "show", "children", "create", "update", "close", "reopen", "dep",
     ]);
   });
 
@@ -25,6 +25,14 @@ describe("beadsd wire contract — request envelope", () => {
     expect(BeadsRequestSchema.safeParse({ kind: "dep", action: "remove", from: "a", to: "b" }).success).toBe(true);
     expect(BeadsRequestSchema.safeParse({ kind: "dep", action: "bogus", from: "a", to: "b" }).success).toBe(false);
     expect(BeadsRequestSchema.safeParse({ kind: "dep", action: "add", from: "a" }).success).toBe(false);
+  });
+
+  test("accepts the children read envelope and classifies it as a read (prx-zbsi)", () => {
+    expect(BeadsRequestSchema.safeParse({ kind: "children", id: "prx-epic" }).success).toBe(true);
+    // id is required (min 1).
+    expect(BeadsRequestSchema.safeParse({ kind: "children" }).success).toBe(false);
+    expect(BeadsRequestSchema.safeParse({ kind: "children", id: "" }).success).toBe(false);
+    expect(isBeadsWriteKind("children")).toBe(false);
   });
 
   test("isBeadsWriteKind classifies reads vs writes", () => {

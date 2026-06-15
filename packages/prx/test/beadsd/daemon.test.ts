@@ -81,6 +81,32 @@ describe("handleBeadsRequest", () => {
     expect(calls[0]!.args).toEqual(["prx-abb", "--json"]);
   });
 
+  test("dispatches `children` to `bd dep list <id> --direction up --type parent-child --json` over the allowed dep subcommand (prx-zbsi)", async () => {
+    const edges = [{ id: "prx-child", dependency_type: "parent-child" }];
+    const { execBd, calls } = fakeBd(okResult(JSON.stringify(edges)));
+    const res = await handleBeadsRequest({ kind: "children", id: "prx-epic" }, { execBd });
+    expect(res.status).toBe("ok");
+    if (res.status === "ok") expect(res.result).toEqual(edges);
+    // `bd children` is NOT on the bd allowlist — the read is served over `dep`.
+    expect(calls[0]!.subcommand).toBe("dep");
+    expect(calls[0]!.args).toEqual([
+      "list",
+      "prx-epic",
+      "--direction",
+      "up",
+      "--type",
+      "parent-child",
+      "--json",
+    ]);
+  });
+
+  test("a `children` read failure surfaces as bd-read, not bd-write (it is a read)", async () => {
+    const { execBd } = fakeBd({ exitCode: 1, stdout: "", stderr: "boom", policy: null });
+    const res = await handleBeadsRequest({ kind: "children", id: "prx-epic" }, { execBd });
+    expect(res.status).toBe("error");
+    if (res.status === "error") expect(res.code).toBe("bd-read");
+  });
+
   test("threads cwd through to the bd runner", async () => {
     const { execBd, calls } = fakeBd();
     await handleBeadsRequest(READY, { execBd, cwd: "/repo/clone" });

@@ -103,6 +103,29 @@ describe("prx beads read-door (ready/list/show via beadsd)", () => {
   test("show requires an id", () => {
     expect(() => parse(["beads", "show", "--vm", "myvm"])).toThrow(/requires an id/);
   });
+
+  test("`beads children <id>` rewrites to beads-read and carries the id (prx-zbsi)", () => {
+    expect(normalizeNamespaceArgv(["beads", "children", "prx-epic"])).toEqual([
+      "beads-read",
+      "children",
+      "prx-epic",
+    ]);
+    const p = parse(["beads", "children", "prx-epic"]);
+    expect(p.command === "beads-read" && p.kind).toBe("children");
+    if (p.command === "beads-read") expect(p.id).toBe("prx-epic");
+  });
+
+  test("children requires an id", () => {
+    expect(() => parse(["beads", "children"])).toThrow(/requires an id/);
+  });
+
+  test("reads tolerate a forwarded --json flag (the door dialer forwards it; prx-zbsi)", () => {
+    // `bd show <id> --json` → `prx beads show <id> --json` over the door, so the
+    // read parser must accept --json rather than reject it under strict parsing.
+    expect(() => parse(["beads", "show", "prx-abb", "--json"])).not.toThrow();
+    expect(() => parse(["beads", "children", "prx-epic", "--json"])).not.toThrow();
+    expect(() => parse(["beads", "list", "--json"])).not.toThrow();
+  });
 });
 
 describe("prx beads write-door (create/update/close via beadsd)", () => {
