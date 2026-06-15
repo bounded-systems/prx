@@ -7,9 +7,8 @@ import { join } from "node:path";
 import type { execGit, GitExecOptions, GitExecResult } from "@bounded-systems/git";
 import { ed25519Signer, generateEd25519Keypair, type DerivationStore } from "@bounded-systems/anchored-chain";
 
+import { FrameDecoder, encodeFrame } from "../../src/door/framing.ts";
 import {
-  FrameDecoder,
-  encodeFrame,
   handleKeeperRequest,
   runKeeperServe,
   type KeeperDaemonDeps,

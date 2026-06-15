@@ -20,11 +20,11 @@
  * response, so one bad request can't take the daemon down.
  */
 
-import { createServer, type Server, type Socket } from "node:net";
-import { closeSync, constants as FS, existsSync, openSync, rmSync, writeSync } from "node:fs";
+import { type Server, type Socket } from "node:net";
 
 import { execGit } from "@bounded-systems/git";
 
+import { encodeFrame, FrameDecoder, runFramedServe } from "../door/framing.ts";
 import {
   KeeperGitError,
   runKeeperPush,
@@ -130,39 +130,6 @@ export async function handleKeeperRequest(
   }
 }
 
-// ── wire framing: 4-byte big-endian length prefix + UTF-8 JSON ───────────────
-
-const LENGTH_BYTES = 4;
-
-/** Frame a value as `<uint32 length><json>`. */
-export function encodeFrame(value: unknown): Buffer {
-  const json = Buffer.from(JSON.stringify(value), "utf8");
-  const header = Buffer.alloc(LENGTH_BYTES);
-  header.writeUInt32BE(json.length, 0);
-  return Buffer.concat([header, json]);
-}
-
-/**
- * Incremental decoder: bytes arrive in arbitrary chunks; `push` returns every
- * complete frame now available (decoded JSON), buffering any partial tail.
- */
-export class FrameDecoder {
-  private buffer: Buffer = Buffer.alloc(0);
-
-  push(chunk: Buffer): unknown[] {
-    this.buffer = Buffer.concat([this.buffer, chunk]);
-    const frames: unknown[] = [];
-    while (this.buffer.length >= LENGTH_BYTES) {
-      const length = this.buffer.readUInt32BE(0);
-      if (this.buffer.length < LENGTH_BYTES + length) break;
-      const json = this.buffer.subarray(LENGTH_BYTES, LENGTH_BYTES + length).toString("utf8");
-      this.buffer = this.buffer.subarray(LENGTH_BYTES + length);
-      frames.push(JSON.parse(json));
-    }
-    return frames;
-  }
-}
-
 /**
  * Wire a connected socket to the handler: decode framed requests, validate each
  * against the contract, run the handler, and frame the response back — in
@@ -201,6 +168,8 @@ function badRequest(message: string): KeeperRemoteResponse {
   return { status: "error", code: "bad-request", message };
 }
 
+// ── serve: bind keeperd's contract handler over the shared door framing ───────
+
 export interface KeeperServeOptions {
   /** Unix socket path the daemon listens on. A stale socket file is removed first. */
   socketPath: string;
@@ -213,42 +182,6 @@ export interface KeeperServeOptions {
    */
   pidfile?: string | undefined;
   deps?: KeeperDaemonDeps | undefined;
-}
-
-/**
- * Bind a unix-socket server that hands each connection to `onConnection`, with
- * the GH-223 pidfile lifecycle. Contract-agnostic: it owns only the bind + the
- * pidfile (the framing/dispatch is the caller's `onConnection` — e.g.
- * {@link serveConnection} for keeperd, `serveSessionConnection` for the session
- * host). Resolves with the listening `Server` (close it to stop).
- */
-export function runFramedServe(
-  socketPath: string,
-  pidfile: string | undefined,
-  onConnection: (socket: Socket) => void,
-): Promise<Server> {
-  // A leftover socket file from a prior run makes `listen` throw EADDRINUSE.
-  if (existsSync(socketPath)) rmSync(socketPath, { force: true });
-  const server = createServer(onConnection);
-  return new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(socketPath, () => {
-      server.removeListener("error", reject);
-      if (pidfile !== undefined) {
-        // O_NOFOLLOW refuses to follow a pre-planted symlink at this (predictable)
-        // path, and 0600 restricts the pidfile — closing the insecure-temp-file
-        // vector (CodeQL). O_TRUNC still overwrites a stale *regular* pidfile.
-        const fd = openSync(pidfile, FS.O_WRONLY | FS.O_CREAT | FS.O_TRUNC | FS.O_NOFOLLOW, 0o600);
-        try {
-          writeSync(fd, `${process.pid}\n`);
-        } finally {
-          closeSync(fd);
-        }
-        server.on("close", () => rmSync(pidfile, { force: true }));
-      }
-      resolve(server);
-    });
-  });
 }
 
 /**

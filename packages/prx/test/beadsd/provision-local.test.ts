@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import type { RunResult } from "../../src/keeperd/lima-exec.ts";
+import type { RunResult } from "../../src/door/lima-exec.ts";
 import { provisionLocalBeads } from "../../src/beadsd/provision-local.ts";
 
 const ok = (stdout = ""): RunResult => ({ status: 0, stdout, stderr: "" });

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import type { FramedTransport } from "../../src/keeperd/transport.ts";
-import type { RunResult } from "../../src/keeperd/lima-exec.ts";
+import type { FramedTransport } from "../../src/door/transport.ts";
+import type { RunResult } from "../../src/door/lima-exec.ts";
 import {
   BeadsUnavailableError,
   defaultCanonicalBeadsCwd,

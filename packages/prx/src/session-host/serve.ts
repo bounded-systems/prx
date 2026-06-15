@@ -15,7 +15,7 @@
 
 import { type Socket } from "node:net";
 
-import { FrameDecoder, encodeFrame } from "../keeperd/daemon.ts";
+import { FrameDecoder, encodeFrame } from "../door/framing.ts";
 import {
   SessionRequestSchema,
   type SessionRequest,

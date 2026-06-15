@@ -19,7 +19,7 @@
 
 import { connect, type Socket } from "node:net";
 
-import { FrameDecoder, encodeFrame } from "./daemon.ts";
+import { FrameDecoder, encodeFrame } from "./framing.ts";
 
 /**
  * A framed request/response channel: send one value, get the daemon's first

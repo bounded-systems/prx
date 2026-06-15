@@ -29,7 +29,7 @@ import { type Server, type Socket } from "node:net";
 
 import { execBd as defaultExecBd, type BdExecResult } from "@bounded-systems/bd";
 
-import { FrameDecoder, encodeFrame, runFramedServe } from "../keeperd/daemon.ts";
+import { FrameDecoder, encodeFrame, runFramedServe } from "../door/framing.ts";
 import {
   BeadsRequestSchema,
   isBeadsWriteKind,

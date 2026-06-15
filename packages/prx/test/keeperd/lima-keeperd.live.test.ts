@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { spawnRun } from "../../src/keeperd/lima-exec.ts";
+import { spawnRun } from "../../src/door/lima-exec.ts";
 import { provisionKeeperd, stopKeeperd } from "../../src/keeperd/lima-keeperd.ts";
 
 /**

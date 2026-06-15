@@ -25,7 +25,7 @@ import { execBd as realExecBd, type BdExecOptions, type BdExecResult } from "@bo
 
 import { runBeadsServe } from "../../src/beadsd/daemon.ts";
 import { IsolatedBeadsClient } from "../../src/beadsd/client.ts";
-import { unixSocketTransport } from "../../src/keeperd/transport.ts";
+import { unixSocketTransport } from "../../src/door/transport.ts";
 
 const have = (cmd: string): boolean => spawnSync("sh", ["-c", `command -v ${cmd}`]).status === 0;
 const suite = have("bd") && have("dolt") ? describe : describe.skip;

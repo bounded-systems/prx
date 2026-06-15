@@ -7,7 +7,7 @@
  * server-mode metadata bd needs to read it. After this, `prx lima up --cwd <ws>
  * --daemon beads` serves it.
  *
- * Host-orchestrated through the {@link ../keeperd/lima-exec} `Run` seam (every
+ * Host-orchestrated through the {@link ../door/lima-exec} `Run` seam (every
  * effect is a `limactl shell … bash -lc <script>`), so the orchestration is
  * unit-tested offline; the live path runs against a real VM.
  *
@@ -22,7 +22,7 @@
  *     from the freshly-cloned db's `metadata` table.
  */
 
-import { spawnRun, type Run, type RunResult } from "../keeperd/lima-exec.ts";
+import { spawnRun, type Run, type RunResult } from "../door/lima-exec.ts";
 import { resolveDoltDatabaseName } from "../dolt/namespace.ts";
 
 /** Default beads (bd) version to fetch into the VM (matches the host nix pin). */

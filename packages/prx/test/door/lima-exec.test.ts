@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { spawnRun } from "../../src/keeperd/lima-exec.ts";
+import { spawnRun } from "../../src/door/lima-exec.ts";
 
 describe("spawnRun", () => {
   test("runs a command to completion and returns its captured result", () => {

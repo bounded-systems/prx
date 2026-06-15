@@ -11,12 +11,12 @@
  * `.beads`.
  *
  * Unlike the VM recipe there's no bd/dolt install step — the host already has
- * them (nix). Every effect runs through the {@link ../keeperd/lima-exec} `Run`
+ * them (nix). Every effect runs through the {@link ../door/lima-exec} `Run`
  * seam as `bash -lc <script>` (login shell ⇒ nix PATH), so the orchestration is
  * unit-tested offline.
  */
 
-import { spawnRun, type Run, type RunResult } from "../keeperd/lima-exec.ts";
+import { spawnRun, type Run, type RunResult } from "../door/lima-exec.ts";
 import { resolveDoltDatabaseName } from "../dolt/namespace.ts";
 import { doltHubUrl } from "./provision.ts";
 

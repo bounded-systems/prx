@@ -24,10 +24,10 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
-import { spawnRun, type Run } from "../keeperd/lima-exec.ts";
-import { unixSocketTransport, type FramedTransport } from "../keeperd/transport.ts";
+import { spawnRun, type Run } from "../door/lima-exec.ts";
+import { unixSocketTransport, type FramedTransport } from "../door/transport.ts";
 
-export type { RunResult } from "../keeperd/lima-exec.ts";
+export type { RunResult } from "../door/lima-exec.ts";
 
 /**
  * Injected effects (default to real process/filesystem); tests stub them offline.

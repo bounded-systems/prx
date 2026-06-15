@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { type Run, type RunResult } from "../keeperd/lima-exec.ts";
+import { type Run, type RunResult } from "../door/lima-exec.ts";
 import {
   deploySessionHostBinary,
   provisionSessionHost,

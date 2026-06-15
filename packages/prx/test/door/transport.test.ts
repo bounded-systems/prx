@@ -8,7 +8,7 @@ import type { execGit, GitExecOptions, GitExecResult } from "@bounded-systems/gi
 import { IsolatedKeeperClient } from "../../src/keeperd/client.ts";
 import type { KeeperRemoteRequest } from "../../src/keeperd/contract.ts";
 import { runKeeperServe, type KeeperDaemonDeps } from "../../src/keeperd/daemon.ts";
-import { unixSocketTransport } from "../../src/keeperd/transport.ts";
+import { unixSocketTransport } from "../../src/door/transport.ts";
 
 const COMMIT = "c".repeat(40);
 

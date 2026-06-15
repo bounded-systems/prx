@@ -10,7 +10,7 @@
  * The transport is a seam, so this is fully offline-testable (a fake transport
  * in tests, slice 1). The real transport — the Lima-SSH framed-socket channel —
  * is the same `openConnection`/`unixSocketTransport` plumbing keeperd already
- * uses (`../keeperd/transport`, `../keeperd/lima-transport`); beadsd reuses it.
+ * uses (`../door/transport`, `../keeperd/lima-transport`); beadsd reuses it.
  */
 
 import {

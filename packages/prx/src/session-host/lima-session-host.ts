@@ -15,7 +15,7 @@
  * in slice 7.
  */
 
-import { spawnRun, type Run, type RunResult } from "../keeperd/lima-exec.ts";
+import { spawnRun, type Run, type RunResult } from "../door/lima-exec.ts";
 
 const DEFAULT_VM_BIN = "/tmp/prx";
 const DEFAULT_SOCKET = "/tmp/prx-session-host.sock";
