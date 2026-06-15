@@ -30,6 +30,24 @@ describe("renderPodmanKube", () => {
     }
   });
 
+  test("renders each room's declared -box image (no placeholder TODO)", () => {
+    expect(manifest).toContain(`image: "claude-box"`);
+    expect(manifest).toContain(`image: "beadsd-box"`);
+    expect(manifest).toContain(`image: "keeperd-box"`);
+    // every pod-member room declares an image → no placeholder fallback fires.
+    expect(manifest).not.toContain("TODO(prx-zj8): no image declared");
+  });
+
+  test("falls back to a placeholder for a room with no image", () => {
+    const noImage = renderPodmanKube({
+      name: "p",
+      executor: { name: "h" },
+      rooms: [{ name: "bare-room" }],
+    } as never);
+    expect(noImage).toContain(`image: "prx/bare-room:latest"`);
+    expect(noImage).toContain("TODO(prx-zj8): no image declared");
+  });
+
   test("projects the wired gate env onto the claude-room container", () => {
     // The beadsd consume↔expose pair resolves → claude-room gets the gate env.
     expect(manifest).toContain("PRX_BEADS_DOOR");

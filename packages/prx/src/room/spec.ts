@@ -85,6 +85,14 @@ export const RoomSpecSchema = z.object({
    * the pod's shared house (co-resident rooms share one house).
    */
   executor: ExecutorSpecSchema.optional(),
+  /**
+   * The OCI image that fills the room — its `-box` (the `claude-box` runtime,
+   * the `beadsd-box`/`keeperd-box` images). The room is the isolation unit; the
+   * image is the artifact that runs in it. The pod driver renders this as the
+   * container image; absent ⇒ the driver falls back to a placeholder ref. The
+   * full registry ref is resolved at deploy (prx-zj8).
+   */
+  image: z.string().min(1).optional(),
   /** The boundary the executor provides (default: a policy-only sandbox). */
   tier: RoomTierSchema.default("sandbox"),
   /** The capability seams to daemons (consumed) and the services offered (exposed). */

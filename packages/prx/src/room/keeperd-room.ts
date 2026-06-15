@@ -12,6 +12,8 @@ import type { RoomSpec } from "./spec.ts";
 
 export const keeperdRoom: RoomSpec = {
   name: "keeperd-room",
+  // Filled by the keeperd-box image (prx-anj).
+  image: "keeperd-box",
   tier: "sandbox",
   doors: [
     {
