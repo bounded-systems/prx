@@ -4,6 +4,7 @@
 
 import { describe, expect, test } from "bun:test";
 
+import { claudeBoxRoom } from "../../src/room/claude-box.ts";
 import { linuxBuilderRoom } from "../../src/room/linux-builder.ts";
 import {
   RoomSpecSchema,
@@ -67,6 +68,27 @@ describe("roomGrants", () => {
     expect(roomExposes(r, "nix:build")).toBe(true);
     expect(roomExposes(r, "git:write")).toBe(false);
   });
+
+  test("a CLOSED consumed door grants nothing (the seam is sealed)", () => {
+    const r = room({
+      doors: [
+        { name: "beadsd", direction: "consume", capability: "beads:read", socket: "/s", state: "open" },
+        { name: "keeperd", direction: "consume", capability: "git:write", socket: "/k", state: "closed" },
+      ],
+    });
+    // Only the open door carries its capability.
+    expect(roomGrants(r)).toEqual(["beads:read"]);
+  });
+
+  test("a CLOSED exposed door is still declared-exposed, but not actively offered", () => {
+    const r = room({
+      doors: [{ name: "control", direction: "expose", capability: "session:control", socket: "/c", state: "closed" }],
+    });
+    // The seam exists in the topology...
+    expect(roomExposes(r, "session:control")).toBe(true);
+    // ...but it is not an actively-offered (open) service.
+    expect(roomExposes(r, "session:control", { openOnly: true })).toBe(false);
+  });
 });
 
 describe("linuxBuilderRoom", () => {
@@ -86,5 +108,24 @@ describe("linuxBuilderRoom", () => {
 
   test("grants its own occupant the build capabilities", () => {
     expect(roomGrants(linuxBuilderRoom)).toEqual(["nix:build", "oci:image"]);
+  });
+});
+
+describe("claudeBoxRoom", () => {
+  test("is a valid RoomSpec", () => {
+    expect(() => RoomSpecSchema.parse(claudeBoxRoom)).not.toThrow();
+  });
+
+  test("consumes the daemon doors → its grants are beads:read + git:write", () => {
+    expect(roomGrants(claudeBoxRoom)).toEqual(["beads:read", "git:write"]);
+  });
+
+  test("exposes a session:control door, strictly closed (reserved for prx-9s14)", () => {
+    // Declared-exposed (topology stable)...
+    expect(roomExposes(claudeBoxRoom, "session:control")).toBe(true);
+    // ...but sealed today — not an active service until remote-control opens it.
+    expect(roomExposes(claudeBoxRoom, "session:control", { openOnly: true })).toBe(false);
+    const control = claudeBoxRoom.doors.find((d) => d.capability === "session:control");
+    expect(control?.state).toBe("closed");
   });
 });
