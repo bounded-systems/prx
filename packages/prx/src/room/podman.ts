@@ -28,6 +28,9 @@ function dq(value: string): string {
 
 /** The shared door-fabric volume name. */
 const DOOR_VOLUME = "prx-doors";
+/** The repo bind-mount volume name + its in-container path (the daemon `WorkingDir`). */
+const REPO_VOLUME = "prx-repo";
+const WORK_DIR = "/work";
 
 /**
  * A pod driver: render a {@link PodSpec} to its native orchestration config.
@@ -59,8 +62,22 @@ export function renderPodmanKube(pod: PodSpec): string {
     `    - name: ${DOOR_VOLUME}`,
     "      emptyDir:",
     "        medium: Memory",
-    "  containers:",
   ];
+
+  // The repo bind-mount: the daemon images' WorkingDir is `/work` (the repo they
+  // operate on); podman/crun won't start a container whose WorkingDir is missing,
+  // so without this the daemon rooms fail (prx-u5lx). A hostPath of the pod's
+  // repo, mounted at `/work` in every room below.
+  if (p.repo) {
+    lines.push(
+      `    - name: ${REPO_VOLUME}`,
+      "      hostPath:",
+      `        path: ${dq(p.repo)}`,
+      "        type: Directory",
+    );
+  }
+
+  lines.push("  containers:");
 
   for (const room of p.rooms) {
     lines.push(`    - name: ${dq(room.name)}`);
@@ -74,6 +91,10 @@ export function renderPodmanKube(pod: PodSpec): string {
     lines.push("      volumeMounts:");
     lines.push(`        - name: ${DOOR_VOLUME}`);
     lines.push(`          mountPath: ${dq(p.doorDir)}`);
+    if (p.repo) {
+      lines.push(`        - name: ${REPO_VOLUME}`);
+      lines.push(`          mountPath: ${dq(WORK_DIR)}`);
+    }
 
     const env = podRoomEnv(p, room.name);
     const keys = Object.keys(env).sort();

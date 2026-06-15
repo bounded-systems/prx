@@ -39,6 +39,13 @@ export const PodSpecSchema = z.object({
   rooms: z.array(RoomSpecSchema).min(1),
   /** The shared tmpfs dir the door sockets live on. */
   doorDir: z.string().min(1).default(DEFAULT_DOOR_DIR),
+  /**
+   * Absolute host path of the repo this pod operates on, bind-mounted at `/work`
+   * (the daemon images' `WorkingDir`) in every room (prx-u5lx). One pod = one
+   * repo. Resolved at deploy (the worktree), so it is optional on the static
+   * spec; without it the daemon rooms can't start (`/work` won't exist).
+   */
+  repo: z.string().min(1).optional(),
 });
 export type PodSpec = z.infer<typeof PodSpecSchema>;
 
