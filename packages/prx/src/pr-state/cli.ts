@@ -355,6 +355,7 @@ import { provisionLocalBeads } from "../beadsd/provision-local.ts";
 import { BeadsRequestSchema, type BeadsRequest } from "../beadsd/contract.ts";
 // GH-296: provision beads inside a Lima VM (install bd+dolt + clone canonical).
 import { provisionVmBeads } from "../beadsd/provision.ts";
+import { provisionVmNixBuilder } from "../lima/nix-builder.ts";
 import { runScopeGate, ScopeGateInputError } from "./scope-gate.ts";
 import { runTestGate, TestGateInputError } from "./test-gate.ts";
 import type { GateResult } from "../provenance/gate.ts";
@@ -1854,7 +1855,7 @@ type ParsedCommand =
       // GH-228: `prx lima <verb>` — in-VM daemon lifecycle over the daemon registry.
       command: "lima";
       format: "plain" | "json";
-      verb: "up" | "down" | "daemons" | "status" | "provision-beads";
+      verb: "up" | "down" | "daemons" | "status" | "provision-beads" | "provision-builder";
       vm?: string | undefined;
       binary?: string | undefined;
       cwd?: string | undefined;
@@ -1864,6 +1865,10 @@ type ParsedCommand =
       // GH-296: `lima provision-beads` — origin slug for the reverse-DNS db + DoltHub URL.
       origin?: string | undefined;
       workspace?: string | undefined;
+      // prx-62h: `lima provision-builder` — nix remote-builder descriptor overrides.
+      maxJobs?: number | undefined;
+      systems?: string | undefined;
+      installerUrl?: string | undefined;
     }
   | {
       // GH-1990: `prx sync issues --from <src> --to <dst>`. v0 wires only the
@@ -7806,6 +7811,10 @@ export function parseCommand(argv: string[]): ParsedCommand {
         // GH-296: `lima provision-beads`
         origin: { type: "string" },
         workspace: { type: "string" },
+        // prx-62h: `lima provision-builder`
+        "max-jobs": { type: "string" },
+        systems: { type: "string" },
+        "installer-url": { type: "string" },
       },
       strict: true,
       allowPositionals: true,
@@ -7816,11 +7825,21 @@ export function parseCommand(argv: string[]): ParsedCommand {
       verb !== "down" &&
       verb !== "daemons" &&
       verb !== "status" &&
-      verb !== "provision-beads"
+      verb !== "provision-beads" &&
+      verb !== "provision-builder"
     ) {
       throw new CliError(
-        "prx lima requires a verb: up | down | daemons | status | provision-beads (e.g. `prx lima up <vm> --binary <path> --cwd <path>`)",
+        "prx lima requires a verb: up | down | daemons | status | provision-beads | provision-builder (e.g. `prx lima up <vm> --binary <path> --cwd <path>`)",
       );
+    }
+    // prx-62h: `--max-jobs`, when given, must be a positive integer.
+    let maxJobs: number | undefined;
+    if (values["max-jobs"] !== undefined) {
+      const n = Number(values["max-jobs"]);
+      if (!Number.isInteger(n) || n < 1) {
+        throw new CliError("prx lima provision-builder --max-jobs must be a positive integer");
+      }
+      maxJobs = n;
     }
     // up/down/status/provision-beads are VM-scoped (positional <vm> or --vm); daemons is local.
     const vm = values.vm ?? positionals[1];
@@ -7867,6 +7886,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
       ...(values.daemon !== undefined ? { daemon: values.daemon } : {}),
       ...(values.origin !== undefined ? { origin: values.origin } : {}),
       ...(values.workspace !== undefined ? { workspace: values.workspace } : {}),
+      ...(maxJobs !== undefined ? { maxJobs } : {}),
+      ...(values.systems !== undefined ? { systems: values.systems } : {}),
+      ...(values["installer-url"] !== undefined ? { installerUrl: values["installer-url"] } : {}),
     };
   }
 
@@ -20683,6 +20705,28 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             output.error(
               `lima provision-beads on ${parsed.vm}: cloned ${result.database} → ${result.workspace}; ` +
                 `serve it with \`prx lima up ${parsed.vm} --binary <linux-prx> --cwd ${result.workspace} --daemon beads\``,
+            );
+          }
+          return 0;
+        }
+        if (parsed.verb === "provision-builder") {
+          // prx-62h: install nix in the VM + make it a trusted remote builder, so
+          // aarch64-linux/OCI builds offload here. Prints the host machines line
+          // the operator registers (prx never edits host /etc/nix/* itself).
+          const result = provisionVmNixBuilder({
+            vm: parsed.vm!,
+            ...(parsed.maxJobs !== undefined ? { maxJobs: parsed.maxJobs } : {}),
+            ...(parsed.systems !== undefined ? { systems: parsed.systems } : {}),
+            ...(parsed.installerUrl !== undefined ? { nixInstallerUrl: parsed.installerUrl } : {}),
+          });
+          if (parsed.format === "json") {
+            output.log(JSON.stringify(result, null, 2));
+          } else {
+            output.log(result.machinesLine);
+            output.error(
+              `lima provision-builder on ${parsed.vm}: nix builder ready. ` +
+                `Register it by adding the line above to /etc/nix/machines (and set ` +
+                `\`builders = @/etc/nix/machines\` in nix.conf) so \`nix build\` offloads here.`,
             );
           }
           return 0;
