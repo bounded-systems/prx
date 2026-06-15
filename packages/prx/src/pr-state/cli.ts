@@ -1817,7 +1817,7 @@ type ParsedCommand =
       // `--vm <name>` (or PRX_BEADS_VM) ⇒ the in-VM daemon (the read door).
       command: "beads-read";
       format: "plain" | "json";
-      kind: "ready" | "list" | "show" | "children";
+      kind: "ready" | "list" | "show" | "children" | "recall" | "memories";
       vm?: string | undefined;
       vmSocket: string;
       hostSocket?: string | undefined;
@@ -1825,6 +1825,10 @@ type ParsedCommand =
       status?: string | undefined;
       all?: boolean | undefined;
       limit?: number | undefined;
+      /** `recall <key>` — the memory row key (prx-44y). */
+      key?: string | undefined;
+      /** `memories [<prefix>]` — optional memory key-prefix scan (prx-44y). */
+      prefix?: string | undefined;
     }
   | {
       // GH-296 wave 2: the single-writer surface — `beads create|update|close`
@@ -4308,17 +4312,33 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
       // GH-228: beads workspace self-heal (diagnose / --fix re-bootstrap).
       return ["beads-doctor", ...tail];
     }
-    if (c1 === "ready" || c1 === "list" || c1 === "show" || c1 === "children") {
+    if (
+      c1 === "ready" ||
+      c1 === "list" ||
+      c1 === "show" ||
+      c1 === "children" ||
+      c1 === "recall" ||
+      c1 === "memories"
+    ) {
       // GH-296: host read-door — routed through beadsd (the in-VM daemon).
       // Collapse the reads onto one command with the kind as a positional.
       // `children <id>` (prx-zbsi) serves an epic's parent-child children over
-      // the allowed `dep` subcommand.
+      // the allowed `dep` subcommand. `recall <key>` / `memories [<prefix>]`
+      // (prx-44y) are the bd memory-surface reads.
       return ["beads-read", c1, ...tail];
     }
-    if (c1 === "create" || c1 === "update" || c1 === "close" || c1 === "reopen" || c1 === "dep") {
+    if (
+      c1 === "create" ||
+      c1 === "update" ||
+      c1 === "close" ||
+      c1 === "reopen" ||
+      c1 === "dep" ||
+      c1 === "remember"
+    ) {
       // GH-296 wave 2: host write-door — the single-writer surface routed
       // through beadsd. Collapse the atomic writes onto one command with the
-      // kind as a positional.
+      // kind as a positional. `remember <body> --key <key>` (prx-44y) is the
+      // bd memory-surface upsert.
       return ["beads-write", c1, ...tail];
     }
     throw new CliError(`Unknown beads subcommand: ${c1}`);
@@ -7614,13 +7634,24 @@ export function parseCommand(argv: string[]): ParsedCommand {
       allowPositionals: true,
     });
     const kind = positionals[0];
-    if (kind !== "ready" && kind !== "list" && kind !== "show" && kind !== "children") {
-      throw new CliError("prx beads read requires a kind: ready | list | show | children");
+    if (
+      kind !== "ready" &&
+      kind !== "list" &&
+      kind !== "show" &&
+      kind !== "children" &&
+      kind !== "recall" &&
+      kind !== "memories"
+    ) {
+      throw new CliError("prx beads read requires a kind: ready | list | show | children | recall | memories");
     }
     const vm = values.vm ?? getEnv("PRX_BEADS_VM");
     const id = positionals[1];
     if ((kind === "show" || kind === "children") && (typeof id !== "string" || id.length === 0)) {
       throw new CliError(`prx beads ${kind} requires an id: \`prx beads ${kind} <id>\``);
+    }
+    // recall needs a key; memories' prefix is optional (no prefix = scan all).
+    if (kind === "recall" && (typeof id !== "string" || id.length === 0)) {
+      throw new CliError("prx beads recall requires a key: `prx beads recall <key>`");
     }
     const limit = ((): number | undefined => {
       if (values.limit === undefined) return undefined;
@@ -7638,6 +7669,8 @@ export function parseCommand(argv: string[]): ParsedCommand {
       vmSocket: values["vm-socket"] ?? "/tmp/beadsd.sock",
       ...(values["host-socket"] !== undefined ? { hostSocket: values["host-socket"] } : {}),
       ...(kind === "show" || kind === "children" ? { id } : {}),
+      ...(kind === "recall" ? { key: id } : {}),
+      ...(kind === "memories" && typeof id === "string" && id.length > 0 ? { prefix: id } : {}),
       ...(values.status !== undefined ? { status: values.status } : {}),
       ...(values.all === true ? { all: true } : {}),
       ...(limit !== undefined ? { limit } : {}),
@@ -7667,6 +7700,10 @@ export function parseCommand(argv: string[]): ParsedCommand {
         notes: { type: "string" },
         metadata: { type: "string" },
         silent: { type: "boolean" },
+        // `remember <body> --key <key>` — the bd memory-surface upsert (prx-44y).
+        key: { type: "string" },
+        // Accepted and ignored: the door dialer forwards a bd write's `--json`.
+        json: { type: "boolean" },
       },
       strict: true,
       allowPositionals: true,
@@ -7751,8 +7788,18 @@ export function parseCommand(argv: string[]): ParsedCommand {
         to,
         ...(values.type !== undefined ? { depType: values.type } : {}),
       };
+    } else if (kind === "remember") {
+      // `prx beads remember <body> --key <key>` — upsert a bd memory row.
+      const body = positionals[1];
+      if (typeof values.key !== "string" || values.key.length === 0) {
+        throw new CliError("prx beads remember requires --key <key>: `prx beads remember <body> --key <key>`");
+      }
+      if (typeof body !== "string") {
+        throw new CliError("prx beads remember requires a body: `prx beads remember <body> --key <key>`");
+      }
+      request = { kind: "remember", key: values.key, body };
     } else {
-      throw new CliError("prx beads write requires a kind: create | update | close | reopen | dep");
+      throw new CliError("prx beads write requires a kind: create | update | close | reopen | dep | remember");
     }
 
     // Validate against the wire contract for a clear error before dispatch.
@@ -20609,14 +20656,18 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             ? { kind: "show", id: parsed.id! }
             : parsed.kind === "children"
               ? { kind: "children", id: parsed.id! }
-              : parsed.kind === "list"
-                ? {
-                    kind: "list",
-                    ...(parsed.status !== undefined ? { status: parsed.status } : {}),
-                    ...(parsed.all === true ? { all: true } : {}),
-                    ...(parsed.limit !== undefined ? { limit: parsed.limit } : {}),
-                  }
-                : { kind: "ready" };
+              : parsed.kind === "recall"
+                ? { kind: "recall", key: parsed.key! }
+                : parsed.kind === "memories"
+                  ? { kind: "memories", ...(parsed.prefix !== undefined ? { prefix: parsed.prefix } : {}) }
+                  : parsed.kind === "list"
+                    ? {
+                        kind: "list",
+                        ...(parsed.status !== undefined ? { status: parsed.status } : {}),
+                        ...(parsed.all === true ? { all: true } : {}),
+                        ...(parsed.limit !== undefined ? { limit: parsed.limit } : {}),
+                      }
+                    : { kind: "ready" };
         try {
           const reply =
             parsed.vm !== undefined

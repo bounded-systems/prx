@@ -38,6 +38,10 @@ const DOOR_READ_VERBS: Readonly<Record<string, string>> = {
   // The `prx beads children` verb serves the read over the allowed `dep`
   // subcommand inside the daemon (bd children is not on the bd allowlist).
   children: "children",
+  // prx-44y: the bd memory-surface reads. `remember` (write) is intentionally
+  // absent — writes fail closed over the read door, like every other write.
+  recall: "recall",
+  memories: "memories",
 };
 
 export type PrxBeadsDoorDialerDeps = {

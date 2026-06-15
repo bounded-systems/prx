@@ -23,6 +23,7 @@ import { handoffEnvelope, type HandoffEnvelope } from "@bounded-systems/machine-
 
 import { writeBlob } from "../plan-store/cas.ts";
 import { execBd as defaultExecBd } from "@bounded-systems/bd";
+import { handoffDaemonBd } from "./daemon-bd.ts";
 
 // ── tunables ───────────────────────────────────────────────────────────────
 
@@ -162,7 +163,7 @@ export async function enqueueHandoff(
   input: EnqueueInput,
   deps: HandoffStoreDeps = {},
 ): Promise<EnqueueResult> {
-  const execBd = deps.execBd ?? defaultExecBd;
+  const execBd = deps.execBd ?? handoffDaemonBd;
   const now = (deps.now ?? (() => new Date()))();
 
   // Cross-repo guard: the queue is per-repo. Callers wishing to enqueue for
@@ -250,7 +251,7 @@ export async function listHandoffs(
   opts: ListOptions = {},
   deps: HandoffStoreDeps = {},
 ): Promise<HandoffEnvelope[]> {
-  const execBd = deps.execBd ?? defaultExecBd;
+  const execBd = deps.execBd ?? handoffDaemonBd;
   const target = opts.target;
   // `bd memories <prefix>` returns rows whose key starts with prefix. With no
   // target we scan `handoff/`; with a target we scan `handoff/<target>/`.
@@ -342,7 +343,7 @@ export async function claimHandoff(
   claimTtlSec: number,
   deps: HandoffStoreDeps = {},
 ): Promise<ClaimResult> {
-  const execBd = deps.execBd ?? defaultExecBd;
+  const execBd = deps.execBd ?? handoffDaemonBd;
   const now = (deps.now ?? (() => new Date()))();
 
   // Synchronous read-then-write within a single micro-task — no awaits
@@ -403,7 +404,7 @@ export async function claimHandoff(
 
 export async function writeEnvelope(
   envelope: HandoffEnvelope,
-  exec: typeof defaultExecBd = defaultExecBd,
+  exec: typeof defaultExecBd = handoffDaemonBd,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   // Re-validate on every persistence boundary. The Zod parser is the trust
   // boundary per `reference_zod_boundary_layer`.

@@ -53,6 +53,15 @@ describe("prxBeadsDoorDialer", () => {
     expect(r).toEqual({ exitCode: 0, stdout: "[]", stderr: "", policy: null });
   });
 
+  test("memory reads recall/memories map onto the matching `prx beads` verbs (prx-44y)", () => {
+    const { run, calls } = recordingRunner(ok("[]"));
+    const dialer = makePrxBeadsDoorDialer({ run });
+    dialer({ subcommand: "recall", args: ["handoff/a", "--json"] }, env);
+    dialer({ subcommand: "memories", args: ["handoff/", "--json"] }, env);
+    expect(calls[0]).toEqual(["prx", "beads", "recall", "handoff/a", "--json"]);
+    expect(calls[1]).toEqual(["prx", "beads", "memories", "handoff/", "--json"]);
+  });
+
   test("`dep list <id> --type parent-child` (a read) → `prx beads children <id>` (prx-zbsi)", () => {
     const { run, calls } = recordingRunner(ok("[]"));
     const dialer = makePrxBeadsDoorDialer({ run });
@@ -92,7 +101,7 @@ describe("prxBeadsDoorDialer", () => {
     expect(r).toEqual({ exitCode: 7, stdout: "", stderr: "door down", policy: null });
   });
 
-  test.each(["recall", "remember", "memories", "create", "update", "close", "dep", "sql", "admin"])(
+  test.each(["remember", "create", "update", "close", "dep", "sql", "admin"])(
     "returns null for %s (off the door read surface → caller fails closed)",
     (subcommand) => {
       let spawned = false;
