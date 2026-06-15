@@ -1,6 +1,7 @@
 /**
- * The linux-builder room (prx-62h) — prx's Linux build substrate as a typed
- * {@link RoomSpec}.
+ * The builder room (prx-62h) — prx's Linux build substrate as a typed
+ * {@link RoomSpec}. The room is named for its *purpose* (`builder-room`); the
+ * platform detail (it's a Linux VM) lives at the executor/house layer.
  *
  * Why a room: dockerTools/OCI images (e.g. the beadsd-box image, prx-634) are
  * Linux-only, but prx's dev host is darwin. The builder is the textbook "house
@@ -11,7 +12,7 @@
  *
  * It does not *consume* doors (a builder needs no daemon egress) — it **exposes**
  * a `builder` door granting `nix:build` / `oci:image`, so other rooms
- * (claude-box) can request a build over the socket without themselves holding
+ * (claude-room) can request a build over the socket without themselves holding
  * build authority (ocap: the capability lives behind the door, not in the
  * occupant). Wiring the door's server + the host→builder remote-build transport
  * is the next slice; this is the spec.
@@ -21,12 +22,14 @@ import type { RoomSpec } from "./spec.ts";
 
 const DOOR_SOCKET = "/run/prx/doors/builder.sock";
 
-export const linuxBuilderRoom: RoomSpec = {
-  name: "linux-builder",
+export const builderRoom: RoomSpec = {
+  name: "builder-room",
   // On darwin the build substrate is a VM (hardware boundary); a native-Linux
   // deploy would render the same spec to a sandbox-tier container instead.
   tier: "vm",
   executor: {
+    // The house keeps the platform detail (a Linux VM); the room stays
+    // purpose-named.
     name: "prx-linux-builder",
     arch: "aarch64",
     cpus: 4,
@@ -64,7 +67,7 @@ export const linuxBuilderRoom: RoomSpec = {
   doors: [
     // The build door: other rooms dial this to get a build; the builder serves
     // it. nix:build covers `nix build` of any flake output; oci:image covers the
-    // dockerTools image builds (beadsd-box / keeperd-box / claude-box).
+    // dockerTools image builds (the beadsd-box / keeperd-box / claude-box images).
     { name: "builder", direction: "expose", capability: "nix:build", socket: DOOR_SOCKET },
     { name: "builder", direction: "expose", capability: "oci:image", socket: DOOR_SOCKET },
   ],

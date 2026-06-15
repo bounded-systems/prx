@@ -69,10 +69,12 @@ export const RoomTierSchema = z.enum(["sandbox", "vm"]);
 export type RoomTier = z.infer<typeof RoomTierSchema>;
 
 /**
- * A capability-bounded occupancy of an executor. `name` identifies the room
- * (`claude-box`, `linux-builder`); `executor` is the house it runs in; `doors`
- * are its only privileged egress/ingress; `grants` is the extra capability
- * boundary beyond what consumed doors carry.
+ * A capability-bounded occupancy of an executor. `name` identifies the room and
+ * follows the `<purpose>-room` convention (`claude-room`, `builder-room`) — the
+ * *room* is the isolation unit; the OCI image/runtime that fills it keeps its
+ * own name (the `claude-box` runtime, the `beadsd-box` image). `executor` is the
+ * house it runs in; `doors` are its only privileged egress/ingress; `grants` is
+ * the extra capability boundary beyond what consumed doors carry.
  */
 export const RoomSpecSchema = z.object({
   name: z.string().min(1),

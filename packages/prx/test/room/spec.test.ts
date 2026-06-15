@@ -1,11 +1,11 @@
 // The Room spec: the typed isolation unit (house→room→person). Covers schema
-// validation, the consumed-vs-exposed grant semantics, and the linux-builder
-// instance.
+// validation, the consumed-vs-exposed grant semantics, door state (open/closed),
+// and the builder-room / claude-room instances.
 
 import { describe, expect, test } from "bun:test";
 
-import { claudeBoxRoom } from "../../src/room/claude-box.ts";
-import { linuxBuilderRoom } from "../../src/room/linux-builder.ts";
+import { builderRoom } from "../../src/room/builder-room.ts";
+import { claudeRoom } from "../../src/room/claude-room.ts";
 import {
   RoomSpecSchema,
   roomExposes,
@@ -91,41 +91,41 @@ describe("roomGrants", () => {
   });
 });
 
-describe("linuxBuilderRoom", () => {
+describe("builderRoom", () => {
   test("is a valid RoomSpec", () => {
-    expect(() => RoomSpecSchema.parse(linuxBuilderRoom)).not.toThrow();
+    expect(() => RoomSpecSchema.parse(builderRoom)).not.toThrow();
   });
 
   test("is VM-tier (the 'house in a room' case on darwin)", () => {
-    expect(linuxBuilderRoom.tier).toBe("vm");
+    expect(builderRoom.tier).toBe("vm");
   });
 
   test("exposes the build capabilities and consumes no doors", () => {
-    expect(roomExposes(linuxBuilderRoom, "nix:build")).toBe(true);
-    expect(roomExposes(linuxBuilderRoom, "oci:image")).toBe(true);
-    expect(linuxBuilderRoom.doors.every((d) => d.direction === "expose")).toBe(true);
+    expect(roomExposes(builderRoom, "nix:build")).toBe(true);
+    expect(roomExposes(builderRoom, "oci:image")).toBe(true);
+    expect(builderRoom.doors.every((d) => d.direction === "expose")).toBe(true);
   });
 
   test("grants its own occupant the build capabilities", () => {
-    expect(roomGrants(linuxBuilderRoom)).toEqual(["nix:build", "oci:image"]);
+    expect(roomGrants(builderRoom)).toEqual(["nix:build", "oci:image"]);
   });
 });
 
-describe("claudeBoxRoom", () => {
+describe("claudeRoom", () => {
   test("is a valid RoomSpec", () => {
-    expect(() => RoomSpecSchema.parse(claudeBoxRoom)).not.toThrow();
+    expect(() => RoomSpecSchema.parse(claudeRoom)).not.toThrow();
   });
 
   test("consumes the daemon doors → its grants are beads:read + git:write", () => {
-    expect(roomGrants(claudeBoxRoom)).toEqual(["beads:read", "git:write"]);
+    expect(roomGrants(claudeRoom)).toEqual(["beads:read", "git:write"]);
   });
 
   test("exposes a session:control door, strictly closed (reserved for prx-9s14)", () => {
     // Declared-exposed (topology stable)...
-    expect(roomExposes(claudeBoxRoom, "session:control")).toBe(true);
+    expect(roomExposes(claudeRoom, "session:control")).toBe(true);
     // ...but sealed today — not an active service until remote-control opens it.
-    expect(roomExposes(claudeBoxRoom, "session:control", { openOnly: true })).toBe(false);
-    const control = claudeBoxRoom.doors.find((d) => d.capability === "session:control");
+    expect(roomExposes(claudeRoom, "session:control", { openOnly: true })).toBe(false);
+    const control = claudeRoom.doors.find((d) => d.capability === "session:control");
     expect(control?.state).toBe("closed");
   });
 });
