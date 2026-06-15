@@ -11,12 +11,30 @@
 // Errors so the caller can decide how to format.
 
 import { defaultRunner, type CommandRunner } from "../pr-state/github.ts";
+import { bdDoorGate } from "@bounded-systems/bd";
 
 export type EpicChild = {
   ghNumber: number;
   title: string;
   state: "open" | "closed";
 };
+
+type BdReadResult = { stdout: string; stderr: string; status: number };
+
+/**
+ * A door-gated `bd` read (GH-296 / prx-zbsi). In the box profile
+ * (PRX_BEADS_DOOR) the read dials the beadsd door — never a local `bd`;
+ * off-profile the gate returns null and we spawn via the injected runner
+ * exactly as before (byte-identical). The `bd dep list … --type parent-child`
+ * read maps to the door's `children` verb in the dialer, so its argv and
+ * result shape are unchanged. Gating here also keeps these bd reads off
+ * `defaultRunner`'s GitHub rate-limit bucket in-box.
+ */
+function bdRead(cmd: string[], cwd: string, runner: CommandRunner): BdReadResult {
+  const gated = bdDoorGate(cmd);
+  if (gated) return { stdout: gated.stdout, stderr: gated.stderr, status: gated.exitCode };
+  return runner(cmd, { cwd, check: false });
+}
 
 type BdIssueRow = {
   id: string;
@@ -55,7 +73,7 @@ function ghNumberFromExternalRef(ref: string | null | undefined): number | null 
 }
 
 function loadBeadsSnapshot(repoPath: string, runner: CommandRunner): BdIssueRow[] {
-  const result = runner(["bd", "list", "--all", "--json"], { cwd: repoPath, check: false });
+  const result = bdRead(["bd", "list", "--all", "--json"], repoPath, runner);
   if (result.status !== 0) {
     throw new Error((result.stderr || result.stdout).trim() || "bd list --json failed");
   }
@@ -78,9 +96,10 @@ function loadParentChildDeps(
   epicBeadId: string,
   runner: CommandRunner,
 ): BdDepRow[] {
-  const result = runner(
+  const result = bdRead(
     ["bd", "dep", "list", epicBeadId, "--direction", "up", "--type", "parent-child", "--json"],
-    { cwd: repoPath, check: false },
+    repoPath,
+    runner,
   );
   if (result.status !== 0) {
     throw new Error(

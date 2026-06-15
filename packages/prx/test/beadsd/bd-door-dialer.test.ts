@@ -53,6 +53,31 @@ describe("prxBeadsDoorDialer", () => {
     expect(r).toEqual({ exitCode: 0, stdout: "[]", stderr: "", policy: null });
   });
 
+  test("`dep list <id> --type parent-child` (a read) → `prx beads children <id>` (prx-zbsi)", () => {
+    const { run, calls } = recordingRunner(ok("[]"));
+    const dialer = makePrxBeadsDoorDialer({ run });
+    const r = dialer(
+      { subcommand: "dep", args: ["list", "prx-epic", "--direction", "up", "--type", "parent-child", "--json"] },
+      env,
+    );
+    expect(calls[0]).toEqual(["prx", "beads", "children", "prx-epic", "--json"]);
+    expect(r).toEqual({ exitCode: 0, stdout: "[]", stderr: "", policy: null });
+  });
+
+  test("`dep add`/`dep remove` (writes) still fail closed — only the parent-child list maps", () => {
+    let spawned = false;
+    const run: CommandRunner = () => {
+      spawned = true;
+      return ok("");
+    };
+    const dialer = makePrxBeadsDoorDialer({ run });
+    expect(dialer({ subcommand: "dep", args: ["add", "--type", "parent-child", "a", "b"] }, env)).toBeNull();
+    expect(dialer({ subcommand: "dep", args: ["remove", "a", "b"] }, env)).toBeNull();
+    // A `dep list` without the parent-child type is not a children read either.
+    expect(dialer({ subcommand: "dep", args: ["list", "prx-epic", "--json"] }, env)).toBeNull();
+    expect(spawned).toBe(false);
+  });
+
   test("honors a custom prx binary", () => {
     const { run, calls } = recordingRunner(ok("[]"));
     const dialer = makePrxBeadsDoorDialer({ run, prxBinary: "/opt/prx" });
