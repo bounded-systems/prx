@@ -109,12 +109,18 @@ The podman driver (#611) already renders the Pod manifest. The remaining runtime
    the gate fire in-box; closed doors (`session:control`) stay unwired;
 4. retire the Lima daemon-VM once the pod path is healthy.
 
-### 4. The door-env contract — beadsd wired, keeperd pending
+### 4. The door-env contract — beadsd + keeperd wired
 
 `podRoomEnv` projects the **beadsd** door (`PRX_BEADS_DOOR` + `PRX_BEADS_SOCKET`,
-matching `resolveBeadsEndpoint`). **keeperd has no client-endpoint env** (no
-`PRX_KEEPER_SOCKET` analog), so its door projects nothing yet — defining that env
-is a prerequisite before keeperd reads/writes route through its door in-box.
+matching `resolveBeadsEndpoint`) and now the **keeperd** door (`PRX_KEEPER_DOOR` +
+`PRX_KEEPER_SOCKET`, matching `resolveKeeperEndpoint` — `keeperd/endpoint.ts`).
+So `claude-room`'s projected env carries both doors, and the keeper pair
+round-trips through its resolver (closed-loop tested in `test/room/pod.test.ts`).
+`PRX_KEEPER_DOOR` is the marker a future keeper-door gate reads (mirroring how
+`PRX_BEADS_DOOR` flips the bd-door gate); `PRX_KEEPER_SOCKET` is the dial target.
+Remaining: the wrapper that turns a resolved keeper endpoint into a live
+`IsolatedKeeperClient` over the local unix-socket door (the transport already
+exists in `door/transport.ts`; the Lima path is `keeperd/lima-transport.ts`).
 
 ## Open questions / TODOs
 
@@ -123,7 +129,9 @@ is a prerequisite before keeperd reads/writes route through its door in-box.
   in-box (stateful, simple) vs sibling container (stateless; recommended). The
   served clone is server-mode (`.beads/metadata.json` `dolt_mode: server` +
   `sync.remote` to dolthub); the connection must point at the chosen server.
-- **keeperd endpoint env** — define `PRX_KEEPER_*` so its door projects.
+- ~~**keeperd endpoint env** — define `PRX_KEEPER_*` so its door projects.~~
+  Done (§4): `resolveKeeperEndpoint` + the `podRoomEnv` projection. Follow-on is
+  the door-dialing `IsolatedKeeperClient` wrapper, not the env contract.
 - **image registry refs** — `RoomSpec.image` carries the `-box` name today; the
   full registry ref (or local containerd load) is resolved at deploy.
 - **isolation tier** — shared-kernel pod; gVisor/runsc hardening is prx-5p5.

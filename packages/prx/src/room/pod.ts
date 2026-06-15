@@ -123,10 +123,15 @@ export function resolvePodDoors(pod: PodSpec): {
 function doorEnv(door: ResolvedDoor): Record<string, string> {
   // beadsd is the wired door today: its env IS the bd-door gate's signal
   // (PRX_BEADS_DOOR flips isBdDoorMode; PRX_BEADS_SOCKET is the transport
-  // address resolveBeadsEndpoint dials). keeperd/others get their projection
-  // when their client-endpoint env is defined — a one-line addition here.
+  // address resolveBeadsEndpoint dials).
   if (door.door === "beadsd") {
     return { PRX_BEADS_DOOR: door.door, PRX_BEADS_SOCKET: door.socket };
+  }
+  // keeperd — the git-write door. PRX_KEEPER_DOOR is the marker (a future
+  // keeper-door gate's signal, mirroring PRX_BEADS_DOOR); PRX_KEEPER_SOCKET is
+  // the transport address resolveKeeperEndpoint dials (prx-asr / ADR §4).
+  if (door.door === "keeperd") {
+    return { PRX_KEEPER_DOOR: door.door, PRX_KEEPER_SOCKET: door.socket };
   }
   return {};
 }
@@ -135,7 +140,9 @@ function doorEnv(door: ResolvedDoor): Record<string, string> {
  * The env a given member room receives from the pod's wired doors — the
  * projection that turns the room's *declared* consumed doors into the runtime
  * signals its occupant reads. For claude-room this yields
- * `{ PRX_BEADS_DOOR, PRX_BEADS_SOCKET }`, firing the merged gate.
+ * `{ PRX_BEADS_DOOR, PRX_BEADS_SOCKET, PRX_KEEPER_DOOR, PRX_KEEPER_SOCKET }` —
+ * the beadsd pair fires the merged gate; the keeperd pair feeds
+ * `resolveKeeperEndpoint`.
  */
 export function podRoomEnv(pod: PodSpec, roomName: string): Record<string, string> {
   const { resolved } = resolvePodDoors(pod);
