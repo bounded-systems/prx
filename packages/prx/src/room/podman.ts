@@ -5,11 +5,16 @@
  * known schema (no YAML dependency, readable result), validated at the seam.
  *
  * The mapping:
- *   - each room → a container (sharing the pod's namespaces, the podman-pod
- *     property that makes the door sockets reachable across rooms);
- *   - the door fabric (`doorDir`) → one shared `emptyDir{ medium: Memory }`
- *     (tmpfs) volume mounted into every container, so the unix-socket doors live
- *     on shared memory, not a disk or the network;
+ *   - each NON-SECRET room → a container (sharing the pod's namespaces, the
+ *     podman-pod property that makes the door sockets reachable across rooms).
+ *     A secret-holding room (e.g. keeperd, prx-b44y) is NOT rendered here — it
+ *     runs via `podman run --secret` ({@link renderPodmanRun}) since kube-play
+ *     can't mount a host secret — but it STAYS in door resolution, so a consumer
+ *     (claude-room) still gets its wired-door env and reaches it on the fabric;
+ *   - the door fabric (`doorDir`) → one shared `hostPath` volume mounted into
+ *     every container at the same path, so the unix-socket doors live on a host
+ *     dir BOTH runtimes (kube pod + standalone secret containers) mount. On a
+ *     linux host `/run` is tmpfs, so the sockets stay memory-backed;
  *   - each container's env → {@link podRoomEnv} for that room — the wired-door
  *     projection, i.e. `PRX_BEADS_DOOR`/`PRX_BEADS_SOCKET` for the beadsd
  *     consumer. A closed/unresolved door contributes no env (it isn't wired).
@@ -20,6 +25,7 @@
  */
 
 import { PodSpecSchema, podRoomEnv, type PodSpec } from "./pod.ts";
+import { roomNeedsSecretRuntime, roomSecrets } from "./spec.ts";
 
 /** A YAML double-quoted scalar — JSON string syntax is a valid YAML 1.2 scalar. */
 function dq(value: string): string {
@@ -57,11 +63,14 @@ export function renderPodmanKube(pod: PodSpec): string {
     "metadata:",
     `  name: ${dq(p.name)}`,
     "spec:",
-    // The door fabric: one tmpfs shared by every room's container.
+    // The door fabric: the host doorDir, shared by every room's container AND by
+    // the standalone secret-room containers (prx-b44y) — a hostPath both runtimes
+    // mount, not a pod-private emptyDir. DirectoryOrCreate so podman provisions it.
     "  volumes:",
     `    - name: ${DOOR_VOLUME}`,
-    "      emptyDir:",
-    "        medium: Memory",
+    "      hostPath:",
+    `        path: ${dq(p.doorDir)}`,
+    "        type: DirectoryOrCreate",
   ];
 
   // The repo bind-mount: the daemon images' WorkingDir is `/work` (the repo they
@@ -80,6 +89,10 @@ export function renderPodmanKube(pod: PodSpec): string {
   lines.push("  containers:");
 
   for (const room of p.rooms) {
+    // A secret-holding room runs via `podman run --secret` (renderPodmanRun),
+    // not as a kube container — but it remains in door resolution above, so its
+    // consumers still get the wired-door env and reach it on the shared fabric.
+    if (roomNeedsSecretRuntime(room)) continue;
     lines.push(`    - name: ${dq(room.name)}`);
     // The room's `-box` image when declared; else a deterministic placeholder
     // (a room with no image yet — the full registry ref is a prx-zj8 concern).
@@ -108,6 +121,66 @@ export function renderPodmanKube(pod: PodSpec): string {
   }
 
   return lines.join("\n") + "\n";
+}
+
+/**
+ * Render the `podman run` argv (after the `podman` argv0) for a secret-holding
+ * room — the runtime kube-play can't deliver (prx-b44y), since `podman kube
+ * play` only accepts in-YAML k8s Secrets (base64-ing the key into the manifest,
+ * which the door ADR forbids). The room runs as its own detached container that
+ * mounts the SAME host door fabric the kube pod mounts, so its exposed door is
+ * reachable cross-runtime; its host-backed secrets are injected via
+ * `--secret <name>,target=<path>` (tmpfs, never a layer).
+ *
+ * Throws if `roomName` is not a member of `pod`, or if the named room holds no
+ * secret (a non-secret room belongs in the kube pod — calling this on it is a
+ * wiring error, not a silent no-op).
+ */
+export function renderPodmanRun(pod: PodSpec, roomName: string): string[] {
+  const p = PodSpecSchema.parse(pod);
+  const room = p.rooms.find((r) => r.name === roomName);
+  if (!room) {
+    throw new Error(`room '${roomName}' is not a member of pod '${p.name}'`);
+  }
+  if (!roomNeedsSecretRuntime(room)) {
+    throw new Error(
+      `room '${roomName}' holds no secret — it runs in the kube pod, not via 'podman run --secret'`,
+    );
+  }
+
+  const args: string[] = [
+    "run",
+    "--detach",
+    // Idempotent re-up: replace a same-named container from a prior play.
+    "--replace",
+    "--name",
+    secretRoomContainer(p, room.name),
+  ];
+  // Host-backed secrets → tmpfs at the declared target (never a plaintext layer).
+  for (const secret of roomSecrets(room)) {
+    args.push("--secret", `${secret.name},target=${secret.target}`);
+  }
+  // The shared door fabric: the SAME host doorDir the kube pod hostPath-mounts,
+  // so this standalone container's exposed door is reachable across runtimes.
+  args.push("--volume", `${p.doorDir}:${p.doorDir}`);
+  // The repo bind-mount + WorkingDir (mirrors the kube pod; prx-u5lx).
+  if (p.repo) {
+    args.push("--volume", `${p.repo}:${WORK_DIR}`, "--workdir", WORK_DIR);
+  }
+  // The wired-door env projection (a secret room that ALSO consumes doors gets
+  // its consumer env here, exactly as the kube containers do).
+  const env = podRoomEnv(p, room.name);
+  for (const key of Object.keys(env).sort()) {
+    args.push("--env", `${key}=${env[key]!}`);
+  }
+  // The room's -box image; full registry ref resolved at deploy (prx-zj8).
+  args.push(room.image ?? `prx/${room.name}:latest`);
+  return args;
+}
+
+/** The container name for a secret room — stable, so `down` can target it. */
+export function secretRoomContainer(pod: PodSpec, roomName: string): string {
+  return `${pod.name}-${roomName}`;
 }
 
 /** The default podman driver. */

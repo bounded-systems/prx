@@ -114,7 +114,7 @@ describe("handleKeeperRequest", () => {
     expect(order.indexOf("import")).toBeLessThan(order.indexOf("push"));
   });
 
-  test("emits a signed push/v1 into the per-request ledger when signer + ledgerRef present (GH-236)", async () => {
+  test("emits + RETURNS a signed push/v1 when signer + ledgerRef present (GH-236, prx-a36l)", async () => {
     const { git } = fakeGit();
     const kp = generateEd25519Keypair();
     const signer = ed25519Signer(kp.privateKey, kp.keyid);
@@ -140,6 +140,9 @@ describe("handleKeeperRequest", () => {
     expect(openedRef).toBe("refs/prx/ledger"); // ledger opened from the REQUEST's ref
     expect(appended.length).toBe(1); // a push/v1 derivation was signed + appended
     expect(closed).toBe(true); // per-request ledger closed
+    // prx-a36l: the daemon RETURNS the signed derivation (not just ledger-appends)
+    // so the host's requireSigned gate can verify it.
+    if (res.status === "ok") expect(res.signedDerivation).toBe(appended[0]);
   });
 
   test("does NOT open a ledger when the request omits ledgerRef (bare push)", async () => {
@@ -156,6 +159,8 @@ describe("handleKeeperRequest", () => {
     });
     expect(res.status).toBe("ok");
     expect(opened).toBe(false);
+    // A bare push appends nothing → no signedDerivation on the response (prx-a36l).
+    if (res.status === "ok") expect(res.signedDerivation).toBeUndefined();
   });
 });
 
@@ -244,5 +249,24 @@ describe("runKeeperServe (unix socket, end-to-end)", () => {
       rmSync(pidfile, { force: true });
       rmSync(socketPath, { force: true });
     }
+  });
+
+  test("returns the signed push/v1 over the socket when ledgerRef is set (prx-a36l)", async () => {
+    const { git } = fakeGit();
+    const kp = generateEd25519Keypair();
+    const path = await start({
+      git,
+      signer: ed25519Signer(kp.privateKey, kp.keyid),
+      openLedger: () => ({ store: { append: async () => {}, get: async () => null }, close: () => {} }),
+    });
+    const res = (await sendFrame(path, { ...REQUEST, ledgerRef: "refs/prx/ledger" })) as {
+      status: string;
+      signedDerivation?: { manifest?: unknown };
+    };
+    expect(res.status).toBe("ok");
+    // The signed derivation survived the encode → socket → decode round-trip
+    // (it was previously written only to the ledger, never returned — prx-a36l).
+    expect(res.signedDerivation).toBeDefined();
+    expect(res.signedDerivation?.manifest).toBeDefined();
   });
 });
