@@ -44,6 +44,17 @@
           runtimeInputs = [ codeql pkgs.bun pkgs.nodejs pkgs.git ];
           text = ''exec bun ${./packages/prx/scripts/codeql-quality.ts} "$@"'';
         };
+        # `nix run .#jsr-sync -- [--dry-run] [--repo owner/name]` — reserve +
+        # describe + link the publishable packages on JSR. The jsr CLI is a node
+        # program; the script itself needs only bun. NB: jsr-sync.ts discovers
+        # packages relative to its own path (import.meta.dir/../..), so it must
+        # run against the repo checkout — invoked from $PWD, not a store copy.
+        # Run from the repo root. Auth: $JSR_TOKEN (jsr.io PAT, permission `all`).
+        jsr-sync = pkgs.writeShellApplication {
+          name = "jsr-sync";
+          runtimeInputs = [ pkgs.bun pkgs.nodejs ];
+          text = ''exec bun packages/prx/scripts/jsr-sync.ts "$@"'';
+        };
       in
       {
         packages = {
@@ -74,7 +85,12 @@
 
         # Opt-in: `nix run .#codeql-quality` → build a JS/TS DB and run the
         # three quality rules (unused-local / useless-assignment / trivial-conditional).
-        apps = lib.optionalAttrs codeqlSupported {
+        apps = {
+          jsr-sync = {
+            type = "app";
+            program = "${jsr-sync}/bin/jsr-sync";
+          };
+        } // lib.optionalAttrs codeqlSupported {
           codeql-quality = {
             type = "app";
             program = "${codeql-quality}/bin/codeql-quality";
