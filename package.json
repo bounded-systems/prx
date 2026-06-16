@@ -13,6 +13,7 @@
     "slack-scout:build": "mkdir -p dist && bun build --compile packages/prx/src/slack/bin.ts --outfile dist/slack-scout",
     "health": "bun run packages/prx/scripts/code-health.ts",
     "jsr:manifest": "bun run packages/prx/scripts/gen-jsr-manifest.ts",
+    "jsr:publish": "bun run packages/prx/scripts/jsr-publish.ts",
     "site:build": "bun run packages/prx/scripts/build-site.ts",
     "typecov": "type-coverage --strict --at-least 98 --ignore-files '**/*.test.ts'",
     "doctor:agents": "bun run packages/prx/scripts/agent_doctor.ts",

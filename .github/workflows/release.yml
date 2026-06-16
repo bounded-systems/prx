@@ -1,13 +1,19 @@
 name: release
 
-# Publishing pipeline for the public per-module split (Track C / M0), proven on
-# the @bounded-systems/cas leaf. Separate from ci.yml on purpose: CI stays the
-# hard merge gate; this only publishes already-merged, already-green commits.
+# Publishing pipeline for the public per-module split. Separate from ci.yml on
+# purpose: CI stays the hard merge gate; this only publishes already-merged,
+# already-green commits.
 #
-# Flow (changesets, no third-party action so every step is SHA-pinnable):
-#   PR with a changeset merges to main -> this runs -> `changeset publish`
-#   publishes any package whose version is not yet on npm and pushes its git tag.
-# `changeset publish` is idempotent: nothing to publish is a no-op.
+# Flow (changesets → JSR):
+#   PR with a changeset merges to main -> version.yml opens the "Version
+#   Packages" PR -> merging THAT PR bumps versions on main -> this runs ->
+#   `jsr:publish` publishes any @bounded-systems/* package whose version is not
+#   yet on JSR, in dependency order. Idempotent: nothing new to publish is a
+#   no-op, so this is green on every push to main.
+#
+# Auth is tokenless OIDC (id-token: write) — no secret. Each package must already
+# exist + be linked to bounded-systems/prx on JSR (run `nix run .#jsr-sync`).
+# Single-package / out-of-band publishes go through publish-jsr.yml instead.
 
 on:
   push:
@@ -17,18 +23,16 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  release:
+  publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # changeset publish pushes version tags
-      id-token: write # npm provenance (SLSA build provenance attestation)
-    env:
-      # Job-level so the publish steps can gate on its presence (step-level env
-      # is not visible to a step's own `if:`). Until NPM_TOKEN is configured,
-      # the build + standalone gate still run, but publishing is skipped — so
-      # this workflow is green without a token and starts publishing once it's set.
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      contents: read
+      id-token: write # tokenless JSR publish (OIDC)
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -46,29 +50,5 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build cas
-        run: bun run --filter '@bounded-systems/cas' build
-
-      - name: Publish gate — cas stands alone
-        # The "safe to publish" invariant: outward-only deps + no ambient
-        # authority. Must pass standalone before anything leaves the repo.
-        run: bun test packages/cas/src/__tests__/extractability.test.ts packages/cas/src/__tests__/digest.test.ts
-
-      - name: Configure npm auth
-        if: ${{ env.NPM_TOKEN != '' }}
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > "${HOME}/.npmrc"
-
-      - name: Publish to npm
-        # Provenance is carried by each package's publishConfig.provenance; the
-        # id-token: write permission above lets npm mint the SLSA attestation.
-        # Skipped when NPM_TOKEN is unset (no creds → nothing to publish yet).
-        if: ${{ env.NPM_TOKEN != '' }}
-        run: bun run release
-        env:
-          NPM_CONFIG_PROVENANCE: "true"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish skipped (no NPM_TOKEN)
-        if: ${{ env.NPM_TOKEN == '' }}
-        run: echo "::notice::NPM_TOKEN not set — built + gated @bounded-systems/cas but skipped npm publish. Set the NPM_TOKEN secret to enable publishing."
+      - name: Publish changed packages to JSR
+        run: bun run jsr:publish
