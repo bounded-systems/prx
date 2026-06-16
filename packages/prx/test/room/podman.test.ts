@@ -76,3 +76,26 @@ describe("renderPodmanKube", () => {
     expect(podmanDriver.render(perRepoPod)).toBe(manifest);
   });
 });
+
+describe("renderPodmanKube — repo /work mount (prx-u5lx)", () => {
+  test("declares a hostPath repo volume when pod.repo is set", () => {
+    const m = renderPodmanKube({ ...perRepoPod, repo: "/host/repo" });
+    expect(m).toContain("name: prx-repo");
+    expect(m).toContain("hostPath:");
+    expect(m).toContain(`path: "/host/repo"`);
+    expect(m).toContain("type: Directory");
+  });
+
+  test("mounts the repo at /work in every room (the daemon WorkingDir)", () => {
+    const m = renderPodmanKube({ ...perRepoPod, repo: "/host/repo" });
+    const mounts = m.match(/mountPath: "\/work"/g) ?? [];
+    expect(mounts.length).toBe(perRepoPod.rooms.length);
+  });
+
+  test("emits no repo volume or /work mount when pod.repo is unset (back-compat)", () => {
+    const m = renderPodmanKube(perRepoPod);
+    expect(m).not.toContain("prx-repo");
+    expect(m).not.toContain("hostPath:");
+    expect(m).not.toContain(`mountPath: "/work"`);
+  });
+});
