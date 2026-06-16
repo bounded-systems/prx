@@ -35,25 +35,23 @@ const STRICT = process.argv.includes("--strict");
 // Packages cleared for auto-publish. Each has a clean `jsr publish` — no
 // unsupported import attributes (e.g. `with { type: "text" }`), and every
 // intra-scope dependency is itself published to JSR. A package NOT in this set
-// is held (skipped, not failed) so a release stays green; add it here once
-// `jsr publish` succeeds for it. The remaining @bounded-systems/* packages have
-// real JSR-compat blockers tracked separately. `--all` overrides the gate (e.g.
-// to re-discover which packages now pass).
+// is held (skipped, not failed) so a release stays green.
+//
+// Add a package ONLY after it has actually published green from release.yml — a
+// local `jsr publish --dry-run` is NOT sufficient: the monorepo's hoisted
+// node_modules mask deps that CI's deno+byonm publish can't resolve (e.g. an
+// undeclared `zod` → "Module not found file:///src/zod"), and dry-run can't see
+// whether the package was even created on JSR (the new-package weekly quota).
+// `--all` overrides the gate to re-discover which packages now pass.
 export const READY = new Set<string>([
   "anchored-chain",
   "anchored-chain-sqlite",
   "audit-context",
   "auth",
   "cas",
-  "disposition",
   "env",
-  "fs",
   "host",
-  "machine-schema",
-  "policy",
-  "prx-config",
   "scout",
-  "verbspec",
 ]);
 const ALL = process.argv.includes("--all");
 
