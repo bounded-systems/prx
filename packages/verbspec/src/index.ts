@@ -152,14 +152,14 @@ export const toMcpToolset = (reg: Registry): McpTool[] => Object.values(reg).map
 
 type JsonProps = { properties?: Record<string, { type?: string; description?: string }>; required?: string[] };
 
-export function toHelp(v: VerbSpec): string {
+export function toHelp(v: VerbSpec, bin = "prx"): string {
   const js = toInputJsonSchema(v) as JsonProps;
   const props = js.properties ?? {};
   const required = new Set(js.required ?? []);
   const pos = v.positionals ?? [];
   const usagePos = pos.map((p) => (required.has(p) ? `<${p}>` : `[${p}]`)).join(" ");
   const flags = Object.keys(props).filter((k) => !pos.includes(k));
-  const lines = [`prx ${v.id} ${usagePos}`.trimEnd(), "", `  ${v.summary}`, ""];
+  const lines = [`${bin} ${v.id} ${usagePos}`.trimEnd(), "", `  ${v.summary}`, ""];
   if (flags.length) {
     lines.push("Flags:");
     for (const f of flags) {
@@ -253,12 +253,16 @@ export type DispatchResult =
   | { kind: "ok"; id: string; output: unknown; input: unknown };
 
 /** Resolve verb → parse → run. This is ALL `cli.ts` needs to be. */
-export async function dispatch(reg: Registry, argv: readonly string[]): Promise<DispatchResult> {
+export async function dispatch(
+  reg: Registry,
+  argv: readonly string[],
+  bin = "prx",
+): Promise<DispatchResult> {
   const [id, ...rest] = argv;
   if (!id) throw new Error("no verb given");
   const v = reg[id];
   if (!v) throw new Error(`unknown verb: ${id}`);
-  if (rest.includes("--help") || rest.includes("-h")) return { kind: "help", text: toHelp(v) };
+  if (rest.includes("--help") || rest.includes("-h")) return { kind: "help", text: toHelp(v, bin) };
   const input = parseArgs(v, rest);
   // Each verb runs against its own default deps slice (reals); pure verbs omit
   // `deps` and ignore the argument.
