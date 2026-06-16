@@ -304,3 +304,79 @@ describe("runSubmitPublish (GH-1900 / GH-2348.2)", () => {
     expect(await getRef("GH-1900:submit@published", { domain: SUBMIT_DOMAIN })).toBeNull();
   });
 });
+
+describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
+  let envSnap: EnvSnapshot;
+  let casRoot: string;
+
+  beforeEach(() => {
+    envSnap = snapshotEnv();
+    casRoot = mkdtempSync(join(tmpdir(), "prx-submit-publish-door-"));
+    for (const k of ENV_KEYS) delete process.env[k];
+    process.env.PRX_CAS_ROOT = casRoot;
+  });
+  afterEach(() => restoreEnv(envSnap));
+
+  const PUBLISH = { fromCas: "GH-1900:submit@ready", dryRun: false, ready: false, format: "plain" as const };
+
+  test("routes the push through the keeperd door — no local push", async () => {
+    await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
+    const { deps, pushes, prOpens } = spy();
+    const doorCalls: Array<{ parentSha: string; commitSha: string; branch: string; remote: string }> = [];
+    deps.keeperDoorMode = () => true;
+    deps.keeperDoor = async (input) => {
+      doorCalls.push({ parentSha: input.parentSha, commitSha: input.commitSha, branch: input.branch, remote: input.remote });
+      return { status: "ok", commitSha: MATERIALIZED_COMMIT, pushedRef: "refs/heads/GH-1900" };
+    };
+    const render = await runSubmitPublish(PUBLISH, deps);
+    expect(render.exitCode).toBe(0);
+    expect(pushes).toHaveLength(0); // the LOCAL push seam was not used
+    expect(doorCalls).toEqual([
+      { parentSha: HEX40, commitSha: MATERIALIZED_COMMIT, branch: "GH-1900", remote: "origin" },
+    ]);
+    expect(prOpens).toHaveLength(1); // PR still opens after a clean door push
+  });
+
+  test("a door push error fails closed — no PR opened", async () => {
+    await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
+    const { deps, prOpens } = spy();
+    deps.keeperDoorMode = () => true;
+    deps.keeperDoor = async () => ({ status: "error", code: "git-write", message: "remote rejected" });
+    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/keeper door push failed.*remote rejected/);
+    expect(prOpens).toHaveLength(0);
+  });
+
+  test("the daemon reporting a different commit fails closed", async () => {
+    await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
+    const { deps, prOpens } = spy();
+    deps.keeperDoorMode = () => true;
+    deps.keeperDoor = async () => ({ status: "ok", commitSha: "f".repeat(40), pushedRef: "refs/heads/GH-1900" });
+    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/not the materialized commit/);
+    expect(prOpens).toHaveLength(0);
+  });
+
+  test("requireSigned + door + no signed derivation fails closed", async () => {
+    await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
+    const { deps } = spy();
+    deps.keeperDoorMode = () => true;
+    deps.requireSigned = true;
+    deps.verifier = {} as unknown as NonNullable<PublishDeps["verifier"]>;
+    deps.keeperDoor = async () => ({ status: "ok", commitSha: MATERIALIZED_COMMIT, pushedRef: "refs/heads/GH-1900" });
+    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/emitted no signed derivation/);
+  });
+
+  test("requireSigned + door + signed derivation for the WRONG commit fails closed", async () => {
+    await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
+    const { deps } = spy();
+    deps.keeperDoorMode = () => true;
+    deps.requireSigned = true;
+    deps.verifier = {} as unknown as NonNullable<PublishDeps["verifier"]>;
+    deps.keeperDoor = async () => ({
+      status: "ok",
+      commitSha: MATERIALIZED_COMMIT,
+      pushedRef: "refs/heads/GH-1900",
+      signedDerivation: { manifest: { outputs: { commit: `gitCommit:${"f".repeat(40)}` } } },
+    });
+    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/not the materialized commit/);
+  });
+});
