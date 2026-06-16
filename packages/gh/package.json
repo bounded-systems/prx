@@ -1,6 +1,6 @@
 {
   "name": "@bounded-systems/gh",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "GitHub CLI wrapper with policy enforcement, rate-limit gating, and budget audit logging",
   "license": "MIT",
   "type": "module",
