@@ -1,15 +1,46 @@
 {
   "name": "@bounded-systems/host",
+  "version": "0.1.0",
   "description": "The one sanctioned reader of host/OS ambient state (home dir, temp dir, hostname), routing ambient authority through capability imports",
-  "version": "0.0.1",
-  "private": true,
+  "license": "MIT",
   "type": "module",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bounded-systems/host.git"
+  },
+  "homepage": "https://github.com/bounded-systems/host#readme",
+  "bugs": {
+    "url": "https://github.com/bounded-systems/host/issues"
+  },
+  "keywords": [
+    "host",
+    "os",
+    "ambient",
+    "capability",
+    "homedir"
+  ],
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build"
   },
   "dependencies": {
     "@bounded-systems/env": "workspace:*"
