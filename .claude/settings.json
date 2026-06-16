@@ -1,0 +1,14 @@
+{
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "75",
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1"
+  },
+  "hooks": {
+    "SessionStart": [
+      { "matcher": "", "hooks": [
+        { "type": "command", "command": "bash .claude/inject-org-context.sh" }
+      ] }
+    ]
+  }
+}
