@@ -59,6 +59,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - ADR — a spec-driven CLI: author verbs once, project everywhere — `docs/prx/cli-from-spec.md`
 - `prx dolt start` — the dolt actor's start driver (GH-555) — `docs/prx/dolt-start.md`
 - ADR — the prx OCI substrate: containerize the service fleet, retire the daemon-VM (prx-zj8) — `docs/prx/oci-substrate.md`
+- Publishing the `@bounded-systems/*` packages (JSR) — `docs/prx/package-publishing.md`
 - Local CI in the pipeline — the `checking` gate + where health/OTEL belongs — `docs/prx/pipeline-local-checks.md`
 - Pilot & fleet — Claude subagents as a signed pipeline — `docs/prx/pipeline-orchestrator.md`
 - ADR — `MergeabilityVerdict` as a policy over a predicate bundle (GH-592) — `docs/prx/predicate-bundle-verdict.md`

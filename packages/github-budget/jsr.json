@@ -1,6 +1,6 @@
 {
   "name": "@bounded-systems/github-budget",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "exports": "./src/index.ts",
   "publish": {
     "exclude": [
