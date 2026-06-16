@@ -111,15 +111,40 @@ function emit(text: string): void {
 }
 
 function main(): void {
+  // A gate was requested iff a threshold flag is present. When gating, a missing
+  // or empty report is a FAILURE (fail-closed): a coverage run that produced no
+  // data must not pass as green — otherwise a broken `bun test --coverage` step
+  // silently neuters the floor (GH-664). Without any gate flag this stays a
+  // report-only summary that won't wedge CI on a missing report.
+  const gating =
+    (minLinePct !== null && Number.isFinite(minLinePct)) ||
+    (perFileMin !== null && Number.isFinite(perFileMin));
+
   let lcov: string;
   try {
     lcov = readFileSync(lcovPath, "utf8");
   } catch {
-    emit(`### Coverage\n\nNo coverage report found at \`${lcovPath}\` — skipping.`);
+    emit(`### Coverage\n\nNo coverage report found at \`${lcovPath}\`.`);
+    if (gating) {
+      emit(
+        `\n❌ **Coverage gate failed (fail-closed):** the coverage run produced no \`${lcovPath}\` — ` +
+          `treating absent coverage as a breach. Check the "Run tests with coverage" step.`,
+      );
+      process.exit(1);
+    }
+    emit("Skipping (no gate requested).");
     return;
   }
 
   const { totals: t, perFile } = parse(lcov);
+
+  if (gating && t.files === 0) {
+    emit(
+      `### Coverage\n\n❌ **Coverage gate failed (fail-closed):** \`${lcovPath}\` has no file records ` +
+        `(empty report) — the coverage run produced no data. Check the "Run tests with coverage" step.`,
+    );
+    process.exit(1);
+  }
   const lineParts = [
     "### Coverage",
     "",
