@@ -651,7 +651,7 @@ export function runIntake(
         extraLabels: labels,
         format: "plain",
       },
-      { execBd: bdExec, run },
+      { run },
     );
     publishRender = publishResult.render;
     if (publishResult.exitCode !== 0) {
