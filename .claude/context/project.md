@@ -62,6 +62,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Local CI in the pipeline — the `checking` gate + where health/OTEL belongs — `docs/prx/pipeline-local-checks.md`
 - Pilot & fleet — Claude subagents as a signed pipeline — `docs/prx/pipeline-orchestrator.md`
 - ADR — `MergeabilityVerdict` as a policy over a predicate bundle (GH-592) — `docs/prx/predicate-bundle-verdict.md`
+- ADR — eval-gated prompt evolution as a signed derivation — `docs/prx/signed-self-improvement.md`
 - ADR — signed provenance for `claude --worktree` materialization (prx-hc5) — `docs/prx/worktree-provenance.md`
 - prx — project roadmap — `docs/roadmap/prx.md`
 - Agentic causal inference — Netflix's human-augmenting OCI workflow, mapped to prx (spike) — `docs/spikes/agentic-causal-inference.md`
@@ -71,6 +72,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - prx-3eu — Sync agent: adopt a sync framework, or build bespoke? (ADR) — `docs/spikes/prx-3eu-sync-framework-build-vs-adopt.md`
 - prx-ebo — Sync API efficiency: where the requests go, and how to cut them (ADR) — `docs/spikes/prx-ebo-sync-api-efficiency.md`
 - Capability-scoped DCI — a bounded interaction space for scout (spike) — `docs/spikes/scout-bounded-interaction-space.md`
+- Spike — eval-gated prompt evolution as a signed derivation — `docs/spikes/signed-prompt-evolution/README.md`
 - Two-clock policy — Netflix's slow-planner / fast-executor split, mapped to prx (spike) — `docs/spikes/two-clock-policy.md`
 - prx — value props (forcing-function-backed) — `docs/value-props.md`
 - @bounded-systems/anchored-chain-sqlite — `packages/anchored-chain-sqlite/README.md`
