@@ -24,7 +24,12 @@
 
 import { defaultRunner } from "@bounded-systems/proc";
 
-import { renderPodmanKube, renderPodmanRun, secretRoomContainer } from "./podman.ts";
+import {
+  renderDoorFabricProvision,
+  renderPodmanKube,
+  renderPodmanRun,
+  secretRoomContainer,
+} from "./podman.ts";
 import { PodSpecSchema, type PodSpec } from "./pod.ts";
 import { roomNeedsSecretRuntime, type RoomSpec } from "./spec.ts";
 
@@ -39,6 +44,14 @@ export interface PodmanRunResult {
 export type PodmanRun = (args: string[], input?: string) => PodmanRunResult;
 
 /**
+ * Provision + relabel the host door fabric (the `mkdir -p` + SELinux relabel
+ * pre-step, prx-3urm). Injected like {@link PodmanRun} so the orchestration is
+ * fully offline-testable; the default runs {@link renderDoorFabricProvision}
+ * through `@bounded-systems/proc`.
+ */
+export type ProvisionDoorFabric = (doorDir: string) => PodmanRunResult;
+
+/**
  * Default {@link PodmanRun}: route through `@bounded-systems/proc`'s
  * `defaultRunner` (no raw spawn). `check: false` — we surface a typed
  * {@link PodmanRuntimeError} ourselves rather than the runner's bare throw.
@@ -48,6 +61,18 @@ export const spawnPodman: PodmanRun = (args, input) => {
     check: false,
     ...(input !== undefined ? { input } : {}),
   });
+  return { status: res.status, stdout: res.stdout, stderr: res.stderr };
+};
+
+/**
+ * Default {@link ProvisionDoorFabric}: run the host `mkdir -p` + relabel argv
+ * ({@link renderDoorFabricProvision}) through `@bounded-systems/proc`'s
+ * `defaultRunner`. `check: false` — a non-zero exit surfaces as a typed
+ * {@link PodmanRuntimeError} via {@link requireOk} in {@link playPod}, not the
+ * runner's bare throw.
+ */
+export const provisionDoorFabric: ProvisionDoorFabric = (doorDir) => {
+  const res = defaultRunner(renderDoorFabricProvision(doorDir), { check: false });
   return { status: res.status, stdout: res.stdout, stderr: res.stderr };
 };
 
@@ -80,14 +105,23 @@ function hasKubeRooms(pod: PodSpec): boolean {
 }
 
 /**
- * Bring the pod UP across the runtime split: `podman kube play -` the non-secret
- * rooms (skipped when the pod has none — a zero-container manifest is invalid),
- * then `podman run --secret` each secret-holding room. Returns the result of
- * every podman invocation, in run order; throws {@link PodmanRuntimeError} on
- * the first non-zero exit (fail-fast).
+ * Bring the pod UP across the runtime split. First **provision the shared door
+ * fabric** ({@link ProvisionDoorFabric}, prx-3urm) — `mkdir -p` + SELinux
+ * relabel, BEFORE anything mounts it, since `kube play` would otherwise create
+ * it `var_run_t` and a secret room's bind mount can't create a missing host dir
+ * at all. Then `podman kube play -` the non-secret rooms (skipped when the pod
+ * has none — a zero-container manifest is invalid), then `podman run --secret`
+ * each secret-holding room. Returns the result of every command, in run order;
+ * throws {@link PodmanRuntimeError} on the first non-zero exit (fail-fast).
  */
-export function playPod(pod: PodSpec, run: PodmanRun = spawnPodman): PodmanRunResult[] {
+export function playPod(
+  pod: PodSpec,
+  run: PodmanRun = spawnPodman,
+  provision: ProvisionDoorFabric = provisionDoorFabric,
+): PodmanRunResult[] {
+  const { doorDir } = PodSpecSchema.parse(pod);
   const results: PodmanRunResult[] = [];
+  results.push(requireOk(provision(doorDir), `provision door fabric '${doorDir}'`));
   if (hasKubeRooms(pod)) {
     const manifest = renderPodmanKube(pod);
     results.push(requireOk(run(["kube", "play", "-"], manifest), `podman kube play '${pod.name}'`));

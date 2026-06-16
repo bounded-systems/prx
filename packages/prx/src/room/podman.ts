@@ -32,6 +32,42 @@ function dq(value: string): string {
   return JSON.stringify(value);
 }
 
+/** POSIX single-quote a string for safe interpolation into a `sh -c` command. */
+function sq(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+/**
+ * Render the host argv that **provisions + relabels the shared door fabric**
+ * before any room runs (prx-3urm). Pure — the thin runner wrapper lives in
+ * `./podman-runtime.provisionDoorFabric`. Two live findings on an
+ * SELinux-enforcing podman host (Fedora applehv VM) made this a required
+ * pre-step:
+ *
+ *   1. `podman run --volume <doorDir>:<doorDir>:z` does NOT create a missing
+ *      host source dir — it dies with `statfs … no such file or directory`. An
+ *      all-secret-rooms pod has no `kube play` step (whose hostPath
+ *      `DirectoryOrCreate` would create the dir), so it must be made here.
+ *   2. The relabel must land BEFORE `kube play`: kube-play's `DirectoryOrCreate`
+ *      makes the dir `var_run_t`, so the kube containers hit EACCES before the
+ *      secret room's own `:z` ever runs. Relabeling here, first, fixes the order.
+ *
+ * `mkdir -p` then a best-effort `chcon -R -t container_file_t` (== the shared
+ * `:z` label). The chcon is guarded — skipped when `chcon` is absent (a
+ * non-SELinux host) and `|| true` if it fails (unprivileged) — so provisioning
+ * stays correct off SELinux and only tightens the label where it matters; a
+ * failed `mkdir`, by contrast, aborts (`set -e`) and fails the bring-up.
+ */
+export function renderDoorFabricProvision(doorDir: string): string[] {
+  const dir = sq(doorDir);
+  return [
+    "sh",
+    "-c",
+    `set -e; mkdir -p ${dir}; ` +
+      `command -v chcon >/dev/null 2>&1 && chcon -R -t container_file_t ${dir} || true`,
+  ];
+}
+
 /** The shared door-fabric volume name. */
 const DOOR_VOLUME = "prx-doors";
 /** The repo bind-mount volume name + its in-container path (the daemon `WorkingDir`). */

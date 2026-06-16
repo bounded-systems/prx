@@ -14,6 +14,7 @@ import {
   PodmanRuntimeError,
   type PodmanRun,
   type PodmanRunResult,
+  type ProvisionDoorFabric,
 } from "../../src/room/podman-runtime.ts";
 
 type RoomInput = z.input<typeof import("../../src/room/spec.ts").RoomSpecSchema>;
@@ -46,22 +47,39 @@ function recorder(result: PodmanRunResult) {
 }
 
 const ok: PodmanRunResult = { status: 0, stdout: "Pod: abc\n", stderr: "" };
+const provisioned: PodmanRunResult = { status: 0, stdout: "", stderr: "" };
+
+/** A fake door-fabric provisioner that records the doorDir it was asked to make. */
+function provisionRecorder(result: PodmanRunResult = provisioned) {
+  const dirs: string[] = [];
+  const provision: ProvisionDoorFabric = (doorDir) => {
+    dirs.push(doorDir);
+    return result;
+  };
+  return { provision, dirs };
+}
 
 describe("playPod", () => {
-  test("pipes the rendered manifest into `podman kube play -` (non-secret rooms)", () => {
+  test("provisions the door fabric FIRST, then pipes the manifest into `podman kube play -`", () => {
     const p = pod([beadsdRoom]);
     const { run, calls } = recorder(ok);
-    const res = playPod(p, run);
+    const { provision, dirs } = provisionRecorder();
+    const res = playPod(p, run, provision);
+    // Door fabric provisioned before any podman invocation…
+    expect(dirs).toEqual([p.doorDir]);
     expect(calls).toHaveLength(1);
     expect(calls[0]!.args).toEqual(["kube", "play", "-"]);
     expect(calls[0]!.input).toBe(renderPodmanKube(p)); // exact manifest on stdin
-    expect(res).toEqual([ok]);
+    // …and its result leads the returned list, in run order.
+    expect(res).toEqual([provisioned, ok]);
   });
 
   test("kube-plays the non-secret rooms, then `podman run`s each secret room", () => {
     const p = pod([beadsdRoom, keeperdRoom]);
     const { run, calls } = recorder(ok);
-    const res = playPod(p, run);
+    const { provision, dirs } = provisionRecorder();
+    const res = playPod(p, run, provision);
+    expect(dirs).toEqual([p.doorDir]);
     expect(calls).toHaveLength(2);
     // kube play first…
     expect(calls[0]!.args).toEqual(["kube", "play", "-"]);
@@ -69,23 +87,42 @@ describe("playPod", () => {
     // …then the secret room via `podman run --secret` (no stdin).
     expect(calls[1]!.args).toEqual(renderPodmanRun(p, "keeperd-room"));
     expect(calls[1]!.input).toBeUndefined();
-    expect(res).toEqual([ok, ok]);
+    expect(res).toEqual([provisioned, ok, ok]);
   });
 
-  test("skips kube play when every room is a secret room (no empty manifest)", () => {
+  test("provisions the fabric even when every room is a secret room (no kube step to create it)", () => {
     const p = pod([keeperdRoom]);
     const { run, calls } = recorder(ok);
-    const res = playPod(p, run);
+    const { provision, dirs } = provisionRecorder();
+    const res = playPod(p, run, provision);
+    // The all-secret-rooms gap (prx-3urm): no kube play, so provisioning is the
+    // ONLY thing that creates the door dir the `podman run` bind mount needs.
+    expect(dirs).toEqual([p.doorDir]);
     expect(calls).toHaveLength(1);
     expect(calls[0]!.args).toEqual(renderPodmanRun(p, "keeperd-room"));
-    expect(res).toEqual([ok]);
+    expect(res).toEqual([provisioned, ok]);
+  });
+
+  test("fails fast when door-fabric provisioning fails (no podman invocations follow)", () => {
+    const p = pod([beadsdRoom]);
+    const { run, calls } = recorder(ok);
+    const { provision } = provisionRecorder({ status: 1, stdout: "", stderr: "mkdir: Permission denied" });
+    expect(() => playPod(p, run, provision)).toThrow(PodmanRuntimeError);
+    try {
+      playPod(p, run, provision);
+    } catch (err) {
+      expect((err as PodmanRuntimeError).message).toContain("provision door fabric");
+      expect((err as PodmanRuntimeError).message).toContain("Permission denied");
+    }
+    expect(calls).toHaveLength(0); // never reached kube play
   });
 
   test("throws PodmanRuntimeError on a non-zero exit (stderr surfaced)", () => {
     const { run } = recorder({ status: 125, stdout: "", stderr: "image not known" });
-    expect(() => playPod(pod([beadsdRoom]), run)).toThrow(PodmanRuntimeError);
+    const { provision } = provisionRecorder();
+    expect(() => playPod(pod([beadsdRoom]), run, provision)).toThrow(PodmanRuntimeError);
     try {
-      playPod(pod([beadsdRoom]), run);
+      playPod(pod([beadsdRoom]), run, provision);
     } catch (err) {
       expect((err as PodmanRuntimeError).message).toContain("image not known");
       expect((err as PodmanRuntimeError).result.status).toBe(125);
