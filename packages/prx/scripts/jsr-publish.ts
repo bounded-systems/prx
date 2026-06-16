@@ -32,11 +32,29 @@ import { JSR_PACKAGES } from "./jsr-manifest.generated.ts";
 const DRY = process.argv.includes("--dry-run");
 const STRICT = process.argv.includes("--strict");
 
+// Packages cleared for auto-publish. Each has a clean `jsr publish` — no
+// unsupported import attributes (e.g. `with { type: "text" }`), and every
+// intra-scope dependency is itself published to JSR. A package NOT in this set
+// is held (skipped, not failed) so a release stays green; add it here once
+// `jsr publish` succeeds for it. The remaining @bounded-systems/* packages have
+// real JSR-compat blockers tracked separately. `--all` overrides the gate (e.g.
+// to re-discover which packages now pass).
+export const READY = new Set<string>([
+  "anchored-chain",
+  "audit-context",
+  "auth",
+  "cas",
+  "env",
+  "host",
+  "scout",
+]);
+const ALL = process.argv.includes("--all");
+
 const API = "https://api.jsr.io";
 // packages/prx/scripts → packages/
 const packagesDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-interface Pkg {
+export interface Pkg {
   name: string;
   pkg: string;
   scope: string;
@@ -50,7 +68,7 @@ function readJson(path: string): Record<string, unknown> {
 }
 
 /** Load each manifest package with its jsr.json version and intra-scope deps. */
-function load(): Pkg[] {
+export function load(): Pkg[] {
   const inManifest = new Set(JSR_PACKAGES.map((p) => p.pkg));
   return JSR_PACKAGES.map((p) => {
     const dir = join(packagesDir, p.pkg);
@@ -71,7 +89,7 @@ function load(): Pkg[] {
 }
 
 /** Topological order: a package's dependencies come before it (DFS post-order). */
-function topo(pkgs: Pkg[]): Pkg[] {
+export function topo(pkgs: Pkg[]): Pkg[] {
   const byName = new Map(pkgs.map((p) => [p.pkg, p]));
   const state = new Map<string, 0 | 1 | 2>(); // 0 unvisited, 1 visiting, 2 done
   const out: Pkg[] = [];
@@ -96,7 +114,11 @@ function topo(pkgs: Pkg[]): Pkg[] {
  * caller checks membership against the returned set instead.
  */
 async function publishedVersions(scope: string, pkg: string): Promise<Set<string>> {
-  const res = await fetch(`${API}/scopes/${scope}/packages/${pkg}/versions?limit=100`, {
+  // NB: no `?limit=` — that query param makes this endpoint return an empty
+  // page ({items:[],total:0}). The default page lists the (few) versions, newest
+  // first, which covers our release cadence; revisit if a package ever carries
+  // more versions than one page.
+  const res = await fetch(`${API}/scopes/${scope}/packages/${pkg}/versions`, {
     headers: { accept: "application/json" },
   });
   if (res.status === 404) return new Set(); // package not reserved yet → nothing published
@@ -113,41 +135,56 @@ function publish(p: Pkg): boolean {
   return r.status === 0;
 }
 
-const ordered = topo(load());
-console.log(
-  `${DRY ? "[dry-run] " : ""}JSR publish — ${ordered.length} package(s) in dependency order:`,
-);
+/** Run the publish pass (gate → dedup → publish). Returns the failed tags. */
+async function run(): Promise<string[]> {
+  const ordered = topo(load());
+  console.log(
+    `${DRY ? "[dry-run] " : ""}JSR publish — ${ordered.length} package(s) in dependency order:`,
+  );
 
-let published = 0;
-let skipped = 0;
-const failed: string[] = [];
+  let published = 0;
+  let skipped = 0;
+  const failed: string[] = [];
 
-for (const p of ordered) {
-  const tag = `${p.name}@${p.version}`;
-  if ((await publishedVersions(p.scope, p.pkg)).has(p.version)) {
-    console.log(`- skip    ${tag} (already on JSR)`);
-    skipped++;
-    continue;
+  for (const p of ordered) {
+    const tag = `${p.name}@${p.version}`;
+    if (!ALL && !READY.has(p.pkg)) {
+      console.log(`- hold    ${tag} (not yet cleared for JSR auto-publish)`);
+      skipped++;
+      continue;
+    }
+    if ((await publishedVersions(p.scope, p.pkg)).has(p.version)) {
+      console.log(`- skip    ${tag} (already on JSR)`);
+      skipped++;
+      continue;
+    }
+    if (DRY) {
+      console.log(`- would publish ${tag}`);
+      published++;
+      continue;
+    }
+    console.log(`- publish ${tag} …`);
+    if (publish(p)) {
+      console.log(`  ✓ ${tag}`);
+      published++;
+    } else {
+      console.error(`  ✗ ${tag} — publish failed`);
+      failed.push(tag);
+    }
   }
-  if (DRY) {
-    console.log(`- would publish ${tag}`);
-    published++;
-    continue;
-  }
-  console.log(`- publish ${tag} …`);
-  if (publish(p)) {
-    console.log(`  ✓ ${tag}`);
-    published++;
-  } else {
-    console.error(`  ✗ ${tag} — publish failed`);
-    failed.push(tag);
-  }
+
+  console.log(
+    `Done. ${published} published${DRY ? " (dry-run)" : ""}, ${skipped} skipped, ${failed.length} failed.`,
+  );
+  return failed;
 }
 
-console.log(
-  `Done. ${published} published${DRY ? " (dry-run)" : ""}, ${skipped} skipped, ${failed.length} failed.`,
-);
-if (failed.length) {
-  console.error(`Failed: ${failed.join(", ")}`);
-  process.exit(1);
+// Only run when invoked directly; importers (e.g. the status-doc generator) get
+// the exports (READY/load/topo) without triggering a publish pass.
+if (import.meta.main) {
+  const failed = await run();
+  if (failed.length) {
+    console.error(`Failed: ${failed.join(", ")}`);
+    process.exit(1);
+  }
 }
