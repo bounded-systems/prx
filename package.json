@@ -43,8 +43,10 @@
     "db:generate": "drizzle-kit generate",
     "db:check": "drizzle-kit check",
     "changeset": "bunx @changesets/cli@^2.27",
-    "version-packages": "bunx @changesets/cli@^2.27 version",
-    "release": "bunx @changesets/cli@^2.27 publish"
+    "version-packages": "bunx @changesets/cli@^2.27 version && bun run jsr:versions",
+    "release": "bunx @changesets/cli@^2.27 publish",
+    "jsr:versions": "bun run packages/prx/scripts/jsr-version-sync.ts --write",
+    "jsr:versions:check": "bun run packages/prx/scripts/jsr-version-sync.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.177",
