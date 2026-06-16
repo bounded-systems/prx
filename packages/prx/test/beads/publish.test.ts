@@ -146,7 +146,7 @@ function harness(opts: {
 
   const deps: BeadsPublishDeps = {
     pushAdapter,
-    loadAllBeads: (() => opts.records) as never,
+    loadAllBeads: () => opts.records,
     repoNameWithOwner: (() => REPO) as never,
     cwd: () => "/tmp/repo",
     now: () => FIXED_NOW,

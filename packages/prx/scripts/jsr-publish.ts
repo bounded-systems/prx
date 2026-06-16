@@ -55,6 +55,7 @@ export const READY = new Set<string>([
   "machine-schema",
   "prx-config",
   "scout",
+  "surface-sync",
   "verbspec",
 ]);
 const ALL = process.argv.includes("--all");

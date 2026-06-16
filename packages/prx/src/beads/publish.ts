@@ -36,7 +36,7 @@
  * / `extractIssueNumber` (`../triage/triage.ts`), `BD_TYPE_ENUM`
  * (`../triage/labels.ts`), `execGhIssueCreate` / `buildGhIssueCreateArgs`
  * (`../tools/gh_issue_create.ts` — the rate-limit-gated `gh issue create`
- * surface), `execBd` (`../tools/bd.ts`), `repoNameWithOwner` /
+ * surface), `loadAllBeadsViaCli` (`../triage/beads-daemon-loader.ts`), `repoNameWithOwner` /
  * `listIssuesByState` (`../pr-state/github.ts`), `resolveIssueId`
  * (`../issues/resolver.ts`). DI shape mirrors `src/intake/intake-mirror.ts`.
  */
@@ -50,15 +50,14 @@ import {
   execGhIssueCreate as defaultExecGhIssueCreate,
   type GhIssueCreateResult,
 } from "../tools/gh_issue_create.ts";
-import { execBd as defaultExecBd } from "@bounded-systems/bd";
 import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import { execGh as defaultExecGh, type GhExecResult } from "@bounded-systems/gh";
 import {
   extractIssueNumber,
-  loadAllBeads as defaultLoadAllBeads,
   normalizeTitle,
   type BeadsRecord,
 } from "../triage/triage.ts";
+import { loadAllBeadsViaCli } from "../triage/beads-daemon-loader.ts";
 import { issueLabelsFor } from "../triage/bd-axis-labels.ts";
 import {
   listIssuesByState as defaultListIssuesByState,
@@ -109,14 +108,18 @@ type Output = {
 
 export type BeadsPublishDeps = {
   execGhIssueCreate?: typeof defaultExecGhIssueCreate;
-  execBd?: typeof defaultExecBd;
   /**
    * GH-296 / prx-82b — sync runner for the daemon-routed external-ref write-back
    * (`prx beads update <id> --external-ref <url>`). Default: procRunner.
    */
   run?: CommandRunner;
   execGh?: typeof defaultExecGh;
-  loadAllBeads?: typeof defaultLoadAllBeads;
+  /**
+   * prx-022t — bead record reader; defaults to `loadAllBeadsViaCli` (daemon-backed)
+   * so reads and the daemon write-back see the same canonical beads database.
+   * Tests inject `() => records` directly.
+   */
+  loadAllBeads?: () => BeadsRecord[];
   repoNameWithOwner?: typeof defaultRepoNameWithOwner;
   listIssuesByState?: typeof defaultListIssuesByState;
   cwd?: () => string;
@@ -286,10 +289,12 @@ function linkExistingResult(
 
 export function publishOne(opts: BeadsPublishOptions, deps: BeadsPublishDeps): PublishCoreResult {
   const ghCreate = deps.execGhIssueCreate ?? defaultExecGhIssueCreate;
-  const bdExec = deps.execBd ?? defaultExecBd;
   const run = deps.run ?? procRunner;
   const ghExec = deps.execGh ?? defaultExecGh;
-  const loadBeads = deps.loadAllBeads ?? defaultLoadAllBeads;
+  // prx-022t: use daemon-backed read so reads and the step-10 write-back see
+  // the same canonical beads (avoids bd-update failures when the daemon serves
+  // ~/.local/state/prx/beads but direct execBd would hit the worktree's .beads).
+  const loadBeads = deps.loadAllBeads ?? (() => loadAllBeadsViaCli());
   const resolveRepo = deps.repoNameWithOwner ?? defaultRepoNameWithOwner;
   const listIssues = deps.listIssuesByState ?? defaultListIssuesByState;
   const getCwd = deps.cwd ?? process.cwd;
@@ -302,7 +307,7 @@ export function publishOne(opts: BeadsPublishOptions, deps: BeadsPublishDeps): P
   const pushAdapter = deps.pushAdapter ?? new GhDomainAdapter();
 
   const result = publishOneInner(opts, {
-    ghCreate, bdExec, run, ghExec, loadBeads, resolveRepo, listIssues, getCwd,
+    ghCreate, run, ghExec, loadBeads, resolveRepo, listIssues, getCwd,
     invalidateBeadsCache: deps.invalidateBeadsCache,
     pushAdapter,
   });
@@ -340,10 +345,9 @@ export function publishOne(opts: BeadsPublishOptions, deps: BeadsPublishDeps): P
 
 type PublishInnerDeps = {
   ghCreate: typeof defaultExecGhIssueCreate;
-  bdExec: typeof defaultExecBd;
   run: CommandRunner;
   ghExec: typeof defaultExecGh;
-  loadBeads: typeof defaultLoadAllBeads;
+  loadBeads: () => BeadsRecord[];
   resolveRepo: typeof defaultRepoNameWithOwner;
   listIssues: typeof defaultListIssuesByState;
   getCwd: () => string;
@@ -352,7 +356,7 @@ type PublishInnerDeps = {
 };
 
 function publishOneInner(opts: BeadsPublishOptions, deps: PublishInnerDeps): PublishCoreResult {
-  const { ghCreate, bdExec, run, ghExec, loadBeads, resolveRepo, listIssues, getCwd, pushAdapter } = deps;
+  const { ghCreate, run, ghExec, loadBeads, resolveRepo, listIssues, getCwd, pushAdapter } = deps;
 
   // Step 1: resolve <bd-id>. Refuse GH-form input — the publish direction is
   // bd → GH; GH → bd is `prx intake mirror`.
@@ -401,7 +405,7 @@ function publishOneInner(opts: BeadsPublishOptions, deps: PublishInnerDeps): Pub
   // Step 3: load all beads — the full dedup-required read (`feedback_promote_check_dedup`).
   let records: BeadsRecord[];
   try {
-    records = loadBeads(bdExec);
+    records = loadBeads();
   } catch (err) {
     return errorResult(
       bdId,

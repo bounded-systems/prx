@@ -52,7 +52,7 @@ Manual single-package publish: push a `@bounded-systems/<pkg>@<version>` tag, or
 
 ## Package status
 
-12 ready, 10 held — of 22 publishable packages.
+13 ready, 9 held — of 22 publishable packages.
 
 | Package | Version | Auto-publish | Intra-scope deps |
 | --- | --- | --- | --- |
@@ -76,5 +76,5 @@ Manual single-package publish: push a `@bounded-systems/<pkg>@<version>` tag, or
 | `@bounded-systems/repo-root` | 0.1.0 | ⏳ held | `proc` |
 | `@bounded-systems/scout` | 0.1.1 | ✅ ready | `anchored-chain`, `anchored-chain-sqlite`, `cas` |
 | `@bounded-systems/slack` | 0.2.1 | ⏳ held | `anchored-chain`, `anchored-chain-sqlite`, `auth`, `cas`, `env`, `policy`, `proc` |
-| `@bounded-systems/surface-sync` | 0.2.0 | ⏳ held | `disposition` |
+| `@bounded-systems/surface-sync` | 0.2.0 | ✅ ready | `disposition` |
 | `@bounded-systems/verbspec` | 0.3.0 | ✅ ready | — |
