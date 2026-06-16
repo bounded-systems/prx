@@ -71,6 +71,9 @@
     "packages/disposition": {
       "name": "@bounded-systems/disposition",
       "version": "0.2.0",
+      "dependencies": {
+        "zod": "^4.4.3",
+      },
       "peerDependencies": {
         "zod": "^3.25.0 || ^4.0.0",
       },
@@ -157,6 +160,9 @@
     "packages/prx-config": {
       "name": "@bounded-systems/prx-config",
       "version": "0.2.0",
+      "dependencies": {
+        "zod": "^4.4.3",
+      },
       "peerDependencies": {
         "zod": "^3.25.0 || ^4.0.0",
       },
@@ -200,6 +206,9 @@
     "packages/verbspec": {
       "name": "@bounded-systems/verbspec",
       "version": "0.3.0",
+      "dependencies": {
+        "zod": "^4.4.3",
+      },
       "peerDependencies": {
         "zod": "^3.25.0 || ^4.0.0",
       },
