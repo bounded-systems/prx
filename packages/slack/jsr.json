@@ -1,0 +1,11 @@
+{
+  "name": "@bounded-systems/slack",
+  "version": "0.1.0",
+  "exports": "./src/index.ts",
+  "publish": {
+    "exclude": [
+      "**/__tests__/**",
+      "dist/**"
+    ]
+  }
+}

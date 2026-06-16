@@ -1,0 +1,11 @@
+{
+  "name": "@bounded-systems/policy",
+  "version": "0.0.0",
+  "exports": "./src/index.ts",
+  "publish": {
+    "exclude": [
+      "**/__tests__/**",
+      "dist/**"
+    ]
+  }
+}
