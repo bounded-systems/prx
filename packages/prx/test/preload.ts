@@ -18,7 +18,14 @@ mkdirSync(tempRoot, { recursive: true });
 // report always lands at the repo root and tests stay hermetic w.r.t. cwd.
 const ORIGINAL_CWD = process.cwd();
 afterEach(() => {
-  if (process.cwd() !== ORIGINAL_CWD) process.chdir(ORIGINAL_CWD);
+  // Restore unconditionally: reading process.cwd() first would throw ENOENT if a
+  // test left cwd in a since-deleted dir — the very case we must recover from.
+  // chdir to an absolute path doesn't depend on the current cwd, so it's safe.
+  try {
+    process.chdir(ORIGINAL_CWD);
+  } catch {
+    // best-effort; nothing we can do if the repo root itself vanished
+  }
 });
 
 for (const key of ["TMPDIR", "TMP", "TEMP"] as const) {
