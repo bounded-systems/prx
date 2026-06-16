@@ -22,6 +22,7 @@
 
 import { type Server, type Socket } from "node:net";
 
+import { type Derivation } from "@bounded-systems/anchored-chain";
 import { execGit } from "@bounded-systems/git";
 
 import { encodeFrame, FrameDecoder, runFramedServe } from "../door/framing.ts";
@@ -90,6 +91,11 @@ export async function handleKeeperRequest(
     deps.importBundle ?? ((input) => importBundleIntoRepo(input, { git }));
   // Per-request ledger: opened here from request.ledgerRef, closed in `finally`.
   let ledger: { store: AttestDeps["store"]; close: () => void } | undefined;
+  // The push/v1 derivations the attesting push appends — captured so the daemon
+  // can RETURN the signed one (the host's GH-2249 requireSigned gate verifies the
+  // daemon's `signedDerivation`; without returning it the door path is a no-op —
+  // prx-a36l). Recorded by decorating the ledger's `append` (no `attest` change).
+  const appended: Derivation[] = [];
   try {
     importBundle({
       cwd: deps.cwd,
@@ -104,7 +110,20 @@ export async function handleKeeperRequest(
     // push, unchanged.
     if (request.ledgerRef !== undefined && deps.signer !== undefined && deps.openLedger !== undefined) {
       ledger = deps.openLedger(request.ledgerRef);
-      pushDeps = { git, attest: { signer: deps.signer, store: ledger.store } };
+      const store = ledger.store;
+      pushDeps = {
+        git,
+        attest: {
+          signer: deps.signer,
+          store: {
+            get: (id) => store.get(id),
+            async append(d) {
+              await store.append(d);
+              appended.push(d);
+            },
+          },
+        },
+      };
     }
     const pushResult = await runKeeperPush(pushArgs, deps.cwd, pushDeps);
     if (pushResult.exitCode !== 0) {
@@ -115,7 +134,15 @@ export async function handleKeeperRequest(
         exitCode: pushResult.exitCode,
       };
     }
-    return { status: "ok", commitSha: request.commitSha, pushedRef: `refs/heads/${request.branch}` };
+    // Return the signed push/v1 so the host can verify it (prx-a36l). The bare
+    // push (no ledgerRef/signer) appends nothing, so the field stays absent.
+    const signedDerivation = appended.at(-1);
+    return {
+      status: "ok",
+      commitSha: request.commitSha,
+      pushedRef: `refs/heads/${request.branch}`,
+      ...(signedDerivation !== undefined ? { signedDerivation } : {}),
+    };
   } catch (err) {
     if (err instanceof KeeperGitError) {
       return { status: "error", code: "git-write", message: err.message, exitCode: err.exitCode };
