@@ -32,6 +32,24 @@ import { JSR_PACKAGES } from "./jsr-manifest.generated.ts";
 const DRY = process.argv.includes("--dry-run");
 const STRICT = process.argv.includes("--strict");
 
+// Packages cleared for auto-publish. Each has a clean `jsr publish` — no
+// unsupported import attributes (e.g. `with { type: "text" }`), and every
+// intra-scope dependency is itself published to JSR. A package NOT in this set
+// is held (skipped, not failed) so a release stays green; add it here once
+// `jsr publish` succeeds for it. The remaining @bounded-systems/* packages have
+// real JSR-compat blockers tracked separately. `--all` overrides the gate (e.g.
+// to re-discover which packages now pass).
+const READY = new Set<string>([
+  "anchored-chain",
+  "audit-context",
+  "auth",
+  "cas",
+  "env",
+  "host",
+  "scout",
+]);
+const ALL = process.argv.includes("--all");
+
 const API = "https://api.jsr.io";
 // packages/prx/scripts → packages/
 const packagesDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -96,7 +114,11 @@ function topo(pkgs: Pkg[]): Pkg[] {
  * caller checks membership against the returned set instead.
  */
 async function publishedVersions(scope: string, pkg: string): Promise<Set<string>> {
-  const res = await fetch(`${API}/scopes/${scope}/packages/${pkg}/versions?limit=100`, {
+  // NB: no `?limit=` — that query param makes this endpoint return an empty
+  // page ({items:[],total:0}). The default page lists the (few) versions, newest
+  // first, which covers our release cadence; revisit if a package ever carries
+  // more versions than one page.
+  const res = await fetch(`${API}/scopes/${scope}/packages/${pkg}/versions`, {
     headers: { accept: "application/json" },
   });
   if (res.status === 404) return new Set(); // package not reserved yet → nothing published
@@ -124,6 +146,11 @@ const failed: string[] = [];
 
 for (const p of ordered) {
   const tag = `${p.name}@${p.version}`;
+  if (!ALL && !READY.has(p.pkg)) {
+    console.log(`- hold    ${tag} (not yet cleared for JSR auto-publish)`);
+    skipped++;
+    continue;
+  }
   if ((await publishedVersions(p.scope, p.pkg)).has(p.version)) {
     console.log(`- skip    ${tag} (already on JSR)`);
     skipped++;
