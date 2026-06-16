@@ -10,6 +10,8 @@ import {
   RoomSpecSchema,
   roomExposes,
   roomGrants,
+  roomNeedsSecretRuntime,
+  roomSecrets,
   type RoomSpec,
 } from "../../src/room/spec.ts";
 
@@ -49,6 +51,35 @@ describe("RoomSpecSchema", () => {
     expect(room({ image: "claude-box" }).image).toBe("claude-box");
     // empty image is rejected.
     expect(() => RoomSpecSchema.parse({ name: "r", image: "" })).toThrow();
+  });
+
+  test("defaults to no secrets; rejects a malformed secret", () => {
+    expect(room().secrets).toEqual([]);
+    expect(() =>
+      RoomSpecSchema.parse({ name: "r", secrets: [{ name: "k", target: "" }] }),
+    ).toThrow();
+    expect(() =>
+      RoomSpecSchema.parse({ name: "r", secrets: [{ name: "", target: "/run/secrets/k" }] }),
+    ).toThrow();
+  });
+});
+
+describe("roomSecrets / roomNeedsSecretRuntime (prx-b44y)", () => {
+  test("a room with no secrets needs no secret runtime", () => {
+    const r = room();
+    expect(roomSecrets(r)).toEqual([]);
+    expect(roomNeedsSecretRuntime(r)).toBe(false);
+  });
+
+  test("a secret-holding room needs the secret runtime; secrets sort by target", () => {
+    const r = room({
+      secrets: [
+        { name: "b-key", target: "/run/secrets/b" },
+        { name: "a-key", target: "/run/secrets/a" },
+      ],
+    });
+    expect(roomNeedsSecretRuntime(r)).toBe(true);
+    expect(roomSecrets(r).map((s) => s.target)).toEqual(["/run/secrets/a", "/run/secrets/b"]);
   });
 });
 

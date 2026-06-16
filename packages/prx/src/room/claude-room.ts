@@ -42,4 +42,6 @@ export const claudeRoom: RoomSpec = {
   // The occupant's own boundary is whatever the open consumed doors carry
   // (beads:read, git:write) — no standalone tool authority baked in.
   grants: [],
+  // No host secret — the agent room runs as a kube-play pod member.
+  secrets: [],
 };

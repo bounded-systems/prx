@@ -26,4 +26,6 @@ export const beadsdRoom: RoomSpec = {
   ],
   // The daemon's own occupant authority is internal to bd; nothing extra here.
   grants: [],
+  // No host secret — beadsd runs as a kube-play pod member.
+  secrets: [],
 };

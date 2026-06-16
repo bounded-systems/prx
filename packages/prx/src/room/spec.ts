@@ -36,6 +36,28 @@ import { ExecutorSpecSchema } from "../executor/spec.ts";
  * serves it for other rooms to consume. Mirrors the daemon-door transport the
  * bd-door gate already uses (beadsd/keeperd).
  */
+/**
+ * A host-backed secret the room needs at runtime — the keeper's provenance
+ * signing key is the first (prx-b44y). `name` is the **host** podman-secret name
+ * (`podman secret create <name> …`, sourced from the operator's secret store —
+ * 1Password/keychain, never a plaintext file or the pod manifest); `target` is
+ * where it lands inside the room (the keeperd-box entrypoint reads
+ * `/run/secrets/keeper-key` into `PRX_PROVENANCE_KEY`).
+ *
+ * A room that declares any secret is a **secret-holding room**: it CANNOT run
+ * via `podman kube play` (which only accepts in-YAML k8s Secrets — base64-ing the
+ * key INTO the manifest, the very thing the door ADR forbids). It runs via
+ * `podman run --secret` instead ({@link ../room/podman.renderPodmanRun}); its
+ * door still lives on the shared door fabric both runtimes mount.
+ */
+export const RoomSecretSchema = z.object({
+  /** The host podman-secret name to inject (`podman run --secret <name>,…`). */
+  name: z.string().min(1),
+  /** The mount target inside the room (e.g. `/run/secrets/keeper-key`). */
+  target: z.string().min(1),
+});
+export type RoomSecret = z.infer<typeof RoomSecretSchema>;
+
 export const RoomDoorSchema = z.object({
   /** Door name; matches the daemon it fronts (`beadsd`, `keeperd`, `builder`). */
   name: z.string().min(1),
@@ -102,8 +124,32 @@ export const RoomSpecSchema = z.object({
    * consumed doors (e.g. a build room granting `nix:build` to its own occupant).
    */
   grants: z.array(z.string().min(1)).default([]),
+  /**
+   * Host-backed secrets the room needs at runtime (prx-b44y). A non-empty list
+   * makes this a **secret-holding room** — it runs via `podman run --secret`,
+   * NOT `podman kube play` (see {@link RoomSecretSchema}).
+   */
+  secrets: z.array(RoomSecretSchema).default([]),
 });
 export type RoomSpec = z.infer<typeof RoomSpecSchema>;
+
+/**
+ * The room's host-backed secrets (sorted by mount target for stable rendering).
+ */
+export function roomSecrets(room: RoomSpec): RoomSecret[] {
+  return [...RoomSpecSchema.parse(room).secrets].sort((a, b) => a.target.localeCompare(b.target));
+}
+
+/**
+ * True iff the room holds any secret — it must run via `podman run --secret`
+ * (its own isolated container) rather than as a `podman kube play` pod member,
+ * because kube-play cannot mount a host-created podman secret. The pod
+ * orchestration routes such rooms to the secret runtime and keeps the rest in
+ * the kube pod; both share the door fabric.
+ */
+export function roomNeedsSecretRuntime(room: RoomSpec): boolean {
+  return RoomSpecSchema.parse(room).secrets.length > 0;
+}
 
 /**
  * The occupant's full capability boundary: the explicit {@link RoomSpec.grants}
