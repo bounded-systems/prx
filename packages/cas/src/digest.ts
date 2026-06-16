@@ -22,6 +22,12 @@ export function sha256BareHex(input: string | Uint8Array): string {
   return hash.digest("hex");
 }
 
+/**
+ * SHA-256 of the input as a prefixed {@link Digest} (`sha256:<64 hex>`) — the
+ * CAS substrate's native content address. Wraps {@link sha256BareHex} with the
+ * algorithm prefix so the result is type-distinct from a bare hex string and
+ * can't be passed where a raw hash is expected.
+ */
 export function sha256Hex(input: string | Uint8Array): Digest {
   return `sha256:${sha256BareHex(input)}` as Digest;
 }
