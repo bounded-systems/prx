@@ -25,6 +25,7 @@ const SCRIPT_BASELINE = new Set<string>([
   "audit_sample.ts",
   "codeql-quality.ts",
   "coverage-summary.ts",
+  "gen-jsr-manifest.ts",
   "jsr-sync.ts",
   "lcov-to-cobertura.ts",
   "prx-compile.ts",
@@ -38,7 +39,11 @@ function delegatesToSrc(file: string): boolean {
 }
 
 function scriptFiles(): string[] {
-  return readdirSync(SCRIPTS_DIR).filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
+  // Generated modules (`*.generated.ts`) are data, not authored scripts — the
+  // delegation rule doesn't apply to them.
+  return readdirSync(SCRIPTS_DIR).filter(
+    (f) => f.endsWith(".ts") && !f.endsWith(".test.ts") && !f.endsWith(".generated.ts"),
+  );
 }
 
 describe("scripts delegate to prx (scripts → verbs forcing function)", () => {
