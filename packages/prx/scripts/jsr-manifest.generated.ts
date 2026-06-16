@@ -72,6 +72,12 @@ export const JSR_PACKAGES: readonly JsrPackageMeta[] = [
     "repo": {
       "owner": "bounded-systems",
       "name": "prx"
+    },
+    "runtimeCompat": {
+      "node": true,
+      "deno": true,
+      "bun": true,
+      "browser": false
     }
   },
   {
