@@ -25,6 +25,79 @@ manifest), injected to a tmpfs path — and never touches an image layer, a git
 file, or a registry. The key format is `ed25519:<base64 of the raw 32-byte
 seed>` (`anchored-chain/src/signing.ts` `importEd25519PrivateKey`).
 
+### ✅ D. LIVE sibling-container e2e: keeperd imports + signs + pushes over the door (prx-b44y)
+
+The full path finding C left deferred — a door client **co-located in the pod**
+driving keeperd to a real signed push — now runs end to end. No GitHub: a local
+**bare repo** is the "remote", a throwaway ed25519 key the signer.
+
+```sh
+ROOT=$(mktemp -d)                                 # /var/folders (VM-mounted), NOT /tmp
+git init -q --bare "$ROOT/bare.git"
+git -C "$ROOT/bare.git" symbolic-ref HEAD refs/heads/main   # bare defaults to master
+# … seed one commit C0 on main, then:
+git clone -q "$ROOT/bare.git" "$ROOT/keeper-work"           # keeperd's clone …
+git -C "$ROOT/keeper-work" remote set-url origin /remote.git #  … origin → in-box path
+
+# the keyless committer (model A) builds C1 on top of C0 and bundles (C0, branch]:
+#   tree=write-tree; C1=commit-tree $tree -p $C0; branch test-branch -> C1
+#   git bundle create range.bundle "$C0..test-branch"
+
+printf 'ed25519:%s' "$SEED" | podman secret create prx-keeper-key -   # host-backed
+podman run -d --name e2e-keeperd \
+  --secret prx-keeper-key,target=/run/secrets/keeper-key \
+  -v "$ROOT/doors:/run/prx/doors" \
+  -v "$ROOT/keeper-work:/work" \
+  -v "$ROOT/bare.git:/remote.git" -w /work \
+  localhost/keeperd-box:0.9.0          # entrypoint → prx keeper serve … keeperd.sock
+
+# drive the door from a SIBLING container holding NO git authority — just socat:
+podman run --rm -v "$ROOT/doors:/run/prx/doors" -v "$ROOT:/host" alpine \
+  sh -c 'apk add -q socat && socat -T3 - UNIX-CONNECT:/run/prx/doors/keeperd.sock \
+           < /host/req.frame > /host/resp.frame'
+#   req.frame = <uint32-BE len><json>  (door/framing.ts), built on the host:
+#   {"kind":"import-and-push","bundleBase64":…,"commitSha":"<C1>",
+#    "branch":"test-branch","remote":"origin","ledgerRef":"/work/ledger.sqlite"}
+```
+
+**Results (all PASS):**
+
+- **Push landed.** `git -C "$ROOT/bare.git" rev-parse refs/heads/test-branch`
+  equals the host-built `C1` — keeperd imported the bundle into its clone and
+  pushed the branch to the bare "remote" through the door. The sibling container
+  never held git authority; it only spoke the socket.
+- **Push was signed in the box.** With `PRX_PROVENANCE_KEY` resolved from the
+  host secret, the request's `ledgerRef` made the daemon emit a SLSA `push/v1`
+  derivation into `/work/ledger.sqlite` (an anchored-chain-sqlite ledger):
+  `producer prx://claude-code/keeper`, subject `gitCommit:<C1>`, predicate
+  `https://slsa.dev/provenance/v1`, buildType `https://prx.dev/git/push`.
+- **Signature verifies against the throwaway *pubkey*.** `verifySlsaDerivation`
+  with `ed25519Verifier(importEd25519PublicKey(<pub>))` returns `true`; a wrong
+  key returns `false` (negative control). The host verifies with the public half
+  only — it never held the signing key.
+
+So the prx-b44y runtime split is validated all the way through: a host-backed
+secret delivers the key → keeperd-box exposes its door on the shared fabric → a
+sibling container ships a keyless host-built bundle → keeperd performs the *only*
+sensitive step (signed push) and a third party verifies the signature.
+
+> **One gap, expected.** The loaded box is prx **v0.9.0**, which predates #644
+> (prx-a36l): the daemon writes the signed `push/v1` to the **ledger** but does
+> not yet RETURN it in the response (`status:ok` carried only `commitSha` +
+> `pushedRef`, `signedDerivation` was absent — exactly finding B). #634's box-mode
+> `requireSigned` gate reads `resp.signedDerivation`, so **that gate needs a
+> keeperd-box rebuilt from a release ≥ #644**. The signing itself already works
+> in v0.9.0 — only the return wiring is missing from the released binary.
+
+> **Door client, in practice.** There is no standalone door-push CLI verb, and
+> the box wraps the *released* prx binary (`nix/oci/prx-fhs.nix`), so a new
+> `prx keeper door-push` verb cannot be exercised in the box without a release +
+> image rebuild. For the live run the door was driven with a **host-built frame +
+> `socat` sibling** — a faithful, dependency-free stand-in for the claude-room
+> consumer (model A: the keyless committer builds the bundle; the box only relays
+> it over the door reference it holds). Once a release carries the door-push path,
+> re-run this against the box's own `/bin/prx` to retire the socat shim.
+
 ## What the spike found (two real things)
 
 ### 🔧 B. The keeperd daemon does not RETURN `signedDerivation` → #634's door + requireSigned is a no-op (prx-a36l)
@@ -50,7 +123,10 @@ kernel. This is not a bug; it *confirms the intended architecture*: the door
 client (claude-box) and keeperd are **sibling containers in the same pod**,
 sharing the `/run/prx/doors` tmpfs and one kernel. A full live import+push
 validation therefore needs the client **co-located in the pod**, not on the host
-— a sibling-container harness, deferred.
+— a sibling-container harness. **Now done — see finding D**: a sibling container
+sharing `/run/prx/doors` drove keeperd to a real signed push, confirming the
+host-can't-dial boundary is the *only* boundary (the in-kernel sibling reaches
+the door unchanged).
 
 ## Harness gotchas (for the next runner)
 
@@ -64,8 +140,14 @@ validation therefore needs the client **co-located in the pod**, not on the host
 
 ## Outcome
 
-prx-b44y's secret mechanism is **validated**; the runtime split (secret-holding
-daemons via `podman --secret`, agent via kube-play) holds. Two follow-ups:
-prx-a36l (return `signedDerivation`) unblocks signed publish over the door, and
-the live import+push e2e needs a sibling-container client harness (the
-host-driven shortcut is impossible by design — finding C).
+prx-b44y is **validated end to end**: the host-backed secret delivers the key
+(A), the runtime split (secret-holding daemons via `podman --secret`, agent via
+kube-play) holds, and a **sibling container drives keeperd to a real, verifiable
+signed push over the door** (D) — the live import+push e2e finding C left open.
+
+One follow-up remains on the *release* path, not the mechanism: prx-a36l (#644,
+merged to `main`) makes the daemon RETURN `signedDerivation` so #634's box-mode
+`requireSigned` gate can verify it — but the in-pod box must be **rebuilt from a
+release ≥ #644** (the loaded v0.9.0 box signs into the ledger but doesn't return
+the derivation). The production runtime form (a systemd podman **quadlet** with
+`Secret=`, borrowing claude-box's doors hardening) lands alongside this.
