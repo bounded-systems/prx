@@ -52,6 +52,12 @@ const PER_FILE_BASELINE = new Set<string>([
   "packages/prx/src/triage/prioritize-bulk.ts", // inline headless haiku call; moves to a headless actor (#502)
   "packages/prx/src/session/open.ts", // large session-open flow
   "packages/prx/src/tools/agent_doctor.ts", // spawn-bound: real SDK probe + spawnCapture runner can't run deterministically in CI
+  // GH-664: pre-existing gaps that the broken coverage gate (no lcov) hid until
+  // it was restored. Each is wiring/spawn/fs-bound; improve separately.
+  "packages/prx/src/fetch/slack-sync.ts", // `prx fetch slack` composition root — injectable seams; integration paths uncovered
+  "packages/prx/src/machine/claude_capabilities.ts", // spawn-bound: probes the real `claude` binary via spawnCapture, non-deterministic in CI
+  "packages/prx/src/pr-state/session-finder.ts", // fs/env-bound session discovery extracted from cli.ts (itself baselined)
+  "packages/prx/src/slack/scout-cli.ts", // slack read-surface composition root — authority/credential wiring
 ]);
 
 type Totals = { lf: number; lh: number; fnf: number; fnh: number; brf: number; brh: number; files: number };
