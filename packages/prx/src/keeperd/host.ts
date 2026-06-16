@@ -19,6 +19,7 @@ import { execGit } from "@bounded-systems/git";
 
 import { runKeeperCommitTree, runKeeperWriteTree } from "../pr-state/keeper.ts";
 import { createCommitRangeBundle } from "./bundle.ts";
+import { withKeeperClient } from "./client-factory.ts";
 import { IsolatedKeeperClient } from "./client.ts";
 import type { KeeperRemoteRequest, KeeperRemoteResponse } from "./contract.ts";
 
@@ -89,4 +90,57 @@ export async function runKeeperRemote(
     ...(input.ledgerRef !== undefined ? { ledgerRef: input.ledgerRef } : {}),
   };
   return client.importAndPush(request);
+}
+
+/**
+ * One keeper push of an ALREADY-materialized commit, routed through the door.
+ *
+ * Unlike {@link runKeeperRemote}, the caller has already run the local
+ * `commit-tree` (e.g. the submit-publish orchestrator materializing from a CAS
+ * tree artifact), so this only bundles the resulting range `(parentSha, branch]`
+ * and asks keeperd to import + signed-push it via {@link withKeeperClient} — no
+ * redundant write-tree/commit-tree. The door endpoint comes from the projected
+ * `PRX_KEEPER_*` env; the daemon holds the push credential + signing key.
+ */
+export interface KeeperDoorPushInput {
+  /** Worktree holding the materialized commit (its objects feed the bundle). */
+  cwd: string;
+  /** Lineage parent — the bundle's prerequisite (excluded from the range). */
+  parentSha: string;
+  /** The already-materialized commit (host `commit-tree`) keeperd imports + pushes. */
+  commitSha: string;
+  /** Branch to point at the imported commit and push. */
+  branch: string;
+  /** Push remote (e.g. `origin`). */
+  remote: string;
+  /** Extra `git push` args (e.g. `--force-with-lease`). */
+  pushArgs?: string[] | undefined;
+  /** Opt-in: the daemon emits a signed `push/v1` into this ledger ref. */
+  ledgerRef?: string | undefined;
+}
+
+/** Injectable seams for {@link runKeeperDoorPush} (default to the real impls). */
+export interface KeeperDoorPushDeps {
+  bundle?: typeof createCommitRangeBundle | undefined;
+  withClient?: typeof withKeeperClient | undefined;
+}
+
+export async function runKeeperDoorPush(
+  input: KeeperDoorPushInput,
+  deps: KeeperDoorPushDeps = {},
+): Promise<KeeperRemoteResponse> {
+  const bundle = deps.bundle ?? createCommitRangeBundle;
+  const withClient = deps.withClient ?? withKeeperClient;
+  const bundleBase64 = bundle({ cwd: input.cwd, parentSha: input.parentSha, branch: input.branch });
+  return withClient((client) =>
+    client.importAndPush({
+      kind: "import-and-push",
+      bundleBase64,
+      commitSha: input.commitSha,
+      branch: input.branch,
+      remote: input.remote,
+      ...(input.pushArgs !== undefined ? { pushArgs: input.pushArgs } : {}),
+      ...(input.ledgerRef !== undefined ? { ledgerRef: input.ledgerRef } : {}),
+    }),
+  );
 }

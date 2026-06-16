@@ -7,7 +7,11 @@ import {
   type KeeperTransport,
 } from "../../src/keeperd/client.ts";
 import type { KeeperRemoteRequest } from "../../src/keeperd/contract.ts";
-import { runKeeperRemote, type KeeperRemoteInput } from "../../src/keeperd/host.ts";
+import {
+  runKeeperDoorPush,
+  runKeeperRemote,
+  type KeeperRemoteInput,
+} from "../../src/keeperd/host.ts";
 
 const TREE = "a".repeat(40);
 const COMMIT = "b".repeat(40);
@@ -101,5 +105,65 @@ describe("runKeeperRemote (host orchestrator, model A)", () => {
     const res = await runKeeperRemote(INPUT, client, { git: fakeGit().git, bundle: () => BUNDLE });
     expect(res.status).toBe("error");
     if (res.status === "error") expect(res.exitCode).toBe(128);
+  });
+});
+
+describe("runKeeperDoorPush (door push of an already-materialized commit)", () => {
+  test("bundles the (parent, branch] range and asks keeperd to import + push the commit", async () => {
+    let sent: KeeperRemoteRequest | undefined;
+    let bundledFor: { cwd: string; parentSha: string; branch: string } | undefined;
+    const res = await runKeeperDoorPush(
+      { cwd: "/work/repo", parentSha: "c".repeat(40), commitSha: COMMIT, branch: "GH-456", remote: "origin" },
+      {
+        bundle: (i) => {
+          bundledFor = i;
+          return BUNDLE;
+        },
+        withClient: (fn) =>
+          fn(
+            new IsolatedKeeperClient(async (req) => {
+              sent = req;
+              return { status: "ok", commitSha: COMMIT, pushedRef: "refs/heads/GH-456" };
+            }),
+          ),
+      },
+    );
+    // It does NOT re-commit (no write-tree/commit-tree) — only the bundle is cut.
+    expect(bundledFor).toEqual({ cwd: "/work/repo", parentSha: "c".repeat(40), branch: "GH-456" });
+    expect(sent).toEqual({
+      kind: "import-and-push",
+      bundleBase64: BUNDLE,
+      commitSha: COMMIT,
+      branch: "GH-456",
+      remote: "origin",
+    });
+    expect(res).toEqual({ status: "ok", commitSha: COMMIT, pushedRef: "refs/heads/GH-456" });
+  });
+
+  test("threads pushArgs + ledgerRef into the request", async () => {
+    let sent: KeeperRemoteRequest | undefined;
+    await runKeeperDoorPush(
+      {
+        cwd: "/w",
+        parentSha: "c".repeat(40),
+        commitSha: COMMIT,
+        branch: "b",
+        remote: "origin",
+        pushArgs: ["--force-with-lease"],
+        ledgerRef: "GH-456:keeper",
+      },
+      {
+        bundle: () => BUNDLE,
+        withClient: (fn) =>
+          fn(
+            new IsolatedKeeperClient(async (req) => {
+              sent = req;
+              return { status: "ok", commitSha: COMMIT, pushedRef: "refs/heads/b" };
+            }),
+          ),
+      },
+    );
+    expect(sent?.pushArgs).toEqual(["--force-with-lease"]);
+    expect(sent?.ledgerRef).toBe("GH-456:keeper");
   });
 });

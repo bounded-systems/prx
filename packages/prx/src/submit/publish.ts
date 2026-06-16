@@ -24,6 +24,8 @@ import { verifySlsaDerivation } from "../provenance/verify.ts";
 // keeper (attesting) and the PR-open to publisher, keeping only artifact
 // resolution, the relocated requireSigned verify gate, and the slot advance.
 import { runKeeperCommitTree, runKeeperPush } from "../pr-state/keeper.ts";
+import { isKeeperDoorMode } from "../keeperd/endpoint.ts";
+import { runKeeperDoorPush } from "../keeperd/host.ts";
 import { runPrOpen } from "../pr-state/publisher.ts";
 import type { DoctorOutput, DoctorTarget } from "../pr-state/doctor.ts";
 import {
@@ -124,6 +126,18 @@ export interface PublishDeps {
   // through the effect roles rather than running git/gh itself.
   /** Keeper's attesting push (defaults to the real `runKeeperPush`). */
   keeperPush?: typeof runKeeperPush;
+  /**
+   * Box profile (prx-asr): when `isKeeperDoorMode()` (the projected
+   * `PRX_KEEPER_DOOR`), route the push through the keeperd door instead of a
+   * local push — the host bundles the materialized commit range and the daemon
+   * imports + signed-pushes it (the host holds no push credential / signing key).
+   * `keeperDoorMode` + `keeperDoor` are injected in tests; `keeperLedgerRef` is
+   * the ledger the daemon signs `push/v1` into (its `signedDerivation` is what
+   * the requireSigned gate then verifies).
+   */
+  keeperDoorMode?: () => boolean;
+  keeperDoor?: typeof runKeeperDoorPush;
+  keeperLedgerRef?: string;
   /**
    * GH-2381: keeper's commit-tree materialization (defaults to the real
    * `runKeeperCommitTree`). Synthesizes the publishable commit from the
@@ -281,29 +295,62 @@ export async function runSubmitPublish(
         },
       }
     : undefined;
-  const keeperPush = deps.keeperPush ?? runKeeperPush;
-  const push = await keeperPush(
-    pushArgs,
-    undefined,
-    pushAttest ? { attest: pushAttest } : {},
-  );
-  if (push.exitCode !== 0) {
-    const tail = (push.stderr ?? "").trim().split("\n").slice(-1)[0] ?? "";
-    throw new PublishError(
-      `prx submit publish: keeper push failed (${push.exitCode}) ${tail}`.trim(),
+  // Off-box (default) this is a local attesting push. In the box profile
+  // (`PRX_KEEPER_DOOR`, prx-asr) it routes through the keeperd door: the host
+  // bundles the materialized commit range and the daemon imports + signed-pushes
+  // it (the host holds no push credential / signing key). Either way `signed` is
+  // the push's `push/v1` derivation — host-captured locally, or returned by the
+  // daemon over the door — which the GH-2249 gate below verifies.
+  const keeperDoorMode = deps.keeperDoorMode ?? isKeeperDoorMode;
+  let signed: Derivation | null;
+  if (keeperDoorMode()) {
+    const keeperDoor = deps.keeperDoor ?? runKeeperDoorPush;
+    const resp = await keeperDoor({
+      cwd: process.cwd(),
+      parentSha: artifact.baseSha,
+      commitSha: materializedCommit,
+      branch,
+      remote: "origin",
+      ...(deps.keeperLedgerRef !== undefined ? { ledgerRef: deps.keeperLedgerRef } : {}),
+    });
+    if (resp.status === "error") {
+      throw new PublishError(
+        `prx submit publish: keeper door push failed (${resp.code}) ${resp.message}`.trim(),
+      );
+    }
+    // The daemon must have imported + pushed exactly the commit we materialized
+    // (its own seam verifies the imported tip equals commitSha before pushing).
+    if (resp.commitSha !== materializedCommit) {
+      throw new PublishError(
+        `prx submit publish: keeper door push reports ${resp.commitSha}, not the materialized commit ${materializedCommit}`,
+      );
+    }
+    signed = (resp.signedDerivation as Derivation | undefined) ?? null;
+  } else {
+    const keeperPush = deps.keeperPush ?? runKeeperPush;
+    const push = await keeperPush(
+      pushArgs,
+      undefined,
+      pushAttest ? { attest: pushAttest } : {},
     );
+    if (push.exitCode !== 0) {
+      const tail = (push.stderr ?? "").trim().split("\n").slice(-1)[0] ?? "";
+      throw new PublishError(
+        `prx submit publish: keeper push failed (${push.exitCode}) ${tail}`.trim(),
+      );
+    }
+    // The last derivation the push appended (recorded by the ledger-append
+    // closure); null if nothing was emitted.
+    signed = capturedDerivations.at(-1) ?? null;
   }
 
   // 2b. GH-2249 publisher-tier enforcement (I-PROV1). When `requireSigned`, the
-  // clean push must have emitted a derivation that verifies under the resolved
-  // verifier — fail closed BEFORE `gh pr create` so an unsigned / tampered push
-  // never opens a PR. Absent the flag this block is skipped, so behaviour is
-  // identical to today. The push side effect has already happened; failing here
-  // blocks PR creation but does not (and cannot) unwind the push.
+  // push must have emitted a derivation that verifies under the resolved verifier
+  // — fail closed BEFORE `gh pr create` so an unsigned / tampered push never opens
+  // a PR. Absent the flag this block is skipped, so behaviour is identical to
+  // today. The push side effect has already happened; failing here blocks PR
+  // creation but does not (and cannot) unwind the push.
   if (deps.requireSigned) {
-    // The last derivation the push appended (recorded by the ledger-append
-    // closure); null if nothing was emitted.
-    const signed: Derivation | null = capturedDerivations.at(-1) ?? null;
     if (deps.verifier === undefined) {
       throw new PublishError(
         "prx submit publish: PRX_REQUIRE_SIGNED_DERIVATIONS is set but no provenance verifier is configured (set PRX_PROVENANCE_PUBKEY)",
@@ -314,10 +361,10 @@ export async function runSubmitPublish(
         "prx submit publish: PRX_REQUIRE_SIGNED_DERIVATIONS is set but the push emitted no signed derivation (no signer/ledger configured)",
       );
     }
-    // GH-2348.2 / GH-2381 subject-equality defense: keeper's `attestingGit`
-    // signs the post-push HEAD; under the orchestrator it must equal the commit
-    // keeper just materialized from the tree artifact. A mismatch (drifted
-    // worktree) fails closed before the PR opens.
+    // GH-2348.2 / GH-2381 subject-equality defense: the push attests a commit; it
+    // must equal the commit keeper just materialized from the tree artifact. A
+    // mismatch (drifted worktree, or a door daemon that pushed something else)
+    // fails closed before the PR opens.
     if (signed.manifest.outputs.commit !== `gitCommit:${materializedCommit}`) {
       throw new PublishError(
         `prx submit publish: signed-derivation enforcement failed — push attests ${String(signed.manifest.outputs.commit)}, not the materialized commit gitCommit:${materializedCommit}`,
