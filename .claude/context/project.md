@@ -49,6 +49,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - prx — code health & modernization status — `docs/code-health.md`
 - Companion repo inventory — `docs/companion-repos.md`
 - GitHub App: `bounded-systems-prx` — `docs/github-app.md`
+- JSR publishing — status & handoff — `docs/jsr-publishing.md`
 - Running CI locally — `docs/local-ci.md`
 - Object-capability languages — prior art for prx's capability model — `docs/object-capability-languages.md`
 - Provenance signing — setup — `docs/provenance/signing.md`

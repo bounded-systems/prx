@@ -26,6 +26,7 @@ const SCRIPT_BASELINE = new Set<string>([
   "codeql-quality.ts",
   "coverage-summary.ts",
   "gen-jsr-manifest.ts",
+  "gen-jsr-status.ts",
   "jsr-publish.ts",
   "jsr-sync.ts",
   "jsr-version-sync.ts",

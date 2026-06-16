@@ -14,6 +14,8 @@
     "health": "bun run packages/prx/scripts/code-health.ts",
     "jsr:manifest": "bun run packages/prx/scripts/gen-jsr-manifest.ts",
     "jsr:publish": "bun run packages/prx/scripts/jsr-publish.ts",
+    "jsr:status": "bun run packages/prx/scripts/gen-jsr-status.ts",
+    "jsr:status:check": "bun run packages/prx/scripts/gen-jsr-status.ts --check",
     "site:build": "bun run packages/prx/scripts/build-site.ts",
     "typecov": "type-coverage --strict --at-least 98 --ignore-files '**/*.test.ts'",
     "doctor:agents": "bun run packages/prx/scripts/agent_doctor.ts",
