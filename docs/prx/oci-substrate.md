@@ -101,13 +101,24 @@ can be built (and on a darwin host, a `nix build --builders ssh://…` into it).
 
 ### 3. Assembly + runtime — prx-asr
 
-The podman driver (#611) already renders the Pod manifest. The remaining runtime:
+The podman driver (#611) renders the Pod manifest; the **runtime is now built** —
+`room/podman-runtime.ts` `playPod`/`downPod` pipe `renderPodmanKube(pod)` into
+`podman kube play -` / `podman kube down -` through the `@bounded-systems/proc`
+seam (injected runner ⇒ offline-testable). The remaining runtime steps and their
+status:
 
-1. provision the per-repo pod's shared tmpfs door volume (`/run/prx/doors`);
-2. `podman kube play <renderPodmanKube(perRepoPod)>` — start the pod;
-3. the rendered env (`PRX_BEADS_DOOR`/`PRX_BEADS_SOCKET` on `claude-room`) makes
-   the gate fire in-box; closed doors (`session:control`) stay unwired;
-4. retire the Lima daemon-VM once the pod path is healthy.
+1. the shared tmpfs door volume — **handled by the manifest**: `renderPodmanKube`
+   already declares one `emptyDir{ medium: Memory }` mounted into every room, so
+   `podman kube play` provisions the door fabric (no separate volume step);
+2. `playPod(pod)` — **built + live-validated**: a single-room pod
+   (`beadsd-box`) plays to a Running pod with the door volume, and `downPod`
+   stops + removes it (podman-machine-default, 2026-06-15);
+3. the rendered env (`PRX_BEADS_DOOR`/`PRX_BEADS_SOCKET` + `PRX_KEEPER_*` on
+   `claude-room`) makes the gate fire in-box; closed doors (`session:control`)
+   stay unwired;
+4. **still open** — the full `perRepoPod` can't be played end-to-end until
+   `claude-box` (prx-d4o) exists (a real play fails on the missing image); then
+   retire the Lima daemon-VM once the pod path is healthy.
 
 ### 4. The door-env contract — beadsd wired, keeperd pending
 
