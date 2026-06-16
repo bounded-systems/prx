@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
 
-import { defineVerb, parseArgs } from "./index.ts";
+import { defineVerb, parseArgs } from "@bounded-systems/verbspec";
 
 // parseArgs CLI-isms for array-typed input fields: repeated flags accumulate,
 // comma-separated values split, and the two forms compose. Scalars take the
