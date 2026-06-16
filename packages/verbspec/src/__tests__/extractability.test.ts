@@ -45,7 +45,7 @@ describe("verbspec extractability", () => {
   test("the spec core has no upward dependencies", () => {
     const violations: Array<{ file: string; spec: string }> = [];
     for (const file of listTsFiles(MODULE_ROOT)) {
-      const isTest = file.includes("/__tests__/");
+      const isTest = file.includes("/__tests__/") || file.endsWith(".test.ts");
       const allowlist = isTest ? TEST_ALLOWLIST : PROD_ALLOWLIST;
       const source = readFileSync(file, "utf8");
       for (const match of source.matchAll(IMPORT_RE)) {
@@ -74,7 +74,7 @@ describe("no hidden ambient dependencies", () => {
   test("prod files never spawn external tools or read ambient env/auth", () => {
     const offenders: Array<{ file: string; what: string }> = [];
     for (const file of listTsFiles(MODULE_ROOT)) {
-      if (file.includes("/__tests__/")) continue;
+      if (file.includes("/__tests__/") || file.endsWith(".test.ts")) continue;
       const source = readFileSync(file, "utf8");
       for (const [re, what] of FORBIDDEN_AMBIENT) {
         if (re.test(source)) {
