@@ -19,7 +19,7 @@
 import { defaultRunner } from "@bounded-systems/proc";
 
 import { renderPodmanKube } from "./podman.ts";
-import type { PodSpec } from "./pod.ts";
+import { DEFAULT_DOOR_DIR, type PodSpec } from "./pod.ts";
 
 /** Result of running a podman command to completion. */
 export interface PodmanRunResult {
@@ -78,4 +78,69 @@ export function playPod(pod: PodSpec, run: PodmanRun = spawnPodman): PodmanRunRe
 export function downPod(pod: PodSpec, run: PodmanRun = spawnPodman): PodmanRunResult {
   const manifest = renderPodmanKube(pod);
   return requireOk(run(["kube", "down", "-"], manifest), `podman kube down '${pod.name}'`);
+}
+
+// ── secret-holding daemons — `podman run --secret`, not kube-play (prx-b44y) ──
+//
+// `podman kube play` CANNOT mount a host-created podman secret (only in-YAML
+// secrets, which would leak the key into the manifest). So a secret-holding
+// daemon — keeperd, holding the ed25519 signing key — runs as its OWN container
+// via `podman run --secret`, sourcing the key from the HOST-backed podman secret
+// store (encrypted at rest → tmpfs), never the manifest. It mounts the SAME door
+// fabric the kube-play pod uses (a shared volume) so the boxed agent reaches its
+// door, and the repo at /work. (`podman run` is the first form; a systemd
+// quadlet is the production form — same secret model.)
+
+/** keeperd-box's signing-key mount path (its `PRX_PROVENANCE_KEY_FILE` default). */
+export const DEFAULT_KEEPER_SECRET_TARGET = "/run/secrets/keeper-key";
+const WORK_DIR = "/work";
+
+/** Launch spec for the keeperd secret-daemon container. */
+export interface KeeperdRunSpec {
+  /** keeperd-box image ref. */
+  image: string;
+  /** Container name (default `keeperd-room`). */
+  name?: string;
+  /** Join an existing podman pod (shares its network namespace) — optional. */
+  pod?: string;
+  /** The host-backed podman secret holding the ed25519 signing key. */
+  secret: { name: string; target?: string };
+  /** The shared door fabric — a podman volume name OR a host path — mounted at `doorDir`. */
+  doorVolume: string;
+  /** In-container door dir (default {@link DEFAULT_DOOR_DIR}); matches keeperd-box's socket dir. */
+  doorDir?: string;
+  /** Host repo path bind-mounted at `/work` (keeperd's cwd). */
+  repo: string;
+  /** Further host-backed secrets (e.g. a push credential) mounted at their targets. */
+  extraSecrets?: ReadonlyArray<{ name: string; target: string }>;
+}
+
+/**
+ * Render the `podman run` argv (after `podman`) that launches keeperd-box with
+ * its host-backed signing-key secret, the shared door fabric, and the repo.
+ * keeperd-box's entrypoint already runs `keeper serve --socket
+ * <doorDir>/keeperd.sock`, so this only appends `--cwd /work`. Pure — the driver
+ * runs it.
+ */
+export function renderKeeperdRun(spec: KeeperdRunSpec): string[] {
+  const doorDir = spec.doorDir ?? DEFAULT_DOOR_DIR;
+  const name = spec.name ?? "keeperd-room";
+  const args = ["run", "-d", "--name", name];
+  if (spec.pod !== undefined) args.push("--pod", spec.pod);
+  args.push("--secret", `${spec.secret.name},target=${spec.secret.target ?? DEFAULT_KEEPER_SECRET_TARGET}`);
+  for (const s of spec.extraSecrets ?? []) args.push("--secret", `${s.name},target=${s.target}`);
+  args.push("-v", `${spec.doorVolume}:${doorDir}`);
+  args.push("-v", `${spec.repo}:${WORK_DIR}`);
+  args.push(spec.image, "--cwd", WORK_DIR);
+  return args;
+}
+
+/** Launch keeperd. Throws {@link PodmanRuntimeError} on a non-zero exit. */
+export function runKeeperd(spec: KeeperdRunSpec, run: PodmanRun = spawnPodman): PodmanRunResult {
+  return requireOk(run(renderKeeperdRun(spec)), `podman run keeperd '${spec.name ?? "keeperd-room"}'`);
+}
+
+/** Stop + remove the keeperd container by name. */
+export function stopKeeperd(name = "keeperd-room", run: PodmanRun = spawnPodman): PodmanRunResult {
+  return requireOk(run(["rm", "-f", name]), `podman rm keeperd '${name}'`);
 }

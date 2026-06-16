@@ -1,0 +1,5 @@
+---
+"@bounded-systems/prx": minor
+---
+
+Add the keeperd **secret-daemon launch primitive** (prx-b44y) — `renderKeeperdRun` / `runKeeperd` / `stopKeeperd` in `room/podman-runtime.ts`. `podman kube play` can't mount a host-created podman secret (it would leak the key into the manifest), so a secret-holding daemon runs as its own container: `renderKeeperdRun` renders the `podman run --secret <name>,target=/run/secrets/keeper-key -v <doorFabric>:/run/prx/doors -v <repo>:/work keeperd-box --cwd /work` argv (the box's entrypoint already fixes the socket; only `--cwd` is appended), sourcing the signing key from the host-backed podman secret store (encrypted at rest → tmpfs) — the key name crosses, never the material. The door fabric is a shared volume name or host path, so keeperd shares the kube-play pod's door socket. Pure renderer + an injected-runner driver (mirrors `playPod`); unit-tested and live-validated (`runKeeperd` brings up keeperd-box, which serves). Foundation: aligning `renderPodmanKube`'s door volume to a shared form (so the agent reaches the door) and a systemd-quadlet production form are follow-ons.
