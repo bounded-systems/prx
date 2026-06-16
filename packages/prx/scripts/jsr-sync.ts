@@ -46,9 +46,9 @@ interface PkgMeta {
   name: string;
   scope: string;
   pkg: string;
-  description?: string;
+  description?: string | undefined;
   repo: { owner: string; name: string };
-  runtimeCompat?: Record<string, boolean | null>;
+  runtimeCompat?: Record<string, boolean | null> | undefined;
 }
 
 function discover(): PkgMeta[] {
@@ -92,7 +92,7 @@ async function call(method: string, path: string, body?: unknown): Promise<Respo
       accept: "application/json",
       "user-agent": UA,
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 }
 
