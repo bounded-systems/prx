@@ -1,14 +1,45 @@
 {
   "name": "@bounded-systems/env",
+  "version": "0.1.0",
   "description": "The one sanctioned reader of process.env, routing ambient config through capability imports",
-  "version": "0.0.0",
-  "private": true,
+  "license": "MIT",
   "type": "module",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bounded-systems/env.git"
+  },
+  "homepage": "https://github.com/bounded-systems/env#readme",
+  "bugs": {
+    "url": "https://github.com/bounded-systems/env/issues"
+  },
+  "keywords": [
+    "env",
+    "process-env",
+    "capability",
+    "configuration",
+    "ambient-authority"
+  ],
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build"
   }
 }

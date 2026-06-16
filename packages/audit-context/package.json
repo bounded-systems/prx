@@ -1,14 +1,45 @@
 {
   "name": "@bounded-systems/audit-context",
+  "version": "0.1.0",
   "description": "Ambient runtime context for gh-call audit attribution (verb, actor, truth reason)",
-  "version": "0.0.0",
-  "private": true,
+  "license": "MIT",
   "type": "module",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bounded-systems/audit-context.git"
+  },
+  "homepage": "https://github.com/bounded-systems/audit-context#readme",
+  "bugs": {
+    "url": "https://github.com/bounded-systems/audit-context/issues"
+  },
+  "keywords": [
+    "audit",
+    "context",
+    "attribution",
+    "async-context",
+    "provenance"
+  ],
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build"
   }
 }

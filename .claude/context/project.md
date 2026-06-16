@@ -75,7 +75,14 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - prx — value props (forcing-function-backed) — `docs/value-props.md`
 - @bounded-systems/anchored-chain-sqlite — `packages/anchored-chain-sqlite/README.md`
 - @bounded-systems/anchored-chain — `packages/anchored-chain/README.md`
+- @bounded-systems/audit-context — `packages/audit-context/README.md`
 - @bounded-systems/cas — `packages/cas/README.md`
+- @bounded-systems/disposition — `packages/disposition/README.md`
+- @bounded-systems/env — `packages/env/README.md`
+- @bounded-systems/fs — `packages/fs/README.md`
+- @bounded-systems/machine-schema — `packages/machine-schema/README.md`
+- @bounded-systems/policy — `packages/policy/README.md`
+- @bounded-systems/prx-config — `packages/prx-config/README.md`
 - @bounded-systems/verbspec — `packages/verbspec/README.md`
 - prx — `README.md`
 - Security Policy — `SECURITY.md`
