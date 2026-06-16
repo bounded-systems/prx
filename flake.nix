@@ -60,6 +60,13 @@
 
         devShells = {
           default = pkgs.mkShell { buildInputs = [ pkgs.bun ]; };
+
+          # Opt-in: `nix develop .#jsr` → bun + node. For local `jsr` CLI
+          # dry-runs / slow-types checks before pushing (publishing itself is
+          # CI-only, enforced by the JSR scope). The jsr CLI is a node program;
+          # jsr-sync.ts needs only bun. Pinned node here also sidesteps a broken
+          # host asdf node shim.
+          jsr = pkgs.mkShell { buildInputs = [ pkgs.bun pkgs.nodejs ]; };
         } // lib.optionalAttrs codeqlSupported {
           # Opt-in: `nix develop .#codeql` → bun + codeql + nodejs (TS extractor).
           codeql = pkgs.mkShell { buildInputs = [ pkgs.bun codeql pkgs.nodejs ]; };
