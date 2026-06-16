@@ -1,7 +1,7 @@
 {
   "name": "@bounded-systems/scout",
   "description": "Content-addressed surface reads (file/grep/files) with anchored-chain provenance",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "sideEffects": false,

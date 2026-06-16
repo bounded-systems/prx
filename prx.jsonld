@@ -598,6 +598,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/signed-self-improvement.md",
+      "name": "ADR — eval-gated prompt evolution as a signed derivation",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/signed-self-improvement.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/worktree-provenance.md",
       "name": "ADR — signed provenance for `claude --worktree` materialization (prx-hc5)",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/worktree-provenance.md",
@@ -673,6 +682,15 @@
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/scout-bounded-interaction-space.md",
       "name": "Capability-scoped DCI — a bounded interaction space for scout (spike)",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/scout-bounded-interaction-space.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/signed-prompt-evolution/README.md",
+      "name": "Spike — eval-gated prompt evolution as a signed derivation",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/signed-prompt-evolution/README.md",
       "isPartOf": {
         "@id": "https://github.com/bounded-systems/prx"
       }

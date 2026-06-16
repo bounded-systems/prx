@@ -1,6 +1,6 @@
 {
   "name": "@bounded-systems/policy",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Tool-policy engine enforcing subcommand allowlists by tool, state, and role",
   "license": "MIT",
   "type": "module",
