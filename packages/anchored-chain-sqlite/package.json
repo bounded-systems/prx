@@ -1,6 +1,6 @@
 {
   "name": "@bounded-systems/anchored-chain-sqlite",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "SQLite/Drizzle-backed implementation of the anchored-chain stores",
   "license": "MIT",
   "type": "module",

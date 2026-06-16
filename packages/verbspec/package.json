@@ -1,6 +1,6 @@
 {
   "name": "@bounded-systems/verbspec",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Spec-driven CLI core: author a verb once as a typed VerbSpec, project it to CLI, MCP, OpenAPI, and Anthropic tool surfaces",
   "license": "MIT",
   "type": "module",
