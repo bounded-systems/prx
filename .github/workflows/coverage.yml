@@ -57,9 +57,15 @@ jobs:
         run: mkdir -p dist && bun packages/prx/scripts/prx-compile.ts dist/prx
 
       # Report-only: do not fail the job on test failures or low coverage.
+      # Only the lcov reporter — NOT text. GH-664: the `text` reporter printing a
+      # 600+-file table to stdout aborts mid-write in CI with
+      # `error: An internal error occurred (WriteFailed)`, killing the run before
+      # the lcov file is written (so `coverage/lcov.info` never appears). The
+      # human-readable summary is produced from lcov by coverage-summary.ts below,
+      # so the text reporter is redundant anyway.
       - name: Run tests with coverage
         continue-on-error: true
-        run: bun test --coverage --coverage-reporter=text --coverage-reporter=lcov
+        run: bun test --coverage --coverage-reporter=lcov
 
       # Coverage gates (coverage-summary.ts exits non-zero on a breach, failing
       # this job — which is a required status check, so it blocks merges):

@@ -52,6 +52,12 @@ const PER_FILE_BASELINE = new Set<string>([
   "packages/prx/src/triage/prioritize-bulk.ts", // inline headless haiku call; moves to a headless actor (#502)
   "packages/prx/src/session/open.ts", // large session-open flow
   "packages/prx/src/tools/agent_doctor.ts", // spawn-bound: real SDK probe + spawnCapture runner can't run deterministically in CI
+  // GH-664: pre-existing gaps that the broken coverage gate (no lcov) hid until
+  // it was restored. Each is wiring/spawn/fs-bound; improve separately.
+  "packages/prx/src/fetch/slack-sync.ts", // `prx fetch slack` composition root — injectable seams; integration paths uncovered
+  "packages/prx/src/machine/claude_capabilities.ts", // spawn-bound: probes the real `claude` binary via spawnCapture, non-deterministic in CI
+  "packages/prx/src/pr-state/session-finder.ts", // fs/env-bound session discovery extracted from cli.ts (itself baselined)
+  "packages/prx/src/slack/scout-cli.ts", // slack read-surface composition root — authority/credential wiring
 ]);
 
 type Totals = { lf: number; lh: number; fnf: number; fnh: number; brf: number; brh: number; files: number };
@@ -111,15 +117,40 @@ function emit(text: string): void {
 }
 
 function main(): void {
+  // A gate was requested iff a threshold flag is present. When gating, a missing
+  // or empty report is a FAILURE (fail-closed): a coverage run that produced no
+  // data must not pass as green — otherwise a broken `bun test --coverage` step
+  // silently neuters the floor (GH-664). Without any gate flag this stays a
+  // report-only summary that won't wedge CI on a missing report.
+  const gating =
+    (minLinePct !== null && Number.isFinite(minLinePct)) ||
+    (perFileMin !== null && Number.isFinite(perFileMin));
+
   let lcov: string;
   try {
     lcov = readFileSync(lcovPath, "utf8");
   } catch {
-    emit(`### Coverage\n\nNo coverage report found at \`${lcovPath}\` — skipping.`);
+    emit(`### Coverage\n\nNo coverage report found at \`${lcovPath}\`.`);
+    if (gating) {
+      emit(
+        `\n❌ **Coverage gate failed (fail-closed):** the coverage run produced no \`${lcovPath}\` — ` +
+          `treating absent coverage as a breach. Check the "Run tests with coverage" step.`,
+      );
+      process.exit(1);
+    }
+    emit("Skipping (no gate requested).");
     return;
   }
 
   const { totals: t, perFile } = parse(lcov);
+
+  if (gating && t.files === 0) {
+    emit(
+      `### Coverage\n\n❌ **Coverage gate failed (fail-closed):** \`${lcovPath}\` has no file records ` +
+        `(empty report) — the coverage run produced no data. Check the "Run tests with coverage" step.`,
+    );
+    process.exit(1);
+  }
   const lineParts = [
     "### Coverage",
     "",
