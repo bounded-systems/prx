@@ -1,5 +1,14 @@
 # @bounded-systems/scout
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [3434c56]
+  - @bounded-systems/cas@0.1.1
+  - @bounded-systems/anchored-chain@0.2.1
+  - @bounded-systems/anchored-chain-sqlite@0.2.1
+
 ## 0.1.0
 
 ### Minor Changes
