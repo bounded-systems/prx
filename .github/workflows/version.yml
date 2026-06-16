@@ -10,10 +10,14 @@ name: version
 #     -> merging THAT PR lands the changelog + version bumps, and release.yml
 #        publishes.
 #
-# No third-party action (same rule as release.yml): every step is SHA-pinnable,
-# the PR is opened with the preinstalled `gh` + the built-in GITHUB_TOKEN.
-# NOTE: requires "Allow GitHub Actions to create and approve pull requests" in
-# the repo's Actions settings.
+# Auth: if a GitHub App is configured (repo var CHANGESETS_APP_ID + secret
+# CHANGESETS_APP_PRIVATE_KEY) this mints a short-lived App token and uses it to
+# push the branch and open the PR — so "Allow GitHub Actions to create and
+# approve pull requests" can stay OFF (least privilege, prx-m1hs), and the PR
+# (created by the App, not GITHUB_TOKEN) actually triggers ci/coverage/etc.
+# Falls back to the built-in GITHUB_TOKEN when no App is configured (which then
+# DOES require that Actions setting enabled). Only actions/* (GitHub-owned),
+# SHA-pinned — same supply-chain rule as release.yml.
 
 on:
   push:
@@ -39,10 +43,21 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Mint GitHub App token
+        id: app-token
+        if: ${{ vars.CHANGESETS_APP_ID != '' }}
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.1.4
+        with:
+          app-id: ${{ vars.CHANGESETS_APP_ID }}
+          private-key: ${{ secrets.CHANGESETS_APP_PRIVATE_KEY }}
+
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
+          # App token (if configured) so the branch push is attributed to the App
+          # and the resulting PR triggers downstream workflows; else GITHUB_TOKEN.
+          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -72,7 +87,7 @@ jobs:
       - name: Open or update the release PR
         if: steps.version.outputs.changed == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           branch="changeset-release/main"
