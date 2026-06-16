@@ -1,7 +1,7 @@
 {
   "name": "@bounded-systems/surface-sync",
   "description": "Type ontology for work-unit change-detection across GH/branch/worktree/tmux/beads",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "sideEffects": false,

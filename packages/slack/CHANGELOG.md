@@ -1,5 +1,14 @@
 # @bounded-systems/slack
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [8c1b8c5]
+- Updated dependencies [2f4b731]
+  - @bounded-systems/anchored-chain@0.2.0
+  - @bounded-systems/policy@0.2.0
+
 ## 0.1.0
 
 ### Minor Changes

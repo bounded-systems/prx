@@ -1,5 +1,0 @@
----
-"@bounded-systems/prx": minor
----
-
-Route `prx submit publish`'s git-write through the keeperd door in the box profile (prx-asr). When `isKeeperDoorMode()` (the projected `PRX_KEEPER_DOOR`), the publish push no longer runs locally — the host bundles the materialized commit range and `runKeeperDoorPush` (new, `keeperd/host.ts`) asks keeperd to import + signed-push it over the door via `withKeeperClient`, so the box holds no push credential or signing key. The GH-2249 `requireSigned` gate is preserved across both paths: it verifies the host-captured derivation (local) or the daemon's returned `signedDerivation` (door), with the same subject-equality + verifier checks, and fails closed (no PR opened) on a door error, a commit mismatch, or a missing/unverifiable signature. Off-box behaviour is byte-identical (the local attesting push is unchanged). Foundation: the wiring is unit-tested with injected seams; the live in-daemon import+push (real keys/push credential) is the keeper-provisioning follow-on.

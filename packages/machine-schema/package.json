@@ -1,6 +1,6 @@
 {
   "name": "@bounded-systems/machine-schema",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Brands, handoff envelope, and state/phase/invariant primitives for work-unit machines",
   "license": "MIT",
   "type": "module",

@@ -1,7 +1,7 @@
 {
   "name": "@bounded-systems/proc",
   "description": "The one allowed subprocess spawn point, routing external-tool invocations through a capability",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "sideEffects": false,

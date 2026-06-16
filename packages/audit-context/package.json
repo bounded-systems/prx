@@ -1,6 +1,6 @@
 {
   "name": "@bounded-systems/audit-context",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Ambient runtime context for gh-call audit attribution (verb, actor, truth reason)",
   "license": "MIT",
   "type": "module",
