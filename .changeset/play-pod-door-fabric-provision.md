@@ -1,5 +1,0 @@
----
-"@bounded-systems/prx": patch
----
-
-`playPod` now provisions the shared door fabric BEFORE any room runs (prx-3urm) — `mkdir -p` plus a best-effort `chcon -R -t container_file_t` (the shared `:z` label) on the host `doorDir`, via the new pure `renderDoorFabricProvision` argv and its injectable `ProvisionDoorFabric` seam. This closes the two live findings the `:z` relabel (#649) didn't cover: (1) an all-secret-rooms pod has no `kube play` step, so `podman run --volume <doorDir>:<doorDir>:z` died with `statfs … no such file` since a bind mount can't create a missing host dir; (2) `kube play`'s `DirectoryOrCreate` makes the dir `var_run_t`, so the kube containers hit `EACCES` before the secret room's own `:z` ran — relabeling first fixes the ordering. The `chcon` is guarded (skipped when absent, `|| true` if unprivileged), so it's a no-op off SELinux; a failed `mkdir` aborts the bring-up (`set -e`, fail-fast). The production quadlet's systemd `RuntimeDirectory=`/tmpfiles equivalent is tracked separately.

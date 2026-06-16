@@ -1,6 +1,6 @@
 {
   "name": "@bounded-systems/cas",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "exports": "./src/index.ts",
   "runtimeCompat": {
     "node": true,
@@ -9,6 +9,9 @@
     "browser": false
   },
   "publish": {
-    "exclude": ["**/__tests__/**", "dist/**"]
+    "exclude": [
+      "**/__tests__/**",
+      "dist/**"
+    ]
   }
 }
