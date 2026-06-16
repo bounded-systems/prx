@@ -81,4 +81,6 @@ jobs:
 
       - name: Publish to JSR
         working-directory: ${{ steps.pkg.outputs.dir }}
-        run: bunx jsr publish
+        # --allow-slow-types matches the release.yml auto-publish path (slow types
+        # are a quality warning, not a publish blocker for this scope).
+        run: bunx jsr publish --allow-slow-types
