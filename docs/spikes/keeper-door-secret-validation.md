@@ -81,13 +81,27 @@ secret delivers the key → keeperd-box exposes its door on the shared fabric �
 sibling container ships a keyless host-built bundle → keeperd performs the *only*
 sensitive step (signed push) and a third party verifies the signature.
 
-> **One gap, expected.** The loaded box is prx **v0.9.0**, which predates #644
-> (prx-a36l): the daemon writes the signed `push/v1` to the **ledger** but does
-> not yet RETURN it in the response (`status:ok` carried only `commitSha` +
-> `pushedRef`, `signedDerivation` was absent — exactly finding B). #634's box-mode
-> `requireSigned` gate reads `resp.signedDerivation`, so **that gate needs a
-> keeperd-box rebuilt from a release ≥ #644**. The signing itself already works
-> in v0.9.0 — only the return wiring is missing from the released binary.
+> **The one gap — now CLOSED (prx-lt4q, v0.11.1).** The original run used prx
+> **v0.9.0**, which predates #644 (prx-a36l): the daemon wrote the signed
+> `push/v1` to the **ledger** but did not RETURN it (`status:ok` carried only
+> `commitSha` + `pushedRef`; `signedDerivation` was absent — finding B). #644
+> shipped in **v0.11.1**; `keeperd-box` was rebuilt from that release
+> (`fetch-release.nix` reads the version from `release-hashes.json`, so the bump
+> is data-driven) and re-run. The response now carries `signedDerivation`
+> **inline**, and it verifies against the throwaway pubkey (wrong key rejected):
+>
+> ```
+> === keeperd response (v0.11.1 box) ===
+> { "status": "ok", "commitSha": "<C1>", "pushedRef": "refs/heads/test-branch",
+>   "signedDerivation": "<present in RESPONSE>" }
+> producer = prx://claude-code/keeper · signature verifies = true · wrong key rejects = true
+> ```
+>
+> So #634's box-mode `requireSigned` gate (which reads `resp.signedDerivation`)
+> can now be **satisfied** over the door at the wire level, not just fail-closed.
+> Remaining depth: driving a full `prx submit publish --require-signed` inside a
+> sibling box (needs the artifact chain + a real push credential) — the gate's
+> input is now proven present and verifiable.
 
 > **Door client, in practice.** There is no standalone door-push CLI verb, and
 > the box wraps the *released* prx binary (`nix/oci/prx-fhs.nix`), so a new
@@ -145,9 +159,11 @@ prx-b44y is **validated end to end**: the host-backed secret delivers the key
 kube-play) holds, and a **sibling container drives keeperd to a real, verifiable
 signed push over the door** (D) — the live import+push e2e finding C left open.
 
-One follow-up remains on the *release* path, not the mechanism: prx-a36l (#644,
-merged to `main`) makes the daemon RETURN `signedDerivation` so #634's box-mode
-`requireSigned` gate can verify it — but the in-pod box must be **rebuilt from a
-release ≥ #644** (the loaded v0.9.0 box signs into the ledger but doesn't return
-the derivation). The production runtime form (a systemd podman **quadlet** with
-`Secret=`, borrowing claude-box's doors hardening) lands alongside this.
+The release-path follow-up is now also **done** (prx-lt4q): #644 (prx-a36l)
+shipped in **v0.11.1**, `keeperd-box` was rebuilt from it, and the door response
+now returns a verifiable `signedDerivation` (D, "gap now CLOSED") — so #634's
+box-mode `requireSigned` gate has its input live. The production runtime form (a
+systemd podman **quadlet** with `Secret=`, borrowing claude-box's doors
+hardening) shipped in #651 (`renderPodmanQuadlet`). What's left is integration
+depth, not mechanism: a full `prx submit publish --require-signed` driven inside
+a sibling box (the artifact chain + a real push credential).
