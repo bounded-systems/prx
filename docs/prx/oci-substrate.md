@@ -1,13 +1,12 @@
 # ADR — the prx OCI substrate: containerize the service fleet, retire the daemon-VM (prx-zj8)
 
-> Status: **proposed** (capstone). The typed half of this is **built and merged**
-> — the bd-door gate, the room/pod model, and the podman driver (see "Already
-> built" below). This ADR specs the remaining **infra** half: the pinned OCI
-> images and the runtime that assembles + runs them. None of the infra is built
-> here — dockerTools images are Linux-only and the dev host is darwin with no
-> Linux builder (prx-62h), so this is the design + concrete starting points, not
-> a buildable slice. Companion ADRs: `claude-runtime.md` (prx-d4o, the agent
-> runtime), `beadsd-door-wiring.md` (prx-asr, the door fabric).
+> Status: **built + validated** (the per-repo pod runs). The typed half (bd-door
+> gate, room/pod model, podman driver) and the infra half (the `-box` images, the
+> `playPod`/`downPod` runtime, the repo + door wiring) are merged. On
+> 2026-06-15/16 the full `perRepoPod` was played on podman with **all three rooms
+> Up and both daemons serving** (see "Validation"). What remains is operational
+> hardening, not assembly — see "Remaining". Companion ADRs: `claude-runtime.md`
+> (prx-d4o, the agent runtime), `beadsd-door-wiring.md` (prx-asr, the door fabric).
 
 ## Problem
 
@@ -18,141 +17,144 @@ runtime is a content-addressed sha-pin, not a mutable VM. prx-zj8 is that
 substrate; it unblocks the gate (which is inert until a door is reachable in the
 box) and the whole room/pod model.
 
-## Already built (the typed half — merged)
+## Built (merged)
 
-The agent-facing contract is done; only the substrate it runs on is missing:
+The chain **Room declares a door → Pod resolves it → driver renders a pod →
+runtime plays it → daemons serve their doors** is real, end to end:
 
 - **bd-door gate** (#603/#604) — `execBd` / `defaultBdGithubRunner` / the proc
   wrappers route bd work through the beadsd door (or fail closed) when
   `PRX_BEADS_DOOR` is set; off-profile is byte-identical.
-- **room/pod model** (#606) — `RoomSpec` (occupant + doors + open/closed state +
-  `image`) and `PodSpec` (holds rooms, owns the house + door fabric,
-  `resolvePodDoors`, and `podRoomEnv` which projects `PRX_BEADS_DOOR` /
-  `PRX_BEADS_SOCKET` — the gate's signal).
-- **podman driver** (#611, #614) — `renderPodmanKube(pod)` renders a `PodSpec` to
-  a `podman kube play` manifest: rooms→containers (real `-box` images), one
-  shared tmpfs door volume, per-container env from `podRoomEnv`.
-
-So the chain **Room declares a door → Pod resolves it → driver renders a pod
-whose `claude-room` env fires the gate** exists as typed, tested code. prx-zj8
-makes that manifest *runnable*.
+- **room/pod model** (#606, #614) — `RoomSpec` (occupant + doors + open/closed
+  state + `image`) and `PodSpec` (holds rooms, the house, the door fabric,
+  `resolvePodDoors`, `podRoomEnv`).
+- **podman driver** (#611) — `renderPodmanKube(pod)` → a `podman kube play`
+  manifest: rooms→containers (real `-box` images), the shared tmpfs door volume,
+  per-room door env.
+- **the `-box` images** — `nix/oci/{beadsd,keeperd,dolt}-box.nix` (#617/#620/#623),
+  pinned `dockerTools` images on the prx-62h builder (§1).
+- **door env contract** — `resolveKeeperEndpoint` + the `podRoomEnv` keeperd
+  projection (#626), and `withKeeperClient` (#628) — keeperd is wired symmetric
+  to beadsd (§4).
+- **the runtime** — `room/podman-runtime.ts` `playPod`/`downPod` (#630) +
+  the repo `/work` mount in the manifest (#631, §3).
+- **prx-runnability** — the `bun --compile` release binary now actually runs in
+  the from-scratch images (#632, prx-hqqw, §1).
 
 ## Decision
 
 ### 1. The image set — pinned `dockerTools` OCI images (rootless podman)
 
-One image per daemon room, each a pinned nix `dockerTools` image (digest = the
-sha-pin), built from a pinned nixpkgs. They share a common builder helper.
+One image per daemon room, each a pinned nix `dockerTools.streamLayeredImage`
+(digest = the sha-pin), built from a pinned nixpkgs. Live in `nix/oci/` and are
+flake outputs under `lib.optionalAttrs pkgs.stdenv.isLinux` (so darwin still
+evaluates); build with `nix build .#packages.aarch64-linux.<box>`.
 
-- **beadsd-box** (prx-634) — `prx beads serve` + `bd` + `dolt`; connects to the
-  dolt store. `prx beads serve` runs **foreground** (it binds the socket and
-  holds the listening `Server`; `--pidfile` only records the pid — confirmed
-  from `runBeadsServe`), so it is a valid container PID 1, no init wrapper.
-- **keeperd-box** (prx-anj) — `prx keeper serve` + git + the signing key as a
-  runtime secret. Mirrors beadsd-box.
-- **claude-box** (prx-d4o, see `claude-runtime.md`) — the agent runtime; ships
-  **without** `bd`/`git`, so AC #3 ("no local bd in the box") holds by absence +
-  the gate.
+- **beadsd-box** (prx-634, #617) — `prx beads serve` + `bd` (built **from source**,
+  `nix/oci/bd.nix` via `buildGoModule` + icu for its dolt cgo dep) + `dolt`.
+- **keeperd-box** (prx-anj, #620) — `prx keeper serve` + git + the provenance
+  signing key as a **runtime secret** (read from a mounted tmpfs path into
+  `PRX_PROVENANCE_KEY` by the entrypoint, never baked into a layer).
+- **dolt-box** (#623) — the per-repo dolt SQL server.
+- **claude-box** (prx-d4o, see `claude-runtime.md`) — the agent runtime; built
+  in the separate `claude-box` repo (`nix build .#claude-image` → `claude-personal`).
 
-Concrete starting point (beadsd-box; keeperd-box mirrors it), **not yet wired
-into flake.nix and not buildable here** — replace every `TODO`:
+**prx-runnability (prx-hqqw, #632) — the hard-won bit.** The images ship the
+*fetched* released prx, which is a `bun --compile` single-file executable (a Bun
+runtime with the app blob appended after the ELF) and is FHS-dynamically-linked.
+In a from-scratch image it fails two ways, both fixed in `nix/oci/prx-fhs.nix`
+(+ `fakeNss`/`HOME` in each image):
 
-```nix
-# nix/beadsd-box.nix — STARTING POINT. Linux-only; validate on a Linux builder.
-self: { pkgs, system ? pkgs.stdenv.hostPlatform.system, bins }:
-let
-  inherit (pkgs) lib;
-  # bd is not in nixpkgs / not tracked here — fetch it FOD like nix/fetch-release.nix.
-  bd = pkgs.runCommand "bd-TODO" { } ''
-    mkdir -p "$out/bin"
-    install -m755 ${pkgs.fetchurl {
-      url = "https://example.invalid/bd-${system}"; # TODO: real bd release URL
-      sha256 = lib.fakeSha256;                       # TODO: real sha256
-    }} "$out/bin/bd"
-  '';
-in
-pkgs.dockerTools.buildLayeredImage {
-  name = "beadsd-box";
-  tag = bins.version;
-  contents = [ bins.prx bd pkgs.dolt pkgs.cacert pkgs.git pkgs.coreutils ];
-  extraCommands = "mkdir -p ./run/prx/doors ./var/lib/prx/beads";
-  config = {
-    # Foreground — confirmed. No init wrapper.
-    Entrypoint = [ "prx" "beads" "serve"
-      "--socket" "/run/prx/doors/beadsd.sock"
-      "--cwd" "/var/lib/prx/beads" "--pidfile" "/run/prx/beadsd.pid" ];
-    Env = [ "PATH=/bin" "PRX_BEADS_CWD=/var/lib/prx/beads" ];
-    User = "1000:1000";
-    WorkingDir = "/var/lib/prx/beads";
-  };
-}
-# flake.nix (Linux-only so darwin still evaluates):
-#   // lib.optionalAttrs pkgs.stdenv.isLinux {
-#        beadsd-box = import ./nix/beadsd-box.nix self { inherit pkgs system bins; };
-#      }
-```
+1. **No `/lib` loader / `patchelf` corrupts the blob.** `autoPatchelf` rewrites
+   the (longer nix) interpreter, grows the file, and corrupts the appended blob →
+   the binary degrades to **bare Bun**. So the bytes must be left **byte-intact**
+   and the nix glibc loader invoked *directly with the binary as an argument*
+   (mirroring the `claude-box` flake): `ld-linux-<arch>.so --library-path
+   <glibc:libstdc++> /libexec/prx "$@"` (Bun then locates its blob via argv).
+2. **`uv_os_homedir`.** Once prx runs, `os.homedir()` crashes `ENOENT` with no
+   `/etc/passwd`/`HOME`. Fix: `dockerTools.fakeNss` + `HOME=/home/prx`.
 
-### 2. The build substrate — prx-62h (the builder-room)
+> Gotcha for future debugging: `prx --version` is a **red herring** — Bun
+> intercepts `--version` and prints *its own* version even when the app is fine.
+> Probe with `prx --help` or a real verb.
 
-dockerTools images are Linux-only; on darwin they need a Linux builder. That
-builder is already modeled as `builderRoom` (a VM-tier room, prx-62h) exposing a
-`nix:build`/`oci:image` door. prx-zj8 depends on prx-62h existing so the images
-can be built (and on a darwin host, a `nix build --builders ssh://…` into it).
+### 2. The build substrate — prx-62h (the Linux builder)
+
+`dockerTools` images are Linux-only; on darwin they build via a registered
+`aarch64-linux` remote builder. The Lima devshell VM
+(`bdelanghe-lima-devshell-main`) is registered in `/etc/nix/machines`, so
+`nix build .#packages.aarch64-linux.<box>` offloads transparently — the earlier
+"darwin has no Linux builder" caveat was wrong. prx-62h's remaining scope is to
+make prx *own* that builder's supervision/registration rather than the ad-hoc
+machines entry. (Loading a `streamLayeredImage` output on darwin: it's a
+linux-arch stream script, so run it *inside* the Lima VM and pipe to podman —
+`limactl shell <vm> <stream-script> | podman load`. `buildLayeredImage` tarballs
+load directly.)
 
 ### 3. Assembly + runtime — prx-asr
 
-The podman driver (#611) renders the Pod manifest; the **runtime is now built** —
 `room/podman-runtime.ts` `playPod`/`downPod` pipe `renderPodmanKube(pod)` into
 `podman kube play -` / `podman kube down -` through the `@bounded-systems/proc`
-seam (injected runner ⇒ offline-testable). The remaining runtime steps and their
-status:
+seam (injected runner ⇒ offline-tested; a non-zero exit → typed
+`PodmanRuntimeError`). The volumes:
 
-1. the shared tmpfs door volume — **handled by the manifest**: `renderPodmanKube`
-   already declares one `emptyDir{ medium: Memory }` mounted into every room, so
-   `podman kube play` provisions the door fabric (no separate volume step);
-2. `playPod(pod)` — **built + live-validated**: a single-room pod
-   (`beadsd-box`) plays to a Running pod with the door volume, and `downPod`
-   stops + removes it (podman-machine-default, 2026-06-15);
-3. the rendered env (`PRX_BEADS_DOOR`/`PRX_BEADS_SOCKET` + `PRX_KEEPER_*` on
-   `claude-room`) makes the gate fire in-box; closed doors (`session:control`)
-   stay unwired;
-4. **still open** — the full `perRepoPod` can't be played end-to-end until
-   `claude-box` (prx-d4o) exists (a real play fails on the missing image); then
-   retire the Lima daemon-VM once the pod path is healthy.
+1. **the door fabric** — handled by the manifest: `renderPodmanKube` declares one
+   `emptyDir{ medium: Memory }` mounted into every room, so `podman kube play`
+   provisions it (no separate volume step);
+2. **the repo at `/work`** (prx-u5lx, #631) — `PodSpec.repo` (the host repo path,
+   deploy-time) → a `hostPath` volume mounted at `/work` in every room. The daemon
+   images' `WorkingDir` is `/work`; without it podman/crun won't start them.
 
-### 4. The door-env contract — beadsd wired, keeperd pending
+### 4. The door-env contract — beadsd + keeperd wired
 
-`podRoomEnv` projects the **beadsd** door (`PRX_BEADS_DOOR` + `PRX_BEADS_SOCKET`,
-matching `resolveBeadsEndpoint`). **keeperd has no client-endpoint env** (no
-`PRX_KEEPER_SOCKET` analog), so its door projects nothing yet — defining that env
-is a prerequisite before keeperd reads/writes route through its door in-box.
+`podRoomEnv` projects both doors: **beadsd** (`PRX_BEADS_DOOR` +
+`PRX_BEADS_SOCKET`, read by `resolveBeadsEndpoint` + the bd-door gate) and
+**keeperd** (`PRX_KEEPER_DOOR` + `PRX_KEEPER_SOCKET`, read by `isKeeperDoorMode` +
+`resolveKeeperEndpoint`, #626). `withKeeperClient` (#628) assembles a live
+`IsolatedKeeperClient` from the projected env via `resolveFramedTransport`. So
+`claude-room`'s env carries both doors.
 
-## Open questions / TODOs
+## Remaining (operational, not assembly)
 
-- **bd release artifacts** — URL + per-system sha256 (track in a hashes JSON).
-- **external dolt** — the fork from `beadsd-door-wiring.md`: dolt sql-server
-  in-box (stateful, simple) vs sibling container (stateless; recommended). The
-  served clone is server-mode (`.beads/metadata.json` `dolt_mode: server` +
-  `sync.remote` to dolthub); the connection must point at the chosen server.
-- **keeperd endpoint env** — define `PRX_KEEPER_*` so its door projects.
-- **image registry refs** — `RoomSpec.image` carries the `-box` name today; the
+- **keeper signing-key + beads-clone provisioning** — the daemons *serve* in the
+  pod, but for real work keeperd needs its provenance key (the mounted secret)
+  and beadsd needs an initialized beads clone / external-dolt endpoint at `/work`.
+- **pipeline wiring** — route the git-write path (`runKeeperRemote`'s callers)
+  through `withKeeperClient` behind `isKeeperDoorMode` (no live caller yet).
+- **external dolt** — dolt sql-server in-box vs the sibling `dolt-box`; the served
+  clone is server-mode (`.beads/metadata.json` `dolt_mode: server` + `sync.remote`),
+  the connection must point at the chosen server.
+- **image registry refs** — `RoomSpec.image` carries the `-box` short name; the
   full registry ref (or local containerd load) is resolved at deploy.
 - **isolation tier** — shared-kernel pod; gVisor/runsc hardening is prx-5p5.
+- **retire the Lima daemon-VM** once the pod path is the default.
 
-## Sequencing
+## Sequencing (done)
 
 ```
-prx-62h  (Linux builder substrate — the builder-room)
-   └─ prx-634 / prx-anj / prx-d4o  (the beadsd-box / keeperd-box / claude-box images)
-        └─ prx-asr  (provision door volume + `podman kube play` the rendered pod)
-             └─ retire the Lima daemon-VM
+prx-62h  Linux builder (Lima VM as remote builder)        ✅ works
+   ├─ prx-634 beadsd-box  ✅ #617      ├─ prx-anj keeperd-box ✅ #620
+   ├─ dolt-box ✅ #623                 └─ prx-d4o claude-box  ✅ (claude-box repo)
+        └─ prx-asr  runtime ✅ #630 + /work ✅ #631 + door env ✅ #626/#628
+             + prx-runnability ✅ #632
+                  └─ retire the Lima daemon-VM   ◻ remaining
 ```
 
 ## Validation
 
 The typed half is unit-tested and merged (`packages/prx/test/room/*`,
-`packages/bd/src/__tests__/runners.test.ts`). The infra half cannot run here (no
-podman, no Linux builder); first real validation is on a Linux builder: build an
-image, `podman kube play` the rendered `perRepoPod`, and confirm `prx intake bd
-ls` in `claude-room` returns the same rows as a host `prx beads list` — the AC
-from the bd-door routing bead (prx-438).
+`packages/bd/src/__tests__/runners.test.ts`). The **infra half runs here**: on
+2026-06-15/16 the real `perRepoPod` (`repo`=the worktree) was played on
+`podman-machine-default` and **all three rooms came Up**, with both daemons
+serving on the shared door fabric:
+
+```
+prx-pod
+├─ claude-room   (claude-box)   Up   env: PRX_BEADS_SOCKET, PRX_KEEPER_SOCKET
+├─ beadsd-room   (beadsd-box)   Up   beadsd:  listening on /run/prx/doors/beadsd.sock
+└─ keeperd-room  (keeperd-box)  Up   keeperd: listening on /run/prx/doors/keeperd.sock
+```
+
+`downPod` tears it cleanly down. The remaining end-to-end AC — `prx intake bd ls`
+in `claude-room` returning the same rows as a host `prx beads list` (prx-438) —
+waits on the beads-clone provisioning above.
