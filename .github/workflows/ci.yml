@@ -64,6 +64,13 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # JSR reads the publish version from jsr.json, but changesets only bumps
+      # package.json — so guard that they stay in lockstep (drift would publish a
+      # stale version). `bun run version-packages` keeps them synced on release;
+      # this fails the PR if a hand-edit reintroduces drift.
+      - name: jsr.json versions in sync with package.json
+        run: bun run jsr:versions:check
+
       - name: Build prx binary
         run: mkdir -p dist && bun packages/prx/scripts/prx-compile.ts dist/prx
 
