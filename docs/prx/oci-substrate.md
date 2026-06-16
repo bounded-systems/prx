@@ -116,11 +116,26 @@ seam (injected runner ⇒ offline-tested; a non-zero exit → typed
 
 ## Remaining (operational, not assembly)
 
-- **keeper signing-key + beads-clone provisioning** — the daemons *serve* in the
-  pod, but for real work keeperd needs its provenance key (the mounted secret)
-  and beadsd needs an initialized beads clone / external-dolt endpoint at `/work`.
-- **pipeline wiring** — route the git-write path (`runKeeperRemote`'s callers)
-  through `withKeeperClient` behind `isKeeperDoorMode` (no live caller yet).
+- **keeper signing-key (host-backed secret) — a runtime SPLIT** (prx-b44y). The
+  keeperd-box entrypoint already reads `/run/secrets/keeper-key` into
+  `PRX_PROVENANCE_KEY`, so the image side is done — but **`podman kube play`
+  cannot mount a host-created podman secret** (verified: *"only secrets created
+  via the kube yaml file are supported"* — i.e. only in-YAML k8s Secrets, which
+  would base64 the key into the manifest, violating "never in a plaintext
+  layer/manifest"). Decision (operator): secrets come from a **host-backed**
+  store (podman secret, encrypted at rest → tmpfs), not a plaintext file and not
+  the manifest. So the secret-holding daemons run via `podman run --secret` /
+  a podman **quadlet** (the runtime claude-box's doors NixOS module already
+  uses), exposing their door on the shared `/run/prx/doors` fabric; the
+  `renderPodmanKube` pod stays for the agent + non-secret rooms. A push
+  credential is a host-backed secret on the same path.
+- **beads-clone provisioning** — beadsd needs an initialized beads clone /
+  external-dolt endpoint at its cwd for real reads (the daemon serves without it,
+  but answers nothing).
+- ~~**pipeline wiring**~~ — done (#634): `runSubmitPublish` routes the push
+  through the keeper door under `isKeeperDoorMode` (`runKeeperDoorPush` →
+  `withKeeperClient`); the requireSigned gate verifies the daemon's
+  `signedDerivation`. Live in-daemon push waits on the key/credential above.
 - **external dolt** — dolt sql-server in-box vs the sibling `dolt-box`; the served
   clone is server-mode (`.beads/metadata.json` `dolt_mode: server` + `sync.remote`),
   the connection must point at the chosen server.
