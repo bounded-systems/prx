@@ -1,15 +1,46 @@
 {
   "name": "@bounded-systems/machine-schema",
+  "version": "0.1.0",
   "description": "Brands, handoff envelope, and state/phase/invariant primitives for work-unit machines",
-  "version": "0.0.0",
-  "private": true,
+  "license": "MIT",
   "type": "module",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bounded-systems/machine-schema.git"
+  },
+  "homepage": "https://github.com/bounded-systems/machine-schema#readme",
+  "bugs": {
+    "url": "https://github.com/bounded-systems/machine-schema/issues"
+  },
+  "keywords": [
+    "schema",
+    "brands",
+    "state-machine",
+    "work-unit",
+    "zod"
+  ],
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build"
   },
   "peerDependencies": {
     "zod": "^3.25.0 || ^4.0.0"

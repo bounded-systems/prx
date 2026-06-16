@@ -1,14 +1,45 @@
 {
   "name": "@bounded-systems/policy",
+  "version": "0.1.0",
   "description": "Tool-policy engine enforcing subcommand allowlists by tool, state, and role",
-  "version": "0.0.0",
-  "private": true,
+  "license": "MIT",
   "type": "module",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bounded-systems/policy.git"
+  },
+  "homepage": "https://github.com/bounded-systems/policy#readme",
+  "bugs": {
+    "url": "https://github.com/bounded-systems/policy/issues"
+  },
+  "keywords": [
+    "policy",
+    "allowlist",
+    "authorization",
+    "rbac",
+    "tool-policy"
+  ],
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build"
   }
 }

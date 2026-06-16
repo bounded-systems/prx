@@ -1,15 +1,45 @@
 {
   "name": "@bounded-systems/fs",
+  "version": "0.1.0",
   "description": "Filesystem capability seam; the one allowed filesystem-access point with an injectable FileSystem",
-  "version": "0.0.0",
-  "private": true,
+  "license": "MIT",
   "type": "module",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bounded-systems/fs.git"
+  },
+  "homepage": "https://github.com/bounded-systems/fs#readme",
+  "bugs": {
+    "url": "https://github.com/bounded-systems/fs/issues"
+  },
+  "keywords": [
+    "filesystem",
+    "capability",
+    "seam",
+    "injectable",
+    "fs"
+  ],
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
   },
-  "dependencies": {}
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build"
+  }
 }

@@ -1,14 +1,49 @@
 {
   "name": "@bounded-systems/prx-config",
+  "version": "0.1.0",
   "description": "TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools",
-  "version": "0.0.0",
-  "private": true,
+  "license": "MIT",
   "type": "module",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bounded-systems/prx-config.git"
+  },
+  "homepage": "https://github.com/bounded-systems/prx-config#readme",
+  "bugs": {
+    "url": "https://github.com/bounded-systems/prx-config/issues"
+  },
+  "keywords": [
+    "config",
+    "tui",
+    "schema",
+    "claude",
+    "warp",
+    "zod"
+  ],
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build"
+  },
+  "peerDependencies": {
+    "zod": "^3.25.0 || ^4.0.0"
   }
 }
