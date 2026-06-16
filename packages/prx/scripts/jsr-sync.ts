@@ -2,13 +2,18 @@
 /**
  * jsr-sync — project package metadata to JSR (jsr.io) via the management API.
  *
- * For every `packages/<x>/jsr.json` (the packages marked publishable to JSR),
- * ensure the package exists in its scope and sync its registry listing from the
- * repo's own single source of truth:
+ * Ensures each publishable `@bounded-systems/*` package exists in its scope and
+ * syncs its registry listing from the repo's own metadata:
  *   - description  ← package.json `description` (truncated to JSR's 250 limit)
  *   - GitHub link  ← the publishing repo (default bounded-systems/prx), the link
  *                    that authorises tokenless OIDC publishing
  *   - runtimeCompat← jsr.json `runtimeCompat` (optional)
+ *
+ * The package list comes from the generated `jsr-manifest.generated.ts` constant
+ * (run `bun run jsr:manifest` to refresh it) — NOT a runtime filesystem read.
+ * That boundary is deliberate: a `readFileSync` feeding an outbound request trips
+ * CodeQL's `js/file-access-to-http`; the generator owns the file reads (file →
+ * file), this script only consumes a static import (constant → network).
  *
  * Metadata only — publishing versions is `jsr publish` (the publish-jsr
  * workflow, tokenless OIDC). Creating a package here reserves the name and fills
@@ -21,15 +26,19 @@
  *   JSR_TOKEN=jsrp_… bun packages/prx/scripts/jsr-sync.ts [--dry-run] [--repo owner/name]
  */
 
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { JSR_PACKAGES, type JsrPackageMeta } from "./jsr-manifest.generated.ts";
 
 const API = "https://api.jsr.io";
 const UA = "prx-jsr-sync/0.1; https://github.com/bounded-systems/prx";
 const DRY = process.argv.includes("--dry-run");
 
+// Optional override of the linked publishing repo (argv, not file data).
 const repoIdx = process.argv.indexOf("--repo");
-const DEFAULT_REPO = repoIdx !== -1 ? process.argv[repoIdx + 1]! : "bounded-systems/prx";
+const repoArg = repoIdx !== -1 ? process.argv[repoIdx + 1] : undefined;
+const REPO_OVERRIDE =
+  repoArg && repoArg.includes("/")
+    ? { owner: repoArg.split("/")[0]!, name: repoArg.split("/")[1]! }
+    : undefined;
 
 const token = process.env.JSR_TOKEN;
 if (!token && !DRY) {
@@ -37,54 +46,6 @@ if (!token && !DRY) {
     "JSR_TOKEN not set (a jsr.io personal access token, permission `all`). Use --dry-run to preview.",
   );
   process.exit(1);
-}
-
-// packages/prx/scripts → packages/
-const packagesDir = join(import.meta.dir, "..", "..");
-
-interface PkgMeta {
-  name: string;
-  scope: string;
-  pkg: string;
-  description?: string | undefined;
-  repo: { owner: string; name: string };
-  runtimeCompat?: Record<string, boolean | null> | undefined;
-}
-
-function discover(): PkgMeta[] {
-  const [defOwner, defName] = DEFAULT_REPO.split("/");
-  const out: PkgMeta[] = [];
-  for (const entry of readdirSync(packagesDir, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    const dir = join(packagesDir, entry.name);
-    if (!existsSync(join(dir, "jsr.json"))) continue;
-    const jsr = JSON.parse(readFileSync(join(dir, "jsr.json"), "utf8")) as {
-      name?: string;
-      githubRepository?: { owner: string; name: string };
-      runtimeCompat?: Record<string, boolean | null>;
-    };
-    // Strict scope/pkg validation: these segments are interpolated into the
-    // request URL, so restrict to JSR's actual naming rule (lowercase
-    // alphanumerics + hyphens). This is also the sanitizer that bounds the
-    // file-derived value before it reaches the network path.
-    const m = /^@([a-z0-9][a-z0-9-]*)\/([a-z0-9][a-z0-9-]*)$/.exec(jsr.name ?? "");
-    if (!m) {
-      console.warn(`skip ${dir}: jsr.json name is not a valid @scope/pkg (${jsr.name})`);
-      continue;
-    }
-    const pj = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as {
-      description?: string;
-    };
-    out.push({
-      name: jsr.name!,
-      scope: m[1]!,
-      pkg: m[2]!,
-      description: pj.description,
-      repo: jsr.githubRepository ?? { owner: defOwner!, name: defName! },
-      runtimeCompat: jsr.runtimeCompat,
-    });
-  }
-  return out;
 }
 
 async function call(method: string, path: string, body?: unknown): Promise<Response> {
@@ -110,12 +71,13 @@ async function patch(base: string, what: string, body: unknown): Promise<void> {
   else console.error(`  ! ${what} -> ${res.status} ${await res.text()}`);
 }
 
-async function syncOne(p: PkgMeta): Promise<void> {
-  // scope/pkg are validated in discover() against [a-z0-9-]; encode anyway so
-  // the file-derived segments are bounded before they reach the request URL.
+async function syncOne(p: JsrPackageMeta): Promise<void> {
+  // scope/pkg are validated at generation time against [a-z0-9-]; encode anyway
+  // so the path segments are bounded before they reach the request URL.
   const scope = encodeURIComponent(p.scope);
   const pkg = encodeURIComponent(p.pkg);
   const base = `/scopes/${scope}/packages/${pkg}`;
+  const repo = REPO_OVERRIDE ?? p.repo;
 
   if (DRY) {
     console.log(`  would ensure ${p.name} exists`);
@@ -137,23 +99,21 @@ async function syncOne(p: PkgMeta): Promise<void> {
   }
 
   if (p.description) {
-    const desc =
-      p.description.length > 250 ? `${p.description.slice(0, 247)}…` : p.description;
+    const desc = p.description.length > 250 ? `${p.description.slice(0, 247)}…` : p.description;
     await patch(base, `description (${desc.length} chars)`, { description: desc });
   }
-  await patch(base, `githubRepository ${p.repo.owner}/${p.repo.name}`, {
-    githubRepository: { owner: p.repo.owner, name: p.repo.name },
+  await patch(base, `githubRepository ${repo.owner}/${repo.name}`, {
+    githubRepository: { owner: repo.owner, name: repo.name },
   });
   if (p.runtimeCompat) await patch(base, "runtimeCompat", { runtimeCompat: p.runtimeCompat });
 }
 
-const pkgs = discover();
-if (pkgs.length === 0) {
-  console.log("No packages with a jsr.json found — nothing to sync.");
+if (JSR_PACKAGES.length === 0) {
+  console.log("No packages in the manifest — run `bun run jsr:manifest`.");
   process.exit(0);
 }
-console.log(`${DRY ? "[dry-run] " : ""}Syncing ${pkgs.length} package(s) to JSR:`);
-for (const p of pkgs) {
+console.log(`${DRY ? "[dry-run] " : ""}Syncing ${JSR_PACKAGES.length} package(s) to JSR:`);
+for (const p of JSR_PACKAGES) {
   console.log(`- ${p.name}`);
   await syncOne(p);
 }
