@@ -52,13 +52,13 @@ Manual single-package publish: push a `@bounded-systems/<pkg>@<version>` tag, or
 
 ## Package status
 
-13 ready, 9 held — of 22 publishable packages.
+14 ready, 8 held — of 22 publishable packages.
 
 | Package | Version | Auto-publish | Intra-scope deps |
 | --- | --- | --- | --- |
 | `@bounded-systems/cas` | 0.1.1 | ✅ ready | — |
 | `@bounded-systems/anchored-chain` | 0.2.1 | ✅ ready | `cas` |
-| `@bounded-systems/anchored-chain-sqlite` | 0.2.1 | ⏳ held | `anchored-chain`, `cas` |
+| `@bounded-systems/anchored-chain-sqlite` | 0.2.1 | ✅ ready | `anchored-chain`, `cas` |
 | `@bounded-systems/audit-context` | 0.2.0 | ✅ ready | — |
 | `@bounded-systems/env` | 0.2.0 | ✅ ready | — |
 | `@bounded-systems/auth` | 0.2.0 | ✅ ready | `env` |
