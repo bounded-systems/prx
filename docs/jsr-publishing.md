@@ -52,7 +52,7 @@ Manual single-package publish: push a `@bounded-systems/<pkg>@<version>` tag, or
 
 ## Package status
 
-7 ready, 15 held — of 22 publishable packages.
+13 ready, 9 held — of 22 publishable packages.
 
 | Package | Version | Auto-publish | Intra-scope deps |
 | --- | --- | --- | --- |
@@ -62,19 +62,19 @@ Manual single-package publish: push a `@bounded-systems/<pkg>@<version>` tag, or
 | `@bounded-systems/audit-context` | 0.2.0 | ✅ ready | — |
 | `@bounded-systems/env` | 0.2.0 | ✅ ready | — |
 | `@bounded-systems/auth` | 0.2.0 | ✅ ready | `env` |
-| `@bounded-systems/policy` | 0.2.0 | ⏳ held | — |
+| `@bounded-systems/policy` | 0.2.0 | ✅ ready | — |
 | `@bounded-systems/proc` | 0.2.0 | ⏳ held | `env`, `policy` |
 | `@bounded-systems/bd` | 0.2.0 | ⏳ held | `env`, `proc`, `policy` |
-| `@bounded-systems/disposition` | 0.2.0 | ⏳ held | — |
-| `@bounded-systems/fs` | 0.2.0 | ⏳ held | — |
+| `@bounded-systems/disposition` | 0.2.0 | ✅ ready | — |
+| `@bounded-systems/fs` | 0.2.0 | ✅ ready | — |
 | `@bounded-systems/github-budget` | 0.1.0 | ⏳ held | `audit-context`, `env`, `proc` |
 | `@bounded-systems/gh` | 0.1.0 | ⏳ held | `env`, `proc`, `policy`, `github-budget` |
 | `@bounded-systems/git` | 0.1.0 | ⏳ held | `env`, `proc`, `policy`, `fs` |
 | `@bounded-systems/host` | 0.2.0 | ✅ ready | `env` |
-| `@bounded-systems/machine-schema` | 0.2.0 | ⏳ held | — |
-| `@bounded-systems/prx-config` | 0.2.0 | ⏳ held | — |
+| `@bounded-systems/machine-schema` | 0.2.0 | ✅ ready | — |
+| `@bounded-systems/prx-config` | 0.2.0 | ✅ ready | — |
 | `@bounded-systems/repo-root` | 0.1.0 | ⏳ held | `proc` |
 | `@bounded-systems/scout` | 0.1.1 | ✅ ready | `anchored-chain`, `anchored-chain-sqlite`, `cas` |
 | `@bounded-systems/slack` | 0.2.1 | ⏳ held | `anchored-chain`, `anchored-chain-sqlite`, `auth`, `cas`, `env`, `policy`, `proc` |
 | `@bounded-systems/surface-sync` | 0.2.0 | ⏳ held | `disposition` |
-| `@bounded-systems/verbspec` | 0.3.0 | ⏳ held | — |
+| `@bounded-systems/verbspec` | 0.3.0 | ✅ ready | — |

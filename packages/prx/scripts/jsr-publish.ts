@@ -44,9 +44,15 @@ export const READY = new Set<string>([
   "audit-context",
   "auth",
   "cas",
+  "disposition",
   "env",
+  "fs",
   "host",
+  "machine-schema",
+  "policy",
+  "prx-config",
   "scout",
+  "verbspec",
 ]);
 const ALL = process.argv.includes("--all");
 
