@@ -1,4 +1,4 @@
-# @bounded-systems/scout
+# @bounded-systems/repo-root
 
 ## 0.1.0
 
@@ -14,9 +14,7 @@
   - `scout` now declares `@bounded-systems/anchored-chain-sqlite`.
   - `slack` now declares `@bounded-systems/anchored-chain-sqlite`, `@bounded-systems/auth`, `@bounded-systems/env`, and `@bounded-systems/proc`.
 
-## 0.0.1
-
 ### Patch Changes
 
-- Updated dependencies [8c1b8c5]
-  - @bounded-systems/anchored-chain@0.2.0
+- Updated dependencies [37b0b70]
+  - @bounded-systems/proc@0.2.0

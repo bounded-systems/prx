@@ -1,6 +1,6 @@
 {
   "name": "@bounded-systems/host",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The one sanctioned reader of host/OS ambient state (home dir, temp dir, hostname), routing ambient authority through capability imports",
   "license": "MIT",
   "type": "module",

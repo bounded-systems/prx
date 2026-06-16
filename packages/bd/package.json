@@ -1,6 +1,6 @@
 {
   "name": "@bounded-systems/bd",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Typed interface to the beads CLI with policy enforcement and short-ID guards",
   "license": "MIT",
   "type": "module",

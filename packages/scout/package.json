@@ -1,6 +1,6 @@
 {
   "name": "@bounded-systems/scout",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Content-addressed surface reads (file/grep/files) with anchored-chain provenance",
   "license": "MIT",
   "type": "module",
