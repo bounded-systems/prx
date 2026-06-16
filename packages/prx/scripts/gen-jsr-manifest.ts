@@ -27,6 +27,17 @@ const OUT = join(scriptsDir, "jsr-manifest.generated.ts");
 /** The repo whose GitHub Actions OIDC is authorised to publish (monorepo today). */
 const DEFAULT_REPO = { owner: "bounded-systems", name: "prx" } as const;
 
+// Runtime compatibility (informational, shown on the JSR package page).
+// Bun is verified for every package — the repo runs on Bun. node/deno/etc. are
+// only claimed where verified, to avoid overclaiming: `proc` uses `Bun.spawn`
+// (Bun-specific), so it keeps the bun-only default. Add an entry here as a
+// package is verified on more runtimes.
+const DEFAULT_COMPAT: Record<string, boolean> = { bun: true };
+const RUNTIME_COMPAT: Record<string, Record<string, boolean>> = {
+  // cas uses only node:crypto + Buffer — portable across the node-compatible runtimes.
+  cas: { node: true, deno: true, bun: true },
+};
+
 export interface JsrPackageMeta {
   name: string;
   scope: string;
@@ -62,7 +73,7 @@ export function buildManifest(): JsrPackageMeta[] {
       pkg: m[2]!,
       ...(pj.description ? { description: pj.description } : {}),
       repo: jsr.githubRepository ?? { ...DEFAULT_REPO },
-      ...(jsr.runtimeCompat ? { runtimeCompat: jsr.runtimeCompat } : {}),
+      runtimeCompat: jsr.runtimeCompat ?? RUNTIME_COMPAT[m[2]!] ?? DEFAULT_COMPAT,
     });
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));
