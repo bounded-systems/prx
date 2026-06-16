@@ -11,15 +11,11 @@ import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
 // GH-245: embed the migrations so a `bun build --compile` binary (where the
 // on-disk ./migrations folder is absent) can still initialize the schema. The
 // dev/install path uses the folder directly; only the compiled path materializes
-// these. Adding a migration means adding its import + EMBEDDED_MIGRATION_SQL entry.
+// these. EMBEDDED_MIGRATION_SQL is generated from the .sql files (`bun run
+// acs:migrations`) — JSR rejects `with { type: "text" }` imports, so the SQL is
+// embedded as a string constant rather than imported from the .sql files.
 import journal from './migrations/meta/_journal.json' with { type: 'json' };
-import sql0000init from './migrations/0000_init.sql' with { type: 'text' };
-import sql0001watchers from './migrations/0001_tiresome_the_watchers.sql' with { type: 'text' };
-
-const EMBEDDED_MIGRATION_SQL: Record<string, string> = {
-  '0000_init': sql0000init,
-  '0001_tiresome_the_watchers': sql0001watchers,
-};
+import { EMBEDDED_MIGRATION_SQL } from './migrations.generated.ts';
 
 import type {
   AnchoredChainStore,

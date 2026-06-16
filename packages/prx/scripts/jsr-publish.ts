@@ -41,6 +41,7 @@ const STRICT = process.argv.includes("--strict");
 // to re-discover which packages now pass).
 export const READY = new Set<string>([
   "anchored-chain",
+  "anchored-chain-sqlite",
   "audit-context",
   "auth",
   "cas",
