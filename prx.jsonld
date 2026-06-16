@@ -643,6 +643,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/keeper-door-secret-validation.md",
+      "name": "Spike — validate the keeper door: host-backed secret + live push (prx-b44y)",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/keeper-door-secret-validation.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/prx-3eu-sync-framework-build-vs-adopt.md",
       "name": "prx-3eu — Sync agent: adopt a sync framework, or build bespoke? (ADR)",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/prx-3eu-sync-framework-build-vs-adopt.md",
