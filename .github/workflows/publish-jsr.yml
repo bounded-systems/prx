@@ -81,4 +81,7 @@ jobs:
 
       - name: Publish to JSR
         working-directory: ${{ steps.pkg.outputs.dir }}
-        run: bunx jsr publish
+        # --allow-slow-types for parity with release.yml (jsr:publish): a package
+        # without explicit public-API types still publishes (lower JSR score, not
+        # a hard block).
+        run: bunx jsr publish --allow-slow-types
