@@ -58,7 +58,7 @@ Manual single-package publish: push a `@bounded-systems/<pkg>@<version>` tag, or
 | --- | --- | --- | --- |
 | `@bounded-systems/cas` | 0.1.1 | ✅ ready | — |
 | `@bounded-systems/anchored-chain` | 0.2.1 | ✅ ready | `cas` |
-| `@bounded-systems/anchored-chain-sqlite` | 0.2.1 | ✅ ready | `anchored-chain`, `cas` |
+| `@bounded-systems/anchored-chain-sqlite` | 0.2.2 | ✅ ready | `anchored-chain`, `cas` |
 | `@bounded-systems/audit-context` | 0.2.0 | ✅ ready | — |
 | `@bounded-systems/env` | 0.2.0 | ✅ ready | — |
 | `@bounded-systems/auth` | 0.2.0 | ✅ ready | `env` |
@@ -74,7 +74,7 @@ Manual single-package publish: push a `@bounded-systems/<pkg>@<version>` tag, or
 | `@bounded-systems/machine-schema` | 0.2.0 | ✅ ready | — |
 | `@bounded-systems/prx-config` | 0.2.0 | ✅ ready | — |
 | `@bounded-systems/repo-root` | 0.1.0 | ⏳ held | `proc` |
-| `@bounded-systems/scout` | 0.1.1 | ✅ ready | `anchored-chain`, `anchored-chain-sqlite`, `cas` |
-| `@bounded-systems/slack` | 0.2.1 | ⏳ held | `anchored-chain`, `anchored-chain-sqlite`, `auth`, `cas`, `env`, `policy`, `proc` |
+| `@bounded-systems/scout` | 0.1.2 | ✅ ready | `anchored-chain`, `anchored-chain-sqlite`, `cas` |
+| `@bounded-systems/slack` | 0.2.2 | ⏳ held | `anchored-chain`, `anchored-chain-sqlite`, `auth`, `cas`, `env`, `policy`, `proc` |
 | `@bounded-systems/surface-sync` | 0.2.0 | ✅ ready | `disposition` |
 | `@bounded-systems/verbspec` | 0.3.0 | ✅ ready | — |
