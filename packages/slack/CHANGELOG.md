@@ -1,5 +1,12 @@
 # @bounded-systems/slack
 
+## 0.2.2
+
+### Patch Changes
+
+- Updated dependencies [813d714]
+  - @bounded-systems/anchored-chain-sqlite@0.2.2
+
 ## 0.2.1
 
 ### Patch Changes
