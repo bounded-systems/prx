@@ -6,10 +6,20 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { Server } from "node:net";
 import type { SpawnSyncReturns } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
+import {
+  ed25519Signer,
+  ed25519Verifier,
+  generateEd25519Keypair,
+} from "@bounded-systems/anchored-chain";
+import type { execGit, GitExecOptions, GitExecResult } from "@bounded-systems/git";
+
 import { getRef } from "../../src/plan-store/cas.ts";
+import { runKeeperServe, type KeeperDaemonDeps } from "../../src/keeperd/daemon.ts";
+import { runKeeperDoorPush } from "../../src/keeperd/host.ts";
 import {
   SUBMIT_DOMAIN,
   writeSubmitArtifact,
@@ -308,6 +318,7 @@ describe("runSubmitPublish (GH-1900 / GH-2348.2)", () => {
 describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
   let envSnap: EnvSnapshot;
   let casRoot: string;
+  let doorCounter = 0;
 
   beforeEach(() => {
     envSnap = snapshotEnv();
@@ -378,5 +389,81 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
       signedDerivation: { manifest: { outputs: { commit: `gitCommit:${"f".repeat(40)}` } } },
     });
     await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/not the materialized commit/);
+  });
+
+  // ── REAL keeperd over the door (prx-lt4q / #644) ─────────────────────────────
+  // The fakes above prove the gate's branch logic; these prove the SEAM the fakes
+  // can't: runSubmitPublish ↔ the real keeperd client (framed unix socket) ↔ a
+  // real daemon + real ed25519 signer ↔ the requireSigned verifier. Git is faked
+  // inside the daemon (no real push), but the signing + the returned
+  // `signedDerivation` are genuine — the door wire-contract round-trip is real.
+
+  const okGit = (stdout = ""): GitExecResult => ({ exitCode: 0, stdout, stderr: "", policy: null });
+  // A daemon git that succeeds and reports the materialized commit as the imported
+  // tip / post-push HEAD — so `attestingGit` attests `gitCommit:MATERIALIZED_COMMIT`.
+  const daemonGit = ((opts: GitExecOptions): GitExecResult =>
+    opts.subcommand === "rev-parse" ? okGit(MATERIALIZED_COMMIT) : okGit()) as typeof execGit;
+
+  async function withKeeperd(
+    deps: KeeperDaemonDeps,
+    body: (socketPath: string) => Promise<void>,
+  ): Promise<void> {
+    const socketPath = join(tmpdir(), `keeperd-publish-${process.pid}-${doorCounter++}.sock`);
+    const server: Server = await runKeeperServe({ socketPath, deps });
+    const prev = process.env.PRX_KEEPER_SOCKET;
+    process.env.PRX_KEEPER_SOCKET = socketPath;
+    try {
+      await body(socketPath);
+    } finally {
+      if (prev === undefined) delete process.env.PRX_KEEPER_SOCKET;
+      else process.env.PRX_KEEPER_SOCKET = prev;
+      await new Promise<void>((r) => server.close(() => r()));
+    }
+  }
+
+  test("requireSigned + door: a REAL keeperd-signed derivation verifies → PR opens (prx-lt4q/#644)", async () => {
+    await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
+    const kp = generateEd25519Keypair();
+    await withKeeperd(
+      {
+        git: daemonGit,
+        signer: ed25519Signer(kp.privateKey, kp.keyid),
+        // a capturing in-memory ledger; the daemon also RETURNS the derivation (#644)
+        openLedger: () => ({ store: { append: async () => {}, get: async () => null }, close: () => {} }),
+      },
+      async () => {
+        const { deps, pushes, prOpens } = spy();
+        deps.keeperDoorMode = () => true;
+        // the REAL door client; only the local bundle bytes are stubbed (not under test)
+        deps.keeperDoor = (input) => runKeeperDoorPush(input, { bundle: () => "AA==" });
+        deps.keeperLedgerRef = "refs/prx/ledger"; // opt the daemon into attesting
+        deps.requireSigned = true;
+        deps.verifier = ed25519Verifier(kp.publicKey);
+
+        const render = await runSubmitPublish(PUBLISH, deps);
+        expect(render.exitCode).toBe(0); // the gate VERIFIED a real daemon-signed derivation
+        expect(pushes).toHaveLength(0); // routed through the door, not the local push
+        expect(prOpens).toHaveLength(1); // requireSigned satisfied over the door → PR opens
+      },
+    );
+  });
+
+  test("requireSigned + door: a REAL bare-push daemon (no signer) returns nothing → fails closed", async () => {
+    await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
+    const kp = generateEd25519Keypair();
+    await withKeeperd(
+      { git: daemonGit }, // no signer/openLedger → bare push, no signedDerivation
+      async () => {
+        const { deps, prOpens } = spy();
+        deps.keeperDoorMode = () => true;
+        deps.keeperDoor = (input) => runKeeperDoorPush(input, { bundle: () => "AA==" });
+        deps.keeperLedgerRef = "refs/prx/ledger";
+        deps.requireSigned = true;
+        deps.verifier = ed25519Verifier(kp.publicKey);
+
+        await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/emitted no signed derivation/);
+        expect(prOpens).toHaveLength(0); // fail closed before the PR opens
+      },
+    );
   });
 });
