@@ -1,0 +1,40 @@
+# TEMPLATE — per-repo event-driven add (the instant half of the hybrid).
+#
+# Drop this into EACH org repo as `.github/workflows/front-desk-add.yml`.
+# It fires the moment an issue/PR is opened and adds it to Front Desk, so cards
+# land instantly; the central sweep (gh-project-room) is the backstop.
+#
+# Auth = the Front Desk *door*: the same signed GitHub App, granted only
+#   Organization Projects: read+write  (+ repo Issues/PRs: read).
+# Configure ONCE as ORG-level var + secret so every repo shares them:
+#   - org variable  FRONT_DESK_APP_ID
+#   - org secret    FRONT_DESK_APP_PRIVATE_KEY
+# (See docs/handoffs/gh-project-room.md → "The door".)
+#
+# Pin both actions to a full commit SHA before adopting (hardening §4).
+name: front-desk-add
+
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+
+permissions: {}   # the App token below carries the only capability needed
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint Front Desk token from the GitHub App
+        id: app-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        with:
+          app-id: ${{ vars.FRONT_DESK_APP_ID }}
+          private-key: ${{ secrets.FRONT_DESK_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - name: Add to Front Desk
+        uses: actions/add-to-project@244f685bbc3b7adfa8466e08b698b5577571133e # v1.0.2
+        with:
+          project-url: https://github.com/orgs/bounded-systems/projects/2
+          github-token: ${{ steps.app-token.outputs.token }}
