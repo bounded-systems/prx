@@ -18,7 +18,10 @@
 self:
 { pkgs, system ? pkgs.stdenv.hostPlatform.system }:
 let
-  bins = import ../fetch-release.nix self { inherit pkgs system; };
+  # prx via ./prx-fhs.nix: the released `bun --compile` binary can't run in a
+  # from-scratch image as-is — it's wrapped to invoke the nix glibc loader
+  # directly (see prx-fhs.nix). Drop-in for fetch-release.nix; same { prx; version; }.
+  bins = import ./prx-fhs.nix self { inherit pkgs system; };
 
   # Entrypoint: load the signing key from the mounted secret (if present) into
   # PRX_PROVENANCE_KEY, then serve. The key is never written to a layer — it is
@@ -48,13 +51,24 @@ pkgs.dockerTools.streamLayeredImage {
     pkgs.cacert
     pkgs.coreutils
     pkgs.bashInteractive
+    # /etc/passwd + nsswitch — prx (Bun `os.homedir()` → uv_os_homedir) and
+    # git resolve the user; without it prx crashes at startup with
+    # `ENOENT … uv_os_homedir`.
+    pkgs.dockerTools.fakeNss
   ];
+
+  # A writable HOME for prx (config/cache) + the door-socket dir.
+  extraCommands = ''
+    mkdir -p ./tmp ./home/prx ./run/prx/doors
+    chmod 1777 ./tmp
+  '';
 
   config = {
     Entrypoint = [ "/bin/keeperd-box-entrypoint" ];
     Env = [
       "SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt"
       "GIT_SSL_CAINFO=/etc/ssl/certs/ca-bundle.crt"
+      "HOME=/home/prx"
     ];
     WorkingDir = "/work";
     Labels = {

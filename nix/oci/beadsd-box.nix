@@ -19,7 +19,9 @@
 self:
 { pkgs, system ? pkgs.stdenv.hostPlatform.system }:
 let
-  bins = import ../fetch-release.nix self { inherit pkgs system; };
+  # prx via ./prx-fhs.nix: the released `bun --compile` binary is wrapped to run
+  # under the nix glibc loader in a from-scratch image. Drop-in for fetch-release.
+  bins = import ./prx-fhs.nix self { inherit pkgs system; };
   bd = import ./bd.nix { inherit pkgs; };
 in
 pkgs.dockerTools.streamLayeredImage {
@@ -36,7 +38,17 @@ pkgs.dockerTools.streamLayeredImage {
     pkgs.cacert
     pkgs.coreutils
     pkgs.bashInteractive
+    # /etc/passwd + nsswitch — prx (Bun `os.homedir()` → uv_os_homedir) and dolt
+    # resolve the user; without it prx crashes `ENOENT … uv_os_homedir` and dolt
+    # fails `unknown userid 0`.
+    pkgs.dockerTools.fakeNss
   ];
+
+  # A writable HOME for prx (config/cache) + the door-socket dir.
+  extraCommands = ''
+    mkdir -p ./tmp ./home/prx ./run/prx/doors
+    chmod 1777 ./tmp
+  '';
 
   config = {
     # beadsd = `prx beads serve`, which shells to bd + dolt. The pod appends the
@@ -47,6 +59,7 @@ pkgs.dockerTools.streamLayeredImage {
     Env = [
       "SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt"
       "GIT_SSL_CAINFO=/etc/ssl/certs/ca-bundle.crt"
+      "HOME=/home/prx"
     ];
     WorkingDir = "/work";
     Labels = {
