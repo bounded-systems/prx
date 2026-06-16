@@ -9,6 +9,7 @@ import { perRepoPod } from "../../src/room/per-repo-pod.ts";
 import {
   podmanDriver,
   quadletUnitName,
+  renderDoorFabricProvision,
   renderPodmanKube,
   renderPodmanQuadlet,
   renderPodmanRun,
@@ -232,5 +233,39 @@ describe("renderPodmanQuadlet (prx-b44y — production systemd form)", () => {
   test("throws on the same wiring errors as renderPodmanRun", () => {
     expect(() => renderPodmanQuadlet(perRepoPod, "ghost-room")).toThrow(/not a member/);
     expect(() => renderPodmanQuadlet(perRepoPod, "claude-room")).toThrow(/holds no secret/);
+  });
+});
+
+describe("renderDoorFabricProvision (prx-3urm — door-dir provisioning + relabel)", () => {
+  const argv = renderDoorFabricProvision("/run/prx/doors");
+
+  test("is an `sh -c` host command (the one sanctioned spawn via proc)", () => {
+    expect(argv[0]).toBe("sh");
+    expect(argv[1]).toBe("-c");
+  });
+
+  test("mkdir -p's the door dir, then best-effort relabels it to the shared `:z` context", () => {
+    const cmd = argv[2]!;
+    // mkdir -p so a missing dir (the all-secret-rooms gap) is created — and
+    // `set -e` so a real mkdir failure aborts the bring-up.
+    expect(cmd).toContain("set -e");
+    expect(cmd).toContain("mkdir -p '/run/prx/doors'");
+    // chcon to container_file_t == the `:z` shared label, BEFORE kube-play.
+    expect(cmd).toContain("chcon -R -t container_file_t '/run/prx/doors'");
+  });
+
+  test("guards the relabel so it is a no-op off SELinux / unprivileged", () => {
+    const cmd = argv[2]!;
+    // Skipped when chcon is absent (non-SELinux host)…
+    expect(cmd).toContain("command -v chcon >/dev/null 2>&1");
+    // …and never aborts the step when it fails (unprivileged).
+    expect(cmd.trimEnd()).toMatch(/\|\| true$/);
+  });
+
+  test("POSIX single-quotes the dir so a hostile path can't break out of the command", () => {
+    const cmd = renderDoorFabricProvision("/run/prx/doors'; rm -rf /")[2]!;
+    // The embedded quote is escaped (`'\''`), keeping the payload inside the literal.
+    expect(cmd).toContain(`'/run/prx/doors'\\''; rm -rf /'`);
+    expect(cmd).not.toContain("; rm -rf / ");
   });
 });
