@@ -63,9 +63,13 @@ function discover(): PkgMeta[] {
       githubRepository?: { owner: string; name: string };
       runtimeCompat?: Record<string, boolean | null>;
     };
-    const m = /^@([^/]+)\/(.+)$/.exec(jsr.name ?? "");
+    // Strict scope/pkg validation: these segments are interpolated into the
+    // request URL, so restrict to JSR's actual naming rule (lowercase
+    // alphanumerics + hyphens). This is also the sanitizer that bounds the
+    // file-derived value before it reaches the network path.
+    const m = /^@([a-z0-9][a-z0-9-]*)\/([a-z0-9][a-z0-9-]*)$/.exec(jsr.name ?? "");
     if (!m) {
-      console.warn(`skip ${dir}: jsr.json name is not @scope/pkg (${jsr.name})`);
+      console.warn(`skip ${dir}: jsr.json name is not a valid @scope/pkg (${jsr.name})`);
       continue;
     }
     const pj = JSON.parse(readFileSync(join(dir, "package.json"), "utf8")) as {
@@ -107,14 +111,18 @@ async function patch(base: string, what: string, body: unknown): Promise<void> {
 }
 
 async function syncOne(p: PkgMeta): Promise<void> {
-  const base = `/scopes/${p.scope}/packages/${p.pkg}`;
+  // scope/pkg are validated in discover() against [a-z0-9-]; encode anyway so
+  // the file-derived segments are bounded before they reach the request URL.
+  const scope = encodeURIComponent(p.scope);
+  const pkg = encodeURIComponent(p.pkg);
+  const base = `/scopes/${scope}/packages/${pkg}`;
 
   if (DRY) {
     console.log(`  would ensure ${p.name} exists`);
   } else {
     const get = await call("GET", base);
     if (get.status === 404) {
-      const res = await call("POST", `/scopes/${p.scope}/packages`, { package: p.pkg });
+      const res = await call("POST", `/scopes/${scope}/packages`, { package: p.pkg });
       if (res.status !== 200) {
         console.error(`  ! create ${p.name} -> ${res.status} ${await res.text()}`);
         return;
