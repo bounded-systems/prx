@@ -162,10 +162,16 @@ export function renderPodmanRun(pod: PodSpec, roomName: string): string[] {
   }
   // The shared door fabric: the SAME host doorDir the kube pod hostPath-mounts,
   // so this standalone container's exposed door is reachable across runtimes.
-  args.push("--volume", `${p.doorDir}:${p.doorDir}`);
-  // The repo bind-mount + WorkingDir (mirrors the kube pod; prx-u5lx).
+  // `:z` = SHARED SELinux relabel (container_file_t, shared) — required on an
+  // SELinux-enforcing host (e.g. a Fedora podman machine), else the keeper hits
+  // EACCES creating its socket on the unlabeled (var_run_t) dir; SHARED (`:z`)
+  // not private (`:Z`) because the dir is shared with the kube pod's containers.
+  // A no-op on non-SELinux hosts. Live-validated on the host (prx-3urm).
+  args.push("--volume", `${p.doorDir}:${p.doorDir}:z`);
+  // The repo bind-mount + WorkingDir (mirrors the kube pod; prx-u5lx). `:z` for
+  // the same SELinux reason — the repo is shared by every room.
   if (p.repo) {
-    args.push("--volume", `${p.repo}:${WORK_DIR}`, "--workdir", WORK_DIR);
+    args.push("--volume", `${p.repo}:${WORK_DIR}:z`, "--workdir", WORK_DIR);
   }
   // The wired-door env projection (a secret room that ALSO consumes doors gets
   // its consumer env here, exactly as the kube containers do).

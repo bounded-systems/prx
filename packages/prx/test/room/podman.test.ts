@@ -148,20 +148,22 @@ describe("renderPodmanRun (prx-b44y — secret-holding rooms)", () => {
     expect(argv[i + 1]).toBe("prx-keeper-key,target=/run/secrets/keeper-key");
   });
 
-  test("mounts the SAME host door fabric the kube pod mounts", () => {
+  test("mounts the SAME host door fabric the kube pod mounts, with a shared :z relabel", () => {
     const i = argv.indexOf("--volume");
     expect(i).toBeGreaterThanOrEqual(0);
-    expect(argv[i + 1]).toBe("/run/prx/doors:/run/prx/doors");
+    // `:z` (shared) so an SELinux-enforcing host lets the keeper write its socket
+    // on the dir shared with the kube pod (prx-3urm); shared, not private `:Z`.
+    expect(argv[i + 1]).toBe("/run/prx/doors:/run/prx/doors:z");
   });
 
   test("ends with the room's -box image", () => {
     expect(argv[argv.length - 1]).toBe("keeperd-box");
   });
 
-  test("adds the repo /work mount + workdir only when pod.repo is set", () => {
+  test("adds the repo /work mount (shared :z) + workdir only when pod.repo is set", () => {
     expect(argv).not.toContain("--workdir");
     const withRepo = renderPodmanRun({ ...perRepoPod, repo: "/host/repo" }, "keeperd-room");
-    expect(withRepo).toContain("/host/repo:/work");
+    expect(withRepo).toContain("/host/repo:/work:z");
     const w = withRepo.indexOf("--workdir");
     expect(withRepo[w + 1]).toBe("/work");
   });
