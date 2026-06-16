@@ -74,6 +74,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Two-clock policy — Netflix's slow-planner / fast-executor split, mapped to prx (spike) — `docs/spikes/two-clock-policy.md`
 - prx — value props (forcing-function-backed) — `docs/value-props.md`
 - @bounded-systems/cas — `packages/cas/README.md`
+- @bounded-systems/verbspec — `packages/verbspec/README.md`
 - prx — `README.md`
 - Security Policy — `SECURITY.md`
 - spike: effect-typed CUE spec unifying the prx actor-model invariants (+ Rule 4, MCP-as-projection) — `spec/README.md`

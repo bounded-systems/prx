@@ -706,6 +706,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/packages/verbspec/README.md",
+      "name": "@bounded-systems/verbspec",
+      "url": "https://github.com/bounded-systems/prx/blob/main/packages/verbspec/README.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/spec/README.md",
       "name": "spike: effect-typed CUE spec unifying the prx actor-model invariants (+ Rule 4, MCP-as-projection)",
       "url": "https://github.com/bounded-systems/prx/blob/main/spec/README.md",
