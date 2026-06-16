@@ -751,6 +751,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/packages/bd/README.md",
+      "name": "@bounded-systems/bd",
+      "url": "https://github.com/bounded-systems/prx/blob/main/packages/bd/README.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/packages/cas/README.md",
       "name": "@bounded-systems/cas",
       "url": "https://github.com/bounded-systems/prx/blob/main/packages/cas/README.md",
@@ -781,6 +790,33 @@
       "@id": "https://github.com/bounded-systems/prx/blob/main/packages/fs/README.md",
       "name": "@bounded-systems/fs",
       "url": "https://github.com/bounded-systems/prx/blob/main/packages/fs/README.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/packages/gh/README.md",
+      "name": "@bounded-systems/gh",
+      "url": "https://github.com/bounded-systems/prx/blob/main/packages/gh/README.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/packages/git/README.md",
+      "name": "@bounded-systems/git",
+      "url": "https://github.com/bounded-systems/prx/blob/main/packages/git/README.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/packages/github-budget/README.md",
+      "name": "@bounded-systems/github-budget",
+      "url": "https://github.com/bounded-systems/prx/blob/main/packages/github-budget/README.md",
       "isPartOf": {
         "@id": "https://github.com/bounded-systems/prx"
       }
@@ -826,6 +862,33 @@
       "@id": "https://github.com/bounded-systems/prx/blob/main/packages/prx-config/README.md",
       "name": "@bounded-systems/prx-config",
       "url": "https://github.com/bounded-systems/prx/blob/main/packages/prx-config/README.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/packages/repo-root/README.md",
+      "name": "@bounded-systems/repo-root",
+      "url": "https://github.com/bounded-systems/prx/blob/main/packages/repo-root/README.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/packages/scout/README.md",
+      "name": "@bounded-systems/scout",
+      "url": "https://github.com/bounded-systems/prx/blob/main/packages/scout/README.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/packages/slack/README.md",
+      "name": "@bounded-systems/slack",
+      "url": "https://github.com/bounded-systems/prx/blob/main/packages/slack/README.md",
       "isPartOf": {
         "@id": "https://github.com/bounded-systems/prx"
       }

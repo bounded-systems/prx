@@ -1,18 +1,50 @@
 {
   "name": "@bounded-systems/scout",
-  "description": "Content-addressed surface reads (file/grep/files) with anchored-chain provenance",
   "version": "0.0.1",
-  "private": true,
+  "description": "Content-addressed surface reads (file/grep/files) with anchored-chain provenance",
+  "license": "MIT",
   "type": "module",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bounded-systems/scout.git"
+  },
+  "homepage": "https://github.com/bounded-systems/scout#readme",
+  "bugs": {
+    "url": "https://github.com/bounded-systems/scout/issues"
+  },
+  "keywords": [
+    "scout",
+    "content-addressed",
+    "provenance",
+    "grep",
+    "surface-reads"
+  ],
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
   },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build"
+  },
   "dependencies": {
-    "@bounded-systems/cas": "workspace:*",
-    "@bounded-systems/anchored-chain": "workspace:*"
+    "@bounded-systems/anchored-chain": "workspace:*",
+    "@bounded-systems/anchored-chain-sqlite": "workspace:*",
+    "@bounded-systems/cas": "workspace:*"
   }
 }

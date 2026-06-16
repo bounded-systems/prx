@@ -1,15 +1,46 @@
 {
   "name": "@bounded-systems/git",
-  "description": "Git CLI wrapper with policy enforcement and stale-lock recovery",
   "version": "0.0.2",
-  "private": true,
+  "description": "Git CLI wrapper with policy enforcement and stale-lock recovery",
+  "license": "MIT",
   "type": "module",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bounded-systems/git.git"
+  },
+  "homepage": "https://github.com/bounded-systems/git#readme",
+  "bugs": {
+    "url": "https://github.com/bounded-systems/git/issues"
+  },
+  "keywords": [
+    "git",
+    "cli-wrapper",
+    "policy",
+    "stale-lock",
+    "capability"
+  ],
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build"
   },
   "dependencies": {
     "@bounded-systems/env": "workspace:*",

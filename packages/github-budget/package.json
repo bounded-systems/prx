@@ -1,15 +1,46 @@
 {
   "name": "@bounded-systems/github-budget",
-  "description": "Rate-limit-aware gh wrapper with bucket classification, pre-call gating, and audit trail",
   "version": "0.0.1",
-  "private": true,
+  "description": "Rate-limit-aware gh wrapper with bucket classification, pre-call gating, and audit trail",
+  "license": "MIT",
   "type": "module",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bounded-systems/github-budget.git"
+  },
+  "homepage": "https://github.com/bounded-systems/github-budget#readme",
+  "bugs": {
+    "url": "https://github.com/bounded-systems/github-budget/issues"
+  },
+  "keywords": [
+    "github",
+    "rate-limit",
+    "budget",
+    "audit",
+    "gating"
+  ],
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build"
   },
   "dependencies": {
     "@bounded-systems/audit-context": "workspace:*",

@@ -27,14 +27,14 @@
     },
     "packages/anchored-chain": {
       "name": "@bounded-systems/anchored-chain",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "dependencies": {
         "@bounded-systems/cas": "workspace:*",
       },
     },
     "packages/anchored-chain-sqlite": {
       "name": "@bounded-systems/anchored-chain-sqlite",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "dependencies": {
         "@bounded-systems/anchored-chain": "workspace:*",
         "@bounded-systems/cas": "workspace:*",
@@ -43,18 +43,18 @@
     },
     "packages/audit-context": {
       "name": "@bounded-systems/audit-context",
-      "version": "0.0.0",
+      "version": "0.2.0",
     },
     "packages/auth": {
       "name": "@bounded-systems/auth",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "dependencies": {
         "@bounded-systems/env": "workspace:*",
       },
     },
     "packages/bd": {
       "name": "@bounded-systems/bd",
-      "version": "0.0.1",
+      "version": "0.1.0",
       "dependencies": {
         "@bounded-systems/env": "workspace:*",
         "@bounded-systems/policy": "workspace:*",
@@ -70,22 +70,22 @@
     },
     "packages/disposition": {
       "name": "@bounded-systems/disposition",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "peerDependencies": {
         "zod": "^3.25.0 || ^4.0.0",
       },
     },
     "packages/env": {
       "name": "@bounded-systems/env",
-      "version": "0.0.0",
+      "version": "0.2.0",
     },
     "packages/fs": {
       "name": "@bounded-systems/fs",
-      "version": "0.0.0",
+      "version": "0.2.0",
     },
     "packages/gh": {
       "name": "@bounded-systems/gh",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "dependencies": {
         "@bounded-systems/env": "workspace:*",
         "@bounded-systems/github-budget": "workspace:*",
@@ -95,7 +95,7 @@
     },
     "packages/git": {
       "name": "@bounded-systems/git",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "dependencies": {
         "@bounded-systems/env": "workspace:*",
         "@bounded-systems/fs": "workspace:*",
@@ -105,7 +105,7 @@
     },
     "packages/github-budget": {
       "name": "@bounded-systems/github-budget",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@bounded-systems/audit-context": "workspace:*",
         "@bounded-systems/env": "workspace:*",
@@ -117,25 +117,25 @@
     },
     "packages/host": {
       "name": "@bounded-systems/host",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "dependencies": {
         "@bounded-systems/env": "workspace:*",
       },
     },
     "packages/machine-schema": {
       "name": "@bounded-systems/machine-schema",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "peerDependencies": {
         "zod": "^3.25.0 || ^4.0.0",
       },
     },
     "packages/policy": {
       "name": "@bounded-systems/policy",
-      "version": "0.0.0",
+      "version": "0.2.0",
     },
     "packages/proc": {
       "name": "@bounded-systems/proc",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "dependencies": {
         "@bounded-systems/env": "workspace:*",
         "@bounded-systems/policy": "workspace:*",
@@ -146,46 +146,57 @@
     },
     "packages/prx": {
       "name": "@bounded-systems/prx",
-      "version": "0.10.0",
+      "version": "0.11.0",
       "bin": {
         "prx": "./dist/prx",
       },
     },
     "packages/prx-config": {
       "name": "@bounded-systems/prx-config",
-      "version": "0.0.0",
+      "version": "0.2.0",
+      "peerDependencies": {
+        "zod": "^3.25.0 || ^4.0.0",
+      },
     },
     "packages/repo-root": {
       "name": "@bounded-systems/repo-root",
       "version": "0.0.0",
+      "dependencies": {
+        "@bounded-systems/proc": "workspace:*",
+      },
     },
     "packages/scout": {
       "name": "@bounded-systems/scout",
-      "version": "0.0.0",
+      "version": "0.0.1",
       "dependencies": {
         "@bounded-systems/anchored-chain": "workspace:*",
+        "@bounded-systems/anchored-chain-sqlite": "workspace:*",
         "@bounded-systems/cas": "workspace:*",
       },
     },
     "packages/slack": {
       "name": "@bounded-systems/slack",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@bounded-systems/anchored-chain": "workspace:*",
+        "@bounded-systems/anchored-chain-sqlite": "workspace:*",
+        "@bounded-systems/auth": "workspace:*",
         "@bounded-systems/cas": "workspace:*",
+        "@bounded-systems/env": "workspace:*",
         "@bounded-systems/policy": "workspace:*",
+        "@bounded-systems/proc": "workspace:*",
       },
     },
     "packages/surface-sync": {
       "name": "@bounded-systems/surface-sync",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "dependencies": {
         "@bounded-systems/disposition": "workspace:*",
       },
     },
     "packages/verbspec": {
       "name": "@bounded-systems/verbspec",
-      "version": "0.0.0",
+      "version": "0.2.0",
       "peerDependencies": {
         "zod": "^3.25.0 || ^4.0.0",
       },

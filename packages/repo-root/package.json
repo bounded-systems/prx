@@ -1,14 +1,48 @@
 {
   "name": "@bounded-systems/repo-root",
-  "description": "Repo-root resolution capability: lazy git-based runtime root plus the eager .git-marker walk for build/codegen, the one sanctioned root-resolution point",
   "version": "0.0.0",
-  "private": true,
+  "description": "Repo-root resolution capability: lazy git-based runtime root plus the eager .git-marker walk for build/codegen, the one sanctioned root-resolution point",
+  "license": "MIT",
   "type": "module",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bounded-systems/repo-root.git"
+  },
+  "homepage": "https://github.com/bounded-systems/repo-root#readme",
+  "bugs": {
+    "url": "https://github.com/bounded-systems/repo-root/issues"
+  },
+  "keywords": [
+    "repo-root",
+    "git",
+    "capability",
+    "monorepo",
+    "resolution"
+  ],
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build"
+  },
+  "dependencies": {
+    "@bounded-systems/proc": "workspace:*"
   }
 }
