@@ -1,15 +1,48 @@
 {
   "name": "@bounded-systems/anchored-chain",
+  "version": "0.1.0",
   "description": "Derivation chain with contract validation, signing, lineage tracking, and invalidation",
-  "version": "0.0.0",
-  "private": true,
+  "license": "MIT",
   "type": "module",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bounded-systems/anchored-chain.git"
+  },
+  "homepage": "https://github.com/bounded-systems/anchored-chain#readme",
+  "bugs": {
+    "url": "https://github.com/bounded-systems/anchored-chain/issues"
+  },
+  "keywords": [
+    "anchored-chain",
+    "derivation",
+    "provenance",
+    "in-toto",
+    "signing",
+    "lineage",
+    "content-addressable"
+  ],
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build"
   },
   "dependencies": {
     "@bounded-systems/cas": "workspace:*"

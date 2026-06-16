@@ -697,6 +697,24 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/packages/anchored-chain-sqlite/README.md",
+      "name": "@bounded-systems/anchored-chain-sqlite",
+      "url": "https://github.com/bounded-systems/prx/blob/main/packages/anchored-chain-sqlite/README.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/packages/anchored-chain/README.md",
+      "name": "@bounded-systems/anchored-chain",
+      "url": "https://github.com/bounded-systems/prx/blob/main/packages/anchored-chain/README.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/packages/cas/README.md",
       "name": "@bounded-systems/cas",
       "url": "https://github.com/bounded-systems/prx/blob/main/packages/cas/README.md",

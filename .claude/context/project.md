@@ -73,6 +73,8 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Capability-scoped DCI — a bounded interaction space for scout (spike) — `docs/spikes/scout-bounded-interaction-space.md`
 - Two-clock policy — Netflix's slow-planner / fast-executor split, mapped to prx (spike) — `docs/spikes/two-clock-policy.md`
 - prx — value props (forcing-function-backed) — `docs/value-props.md`
+- @bounded-systems/anchored-chain-sqlite — `packages/anchored-chain-sqlite/README.md`
+- @bounded-systems/anchored-chain — `packages/anchored-chain/README.md`
 - @bounded-systems/cas — `packages/cas/README.md`
 - @bounded-systems/verbspec — `packages/verbspec/README.md`
 - prx — `README.md`
