@@ -10,7 +10,9 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { verbToken } from "@bounded-systems/verbspec";
+import { z } from "zod";
+
+import { defineVerb, verbToken } from "@bounded-systems/verbspec";
 
 import { buildOpenApiDocument, renderOpenApiDocument } from "../../src/cli/openapi.ts";
 import { verbRegistry } from "../../src/cli/verb-registry.ts";
@@ -59,5 +61,24 @@ describe("openapi projection (verbspec's 4th surface)", () => {
       .filter(([, p]) => p.post?.["x-prx-unprojectable"])
       .map(([path, p]) => `${path}: ${p.post?.["x-prx-unprojectable"]}`);
     expect(unprojectable, "verbs whose Zod schema can't project to OpenAPI").toEqual([]);
+  });
+
+  test("a verb whose Zod schema can't project is surfaced, not fatal", () => {
+    // z.date() is unrepresentable in JSON Schema (z.toJSONSchema throws), so the
+    // operation must still emit with x-prx-unprojectable rather than crash the doc.
+    const badVerb = defineVerb({
+      id: "x unprojectable",
+      summary: "deliberately unprojectable (z.date input)",
+      actor: "work",
+      input: z.object({ when: z.date() }),
+      output: z.object({ ok: z.boolean() }),
+      run: () => ({ ok: true }),
+    });
+    const doc = buildOpenApiDocument({ [badVerb.id]: badVerb });
+    const op = opAt(doc, "/x/unprojectable");
+    expect(op?.operationId).toBe("x_unprojectable");
+    expect(op?.["x-prx-unprojectable"]).toContain("Date");
+    expect(op?.requestBody).toBeDefined();
+    expect(op?.responses?.["200"]).toBeDefined();
   });
 });
