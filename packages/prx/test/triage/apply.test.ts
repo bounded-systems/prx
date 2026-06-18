@@ -670,7 +670,6 @@ describe("runTriageApply — bd github sync chaining (GH-971)", () => {
           },
           pairs: [],
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }) as any,
       fetchLiveLabels: (_repo: string, numbers: number[]) => {
         const map = new Map<number, string[]>();
@@ -826,7 +825,6 @@ describe("runTriageApply — bd github sync chaining (GH-971)", () => {
             },
             pairs: [],
           };
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }) as any,
         fetchLiveLabels: () => new Map([[1, []], [2, []]]),
       },

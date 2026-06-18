@@ -42,6 +42,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 
 - Contributor Covenant Code of Conduct — `CODE_OF_CONDUCT.md`
 - Contributing to prx — `CONTRIBUTING.md`
+- Agentic code hygiene — a self-checking codebase — `docs/agentic-code-hygiene.md`
 - Build & release — `docs/build-and-release.md`
 - Capability-Poor Orchestrator — `docs/capability-orchestrator.md`
 - Claims-calibration audit — instrument v0 — `docs/claims-audit-instrument-v0.md`

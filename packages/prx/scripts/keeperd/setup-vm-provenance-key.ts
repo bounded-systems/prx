@@ -97,7 +97,7 @@ for (let i = 0; i < argv.length; i++) {
           "  --force     regenerate even if a key exists (invalidates the old pubkey)",
       );
       process.exit(0);
-    // eslint-disable-next-line no-fallthrough -- process.exit above is `never`
+    // process.exit() above is `never`, so this never falls through to default
     default:
       console.error(`unknown arg: ${arg} (try --help)`);
       process.exit(2);
