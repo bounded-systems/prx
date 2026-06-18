@@ -46,7 +46,6 @@ function paramsFor(): Record<string, unknown> {
 const keymaker = slackScopedKeymaker(createServiceKeymaker("slack"));
 const transport = webApiSlackTransport();
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const envelope = await execSlackRead(op, paramsFor() as any, {
   keymaker,
   transport,

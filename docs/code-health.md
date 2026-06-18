@@ -33,6 +33,10 @@ Replaced the ad-hoc `madge` orphan heuristics with maintained, declarative tools
   the module architecture as gradeable rules (below).
 - **type-coverage** (`bun run typecov`, `--strict --at-least 98`) — raw TS type
   coverage as a ratchet floor.
+- **biome** (`biome.jsonc`, `bun run lint`) — the style + lint layer: formatter
+  plus dead code *inside* a file (unused imports/locals/params, stray `any`) that
+  knip's file/export scan can't see. Adopted in warn/ratchet mode; see
+  [agentic-code-hygiene.md](agentic-code-hygiene.md).
 - **`bun run health`** — sprawl + the value-prop product map on top of the above.
 
 `madge` remains only for the legacy `no-intake-triage` cycle test (migrate next).

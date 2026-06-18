@@ -377,7 +377,6 @@ function setupMocks(opts: MockOpts): MockedDeps {
     watermarkRunner,
     execBd,
     run,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
 

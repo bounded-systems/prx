@@ -42,6 +42,11 @@
     "docs:render": "bun run packages/prx/scripts/pr_state.ts docs",
     "docs:check": "bun run packages/prx/scripts/pr_state.ts docs --check",
     "typecheck": "bunx tsc --noEmit",
+    "format": "biome format .",
+    "format:write": "biome format --write .",
+    "lint": "biome lint .",
+    "check": "biome check .",
+    "check:write": "biome check --write .",
     "ci:act": "packages/prx/scripts/local-ci-act",
     "test": "bun test",
     "test:dolt-smoke": "PRX_DOLT_SMOKE=1 bun test packages/prx/test/beads/hydrate.test.ts",
@@ -62,6 +67,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.0",
     "@types/bun": "^1.3.14",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",

@@ -116,7 +116,6 @@ function makeBeadsSyncStub(exitCode = 0) {
       pairs: [],
     };
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return Object.assign(stub as any, { calls: () => calls });
 }
 
