@@ -27,6 +27,8 @@
     "snapshot:help:refresh": "bun run snapshot:help:check -- -u",
     "schemas:export": "bun run packages/prx/scripts/pr_state.ts schemas",
     "schemas:check": "bun run packages/prx/scripts/pr_state.ts schemas --check",
+    "openapi:render": "bun run packages/prx/scripts/gen-openapi.ts",
+    "openapi:check": "bun run packages/prx/scripts/gen-openapi.ts --check",
     "features:render": "bun run packages/prx/scripts/pr_state.ts features",
     "features:check": "bun run packages/prx/scripts/pr_state.ts features --check",
     "community:render": "bun run packages/prx/scripts/pr_state.ts docs --only community",

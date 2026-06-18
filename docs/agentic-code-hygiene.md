@@ -56,8 +56,9 @@ properties separate a gate that helps from one that just blocks:
    so forgetting to update them is impossible — drift is a red check, not a stale
    file. The agent edits the source; the artifact follows.
 5. **One source, many surfaces.** A `VerbSpec` is authored once and projected to
-   the CLI, MCP, and Anthropic tool schema, so those surfaces can't drift from
-   each other. (See [`docs/prx/cli-from-spec.md`](./prx/cli-from-spec.md).)
+   the CLI, MCP, the Anthropic tool schema, and the OpenAPI document
+   (`packages/prx/openapi.json`, generated + drift-gated), so those surfaces
+   can't drift from each other. (See [`docs/prx/cli-from-spec.md`](./prx/cli-from-spec.md).)
 
 ## Biome in this frame (layer 1)
 

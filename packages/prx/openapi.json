@@ -1,0 +1,2752 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "prx — verb surface",
+    "version": "1.0.0",
+    "description": "OpenAPI projection of the prx VerbSpec registry (verbspec's HTTP surface). Generated from the Zod verb specs — edit the verbs, not this file."
+  },
+  "paths": {
+    "/actors": {
+      "post": {
+        "operationId": "actors",
+        "summary": "List the tool actors for a scope (pr / workflow), as text or JSON.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "scope": {
+                    "default": "pr",
+                    "description": "actor scope",
+                    "type": "string",
+                    "enum": [
+                      "pr",
+                      "workflow"
+                    ]
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  }
+                },
+                "required": [
+                  "scope",
+                  "format"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "rendered": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "rendered"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/contract": {
+      "post": {
+        "operationId": "contract",
+        "summary": "Read the contract trinity (--list / --kind / id), or apply the pr-contract skill event.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "contract": {
+                    "default": ".pr/local/pr.json",
+                    "description": "path to the pr contract (apply path)",
+                    "type": "string"
+                  },
+                  "actor": {
+                    "default": "codex",
+                    "description": "actor recording the event (apply path)",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "description": "reason recorded with the event (apply path)",
+                    "type": "string"
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  },
+                  "kind": {
+                    "description": "registry to read",
+                    "type": "string",
+                    "enum": [
+                      "agent",
+                      "artifact",
+                      "transition"
+                    ]
+                  },
+                  "list": {
+                    "default": false,
+                    "description": "enumerate the registry",
+                    "type": "boolean"
+                  },
+                  "id": {
+                    "description": "role / artifact-type / transition-key to inspect",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "contract",
+                  "actor",
+                  "format",
+                  "list"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "list-all",
+                        "list-kind",
+                        "entry",
+                        "event"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "mode"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/docs": {
+      "post": {
+        "operationId": "docs",
+        "summary": "Render (or --check) the generated docs: jsonld, readme, community, cli, claude-context.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "check": {
+                    "description": "validate drift instead of writing files",
+                    "type": "boolean"
+                  },
+                  "only": {
+                    "description": "restrict to one target: jsonld|readme|community|cli|claude-context",
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "check": {
+                      "type": "boolean"
+                    },
+                    "driftCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "targets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "path": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "wrote",
+                              "ok",
+                              "drifted",
+                              "skipped"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "path",
+                          "status"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "check",
+                    "driftCount",
+                    "targets"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/event": {
+      "post": {
+        "operationId": "event",
+        "summary": "Apply a pr-skill's lifecycle event to the contract (advancing the state or recording a blocked transition).",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "contract": {
+                    "default": ".pr/local/pr.json",
+                    "description": "path to the pr contract",
+                    "type": "string"
+                  },
+                  "skill": {
+                    "type": "string",
+                    "enum": [
+                      "pr-prime",
+                      "pr-next",
+                      "pr-checklist",
+                      "pr-test-discipline",
+                      "pr-tickets",
+                      "pr-why",
+                      "pr-validate",
+                      "pr-comments",
+                      "pr-fix",
+                      "pr-ready",
+                      "pr-concerns",
+                      "pr-contract",
+                      "pr-cli"
+                    ],
+                    "description": "the pr-skill whose event to apply"
+                  },
+                  "actor": {
+                    "default": "codex",
+                    "description": "actor recording the event",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "description": "reason recorded with the event",
+                    "type": "string"
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  },
+                  "log": {
+                    "default": ".prx/transitions.jsonl",
+                    "description": "transition log path",
+                    "type": "string"
+                  },
+                  "id": {
+                    "description": "explicit transition id (defaults to a random uuid)",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "contract",
+                  "skill",
+                  "actor",
+                  "format",
+                  "log"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "skill": {
+                      "type": "string"
+                    },
+                    "event": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "from": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "transitionApplied": {
+                      "type": "boolean"
+                    },
+                    "blockedTransition": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "from": {
+                              "type": "string"
+                            },
+                            "to": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "from",
+                            "to"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "state": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "skill",
+                    "event",
+                    "kind",
+                    "from",
+                    "to",
+                    "transitionApplied",
+                    "blockedTransition",
+                    "state",
+                    "mode"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/features": {
+      "post": {
+        "operationId": "features",
+        "summary": "Render (or --check) every generated gherkin .feature from its source of truth.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "check": {
+                    "description": "validate drift instead of writing files",
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "check": {
+                      "type": "boolean"
+                    },
+                    "driftCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "check",
+                    "driftCount",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fleet": {
+      "post": {
+        "operationId": "fleet",
+        "summary": "Kick off and supervise many pilots — the agents view.",
+        "x-prx-actor": "fleet",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "units": {
+                    "minItems": 0,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": "comma-separated work unit ids"
+                  },
+                  "wip": {
+                    "description": "max pilots in flight at once",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "units"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "unitCount": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "merged": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "batchSignedBy": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "unitCount",
+                    "merged",
+                    "batchSignedBy"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/graph": {
+      "post": {
+        "operationId": "graph",
+        "summary": "Emit the prx state-machine graph in a chosen format (xstate / mermaid / json).",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "format": {
+                    "default": "plain",
+                    "description": "graph format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json",
+                      "xstate-json",
+                      "xstate-ts",
+                      "xstate-mermaid",
+                      "mermaid",
+                      "xstate-system-json",
+                      "xstate-system-ts",
+                      "xstate-system-mermaid",
+                      "system-mermaid"
+                    ]
+                  },
+                  "output": {
+                    "description": "write the graph to this path instead of stdout",
+                    "type": "string"
+                  },
+                  "validate": {
+                    "default": false,
+                    "description": "JSON-validate the graph (JSON formats only)",
+                    "type": "boolean"
+                  },
+                  "open": {
+                    "default": false,
+                    "description": "open the Stately editor after emitting",
+                    "type": "boolean"
+                  },
+                  "url": {
+                    "default": "https://stately.ai/registry/editor/",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "format",
+                  "validate",
+                  "open",
+                  "url"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "graph": {
+                      "type": "string"
+                    },
+                    "wrotePath": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "graph"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "post": {
+        "operationId": "health",
+        "summary": "Report code sprawl, coupling, dead code, and spec-driven-CLI readiness.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "sprawl": {
+                      "type": "object",
+                      "properties": {
+                        "totalLines": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "fileCount": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "largest": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "file": {
+                                "type": "string",
+                                "minLength": 1
+                              },
+                              "lines": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": [
+                              "file",
+                              "lines"
+                            ],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": [
+                        "totalLines",
+                        "fileCount",
+                        "largest"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "coupling": {
+                      "type": "object",
+                      "properties": {
+                        "circularChains": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "samples": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "circularChains",
+                        "samples"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "deadCode": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "files": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "files"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "productMap": {
+                      "type": "object",
+                      "properties": {
+                        "valueProps": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "backed": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "modulesExercised": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "valueProps",
+                        "backed",
+                        "modulesExercised"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "boundary": {
+                      "type": "object",
+                      "properties": {
+                        "zAnyHoles": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "rawJsonParse": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "zAnyHoles",
+                        "rawJsonParse"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "verbspec": {
+                      "type": "object",
+                      "properties": {
+                        "verbs": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "withInput": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "withEvent": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "verbs",
+                        "withInput",
+                        "withEvent"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "sprawl",
+                    "coupling",
+                    "deadCode",
+                    "productMap",
+                    "boundary",
+                    "verbspec"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/model": {
+      "post": {
+        "operationId": "model",
+        "summary": "Show the work-unit model (actors → raw facts → invariants → phase) for a scope.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "scope": {
+                    "default": "pr",
+                    "description": "actor scope",
+                    "type": "string",
+                    "enum": [
+                      "pr",
+                      "workflow"
+                    ]
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  }
+                },
+                "required": [
+                  "scope",
+                  "format"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "rendered": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "rendered"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/observe": {
+      "post": {
+        "operationId": "observe",
+        "summary": "Show a work unit's pilot telemetry timeline (legs + seams) from the audit log.",
+        "x-prx-actor": "telemetry",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "workUnitId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "canonical work unit id, e.g. GH-456"
+                  },
+                  "limit": {
+                    "description": "show only the most recent N telemetry events",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "workUnitId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "workUnitId": {
+                      "type": "string"
+                    },
+                    "eventCount": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ts": {
+                            "type": "string"
+                          },
+                          "event": {
+                            "type": "string"
+                          },
+                          "details": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          }
+                        },
+                        "required": [
+                          "ts",
+                          "event"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "workUnitId",
+                    "eventCount",
+                    "events"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/open-mode": {
+      "post": {
+        "operationId": "open-mode",
+        "summary": "Derive the pr open mode (draft/ready) from the contract; emit as mode, JSON, or a gh command.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "contract": {
+                    "default": ".pr/local/pr.json",
+                    "description": "path to the pr contract",
+                    "type": "string"
+                  },
+                  "format": {
+                    "default": "mode",
+                    "description": "output shape",
+                    "type": "string",
+                    "enum": [
+                      "mode",
+                      "json",
+                      "gh-create",
+                      "gh-ready"
+                    ]
+                  },
+                  "pr": {
+                    "description": "PR ref; required with --format gh-ready",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "contract",
+                  "format"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "rendered": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "rendered"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/overview": {
+      "post": {
+        "operationId": "overview",
+        "summary": "Show a repo's PR/worktree overview — by registered <slug> or the cwd / --repo-path.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "default": null,
+                    "description": "registered repo slug (optional)",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repo-path": {
+                    "default": ".",
+                    "description": "repo worktree path when no slug is given",
+                    "type": "string"
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  },
+                  "include-diff-stats": {
+                    "default": true,
+                    "description": "include per-file diff stats",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "slug",
+                  "repo-path",
+                  "format",
+                  "include-diff-stats"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "rendered": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "rendered"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pilot": {
+      "post": {
+        "operationId": "pilot",
+        "summary": "Drive ONE work unit through the pipeline (plan → implement → CI → merge).",
+        "x-prx-actor": "pilot",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "workUnitId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "canonical work unit id, e.g. GH-456"
+                  },
+                  "retreatBudget": {
+                    "description": "failure-retreats allowed before the unit is abandoned",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "workUnitId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "workUnitId": {
+                      "type": "string"
+                    },
+                    "finalState": {
+                      "type": "string"
+                    },
+                    "legCount": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "summarySignedBy": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "workUnitId",
+                    "finalState",
+                    "legCount",
+                    "summarySignedBy"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-close": {
+      "post": {
+        "operationId": "plan-close",
+        "summary": "Close a plan-mode work unit's GH issue without merging, and mirror the close into beads.",
+        "x-prx-actor": "plan",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "workUnitId": {
+                    "type": "string",
+                    "description": "the work unit to close (e.g. GH-1050)"
+                  },
+                  "reason": {
+                    "default": "completed",
+                    "description": "close reason",
+                    "type": "string",
+                    "enum": [
+                      "completed",
+                      "not-planned",
+                      "duplicate"
+                    ]
+                  },
+                  "upstream": {
+                    "description": "upstream issue URL to point at on close",
+                    "type": "string"
+                  },
+                  "dry-run": {
+                    "default": false,
+                    "description": "report what would happen without closing",
+                    "type": "boolean"
+                  },
+                  "no-next": {
+                    "default": false,
+                    "description": "suppress the `prx delegate next` handoff hint",
+                    "type": "boolean"
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  }
+                },
+                "required": [
+                  "workUnitId",
+                  "reason",
+                  "dry-run",
+                  "no-next",
+                  "format"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "workUnitId": {
+                      "type": "string"
+                    },
+                    "issueNumber": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "completed",
+                        "not-planned",
+                        "duplicate"
+                      ]
+                    },
+                    "upstream": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "upstreamCommentPosted": {
+                      "type": "boolean"
+                    },
+                    "issueClosed": {
+                      "type": "boolean"
+                    },
+                    "bdRecord": {
+                      "anyOf": [
+                        {},
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "bdSyncExitCode": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "handoff": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "refusalReason": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "dryRun": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "workUnitId",
+                    "issueNumber",
+                    "reason",
+                    "upstream",
+                    "upstreamCommentPosted",
+                    "issueClosed",
+                    "bdRecord",
+                    "bdSyncExitCode",
+                    "handoff",
+                    "refusalReason",
+                    "dryRun"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-load": {
+      "post": {
+        "operationId": "plan-load",
+        "summary": "Load a plan slot to stdout (raw body or json); falls back approved→draft when --slot is omitted.",
+        "x-prx-actor": "plan",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "unit": {
+                    "description": "work unit (positional or --unit; or an open planner pane)",
+                    "type": "string"
+                  },
+                  "slot": {
+                    "description": "plan slot (omit to fall back approved→draft)",
+                    "type": "string",
+                    "enum": [
+                      "draft",
+                      "approved"
+                    ]
+                  },
+                  "format": {
+                    "default": "raw",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "raw",
+                      "json"
+                    ]
+                  }
+                },
+                "required": [
+                  "format"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "unit": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "unit"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-preflight": {
+      "post": {
+        "operationId": "plan-preflight",
+        "summary": "Deterministic pre-draft preflight (already-done / infeasible-action / blocked-by-open-deps).",
+        "x-prx-actor": "plan",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "unit": {
+                    "description": "work unit to check (required positional)",
+                    "type": "string"
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  }
+                },
+                "required": [
+                  "format"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "result": {}
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-save": {
+      "post": {
+        "operationId": "plan-save",
+        "summary": "Persist a plan body (stdin or --from-file) to the CAS plan store; warns (not refuses) on shape misses.",
+        "x-prx-actor": "plan",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "unit": {
+                    "description": "work unit (defaults to the planner pane / branch / cwd)",
+                    "type": "string"
+                  },
+                  "slot": {
+                    "default": "draft",
+                    "description": "plan slot",
+                    "type": "string",
+                    "enum": [
+                      "draft",
+                      "approved"
+                    ]
+                  },
+                  "from-stdin": {
+                    "default": false,
+                    "description": "read the body from stdin",
+                    "type": "boolean"
+                  },
+                  "from-file": {
+                    "description": "read the body from a staging file",
+                    "type": "string"
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  },
+                  "skip-validate": {
+                    "default": false,
+                    "description": "persist even if the shape gate fails (loud)",
+                    "type": "boolean"
+                  },
+                  "cleanup": {
+                    "default": "none",
+                    "description": "post-save staging cleanup: none | delete | move-to=<dir>",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "slot",
+                  "from-stdin",
+                  "format",
+                  "skip-validate",
+                  "cleanup"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "unit": {
+                      "type": "string"
+                    },
+                    "slot": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "approved"
+                      ]
+                    },
+                    "size": {
+                      "type": "number"
+                    },
+                    "warnings": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "unit",
+                    "slot",
+                    "size",
+                    "warnings"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-show": {
+      "post": {
+        "operationId": "plan-show",
+        "summary": "Show a plan slot (head preview or full json), or --paths to report where plans land.",
+        "x-prx-actor": "plan",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "unit": {
+                    "description": "work unit (positional or --unit; or an open planner pane)",
+                    "type": "string"
+                  },
+                  "slot": {
+                    "description": "plan slot (defaults to the store's default)",
+                    "type": "string",
+                    "enum": [
+                      "draft",
+                      "approved"
+                    ]
+                  },
+                  "format": {
+                    "default": "text",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "text",
+                      "json"
+                    ]
+                  },
+                  "paths": {
+                    "default": false,
+                    "description": "report CAS root + staging dir without reading a blob",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "format",
+                  "paths"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "paths",
+                        "show"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "mode"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pr-comments": {
+      "post": {
+        "operationId": "pr-comments",
+        "summary": "Show a PR's review-comment threads, or resolve them; exits 1 while any stay unresolved.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "default": "show",
+                    "description": "show the threads or resolve them",
+                    "type": "string",
+                    "enum": [
+                      "show",
+                      "resolve"
+                    ]
+                  },
+                  "repo-path": {
+                    "default": ".",
+                    "description": "repo worktree path",
+                    "type": "string"
+                  },
+                  "pr": {
+                    "description": "PR ref; defaults to the current branch",
+                    "type": "string"
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  },
+                  "output": {
+                    "description": "explicit JSON snapshot path",
+                    "type": "string"
+                  },
+                  "write": {
+                    "default": false,
+                    "description": "write the JSON snapshot to the default path",
+                    "type": "boolean"
+                  },
+                  "thread": {
+                    "default": [],
+                    "description": "thread ids to resolve (variadic positionals + repeatable --thread)",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "all-unresolved": {
+                    "default": false,
+                    "description": "resolve every unresolved thread",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "action",
+                  "repo-path",
+                  "format",
+                  "write",
+                  "thread",
+                  "all-unresolved"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "type": "string",
+                      "enum": [
+                        "show",
+                        "resolve"
+                      ]
+                    },
+                    "summary": {},
+                    "resolvedThreads": {},
+                    "outputPath": {
+                      "type": "string"
+                    },
+                    "unresolvedThreads": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "action",
+                    "summary",
+                    "unresolvedThreads"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protect-main": {
+      "post": {
+        "operationId": "protect-main",
+        "summary": "Reconcile main-branch protection (branch-protection or ruleset); `--check` reports drift and exits 1 when it doesn't match.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "repo-path": {
+                    "default": ".",
+                    "description": "repo worktree path",
+                    "type": "string"
+                  },
+                  "ruleset": {
+                    "default": false,
+                    "description": "use the ruleset backend (shorthand for --backend ruleset)",
+                    "type": "boolean"
+                  },
+                  "backend": {
+                    "description": "protection backend",
+                    "type": "string",
+                    "enum": [
+                      "branch-protection",
+                      "ruleset"
+                    ]
+                  },
+                  "repo": {
+                    "description": "owner/name override",
+                    "type": "string"
+                  },
+                  "branch": {
+                    "default": "main",
+                    "description": "branch to protect",
+                    "type": "string"
+                  },
+                  "apply": {
+                    "default": false,
+                    "description": "apply the protection (default is dry-run)",
+                    "type": "boolean"
+                  },
+                  "check": {
+                    "default": false,
+                    "description": "report drift instead of applying; exits 1 on mismatch",
+                    "type": "boolean"
+                  },
+                  "solo": {
+                    "default": false,
+                    "description": "solo-maintainer mode (relax contributor-count requirements)",
+                    "type": "boolean"
+                  },
+                  "allow": {
+                    "default": [],
+                    "description": "deno-style allowances (repeatable): strict | enforce-admins | conversation-resolution | last-push-approval | linear-history | status-check:<name>",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "strict": {
+                    "default": false,
+                    "description": "enable the full strict requirement set",
+                    "type": "boolean"
+                  },
+                  "enforce-admins": {
+                    "default": false,
+                    "description": "include administrators in protection",
+                    "type": "boolean"
+                  },
+                  "require-conversation-resolution": {
+                    "default": false,
+                    "description": "require conversation resolution before merge",
+                    "type": "boolean"
+                  },
+                  "require-last-push-approval": {
+                    "default": false,
+                    "description": "require approval of the most recent push",
+                    "type": "boolean"
+                  },
+                  "require-linear-history": {
+                    "default": false,
+                    "description": "require a linear history",
+                    "type": "boolean"
+                  },
+                  "require-status-check": {
+                    "default": [],
+                    "description": "required status-check context (repeatable)",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  }
+                },
+                "required": [
+                  "repo-path",
+                  "ruleset",
+                  "branch",
+                  "apply",
+                  "check",
+                  "solo",
+                  "allow",
+                  "strict",
+                  "enforce-admins",
+                  "require-conversation-resolution",
+                  "require-last-push-approval",
+                  "require-linear-history",
+                  "require-status-check",
+                  "format"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "check",
+                        "apply"
+                      ]
+                    },
+                    "result": {}
+                  },
+                  "required": [
+                    "kind",
+                    "result"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/remote-ci-check": {
+      "post": {
+        "operationId": "remote-ci-check",
+        "summary": "Report a PR's failing remote CI checks; exits 1 when any are failing.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "repo-path": {
+                    "default": ".",
+                    "description": "repo worktree path",
+                    "type": "string"
+                  },
+                  "pr": {
+                    "description": "PR ref (number/url/branch); defaults to the current branch",
+                    "type": "string"
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  }
+                },
+                "required": [
+                  "repo-path",
+                  "format"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "repoPath": {
+                      "type": "string"
+                    },
+                    "pr": {
+                      "type": "string"
+                    },
+                    "failingChecks": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  },
+                  "required": [
+                    "repoPath",
+                    "pr",
+                    "failingChecks"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/repo-checks": {
+      "post": {
+        "operationId": "repo-checks",
+        "summary": "List a repo branch's required status-check names; exits 1 when none resolve.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "repo-path": {
+                    "default": ".",
+                    "description": "repo worktree path",
+                    "type": "string"
+                  },
+                  "repo": {
+                    "description": "owner/name override (defaults to the repo at --repo-path)",
+                    "type": "string"
+                  },
+                  "branch": {
+                    "default": "main",
+                    "description": "branch whose checks to read",
+                    "type": "string"
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  }
+                },
+                "required": [
+                  "repo-path",
+                  "branch",
+                  "format"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "repo": {
+                      "type": "string"
+                    },
+                    "branch": {
+                      "type": "string"
+                    },
+                    "sha": {
+                      "type": "string"
+                    },
+                    "checks": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "repo",
+                    "branch",
+                    "sha",
+                    "checks"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/schemas": {
+      "post": {
+        "operationId": "schemas",
+        "summary": "Render (or --check) every committed JSON-Schema artifact from its Zod source.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "check": {
+                    "description": "validate drift instead of writing files",
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "check": {
+                      "type": "boolean"
+                    },
+                    "driftCount": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "count": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "check",
+                    "driftCount",
+                    "count"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scout-logs": {
+      "post": {
+        "operationId": "scout-logs",
+        "summary": "Summarize a PR's failing-check logs; exits 1 when any checks are failing.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "repo-path": {
+                    "default": ".",
+                    "description": "repo worktree path",
+                    "type": "string"
+                  },
+                  "pr": {
+                    "description": "PR ref (number/url/branch); defaults to the current branch",
+                    "type": "string"
+                  },
+                  "max-lines": {
+                    "default": 200,
+                    "description": "max log lines per failing check",
+                    "type": "number"
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  }
+                },
+                "required": [
+                  "repo-path",
+                  "max-lines",
+                  "format"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "repoPath": {
+                      "type": "string"
+                    },
+                    "pr": {
+                      "type": "string"
+                    },
+                    "checks": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  },
+                  "required": [
+                    "repoPath",
+                    "pr",
+                    "checks"
+                  ],
+                  "additionalProperties": {}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/skills": {
+      "post": {
+        "operationId": "skills",
+        "summary": "List the pr skill catalog (events allowed from the contract's current state).",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "contract": {
+                    "default": ".pr/local/pr.json",
+                    "description": "path to the pr contract whose state gates the catalog",
+                    "type": "string"
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  }
+                },
+                "required": [
+                  "contract",
+                  "format"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "rendered": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "rendered"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stately": {
+      "post": {
+        "operationId": "stately",
+        "summary": "Copy the prx machine (xstate-ts) to the clipboard and open it in the Stately editor.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "default": "https://stately.ai/registry/editor/",
+                    "description": "Stately editor URL",
+                    "type": "string"
+                  },
+                  "no-wait": {
+                    "default": false,
+                    "description": "skip the Enter prompt and open immediately",
+                    "type": "boolean"
+                  },
+                  "model": {
+                    "default": "lifecycle",
+                    "description": "(reserved)",
+                    "type": "string",
+                    "enum": [
+                      "lifecycle",
+                      "system"
+                    ]
+                  }
+                },
+                "required": [
+                  "url",
+                  "no-wait",
+                  "model"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/status": {
+      "post": {
+        "operationId": "status",
+        "summary": "Show the PR contract's derived status (state/mode/reason) as a line, bare mode, or JSON.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "contract": {
+                    "default": ".pr/local/pr.json",
+                    "description": "path to the pr contract",
+                    "type": "string"
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "mode",
+                      "json"
+                    ]
+                  }
+                },
+                "required": [
+                  "contract",
+                  "format"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "rendered": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "rendered"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/transition": {
+      "post": {
+        "operationId": "transition",
+        "summary": "Apply a lifecycle transition to the PR contract, log it, and report the new status.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "contract": {
+                    "default": ".pr/local/pr.json",
+                    "description": "path to the pr contract",
+                    "type": "string"
+                  },
+                  "to": {
+                    "type": "string",
+                    "enum": [
+                      "drafting",
+                      "validating",
+                      "ready_for_review",
+                      "in_review",
+                      "changes_requested",
+                      "merge_ready",
+                      "merged"
+                    ],
+                    "description": "target lifecycle state"
+                  },
+                  "actor": {
+                    "default": "codex",
+                    "description": "actor performing the transition",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "description": "reason recorded with the transition",
+                    "type": "string"
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  },
+                  "log": {
+                    "default": ".prx/transitions.jsonl",
+                    "description": "transition log path",
+                    "type": "string"
+                  },
+                  "id": {
+                    "description": "explicit transition id (defaults to a random uuid)",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "contract",
+                  "to",
+                  "actor",
+                  "format",
+                  "log"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "reason": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "transition": {
+                      "type": "object",
+                      "properties": {
+                        "to": {
+                          "type": "string"
+                        },
+                        "actor": {
+                          "type": "string"
+                        },
+                        "reason": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "to",
+                        "actor",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "mode",
+                    "transition"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/worktree": {
+      "post": {
+        "operationId": "worktree",
+        "summary": "Show the current worktree's PR-relevant status for a repo path.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "repo-path": {
+                    "default": ".",
+                    "description": "repo worktree path",
+                    "type": "string"
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  }
+                },
+                "required": [
+                  "repo-path",
+                  "format"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "rendered": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "rendered"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/worktrees": {
+      "post": {
+        "operationId": "worktrees",
+        "summary": "List the repo's worktrees and their branch/PR status.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "repo-path": {
+                    "default": ".",
+                    "description": "repo worktree path",
+                    "type": "string"
+                  },
+                  "format": {
+                    "default": "plain",
+                    "description": "output format",
+                    "type": "string",
+                    "enum": [
+                      "plain",
+                      "json"
+                    ]
+                  },
+                  "include-git-details": {
+                    "default": true,
+                    "description": "include per-worktree git detail",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "repo-path",
+                  "format",
+                  "include-git-details"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "rendered": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "rendered"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
