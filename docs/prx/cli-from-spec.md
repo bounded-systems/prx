@@ -111,3 +111,15 @@ spec-driven and add the projections"**: port `registry.data.ts` entries to carry
 swap dispatch to `dispatchTree`, and stand up `prx mcp serve` + the OpenAPI doc
 + the Claude plugin as registry projections. File via `prx intake spike` once the
 beads/Dolt server is reachable. This doc + the spike slice are the design input.
+
+## Status — 2026-06 (post-#691)
+
+The fourth surface is now real: `toOpenApiOperation` is **emitted** to
+`packages/prx/openapi.json` from `verbRegistry` (generator
+`scripts/gen-openapi.ts`, drift-gated by `test/cli/openapi.test.ts`). CLI, MCP,
+the Anthropic/Claude plugin, and OpenAPI all project from the one Zod source and
+can't drift — "author once, project everywhere" now holds on all four. ~30 verbs
+are spec-driven in `verb-registry.ts` against a ~216-command surface; the deeper
+VerbSpec-substrate coverage (`prx health`) is ~1%, so the migration past that
+floor is the remaining work (see [`cli-decomposition.md`](./cli-decomposition.md)
+and [`docs/agentic-code-hygiene.md`](../agentic-code-hygiene.md)).
