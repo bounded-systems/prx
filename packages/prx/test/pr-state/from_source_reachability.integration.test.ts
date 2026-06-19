@@ -74,10 +74,7 @@ function writeIndexWithBdPrefix(root: string, bdWorkspacePrefix: string): void {
       },
     ],
   };
-  writeFileSync(
-    join(root, ".prx", "repos", "index.json"),
-    JSON.stringify(inventory, null, 2),
-  );
+  writeFileSync(join(root, ".prx", "repos", "index.json"), JSON.stringify(inventory, null, 2));
 }
 
 // Markers that, if present in stderr, would prove the live binary reached a
@@ -111,9 +108,7 @@ describe("--from=<source> reachability through `prx plan session` (GH-2112)", ()
       expect(stderr).toContain(
         `--from=${from} is not valid for GitHub work unit IDs (GH-99999999).`,
       );
-      expect(stderr).toContain(
-        `Use a ${sourceLabel} canonical ID or omit --from=${from}.`,
-      );
+      expect(stderr).toContain(`Use a ${sourceLabel} canonical ID or omit --from=${from}.`);
 
       // The guard fired before boardStatus / any GH round-trip. This is the
       // precise regression the in-process stub test cannot prove against the

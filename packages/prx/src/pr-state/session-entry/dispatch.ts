@@ -14,10 +14,7 @@ import {
   type RunRepoRouterDeps,
   type RunRepoRouterResult,
 } from "../../repo_router/index.ts";
-import {
-  materializeBareRepo,
-  type MaterializeResult,
-} from "../materialize.ts";
+import { materializeBareRepo, type MaterializeResult } from "../materialize.ts";
 import type { LocalRepo } from "../repos.ts";
 import type { RepoRouterMaterializeAction } from "../../machine/machines/repo_router.ts";
 
@@ -103,10 +100,7 @@ export function dispatchFromArgvWithRouting(
 
   // Recursion guard: when `repoCtx.cwd` is set, this is a re-dispatch
   // from the router — skip routing and dispatch the event as-is.
-  if (
-    event.type !== "OPEN_PLAN_SESSION" ||
-    event.repoCtx?.cwd !== undefined
-  ) {
+  if (event.type !== "OPEN_PLAN_SESSION" || event.repoCtx?.cwd !== undefined) {
     return { kind: "profile", profile: dispatchSessionEntryEvent(event) };
   }
 
@@ -202,9 +196,7 @@ export function dispatchSessionEntryEvent(event: SessionEntryEvent): RuntimeProf
   // sessionEntryMachine. Pulls workUnitId off the event when present so the
   // emitted rows are scope-bound.
   const workUnitId =
-    "workUnitId" in event && typeof event.workUnitId === "string"
-      ? event.workUnitId
-      : undefined;
+    "workUnitId" in event && typeof event.workUnitId === "string" ? event.workUnitId : undefined;
   const actor = createActor(sessionEntryMachine, {
     inspect: makeAuditInspector("session-entry", { workUnitId }),
   }).start();
@@ -212,9 +204,7 @@ export function dispatchSessionEntryEvent(event: SessionEntryEvent): RuntimeProf
   const snap = actor.getSnapshot();
   const profile = snap.context.profile;
   if (!profile) {
-    throw new Error(
-      `session-entry: machine returned no profile for event ${event.type}`,
-    );
+    throw new Error(`session-entry: machine returned no profile for event ${event.type}`);
   }
 
   // GH-1403: synthetic dispatch row. The state-entry rows from the inspector

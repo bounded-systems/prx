@@ -22,16 +22,19 @@ const session: TranscriptSession = {
 
 // Wrap an assistant `result` text in the `claude --print --output-format json`
 // envelope the extractor parses.
-const envelope = (text: string, exitCode = 0): ClaudePrintRunner => async () => ({
-  exitCode,
-  stdout: JSON.stringify([
-    { type: "system" },
-    { type: "result", subtype: "success", is_error: false, result: text },
-  ]),
-  stderr: "",
-});
+const envelope =
+  (text: string, exitCode = 0): ClaudePrintRunner =>
+  async () => ({
+    exitCode,
+    stdout: JSON.stringify([
+      { type: "system" },
+      { type: "result", subtype: "success", is_error: false, result: text },
+    ]),
+    stderr: "",
+  });
 
-const run = (runner: ClaudePrintRunner) => extractMemoryCandidates(session, { uowId: "uow-1", runner });
+const run = (runner: ClaudePrintRunner) =>
+  extractMemoryCandidates(session, { uowId: "uow-1", runner });
 
 describe("extractMemoryCandidates — failure modes", () => {
   test("a spawn throw is captured as ok:false", async () => {

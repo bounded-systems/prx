@@ -1,5 +1,9 @@
 import { getEnv } from "@bounded-systems/env";
-import { streamCapture, type SpawnCaptureResult, type StreamCaptureOptions } from "@bounded-systems/proc";
+import {
+  streamCapture,
+  type SpawnCaptureResult,
+  type StreamCaptureOptions,
+} from "@bounded-systems/proc";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { assign, createActor, fromPromise, setup } from "xstate";
@@ -9,11 +13,13 @@ import {
   type RuntimeIoFormat,
   type RuntimeMode,
 } from "../machine/runtime_profiles.ts";
+import { canonicalWorkUnitIdPattern, normalizeCanonicalWorkUnitId } from "../machine/work_unit.ts";
 import {
-  canonicalWorkUnitIdPattern,
-  normalizeCanonicalWorkUnitId,
-} from "../machine/work_unit.ts";
-import { getPrxSnapshot, type PrxApiContext, type PrxApiSnapshot, type PrxControlState } from "./api.ts";
+  getPrxSnapshot,
+  type PrxApiContext,
+  type PrxApiSnapshot,
+  type PrxControlState,
+} from "./api.ts";
 
 export type ClaudeRunResult = {
   exitCode: number;
@@ -64,7 +70,10 @@ export async function runClaudeWithProfile(input: {
         parsed = null;
       }
     } else {
-      const lines = trimmed.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      const lines = trimmed
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
       const events: unknown[] = [];
       for (const line of lines) {
         try {
@@ -116,7 +125,12 @@ function toControlState(value: string): PrxControlState {
   }
 }
 
-function snapshotInputFromContext(context: TuiContext, controlState: PrxControlState, repoPath: string, ticketPath: string): PrxApiContext {
+function snapshotInputFromContext(
+  context: TuiContext,
+  controlState: PrxControlState,
+  repoPath: string,
+  ticketPath: string,
+): PrxApiContext {
   return {
     repoPath,
     ticketPath,
@@ -137,7 +151,9 @@ function firstRunBlocker(
   ticketPath: string,
   snapshot: (input: PrxApiContext) => PrxApiSnapshot,
 ): string | null {
-  const apiSnapshot = snapshot(snapshotInputFromContext(context, controlState, repoPath, ticketPath));
+  const apiSnapshot = snapshot(
+    snapshotInputFromContext(context, controlState, repoPath, ticketPath),
+  );
   return apiSnapshot.runBlockers[0] ?? null;
 }
 
@@ -152,14 +168,13 @@ export function createWorkUnitTuiMachine(deps?: {
   repoPath?: string;
   ticketPath?: string;
 }) {
-  const runner = deps?.runner ?? ((ctx: {
-    agentId: string;
-    workUnitId: string;
-    mode: RuntimeMode;
-    ioFormat: RuntimeIoFormat;
-  }) => runClaudeWithProfile(ctx));
+  const runner =
+    deps?.runner ??
+    ((ctx: { agentId: string; workUnitId: string; mode: RuntimeMode; ioFormat: RuntimeIoFormat }) =>
+      runClaudeWithProfile(ctx));
   const repoPath = deps?.repoPath ?? process.cwd();
-  const ticketPath = deps?.ticketPath ??
+  const ticketPath =
+    deps?.ticketPath ??
     getEnv("PRX_TICKETS_PATH") ??
     getEnv("PRX_NOTION_TICKETS_PATH") ??
     ".pr/local/tickets.json";
@@ -175,12 +190,15 @@ export function createWorkUnitTuiMachine(deps?: {
     },
     actors: {
       runClaude: fromPromise(async ({ input }) =>
-        runner(input as {
-          agentId: string;
-          workUnitId: string;
-          mode: RuntimeMode;
-          ioFormat: RuntimeIoFormat;
-        })),
+        runner(
+          input as {
+            agentId: string;
+            workUnitId: string;
+            mode: RuntimeMode;
+            ioFormat: RuntimeIoFormat;
+          },
+        ),
+      ),
     },
   }).createMachine({
     id: "prxWorkUnitTui",
@@ -371,7 +389,10 @@ function helpText(): string {
   ].join("\n");
 }
 
-function renderSnapshot(snapshot: ReturnType<ReturnType<typeof createWorkUnitTuiMachine>["getInitialSnapshot"]>, apiSnapshot: PrxApiSnapshot): string {
+function renderSnapshot(
+  snapshot: ReturnType<ReturnType<typeof createWorkUnitTuiMachine>["getInitialSnapshot"]>,
+  apiSnapshot: PrxApiSnapshot,
+): string {
   const lines = [
     "",
     "prx work-unit tui",
@@ -476,9 +497,7 @@ function renderSurface(surface: PrxApiSnapshot["surface"], selectedId: string): 
 export async function runWorkUnitTui(): Promise<number> {
   const rl = createInterface({ input, output });
   const ticketOverlayPath =
-    getEnv("PRX_TICKETS_PATH") ??
-    getEnv("PRX_NOTION_TICKETS_PATH") ??
-    ".pr/local/tickets.json";
+    getEnv("PRX_TICKETS_PATH") ?? getEnv("PRX_NOTION_TICKETS_PATH") ?? ".pr/local/tickets.json";
   const repoPath = process.cwd();
   const snapshotBuilder = (input: PrxApiContext) => getPrxSnapshot(input);
   const machine = createWorkUnitTuiMachine({
@@ -497,7 +516,12 @@ export async function runWorkUnitTui(): Promise<number> {
     while (true) {
       const snapshot = actor.getSnapshot();
       const apiSnapshot = snapshotBuilder(
-        snapshotInputFromContext(snapshot.context, toControlState(String(snapshot.value)), repoPath, ticketOverlayPath),
+        snapshotInputFromContext(
+          snapshot.context,
+          toControlState(String(snapshot.value)),
+          repoPath,
+          ticketOverlayPath,
+        ),
       );
       output.write(`${renderSnapshot(snapshot, apiSnapshot)}\n`);
       if (apiSnapshot.surface) {
@@ -545,7 +569,9 @@ export async function runWorkUnitTui(): Promise<number> {
       }
 
       if (raw === "a") {
-        const value = normalizeOrNull((await rl.question("canonical id (agent/work-unit)> ")).trim());
+        const value = normalizeOrNull(
+          (await rl.question("canonical id (agent/work-unit)> ")).trim(),
+        );
         if (!value) {
           output.write("Invalid canonical id. Expected format like GH-456.\n");
           continue;

@@ -4,10 +4,7 @@
 // pass-through cases.
 
 import { describe, expect, test } from "bun:test";
-import {
-  decideAgentToolCall,
-  parsePolicedCommand,
-} from "../../src/agents/policy_guard.ts";
+import { decideAgentToolCall, parsePolicedCommand } from "../../src/agents/policy_guard.ts";
 
 describe("parsePolicedCommand (prx-g88.2)", () => {
   test("raw git/bd verbs", () => {
@@ -16,8 +13,14 @@ describe("parsePolicedCommand (prx-g88.2)", () => {
   });
 
   test("gh group word is skipped to reach the verb", () => {
-    expect(parsePolicedCommand("gh pr merge 85 --squash")).toEqual({ tool: "gh", subcommand: "merge" });
-    expect(parsePolicedCommand("gh issue create --title x")).toEqual({ tool: "gh", subcommand: "create" });
+    expect(parsePolicedCommand("gh pr merge 85 --squash")).toEqual({
+      tool: "gh",
+      subcommand: "merge",
+    });
+    expect(parsePolicedCommand("gh issue create --title x")).toEqual({
+      tool: "gh",
+      subcommand: "create",
+    });
   });
 
   test("the `prx tools <tool> --subcommand <sub>` wrapper unwraps", () => {
@@ -36,7 +39,9 @@ describe("parsePolicedCommand (prx-g88.2)", () => {
 
 describe("decideAgentToolCall (prx-g88.2)", () => {
   test("keeper owns git push; forge does not", () => {
-    expect(decideAgentToolCall({ agentType: "keeper", command: "git push origin x" }).allow).toBe(true);
+    expect(decideAgentToolCall({ agentType: "keeper", command: "git push origin x" }).allow).toBe(
+      true,
+    );
     const denied = decideAgentToolCall({ agentType: "forge", command: "git push origin x" });
     expect(denied.allow).toBe(false);
     expect(denied.reason).toContain("forge actor does not own");
@@ -77,7 +82,9 @@ describe("decideAgentToolCall (prx-g88.2)", () => {
 
   test("main session (no agent_type) and unknown subagents pass through", () => {
     expect(decideAgentToolCall({ command: "git push origin x" }).allow).toBe(true);
-    expect(decideAgentToolCall({ agentType: "some-other-agent", command: "git push origin x" }).allow).toBe(true);
+    expect(
+      decideAgentToolCall({ agentType: "some-other-agent", command: "git push origin x" }).allow,
+    ).toBe(true);
   });
 
   test("non-policed and unknown verbs pass through", () => {

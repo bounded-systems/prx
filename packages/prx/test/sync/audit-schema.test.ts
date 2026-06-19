@@ -72,7 +72,13 @@ describe("domainSyncAuditSchema", () => {
 
   test("the per-pair row parses (with and without an optional message)", () => {
     expect(domainSyncPairAuditSchema.parse(PAIR_ROW)).toEqual(PAIR_ROW);
-    const failed = { ...PAIR_ROW, action: "failed" as const, pushed: false, closedByPull: false, message: "gh issue view failed" };
+    const failed = {
+      ...PAIR_ROW,
+      action: "failed" as const,
+      pushed: false,
+      closedByPull: false,
+      message: "gh issue view failed",
+    };
     expect(domainSyncPairAuditSchema.parse(failed)).toEqual(failed);
   });
 
@@ -97,9 +103,7 @@ describe("domainSyncAuditSchema", () => {
 
   test("appendAuditRow rejects a malformed domain-sync-run row", () => {
     const cap = makeCapture();
-    expect(() =>
-      appendAuditRow({ ...RUN_ROW, scanned: -1 }, cap.deps),
-    ).toThrow();
+    expect(() => appendAuditRow({ ...RUN_ROW, scanned: -1 }, cap.deps)).toThrow();
     expect(cap.writes).toHaveLength(0);
   });
 });
@@ -145,10 +149,17 @@ describe("domainSyncBackfill audit rows (GH-1469)", () => {
   });
 
   test("the per-record row parses (mirrored / skipped / failed actions)", () => {
-    expect(domainSyncBackfillRecordAuditSchema.parse(BACKFILL_RECORD_ROW)).toEqual(BACKFILL_RECORD_ROW);
+    expect(domainSyncBackfillRecordAuditSchema.parse(BACKFILL_RECORD_ROW)).toEqual(
+      BACKFILL_RECORD_ROW,
+    );
     const skipped = { ...BACKFILL_RECORD_ROW, action: "skipped" as const, bdId: "ai-home-a" };
     expect(domainSyncBackfillRecordAuditSchema.parse(skipped)).toEqual(skipped);
-    const failed = { ...BACKFILL_RECORD_ROW, action: "failed" as const, bdId: undefined, message: "mirror failed" };
+    const failed = {
+      ...BACKFILL_RECORD_ROW,
+      action: "failed" as const,
+      bdId: undefined,
+      message: "mirror failed",
+    };
     const parsed = domainSyncBackfillRecordAuditSchema.parse(failed);
     expect(parsed.action).toBe("failed");
     expect(parsed.message).toBe("mirror failed");

@@ -9,9 +9,14 @@ import {
 
 describe("buildGhIssueCreateArgs", () => {
   test("emits required title + body and skips optional flags when absent", () => {
-    expect(
-      buildGhIssueCreateArgs({ title: "spike: x", body: "body" }),
-    ).toEqual(["issue", "create", "--title", "spike: x", "--body", "body"]);
+    expect(buildGhIssueCreateArgs({ title: "spike: x", body: "body" })).toEqual([
+      "issue",
+      "create",
+      "--title",
+      "spike: x",
+      "--body",
+      "body",
+    ]);
   });
 
   test("forwards repo, labels, and assignees", () => {
@@ -50,9 +55,9 @@ describe("extractIssueUrl", () => {
   });
 
   test("falls back to scanning the full output", () => {
-    expect(
-      extractIssueUrl("https://github.com/o/r/issues/7\ntrailing notice line"),
-    ).toBe("https://github.com/o/r/issues/7");
+    expect(extractIssueUrl("https://github.com/o/r/issues/7\ntrailing notice line")).toBe(
+      "https://github.com/o/r/issues/7",
+    );
   });
 
   test("returns null on empty or non-URL output", () => {
@@ -73,11 +78,7 @@ describe("execGhIssueCreate", () => {
         stderr: "",
       };
     };
-    const result = execGhIssueCreate(
-      { title: "t", body: "b" },
-      { HOME: "/tmp" },
-      spawn,
-    );
+    const result = execGhIssueCreate({ title: "t", body: "b" }, { HOME: "/tmp" }, spawn);
     expect(result.exitCode).toBe(0);
     expect(result.issueUrl).toBe("https://github.com/owner/repo/issues/100");
     expect(result.stderr).toBe("");
@@ -89,11 +90,7 @@ describe("execGhIssueCreate", () => {
       stdout: "",
       stderr: "gh: must specify --repo",
     });
-    const result = execGhIssueCreate(
-      { title: "t", body: "b" },
-      { HOME: "/tmp" },
-      spawn,
-    );
+    const result = execGhIssueCreate({ title: "t", body: "b" }, { HOME: "/tmp" }, spawn);
     expect(result.exitCode).toBe(1);
     expect(result.issueUrl).toBeNull();
     expect(result.stderr).toBe("gh: must specify --repo");
@@ -126,10 +123,7 @@ describe("formatGhIssueCreateResult", () => {
 
   test("json format is valid JSON", () => {
     const json = JSON.parse(
-      formatGhIssueCreateResult(
-        { exitCode: 0, stdout: "x", stderr: "", issueUrl: "u" },
-        "json",
-      ),
+      formatGhIssueCreateResult({ exitCode: 0, stdout: "x", stderr: "", issueUrl: "u" }, "json"),
     );
     expect(json.exitCode).toBe(0);
     expect(json.issueUrl).toBe("u");

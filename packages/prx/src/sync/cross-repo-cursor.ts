@@ -20,7 +20,14 @@
 //     can never appear on disk (e.g. SIGINT mid-write).
 
 import { processEnv } from "@bounded-systems/env";
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { homeDir } from "@bounded-systems/host";
 import { dirname, join } from "node:path";
 

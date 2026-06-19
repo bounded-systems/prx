@@ -26,8 +26,16 @@ if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
 }
 
 const knownAgents: AgentDoctorName[] = ["claude", "codex", "gemini", "cursor-agent", "gh-copilot"];
-const parsedAgents = values.agents?.flatMap((entry) => entry.split(",").map((value) => value.trim()).filter(Boolean)) ?? [];
-const invalidAgents = parsedAgents.filter((agent) => !knownAgents.includes(agent as AgentDoctorName));
+const parsedAgents =
+  values.agents?.flatMap((entry) =>
+    entry
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  ) ?? [];
+const invalidAgents = parsedAgents.filter(
+  (agent) => !knownAgents.includes(agent as AgentDoctorName),
+);
 if (invalidAgents.length > 0) {
   console.error(`Unknown agent(s): ${invalidAgents.join(", ")}`);
   process.exit(2);
@@ -35,7 +43,7 @@ if (invalidAgents.length > 0) {
 
 const report = await runAgentDoctor({
   timeoutMs,
-  agents: parsedAgents.length > 0 ? parsedAgents as AgentDoctorName[] : undefined,
+  agents: parsedAgents.length > 0 ? (parsedAgents as AgentDoctorName[]) : undefined,
 });
 
 if (values.format === "json") {

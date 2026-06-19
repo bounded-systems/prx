@@ -133,13 +133,7 @@ const VERBS: VerbProbe[] = [
   },
   {
     name: "triage-apply",
-    argv: (repo) => [
-      "triage",
-      "apply",
-      "--plan",
-      "plan.json",
-      ...(repo ? ["--repo", repo] : []),
-    ],
+    argv: (repo) => ["triage", "apply", "--plan", "plan.json", ...(repo ? ["--repo", repo] : [])],
     injectRunner: (capture) => ({ runTriageApply: syncProbe(capture) }),
   },
   {
@@ -200,23 +194,19 @@ describe("triage `--repo <slug>` routing (GH-1697)", () => {
         const { errors, output } = captureOutput();
         const capture = newCapture();
 
-        const exit = await runCli(
-          verb.argv("not-a-real-slug"),
-          output,
-          {
-            loadRepoInventoryConfig: () => ({
-              repoRoot: null,
-              bareRoot: null,
-              roots: [],
-              everywhereRoots: [],
-              globalConfigPath: null,
-              configPath: null,
-              indexPath: null,
-            }),
-            discoverLocalRepos: () => ({ roots: [], repos: [] }),
-            ...verb.injectRunner(capture),
-          },
-        );
+        const exit = await runCli(verb.argv("not-a-real-slug"), output, {
+          loadRepoInventoryConfig: () => ({
+            repoRoot: null,
+            bareRoot: null,
+            roots: [],
+            everywhereRoots: [],
+            globalConfigPath: null,
+            configPath: null,
+            indexPath: null,
+          }),
+          discoverLocalRepos: () => ({ roots: [], repos: [] }),
+          ...verb.injectRunner(capture),
+        });
 
         expect(exit).not.toBe(0);
         expect(capture.called).toBe(false);
@@ -229,14 +219,10 @@ describe("triage `--repo <slug>` routing (GH-1697)", () => {
         const { output } = captureOutput();
         const capture = newCapture();
 
-        const exit = await runCli(
-          verb.argv("foo"),
-          output,
-          {
-            ...routingDeps("foo"),
-            ...verb.injectRunner(capture),
-          },
-        );
+        const exit = await runCli(verb.argv("foo"), output, {
+          ...routingDeps("foo"),
+          ...verb.injectRunner(capture),
+        });
 
         expect(exit).toBe(0);
         expect(capture.called).toBe(true);
@@ -251,11 +237,7 @@ describe("triage `--repo <slug>` routing (GH-1697)", () => {
         const { output } = captureOutput();
         const capture = newCapture();
 
-        const exit = await runCli(
-          verb.argv(),
-          output,
-          verb.injectRunner(capture),
-        );
+        const exit = await runCli(verb.argv(), output, verb.injectRunner(capture));
 
         expect(exit).toBe(0);
         expect(capture.called).toBe(true);

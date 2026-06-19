@@ -52,9 +52,7 @@ const ZERO_SYNC = { exitCode: 0, stdout: "", stderr: "" };
 
 describe("selectCandidates", () => {
   test("includes priority::none rows", () => {
-    const c = selectCandidates([
-      issue({ number: 1, labels: [{ name: "priority::none" }] }),
-    ]);
+    const c = selectCandidates([issue({ number: 1, labels: [{ name: "priority::none" }] })]);
     expect(c).toHaveLength(1);
     expect(c[0]!.hasPriorityNone).toBe(true);
   });
@@ -156,7 +154,9 @@ describe("runTriagePrioritize", () => {
 
   test("real-run single decision: one atomic gh issue edit with both label flags", async () => {
     const { calls, o, deps, audit } = setup({
-      issues: [issue({ number: 42, labels: [{ name: "priority::none" }, { name: "needs-triage" }] })],
+      issues: [
+        issue({ number: 42, labels: [{ name: "priority::none" }, { name: "needs-triage" }] }),
+      ],
       keys: ["h"],
     });
     const code = await runTriagePrioritize(
@@ -246,9 +246,7 @@ describe("runTriagePrioritize", () => {
     const { audit, o, deps } = setup({
       issues: [issue({ number: 7, labels: [{ name: "priority::none" }] })],
       keys: ["c"],
-      execResults: [
-        { exitCode: 1, stdout: "", stderr: "rate limit exceeded", policy: null },
-      ],
+      execResults: [{ exitCode: 1, stdout: "", stderr: "rate limit exceeded", policy: null }],
     });
     const code = await runTriagePrioritize(
       { repo: "bdelanghe/ai-home", limit: 0, dryRun: false, sync: false },

@@ -34,14 +34,9 @@ const claudeResultEventSchema = z
   })
   .passthrough();
 
-const claudeStreamEventSchema = z
-  .object({ type: z.string() })
-  .passthrough();
+const claudeStreamEventSchema = z.object({ type: z.string() }).passthrough();
 
-const claudeEnvelopeSchema = z.union([
-  claudeResultEventSchema,
-  z.array(claudeStreamEventSchema),
-]);
+const claudeEnvelopeSchema = z.union([claudeResultEventSchema, z.array(claudeStreamEventSchema)]);
 
 export type ClaudeEnvelope = {
   /** The assistant's reply text — the JSON-or-prose payload Claude produced. */
@@ -101,9 +96,7 @@ export function parseClaudeJsonEnvelope(
       }
     }
     if (!found) {
-      const types = parsed.data
-        .map((e: { type: string }) => e.type)
-        .join(",");
+      const types = parsed.data.map((e: { type: string }) => e.type).join(",");
       throw new Error(
         `${errorPrefix}: claude stream-JSON output had no terminal "result" event (types: ${types}). stdout was: ${stdout.slice(0, 300)}`,
       );

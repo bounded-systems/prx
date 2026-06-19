@@ -96,10 +96,7 @@ describe("createBeadsCache", () => {
 
   test("invalidate() forces the next load() to re-run the loader", () => {
     let calls = 0;
-    const records: BeadsRecord[][] = [
-      [bead("ai-home-a")],
-      [bead("ai-home-a"), bead("ai-home-b")],
-    ];
+    const records: BeadsRecord[][] = [[bead("ai-home-a")], [bead("ai-home-a"), bead("ai-home-b")]];
     const cache = createBeadsCache({
       loadAllBeads: () => {
         const snapshot = records[calls] ?? records[records.length - 1]!;

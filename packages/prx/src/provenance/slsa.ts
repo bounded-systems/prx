@@ -94,8 +94,7 @@ export interface SlsaProvenanceInput {
  * session segment once a source exists, without changing this shape.
  */
 export function builderId(
-  ctx: Pick<AuditRuntimeContext, "actor" | "verb"> &
-    Partial<Pick<AuditRuntimeContext, "source">>,
+  ctx: Pick<AuditRuntimeContext, "actor" | "verb"> & Partial<Pick<AuditRuntimeContext, "source">>,
 ): string {
   // GH-352: prefer the dispatch *source* — the authority that initiated the run
   // (a leg, when this is a dispatched subprocess). A direct call has no source
@@ -106,9 +105,7 @@ export function builderId(
 }
 
 /** Build the SLSA Provenance v1 Statement. Pure: same input → same Statement. */
-export function slsaProvenanceStatement(
-  input: SlsaProvenanceInput,
-): SlsaProvenanceStatement {
+export function slsaProvenanceStatement(input: SlsaProvenanceInput): SlsaProvenanceStatement {
   return {
     _type: IN_TOTO_STATEMENT_TYPE,
     subject: input.subject,
@@ -125,9 +122,7 @@ export function slsaProvenanceStatement(
         metadata: {
           invocationId: input.invocationId,
           startedOn: input.startedOn,
-          ...(input.finishedOn === undefined
-            ? {}
-            : { finishedOn: input.finishedOn }),
+          ...(input.finishedOn === undefined ? {} : { finishedOn: input.finishedOn }),
         },
       },
     },

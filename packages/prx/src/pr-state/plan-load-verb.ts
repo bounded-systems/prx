@@ -22,12 +22,19 @@ const PlanLoadOutputSchema = z.object({ unit: z.string() }).loose();
 
 export const planLoadVerb = defineVerb({
   id: "plan-load",
-  summary: "Load a plan slot to stdout (raw body or json); falls back approved→draft when --slot is omitted.",
+  summary:
+    "Load a plan slot to stdout (raw body or json); falls back approved→draft when --slot is omitted.",
   actor: "plan",
   positionals: ["unit"],
   input: z.object({
-    unit: z.string().optional().describe("work unit (positional or --unit; or an open planner pane)"),
-    slot: z.enum(["draft", "approved"]).optional().describe("plan slot (omit to fall back approved→draft)"),
+    unit: z
+      .string()
+      .optional()
+      .describe("work unit (positional or --unit; or an open planner pane)"),
+    slot: z
+      .enum(["draft", "approved"])
+      .optional()
+      .describe("plan slot (omit to fall back approved→draft)"),
     format: z.enum(["raw", "json"]).default("raw").describe("output format"),
   }),
   output: PlanLoadOutputSchema,
@@ -40,7 +47,9 @@ export const planLoadVerb = defineVerb({
       );
     }
     const unit =
-      resolved.source === "flag" ? parseCanonicalWorkUnitId(resolved.unit, "plan load") : resolved.unit;
+      resolved.source === "flag"
+        ? parseCanonicalWorkUnitId(resolved.unit, "plan load")
+        : resolved.unit;
     try {
       const result = await deps.runPlanLoad({
         unit,
@@ -61,12 +70,19 @@ export const planLoadVerb = defineVerb({
       : [];
   },
   // Raw format ⇒ exact bytes (no trailing newline) via the bridge's writeRaw.
-  renderRaw: (out, input) => (input.format === "raw" ? (out as PlanLoadOutput).result.content : null),
+  renderRaw: (out, input) =>
+    input.format === "raw" ? (out as PlanLoadOutput).result.content : null,
   render: (out) => {
     const o = out as PlanLoadOutput;
     // Only reached for --format=json (renderRaw handles raw).
     return JSON.stringify(
-      { unit: o.unit, slot: o.result.slot, sha: o.result.sha, size: o.result.content.length, body: o.result.content.toString("utf8") },
+      {
+        unit: o.unit,
+        slot: o.result.slot,
+        sha: o.result.sha,
+        size: o.result.content.length,
+        body: o.result.content.toString("utf8"),
+      },
       null,
       2,
     );

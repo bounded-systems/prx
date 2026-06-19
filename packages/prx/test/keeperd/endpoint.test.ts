@@ -21,7 +21,9 @@ describe("isKeeperDoorMode", () => {
 
 describe("resolveKeeperEndpoint", () => {
   test("uses PRX_KEEPER_SOCKET when set (the projected door address)", () => {
-    expect(resolveKeeperEndpoint(fakeEnv({ PRX_KEEPER_SOCKET: "/run/prx/doors/keeperd.sock" }))).toEqual({
+    expect(
+      resolveKeeperEndpoint(fakeEnv({ PRX_KEEPER_SOCKET: "/run/prx/doors/keeperd.sock" })),
+    ).toEqual({
       socket: "/run/prx/doors/keeperd.sock",
     });
   });

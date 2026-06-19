@@ -27,10 +27,7 @@ import type {
   ResolvedWorkUnit,
 } from "../pr-state/resolvers/types.ts";
 import { searchGh } from "../issues/search.ts";
-import {
-  indexBeadsByIssueNumber,
-  loadAllBeads as defaultLoadAllBeads,
-} from "../triage/triage.ts";
+import { indexBeadsByIssueNumber, loadAllBeads as defaultLoadAllBeads } from "../triage/triage.ts";
 import type { execBd } from "@bounded-systems/bd";
 import type { execGh } from "@bounded-systems/gh";
 
@@ -45,15 +42,11 @@ export const NOTION_UUID_RE =
 // shared resolver (GH-874).
 export const TASK_ID_SHAPE_RE = /^[A-Z][A-Z0-9]+-\d+$/;
 
-export type DetectedNotionId =
-  | { kind: "uuid"; value: string }
-  | { kind: "task_id"; value: string };
+export type DetectedNotionId = { kind: "uuid"; value: string } | { kind: "task_id"; value: string };
 
 export const scoutNotionResultSchema = z
   .object({
-    uuid: z
-      .string()
-      .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/),
+    uuid: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/),
     task_id: z.string().nullable(),
     title: z.string(),
     body: z.string().nullable(),
@@ -113,10 +106,7 @@ export class ScoutNotionError extends Error {
   }
 }
 
-export function detectNotionId(
-  input: string,
-  canonicalIdPattern?: RegExp,
-): DetectedNotionId {
+export function detectNotionId(input: string, canonicalIdPattern?: RegExp): DetectedNotionId {
   if (typeof input !== "string" || input.length === 0) {
     throw new ScoutNotionError("id must not be empty", "MISSING_ID");
   }
@@ -163,9 +153,7 @@ const defaultResolverFactory: NotionResolverFactory = ({
   );
 };
 
-export async function runScoutNotion(
-  input: ScoutNotionInput,
-): Promise<ScoutNotionResult> {
+export async function runScoutNotion(input: ScoutNotionInput): Promise<ScoutNotionResult> {
   const cwd = input.cwd ?? process.cwd();
   const env = input.env ?? processEnv();
   const runner = input.runner ?? defaultRunner;
@@ -183,7 +171,7 @@ export async function runScoutNotion(
   const notionSource = findFirstSourceOfKind(config, "notion");
   if (!notionSource) {
     throw new ScoutNotionError(
-      "scout notion: prx.toml has no [sources.<name>] block with kind = \"notion\" (configure auth = \"rest\" or \"claude-mcp\")",
+      'scout notion: prx.toml has no [sources.<name>] block with kind = "notion" (configure auth = "rest" or "claude-mcp")',
       "NOTION_NOT_CONFIGURED",
     );
   }
@@ -227,13 +215,7 @@ export async function runScoutNotion(
   if (!input.noMirrors) {
     if (input.ghExec) {
       try {
-        const hits = searchGh(
-          normalizedUuid,
-          "all",
-          input.ghExec,
-          "scout notion",
-          5,
-        );
+        const hits = searchGh(normalizedUuid, "all", input.ghExec, "scout notion", 5);
         for (const hit of hits) {
           const num = Number.parseInt(hit.id.replace(/^GH-/, ""), 10);
           if (Number.isFinite(num) && num > 0) {

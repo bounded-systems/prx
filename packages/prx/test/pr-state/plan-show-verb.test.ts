@@ -28,8 +28,7 @@ const deps = (body: string): PlanShowDeps => ({
 
 const run = (input: ShowInput, d: PlanShowDeps) =>
   planShowVerb.run(input as never, d) as Promise<never>;
-const render = (out: never, input: ShowInput) =>
-  planShowVerb.render!(out, input as never);
+const render = (out: never, input: ShowInput) => planShowVerb.render!(out, input as never);
 
 describe("plan-show verb", () => {
   test("show / text renders a head preview without a 'more lines' note when ≤20 lines", async () => {
@@ -59,7 +58,12 @@ describe("plan-show verb", () => {
     const input: ShowInput = { unit: "GH-1", slot: "approved", format: "json" };
     const out = await run(input, deps(body));
     const parsed = JSON.parse(render(out, input));
-    expect(parsed).toMatchObject({ unit: "GH-1", slot: "draft", sha: "sha256:abc", size: body.length });
+    expect(parsed).toMatchObject({
+      unit: "GH-1",
+      slot: "draft",
+      sha: "sha256:abc",
+      size: body.length,
+    });
     expect(parsed.body).toBe(body);
   });
 
@@ -91,7 +95,9 @@ describe("plan-show verb", () => {
         throw new PlanRefNotFound("GH-1", "draft");
       },
     };
-    await expect(run({ unit: "GH-1", format: "text" }, d)).rejects.toThrow(/FAIL: no plan blob for GH-1/);
+    await expect(run({ unit: "GH-1", format: "text" }, d)).rejects.toThrow(
+      /FAIL: no plan blob for GH-1/,
+    );
   });
 
   test("a non-PlanRefNotFound error propagates unchanged", async () => {

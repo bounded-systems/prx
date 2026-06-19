@@ -97,18 +97,13 @@ export const fetchMachine = setup({
   },
   guards: {
     decisionGo: ({ event }) =>
-      event.type === "FETCH_DRY_RUN_DECIDED" &&
-      event.decision === "go" &&
-      !event.dryRun,
+      event.type === "FETCH_DRY_RUN_DECIDED" && event.decision === "go" && !event.dryRun,
     dryRunOnly: ({ event }) =>
-      event.type === "FETCH_DRY_RUN_DECIDED" &&
-      (event.dryRun || event.decision === "skip"),
+      event.type === "FETCH_DRY_RUN_DECIDED" && (event.dryRun || event.decision === "skip"),
     decisionFail: ({ event }) =>
       event.type === "FETCH_DRY_RUN_DECIDED" && event.decision === "fail",
-    hasMorePages: ({ event }) =>
-      event.type === "FETCH_WATERMARK_ADVANCED" && event.hasMorePages,
-    isLastPage: ({ event }) =>
-      event.type === "FETCH_WATERMARK_ADVANCED" && !event.hasMorePages,
+    hasMorePages: ({ event }) => event.type === "FETCH_WATERMARK_ADVANCED" && event.hasMorePages,
+    isLastPage: ({ event }) => event.type === "FETCH_WATERMARK_ADVANCED" && !event.hasMorePages,
   },
   actions: {
     recordProjection: assign(({ event }) => {

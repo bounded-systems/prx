@@ -16,10 +16,7 @@
 // per-process cache cannot help that case (GH-1554 is the relevant streaming
 // boundary fix; this is the parallel in-process win).
 
-import {
-  execBd as defaultExecBd,
-  type BdExecResult,
-} from "@bounded-systems/bd";
+import { execBd as defaultExecBd, type BdExecResult } from "@bounded-systems/bd";
 import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "./triage.ts";
 import { loadAllBeadsViaCli } from "./beads-daemon-loader.ts";
 

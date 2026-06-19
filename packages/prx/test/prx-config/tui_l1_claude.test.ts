@@ -2,13 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import {
-  TUI_KEYS,
-  driftReport,
-  emit,
-  parse,
-  type TuiL1Claude,
-} from "@bounded-systems/prx-config";
+import { TUI_KEYS, driftReport, emit, parse, type TuiL1Claude } from "@bounded-systems/prx-config";
 
 const REPO_ROOT = new URL("../../../../", import.meta.url).pathname;
 const REPO_CLAUDE_SETTINGS = join(REPO_ROOT, "claude/settings.json");
@@ -26,19 +20,22 @@ describe("parse — empty object", () => {
 });
 
 describe("parse — repo's checked-in claude/settings.json", () => {
-  test.skipIf(!existsSync(REPO_CLAUDE_SETTINGS))("validates and routes non-TUI fields to passthrough", () => {
-    const raw = JSON.parse(readFileSync(REPO_CLAUDE_SETTINGS, "utf8"));
-    const r = parse(raw);
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.value.tui.tui).toBe("fullscreen");
-    expect(r.value.passthrough).toHaveProperty("permissions");
-    expect(r.value.passthrough).toHaveProperty("hooks");
-    expect(r.value.passthrough).toHaveProperty("statusLine");
-    expect(r.value.passthrough).toHaveProperty("enabledPlugins");
-    expect(r.value.passthrough).not.toHaveProperty("tui");
-    expect(r.drift.ok).toBe(true);
-  });
+  test.skipIf(!existsSync(REPO_CLAUDE_SETTINGS))(
+    "validates and routes non-TUI fields to passthrough",
+    () => {
+      const raw = JSON.parse(readFileSync(REPO_CLAUDE_SETTINGS, "utf8"));
+      const r = parse(raw);
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      expect(r.value.tui.tui).toBe("fullscreen");
+      expect(r.value.passthrough).toHaveProperty("permissions");
+      expect(r.value.passthrough).toHaveProperty("hooks");
+      expect(r.value.passthrough).toHaveProperty("statusLine");
+      expect(r.value.passthrough).toHaveProperty("enabledPlugins");
+      expect(r.value.passthrough).not.toHaveProperty("tui");
+      expect(r.drift.ok).toBe(true);
+    },
+  );
 });
 
 describe("parse — user's live ~/.claude/settings.json", () => {

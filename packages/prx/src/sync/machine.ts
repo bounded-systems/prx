@@ -29,10 +29,7 @@ import { assign, emit, setup } from "xstate";
 import type { DomainAdapter } from "../adapters/domain-adapter.ts";
 import type { BeadsRecord } from "../triage/triage.ts";
 import { pullActor, pushActor } from "./actors.ts";
-import type {
-  DomainSyncPullResult,
-  DomainSyncPushResult,
-} from "./schemas.ts";
+import type { DomainSyncPullResult, DomainSyncPushResult } from "./schemas.ts";
 
 // ── machine input + context ────────────────────────────────────────────────
 
@@ -102,10 +99,7 @@ export const initialDomainSyncPairContext = (
   pushAllowed: input.pushAllowed ?? true,
 });
 
-export function domainSyncBlockedReason(
-  actor: string,
-  error: unknown,
-): DomainSyncBlockedReason {
+export function domainSyncBlockedReason(actor: string, error: unknown): DomainSyncBlockedReason {
   const message = error instanceof Error ? error.message : String(error);
   return { actor, message };
 }
@@ -146,8 +140,7 @@ export const domainSyncMachine = setup({
       always: [
         {
           target: "pushing",
-          guard: ({ context }) =>
-            context.pullResult !== null && context.pushAllowed,
+          guard: ({ context }) => context.pullResult !== null && context.pushAllowed,
         },
         { target: "pulling" },
       ],
@@ -183,8 +176,7 @@ export const domainSyncMachine = setup({
         onError: {
           target: "failed",
           actions: assign({
-            blockedReason: ({ event }) =>
-              domainSyncBlockedReason("pull", event.error),
+            blockedReason: ({ event }) => domainSyncBlockedReason("pull", event.error),
           }),
         },
       },
@@ -207,18 +199,14 @@ export const domainSyncMachine = setup({
         onError: {
           target: "failed",
           actions: assign({
-            blockedReason: ({ event }) =>
-              domainSyncBlockedReason("push", event.error),
+            blockedReason: ({ event }) => domainSyncBlockedReason("push", event.error),
           }),
         },
       },
     },
     done: {
       type: "final",
-      entry: [
-        emit({ type: "DOMAIN_SYNC_PUSHED" }),
-        emit({ type: "DOMAIN_SYNC_PAIR_DONE" }),
-      ],
+      entry: [emit({ type: "DOMAIN_SYNC_PUSHED" }), emit({ type: "DOMAIN_SYNC_PAIR_DONE" })],
     },
     push_deferred: {
       type: "final",

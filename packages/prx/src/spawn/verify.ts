@@ -52,7 +52,14 @@ export async function runSpawnVerify(
   const result = await verifySpawn(options.unit, options.role, verifier);
   if (!result.ok) {
     if (options.format === "json") {
-      output.log(JSON.stringify({ unit: options.unit, role: options.role, ok: false, reason: result.reason }));
+      output.log(
+        JSON.stringify({
+          unit: options.unit,
+          role: options.role,
+          ok: false,
+          reason: result.reason,
+        }),
+      );
     } else {
       output.error(`spawn@${options.role} for ${options.unit}: NOT VERIFIED (${result.reason})`);
     }

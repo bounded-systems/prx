@@ -41,11 +41,16 @@ describe("handleMcpRequest", () => {
 
   test("custom serverInfo is echoed through", async () => {
     const res = await handleMcpRequest(reg, rpc("initialize"), { name: "x", version: "9" });
-    expect((res?.result as { serverInfo: unknown }).serverInfo).toEqual({ name: "x", version: "9" });
+    expect((res?.result as { serverInfo: unknown }).serverInfo).toEqual({
+      name: "x",
+      version: "9",
+    });
   });
 
   test("notifications/initialized is a notification (null, no reply)", async () => {
-    expect(await handleMcpRequest(reg, rpc("notifications/initialized", undefined, null))).toBeNull();
+    expect(
+      await handleMcpRequest(reg, rpc("notifications/initialized", undefined, null)),
+    ).toBeNull();
   });
 
   test("ping returns an empty result", async () => {
@@ -60,7 +65,10 @@ describe("handleMcpRequest", () => {
   });
 
   test("tools/call runs the verb and renders its output", async () => {
-    const res = await handleMcpRequest(reg, rpc("tools/call", { name: ECHO_TOOL, arguments: { msg: "hi" } }));
+    const res = await handleMcpRequest(
+      reg,
+      rpc("tools/call", { name: ECHO_TOOL, arguments: { msg: "hi" } }),
+    );
     const content = (res?.result as { content: Array<{ text: string }> }).content;
     expect(JSON.parse(content[0]!.text)).toEqual({ echoed: "hi" });
   });
@@ -68,22 +76,37 @@ describe("handleMcpRequest", () => {
   test("tools/call defaults missing arguments to {} (and fails Zod → isError)", async () => {
     const res = await handleMcpRequest(reg, rpc("tools/call", { name: ECHO_TOOL }));
     expect((res?.result as { isError: boolean }).isError).toBe(true);
-    expect((res?.result as { content: Array<{ text: string }> }).content[0]!.text).toContain("error:");
+    expect((res?.result as { content: Array<{ text: string }> }).content[0]!.text).toContain(
+      "error:",
+    );
   });
 
   test("tools/call on an unknown tool returns an isError result", async () => {
     const res = await handleMcpRequest(reg, rpc("tools/call", { name: "nope", arguments: {} }));
     expect((res?.result as { isError: boolean }).isError).toBe(true);
-    expect((res?.result as { content: Array<{ text: string }> }).content[0]!.text).toContain("unknown tool: nope");
+    expect((res?.result as { content: Array<{ text: string }> }).content[0]!.text).toContain(
+      "unknown tool: nope",
+    );
   });
 
   test("tools/call surfaces a thrown run() as an isError result", async () => {
     const boomReg: Registry = {
-      boom: { ...echo, id: "test.boom", run: () => { throw new Error("kaboom"); } },
+      boom: {
+        ...echo,
+        id: "test.boom",
+        run: () => {
+          throw new Error("kaboom");
+        },
+      },
     };
-    const res = await handleMcpRequest(boomReg, rpc("tools/call", { name: verbToken("test.boom"), arguments: { msg: "x" } }));
+    const res = await handleMcpRequest(
+      boomReg,
+      rpc("tools/call", { name: verbToken("test.boom"), arguments: { msg: "x" } }),
+    );
     expect((res?.result as { isError: boolean }).isError).toBe(true);
-    expect((res?.result as { content: Array<{ text: string }> }).content[0]!.text).toContain("kaboom");
+    expect((res?.result as { content: Array<{ text: string }> }).content[0]!.text).toContain(
+      "kaboom",
+    );
   });
 
   test("an unknown method is a JSON-RPC method-not-found error", async () => {
@@ -100,12 +123,13 @@ describe("handleMcpRequest", () => {
 
 describe("serveStdio", () => {
   test("replies to real frames, skips empty/malformed/notification lines", async () => {
-    const frames = [
-      JSON.stringify(rpc("ping", undefined, 7)), // → one response
-      "", // skipped (blank)
-      "{ not json", // skipped (malformed)
-      JSON.stringify(rpc("notifications/initialized", undefined, null)), // null → no write
-    ].join("\n") + "\n";
+    const frames =
+      [
+        JSON.stringify(rpc("ping", undefined, 7)), // → one response
+        "", // skipped (blank)
+        "{ not json", // skipped (malformed)
+        JSON.stringify(rpc("notifications/initialized", undefined, null)), // null → no write
+      ].join("\n") + "\n";
 
     const fakeStdin = Readable.from([frames]);
     const written: string[] = [];

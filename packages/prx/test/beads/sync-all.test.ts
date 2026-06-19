@@ -94,15 +94,25 @@ function failedStep(name: DoltReconcileStep["step"], stderr: string): DoltReconc
   };
 }
 
-function reconciled(steps: DoltReconcileStep[], mode: DoltReconcileResult["mode"] = "full"): DoltReconcileResult {
+function reconciled(
+  steps: DoltReconcileStep[],
+  mode: DoltReconcileResult["mode"] = "full",
+): DoltReconcileResult {
   return { state: "reconciled", steps, mode };
 }
 
-function stuck(steps: DoltReconcileStep[], hint: string, mode: DoltReconcileResult["mode"] = "full"): DoltReconcileResult {
+function stuck(
+  steps: DoltReconcileStep[],
+  hint: string,
+  mode: DoltReconcileResult["mode"] = "full",
+): DoltReconcileResult {
   return { state: "stuck", steps, hint, mode };
 }
 
-function conflict(steps: DoltReconcileStep[], mode: DoltReconcileResult["mode"] = "full"): DoltReconcileResult {
+function conflict(
+  steps: DoltReconcileStep[],
+  mode: DoltReconcileResult["mode"] = "full",
+): DoltReconcileResult {
   return {
     state: "schemaConflictPending",
     steps,
@@ -149,28 +159,36 @@ function makeDeps(
       }
       // Default: success with the requested mode.
       const mode = opts.mode ?? "full";
-      const steps =
-        opts.dryRun
-          ? (mode === "pull-only"
-              ? [previewStep("pull")]
-              : mode === "push-only"
-                ? [previewStep("commit"), previewStep("push")]
-                : [previewStep("commit"), previewStep("pull"), previewStep("push")])
-          : (mode === "pull-only"
-              ? [okStep("pull")]
-              : mode === "push-only"
-                ? [okStep("commit"), okStep("push")]
-                : [okStep("commit"), okStep("pull"), okStep("push")]);
+      const steps = opts.dryRun
+        ? mode === "pull-only"
+          ? [previewStep("pull")]
+          : mode === "push-only"
+            ? [previewStep("commit"), previewStep("push")]
+            : [previewStep("commit"), previewStep("pull"), previewStep("push")]
+        : mode === "pull-only"
+          ? [okStep("pull")]
+          : mode === "push-only"
+            ? [okStep("commit"), okStep("push")]
+            : [okStep("commit"), okStep("pull"), okStep("push")];
       const state: DoltReconcileResult["state"] = opts.dryRun ? "preview" : "reconciled";
       return { exitCode: 0, result: { state, steps, mode } };
     },
     appendAuditRow: (row) => {
       const r = row as { event?: string; details?: Record<string, unknown>; repo?: string };
       if (typeof r.event === "string") {
-        rows.push({ event: r.event, ...(r.details ? { details: r.details } : {}), ...(r.repo ? { repo: r.repo } : {}) });
+        rows.push({
+          event: r.event,
+          ...(r.details ? { details: r.details } : {}),
+          ...(r.repo ? { repo: r.repo } : {}),
+        });
       }
     },
-    getAuditRuntimeContext: () => ({ verb: "beads.sync-all", actor: "test-actor", ghTruthReason: null, source: null }),
+    getAuditRuntimeContext: () => ({
+      verb: "beads.sync-all",
+      actor: "test-actor",
+      ghTruthReason: null,
+      source: null,
+    }),
     now: () => FIXED_NOW,
     ...over,
   };
@@ -184,7 +202,9 @@ function makeDeps(
   };
 }
 
-function opts(over: Partial<RunDoltReconcileAcrossReposOptions> = {}): RunDoltReconcileAcrossReposOptions {
+function opts(
+  over: Partial<RunDoltReconcileAcrossReposOptions> = {},
+): RunDoltReconcileAcrossReposOptions {
   return { mode: "full", dryRun: false, format: "plain", ...over };
 }
 
@@ -192,9 +212,17 @@ function opts(over: Partial<RunDoltReconcileAcrossReposOptions> = {}): RunDoltRe
 
 describe("runDoltReconcileAcrossRepos — happy path", () => {
   test("three eligible repos all reconcile clean; exit 0 and three success rows", async () => {
-    const candidates = [eligibleRepo("ai-home"), eligibleRepo("demo-repo"), eligibleRepo("chronologic")];
+    const candidates = [
+      eligibleRepo("ai-home"),
+      eligibleRepo("demo-repo"),
+      eligibleRepo("chronologic"),
+    ];
     const { deps, output, calls, rows } = makeDeps();
-    const { exitCode, result } = await runDoltReconcileAcrossRepos(opts({ candidates }), output, deps);
+    const { exitCode, result } = await runDoltReconcileAcrossRepos(
+      opts({ candidates }),
+      output,
+      deps,
+    );
     expect(exitCode).toBe(0);
     expect(result.perRepo).toHaveLength(3);
     expect(result.perRepo.map((r) => r.status)).toEqual(["success", "success", "success"]);
@@ -234,7 +262,11 @@ describe("runDoltReconcileAcrossRepos — mixed states (per-repo isolation)", ()
         },
       },
     });
-    const { exitCode, result } = await runDoltReconcileAcrossRepos(opts({ candidates }), output, deps);
+    const { exitCode, result } = await runDoltReconcileAcrossRepos(
+      opts({ candidates }),
+      output,
+      deps,
+    );
     expect(exitCode).toBe(1);
     expect(result.perRepo.map((r) => `${r.slug}:${r.status}`)).toEqual([
       "ok-repo:success",
@@ -245,7 +277,9 @@ describe("runDoltReconcileAcrossRepos — mixed states (per-repo isolation)", ()
     ]);
     // Skipped repos must include the reason, eligible repos must not.
     expect(result.perRepo.find((r) => r.slug === "no-remote-repo")?.skipReason).toBe("no-remote");
-    expect(result.perRepo.find((r) => r.slug === "embedded-repo")?.skipReason).toBe("legacy-embedded");
+    expect(result.perRepo.find((r) => r.slug === "embedded-repo")?.skipReason).toBe(
+      "legacy-embedded",
+    );
     expect(result.perRepo.find((r) => r.slug === "ok-repo")?.skipReason).toBeUndefined();
     // I-DR-SA2: per-repo isolation — only the 3 eligible repos invoke the primitive
     expect(calls).toHaveLength(3);
@@ -301,7 +335,9 @@ describe("runDoltReconcileAcrossRepos — dry-run", () => {
     // Preview steps render as `success` rows in the aggregate (preview is a
     // "no work performed but pipeline known" state).
     expect(result.perRepo.every((r) => r.status === "success")).toBe(true);
-    expect(result.perRepo.every((r) => r.steps?.every((s) => s.status === "preview") ?? false)).toBe(true);
+    expect(
+      result.perRepo.every((r) => r.steps?.every((s) => s.status === "preview") ?? false),
+    ).toBe(true);
   });
 });
 
@@ -344,7 +380,11 @@ describe("runDoltReconcileAcrossRepos — primitive throw isolation", () => {
         "/bare/crash": new Error("spawn ENOENT bd"),
       },
     });
-    const { exitCode, result } = await runDoltReconcileAcrossRepos(opts({ candidates }), output, deps);
+    const { exitCode, result } = await runDoltReconcileAcrossRepos(
+      opts({ candidates }),
+      output,
+      deps,
+    );
     expect(exitCode).toBe(1);
     expect(result.perRepo[0]?.status).toBe("failed");
     expect(result.perRepo[0]?.error).toContain("spawn ENOENT bd");
@@ -410,7 +450,11 @@ function bareRepo(over: Partial<LocalRepo> & { name: string }): LocalRepo {
     kind: "bare",
     commonDir: `/bare/${name}`,
     worktrees: [],
-    primaryRemote: { remote: "origin", url: `git@github.com:bdelanghe/${name}.git`, githubRepo: `bdelanghe/${name}` },
+    primaryRemote: {
+      remote: "origin",
+      url: `git@github.com:bdelanghe/${name}.git`,
+      githubRepo: `bdelanghe/${name}`,
+    },
     bd_workspace_prefix: name,
     dolt_remote: `https://doltremoteapi.dolthub.com/bdelanghe/${name}`,
     ...over,
@@ -436,9 +480,9 @@ function cliDepsForSyncAll(
   return {
     loadRepoInventoryConfig: () => cfg,
     loadRepoInventoryIndex: () => inventory,
-    classifyBeadsWorkspace: (() =>
+    classifyBeadsWorkspace: () =>
       // The CLI only consults `.kind` on the returned shape.
-      ({ kind: state }) as never),
+      ({ kind: state }) as never,
     ...(beadsSyncAllAcrossRepos ? { beadsSyncAllAcrossRepos } : {}),
   };
 }
@@ -451,7 +495,15 @@ describe("prx beads sync-all CLI — --repo resolution (GH-1697 regression guard
     let invoked = false;
     const fakeOrchestrator = (async () => {
       invoked = true;
-      return { exitCode: 0, result: { perRepo: [], exitCode: 0, tickStartedAt: FIXED_NOW.toISOString(), mode: "full" as const } };
+      return {
+        exitCode: 0,
+        result: {
+          perRepo: [],
+          exitCode: 0,
+          tickStartedAt: FIXED_NOW.toISOString(),
+          mode: "full" as const,
+        },
+      };
     }) as unknown as typeof runDoltReconcileAcrossRepos;
     const exit = await runCli(
       ["beads", "sync-all", "--repo", "nonsense", "--dry-run"],
@@ -476,7 +528,13 @@ describe("prx beads sync-all CLI — --repo resolution (GH-1697 regression guard
         result: {
           perRepo: (o.candidates ?? []).map((c) =>
             c.kind === "eligible"
-              ? { slug: c.repo.slug, nameWithOwner: c.repo.nameWithOwner, status: "success" as const, mode: o.mode, steps: [] }
+              ? {
+                  slug: c.repo.slug,
+                  nameWithOwner: c.repo.nameWithOwner,
+                  status: "success" as const,
+                  mode: o.mode,
+                  steps: [],
+                }
               : {
                   slug: c.slug,
                   nameWithOwner: c.nameWithOwner,
@@ -554,7 +612,15 @@ describe("prx beads sync-all CLI — flag parsing", () => {
     const inventory = inventoryWith([bareRepo({ name: "ai-home" })]);
     const fakeOrchestrator = (async () => {
       invoked = true;
-      return { exitCode: 0, result: { perRepo: [], exitCode: 0, tickStartedAt: FIXED_NOW.toISOString(), mode: "full" as const } };
+      return {
+        exitCode: 0,
+        result: {
+          perRepo: [],
+          exitCode: 0,
+          tickStartedAt: FIXED_NOW.toISOString(),
+          mode: "full" as const,
+        },
+      };
     }) as unknown as typeof runDoltReconcileAcrossRepos;
     const logs: string[] = [];
     const errs: string[] = [];

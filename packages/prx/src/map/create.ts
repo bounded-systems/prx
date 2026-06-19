@@ -15,11 +15,7 @@ import { readFileSync } from "node:fs";
 
 import { z } from "zod";
 
-import {
-  MapRecord,
-  MapSequenceEntry,
-  MapTicketId,
-} from "./schemas/index.ts";
+import { MapRecord, MapSequenceEntry, MapTicketId } from "./schemas/index.ts";
 import { writeMapRecord } from "./record-io.ts";
 
 const mapCreateInlineSchema = z.object({
@@ -31,7 +27,10 @@ const mapCreateInlineSchema = z.object({
    * Defaults to today (UTC). Override exists for tests so the on-disk
    * snapshot is reproducible without freezing the system clock.
    */
-  created: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  created: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   parents: z.array(MapTicketId).default([]),
   repoRoot: z.string().min(1),
 });
@@ -60,9 +59,7 @@ function todayUtc(): string {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 }
 
-function buildInlineRecord(
-  opts: z.infer<typeof mapCreateInlineSchema>,
-): MapRecord {
+function buildInlineRecord(opts: z.infer<typeof mapCreateInlineSchema>): MapRecord {
   const sequence: MapSequenceEntry[] = opts.tickets.map((id) =>
     MapSequenceEntry.parse({
       id,
@@ -85,12 +82,9 @@ function loadFromFile(path: string): MapRecord {
   return MapRecord.parse(raw);
 }
 
-export async function runMapCreate(
-  opts: MapCreateOptions,
-): Promise<MapCreateActorResult> {
+export async function runMapCreate(opts: MapCreateOptions): Promise<MapCreateActorResult> {
   const parsed = mapCreateOptionsSchema.parse(opts);
-  const record =
-    parsed.kind === "inline" ? buildInlineRecord(parsed) : loadFromFile(parsed.path);
+  const record = parsed.kind === "inline" ? buildInlineRecord(parsed) : loadFromFile(parsed.path);
   const path = writeMapRecord(parsed.repoRoot, record);
   return { name: record.name, path, record };
 }

@@ -49,9 +49,7 @@ import {
   dispatchRequestSchema,
   readTypedDispatchFlag,
 } from "../../../src/machine/dispatch.ts";
-import {
-  defaultDispatchCapabilities,
-} from "../../../src/machine/dispatch.ts";
+import { defaultDispatchCapabilities } from "../../../src/machine/dispatch.ts";
 import {
   SESSION_PROFILES,
   sessionProfileNames,
@@ -127,7 +125,7 @@ describe("contract schemas", () => {
         outputArtifact: "patch_proposal",
         capabilities: [],
         forbidden: [],
-      })
+      }),
     ).toThrow();
   });
 
@@ -139,7 +137,7 @@ describe("contract schemas", () => {
         outputArtifact: ["patch_proposal", "implementation_notes"] as unknown as string,
         capabilities: [],
         forbidden: [],
-      })
+      }),
     ).toThrow();
   });
 
@@ -152,7 +150,7 @@ describe("contract schemas", () => {
         capabilities: [],
         forbidden: [],
         extra: "nope",
-      })
+      }),
     ).toThrow();
   });
 });
@@ -201,9 +199,7 @@ describe("session-profile round-trip parity", () => {
       const projection = projectSessionProfile(contract);
       expect(projection.allowedTools).toEqual(original.allowedTools);
       expect(projection.disallowedTools).toEqual(original.disallowedTools);
-      expect(projection.allowedDispatchTargets).toEqual(
-        [...defaultDispatchCapabilities[name]],
-      );
+      expect(projection.allowedDispatchTargets).toEqual([...defaultDispatchCapabilities[name]]);
     }
   });
 
@@ -241,15 +237,12 @@ describe("curry", () => {
 
   test("rejects currying the only input", () => {
     const scout = getTaskRoleContract("scout");
-    expect(() => curry(scout, "query", residualArtifactType)).toThrow(
-      CurryError,
-    );
+    expect(() => curry(scout, "query", residualArtifactType)).toThrow(CurryError);
   });
 
   test("rejects currying a component the composite does not declare", () => {
     const executor = getTaskRoleContract("executor");
-    expect(() => curry(executor, "review_bundle", residualArtifactType))
-      .toThrow();
+    expect(() => curry(executor, "review_bundle", residualArtifactType)).toThrow();
   });
 });
 

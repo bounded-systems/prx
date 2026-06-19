@@ -57,7 +57,13 @@ async function resolveSourceInput(unit: string): Promise<LegInput> {
   if (got.missing || !got.value || !got.value.attestation) return { missing: true, ref };
   const sha = await getRef(ref);
   if (!sha) return { missing: true, ref };
-  return { missing: false, ref: got.ref, sha, body: sourceBody(got.value), signedBy: got.value.attestation.submittedBy };
+  return {
+    missing: false,
+    ref: got.ref,
+    sha,
+    body: sourceBody(got.value),
+    signedBy: got.value.attestation.submittedBy,
+  };
 }
 
 /**
@@ -73,7 +79,8 @@ async function resolvePlanInput(unit: string): Promise<LegInput> {
   } catch {
     return { missing: true, ref };
   }
-  const body = typeof loaded.content === "string" ? loaded.content : loaded.content.toString("utf8");
+  const body =
+    typeof loaded.content === "string" ? loaded.content : loaded.content.toString("utf8");
   if (!body || body.trim().length === 0) return { missing: true, ref };
   return { missing: false, ref, sha: loaded.sha, body, signedBy: "planner" };
 }

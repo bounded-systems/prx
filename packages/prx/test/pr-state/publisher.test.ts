@@ -62,7 +62,11 @@ const zeroApprovalsProtection = () => ({
   requireCodeOwnerReviews: false,
 });
 
-function recordingOutput(): { lines: string[]; errors: string[]; output: { log: (l: string) => void; error: (l: string) => void } } {
+function recordingOutput(): {
+  lines: string[];
+  errors: string[];
+  output: { log: (l: string) => void; error: (l: string) => void };
+} {
   const lines: string[] = [];
   const errors: string[] = [];
   return {
@@ -78,17 +82,11 @@ function recordingOutput(): { lines: string[]; errors: string[]; output: { log: 
 describe("runMerge", () => {
   test("blockers cause non-zero exit and print fix hints", () => {
     const rec = recordingOutput();
-    const code = runMerge(
-      target,
-      { method: "SQUASH" },
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () => comments({ isDraft: true }),
-        fetchBranchProtection: () => enforcedProtection(),
-        auditDeps: silentAudit,
-      },
-    );
+    const code = runMerge(target, { method: "SQUASH" }, "plain", rec.output, {
+      fetchPrComments: () => comments({ isDraft: true }),
+      fetchBranchProtection: () => enforcedProtection(),
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(1);
     expect(rec.errors.join("\n")).toContain("pr.isDraft=true");
     expect(rec.errors.join("\n")).toContain("prx publisher ready");
@@ -100,22 +98,16 @@ describe("runMerge", () => {
     // waiting predicate in plain output.
     const rec = recordingOutput();
     let enableCalled = false;
-    const code = runMerge(
-      target,
-      { method: "SQUASH" },
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () => comments({ reviewDecision: null }),
-        fetchBranchProtection: () => enforcedProtection(),
-        resolvePrNodeId: () => "PR_NODE_100",
-        enableAutoMerge: (_repo, prNodeId, mergeMethod) => {
-          enableCalled = true;
-          return { prNodeId, mergeMethod };
-        },
-        auditDeps: silentAudit,
+    const code = runMerge(target, { method: "SQUASH" }, "plain", rec.output, {
+      fetchPrComments: () => comments({ reviewDecision: null }),
+      fetchBranchProtection: () => enforcedProtection(),
+      resolvePrNodeId: () => "PR_NODE_100",
+      enableAutoMerge: (_repo, prNodeId, mergeMethod) => {
+        enableCalled = true;
+        return { prNodeId, mergeMethod };
       },
-    );
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(0);
     expect(enableCalled).toBeTrue();
     const plain = rec.lines.join("\n");
@@ -129,22 +121,16 @@ describe("runMerge", () => {
     // we use a status that yields ciState=in_progress directly.
     const rec = recordingOutput();
     let enableCalled = false;
-    const code = runMerge(
-      target,
-      { method: "SQUASH" },
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () => comments({ mergeStateStatus: "UNKNOWN" }),
-        fetchBranchProtection: () => enforcedProtection(),
-        resolvePrNodeId: () => "PR_NODE_100",
-        enableAutoMerge: (_repo, prNodeId, mergeMethod) => {
-          enableCalled = true;
-          return { prNodeId, mergeMethod };
-        },
-        auditDeps: silentAudit,
+    const code = runMerge(target, { method: "SQUASH" }, "plain", rec.output, {
+      fetchPrComments: () => comments({ mergeStateStatus: "UNKNOWN" }),
+      fetchBranchProtection: () => enforcedProtection(),
+      resolvePrNodeId: () => "PR_NODE_100",
+      enableAutoMerge: (_repo, prNodeId, mergeMethod) => {
+        enableCalled = true;
+        return { prNodeId, mergeMethod };
       },
-    );
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(0);
     expect(enableCalled).toBeTrue();
     expect(rec.lines.join("\n")).toContain("waiting on: ci");
@@ -153,22 +139,16 @@ describe("runMerge", () => {
   test("queues automerge when mergeability is UNKNOWN", () => {
     const rec = recordingOutput();
     let enableCalled = false;
-    const code = runMerge(
-      target,
-      { method: "SQUASH" },
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () => comments({ mergeable: "UNKNOWN" }),
-        fetchBranchProtection: () => enforcedProtection(),
-        resolvePrNodeId: () => "PR_NODE_100",
-        enableAutoMerge: (_repo, prNodeId, mergeMethod) => {
-          enableCalled = true;
-          return { prNodeId, mergeMethod };
-        },
-        auditDeps: silentAudit,
+    const code = runMerge(target, { method: "SQUASH" }, "plain", rec.output, {
+      fetchPrComments: () => comments({ mergeable: "UNKNOWN" }),
+      fetchBranchProtection: () => enforcedProtection(),
+      resolvePrNodeId: () => "PR_NODE_100",
+      enableAutoMerge: (_repo, prNodeId, mergeMethod) => {
+        enableCalled = true;
+        return { prNodeId, mergeMethod };
       },
-    );
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(0);
     expect(enableCalled).toBeTrue();
     expect(rec.lines.join("\n")).toContain("waiting on: mergeability");
@@ -177,27 +157,21 @@ describe("runMerge", () => {
   test("queues automerge with multiple waiting conditions (ci + review + mergeability)", () => {
     const rec = recordingOutput();
     let enableCalled = false;
-    const code = runMerge(
-      target,
-      { method: "SQUASH" },
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () =>
-          comments({
-            reviewDecision: null,
-            mergeStateStatus: "UNKNOWN",
-            mergeable: "UNKNOWN",
-          }),
-        fetchBranchProtection: () => enforcedProtection(),
-        resolvePrNodeId: () => "PR_NODE_100",
-        enableAutoMerge: (_repo, prNodeId, mergeMethod) => {
-          enableCalled = true;
-          return { prNodeId, mergeMethod };
-        },
-        auditDeps: silentAudit,
+    const code = runMerge(target, { method: "SQUASH" }, "plain", rec.output, {
+      fetchPrComments: () =>
+        comments({
+          reviewDecision: null,
+          mergeStateStatus: "UNKNOWN",
+          mergeable: "UNKNOWN",
+        }),
+      fetchBranchProtection: () => enforcedProtection(),
+      resolvePrNodeId: () => "PR_NODE_100",
+      enableAutoMerge: (_repo, prNodeId, mergeMethod) => {
+        enableCalled = true;
+        return { prNodeId, mergeMethod };
       },
-    );
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(0);
     expect(enableCalled).toBeTrue();
     const plain = rec.lines.join("\n");
@@ -210,21 +184,15 @@ describe("runMerge", () => {
   test("hard-blocks on failed CI (mergeStateStatus=DIRTY)", () => {
     const rec = recordingOutput();
     let enableCalled = false;
-    const code = runMerge(
-      target,
-      { method: "SQUASH" },
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () => comments({ mergeStateStatus: "DIRTY" }),
-        fetchBranchProtection: () => enforcedProtection(),
-        enableAutoMerge: () => {
-          enableCalled = true;
-          return { prNodeId: "x", mergeMethod: "SQUASH" };
-        },
-        auditDeps: silentAudit,
+    const code = runMerge(target, { method: "SQUASH" }, "plain", rec.output, {
+      fetchPrComments: () => comments({ mergeStateStatus: "DIRTY" }),
+      fetchBranchProtection: () => enforcedProtection(),
+      enableAutoMerge: () => {
+        enableCalled = true;
+        return { prNodeId: "x", mergeMethod: "SQUASH" };
       },
-    );
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(1);
     expect(enableCalled).toBeFalse();
     expect(rec.errors.join("\n")).toContain("signals.ci.state=failed");
@@ -233,21 +201,15 @@ describe("runMerge", () => {
   test("hard-blocks on conflicting mergeability", () => {
     const rec = recordingOutput();
     let enableCalled = false;
-    const code = runMerge(
-      target,
-      { method: "SQUASH" },
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () => comments({ mergeable: "CONFLICTING" }),
-        fetchBranchProtection: () => enforcedProtection(),
-        enableAutoMerge: () => {
-          enableCalled = true;
-          return { prNodeId: "x", mergeMethod: "SQUASH" };
-        },
-        auditDeps: silentAudit,
+    const code = runMerge(target, { method: "SQUASH" }, "plain", rec.output, {
+      fetchPrComments: () => comments({ mergeable: "CONFLICTING" }),
+      fetchBranchProtection: () => enforcedProtection(),
+      enableAutoMerge: () => {
+        enableCalled = true;
+        return { prNodeId: "x", mergeMethod: "SQUASH" };
       },
-    );
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(1);
     expect(enableCalled).toBeFalse();
     expect(rec.errors.join("\n")).toContain("signals.mergeability.state=CONFLICTING");
@@ -256,24 +218,18 @@ describe("runMerge", () => {
   test("hard-blocks on unresolved threads (operator must resolve first)", () => {
     const rec = recordingOutput();
     let enableCalled = false;
-    const code = runMerge(
-      target,
-      { method: "SQUASH" },
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () => ({
-          ...comments(),
-          unresolvedThreads: 2,
-        }),
-        fetchBranchProtection: () => enforcedProtection(),
-        enableAutoMerge: () => {
-          enableCalled = true;
-          return { prNodeId: "x", mergeMethod: "SQUASH" };
-        },
-        auditDeps: silentAudit,
+    const code = runMerge(target, { method: "SQUASH" }, "plain", rec.output, {
+      fetchPrComments: () => ({
+        ...comments(),
+        unresolvedThreads: 2,
+      }),
+      fetchBranchProtection: () => enforcedProtection(),
+      enableAutoMerge: () => {
+        enableCalled = true;
+        return { prNodeId: "x", mergeMethod: "SQUASH" };
       },
-    );
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(1);
     expect(enableCalled).toBeFalse();
     const errs = rec.errors.join("\n");
@@ -283,19 +239,13 @@ describe("runMerge", () => {
 
   test("--format json on the queue path includes waiting predicates", () => {
     const rec = recordingOutput();
-    const code = runMerge(
-      target,
-      { method: "SQUASH" },
-      "json",
-      rec.output,
-      {
-        fetchPrComments: () => comments({ reviewDecision: null, mergeable: "UNKNOWN" }),
-        fetchBranchProtection: () => enforcedProtection(),
-        resolvePrNodeId: () => "PR_NODE_100",
-        enableAutoMerge: (_repo, prNodeId, mergeMethod) => ({ prNodeId, mergeMethod }),
-        auditDeps: silentAudit,
-      },
-    );
+    const code = runMerge(target, { method: "SQUASH" }, "json", rec.output, {
+      fetchPrComments: () => comments({ reviewDecision: null, mergeable: "UNKNOWN" }),
+      fetchBranchProtection: () => enforcedProtection(),
+      resolvePrNodeId: () => "PR_NODE_100",
+      enableAutoMerge: (_repo, prNodeId, mergeMethod) => ({ prNodeId, mergeMethod }),
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(0);
     const parsed = JSON.parse(rec.lines[0]!);
     expect(parsed.path).toBe("automerge");
@@ -307,22 +257,16 @@ describe("runMerge", () => {
   test("lands a 0-approvals PR by enabling automerge without an APPROVED review", () => {
     const rec = recordingOutput();
     let enableCalled = false;
-    const code = runMerge(
-      target,
-      { method: "SQUASH" },
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () => comments({ reviewDecision: null }),
-        fetchBranchProtection: () => zeroApprovalsProtection(),
-        resolvePrNodeId: () => "PR_NODE_100",
-        enableAutoMerge: (_repo, prNodeId, mergeMethod) => {
-          enableCalled = true;
-          return { prNodeId, mergeMethod };
-        },
-        auditDeps: silentAudit,
+    const code = runMerge(target, { method: "SQUASH" }, "plain", rec.output, {
+      fetchPrComments: () => comments({ reviewDecision: null }),
+      fetchBranchProtection: () => zeroApprovalsProtection(),
+      resolvePrNodeId: () => "PR_NODE_100",
+      enableAutoMerge: (_repo, prNodeId, mergeMethod) => {
+        enableCalled = true;
+        return { prNodeId, mergeMethod };
       },
-    );
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(0);
     expect(enableCalled).toBeTrue();
     expect(rec.lines.join("\n")).toContain("automerge enabled");
@@ -332,35 +276,31 @@ describe("runMerge", () => {
     let inventoryCall = 0;
     const runnerCalls: string[][] = [];
     const rec = recordingOutput();
-    const code = runMerge(
-      target,
-      { method: "SQUASH" },
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () => {
-          inventoryCall += 1;
-          if (inventoryCall === 1) {
-            // First load: behind base.
-            return comments({ mergeStateStatus: "BEHIND" });
-          }
-          return comments();
-        },
-        fetchBranchProtection: () => enforcedProtection(),
-        runner: (cmd, _opts) => {
-          runnerCalls.push(cmd);
-          return { stdout: "", stderr: "", status: 0 };
-        },
-        resolvePrNodeId: () => "PR_NODE_100",
-        enableAutoMerge: (_repo, prNodeId, mergeMethod) => ({
-          prNodeId,
-          mergeMethod,
-        }),
-        auditDeps: silentAudit,
+    const code = runMerge(target, { method: "SQUASH" }, "plain", rec.output, {
+      fetchPrComments: () => {
+        inventoryCall += 1;
+        if (inventoryCall === 1) {
+          // First load: behind base.
+          return comments({ mergeStateStatus: "BEHIND" });
+        }
+        return comments();
       },
-    );
+      fetchBranchProtection: () => enforcedProtection(),
+      runner: (cmd, _opts) => {
+        runnerCalls.push(cmd);
+        return { stdout: "", stderr: "", status: 0 };
+      },
+      resolvePrNodeId: () => "PR_NODE_100",
+      enableAutoMerge: (_repo, prNodeId, mergeMethod) => ({
+        prNodeId,
+        mergeMethod,
+      }),
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(0);
-    expect(runnerCalls.some((c) => c[0] === "gh" && c[1] === "pr" && c[2] === "update-branch")).toBeTrue();
+    expect(
+      runnerCalls.some((c) => c[0] === "gh" && c[1] === "pr" && c[2] === "update-branch"),
+    ).toBeTrue();
     expect(rec.lines.join("\n")).toContain("automerge enabled");
     expect(inventoryCall).toBe(2);
   });
@@ -368,49 +308,39 @@ describe("runMerge", () => {
   test("--no-update-branch skips the auto-update retry and surfaces the blocker", () => {
     const rec = recordingOutput();
     const runnerCalls: string[][] = [];
-    const code = runMerge(
-      target,
-      { method: "SQUASH", noUpdateBranch: true },
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () => comments({ mergeStateStatus: "BEHIND" }),
-        fetchBranchProtection: () => enforcedProtection(),
-        runner: (cmd) => {
-          runnerCalls.push(cmd);
-          return { stdout: "", stderr: "", status: 0 };
-        },
-        auditDeps: silentAudit,
+    const code = runMerge(target, { method: "SQUASH", noUpdateBranch: true }, "plain", rec.output, {
+      fetchPrComments: () => comments({ mergeStateStatus: "BEHIND" }),
+      fetchBranchProtection: () => enforcedProtection(),
+      runner: (cmd) => {
+        runnerCalls.push(cmd);
+        return { stdout: "", stderr: "", status: 0 };
       },
-    );
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(1);
-    expect(runnerCalls.some((c) => c[0] === "gh" && c[1] === "pr" && c[2] === "update-branch")).toBeFalse();
+    expect(
+      runnerCalls.some((c) => c[0] === "gh" && c[1] === "pr" && c[2] === "update-branch"),
+    ).toBeFalse();
     expect(rec.errors.join("\n")).toContain("remoteFresh");
   });
 
   test("no-op when automerge is already enabled", () => {
     const rec = recordingOutput();
     let enableCalled = false;
-    const code = runMerge(
-      target,
-      { method: "SQUASH" },
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () =>
-          comments({
-            autoMergeEnabled: true,
-            autoMergeRequest: { enabledBy: "operator", mergeMethod: "SQUASH" },
-          }),
-        fetchBranchProtection: () => enforcedProtection(),
-        enableAutoMerge: () => {
-          enableCalled = true;
-          return { prNodeId: "x", mergeMethod: "SQUASH" };
-        },
-        resolvePrNodeId: () => "x",
-        auditDeps: silentAudit,
+    const code = runMerge(target, { method: "SQUASH" }, "plain", rec.output, {
+      fetchPrComments: () =>
+        comments({
+          autoMergeEnabled: true,
+          autoMergeRequest: { enabledBy: "operator", mergeMethod: "SQUASH" },
+        }),
+      fetchBranchProtection: () => enforcedProtection(),
+      enableAutoMerge: () => {
+        enableCalled = true;
+        return { prNodeId: "x", mergeMethod: "SQUASH" };
       },
-    );
+      resolvePrNodeId: () => "x",
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(0);
     expect(enableCalled).toBeFalse();
     expect(rec.lines.join("\n")).toContain("already enabled");
@@ -419,25 +349,19 @@ describe("runMerge", () => {
   test("falls back to direct merge when enableAutoMerge errors with clean-status", () => {
     const rec = recordingOutput();
     let mergeCalled = false;
-    const code = runMerge(
-      target,
-      { method: "SQUASH" },
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () => comments(),
-        fetchBranchProtection: () => enforcedProtection(),
-        resolvePrNodeId: () => "PR_NODE_100",
-        enableAutoMerge: () => {
-          throw new Error("Pull request Pull request is in clean status");
-        },
-        mergePullRequest: (_repo, prNodeId, _method) => {
-          mergeCalled = true;
-          return { prNodeId, merged: true, state: "MERGED" };
-        },
-        auditDeps: silentAudit,
+    const code = runMerge(target, { method: "SQUASH" }, "plain", rec.output, {
+      fetchPrComments: () => comments(),
+      fetchBranchProtection: () => enforcedProtection(),
+      resolvePrNodeId: () => "PR_NODE_100",
+      enableAutoMerge: () => {
+        throw new Error("Pull request Pull request is in clean status");
       },
-    );
+      mergePullRequest: (_repo, prNodeId, _method) => {
+        mergeCalled = true;
+        return { prNodeId, merged: true, state: "MERGED" };
+      },
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(0);
     expect(mergeCalled).toBeTrue();
     expect(rec.lines.join("\n")).toContain("falling through to direct merge");
@@ -447,45 +371,35 @@ describe("runMerge", () => {
   test("surfaces non-clean enableAutoMerge errors as failures without invoking direct merge", () => {
     const rec = recordingOutput();
     let mergeCalled = false;
-    const code = runMerge(
-      target,
-      { method: "SQUASH" },
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () => comments(),
-        fetchBranchProtection: () => enforcedProtection(),
-        resolvePrNodeId: () => "PR_NODE_100",
-        enableAutoMerge: () => {
-          throw new Error("HTTP 502 Bad Gateway");
-        },
-        mergePullRequest: () => {
-          mergeCalled = true;
-          return { prNodeId: "x", merged: true, state: "MERGED" };
-        },
-        auditDeps: silentAudit,
+    const code = runMerge(target, { method: "SQUASH" }, "plain", rec.output, {
+      fetchPrComments: () => comments(),
+      fetchBranchProtection: () => enforcedProtection(),
+      resolvePrNodeId: () => "PR_NODE_100",
+      enableAutoMerge: () => {
+        throw new Error("HTTP 502 Bad Gateway");
       },
-    );
+      mergePullRequest: () => {
+        mergeCalled = true;
+        return { prNodeId: "x", merged: true, state: "MERGED" };
+      },
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(1);
     expect(mergeCalled).toBeFalse();
-    expect(rec.errors.join("\n")).toContain("enablePullRequestAutoMerge failed: HTTP 502 Bad Gateway");
+    expect(rec.errors.join("\n")).toContain(
+      "enablePullRequestAutoMerge failed: HTTP 502 Bad Gateway",
+    );
   });
 
   test("--format json includes path=automerge on the queue path", () => {
     const rec = recordingOutput();
-    const code = runMerge(
-      target,
-      { method: "SQUASH" },
-      "json",
-      rec.output,
-      {
-        fetchPrComments: () => comments(),
-        fetchBranchProtection: () => enforcedProtection(),
-        resolvePrNodeId: () => "PR_NODE_100",
-        enableAutoMerge: (_repo, prNodeId, mergeMethod) => ({ prNodeId, mergeMethod }),
-        auditDeps: silentAudit,
-      },
-    );
+    const code = runMerge(target, { method: "SQUASH" }, "json", rec.output, {
+      fetchPrComments: () => comments(),
+      fetchBranchProtection: () => enforcedProtection(),
+      resolvePrNodeId: () => "PR_NODE_100",
+      enableAutoMerge: (_repo, prNodeId, mergeMethod) => ({ prNodeId, mergeMethod }),
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(0);
     const parsed = JSON.parse(rec.lines[0]!);
     expect(parsed.path).toBe("automerge");
@@ -495,22 +409,16 @@ describe("runMerge", () => {
 
   test("--format json includes path=direct on the fallback path", () => {
     const rec = recordingOutput();
-    const code = runMerge(
-      target,
-      { method: "SQUASH" },
-      "json",
-      rec.output,
-      {
-        fetchPrComments: () => comments(),
-        fetchBranchProtection: () => enforcedProtection(),
-        resolvePrNodeId: () => "PR_NODE_100",
-        enableAutoMerge: () => {
-          throw new Error("Pull request is in clean status");
-        },
-        mergePullRequest: (_repo, prNodeId) => ({ prNodeId, merged: true, state: "MERGED" }),
-        auditDeps: silentAudit,
+    const code = runMerge(target, { method: "SQUASH" }, "json", rec.output, {
+      fetchPrComments: () => comments(),
+      fetchBranchProtection: () => enforcedProtection(),
+      resolvePrNodeId: () => "PR_NODE_100",
+      enableAutoMerge: () => {
+        throw new Error("Pull request is in clean status");
       },
-    );
+      mergePullRequest: (_repo, prNodeId) => ({ prNodeId, merged: true, state: "MERGED" }),
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(0);
     const parsed = JSON.parse(rec.lines[0]!);
     expect(parsed.path).toBe("direct");
@@ -759,7 +667,9 @@ describe("prx doctor merge|ready|draft deprecation aliases (GH-1559)", () => {
     );
     expect(code).toBe(0);
     expect(handlerCalled).toBeTrue();
-    expect(errors.join("\n")).toContain("prx doctor merge is deprecated; use `prx publisher merge`");
+    expect(errors.join("\n")).toContain(
+      "prx doctor merge is deprecated; use `prx publisher merge`",
+    );
     // The delegated handler's stdout is untouched by the notice.
     expect(lines.join("\n")).toContain("merged GH-885");
   });
@@ -779,7 +689,9 @@ describe("prx doctor merge|ready|draft deprecation aliases (GH-1559)", () => {
     );
     expect(code).toBe(0);
     expect(handlerCalled).toBeTrue();
-    expect(errors.join("\n")).toContain("prx doctor ready is deprecated; use `prx publisher ready`");
+    expect(errors.join("\n")).toContain(
+      "prx doctor ready is deprecated; use `prx publisher ready`",
+    );
   });
 
   test("prx doctor draft delegates to the publisher draft handler", async () => {
@@ -797,7 +709,9 @@ describe("prx doctor merge|ready|draft deprecation aliases (GH-1559)", () => {
     );
     expect(code).toBe(0);
     expect(handlerCalled).toBeTrue();
-    expect(errors.join("\n")).toContain("prx doctor draft is deprecated; use `prx publisher draft`");
+    expect(errors.join("\n")).toContain(
+      "prx doctor draft is deprecated; use `prx publisher draft`",
+    );
   });
 
   test("prx publisher merge routes directly to the publisher handler (no notice)", async () => {
@@ -828,13 +742,10 @@ describe("runPrOpen (GH-1560)", () => {
   test("opens a draft PR by default — (GH-N) title + Closes #N body", () => {
     const rec = recordingOutput();
     const calls: string[][] = [];
-    const code = runPrOpen(
-      target,
-      { summary: "feat(x): thing" },
-      "plain",
-      rec.output,
-      { runner: okRunner(calls), auditDeps: silentAudit },
-    );
+    const code = runPrOpen(target, { summary: "feat(x): thing" }, "plain", rec.output, {
+      runner: okRunner(calls),
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(0);
     const create = calls.find((c) => c[0] === "gh" && c[1] === "pr" && c[2] === "create");
     expect(create).toBeDefined();
@@ -863,13 +774,10 @@ describe("runPrOpen (GH-1560)", () => {
   test("extra --closes units appear in the body", () => {
     const rec = recordingOutput();
     const calls: string[][] = [];
-    runPrOpen(
-      target,
-      { summary: "feat: x", closes: ["GH-900"] },
-      "plain",
-      rec.output,
-      { runner: okRunner(calls), auditDeps: silentAudit },
-    );
+    runPrOpen(target, { summary: "feat: x", closes: ["GH-900"] }, "plain", rec.output, {
+      runner: okRunner(calls),
+      auditDeps: silentAudit,
+    });
     const create = calls.find((c) => c[2] === "create");
     const body = create![create!.indexOf("--body") + 1]!;
     expect(body).toContain("Closes #885");
@@ -886,21 +794,17 @@ describe("runPrUpdate (GH-1560)", () => {
   test("update-branch + retitle invoke gh (title gets the (GH-N) contract)", () => {
     const rec = recordingOutput();
     const calls: string[][] = [];
-    const code = runPrUpdate(
-      target,
-      { title: "feat(x): renamed" },
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () => comments(),
-        fetchBranchProtection: () => enforcedProtection(),
-        runner: captureRunner(calls),
-        auditDeps: silentAudit,
-      },
-    );
+    const code = runPrUpdate(target, { title: "feat(x): renamed" }, "plain", rec.output, {
+      fetchPrComments: () => comments(),
+      fetchBranchProtection: () => enforcedProtection(),
+      runner: captureRunner(calls),
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(0);
     expect(
-      calls.some((c) => c[0] === "gh" && c[1] === "pr" && c[2] === "update-branch" && c[3] === "100"),
+      calls.some(
+        (c) => c[0] === "gh" && c[1] === "pr" && c[2] === "update-branch" && c[3] === "100",
+      ),
     ).toBe(true);
     const edit = calls.find((c) => c[0] === "gh" && c[1] === "pr" && c[2] === "edit");
     expect(edit).toBeDefined();
@@ -910,18 +814,12 @@ describe("runPrUpdate (GH-1560)", () => {
   test("without --title, only update-branch runs (no retitle)", () => {
     const rec = recordingOutput();
     const calls: string[][] = [];
-    runPrUpdate(
-      target,
-      {},
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () => comments(),
-        fetchBranchProtection: () => enforcedProtection(),
-        runner: captureRunner(calls),
-        auditDeps: silentAudit,
-      },
-    );
+    runPrUpdate(target, {}, "plain", rec.output, {
+      fetchPrComments: () => comments(),
+      fetchBranchProtection: () => enforcedProtection(),
+      runner: captureRunner(calls),
+      auditDeps: silentAudit,
+    });
     expect(calls.some((c) => c[2] === "update-branch")).toBe(true);
     expect(calls.some((c) => c[2] === "edit")).toBe(false);
   });
@@ -958,18 +856,12 @@ describe("runPrComment (ai-home-2ow2v)", () => {
 
   test("propagates a nonzero gh exit code", () => {
     const rec = recordingOutput();
-    const code = runPrComment(
-      target,
-      { body: "x" },
-      "plain",
-      rec.output,
-      {
-        fetchPrComments: () => comments(),
-        fetchBranchProtection: () => enforcedProtection(),
-        runner: () => ({ stdout: "", stderr: "boom", status: 1 }),
-        auditDeps: silentAudit,
-      },
-    );
+    const code = runPrComment(target, { body: "x" }, "plain", rec.output, {
+      fetchPrComments: () => comments(),
+      fetchBranchProtection: () => enforcedProtection(),
+      runner: () => ({ stdout: "", stderr: "boom", status: 1 }),
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(1);
   });
 });

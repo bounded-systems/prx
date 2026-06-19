@@ -100,7 +100,9 @@ describe("renderPodmanKube", () => {
   });
 
   test("throws on a malformed pod (validation at the seam)", () => {
-    expect(() => renderPodmanKube({ name: "", executor: { name: "h" }, rooms: [] } as never)).toThrow();
+    expect(() =>
+      renderPodmanKube({ name: "", executor: { name: "h" }, rooms: [] } as never),
+    ).toThrow();
   });
 
   test("the driver wraps the renderer", () => {
@@ -225,7 +227,10 @@ describe("renderPodmanQuadlet (prx-b44y — production systemd form)", () => {
 
   test("adds the repo /work mount + WorkingDir only when pod.repo is set", () => {
     expect(lines).not.toContain("WorkingDir=/work");
-    const withRepo = renderPodmanQuadlet({ ...perRepoPod, repo: "/host/repo" }, "keeperd-room").split("\n");
+    const withRepo = renderPodmanQuadlet(
+      { ...perRepoPod, repo: "/host/repo" },
+      "keeperd-room",
+    ).split("\n");
     expect(withRepo).toContain("Volume=/host/repo:/work:z");
     expect(withRepo).toContain("WorkingDir=/work");
   });

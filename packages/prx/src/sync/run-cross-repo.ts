@@ -150,7 +150,9 @@ export async function runBeadsSyncAcrossRepos(
     };
   }
   if (repos.length === 0) {
-    output.log("beads sync (--all-repos): inventory has no eligible repos (none with bd_workspace_prefix + OWNER/REPO)");
+    output.log(
+      "beads sync (--all-repos): inventory has no eligible repos (none with bd_workspace_prefix + OWNER/REPO)",
+    );
     return {
       exitCode: 0,
       perRepo: [],
@@ -164,7 +166,10 @@ export async function runBeadsSyncAcrossRepos(
 
   const cursor = opts.ignoreCursor ? null : readCursor();
   const startIdx = cursor?.nextRepoSlug
-    ? Math.max(0, repos.findIndex((r) => r.slug === cursor.nextRepoSlug))
+    ? Math.max(
+        0,
+        repos.findIndex((r) => r.slug === cursor.nextRepoSlug),
+      )
     : 0;
   const tickStartedAt = cursor?.tickStartedAt ?? now().toISOString();
 

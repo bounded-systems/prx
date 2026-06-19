@@ -80,7 +80,12 @@ describe("contract helpers", () => {
   });
 
   test("applies lifecycle transitions and appends notes", () => {
-    const contract = applyTransition(baseContract(), "validating", "pr-prime", "Checklist complete");
+    const contract = applyTransition(
+      baseContract(),
+      "validating",
+      "pr-prime",
+      "Checklist complete",
+    );
     const pr = ensurePrState(contract);
 
     expect(pr.lifecycle.state).toBe("validating");

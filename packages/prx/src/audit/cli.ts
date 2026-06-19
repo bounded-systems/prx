@@ -56,9 +56,11 @@ export function runAuditIngest(
   output: AuditOutput,
   deps: AuditCliDeps = {},
 ): number {
-  const db = deps.db ?? (deps.openDb ?? openAuditDb)({
-    stateDirOverride: deps.stateDirOverride,
-  });
+  const db =
+    deps.db ??
+    (deps.openDb ?? openAuditDb)({
+      stateDirOverride: deps.stateDirOverride,
+    });
   const result = ingestAuditSources(db, {
     since: opts.since,
     auditDir: deps.auditDir ?? resolveDefaultAuditDir(deps),
@@ -67,7 +69,9 @@ export function runAuditIngest(
   if (opts.format === "json") {
     output.log(JSON.stringify(result));
   } else {
-    output.log(`ingested events=${result.eventsIngested} transitions=${result.transitionsIngested} uows=${result.uowsProjected} findings=${result.findingsWritten}`);
+    output.log(
+      `ingested events=${result.eventsIngested} transitions=${result.transitionsIngested} uows=${result.uowsProjected} findings=${result.findingsWritten}`,
+    );
   }
   if (!deps.db) db.close();
   return 0;
@@ -106,9 +110,7 @@ export type AuditUowProjection = {
 
 export function projectAuditUow(db: Database, uowId: string): AuditUowProjection {
   const ownedEvents = db
-    .query<{ total: number }, [string]>(
-      `SELECT COUNT(*) AS total FROM events WHERE uow_id = ?`,
-    )
+    .query<{ total: number }, [string]>(`SELECT COUNT(*) AS total FROM events WHERE uow_id = ?`)
     .get(uowId) ?? { total: 0 };
 
   const slots = db
@@ -206,7 +208,9 @@ const chainGlyph = {
 
 function formatChain(chain: readonly { type: string; status: string }[]): string {
   return chain
-    .map((c) => `${shortType(c.type)} ${chainGlyph[c.status as keyof typeof chainGlyph] ?? c.status}`)
+    .map(
+      (c) => `${shortType(c.type)} ${chainGlyph[c.status as keyof typeof chainGlyph] ?? c.status}`,
+    )
     .join(" ");
 }
 
@@ -246,9 +250,11 @@ export function runAuditUow(
   output: AuditOutput,
   deps: AuditCliDeps = {},
 ): number {
-  const db = deps.db ?? (deps.openDb ?? openAuditDb)({
-    stateDirOverride: deps.stateDirOverride,
-  });
+  const db =
+    deps.db ??
+    (deps.openDb ?? openAuditDb)({
+      stateDirOverride: deps.stateDirOverride,
+    });
   const projection = projectAuditUow(db, opts.workUnitId);
   if (opts.format === "json") {
     output.log(JSON.stringify(projection));
@@ -301,9 +307,11 @@ export function runAuditSystem(
   output: AuditOutput,
   deps: AuditCliDeps = {},
 ): number {
-  const db = deps.db ?? (deps.openDb ?? openAuditDb)({
-    stateDirOverride: deps.stateDirOverride,
-  });
+  const db =
+    deps.db ??
+    (deps.openDb ?? openAuditDb)({
+      stateDirOverride: deps.stateDirOverride,
+    });
   const rows = projectAuditSystem(db);
   if (opts.format === "json") {
     output.log(JSON.stringify({ since: opts.since ?? null, metrics: rows }));
@@ -313,7 +321,9 @@ export function runAuditSystem(
       const ratePct = (row.rate * 100).toFixed(1);
       const targetPct = (row.target * 100).toFixed(1);
       const mark = row.met === 1 ? "OK" : "MISS";
-      output.log(`  ${row.metric}: ${row.numerator}/${row.denominator} = ${ratePct}% (target ${targetPct}%) ${mark}`);
+      output.log(
+        `  ${row.metric}: ${row.numerator}/${row.denominator} = ${ratePct}% (target ${targetPct}%) ${mark}`,
+      );
     }
   }
   if (!deps.db) db.close();
@@ -323,16 +333,14 @@ export function runAuditSystem(
 // ─── default-dir resolution ──────────────────────────────────────────────
 
 function resolveDefaultAuditDir(deps: AuditCliDeps): string {
-  const stateDir = deps.stateDirOverride
-    ?? getEnv("XDG_STATE_HOME")
-    ?? `${getEnv("HOME")}/.local/state`;
+  const stateDir =
+    deps.stateDirOverride ?? getEnv("XDG_STATE_HOME") ?? `${getEnv("HOME")}/.local/state`;
   return `${stateDir}/prx/audit`;
 }
 
 function resolveDefaultTransitionDir(deps: AuditCliDeps): string {
-  const stateDir = deps.stateDirOverride
-    ?? getEnv("XDG_STATE_HOME")
-    ?? `${getEnv("HOME")}/.local/state`;
+  const stateDir =
+    deps.stateDirOverride ?? getEnv("XDG_STATE_HOME") ?? `${getEnv("HOME")}/.local/state`;
   return `${stateDir}/prx/transitions`;
 }
 

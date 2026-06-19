@@ -52,7 +52,7 @@ function makeTwoWorktreeFixture(opts: { withMainBeads: boolean; withPrxToml: boo
     );
   }
   if (opts.withPrxToml) {
-    writeFileSync(join(mainWorktree, "prx.toml"), "[project]\nowner = \"test\"\n");
+    writeFileSync(join(mainWorktree, "prx.toml"), '[project]\nowner = "test"\n');
   }
 
   return {
@@ -131,10 +131,7 @@ describe("bootstrapWorktree — beads redirect step", () => {
     fixture = makeTwoWorktreeFixture({ withMainBeads: true, withPrxToml: false });
     const workBeads = join(fixture.workWorktree, ".beads");
     mkdirSync(join(workBeads, "dolt", "test_db"), { recursive: true });
-    writeFileSync(
-      join(workBeads, "metadata.json"),
-      JSON.stringify({ dolt_database: "test_db" }),
-    );
+    writeFileSync(join(workBeads, "metadata.json"), JSON.stringify({ dolt_database: "test_db" }));
 
     const result = await bootstrapWorktree(fixture.workWorktree, depsFor(fixture));
     expect(result.beads.status).toBe("wrote-redirect");
@@ -343,14 +340,15 @@ describe("bootstrapWorktree — bd schema auto-trigger (GH-1152)", () => {
     fixture = makeTwoWorktreeFixture({ withMainBeads: true, withPrxToml: false });
     const workBeads = join(fixture.workWorktree, ".beads");
     mkdirSync(join(workBeads, "dolt", "test_db"), { recursive: true });
-    writeFileSync(
-      join(workBeads, "metadata.json"),
-      JSON.stringify({ dolt_database: "test_db" }),
-    );
+    writeFileSync(join(workBeads, "metadata.json"), JSON.stringify({ dolt_database: "test_db" }));
 
     const deps: BootstrapDeps = {
       ...depsFor(fixture),
-      repairBdSchema: () => ({ status: "already_healthy", durationMs: 4, command: "bd stats --json" }),
+      repairBdSchema: () => ({
+        status: "already_healthy",
+        durationMs: 4,
+        command: "bd stats --json",
+      }),
     };
 
     const result = await bootstrapWorktree(fixture.workWorktree, deps);
@@ -367,7 +365,11 @@ describe("bootstrapWorktree — bd schema auto-trigger (GH-1152)", () => {
 
     const deps: BootstrapDeps = {
       ...depsFor(fixture),
-      repairBdSchema: () => ({ status: "already_healthy", durationMs: 1, command: "bd stats --json" }),
+      repairBdSchema: () => ({
+        status: "already_healthy",
+        durationMs: 1,
+        command: "bd stats --json",
+      }),
     };
 
     const result = await bootstrapWorktree(fixture.workWorktree, deps);
@@ -418,7 +420,11 @@ describe("formatBootstrapResult", () => {
   test("json format round-trips the full structure", () => {
     const out = formatBootstrapResult(
       {
-        beads: { status: "wrote-redirect", redirectPath: "/a/.beads/redirect", redirectTarget: "/b/.beads" },
+        beads: {
+          status: "wrote-redirect",
+          redirectPath: "/a/.beads/redirect",
+          redirectTarget: "/b/.beads",
+        },
         contract: { status: "wrote-contract", contractPath: "/a/.pr/local/pr.json" },
         exitCode: 0,
       },

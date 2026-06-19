@@ -23,7 +23,8 @@ live("keeperd lifecycle — LIVE (opt-in via PRX_KEEPERD_LIVE_*)", () => {
   test("up deploys+serves (readiness poll passes); down stops by pidfile", async () => {
     const vm = LIVE_VM!;
     const socketLive = () =>
-      spawnRun("limactl", ["shell", "--workdir", "/", vm, "--", "test", "-S", "/tmp/keeperd.sock"]).status === 0;
+      spawnRun("limactl", ["shell", "--workdir", "/", vm, "--", "test", "-S", "/tmp/keeperd.sock"])
+        .status === 0;
 
     const handle = await provisionKeeperd({ vm, binaryPath: LIVE_BIN, cwd: LIVE_CWD! });
     expect(handle.socket).toBe("/tmp/keeperd.sock");

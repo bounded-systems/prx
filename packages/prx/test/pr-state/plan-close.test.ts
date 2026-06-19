@@ -22,10 +22,7 @@ import {
   type PlanCloseResult,
 } from "../../src/pr-state/plan-close-bd.ts";
 import { parseArgs } from "@bounded-systems/verbspec";
-import {
-  planCloseVerb,
-  type PlanCloseVerbDeps,
-} from "../../src/pr-state/plan-close-verb.ts";
+import { planCloseVerb, type PlanCloseVerbDeps } from "../../src/pr-state/plan-close-verb.ts";
 
 // `prx plan close` is a VerbSpec now; this drives the CLI path (parse → run →
 // render → exit) with injected deps, the way the legacy `runCliDirect(..., {
@@ -171,18 +168,13 @@ describe("planClose() — comment + close + bd sync", () => {
       },
       // gh issue view (maybeViewIssue → state OPEN)
       {
-        match: (c) =>
-          c[0] === "gh" &&
-          c[1] === "issue" &&
-          c[2] === "view" &&
-          c.includes("--json"),
+        match: (c) => c[0] === "gh" && c[1] === "issue" && c[2] === "view" && c.includes("--json"),
         stdout: JSON.stringify({ number: 1050, state: "OPEN" }),
         status: 0,
       },
       // gh issue comment
       {
-        match: (c) =>
-          c[0] === "gh" && c[1] === "issue" && c[2] === "comment",
+        match: (c) => c[0] === "gh" && c[1] === "issue" && c[2] === "comment",
         status: 0,
       },
       // gh issue close
@@ -213,12 +205,7 @@ describe("planClose() — comment + close + bd sync", () => {
 
     const ghCalls = calls.filter((c) => c.cmd[0] === "gh");
     const ghOps = ghCalls.map((c) => c.cmd.slice(1, 3).join(" "));
-    expect(ghOps).toEqual([
-      "repo view",
-      "issue view",
-      "issue comment",
-      "issue close",
-    ]);
+    expect(ghOps).toEqual(["repo view", "issue view", "issue comment", "issue close"]);
     const closeCmd = ghCalls.find((c) => c.cmd[2] === "close")!.cmd;
     expect(closeCmd).toContain("--reason");
     expect(closeCmd[closeCmd.indexOf("--reason") + 1]).toBe("completed");
@@ -232,8 +219,7 @@ describe("planClose() — comment + close + bd sync", () => {
         status: 0,
       },
       {
-        match: (c) =>
-          c[0] === "gh" && c[1] === "issue" && c[2] === "view",
+        match: (c) => c[0] === "gh" && c[1] === "issue" && c[2] === "view",
         stdout: JSON.stringify({ number: 1050, state: "OPEN" }),
         status: 0,
       },
@@ -282,8 +268,7 @@ describe("planClose() — comment + close + bd sync", () => {
           status: 0,
         },
         {
-          match: (c) =>
-            c[0] === "gh" && c[1] === "issue" && c[2] === "close",
+          match: (c) => c[0] === "gh" && c[1] === "issue" && c[2] === "close",
           status: 0,
         },
       ]);
@@ -365,9 +350,7 @@ describe("planClose() — comment + close + bd sync", () => {
     expect(result.bdSyncExitCode).toBeNull();
     // GH-2011: dry-run skips the canonical reconcile entirely.
     expect(beadsSync.calls()).toBe(0);
-    expect(result.handoff).toContain(
-      "prx worktree-remove GH-1050 --delete-branch --force",
-    );
+    expect(result.handoff).toContain("prx worktree-remove GH-1050 --delete-branch --force");
     expect(calls.find((c) => c.cmd[2] === "close")).toBeUndefined();
     expect(calls.find((c) => c.cmd[2] === "comment")).toBeUndefined();
   });
@@ -416,22 +399,18 @@ describe("planClose() — comment + close + bd sync", () => {
         status: 0,
       },
       {
-        match: (c) =>
-          c[0] === "gh" && c[1] === "issue" && c[2] === "comment",
+        match: (c) => c[0] === "gh" && c[1] === "issue" && c[2] === "comment",
         stderr: "permission denied",
         status: 1,
       },
     ]);
 
-    const result = await planClose(
-      defaultOptions({ upstream: "https://example.com/u" }),
-      {
-        cwd: "/tmp/wt",
-        runner,
-        beadsSync: makeBeadsSyncStub(0),
-        loadAllBeads: noBeadsLoader,
-      },
-    );
+    const result = await planClose(defaultOptions({ upstream: "https://example.com/u" }), {
+      cwd: "/tmp/wt",
+      runner,
+      beadsSync: makeBeadsSyncStub(0),
+      loadAllBeads: noBeadsLoader,
+    });
 
     expect(result.refusalReason).toContain("permission denied");
     expect(result.issueClosed).toBe(false);
@@ -450,10 +429,7 @@ describe("`prx plan close` CLI surface", () => {
       issueClosed: true,
       bdRecord: { outcome: "closed", ok: true, perId: [{ id: "BD-x", kind: "closed" }] },
       bdSyncExitCode: 0,
-      handoff: [
-        "prx worktree-remove GH-1050 --delete-branch --force",
-        "prx delegate next",
-      ],
+      handoff: ["prx worktree-remove GH-1050 --delete-branch --force", "prx delegate next"],
       refusalReason: null,
       dryRun: false,
       ...overrides,
@@ -507,11 +483,13 @@ describe("`prx plan close` CLI surface", () => {
       {
         planClose: (options) => {
           received = options;
-          return Promise.resolve(stubResult({
-            reason: "not-planned",
-            upstream: "https://github.com/upstream/repo/issues/99",
-            upstreamCommentPosted: true,
-          }));
+          return Promise.resolve(
+            stubResult({
+              reason: "not-planned",
+              upstream: "https://github.com/upstream/repo/issues/99",
+              upstreamCommentPosted: true,
+            }),
+          );
         },
       },
     );
@@ -565,11 +543,13 @@ describe("`prx plan close` CLI surface", () => {
       { log: (l) => logs.push(l), error: () => {} },
       {
         planClose: () =>
-          Promise.resolve(stubResult({
-            issueClosed: false,
-            bdSyncExitCode: null,
-            refusalReason: "issue #1050 is already closed",
-          })),
+          Promise.resolve(
+            stubResult({
+              issueClosed: false,
+              bdSyncExitCode: null,
+              refusalReason: "issue #1050 is already closed",
+            }),
+          ),
       },
     );
 
@@ -585,11 +565,13 @@ describe("`prx plan close` CLI surface", () => {
       {
         planClose: (options) => {
           received = options;
-          return Promise.resolve(stubResult({
-            issueClosed: false,
-            bdSyncExitCode: null,
-            dryRun: true,
-          }));
+          return Promise.resolve(
+            stubResult({
+              issueClosed: false,
+              bdSyncExitCode: null,
+              dryRun: true,
+            }),
+          );
         },
       },
     );
@@ -643,20 +625,17 @@ describe("planClose() — bd-record close-and-verify (GH-2110)", () => {
   function makeGhRunner(): GithubCommandRunner {
     const responses = [
       {
-        match: (c: string[]) =>
-          c[0] === "gh" && c[1] === "repo" && c[2] === "view",
+        match: (c: string[]) => c[0] === "gh" && c[1] === "repo" && c[2] === "view",
         stdout: "bdelanghe/ai-home\n",
         status: 0,
       },
       {
-        match: (c: string[]) =>
-          c[0] === "gh" && c[1] === "issue" && c[2] === "view",
+        match: (c: string[]) => c[0] === "gh" && c[1] === "issue" && c[2] === "view",
         stdout: JSON.stringify({ number: 1050, state: "OPEN" }),
         status: 0,
       },
       {
-        match: (c: string[]) =>
-          c[0] === "gh" && c[1] === "issue" && c[2] === "close",
+        match: (c: string[]) => c[0] === "gh" && c[1] === "issue" && c[2] === "close",
         status: 0,
       },
     ];
@@ -672,7 +651,8 @@ describe("planClose() — bd-record close-and-verify (GH-2110)", () => {
 
   test("single linked bead → bd_record=closed; bd close called once with plan-completed reason", async () => {
     const bead = makeBead({ id: "BD-aaaa", externalIssueNumber: 1050, status: "in_progress" });
-    const closeCalls: Array<{ id: string; reason?: string | undefined; cwd?: string | undefined }> = [];
+    const closeCalls: Array<{ id: string; reason?: string | undefined; cwd?: string | undefined }> =
+      [];
     const showSeq: BdShowResult[] = [showOk("in_progress"), showOk("closed")];
 
     const result = await planClose(defaultOptions(), {
@@ -792,8 +772,10 @@ describe("planClose() — bd-record close-and-verify (GH-2110)", () => {
     ];
     // Per-bead: pre-show (open), post-show (closed). 4 calls total in order.
     const showSeq: BdShowResult[] = [
-      showOk("in_progress"), showOk("closed"),
-      showOk("in_progress"), showOk("closed"),
+      showOk("in_progress"),
+      showOk("closed"),
+      showOk("in_progress"),
+      showOk("closed"),
     ];
 
     const result = await planClose(defaultOptions(), {
@@ -819,7 +801,8 @@ describe("planClose() — bd-record close-and-verify (GH-2110)", () => {
     // First bead pre-show open → close ok → post-show closed.
     // Second bead pre-show open, then close errors (no post-show on that path).
     const showSeq: BdShowResult[] = [
-      showOk("in_progress"), showOk("closed"),
+      showOk("in_progress"),
+      showOk("closed"),
       showOk("in_progress"),
     ];
 
@@ -927,7 +910,6 @@ describe("planCloseReasonToBdReason — provenance", () => {
   });
 });
 
-
 describe("planClose() — self-mutation projection invalidation (GH-2074 PR-3)", () => {
   let savedCacheHome: string | undefined;
   let savedWtDisable: string | undefined;
@@ -952,14 +934,24 @@ describe("planClose() — self-mutation projection invalidation (GH-2074 PR-3)",
 
   test("closing a unit drops its hydrated issue projection entry (no stale read in the TTL window)", async () => {
     const { runner } = recordingRunner([
-      { match: (c) => c[0] === "gh" && c[1] === "repo" && c[2] === "view", stdout: "bdelanghe/ai-home\n", status: 0 },
-      { match: (c) => c[0] === "gh" && c[1] === "issue" && c[2] === "view", stdout: JSON.stringify({ number: 1050, state: "OPEN" }), status: 0 },
+      {
+        match: (c) => c[0] === "gh" && c[1] === "repo" && c[2] === "view",
+        stdout: "bdelanghe/ai-home\n",
+        status: 0,
+      },
+      {
+        match: (c) => c[0] === "gh" && c[1] === "issue" && c[2] === "view",
+        stdout: JSON.stringify({ number: 1050, state: "OPEN" }),
+        status: 0,
+      },
       { match: (c) => c[0] === "gh" && c[1] === "issue" && c[2] === "close", status: 0 },
     ]);
 
     // Simulate a prior board read having hydrated this unit's issue projection.
     putUnit("bdelanghe/ai-home", "GH-1050", { view: { number: 1050, state: "OPEN" } });
-    expect(getUnit<{ view: { number: number; state?: string | null } }>("bdelanghe/ai-home", "GH-1050")).toEqual({ view: { number: 1050, state: "OPEN" } });
+    expect(
+      getUnit<{ view: { number: number; state?: string | null } }>("bdelanghe/ai-home", "GH-1050"),
+    ).toEqual({ view: { number: 1050, state: "OPEN" } });
 
     const result = await planClose(defaultOptions(), {
       cwd: "/tmp/wt",
@@ -970,6 +962,8 @@ describe("planClose() — self-mutation projection invalidation (GH-2074 PR-3)",
     expect(result.issueClosed).toBe(true);
 
     // The close actor invalidated the entry — a subsequent read misses (→ re-hydrate fresh).
-    expect(getUnit<{ view: { number: number; state?: string | null } }>("bdelanghe/ai-home", "GH-1050")).toBeNull();
+    expect(
+      getUnit<{ view: { number: number; state?: string | null } }>("bdelanghe/ai-home", "GH-1050"),
+    ).toBeNull();
   });
 });

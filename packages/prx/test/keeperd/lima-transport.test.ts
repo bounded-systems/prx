@@ -14,7 +14,9 @@ const fail = (stderr: string): RunResult => ({ status: 1, stdout: "", stderr });
 const OPTS = { vm: "myvm", vmSocket: "/vm/keeperd.sock", hostSocket: "/tmp/keeperd-host.sock" };
 
 /** A run recorder that answers show-ssh + ssh by default; overridable per-cmd. */
-function recorder(answer: (cmd: string, args: string[]) => RunResult | undefined = () => undefined) {
+function recorder(
+  answer: (cmd: string, args: string[]) => RunResult | undefined = () => undefined,
+) {
   const calls: { cmd: string; args: string[] }[] = [];
   const run = (cmd: string, args: string[]): RunResult => {
     calls.push({ cmd, args });
@@ -54,7 +56,9 @@ describe("openLimaKeeperChannel", () => {
     expect(ch.transport).toBe(fakeTransport);
 
     await ch.close();
-    const exit = calls.find((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit"));
+    const exit = calls.find(
+      (c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit"),
+    );
     expect(exit).toBeDefined();
     // close() is idempotent — a second call issues no further exit.
     const before = calls.length;
@@ -76,7 +80,9 @@ describe("openLimaKeeperChannel", () => {
     await expect(
       openLimaKeeperChannel(OPTS, { run, exists: () => false, sleep: async () => {} }),
     ).rejects.toThrow(/forward failed/);
-    expect(calls.some((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit"))).toBe(true);
+    expect(
+      calls.some((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit")),
+    ).toBe(true);
   });
 
   test("throws if the forwarded socket never appears", async () => {
@@ -112,17 +118,30 @@ describe("withLimaKeeperClient", () => {
       deps,
     );
     expect(result.status).toBe("ok");
-    expect(calls.some((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit"))).toBe(true);
+    expect(
+      calls.some((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit")),
+    ).toBe(true);
   });
 
   test("closes the forward even when fn throws", async () => {
     const { calls, run } = recorder();
-    const deps: LimaChannelDeps = { run, exists: () => true, sleep: async () => {}, makeTransport: () => fakeTransport };
+    const deps: LimaChannelDeps = {
+      run,
+      exists: () => true,
+      sleep: async () => {},
+      makeTransport: () => fakeTransport,
+    };
     await expect(
-      withLimaKeeperClient(OPTS, async () => {
-        throw new Error("boom");
-      }, deps),
+      withLimaKeeperClient(
+        OPTS,
+        async () => {
+          throw new Error("boom");
+        },
+        deps,
+      ),
     ).rejects.toThrow("boom");
-    expect(calls.some((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit"))).toBe(true);
+    expect(
+      calls.some((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit")),
+    ).toBe(true);
   });
 });

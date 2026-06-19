@@ -3,10 +3,7 @@
 import { describe, expect, test } from "bun:test";
 
 import type { CommandSpec } from "../../../src/cli/registry.ts";
-import {
-  prxCommandRegistry,
-  promotedFor,
-} from "../../../src/cli/registry.data.ts";
+import { prxCommandRegistry, promotedFor } from "../../../src/cli/registry.data.ts";
 import { HelpOverview } from "../../../src/pr-state/help/overview.ts";
 
 const spec = (over: Partial<CommandSpec>): CommandSpec => ({
@@ -23,8 +20,16 @@ const spec = (over: Partial<CommandSpec>): CommandSpec => ({
 describe("HelpOverview", () => {
   test("filters by promoted_in.includes(ctx)", () => {
     const fixture: CommandSpec[] = [
-      spec({ name: "promoted-mainx", description: "Promoted in mainx context", promoted_in: ["mainx"] }),
-      spec({ name: "promoted-plan", description: "Promoted only in plan ctx", promoted_in: ["plan"] }),
+      spec({
+        name: "promoted-mainx",
+        description: "Promoted in mainx context",
+        promoted_in: ["mainx"],
+      }),
+      spec({
+        name: "promoted-plan",
+        description: "Promoted only in plan ctx",
+        promoted_in: ["plan"],
+      }),
       spec({ name: "unpromoted", description: "Never appears in any overview" }),
     ];
     const out = HelpOverview(fixture, "mainx");
@@ -45,7 +50,11 @@ describe("HelpOverview", () => {
           stderr_hint: "use plan session",
         },
       }),
-      spec({ name: "plan session", description: "Open plan-mode work session for a unit", promoted_in: ["mainx"] }),
+      spec({
+        name: "plan session",
+        description: "Open plan-mode work session for a unit",
+        promoted_in: ["mainx"],
+      }),
     ];
     const out = HelpOverview(fixture, "mainx");
     expect(out).not.toContain("prx session open");
@@ -55,7 +64,11 @@ describe("HelpOverview", () => {
   test("output for ctx=mainx differs from ctx=plan (forward-compat with #977)", () => {
     const fixture: CommandSpec[] = [
       spec({ name: "tui", description: "Mainx promoted entry sample", promoted_in: ["mainx"] }),
-      spec({ name: "plan apply", description: "Plan-context promoted entry sample", promoted_in: ["plan"] }),
+      spec({
+        name: "plan apply",
+        description: "Plan-context promoted entry sample",
+        promoted_in: ["plan"],
+      }),
     ];
     const mainxOut = HelpOverview(fixture, "mainx");
     const planOut = HelpOverview(fixture, "plan");
@@ -74,10 +87,7 @@ describe("HelpOverview", () => {
     let cursor = 0;
     for (const name of expected) {
       const idx = out.indexOf(`prx ${name}`, cursor);
-      expect(
-        idx,
-        `expected '${name}' to appear at or after offset ${cursor}`,
-      ).toBeGreaterThan(-1);
+      expect(idx, `expected '${name}' to appear at or after offset ${cursor}`).toBeGreaterThan(-1);
       cursor = idx + name.length;
     }
   });

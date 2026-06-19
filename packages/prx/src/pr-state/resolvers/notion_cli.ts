@@ -1,11 +1,7 @@
 import { processEnv } from "@bounded-systems/env";
 import { join } from "node:path";
 
-import {
-  type CommandRunner,
-  type NotionIdentityConfig,
-  defaultRunner,
-} from "../github.ts";
+import { type CommandRunner, type NotionIdentityConfig, defaultRunner } from "../github.ts";
 import { resolveNotionCacheDir } from "../../tools/cache_path.ts";
 import {
   invalidateEntireTask,
@@ -135,13 +131,7 @@ export class NotionCliResolver implements WorkUnitResolver {
   }
 
   private runSearch(canonicalId: string, limit: number): SearchResultJson[] {
-    const stdout = this.runNotionCli([
-      "search",
-      canonicalId,
-      "--json",
-      "--limit",
-      String(limit),
-    ]);
+    const stdout = this.runNotionCli(["search", canonicalId, "--json", "--limit", String(limit)]);
     let parsed: unknown;
     try {
       parsed = JSON.parse(stdout);
@@ -195,8 +185,7 @@ export class NotionCliResolver implements WorkUnitResolver {
       if (!properties) continue;
       if (properties[idProperty] === canonicalId) {
         const title = typeof result.Title === "string" ? result.Title : canonicalId;
-        const url =
-          typeof result.URL === "string" && result.URL.length > 0 ? result.URL : null;
+        const url = typeof result.URL === "string" && result.URL.length > 0 ? result.URL : null;
         return {
           lookup: { pageId: result.ID, title, url },
           state: this.mapState(properties),

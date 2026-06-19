@@ -42,9 +42,7 @@ describe("resolveDevKeyPath", () => {
   });
 
   test("falls back to $HOME/.local/state when XDG_STATE_HOME unset", () => {
-    const { path, source } = resolveDevKeyPathForDisplay(
-      (k) => ({ HOME: "/home/x" })[k],
-    );
+    const { path, source } = resolveDevKeyPathForDisplay((k) => ({ HOME: "/home/x" })[k]);
     expect(path).toBe(join("/home/x", ".local", "state", "prx", DEV_KEY_DIR, DEV_KEY_FILE));
     expect(source).toBe("XDG_STATE_HOME (default)");
   });

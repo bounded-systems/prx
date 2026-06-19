@@ -1,13 +1,22 @@
 import { describe, expect, test } from "bun:test";
 
-import { statelyVerb, type StatelyDeps, type StatelyOutput } from "../../src/pr-state/stately-verb.ts";
+import {
+  statelyVerb,
+  type StatelyDeps,
+  type StatelyOutput,
+} from "../../src/pr-state/stately-verb.ts";
 
 // `prx stately` (a.k.a. `model stately`) is the first deps-bearing VerbSpec
 // (ADR docs/prx/cli-decomposition.md). These exercise the VerbSpec deps seam:
 // a test passes its own StatelyDeps slice straight to `run` — the same
 // injection the legacy cli.ts CliDeps bag provided, now scoped to the verb.
 
-function captureDeps(): { deps: StatelyDeps; copied: () => string; opened: () => string; prompted: () => boolean } {
+function captureDeps(): {
+  deps: StatelyDeps;
+  copied: () => string;
+  opened: () => string;
+  prompted: () => boolean;
+} {
   let copied = "";
   let opened = "";
   let prompted = false;

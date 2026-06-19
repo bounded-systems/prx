@@ -9,10 +9,7 @@ import {
   WorkspaceStore,
   openRegistry,
 } from "../../src/pr-state/registry_store.ts";
-import {
-  adoptWorkspace,
-  inferWorkspaceFromWorktree,
-} from "../../src/pr-state/workspace_adopt.ts";
+import { adoptWorkspace, inferWorkspaceFromWorktree } from "../../src/pr-state/workspace_adopt.ts";
 import { CliError } from "../../src/pr-state/cli-error.ts";
 import type { RepoRunner } from "../../src/pr-state/repos.ts";
 
@@ -34,14 +31,8 @@ const HEAD_SHA = "0123456789abcdef0123456789abcdef01234567";
 
 function repoInferenceResponses(): Map<string, RunnerResponse> {
   return new Map<string, RunnerResponse>([
-    [
-      `git rev-parse --git-common-dir|${WORKTREE}`,
-      { stdout: `${BARE}\n`, stderr: "", status: 0 },
-    ],
-    [
-      `git remote get-url origin|${WORKTREE}`,
-      { stdout: `${ORIGIN}\n`, stderr: "", status: 0 },
-    ],
+    [`git rev-parse --git-common-dir|${WORKTREE}`, { stdout: `${BARE}\n`, stderr: "", status: 0 }],
+    [`git remote get-url origin|${WORKTREE}`, { stdout: `${ORIGIN}\n`, stderr: "", status: 0 }],
     [
       `git symbolic-ref --short refs/remotes/origin/HEAD|${WORKTREE}`,
       { stdout: "origin/main\n", stderr: "", status: 0 },
@@ -49,10 +40,7 @@ function repoInferenceResponses(): Map<string, RunnerResponse> {
   ]);
 }
 
-function attachedHeadResponses(
-  branchName: string,
-  dirtyOutput = "",
-): Map<string, RunnerResponse> {
+function attachedHeadResponses(branchName: string, dirtyOutput = ""): Map<string, RunnerResponse> {
   const m = repoInferenceResponses();
   m.set(`git rev-parse HEAD|${WORKTREE}`, {
     stdout: `${HEAD_SHA}\n`,
@@ -93,21 +81,13 @@ function detachedHeadResponses(): Map<string, RunnerResponse> {
 }
 
 function withRegistry<T>(
-  fn: (
-    repoStore: RepositoryStore,
-    branchStore: BranchStore,
-    workspaceStore: WorkspaceStore,
-  ) => T,
+  fn: (repoStore: RepositoryStore, branchStore: BranchStore, workspaceStore: WorkspaceStore) => T,
 ): T {
   const dir = mkdtempSync(join(tmpdir(), "prx-workspace-adopt-"));
   try {
     const db = openRegistry(join(dir, "registry.sqlite"));
     try {
-      return fn(
-        new RepositoryStore(db),
-        new BranchStore(db),
-        new WorkspaceStore(db),
-      );
+      return fn(new RepositoryStore(db), new BranchStore(db), new WorkspaceStore(db));
     } finally {
       db.close();
     }
@@ -119,12 +99,7 @@ function withRegistry<T>(
 describe("inferWorkspaceFromWorktree", () => {
   test("returns dirty=false when `git status --porcelain` is empty", () => {
     const runner = makeRunner(
-      new Map([
-        [
-          `git -C ${WORKTREE} status --porcelain|`,
-          { stdout: "", stderr: "", status: 0 },
-        ],
-      ]),
+      new Map([[`git -C ${WORKTREE} status --porcelain|`, { stdout: "", stderr: "", status: 0 }]]),
     );
     const inferred = inferWorkspaceFromWorktree(WORKTREE, runner);
     expect(inferred.path).toBe(WORKTREE);
@@ -276,26 +251,17 @@ describe("adoptWorkspace", () => {
           `git rev-parse --git-common-dir|${OTHER_WT}`,
           { stdout: `${BARE}\n`, stderr: "", status: 0 },
         ],
-        [
-          `git remote get-url origin|${OTHER_WT}`,
-          { stdout: `${ORIGIN}\n`, stderr: "", status: 0 },
-        ],
+        [`git remote get-url origin|${OTHER_WT}`, { stdout: `${ORIGIN}\n`, stderr: "", status: 0 }],
         [
           `git symbolic-ref --short refs/remotes/origin/HEAD|${OTHER_WT}`,
           { stdout: "origin/main\n", stderr: "", status: 0 },
         ],
-        [
-          `git rev-parse HEAD|${OTHER_WT}`,
-          { stdout: `${HEAD_SHA}\n`, stderr: "", status: 0 },
-        ],
+        [`git rev-parse HEAD|${OTHER_WT}`, { stdout: `${HEAD_SHA}\n`, stderr: "", status: 0 }],
         [
           `git symbolic-ref --short HEAD|${OTHER_WT}`,
           { stdout: "GH-1762\n", stderr: "", status: 0 },
         ],
-        [
-          `git -C ${OTHER_WT} status --porcelain|`,
-          { stdout: "", stderr: "", status: 0 },
-        ],
+        [`git -C ${OTHER_WT} status --porcelain|`, { stdout: "", stderr: "", status: 0 }],
       ]);
       // Repo-side identity check refuses first (bare/origin match but repo
       // already registered at a different bare_path would be the relevant

@@ -59,11 +59,7 @@ export function classify(input: ClassifyInput): Disposition {
   const localClean = localOperatorStateClean(local);
 
   // Prune: terminal lifecycle on every authority + no operator state to lose.
-  if (
-    issueCompleted
-    && prCompleted
-    && localClean
-  ) {
+  if (issueCompleted && prCompleted && localClean) {
     return "prune";
   }
 
@@ -80,9 +76,9 @@ export function classify(input: ClassifyInput): Disposition {
     // No authority asserts this row exists. Ambiguous unless everything is
     // already cleared up.
     if (
-      !artifacts.worktree
-      && status.local.branch !== "dirty"
-      && status.remote.branch !== "dirty"
+      !artifacts.worktree &&
+      status.local.branch !== "dirty" &&
+      status.remote.branch !== "dirty"
     ) {
       return "ok";
     }

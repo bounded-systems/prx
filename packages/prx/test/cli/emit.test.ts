@@ -47,7 +47,11 @@ describe("emit (prx-9kd)", () => {
 
   test("pretty is a pure function of (validated) data", () => {
     const out = sink();
-    emit(out, result(z.object({ x: z.number() }), { x: 1 }, (d) => `x=${d.x}`), "plain");
+    emit(
+      out,
+      result(z.object({ x: z.number() }), { x: 1 }, (d) => `x=${d.x}`),
+      "plain",
+    );
     expect(out.lines).toEqual(["x=1"]);
   });
 });

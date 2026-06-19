@@ -55,7 +55,9 @@ export function buildOpenApiDocument(registry: Registry = verbRegistry): OpenApi
             "x-prx-actor": v.actor,
             "x-prx-unprojectable": reason,
             requestBody: { required: true, content: { "application/json": { schema: {} } } },
-            responses: { "200": { description: "ok", content: { "application/json": { schema: {} } } } },
+            responses: {
+              "200": { description: "ok", content: { "application/json": { schema: {} } } },
+            },
           },
         },
       ]);

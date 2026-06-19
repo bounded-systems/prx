@@ -32,7 +32,16 @@ describe("prxBeadsDoorDialer", () => {
       { subcommand: "list", args: ["--limit", "20", "--status", "open", "--json"] },
       env,
     );
-    expect(calls[0]).toEqual(["prx", "beads", "list", "--limit", "20", "--status", "open", "--json"]);
+    expect(calls[0]).toEqual([
+      "prx",
+      "beads",
+      "list",
+      "--limit",
+      "20",
+      "--status",
+      "open",
+      "--json",
+    ]);
     expect(r).toEqual({ exitCode: 0, stdout: "[]", stderr: "", policy: null });
   });
 
@@ -66,7 +75,10 @@ describe("prxBeadsDoorDialer", () => {
     const { run, calls } = recordingRunner(ok("[]"));
     const dialer = makePrxBeadsDoorDialer({ run });
     const r = dialer(
-      { subcommand: "dep", args: ["list", "prx-epic", "--direction", "up", "--type", "parent-child", "--json"] },
+      {
+        subcommand: "dep",
+        args: ["list", "prx-epic", "--direction", "up", "--type", "parent-child", "--json"],
+      },
       env,
     );
     expect(calls[0]).toEqual(["prx", "beads", "children", "prx-epic", "--json"]);
@@ -80,7 +92,9 @@ describe("prxBeadsDoorDialer", () => {
       return ok("");
     };
     const dialer = makePrxBeadsDoorDialer({ run });
-    expect(dialer({ subcommand: "dep", args: ["add", "--type", "parent-child", "a", "b"] }, env)).toBeNull();
+    expect(
+      dialer({ subcommand: "dep", args: ["add", "--type", "parent-child", "a", "b"] }, env),
+    ).toBeNull();
     expect(dialer({ subcommand: "dep", args: ["remove", "a", "b"] }, env)).toBeNull();
     // A `dep list` without the parent-child type is not a children read either.
     expect(dialer({ subcommand: "dep", args: ["list", "prx-epic", "--json"] }, env)).toBeNull();
@@ -101,18 +115,23 @@ describe("prxBeadsDoorDialer", () => {
     expect(r).toEqual({ exitCode: 7, stdout: "", stderr: "door down", policy: null });
   });
 
-  test.each(["remember", "create", "update", "close", "dep", "sql", "admin"])(
-    "returns null for %s (off the door read surface → caller fails closed)",
-    (subcommand) => {
-      let spawned = false;
-      const run: CommandRunner = () => {
-        spawned = true;
-        return ok("");
-      };
-      const dialer = makePrxBeadsDoorDialer({ run });
-      expect(dialer({ subcommand, args: [] }, env)).toBeNull();
-      // Crucially: an unsupported op must not spawn anything at all.
-      expect(spawned).toBe(false);
-    },
-  );
+  test.each([
+    "remember",
+    "create",
+    "update",
+    "close",
+    "dep",
+    "sql",
+    "admin",
+  ])("returns null for %s (off the door read surface → caller fails closed)", (subcommand) => {
+    let spawned = false;
+    const run: CommandRunner = () => {
+      spawned = true;
+      return ok("");
+    };
+    const dialer = makePrxBeadsDoorDialer({ run });
+    expect(dialer({ subcommand, args: [] }, env)).toBeNull();
+    // Crucially: an unsupported op must not spawn anything at all.
+    expect(spawned).toBe(false);
+  });
 });

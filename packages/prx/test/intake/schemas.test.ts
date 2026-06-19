@@ -13,9 +13,7 @@ import {
 describe("per-type Zod schemas — direct parse", () => {
   test("bug requires description + acceptance_criteria; other target fields optional", () => {
     const schema = INTAKE_BODY_SCHEMAS.bug;
-    expect(
-      schema.safeParse({ description: "d", acceptance_criteria: "a" }).success,
-    ).toBe(true);
+    expect(schema.safeParse({ description: "d", acceptance_criteria: "a" }).success).toBe(true);
     expect(
       schema.safeParse({
         description: "d",
@@ -32,17 +30,13 @@ describe("per-type Zod schemas — direct parse", () => {
 
   test("task requires description + acceptance_criteria", () => {
     const schema = INTAKE_BODY_SCHEMAS.task;
-    expect(
-      schema.safeParse({ description: "d", acceptance_criteria: "a" }).success,
-    ).toBe(true);
+    expect(schema.safeParse({ description: "d", acceptance_criteria: "a" }).success).toBe(true);
     expect(schema.safeParse({ description: "d" }).success).toBe(false);
   });
 
   test("feature requires description + acceptance_criteria; design + notes optional", () => {
     const schema = INTAKE_BODY_SCHEMAS.feature;
-    expect(
-      schema.safeParse({ description: "d", acceptance_criteria: "a" }).success,
-    ).toBe(true);
+    expect(schema.safeParse({ description: "d", acceptance_criteria: "a" }).success).toBe(true);
     expect(
       schema.safeParse({
         description: "d",
@@ -56,17 +50,13 @@ describe("per-type Zod schemas — direct parse", () => {
 
   test("chore requires description + acceptance_criteria", () => {
     const schema = INTAKE_BODY_SCHEMAS.chore;
-    expect(
-      schema.safeParse({ description: "d", acceptance_criteria: "a" }).success,
-    ).toBe(true);
+    expect(schema.safeParse({ description: "d", acceptance_criteria: "a" }).success).toBe(true);
     expect(schema.safeParse({ description: "d" }).success).toBe(false);
   });
 
   test("spike requires question + success_criteria; other target fields optional", () => {
     const schema = INTAKE_BODY_SCHEMAS.spike;
-    expect(
-      schema.safeParse({ question: "q", success_criteria: "s" }).success,
-    ).toBe(true);
+    expect(schema.safeParse({ question: "q", success_criteria: "s" }).success).toBe(true);
     expect(schema.safeParse({ question: "q" }).success).toBe(false);
   });
 
@@ -79,9 +69,7 @@ describe("per-type Zod schemas — direct parse", () => {
         success_criteria: "s",
       }).success,
     ).toBe(true);
-    expect(
-      schema.safeParse({ description: "d", child_decomposition: "c" }).success,
-    ).toBe(false);
+    expect(schema.safeParse({ description: "d", child_decomposition: "c" }).success).toBe(false);
   });
 });
 
@@ -108,15 +96,13 @@ describe("validateIntakeBody — runtime CLI-shaped check", () => {
   });
 
   test("task with description+acceptance passes", () => {
-    expect(
-      validateIntakeBody("task", { description: "d", acceptance: "a" }),
-    ).toEqual({ ok: true });
+    expect(validateIntakeBody("task", { description: "d", acceptance: "a" })).toEqual({ ok: true });
   });
 
   test("feature with only description+acceptance passes (design/notes optional)", () => {
-    expect(
-      validateIntakeBody("feature", { description: "d", acceptance: "a" }),
-    ).toEqual({ ok: true });
+    expect(validateIntakeBody("feature", { description: "d", acceptance: "a" })).toEqual({
+      ok: true,
+    });
   });
 
   test("chore missing acceptance fails", () => {

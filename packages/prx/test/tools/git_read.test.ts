@@ -28,9 +28,26 @@ describe("read-only git allowlist (ai-home-mqlno)", () => {
 
   test("rejects mutating / flag-dependent subcommands (deny-by-default)", () => {
     for (const s of [
-      "commit", "push", "checkout", "switch", "reset", "merge", "rebase",
-      "add", "rm", "clean", "stash", "fetch", "pull", "branch", "tag",
-      "remote", "config", "worktree", "restore", "apply",
+      "commit",
+      "push",
+      "checkout",
+      "switch",
+      "reset",
+      "merge",
+      "rebase",
+      "add",
+      "rm",
+      "clean",
+      "stash",
+      "fetch",
+      "pull",
+      "branch",
+      "tag",
+      "remote",
+      "config",
+      "worktree",
+      "restore",
+      "apply",
     ]) {
       expect(isReadOnlyGitSubcommand(s)).toBe(false);
     }

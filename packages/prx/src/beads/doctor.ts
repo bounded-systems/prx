@@ -63,7 +63,10 @@ function runOpts(cwd: string | undefined): RunOptions {
 
 /** Parse a `bd config get <key>` reply into a value, or null when unset. */
 function parseConfigValue(stdout: string): string | null {
-  const line = stdout.split("\n").map((l) => l.trim()).find((l) => l.length > 0);
+  const line = stdout
+    .split("\n")
+    .map((l) => l.trim())
+    .find((l) => l.length > 0);
   if (line === undefined || line.includes(NOT_SET)) return null;
   return line;
 }

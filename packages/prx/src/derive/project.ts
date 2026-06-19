@@ -8,11 +8,7 @@ import { z } from "zod";
 
 import { type RawStateV1, type WorkflowPhase, derivePhase } from "@bounded-systems/machine-schema";
 import { fact, type Fact } from "./engine.ts";
-import {
-  factColumns,
-  factSchemas,
-  type FactRelation,
-} from "./schemas/relations.ts";
+import { factColumns, factSchemas, type FactRelation } from "./schemas/relations.ts";
 
 export type BeadsEntry = {
   id: string;

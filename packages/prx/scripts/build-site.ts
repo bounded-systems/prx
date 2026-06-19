@@ -17,11 +17,9 @@ const REPO_ROOT = findRepoRoot();
 import { collectDocRelPaths } from "../src/graph/build.ts";
 
 const OUT = join(REPO_ROOT, "_site");
-const title = (md: string, fallback: string) =>
-  md.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? fallback;
+const title = (md: string, fallback: string) => md.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? fallback;
 const htmlPath = (rel: string) => rel.replace(/\.md$/, ".html");
-const esc = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /** Wrap rendered body in the site shell; `depth` sets the relative root. */
 function page(pageTitle: string, body: string, depth: number): string {
@@ -49,8 +47,10 @@ function renderDoc(rel: string): { out: string; title: string } {
   const md = readFileSync(join(REPO_ROOT, rel), "utf8");
   const docTitle = title(md, rel);
   // Rewrite relative .md links to .html (keep any #anchor).
-  const html = (marked.parse(md, { async: false }) as string)
-    .replace(/href="(?!https?:|\/\/)([^"]+?)\.md(#[^"]*)?"/g, 'href="$1.html$2"');
+  const html = (marked.parse(md, { async: false }) as string).replace(
+    /href="(?!https?:|\/\/)([^"]+?)\.md(#[^"]*)?"/g,
+    'href="$1.html$2"',
+  );
   const depth = htmlPath(rel).split("/").length - 1;
   return { out: page(docTitle, html, depth), title: docTitle };
 }
@@ -86,9 +86,18 @@ const section = (name: string, items: string) =>
 const index = [
   "<h1>prx documentation</h1>",
   "<p>The agent-run PR contract / work-unit CLI. This site is generated from the project graph.</p>",
-  section("Overview", group((r) => !r.includes("/") || r === "spec/README.md")),
-  section("Design docs", group((r) => r.startsWith("docs/"))),
-  section("Packages", group((r) => r.startsWith("packages/"))),
+  section(
+    "Overview",
+    group((r) => !r.includes("/") || r === "spec/README.md"),
+  ),
+  section(
+    "Design docs",
+    group((r) => r.startsWith("docs/")),
+  ),
+  section(
+    "Packages",
+    group((r) => r.startsWith("packages/")),
+  ),
   "<h2>Machine-readable</h2>",
   '<ul>\n  <li><a href="prx.jsonld">prx.jsonld</a> — schema.org project graph</li>\n' +
     '  <li><a href="schemas/">schemas/</a> — JSON Schema artifacts</li>\n</ul>',
@@ -113,4 +122,6 @@ ul{padding-left:1.2rem}li code{color:var(--muted);font-size:.85em}`,
 );
 writeFileSync(join(OUT, ".nojekyll"), "");
 
-console.log(`wrote ${relative(REPO_ROOT, OUT)}/ — ${entries.length} doc pages + prx.jsonld + schemas/`);
+console.log(
+  `wrote ${relative(REPO_ROOT, OUT)}/ — ${entries.length} doc pages + prx.jsonld + schemas/`,
+);

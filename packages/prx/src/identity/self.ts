@@ -24,9 +24,7 @@ export type ResolveSelfOperatorResult =
   | { ok: true; agent: string }
   | { ok: false; message: string };
 
-export function resolveSelfOperator(
-  deps: ResolveSelfOperatorDeps = {},
-): ResolveSelfOperatorResult {
+export function resolveSelfOperator(deps: ResolveSelfOperatorDeps = {}): ResolveSelfOperatorResult {
   const resolve = deps.resolveGhLogin ?? defaultResolveGhLogin;
   const result = resolve();
   if (!result.ok) {

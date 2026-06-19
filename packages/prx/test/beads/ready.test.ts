@@ -1,7 +1,16 @@
 // GH-1510 — tests for the bd-ready query + cache layer.
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync, mkdirSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+  mkdirSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -52,7 +61,11 @@ describe("queryBdReady", () => {
   test("parses --explain --json envelope into typed buckets", () => {
     const result = queryBdReady({ cwd: "/dev/null", runner: fixtureRunner(mixedFixtureRaw) });
     expect(result.ready.map((c) => c.id)).toEqual(["ai-home-r1", "ai-home-r2", "ai-home-child-1"]);
-    expect(result.blocked.map((c) => c.id)).toEqual(["ai-home-b1", "ai-home-b2", "ai-home-parent-1"]);
+    expect(result.blocked.map((c) => c.id)).toEqual([
+      "ai-home-b1",
+      "ai-home-b2",
+      "ai-home-parent-1",
+    ]);
     expect(result.blocked[0]?.blocked_by[0]?.id).toBe("ai-home-r1");
   });
 
@@ -71,7 +84,9 @@ describe("queryBdReady", () => {
 
   test("throws on non-zero exit", () => {
     const runner: BdRunner = () => ({ exitCode: 2, stdout: "", stderr: "bd died" });
-    expect(() => queryBdReady({ cwd: "/dev/null", runner })).toThrow(/bd ready --explain --json failed/);
+    expect(() => queryBdReady({ cwd: "/dev/null", runner })).toThrow(
+      /bd ready --explain --json failed/,
+    );
   });
 });
 
@@ -83,7 +98,11 @@ describe("queryBdGraph", () => {
       ids: ["ai-home-b1", "ai-home-parent-1"],
     });
     expect(edges).toContainEqual({ from: "ai-home-b1", to: "ai-home-r1", kind: "blocks" });
-    expect(edges).toContainEqual({ from: "ai-home-parent-1", to: "ai-home-child-1", kind: "blocks" });
+    expect(edges).toContainEqual({
+      from: "ai-home-parent-1",
+      to: "ai-home-child-1",
+      kind: "blocks",
+    });
   });
 
   test("propagates bd failures", () => {
@@ -151,7 +170,11 @@ describe("ready cache (atomic write + sync-if-stale)", () => {
     const result = getBdReady(repoPath, { runner: fixtureRunner(mixedFixtureRaw), ttlSeconds: 60 });
     expect(result.refreshed).toBe(true);
     expect(result.stale).toBe(false);
-    expect(result.cache.ready.map((c) => c.id)).toEqual(["ai-home-r1", "ai-home-r2", "ai-home-child-1"]);
+    expect(result.cache.ready.map((c) => c.id)).toEqual([
+      "ai-home-r1",
+      "ai-home-r2",
+      "ai-home-child-1",
+    ]);
 
     const path = cacheFilePath(repoPath);
     expect(existsSync(path)).toBe(true);

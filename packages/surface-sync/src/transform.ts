@@ -75,7 +75,9 @@ export function computeSurfaceSync(args: {
     const remoteScope = scope === "remote" || scope === "all";
     const localScope = scope === "local" || scope === "all";
     const issueFeature = issueFeatureForUnit(unit.branch, routingConfig);
-    const issueFeatureEnabled = issueFeature ? issueParityFeatureEnabled(parityConfig, issueFeature) : false;
+    const issueFeatureEnabled = issueFeature
+      ? issueParityFeatureEnabled(parityConfig, issueFeature)
+      : false;
     const issueStatus = issueFeatureStatus(status, issueFeature);
     const normalizedIssueStatus = normalizeIssueStatus(issueStatus, issueFeatureEnabled);
     const disposition = classify({
@@ -128,39 +130,32 @@ export function computeSurfaceSync(args: {
         remoteScope &&
         status.remote.branch === "dirty" &&
         operatorAuthored &&
-        (
-          status.remote.pr === "completed"
-          || (authority === "issue" && issueFeatureEnabled && issueStatus === "completed")
-          || (
-            (!issueFeatureEnabled || issueStatus === "clean" || issueStatus === "disabled")
-            && status.remote.pr === "clean"
-          )
-        )
+        (status.remote.pr === "completed" ||
+          (authority === "issue" && issueFeatureEnabled && issueStatus === "completed") ||
+          ((!issueFeatureEnabled || issueStatus === "clean" || issueStatus === "disabled") &&
+            status.remote.pr === "clean"))
       ) {
         actions.push({
           type: "delete_remote_branch",
           remote: "origin",
           branch: unit.branch,
           ticket: unit.ticket,
-          reason: status.remote.pr === "completed"
-            ? "PR completed but remote branch still differs from origin/main"
-            : issueStatus === "completed"
-              ? `${issueFeature === "beads_issue" ? "Beads" : "GitHub"} issue completed but remote branch still differs from origin/main`
-              : "Remote branch has no issue or PR authority",
+          reason:
+            status.remote.pr === "completed"
+              ? "PR completed but remote branch still differs from origin/main"
+              : issueStatus === "completed"
+                ? `${issueFeature === "beads_issue" ? "Beads" : "GitHub"} issue completed but remote branch still differs from origin/main`
+                : "Remote branch has no issue or PR authority",
         });
       }
 
       if (
         remoteScope &&
         status.remote.buffer_branch === "dirty" &&
-        (
-          status.remote.pr === "completed"
-          || (authority === "issue" && issueFeatureEnabled && issueStatus === "completed")
-          || (
-            (!issueFeatureEnabled || issueStatus === "clean" || issueStatus === "disabled")
-            && status.remote.pr === "clean"
-          )
-        )
+        (status.remote.pr === "completed" ||
+          (authority === "issue" && issueFeatureEnabled && issueStatus === "completed") ||
+          ((!issueFeatureEnabled || issueStatus === "clean" || issueStatus === "disabled") &&
+            status.remote.pr === "clean"))
       ) {
         const bufferPath = resolveBufferPath();
         if (bufferPath) {
@@ -169,11 +164,12 @@ export function computeSurfaceSync(args: {
             remote: "local",
             branch: unit.branch,
             ticket: unit.ticket,
-            reason: status.remote.pr === "completed"
-              ? "PR completed but local buffer remote still carries the branch"
-              : issueStatus === "completed"
-                ? `${issueFeature === "beads_issue" ? "Beads" : "GitHub"} issue completed but local buffer remote still carries the branch`
-                : "Local buffer remote carries a branch with no issue or PR authority",
+            reason:
+              status.remote.pr === "completed"
+                ? "PR completed but local buffer remote still carries the branch"
+                : issueStatus === "completed"
+                  ? `${issueFeature === "beads_issue" ? "Beads" : "GitHub"} issue completed but local buffer remote still carries the branch`
+                  : "Local buffer remote carries a branch with no issue or PR authority",
           });
         }
       }
@@ -181,10 +177,7 @@ export function computeSurfaceSync(args: {
       if (
         localScope &&
         status.local.dir === "no worktree" &&
-        (
-          (issueFeatureEnabled && issueStatus === "completed")
-          || status.remote.pr === "completed"
-        )
+        ((issueFeatureEnabled && issueStatus === "completed") || status.remote.pr === "completed")
       ) {
         actions.push({
           type: "delete_local_branch",
@@ -211,17 +204,15 @@ export function computeSurfaceSync(args: {
       // `delete_local_branch` and `delete_remote_branch` emits, which also
       // skip the disposition check and read raw lifecycle + worktree state.
       const localOperatorClean =
-        (unit.local.staged ?? 0) === 0
-        && (unit.local.unstaged ?? 0) === 0
-        && (unit.local.untracked ?? 0) === 0
-        && (unit.local.conflicts ?? 0) === 0;
+        (unit.local.staged ?? 0) === 0 &&
+        (unit.local.unstaged ?? 0) === 0 &&
+        (unit.local.untracked ?? 0) === 0 &&
+        (unit.local.conflicts ?? 0) === 0;
       if (
         localScope &&
         status.local.dir === "present" &&
-        (
-          (issueFeatureEnabled && issueStatus === "completed")
-          || status.remote.pr === "completed"
-        ) &&
+        ((issueFeatureEnabled && issueStatus === "completed") ||
+          status.remote.pr === "completed") &&
         localOperatorClean
       ) {
         actions.push({
@@ -240,8 +231,7 @@ export function computeSurfaceSync(args: {
       // left to the apply-time refusal inside `prx worktree-remove`, which
       // already prints an unlock hint; lock state isn't on the board snapshot.)
       const lifecycleCompleted =
-        (issueFeatureEnabled && issueStatus === "completed")
-        || status.remote.pr === "completed";
+        (issueFeatureEnabled && issueStatus === "completed") || status.remote.pr === "completed";
       if (localScope && status.local.dir === "present" && lifecycleCompleted) {
         const target = unit.ticket ?? unit.branch;
         if (!localOperatorClean) {
@@ -258,7 +248,10 @@ export function computeSurfaceSync(args: {
           ? issueFeatureEnabled && issueStatus === "dirty"
           : authority === "pr"
             ? status.remote.pr === "dirty"
-            : status.local.branch === "dirty" || status.local.dir === "no worktree" || status.local.dir === "present" || status.local.dir === "wrong worktree";
+            : status.local.branch === "dirty" ||
+              status.local.dir === "no worktree" ||
+              status.local.dir === "present" ||
+              status.local.dir === "wrong worktree";
 
       if (localScope && authorityActive && status.local.dir === "missing" && unit.ticket) {
         actions.push({
@@ -281,7 +274,9 @@ export function computeSurfaceSync(args: {
       if (
         remoteScope &&
         authorityActive &&
-        (status.local.dir === "present" || status.local.dir === "wrong worktree" || status.local.dir === "no worktree") &&
+        (status.local.dir === "present" ||
+          status.local.dir === "wrong worktree" ||
+          status.local.dir === "no worktree") &&
         status.remote.branch === "missing"
       ) {
         actions.push({

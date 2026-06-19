@@ -58,7 +58,10 @@ const fixedNow = () => new Date("2026-06-07T00:00:00Z");
 // No currentRepoSlug → the per-repo guard is skipped (the CLI resolves the repo
 // slug from the live git remote, which we don't control here). The cross-repo
 // test sets its own currentRepoSlug to force the mismatch.
-const depsWith = (execBd: HandoffStoreDeps["execBd"], extra: Partial<HandoffStoreDeps> = {}): HandoffCliDeps => ({
+const depsWith = (
+  execBd: HandoffStoreDeps["execBd"],
+  extra: Partial<HandoffStoreDeps> = {},
+): HandoffCliDeps => ({
   store: { execBd, now: fixedNow, ...extra },
   appendAuditRow: () => {}, // no audit IO
 });
@@ -110,14 +113,20 @@ describe("runHandoffEnqueue", () => {
       store: { execBd: makeFakeBd(), now: fixedNow, currentRepoSlug: () => "other/repo" },
       appendAuditRow: () => {},
     };
-    expect(await runHandoffEnqueue({ ...baseEnqueue, repoSlug: "test/repo" } as never, s.out, deps)).toBe(4);
+    expect(
+      await runHandoffEnqueue({ ...baseEnqueue, repoSlug: "test/repo" } as never, s.out, deps),
+    ).toBe(4);
     expect(s.errors[0]).toMatch(/cross-repo refused/);
   });
 
   test("a malformed --args literal throws (loadArgs guard)", async () => {
     const s = sink();
     await expect(
-      runHandoffEnqueue({ ...baseEnqueue, argsLiteral: "{ not json" } as never, s.out, depsWith(makeFakeBd())),
+      runHandoffEnqueue(
+        { ...baseEnqueue, argsLiteral: "{ not json" } as never,
+        s.out,
+        depsWith(makeFakeBd()),
+      ),
     ).rejects.toThrow(/could not be parsed as JSON/);
   });
 });
@@ -163,14 +172,24 @@ describe("runHandoffEnqueue --args-file", () => {
     const f = join(dir, "args.json");
     writeFileSync(f, JSON.stringify({ k: "v" }));
     const s = sink();
-    expect(await runHandoffEnqueue({ ...baseEnqueue, argsFile: f } as never, s.out, depsWith(makeFakeBd()))).toBe(0);
+    expect(
+      await runHandoffEnqueue(
+        { ...baseEnqueue, argsFile: f } as never,
+        s.out,
+        depsWith(makeFakeBd()),
+      ),
+    ).toBe(0);
   });
 
   test("a malformed args file throws", async () => {
     const f = join(dir, "bad.json");
     writeFileSync(f, "{ not json");
     await expect(
-      runHandoffEnqueue({ ...baseEnqueue, argsFile: f } as never, sink().out, depsWith(makeFakeBd())),
+      runHandoffEnqueue(
+        { ...baseEnqueue, argsFile: f } as never,
+        sink().out,
+        depsWith(makeFakeBd()),
+      ),
     ).rejects.toThrow(/--args-file .* could not be parsed/);
   });
 });
@@ -180,13 +199,17 @@ describe("runHandoffEnqueue --args-file", () => {
 describe("runHandoffDrain", () => {
   test("rejects an invalid --actor with exit 2", async () => {
     const s = sink();
-    expect(await runHandoffDrain({ actor: "nope", once: true, max: 1, format: "plain" }, s.out)).toBe(2);
+    expect(
+      await runHandoffDrain({ actor: "nope", once: true, max: 1, format: "plain" }, s.out),
+    ).toBe(2);
   });
 
   test("an empty queue drains nothing and exits 0 (plain + json)", async () => {
     const deps: HandoffCliDeps = { drain: { execBd: makeFakeBd(), appendAuditRow: () => {} } };
     const s = sink();
-    expect(await runHandoffDrain({ actor: "noop", once: true, max: 1, format: "plain" }, s.out, deps)).toBe(0);
+    expect(
+      await runHandoffDrain({ actor: "noop", once: true, max: 1, format: "plain" }, s.out, deps),
+    ).toBe(0);
     expect(s.logs[0]).toMatch(/drained 0/);
 
     const j = sink();
@@ -197,7 +220,11 @@ describe("runHandoffDrain", () => {
   test("drains a pending noop handoff and logs the per-outcome line", async () => {
     const rows = new Map<string, string>();
     // enqueue to noop (the test adapter), then drain it through the same store.
-    await runHandoffEnqueue({ ...baseEnqueue, target: "noop" }, sink().out, depsWith(makeFakeBd(rows)));
+    await runHandoffEnqueue(
+      { ...baseEnqueue, target: "noop" },
+      sink().out,
+      depsWith(makeFakeBd(rows)),
+    );
     const s = sink();
     const code = await runHandoffDrain(
       { actor: "noop", once: true, max: 1, format: "plain" },
@@ -215,7 +242,9 @@ describe("runHandoffDrain", () => {
 describe("runHandoffReplay", () => {
   test("no row for the id → exit 1", async () => {
     const s = sink();
-    expect(await runHandoffReplay({ id: "missing", format: "plain" }, s.out, depsWith(makeFakeBd()))).toBe(1);
+    expect(
+      await runHandoffReplay({ id: "missing", format: "plain" }, s.out, depsWith(makeFakeBd())),
+    ).toBe(1);
     expect(s.errors[0]).toMatch(/no row found/);
   });
 
@@ -256,9 +285,11 @@ describe("runHandoffReplay", () => {
 
   // A bd where the broad scan (getHandoff) sees the abandoned row but the
   // dedup-prefix scan does not — so the re-enqueue lands as `created`.
-  const prefixAwareBd = (row: { key: string; body: string }, rememberCode: number): HandoffStoreDeps["execBd"] =>
+  const prefixAwareBd =
+    (row: { key: string; body: string }, rememberCode: number): HandoffStoreDeps["execBd"] =>
     (opts: BdExecOptions): BdExecResult => {
-      if (opts.subcommand === "remember") return { exitCode: rememberCode, stdout: "{}", stderr: "x", policy: null };
+      if (opts.subcommand === "remember")
+        return { exitCode: rememberCode, stdout: "{}", stderr: "x", policy: null };
       if (opts.subcommand === "memories") {
         const body = (opts.args[0] as string) === "handoff/" ? JSON.stringify([row]) : "[]";
         return { exitCode: 0, stdout: body, stderr: "", policy: null };
@@ -270,7 +301,11 @@ describe("runHandoffReplay", () => {
     const row = await abandonedRow();
     const s = sink();
     expect(
-      await runHandoffReplay({ id: row.id, format: "plain" }, s.out, depsWith(prefixAwareBd(row, 0))),
+      await runHandoffReplay(
+        { id: row.id, format: "plain" },
+        s.out,
+        depsWith(prefixAwareBd(row, 0)),
+      ),
     ).toBe(0);
     expect(s.logs[0]).toMatch(/handoff replayed/);
   });
@@ -279,7 +314,11 @@ describe("runHandoffReplay", () => {
     const row = await abandonedRow();
     const s = sink();
     expect(
-      await runHandoffReplay({ id: row.id, format: "plain" }, s.out, depsWith(prefixAwareBd(row, 1))),
+      await runHandoffReplay(
+        { id: row.id, format: "plain" },
+        s.out,
+        depsWith(prefixAwareBd(row, 1)),
+      ),
     ).toBe(3);
     expect(s.errors[0]).toMatch(/bd unprovisioned/);
   });

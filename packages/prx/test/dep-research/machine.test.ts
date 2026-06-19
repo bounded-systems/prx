@@ -16,11 +16,7 @@ import type {
   LoadPrevAndDiffActorInput,
 } from "../../src/dep-research/actors.ts";
 import type { FetchResult } from "../../src/dep-research/fetch.ts";
-import type {
-  DepDelta,
-  DepManifestEntry,
-  DepSnapshot,
-} from "../../src/dep-research/schemas.ts";
+import type { DepDelta, DepManifestEntry, DepSnapshot } from "../../src/dep-research/schemas.ts";
 
 // ── builders ───────────────────────────────────────────────────────────────
 
@@ -60,13 +56,12 @@ const fakeFetchOk = fromPromise<FetchResult, FetchSourceActorInput>(async () => 
 }));
 
 function fakeBuildAndWrite(snap: DepSnapshot) {
-  return fromPromise<
-    BuildAndWriteSnapshotActorResult,
-    BuildAndWriteSnapshotActorInput
-  >(async () => ({
-    snapshot: snap,
-    path: `/tmp/${snap.dep}/${snap.run_id}`,
-  }));
+  return fromPromise<BuildAndWriteSnapshotActorResult, BuildAndWriteSnapshotActorInput>(
+    async () => ({
+      snapshot: snap,
+      path: `/tmp/${snap.dep}/${snap.run_id}`,
+    }),
+  );
 }
 
 function fakeLoadPrevAndDiff(delta: DepDelta) {

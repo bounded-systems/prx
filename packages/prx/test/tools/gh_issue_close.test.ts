@@ -29,9 +29,7 @@ describe("buildGhIssueCloseArgs", () => {
   });
 
   test("forwards explicit --reason and --repo", () => {
-    expect(
-      buildGhIssueCloseArgs({ number: 42, reason: "completed", repo: "o/r" }),
-    ).toEqual([
+    expect(buildGhIssueCloseArgs({ number: 42, reason: "completed", repo: "o/r" })).toEqual([
       "issue",
       "close",
       "42",
@@ -43,15 +41,23 @@ describe("buildGhIssueCloseArgs", () => {
   });
 
   test("accepts the duplicate state-reason value", () => {
-    expect(
-      buildGhIssueCloseArgs({ number: 7, reason: "duplicate" }),
-    ).toEqual(["issue", "close", "7", "--reason", "duplicate"]);
+    expect(buildGhIssueCloseArgs({ number: 7, reason: "duplicate" })).toEqual([
+      "issue",
+      "close",
+      "7",
+      "--reason",
+      "duplicate",
+    ]);
   });
 
   test("passes 'not planned' (space form) through unchanged to gh argv", () => {
-    expect(
-      buildGhIssueCloseArgs({ number: 9, reason: "not planned" }),
-    ).toEqual(["issue", "close", "9", "--reason", "not planned"]);
+    expect(buildGhIssueCloseArgs({ number: 9, reason: "not planned" })).toEqual([
+      "issue",
+      "close",
+      "9",
+      "--reason",
+      "not planned",
+    ]);
   });
 });
 
@@ -84,11 +90,7 @@ describe("execGhIssueClose", () => {
       stdout: "",
       stderr: "gh: not found\n",
     });
-    const result = execGhIssueClose(
-      { number: 100 },
-      { HOME: "/tmp" },
-      spawn,
-    );
+    const result = execGhIssueClose({ number: 100 }, { HOME: "/tmp" }, spawn);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toBe("gh: not found\n");
   });
@@ -150,28 +152,19 @@ describe("execGhIssueClose", () => {
 describe("formatGhIssueCloseResult", () => {
   test("plain success returns trimmed stdout", () => {
     expect(
-      formatGhIssueCloseResult(
-        { exitCode: 0, stdout: "Closed issue #100\n", stderr: "" },
-        "plain",
-      ),
+      formatGhIssueCloseResult({ exitCode: 0, stdout: "Closed issue #100\n", stderr: "" }, "plain"),
     ).toBe("Closed issue #100");
   });
 
   test("plain failure returns stderr", () => {
-    expect(
-      formatGhIssueCloseResult(
-        { exitCode: 1, stdout: "", stderr: "boom\n" },
-        "plain",
-      ),
-    ).toBe("boom");
+    expect(formatGhIssueCloseResult({ exitCode: 1, stdout: "", stderr: "boom\n" }, "plain")).toBe(
+      "boom",
+    );
   });
 
   test("json format is valid JSON", () => {
     const json = JSON.parse(
-      formatGhIssueCloseResult(
-        { exitCode: 0, stdout: "ok", stderr: "" },
-        "json",
-      ),
+      formatGhIssueCloseResult({ exitCode: 0, stdout: "ok", stderr: "" }, "json"),
     ) as { exitCode: number; stdout: string };
     expect(json.exitCode).toBe(0);
     expect(json.stdout).toBe("ok");

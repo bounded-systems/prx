@@ -21,11 +21,7 @@
  * command, with the runner injected so tests don't need a real bd binary.
  */
 
-import {
-  captureFailureDetail,
-  isCaptureFailure,
-  spawnCapture,
-} from "@bounded-systems/proc";
+import { captureFailureDetail, isCaptureFailure, spawnCapture } from "@bounded-systems/proc";
 import { z } from "zod";
 
 export const BdSchemaProbeResultSchema = z.object({
@@ -90,7 +86,10 @@ function classifyStderr(stderr: string): BdSchemaProbeResult["errorClass"] {
  * result on a stable bd ≥1.0.3 binary should clear on the very next probe
  * — which is exactly the property `repairBdSchema` relies on.
  */
-export function probeBdSchema(cwd: string, runner: BdRunner = defaultBdRunner): BdSchemaProbeResult {
+export function probeBdSchema(
+  cwd: string,
+  runner: BdRunner = defaultBdRunner,
+): BdSchemaProbeResult {
   const result = runner(["stats", "--json"], cwd);
   if (result.exitCode === 0) {
     return { status: "healthy" };
@@ -111,7 +110,10 @@ export function probeBdSchema(cwd: string, runner: BdRunner = defaultBdRunner): 
  * DB the first invocation triggers compat migration 017 and the second
  * succeeds.
  */
-export function repairBdSchema(cwd: string, runner: BdRunner = defaultBdRunner): BdSchemaRepairResult {
+export function repairBdSchema(
+  cwd: string,
+  runner: BdRunner = defaultBdRunner,
+): BdSchemaRepairResult {
   const command = "bd stats --json";
   const start = performance.now();
   const first = runner(["stats", "--json"], cwd);
@@ -144,6 +146,8 @@ export function repairBdSchema(cwd: string, runner: BdRunner = defaultBdRunner):
     status: "repair_failed",
     durationMs: elapsed,
     command,
-    message: second.stderr.trim() || `bd stats still failing after compat migration trigger (exit ${second.exitCode})`,
+    message:
+      second.stderr.trim() ||
+      `bd stats still failing after compat migration trigger (exit ${second.exitCode})`,
   };
 }

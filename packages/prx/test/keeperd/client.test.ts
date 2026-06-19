@@ -56,16 +56,22 @@ describe("IsolatedKeeperClient (host-side seam)", () => {
   });
 
   test("rejects a reply that violates the wire contract", async () => {
-    const transport: KeeperTransport = async () => ({ status: "ok" /* missing commitSha/pushedRef */ });
+    const transport: KeeperTransport = async () => ({
+      status: "ok" /* missing commitSha/pushedRef */,
+    });
     await expect(new IsolatedKeeperClient(transport).importAndPush(REQUEST)).rejects.toBeInstanceOf(
       KeeperProtocolError,
     );
   });
 
   test("surfaces the offending field in the protocol error message", async () => {
-    const transport: KeeperTransport = async () => ({ status: "ok", commitSha: "nope", pushedRef: "r" });
-    await expect(
-      new IsolatedKeeperClient(transport).importAndPush(REQUEST),
-    ).rejects.toThrow(/commitSha/);
+    const transport: KeeperTransport = async () => ({
+      status: "ok",
+      commitSha: "nope",
+      pushedRef: "r",
+    });
+    await expect(new IsolatedKeeperClient(transport).importAndPush(REQUEST)).rejects.toThrow(
+      /commitSha/,
+    );
   });
 });

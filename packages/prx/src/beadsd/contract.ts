@@ -143,9 +143,23 @@ export const BeadsRequestSchema = z.discriminatedUnion("kind", [
 export type BeadsRequest = z.infer<typeof BeadsRequestSchema>;
 
 /** The read kinds (unconditional). */
-export const BEADS_READ_KINDS = ["ready", "list", "show", "children", "recall", "memories"] as const;
+export const BEADS_READ_KINDS = [
+  "ready",
+  "list",
+  "show",
+  "children",
+  "recall",
+  "memories",
+] as const;
 /** The write kinds (policy-gated single-writer surface; GH-228 slice 5). */
-export const BEADS_WRITE_KINDS = ["create", "update", "close", "reopen", "dep", "remember"] as const;
+export const BEADS_WRITE_KINDS = [
+  "create",
+  "update",
+  "close",
+  "reopen",
+  "dep",
+  "remember",
+] as const;
 /** Every kind beadsd exposes (the envelope), enumerable as an allowlist. */
 export const BEADS_REQUEST_KINDS = [...BEADS_READ_KINDS, ...BEADS_WRITE_KINDS] as const;
 export type BeadsRequestKind = (typeof BEADS_REQUEST_KINDS)[number];

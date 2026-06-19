@@ -15,9 +15,9 @@ import { isWorktreeHookVerb, runWorktreeHookCli } from "../../src/workspace/cli.
 describe("parseWorktreeEnvelope", () => {
   test("parses name (create) and worktree_path (remove)", () => {
     expect(parseWorktreeEnvelope(JSON.stringify({ name: "feat-x" })).name).toBe("feat-x");
-    expect(
-      parseWorktreeEnvelope(JSON.stringify({ worktree_path: "/w/x" })).worktree_path,
-    ).toBe("/w/x");
+    expect(parseWorktreeEnvelope(JSON.stringify({ worktree_path: "/w/x" })).worktree_path).toBe(
+      "/w/x",
+    );
   });
 
   test("tolerates empty / malformed input", () => {
@@ -79,7 +79,10 @@ describe("runWorktreeRemoveHook (ai-home-ozbjp)", () => {
   test("tears down via the port (exit 0 — no decision control)", async () => {
     const seen: string[] = [];
     const r = await runWorktreeRemoveHook({
-      stdin: JSON.stringify({ hook_event_name: "WorktreeRemove", worktree_path: "/work/GH-5/plan" }),
+      stdin: JSON.stringify({
+        hook_event_name: "WorktreeRemove",
+        worktree_path: "/work/GH-5/plan",
+      }),
       teardown: async (p) => {
         seen.push(p);
       },
@@ -148,7 +151,11 @@ describe("runWorktreeHookCli — engine wiring (prx-6jb)", () => {
   });
 
   const stubMaterialize = {
-    reserve: () => ({ workspace_id: "abc123abc123", branch_ref: "feat-x", status: "created" as const }),
+    reserve: () => ({
+      workspace_id: "abc123abc123",
+      branch_ref: "feat-x",
+      status: "created" as const,
+    }),
     materialize: () => ({
       workspace_id: "abc123abc123",
       worktree_path: "/wt/feat-x",
@@ -159,118 +166,161 @@ describe("runWorktreeHookCli — engine wiring (prx-6jb)", () => {
 
   test("create: self-propagates — arms the new worktree's settings.local.json (prx-5q3)", async () => {
     const armed: string[] = [];
-    const r = await runWorktreeHookCli("worktree-create", JSON.stringify({ name: "feat-x" }), "/repo", {
-      ...stubMaterialize,
-      ensureHooks: (cwd) => {
-        armed.push(cwd);
-        return { status: "created", path: `${cwd}/.claude/settings.local.json` };
+    const r = await runWorktreeHookCli(
+      "worktree-create",
+      JSON.stringify({ name: "feat-x" }),
+      "/repo",
+      {
+        ...stubMaterialize,
+        ensureHooks: (cwd) => {
+          armed.push(cwd);
+          return { status: "created", path: `${cwd}/.claude/settings.local.json` };
+        },
       },
-    });
+    );
     expect(r.exitCode).toBe(0);
     expect(armed).toEqual(["/wt/feat-x"]); // the NEW worktree, not the launch cwd /repo
   });
 
   test("create: a failing ensureHooks never aborts creation (best-effort)", async () => {
-    const r = await runWorktreeHookCli("worktree-create", JSON.stringify({ name: "feat-x" }), "/repo", {
-      ...stubMaterialize,
-      ensureHooks: () => {
-        throw new Error("disk full");
+    const r = await runWorktreeHookCli(
+      "worktree-create",
+      JSON.stringify({ name: "feat-x" }),
+      "/repo",
+      {
+        ...stubMaterialize,
+        ensureHooks: () => {
+          throw new Error("disk full");
+        },
       },
-    });
+    );
     expect(r).toEqual({ exitCode: 0, stream: "stdout", message: "/wt/feat-x" });
   });
 
-  const noopHooks = () => ({ status: "created" as const, path: "/wt/feat-x/.claude/settings.local.json" });
+  const noopHooks = () => ({
+    status: "created" as const,
+    path: "/wt/feat-x/.claude/settings.local.json",
+  });
 
   test("create: emits provenance for the new worktree (prx-3qc)", async () => {
     const emitted: Array<{ branch: string; targetPath: string; cwd: string }> = [];
-    const r = await runWorktreeHookCli("worktree-create", JSON.stringify({ name: "feat-x" }), "/repo", {
-      ...stubMaterialize,
-      ensureHooks: noopHooks,
-      emitProvenance: async (input) => {
-        emitted.push(input);
+    const r = await runWorktreeHookCli(
+      "worktree-create",
+      JSON.stringify({ name: "feat-x" }),
+      "/repo",
+      {
+        ...stubMaterialize,
+        ensureHooks: noopHooks,
+        emitProvenance: async (input) => {
+          emitted.push(input);
+        },
       },
-    });
+    );
     expect(r.exitCode).toBe(0);
     expect(emitted).toEqual([{ branch: "feat-x", targetPath: "/wt/feat-x", cwd: "/repo" }]);
   });
 
   test("create: no provenance when the worktree already existed (status=exists)", async () => {
     let emitted = false;
-    const r = await runWorktreeHookCli("worktree-create", JSON.stringify({ name: "feat-x" }), "/repo", {
-      reserve: stubMaterialize.reserve,
-      materialize: () => ({
-        workspace_id: "abc123abc123",
-        worktree_path: "/wt/feat-x",
-        branch: "feat-x",
-        status: "exists" as const,
-      }),
-      ensureHooks: noopHooks,
-      emitProvenance: async () => {
-        emitted = true;
+    const r = await runWorktreeHookCli(
+      "worktree-create",
+      JSON.stringify({ name: "feat-x" }),
+      "/repo",
+      {
+        reserve: stubMaterialize.reserve,
+        materialize: () => ({
+          workspace_id: "abc123abc123",
+          worktree_path: "/wt/feat-x",
+          branch: "feat-x",
+          status: "exists" as const,
+        }),
+        ensureHooks: noopHooks,
+        emitProvenance: async () => {
+          emitted = true;
+        },
       },
-    });
+    );
     expect(r.exitCode).toBe(0);
     expect(emitted).toBe(false); // already attested on first placement
   });
 
   test("create: a failing emitProvenance never aborts creation (best-effort)", async () => {
-    const r = await runWorktreeHookCli("worktree-create", JSON.stringify({ name: "feat-x" }), "/repo", {
-      ...stubMaterialize,
-      ensureHooks: noopHooks,
-      emitProvenance: async () => {
-        throw new Error("ledger locked");
+    const r = await runWorktreeHookCli(
+      "worktree-create",
+      JSON.stringify({ name: "feat-x" }),
+      "/repo",
+      {
+        ...stubMaterialize,
+        ensureHooks: noopHooks,
+        emitProvenance: async () => {
+          throw new Error("ledger locked");
+        },
       },
-    });
+    );
     expect(r).toEqual({ exitCode: 0, stream: "stdout", message: "/wt/feat-x" });
   });
 
   test("create: bootstraps the NEW worktree via the injected seam (prx-arl)", async () => {
     const bootstrapped: string[] = [];
-    const r = await runWorktreeHookCli("worktree-create", JSON.stringify({ name: "feat-x" }), "/repo", {
-      ...stubMaterialize,
-      ensureHooks: noopHooks,
-      initContract: async () => ({}),
-      bootstrap: async (cwd) => {
-        bootstrapped.push(cwd);
-        return {
-          beads: { status: "wrote-redirect", redirectPath: null, redirectTarget: null },
-          contract: { status: "wrote-contract", contractPath: `${cwd}/.pr/local/pr.json` },
-          exitCode: 0,
-        };
+    const r = await runWorktreeHookCli(
+      "worktree-create",
+      JSON.stringify({ name: "feat-x" }),
+      "/repo",
+      {
+        ...stubMaterialize,
+        ensureHooks: noopHooks,
+        initContract: async () => ({}),
+        bootstrap: async (cwd) => {
+          bootstrapped.push(cwd);
+          return {
+            beads: { status: "wrote-redirect", redirectPath: null, redirectTarget: null },
+            contract: { status: "wrote-contract", contractPath: `${cwd}/.pr/local/pr.json` },
+            exitCode: 0,
+          };
+        },
       },
-    });
+    );
     expect(r).toEqual({ exitCode: 0, stream: "stdout", message: "/wt/feat-x" });
     expect(bootstrapped).toEqual(["/wt/feat-x"]); // the NEW worktree, not the launch cwd /repo
   });
 
   test("create: skips the contract bootstrap when no initContract is injected", async () => {
     let called = false;
-    const r = await runWorktreeHookCli("worktree-create", JSON.stringify({ name: "feat-x" }), "/repo", {
-      ...stubMaterialize,
-      ensureHooks: noopHooks,
-      bootstrap: async () => {
-        called = true;
-        return {
-          beads: { status: "skipped-no-beads", redirectPath: null, redirectTarget: null },
-          contract: { status: "skipped-no-repo-root", contractPath: null },
-          exitCode: 0,
-        };
+    const r = await runWorktreeHookCli(
+      "worktree-create",
+      JSON.stringify({ name: "feat-x" }),
+      "/repo",
+      {
+        ...stubMaterialize,
+        ensureHooks: noopHooks,
+        bootstrap: async () => {
+          called = true;
+          return {
+            beads: { status: "skipped-no-beads", redirectPath: null, redirectTarget: null },
+            contract: { status: "skipped-no-repo-root", contractPath: null },
+            exitCode: 0,
+          };
+        },
       },
-    });
+    );
     expect(r.exitCode).toBe(0);
     expect(called).toBe(false); // no initContract → contract bootstrap is skipped
   });
 
   test("create: a failing bootstrap never aborts creation (best-effort)", async () => {
-    const r = await runWorktreeHookCli("worktree-create", JSON.stringify({ name: "feat-x" }), "/repo", {
-      ...stubMaterialize,
-      ensureHooks: noopHooks,
-      initContract: async () => ({}),
-      bootstrap: async () => {
-        throw new Error("bootstrap blew up");
+    const r = await runWorktreeHookCli(
+      "worktree-create",
+      JSON.stringify({ name: "feat-x" }),
+      "/repo",
+      {
+        ...stubMaterialize,
+        ensureHooks: noopHooks,
+        initContract: async () => ({}),
+        bootstrap: async () => {
+          throw new Error("bootstrap blew up");
+        },
       },
-    });
+    );
     expect(r).toEqual({ exitCode: 0, stream: "stdout", message: "/wt/feat-x" });
   });
 

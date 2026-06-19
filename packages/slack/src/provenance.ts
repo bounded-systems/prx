@@ -55,9 +55,7 @@ export function slackReadDerivation(
   opts: SlackReadDerivationOptions = {},
 ): Derivation {
   // Input: the query that was issued (op + params), content-addressed.
-  const queryDigest = sha256Hex(
-    canonicalJson({ op: envelope.op, params: envelope.params }),
-  );
+  const queryDigest = sha256Hex(canonicalJson({ op: envelope.op, params: envelope.params }));
   // Output: the exact envelope the dispatch layer writes to CAS, so the
   // derivation's output digest equals the `slack://sha256:…` handle's sha.
   const envelopeDigest = sha256Hex(formatSlackReadEnvelope(envelope));
@@ -154,12 +152,13 @@ export function slackReadProvenance(
   const derivation = slackReadDerivation(envelope, opts);
   const { inputs, outputs, params } = derivation.manifest;
 
-  const subject: InTotoSubject[] = Object.entries(outputs).map(
+  const subject: InTotoSubject[] = Object.entries(outputs).map(([name, digest]) => ({
+    name,
+    digest: { sha256: bareHex(digest) },
+  }));
+  const resolvedDependencies: SlsaResourceDescriptor[] = Object.entries(inputs).map(
     ([name, digest]) => ({ name, digest: { sha256: bareHex(digest) } }),
   );
-  const resolvedDependencies: SlsaResourceDescriptor[] = Object.entries(
-    inputs,
-  ).map(([name, digest]) => ({ name, digest: { sha256: bareHex(digest) } }));
 
   return {
     _type: IN_TOTO_STATEMENT_TYPE,

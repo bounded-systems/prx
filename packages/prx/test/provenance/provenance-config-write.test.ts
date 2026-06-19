@@ -18,8 +18,7 @@ import {
 const tmp = mkdtempSync(join(tmpdir(), "prx-prov-"));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
-const envOf = (vars: Record<string, string | undefined>) =>
-  (k: string) => vars[k];
+const envOf = (vars: Record<string, string | undefined>) => (k: string) => vars[k];
 
 describe("provenanceConfigPath", () => {
   test("joins HOME with ~/.config/prx/config.json", () => {
@@ -76,7 +75,9 @@ describe("writeProvenanceTrustMap", () => {
       envOf({ HOME: "/h" }),
       () => JSON.stringify({ provenance: { masterFile: "/m", trust: { old: "x" } }, other: 1 }),
       () => true,
-      (_p, d) => { data = d; },
+      (_p, d) => {
+        data = d;
+      },
     );
     const parsed = JSON.parse(data);
     expect(parsed.provenance.masterFile).toBe("/m");
@@ -91,7 +92,9 @@ describe("writeProvenanceTrustMap", () => {
       envOf({ HOME: "/h" }),
       () => "{ not json",
       () => true,
-      (_p, d) => { data = d; },
+      (_p, d) => {
+        data = d;
+      },
     );
     expect(JSON.parse(data).provenance.trust).toEqual({ c: "ed25519:CCC" });
   });
@@ -118,7 +121,9 @@ describe("writeProvenanceTrustMap", () => {
       envOf({ HOME: "/h" }),
       () => JSON.stringify({ provenance: "oops" }),
       () => true,
-      (_p, d) => { data = d; },
+      (_p, d) => {
+        data = d;
+      },
     );
     expect(JSON.parse(data).provenance.trust).toEqual({ d: "ed25519:DDD" });
   });

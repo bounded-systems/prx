@@ -56,8 +56,7 @@ describe("anchored-chain-sqlite extractability", () => {
   test("the store imports only the core, cas, drizzle, and bun:sqlite", () => {
     const violations: Array<{ file: string; spec: string }> = [];
     for (const file of listTsFiles(MODULE_ROOT)) {
-      const isTest =
-        file.includes("/__tests__/") || file.includes("/__examples__/");
+      const isTest = file.includes("/__tests__/") || file.includes("/__examples__/");
       const allowlist = isTest ? TEST_ALLOWLIST : PROD_ALLOWLIST;
       const source = readFileSync(file, "utf8");
       for (const match of source.matchAll(IMPORT_RE)) {

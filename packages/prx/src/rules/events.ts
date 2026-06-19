@@ -15,23 +15,13 @@ const rulesRenderRequestedSchema = z.object({
 
 const rulesInputLoadedSchema = z.object({
   type: z.literal("RULES_INPUT_LOADED"),
-  kind: z.enum([
-    "verb-supply",
-    "alias-supply",
-    "worktree-gestures",
-    "memory-index",
-  ]),
+  kind: z.enum(["verb-supply", "alias-supply", "worktree-gestures", "memory-index"]),
   count: z.number().int().nonnegative(),
 });
 
 const rulesInputStubbedSchema = z.object({
   type: z.literal("RULES_INPUT_STUBBED"),
-  kind: z.enum([
-    "verb-supply",
-    "alias-supply",
-    "worktree-gestures",
-    "memory-index",
-  ]),
+  kind: z.enum(["verb-supply", "alias-supply", "worktree-gestures", "memory-index"]),
   ticket: z.string().min(1).optional(),
 });
 
@@ -42,11 +32,7 @@ const rulesValidatedSchema = z.object({
 
 const rulesAssertionFailedSchema = z.object({
   type: z.literal("RULES_ASSERTION_FAILED"),
-  rule: z.enum([
-    "verb-exists",
-    "alias-exists",
-    "worktree-gesture-resolves",
-  ]),
+  rule: z.enum(["verb-exists", "alias-exists", "worktree-gesture-resolves"]),
   subject: z.string().min(1),
   file: z.string().min(1),
   line: z.number().int().positive(),
@@ -73,7 +59,4 @@ export const rulesEventSchema = z.discriminatedUnion("type", [
 ]);
 export type RulesEvent = z.infer<typeof rulesEventSchema>;
 
-export type RulesAssertionFailedEvent = Extract<
-  RulesEvent,
-  { type: "RULES_ASSERTION_FAILED" }
->;
+export type RulesAssertionFailedEvent = Extract<RulesEvent, { type: "RULES_ASSERTION_FAILED" }>;

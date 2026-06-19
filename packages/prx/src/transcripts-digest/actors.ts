@@ -11,20 +11,10 @@ import { fromPromise } from "xstate";
 import { z } from "zod";
 
 import { commitCandidate } from "./commit-writer.ts";
-import {
-  extractMemoryCandidates,
-  type ClaudePrintRunner,
-} from "./extractor.ts";
-import {
-  MemoryCandidate,
-  TranscriptSession,
-  TranscriptSourceConfig,
-} from "./schemas.ts";
+import { extractMemoryCandidates, type ClaudePrintRunner } from "./extractor.ts";
+import { MemoryCandidate, TranscriptSession, TranscriptSourceConfig } from "./schemas.ts";
 import type { MemoryCandidate as MemoryCandidateT } from "./schemas.ts";
-import {
-  getAdapter,
-  type DiscoverOptions,
-} from "./sources/registry.ts";
+import { getAdapter, type DiscoverOptions } from "./sources/registry.ts";
 import { writeStagedCandidate } from "./stage-writer.ts";
 
 // ── resolve actor ──────────────────────────────────────────────────────────
@@ -37,13 +27,12 @@ export type ResolveActorResult = {
   adapter: ReturnType<typeof getAdapter>;
 };
 
-export const resolveSourceActor = fromPromise<
-  ResolveActorResult,
-  ResolveActorInput
->(async ({ input }) => {
-  const opts = resolveInputSchema.parse(input);
-  return { adapter: getAdapter(opts.config.kind) };
-});
+export const resolveSourceActor = fromPromise<ResolveActorResult, ResolveActorInput>(
+  async ({ input }) => {
+    const opts = resolveInputSchema.parse(input);
+    return { adapter: getAdapter(opts.config.kind) };
+  },
+);
 
 // ── load actor (discover sessions) ─────────────────────────────────────────
 
@@ -57,20 +46,15 @@ const loadInputSchema = z.object({
 export type LoadActorInput = z.infer<typeof loadInputSchema>;
 export type LoadActorResult = { sessions: TranscriptSession[] };
 
-export const loadActor = fromPromise<LoadActorResult, LoadActorInput>(
-  async ({ input }) => {
-    const opts = loadInputSchema.parse(input);
-    const adapter = getAdapter(opts.config.kind);
-    const sessions: TranscriptSession[] = [];
-    for await (const session of adapter.discover(
-      opts.config,
-      opts.discover as DiscoverOptions,
-    )) {
-      sessions.push(TranscriptSession.parse(session));
-    }
-    return { sessions };
-  },
-);
+export const loadActor = fromPromise<LoadActorResult, LoadActorInput>(async ({ input }) => {
+  const opts = loadInputSchema.parse(input);
+  const adapter = getAdapter(opts.config.kind);
+  const sessions: TranscriptSession[] = [];
+  for await (const session of adapter.discover(opts.config, opts.discover as DiscoverOptions)) {
+    sessions.push(TranscriptSession.parse(session));
+  }
+  return { sessions };
+});
 
 // ── parse actor ────────────────────────────────────────────────────────────
 //
@@ -89,12 +73,10 @@ export type ParseActorResult = {
   skippedLines: number;
 };
 
-export const parseActor = fromPromise<ParseActorResult, ParseActorInput>(
-  async ({ input }) => {
-    const opts = parseInputSchema.parse(input);
-    return { sessions: opts.sessions, skippedLines: 0 };
-  },
-);
+export const parseActor = fromPromise<ParseActorResult, ParseActorInput>(async ({ input }) => {
+  const opts = parseInputSchema.parse(input);
+  return { sessions: opts.sessions, skippedLines: 0 };
+});
 
 // ── extract actor ──────────────────────────────────────────────────────────
 
@@ -110,31 +92,30 @@ export type ExtractActorResult = {
   failedSessions: string[];
 };
 
-export const extractActor = fromPromise<
-  ExtractActorResult,
-  ExtractActorInput
->(async ({ input }) => {
-  const opts = extractInputSchema.parse({
-    sessions: input.sessions,
-    uowId: input.uowId,
-  });
-  const collected: MemoryCandidateT[] = [];
-  const failed: string[] = [];
-  for (const session of opts.sessions) {
-    const result = await extractMemoryCandidates(session, {
-      uowId: opts.uowId,
-      runner: input.runner,
+export const extractActor = fromPromise<ExtractActorResult, ExtractActorInput>(
+  async ({ input }) => {
+    const opts = extractInputSchema.parse({
+      sessions: input.sessions,
+      uowId: input.uowId,
     });
-    if (!result.ok) {
-      failed.push(session.sessionId);
-      continue;
+    const collected: MemoryCandidateT[] = [];
+    const failed: string[] = [];
+    for (const session of opts.sessions) {
+      const result = await extractMemoryCandidates(session, {
+        uowId: opts.uowId,
+        runner: input.runner,
+      });
+      if (!result.ok) {
+        failed.push(session.sessionId);
+        continue;
+      }
+      for (const c of result.candidates) {
+        collected.push(MemoryCandidate.parse(c));
+      }
     }
-    for (const c of result.candidates) {
-      collected.push(MemoryCandidate.parse(c));
-    }
-  }
-  return { candidates: collected, failedSessions: failed };
-});
+    return { candidates: collected, failedSessions: failed };
+  },
+);
 
 // ── write actors (stage | commit) ──────────────────────────────────────────
 
@@ -149,22 +130,21 @@ export type StageWriteActorResult = {
   paths: string[];
 };
 
-export const stageWriteActor = fromPromise<
-  StageWriteActorResult,
-  StageWriteActorInput
->(async ({ input }) => {
-  const opts = stageWriteInputSchema.parse(input);
-  let written = 0;
-  let skipped = 0;
-  const paths: string[] = [];
-  for (const candidate of opts.candidates) {
-    const r = writeStagedCandidate(candidate, opts.memoryDir);
-    paths.push(r.path);
-    if (r.skipped) skipped += 1;
-    else written += 1;
-  }
-  return { written, skipped, paths };
-});
+export const stageWriteActor = fromPromise<StageWriteActorResult, StageWriteActorInput>(
+  async ({ input }) => {
+    const opts = stageWriteInputSchema.parse(input);
+    let written = 0;
+    let skipped = 0;
+    const paths: string[] = [];
+    for (const candidate of opts.candidates) {
+      const r = writeStagedCandidate(candidate, opts.memoryDir);
+      paths.push(r.path);
+      if (r.skipped) skipped += 1;
+      else written += 1;
+    }
+    return { written, skipped, paths };
+  },
+);
 
 const commitWriteInputSchema = z.object({
   candidates: z.array(MemoryCandidate),
@@ -178,25 +158,24 @@ export type CommitWriteActorResult = {
   paths: string[];
 };
 
-export const commitWriteActor = fromPromise<
-  CommitWriteActorResult,
-  CommitWriteActorInput
->(async ({ input }) => {
-  const opts = commitWriteInputSchema.parse(input);
-  let committed = 0;
-  let skippedDuplicate = 0;
-  let refusedCap = 0;
-  const paths: string[] = [];
-  for (const candidate of opts.candidates) {
-    const r = commitCandidate(candidate, opts.memoryDir);
-    if (r.status === "committed") {
-      committed += 1;
-      if (r.candidatePath) paths.push(r.candidatePath);
-    } else if (r.status === "skipped-duplicate") {
-      skippedDuplicate += 1;
-    } else {
-      refusedCap += 1;
+export const commitWriteActor = fromPromise<CommitWriteActorResult, CommitWriteActorInput>(
+  async ({ input }) => {
+    const opts = commitWriteInputSchema.parse(input);
+    let committed = 0;
+    let skippedDuplicate = 0;
+    let refusedCap = 0;
+    const paths: string[] = [];
+    for (const candidate of opts.candidates) {
+      const r = commitCandidate(candidate, opts.memoryDir);
+      if (r.status === "committed") {
+        committed += 1;
+        if (r.candidatePath) paths.push(r.candidatePath);
+      } else if (r.status === "skipped-duplicate") {
+        skippedDuplicate += 1;
+      } else {
+        refusedCap += 1;
+      }
     }
-  }
-  return { committed, skippedDuplicate, refusedCap, paths };
-});
+    return { committed, skippedDuplicate, refusedCap, paths };
+  },
+);

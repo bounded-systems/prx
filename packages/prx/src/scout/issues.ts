@@ -131,12 +131,7 @@ export class ScoutIssuesError extends Error {
 
 // `--state=open` is the GH-axis hot path (spec §5): bd's full status enum
 // `open / in_progress / blocked / deferred` all count as "execution-open".
-const OPEN_STATUSES: ReadonlySet<string> = new Set([
-  "open",
-  "in_progress",
-  "blocked",
-  "deferred",
-]);
+const OPEN_STATUSES: ReadonlySet<string> = new Set(["open", "in_progress", "blocked", "deferred"]);
 const CLOSED_STATUSES: ReadonlySet<string> = new Set(["closed"]);
 // Tombstones are always excluded from v0 (spec §5). `--include-tombstone`
 // is reserved for a future flag.
@@ -148,9 +143,7 @@ const OWNER_REPO_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/
 
 const DEFAULT_MAX_STALENESS = "24h";
 
-export async function runScoutIssues(
-  input: ScoutIssuesInput = {},
-): Promise<ScoutIssuesResult> {
+export async function runScoutIssues(input: ScoutIssuesInput = {}): Promise<ScoutIssuesResult> {
   const max = input.max;
   if (max !== undefined && (!Number.isFinite(max) || max <= 0)) {
     throw new ScoutIssuesError("max must be a positive integer", "INVALID_MAX");
@@ -249,8 +242,7 @@ export function extractOwnerRepoFromRef(ref: string): string | null {
 function projectRow(bead: BeadsRecord): ScoutIssuesRow {
   const { kind, scope } = parseConventionalPrefix(bead.title);
   const ghRef = bead.externalRefs.gh ?? bead.externalRef;
-  const ghNumber =
-    bead.externalIssueNumber ?? extractIssueNumber(ghRef ?? null);
+  const ghNumber = bead.externalIssueNumber ?? extractIssueNumber(ghRef ?? null);
   const links: ScoutIssuesLink[] = [];
   for (const edge of bead.dependencies ?? []) {
     links.push({ kind: edge.type, target: edge.dependsOnId });

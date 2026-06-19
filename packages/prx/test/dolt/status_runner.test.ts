@@ -20,15 +20,25 @@ import {
 
 type R = { status: number | null; stdout?: string; stderr?: string; error?: Error };
 
-const ctx: DoltStatusContext = { repoRoot: "/repo", hostRepoSlug: "owner/repo", commonDir: "/repo/.git" };
+const ctx: DoltStatusContext = {
+  repoRoot: "/repo",
+  hostRepoSlug: "owner/repo",
+  commonDir: "/repo/.git",
+};
 
 const reachableShow = JSON.stringify({ connection_ok: true, port: 3307, database: "db" });
 
 // Route by tool: bd dolt show (probe), dolt sql (unpushed), git (resolveContext).
-const spawnFor = (resp: { show?: Partial<R>; sql?: Partial<R>; git?: (args: string[]) => Partial<R> }): DoltStatusSpawn =>
+const spawnFor = (resp: {
+  show?: Partial<R>;
+  sql?: Partial<R>;
+  git?: (args: string[]) => Partial<R>;
+}): DoltStatusSpawn =>
   ((file: string, args: string[]) => {
-    if (file === "bd" && args[0] === "dolt" && args[1] === "show") return { status: 0, stdout: "", stderr: "", ...resp.show };
-    if (file === "dolt" && args[0] === "sql") return { status: 0, stdout: "", stderr: "", ...resp.sql };
+    if (file === "bd" && args[0] === "dolt" && args[1] === "show")
+      return { status: 0, stdout: "", stderr: "", ...resp.show };
+    if (file === "dolt" && args[0] === "sql")
+      return { status: 0, stdout: "", stderr: "", ...resp.sql };
     if (file === "git" && resp.git) return { status: 0, stdout: "", stderr: "", ...resp.git(args) };
     return { status: 1, stdout: "", stderr: "" };
   }) as never;
@@ -64,25 +74,54 @@ describe("defaultResolveContext", () => {
   test("resolves repoRoot/commonDir/slug from git", () => {
     const r = defaultResolveContext(
       gitSpawn((args) => {
-        if (args[0] === "rev-parse" && args.includes("--show-toplevel")) return { status: 0, stdout: "/repo\n" };
-        if (args[0] === "rev-parse" && args.includes("--git-common-dir")) return { status: 0, stdout: ".git\n" };
-        if (args[0] === "remote") return { status: 0, stdout: "https://github.com/owner/repo.git\n" };
+        if (args[0] === "rev-parse" && args.includes("--show-toplevel"))
+          return { status: 0, stdout: "/repo\n" };
+        if (args[0] === "rev-parse" && args.includes("--git-common-dir"))
+          return { status: 0, stdout: ".git\n" };
+        if (args[0] === "remote")
+          return { status: 0, stdout: "https://github.com/owner/repo.git\n" };
         return { status: 1 };
       }),
       env,
       "/repo",
     );
-    expect(r).toEqual({ repoRoot: "/repo", hostRepoSlug: "io.github/owner/repo", commonDir: "/repo/.git" });
+    expect(r).toEqual({
+      repoRoot: "/repo",
+      hostRepoSlug: "io.github/owner/repo",
+      commonDir: "/repo/.git",
+    });
   });
 
   test("null when toplevel / common-dir / origin / non-github cannot resolve", () => {
-    expect(defaultResolveContext(gitSpawn(() => ({ status: 1 })), env, "/x")).toBeNull(); // no toplevel
-    expect(defaultResolveContext(gitSpawn((a) => (a.includes("--show-toplevel") ? { status: 0, stdout: "/r" } : { status: 1 })), env, "/x")).toBeNull(); // no common-dir
+    expect(
+      defaultResolveContext(
+        gitSpawn(() => ({ status: 1 })),
+        env,
+        "/x",
+      ),
+    ).toBeNull(); // no toplevel
+    expect(
+      defaultResolveContext(
+        gitSpawn((a) =>
+          a.includes("--show-toplevel") ? { status: 0, stdout: "/r" } : { status: 1 },
+        ),
+        env,
+        "/x",
+      ),
+    ).toBeNull(); // no common-dir
     const noOrigin = gitSpawn((a) =>
-      a[0] === "rev-parse" ? { status: 0, stdout: a.includes("--git-common-dir") ? "/r/.git" : "/r" } : { status: 1 });
+      a[0] === "rev-parse"
+        ? { status: 0, stdout: a.includes("--git-common-dir") ? "/r/.git" : "/r" }
+        : { status: 1 },
+    );
     expect(defaultResolveContext(noOrigin, env, "/x")).toBeNull(); // no origin
     const nonGh = gitSpawn((a) =>
-      a[0] === "remote" ? { status: 0, stdout: "git@gitlab.com:o/r.git" } : a.includes("--git-common-dir") ? { status: 0, stdout: "/r/.git" } : { status: 0, stdout: "/r" });
+      a[0] === "remote"
+        ? { status: 0, stdout: "git@gitlab.com:o/r.git" }
+        : a.includes("--git-common-dir")
+          ? { status: 0, stdout: "/r/.git" }
+          : { status: 0, stdout: "/r" },
+    );
     expect(defaultResolveContext(nonGh, env, "/x")).toBeNull(); // non-github host
   });
 });
@@ -90,7 +129,12 @@ describe("defaultResolveContext", () => {
 // ── runDoltStatus lifecycle matrix ────────────────────────────────────────────
 
 describe("runDoltStatus", () => {
-  const ledger: DoltLedger = { dolt_server_id: "abc", pid: 1234, port: 3307, dsn: "mysql://x" } as DoltLedger;
+  const ledger: DoltLedger = {
+    dolt_server_id: "abc",
+    pid: 1234,
+    port: 3307,
+    dsn: "mysql://x",
+  } as DoltLedger;
 
   test("no resolvable repo context → stopped, exit 1", () => {
     const { code, log } = run({ resolveContext: () => null });
@@ -102,7 +146,10 @@ describe("runDoltStatus", () => {
     const { code, log } = run({
       resolveContext: () => ctx,
       readDoltLedger: () => ledger,
-      spawn: spawnFor({ show: { stdout: reachableShow }, sql: { stdout: JSON.stringify({ rows: [{ n: 3 }] }) } }),
+      spawn: spawnFor({
+        show: { stdout: reachableShow },
+        sql: { stdout: JSON.stringify({ rows: [{ n: 3 }] }) },
+      }),
     });
     expect(code).toBe(0);
     expect(log).toMatch(/lifecycle: healthy/);
@@ -194,7 +241,11 @@ describe("runDoltStatus", () => {
 
   test("json format round-trips the StatusOutput", () => {
     const { log } = run(
-      { resolveContext: () => ctx, readDoltLedger: () => null, spawn: spawnFor({ show: { status: 1 } }) },
+      {
+        resolveContext: () => ctx,
+        readDoltLedger: () => null,
+        spawn: spawnFor({ show: { status: 1 } }),
+      },
       "json",
     );
     expect(JSON.parse(log).lifecycle).toBe("stopped");
@@ -227,7 +278,10 @@ describe("default dolt ledger read", () => {
     const commonDir = fresh();
     const p = ledgerPathFor(commonDir);
     mkdirSync(join(p, ".."), { recursive: true });
-    writeFileSync(p, JSON.stringify({ dolt_server_id: "abc", pid: 9, port: 3307, dsn: "mysql://x" }));
+    writeFileSync(
+      p,
+      JSON.stringify({ dolt_server_id: "abc", pid: 9, port: 3307, dsn: "mysql://x" }),
+    );
     const s = sink();
     runDoltStatus({ repoPath: "/repo", format: "plain" }, s.out, {
       resolveContext: () => ({ ...ctx, commonDir }),

@@ -9,12 +9,22 @@ import type { BdExecResult } from "@bounded-systems/bd";
 import type { GhExecResult } from "@bounded-systems/gh";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
 
-type GhCallTag = { kind: "gh"; subcommand: string; args: string[]; state?: string | undefined; role?: string | undefined };
-type BdCallTag = { kind: "bd"; subcommand: string; args: string[]; state?: string | undefined; role?: string | undefined };
+type GhCallTag = {
+  kind: "gh";
+  subcommand: string;
+  args: string[];
+  state?: string | undefined;
+  role?: string | undefined;
+};
+type BdCallTag = {
+  kind: "bd";
+  subcommand: string;
+  args: string[];
+  state?: string | undefined;
+  role?: string | undefined;
+};
 
-function makeOpts(
-  overrides: Partial<IntakeCommentOptions> = {},
-): IntakeCommentOptions {
+function makeOpts(overrides: Partial<IntakeCommentOptions> = {}): IntakeCommentOptions {
   return intakeCommentOptionsSchema.parse({
     canonicalId: "GH-200",
     body: "see #555 for context",
@@ -308,17 +318,14 @@ describe("runIntakeComment — bd arm", () => {
         loadAllBeads: (() => [bdRecord({ id: "ai-home-gmkwh", notes: null })]) as never,
       },
     );
-    const seededNotes =
-      firstRunCalls[0]!.args[firstRunCalls[0]!.args.indexOf("--notes") + 1]!;
+    const seededNotes = firstRunCalls[0]!.args[firstRunCalls[0]!.args.indexOf("--notes") + 1]!;
 
     const exitCode = runIntakeComment(
       makeOpts({ canonicalId: "ai-home-gmkwh", body: "follow-up" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
         run: recordingRun(bdCalls) as never,
-        loadAllBeads: (() => [
-          bdRecord({ id: "ai-home-gmkwh", notes: seededNotes }),
-        ]) as never,
+        loadAllBeads: (() => [bdRecord({ id: "ai-home-gmkwh", notes: seededNotes })]) as never,
       },
     );
 
@@ -448,15 +455,11 @@ describe("runIntakeComment — bd arm", () => {
 
 describe("runIntakeComment — schema", () => {
   test("empty body is rejected at the schema layer", () => {
-    expect(() =>
-      intakeCommentOptionsSchema.parse({ canonicalId: "GH-1", body: "" }),
-    ).toThrow();
+    expect(() => intakeCommentOptionsSchema.parse({ canonicalId: "GH-1", body: "" })).toThrow();
   });
 
   test("missing canonicalId is rejected", () => {
-    expect(() =>
-      intakeCommentOptionsSchema.parse({ canonicalId: "", body: "x" }),
-    ).toThrow();
+    expect(() => intakeCommentOptionsSchema.parse({ canonicalId: "", body: "x" })).toThrow();
   });
 });
 

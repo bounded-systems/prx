@@ -59,9 +59,7 @@ export type ClaudePrintRunner = (input: {
 
 const proc = localProcExecutor();
 
-export const defaultClaudePrintRunner: ClaudePrintRunner = async ({
-  prompt,
-}) => {
+export const defaultClaudePrintRunner: ClaudePrintRunner = async ({ prompt }) => {
   const result = await proc.exec({
     command: "claude",
     args: ["--print", "--output-format", "json"],
@@ -82,9 +80,7 @@ function renderSessionForPrompt(session: TranscriptSession): string {
     `messages: ${session.messageCount}`,
     "",
   ].join("\n");
-  const body = session.messages
-    .map((m) => `## ${m.role}\n${m.content}`)
-    .join("\n\n");
+  const body = session.messages.map((m) => `## ${m.role}\n${m.content}`).join("\n\n");
   return `${header}\n${body}`;
 }
 

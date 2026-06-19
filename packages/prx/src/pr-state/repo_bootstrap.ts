@@ -45,10 +45,7 @@ import { homeDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
 import { runBdInit } from "../beads/init.ts";
-import {
-  defaultBdInitRunner,
-  type BdInitRunner,
-} from "../beads/init_runner.ts";
+import { defaultBdInitRunner, type BdInitRunner } from "../beads/init_runner.ts";
 import { isCaptureFailure } from "@bounded-systems/proc";
 import {
   classifyBeadsWorkspace as defaultClassifyBeadsWorkspace,
@@ -204,7 +201,10 @@ export type RepoBootstrapResult =
 // ── error class ────────────────────────────────────────────────────────────
 
 export class RepoBootstrapError extends Error {
-  constructor(message: string, readonly code: string) {
+  constructor(
+    message: string,
+    readonly code: string,
+  ) {
     super(message);
     this.name = "RepoBootstrapError";
   }
@@ -232,10 +232,9 @@ function defaultIsMainProtected(runner: RepoRunner): (repo: LocalRepo) => boolea
   return (repo) => {
     const nameWithOwner = repo.primaryRemote?.githubRepo;
     if (!nameWithOwner) return false;
-    const result = runner(
-      ["gh", "api", `repos/${nameWithOwner}/branches/main/protection`],
-      { check: false },
-    );
+    const result = runner(["gh", "api", `repos/${nameWithOwner}/branches/main/protection`], {
+      check: false,
+    });
     return result.status === 0;
   };
 }
@@ -262,7 +261,10 @@ function defaultTempHomeFactory(slug: string, now: Date): string {
   // `~/.local/state/prx/migrations/<slug>-<ts>/` backup sink. Survives
   // reboots (NOT `/tmp`) so a forensic operator can still inspect a
   // failed-arm tempHome the next day.
-  const stamp = now.toISOString().replace(/\.\d{3}Z$/, "Z").replace(/:/g, "-");
+  const stamp = now
+    .toISOString()
+    .replace(/\.\d{3}Z$/, "Z")
+    .replace(/:/g, "-");
   const dir = join(homeDir(), ".local", "state", "prx", "bd-init", `${slug}-${stamp}`);
   mkdirSync(dir, { recursive: true });
   return dir;
@@ -277,10 +279,12 @@ export function runRepoBootstrap(
   const runner = deps.runner ?? defaultRepoRunner;
   const loadIndex = deps.loadRepoInventoryIndex ?? defaultLoadRepoInventoryIndex;
   const writeIndex = deps.writeRepoInventoryIndex ?? defaultWriteRepoInventoryIndex;
-  const classify = deps.classify ?? ((repo) => {
-    const cwd = resolvedRepoCwd(repo) ?? repo.commonDir;
-    return defaultClassifyBeadsWorkspace(cwd);
-  });
+  const classify =
+    deps.classify ??
+    ((repo) => {
+      const cwd = resolvedRepoCwd(repo) ?? repo.commonDir;
+      return defaultClassifyBeadsWorkspace(cwd);
+    });
   const bdInitRunner: BdInitRunner = deps.bdInitRunner ?? defaultBdInitRunner;
   const isMainProtected = deps.isMainProtected ?? defaultIsMainProtected(runner);
   const gitStatusClean = deps.gitStatusClean ?? defaultGitStatusClean(runner);
@@ -289,8 +293,8 @@ export function runRepoBootstrap(
   const tempHomeFactory = deps.tempHomeFactory ?? defaultTempHomeFactory;
   const legacyHomeProbe = deps.legacyHomeProbe ?? defaultLegacyHomeProbe;
   const recordEvent: BootstrapRecordEvent =
-    deps.recordEvent
-    ?? ((event, recordOpts) =>
+    deps.recordEvent ??
+    ((event, recordOpts) =>
       defaultRecordEvent(event, {
         ...(recordOpts?.repo ? { repo: recordOpts.repo } : {}),
         ...(recordOpts?.details ? { details: recordOpts.details } : {}),
@@ -353,10 +357,7 @@ export function runRepoBootstrap(
 
   // 5. classify + idempotency / already-present gates.
   const mode = classify(repo);
-  if (
-    mode.kind === "per_project"
-    && repo.bd_workspace_prefix === prefix
-  ) {
+  if (mode.kind === "per_project" && repo.bd_workspace_prefix === prefix) {
     return {
       kind: "already-bootstrapped",
       slug: repo.name,
@@ -450,10 +451,10 @@ export function runRepoBootstrap(
         slug: repo.name,
         reason: "bd-init-workspace-already-initialized",
         detail:
-          `${repo.name}: bd refused because a .beads/dolt workspace already exists at or above ${workspaceCwd}. `
-          + `Run \`bd info\` (in ${workspaceCwd}) to confirm the existing workspace, then `
-          + `\`prx repo backfill ${repo.name}\` to record its prefix in .prx/repos/index.json. `
-          + `Do NOT move ~/.local/share/beads-home — that won't help and may corrupt live bd state.`,
+          `${repo.name}: bd refused because a .beads/dolt workspace already exists at or above ${workspaceCwd}. ` +
+          `Run \`bd info\` (in ${workspaceCwd}) to confirm the existing workspace, then ` +
+          `\`prx repo backfill ${repo.name}\` to record its prefix in .prx/repos/index.json. ` +
+          `Do NOT move ~/.local/share/beads-home — that won't help and may corrupt live bd state.`,
       };
     }
     if (isLegacyHome) {
@@ -462,9 +463,9 @@ export function runRepoBootstrap(
         slug: repo.name,
         reason: "bd-init-legacy-home-blocks-init",
         detail:
-          `${repo.name}: bd init still refused with HOME isolated to ${tempHome}. `
-          + `Upstream fix tracked at gastownhall/beads. Manual workaround: `
-          + `mv ~/.local/share/beads-home ~/.local/share/beads-home.legacy.bak then re-run.`,
+          `${repo.name}: bd init still refused with HOME isolated to ${tempHome}. ` +
+          `Upstream fix tracked at gastownhall/beads. Manual workaround: ` +
+          `mv ~/.local/share/beads-home ~/.local/share/beads-home.legacy.bak then re-run.`,
       };
     }
     throw new RepoBootstrapError(
@@ -480,10 +481,9 @@ export function runRepoBootstrap(
   // view of recent writes (2026-05-16 contamination incident). Operators
   // can re-enable via `bd config set dolt.auto-push true` per-repo if they
   // want Hosted Dolt replication. Non-fatal on failure.
-  const autoPushResult = bdInitRunner(
-    ["bd", "config", "set", "dolt.auto-push", "false"],
-    { cwd: workspaceCwd },
-  );
+  const autoPushResult = bdInitRunner(["bd", "config", "set", "dolt.auto-push", "false"], {
+    cwd: workspaceCwd,
+  });
   if (isCaptureFailure(autoPushResult)) {
     emit("BD_BOOTSTRAP_AUTO_PUSH_DISABLE_FAILED", {
       detail: (autoPushResult.stderr || autoPushResult.stdout || "").trim(),
@@ -614,7 +614,10 @@ function parseGhPrUrl(stdout: string): { url: string; number: number } | undefin
   const trimmed = stdout.trim();
   if (trimmed.length === 0) return undefined;
   // gh pr create prints the PR URL on the last non-empty line.
-  const lines = trimmed.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+  const lines = trimmed
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
   const last = lines[lines.length - 1];
   if (!last) return undefined;
   const match = last.match(/\/pull\/(\d+)$/);
@@ -624,10 +627,7 @@ function parseGhPrUrl(stdout: string): { url: string; number: number } | undefin
 
 // ── formatter ──────────────────────────────────────────────────────────────
 
-export function formatRepoBootstrap(
-  result: RepoBootstrapResult,
-  format: "plain" | "json",
-): string {
+export function formatRepoBootstrap(result: RepoBootstrapResult, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(result, null, 2);
   }

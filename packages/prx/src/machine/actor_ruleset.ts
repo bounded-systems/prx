@@ -32,24 +32,23 @@ import { actorNames, type ActorName } from "./actor_names.ts";
  */
 export type RulesetRole = "reader" | "executor";
 
-export const BASE_TOOLS_BY_ROLE: Readonly<Record<RulesetRole, readonly string[]>> =
-  Object.freeze({
-    reader: Object.freeze(["Read", "Grep", "Glob"]),
-    executor: Object.freeze([
-      "Read",
-      "Grep",
-      "Glob",
-      "Edit",
-      "Write",
-      "TodoWrite",
-      "TaskCreate",
-      "TaskUpdate",
-      "TaskList",
-      "Bash(bun test:*)",
-      "Bash(bun run:*)",
-      "Bash(bun typecheck:*)",
-    ]),
-  });
+export const BASE_TOOLS_BY_ROLE: Readonly<Record<RulesetRole, readonly string[]>> = Object.freeze({
+  reader: Object.freeze(["Read", "Grep", "Glob"]),
+  executor: Object.freeze([
+    "Read",
+    "Grep",
+    "Glob",
+    "Edit",
+    "Write",
+    "TodoWrite",
+    "TaskCreate",
+    "TaskUpdate",
+    "TaskList",
+    "Bash(bun test:*)",
+    "Bash(bun run:*)",
+    "Bash(bun typecheck:*)",
+  ]),
+});
 
 /**
  * Deny set every ruleset shares (GH-1530). Blocks the raw CLIs that must route
@@ -130,19 +129,14 @@ function dedupe(entries: readonly string[]): string[] {
  *
  * Throws if `actor` is not a canonical actor name (typo fails loud).
  */
-export function actorRuleset(
-  actor: ActorName,
-  options: ActorRulesetOptions = {},
-): ActorRuleset {
+export function actorRuleset(actor: ActorName, options: ActorRulesetOptions = {}): ActorRuleset {
   if (!(actorNames as readonly string[]).includes(actor)) {
     throw new Error(
       `actorRuleset: '${actor}' is not a canonical actor (see src/machine/actor_names.ts)`,
     );
   }
   const role = options.role ?? "reader";
-  const ownNamespace = options.omitOwnNamespace
-    ? []
-    : [`Bash(prx ${actor}:*)`];
+  const ownNamespace = options.omitOwnNamespace ? [] : [`Bash(prx ${actor}:*)`];
 
   const allowedTools = dedupe([
     ...BASE_TOOLS_BY_ROLE[role],
@@ -156,11 +150,7 @@ export function actorRuleset(
     if (options.denyWrite ?? true) roleDeny.push("Write");
   }
 
-  const disallowedTools = dedupe([
-    ...SHARED_DENY,
-    ...roleDeny,
-    ...(options.extraDeny ?? []),
-  ]);
+  const disallowedTools = dedupe([...SHARED_DENY, ...roleDeny, ...(options.extraDeny ?? [])]);
 
   return { allowedTools, disallowedTools };
 }

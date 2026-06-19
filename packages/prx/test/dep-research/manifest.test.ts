@@ -14,11 +14,7 @@ import {
 function repoRootWith(manifest: unknown): string {
   const dir = mkdtempSync(join(tmpdir(), "dep-research-"));
   mkdirSync(join(dir, ".prx", "dep-research"), { recursive: true });
-  writeFileSync(
-    join(dir, DEP_MANIFEST_RELATIVE_PATH),
-    JSON.stringify(manifest),
-    "utf8",
-  );
+  writeFileSync(join(dir, DEP_MANIFEST_RELATIVE_PATH), JSON.stringify(manifest), "utf8");
   return dir;
 }
 
@@ -96,27 +92,30 @@ const checkedInManifestRoot = (() => {
   return null;
 })();
 
-describe.skipIf(checkedInManifestRoot === null)("checked-in manifest at .prx/dep-research/manifest.json", () => {
-  const repoRoot = checkedInManifestRoot as string;
+describe.skipIf(checkedInManifestRoot === null)(
+  "checked-in manifest at .prx/dep-research/manifest.json",
+  () => {
+    const repoRoot = checkedInManifestRoot as string;
 
-  test("parses cleanly", () => {
-    const entries = loadDepManifest(repoRoot);
-    expect(entries.length).toBeGreaterThanOrEqual(1);
-  });
+    test("parses cleanly", () => {
+      const entries = loadDepManifest(repoRoot);
+      expect(entries.length).toBeGreaterThanOrEqual(1);
+    });
 
-  test("every entry has a well-formed URL", () => {
-    const entries = loadDepManifest(repoRoot);
-    for (const entry of entries) {
-      expect(() => new URL(entry.source.url)).not.toThrow();
-    }
-  });
+    test("every entry has a well-formed URL", () => {
+      const entries = loadDepManifest(repoRoot);
+      for (const entry of entries) {
+        expect(() => new URL(entry.source.url)).not.toThrow();
+      }
+    });
 
-  test("entry names are unique", () => {
-    const entries = loadDepManifest(repoRoot);
-    const names = entries.map((e) => e.name);
-    expect(new Set(names).size).toBe(names.length);
-  });
-});
+    test("entry names are unique", () => {
+      const entries = loadDepManifest(repoRoot);
+      const names = entries.map((e) => e.name);
+      expect(new Set(names).size).toBe(names.length);
+    });
+  },
+);
 
 describe("format helpers", () => {
   const entries = [

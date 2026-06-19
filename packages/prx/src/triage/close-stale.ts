@@ -29,11 +29,7 @@
 
 import { z } from "zod";
 
-import {
-  appendAuditRow,
-  auditSinkPath,
-  type AuditSinkDeps,
-} from "../audit/sink.ts";
+import { appendAuditRow, auditSinkPath, type AuditSinkDeps } from "../audit/sink.ts";
 import { execBd as defaultExecBd } from "@bounded-systems/bd";
 import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import { triageCloseStaleAuditRowSchema } from "./schemas/audit.ts";
@@ -157,8 +153,8 @@ export function runTriageCloseStale(
 
   if (stale.canonical === "bd") {
     output.error(
-      "triage close-stale: bd-canonical repo has no 'gh-issue-closed' stale "
-      + "axis (use `prx triage status` for the bd-canonical stale bucket)",
+      "triage close-stale: bd-canonical repo has no 'gh-issue-closed' stale " +
+        "axis (use `prx triage status` for the bd-canonical stale bucket)",
     );
     return { rows: [], writes: 0, skips: 0, errors: 1, logPath };
   }
@@ -172,11 +168,7 @@ export function runTriageCloseStale(
   let errors = 0;
 
   for (const row of rows) {
-    const noteBody = buildClosedNotePrefixed(
-      "prx triage close-stale",
-      opts.reason,
-      opts.note,
-    );
+    const noteBody = buildClosedNotePrefixed("prx triage close-stale", opts.reason, opts.note);
 
     if (opts.dryRun) {
       const entry: TriageCloseStaleAuditEntry = {
@@ -192,9 +184,7 @@ export function runTriageCloseStale(
         exitCode: 0,
       };
       appendAuditRow(entry, auditSink);
-      logProgress(
-        `dry-run ${row.beadsId} GH-${row.issueNumber} close (reason=${opts.reason})`,
-      );
+      logProgress(`dry-run ${row.beadsId} GH-${row.issueNumber} close (reason=${opts.reason})`);
       resultRows.push({
         beadsId: row.beadsId,
         issueNumber: row.issueNumber,
@@ -210,10 +200,9 @@ export function runTriageCloseStale(
 
     // GH-296 / prx-82b: close via the daemon (single writer). `prx beads close`
     // maps to `bd update <id> --status closed --notes <reason>` daemon-side.
-    const result = run(
-      ["prx", "beads", "close", row.beadsId, "--reason", noteBody],
-      { check: false },
-    );
+    const result = run(["prx", "beads", "close", row.beadsId, "--reason", noteBody], {
+      check: false,
+    });
 
     if (result.status !== 0) {
       const detail =

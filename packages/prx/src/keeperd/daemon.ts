@@ -26,11 +26,7 @@ import { type Derivation } from "@bounded-systems/anchored-chain";
 import { execGit } from "@bounded-systems/git";
 
 import { encodeFrame, FrameDecoder, runFramedServe } from "../door/framing.ts";
-import {
-  KeeperGitError,
-  runKeeperPush,
-  type KeeperPushDeps,
-} from "../pr-state/keeper.ts";
+import { KeeperGitError, runKeeperPush, type KeeperPushDeps } from "../pr-state/keeper.ts";
 import { type AttestDeps } from "../provenance/attest.ts";
 import { importBundleIntoRepo } from "./bundle.ts";
 import {
@@ -87,8 +83,7 @@ export async function handleKeeperRequest(
   deps: KeeperDaemonDeps = {},
 ): Promise<KeeperRemoteResponse> {
   const git = deps.git ?? execGit;
-  const importBundle =
-    deps.importBundle ?? ((input) => importBundleIntoRepo(input, { git }));
+  const importBundle = deps.importBundle ?? ((input) => importBundleIntoRepo(input, { git }));
   // Per-request ledger: opened here from request.ledgerRef, closed in `finally`.
   let ledger: { store: AttestDeps["store"]; close: () => void } | undefined;
   // The push/v1 derivations the attesting push appends — captured so the daemon
@@ -108,7 +103,11 @@ export async function handleKeeperRequest(
     // Attest only when the request opts in (ledgerRef) AND a signer + ledger
     // opener are configured (the in-VM PRX_PROVENANCE_KEY path). Otherwise a bare
     // push, unchanged.
-    if (request.ledgerRef !== undefined && deps.signer !== undefined && deps.openLedger !== undefined) {
+    if (
+      request.ledgerRef !== undefined &&
+      deps.signer !== undefined &&
+      deps.openLedger !== undefined
+    ) {
       ledger = deps.openLedger(request.ledgerRef);
       const store = ledger.store;
       pushDeps = {

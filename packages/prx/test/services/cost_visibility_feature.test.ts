@@ -28,7 +28,7 @@ describe("cost-visibility .feature", () => {
     expect(projectFixtureByUnit()).toEqual([...EXPECTED_BY_UNIT]);
   });
 
-  test("FAITHFUL: unattached usage groups as \"(unattached)\"", () => {
+  test('FAITHFUL: unattached usage groups as "(unattached)"', () => {
     expect(projectFixtureByUnit().some((b) => b.bucket === "(unattached)")).toBe(true);
   });
 

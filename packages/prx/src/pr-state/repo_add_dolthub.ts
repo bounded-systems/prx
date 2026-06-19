@@ -102,7 +102,10 @@ export type AddDolthubResult =
 // ── error class ────────────────────────────────────────────────────────────
 
 export class AddDolthubError extends Error {
-  constructor(message: string, readonly code: string) {
+  constructor(
+    message: string,
+    readonly code: string,
+  ) {
     super(message);
     this.name = "AddDolthubError";
   }
@@ -121,9 +124,7 @@ const CHDIR_WARNING_PATTERNS: RegExp[] = [
   /^\s*Run:\s+cd\s+'[^']*'\s+&&\s+dolt remote add\b.*$/m,
 ];
 
-export function filterChdirWarning(
-  stderr: string,
-): { filtered: string; suppressed: boolean } {
+export function filterChdirWarning(stderr: string): { filtered: string; suppressed: boolean } {
   let filtered = stderr;
   let suppressed = false;
   for (const pat of CHDIR_WARNING_PATTERNS) {
@@ -151,19 +152,23 @@ export function runRepoAddDolthub(
   const runner = deps.runner ?? defaultRepoRunner;
   const loadIndex = deps.loadRepoInventoryIndex ?? defaultLoadRepoInventoryIndex;
   const writeIndex = deps.writeRepoInventoryIndex ?? defaultWriteRepoInventoryIndex;
-  const classify = deps.classify ?? ((repo) => {
-    const cwd = resolvedRepoCwd(repo) ?? repo.commonDir;
-    return defaultClassifyBeadsWorkspace(cwd);
-  });
-  const getGitOrigin = deps.getGitOrigin ?? ((repo) => {
-    const cwd = resolvedRepoCwd(repo) ?? repo.commonDir;
-    const result = runner(["git", "-C", cwd, "remote", "get-url", "origin"], {
-      check: false,
+  const classify =
+    deps.classify ??
+    ((repo) => {
+      const cwd = resolvedRepoCwd(repo) ?? repo.commonDir;
+      return defaultClassifyBeadsWorkspace(cwd);
     });
-    if (result.status !== 0) return null;
-    const value = result.stdout.trim();
-    return value.length > 0 ? value : null;
-  });
+  const getGitOrigin =
+    deps.getGitOrigin ??
+    ((repo) => {
+      const cwd = resolvedRepoCwd(repo) ?? repo.commonDir;
+      const result = runner(["git", "-C", cwd, "remote", "get-url", "origin"], {
+        check: false,
+      });
+      if (result.status !== 0) return null;
+      const value = result.stdout.trim();
+      return value.length > 0 ? value : null;
+    });
   const bdRemoteAdd = deps.bdDoltRemoteAdd ?? defaultBdDoltRemoteAdd(runner);
   const bdPush = deps.bdDoltPush ?? defaultBdDoltPush(runner);
 
@@ -260,7 +265,8 @@ export function runRepoAddDolthub(
     };
   }
 
-  const dolthubUser = (opts.dolthubUserOverride?.trim() || opts.dolthubOwnerDefault?.trim() || components.owner);
+  const dolthubUser =
+    opts.dolthubUserOverride?.trim() || opts.dolthubOwnerDefault?.trim() || components.owner;
   const repoName = opts.nameOverride?.trim() || components.repo;
   if (!DOLTHUB_REPO_NAME_PATTERN.test(repoName)) {
     return {
@@ -308,8 +314,9 @@ export function runRepoAddDolthub(
       "bd_dolt_remote_add_failed",
     );
   }
-  const { filtered: remoteAddStderr, suppressed: chdirWarningSuppressed } =
-    filterChdirWarning(remoteAddResult.stderr);
+  const { filtered: remoteAddStderr, suppressed: chdirWarningSuppressed } = filterChdirWarning(
+    remoteAddResult.stderr,
+  );
 
   let pushed = false;
   let pushStderr = "";
@@ -328,7 +335,10 @@ export function runRepoAddDolthub(
   inventory.repos[index] = { ...repo, dolt_remote: candidateUrl };
   writeIndex(opts.config.indexPath, inventory);
 
-  const combinedStderr = [remoteAddStderr, pushStderr].filter((s) => s.length > 0).join("\n").trim();
+  const combinedStderr = [remoteAddStderr, pushStderr]
+    .filter((s) => s.length > 0)
+    .join("\n")
+    .trim();
   return {
     kind: "wired",
     slug: repo.name,
@@ -341,7 +351,9 @@ export function runRepoAddDolthub(
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
-function defaultBdDoltRemoteAdd(runner: RepoRunner): (cwd: string, url: string) => BdSubprocessResult {
+function defaultBdDoltRemoteAdd(
+  runner: RepoRunner,
+): (cwd: string, url: string) => BdSubprocessResult {
   return (cwd, url) => {
     const result = runner(["bd", "dolt", "remote", "add", "origin", url], {
       cwd,
@@ -351,7 +363,9 @@ function defaultBdDoltRemoteAdd(runner: RepoRunner): (cwd: string, url: string) 
   };
 }
 
-function defaultBdDoltPush(runner: RepoRunner): (cwd: string, branch: "main") => BdSubprocessResult {
+function defaultBdDoltPush(
+  runner: RepoRunner,
+): (cwd: string, branch: "main") => BdSubprocessResult {
   return (cwd, branch) => {
     const result = runner(["bd", "dolt", "push", "origin", branch], {
       cwd,
@@ -363,10 +377,7 @@ function defaultBdDoltPush(runner: RepoRunner): (cwd: string, branch: "main") =>
 
 // ── formatter ──────────────────────────────────────────────────────────────
 
-export function formatRepoAddDolthub(
-  result: AddDolthubResult,
-  format: "plain" | "json",
-): string {
+export function formatRepoAddDolthub(result: AddDolthubResult, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(result, null, 2);
   }
@@ -377,7 +388,9 @@ export function formatRepoAddDolthub(
         `  push: ${result.pushed ? "done (bd dolt push origin main)" : "skipped (--no-push)"}`,
       ];
       if (result.chdirWarningSuppressed) {
-        lines.push("  note: bd CLI-half chdir warning suppressed (GH-1696); SQL-side remote is sufficient for bd dolt push/pull");
+        lines.push(
+          "  note: bd CLI-half chdir warning suppressed (GH-1696); SQL-side remote is sufficient for bd dolt push/pull",
+        );
       }
       if (result.bdStderr.length > 0) {
         lines.push("  bd stderr:");

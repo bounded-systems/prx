@@ -55,9 +55,7 @@ export function handoffMemoryKeyPrefix(
   workUnitId?: string | null,
 ): string {
   const work = workUnitId ?? "none";
-  return workUnitId === undefined
-    ? `handoff/${target}/`
-    : `handoff/${target}/${work}/`;
+  return workUnitId === undefined ? `handoff/${target}/` : `handoff/${target}/${work}/`;
 }
 
 // ── identity ───────────────────────────────────────────────────────────────
@@ -78,12 +76,7 @@ export function computeDedupKey(input: {
   args: unknown;
 }): string {
   const canonical = canonicalJson(input.args);
-  const material = [
-    input.workUnitId ?? "",
-    input.targetActor,
-    input.verb,
-    canonical,
-  ].join("");
+  const material = [input.workUnitId ?? "", input.targetActor, input.verb, canonical].join("");
   return `sha256:${createHash("sha256").update(material).digest("hex")}`;
 }
 
@@ -95,9 +88,7 @@ function canonicalJson(value: unknown): string {
   }
   const obj = value as Record<string, unknown>;
   const keys = Object.keys(obj).sort();
-  const body = keys
-    .map((k) => `${JSON.stringify(k)}:${canonicalJson(obj[k])}`)
-    .join(",");
+  const body = keys.map((k) => `${JSON.stringify(k)}:${canonicalJson(obj[k])}`).join(",");
   return `{${body}}`;
 }
 
@@ -117,9 +108,7 @@ export function newHandoffId(now: Date = new Date()): string {
 export type HandoffStoreDeps = {
   execBd?: typeof defaultExecBd | undefined;
   /** Override for tests that want to bypass real CAS writes. */
-  casWriteBlob?:
-    | ((content: string, domain: string) => Promise<{ sha: string }>)
-    | undefined;
+  casWriteBlob?: ((content: string, domain: string) => Promise<{ sha: string }>) | undefined;
   now?: (() => Date) | undefined;
   /** `repoNameWithOwner(cwd)` for I-HQ cross-repo guard. */
   currentRepoSlug?: (() => string) | undefined;
@@ -135,13 +124,7 @@ export type EnqueueResult =
 
 export type EnqueueInput = Omit<
   HandoffEnvelope,
-  | "id"
-  | "dedupKey"
-  | "enqueuedAt"
-  | "status"
-  | "attempts"
-  | "inputRefs"
-  | "maxAttempts"
+  "id" | "dedupKey" | "enqueuedAt" | "status" | "attempts" | "inputRefs" | "maxAttempts"
 > & {
   /** Optional caller-supplied inputRefs; CAS spillover handles get appended. */
   inputRefs?: string[];
@@ -191,12 +174,7 @@ export async function enqueueHandoff(
 
   // Idempotency check — look up an existing row by dedupKey under the
   // recipient's prefix.
-  const existing = await findByDedupKey(
-    input.targetActor,
-    input.workUnitId,
-    dedupKey,
-    execBd,
-  );
+  const existing = await findByDedupKey(input.targetActor, input.workUnitId, dedupKey, execBd);
   if (existing) {
     return { kind: "duplicate", envelope: existing, existingId: existing.id };
   }
@@ -255,9 +233,7 @@ export async function listHandoffs(
   const target = opts.target;
   // `bd memories <prefix>` returns rows whose key starts with prefix. With no
   // target we scan `handoff/`; with a target we scan `handoff/<target>/`.
-  const prefix = target
-    ? handoffMemoryKeyPrefix(target, opts.workUnitId ?? undefined)
-    : "handoff/";
+  const prefix = target ? handoffMemoryKeyPrefix(target, opts.workUnitId ?? undefined) : "handoff/";
 
   const result = execBd(
     {
@@ -423,8 +399,7 @@ export async function writeEnvelope(
   if (result.exitCode !== 0) {
     return {
       ok: false,
-      error:
-        result.stderr.trim() || result.stdout.trim() || "bd remember failed",
+      error: result.stderr.trim() || result.stdout.trim() || "bd remember failed",
     };
   }
   return { ok: true };
@@ -442,9 +417,7 @@ async function maybeSpillArgs(
   if (serialized.length <= HANDOFF_ARGS_INLINE_THRESHOLD_BYTES) {
     return { args, inputRefs };
   }
-  const write =
-    casWrite ?? ((content: string, domain: string) =>
-      writeBlob(content, { domain }));
+  const write = casWrite ?? ((content: string, domain: string) => writeBlob(content, { domain }));
   const { sha } = await write(serialized, HANDOFF_CAS_DOMAIN);
   const handle = `cas://${sha}`;
   return {
@@ -468,12 +441,7 @@ function parseMemoriesJson(stdout: string): BdMemoryRow[] {
   for (const entry of raw) {
     if (!entry || typeof entry !== "object") continue;
     const e = entry as Record<string, unknown>;
-    const key =
-      typeof e.key === "string"
-        ? e.key
-        : typeof e.name === "string"
-          ? e.name
-          : null;
+    const key = typeof e.key === "string" ? e.key : typeof e.name === "string" ? e.name : null;
     const body =
       typeof e.body === "string"
         ? e.body

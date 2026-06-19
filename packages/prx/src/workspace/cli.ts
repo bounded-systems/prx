@@ -94,9 +94,7 @@ export class WorkspaceCliError extends Error {
  */
 export function parseWorkspaceArgs(argv: readonly string[]): WorkspaceCliArgs {
   if (argv.length === 0) {
-    throw new WorkspaceCliError(
-      `workspace requires a verb: ${WORKSPACE_VERBS.join(", ")}`,
-    );
+    throw new WorkspaceCliError(`workspace requires a verb: ${WORKSPACE_VERBS.join(", ")}`);
   }
   const verb = argv[0] ?? "";
   const rest = argv.slice(1);
@@ -202,11 +200,7 @@ export function runWorkspaceCli(
   }
 
   if (args.verb === "materialize") {
-    const workspaceId = resolveWorkspaceIdFromArgsOrCwd(
-      cwd,
-      args.workspaceId,
-      args.branch,
-    );
+    const workspaceId = resolveWorkspaceIdFromArgsOrCwd(cwd, args.workspaceId, args.branch);
     if (!workspaceId) {
       throw new WorkspaceCliError(
         "workspace materialize: cannot resolve workspace_id from cwd; pass --workspace-id",
@@ -253,9 +247,7 @@ export function runWorkspaceCli(
 
   if (args.verb === "service") {
     if (!args.action || (args.action !== "start" && args.action !== "stop")) {
-      throw new WorkspaceCliError(
-        "workspace service requires --action {start|stop}",
-      );
+      throw new WorkspaceCliError("workspace service requires --action {start|stop}");
     }
     const workspaceId = resolveWorkspaceIdFromArgsOrCwd(cwd, args.workspaceId);
     if (!workspaceId) {
@@ -499,17 +491,13 @@ function finalize<T extends AnyOutput>(
 ): WorkspaceCliResult {
   const validated = schema.parse(out);
   const exitCode = SUCCESS_STATUSES.has(validated.status) ? 0 : 1;
-  const output = format === "json"
-    ? JSON.stringify(validated, null, 2)
-    : formatPlain(verb, validated);
+  const output =
+    format === "json" ? JSON.stringify(validated, null, 2) : formatPlain(verb, validated);
   return { exitCode, output, payload: validated };
 }
 
 function formatPlain(verb: WorkspaceVerb, out: AnyOutput): string {
-  const lines = [
-    `workspace.${verb}: ${out.status}`,
-    `  workspace_id=${out.workspace_id}`,
-  ];
+  const lines = [`workspace.${verb}: ${out.status}`, `  workspace_id=${out.workspace_id}`];
   if ("branch_ref" in out) lines.push(`  branch_ref=${out.branch_ref}`);
   if ("branch" in out) lines.push(`  branch=${out.branch}`);
   if ("worktree_path" in out) lines.push(`  worktree_path=${out.worktree_path}`);

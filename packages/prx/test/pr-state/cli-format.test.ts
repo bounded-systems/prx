@@ -40,7 +40,9 @@ describe("cli-format — work-unit checks", () => {
       repo: "owner/repo",
       issue: { number: 1, title: "a thing" },
     } as never;
-    expect(JSON.parse(formatWorkUnitIssueCheck(result, "json"))).toMatchObject({ workUnitId: "GH-1" });
+    expect(JSON.parse(formatWorkUnitIssueCheck(result, "json"))).toMatchObject({
+      workUnitId: "GH-1",
+    });
     expect(formatWorkUnitIssueCheck(result, "plain")).toContain("Issue GH-1 is open in owner/repo");
   });
 
@@ -48,14 +50,18 @@ describe("cli-format — work-unit checks", () => {
     const resolved = { source: "gh", title: "T", state: "open", url: "https://x/1" } as never;
     const json = JSON.parse(formatResolvedWorkUnitCheck("GH-1", resolved, "json"));
     expect(json).toMatchObject({ workUnitId: "GH-1", state: "open", reason: "open", valid: true });
-    expect(formatResolvedWorkUnitCheck("GH-1", resolved, "plain")).toBe("Issue GH-1 is open in https://x/1 (T).");
+    expect(formatResolvedWorkUnitCheck("GH-1", resolved, "plain")).toBe(
+      "Issue GH-1 is open in https://x/1 (T).",
+    );
   });
 
   test("formatResolvedWorkUnitCheck falls back to source when url is absent + non-open reason", () => {
     const resolved = { source: "bd", title: "T", state: "closed", url: null } as never;
     const json = JSON.parse(formatResolvedWorkUnitCheck("GH-2", resolved, "json"));
     expect(json.reason).toBe("closed");
-    expect(formatResolvedWorkUnitCheck("GH-2", resolved, "plain")).toBe("Issue GH-2 is closed in bd (T).");
+    expect(formatResolvedWorkUnitCheck("GH-2", resolved, "plain")).toBe(
+      "Issue GH-2 is closed in bd (T).",
+    );
   });
 
   test("formatArtifactProjectedWorkUnitCheck renders json + plain", () => {
@@ -63,7 +69,9 @@ describe("cli-format — work-unit checks", () => {
       workUnitId: "GH-3",
       reason: "artifact_projected",
     });
-    expect(formatArtifactProjectedWorkUnitCheck("GH-3", "plain")).toContain("projected by a local CAS artifact");
+    expect(formatArtifactProjectedWorkUnitCheck("GH-3", "plain")).toContain(
+      "projected by a local CAS artifact",
+    );
   });
 
   test("formatBeadsIssueMatches: json, id, empty, and a match listing", () => {
@@ -79,19 +87,27 @@ describe("cli-format — work-unit checks", () => {
     expect(formatWorkUnitSessionCheck(withWt, "plain")).toContain("worktree /tmp/wt is not locked");
     const without = { workUnitId: "GH-1", worktreePath: null } as never;
     expect(formatWorkUnitSessionCheck(without, "plain")).toContain("no matching worktree");
-    expect(JSON.parse(formatWorkUnitSessionCheck(withWt, "json"))).toMatchObject({ workUnitId: "GH-1" });
+    expect(JSON.parse(formatWorkUnitSessionCheck(withWt, "json"))).toMatchObject({
+      workUnitId: "GH-1",
+    });
   });
 
   test("formatWorkUnitChainCheck covers each pass reason", () => {
     const mk = (over: Record<string, unknown>) =>
       formatWorkUnitChainCheck({ workUnitId: "GH-1", ...over } as never, "plain");
-    expect(mk({ reason: "missing_unit_allowed", issueAuthorityActive: true })).toContain("can bootstrap this unit");
-    expect(mk({ reason: "missing_unit_allowed", issueAuthorityActive: false })).toContain("pre-switch creation");
+    expect(mk({ reason: "missing_unit_allowed", issueAuthorityActive: true })).toContain(
+      "can bootstrap this unit",
+    );
+    expect(mk({ reason: "missing_unit_allowed", issueAuthorityActive: false })).toContain(
+      "pre-switch creation",
+    );
     expect(mk({ reason: "artifact_projected" })).toContain("content-addressed plan artifact");
     expect(mk({ reason: "backfill_allowed" })).toContain("local backfill is still needed");
     expect(mk({ reason: "bd_schema_drift_detected" })).toContain("bd schema drift detected");
     expect(mk({ reason: "ok" })).toContain("no cleanup is required");
-    expect(JSON.parse(formatWorkUnitChainCheck({ workUnitId: "GH-1", reason: "ok" } as never, "json"))).toMatchObject({
+    expect(
+      JSON.parse(formatWorkUnitChainCheck({ workUnitId: "GH-1", reason: "ok" } as never, "json")),
+    ).toMatchObject({
       workUnitId: "GH-1",
     });
   });
@@ -106,7 +122,10 @@ describe("cli-format — gate / graph / task", () => {
       derivationId: "deriv-1",
       verdict: { unit: "GH-1", subject: "sub", reason: "nope", violations: ["a", "b"] },
     } as never;
-    expect(JSON.parse(formatGateResult(result, "json"))).toMatchObject({ gate: "merge", pass: false });
+    expect(JSON.parse(formatGateResult(result, "json"))).toMatchObject({
+      gate: "merge",
+      pass: false,
+    });
     const plain = formatGateResult(result, "plain");
     expect(plain).toContain("merge-gate: FAIL (GH-1)");
     expect(plain).toContain("reason:      nope");
@@ -156,7 +175,9 @@ describe("cli-format — gate / graph / task", () => {
     const plain = formatSessionOpenCheck(withTask, "plain");
     expect(plain).toContain("workUnit=GH-5431");
     expect(plain).toContain("currentRole=planner");
-    expect(JSON.parse(formatSessionOpenCheck(withTask, "json"))).toMatchObject({ workUnitId: "GH-5431" });
+    expect(JSON.parse(formatSessionOpenCheck(withTask, "json"))).toMatchObject({
+      workUnitId: "GH-5431",
+    });
 
     const noTask = {
       workUnitId: "GH-9",
@@ -175,16 +196,28 @@ describe("cli-format — gate / graph / task", () => {
 describe("cli-format — worktree / ci surfaces", () => {
   test("formatWorktreeRemove: dry-run and removed-with-branch-deleted", () => {
     const dry = {
-      target: "GH-1", path: "/tmp/GH-1", branch: "GH-1", force: false, prune: true,
-      deleteBranch: false, dryRun: true, branchDeleted: false,
+      target: "GH-1",
+      path: "/tmp/GH-1",
+      branch: "GH-1",
+      force: false,
+      prune: true,
+      deleteBranch: false,
+      dryRun: true,
+      branchDeleted: false,
     } as never;
     const dryOut = formatWorktreeRemove(dry, "plain");
     expect(dryOut).toContain("result=dry-run");
     expect(dryOut).not.toContain("branch_result=");
 
     const removed = {
-      target: "GH-1", path: "/tmp/GH-1", branch: null, force: true, prune: false,
-      deleteBranch: true, dryRun: false, branchDeleted: true,
+      target: "GH-1",
+      path: "/tmp/GH-1",
+      branch: null,
+      force: true,
+      prune: false,
+      deleteBranch: true,
+      dryRun: false,
+      branchDeleted: true,
     } as never;
     const out = formatWorktreeRemove(removed, "plain");
     expect(out).toContain("branch=detached");
@@ -202,8 +235,16 @@ describe("cli-format — worktree / ci surfaces", () => {
       pr: 7,
       failingChecks: [
         {
-          name: "ci", state: "FAILURE", description: "boom", link: "https://x",
-          codebuild: { buildId: "b-1", reportArn: "arn:1", error: null, failures: [{ test: "t1" }, { test: "t2" }] },
+          name: "ci",
+          state: "FAILURE",
+          description: "boom",
+          link: "https://x",
+          codebuild: {
+            buildId: "b-1",
+            reportArn: "arn:1",
+            error: null,
+            failures: [{ test: "t1" }, { test: "t2" }],
+          },
         },
       ],
     } as never;
@@ -223,7 +264,14 @@ describe("cli-format — worktree / ci surfaces", () => {
     const withLogs = {
       pr: 9,
       checks: [
-        { name: "build", state: "FAILURE", link: "https://l", runId: "r-1", error: "nope", logs: "line1\nline2" },
+        {
+          name: "build",
+          state: "FAILURE",
+          link: "https://l",
+          runId: "r-1",
+          error: "nope",
+          logs: "line1\nline2",
+        },
       ],
     } as never;
     const out = formatScoutLogs(withLogs, "plain");

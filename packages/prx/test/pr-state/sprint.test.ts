@@ -24,10 +24,38 @@ describe("SprintX machine", () => {
 
   test("deriveExecutionProgress counts merged, ready, blocked, inProgress", () => {
     const progress = deriveExecutionProgress([
-      { number: 1, state: "merged", draft: false, checks: "green", review: "approved", mergeable: "mergeable" },
-      { number: 2, state: "open", draft: false, checks: "green", review: "approved", mergeable: "mergeable" },
-      { number: 3, state: "open", draft: false, checks: "red", review: "review_required", mergeable: "unknown" },
-      { number: 4, state: "open", draft: true, checks: "pending", review: "review_required", mergeable: "unknown" },
+      {
+        number: 1,
+        state: "merged",
+        draft: false,
+        checks: "green",
+        review: "approved",
+        mergeable: "mergeable",
+      },
+      {
+        number: 2,
+        state: "open",
+        draft: false,
+        checks: "green",
+        review: "approved",
+        mergeable: "mergeable",
+      },
+      {
+        number: 3,
+        state: "open",
+        draft: false,
+        checks: "red",
+        review: "review_required",
+        mergeable: "unknown",
+      },
+      {
+        number: 4,
+        state: "open",
+        draft: true,
+        checks: "pending",
+        review: "review_required",
+        mergeable: "unknown",
+      },
     ]);
     expect(progress).toMatchObject({
       total: 4,
@@ -109,19 +137,52 @@ describe("SprintX machine", () => {
     const withMetric = {
       ...initial,
       metric: { ...initial.metric, baseline: 100, current: 95 },
-      bindings: { ...initial.bindings, prNumbers: [1, 2], ticketIds: ["GH-1" as WorkUnitId], unitIds: [] },
+      bindings: {
+        ...initial.bindings,
+        prNumbers: [1, 2],
+        ticketIds: ["GH-1" as WorkUnitId],
+        unitIds: [],
+      },
     };
     const executing = refreshSprintDerived(withMetric, [
-      { number: 1, state: "open", draft: false, checks: "green", review: "approved", mergeable: "mergeable" },
-      { number: 2, state: "open", draft: false, checks: "pending", review: "review_required", mergeable: "unknown" },
+      {
+        number: 1,
+        state: "open",
+        draft: false,
+        checks: "green",
+        review: "approved",
+        mergeable: "mergeable",
+      },
+      {
+        number: 2,
+        state: "open",
+        draft: false,
+        checks: "pending",
+        review: "review_required",
+        mergeable: "unknown",
+      },
     ]);
     expect(executing.derived.sprintStatus).toBe("executing");
 
     const complete = refreshSprintDerived(
       { ...executing, metric: { ...executing.metric, current: 85 } },
       [
-        { number: 1, state: "merged", draft: false, checks: "green", review: "approved", mergeable: "mergeable" },
-        { number: 2, state: "merged", draft: false, checks: "green", review: "approved", mergeable: "mergeable" },
+        {
+          number: 1,
+          state: "merged",
+          draft: false,
+          checks: "green",
+          review: "approved",
+          mergeable: "mergeable",
+        },
+        {
+          number: 2,
+          state: "merged",
+          draft: false,
+          checks: "green",
+          review: "approved",
+          mergeable: "mergeable",
+        },
       ],
     );
     expect(complete.derived.sprintStatus).toBe("complete");

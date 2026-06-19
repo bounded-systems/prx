@@ -23,10 +23,7 @@ import {
   type FallbackIssue,
 } from "../pr-state/github.ts";
 import { buildTriageHaikuClassifierRuntimeProfile } from "../machine/runtime_profiles.ts";
-import {
-  agentProfileExecutionAsRuntimeResult,
-  executeAgentProfile,
-} from "../pr-state/executor.ts";
+import { agentProfileExecutionAsRuntimeResult, executeAgentProfile } from "../pr-state/executor.ts";
 // GH-1602: substitute the gh-side `listOpenIssues` with the bd-resident
 // projection. `pruneMergedActor` syncs bd from GH at the head of every triage
 // pass, so type-pass's queue enumeration is substrate-resident now.
@@ -34,22 +31,12 @@ import { listOpenIssuesFromBeads as defaultListOpenIssues } from "./issues-from-
 import { BD_TYPE_ENUM, parseLabelName } from "./labels.ts";
 import { type TypeLabel } from "./label-vocab.ts";
 import { execGh as defaultExecGh, type GhExecResult } from "@bounded-systems/gh";
-import {
-  runBeadsSync as defaultRunBeadsSync,
-  type BeadsSyncResult,
-} from "../sync/run.ts";
+import { runBeadsSync as defaultRunBeadsSync, type BeadsSyncResult } from "../sync/run.ts";
 import { DEFAULT_SYNC_LIMIT } from "../sync/limits.ts";
 import { parseClaudeJsonEnvelope } from "../claude/envelope.ts";
 import { stripCodeFence } from "../claude/strip-code-fence.ts";
-import {
-  triageTypePassOptionsSchema,
-  type TriageTypePassOptions,
-} from "./schemas/input.ts";
-import {
-  appendAuditRow,
-  auditSinkPath,
-  type AuditSinkDeps,
-} from "../audit/sink.ts";
+import { triageTypePassOptionsSchema, type TriageTypePassOptions } from "./schemas/input.ts";
+import { appendAuditRow, auditSinkPath, type AuditSinkDeps } from "../audit/sink.ts";
 
 export { triageTypePassOptionsSchema, type TriageTypePassOptions };
 
@@ -397,9 +384,7 @@ export async function runTriageTypePass(
   });
 
   if (candidates.length === 0) {
-    outputSink.log(
-      `triage type-pass: no candidates (type-less queue empty) log=${logPath}`,
-    );
+    outputSink.log(`triage type-pass: no candidates (type-less queue empty) log=${logPath}`);
     return 0;
   }
 
@@ -461,9 +446,7 @@ export async function runTriageTypePass(
       rows = parsed.rows;
       cost = parsed.cost;
     } catch (err) {
-      outputSink.error(
-        `triage type-pass: haiku ${batchId} parse error: ${(err as Error).message}`,
-      );
+      outputSink.error(`triage type-pass: haiku ${batchId} parse error: ${(err as Error).message}`);
       for (const c of batch) {
         const entry: TypePassAuditRowEntry = {
           ts: now.toISOString(),
@@ -515,8 +498,7 @@ export async function runTriageTypePass(
       // stamp the GH-only `type::spike` marker alongside the bd-axis
       // `type::task` (or whatever bd-typed value the model picked). The
       // marker is suppressed if it would duplicate an existing label.
-      const wantsSpikeLabel =
-        decision.spike === true && !c.currentLabels.includes("type::spike");
+      const wantsSpikeLabel = decision.spike === true && !c.currentLabels.includes("type::spike");
       const baseLabel = `type::${decision.type}`;
       const addLabels = wantsSpikeLabel ? [baseLabel, "type::spike"] : [baseLabel];
       const addLabelArg = addLabels.join(",");
@@ -539,9 +521,7 @@ export async function runTriageTypePass(
           exitCode: 0,
         };
         append(entry);
-        outputSink.log(
-          `dry-run GH-${c.number} +${addLabelArg} (${decision.confidence})`,
-        );
+        outputSink.log(`dry-run GH-${c.number} +${addLabelArg} (${decision.confidence})`);
         classified += 1;
         continue;
       }
@@ -585,13 +565,9 @@ export async function runTriageTypePass(
       append(entry);
 
       if (ok) {
-        outputSink.log(
-          `apply GH-${c.number} +${addLabelArg} (${decision.confidence})`,
-        );
+        outputSink.log(`apply GH-${c.number} +${addLabelArg} (${decision.confidence})`);
       } else {
-        outputSink.error(
-          `error GH-${c.number} exit=${result.exitCode}: ${result.stderr.trim()}`,
-        );
+        outputSink.error(`error GH-${c.number} exit=${result.exitCode}: ${result.stderr.trim()}`);
       }
     }
   }

@@ -34,8 +34,6 @@ describe("buildOpsTriageSdkRuntimeProfile seed (prx-383)", () => {
   });
 
   test("no id ⇒ the default sweep profile (unchanged)", () => {
-    expect(buildOpsTriageSdkRuntimeProfile().sdkSpec?.prompt).not.toContain(
-      "specific work-unit",
-    );
+    expect(buildOpsTriageSdkRuntimeProfile().sdkSpec?.prompt).not.toContain("specific work-unit");
   });
 });

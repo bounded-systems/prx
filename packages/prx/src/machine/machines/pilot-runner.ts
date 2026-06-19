@@ -25,11 +25,7 @@ import { createHash } from "node:crypto";
 
 import type { NonInteractiveAgentResult } from "../../claude/agent_service.ts";
 import type { TaskRole } from "./task.ts";
-import {
-  roleProfile,
-  type LegInput,
-  type LegRunner,
-} from "./pilot.ts";
+import { roleProfile, type LegInput, type LegRunner } from "./pilot.ts";
 
 /** Run one role as a headless agent. Prod = `runClaudeAgentNonInteractive`. */
 export type RunRoleAgent = (input: LegInput) => Promise<NonInteractiveAgentResult>;

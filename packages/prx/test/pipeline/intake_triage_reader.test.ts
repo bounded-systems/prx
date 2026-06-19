@@ -17,22 +17,28 @@ describe("uowReaderWith", () => {
   });
 
   test("selects the matching row from a bd-show array", () => {
-    const read = uowReaderWith(runner({
-      stdout: JSON.stringify([
-        { id: "GH-9", title: "dep", status: "open" },
-        { id: "GH-1", title: "the unit", status: "in_progress" },
-      ]),
-    }));
+    const read = uowReaderWith(
+      runner({
+        stdout: JSON.stringify([
+          { id: "GH-9", title: "dep", status: "open" },
+          { id: "GH-1", title: "the unit", status: "in_progress" },
+        ]),
+      }),
+    );
     expect(read("GH-1")).toEqual({ id: "GH-1", title: "the unit", status: "in_progress" });
   });
 
   test("accepts a single (non-array) record shape", () => {
-    const read = uowReaderWith(runner({ stdout: JSON.stringify({ id: "GH-2", title: "t", status: "open" }) }));
+    const read = uowReaderWith(
+      runner({ stdout: JSON.stringify({ id: "GH-2", title: "t", status: "open" }) }),
+    );
     expect(read("GH-2")).toEqual({ id: "GH-2", title: "t", status: "open" });
   });
 
   test("throws when no row matches the requested id", () => {
-    const read = uowReaderWith(runner({ stdout: JSON.stringify([{ id: "GH-other", title: "x", status: "open" }]) }));
+    const read = uowReaderWith(
+      runner({ stdout: JSON.stringify([{ id: "GH-other", title: "x", status: "open" }]) }),
+    );
     expect(() => read("GH-1")).toThrow(/no record with id=GH-1/);
   });
 });

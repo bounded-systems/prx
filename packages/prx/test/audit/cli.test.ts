@@ -39,7 +39,10 @@ function setupFixtures(): { auditDir: string; transitionDir: string } {
 }
 
 type Captured = { stdout: string[]; stderr: string[] };
-function makeOutput(): { output: { log: (s: string) => void; error: (s: string) => void }; captured: Captured } {
+function makeOutput(): {
+  output: { log: (s: string) => void; error: (s: string) => void };
+  captured: Captured;
+} {
   const captured: Captured = { stdout: [], stderr: [] };
   return {
     output: {
@@ -89,9 +92,7 @@ describe("runAuditUow / projectAuditUow", () => {
     // For GH-1823 the fixture lands patch_proposal, patch_check, guard_check,
     // test_run. work_map / delegation_record / plan / review_bundle remain
     // absent in the V1 baseline.
-    const byType = Object.fromEntries(
-      projection.artifact_chain.map((c) => [c.type, c.status]),
-    );
+    const byType = Object.fromEntries(projection.artifact_chain.map((c) => [c.type, c.status]));
     expect(byType.patch_proposal).toBe("present");
     expect(byType.test_run).toBe("present");
     expect(byType.review_bundle).toBe("absent");

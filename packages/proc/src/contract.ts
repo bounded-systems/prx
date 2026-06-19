@@ -69,9 +69,7 @@ export function localProcExecutor(): ProcExecutor {
             stdio: "inherit",
             ...(req.timeoutMs ? { timeout: req.timeoutMs } : {}),
           });
-          child.on("error", () =>
-            resolve({ status: 1, stdout: "", stderr: "", signal: null }),
-          );
+          child.on("error", () => resolve({ status: 1, stdout: "", stderr: "", signal: null }));
           child.on("close", (status, signal) =>
             resolve({
               status: statusOf(status, signal),

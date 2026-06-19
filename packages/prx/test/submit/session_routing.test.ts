@@ -9,10 +9,7 @@ import { describe, expect, test } from "bun:test";
 import { runCli } from "../../src/pr-state/cli.ts";
 import { dispatchFromArgv } from "../../src/pr-state/session-entry/dispatch.ts";
 import type { OpenSessionResult } from "../../src/session/open.ts";
-import type {
-  RuntimeExecutionResult,
-  RuntimeExecutor,
-} from "../../src/pr-state/executor.ts";
+import type { RuntimeExecutionResult, RuntimeExecutor } from "../../src/pr-state/executor.ts";
 
 type Output = {
   log: (line: string) => void;
@@ -37,9 +34,10 @@ function fakeOpenSession(opts: {
   worktreePath: string;
   record?: (input: { actor: string; workUnitId?: string | undefined }) => void;
 }) {
-  return async (
-    input: { actor: string; workUnitId?: string | undefined },
-  ): Promise<OpenSessionResult> => {
+  return async (input: {
+    actor: string;
+    workUnitId?: string | undefined;
+  }): Promise<OpenSessionResult> => {
     opts.record?.(input);
     return {
       workspace_id: "deadbeef0000",
@@ -147,7 +145,7 @@ for (const actor of ["submit", "author"] as const) {
       expect(openSessionCalled).toBe(false);
       expect(executorCalled).toBe(false);
       const joined = logs.join("\n");
-      expect(joined).toContain("\"command\": \"claude\"");
+      expect(joined).toContain('"command": "claude"');
     });
 
     test("--check confirms readiness without opening a session", async () => {
@@ -178,9 +176,7 @@ for (const actor of ["submit", "author"] as const) {
       });
       expect(exit).toBe(1);
       expect(executorCalled).toBe(false);
-      expect(
-        errors.some((line) => line.includes("session-open failed")),
-      ).toBe(true);
+      expect(errors.some((line) => line.includes("session-open failed"))).toBe(true);
     });
   });
 }

@@ -40,10 +40,9 @@ const testToReview: GuardFn = ({ graph, contract }) => {
   if (contract.requiredStatus === "passed" && testRun.status !== "passed") {
     return {
       ok: false,
-      reason:
-        `required artifact ${contract.requiredArtifact}.status=${
-          testRun.status ?? "absent"
-        }; need "passed"`,
+      reason: `required artifact ${contract.requiredArtifact}.status=${
+        testRun.status ?? "absent"
+      }; need "passed"`,
     };
   }
   for (const forbidden of contract.forbiddenArtifacts) {
@@ -77,18 +76,16 @@ const inReviewToReadyToMerge: GuardFn = ({ graph, contract }) => {
   if (raw.status !== "present" && raw.status !== "passed") {
     return {
       ok: false,
-      reason:
-        `required artifact ${contract.requiredArtifact}.status=${
-          raw.status ?? "absent"
-        }; need "present"`,
+      reason: `required artifact ${contract.requiredArtifact}.status=${
+        raw.status ?? "absent"
+      }; need "present"`,
     };
   }
   const payload = (raw as { payload?: unknown }).payload;
   if (!payload) {
     return {
       ok: false,
-      reason:
-        `artifact ${contract.requiredArtifact} carries no payload; cannot evaluate I04`,
+      reason: `artifact ${contract.requiredArtifact} carries no payload; cannot evaluate I04`,
     };
   }
   let rawState: RawStateV1;
@@ -97,9 +94,7 @@ const inReviewToReadyToMerge: GuardFn = ({ graph, contract }) => {
   } catch (err) {
     return {
       ok: false,
-      reason: `raw_state_v1 payload failed schema validation: ${
-        (err as Error).message
-      }`,
+      reason: `raw_state_v1 payload failed schema validation: ${(err as Error).message}`,
     };
   }
   const report = assertInvariants(rawState, "ready_to_merge");
@@ -131,10 +126,9 @@ const mapToDelegate: GuardFn = ({ graph, contract }) => {
   if (contract.requiredStatus === "present" && workMap.status !== "present") {
     return {
       ok: false,
-      reason:
-        `required artifact ${contract.requiredArtifact}.status=${
-          workMap.status ?? "absent"
-        }; need "present"`,
+      reason: `required artifact ${contract.requiredArtifact}.status=${
+        workMap.status ?? "absent"
+      }; need "present"`,
     };
   }
   for (const forbidden of contract.forbiddenArtifacts) {
@@ -167,10 +161,9 @@ const delegateToExecute: GuardFn = ({ graph, contract }) => {
   if (contract.requiredStatus === "present" && record.status !== "present") {
     return {
       ok: false,
-      reason:
-        `required artifact ${contract.requiredArtifact}.status=${
-          record.status ?? "absent"
-        }; need "present"`,
+      reason: `required artifact ${contract.requiredArtifact}.status=${
+        record.status ?? "absent"
+      }; need "present"`,
     };
   }
   for (const forbidden of contract.forbiddenArtifacts) {

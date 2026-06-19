@@ -9,10 +9,7 @@
  */
 import { describe, expect, test } from "bun:test";
 
-import type {
-  SurfaceSyncAction,
-  SurfaceSyncResult,
-} from "@bounded-systems/surface-sync";
+import type { SurfaceSyncAction, SurfaceSyncResult } from "@bounded-systems/surface-sync";
 
 import { markFindings } from "../../../../src/machine/gc/capability.ts";
 import { createChainDriver } from "../../../../src/machine/gc/drivers/chain.ts";
@@ -97,11 +94,7 @@ describe("createChainDriver — mark", () => {
       mark: [dw("GH-1"), dlb("GH-1"), drb("GH-1"), dlb("GH-2"), drb("GH-2")],
     });
     const findings = await createChainDriver(deps).mark();
-    expect(findings.map((f) => f.ref).sort()).toEqual([
-      "local:GH-2",
-      "remote:GH-1",
-      "remote:GH-2",
-    ]);
+    expect(findings.map((f) => f.ref).sort()).toEqual(["local:GH-2", "remote:GH-1", "remote:GH-2"]);
   });
 
   test("no branch actions → no findings", async () => {

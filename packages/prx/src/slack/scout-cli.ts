@@ -53,11 +53,10 @@ export async function execSlackScoutRead(input: SlackScoutInput): Promise<string
 
   const keymaker = slackScopedKeymaker(createServiceKeymaker("slack"));
   const transport = webApiSlackTransport();
-  const envelope = await execSlackRead(
-    input.op,
-    params as Parameters<typeof execSlackRead>[1],
-    { keymaker, transport },
-  );
+  const envelope = await execSlackRead(input.op, params as Parameters<typeof execSlackRead>[1], {
+    keymaker,
+    transport,
+  });
 
   if (input.ledger !== undefined) {
     const store = openAnchoredChain(input.ledger);

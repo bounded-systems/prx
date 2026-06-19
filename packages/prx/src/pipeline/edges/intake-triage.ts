@@ -16,10 +16,7 @@ import type { CommandRunner } from "@bounded-systems/proc";
 
 import { bdCommandRunner } from "../../beadsd/bd-command-runner.ts";
 
-import {
-  type Uow,
-  uowSchema,
-} from "../../machine/contracts/lifecycle_artifacts.ts";
+import { type Uow, uowSchema } from "../../machine/contracts/lifecycle_artifacts.ts";
 import {
   type ArtifactEdge,
   type Fetcher,
@@ -70,9 +67,7 @@ export function uowReaderWith(run: CommandRunner = bdCommandRunner): UowReader {
       throw new Error(`bd show ${unit} failed: ${(r.stderr || r.stdout || "").trim()}`);
     }
     const parsed = JSON.parse(r.stdout) as unknown;
-    const rows = (Array.isArray(parsed) ? parsed : [parsed]) as Array<
-      Record<string, unknown>
-    >;
+    const rows = (Array.isArray(parsed) ? parsed : [parsed]) as Array<Record<string, unknown>>;
     const row = rows.find((x) => x?.id === unit);
     if (!row) throw new Error(`bd show ${unit}: no record with id=${unit}`);
     return { id: String(row.id), title: String(row.title), status: String(row.status) };

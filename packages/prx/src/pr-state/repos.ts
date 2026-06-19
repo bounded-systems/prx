@@ -4,15 +4,21 @@ function resolvedHome(): string | null {
   const h = getEnv("HOME");
   return h ? resolve(h) : null;
 }
-import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync, readFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+  readFileSync,
+} from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { homeDir as osHomeDir } from "@bounded-systems/host";
 import { z } from "zod";
 import { spawnCapture } from "@bounded-systems/proc";
-import {
-  hydrateAfterMaterialize,
-  type HydrateResult,
-} from "../beads/repo_hydrate.ts";
+import { hydrateAfterMaterialize, type HydrateResult } from "../beads/repo_hydrate.ts";
 
 // GH-1657: bd workspace prefix shape — mirrors DomainAdapterConfig.domain
 // (`^[a-z][a-z0-9-]*$`); inlined to avoid an import cycle with the adapters
@@ -26,9 +32,7 @@ export const DOLTHUB_REPO_NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{2,31}$/;
 
 // GH-1703: parse the Dolthub remote URL into {dolt_user, repo_name} so the
 // schema refinement can validate just the repo-name segment.
-function parseDolthubRemoteUrl(
-  url: string,
-): { doltUser: string; repoName: string } | null {
+function parseDolthubRemoteUrl(url: string): { doltUser: string; repoName: string } | null {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== "https:") return null;
@@ -66,7 +70,9 @@ export const defaultRepoRunner: RepoRunner = (cmd, options = {}) => {
   };
 
   if (options.check !== false && output.status !== 0) {
-    throw new Error(output.stderr.trim() || output.stdout.trim() || `Command failed: ${cmd.join(" ")}`);
+    throw new Error(
+      output.stderr.trim() || output.stdout.trim() || `Command failed: ${cmd.join(" ")}`,
+    );
   }
 
   return output;
@@ -192,31 +198,29 @@ export type RepoInventory = {
 // bypassed by smuggling a non-Dolthub URL.
 export const repoInventorySchema = z
   .object({
-    repos: z
-      .array(
-        z
-          .object({
-            bd_workspace_prefix: z.string().regex(WORKSPACE_PREFIX_PATTERN).optional(),
-            canonical: z.enum(["gh", "bd"]).optional(),
-            stale_threshold_days: z.number().int().positive().optional(),
-            dolt_remote: z
-              .string()
-              .url()
-              .refine(
-                (url) => {
-                  const parsed = parseDolthubRemoteUrl(url);
-                  return parsed !== null
-                    && DOLTHUB_REPO_NAME_PATTERN.test(parsed.repoName);
-                },
-                {
-                  message:
-                    "dolt_remote must be a Dolthub URL with a 3–32-char repo-name path segment matching ^[A-Za-z][A-Za-z0-9_-]*$",
-                },
-              )
-              .optional(),
-          })
-          .passthrough(),
-      ),
+    repos: z.array(
+      z
+        .object({
+          bd_workspace_prefix: z.string().regex(WORKSPACE_PREFIX_PATTERN).optional(),
+          canonical: z.enum(["gh", "bd"]).optional(),
+          stale_threshold_days: z.number().int().positive().optional(),
+          dolt_remote: z
+            .string()
+            .url()
+            .refine(
+              (url) => {
+                const parsed = parseDolthubRemoteUrl(url);
+                return parsed !== null && DOLTHUB_REPO_NAME_PATTERN.test(parsed.repoName);
+              },
+              {
+                message:
+                  "dolt_remote must be a Dolthub URL with a 3–32-char repo-name path segment matching ^[A-Za-z][A-Za-z0-9_-]*$",
+              },
+            )
+            .optional(),
+        })
+        .passthrough(),
+    ),
   })
   .passthrough();
 
@@ -442,7 +446,9 @@ export function parseRepoUrl(url: string): ParsedRepoUrl | null {
   }
 
   // ssh: git@host:owner/repo[.git]
-  const sshMatch = trimmed.match(/^[A-Za-z0-9._-]+@([A-Za-z0-9.-]+):([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/);
+  const sshMatch = trimmed.match(
+    /^[A-Za-z0-9._-]+@([A-Za-z0-9.-]+):([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/,
+  );
   if (sshMatch) {
     const host = sshMatch[1]!;
     const owner = sshMatch[2]!;
@@ -505,7 +511,10 @@ function repoIdentityKey(repo: Pick<LocalRepo, "name" | "primaryRemote" | "commo
   return repo.primaryRemote?.githubRepo ?? `${repo.name}:${repo.commonDir}`;
 }
 
-function canonicalBarePathForRepo(repo: Pick<LocalRepo, "primaryRemote">, bareRoot: string | null | undefined): string | null {
+function canonicalBarePathForRepo(
+  repo: Pick<LocalRepo, "primaryRemote">,
+  bareRoot: string | null | undefined,
+): string | null {
   if (!bareRoot || !repo.primaryRemote?.githubRepo) {
     return null;
   }
@@ -551,9 +560,7 @@ function deleteLocalBranch(repo: LocalRepo, branch: string, runner: RepoRunner):
     return;
   }
 
-  const refCandidates = new Set<string>([
-    `refs/heads/${branch}`,
-  ]);
+  const refCandidates = new Set<string>([`refs/heads/${branch}`]);
   if (branch.startsWith("heads/")) {
     refCandidates.add(`refs/heads/${branch.slice("heads/".length)}`);
   }
@@ -568,7 +575,9 @@ function deleteLocalBranch(repo: LocalRepo, branch: string, runner: RepoRunner):
     }
   }
 
-  throw new Error(branchDelete.stderr.trim() || branchDelete.stdout.trim() || `Failed to delete branch ${branch}`);
+  throw new Error(
+    branchDelete.stderr.trim() || branchDelete.stdout.trim() || `Failed to delete branch ${branch}`,
+  );
 }
 
 // GH-1643: slug → registered bare-repo resolver used by `prx plan session --repo`.
@@ -584,9 +593,7 @@ export function findRepoBySlug(
 ): { ok: true; repo: LocalRepo } | { ok: false; error: RepoLookupError } {
   const bareRepos = inventory.repos.filter((repo) => repo.kind === "bare");
   const nameMatches = bareRepos.filter((repo) => repo.name === slug);
-  const ownerNameMatches = bareRepos.filter(
-    (repo) => repo.primaryRemote?.githubRepo === slug,
-  );
+  const ownerNameMatches = bareRepos.filter((repo) => repo.primaryRemote?.githubRepo === slug);
 
   const distinctMatches = new Map<string, LocalRepo>();
   for (const repo of [...nameMatches, ...ownerNameMatches]) {
@@ -597,8 +604,8 @@ export function findRepoBySlug(
     return { ok: false, error: { kind: "not_registered", slug } };
   }
   if (distinctMatches.size > 1) {
-    const candidates = [...distinctMatches.values()].map((repo) =>
-      repo.primaryRemote?.githubRepo ?? repo.name,
+    const candidates = [...distinctMatches.values()].map(
+      (repo) => repo.primaryRemote?.githubRepo ?? repo.name,
     );
     return { ok: false, error: { kind: "ambiguous", slug, candidates } };
   }
@@ -614,27 +621,41 @@ export function loadRepoInventoryConfig(
   const defaultBareRoot = defaultBareRootForHome(homeDir);
   const defaultRoots = defaultRootsForHome(homeDir);
   const globalConfigPath = homeDir ? join(homeDir, ".config", "prx", "config.json") : null;
-  const globalParsed = globalConfigPath && existsSync(globalConfigPath)
-    ? JSON.parse(readFileSync(globalConfigPath, "utf8")) as {
-        bareRoot?: string;
-        roots?: string[];
-        everywhereRoots?: string[];
-        indexPath?: string;
-      }
-    : null;
-  const globalBareRoot = homeDir && typeof globalParsed?.bareRoot === "string" && globalParsed.bareRoot.trim().length > 0
-    ? normalizeConfiguredPath(globalParsed.bareRoot, homeDir)
-    : defaultBareRoot;
-  const globalEverywhereRoots = homeDir && Array.isArray(globalParsed?.everywhereRoots) && globalParsed.everywhereRoots.length > 0
-    ? globalParsed.everywhereRoots
-      .filter((root): root is string => typeof root === "string" && root.trim().length > 0)
-      .map((root) => normalizeConfiguredPath(root, homeDir))
-    : [...new Set(defaultRoots.map((root) => root === defaultBareRoot && globalBareRoot ? globalBareRoot : root))];
-  const globalRoots = homeDir && Array.isArray(globalParsed?.roots) && globalParsed.roots.length > 0
-    ? globalParsed.roots
-      .filter((root): root is string => typeof root === "string" && root.trim().length > 0)
-      .map((root) => normalizeConfiguredPath(root, homeDir))
-    : globalBareRoot ? [globalBareRoot] : [];
+  const globalParsed =
+    globalConfigPath && existsSync(globalConfigPath)
+      ? (JSON.parse(readFileSync(globalConfigPath, "utf8")) as {
+          bareRoot?: string;
+          roots?: string[];
+          everywhereRoots?: string[];
+          indexPath?: string;
+        })
+      : null;
+  const globalBareRoot =
+    homeDir && typeof globalParsed?.bareRoot === "string" && globalParsed.bareRoot.trim().length > 0
+      ? normalizeConfiguredPath(globalParsed.bareRoot, homeDir)
+      : defaultBareRoot;
+  const globalEverywhereRoots =
+    homeDir &&
+    Array.isArray(globalParsed?.everywhereRoots) &&
+    globalParsed.everywhereRoots.length > 0
+      ? globalParsed.everywhereRoots
+          .filter((root): root is string => typeof root === "string" && root.trim().length > 0)
+          .map((root) => normalizeConfiguredPath(root, homeDir))
+      : [
+          ...new Set(
+            defaultRoots.map((root) =>
+              root === defaultBareRoot && globalBareRoot ? globalBareRoot : root,
+            ),
+          ),
+        ];
+  const globalRoots =
+    homeDir && Array.isArray(globalParsed?.roots) && globalParsed.roots.length > 0
+      ? globalParsed.roots
+          .filter((root): root is string => typeof root === "string" && root.trim().length > 0)
+          .map((root) => normalizeConfiguredPath(root, homeDir))
+      : globalBareRoot
+        ? [globalBareRoot]
+        : [];
 
   // GH-2156: a foreign worktree's git-root carries no cwd-local
   // `.prx/repos/index.json` — there is one central index (the control repo's).
@@ -646,9 +667,12 @@ export function loadRepoInventoryConfig(
   const fixedGlobalIndexPath = homeDir
     ? join(homeDir, ".local", "state", "prx", "repos", "index.json")
     : null;
-  const globalIndexPath = homeDir && typeof globalParsed?.indexPath === "string" && globalParsed.indexPath.trim().length > 0
-    ? normalizeConfiguredPath(globalParsed.indexPath, homeDir)
-    : fixedGlobalIndexPath;
+  const globalIndexPath =
+    homeDir &&
+    typeof globalParsed?.indexPath === "string" &&
+    globalParsed.indexPath.trim().length > 0
+      ? normalizeConfiguredPath(globalParsed.indexPath, homeDir)
+      : fixedGlobalIndexPath;
   const withGlobalIndexFallback = (local: string | null): string | null => {
     if (local && existsSync(local)) return local;
     if (globalIndexPath && existsSync(globalIndexPath)) return globalIndexPath;
@@ -688,19 +712,22 @@ export function loadRepoInventoryConfig(
     everywhereRoots?: string[];
     indexPath?: string;
   };
-  const bareRoot = typeof parsed.bareRoot === "string" && parsed.bareRoot.trim().length > 0
-    ? normalizeConfiguredPath(parsed.bareRoot, repoRoot)
-    : globalBareRoot;
-  const everywhereRoots = Array.isArray(parsed.everywhereRoots) && parsed.everywhereRoots.length > 0
-    ? parsed.everywhereRoots
-      .filter((root): root is string => typeof root === "string" && root.trim().length > 0)
-      .map((root) => normalizeConfiguredPath(root, repoRoot))
-    : globalEverywhereRoots;
-  const roots = Array.isArray(parsed.roots) && parsed.roots.length > 0
-    ? parsed.roots
-      .filter((root): root is string => typeof root === "string" && root.trim().length > 0)
-      .map((root) => normalizeConfiguredPath(root, repoRoot))
-    : globalRoots;
+  const bareRoot =
+    typeof parsed.bareRoot === "string" && parsed.bareRoot.trim().length > 0
+      ? normalizeConfiguredPath(parsed.bareRoot, repoRoot)
+      : globalBareRoot;
+  const everywhereRoots =
+    Array.isArray(parsed.everywhereRoots) && parsed.everywhereRoots.length > 0
+      ? parsed.everywhereRoots
+          .filter((root): root is string => typeof root === "string" && root.trim().length > 0)
+          .map((root) => normalizeConfiguredPath(root, repoRoot))
+      : globalEverywhereRoots;
+  const roots =
+    Array.isArray(parsed.roots) && parsed.roots.length > 0
+      ? parsed.roots
+          .filter((root): root is string => typeof root === "string" && root.trim().length > 0)
+          .map((root) => normalizeConfiguredPath(root, repoRoot))
+      : globalRoots;
 
   return {
     repoRoot,
@@ -886,9 +913,7 @@ export type IndexedRepoForReconcile = {
   bdWorkspacePrefix: string;
 };
 
-export function listIndexedReposForReconcile(
-  inventory: RepoInventory,
-): IndexedRepoForReconcile[] {
+export function listIndexedReposForReconcile(inventory: RepoInventory): IndexedRepoForReconcile[] {
   const out: IndexedRepoForReconcile[] = [];
   for (const repo of inventory.repos) {
     if (repo.kind !== "bare") continue;
@@ -939,7 +964,12 @@ export type IndexedRepoForDoltReconcile = {
 
 export type DoltReconcileCandidate =
   | { kind: "eligible"; repo: IndexedRepoForDoltReconcile }
-  | { kind: "skipped"; slug: string; nameWithOwner: string | null; reason: "no-remote" | "legacy-embedded" };
+  | {
+      kind: "skipped";
+      slug: string;
+      nameWithOwner: string | null;
+      reason: "no-remote" | "legacy-embedded";
+    };
 
 export function listIndexedReposForDoltReconcile(
   inventory: RepoInventory,
@@ -1023,7 +1053,11 @@ export function discoverLocalRepos(
     if (name === ".git") {
       const worktreePath = dirname(candidate);
       const topLevel = gitOutput(["git", "rev-parse", "--show-toplevel"], worktreePath, runner);
-      const commonDirRaw = gitOutput(["git", "rev-parse", "--git-common-dir"], worktreePath, runner);
+      const commonDirRaw = gitOutput(
+        ["git", "rev-parse", "--git-common-dir"],
+        worktreePath,
+        runner,
+      );
       if (!topLevel || !commonDirRaw) {
         continue;
       }
@@ -1092,14 +1126,16 @@ export function discoverLocalRepos(
     .map((repo) => {
       const inspectCwd = repoInspectionCwd(repo);
       const branchNames = inspectCwd
-        ? (gitOutput(
-          ["git", "for-each-ref", "--format=%(refname:lstrip=2)", "refs/heads"],
-          inspectCwd,
-          runner,
-        ) ?? "")
-          .split("\n")
-          .map((item) => item.trim())
-          .filter((item) => item.length > 0)
+        ? (
+            gitOutput(
+              ["git", "for-each-ref", "--format=%(refname:lstrip=2)", "refs/heads"],
+              inspectCwd,
+              runner,
+            ) ?? ""
+          )
+            .split("\n")
+            .map((item) => item.trim())
+            .filter((item) => item.length > 0)
         : [];
       const worktreeBranches = new Set(
         repo.worktrees
@@ -1110,7 +1146,8 @@ export function discoverLocalRepos(
         .filter((branch) => !worktreeBranches.has(branch))
         .sort((a, b) => a.localeCompare(b));
       const remotes = inspectCwd ? loadRepoRemotes(inspectCwd, runner) : [];
-      const primaryRemote = remotes.find((remote) => remote.name === "origin") ?? remotes[0] ?? null;
+      const primaryRemote =
+        remotes.find((remote) => remote.name === "origin") ?? remotes[0] ?? null;
       const upstreamRemote = remotes.find((remote) => remote.name === "upstream") ?? null;
 
       return {
@@ -1184,27 +1221,27 @@ export function normalizeLocalRepos(
   const apply = options.apply ?? false;
   const selectedNames = new Set((options.names ?? []).filter((name) => name.trim().length > 0));
   const candidateRepos = inventory.repos.filter((repo) =>
-    selectedNames.size === 0 ? repo.findings.length > 0 : selectedNames.has(repo.name)
+    selectedNames.size === 0 ? repo.findings.length > 0 : selectedNames.has(repo.name),
   );
   const bareRoot = inventory.bareRoot ?? null;
   const canonicalBareRepos = new Set(
-    inventory.repos
-      .filter((repo) => repo.kind === "bare")
-      .map((repo) => repo.commonDir),
+    inventory.repos.filter((repo) => repo.kind === "bare").map((repo) => repo.commonDir),
   );
   const repoResults: RepoNormalizationRepo[] = [];
   const actions: RepoNormalizationAction[] = [];
 
   for (const repo of candidateRepos) {
     const canonicalBarePath = canonicalBarePathForRepo(repo, bareRoot);
-    const singleBranchWorktreePath = repo.kind === "bare" && repo.localOnlyBranches.length === 1
-      ? canonicalWorktreePathForRepo(repo, repo.localOnlyBranches[0]!)
-      : null;
+    const singleBranchWorktreePath =
+      repo.kind === "bare" && repo.localOnlyBranches.length === 1
+        ? canonicalWorktreePathForRepo(repo, repo.localOnlyBranches[0]!)
+        : null;
     const repoActions: RepoNormalizationAction[] = [];
-    const shouldCreateAttachedWorktree = repo.kind === "bare"
-      && repo.findings.some((finding) => finding.type === "no_attached_worktree")
-      && repo.localOnlyBranches.length === 1
-      && Boolean(singleBranchWorktreePath);
+    const shouldCreateAttachedWorktree =
+      repo.kind === "bare" &&
+      repo.findings.some((finding) => finding.type === "no_attached_worktree") &&
+      repo.localOnlyBranches.length === 1 &&
+      Boolean(singleBranchWorktreePath);
 
     if (shouldCreateAttachedWorktree) {
       const branch = repo.localOnlyBranches[0]!;
@@ -1249,8 +1286,13 @@ export function normalizeLocalRepos(
       }
     }
 
-    if (repo.kind === "standard" && repo.findings.some((finding) => finding.type === "standard_repo")) {
-      const bareAlreadyExists = canonicalBarePath ? canonicalBareRepos.has(canonicalBarePath) || existsSync(canonicalBarePath) : false;
+    if (
+      repo.kind === "standard" &&
+      repo.findings.some((finding) => finding.type === "standard_repo")
+    ) {
+      const bareAlreadyExists = canonicalBarePath
+        ? canonicalBareRepos.has(canonicalBarePath) || existsSync(canonicalBarePath)
+        : false;
       if (canonicalBarePath && !bareAlreadyExists) {
         const createAction: RepoNormalizationAction = {
           type: "create_canonical_bare",
@@ -1263,9 +1305,18 @@ export function normalizeLocalRepos(
         actions.push(createAction);
         if (apply) {
           mkdirSync(dirname(canonicalBarePath), { recursive: true });
-          runner(["git", "clone", "--bare", repo.mainWorktree ?? repo.worktrees[0]?.path ?? repo.commonDir, canonicalBarePath], {
-            cwd: process.cwd(),
-          });
+          runner(
+            [
+              "git",
+              "clone",
+              "--bare",
+              repo.mainWorktree ?? repo.worktrees[0]?.path ?? repo.commonDir,
+              canonicalBarePath,
+            ],
+            {
+              cwd: process.cwd(),
+            },
+          );
         }
       }
 
@@ -1283,7 +1334,10 @@ export function normalizeLocalRepos(
       }
     }
 
-    if (repo.kind === "bare" && repo.findings.some((finding) => finding.type === "no_attached_worktree")) {
+    if (
+      repo.kind === "bare" &&
+      repo.findings.some((finding) => finding.type === "no_attached_worktree")
+    ) {
       const reportAction: RepoNormalizationAction = {
         type: "report_no_attached_worktree",
         repoName: repo.name,
@@ -1383,7 +1437,10 @@ export type RepoAddResult = {
 };
 
 export class RepoAddError extends Error {
-  constructor(message: string, readonly code: string) {
+  constructor(
+    message: string,
+    readonly code: string,
+  ) {
     super(message);
     this.name = "RepoAddError";
   }
@@ -1404,7 +1461,12 @@ function canonicalHostSegment(host: string): string {
 }
 
 export function canonicalBarePathFromParsed(bareRoot: string, parsed: ParsedRepoUrl): string {
-  return join(bareRoot, `io.${canonicalHostSegment(parsed.host)}`, parsed.owner, `${parsed.name}.git`);
+  return join(
+    bareRoot,
+    `io.${canonicalHostSegment(parsed.host)}`,
+    parsed.owner,
+    `${parsed.name}.git`,
+  );
 }
 
 export function canonicalMainxPathFromParsed(wtRoot: string, parsed: ParsedRepoUrl): string {
@@ -1418,9 +1480,12 @@ export function canonicalMainxPathFromParsed(wtRoot: string, parsed: ParsedRepoU
 
 export function resolveDefaultBranch(barePath: string, runner: RepoRunner): string {
   // Preferred: HEAD symref written by `git clone` (best-effort; some repos lack it).
-  const symref = runner(["git", "-C", barePath, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"], {
-    check: false,
-  });
+  const symref = runner(
+    ["git", "-C", barePath, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+    {
+      check: false,
+    },
+  );
   if (symref.status === 0) {
     const name = symref.stdout.trim();
     if (name.startsWith("origin/")) {
@@ -1470,15 +1535,10 @@ export function resolveDefaultBranch(barePath: string, runner: RepoRunner): stri
  * both paths surface the same curated `RepoAddError` with the raw stderr
  * preserved on `err.message` for operator visibility.
  */
-export function verifyDefaultBranchRef(
-  barePath: string,
-  branch: string,
-  runner: RepoRunner,
-): void {
-  const result = runner(
-    ["git", "-C", barePath, "rev-parse", "--verify", `origin/${branch}`],
-    { check: false },
-  );
+export function verifyDefaultBranchRef(barePath: string, branch: string, runner: RepoRunner): void {
+  const result = runner(["git", "-C", barePath, "rev-parse", "--verify", `origin/${branch}`], {
+    check: false,
+  });
   if (result.status !== 0) {
     const stderr = result.stderr.trim() || `rev-parse returned status ${result.status}`;
     throw new RepoAddError(stderr, "default_branch_unresolved");
@@ -1552,11 +1612,15 @@ function overlayTemplate(parsed: ParsedRepoUrl): string {
 `;
 }
 
-function writeOverlayStub(
-  operatorConfigRoot: string,
-  parsed: ParsedRepoUrl,
-): RepoAddOverlayResult {
-  const overlayDir = join(operatorConfigRoot, ".prx", "repos", `io.${canonicalHostSegment(parsed.host)}`, parsed.owner, parsed.name);
+function writeOverlayStub(operatorConfigRoot: string, parsed: ParsedRepoUrl): RepoAddOverlayResult {
+  const overlayDir = join(
+    operatorConfigRoot,
+    ".prx",
+    "repos",
+    `io.${canonicalHostSegment(parsed.host)}`,
+    parsed.owner,
+    parsed.name,
+  );
   const overlayPath = join(overlayDir, "prx.toml");
   mkdirSync(overlayDir, { recursive: true });
   // Atomic create-if-absent: `wx` fails with EEXIST rather than an
@@ -1580,10 +1644,10 @@ function writeOverlayStub(
  * the operator at `--bd-workspace-prefix <value>`.
  */
 export function readBdWorkspacePrefix(mainxPath: string, runner: RepoRunner): string {
-  const result = runner(
-    ["bd", "config", "get", "database.workspace_prefix"],
-    { cwd: mainxPath, check: false },
-  );
+  const result = runner(["bd", "config", "get", "database.workspace_prefix"], {
+    cwd: mainxPath,
+    check: false,
+  });
   if (result.status !== 0) {
     throw new RepoAddError(
       `Could not resolve bd workspace prefix in ${mainxPath}: ${(result.stderr || result.stdout).trim()}. Pass --bd-workspace-prefix <value> to override.`,
@@ -1611,9 +1675,7 @@ export function readBdWorkspacePrefix(mainxPath: string, runner: RepoRunner): st
  * bare clone and the bootstrapped mainx worktree if they exist. Used by the
  * uniqueness-collision branch in the `repos-add` CLI handler.
  */
-export function rollbackRepoAdd(
-  result: Pick<RepoAddResult, "barePath" | "mainxPath">,
-): void {
+export function rollbackRepoAdd(result: Pick<RepoAddResult, "barePath" | "mainxPath">): void {
   for (const path of [result.mainxPath, result.barePath]) {
     if (existsSync(path)) {
       rmSync(path, { recursive: true, force: true });
@@ -1856,9 +1918,7 @@ export function refreshLocalRepo(
   // (extra lines outside the canonical set are preserved by the
   // hasAllCanonical check). Matches `addLocalRepo`'s `--add` shape exactly.
   const beforeSet = new Set(refspecBefore);
-  const hasAllCanonical = CANONICAL_FETCH_REFSPECS.every((line) =>
-    beforeSet.has(line),
-  );
+  const hasAllCanonical = CANONICAL_FETCH_REFSPECS.every((line) => beforeSet.has(line));
   let refspecAfter: string[];
   let refspecUpgraded: boolean;
   if (hasAllCanonical) {
@@ -1868,20 +1928,11 @@ export function refreshLocalRepo(
     refspecAfter = [...CANONICAL_FETCH_REFSPECS];
     refspecUpgraded = true;
   } else {
-    runner(
-      ["git", "-C", barePath, "config", "--unset-all", "remote.origin.fetch"],
-      { check: false },
-    );
+    runner(["git", "-C", barePath, "config", "--unset-all", "remote.origin.fetch"], {
+      check: false,
+    });
     for (const refspec of CANONICAL_FETCH_REFSPECS) {
-      runner([
-        "git",
-        "-C",
-        barePath,
-        "config",
-        "--add",
-        "remote.origin.fetch",
-        refspec,
-      ]);
+      runner(["git", "-C", barePath, "config", "--add", "remote.origin.fetch", refspec]);
     }
     refspecAfter = [...CANONICAL_FETCH_REFSPECS];
     refspecUpgraded = true;
@@ -1941,13 +1992,9 @@ export function refreshLocalRepo(
 
 export type SetRepoAxisDelta<T> = { previous: T | undefined; current: T };
 
-function findRepoIndexBySlug(
-  inventory: RepoInventory,
-  slug: string,
-): number {
+function findRepoIndexBySlug(inventory: RepoInventory, slug: string): number {
   return inventory.repos.findIndex(
-    (repo) =>
-      repo.name === slug || repo.primaryRemote?.githubRepo === slug,
+    (repo) => repo.name === slug || repo.primaryRemote?.githubRepo === slug,
   );
 }
 

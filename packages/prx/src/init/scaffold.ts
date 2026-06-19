@@ -78,7 +78,11 @@ const defaultFs: ScaffoldFs = {
   writeFile: (path, contents) => writeFileSync(path, contents),
 };
 
-function defaultSpawn(file: string, args: string[], opts: { cwd: string; encoding: "utf8" }): SpawnResult {
+function defaultSpawn(
+  file: string,
+  args: string[],
+  opts: { cwd: string; encoding: "utf8" },
+): SpawnResult {
   const r = spawnCapture([file, ...args], { cwd: opts.cwd });
   return {
     status: r.status,
@@ -92,7 +96,8 @@ function resolveRepoRoot(spawn: ScaffoldSpawn, cwd: string): string | null {
   const result = spawn("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" });
   if (result.error) return null;
   if ((result.status ?? 1) !== 0) return null;
-  const stdout = typeof result.stdout === "string" ? result.stdout : (result.stdout?.toString() ?? "");
+  const stdout =
+    typeof result.stdout === "string" ? result.stdout : (result.stdout?.toString() ?? "");
   const trimmed = stdout.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
@@ -109,7 +114,10 @@ export class ScaffoldError extends Error {
   }
 }
 
-export function scaffoldRepo(options: ScaffoldOptions = {}, deps: ScaffoldDeps = {}): ScaffoldResult {
+export function scaffoldRepo(
+  options: ScaffoldOptions = {},
+  deps: ScaffoldDeps = {},
+): ScaffoldResult {
   const cwd = deps.cwd ?? process.cwd();
   const spawn = deps.spawn ?? defaultSpawn;
   const fs = deps.fs ?? defaultFs;

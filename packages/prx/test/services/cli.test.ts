@@ -49,10 +49,16 @@ function seedDb(): Database {
       cache_creation_input_tokens: 0,
       total_cost_usd: 0.001,
     };
-    db.run(
-      `INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [`t-${i}`, r.ts, "claude-code", "non-interactive-agent", null, null, null, JSON.stringify(payload)],
-    );
+    db.run(`INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
+      `t-${i}`,
+      r.ts,
+      "claude-code",
+      "non-interactive-agent",
+      null,
+      null,
+      null,
+      JSON.stringify(payload),
+    ]);
   }
   return db;
 }

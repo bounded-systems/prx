@@ -24,9 +24,7 @@ function makeRunner(handlers: Array<(cmd: string[]) => { stdout: string; status?
 
 describe("findEpicChildren (GH-935)", () => {
   test("returns empty array when the GH number is not a beads issue", () => {
-    const { runner } = makeRunner([
-      () => ({ stdout: JSON.stringify([]) }),
-    ]);
+    const { runner } = makeRunner([() => ({ stdout: JSON.stringify([]) })]);
     expect(findEpicChildren("/repo", 999, runner)).toEqual([]);
   });
 
@@ -231,8 +229,18 @@ describe("findEpicChildren (GH-935)", () => {
   test("normalizes child status case (Closed/CLOSED → closed)", () => {
     const snapshot = [
       { id: "epic", title: "epic", status: "open", external_ref: "https://x/issues/10" },
-      { id: "c1", title: "mixed-case closed", status: "Closed", external_ref: "https://x/issues/11" },
-      { id: "c2", title: "upper-case closed", status: "CLOSED", external_ref: "https://x/issues/12" },
+      {
+        id: "c1",
+        title: "mixed-case closed",
+        status: "Closed",
+        external_ref: "https://x/issues/11",
+      },
+      {
+        id: "c2",
+        title: "upper-case closed",
+        status: "CLOSED",
+        external_ref: "https://x/issues/12",
+      },
       { id: "c3", title: "open with caps", status: "OPEN", external_ref: "https://x/issues/13" },
     ];
     const edges = [

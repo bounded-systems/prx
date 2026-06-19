@@ -46,64 +46,57 @@ export function partition(
   return { slice, passthrough };
 }
 
-export function collectDrift(
-  schema: ZodTypeAny,
-  slice: Record<string, unknown>,
-): DriftReport {
+export function collectDrift(schema: ZodTypeAny, slice: Record<string, unknown>): DriftReport {
   const result = schema.safeParse(slice);
   if (result.success) {
     return { ok: true, issues: [] };
   }
-  const issues: DriftIssue[] = result.error.issues.flatMap(
-    (issue): DriftIssue | DriftIssue[] => {
-      const path = issue.path.join(".");
-      const rawValue = path
-        .split(".")
-        .reduce<unknown>((acc, segment) => {
-          if (isPlainObject(acc)) return (acc as Record<string, unknown>)[segment];
-          return undefined;
-        }, slice);
-      // Zod 4 folded enum/literal mismatches into `invalid_value` and exposes
-      // the permitted set as `values` (was `invalid_enum_value` + `options`).
-      if (issue.code === "invalid_value") {
-        return {
-          kind: "stale_value",
-          path,
-          rawValue,
-          reason: `not in {${issue.values.map((o) => JSON.stringify(o)).join(", ")}}`,
-        };
-      }
-      // Zod 4 dropped `received` from the issue; recover the runtime type from
-      // the offending value directly.
-      if (issue.code === "invalid_type") {
-        return {
-          kind: "type_mismatch",
-          path,
-          expected: issue.expected,
-          received: describeRuntimeType(rawValue),
-          rawValue,
-        };
-      }
-      if (issue.code === "unrecognized_keys") {
-        const parent = isPlainObject(rawValue) ? rawValue : {};
-        return issue.keys.map(
-          (key): DriftIssue => ({
-            kind: "stale_value",
-            path: [path, key].filter(Boolean).join("."),
-            rawValue: parent[key],
-            reason: `unrecognized key: ${key}`,
-          }),
-        );
-      }
+  const issues: DriftIssue[] = result.error.issues.flatMap((issue): DriftIssue | DriftIssue[] => {
+    const path = issue.path.join(".");
+    const rawValue = path.split(".").reduce<unknown>((acc, segment) => {
+      if (isPlainObject(acc)) return (acc as Record<string, unknown>)[segment];
+      return undefined;
+    }, slice);
+    // Zod 4 folded enum/literal mismatches into `invalid_value` and exposes
+    // the permitted set as `values` (was `invalid_enum_value` + `options`).
+    if (issue.code === "invalid_value") {
+      return {
+        kind: "stale_value",
+        path,
+        rawValue,
+        reason: `not in {${issue.values.map((o) => JSON.stringify(o)).join(", ")}}`,
+      };
+    }
+    // Zod 4 dropped `received` from the issue; recover the runtime type from
+    // the offending value directly.
+    if (issue.code === "invalid_type") {
       return {
         kind: "type_mismatch",
         path,
-        expected: "valid",
+        expected: issue.expected,
         received: describeRuntimeType(rawValue),
         rawValue,
       };
-    },
-  );
+    }
+    if (issue.code === "unrecognized_keys") {
+      const parent = isPlainObject(rawValue) ? rawValue : {};
+      return issue.keys.map(
+        (key): DriftIssue => ({
+          kind: "stale_value",
+          path: [path, key].filter(Boolean).join("."),
+          rawValue: parent[key],
+          reason: `unrecognized key: ${key}`,
+        }),
+      );
+    }
+    return {
+      kind: "type_mismatch",
+      path,
+      expected: "valid",
+      received: describeRuntimeType(rawValue),
+      rawValue,
+    };
+  });
   return { ok: false, issues };
 }
 

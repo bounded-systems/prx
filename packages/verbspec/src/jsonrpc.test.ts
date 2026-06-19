@@ -51,7 +51,9 @@ describe("OpenRPC projection", () => {
     expect(m.name).toBe("sign");
     expect(m.summary).toBe("sign a payload");
     expect(m["x-prx-actor"]).toBe("keeper");
-    expect(m.params).toEqual([{ name: "payload", required: true, schema: expect.objectContaining({ type: "string" }) }]);
+    expect(m.params).toEqual([
+      { name: "payload", required: true, schema: expect.objectContaining({ type: "string" }) },
+    ]);
     expect(m.result).toMatchObject({ name: "sign_result" });
   });
 
@@ -60,10 +62,17 @@ describe("OpenRPC projection", () => {
   });
 
   test("the registry projects to an OpenRPC document", () => {
-    const doc = toOpenRpcDocument(reg, { title: "keeperd", version: "1.2.3" }) as Record<string, unknown>;
+    const doc = toOpenRpcDocument(reg, { title: "keeperd", version: "1.2.3" }) as Record<
+      string,
+      unknown
+    >;
     expect(doc.openrpc).toBe("1.3.2");
     expect(doc.info).toEqual({ title: "keeperd", version: "1.2.3" });
-    expect((doc.methods as { name: string }[]).map((m) => m.name)).toEqual(["sign", "plan_session", "boom"]);
+    expect((doc.methods as { name: string }[]).map((m) => m.name)).toEqual([
+      "sign",
+      "plan_session",
+      "boom",
+    ]);
   });
 });
 
@@ -72,7 +81,12 @@ describe("JSON-RPC / NDJSON projection", () => {
   const error = (r: JsonRpcResponse) => (r as { error: { code: number; message: string } }).error;
 
   test("a valid request runs the verb and returns a result", async () => {
-    const r = await handleJsonRpc(reg, { jsonrpc: "2.0", id: 1, method: "sign", params: { payload: "abc" } });
+    const r = await handleJsonRpc(reg, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "sign",
+      params: { payload: "abc" },
+    });
     expect(ok(r)).toEqual({ signature: "sig:abc" });
     expect((r as { id: unknown }).id).toBe(1);
   });
@@ -99,9 +113,16 @@ describe("JSON-RPC / NDJSON projection", () => {
   });
 
   test("dispatchNdjson round-trips a line and emits a single response line", async () => {
-    const line = await dispatchNdjson(reg, JSON.stringify({ id: 6, method: "sign", params: { payload: "z" } }));
+    const line = await dispatchNdjson(
+      reg,
+      JSON.stringify({ id: 6, method: "sign", params: { payload: "z" } }),
+    );
     expect(line).not.toContain("\n");
-    expect(JSON.parse(line)).toMatchObject({ jsonrpc: "2.0", id: 6, result: { signature: "sig:z" } });
+    expect(JSON.parse(line)).toMatchObject({
+      jsonrpc: "2.0",
+      id: 6,
+      result: { signature: "sig:z" },
+    });
   });
 
   test("a malformed line is a -32700 parse error with a null id", async () => {

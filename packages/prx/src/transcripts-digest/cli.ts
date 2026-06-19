@@ -133,9 +133,7 @@ function renderPlain(
   input: TranscriptsDigestVerbInput,
 ): string {
   const lines: string[] = [];
-  lines.push(
-    `transcripts digest — source=${input.source} mode=${input.mode} state=${state}`,
-  );
+  lines.push(`transcripts digest — source=${input.source} mode=${input.mode} state=${state}`);
   lines.push(`  sessions=${context.sessions.length}  candidates=${context.candidates.length}`);
   if (context.failedSessionIds.length > 0) {
     lines.push(`  failed sessions: ${context.failedSessionIds.join(", ")}`);
@@ -153,19 +151,12 @@ function renderPlain(
     );
   }
   if (context.blockedReason) {
-    lines.push(
-      `  blocked: ${context.blockedReason.actor} — ${context.blockedReason.message}`,
-    );
+    lines.push(`  blocked: ${context.blockedReason.actor} — ${context.blockedReason.message}`);
   }
   return lines.join("\n");
 }
 
-const TERMINAL_OK = new Set([
-  "staged",
-  "committed",
-  "dry_run_terminal",
-  "no_new_memories",
-]);
+const TERMINAL_OK = new Set(["staged", "committed", "dry_run_terminal", "no_new_memories"]);
 
 export async function runTranscriptsDigest(
   input: TranscriptsDigestVerbInput,
@@ -175,14 +166,11 @@ export async function runTranscriptsDigest(
   const now = (deps.now ?? (() => new Date()))();
   const cwd = (deps.cwd ?? (() => process.cwd()))();
   const appendAuditRow = deps.appendAuditRow ?? defaultAppendAuditRow;
-  const getAuditRuntimeContext =
-    deps.getAuditRuntimeContext ?? defaultGetAuditRuntimeContext;
+  const getAuditRuntimeContext = deps.getAuditRuntimeContext ?? defaultGetAuditRuntimeContext;
   const auditActor = getAuditRuntimeContext().actor;
 
   const uowId = input.uowId ?? `transcripts-digest-${now.toISOString().replace(/[:.]/g, "-")}`;
-  const memoryDir =
-    input.memoryDir ??
-    (deps.resolveMemoryDir ?? defaultMemoryDirFor)(cwd);
+  const memoryDir = input.memoryDir ?? (deps.resolveMemoryDir ?? defaultMemoryDirFor)(cwd);
 
   let config: TranscriptSourceConfig;
   try {
@@ -206,13 +194,7 @@ export async function runTranscriptsDigest(
     mkdirSync(memoryDir, { recursive: true });
   }
 
-  const { state, context } = await runMachine(
-    input,
-    config,
-    memoryDir,
-    uowId,
-    deps.runner,
-  );
+  const { state, context } = await runMachine(input, config, memoryDir, uowId, deps.runner);
 
   const exitCode = TERMINAL_OK.has(state) ? 0 : 1;
 
@@ -298,8 +280,7 @@ export function runTranscriptsStatus(
 ): { exitCode: number } {
   const now = (deps.now ?? (() => new Date()))();
   const cwd = (deps.cwd ?? (() => process.cwd()))();
-  const memoryDir =
-    (deps.resolveMemoryDir ?? defaultMemoryDirFor)(cwd);
+  const memoryDir = (deps.resolveMemoryDir ?? defaultMemoryDirFor)(cwd);
   const projectsRoot = join(homeDir(), ".claude", "projects");
 
   const liveSessions: Array<{ project: string; session: string; ageDays: number }> = [];
@@ -323,9 +304,7 @@ export function runTranscriptsStatus(
     }
   }
 
-  const ttlPressure = liveSessions.filter(
-    (s) => s.ageDays > CLAUDE_CODE_TTL_DAYS - 3,
-  );
+  const ttlPressure = liveSessions.filter((s) => s.ageDays > CLAUDE_CODE_TTL_DAYS - 3);
 
   const stagedDir = join(memoryDir, ".candidates");
   const staged = existsSync(stagedDir)
@@ -337,9 +316,7 @@ export function runTranscriptsStatus(
     memoryDir,
     liveSessionCount: liveSessions.length,
     ttlPressureCount: ttlPressure.length,
-    ttlPressure: ttlPressure
-      .sort((a, b) => b.ageDays - a.ageDays)
-      .slice(0, 10),
+    ttlPressure: ttlPressure.sort((a, b) => b.ageDays - a.ageDays).slice(0, 10),
     stagedCandidateCount: staged,
   };
 
@@ -352,9 +329,10 @@ export function runTranscriptsStatus(
         `  live sessions: ${summary.liveSessionCount} (TTL pressure: ${summary.ttlPressureCount})`,
         `  staged candidates: ${summary.stagedCandidateCount}`,
         ...(summary.ttlPressure.length > 0
-          ? ["  oldest sessions (within TTL window):", ...summary.ttlPressure.map(
-              (s) => `    ${s.session} (${s.ageDays.toFixed(1)}d)`,
-            )]
+          ? [
+              "  oldest sessions (within TTL window):",
+              ...summary.ttlPressure.map((s) => `    ${s.session} (${s.ageDays.toFixed(1)}d)`),
+            ]
           : []),
       ].join("\n"),
     );

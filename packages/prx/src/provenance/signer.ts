@@ -96,9 +96,7 @@ function perActorOptedOut(env: (key: string) => string | undefined): boolean {
  * the signature to the actor. Opt out with {@link PER_ACTOR_ENV}. The `ed25519:`
  * single-keypair and `null` modes are unaffected (no master to derive from).
  */
-export function isPerActorMode(
-  env: (key: string) => string | undefined = getEnv,
-): boolean {
+export function isPerActorMode(env: (key: string) => string | undefined = getEnv): boolean {
   if (perActorOptedOut(env)) return false;
   const mode = env(PROVENANCE_KEY_ENV);
   return mode === DEV_SIGNER_MODE || mode === ACTOR_DEV_SIGNER_MODE;
@@ -114,9 +112,7 @@ export const STABLE_KEY_PREFIX = "ed25519:";
 
 /** Strip an optional `ed25519:` prefix, returning the bare base64 material. */
 function stripStablePrefix(value: string): string {
-  return value.startsWith(STABLE_KEY_PREFIX)
-    ? value.slice(STABLE_KEY_PREFIX.length)
-    : value;
+  return value.startsWith(STABLE_KEY_PREFIX) ? value.slice(STABLE_KEY_PREFIX.length) : value;
 }
 
 /**

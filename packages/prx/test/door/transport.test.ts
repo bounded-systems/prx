@@ -20,7 +20,12 @@ const REQUEST: KeeperRemoteRequest = {
   remote: "origin",
 };
 
-const okResult = (stdout = ""): GitExecResult => ({ exitCode: 0, stdout, stderr: "", policy: null });
+const okResult = (stdout = ""): GitExecResult => ({
+  exitCode: 0,
+  stdout,
+  stderr: "",
+  policy: null,
+});
 
 function fakeGit(overrides: Partial<Record<string, GitExecResult>> = {}): typeof execGit {
   return ((opts: GitExecOptions): GitExecResult => {
@@ -61,7 +66,9 @@ describe("keeperd transport — full stack (client → transport → daemon over
     const socketPath = await serve({
       git: fakeGit({ push: { exitCode: 128, stdout: "", stderr: "rejected", policy: null } }),
     });
-    const res = await new IsolatedKeeperClient(unixSocketTransport(socketPath)).importAndPush(REQUEST);
+    const res = await new IsolatedKeeperClient(unixSocketTransport(socketPath)).importAndPush(
+      REQUEST,
+    );
     expect(res.status).toBe("error");
     if (res.status === "error") {
       expect(res.code).toBe("git-write");

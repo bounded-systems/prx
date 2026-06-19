@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  diffRow,
-  runTriageApply,
-} from "../../src/triage/apply.ts";
+import { diffRow, runTriageApply } from "../../src/triage/apply.ts";
 import type { GhExecResult } from "@bounded-systems/gh";
 import type { LabelPlan, LabelPlanRow } from "../../src/triage/label-vocab.ts";
 
@@ -39,9 +36,7 @@ function makeOutput() {
 
 describe("diffRow", () => {
   test("skip when current labels already match proposed", () => {
-    const decision = diffRow(
-      row({ currentLabels: ["type::feature", "priority::medium"] }),
-    );
+    const decision = diffRow(row({ currentLabels: ["type::feature", "priority::medium"] }));
     expect(decision.kind).toBe("skip");
   });
 
@@ -562,11 +557,7 @@ describe("runTriageApply", () => {
   });
 
   test("--limit truncates rows", async () => {
-    const { audit, o, deps } = setup([
-      row({ number: 1 }),
-      row({ number: 2 }),
-      row({ number: 3 }),
-    ]);
+    const { audit, o, deps } = setup([row({ number: 1 }), row({ number: 2 }), row({ number: 3 })]);
     const code = await runTriageApply(
       { plan: "/tmp/plan.json", dryRun: true, limit: 2, sync: false },
       o.output,
@@ -684,10 +675,11 @@ describe("runTriageApply — bd github sync chaining (GH-971)", () => {
   }
 
   test("default invocation with writes triggers exactly one sync call and tail audit entry", async () => {
-    const { audit, o, deps, syncCalls } = setupSync(
-      [row({ number: 11 }), row({ number: 22 })],
-      { exitCode: 0, stdout: "synced 2 issues\n", stderr: "" },
-    );
+    const { audit, o, deps, syncCalls } = setupSync([row({ number: 11 }), row({ number: 22 })], {
+      exitCode: 0,
+      stdout: "synced 2 issues\n",
+      stderr: "",
+    });
     const code = await runTriageApply(
       { plan: "/tmp/plan.json", dryRun: false, limit: 0, sync: true },
       o.output,
@@ -826,7 +818,11 @@ describe("runTriageApply — bd github sync chaining (GH-971)", () => {
             pairs: [],
           };
         }) as any,
-        fetchLiveLabels: () => new Map([[1, []], [2, []]]),
+        fetchLiveLabels: () =>
+          new Map([
+            [1, []],
+            [2, []],
+          ]),
       },
     );
     expect(code).toBe(1); // gh-edit error still flips exit to 1
@@ -1058,9 +1054,7 @@ describe("runTriageApply — GH-1866 batched live-label fetch", () => {
   });
 
   test("audit prev field reflects live-GH snapshot (not plan currentLabels)", async () => {
-    const fixture = JSON.stringify(
-      plan([row({ number: 42, currentLabels: ["area::prx"] })]),
-    );
+    const fixture = JSON.stringify(plan([row({ number: 42, currentLabels: ["area::prx"] })]));
     const audit: string[] = [];
     const o = makeOutput();
     const code = await runTriageApply(
@@ -1075,8 +1069,7 @@ describe("runTriageApply — GH-1866 batched live-label fetch", () => {
           ensureDir: () => {},
           appendFn: (_p: string, line: string) => audit.push(line),
         },
-        fetchLiveLabels: () =>
-          new Map([[42, ["type::feature", "area::prx", "priority::high"]]]),
+        fetchLiveLabels: () => new Map([[42, ["type::feature", "area::prx", "priority::high"]]]),
       },
     );
     expect(code).toBe(0);
@@ -1123,12 +1116,7 @@ describe("runTriageApply — GH-1866 batched live-label fetch", () => {
           appendFn: (_p: string, line: string) => audit.push(line),
         },
         fetchLiveLabels: () =>
-          new Map([
-            [
-              398,
-              ["type::feature", "priority::critical", "area::prx", "priority::none"],
-            ],
-          ]),
+          new Map([[398, ["type::feature", "priority::critical", "area::prx", "priority::none"]]]),
       },
     );
     expect(code).toBe(0);

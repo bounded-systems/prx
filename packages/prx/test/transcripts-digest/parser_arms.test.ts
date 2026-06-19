@@ -13,7 +13,10 @@ describe("parseClaudeJsonl — content flattening", () => {
   test("flattens a tool_use block", () => {
     const body = row({
       type: "assistant",
-      message: { role: "assistant", content: [{ type: "tool_use", name: "Read", input: { path: "x" } }] },
+      message: {
+        role: "assistant",
+        content: [{ type: "tool_use", name: "Read", input: { path: "x" } }],
+      },
       timestamp: "2026-05-01T00:00:00.000Z",
     });
     const r = parseClaudeJsonl(body);
@@ -33,7 +36,10 @@ describe("parseClaudeJsonl — content flattening", () => {
   test("flattens an array tool_result", () => {
     const body = row({
       type: "user",
-      message: { role: "user", content: [{ type: "tool_result", content: [{ type: "text", text: "nested" }] }] },
+      message: {
+        role: "user",
+        content: [{ type: "tool_result", content: [{ type: "text", text: "nested" }] }],
+      },
       timestamp: "2026-05-01T00:00:00.000Z",
     });
     expect(parseClaudeJsonl(body).messages[0]!.content).toContain("nested");
@@ -51,7 +57,11 @@ describe("parseClaudeJsonl — skip arms", () => {
   test("silently skips a file-history-snapshot row (not counted as skipped)", () => {
     const body = [
       row({ type: "file-history-snapshot" }),
-      row({ type: "user", message: { role: "user", content: "hi" }, timestamp: "2026-05-01T00:00:00.000Z" }),
+      row({
+        type: "user",
+        message: { role: "user", content: "hi" },
+        timestamp: "2026-05-01T00:00:00.000Z",
+      }),
     ].join("\n");
     const r = parseClaudeJsonl(body);
     expect(r.messages).toHaveLength(1);

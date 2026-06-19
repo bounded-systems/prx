@@ -1,5 +1,14 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
@@ -41,12 +50,24 @@ describe("discoverLocalRepos", () => {
     writeFileSync(join(worktreeRepo, ".git"), "gitdir: /bare/demo-web.git/worktrees/GH-5431\n");
 
     const responses = new Map<string, { stdout: string; stderr: string; status: number }>([
-      [`git rev-parse --show-toplevel|${standardRepo}`, { stdout: `${standardRepo}\n`, stderr: "", status: 0 }],
-      [`git rev-parse --git-common-dir|${standardRepo}`, { stdout: ".git\n", stderr: "", status: 0 }],
+      [
+        `git rev-parse --show-toplevel|${standardRepo}`,
+        { stdout: `${standardRepo}\n`, stderr: "", status: 0 },
+      ],
+      [
+        `git rev-parse --git-common-dir|${standardRepo}`,
+        { stdout: ".git\n", stderr: "", status: 0 },
+      ],
       [`git branch --show-current|${standardRepo}`, { stdout: "main\n", stderr: "", status: 0 }],
-      [`git for-each-ref --format=%(refname:short) refs/heads|${standardRepo}`, { stdout: "main\n", stderr: "", status: 0 }],
+      [
+        `git for-each-ref --format=%(refname:short) refs/heads|${standardRepo}`,
+        { stdout: "main\n", stderr: "", status: 0 },
+      ],
       [`git remote|${standardRepo}`, { stdout: "origin\n", stderr: "", status: 0 }],
-      [`git remote get-url origin|${standardRepo}`, { stdout: "git@github.com:bdelanghe/ai-home.git\n", stderr: "", status: 0 }],
+      [
+        `git remote get-url origin|${standardRepo}`,
+        { stdout: "git@github.com:bdelanghe/ai-home.git\n", stderr: "", status: 0 },
+      ],
       [
         `git rev-parse --show-toplevel|${worktreeRepo}`,
         { stdout: `${worktreeRepo}\n`, stderr: "", status: 0 },
@@ -61,14 +82,32 @@ describe("discoverLocalRepos", () => {
         { stdout: "GH-5431\n", stderr: "", status: 0 },
       ],
       [`git remote|${worktreeRepo}`, { stdout: "origin\nupstream\n", stderr: "", status: 0 }],
-      [`git remote get-url origin|${worktreeRepo}`, { stdout: "git@github.com:bdelanghe/demo-web.git\n", stderr: "", status: 0 }],
-      [`git remote get-url upstream|${worktreeRepo}`, { stdout: "git@github.com:demo/demo-web.git\n", stderr: "", status: 0 }],
-      [`git rev-parse --is-bare-repository|${bareRepo}`, { stdout: "true\n", stderr: "", status: 0 }],
+      [
+        `git remote get-url origin|${worktreeRepo}`,
+        { stdout: "git@github.com:bdelanghe/demo-web.git\n", stderr: "", status: 0 },
+      ],
+      [
+        `git remote get-url upstream|${worktreeRepo}`,
+        { stdout: "git@github.com:demo/demo-web.git\n", stderr: "", status: 0 },
+      ],
+      [
+        `git rev-parse --is-bare-repository|${bareRepo}`,
+        { stdout: "true\n", stderr: "", status: 0 },
+      ],
       [`git rev-parse --git-common-dir|${bareRepo}`, { stdout: ".\n", stderr: "", status: 0 }],
-      [`git for-each-ref --format=%(refname:short) refs/heads|${bareRepo}`, { stdout: "GH-5431\n", stderr: "", status: 0 }],
+      [
+        `git for-each-ref --format=%(refname:short) refs/heads|${bareRepo}`,
+        { stdout: "GH-5431\n", stderr: "", status: 0 },
+      ],
       [`git remote|${bareRepo}`, { stdout: "origin\nupstream\n", stderr: "", status: 0 }],
-      [`git remote get-url origin|${bareRepo}`, { stdout: "git@github.com:bdelanghe/demo-web.git\n", stderr: "", status: 0 }],
-      [`git remote get-url upstream|${bareRepo}`, { stdout: "git@github.com:demo/demo-web.git\n", stderr: "", status: 0 }],
+      [
+        `git remote get-url origin|${bareRepo}`,
+        { stdout: "git@github.com:bdelanghe/demo-web.git\n", stderr: "", status: 0 },
+      ],
+      [
+        `git remote get-url upstream|${bareRepo}`,
+        { stdout: "git@github.com:demo/demo-web.git\n", stderr: "", status: 0 },
+      ],
     ]);
 
     const inventory = discoverLocalRepos(
@@ -131,11 +170,23 @@ describe("discoverLocalRepos", () => {
     mkdirSync(worktreeGitDir, { recursive: true });
 
     const responses = new Map<string, { stdout: string; stderr: string; status: number }>([
-      [`git rev-parse --show-toplevel|${worktreeRepo}`, { stdout: `${worktreeRepo}\n`, stderr: "", status: 0 }],
-      [`git rev-parse --git-common-dir|${worktreeRepo}`, { stdout: ".git\n", stderr: "", status: 0 }],
-      [`git branch --show-current|${worktreeRepo}`, { stdout: "repox-local\n", stderr: "", status: 0 }],
+      [
+        `git rev-parse --show-toplevel|${worktreeRepo}`,
+        { stdout: `${worktreeRepo}\n`, stderr: "", status: 0 },
+      ],
+      [
+        `git rev-parse --git-common-dir|${worktreeRepo}`,
+        { stdout: ".git\n", stderr: "", status: 0 },
+      ],
+      [
+        `git branch --show-current|${worktreeRepo}`,
+        { stdout: "repox-local\n", stderr: "", status: 0 },
+      ],
       [`git remote|${worktreeRepo}`, { stdout: "origin\n", stderr: "", status: 0 }],
-      [`git remote get-url origin|${worktreeRepo}`, { stdout: "git@github.com:bdelanghe/ai-home.git\n", stderr: "", status: 0 }],
+      [
+        `git remote get-url origin|${worktreeRepo}`,
+        { stdout: "git@github.com:bdelanghe/ai-home.git\n", stderr: "", status: 0 },
+      ],
       [
         `git for-each-ref --format=%(refname:lstrip=2) refs/heads|${worktreeRepo}`,
         { stdout: "main\nrepox-local\nstale-branch\n", stderr: "", status: 0 },
@@ -194,22 +245,48 @@ describe("discoverLocalRepos", () => {
     writeFileSync(join(worktreeRepo, ".git"), `gitdir: ${bareRepo}/worktrees/main\n`);
 
     const responses = new Map<string, { stdout: string; stderr: string; status: number }>([
-      [`git rev-parse --show-toplevel|${worktreeRepo}`, { stdout: `${worktreeRepo}\n`, stderr: "", status: 0 }],
-      [`git rev-parse --git-common-dir|${worktreeRepo}`, { stdout: `${bareRepo}\n`, stderr: "", status: 0 }],
+      [
+        `git rev-parse --show-toplevel|${worktreeRepo}`,
+        { stdout: `${worktreeRepo}\n`, stderr: "", status: 0 },
+      ],
+      [
+        `git rev-parse --git-common-dir|${worktreeRepo}`,
+        { stdout: `${bareRepo}\n`, stderr: "", status: 0 },
+      ],
       [`git branch --show-current|${worktreeRepo}`, { stdout: "main\n", stderr: "", status: 0 }],
-      [`git for-each-ref --format=%(refname:lstrip=2) refs/heads|${worktreeRepo}`, { stdout: "main\nclean-up\n", stderr: "", status: 0 }],
+      [
+        `git for-each-ref --format=%(refname:lstrip=2) refs/heads|${worktreeRepo}`,
+        { stdout: "main\nclean-up\n", stderr: "", status: 0 },
+      ],
       [`git remote|${worktreeRepo}`, { stdout: "origin\n", stderr: "", status: 0 }],
-      [`git remote get-url origin|${worktreeRepo}`, { stdout: "git@github.com:bdelanghe/amz_sp_api.git\n", stderr: "", status: 0 }],
-      [`git rev-parse --is-bare-repository|${bareRepo}`, { stdout: "true\n", stderr: "", status: 0 }],
+      [
+        `git remote get-url origin|${worktreeRepo}`,
+        { stdout: "git@github.com:bdelanghe/amz_sp_api.git\n", stderr: "", status: 0 },
+      ],
+      [
+        `git rev-parse --is-bare-repository|${bareRepo}`,
+        { stdout: "true\n", stderr: "", status: 0 },
+      ],
       [`git rev-parse --git-common-dir|${bareRepo}`, { stdout: ".\n", stderr: "", status: 0 }],
-      [`git for-each-ref --format=%(refname:lstrip=2) refs/heads|${bareRepo}`, { stdout: "main\nclean-up\n", stderr: "", status: 0 }],
+      [
+        `git for-each-ref --format=%(refname:lstrip=2) refs/heads|${bareRepo}`,
+        { stdout: "main\nclean-up\n", stderr: "", status: 0 },
+      ],
       [`git remote|${bareRepo}`, { stdout: "origin\n", stderr: "", status: 0 }],
-      [`git remote get-url origin|${bareRepo}`, { stdout: "git@github.com:bdelanghe/amz_sp_api.git\n", stderr: "", status: 0 }],
+      [
+        `git remote get-url origin|${bareRepo}`,
+        { stdout: "git@github.com:bdelanghe/amz_sp_api.git\n", stderr: "", status: 0 },
+      ],
     ]);
 
     const inventory = discoverLocalRepos(
       [join(root, "bare"), join(root, "worktrees")],
-      (cmd, options = {}) => responses.get(`${cmd.join(" ")}|${options.cwd ?? ""}`) ?? { stdout: "", stderr: "missing", status: 1 },
+      (cmd, options = {}) =>
+        responses.get(`${cmd.join(" ")}|${options.cwd ?? ""}`) ?? {
+          stdout: "",
+          stderr: "missing",
+          status: 1,
+        },
       worktreeRepo,
     );
 
@@ -275,16 +352,13 @@ describe("discoverLocalRepos", () => {
     delete process.env.XDG_CONFIG_HOME;
     delete process.env.XDG_STATE_HOME;
     try {
-      const config = loadRepoInventoryConfig(
-        repoRoot,
-        (cmd, options = {}) => {
-          const key = `${cmd.join(" ")}|${options.cwd ?? ""}`;
-          if (key === `git rev-parse --show-toplevel|${repoRoot}`) {
-            return { stdout: `${repoRoot}\n`, stderr: "", status: 0 };
-          }
-          return { stdout: "", stderr: "missing", status: 1 };
-        },
-      );
+      const config = loadRepoInventoryConfig(repoRoot, (cmd, options = {}) => {
+        const key = `${cmd.join(" ")}|${options.cwd ?? ""}`;
+        if (key === `git rev-parse --show-toplevel|${repoRoot}`) {
+          return { stdout: `${repoRoot}\n`, stderr: "", status: 0 };
+        }
+        return { stdout: "", stderr: "missing", status: 1 };
+      });
 
       expect(config).toMatchObject({
         repoRoot,
@@ -341,16 +415,13 @@ describe("discoverLocalRepos", () => {
     const previousHome = process.env.HOME;
     process.env.HOME = homeRoot;
     try {
-      const config = loadRepoInventoryConfig(
-        repoRoot,
-        (cmd, options = {}) => {
-          const key = `${cmd.join(" ")}|${options.cwd ?? ""}`;
-          if (key === `git rev-parse --show-toplevel|${repoRoot}`) {
-            return { stdout: `${repoRoot}\n`, stderr: "", status: 0 };
-          }
-          return { stdout: "", stderr: "missing", status: 1 };
-        },
-      );
+      const config = loadRepoInventoryConfig(repoRoot, (cmd, options = {}) => {
+        const key = `${cmd.join(" ")}|${options.cwd ?? ""}`;
+        if (key === `git rev-parse --show-toplevel|${repoRoot}`) {
+          return { stdout: `${repoRoot}\n`, stderr: "", status: 0 };
+        }
+        return { stdout: "", stderr: "missing", status: 1 };
+      });
 
       expect(config).toMatchObject({
         repoRoot,
@@ -375,16 +446,13 @@ describe("discoverLocalRepos", () => {
     const previousHome = process.env.HOME;
     process.env.HOME = homeRoot;
     try {
-      const config = loadRepoInventoryConfig(
-        repoRoot,
-        (cmd, options = {}) => {
-          const key = `${cmd.join(" ")}|${options.cwd ?? ""}`;
-          if (key === `git rev-parse --show-toplevel|${repoRoot}`) {
-            return { stdout: `${repoRoot}\n`, stderr: "", status: 0 };
-          }
-          return { stdout: "", stderr: "missing", status: 1 };
-        },
-      );
+      const config = loadRepoInventoryConfig(repoRoot, (cmd, options = {}) => {
+        const key = `${cmd.join(" ")}|${options.cwd ?? ""}`;
+        if (key === `git rev-parse --show-toplevel|${repoRoot}`) {
+          return { stdout: `${repoRoot}\n`, stderr: "", status: 0 };
+        }
+        return { stdout: "", stderr: "missing", status: 1 };
+      });
 
       expect(config).toMatchObject({
         bareRoot: join(homeRoot, ".local", "share", "git", "bare"),
@@ -413,11 +481,25 @@ describe("discoverLocalRepos", () => {
           kind: "standard" as const,
           commonDir: "/tmp/workspaces/example/.git",
           mainWorktree: "/tmp/workspaces/example",
-          worktrees: [{ path: "/tmp/workspaces/example", branch: "percy-integration", current: false, kind: "standard" as const }],
+          worktrees: [
+            {
+              path: "/tmp/workspaces/example",
+              branch: "percy-integration",
+              current: false,
+              kind: "standard" as const,
+            },
+          ],
           localOnlyBranches: ["master"],
           findings: [
-            { type: "standard_repo" as const, message: "Standard repo exists outside the bare authority model." },
-            { type: "orphan_branch" as const, branch: "master", message: "Local-only branch master has no attached worktree." },
+            {
+              type: "standard_repo" as const,
+              message: "Standard repo exists outside the bare authority model.",
+            },
+            {
+              type: "orphan_branch" as const,
+              branch: "master",
+              message: "Local-only branch master has no attached worktree.",
+            },
           ],
           remotes: [],
           primaryRemote: {
@@ -440,7 +522,10 @@ describe("discoverLocalRepos", () => {
         canonicalBarePath: "/tmp/bare/io.github/percy/example-percy-ruby-selenium.git",
         actions: [
           { type: "delete_orphan_branch", branch: "master" },
-          { type: "create_canonical_bare", path: "/tmp/bare/io.github/percy/example-percy-ruby-selenium.git" },
+          {
+            type: "create_canonical_bare",
+            path: "/tmp/bare/io.github/percy/example-percy-ruby-selenium.git",
+          },
           { type: "detach_standard_git_dir", path: "/tmp/workspaces/example/.git" },
         ],
       },
@@ -465,12 +550,24 @@ describe("discoverLocalRepos", () => {
           kind: "standard" as const,
           commonDir: gitDir,
           mainWorktree: standardRepo,
-          worktrees: [{ path: standardRepo, branch: "main", current: false, kind: "standard" as const }],
+          worktrees: [
+            { path: standardRepo, branch: "main", current: false, kind: "standard" as const },
+          ],
           localOnlyBranches: ["beads-sync"],
           findings: [
-            { type: "standard_repo" as const, message: "Standard repo exists outside the bare authority model." },
-            { type: "duplicate_repo_forms" as const, message: "Repo exists in multiple local forms (for example bare + standard)." },
-            { type: "orphan_branch" as const, branch: "beads-sync", message: "Local-only branch beads-sync has no attached worktree." },
+            {
+              type: "standard_repo" as const,
+              message: "Standard repo exists outside the bare authority model.",
+            },
+            {
+              type: "duplicate_repo_forms" as const,
+              message: "Repo exists in multiple local forms (for example bare + standard).",
+            },
+            {
+              type: "orphan_branch" as const,
+              branch: "beads-sync",
+              message: "Local-only branch beads-sync has no attached worktree.",
+            },
           ],
           remotes: [],
           primaryRemote: {
@@ -483,14 +580,10 @@ describe("discoverLocalRepos", () => {
       ],
     };
 
-    const result = normalizeLocalRepos(
-      inventory,
-      { apply: true },
-      (cmd, options = {}) => {
-        commands.push(`${cmd.join(" ")}|${options.cwd ?? ""}`);
-        return { stdout: "", stderr: "", status: 0 };
-      },
-    );
+    const result = normalizeLocalRepos(inventory, { apply: true }, (cmd, options = {}) => {
+      commands.push(`${cmd.join(" ")}|${options.cwd ?? ""}`);
+      return { stdout: "", stderr: "", status: 0 };
+    });
 
     expect(result.apply).toBe(true);
     expect(commands).toEqual([`git branch -D beads-sync|${standardRepo}`]);
@@ -508,10 +601,21 @@ describe("discoverLocalRepos", () => {
           kind: "bare" as const,
           commonDir: "/tmp/bare/amz_sp_api.git",
           mainWorktree: null,
-          worktrees: [{ path: "/tmp/worktrees/amz/main", branch: "main", current: false, kind: "worktree" as const }],
+          worktrees: [
+            {
+              path: "/tmp/worktrees/amz/main",
+              branch: "main",
+              current: false,
+              kind: "worktree" as const,
+            },
+          ],
           localOnlyBranches: ["heads/main"],
           findings: [
-            { type: "orphan_branch" as const, branch: "heads/main", message: "Local-only branch heads/main has no attached worktree." },
+            {
+              type: "orphan_branch" as const,
+              branch: "heads/main",
+              message: "Local-only branch heads/main has no attached worktree.",
+            },
           ],
           remotes: [],
           primaryRemote: {
@@ -525,17 +629,15 @@ describe("discoverLocalRepos", () => {
     };
     const commands: string[] = [];
 
-    normalizeLocalRepos(
-      inventory,
-      { apply: true },
-      (cmd, options = {}) => {
-        commands.push(`${cmd.join(" ")}|${options.cwd ?? ""}|${options.check === false ? "nocheck" : "check"}`);
-        if (cmd[0] === "git" && cmd[1] === "branch") {
-          return { stdout: "", stderr: "error: branch 'heads/main' not found\n", status: 1 };
-        }
-        return { stdout: "", stderr: "", status: 0 };
-      },
-    );
+    normalizeLocalRepos(inventory, { apply: true }, (cmd, options = {}) => {
+      commands.push(
+        `${cmd.join(" ")}|${options.cwd ?? ""}|${options.check === false ? "nocheck" : "check"}`,
+      );
+      if (cmd[0] === "git" && cmd[1] === "branch") {
+        return { stdout: "", stderr: "error: branch 'heads/main' not found\n", status: 1 };
+      }
+      return { stdout: "", stderr: "", status: 0 };
+    });
 
     expect(commands).toEqual([
       "git branch -D heads/main|/tmp/worktrees/amz/main|nocheck",
@@ -565,8 +667,15 @@ describe("discoverLocalRepos", () => {
               worktrees: [],
               localOnlyBranches: ["percy-integration"],
               findings: [
-                { type: "no_attached_worktree", message: "Bare repo has no attached worktrees in the current scan scope." },
-                { type: "orphan_branch", branch: "percy-integration", message: "Local-only branch percy-integration has no attached worktree." },
+                {
+                  type: "no_attached_worktree",
+                  message: "Bare repo has no attached worktrees in the current scan scope.",
+                },
+                {
+                  type: "orphan_branch",
+                  branch: "percy-integration",
+                  message: "Local-only branch percy-integration has no attached worktree.",
+                },
               ],
               remotes: [],
               primaryRemote: {
@@ -592,7 +701,17 @@ describe("discoverLocalRepos", () => {
             {
               type: "create_attached_worktree",
               branch: "percy-integration",
-              path: join(root, ".local", "state", "git", "worktrees", "io.github", "percy", "example-percy-ruby-selenium", "percy-integration"),
+              path: join(
+                root,
+                ".local",
+                "state",
+                "git",
+                "worktrees",
+                "io.github",
+                "percy",
+                "example-percy-ruby-selenium",
+                "percy-integration",
+              ),
             },
             {
               type: "report_no_attached_worktree",
@@ -643,7 +762,10 @@ describe("parseRepoUrl", () => {
     ["git@github.com:owner/repo", { host: "github.com", owner: "owner", name: "repo" }],
     ["https://github.com/owner/repo.git", { host: "github.com", owner: "owner", name: "repo" }],
     ["https://github.com/owner/repo", { host: "github.com", owner: "owner", name: "repo" }],
-    ["git@gitlab.example.com:team/svc.git", { host: "gitlab.example.com", owner: "team", name: "svc" }],
+    [
+      "git@gitlab.example.com:team/svc.git",
+      { host: "gitlab.example.com", owner: "team", name: "svc" },
+    ],
     ["https://github.com/owner/repo/", { host: "github.com", owner: "owner", name: "repo" }],
   ])("parses %s", (url, expected) => {
     const parsed = parseRepoUrl(url);
@@ -712,17 +834,25 @@ describe("addLocalRepo", () => {
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
     const expectedMainx = join(wtRoot, "scratch.git", "mainx");
 
-    const { runner, calls } = makeRunner(new Map([
-      [`git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-    ]));
+    const { runner, calls } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+      ]),
+    );
 
-    const result = addLocalRepo({
-      url: "git@github.com:owner/scratch.git",
-      bareRoot,
-      wtRoot,
-      operatorConfigRoot: null,
-      overlay: false,
-    }, runner);
+    const result = addLocalRepo(
+      {
+        url: "git@github.com:owner/scratch.git",
+        bareRoot,
+        wtRoot,
+        operatorConfigRoot: null,
+        overlay: false,
+      },
+      runner,
+    );
 
     expect(result.barePath).toBe(expectedBare);
     expect(result.mainxPath).toBe(expectedMainx);
@@ -764,21 +894,29 @@ describe("addLocalRepo", () => {
 
     const expectedBare = join(bareRoot, "io.github", "owner", "legacy.git");
 
-    const { runner } = makeRunner(new Map([
-      [`git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`, { status: 1, stderr: "no symref" }],
-      [
-        `git -C ${expectedBare} ls-remote --symref origin HEAD`,
-        { stdout: "ref: refs/heads/master\tHEAD\nabc123\tHEAD\n" },
-      ],
-    ]));
+    const { runner } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { status: 1, stderr: "no symref" },
+        ],
+        [
+          `git -C ${expectedBare} ls-remote --symref origin HEAD`,
+          { stdout: "ref: refs/heads/master\tHEAD\nabc123\tHEAD\n" },
+        ],
+      ]),
+    );
 
-    const result = addLocalRepo({
-      url: "https://github.com/owner/legacy.git",
-      bareRoot,
-      wtRoot,
-      operatorConfigRoot: null,
-      overlay: false,
-    }, runner);
+    const result = addLocalRepo(
+      {
+        url: "https://github.com/owner/legacy.git",
+        bareRoot,
+        wtRoot,
+        operatorConfigRoot: null,
+        overlay: false,
+      },
+      runner,
+    );
 
     expect(result.defaultBranch).toBe("master");
   });
@@ -792,13 +930,18 @@ describe("addLocalRepo", () => {
 
     const { runner } = makeRunner();
 
-    expect(() => addLocalRepo({
-      url: "git@github.com:owner/scratch.git",
-      bareRoot,
-      wtRoot,
-      operatorConfigRoot: null,
-      overlay: false,
-    }, runner)).toThrow(RepoAddError);
+    expect(() =>
+      addLocalRepo(
+        {
+          url: "git@github.com:owner/scratch.git",
+          bareRoot,
+          wtRoot,
+          operatorConfigRoot: null,
+          overlay: false,
+        },
+        runner,
+      ),
+    ).toThrow(RepoAddError);
   });
 
   test("refuses to clobber existing mainx path", () => {
@@ -810,26 +953,36 @@ describe("addLocalRepo", () => {
 
     const { runner } = makeRunner();
 
-    expect(() => addLocalRepo({
-      url: "git@github.com:owner/scratch.git",
-      bareRoot,
-      wtRoot,
-      operatorConfigRoot: null,
-      overlay: false,
-    }, runner)).toThrow(/mainx/);
+    expect(() =>
+      addLocalRepo(
+        {
+          url: "git@github.com:owner/scratch.git",
+          bareRoot,
+          wtRoot,
+          operatorConfigRoot: null,
+          overlay: false,
+        },
+        runner,
+      ),
+    ).toThrow(/mainx/);
   });
 
   test("rejects malformed URLs", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-repo-add-bad-url-"));
     const { runner } = makeRunner();
 
-    expect(() => addLocalRepo({
-      url: "not-a-git-url",
-      bareRoot: join(root, "bare"),
-      wtRoot: join(root, "wt"),
-      operatorConfigRoot: null,
-      overlay: false,
-    }, runner)).toThrow(/parse git URL/);
+    expect(() =>
+      addLocalRepo(
+        {
+          url: "not-a-git-url",
+          bareRoot: join(root, "bare"),
+          wtRoot: join(root, "wt"),
+          operatorConfigRoot: null,
+          overlay: false,
+        },
+        runner,
+      ),
+    ).toThrow(/parse git URL/);
   });
 
   test("--overlay scaffolds prx.toml stub at <operatorConfigRoot>/.prx/repos/io.<host>/<owner>/<name>/", () => {
@@ -840,19 +993,35 @@ describe("addLocalRepo", () => {
     mkdirSync(operatorConfigRoot, { recursive: true });
 
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const { runner } = makeRunner(new Map([
-      [`git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-    ]));
+    const { runner } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+      ]),
+    );
 
-    const result = addLocalRepo({
-      url: "git@github.com:owner/scratch.git",
-      bareRoot,
-      wtRoot,
+    const result = addLocalRepo(
+      {
+        url: "git@github.com:owner/scratch.git",
+        bareRoot,
+        wtRoot,
+        operatorConfigRoot,
+        overlay: true,
+      },
+      runner,
+    );
+
+    const expectedOverlay = join(
       operatorConfigRoot,
-      overlay: true,
-    }, runner);
-
-    const expectedOverlay = join(operatorConfigRoot, ".prx", "repos", "io.github", "owner", "scratch", "prx.toml");
+      ".prx",
+      "repos",
+      "io.github",
+      "owner",
+      "scratch",
+      "prx.toml",
+    );
     expect(result.overlay).toEqual({ path: expectedOverlay, written: true });
     expect(existsSync(expectedOverlay)).toBe(true);
     const body = readFileSync(expectedOverlay, "utf8");
@@ -872,19 +1041,31 @@ describe("addLocalRepo", () => {
     writeFileSync(existingOverlay, "# operator-authored content\n");
 
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const { runner } = makeRunner(new Map([
-      [`git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-    ]));
+    const { runner } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+      ]),
+    );
 
-    const result = addLocalRepo({
-      url: "git@github.com:owner/scratch.git",
-      bareRoot,
-      wtRoot,
-      operatorConfigRoot,
-      overlay: true,
-    }, runner);
+    const result = addLocalRepo(
+      {
+        url: "git@github.com:owner/scratch.git",
+        bareRoot,
+        wtRoot,
+        operatorConfigRoot,
+        overlay: true,
+      },
+      runner,
+    );
 
-    expect(result.overlay).toEqual({ path: existingOverlay, written: false, reason: "already_exists" });
+    expect(result.overlay).toEqual({
+      path: existingOverlay,
+      written: false,
+      reason: "already_exists",
+    });
     expect(readFileSync(existingOverlay, "utf8")).toBe("# operator-authored content\n");
   });
 
@@ -894,24 +1075,36 @@ describe("addLocalRepo", () => {
     const wtRoot = join(root, "wt");
 
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const { runner } = makeRunner(new Map([
-      [`git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-    ]));
+    const { runner } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+      ]),
+    );
 
-    expect(() => addLocalRepo({
-      url: "git@github.com:owner/scratch.git",
-      bareRoot,
-      wtRoot,
-      operatorConfigRoot: null,
-      overlay: true,
-    }, runner)).toThrow(/operator config root/);
+    expect(() =>
+      addLocalRepo(
+        {
+          url: "git@github.com:owner/scratch.git",
+          bareRoot,
+          wtRoot,
+          operatorConfigRoot: null,
+          overlay: true,
+        },
+        runner,
+      ),
+    ).toThrow(/operator config root/);
   });
 });
 
 // GH-1643: slug → bare-repo resolution used by `prx plan session --repo <slug>`.
 // Resolution order: LocalRepo.name → primaryRemote.githubRepo (owner/name).
 // Standard repos are filtered out — the registry is bare-only.
-function makeBareRepo(overrides: Partial<LocalRepo> & Pick<LocalRepo, "name" | "commonDir">): LocalRepo {
+function makeBareRepo(
+  overrides: Partial<LocalRepo> & Pick<LocalRepo, "name" | "commonDir">,
+): LocalRepo {
   return {
     name: overrides.name,
     commonDir: overrides.commonDir,
@@ -1068,7 +1261,9 @@ describe("repoInventorySchema (GH-1657)", () => {
 
   test("accepts a conforming prefix", () => {
     const parsed = repoInventorySchema.parse(inventoryWithPrefix("ai-home"));
-    expect((parsed.repos[0] as { bd_workspace_prefix?: string }).bd_workspace_prefix).toBe("ai-home");
+    expect((parsed.repos[0] as { bd_workspace_prefix?: string }).bd_workspace_prefix).toBe(
+      "ai-home",
+    );
   });
 
   test("passes entries through when bd_workspace_prefix is absent (lazy migration)", () => {
@@ -1090,7 +1285,9 @@ describe("repoInventorySchema (GH-1657)", () => {
       ],
     };
     const parsed = repoInventorySchema.parse(inv);
-    expect((parsed.repos[0] as { bd_workspace_prefix?: string }).bd_workspace_prefix).toBeUndefined();
+    expect(
+      (parsed.repos[0] as { bd_workspace_prefix?: string }).bd_workspace_prefix,
+    ).toBeUndefined();
   });
 
   test.each([
@@ -1196,10 +1393,7 @@ describe("repoInventorySchema canonical axis (GH-1710)", () => {
 
   test.each([
     ["https://doltremoteapi.dolthub.com/bdelanghe/ab", "too short (2 chars)"],
-    [
-      "https://doltremoteapi.dolthub.com/bdelanghe/" + "a".repeat(33),
-      "too long (33 chars)",
-    ],
+    ["https://doltremoteapi.dolthub.com/bdelanghe/" + "a".repeat(33), "too long (33 chars)"],
     ["https://doltremoteapi.dolthub.com/bdelanghe/1leading-digit", "leading digit"],
     ["https://doltremoteapi.dolthub.com/bdelanghe/-leading-hyphen", "leading hyphen"],
     ["https://doltremoteapi.dolthub.com/bdelanghe/has.dot", "dot in repo-name"],
@@ -1291,15 +1485,15 @@ describe("setRepoCanonical / setRepoStaleThresholdDays (GH-1710)", () => {
     expect(reloaded.repos[0]!.stale_threshold_days).toBe(7);
   });
 
-  test.each([0, -1, 1.5, Number.NaN])(
-    "setRepoStaleThresholdDays rejects non-positive-integer (%s)",
-    (value) => {
-      const indexPath = seedIndex();
-      expect(() => setRepoStaleThresholdDays(indexPath, "demo-repo", value)).toThrow(
-        RepoAddError,
-      );
-    },
-  );
+  test.each([
+    0,
+    -1,
+    1.5,
+    Number.NaN,
+  ])("setRepoStaleThresholdDays rejects non-positive-integer (%s)", (value) => {
+    const indexPath = seedIndex();
+    expect(() => setRepoStaleThresholdDays(indexPath, "demo-repo", value)).toThrow(RepoAddError);
+  });
 });
 
 describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
@@ -1344,18 +1538,26 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
     const { bareRoot, wtRoot } = setupRoots();
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
     const expectedMainx = join(wtRoot, "scratch.git", "mainx");
-    const { runner, calls } = makeRunner(new Map([
-      [`git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-      ["bd config get database.workspace_prefix", { stdout: "ai-home\n" }],
-    ]));
+    const { runner, calls } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+        ["bd config get database.workspace_prefix", { stdout: "ai-home\n" }],
+      ]),
+    );
 
-    const result = addLocalRepo({
-      url: "git@github.com:owner/scratch.git",
-      bareRoot,
-      wtRoot,
-      operatorConfigRoot: null,
-      overlay: false,
-    }, runner);
+    const result = addLocalRepo(
+      {
+        url: "git@github.com:owner/scratch.git",
+        bareRoot,
+        wtRoot,
+        operatorConfigRoot: null,
+        overlay: false,
+      },
+      runner,
+    );
 
     expect(result.bdWorkspacePrefix).toBe("ai-home");
     const bdCalls = calls.filter((c) => c.cmd[0] === "bd");
@@ -1367,18 +1569,26 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
   test("override path bypasses the bd subprocess entirely", () => {
     const { bareRoot, wtRoot } = setupRoots();
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const { runner, calls } = makeRunner(new Map([
-      [`git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-    ]));
+    const { runner, calls } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+      ]),
+    );
 
-    const result = addLocalRepo({
-      url: "git@github.com:owner/scratch.git",
-      bareRoot,
-      wtRoot,
-      operatorConfigRoot: null,
-      overlay: false,
-      bdWorkspacePrefixOverride: "supply-plan",
-    }, runner);
+    const result = addLocalRepo(
+      {
+        url: "git@github.com:owner/scratch.git",
+        bareRoot,
+        wtRoot,
+        operatorConfigRoot: null,
+        overlay: false,
+        bdWorkspacePrefixOverride: "supply-plan",
+      },
+      runner,
+    );
 
     expect(result.bdWorkspacePrefix).toBe("supply-plan");
     expect(calls.filter((c) => c.cmd[0] === "bd")).toHaveLength(0);
@@ -1393,20 +1603,28 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
   ])("rejects invalid override value %p", (value) => {
     const { bareRoot, wtRoot } = setupRoots();
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const { runner } = makeRunner(new Map([
-      [`git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-    ]));
+    const { runner } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+      ]),
+    );
 
     let thrown: unknown;
     try {
-      addLocalRepo({
-        url: "git@github.com:owner/scratch.git",
-        bareRoot,
-        wtRoot,
-        operatorConfigRoot: null,
-        overlay: false,
-        bdWorkspacePrefixOverride: value,
-      }, runner);
+      addLocalRepo(
+        {
+          url: "git@github.com:owner/scratch.git",
+          bareRoot,
+          wtRoot,
+          operatorConfigRoot: null,
+          overlay: false,
+          bdWorkspacePrefixOverride: value,
+        },
+        runner,
+      );
     } catch (err) {
       thrown = err;
     }
@@ -1417,20 +1635,28 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
   test("bd non-zero exit → bd_workspace_prefix_unresolved", () => {
     const { bareRoot, wtRoot } = setupRoots();
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const { runner } = makeRunner(new Map([
-      [`git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-      ["bd config get database.workspace_prefix", { status: 1, stderr: "bd: not found" }],
-    ]));
+    const { runner } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+        ["bd config get database.workspace_prefix", { status: 1, stderr: "bd: not found" }],
+      ]),
+    );
 
     let thrown: unknown;
     try {
-      addLocalRepo({
-        url: "git@github.com:owner/scratch.git",
-        bareRoot,
-        wtRoot,
-        operatorConfigRoot: null,
-        overlay: false,
-      }, runner);
+      addLocalRepo(
+        {
+          url: "git@github.com:owner/scratch.git",
+          bareRoot,
+          wtRoot,
+          operatorConfigRoot: null,
+          overlay: false,
+        },
+        runner,
+      );
     } catch (err) {
       thrown = err;
     }
@@ -1441,20 +1667,28 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
   test("bd empty stdout → bd_workspace_prefix_empty", () => {
     const { bareRoot, wtRoot } = setupRoots();
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const { runner } = makeRunner(new Map([
-      [`git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-      ["bd config get database.workspace_prefix", { stdout: "\n" }],
-    ]));
+    const { runner } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+        ["bd config get database.workspace_prefix", { stdout: "\n" }],
+      ]),
+    );
 
     let thrown: unknown;
     try {
-      addLocalRepo({
-        url: "git@github.com:owner/scratch.git",
-        bareRoot,
-        wtRoot,
-        operatorConfigRoot: null,
-        overlay: false,
-      }, runner);
+      addLocalRepo(
+        {
+          url: "git@github.com:owner/scratch.git",
+          bareRoot,
+          wtRoot,
+          operatorConfigRoot: null,
+          overlay: false,
+        },
+        runner,
+      );
     } catch (err) {
       thrown = err;
     }
@@ -1469,20 +1703,28 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
   ])("bd non-conforming stdout %p → bd_workspace_prefix_invalid_shape", (value) => {
     const { bareRoot, wtRoot } = setupRoots();
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const { runner } = makeRunner(new Map([
-      [`git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-      ["bd config get database.workspace_prefix", { stdout: `${value}\n` }],
-    ]));
+    const { runner } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+        ["bd config get database.workspace_prefix", { stdout: `${value}\n` }],
+      ]),
+    );
 
     let thrown: unknown;
     try {
-      addLocalRepo({
-        url: "git@github.com:owner/scratch.git",
-        bareRoot,
-        wtRoot,
-        operatorConfigRoot: null,
-        overlay: false,
-      }, runner);
+      addLocalRepo(
+        {
+          url: "git@github.com:owner/scratch.git",
+          bareRoot,
+          wtRoot,
+          operatorConfigRoot: null,
+          overlay: false,
+        },
+        runner,
+      );
     } catch (err) {
       thrown = err;
     }
@@ -1522,21 +1764,26 @@ describe("loadRepoInventoryIndex (GH-1657)", () => {
   test("parses an index file lacking bd_workspace_prefix (lazy migration)", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-load-index-legacy-"));
     const indexPath = join(root, "index.json");
-    writeFileSync(indexPath, JSON.stringify({
-      roots: [],
-      repos: [{
-        name: "legacy",
-        commonDir: "/bare/legacy.git",
-        kind: "bare",
-        mainWorktree: null,
-        worktrees: [],
-        localOnlyBranches: [],
-        findings: [],
-        remotes: [],
-        primaryRemote: null,
-        upstreamRemote: null,
-      }],
-    }));
+    writeFileSync(
+      indexPath,
+      JSON.stringify({
+        roots: [],
+        repos: [
+          {
+            name: "legacy",
+            commonDir: "/bare/legacy.git",
+            kind: "bare",
+            mainWorktree: null,
+            worktrees: [],
+            localOnlyBranches: [],
+            findings: [],
+            remotes: [],
+            primaryRemote: null,
+            upstreamRemote: null,
+          },
+        ],
+      }),
+    );
 
     const loaded = loadRepoInventoryIndex(indexPath);
     expect(loaded).not.toBeNull();
@@ -1546,22 +1793,27 @@ describe("loadRepoInventoryIndex (GH-1657)", () => {
   test("rejects an index file with a malformed bd_workspace_prefix", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-load-index-bad-"));
     const indexPath = join(root, "index.json");
-    writeFileSync(indexPath, JSON.stringify({
-      roots: [],
-      repos: [{
-        name: "bad",
-        commonDir: "/bare/bad.git",
-        kind: "bare",
-        mainWorktree: null,
-        worktrees: [],
-        localOnlyBranches: [],
-        findings: [],
-        remotes: [],
-        primaryRemote: null,
-        upstreamRemote: null,
-        bd_workspace_prefix: "Bad-Shape",
-      }],
-    }));
+    writeFileSync(
+      indexPath,
+      JSON.stringify({
+        roots: [],
+        repos: [
+          {
+            name: "bad",
+            commonDir: "/bare/bad.git",
+            kind: "bare",
+            mainWorktree: null,
+            worktrees: [],
+            localOnlyBranches: [],
+            findings: [],
+            remotes: [],
+            primaryRemote: null,
+            upstreamRemote: null,
+            bd_workspace_prefix: "Bad-Shape",
+          },
+        ],
+      }),
+    );
 
     expect(() => loadRepoInventoryIndex(indexPath)).toThrow();
   });
@@ -1627,9 +1879,14 @@ describe("addLocalRepo .beads hydrate (GH-1680)", () => {
     const { bareRoot, wtRoot } = setupRoots();
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
     const expectedMainx = join(wtRoot, "scratch.git", "mainx");
-    const { runner } = makeRunner(new Map([
-      [`git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-    ]));
+    const { runner } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+      ]),
+    );
     const { fn, calls } = makeHydrateStub({
       status: "hydrated",
       doltRemote: "https://doltremoteapi.dolthub.com/owner/scratch",
@@ -1638,13 +1895,17 @@ describe("addLocalRepo .beads hydrate (GH-1680)", () => {
       exitCode: 0,
     });
 
-    const result = addLocalRepo({
-      url: "git@github.com:owner/scratch.git",
-      bareRoot,
-      wtRoot,
-      operatorConfigRoot: null,
-      overlay: false,
-    }, runner, fn);
+    const result = addLocalRepo(
+      {
+        url: "git@github.com:owner/scratch.git",
+        bareRoot,
+        wtRoot,
+        operatorConfigRoot: null,
+        overlay: false,
+      },
+      runner,
+      fn,
+    );
 
     expect(result.beadsHydrate.status).toBe("hydrated");
     expect(result.beadsHydrate.doltDatabase).toBe("scratch_db");
@@ -1655,9 +1916,14 @@ describe("addLocalRepo .beads hydrate (GH-1680)", () => {
     const { bareRoot, wtRoot } = setupRoots();
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
     const expectedMainx = join(wtRoot, "scratch.git", "mainx");
-    const { runner } = makeRunner(new Map([
-      [`git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-    ]));
+    const { runner } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+      ]),
+    );
     const { fn, calls } = makeHydrateStub({
       status: "skipped-no-beads",
       doltRemote: null,
@@ -1666,13 +1932,17 @@ describe("addLocalRepo .beads hydrate (GH-1680)", () => {
       exitCode: 0,
     });
 
-    const result = addLocalRepo({
-      url: "git@github.com:owner/scratch.git",
-      bareRoot,
-      wtRoot,
-      operatorConfigRoot: null,
-      overlay: false,
-    }, runner, fn);
+    const result = addLocalRepo(
+      {
+        url: "git@github.com:owner/scratch.git",
+        bareRoot,
+        wtRoot,
+        operatorConfigRoot: null,
+        overlay: false,
+      },
+      runner,
+      fn,
+    );
 
     expect(result.beadsHydrate.status).toBe("skipped-no-beads");
     expect(calls).toEqual([expectedMainx]);
@@ -1682,9 +1952,14 @@ describe("addLocalRepo .beads hydrate (GH-1680)", () => {
     const { bareRoot, wtRoot } = setupRoots();
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
     const expectedMainx = join(wtRoot, "scratch.git", "mainx");
-    const { runner } = makeRunner(new Map([
-      [`git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-    ]));
+    const { runner } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+      ]),
+    );
     const { fn, calls } = makeHydrateStub({
       status: "clone-failed",
       doltRemote: "https://doltremoteapi.dolthub.com/does-not-exist/x__y__z",
@@ -1696,13 +1971,17 @@ describe("addLocalRepo .beads hydrate (GH-1680)", () => {
     let thrown: unknown;
     let result: ReturnType<typeof addLocalRepo> | undefined;
     try {
-      result = addLocalRepo({
-        url: "git@github.com:owner/scratch.git",
-        bareRoot,
-        wtRoot,
-        operatorConfigRoot: null,
-        overlay: false,
-      }, runner, fn);
+      result = addLocalRepo(
+        {
+          url: "git@github.com:owner/scratch.git",
+          bareRoot,
+          wtRoot,
+          operatorConfigRoot: null,
+          overlay: false,
+        },
+        runner,
+        fn,
+      );
     } catch (err) {
       thrown = err;
     }
@@ -1744,9 +2023,7 @@ describe("writeRepoInventoryIndex atomic-write ratchet (GH-1722)", () => {
 
     const badInventory = {
       roots: [],
-      repos: [
-        { name: "x", bd_workspace_prefix: "INVALID UPPERCASE WITH SPACE" },
-      ],
+      repos: [{ name: "x", bd_workspace_prefix: "INVALID UPPERCASE WITH SPACE" }],
     } as unknown as RepoInventory;
 
     expect(() => writeRepoInventoryIndex(indexPath, badInventory)).toThrow();
@@ -1878,13 +2155,18 @@ describe("refreshLocalRepo (GH-1681)", () => {
 
   test("happy path: refspec already broadened → no upgrade, fetch runs, hydrate already-hydrated", () => {
     const { bareRoot: _bareRoot, wtRoot, barePath, mainxPath } = setupBareAndMainx();
-    const { runner, calls } = makeRunner(new Map([
-      [`git -C ${barePath} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-      [
-        `git -C ${barePath} config --get-all remote.origin.fetch`,
-        { stdout: CANONICAL_REFSPECS.join("\n") + "\n" },
-      ],
-    ]));
+    const { runner, calls } = makeRunner(
+      new Map([
+        [
+          `git -C ${barePath} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+        [
+          `git -C ${barePath} config --get-all remote.origin.fetch`,
+          { stdout: CANONICAL_REFSPECS.join("\n") + "\n" },
+        ],
+      ]),
+    );
     const { fn, calls: hydrateCalls } = makeHydrateStub(alreadyHydrated());
 
     const result = refreshLocalRepo(
@@ -1922,13 +2204,18 @@ describe("refreshLocalRepo (GH-1681)", () => {
 
   test("lazy upgrade: heads-only refspec → unset-all + three --add calls in canonical order", () => {
     const { wtRoot, barePath, mainxPath } = setupBareAndMainx();
-    const { runner, calls } = makeRunner(new Map([
-      [`git -C ${barePath} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-      [
-        `git -C ${barePath} config --get-all remote.origin.fetch`,
-        { stdout: "+refs/heads/*:refs/remotes/origin/*\n" },
-      ],
-    ]));
+    const { runner, calls } = makeRunner(
+      new Map([
+        [
+          `git -C ${barePath} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+        [
+          `git -C ${barePath} config --get-all remote.origin.fetch`,
+          { stdout: "+refs/heads/*:refs/remotes/origin/*\n" },
+        ],
+      ]),
+    );
     const { fn } = makeHydrateStub(alreadyHydrated());
 
     const result = refreshLocalRepo(
@@ -1954,13 +2241,18 @@ describe("refreshLocalRepo (GH-1681)", () => {
 
   test("--no-fetch: skip fetch, still runs upgrade + hydrate", () => {
     const { wtRoot, barePath, mainxPath } = setupBareAndMainx();
-    const { runner, calls } = makeRunner(new Map([
-      [`git -C ${barePath} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-      [
-        `git -C ${barePath} config --get-all remote.origin.fetch`,
-        { stdout: "+refs/heads/*:refs/remotes/origin/*\n" },
-      ],
-    ]));
+    const { runner, calls } = makeRunner(
+      new Map([
+        [
+          `git -C ${barePath} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+        [
+          `git -C ${barePath} config --get-all remote.origin.fetch`,
+          { stdout: "+refs/heads/*:refs/remotes/origin/*\n" },
+        ],
+      ]),
+    );
     const { fn, calls: hydrateCalls } = makeHydrateStub(alreadyHydrated());
 
     const result = refreshLocalRepo(
@@ -1981,12 +2273,14 @@ describe("refreshLocalRepo (GH-1681)", () => {
 
   test("--dry-run: no writes, no fetch, hydrate stub receives { dryRun: true }", () => {
     const { wtRoot, barePath, mainxPath } = setupBareAndMainx();
-    const { runner, calls } = makeRunner(new Map([
-      [
-        `git -C ${barePath} config --get-all remote.origin.fetch`,
-        { stdout: "+refs/heads/*:refs/remotes/origin/*\n" },
-      ],
-    ]));
+    const { runner, calls } = makeRunner(
+      new Map([
+        [
+          `git -C ${barePath} config --get-all remote.origin.fetch`,
+          { stdout: "+refs/heads/*:refs/remotes/origin/*\n" },
+        ],
+      ]),
+    );
     const { fn, calls: hydrateCalls } = makeHydrateStub({
       status: "dry-run",
       doltRemote: "https://doltremoteapi.dolthub.com/owner/scratch",
@@ -2013,12 +2307,13 @@ describe("refreshLocalRepo (GH-1681)", () => {
     // entirely, so only --get-all is allowed.
     const writeCmds = calls
       .map((c) => c.cmd.join(" "))
-      .filter((c) =>
-        c.includes("--unset-all") ||
-        (c.includes("config --add") && c.includes("remote.origin.fetch")) ||
-        c.includes("fetch --prune") ||
-        c.includes("remote set-head") ||
-        c.includes("worktree add"),
+      .filter(
+        (c) =>
+          c.includes("--unset-all") ||
+          (c.includes("config --add") && c.includes("remote.origin.fetch")) ||
+          c.includes("fetch --prune") ||
+          c.includes("remote set-head") ||
+          c.includes("worktree add"),
       );
     expect(writeCmds).toEqual([]);
   });
@@ -2027,13 +2322,18 @@ describe("refreshLocalRepo (GH-1681)", () => {
     const { wtRoot, barePath, mainxPath } = setupBareAndMainx({ coldMainx: true });
     expect(existsSync(mainxPath)).toBe(false);
 
-    const { runner, calls } = makeRunner(new Map([
-      [`git -C ${barePath} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-      [
-        `git -C ${barePath} config --get-all remote.origin.fetch`,
-        { stdout: CANONICAL_REFSPECS.join("\n") + "\n" },
-      ],
-    ]));
+    const { runner, calls } = makeRunner(
+      new Map([
+        [
+          `git -C ${barePath} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+        [
+          `git -C ${barePath} config --get-all remote.origin.fetch`,
+          { stdout: CANONICAL_REFSPECS.join("\n") + "\n" },
+        ],
+      ]),
+    );
     const { fn } = makeHydrateStub(alreadyHydrated());
 
     const result = refreshLocalRepo(
@@ -2050,13 +2350,18 @@ describe("refreshLocalRepo (GH-1681)", () => {
 
   test("clone-failed: refreshLocalRepo returns the result without throwing (warn-and-continue at lib layer)", () => {
     const { wtRoot, barePath, mainxPath } = setupBareAndMainx();
-    const { runner } = makeRunner(new Map([
-      [`git -C ${barePath} symbolic-ref --short refs/remotes/origin/HEAD`, { stdout: "origin/main\n" }],
-      [
-        `git -C ${barePath} config --get-all remote.origin.fetch`,
-        { stdout: CANONICAL_REFSPECS.join("\n") + "\n" },
-      ],
-    ]));
+    const { runner } = makeRunner(
+      new Map([
+        [
+          `git -C ${barePath} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+        [
+          `git -C ${barePath} config --get-all remote.origin.fetch`,
+          { stdout: CANONICAL_REFSPECS.join("\n") + "\n" },
+        ],
+      ]),
+    );
     const { fn } = makeHydrateStub({
       status: "clone-failed",
       doltRemote: "https://doltremoteapi.dolthub.com/missing/owner",
@@ -2141,7 +2446,11 @@ describe("refreshLocalRepo (GH-1681)", () => {
       if (key === `git -C ${barePath} symbolic-ref --short refs/remotes/origin/HEAD`) {
         return setHeadRan
           ? { stdout: "origin/main\n", stderr: "", status: 0 }
-          : { stdout: "", stderr: "fatal: ref refs/remotes/origin/HEAD is not a symbolic ref", status: 1 };
+          : {
+              stdout: "",
+              stderr: "fatal: ref refs/remotes/origin/HEAD is not a symbolic ref",
+              status: 1,
+            };
       }
       if (key === `git -C ${barePath} ls-remote --symref origin HEAD`) {
         // Available regardless — but the post-fix path should not need it
@@ -2179,7 +2488,9 @@ describe("refreshLocalRepo (GH-1681)", () => {
     const idx = (cmd: string) => cmds.findIndex((c) => c === cmd);
     const refspecGet = idx(`git -C ${barePath} config --get-all remote.origin.fetch`);
     const refspecUnset = idx(`git -C ${barePath} config --unset-all remote.origin.fetch`);
-    const refspecAddHeads = idx(`git -C ${barePath} config --add remote.origin.fetch +refs/heads/*:refs/remotes/origin/*`);
+    const refspecAddHeads = idx(
+      `git -C ${barePath} config --add remote.origin.fetch +refs/heads/*:refs/remotes/origin/*`,
+    );
     const fetchIdx = idx(`git -C ${barePath} fetch --prune origin`);
     const setHeadIdx = idx(`git -C ${barePath} remote set-head origin --auto`);
     const symrefIdx = idx(`git -C ${barePath} symbolic-ref --short refs/remotes/origin/HEAD`);
@@ -2241,8 +2552,12 @@ describe("refreshLocalRepo — legacy bare integration (GH-1751)", () => {
     // refs/remotes/origin/*. Some `git clone --bare` versions don't write
     // the refspec or remote-tracking refs to begin with; we tolerate either
     // shape via `check: false`-equivalent guards.
-    spawnSync("git", ["-C", barePath, "config", "--unset-all", "remote.origin.fetch"], { encoding: "utf8" });
-    spawnSync("git", ["-C", barePath, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD"], { encoding: "utf8" });
+    spawnSync("git", ["-C", barePath, "config", "--unset-all", "remote.origin.fetch"], {
+      encoding: "utf8",
+    });
+    spawnSync("git", ["-C", barePath, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD"], {
+      encoding: "utf8",
+    });
     const remotesDir = join(barePath, "refs", "remotes", "origin");
     if (existsSync(remotesDir)) {
       rmSync(remotesDir, { recursive: true, force: true });
@@ -2250,7 +2565,9 @@ describe("refreshLocalRepo — legacy bare integration (GH-1751)", () => {
 
     // Sanity: the bare is now in the legacy state — `rev-parse origin/main`
     // must fail. (This is what `materializeMainxIfMissing` tripped on pre-fix.)
-    const probe = spawnSync("git", ["-C", barePath, "rev-parse", "--verify", "origin/main"], { encoding: "utf8" });
+    const probe = spawnSync("git", ["-C", barePath, "rev-parse", "--verify", "origin/main"], {
+      encoding: "utf8",
+    });
     expect(probe.status).not.toBe(0);
 
     // 3. Run refresh with the real default runner.
@@ -2269,11 +2586,13 @@ describe("refreshLocalRepo — legacy bare integration (GH-1751)", () => {
       // <upstreamBare>`) is what `git fetch` and `git remote set-head` operate
       // against. Keep them decoupled here: the LocalRepo.primaryRemote.url is
       // a parseable git URL whose `name` matches the bare basename.
-      remotes: [{
-        name: "origin",
-        url: "git@github.com:owner/scratch.git",
-        githubRepo: "owner/scratch",
-      }],
+      remotes: [
+        {
+          name: "origin",
+          url: "git@github.com:owner/scratch.git",
+          githubRepo: "owner/scratch",
+        },
+      ],
       primaryRemote: {
         name: "origin",
         url: "git@github.com:owner/scratch.git",
@@ -2317,11 +2636,9 @@ describe("refreshLocalRepo — legacy bare integration (GH-1751)", () => {
     expect(symref.stdout.trim()).toBe("origin/main");
 
     // refs/remotes/origin/main repopulated by fetch.
-    const refProbe = spawnSync(
-      "git",
-      ["-C", barePath, "rev-parse", "--verify", "origin/main"],
-      { encoding: "utf8" },
-    );
+    const refProbe = spawnSync("git", ["-C", barePath, "rev-parse", "--verify", "origin/main"], {
+      encoding: "utf8",
+    });
     expect(refProbe.status).toBe(0);
 
     // Cleanup

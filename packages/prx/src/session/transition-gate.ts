@@ -13,10 +13,7 @@
 import { z, type ZodType } from "zod";
 
 import { PlanArtifactSchema } from "../plan-store/plan-artifact.ts";
-import {
-  pinTransitionArtifact,
-  type PinTransitionDeps,
-} from "./transition-artifact.ts";
+import { pinTransitionArtifact, type PinTransitionDeps } from "./transition-artifact.ts";
 
 // The floor: any JSON object. The gate ALWAYS enforces "a JSON object was
 // emitted into the slot"; strict per-role `outputArtifact` schemas tighten it

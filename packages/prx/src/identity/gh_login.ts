@@ -29,9 +29,7 @@
  */
 import { spawnCapture } from "@bounded-systems/proc";
 
-export type GhLoginResult =
-  | { ok: true; login: string }
-  | { ok: false; message: string };
+export type GhLoginResult = { ok: true; login: string } | { ok: false; message: string };
 
 export type ResolveGhLoginDeps = {
   runGhAuthStatus?: () => { ok: boolean };
@@ -68,8 +66,7 @@ export function resolveGhLogin(deps: ResolveGhLoginDeps = {}): GhLoginResult {
   if (!auth.ok) {
     return {
       ok: false,
-      message:
-        "gh auth status failed — run `gh auth login` (no fallback to env or git config)",
+      message: "gh auth status failed — run `gh auth login` (no fallback to env or git config)",
     };
   }
   const login = (deps.runGhApiUserLogin ?? runGhApiUserLogin)();

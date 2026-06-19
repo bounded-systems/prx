@@ -13,7 +13,9 @@ function mkRepoRoot(): string {
   return mkdtempSync(join(tmpdir(), "prx-map-machine-"));
 }
 
-async function runToDone(input: MapMachineInput): Promise<ReturnType<typeof createActor<typeof mapMachine>>> {
+async function runToDone(
+  input: MapMachineInput,
+): Promise<ReturnType<typeof createActor<typeof mapMachine>>> {
   const actor = createActor(mapMachine, { input });
   actor.start();
   await new Promise<void>((resolve) => {

@@ -9,12 +9,7 @@ import { basename, relative, resolve } from "node:path";
 
 import { getRepoRoot } from "../repo-root.ts";
 const REPO_ROOT = getRepoRoot();
-import {
-  GRAPH_CONTEXT,
-  ProjectGraph,
-  type DocNode,
-  type PackageNode,
-} from "./model.ts";
+import { GRAPH_CONTEXT, ProjectGraph, type DocNode, type PackageNode } from "./model.ts";
 
 export const SCOPE = "@bounded-systems/";
 export const CLI_PACKAGE = `${SCOPE}prx`;
@@ -53,8 +48,7 @@ export function collectPackages(): Array<{ name: string; description: string }> 
     }
     const name = typeof manifest.name === "string" ? manifest.name : "";
     if (!name.startsWith(SCOPE)) continue;
-    const description =
-      typeof manifest.description === "string" ? manifest.description.trim() : "";
+    const description = typeof manifest.description === "string" ? manifest.description.trim() : "";
     if (!description) {
       missing.push(name);
       continue;

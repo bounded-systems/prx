@@ -110,7 +110,8 @@ export class CliExitError extends Error {
 export const verbToken = (id: string): string => id.replace(/\s+/g, "_");
 
 export const toInputJsonSchema = (v: VerbSpec): JsonSchema => z.toJSONSchema(v.input) as JsonSchema;
-export const toOutputJsonSchema = (v: VerbSpec): JsonSchema => z.toJSONSchema(v.output) as JsonSchema;
+export const toOutputJsonSchema = (v: VerbSpec): JsonSchema =>
+  z.toJSONSchema(v.output) as JsonSchema;
 
 // ── projections ─────────────────────────────────────────────────────────────
 
@@ -137,14 +138,20 @@ export const toOpenApiOperation = (v: VerbSpec): JsonSchema => ({
     content: { "application/json": { schema: toInputJsonSchema(v) } },
   },
   responses: {
-    "200": { description: "ok", content: { "application/json": { schema: toOutputJsonSchema(v) } } },
+    "200": {
+      description: "ok",
+      content: { "application/json": { schema: toOutputJsonSchema(v) } },
+    },
   },
 });
 
 /** Project a whole registry to an OpenAPI `paths` object (ids → `/a/b` paths). */
 export const toOpenApiPaths = (reg: Registry): JsonSchema =>
   Object.fromEntries(
-    Object.values(reg).map((v) => [`/${v.id.split(" ").join("/")}`, { post: toOpenApiOperation(v) }]),
+    Object.values(reg).map((v) => [
+      `/${v.id.split(" ").join("/")}`,
+      { post: toOpenApiOperation(v) },
+    ]),
   );
 
 /** Project a whole registry to an MCP toolset. */
@@ -163,10 +170,17 @@ export type ContentDescriptor = { name: string; required: boolean; schema: JsonS
 
 /** Top-level input properties → OpenRPC Content Descriptors (by-name params). */
 const toContentDescriptors = (v: VerbSpec): ContentDescriptor[] => {
-  const js = toInputJsonSchema(v) as { properties?: Record<string, JsonSchema>; required?: string[] };
+  const js = toInputJsonSchema(v) as {
+    properties?: Record<string, JsonSchema>;
+    required?: string[];
+  };
   const props = js.properties ?? {};
   const required = new Set(js.required ?? []);
-  return Object.entries(props).map(([name, schema]) => ({ name, required: required.has(name), schema }));
+  return Object.entries(props).map(([name, schema]) => ({
+    name,
+    required: required.has(name),
+    schema,
+  }));
 };
 
 /** Project one verb to an OpenRPC Method Object. */
@@ -205,7 +219,13 @@ export type JsonRpcResponse =
   | { jsonrpc: "2.0"; id: JsonRpcId; error: JsonRpcError };
 
 // Standard JSON-RPC 2.0 error codes.
-const RPC = { parse: -32700, invalidRequest: -32600, methodNotFound: -32601, invalidParams: -32602, internal: -32603 } as const;
+const RPC = {
+  parse: -32700,
+  invalidRequest: -32600,
+  methodNotFound: -32601,
+  invalidParams: -32602,
+  internal: -32603,
+} as const;
 
 const err = (id: JsonRpcId, code: number, message: string, data?: unknown): JsonRpcResponse => ({
   jsonrpc: "2.0",
@@ -255,7 +275,10 @@ export async function dispatchNdjson(reg: Registry, line: string): Promise<strin
 
 // ── CLI projection: help + argv parser ───────────────────────────────────────
 
-type JsonProps = { properties?: Record<string, { type?: string; description?: string }>; required?: string[] };
+type JsonProps = {
+  properties?: Record<string, { type?: string; description?: string }>;
+  required?: string[];
+};
 
 export function toHelp(v: VerbSpec, bin = "prx"): string {
   const js = toInputJsonSchema(v) as JsonProps;
@@ -283,7 +306,10 @@ export function toHelp(v: VerbSpec, bin = "prx"): string {
  * and comma-split for array-typed fields (detected from the JSON Schema). The
  * Zod `parse` does coercion (`z.coerce.number`) and is the single validation.
  */
-export function parseArgs<I extends ZodType>(v: VerbSpec<I, ZodType>, argv: readonly string[]): z.infer<I> {
+export function parseArgs<I extends ZodType>(
+  v: VerbSpec<I, ZodType>,
+  argv: readonly string[],
+): z.infer<I> {
   const js = toInputJsonSchema(v) as { properties?: Record<string, { type?: string }> };
   const props = js.properties ?? {};
   const isArray = (key: string) => props[key]?.type === "array";

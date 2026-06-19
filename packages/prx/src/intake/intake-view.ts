@@ -17,16 +17,8 @@
 import { z } from "zod";
 
 import { extractIssueNumber } from "../issues/dedupe.ts";
-import {
-  IssueResolveError,
-  resolveIssueId,
-  type IssueResolvedId,
-} from "../issues/resolver.ts";
-import {
-  formatIssueViewRender,
-  viewGhIssue,
-  type IssueViewRender,
-} from "../issues/render.ts";
+import { IssueResolveError, resolveIssueId, type IssueResolvedId } from "../issues/resolver.ts";
+import { formatIssueViewRender, viewGhIssue, type IssueViewRender } from "../issues/render.ts";
 import { runScoutNotion, ScoutNotionError } from "../scout/notion.ts";
 import { execBd } from "@bounded-systems/bd";
 import { execGh } from "@bounded-systems/gh";
@@ -101,12 +93,7 @@ export async function runIntakeView(
           ghExec,
           bdExec,
         });
-        output.log(
-          formatIntakeViewRender(
-            { source: "notion", payload: result },
-            opts.format,
-          ),
-        );
+        output.log(formatIntakeViewRender({ source: "notion", payload: result }, opts.format));
         return 0;
       } catch (err) {
         if (err instanceof ScoutNotionError) {
@@ -147,9 +134,6 @@ export async function runIntakeView(
   }
 }
 
-export function formatIntakeViewRender(
-  render: IntakeViewRender,
-  format: "plain" | "json",
-): string {
+export function formatIntakeViewRender(render: IntakeViewRender, format: "plain" | "json"): string {
   return formatIssueViewRender(render, format);
 }

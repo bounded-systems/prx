@@ -14,7 +14,11 @@ import { runSpecVerb } from "../../src/cli/orchestrator-cli.ts";
 function rec() {
   const lines: string[] = [];
   const errors: string[] = [];
-  return { lines, errors, output: { log: (l: string) => lines.push(l), error: (l: string) => errors.push(l) } };
+  return {
+    lines,
+    errors,
+    output: { log: (l: string) => lines.push(l), error: (l: string) => errors.push(l) },
+  };
 }
 
 describe("runSpecVerb", () => {

@@ -16,7 +16,10 @@ import { detectWorkCommandTarget, parseCanonicalWorkUnitId } from "./cli-id.ts";
 import { resolvePlanSessionUnit } from "../plan-store/session-context.ts";
 import { runPlanSave, type RunPlanSaveResult } from "../plan-store/verbs.ts";
 
-type PlanSaveCleanupSpec = { kind: "none" } | { kind: "delete" } | { kind: "move-to"; dest: string };
+type PlanSaveCleanupSpec =
+  | { kind: "none" }
+  | { kind: "delete" }
+  | { kind: "move-to"; dest: string };
 
 function parseCleanupSpec(raw: string): PlanSaveCleanupSpec {
   if (raw === "none") return { kind: "none" };
@@ -30,7 +33,9 @@ function parseCleanupSpec(raw: string): PlanSaveCleanupSpec {
     }
     return { kind: "move-to", dest };
   }
-  throw new CliError(`plan save: invalid --cleanup value: ${raw}. Valid: none, delete, move-to=<path>`);
+  throw new CliError(
+    `plan save: invalid --cleanup value: ${raw}. Valid: none, delete, move-to=<path>`,
+  );
 }
 
 export type PlanSaveDeps = {
@@ -69,7 +74,8 @@ const PlanSaveOutput = z
 
 export const planSaveVerb = defineVerb({
   id: "plan-save",
-  summary: "Persist a plan body (stdin or --from-file) to the CAS plan store; warns (not refuses) on shape misses.",
+  summary:
+    "Persist a plan body (stdin or --from-file) to the CAS plan store; warns (not refuses) on shape misses.",
   actor: "plan",
   input: z.object({
     unit: z.string().optional().describe("work unit (defaults to the planner pane / branch / cwd)"),
@@ -77,8 +83,14 @@ export const planSaveVerb = defineVerb({
     "from-stdin": z.coerce.boolean().default(false).describe("read the body from stdin"),
     "from-file": z.string().optional().describe("read the body from a staging file"),
     format: z.enum(["plain", "json"]).default("plain").describe("output format"),
-    "skip-validate": z.coerce.boolean().default(false).describe("persist even if the shape gate fails (loud)"),
-    cleanup: z.string().default("none").describe("post-save staging cleanup: none | delete | move-to=<dir>"),
+    "skip-validate": z.coerce
+      .boolean()
+      .default(false)
+      .describe("persist even if the shape gate fails (loud)"),
+    cleanup: z
+      .string()
+      .default("none")
+      .describe("post-save staging cleanup: none | delete | move-to=<dir>"),
   }),
   output: PlanSaveOutput,
   deps: realPlanSaveDeps,
@@ -91,7 +103,10 @@ export const planSaveVerb = defineVerb({
     if (input["from-file"] !== undefined) source = { kind: "file", path: input["from-file"] };
     else if (input["from-stdin"]) source = { kind: "stdin" };
     else if (!process.stdin.isTTY) source = { kind: "stdin" };
-    else throw new CliError("plan save: pass --from-stdin or --from-file <path> (no piped stdin detected)");
+    else
+      throw new CliError(
+        "plan save: pass --from-stdin or --from-file <path> (no piped stdin detected)",
+      );
 
     const cleanup = parseCleanupSpec(input.cleanup);
     if (cleanup.kind !== "none" && source.kind !== "file") {
@@ -107,7 +122,9 @@ export const planSaveVerb = defineVerb({
       );
     }
     const unit =
-      resolved.source === "flag" ? parseCanonicalWorkUnitId(resolved.unit, "--unit") : resolved.unit;
+      resolved.source === "flag"
+        ? parseCanonicalWorkUnitId(resolved.unit, "--unit")
+        : resolved.unit;
 
     const content = source.kind === "stdin" ? deps.readStdinSync() : deps.readPlanFile(source.path);
 
@@ -115,17 +132,23 @@ export const planSaveVerb = defineVerb({
     if (cleanup.kind === "move-to") {
       try {
         if (!deps.statPath(cleanup.dest).isDirectory()) {
-          throw new CliError(`plan save: --cleanup=move-to=${cleanup.dest} must point to an existing directory`);
+          throw new CliError(
+            `plan save: --cleanup=move-to=${cleanup.dest} must point to an existing directory`,
+          );
         }
       } catch (err) {
         if (err instanceof CliError) throw err;
-        throw new CliError(`plan save: --cleanup=move-to=${cleanup.dest} must point to an existing directory`);
+        throw new CliError(
+          `plan save: --cleanup=move-to=${cleanup.dest} must point to an existing directory`,
+        );
       }
     }
 
     const warnings: string[] = [];
     if (input["skip-validate"]) {
-      warnings.push("warning: plan save skipped shape validation (--skip-validate); slot will fail at consume");
+      warnings.push(
+        "warning: plan save skipped shape validation (--skip-validate); slot will fail at consume",
+      );
     }
 
     const result = await deps.runPlanSave({

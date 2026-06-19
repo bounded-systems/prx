@@ -75,10 +75,7 @@ describe("createDoltDatabase", () => {
   });
 
   test("surfaces CREATE failure as error (probe ok, create fails)", () => {
-    const { spawn } = fakeSpawn([
-      okShowEmpty,
-      { status: 1, stderr: "permission denied" },
-    ]);
+    const { spawn } = fakeSpawn([okShowEmpty, { status: 1, stderr: "permission denied" }]);
     const result = createDoltDatabase(DB, CONN, spawn);
     expect(result).toEqual({
       status: "error",

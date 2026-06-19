@@ -25,9 +25,10 @@ import {
 // GH-2382 — capture the `gh issue edit` chokepoint calls. The linked push
 // routes its edit through `execGhIssueEdit` (not the raw runner), so edit
 // assertions read the captured `GhIssueEditOptions` rather than a gh argv.
-function recordingEdit(
-  result: GhIssueEditResult = { exitCode: 0, stdout: "", stderr: "" },
-): { edit: typeof execGhIssueEdit; calls: GhIssueEditOptions[] } {
+function recordingEdit(result: GhIssueEditResult = { exitCode: 0, stdout: "", stderr: "" }): {
+  edit: typeof execGhIssueEdit;
+  calls: GhIssueEditOptions[];
+} {
   const calls: GhIssueEditOptions[] = [];
   const edit = ((opts: GhIssueEditOptions) => {
     calls.push(opts);
@@ -81,7 +82,11 @@ function recordingBdExec(
 
 describe("GhDomainAdapter — config / ownedOnPull pin", () => {
   // The ADR doc-drift assertion reads ai-home's docs/spikes/GH-1500-authority.md (absent in prx).
-  test.skipIf(!existsSync(join(import.meta.dir, "..", "..", "..", "..", "docs", "spikes", "GH-1500-authority.md")))("ADR §2 GitHub column is the literal ownedOnPull declaration", () => {
+  test.skipIf(
+    !existsSync(
+      join(import.meta.dir, "..", "..", "..", "..", "docs", "spikes", "GH-1500-authority.md"),
+    ),
+  )("ADR §2 GitHub column is the literal ownedOnPull declaration", () => {
     // If you change this list you MUST also update docs/spikes/GH-1500-authority.md §2.
     // GH-1874: `assignees` moved to bd-canonical and left this set.
     expect(GH_OWNED_ON_PULL).toEqual(["externalIssueNumber", "milestone", "status"]);
@@ -200,7 +205,10 @@ describe("GhDomainAdapter.pull", () => {
 describe("GhDomainAdapter.pull — conditional reads (GH-296 / prx-lzw lever 1)", () => {
   // An in-memory GhConditionalReadCache.
   function memCache(): {
-    cache: { get: (id: string) => { etag: string; value: string } | undefined; set: (id: string, e: { etag: string; value: string }) => void };
+    cache: {
+      get: (id: string) => { etag: string; value: string } | undefined;
+      set: (id: string, e: { etag: string; value: string }) => void;
+    };
     map: Map<string, { etag: string; value: string }>;
   } {
     const map = new Map<string, { etag: string; value: string }>();
@@ -223,11 +231,21 @@ describe("GhDomainAdapter.pull — conditional reads (GH-296 / prx-lzw lever 1)"
   test("cold read: no If-None-Match, hits gh api -i, parses + caches {etag, patch}", async () => {
     const { cache, map } = memCache();
     const { runner, calls } = recordingRunner(() =>
-      resp200('W/"v1"', { number: 204, state: "open", assignees: [{ login: "alice" }], milestone: { title: "v2" } }),
+      resp200('W/"v1"', {
+        number: 204,
+        state: "open",
+        assignees: [{ login: "alice" }],
+        milestone: { title: "v2" },
+      }),
     );
     const adapter = new GhDomainAdapter({ runner, cwd: () => "/repo", conditionalRead: cache });
     const patch = await adapter.pull("https://github.com/o/r/issues/204");
-    expect(patch).toEqual({ externalIssueNumber: 204, status: "open", assignees: ["alice"], milestone: "v2" });
+    expect(patch).toEqual({
+      externalIssueNumber: 204,
+      status: "open",
+      assignees: ["alice"],
+      milestone: "v2",
+    });
     // gh api against the REST issue path, with -i, and NO If-None-Match (cold).
     expect(calls[0]!.cmd).toEqual(["gh", "api", "repos/o/r/issues/204", "-i"]);
     // cached for next tick.
@@ -239,14 +257,27 @@ describe("GhDomainAdapter.pull — conditional reads (GH-296 / prx-lzw lever 1)"
 
   test("warm read: sends If-None-Match, a free 304 reuses the cached patch (no body parse)", async () => {
     const { cache, map } = memCache();
-    const cachedPatch = { externalIssueNumber: 204, status: "open", assignees: ["alice"], milestone: "v2" };
-    map.set("https://github.com/o/r/issues/204", { etag: 'W/"v1"', value: JSON.stringify(cachedPatch) });
+    const cachedPatch = {
+      externalIssueNumber: 204,
+      status: "open",
+      assignees: ["alice"],
+      milestone: "v2",
+    };
+    map.set("https://github.com/o/r/issues/204", {
+      etag: 'W/"v1"',
+      value: JSON.stringify(cachedPatch),
+    });
     const { runner, calls } = recordingRunner(() => resp304('W/"v1"'));
     const adapter = new GhDomainAdapter({ runner, cwd: () => "/repo", conditionalRead: cache });
     const patch = await adapter.pull("https://github.com/o/r/issues/204");
     expect(patch).toEqual(cachedPatch); // reused, NOT an error despite exit 1
     expect(calls[0]!.cmd).toEqual([
-      "gh", "api", "repos/o/r/issues/204", "-i", "-H", 'If-None-Match: W/"v1"',
+      "gh",
+      "api",
+      "repos/o/r/issues/204",
+      "-i",
+      "-H",
+      'If-None-Match: W/"v1"',
     ]);
   });
 
@@ -254,9 +285,16 @@ describe("GhDomainAdapter.pull — conditional reads (GH-296 / prx-lzw lever 1)"
     const { cache, map } = memCache();
     map.set("https://github.com/o/r/issues/204", {
       etag: 'W/"v1"',
-      value: JSON.stringify({ externalIssueNumber: 204, status: "open", assignees: [], milestone: null }),
+      value: JSON.stringify({
+        externalIssueNumber: 204,
+        status: "open",
+        assignees: [],
+        milestone: null,
+      }),
     });
-    const { runner } = recordingRunner(() => resp200('W/"v2"', { number: 204, state: "closed", assignees: [], milestone: null }));
+    const { runner } = recordingRunner(() =>
+      resp200('W/"v2"', { number: 204, state: "closed", assignees: [], milestone: null }),
+    );
     const adapter = new GhDomainAdapter({ runner, cwd: () => "/repo", conditionalRead: cache });
     const patch = await adapter.pull("https://github.com/o/r/issues/204");
     expect(patch.status).toBe("closed"); // REST lowercase state maps through
@@ -271,7 +309,9 @@ describe("GhDomainAdapter.pull — conditional reads (GH-296 / prx-lzw lever 1)"
       stdout: 'HTTP/2.0 404 Not Found\n\n{"message":"Not Found"}',
     }));
     const adapter = new GhDomainAdapter({ runner, cwd: () => "/repo", conditionalRead: cache });
-    await expect(adapter.pull("https://github.com/o/r/issues/9")).rejects.toThrow(/gh adapter pull/i);
+    await expect(adapter.pull("https://github.com/o/r/issues/9")).rejects.toThrow(
+      /gh adapter pull/i,
+    );
   });
 
   test("304 with an unusable cached value refetches unconditionally and re-derives", async () => {
@@ -405,10 +445,10 @@ describe("GhDomainAdapter.push", () => {
       execBd: bd.exec,
       cwd: () => "/repo",
     });
-    const result = await adapter.push(
-      bead({ externalRef: "https://github.com/o/r/issues/999" }),
-      { title: "Renamed", labels: ["agent::executor"] },
-    );
+    const result = await adapter.push(bead({ externalRef: "https://github.com/o/r/issues/999" }), {
+      title: "Renamed",
+      labels: ["agent::executor"],
+    });
     expect(result).toEqual({
       externalId: "https://github.com/o/r/issues/999",
       created: false,
@@ -449,10 +489,10 @@ describe("GhDomainAdapter.push", () => {
     });
     const { edit, calls: editCalls } = recordingEdit();
     const adapter = new GhDomainAdapter({ runner, execGhIssueEdit: edit, cwd: () => "/repo" });
-    const result = await adapter.push(
-      bead({ externalRef: "https://github.com/o/r/issues/999" }),
-      { title: "Same", body: "Same body" },
-    );
+    const result = await adapter.push(bead({ externalRef: "https://github.com/o/r/issues/999" }), {
+      title: "Same",
+      body: "Same body",
+    });
     expect(result.edited).toBe(false);
     expect(editCalls).toEqual([]);
   });
@@ -499,21 +539,11 @@ describe("GhDomainAdapter.push", () => {
     });
     const { edit, calls: editCalls } = recordingEdit();
     const adapter = new GhDomainAdapter({ runner, execGhIssueEdit: edit, cwd: () => "/repo" });
-    const result = await adapter.push(
-      bead({ externalRef: "https://github.com/o/r/issues/999" }),
-      { labels: ["type::task", "priority::medium"] },
-    );
+    const result = await adapter.push(bead({ externalRef: "https://github.com/o/r/issues/999" }), {
+      labels: ["type::task", "priority::medium"],
+    });
     expect(result.edited).toBe(true);
-    expect(calls[0]?.cmd).toEqual([
-      "gh",
-      "issue",
-      "view",
-      "999",
-      "--json",
-      "labels",
-      "-R",
-      "o/r",
-    ]);
+    expect(calls[0]?.cmd).toEqual(["gh", "issue", "view", "999", "--json", "labels", "-R", "o/r"]);
     expect(editCalls).toHaveLength(1);
     expect(editCalls[0]?.addLabels).toEqual(["priority::medium"]);
     expect(editCalls[0]?.removeLabels).toEqual(["priority::low"]);
@@ -525,17 +555,18 @@ describe("GhDomainAdapter.push", () => {
         return {
           status: 0,
           stderr: "",
-          stdout: JSON.stringify({ labels: [{ name: "type::task" }, { name: "priority::medium" }] }),
+          stdout: JSON.stringify({
+            labels: [{ name: "type::task" }, { name: "priority::medium" }],
+          }),
         };
       }
       throw new Error(`unexpected gh call: ${cmd.join(" ")}`);
     });
     const { edit, calls: editCalls } = recordingEdit();
     const adapter = new GhDomainAdapter({ runner, execGhIssueEdit: edit, cwd: () => "/repo" });
-    const result = await adapter.push(
-      bead({ externalRef: "https://github.com/o/r/issues/999" }),
-      { labels: ["type::task", "priority::medium"] },
-    );
+    const result = await adapter.push(bead({ externalRef: "https://github.com/o/r/issues/999" }), {
+      labels: ["type::task", "priority::medium"],
+    });
     expect(result.edited).toBe(false);
     expect(editCalls).toEqual([]);
   });
@@ -553,10 +584,9 @@ describe("GhDomainAdapter.push", () => {
     });
     const { edit, calls: editCalls } = recordingEdit();
     const adapter = new GhDomainAdapter({ runner, execGhIssueEdit: edit, cwd: () => "/repo" });
-    await adapter.push(
-      bead({ externalRef: "https://github.com/o/r/issues/999" }),
-      { labels: ["type::task", "priority::high"] },
-    );
+    await adapter.push(bead({ externalRef: "https://github.com/o/r/issues/999" }), {
+      labels: ["type::task", "priority::high"],
+    });
     // Only `priority::high` is added; `type::spike` (GH-only marker, not in
     // BD_TYPE_ENUM) is never stripped, and `type::task` already matches.
     expect(editCalls[0]?.addLabels).toEqual(["priority::high"]);
@@ -576,10 +606,9 @@ describe("GhDomainAdapter.push", () => {
     });
     const { edit, calls: editCalls } = recordingEdit();
     const adapter = new GhDomainAdapter({ runner, execGhIssueEdit: edit, cwd: () => "/repo" });
-    const result = await adapter.push(
-      bead({ externalRef: "https://github.com/o/r/issues/999" }),
-      { assignees: ["alice"] },
-    );
+    const result = await adapter.push(bead({ externalRef: "https://github.com/o/r/issues/999" }), {
+      assignees: ["alice"],
+    });
     expect(result).toEqual({
       externalId: "https://github.com/o/r/issues/999",
       created: false,
@@ -613,10 +642,9 @@ describe("GhDomainAdapter.push", () => {
     });
     const { edit, calls: editCalls } = recordingEdit();
     const adapter = new GhDomainAdapter({ runner, execGhIssueEdit: edit, cwd: () => "/repo" });
-    await adapter.push(
-      bead({ externalRef: "https://github.com/o/r/issues/999" }),
-      { assignees: [] },
-    );
+    await adapter.push(bead({ externalRef: "https://github.com/o/r/issues/999" }), {
+      assignees: [],
+    });
     expect(editCalls).toHaveLength(1);
     expect(editCalls[0]?.removeAssignees?.slice().sort()).toEqual(["alice", "bob"]);
     expect(editCalls[0]?.addAssignees).toBeUndefined();
@@ -635,10 +663,9 @@ describe("GhDomainAdapter.push", () => {
     });
     const { edit, calls: editCalls } = recordingEdit();
     const adapter = new GhDomainAdapter({ runner, execGhIssueEdit: edit, cwd: () => "/repo" });
-    await adapter.push(
-      bead({ externalRef: "https://github.com/o/r/issues/999" }),
-      { assignees: ["alice"] },
-    );
+    await adapter.push(bead({ externalRef: "https://github.com/o/r/issues/999" }), {
+      assignees: ["alice"],
+    });
     expect(editCalls[0]?.removeAssignees).toEqual(["bob"]);
     expect(editCalls[0]?.addAssignees).toBeUndefined();
   });
@@ -656,10 +683,9 @@ describe("GhDomainAdapter.push", () => {
     });
     const { edit, calls: editCalls } = recordingEdit();
     const adapter = new GhDomainAdapter({ runner, execGhIssueEdit: edit, cwd: () => "/repo" });
-    const result = await adapter.push(
-      bead({ externalRef: "https://github.com/o/r/issues/999" }),
-      { assignees: ["alice"] },
-    );
+    const result = await adapter.push(bead({ externalRef: "https://github.com/o/r/issues/999" }), {
+      assignees: ["alice"],
+    });
     // Only the view call — no edit, since the diff is empty.
     expect(calls).toHaveLength(1);
     expect(calls[0]?.cmd[2]).toBe("view");
@@ -677,10 +703,9 @@ describe("GhDomainAdapter.push", () => {
     });
     const { edit, calls: editCalls } = recordingEdit();
     const adapter = new GhDomainAdapter({ runner, execGhIssueEdit: edit, cwd: () => "/repo" });
-    const result = await adapter.push(
-      bead({ externalRef: "https://github.com/o/r/issues/999" }),
-      { status: "open" },
-    );
+    const result = await adapter.push(bead({ externalRef: "https://github.com/o/r/issues/999" }), {
+      status: "open",
+    });
     expect(result.edited).toBe(true);
     // Status is a distinct `gh issue reopen` subcommand, not `gh issue edit`.
     expect(editCalls).toEqual([]);
@@ -735,9 +760,9 @@ describe("GhDomainAdapter.recognizesExternalId", () => {
 
   test("true for full GitHub issue URLs (incl. trailing fragment/query)", () => {
     expect(adapter.recognizesExternalId("https://github.com/o/r/issues/1")).toBe(true);
-    expect(
-      adapter.recognizesExternalId("https://github.com/o/r/issues/1?source=intake"),
-    ).toBe(true);
+    expect(adapter.recognizesExternalId("https://github.com/o/r/issues/1?source=intake")).toBe(
+      true,
+    );
     expect(adapter.recognizesExternalId(" HTTPS://GITHUB.COM/o/r/issues/2 ")).toBe(true);
   });
 
@@ -788,15 +813,13 @@ describe("GhDomainAdapter.resolve / resolveFromBeads", () => {
   test("`resolveFromBeads` is the sync sibling of `resolve` — same dispatch contract", () => {
     // Pass beads directly (no `loadAllBeads` dep) to confirm the sync seam.
     const sync = new GhDomainAdapter({ cwd: () => "/repo" });
-    expect(sync.resolveFromBeads("https://github.com/o/r/issues/204", records)).toBe(
-      "ai-home-a",
-    );
+    expect(sync.resolveFromBeads("https://github.com/o/r/issues/204", records)).toBe("ai-home-a");
     expect(sync.resolveFromBeads("GH-99", records)).toBe("ai-home-b");
     expect(sync.resolveFromBeads("https://github.com/o/r/issues/777", records)).toBeNull();
     expect(sync.resolveFromBeads("ai-home-a", records)).toBeNull();
   });
 
-  test("`resolveFromBeads` looks up via the `byDomainExternalId.get(\"gh\")` index — not legacy `byUrl`", () => {
+  test('`resolveFromBeads` looks up via the `byDomainExternalId.get("gh")` index — not legacy `byUrl`', () => {
     // A record whose legacy `externalRef` is set but `externalRefs.gh` is NOT
     // populated represents a "loaded before GH-1538" snapshot. `resolveFromBeads`
     // is the post-GH-1538 contract: it dispatches via `externalRefs`, so this
@@ -813,9 +836,9 @@ describe("GhDomainAdapter.resolve / resolveFromBeads", () => {
     ];
     const sync = new GhDomainAdapter({ cwd: () => "/repo" });
     // URL path → byDomainExternalId miss → falls back to byIssueNumber.
-    expect(
-      sync.resolveFromBeads("https://github.com/o/r/issues/555", legacyOnly),
-    ).toBe("ai-home-legacy");
+    expect(sync.resolveFromBeads("https://github.com/o/r/issues/555", legacyOnly)).toBe(
+      "ai-home-legacy",
+    );
   });
 });
 
@@ -891,10 +914,9 @@ describe("GhDomainAdapter — BeadsCache sharing (GH-1595)", () => {
     expect(invalidations).toBe(1);
 
     // Linked path is idempotent — no bd write-back → no invalidate.
-    await adapter.push(
-      bead({ externalRef: "https://github.com/o/r/issues/42" }),
-      { title: "renamed" },
-    );
+    await adapter.push(bead({ externalRef: "https://github.com/o/r/issues/42" }), {
+      title: "renamed",
+    });
     expect(invalidations).toBe(1);
   });
 });
@@ -1018,14 +1040,33 @@ describe("GhDomainAdapter.enumerate (GH-1469)", () => {
         ]),
       };
     });
-    const adapter = new GhDomainAdapter({ runner, repoNameWithOwner: () => "o/r", cwd: () => "/repo" });
+    const adapter = new GhDomainAdapter({
+      runner,
+      repoNameWithOwner: () => "o/r",
+      cwd: () => "/repo",
+    });
     const refs = await adapter.enumerate({ from: 1259, to: 1466 });
 
     // 874 (below) and 2000 (above) filtered out; sorted ascending by number.
     expect(refs).toEqual([
-      { externalId: "https://github.com/o/r/issues/1259", surfaceId: "GH-1259", number: 1259, state: "open" },
-      { externalId: "https://github.com/o/r/issues/1403", surfaceId: "GH-1403", number: 1403, state: "closed" },
-      { externalId: "https://github.com/o/r/issues/1466", surfaceId: "GH-1466", number: 1466, state: "open" },
+      {
+        externalId: "https://github.com/o/r/issues/1259",
+        surfaceId: "GH-1259",
+        number: 1259,
+        state: "open",
+      },
+      {
+        externalId: "https://github.com/o/r/issues/1403",
+        surfaceId: "GH-1403",
+        number: 1403,
+        state: "closed",
+      },
+      {
+        externalId: "https://github.com/o/r/issues/1466",
+        surfaceId: "GH-1466",
+        number: 1466,
+        state: "open",
+      },
     ]);
 
     // Gated runner usage: one `gh issue list` with --state all and the JSON fields.
@@ -1042,7 +1083,11 @@ describe("GhDomainAdapter.enumerate (GH-1469)", () => {
 
   test("a non-zero gh exit throws a typed GhDomainAdapterError", async () => {
     const { runner } = recordingRunner(() => ({ status: 1, stderr: "gh: not found", stdout: "" }));
-    const adapter = new GhDomainAdapter({ runner, repoNameWithOwner: () => "o/r", cwd: () => "/repo" });
+    const adapter = new GhDomainAdapter({
+      runner,
+      repoNameWithOwner: () => "o/r",
+      cwd: () => "/repo",
+    });
     await expect(adapter.enumerate({ from: 1, to: 10 })).rejects.toThrow(GhDomainAdapterError);
   });
 });

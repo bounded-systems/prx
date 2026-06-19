@@ -72,7 +72,7 @@ describe("task contract and role machine", () => {
         workUnitId: "GH-5431",
         worktree: cwd,
         branch: "pr-state-refactor",
-      })
+      }),
     ).toThrow(/branch must match canonical issue-backed work unit id GH-5431/);
   });
 
@@ -83,7 +83,7 @@ describe("task contract and role machine", () => {
       createTaskContract({
         workUnitId: "GH-5431",
         worktree: cwd,
-      })
+      }),
     ).toThrow(/worktree directory must match canonical issue-backed work unit id GH-5431/);
   });
 

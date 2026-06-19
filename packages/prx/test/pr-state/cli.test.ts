@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
@@ -47,7 +55,10 @@ import {
   closeSession,
 } from "../../src/pr-state/cli.ts";
 import { interactiveTimeoutMs } from "../../src/pr-state/work-agent.ts";
-import { findSavedClaudeSession, findSavedCodexSession } from "../../src/pr-state/session-finder.ts";
+import {
+  findSavedClaudeSession,
+  findSavedCodexSession,
+} from "../../src/pr-state/session-finder.ts";
 import { formatBeadsIssueMatches } from "../../src/pr-state/cli-format.ts";
 import { CliError } from "../../src/pr-state/cli-error.ts";
 import { findWorktreeByDirectoryPrefix } from "../../src/pr-state/cli-spawn.ts";
@@ -77,7 +88,11 @@ function beadRecord(overrides: Partial<BeadsRecord> = {}): BeadsRecord {
 }
 import { parseSessionLockPid, removeWorktree } from "../../src/pr-state/github.ts";
 import { deriveInfo, loadContract } from "../../src/pr-state/contract.ts";
-import { createTaskContract, loadTaskContract, writeTaskContract } from "../../src/pr-state/task.ts";
+import {
+  createTaskContract,
+  loadTaskContract,
+  writeTaskContract,
+} from "../../src/pr-state/task.ts";
 import { runtimeRequiredFields } from "../../src/machine/runtime_output.ts";
 import { taskAgentRoles } from "../../src/machine/runtime_profiles.ts";
 
@@ -187,33 +202,43 @@ function issueBackedWorkDeps(workUnitIds: string | string[]) {
       repo: "owner/repo",
       remote_freshness: "fresh" as const,
       units: ids.map((workUnitId) => ({
-          ticket: workUnitId,
-          branch: workUnitId,
-          worktree_path: `/repo/${workUnitId}`,
-          pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
-          artifacts: { worktree: true, branch: true, pr: false, ticket: true },
-          local: { clean: true, staged: 0, unstaged: 0, untracked: 0, conflicts: 0 },
-          status: {
-            remote: {
-              gh_issue: "dirty",
-              beads_issue: "clean",
-              project_item: "clean",
-              branch: "dirty",
-              pr: "clean",
-              merge_state: "clean",
-              ci: "clean",
-              problem: "no",
-            },
-            local: {
-              branch: "clean",
-              worktree: "clean",
-              dir: "present",
-              problem: "no",
-            },
+        ticket: workUnitId,
+        branch: workUnitId,
+        worktree_path: `/repo/${workUnitId}`,
+        pr: {
+          exists: false,
+          number: null,
+          title: null,
+          url: null,
+          draft: null,
+          checks: null,
+          review: null,
+          approvals: null,
+          mergeable: null,
+        },
+        artifacts: { worktree: true, branch: true, pr: false, ticket: true },
+        local: { clean: true, staged: 0, unstaged: 0, untracked: 0, conflicts: 0 },
+        status: {
+          remote: {
+            gh_issue: "dirty",
+            beads_issue: "clean",
+            project_item: "clean",
+            branch: "dirty",
+            pr: "clean",
+            merge_state: "clean",
+            ci: "clean",
+            problem: "no",
           },
-          column: "pushed" as const,
-          reasons: [],
-        })),
+          local: {
+            branch: "clean",
+            worktree: "clean",
+            dir: "present",
+            problem: "no",
+          },
+        },
+        column: "pushed" as const,
+        reasons: [],
+      })),
     }),
     buildParityChain: () => ({
       source: "surface-sync" as const,
@@ -404,13 +429,10 @@ describe("pr_state cli", () => {
 
   test("version subcommand prints the same version shape", () => {
     const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["version"],
-      {
-        log: (line) => logs.push(line),
-        error: () => {},
-      },
-    );
+    const exitCode = runCliDirect(["version"], {
+      log: (line) => logs.push(line),
+      error: () => {},
+    });
 
     expect(exitCode).toBe(0);
     expect(logs[0]!).toMatch(/^git-[0-9a-f]{12}$|^git-unknown$/);
@@ -447,9 +469,21 @@ describe("pr_state cli", () => {
   function initTempGitRepo(prefix: string): string {
     const tmp = mkdtempSync(join(tmpdir(), prefix));
     Bun.spawnSync({ cmd: ["git", "init", tmp], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "config", "user.name", "test"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "config", "user.email", "test@test"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "config", "commit.gpgsign", "false"], stdout: "pipe", stderr: "pipe" });
+    Bun.spawnSync({
+      cmd: ["git", "-C", tmp, "config", "user.name", "test"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    Bun.spawnSync({
+      cmd: ["git", "-C", tmp, "config", "user.email", "test@test"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    Bun.spawnSync({
+      cmd: ["git", "-C", tmp, "config", "commit.gpgsign", "false"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
     return tmp;
   }
 
@@ -463,7 +497,11 @@ describe("pr_state cli", () => {
   // always looked "behind").
   function tagRepo(prefix: string, tags: string[]): string {
     const tmp = initTempGitRepo(prefix);
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "base"], stdout: "pipe", stderr: "pipe" });
+    Bun.spawnSync({
+      cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "base"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
     for (const t of tags) {
       // Annotated + unsigned: the dev/CI git config can force annotation
       // (`git tag <name>` → "no tag message?") and signing; `-m` + the inline
@@ -514,8 +552,16 @@ describe("pr_state cli", () => {
     // A sha from a different repo/build that this repo has no object for —
     // rev-list will fail, and we stay silent rather than scaring the user.
     const tmp = initTempGitRepo("prx-binary-unknown-sha-");
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "head"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", tmp, "update-ref", "refs/remotes/origin/main", "HEAD"], stdout: "pipe", stderr: "pipe" });
+    Bun.spawnSync({
+      cmd: ["git", "-C", tmp, "commit", "--allow-empty", "-m", "head"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    Bun.spawnSync({
+      cmd: ["git", "-C", tmp, "update-ref", "refs/remotes/origin/main", "HEAD"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
 
     expect(checkPrxBinaryUpstream(tmp, "0000000000000000000000000000000000000000")).toBeNull();
 
@@ -531,7 +577,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
 
     const exitCode = await runCliDirect(
-      ["open","GH-5431", "--dry-run"],
+      ["open", "GH-5431", "--dry-run"],
       { log: () => {}, error: (line) => errors.push(line) },
       {
         ...noOpWorktreeLockDeps,
@@ -542,10 +588,9 @@ describe("pr_state cli", () => {
     process.chdir(previousCwd);
 
     expect(exitCode).toBe(0);
-    expect(errors.some((line) =>
-      line.includes("prx v0.1.10")
-      && line.includes("newer release v0.1.12"),
-    )).toBe(true);
+    expect(
+      errors.some((line) => line.includes("prx v0.1.10") && line.includes("newer release v0.1.12")),
+    ).toBe(true);
   });
 
   test("prx session open is silent about the binary when checkPrxBinaryUpstream returns null", async () => {
@@ -557,7 +602,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
 
     await runCliDirect(
-      ["open","GH-5431", "--dry-run"],
+      ["open", "GH-5431", "--dry-run"],
       { log: () => {}, error: (line) => errors.push(line) },
       {
         ...noOpWorktreeLockDeps,
@@ -583,7 +628,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       exitCode = await runCliDirect(
-        ["open","GH-5431", "--dry-run"],
+        ["open", "GH-5431", "--dry-run"],
         { log: () => {}, error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -621,7 +666,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       await runCliDirect(
-        ["open","GH-5431", "--dry-run"],
+        ["open", "GH-5431", "--dry-run"],
         { log: () => {}, error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -630,7 +675,8 @@ describe("pr_state cli", () => {
             status: "hydrated",
             doltRemote: "https://doltremoteapi.dolthub.com/example/repo",
             doltDatabase: "example_db",
-            message: "beads: hydrated example_db from https://doltremoteapi.dolthub.com/example/repo",
+            message:
+              "beads: hydrated example_db from https://doltremoteapi.dolthub.com/example/repo",
             exitCode: 0,
           }),
         },
@@ -656,7 +702,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       exitCode = await runCliDirect(
-        ["open","GH-5431", "--dry-run"],
+        ["open", "GH-5431", "--dry-run"],
         { log: () => {}, error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -692,7 +738,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       exitCode = await runCliDirect(
-        ["open","GH-5431", "--dry-run"],
+        ["open", "GH-5431", "--dry-run"],
         { log: () => {}, error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -708,7 +754,11 @@ describe("pr_state cli", () => {
     }
 
     expect(exitCode).toBe(0);
-    expect(errors.some((line) => line.includes("beads hydration failed unexpectedly") && line.includes("EACCES"))).toBe(true);
+    expect(
+      errors.some(
+        (line) => line.includes("beads hydration failed unexpectedly") && line.includes("EACCES"),
+      ),
+    ).toBe(true);
   }, 15000);
 
   test("prx session open stays silent when hydrate skips (no .beads, no metadata, already-hydrated)", async () => {
@@ -723,7 +773,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       await runCliDirect(
-        ["open","GH-5431", "--dry-run"],
+        ["open", "GH-5431", "--dry-run"],
         { log: () => {}, error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -758,7 +808,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       await runCliDirect(
-        ["open","GH-5431", "--dry-run"],
+        ["open", "GH-5431", "--dry-run"],
         { log: (line) => lines.push(line), error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -795,7 +845,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       await runCliDirect(
-        ["open","GH-5431", "--dry-run"],
+        ["open", "GH-5431", "--dry-run"],
         { log: (line) => lines.push(line), error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -825,7 +875,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       exitCode = await runCliDirect(
-        ["open","GH-5431", "--dry-run"],
+        ["open", "GH-5431", "--dry-run"],
         { log: () => {}, error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -852,7 +902,9 @@ describe("pr_state cli", () => {
     }
 
     expect(exitCode).toBe(0);
-    expect(errors.some((line) => line.includes("rebase onto origin/main hit conflicts"))).toBe(true);
+    expect(errors.some((line) => line.includes("rebase onto origin/main hit conflicts"))).toBe(
+      true,
+    );
     expect(errors.some((line) => line.includes("src/foo.ts"))).toBe(true);
     expect(errors.some((line) => line.includes("src/bar.ts"))).toBe(true);
     expect(errors.some((line) => line.includes("git rebase --continue"))).toBe(true);
@@ -869,7 +921,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       await runCliDirect(
-        ["open","GH-5431", "--dry-run"],
+        ["open", "GH-5431", "--dry-run"],
         { log: (line) => lines.push(line), error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -897,7 +949,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       await runCliDirect(
-        ["open","GH-5431", "--dry-run"],
+        ["open", "GH-5431", "--dry-run"],
         { log: () => {}, error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -923,9 +975,11 @@ describe("pr_state cli", () => {
       if (previousEnv !== undefined) process.env.PRX_SESSION_OPEN = previousEnv;
     }
 
-    expect(errors.some((line) =>
-      line.includes("auto-rebase skipped") && line.includes("dirty worktree"),
-    )).toBe(true);
+    expect(
+      errors.some(
+        (line) => line.includes("auto-rebase skipped") && line.includes("dirty worktree"),
+      ),
+    ).toBe(true);
     expect(hydrateCalls).toBe(1);
   }, 15000);
 
@@ -936,11 +990,31 @@ describe("pr_state cli", () => {
     // hint and a non-zero exit.
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-detached-plain-"));
     Bun.spawnSync({ cmd: ["git", "init", "-b", "main", cwd], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", cwd, "config", "user.name", "test"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", cwd, "config", "user.email", "test@test"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", cwd, "config", "commit.gpgsign", "false"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", cwd, "commit", "--allow-empty", "-m", "init"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", cwd, "checkout", "--detach", "HEAD"], stdout: "pipe", stderr: "pipe" });
+    Bun.spawnSync({
+      cmd: ["git", "-C", cwd, "config", "user.name", "test"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    Bun.spawnSync({
+      cmd: ["git", "-C", cwd, "config", "user.email", "test@test"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    Bun.spawnSync({
+      cmd: ["git", "-C", cwd, "config", "commit.gpgsign", "false"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    Bun.spawnSync({
+      cmd: ["git", "-C", cwd, "commit", "--allow-empty", "-m", "init"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    Bun.spawnSync({
+      cmd: ["git", "-C", cwd, "checkout", "--detach", "HEAD"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
 
     const previousCwd = process.cwd();
     const previousEnv = process.env.PRX_SESSION_OPEN;
@@ -952,7 +1026,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       exitCode = await runCliDirect(
-        ["open","GH-5431", "--dry-run"],
+        ["open", "GH-5431", "--dry-run"],
         { log: () => {}, error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -998,11 +1072,31 @@ describe("pr_state cli", () => {
     // on `reason: "detached_head"` without parsing the warning string.
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-detached-json-"));
     Bun.spawnSync({ cmd: ["git", "init", "-b", "main", cwd], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", cwd, "config", "user.name", "test"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", cwd, "config", "user.email", "test@test"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", cwd, "config", "commit.gpgsign", "false"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", cwd, "commit", "--allow-empty", "-m", "init"], stdout: "pipe", stderr: "pipe" });
-    Bun.spawnSync({ cmd: ["git", "-C", cwd, "checkout", "--detach", "HEAD"], stdout: "pipe", stderr: "pipe" });
+    Bun.spawnSync({
+      cmd: ["git", "-C", cwd, "config", "user.name", "test"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    Bun.spawnSync({
+      cmd: ["git", "-C", cwd, "config", "user.email", "test@test"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    Bun.spawnSync({
+      cmd: ["git", "-C", cwd, "config", "commit.gpgsign", "false"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    Bun.spawnSync({
+      cmd: ["git", "-C", cwd, "commit", "--allow-empty", "-m", "init"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    Bun.spawnSync({
+      cmd: ["git", "-C", cwd, "checkout", "--detach", "HEAD"],
+      stdout: "pipe",
+      stderr: "pipe",
+    });
 
     const previousCwd = process.cwd();
     const previousEnv = process.env.PRX_SESSION_OPEN;
@@ -1012,7 +1106,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       exitCode = await runCliDirect(
-        ["open","GH-5431", "--dry-run", "--format", "json"],
+        ["open", "GH-5431", "--dry-run", "--format", "json"],
         { log: (line) => lines.push(line), error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -1047,19 +1141,61 @@ describe("pr_state cli", () => {
     try {
       Bun.spawnSync({ cmd: ["git", "init", "--bare", remote], stdout: "pipe", stderr: "pipe" });
       Bun.spawnSync({ cmd: ["git", "init", "-b", "main", local], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "user.name", "test"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "user.email", "test@test"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "commit.gpgsign", "false"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "remote", "add", "origin", remote], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "base"], stdout: "pipe", stderr: "pipe" });
-      const baseSha = new TextDecoder().decode(
-        Bun.spawnSync({ cmd: ["git", "-C", local, "rev-parse", "HEAD"], stdout: "pipe" }).stdout,
-      ).trim();
-      Bun.spawnSync({ cmd: ["git", "-C", local, "push", "-u", "origin", "main"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "remote-only-1"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "remote-only-2"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "push", "origin", "main"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "checkout", "-b", "GH-704-test", baseSha], stdout: "pipe", stderr: "pipe" });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "config", "user.name", "test"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "config", "user.email", "test@test"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "config", "commit.gpgsign", "false"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "remote", "add", "origin", remote],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "base"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const baseSha = new TextDecoder()
+        .decode(
+          Bun.spawnSync({ cmd: ["git", "-C", local, "rev-parse", "HEAD"], stdout: "pipe" }).stdout,
+        )
+        .trim();
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "push", "-u", "origin", "main"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "remote-only-1"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "remote-only-2"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "push", "origin", "main"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "checkout", "-b", "GH-704-test", baseSha],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
 
       const result = autoRebaseOnSessionOpen(local);
       if (result.status !== "rebased") {
@@ -1067,12 +1203,14 @@ describe("pr_state cli", () => {
       }
       expect(result.behind).toBe(2);
 
-      const divergence = new TextDecoder().decode(
-        Bun.spawnSync({
-          cmd: ["git", "-C", local, "rev-list", "--left-right", "--count", "HEAD...origin/main"],
-          stdout: "pipe",
-        }).stdout,
-      ).trim();
+      const divergence = new TextDecoder()
+        .decode(
+          Bun.spawnSync({
+            cmd: ["git", "-C", local, "rev-list", "--left-right", "--count", "HEAD...origin/main"],
+            stdout: "pipe",
+          }).stdout,
+        )
+        .trim();
       expect(divergence).toBe("0\t0");
     } finally {
       rmSync(local, { recursive: true, force: true });
@@ -1091,18 +1229,56 @@ describe("pr_state cli", () => {
     try {
       Bun.spawnSync({ cmd: ["git", "init", "--bare", remote], stdout: "pipe", stderr: "pipe" });
       Bun.spawnSync({ cmd: ["git", "init", "-b", "main", local], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "user.name", "test"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "user.email", "test@test"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "commit.gpgsign", "false"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "remote", "add", "origin", remote], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "base"], stdout: "pipe", stderr: "pipe" });
-      const baseSha = new TextDecoder().decode(
-        Bun.spawnSync({ cmd: ["git", "-C", local, "rev-parse", "HEAD"], stdout: "pipe" }).stdout,
-      ).trim();
-      Bun.spawnSync({ cmd: ["git", "-C", local, "push", "-u", "origin", "main"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "remote-only"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "push", "origin", "main"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "checkout", "-b", "feat", baseSha], stdout: "pipe", stderr: "pipe" });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "config", "user.name", "test"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "config", "user.email", "test@test"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "config", "commit.gpgsign", "false"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "remote", "add", "origin", remote],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "base"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const baseSha = new TextDecoder()
+        .decode(
+          Bun.spawnSync({ cmd: ["git", "-C", local, "rev-parse", "HEAD"], stdout: "pipe" }).stdout,
+        )
+        .trim();
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "push", "-u", "origin", "main"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "remote-only"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "push", "origin", "main"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "checkout", "-b", "feat", baseSha],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
       // Break the remote so a fetch would fail. If skipFetch is honored,
       // rebase still proceeds against the cached origin/main ref.
       rmSync(remote, { recursive: true, force: true });
@@ -1128,19 +1304,51 @@ describe("pr_state cli", () => {
     const local = mkdtempSync(join(tmpdir(), "prx-auto-rebase-hook-fail-"));
     try {
       Bun.spawnSync({ cmd: ["git", "init", "-b", "main", local], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "user.name", "test"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "user.email", "test@test"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "commit.gpgsign", "false"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "base"], stdout: "pipe", stderr: "pipe" });
-      const baseSha = new TextDecoder().decode(
-        Bun.spawnSync({ cmd: ["git", "-C", local, "rev-parse", "HEAD"], stdout: "pipe" }).stdout,
-      ).trim();
-      Bun.spawnSync({ cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "remote-only"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "update-ref", "refs/remotes/origin/main", "HEAD"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "checkout", "-b", "feat", baseSha], stdout: "pipe", stderr: "pipe" });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "config", "user.name", "test"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "config", "user.email", "test@test"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "config", "commit.gpgsign", "false"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "base"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const baseSha = new TextDecoder()
+        .decode(
+          Bun.spawnSync({ cmd: ["git", "-C", local, "rev-parse", "HEAD"], stdout: "pipe" }).stdout,
+        )
+        .trim();
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "remote-only"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "update-ref", "refs/remotes/origin/main", "HEAD"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "checkout", "-b", "feat", baseSha],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
       // Install a pre-rebase hook that always fails.
       const hookPath = `${local}/.git/hooks/pre-rebase`;
-      writeFileSync(hookPath, "#!/bin/sh\necho 'pre-rebase hook rejected' 1>&2\nexit 1\n", { mode: 0o755 });
+      writeFileSync(hookPath, "#!/bin/sh\necho 'pre-rebase hook rejected' 1>&2\nexit 1\n", {
+        mode: 0o755,
+      });
 
       const result = autoRebaseOnSessionOpen(local, { skipFetch: true });
       if (result.status !== "skipped") {
@@ -1161,16 +1369,46 @@ describe("pr_state cli", () => {
     const local = mkdtempSync(join(tmpdir(), "prx-auto-rebase-stale-lock-"));
     try {
       Bun.spawnSync({ cmd: ["git", "init", "-b", "main", local], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "user.name", "test"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "user.email", "test@test"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "commit.gpgsign", "false"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "base"], stdout: "pipe", stderr: "pipe" });
-      const baseSha = new TextDecoder().decode(
-        Bun.spawnSync({ cmd: ["git", "-C", local, "rev-parse", "HEAD"], stdout: "pipe" }).stdout,
-      ).trim();
-      Bun.spawnSync({ cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "remote-only"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "update-ref", "refs/remotes/origin/main", "HEAD"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "checkout", "-b", "feat", baseSha], stdout: "pipe", stderr: "pipe" });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "config", "user.name", "test"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "config", "user.email", "test@test"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "config", "commit.gpgsign", "false"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "base"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      const baseSha = new TextDecoder()
+        .decode(
+          Bun.spawnSync({ cmd: ["git", "-C", local, "rev-parse", "HEAD"], stdout: "pipe" }).stdout,
+        )
+        .trim();
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "remote-only"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "update-ref", "refs/remotes/origin/main", "HEAD"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "checkout", "-b", "feat", baseSha],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
       // Plant a stale lock exactly where git would create it.
       const lockPath = join(local, ".git", "index.lock");
       writeFileSync(lockPath, "");
@@ -1195,11 +1433,31 @@ describe("pr_state cli", () => {
     try {
       Bun.spawnSync({ cmd: ["git", "init", "--bare", remote], stdout: "pipe", stderr: "pipe" });
       Bun.spawnSync({ cmd: ["git", "init", "-b", "main", local], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "user.name", "test"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "user.email", "test@test"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "config", "commit.gpgsign", "false"], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "remote", "add", "origin", remote], stdout: "pipe", stderr: "pipe" });
-      Bun.spawnSync({ cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "init"], stdout: "pipe", stderr: "pipe" });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "config", "user.name", "test"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "config", "user.email", "test@test"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "config", "commit.gpgsign", "false"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "remote", "add", "origin", remote],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      Bun.spawnSync({
+        cmd: ["git", "-C", local, "commit", "--allow-empty", "-m", "init"],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
 
       const result = autoRebaseOnSessionOpen(local);
       if (result.status !== "skipped") {
@@ -1225,7 +1483,7 @@ describe("pr_state cli", () => {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
       await runCliDirect(
-        ["open","GH-5431", "--dry-run", "--format", "json"],
+        ["open", "GH-5431", "--dry-run", "--format", "json"],
         { log: (line) => lines.push(line), error: (line) => errors.push(line) },
         {
           ...noOpWorktreeLockDeps,
@@ -1302,7 +1560,9 @@ describe("pr_state cli", () => {
     process.chdir(previousCwd);
 
     expect(exitCode).toBe(0);
-    expect(errors.some((line) => line.includes("deprecated") && line.includes("prx work"))).toBe(true);
+    expect(errors.some((line) => line.includes("deprecated") && line.includes("prx work"))).toBe(
+      true,
+    );
     expect(errors.some((line) => line.includes("session open"))).toBe(true);
   });
 
@@ -1403,12 +1663,9 @@ describe("pr_state cli", () => {
       Bun.spawnSync({ cmd: ["git", "init", "-q"], cwd: root });
       writeFileSync(
         join(root, "prx.toml"),
-        [
-          "[sources.github]",
-          'kind = "github"',
-          'canonical_id_pattern = "^(GH|PROD"',
-          "",
-        ].join("\n"),
+        ["[sources.github]", 'kind = "github"', 'canonical_id_pattern = "^(GH|PROD"', ""].join(
+          "\n",
+        ),
       );
       const result = Bun.spawnSync({
         cmd: ["bun", "run", scriptPath, "open", "GH-1"],
@@ -1483,7 +1740,9 @@ describe("pr_state cli", () => {
         noOpWorktreeLockDeps,
       );
       expect(exitCode).toBe(1);
-      expect(errors.some((line) => line.includes("open must match CANONICAL-ID format"))).toBe(true);
+      expect(errors.some((line) => line.includes("open must match CANONICAL-ID format"))).toBe(
+        true,
+      );
     });
   });
 
@@ -1542,7 +1801,7 @@ describe("pr_state cli", () => {
     const logs: string[] = [];
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["open","GH-5480", "--check"],
+      ["open", "GH-5480", "--check"],
       {
         log: (line) => logs.push(line),
         error: (line) => errors.push(line),
@@ -1573,7 +1832,7 @@ describe("pr_state cli", () => {
   test("work --check reports remote-only branch state without materializing (GH-549)", async () => {
     const logs: string[] = [];
     const exitCode = await runCliDirect(
-      ["open","GH-5431", "--check"],
+      ["open", "GH-5431", "--check"],
       {
         log: (line) => logs.push(line),
         error: () => {},
@@ -1610,7 +1869,7 @@ describe("pr_state cli", () => {
   test("work --check emits JSON inspection report with --format=json (GH-549)", async () => {
     const logs: string[] = [];
     const exitCode = await runCliDirect(
-      ["open","GH-5431", "--check", "--format", "json"],
+      ["open", "GH-5431", "--check", "--format", "json"],
       {
         log: (line) => logs.push(line),
         error: () => {},
@@ -1660,7 +1919,9 @@ describe("pr_state cli", () => {
 
     const agents = JSON.parse(readFileSync(join(cwd, ".pr/local/runtime/agents.json"), "utf8"));
     const parsed = JSON.parse(readFileSync(join(cwd, ".pr/local/runtime/mcp.json"), "utf8"));
-    const outputSchema = JSON.parse(readFileSync(join(cwd, ".pr/local/runtime/output.schema.json"), "utf8"));
+    const outputSchema = JSON.parse(
+      readFileSync(join(cwd, ".pr/local/runtime/output.schema.json"), "utf8"),
+    );
     expect(status).toEqual({ mcpServers: [] });
     expect(parsed).toEqual({ mcpServers: {} });
     expect(parsed.mcpServers.beads).toBeUndefined();
@@ -1668,13 +1929,22 @@ describe("pr_state cli", () => {
     expect(agents["GH-5431-planner"].prompt).toContain("planner agent");
     expect(agents["GH-5431-tester"].prompt).toContain("tester agent");
     expect(agents["GH-5431-reviewer"].prompt).toContain("reviewer agent");
-    expect(outputSchema.properties.modelBoundary.properties.actors.items.enum).toContain("executor_agent");
+    expect(outputSchema.properties.modelBoundary.properties.actors.items.enum).toContain(
+      "executor_agent",
+    );
   });
 
   test("ensureLocalRuntimeArtifacts injects notion MCP server when auth is notion-cli", () => {
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-mcp-notion-cli-"));
     const status = ensureLocalRuntimeArtifacts("PROJ-1", cwd, {
-      notionIdentity: { auth: "notion-cli", databaseId: null, idProperty: null, titleProperty: null, statusProperty: null, tokenOpRef: null },
+      notionIdentity: {
+        auth: "notion-cli",
+        databaseId: null,
+        idProperty: null,
+        titleProperty: null,
+        statusProperty: null,
+        tokenOpRef: null,
+      },
     });
     const parsed = JSON.parse(readFileSync(join(cwd, ".pr/local/runtime/mcp.json"), "utf8"));
     expect(parsed.mcpServers.notion).toEqual({ type: "http", url: "https://mcp.notion.com/mcp" });
@@ -1685,7 +1955,14 @@ describe("pr_state cli", () => {
   test("ensureLocalRuntimeArtifacts injects notion MCP server when auth is claude-mcp", () => {
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-mcp-claude-mcp-"));
     ensureLocalRuntimeArtifacts("PROD-1", cwd, {
-      notionIdentity: { auth: "claude-mcp", databaseId: null, idProperty: null, titleProperty: null, statusProperty: null, tokenOpRef: null },
+      notionIdentity: {
+        auth: "claude-mcp",
+        databaseId: null,
+        idProperty: null,
+        titleProperty: null,
+        statusProperty: null,
+        tokenOpRef: null,
+      },
     });
     const parsed = JSON.parse(readFileSync(join(cwd, ".pr/local/runtime/mcp.json"), "utf8"));
     expect(parsed.mcpServers.notion).toEqual({ type: "http", url: "https://mcp.notion.com/mcp" });
@@ -1694,7 +1971,14 @@ describe("pr_state cli", () => {
   test("ensureLocalRuntimeArtifacts does not inject notion MCP server when auth is rest", () => {
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-mcp-rest-"));
     ensureLocalRuntimeArtifacts("GH-1", cwd, {
-      notionIdentity: { auth: "rest", databaseId: null, idProperty: null, titleProperty: null, statusProperty: null, tokenOpRef: null },
+      notionIdentity: {
+        auth: "rest",
+        databaseId: null,
+        idProperty: null,
+        titleProperty: null,
+        statusProperty: null,
+        tokenOpRef: null,
+      },
     });
     const parsed = JSON.parse(readFileSync(join(cwd, ".pr/local/runtime/mcp.json"), "utf8"));
     expect(parsed.mcpServers.notion).toBeUndefined();
@@ -1778,10 +2062,18 @@ describe("pr_state cli", () => {
           executed.push({ command: profile.command, args: profile.args });
           const prompt = profile.args[profile.args.length - 1] ?? "";
           if (typeof prompt === "string" && prompt.includes("echo:hello")) {
-            return { status: 0, stdout: "{\"status\":\"success\",\"data\":{\"echo\":\"hello\"},\"meta\":{\"latency_ms\":1}}", stderr: "" };
+            return {
+              status: 0,
+              stdout: '{"status":"success","data":{"echo":"hello"},"meta":{"latency_ms":1}}',
+              stderr: "",
+            };
           }
           if (typeof prompt === "string" && prompt.includes("Return EXACT JSON")) {
-            return { status: 0, stdout: "{\"status\":\"success\",\"data\":{\"echo\":\"hello\"},\"meta\":{\"latency_ms\":1}}", stderr: "" };
+            return {
+              status: 0,
+              stdout: '{"status":"success","data":{"echo":"hello"},"meta":{"latency_ms":1}}',
+              stderr: "",
+            };
           }
           if (typeof prompt === "string" && prompt.includes("wait 60 seconds then respond")) {
             return { status: 124, stdout: "", stderr: "timed out" };
@@ -1793,10 +2085,7 @@ describe("pr_state cli", () => {
 
     expect(exitCode).toBe(0);
     expect(executed).toHaveLength(6);
-    expect(new Set(executed.map((entry) => entry.command))).toEqual(new Set([
-      "claude",
-      "codex",
-    ]));
+    expect(new Set(executed.map((entry) => entry.command))).toEqual(new Set(["claude", "codex"]));
     const parsed = JSON.parse(logs[0]!);
     expect(parsed.workUnitId).toBe("GH-5431");
     expect(parsed.results).toHaveLength(2);
@@ -1811,20 +2100,35 @@ describe("pr_state cli", () => {
   });
 
   test("role start launches a role-specific Gemini profile", () => {
-    let executed: { command: string; args: string[]; env?: Record<string, string> | undefined } | null = null;
+    let executed: {
+      command: string;
+      args: string[];
+      env?: Record<string, string> | undefined;
+    } | null = null;
     const root = mkdtempSync(join(tmpdir(), "pr-state-role-start-gemini-"));
     const cwd = join(root, "GH-5431");
     mkdirSync(cwd);
     const taskPath = join(cwd, ".pr", "local", "task.json");
     const previousCwd = process.cwd();
     process.chdir(cwd);
-    runCliDirect(
-      ["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"],
-      { log: () => {}, error: () => {} },
-    );
+    runCliDirect(["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"], {
+      log: () => {},
+      error: () => {},
+    });
 
     const exitCode = runCliDirect(
-      ["role", "start", "--task", taskPath, "--work-unit-id", "GH-5431", "--role", "planner", "--agent", "gemini"],
+      [
+        "role",
+        "start",
+        "--task",
+        taskPath,
+        "--work-unit-id",
+        "GH-5431",
+        "--role",
+        "planner",
+        "--agent",
+        "gemini",
+      ],
       {
         log: () => {},
         error: () => {},
@@ -1858,10 +2162,10 @@ describe("pr_state cli", () => {
     const taskPath = join(cwd, ".pr", "local", "task.json");
     const previousCwd = process.cwd();
     process.chdir(cwd);
-    runCliDirect(
-      ["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"],
-      { log: () => {}, error: () => {} },
-    );
+    runCliDirect(["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"], {
+      log: () => {},
+      error: () => {},
+    });
     const before = readFileSync(taskPath, "utf8");
 
     const errors: string[] = [];
@@ -1929,7 +2233,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
     try {
       const exitCode = await runCliDirect(
-        ["plan", "session","GH-5431"],
+        ["plan", "session", "GH-5431"],
         {
           log: () => {},
           error: () => {},
@@ -1990,7 +2294,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
     try {
       const exitCode = await runCliDirect(
-        ["plan", "session","GH-5431", "--dry-run"],
+        ["plan", "session", "GH-5431", "--dry-run"],
         {
           log: (line) => logs.push(line),
           error: () => {},
@@ -2024,7 +2328,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
     try {
       const exitCode = await runCliDirect(
-        ["plan", "session","GH-5431"],
+        ["plan", "session", "GH-5431"],
         {
           log: () => {},
           error: (line) => errors.push(line),
@@ -2100,9 +2404,17 @@ describe("pr_state cli", () => {
             saved = {
               unit: input.unit,
               slot: input.slot,
-              content: typeof input.content === "string" ? input.content : input.content.toString("utf8"),
+              content:
+                typeof input.content === "string" ? input.content : input.content.toString("utf8"),
             };
-            return { sha: "deadbeef", ref: `${input.unit}:plan@${input.slot}`, body_sha: "deadbeef", envelope_sha: "deadbeef", validated_ok: true, diagnostics: [] };
+            return {
+              sha: "deadbeef",
+              ref: `${input.unit}:plan@${input.slot}`,
+              body_sha: "deadbeef",
+              envelope_sha: "deadbeef",
+              validated_ok: true,
+              diagnostics: [],
+            };
           },
         },
       );
@@ -2142,7 +2454,9 @@ describe("pr_state cli", () => {
       },
     );
     expect(exitCode).not.toBe(0);
-    const refusal = errors.find((line) => line.includes("--detached") && line.includes("not supported"));
+    const refusal = errors.find(
+      (line) => line.includes("--detached") && line.includes("not supported"),
+    );
     expect(refusal).toBeDefined();
   });
 
@@ -2168,14 +2482,21 @@ describe("pr_state cli", () => {
           execRuntime: () => ({ status: 0, stdout: "", stderr: "" }),
           runPlanSave: async () => {
             saveCalls += 1;
-            return { sha: "deadbeef", ref: "GH-5431:plan@draft", body_sha: "deadbeef", envelope_sha: "deadbeef", validated_ok: true, diagnostics: [] };
+            return {
+              sha: "deadbeef",
+              ref: "GH-5431:plan@draft",
+              body_sha: "deadbeef",
+              envelope_sha: "deadbeef",
+              validated_ok: true,
+              diagnostics: [],
+            };
           },
         },
       );
       expect(exitCode).toBe(0);
       expect(saveCalls).toBe(0);
-      const warning = errors.find((line) =>
-        line.startsWith("prx plan session:") && line.includes("no plan content"),
+      const warning = errors.find(
+        (line) => line.startsWith("prx plan session:") && line.includes("no plan content"),
       );
       expect(warning).toBeDefined();
     } finally {
@@ -2363,7 +2684,9 @@ describe("pr_state cli", () => {
       );
 
       expect(exitCode).toBe(1);
-      expect(errors.some((line) => line.includes("Cannot open PRX session for BD-AAAAAAAA"))).toBe(true);
+      expect(errors.some((line) => line.includes("Cannot open PRX session for BD-AAAAAAAA"))).toBe(
+        true,
+      );
       expect(errors.some((line) => line.includes("has no local parity-chain unit yet"))).toBe(true);
       expect(errors.every((line) => !line.trim().startsWith("{"))).toBe(true);
     } finally {
@@ -2398,7 +2721,14 @@ describe("pr_state cli", () => {
           },
           runPlanSave: async () => {
             saveCalls += 1;
-            return { sha: "deadbeef", ref: "GH-5431:plan@draft", body_sha: "deadbeef", envelope_sha: "deadbeef", validated_ok: true, diagnostics: [] };
+            return {
+              sha: "deadbeef",
+              ref: "GH-5431:plan@draft",
+              body_sha: "deadbeef",
+              envelope_sha: "deadbeef",
+              validated_ok: true,
+              diagnostics: [],
+            };
           },
         },
       );
@@ -2481,7 +2811,14 @@ describe("pr_state cli", () => {
             capturedTimeoutMs = timeoutMs;
             return { status: 0, stdout: "## Scope\n- x\n", stderr: "" };
           },
-          runPlanSave: async (input) => ({ sha: "deadbeef", ref: `${input.unit}:plan@${input.slot}`, body_sha: "deadbeef", envelope_sha: "deadbeef", validated_ok: true, diagnostics: [] }),
+          runPlanSave: async (input) => ({
+            sha: "deadbeef",
+            ref: `${input.unit}:plan@${input.slot}`,
+            body_sha: "deadbeef",
+            envelope_sha: "deadbeef",
+            validated_ok: true,
+            diagnostics: [],
+          }),
         },
       );
       expect(exitCode).toBe(0);
@@ -2511,7 +2848,14 @@ describe("pr_state cli", () => {
             capturedTimeoutMs = timeoutMs;
             return { status: 0, stdout: "## Scope\n- x\n", stderr: "" };
           },
-          runPlanSave: async (input) => ({ sha: "deadbeef", ref: `${input.unit}:plan@${input.slot}`, body_sha: "deadbeef", envelope_sha: "deadbeef", validated_ok: true, diagnostics: [] }),
+          runPlanSave: async (input) => ({
+            sha: "deadbeef",
+            ref: `${input.unit}:plan@${input.slot}`,
+            body_sha: "deadbeef",
+            envelope_sha: "deadbeef",
+            validated_ok: true,
+            diagnostics: [],
+          }),
         },
       );
       expect(exitCode).toBe(0);
@@ -2543,7 +2887,14 @@ describe("pr_state cli", () => {
             capturedTimeoutMs = timeoutMs;
             return { status: 0, stdout: "## Scope\n- x\n", stderr: "" };
           },
-          runPlanSave: async (input) => ({ sha: "deadbeef", ref: `${input.unit}:plan@${input.slot}`, body_sha: "deadbeef", envelope_sha: "deadbeef", validated_ok: true, diagnostics: [] }),
+          runPlanSave: async (input) => ({
+            sha: "deadbeef",
+            ref: `${input.unit}:plan@${input.slot}`,
+            body_sha: "deadbeef",
+            envelope_sha: "deadbeef",
+            validated_ok: true,
+            diagnostics: [],
+          }),
         },
       );
       expect(exitCode).toBe(0);
@@ -2617,7 +2968,14 @@ describe("pr_state cli", () => {
             executed = { args: profile.args };
             return { status: 0, stdout: "## Scope\n- full plan\n", stderr: "" };
           },
-          runPlanSave: async (input) => ({ sha: "cafebabe", ref: `${input.unit}:plan@${input.slot}`, body_sha: "cafebabe", envelope_sha: "cafebabe", validated_ok: true, diagnostics: [] }),
+          runPlanSave: async (input) => ({
+            sha: "cafebabe",
+            ref: `${input.unit}:plan@${input.slot}`,
+            body_sha: "cafebabe",
+            envelope_sha: "cafebabe",
+            validated_ok: true,
+            diagnostics: [],
+          }),
         },
       );
       expect(exitCode).toBe(0);
@@ -2724,7 +3082,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
     try {
       const exitCode = await runCliDirect(
-        ["plan", "session","GH-5431"],
+        ["plan", "session", "GH-5431"],
         {
           log: () => {},
           error: () => {},
@@ -2737,7 +3095,14 @@ describe("pr_state cli", () => {
           execRuntime: () => ({ status: 0, stdout: "## Scope\n- x\n", stderr: "" }),
           runPlanSave: async () => {
             saveCalls += 1;
-            return { sha: "deadbeef", ref: "GH-5431:plan@draft", body_sha: "deadbeef", envelope_sha: "deadbeef", validated_ok: true, diagnostics: [] };
+            return {
+              sha: "deadbeef",
+              ref: "GH-5431:plan@draft",
+              body_sha: "deadbeef",
+              envelope_sha: "deadbeef",
+              validated_ok: true,
+              diagnostics: [],
+            };
           },
         },
       );
@@ -2754,9 +3119,7 @@ describe("pr_state cli", () => {
   // longer fire. The canonical no-hint behavior is still asserted below.
 
   test("canonical `prx plan session` does NOT emit the alias hint (GH-1982)", async () => {
-    const { PRX_SESSION_PLAN_ALIAS_HINT } = await import(
-      "../../src/machine/session_open.ts"
-    );
+    const { PRX_SESSION_PLAN_ALIAS_HINT } = await import("../../src/machine/session_open.ts");
     const errors: string[] = [];
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-plan-session-canonical-"));
     const previousCwd = process.cwd();
@@ -2775,7 +3138,14 @@ describe("pr_state cli", () => {
           resolveWorkUnitCwd: () => cwd,
           findSavedClaudeSession: () => false,
           execRuntime: () => ({ status: 0, stdout: "## Scope\n- x\n", stderr: "" }),
-          runPlanSave: async () => ({ sha: "deadbeef", ref: "GH-5431:plan@draft", body_sha: "deadbeef", envelope_sha: "deadbeef", validated_ok: true, diagnostics: [] }),
+          runPlanSave: async () => ({
+            sha: "deadbeef",
+            ref: "GH-5431:plan@draft",
+            body_sha: "deadbeef",
+            envelope_sha: "deadbeef",
+            validated_ok: true,
+            diagnostics: [],
+          }),
         },
       );
       expect(exitCode).toBe(0);
@@ -2805,7 +3175,7 @@ describe("pr_state cli", () => {
     const errors: string[] = [];
     try {
       const exitCode = await runCliDirect(
-        ["open","GH-5431", "--plan", join(cwd, "plan.md"), "--check"],
+        ["open", "GH-5431", "--plan", join(cwd, "plan.md"), "--check"],
         { log: () => {}, error: (m: string) => errors.push(m) },
         {
           ...noOpWorktreeLockDeps,
@@ -2829,7 +3199,16 @@ describe("pr_state cli", () => {
     const logs: string[] = [];
     try {
       const exitCode = await runCliDirect(
-        ["implement", "agent", "GH-5431", "--plan", join(cwd, "plan.md"), "--dry-run", "--format", "json"],
+        [
+          "implement",
+          "agent",
+          "GH-5431",
+          "--plan",
+          join(cwd, "plan.md"),
+          "--dry-run",
+          "--format",
+          "json",
+        ],
         { log: (l) => logs.push(l), error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -2935,9 +3314,7 @@ describe("pr_state cli", () => {
         },
       );
       expect(exitCode).not.toBe(0);
-      expect(errors.join("\n")).toContain(
-        "prx implement: removed; use prx implement agent [GH-N]",
-      );
+      expect(errors.join("\n")).toContain("prx implement: removed; use prx implement agent [GH-N]");
     } finally {
       process.chdir(previousCwd);
       delete process.env.PRX_SESSION_OPEN;
@@ -2961,9 +3338,7 @@ describe("pr_state cli", () => {
         },
       );
       expect(exitCode).not.toBe(0);
-      expect(errors.join("\n")).toContain(
-        "prx implement: removed; use prx implement agent [GH-N]",
-      );
+      expect(errors.join("\n")).toContain("prx implement: removed; use prx implement agent [GH-N]");
     } finally {
       process.chdir(previousCwd);
       delete process.env.PRX_SESSION_OPEN;
@@ -3024,7 +3399,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
     try {
       const exitCode = await runCliDirect(
-        ["plan", "session","GH-5431", "--format", "json"],
+        ["plan", "session", "GH-5431", "--format", "json"],
         { log: () => {}, error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -3054,7 +3429,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
     try {
       const exitCode = await runCliDirect(
-        ["plan", "session","GH-5431", "--emit-file", ".prx/plans/GH-5431.md"],
+        ["plan", "session", "GH-5431", "--emit-file", ".prx/plans/GH-5431.md"],
         { log: () => {}, error: () => {} },
         {
           ...noOpWorktreeLockDeps,
@@ -3176,10 +3551,7 @@ describe("pr_state cli", () => {
 
     expect(exitCode).toBe(0);
     expect(executed).not.toBeNull();
-    expect(executed!).toEqual({      command: "codex",
-      args: ["app", cwd],
-      cwd,
-    });
+    expect(executed!).toEqual({ command: "codex", args: ["app", cwd], cwd });
   });
 
   test("desktop uses the current worktree directory name when no id is provided", () => {
@@ -3210,7 +3582,8 @@ describe("pr_state cli", () => {
 
     expect(exitCode).toBe(0);
     expect(executed).not.toBeNull();
-    expect(executed!.args).toEqual(["app", cwd]);  });
+    expect(executed!.args).toEqual(["app", cwd]);
+  });
 
   test("desktop falls back to the current workspace when cwd is not canonical", () => {
     let executed: { args: string[]; cwd?: string | undefined } | null = null;
@@ -3242,7 +3615,8 @@ describe("pr_state cli", () => {
     expect(exitCode).toBe(0);
     expect(executed).not.toBeNull();
     expect(executed!.args).toEqual(["app", realpathSync(cwd)]);
-    expect(realpathSync(executed!.cwd ?? "")).toBe(realpathSync(cwd));  });
+    expect(realpathSync(executed!.cwd ?? "")).toBe(realpathSync(cwd));
+  });
 
   test("spec init creates the local task contract", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-spec-init-"));
@@ -3275,10 +3649,10 @@ describe("pr_state cli", () => {
     const taskPath = join(cwd, ".pr", "local", "task.json");
     const previousCwd = process.cwd();
     process.chdir(cwd);
-    runCliDirect(
-      ["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"],
-      { log: () => {}, error: () => {} },
-    );
+    runCliDirect(["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"], {
+      log: () => {},
+      error: () => {},
+    });
 
     const logs: string[] = [];
     const exitCode = runCliDirect(
@@ -3312,20 +3686,35 @@ describe("pr_state cli", () => {
   });
 
   test("role start launches a role-specific codex profile", () => {
-    let executed: { command: string; args: string[]; env?: Record<string, string> | undefined } | null = null;
+    let executed: {
+      command: string;
+      args: string[];
+      env?: Record<string, string> | undefined;
+    } | null = null;
     const root = mkdtempSync(join(tmpdir(), "pr-state-role-start-"));
     const cwd = join(root, "GH-5431");
     mkdirSync(cwd);
     const taskPath = join(cwd, ".pr", "local", "task.json");
     const previousCwd = process.cwd();
     process.chdir(cwd);
-    runCliDirect(
-      ["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"],
-      { log: () => {}, error: () => {} },
-    );
+    runCliDirect(["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"], {
+      log: () => {},
+      error: () => {},
+    });
 
     const exitCode = runCliDirect(
-      ["role", "start", "--task", taskPath, "--work-unit-id", "GH-5431", "--role", "planner", "--agent", "codex"],
+      [
+        "role",
+        "start",
+        "--task",
+        taskPath,
+        "--work-unit-id",
+        "GH-5431",
+        "--role",
+        "planner",
+        "--agent",
+        "codex",
+      ],
       {
         log: () => {},
         error: () => {},
@@ -3352,20 +3741,35 @@ describe("pr_state cli", () => {
   });
 
   test("role start launches a role-specific Copilot profile", () => {
-    let executed: { command: string; args: string[]; env?: Record<string, string> | undefined } | null = null;
+    let executed: {
+      command: string;
+      args: string[];
+      env?: Record<string, string> | undefined;
+    } | null = null;
     const root = mkdtempSync(join(tmpdir(), "pr-state-role-start-copilot-"));
     const cwd = join(root, "GH-5431");
     mkdirSync(cwd);
     const taskPath = join(cwd, ".pr", "local", "task.json");
     const previousCwd = process.cwd();
     process.chdir(cwd);
-    runCliDirect(
-      ["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"],
-      { log: () => {}, error: () => {} },
-    );
+    runCliDirect(["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"], {
+      log: () => {},
+      error: () => {},
+    });
 
     const exitCode = runCliDirect(
-      ["role", "start", "--task", taskPath, "--work-unit-id", "GH-5431", "--role", "planner", "--agent", "copilot"],
+      [
+        "role",
+        "start",
+        "--task",
+        taskPath,
+        "--work-unit-id",
+        "GH-5431",
+        "--role",
+        "planner",
+        "--agent",
+        "copilot",
+      ],
       {
         log: () => {},
         error: () => {},
@@ -3396,20 +3800,35 @@ describe("pr_state cli", () => {
   });
 
   test("role start launches a role-specific Cursor Agent profile", () => {
-    let executed: { command: string; args: string[]; env?: Record<string, string> | undefined } | null = null;
+    let executed: {
+      command: string;
+      args: string[];
+      env?: Record<string, string> | undefined;
+    } | null = null;
     const root = mkdtempSync(join(tmpdir(), "pr-state-role-start-cursor-"));
     const cwd = join(root, "GH-5431");
     mkdirSync(cwd);
     const taskPath = join(cwd, ".pr", "local", "task.json");
     const previousCwd = process.cwd();
     process.chdir(cwd);
-    runCliDirect(
-      ["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"],
-      { log: () => {}, error: () => {} },
-    );
+    runCliDirect(["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"], {
+      log: () => {},
+      error: () => {},
+    });
 
     const exitCode = runCliDirect(
-      ["role", "start", "--task", taskPath, "--work-unit-id", "GH-5431", "--role", "planner", "--agent", "cursor"],
+      [
+        "role",
+        "start",
+        "--task",
+        taskPath,
+        "--work-unit-id",
+        "GH-5431",
+        "--role",
+        "planner",
+        "--agent",
+        "cursor",
+      ],
       {
         log: () => {},
         error: () => {},
@@ -3441,20 +3860,35 @@ describe("pr_state cli", () => {
   });
 
   test("role start launches a role-specific Claude agent prompt", () => {
-    let executed: { command: string; args: string[]; env?: Record<string, string> | undefined } | null = null;
+    let executed: {
+      command: string;
+      args: string[];
+      env?: Record<string, string> | undefined;
+    } | null = null;
     const root = mkdtempSync(join(tmpdir(), "pr-state-role-start-claude-"));
     const cwd = join(root, "GH-5431");
     mkdirSync(cwd);
     const taskPath = join(cwd, ".pr", "local", "task.json");
     const previousCwd = process.cwd();
     process.chdir(cwd);
-    runCliDirect(
-      ["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"],
-      { log: () => {}, error: () => {} },
-    );
+    runCliDirect(["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"], {
+      log: () => {},
+      error: () => {},
+    });
 
     const exitCode = runCliDirect(
-      ["role", "start", "--task", taskPath, "--work-unit-id", "GH-5431", "--role", "planner", "--agent", "claude"],
+      [
+        "role",
+        "start",
+        "--task",
+        taskPath,
+        "--work-unit-id",
+        "GH-5431",
+        "--role",
+        "planner",
+        "--agent",
+        "claude",
+      ],
       {
         log: () => {},
         error: () => {},
@@ -3486,18 +3920,38 @@ describe("pr_state cli", () => {
     const taskPath = join(cwd, ".pr", "local", "task.json");
     const previousCwd = process.cwd();
     process.chdir(cwd);
+    runCliDirect(["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"], {
+      log: () => {},
+      error: () => {},
+    });
     runCliDirect(
-      ["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"],
-      { log: () => {}, error: () => {} },
-    );
-    runCliDirect(
-      ["task", "sync", "--task", taskPath, "--work-unit-id", "GH-5431", "--confirm-scope", "--confirm-success"],
+      [
+        "task",
+        "sync",
+        "--task",
+        taskPath,
+        "--work-unit-id",
+        "GH-5431",
+        "--confirm-scope",
+        "--confirm-success",
+      ],
       { log: () => {}, error: () => {} },
     );
 
     const logs: string[] = [];
     const exitCode = runCliDirect(
-      ["role", "complete", "--task", taskPath, "--work-unit-id", "GH-5431", "--role", "planner", "--format", "json"],
+      [
+        "role",
+        "complete",
+        "--task",
+        taskPath,
+        "--work-unit-id",
+        "GH-5431",
+        "--role",
+        "planner",
+        "--format",
+        "json",
+      ],
       {
         log: (line) => logs.push(line),
         error: () => {},
@@ -3518,12 +3972,21 @@ describe("pr_state cli", () => {
     const taskPath = join(cwd, ".pr", "local", "task.json");
     const previousCwd = process.cwd();
     process.chdir(cwd);
+    runCliDirect(["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"], {
+      log: () => {},
+      error: () => {},
+    });
     runCliDirect(
-      ["spec", "init", "--task", taskPath, "--work-unit-id", "GH-5431"],
-      { log: () => {}, error: () => {} },
-    );
-    runCliDirect(
-      ["task", "sync", "--task", taskPath, "--work-unit-id", "GH-5431", "--confirm-scope", "--confirm-success"],
+      [
+        "task",
+        "sync",
+        "--task",
+        taskPath,
+        "--work-unit-id",
+        "GH-5431",
+        "--confirm-scope",
+        "--confirm-success",
+      ],
       { log: () => {}, error: () => {} },
     );
 
@@ -3554,7 +4017,7 @@ describe("pr_state cli", () => {
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-work-json-"));
 
     const exitCode = await runCliDirect(
-      ["open","GH-5431", "--format", "json"],
+      ["open", "GH-5431", "--format", "json"],
       {
         log: (line) => logs.push(line),
         error: (line) => errors.push(line),
@@ -3589,7 +4052,7 @@ describe("pr_state cli", () => {
     const errors: string[] = [];
 
     const exitCode = await runCliDirect(
-      ["open","GH-5480"],
+      ["open", "GH-5480"],
       {
         log: () => {},
         error: (line) => errors.push(line),
@@ -3644,16 +4107,13 @@ describe("pr_state cli", () => {
     expect(() => assertLaunchCwdNotMainx("/repo/root/mainx", "GH-5480")).toThrow(
       /read-only mainx replica/,
     );
-    expect(assertLaunchCwdNotMainx("/repo/root/GH-5480", "GH-5480")).toBe(
-      "/repo/root/GH-5480",
-    );
+    expect(assertLaunchCwdNotMainx("/repo/root/GH-5480", "GH-5480")).toBe("/repo/root/GH-5480");
   });
 
   test("resolveWorkUnitLaunchCwd refuses to hand back the mainx replica (ai-home-ozbjp)", () => {
     // The resolved worktree's directory basename is `mainx` → fail closed
     // rather than spawn an agent against the shared replica.
-    const porcelain =
-      "worktree /repo/root/mainx\nHEAD abc123\nbranch refs/heads/GH-5480\n\n";
+    const porcelain = "worktree /repo/root/mainx\nHEAD abc123\nbranch refs/heads/GH-5480\n\n";
     expect(() =>
       resolveWorkUnitLaunchCwd(
         "GH-5480",
@@ -3695,7 +4155,11 @@ describe("pr_state cli", () => {
           return { status: 0, stdout: "/repo/root\n", stderr: "" };
         }
         if (file === "wt" && args.join(" ") === "list --format=json") {
-          return { status: 128, stdout: "", stderr: "fatal: branch 'GH-379' has no upstream information" };
+          return {
+            status: 128,
+            stdout: "",
+            stderr: "fatal: branch 'GH-379' has no upstream information",
+          };
         }
         throw new Error(`unexpected: ${file} ${args.join(" ")}`);
       },
@@ -3738,7 +4202,10 @@ describe("pr_state cli", () => {
           return { status: 0, stdout: "", stderr: "" };
         }
         // GH-512: resolveWorkUnitLaunchCwd checks if branch already exists before materializing
-        if (file === "git" && args.join(" ") === "-C /repo/root show-ref --verify --quiet refs/heads/GH-196") {
+        if (
+          file === "git" &&
+          args.join(" ") === "-C /repo/root show-ref --verify --quiet refs/heads/GH-196"
+        ) {
           return { status: 1, stdout: "", stderr: "" };
         }
         // seedRemoteBranch calls (GH-427)
@@ -3748,7 +4215,10 @@ describe("pr_state cli", () => {
         if (file === "git" && args.join(" ") === "-C /repo/root rev-parse origin/main") {
           return { status: 0, stdout: "abc123\n", stderr: "" };
         }
-        if (file === "git" && args.join(" ") === "-C /repo/root push origin abc123:refs/heads/GH-196") {
+        if (
+          file === "git" &&
+          args.join(" ") === "-C /repo/root push origin abc123:refs/heads/GH-196"
+        ) {
           return { status: 0, stdout: "", stderr: "" };
         }
         // ai-home-8zr6: ensureWorkUnitBranchAndUpstream fetch + local-tracking.
@@ -3771,13 +4241,21 @@ describe("pr_state cli", () => {
           listCount += 1;
           return listCount === 1
             ? { status: 0, stdout: "", stderr: "" }
-            : { status: 0, stdout: "worktree /repo/GH-196\nHEAD abc123\nbranch refs/heads/GH-196\n\n", stderr: "" };
+            : {
+                status: 0,
+                stdout: "worktree /repo/GH-196\nHEAD abc123\nbranch refs/heads/GH-196\n\n",
+                stderr: "",
+              };
         }
         if (cmd.join(" ").includes("repo view")) {
           return { status: 0, stdout: "owner/repo\n", stderr: "" };
         }
         if (cmd.join(" ").includes("issue view 196")) {
-          return { status: 0, stdout: JSON.stringify({ number: 196, title: "Issue", state: "OPEN" }), stderr: "" };
+          return {
+            status: 0,
+            stdout: JSON.stringify({ number: 196, title: "Issue", state: "OPEN" }),
+            stderr: "",
+          };
         }
         throw new Error(`unexpected runner call: ${cmd.join(" ")}`);
       },
@@ -3812,9 +4290,7 @@ describe("pr_state cli", () => {
 
   test("findWorktreeByDirectoryPrefix requires the numeric suffix boundary (gh_5 must not match gh_515_*)", () => {
     // Guard against loose prefix matching: `gh_5_` must not match `gh_515_azi`.
-    const entries = [
-      { branch: "main", path: "/worktrees/gh_515_azi", states: [] },
-    ];
+    const entries = [{ branch: "main", path: "/worktrees/gh_515_azi", states: [] }];
     expect(findWorktreeByDirectoryPrefix(entries, "GH-5")).toBeUndefined();
     expect(findWorktreeByDirectoryPrefix(entries, "GH-515")?.path).toBe("/worktrees/gh_515_azi");
   });
@@ -3915,14 +4391,16 @@ describe("pr_state cli", () => {
 
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["open","GH-5431", "--dry-run"],
+      ["open", "GH-5431", "--dry-run"],
       { log: () => {}, error: (line) => errors.push(line) },
       {
         ...deps,
         // GH-1983: bypass the detached-HEAD preflight on CI (see comment in
         // noOpWorktreeLockDeps for the TMPDIR-override rationale).
         assertWorktreeOnNamedBranch: () => null,
-        pruneStaleRemoteRefs: () => { order.push("prune"); },
+        pruneStaleRemoteRefs: () => {
+          order.push("prune");
+        },
         buildParityChain: (...args: Parameters<typeof buildParityChainOriginal>) => {
           order.push("parityChain");
           return buildParityChainOriginal(...args);
@@ -3958,7 +4436,10 @@ describe("pr_state cli", () => {
       if (file === "git" && args.join(" ") === "-C /repo/root worktree list --porcelain") {
         return { status: 0, stdout: "", stderr: "" };
       }
-      if (file === "git" && args.join(" ") === "-C /repo/root show-ref --verify --quiet refs/heads/TASK-5480") {
+      if (
+        file === "git" &&
+        args.join(" ") === "-C /repo/root show-ref --verify --quiet refs/heads/TASK-5480"
+      ) {
         return { status: 1, stdout: "", stderr: "" };
       }
       if (file === "git" && args.join(" ").startsWith("-C /repo/root worktree add")) {
@@ -3970,23 +4451,29 @@ describe("pr_state cli", () => {
       throw new Error(`unexpected: ${file} ${args.join(" ")} (cwd=${options.cwd})`);
     };
 
-    materializeWorkUnitBranch(
-      "TASK-5480",
-      "/repo/current",
-      spawn,
-      (cmd) => {
-        if (cmd.join(" ") === "git -C /repo/root rev-parse --show-toplevel") {
-          return { status: 0, stdout: "/repo/root\n", stderr: "" };
-        }
-        throw new Error(`unexpected runner call: ${cmd.join(" ")}`);
-      },
-    );
+    materializeWorkUnitBranch("TASK-5480", "/repo/current", spawn, (cmd) => {
+      if (cmd.join(" ") === "git -C /repo/root rev-parse --show-toplevel") {
+        return { status: 0, stdout: "/repo/root\n", stderr: "" };
+      }
+      throw new Error(`unexpected runner call: ${cmd.join(" ")}`);
+    });
 
-    expect(calls.some((c) => c.file === "git" && c.args.join(" ") === "-C /repo/root fetch origin")).toBe(true);
+    expect(
+      calls.some((c) => c.file === "git" && c.args.join(" ") === "-C /repo/root fetch origin"),
+    ).toBe(true);
     // GH-2366: the materialize path must NOT detach/clobber the shared mainx
     // worktree — it only fetches + adds the work-unit worktree.
-    expect(calls.some((c) => c.file === "git" && c.args.join(" ") === "-C /repo/mainx checkout --detach origin/main")).toBe(false);
-    expect(calls.some((c) => c.file === "git" && c.args.join(" ").startsWith("-C /repo/root worktree add"))).toBe(true);
+    expect(
+      calls.some(
+        (c) =>
+          c.file === "git" && c.args.join(" ") === "-C /repo/mainx checkout --detach origin/main",
+      ),
+    ).toBe(false);
+    expect(
+      calls.some(
+        (c) => c.file === "git" && c.args.join(" ").startsWith("-C /repo/root worktree add"),
+      ),
+    ).toBe(true);
     expect(calls.some((c) => c.file === "wt")).toBe(false);
   });
 
@@ -3995,18 +4482,25 @@ describe("pr_state cli", () => {
     const spawn = (file: string, args: string[], _options: { cwd: string; encoding: "utf8" }) => {
       calls.push({ file, args });
       const joined = args.join(" ");
-      if (file === "git" && joined === "rev-parse --show-toplevel") return { status: 0, stdout: "/repo/root\n", stderr: "" };
-      if (file === "git" && joined === "-C /repo/root fetch origin") return { status: 0, stdout: "", stderr: "" };
-      if (file === "git" && joined === "-C /repo/root worktree list --porcelain") return { status: 0, stdout: "worktree /repo/mainx\n", stderr: "" };
-      if (file === "git" && joined === "-C /repo/mainx status --porcelain") return { status: 0, stdout: " M src/foo.ts\n", stderr: "" };
-      if (file === "git" && joined === "-C /repo/mainx checkout --detach origin/main") return { status: 0, stdout: "", stderr: "" };
+      if (file === "git" && joined === "rev-parse --show-toplevel")
+        return { status: 0, stdout: "/repo/root\n", stderr: "" };
+      if (file === "git" && joined === "-C /repo/root fetch origin")
+        return { status: 0, stdout: "", stderr: "" };
+      if (file === "git" && joined === "-C /repo/root worktree list --porcelain")
+        return { status: 0, stdout: "worktree /repo/mainx\n", stderr: "" };
+      if (file === "git" && joined === "-C /repo/mainx status --porcelain")
+        return { status: 0, stdout: " M src/foo.ts\n", stderr: "" };
+      if (file === "git" && joined === "-C /repo/mainx checkout --detach origin/main")
+        return { status: 0, stdout: "", stderr: "" };
       throw new Error(`unexpected: ${file} ${joined}`);
     };
 
     // Dirty mainx → clear refusal (not git's cryptic "resolve your current index").
     expect(() => prepareMainxWorktree("/repo/current", spawn)).toThrow(/uncommitted changes/);
     // The destructive checkout must NOT run when the tree is dirty.
-    expect(calls.some((c) => c.args.join(" ") === "-C /repo/mainx checkout --detach origin/main")).toBe(false);
+    expect(
+      calls.some((c) => c.args.join(" ") === "-C /repo/mainx checkout --detach origin/main"),
+    ).toBe(false);
   });
 
   test("materializeWorkUnitBranch validates GH issue before preparing mainx", () => {
@@ -4022,7 +4516,10 @@ describe("pr_state cli", () => {
       if (file === "git" && args.join(" ") === "-C /repo/root worktree list --porcelain") {
         return { status: 0, stdout: "", stderr: "" };
       }
-      if (file === "git" && args.join(" ") === "-C /repo/root show-ref --verify --quiet refs/heads/GH-171") {
+      if (
+        file === "git" &&
+        args.join(" ") === "-C /repo/root show-ref --verify --quiet refs/heads/GH-171"
+      ) {
         return { status: 1, stdout: "", stderr: "" };
       }
       if (file === "git" && args.join(" ").startsWith("-C /repo/root worktree add")) {
@@ -4043,7 +4540,11 @@ describe("pr_state cli", () => {
         return { status: 0, stdout: "owner/repo\n", stderr: "" };
       }
       if (cmd.join(" ").includes("issue view 171")) {
-        return { status: 0, stdout: JSON.stringify({ number: 171, title: "Test issue", state: "OPEN" }), stderr: "" };
+        return {
+          status: 0,
+          stdout: JSON.stringify({ number: 171, title: "Test issue", state: "OPEN" }),
+          stderr: "",
+        };
       }
       throw new Error(`unexpected runner call: ${cmd.join(" ")}`);
     };
@@ -4051,16 +4552,19 @@ describe("pr_state cli", () => {
     materializeWorkUnitBranch("GH-171", "/repo/current", spawn, runner);
 
     expect(runnerCalls.some((c) => c.includes("issue") && c.includes("171"))).toBe(true);
-    expect(spawnCalls.some((c) => c.file === "git" && c.args.join(" ").includes("fetch origin"))).toBe(true);
-    expect(spawnCalls.some((c) => c.file === "git" && c.args.join(" ").startsWith("-C /repo/root worktree add"))).toBe(true);
+    expect(
+      spawnCalls.some((c) => c.file === "git" && c.args.join(" ").includes("fetch origin")),
+    ).toBe(true);
+    expect(
+      spawnCalls.some(
+        (c) => c.file === "git" && c.args.join(" ").startsWith("-C /repo/root worktree add"),
+      ),
+    ).toBe(true);
   });
 
   test("materializeWorkUnitBranch validates routed beads issue before running mainx", () => {
     const repoRoot = mkdtempSync(join(tmpdir(), "pr-state-routing-beads-"));
-    writeFileSync(
-      join(repoRoot, "prx.toml"),
-      ['[routing]', 'GH = "beads_issue"', ""].join("\n"),
-    );
+    writeFileSync(join(repoRoot, "prx.toml"), ["[routing]", 'GH = "beads_issue"', ""].join("\n"));
     const spawnCalls: Array<{ file: string; args: string[] }> = [];
     const spawn = (file: string, args: string[], options: { cwd: string; encoding: "utf8" }) => {
       spawnCalls.push({ file, args });
@@ -4073,7 +4577,10 @@ describe("pr_state cli", () => {
       if (file === "git" && args.join(" ") === `-C ${repoRoot} worktree list --porcelain`) {
         return { status: 0, stdout: "", stderr: "" };
       }
-      if (file === "git" && args.join(" ") === `-C ${repoRoot} show-ref --verify --quiet refs/heads/GH-5480`) {
+      if (
+        file === "git" &&
+        args.join(" ") === `-C ${repoRoot} show-ref --verify --quiet refs/heads/GH-5480`
+      ) {
         return { status: 1, stdout: "", stderr: "" };
       }
       if (file === "git" && args.join(" ").startsWith(`-C ${repoRoot} worktree add`)) {
@@ -4100,8 +4607,14 @@ describe("pr_state cli", () => {
 
     expect(runnerCalls.some((c) => c.join(" ") === "bd show GH-5480 --json")).toBe(true);
     expect(runnerCalls.some((c) => c[0] === "gh")).toBe(false);
-    expect(spawnCalls.some((c) => c.file === "git" && c.args.join(" ").includes("fetch origin"))).toBe(true);
-    expect(spawnCalls.some((c) => c.file === "git" && c.args.join(" ").startsWith(`-C ${repoRoot} worktree add`))).toBe(true);
+    expect(
+      spawnCalls.some((c) => c.file === "git" && c.args.join(" ").includes("fetch origin")),
+    ).toBe(true);
+    expect(
+      spawnCalls.some(
+        (c) => c.file === "git" && c.args.join(" ").startsWith(`-C ${repoRoot} worktree add`),
+      ),
+    ).toBe(true);
   });
 
   test("materializeWorkUnitBranch throws when GH issue validation fails", () => {
@@ -4124,15 +4637,14 @@ describe("pr_state cli", () => {
       throw new Error(`unexpected runner call: ${cmd.join(" ")}`);
     };
 
-    expect(() => materializeWorkUnitBranch("GH-999", "/repo/current", spawn, runner)).toThrow(/issue.*999.*not found/);
+    expect(() => materializeWorkUnitBranch("GH-999", "/repo/current", spawn, runner)).toThrow(
+      /issue.*999.*not found/,
+    );
   });
 
   test("materializeWorkUnitBranch throws when routed beads issue validation fails", () => {
     const repoRoot = mkdtempSync(join(tmpdir(), "pr-state-routing-beads-missing-"));
-    writeFileSync(
-      join(repoRoot, "prx.toml"),
-      ['[routing]', 'GH = "beads_issue"'].join("\n"),
-    );
+    writeFileSync(join(repoRoot, "prx.toml"), ["[routing]", 'GH = "beads_issue"'].join("\n"));
     const spawn = (file: string, args: string[], _options: { cwd: string; encoding: "utf8" }) => {
       if (file === "git" && args.join(" ") === "rev-parse --show-toplevel") {
         return { status: 0, stdout: `${repoRoot}\n`, stderr: "" };
@@ -4149,7 +4661,9 @@ describe("pr_state cli", () => {
       throw new Error(`unexpected runner call: ${cmd.join(" ")}`);
     };
 
-    expect(() => materializeWorkUnitBranch("GH-999", repoRoot, spawn, runner)).toThrow(/GH-999.*not found/);
+    expect(() => materializeWorkUnitBranch("GH-999", repoRoot, spawn, runner)).toThrow(
+      /GH-999.*not found/,
+    );
   });
 
   test("materializeWorkUnitBranch rejects closed GH issues", () => {
@@ -4167,12 +4681,18 @@ describe("pr_state cli", () => {
         return { status: 0, stdout: "owner/repo\n", stderr: "" };
       }
       if (cmd.join(" ").includes("issue view 171")) {
-        return { status: 0, stdout: JSON.stringify({ number: 171, title: "Closed issue", state: "CLOSED" }), stderr: "" };
+        return {
+          status: 0,
+          stdout: JSON.stringify({ number: 171, title: "Closed issue", state: "CLOSED" }),
+          stderr: "",
+        };
       }
       throw new Error(`unexpected runner call: ${cmd.join(" ")}`);
     };
 
-    expect(() => materializeWorkUnitBranch("GH-171", "/repo/current", spawn, runner)).toThrow(/issue authority is not active/i);
+    expect(() => materializeWorkUnitBranch("GH-171", "/repo/current", spawn, runner)).toThrow(
+      /issue authority is not active/i,
+    );
   });
 
   test("checkWorkUnitIssue validates open GH issues", () => {
@@ -4181,7 +4701,11 @@ describe("pr_state cli", () => {
         return { status: 0, stdout: "owner/repo\n", stderr: "" };
       }
       if (cmd.join(" ").includes("issue view 227")) {
-        return { status: 0, stdout: JSON.stringify({ number: 227, title: "Issue", state: "OPEN" }), stderr: "" };
+        return {
+          status: 0,
+          stdout: JSON.stringify({ number: 227, title: "Issue", state: "OPEN" }),
+          stderr: "",
+        };
       }
       throw new Error(`unexpected runner call: ${cmd.join(" ")}`);
     };
@@ -4197,7 +4721,9 @@ describe("pr_state cli", () => {
   });
 
   test("checkWorkUnitIssue rejects non-GH work units", () => {
-    expect(() => checkWorkUnitIssue("BEAD-123")).toThrow(/canonical work unit identity must be GitHub-backed/i);
+    expect(() => checkWorkUnitIssue("BEAD-123")).toThrow(
+      /canonical work unit identity must be GitHub-backed/i,
+    );
   });
 
   test("findBeadsIssuesByGithubIssue filters by source_system and external_ref (open + closed)", () => {
@@ -4343,7 +4869,13 @@ describe("pr_state cli", () => {
   });
 
   test("beads publish <bd-id> dispatches to runBeadsPublish with parsed defaults", () => {
-    const captured: Array<{ bdId: string; repo?: string | undefined; dryRun: boolean; noAdopt: boolean; format: string }> = [];
+    const captured: Array<{
+      bdId: string;
+      repo?: string | undefined;
+      dryRun: boolean;
+      noAdopt: boolean;
+      format: string;
+    }> = [];
     const exitCode = runCliDirect(
       ["beads", "publish", "ai-home-abc"],
       { log: () => {}, error: () => {} },
@@ -4367,9 +4899,25 @@ describe("pr_state cli", () => {
   });
 
   test("beads publish threads --repo / --dry-run / --no-adopt / --format json", () => {
-    const captured: Array<{ bdId: string; repo?: string | undefined; dryRun: boolean; noAdopt: boolean; format: string }> = [];
+    const captured: Array<{
+      bdId: string;
+      repo?: string | undefined;
+      dryRun: boolean;
+      noAdopt: boolean;
+      format: string;
+    }> = [];
     const exitCode = runCliDirect(
-      ["beads", "publish", "ai-home-abc", "--repo", "owner/repo", "--dry-run", "--no-adopt", "--format", "json"],
+      [
+        "beads",
+        "publish",
+        "ai-home-abc",
+        "--repo",
+        "owner/repo",
+        "--dry-run",
+        "--no-adopt",
+        "--format",
+        "json",
+      ],
       { log: () => {}, error: () => {} },
       {
         runBeadsPublish: (opts) => {
@@ -4400,10 +4948,10 @@ describe("pr_state cli", () => {
   test("beads publish GH-123 → exit 1 with the intake-mirror hint", () => {
     const logs: string[] = [];
     const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["beads", "publish", "GH-123"],
-      { log: (l) => logs.push(l), error: (l) => errors.push(l) },
-    );
+    const exitCode = runCliDirect(["beads", "publish", "GH-123"], {
+      log: (l) => logs.push(l),
+      error: (l) => errors.push(l),
+    });
     expect(exitCode).toBe(1);
     expect(logs).toEqual([]);
     expect(errors.join("\n")).toContain("prx intake mirror GH-123");
@@ -4450,7 +4998,9 @@ describe("pr_state cli", () => {
       },
       {
         checkWorkUnitIssue: () => {
-          throw new Error("Cannot start work for GH-230: GitHub issue #230 is CLOSED, so issue authority is not active.");
+          throw new Error(
+            "Cannot start work for GH-230: GitHub issue #230 is CLOSED, so issue authority is not active.",
+          );
         },
       },
     );
@@ -4481,7 +5031,7 @@ describe("pr_state cli", () => {
           locked: true,
           lockReason: "prx session runtime active for GH-227",
         },
-      ])
+      ]),
     ).toThrow(/active worktree session is already running/i);
   });
 
@@ -4501,7 +5051,7 @@ describe("pr_state cli", () => {
           },
         ],
         { isPidAlive: () => true, unlock: () => {} },
-      )
+      ),
     ).toThrow(/active worktree session is already running/i);
   });
 
@@ -4549,7 +5099,9 @@ describe("pr_state cli", () => {
 
   test("parseSessionLockPid accepts canonical prx session locks (GH-591)", () => {
     expect(parseSessionLockPid("prx session runtime active for GH-227 (pid 42)")).toBe(42);
-    expect(parseSessionLockPid("prx session runtime active for feature-path (pid 99233)")).toBe(99233);
+    expect(parseSessionLockPid("prx session runtime active for feature-path (pid 99233)")).toBe(
+      99233,
+    );
   });
 
   test("parseSessionLockPid rejects foreign reasons and malformed input (GH-591)", () => {
@@ -4580,7 +5132,7 @@ describe("pr_state cli", () => {
           },
         ],
         { isPidAlive: probe, unlock: () => {} },
-      )
+      ),
     ).toThrow(/active worktree session is already running/i);
   });
 
@@ -4625,7 +5177,9 @@ describe("pr_state cli", () => {
       },
       {
         checkWorkUnitSession: () => {
-          throw new Error("Cannot start work for GH-227: an active worktree session is already running at /repo/GH-227: prx session runtime active for GH-227.");
+          throw new Error(
+            "Cannot start work for GH-227: an active worktree session is already running at /repo/GH-227: prx session runtime active for GH-227.",
+          );
         },
       },
     );
@@ -4635,30 +5189,32 @@ describe("pr_state cli", () => {
   });
 
   test("checkWorkUnitChain allows missing units for pre-switch creation", async () => {
-    await expect(checkWorkUnitChain(
-      "GH-227",
-      "/repo",
-      true,
-      () => ({
-        source: "derived-board",
-        repo: "owner/repo",
-        remote_freshness: "fresh",
-        units: [],
-      }),
-      () => ({
-        source: "surface-sync",
-        repo: "owner/repo",
-        mode: "full",
-        authority: "issue",
-        scope: "all",
-        apply: false,
-        units: [],
-        actions: [],
-      }),
-      // GH-935: epic-label guard reads the GH issue up front; provide a stub
-      // so the test does not shell out to `gh issue view`.
-      () => ({ number: 227, title: "Pre-switch", state: "OPEN", labels: [] }),
-    )).resolves.toEqual({
+    await expect(
+      checkWorkUnitChain(
+        "GH-227",
+        "/repo",
+        true,
+        () => ({
+          source: "derived-board",
+          repo: "owner/repo",
+          remote_freshness: "fresh",
+          units: [],
+        }),
+        () => ({
+          source: "surface-sync",
+          repo: "owner/repo",
+          mode: "full",
+          authority: "issue",
+          scope: "all",
+          apply: false,
+          units: [],
+          actions: [],
+        }),
+        // GH-935: epic-label guard reads the GH issue up front; provide a stub
+        // so the test does not shell out to `gh issue view`.
+        () => ({ number: 227, title: "Pre-switch", state: "OPEN", labels: [] }),
+      ),
+    ).resolves.toEqual({
       workUnitId: "GH-227",
       create: true,
       unitExists: false,
@@ -4740,18 +5296,21 @@ describe("pr_state cli", () => {
       units: [],
       actions: [],
     });
-    const loadIdentity = () => buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
+    const loadIdentity = () =>
+      buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
     const buildResolver = () => null;
-    await expect(checkWorkUnitChain(
-      "PROJECT-6637",
-      "/repo",
-      false,
-      board,
-      parity,
-      undefined,
-      loadIdentity,
-      buildResolver,
-    )).rejects.toThrow("no issue-authority resolver is configured");
+    await expect(
+      checkWorkUnitChain(
+        "PROJECT-6637",
+        "/repo",
+        false,
+        board,
+        parity,
+        undefined,
+        loadIdentity,
+        buildResolver,
+      ),
+    ).rejects.toThrow("no issue-authority resolver is configured");
   });
 
   test("checkWorkUnitChain names the Notion ticket and suggests --from=notion when the resolver resolves open", async () => {
@@ -4771,7 +5330,8 @@ describe("pr_state cli", () => {
       units: [],
       actions: [],
     });
-    const loadIdentity = () => buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
+    const loadIdentity = () =>
+      buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
     const buildResolver = () => ({
       name: "notion" as const,
       fetch: async () => ({
@@ -4785,7 +5345,16 @@ describe("pr_state cli", () => {
     });
     let caught: unknown;
     try {
-      await checkWorkUnitChain("PROJECT-6637", "/repo", false, board, parity, undefined, loadIdentity, buildResolver);
+      await checkWorkUnitChain(
+        "PROJECT-6637",
+        "/repo",
+        false,
+        board,
+        parity,
+        undefined,
+        loadIdentity,
+        buildResolver,
+      );
     } catch (error) {
       caught = error;
     }
@@ -4816,7 +5385,8 @@ describe("pr_state cli", () => {
       units: [],
       actions: [],
     });
-    const loadIdentity = () => buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
+    const loadIdentity = () =>
+      buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
     const buildResolver = () => ({
       name: "notion" as const,
       fetch: async () => ({
@@ -4830,7 +5400,16 @@ describe("pr_state cli", () => {
     });
     let caught: unknown;
     try {
-      await checkWorkUnitChain("PROJECT-6637", "/repo", false, board, parity, undefined, loadIdentity, buildResolver);
+      await checkWorkUnitChain(
+        "PROJECT-6637",
+        "/repo",
+        false,
+        board,
+        parity,
+        undefined,
+        loadIdentity,
+        buildResolver,
+      );
     } catch (error) {
       caught = error;
     }
@@ -4860,7 +5439,8 @@ describe("pr_state cli", () => {
       units: [],
       actions: [],
     });
-    const loadIdentity = () => buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
+    const loadIdentity = () =>
+      buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
     let resolverCalls = 0;
     const buildResolver = () => ({
       name: "notion" as const,
@@ -4876,17 +5456,19 @@ describe("pr_state cli", () => {
         };
       },
     });
-    await expect(checkWorkUnitChain(
-      "PROJECT-6637",
-      "/repo",
-      true,
-      board,
-      parity,
-      undefined,
-      loadIdentity,
-      buildResolver,
-      "notion",
-    )).resolves.toMatchObject({ valid: true, reason: "missing_unit_allowed" });
+    await expect(
+      checkWorkUnitChain(
+        "PROJECT-6637",
+        "/repo",
+        true,
+        board,
+        parity,
+        undefined,
+        loadIdentity,
+        buildResolver,
+        "notion",
+      ),
+    ).resolves.toMatchObject({ valid: true, reason: "missing_unit_allowed" });
     expect(resolverCalls).toBe(1);
   });
 
@@ -4986,7 +5568,8 @@ describe("pr_state cli", () => {
       units: [],
       actions: [],
     });
-    const loadIdentity = () => buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
+    const loadIdentity = () =>
+      buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
     const buildResolver = () => ({
       name: "notion" as const,
       fetch: async () => ({
@@ -4998,17 +5581,19 @@ describe("pr_state cli", () => {
         source: "notion" as const,
       }),
     });
-    await expect(checkWorkUnitChain(
-      "PROJECT-6637",
-      "/repo",
-      true,
-      board,
-      parity,
-      undefined,
-      loadIdentity,
-      buildResolver,
-      "notion",
-    )).rejects.toThrow("is closed");
+    await expect(
+      checkWorkUnitChain(
+        "PROJECT-6637",
+        "/repo",
+        true,
+        board,
+        parity,
+        undefined,
+        loadIdentity,
+        buildResolver,
+        "notion",
+      ),
+    ).rejects.toThrow("is closed");
   });
 
   test("checkWorkUnitChain rejects create + from=notion when no resolver is configured", async () => {
@@ -5028,19 +5613,22 @@ describe("pr_state cli", () => {
       units: [],
       actions: [],
     });
-    const loadIdentity = () => buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
+    const loadIdentity = () =>
+      buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
     const buildResolver = () => null;
-    await expect(checkWorkUnitChain(
-      "PROJECT-6637",
-      "/repo",
-      true,
-      board,
-      parity,
-      undefined,
-      loadIdentity,
-      buildResolver,
-      "notion",
-    )).rejects.toThrow("no issue-authority resolver is configured");
+    await expect(
+      checkWorkUnitChain(
+        "PROJECT-6637",
+        "/repo",
+        true,
+        board,
+        parity,
+        undefined,
+        loadIdentity,
+        buildResolver,
+        "notion",
+      ),
+    ).rejects.toThrow("no issue-authority resolver is configured");
   });
 
   // GH-2090: --create --from=beads validates the bd-backed source before
@@ -5062,7 +5650,8 @@ describe("pr_state cli", () => {
       units: [],
       actions: [],
     });
-    const loadIdentity = () => buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|BD)-[0-9A-Fa-f]+$/ });
+    const loadIdentity = () =>
+      buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|BD)-[0-9A-Fa-f]+$/ });
     let resolverCalls = 0;
     const buildResolver = () => ({
       name: "beads" as const,
@@ -5078,17 +5667,19 @@ describe("pr_state cli", () => {
         };
       },
     });
-    await expect(checkWorkUnitChain(
-      "BD-AAAAAAAA",
-      "/repo",
-      true,
-      board,
-      parity,
-      undefined,
-      loadIdentity,
-      buildResolver,
-      "beads",
-    )).resolves.toMatchObject({ valid: true, reason: "missing_unit_allowed" });
+    await expect(
+      checkWorkUnitChain(
+        "BD-AAAAAAAA",
+        "/repo",
+        true,
+        board,
+        parity,
+        undefined,
+        loadIdentity,
+        buildResolver,
+        "beads",
+      ),
+    ).resolves.toMatchObject({ valid: true, reason: "missing_unit_allowed" });
     expect(resolverCalls).toBe(1);
   });
 
@@ -5109,19 +5700,22 @@ describe("pr_state cli", () => {
       units: [],
       actions: [],
     });
-    const loadIdentity = () => buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|BD)-[0-9A-Fa-f]+$/ });
+    const loadIdentity = () =>
+      buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|BD)-[0-9A-Fa-f]+$/ });
     const buildResolver = () => null;
-    await expect(checkWorkUnitChain(
-      "BD-AAAAAAAA",
-      "/repo",
-      true,
-      board,
-      parity,
-      undefined,
-      loadIdentity,
-      buildResolver,
-      "beads",
-    )).rejects.toThrow("no issue-authority resolver is configured");
+    await expect(
+      checkWorkUnitChain(
+        "BD-AAAAAAAA",
+        "/repo",
+        true,
+        board,
+        parity,
+        undefined,
+        loadIdentity,
+        buildResolver,
+        "beads",
+      ),
+    ).rejects.toThrow("no issue-authority resolver is configured");
   });
 
   // GH-2152: exercises the STANDALONE-caller path — checkWorkUnitChain invoked
@@ -5146,23 +5740,26 @@ describe("pr_state cli", () => {
       units: [],
       actions: [],
     });
-    const loadIdentity = () => buildIdentityFromLegacy({ canonicalIdPattern: /^GH-\d+$/, isDefault: true });
+    const loadIdentity = () =>
+      buildIdentityFromLegacy({ canonicalIdPattern: /^GH-\d+$/, isDefault: true });
     let resolverBuilt = 0;
     const buildResolver = () => {
       resolverBuilt += 1;
       return null;
     };
-    await expect(checkWorkUnitChain(
-      "GH-2090",
-      "/repo",
-      true,
-      board,
-      parity,
-      undefined,
-      loadIdentity,
-      buildResolver,
-      "beads",
-    )).rejects.toThrow("--from=beads is not valid for GitHub work unit IDs (GH-2090)");
+    await expect(
+      checkWorkUnitChain(
+        "GH-2090",
+        "/repo",
+        true,
+        board,
+        parity,
+        undefined,
+        loadIdentity,
+        buildResolver,
+        "beads",
+      ),
+    ).rejects.toThrow("--from=beads is not valid for GitHub work unit IDs (GH-2090)");
     // GH-870 defensive skip applies to from=beads too: no GH fetch, no
     // resolver build before the rejection lands.
     expect(resolverBuilt).toBe(0);
@@ -5185,7 +5782,8 @@ describe("pr_state cli", () => {
       units: [],
       actions: [],
     });
-    const loadIdentity = () => buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
+    const loadIdentity = () =>
+      buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
     let resolverCalls = 0;
     const buildResolver = () => ({
       name: "notion" as const,
@@ -5201,16 +5799,18 @@ describe("pr_state cli", () => {
         };
       },
     });
-    await expect(checkWorkUnitChain(
-      "PROJECT-6637",
-      "/repo",
-      true,
-      board,
-      parity,
-      undefined,
-      loadIdentity,
-      buildResolver,
-    )).resolves.toMatchObject({ valid: true, reason: "missing_unit_allowed" });
+    await expect(
+      checkWorkUnitChain(
+        "PROJECT-6637",
+        "/repo",
+        true,
+        board,
+        parity,
+        undefined,
+        loadIdentity,
+        buildResolver,
+      ),
+    ).resolves.toMatchObject({ valid: true, reason: "missing_unit_allowed" });
     // prx-pl2: plain create now resolves the source ONCE to FOD-pin
     // `<unit>:source@pinned` (the impure→pure boundary the planner consumes).
     // A closed/erroring source is swallowed (best-effort) but still probed once.
@@ -5234,7 +5834,8 @@ describe("pr_state cli", () => {
       units: [],
       actions: [],
     });
-    const loadIdentity = () => buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
+    const loadIdentity = () =>
+      buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
     const buildResolver = () => ({
       name: "notion" as const,
       fetch: async () => {
@@ -5243,7 +5844,16 @@ describe("pr_state cli", () => {
     });
     let caught: unknown;
     try {
-      await checkWorkUnitChain("PROJECT-6637", "/repo", false, board, parity, undefined, loadIdentity, buildResolver);
+      await checkWorkUnitChain(
+        "PROJECT-6637",
+        "/repo",
+        false,
+        board,
+        parity,
+        undefined,
+        loadIdentity,
+        buildResolver,
+      );
     } catch (error) {
       caught = error;
     }
@@ -5307,7 +5917,17 @@ describe("pr_state cli", () => {
           ticket: null,
           branch: "PROJECT-6637",
           worktree_path: null,
-          pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+          pr: {
+            exists: false,
+            number: null,
+            title: null,
+            url: null,
+            draft: null,
+            checks: null,
+            review: null,
+            approvals: null,
+            mergeable: null,
+          },
           artifacts: { worktree: false, branch: true, pr: false, ticket: true },
           local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
           status: {
@@ -5344,7 +5964,8 @@ describe("pr_state cli", () => {
       units: [{ branch: "PROJECT-6637", ticket: null, actions: [] }],
       actions: [],
     });
-    const loadIdentity = () => buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
+    const loadIdentity = () =>
+      buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
     const buildResolver = () => ({
       name: "notion" as const,
       fetch: async () => ({
@@ -5386,7 +6007,17 @@ describe("pr_state cli", () => {
           ticket: null,
           branch: "PROJECT-9999",
           worktree_path: null,
-          pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+          pr: {
+            exists: false,
+            number: null,
+            title: null,
+            url: null,
+            draft: null,
+            checks: null,
+            review: null,
+            approvals: null,
+            mergeable: null,
+          },
           artifacts: { worktree: false, branch: true, pr: false, ticket: true },
           local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
           status: {
@@ -5437,7 +6068,8 @@ describe("pr_state cli", () => {
       ],
       actions: [],
     });
-    const loadIdentity = () => buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
+    const loadIdentity = () =>
+      buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|PROJECT)-\d+$/ });
     const buildResolver = () => ({
       name: "notion" as const,
       fetch: async () => ({
@@ -5475,12 +6107,15 @@ describe("pr_state cli", () => {
   // GH-924: refuse session entry when a unit's lifecycle is already terminal
   // and the worktree is still on disk (parity chain emits no prune action in
   // that case, so the existing pruneActions gate doesn't catch it).
-  function unitCompleteBoard(workUnitId: string, overrides: {
-    merge_state?: string;
-    gh_issue?: string;
-    beads_issue?: string;
-    pr?: string;
-  }): {
+  function unitCompleteBoard(
+    workUnitId: string,
+    overrides: {
+      merge_state?: string;
+      gh_issue?: string;
+      beads_issue?: string;
+      pr?: string;
+    },
+  ): {
     source: "derived-board";
     repo: string;
     remote_freshness: "fresh";
@@ -5488,11 +6123,36 @@ describe("pr_state cli", () => {
       ticket: string;
       branch: string;
       worktree_path: string;
-      pr: { exists: boolean; number: number | null; title: string | null; url: string | null; draft: boolean | null; checks: null; review: null; approvals: null; mergeable: null };
+      pr: {
+        exists: boolean;
+        number: number | null;
+        title: string | null;
+        url: string | null;
+        draft: boolean | null;
+        checks: null;
+        review: null;
+        approvals: null;
+        mergeable: null;
+      };
       artifacts: { worktree: boolean; branch: boolean; pr: boolean; ticket: boolean };
-      local: { clean: boolean; staged: number; unstaged: number; untracked: number; conflicts: number };
+      local: {
+        clean: boolean;
+        staged: number;
+        unstaged: number;
+        untracked: number;
+        conflicts: number;
+      };
       status: {
-        remote: { gh_issue: string; beads_issue: string; project_item: string; branch: string; pr: string; merge_state: string; ci: string; problem: string };
+        remote: {
+          gh_issue: string;
+          beads_issue: string;
+          project_item: string;
+          branch: string;
+          pr: string;
+          merge_state: string;
+          ci: string;
+          problem: string;
+        };
         local: { branch: string; worktree: string; dir: string; problem: string };
       };
       column: "merged";
@@ -5503,38 +6163,51 @@ describe("pr_state cli", () => {
       source: "derived-board",
       repo: "owner/repo",
       remote_freshness: "fresh",
-      units: [{
-        ticket: workUnitId,
-        branch: workUnitId,
-        worktree_path: `/repo/${workUnitId}`,
-        pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
-        artifacts: { worktree: true, branch: true, pr: false, ticket: true },
-        local: { clean: true, staged: 0, unstaged: 0, untracked: 0, conflicts: 0 },
-        status: {
-          remote: {
-            gh_issue: overrides.gh_issue ?? "dirty",
-            beads_issue: overrides.beads_issue ?? "clean",
-            project_item: "clean",
-            branch: "clean",
-            pr: overrides.pr ?? "clean",
-            merge_state: overrides.merge_state ?? "clean",
-            ci: "clean",
-            problem: "no",
+      units: [
+        {
+          ticket: workUnitId,
+          branch: workUnitId,
+          worktree_path: `/repo/${workUnitId}`,
+          pr: {
+            exists: false,
+            number: null,
+            title: null,
+            url: null,
+            draft: null,
+            checks: null,
+            review: null,
+            approvals: null,
+            mergeable: null,
           },
-          local: { branch: "clean", worktree: "clean", dir: "present", problem: "no" },
+          artifacts: { worktree: true, branch: true, pr: false, ticket: true },
+          local: { clean: true, staged: 0, unstaged: 0, untracked: 0, conflicts: 0 },
+          status: {
+            remote: {
+              gh_issue: overrides.gh_issue ?? "dirty",
+              beads_issue: overrides.beads_issue ?? "clean",
+              project_item: "clean",
+              branch: "clean",
+              pr: overrides.pr ?? "clean",
+              merge_state: overrides.merge_state ?? "clean",
+              ci: "clean",
+              problem: "no",
+            },
+            local: { branch: "clean", worktree: "clean", dir: "present", problem: "no" },
+          },
+          column: "merged",
+          reasons: [],
         },
-        column: "merged",
-        reasons: [],
-      }],
+      ],
     };
   }
 
   test("checkWorkUnitChain refuses session entry when PR is merged + issue closed + worktree present (GH-924)", async () => {
-    const board = () => unitCompleteBoard("GH-888", {
-      merge_state: "merged",
-      gh_issue: "completed",
-      pr: "completed",
-    });
+    const board = () =>
+      unitCompleteBoard("GH-888", {
+        merge_state: "merged",
+        gh_issue: "completed",
+        pr: "completed",
+      });
     const parity = () => ({
       source: "surface-sync" as const,
       repo: "owner/repo",
@@ -5545,28 +6218,21 @@ describe("pr_state cli", () => {
       units: [{ branch: "GH-888", ticket: "GH-888", actions: [] }],
       actions: [],
     });
-    await expect(checkWorkUnitChain(
-      "GH-888",
-      "/repo",
-      false,
-      board,
-      parity,
-    )).rejects.toThrow(/work unit is complete.*PR merged.*GitHub issue closed/s);
-    await expect(checkWorkUnitChain(
-      "GH-888",
-      "/repo",
-      false,
-      board,
-      parity,
-    )).rejects.toThrow(/prx prune --ticket GH-888/);
+    await expect(checkWorkUnitChain("GH-888", "/repo", false, board, parity)).rejects.toThrow(
+      /work unit is complete.*PR merged.*GitHub issue closed/s,
+    );
+    await expect(checkWorkUnitChain("GH-888", "/repo", false, board, parity)).rejects.toThrow(
+      /prx prune --ticket GH-888/,
+    );
   });
 
   test("checkWorkUnitChain refuses when PR was closed unmerged + issue closed (GH-924)", async () => {
-    const board = () => unitCompleteBoard("GH-742", {
-      merge_state: "closed",
-      gh_issue: "completed",
-      pr: "completed",
-    });
+    const board = () =>
+      unitCompleteBoard("GH-742", {
+        merge_state: "closed",
+        gh_issue: "completed",
+        pr: "completed",
+      });
     const parity = () => ({
       source: "surface-sync" as const,
       repo: "owner/repo",
@@ -5577,21 +6243,18 @@ describe("pr_state cli", () => {
       units: [{ branch: "GH-742", ticket: "GH-742", actions: [] }],
       actions: [],
     });
-    await expect(checkWorkUnitChain(
-      "GH-742",
-      "/repo",
-      false,
-      board,
-      parity,
-    )).rejects.toThrow(/PR closed/);
+    await expect(checkWorkUnitChain("GH-742", "/repo", false, board, parity)).rejects.toThrow(
+      /PR closed/,
+    );
   });
 
   test("checkWorkUnitChain refuses when only the GitHub issue is closed (GH-924)", async () => {
-    const board = () => unitCompleteBoard("GH-101", {
-      merge_state: "open",
-      gh_issue: "completed",
-      pr: "dirty",
-    });
+    const board = () =>
+      unitCompleteBoard("GH-101", {
+        merge_state: "open",
+        gh_issue: "completed",
+        pr: "dirty",
+      });
     const parity = () => ({
       source: "surface-sync" as const,
       repo: "owner/repo",
@@ -5602,21 +6265,18 @@ describe("pr_state cli", () => {
       units: [{ branch: "GH-101", ticket: "GH-101", actions: [] }],
       actions: [],
     });
-    await expect(checkWorkUnitChain(
-      "GH-101",
-      "/repo",
-      false,
-      board,
-      parity,
-    )).rejects.toThrow(/GitHub issue closed/);
+    await expect(checkWorkUnitChain("GH-101", "/repo", false, board, parity)).rejects.toThrow(
+      /GitHub issue closed/,
+    );
   });
 
   test("checkWorkUnitChain still allows session entry for an active unit (GH-924 regression guard)", async () => {
-    const board = () => unitCompleteBoard("GH-202", {
-      merge_state: "open",
-      gh_issue: "dirty",
-      pr: "dirty",
-    });
+    const board = () =>
+      unitCompleteBoard("GH-202", {
+        merge_state: "open",
+        gh_issue: "dirty",
+        pr: "dirty",
+      });
     const parity = () => ({
       source: "surface-sync" as const,
       repo: "owner/repo",
@@ -5627,13 +6287,7 @@ describe("pr_state cli", () => {
       units: [{ branch: "GH-202", ticket: "GH-202", actions: [] }],
       actions: [],
     });
-    const result = await checkWorkUnitChain(
-      "GH-202",
-      "/repo",
-      false,
-      board,
-      parity,
-    );
+    const result = await checkWorkUnitChain("GH-202", "/repo", false, board, parity);
     expect(result.valid).toBe(true);
     expect(result.unitExists).toBe(true);
     expect(result.reason).toBe("ok");
@@ -5646,11 +6300,12 @@ describe("pr_state cli", () => {
     const tmp = realpathSync(mkdtempSync(join(tmpdir(), "chain-drift-")));
     try {
       mkdirSync(join(tmp, ".beads"), { recursive: true });
-      const board = () => unitCompleteBoard("GH-1152", {
-        merge_state: "open",
-        gh_issue: "dirty",
-        pr: "dirty",
-      });
+      const board = () =>
+        unitCompleteBoard("GH-1152", {
+          merge_state: "open",
+          gh_issue: "dirty",
+          pr: "dirty",
+        });
       const parity = () => ({
         source: "surface-sync" as const,
         repo: "owner/repo",
@@ -5661,12 +6316,11 @@ describe("pr_state cli", () => {
         units: [{ branch: "GH-1152", ticket: "GH-1152", actions: [] }],
         actions: [],
       });
-      const probe = () =>
-        ({
-          status: "drift_detected" as const,
-          errorClass: "started_at_missing" as const,
-          rawStderr: 'column "started_at" could not be found',
-        });
+      const probe = () => ({
+        status: "drift_detected" as const,
+        errorClass: "started_at_missing" as const,
+        rawStderr: 'column "started_at" could not be found',
+      });
       const result = await checkWorkUnitChain(
         "GH-1152",
         tmp,
@@ -5930,7 +6584,9 @@ describe("pr_state cli", () => {
       },
       {
         checkWorkUnitChain: async () => {
-          throw new Error("Cannot start work for GH-227: parity-chain cleanup is required first (delete_remote_branch). Run `prx chain prune --authority issue --scope all` and retry.");
+          throw new Error(
+            "Cannot start work for GH-227: parity-chain cleanup is required first (delete_remote_branch). Run `prx chain prune --authority issue --scope all` and retry.",
+          );
         },
       },
     );
@@ -5950,8 +6606,13 @@ describe("pr_state cli", () => {
       { log: () => {}, error: () => {} },
       {
         ...noOpWorktreeLockDeps,
-        materializeWorktree: (workUnitId) => { calls.push(`materialize:${workUnitId}`); },
-        resolveWorkUnitCwd: (workUnitId) => { calls.push(`resolve:${workUnitId}`); return cwd; },
+        materializeWorktree: (workUnitId) => {
+          calls.push(`materialize:${workUnitId}`);
+        },
+        resolveWorkUnitCwd: (workUnitId) => {
+          calls.push(`resolve:${workUnitId}`);
+          return cwd;
+        },
         execRuntime: () => ({ status: 0, stdout: "", stderr: "" }),
       },
     );
@@ -6008,8 +6669,13 @@ describe("pr_state cli", () => {
         // must skip and the source selector is accepted (moot --from on an
         // existing unit — the GH-870 accept-when-unit-exists contract).
         wtStatus: () => localWtView(["GH-171"]),
-        materializeWorktree: (workUnitId) => { calls.push(`materialize:${workUnitId}`); },
-        resolveWorkUnitCwd: (workUnitId) => { calls.push(`resolve:${workUnitId}`); return cwd; },
+        materializeWorktree: (workUnitId) => {
+          calls.push(`materialize:${workUnitId}`);
+        },
+        resolveWorkUnitCwd: (workUnitId) => {
+          calls.push(`resolve:${workUnitId}`);
+          return cwd;
+        },
         execRuntime: () => ({ status: 0, stdout: "", stderr: "" }),
       },
     );
@@ -6055,7 +6721,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
 
     const exitCode = await runCliDirect(
-      ["open","GH-9999", "--check", "--create", "--from", "notion"],
+      ["open", "GH-9999", "--check", "--create", "--from", "notion"],
       { log: () => {}, error: (line) => errors.push(line) },
       {
         ...noOpWorktreeLockDeps,
@@ -6091,7 +6757,7 @@ describe("pr_state cli", () => {
     process.chdir(cwd);
 
     const exitCode = await runCliDirect(
-      ["open","GH-9999", "--check", "--create", "--from", "beads"],
+      ["open", "GH-9999", "--check", "--create", "--from", "beads"],
       { log: () => {}, error: (line) => errors.push(line) },
       {
         ...noOpWorktreeLockDeps,
@@ -6149,13 +6815,10 @@ describe("pr_state cli", () => {
     const cwd = mkdtempSync(join("/tmp", "pr-state-noncanonical-"));
     const previousCwd = process.cwd();
     process.chdir(cwd);
-    const exitCode = await runCliDirect(
-      ["work"],
-      {
-        log: () => {},
-        error: (line) => errors.push(line),
-      },
-    );
+    const exitCode = await runCliDirect(["work"], {
+      log: () => {},
+      error: (line) => errors.push(line),
+    });
     process.chdir(previousCwd);
 
     expect(exitCode).toBe(1);
@@ -6171,7 +6834,7 @@ describe("pr_state cli", () => {
     const previousCwd = process.cwd();
     process.chdir(cwd);
     const exitCode = await runCliDirect(
-      ["open","--agent", "codex"],
+      ["open", "--agent", "codex"],
       {
         log: () => {},
         error: (line) => errors.push(line),
@@ -6206,7 +6869,7 @@ describe("pr_state cli", () => {
   test("work rejects non-GitHub canonical work-unit IDs", async () => {
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["open","TASK-171"],
+      ["open", "TASK-171"],
       {
         log: () => {},
         error: (line) => errors.push(line),
@@ -6222,7 +6885,7 @@ describe("pr_state cli", () => {
   test("work rejects closed GH issues before bootstrapping a missing unit", async () => {
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["open","GH-171"],
+      ["open", "GH-171"],
       {
         log: () => {},
         error: (line) => errors.push(line),
@@ -6253,11 +6916,7 @@ describe("pr_state cli", () => {
     expect(errors[0]).toContain("is closed");
   });
 
-  const inactiveAuthorityFixture = (
-    ghIssue: string,
-    beadsIssue: string,
-    dir: string,
-  ) => ({
+  const inactiveAuthorityFixture = (ghIssue: string, beadsIssue: string, dir: string) => ({
     boardStatus: () => ({
       source: "derived-board" as const,
       repo: "owner/repo",
@@ -6267,7 +6926,17 @@ describe("pr_state cli", () => {
           ticket: "GH-171",
           branch: "GH-171",
           worktree_path: dir === "present" ? "/repo/GH-171" : null,
-          pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+          pr: {
+            exists: false,
+            number: null,
+            title: null,
+            url: null,
+            draft: null,
+            checks: null,
+            review: null,
+            approvals: null,
+            mergeable: null,
+          },
           artifacts: { worktree: dir === "present", branch: true, pr: false, ticket: true },
           local: { clean: true, staged: 0, unstaged: 0, untracked: 0, conflicts: 0 },
           status: {
@@ -6313,7 +6982,7 @@ describe("pr_state cli", () => {
   test("work surfaces unit-complete refusal when GH issue is closed and worktree present", async () => {
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["open","GH-171"],
+      ["open", "GH-171"],
       { log: () => {}, error: (line) => errors.push(line) },
       inactiveAuthorityFixture("completed", "clean", "present"),
     );
@@ -6328,7 +6997,7 @@ describe("pr_state cli", () => {
   test("work surfaces unit-complete refusal when closed issue leaves a branch without a worktree", async () => {
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["open","GH-171"],
+      ["open", "GH-171"],
       { log: () => {}, error: (line) => errors.push(line) },
       inactiveAuthorityFixture("completed", "clean", "no worktree"),
     );
@@ -6342,7 +7011,7 @@ describe("pr_state cli", () => {
   test("work surfaces which authority is unreachable when issue view fails", async () => {
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["open","GH-171"],
+      ["open", "GH-171"],
       { log: () => {}, error: (line) => errors.push(line) },
       inactiveAuthorityFixture("unknown", "disabled", "present"),
     );
@@ -6356,7 +7025,7 @@ describe("pr_state cli", () => {
   test("work fails when parity chain requires prune before launch", async () => {
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["open","GH-171"],
+      ["open", "GH-171"],
       {
         log: () => {},
         error: (line) => errors.push(line),
@@ -6371,7 +7040,17 @@ describe("pr_state cli", () => {
               ticket: "GH-171",
               branch: "GH-171",
               worktree_path: "/repo/GH-171",
-              pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+              pr: {
+                exists: false,
+                number: null,
+                title: null,
+                url: null,
+                draft: null,
+                checks: null,
+                review: null,
+                approvals: null,
+                mergeable: null,
+              },
               artifacts: { worktree: true, branch: true, pr: false, ticket: true },
               local: { clean: true, staged: 0, unstaged: 0, untracked: 0, conflicts: 0 },
               status: {
@@ -6436,7 +7115,7 @@ describe("pr_state cli", () => {
     // We verify that the old error is NOT emitted.
     const errors: string[] = [];
     await runCliDirect(
-      ["open","GH-171"],
+      ["open", "GH-171"],
       {
         log: () => {},
         error: (line) => errors.push(line),
@@ -6451,9 +7130,25 @@ describe("pr_state cli", () => {
               ticket: "GH-171",
               branch: "GH-171",
               worktree_path: null,
-              pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+              pr: {
+                exists: false,
+                number: null,
+                title: null,
+                url: null,
+                draft: null,
+                checks: null,
+                review: null,
+                approvals: null,
+                mergeable: null,
+              },
               artifacts: { worktree: false, branch: true, pr: false, ticket: true },
-              local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
+              local: {
+                clean: null,
+                staged: null,
+                unstaged: null,
+                untracked: null,
+                conflicts: null,
+              },
               status: {
                 remote: {
                   gh_issue: "dirty",
@@ -6517,7 +7212,7 @@ describe("pr_state cli", () => {
   test("work fails clearly when remote board status cannot be read", async () => {
     const errors: string[] = [];
     const exitCode = await runCliDirect(
-      ["open","GH-171"],
+      ["open", "GH-171"],
       {
         log: () => {},
         error: (line) => errors.push(line),
@@ -6538,13 +7233,10 @@ describe("pr_state cli", () => {
 
   test("runtime-profile prints the canonical work-unit claude template", () => {
     const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["runtime-profile"],
-      {
-        log: (line) => logs.push(line),
-        error: () => {},
-      },
-    );
+    const exitCode = runCliDirect(["runtime-profile"], {
+      log: (line) => logs.push(line),
+      error: () => {},
+    });
 
     expect(exitCode).toBe(0);
     expect(logs[0]!).toContain("claude");
@@ -6622,7 +7314,16 @@ describe("pr_state cli", () => {
   test("runtime-profile stream-json adds input-format stream-json", () => {
     const logs: string[] = [];
     const exitCode = runCliDirect(
-      ["runtime-profile", "--automation", "--work-unit-id", "GH-5195", "--io-format", "stream-json", "--format", "json"],
+      [
+        "runtime-profile",
+        "--automation",
+        "--work-unit-id",
+        "GH-5195",
+        "--io-format",
+        "stream-json",
+        "--format",
+        "json",
+      ],
       {
         log: (line) => logs.push(line),
         error: () => {},
@@ -6681,13 +7382,10 @@ describe("pr_state cli", () => {
 
   test("runtime-profile user profile returns broad runtime", () => {
     const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["runtime-profile", "--profile", "user", "--format", "json"],
-      {
-        log: (line) => logs.push(line),
-        error: () => {},
-      },
-    );
+    const exitCode = runCliDirect(["runtime-profile", "--profile", "user", "--format", "json"], {
+      log: (line) => logs.push(line),
+      error: () => {},
+    });
 
     expect(exitCode).toBe(0);
     const parsed = JSON.parse(logs[0]!);
@@ -6699,13 +7397,10 @@ describe("pr_state cli", () => {
 
   test("runtime-profile rejects invalid work-unit identifiers", () => {
     const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["runtime-profile", "--work-unit-id", "feature/GH-5195"],
-      {
-        log: () => {},
-        error: (line) => errors.push(line),
-      },
-    );
+    const exitCode = runCliDirect(["runtime-profile", "--work-unit-id", "feature/GH-5195"], {
+      log: () => {},
+      error: (line) => errors.push(line),
+    });
 
     expect(exitCode).toBe(1);
     expect(errors[0]).toContain("--work-unit-id must match CANONICAL-ID format");
@@ -6810,10 +7505,7 @@ describe("pr_state cli", () => {
       excludeRules: [".pr/"],
       excludeUpdatedRules: [],
       excludeRemovedRules: [],
-      prxGitignorePaths: [
-        "/fixtures/repo/.prx/.gitignore",
-        "/fixtures/repo/.prx/repos/.gitignore",
-      ],
+      prxGitignorePaths: ["/fixtures/repo/.prx/.gitignore", "/fixtures/repo/.prx/repos/.gitignore"],
       beadsSetup: {
         status: "unchanged",
         canonicalRepoId: "io.github.bdelanghe/ai-home",
@@ -7012,10 +7704,10 @@ describe("pr_state cli", () => {
     process.chdir(root);
     const logs: string[] = [];
     try {
-      const exitCode = await runCliDirect(
-        ["contract", "init", "--untracked"],
-        { log: (l) => logs.push(l), error: () => {} },
-      );
+      const exitCode = await runCliDirect(["contract", "init", "--untracked"], {
+        log: (l) => logs.push(l),
+        error: () => {},
+      });
       expect(exitCode).toBe(0);
       const combined = logs.join("\n");
       expect(combined).toContain("Detected tracked .prx/ files.");
@@ -7034,10 +7726,10 @@ describe("pr_state cli", () => {
     process.chdir(root);
     const errs: string[] = [];
     try {
-      const exitCode = await runCliDirect(
-        ["contract", "init"],
-        { log: () => {}, error: (l) => errs.push(l) },
-      );
+      const exitCode = await runCliDirect(["contract", "init"], {
+        log: () => {},
+        error: (l) => errs.push(l),
+      });
       expect(exitCode).not.toBe(0);
       expect(errs.join("\n")).toContain("track must be a boolean");
     } finally {
@@ -7070,9 +7762,7 @@ describe("pr_state cli", () => {
       "Default behavior is to open or keep the PR as draft",
     );
     expect(draft.provenance.generated_by).toBe("codex");
-    expect(draft.provenance.generated_at).toMatch(
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/,
-    );
+    expect(draft.provenance.generated_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
     expect(draft.pr.change_type).toEqual(["feature"]);
 
     const ready = buildInitialPrContract({
@@ -7158,10 +7848,10 @@ describe("pr_state cli", () => {
     const previousCwd = process.cwd();
     process.chdir(root);
     const errs: string[] = [];
-    const exitCode = await runCliDirect(
-      ["check-issue", "PROJECT-6688"],
-      { log: () => {}, error: (l) => errs.push(l) },
-    );
+    const exitCode = await runCliDirect(["check-issue", "PROJECT-6688"], {
+      log: () => {},
+      error: (l) => errs.push(l),
+    });
     process.chdir(previousCwd);
     expect(exitCode).toBe(1);
     expect(errs.some((l) => l.includes("no issue-authority resolver is configured"))).toBe(true);
@@ -7175,7 +7865,12 @@ describe("pr_state cli", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-check-issue-projected-"));
     writeFileSync(
       join(root, "prx.toml"),
-      ["[sources.github]", 'kind = "github"', 'canonical_id_pattern = "^(GH|PROJECT)-\\\\d+$"', ""].join("\n"),
+      [
+        "[sources.github]",
+        'kind = "github"',
+        'canonical_id_pattern = "^(GH|PROJECT)-\\\\d+$"',
+        "",
+      ].join("\n"),
     );
     execFileSync("git", ["-C", root, "init", "-q"]);
     const previousCwd = process.cwd();
@@ -7196,7 +7891,12 @@ describe("pr_state cli", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-check-issue-unprojected-"));
     writeFileSync(
       join(root, "prx.toml"),
-      ["[sources.github]", 'kind = "github"', 'canonical_id_pattern = "^(GH|PROJECT)-\\\\d+$"', ""].join("\n"),
+      [
+        "[sources.github]",
+        'kind = "github"',
+        'canonical_id_pattern = "^(GH|PROJECT)-\\\\d+$"',
+        "",
+      ].join("\n"),
     );
     execFileSync("git", ["-C", root, "init", "-q"]);
     const previousCwd = process.cwd();
@@ -7214,8 +7914,12 @@ describe("pr_state cli", () => {
   });
 
   test("canonical beads repo ids are derived from github remotes", () => {
-    expect(canonicalBeadsRepoIdFromRemote("git@github.com:bdelanghe/ai-home.git")).toBe("io.github.bdelanghe/ai-home");
-    expect(canonicalBeadsRepoIdFromRemote("https://github.com/demo/demo-web.git")).toBe("io.github.demo/demo-web");
+    expect(canonicalBeadsRepoIdFromRemote("git@github.com:bdelanghe/ai-home.git")).toBe(
+      "io.github.bdelanghe/ai-home",
+    );
+    expect(canonicalBeadsRepoIdFromRemote("https://github.com/demo/demo-web.git")).toBe(
+      "io.github.demo/demo-web",
+    );
     expect(canonicalBeadsDatabaseName("io.github.demo/demo-web")).toBe("io_github_demo_demo_web");
   });
 
@@ -7308,7 +8012,10 @@ describe("pr_state cli", () => {
       if (joined === "bd context --json") {
         return { status: 0, stdout: JSON.stringify({ database: "bdelanghe_demo" }), stderr: "" };
       }
-      if (joined === "bd init --prefix ai-home --database io_github_bdelanghe_ai_home --force --destroy-token DESTROY-ai-home") {
+      if (
+        joined ===
+        "bd init --prefix ai-home --database io_github_bdelanghe_ai_home --force --destroy-token DESTROY-ai-home"
+      ) {
         return { status: 0, stdout: "ok", stderr: "" };
       }
       if (joined === "bd config get github.repository") {
@@ -7357,7 +8064,11 @@ describe("pr_state cli", () => {
         return { status: 0, stdout: "git@github.com:bdelanghe/ai-home.git\n", stderr: "" };
       }
       if (joined === "bd context --json") {
-        return { status: 0, stdout: JSON.stringify({ database: "io_github_bdelanghe_ai_home" }), stderr: "" };
+        return {
+          status: 0,
+          stdout: JSON.stringify({ database: "io_github_bdelanghe_ai_home" }),
+          stderr: "",
+        };
       }
       if (joined === "bd config get github.repository") {
         return {
@@ -7386,7 +8097,11 @@ describe("pr_state cli", () => {
   test("beads-init force-repairs stale canonical context when the database is unavailable", () => {
     const logs: string[] = [];
     const commands: string[] = [];
-    const spawn = (file: string, args: readonly string[], options?: { cwd?: string; encoding?: string; env?: NodeJS.ProcessEnv }) => {
+    const spawn = (
+      file: string,
+      args: readonly string[],
+      options?: { cwd?: string; encoding?: string; env?: NodeJS.ProcessEnv },
+    ) => {
       void options;
       const joined = [file, ...args].join(" ");
       commands.push(joined);
@@ -7425,15 +8140,13 @@ describe("pr_state cli", () => {
       throw new Error(`Unexpected command: ${joined}`);
     };
 
-    expect(runBeadsInit(
-      "/fixtures/repo",
-      false,
-      false,
-      { log: (line) => logs.push(line) },
-      spawn,
-    )).toBe(0);
+    expect(
+      runBeadsInit("/fixtures/repo", false, false, { log: (line) => logs.push(line) }, spawn),
+    ).toBe(0);
 
-    expect(logs).toContain("repair: canonical metadata matches, but database is unavailable; running beads bootstrap");
+    expect(logs).toContain(
+      "repair: canonical metadata matches, but database is unavailable; running beads bootstrap",
+    );
     expect(logs).toContain("verified db:       io_github_bdelanghe_ai_home");
     expect(logs).toContain("verified:          beads ready");
     expect(commands).toEqual([
@@ -7485,7 +8198,7 @@ describe("pr_state cli", () => {
   });
 
   test("actionableCliErrorLines passes unrelated errors through untranslated", () => {
-    expect(actionableCliErrorLines("Executable not found in $PATH: \"gh\"", "/x")).toBeNull();
+    expect(actionableCliErrorLines('Executable not found in $PATH: "gh"', "/x")).toBeNull();
     expect(actionableCliErrorLines("some other failure", "/x")).toBeNull();
   });
 
@@ -7578,7 +8291,9 @@ describe("pr_state cli", () => {
     ]);
 
     expect(result.exitCode).toBe(0);
-    expect(new TextDecoder().decode(result.stdout)).toContain("validating (draft) - SKILL_VALIDATE via pr-validate");
+    expect(new TextDecoder().decode(result.stdout)).toContain(
+      "validating (draft) - SKILL_VALIDATE via pr-validate",
+    );
   });
 
   test("event supports json output", () => {
@@ -7647,7 +8362,9 @@ describe("pr_state cli", () => {
     ]);
 
     expect(result.exitCode).toBe(0);
-    expect(new TextDecoder().decode(result.stdout)).toContain("drafting (draft) - SKILL_CONTRACT via pr-contract");
+    expect(new TextDecoder().decode(result.stdout)).toContain(
+      "drafting (draft) - SKILL_CONTRACT via pr-contract",
+    );
   });
 
   // Regression: `contract <sub>` aliases that reroute to now-VerbSpec verbs
@@ -7668,13 +8385,7 @@ describe("pr_state cli", () => {
 
   test("contract supports json output", () => {
     const contractPath = makeContractFile("drafting", false);
-    const result = runCli([
-      "contract",
-      "--contract",
-      contractPath,
-      "--format",
-      "json",
-    ]);
+    const result = runCli(["contract", "--contract", contractPath, "--format", "json"]);
 
     expect(result.exitCode).toBe(0);
     expect(JSON.parse(new TextDecoder().decode(result.stdout))).toMatchObject({
@@ -7690,11 +8401,7 @@ describe("pr_state cli", () => {
 
   test("skills shows catalog in plain output", () => {
     const contractPath = makeContractFile("drafting", false);
-    const result = runCli([
-      "skills",
-      "--contract",
-      contractPath,
-    ]);
+    const result = runCli(["skills", "--contract", contractPath]);
 
     expect(result.exitCode).toBe(0);
     const stdout = new TextDecoder().decode(result.stdout);
@@ -7706,18 +8413,14 @@ describe("pr_state cli", () => {
 
   test("skills supports json output", () => {
     const contractPath = makeContractFile("ready_for_review", true);
-    const result = runCli([
-      "skills",
-      "--contract",
-      contractPath,
-      "--format",
-      "json",
-    ]);
+    const result = runCli(["skills", "--contract", contractPath, "--format", "json"]);
 
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(new TextDecoder().decode(result.stdout));
     expect(parsed.currentState).toBe("ready_for_review");
-    expect(parsed.skills.find((item: { skill: string }) => item.skill === "pr-contract")).toMatchObject({
+    expect(
+      parsed.skills.find((item: { skill: string }) => item.skill === "pr-contract"),
+    ).toMatchObject({
       skill: "pr-contract",
       event: "SKILL_CONTRACT",
       kind: "observe",
@@ -7772,7 +8475,9 @@ describe("pr_state cli", () => {
     expect(result.exitCode).toBe(0);
     const stdout = new TextDecoder().decode(result.stdout);
     expect(stdout).toContain("PR System State Machine");
-    expect(stdout).toContain("Merge gate: lifecycle=open AND ci=passed AND review=approved AND mergeability=clean");
+    expect(stdout).toContain(
+      "Merge gate: lifecycle=open AND ci=passed AND review=approved AND mergeability=clean",
+    );
     expect(stdout).toContain("workflowBackbone");
   });
 
@@ -7898,9 +8603,9 @@ describe("pr_state cli", () => {
     expect(result.exitCode).toBe(0);
     const stdout = new TextDecoder().decode(result.stdout);
     expect(stdout).toContain("stateDiagram-v2");
-    expect(stdout).toContain("state \"lifecycle\" as lifecycle");
+    expect(stdout).toContain('state "lifecycle" as lifecycle');
     expect(stdout).toContain("open --> merged: MERGE [isMergeable]");
-    expect(stdout).toContain("state \"workflowBackbone\" as workflowBackbone");
+    expect(stdout).toContain('state "workflowBackbone" as workflowBackbone');
     expect(stdout).toContain("[*] --> no_worktree");
   });
 
@@ -7910,8 +8615,8 @@ describe("pr_state cli", () => {
     expect(result.exitCode).toBe(0);
     const stdout = new TextDecoder().decode(result.stdout);
     expect(stdout).toContain("stateDiagram-v2");
-    expect(stdout).toContain("state \"lifecycle\" as lifecycle");
-    expect(stdout).toContain("state \"workflowBackbone\" as workflowBackbone");
+    expect(stdout).toContain('state "lifecycle" as lifecycle');
+    expect(stdout).toContain('state "workflowBackbone" as workflowBackbone');
   });
 
   test("update supports dry-run output", () => {
@@ -8060,7 +8765,8 @@ describe("pr_state cli", () => {
         error: () => {},
       },
       {
-        loadRepoInventoryConfig: () => repoInventoryConfigFixture(),        discoverLocalRepos: () => ({
+        loadRepoInventoryConfig: () => repoInventoryConfigFixture(),
+        discoverLocalRepos: () => ({
           roots: ["/Users/dev/.local/share/git/bare"],
           bareRoot: "/Users/dev/.local/share/git/bare",
           repos: [
@@ -8107,7 +8813,9 @@ describe("pr_state cli", () => {
     expect(logs[0]!).toContain("remote: origin bdelanghe/demo-web");
     expect(logs[0]!).toContain("upstream: upstream demo/demo-web");
     expect(logs[0]!).toContain("worktrees: 1");
-    expect(logs[0]!).toContain("main @ /Users/dev/.local/state/git/worktrees/io.github/demo/demo-web/main current");
+    expect(logs[0]!).toContain(
+      "main @ /Users/dev/.local/state/git/worktrees/io.github/demo/demo-web/main current",
+    );
     expect(indexWrites).toHaveLength(1);
   });
 
@@ -8120,7 +8828,8 @@ describe("pr_state cli", () => {
         error: () => {},
       },
       {
-        loadRepoInventoryConfig: () => repoInventoryConfigFixture(),        discoverLocalRepos: () => ({
+        loadRepoInventoryConfig: () => repoInventoryConfigFixture(),
+        discoverLocalRepos: () => ({
           roots: ["/Users/dev/.local/share/git/bare"],
           bareRoot: "/Users/dev/.local/share/git/bare",
           repos: [],
@@ -8147,7 +8856,8 @@ describe("pr_state cli", () => {
         error: () => {},
       },
       {
-        loadRepoInventoryConfig: () => repoInventoryConfigFixture(),        discoverLocalRepos: () => ({
+        loadRepoInventoryConfig: () => repoInventoryConfigFixture(),
+        discoverLocalRepos: () => ({
           roots: ["/Users/dev/.local/share"],
           bareRoot: "/Users/dev/.local/share/git/bare",
           repos: [
@@ -8211,8 +8921,12 @@ describe("pr_state cli", () => {
       {
         loadRepoInventoryConfig: () => ({
           ...repoInventoryConfigFixture(),
-          everywhereRoots: ["/Users/dev/.local/share/git/bare", "/Users/dev/.local/share/workspaces"],
-        }),      },
+          everywhereRoots: [
+            "/Users/dev/.local/share/git/bare",
+            "/Users/dev/.local/share/workspaces",
+          ],
+        }),
+      },
     );
 
     expect(exitCode).toBe(1);
@@ -8231,12 +8945,16 @@ describe("pr_state cli", () => {
       {
         loadRepoInventoryConfig: () => ({
           ...repoInventoryConfigFixture(),
-          everywhereRoots: ["/Users/dev/.local/share/git/bare", "/Users/dev/.local/share/workspaces"],
+          everywhereRoots: [
+            "/Users/dev/.local/share/git/bare",
+            "/Users/dev/.local/share/workspaces",
+          ],
         }),
         discoverLocalRepos: (roots = []) => ({
           roots,
           bareRoot: "/Users/dev/.local/share/git/bare",
-          repos: [],        }),
+          repos: [],
+        }),
         writeRepoInventoryIndex: () => {},
       },
     );
@@ -8256,8 +8974,12 @@ describe("pr_state cli", () => {
       {
         loadRepoInventoryConfig: () => ({
           ...repoInventoryConfigFixture(),
-          everywhereRoots: ["/Users/dev/.local/share/git/bare", "/Users/dev/.local/share/workspaces"],
-        }),        discoverLocalRepos: () => ({
+          everywhereRoots: [
+            "/Users/dev/.local/share/git/bare",
+            "/Users/dev/.local/share/workspaces",
+          ],
+        }),
+        discoverLocalRepos: () => ({
           roots: ["/Users/dev/.local/share/workspaces"],
           bareRoot: "/Users/dev/.local/share/git/bare",
           repos: [],
@@ -8298,9 +9020,13 @@ describe("pr_state cli", () => {
     expect(exitCode).toBe(0);
     expect(logs[0]!).toContain("Repo normalization (dry-run)");
     expect(logs[0]!).toContain("lone (standard)");
-    expect(logs[0]!).toContain("canonical-bare: /Users/dev/.local/share/git/bare/io.github/bdelanghe/lone.git");
+    expect(logs[0]!).toContain(
+      "canonical-bare: /Users/dev/.local/share/git/bare/io.github/bdelanghe/lone.git",
+    );
     expect(logs[0]!).toContain("- delete_orphan_branch beads-sync");
-    expect(logs[0]!).toContain("- detach_standard_git_dir /Users/dev/.local/share/beads/io.github/bdelanghe/lone/.git");
+    expect(logs[0]!).toContain(
+      "- detach_standard_git_dir /Users/dev/.local/share/beads/io.github/bdelanghe/lone/.git",
+    );
   });
 
   // GH-1727 / GH-2013: `prx repo list --everywhere` must round-trip all four
@@ -8408,9 +9134,7 @@ describe("pr_state cli", () => {
 
     expect(exitCode).toBe(0);
     expect(writes).toHaveLength(1);
-    const byCommonDir = new Map(
-      writes[0]!.inventory.repos.map((r) => [r.commonDir, r]),
-    );
+    const byCommonDir = new Map(writes[0]!.inventory.repos.map((r) => [r.commonDir, r]));
     const supplyPlan = byCommonDir.get("/bare/io.github/demo/demo-repo.git");
     expect(supplyPlan?.bd_workspace_prefix).toBe("supply-plan");
     expect(supplyPlan?.canonical).toBe("bd");
@@ -8519,7 +9243,8 @@ describe("pr_state cli", () => {
   // preservation through the post-add refresh.
   test("repo add threads --bd-workspace-prefix into addLocalRepo as bdWorkspacePrefixOverride", () => {
     const logs: string[] = [];
-    const captured: { url?: string | undefined; bdWorkspacePrefixOverride?: string | undefined } = {};
+    const captured: { url?: string | undefined; bdWorkspacePrefixOverride?: string | undefined } =
+      {};
     const exitCode = runCliDirect(
       ["repo", "add", "git@github.com:owner/scratch.git", "--bd-workspace-prefix", "supply-plan"],
       { log: (line) => logs.push(line), error: () => {} },
@@ -8609,9 +9334,13 @@ describe("pr_state cli", () => {
             },
           ],
         }),
-        rollbackRepoAdd: (r) => { rollbacks.push(r); },
+        rollbackRepoAdd: (r) => {
+          rollbacks.push(r);
+        },
         discoverLocalRepos: () => ({ roots: [], repos: [] }),
-        writeRepoInventoryIndex: (_, inv) => { writes.push({ inventory: inv }); },
+        writeRepoInventoryIndex: (_, inv) => {
+          writes.push({ inventory: inv });
+        },
       },
     );
 
@@ -8627,7 +9356,9 @@ describe("pr_state cli", () => {
   });
 
   test("repo add preserves bd_workspace_prefix on existing entries through post-add refresh (WP3)", () => {
-    const writes: Array<{ inventory: { repos: Array<{ commonDir: string; bd_workspace_prefix?: string }> } }> = [];
+    const writes: Array<{
+      inventory: { repos: Array<{ commonDir: string; bd_workspace_prefix?: string }> };
+    }> = [];
     const exitCode = runCliDirect(
       ["repo", "add", "git@github.com:bob/y.git", "--bd-workspace-prefix", "demo-web"],
       { log: () => {}, error: () => {} },
@@ -8725,7 +9456,9 @@ describe("pr_state cli", () => {
           ],
         }),
         writeRepoInventoryIndex: (_, inv) => {
-          writes.push({ inventory: inv as { repos: Array<{ commonDir: string; bd_workspace_prefix?: string }> } });
+          writes.push({
+            inventory: inv as { repos: Array<{ commonDir: string; bd_workspace_prefix?: string }> },
+          });
         },
       },
     );
@@ -8743,7 +9476,9 @@ describe("pr_state cli", () => {
   // GH-1710: `prx repo add --canonical=bd` persists the axis on the index
   // entry and the CLI dispatches `repo set` through the new writers.
   test("repo add --canonical=bd threads canonical into addLocalRepo and onto the refreshed index", () => {
-    const writes: Array<{ inventory: { repos: Array<{ commonDir: string; canonical?: string | undefined }> } }> = [];
+    const writes: Array<{
+      inventory: { repos: Array<{ commonDir: string; canonical?: string | undefined }> };
+    }> = [];
     const captured: { canonical?: "gh" | "bd" | undefined } = {};
     const exitCode = runCliDirect(
       [
@@ -8978,13 +9713,7 @@ describe("pr_state cli", () => {
     } as RepoInventory);
     const errors: string[] = [];
     const exitCode = runCliDirect(
-      [
-        "repo",
-        "set",
-        "dolt-remote",
-        "demo-repo",
-        "--to=https://example.com/not/dolthub",
-      ],
+      ["repo", "set", "dolt-remote", "demo-repo", "--to=https://example.com/not/dolthub"],
       { log: () => {}, error: (l) => errors.push(l) },
       {
         loadRepoInventoryConfig: () => ({
@@ -9247,7 +9976,9 @@ describe("pr_state cli", () => {
             }),
           ],
         }),
-        writeRepoInventoryIndex: (_, inv) => { writes.push(inv); },
+        writeRepoInventoryIndex: (_, inv) => {
+          writes.push(inv);
+        },
       },
     );
     expect(exitCode).toBe(0);
@@ -9455,7 +10186,13 @@ describe("pr_state cli", () => {
     const rollbacks: Array<unknown> = [];
     const writes: Array<unknown> = [];
     const exitCode = runCliDirect(
-      ["repo", "add", "git@github.com:owner/scratch.git", "--bd-workspace-prefix", "scratch-prefix"],
+      [
+        "repo",
+        "add",
+        "git@github.com:owner/scratch.git",
+        "--bd-workspace-prefix",
+        "scratch-prefix",
+      ],
       { log: () => {}, error: () => {} },
       {
         loadRepoInventoryConfig: () => env.configFixture(),
@@ -9500,9 +10237,13 @@ describe("pr_state cli", () => {
             },
           ],
         }),
-        rollbackRepoAdd: (r) => { rollbacks.push(r); },
+        rollbackRepoAdd: (r) => {
+          rollbacks.push(r);
+        },
         discoverLocalRepos: () => ({ roots: [], repos: [] }),
-        writeRepoInventoryIndex: (_, inv) => { writes.push(inv); },
+        writeRepoInventoryIndex: (_, inv) => {
+          writes.push(inv);
+        },
       },
     );
     expect(exitCode).toBe(0);
@@ -9515,11 +10256,13 @@ describe("pr_state cli", () => {
   // `refreshLocalRepo`, propagates `beadsHydrate.exitCode`, and re-writes
   // the index merging bd_workspace_prefix / canonical / stale_threshold_days
   // from the prior inventory snapshot.
-  function repoRefreshInventoryFixture(overrides: Partial<{
-    bd_workspace_prefix: string;
-    canonical: "gh" | "bd";
-    stale_threshold_days: number;
-  }> = {}) {
+  function repoRefreshInventoryFixture(
+    overrides: Partial<{
+      bd_workspace_prefix: string;
+      canonical: "gh" | "bd";
+      stale_threshold_days: number;
+    }> = {},
+  ) {
     return {
       roots: [],
       repos: [
@@ -9719,7 +10462,9 @@ describe("pr_state cli", () => {
           });
         },
         discoverLocalRepos: () => ({ roots: [], repos: [] }),
-        writeRepoInventoryIndex: (_, inv) => { writes.push({ inventory: inv }); },
+        writeRepoInventoryIndex: (_, inv) => {
+          writes.push({ inventory: inv });
+        },
       },
     );
     expect(exitCode).toBe(0);
@@ -9730,18 +10475,26 @@ describe("pr_state cli", () => {
 
   test("repo refresh: writes inventory once, preserving bd_workspace_prefix / canonical / stale_threshold_days through round-trip", () => {
     const writes: Array<{
-      inventory: { repos: Array<{ commonDir: string; bd_workspace_prefix?: string; canonical?: string; stale_threshold_days?: number }> };
+      inventory: {
+        repos: Array<{
+          commonDir: string;
+          bd_workspace_prefix?: string;
+          canonical?: string;
+          stale_threshold_days?: number;
+        }>;
+      };
     }> = [];
     const exitCode = runCliDirect(
       ["repo", "refresh", "scratch"],
       { log: () => {}, error: () => {} },
       {
         loadRepoInventoryConfig: () => repoInventoryConfigFixture(),
-        loadRepoInventoryIndex: () => repoRefreshInventoryFixture({
-          bd_workspace_prefix: "ai-home",
-          canonical: "bd",
-          stale_threshold_days: 14,
-        }),
+        loadRepoInventoryIndex: () =>
+          repoRefreshInventoryFixture({
+            bd_workspace_prefix: "ai-home",
+            canonical: "bd",
+            stale_threshold_days: 14,
+          }),
         refreshLocalRepo: () => repoRefreshResultStub(),
         // Discovery drops the prefix/canonical/stale fields (those don't live
         // on disk for discoverLocalRepos to read); the post-refresh merge
@@ -9852,9 +10605,7 @@ describe("pr_state cli", () => {
     }
 
     expect(exitCode).toBe(0);
-    expect(calls).toEqual([
-      { name: "demo", dryRun: true, ttlSeconds: 30 },
-    ]);
+    expect(calls).toEqual([{ name: "demo", dryRun: true, ttlSeconds: 30 }]);
     const payload = JSON.parse(logs[0]!) as { action: string; dryRun: boolean };
     expect(payload.action).toBe("noop");
     expect(payload.dryRun).toBe(true);
@@ -9900,10 +10651,10 @@ describe("pr_state cli", () => {
 
   test("repo materialize requires a <name> positional", () => {
     const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["repo", "materialize"],
-      { log: () => {}, error: (line) => errors.push(line) },
-    );
+    const exitCode = runCliDirect(["repo", "materialize"], {
+      log: () => {},
+      error: (line) => errors.push(line),
+    });
 
     expect(exitCode).toBe(1);
     expect(errors.join("\n")).toContain("repo materialize requires");
@@ -9916,11 +10667,13 @@ describe("pr_state cli", () => {
   // the mainx was freshly created on this run, and the exit code mirrors
   // `beadsHydrate.exitCode` so a `clone-failed` fails loud (matches
   // `repo refresh` and `repo add --repair`).
-  function repoMaterializeInventoryFixture(overrides: Partial<{
-    mainWorktree: string | null;
-    bd_workspace_prefix: string;
-    canonical: "gh" | "bd";
-  }> = {}) {
+  function repoMaterializeInventoryFixture(
+    overrides: Partial<{
+      mainWorktree: string | null;
+      bd_workspace_prefix: string;
+      canonical: "gh" | "bd";
+    }> = {},
+  ) {
     return {
       roots: [],
       repos: [
@@ -9928,9 +10681,7 @@ describe("pr_state cli", () => {
           name: "demo",
           commonDir: "/bare/io.github/octo/demo.git",
           kind: "bare" as const,
-          mainWorktree: overrides.mainWorktree !== undefined
-            ? overrides.mainWorktree
-            : null,
+          mainWorktree: overrides.mainWorktree !== undefined ? overrides.mainWorktree : null,
           worktrees: [],
           localOnlyBranches: [],
           findings: [],
@@ -9944,9 +10695,7 @@ describe("pr_state cli", () => {
           ...(overrides.bd_workspace_prefix !== undefined
             ? { bd_workspace_prefix: overrides.bd_workspace_prefix }
             : {}),
-          ...(overrides.canonical !== undefined
-            ? { canonical: overrides.canonical }
-            : {}),
+          ...(overrides.canonical !== undefined ? { canonical: overrides.canonical } : {}),
         },
       ],
     };
@@ -10004,7 +10753,9 @@ describe("pr_state cli", () => {
     process.env.XDG_STATE_HOME = stateDir;
     type RefreshCall = { repoName: string; dryRun: boolean; noFetch: boolean };
     const refreshCalls: RefreshCall[] = [];
-    const writes: Array<{ inventory: { repos: Array<{ name: string; mainWorktree: string | null }> } }> = [];
+    const writes: Array<{
+      inventory: { repos: Array<{ name: string; mainWorktree: string | null }> };
+    }> = [];
 
     let exitCode: number | Promise<number>;
     try {
@@ -10065,9 +10816,7 @@ describe("pr_state cli", () => {
     }
 
     expect(exitCode).toBe(0);
-    expect(refreshCalls).toEqual([
-      { repoName: "demo", dryRun: false, noFetch: true },
-    ]);
+    expect(refreshCalls).toEqual([{ repoName: "demo", dryRun: false, noFetch: true }]);
     expect(writes).toHaveLength(1);
     const entry = writes[0]!.inventory.repos.find((r) => r.name === "demo");
     expect(entry).toBeDefined();
@@ -10256,7 +11005,9 @@ describe("pr_state cli", () => {
             });
           },
           discoverLocalRepos: () => ({ roots: [], repos: [] }),
-          writeRepoInventoryIndex: (_, inv) => { writes.push(inv); },
+          writeRepoInventoryIndex: (_, inv) => {
+            writes.push(inv);
+          },
         },
       );
     } finally {
@@ -10374,7 +11125,9 @@ describe("pr_state cli", () => {
 
   test("repo materialize: preserves bd_workspace_prefix / canonical through inventory rescan", () => {
     const writes: Array<{
-      inventory: { repos: Array<{ commonDir: string; bd_workspace_prefix?: string; canonical?: string }> };
+      inventory: {
+        repos: Array<{ commonDir: string; bd_workspace_prefix?: string; canonical?: string }>;
+      };
     }> = [];
 
     const exitCode = runCliDirect(
@@ -10572,27 +11325,22 @@ describe("pr_state cli", () => {
     const worktreePath = join(repo, "gh_674_h5e");
     mkdirSync(worktreePath);
 
-    const result = removeWorktree(
-      repo,
-      "GH-674",
-      { force: true, prune: false },
-      (cmd) => {
-        const rendered = cmd.join(" ");
-        if (rendered === `git -C ${repo} worktree list --porcelain`) {
-          // Detached HEAD — no `branch refs/heads/…` line.
-          return {
-            status: 0,
-            stdout: `worktree ${worktreePath}\ndetached\n\n`,
-            stderr: "",
-          };
-        }
-        if (rendered === `git -C ${repo} worktree remove --force ${worktreePath}`) {
-          rmSync(worktreePath, { recursive: true, force: true });
-          return { status: 0, stdout: "", stderr: "" };
-        }
-        throw new Error(`unexpected command: ${rendered}`);
-      },
-    );
+    const result = removeWorktree(repo, "GH-674", { force: true, prune: false }, (cmd) => {
+      const rendered = cmd.join(" ");
+      if (rendered === `git -C ${repo} worktree list --porcelain`) {
+        // Detached HEAD — no `branch refs/heads/…` line.
+        return {
+          status: 0,
+          stdout: `worktree ${worktreePath}\ndetached\n\n`,
+          stderr: "",
+        };
+      }
+      if (rendered === `git -C ${repo} worktree remove --force ${worktreePath}`) {
+        rmSync(worktreePath, { recursive: true, force: true });
+        return { status: 0, stdout: "", stderr: "" };
+      }
+      throw new Error(`unexpected command: ${rendered}`);
+    });
 
     expect(result.resolvedPath).toBe(worktreePath);
     expect(result.removed).toBe(true);
@@ -10604,26 +11352,21 @@ describe("pr_state cli", () => {
     const worktreePath = join(repo, "gh_674_h5e");
     mkdirSync(worktreePath);
 
-    const result = removeWorktree(
-      repo,
-      "gh-674",
-      { force: true, prune: false },
-      (cmd) => {
-        const rendered = cmd.join(" ");
-        if (rendered === `git -C ${repo} worktree list --porcelain`) {
-          return {
-            status: 0,
-            stdout: `worktree ${worktreePath}\ndetached\n\n`,
-            stderr: "",
-          };
-        }
-        if (rendered === `git -C ${repo} worktree remove --force ${worktreePath}`) {
-          rmSync(worktreePath, { recursive: true, force: true });
-          return { status: 0, stdout: "", stderr: "" };
-        }
-        throw new Error(`unexpected command: ${rendered}`);
-      },
-    );
+    const result = removeWorktree(repo, "gh-674", { force: true, prune: false }, (cmd) => {
+      const rendered = cmd.join(" ");
+      if (rendered === `git -C ${repo} worktree list --porcelain`) {
+        return {
+          status: 0,
+          stdout: `worktree ${worktreePath}\ndetached\n\n`,
+          stderr: "",
+        };
+      }
+      if (rendered === `git -C ${repo} worktree remove --force ${worktreePath}`) {
+        rmSync(worktreePath, { recursive: true, force: true });
+        return { status: 0, stdout: "", stderr: "" };
+      }
+      throw new Error(`unexpected command: ${rendered}`);
+    });
 
     expect(result.resolvedPath).toBe(worktreePath);
     expect(result.removed).toBe(true);
@@ -10633,28 +11376,23 @@ describe("pr_state cli", () => {
     const repo = mkdtempSync(join(tmpdir(), "pr-state-worktree-protected-repo-"));
 
     expect(() =>
-      removeWorktree(
-        repo,
-        "main",
-        { deleteBranch: true, prune: false },
-        (cmd) => {
-          const rendered = cmd.join(" ");
-          if (rendered === `git -C ${repo} worktree list --porcelain`) {
-            return {
-              status: 0,
-              stdout: "worktree /repo/main\nbranch refs/heads/main\n\n",
-              stderr: "",
-            };
-          }
-          if (rendered === `git -C /repo/main status --porcelain=v1`) {
-            return { status: 0, stdout: "", stderr: "" };
-          }
-          if (rendered === `git -C ${repo} worktree remove /repo/main`) {
-            return { status: 0, stdout: "", stderr: "" };
-          }
-          throw new Error(`unexpected command: ${rendered}`);
-        },
-      ),
+      removeWorktree(repo, "main", { deleteBranch: true, prune: false }, (cmd) => {
+        const rendered = cmd.join(" ");
+        if (rendered === `git -C ${repo} worktree list --porcelain`) {
+          return {
+            status: 0,
+            stdout: "worktree /repo/main\nbranch refs/heads/main\n\n",
+            stderr: "",
+          };
+        }
+        if (rendered === `git -C /repo/main status --porcelain=v1`) {
+          return { status: 0, stdout: "", stderr: "" };
+        }
+        if (rendered === `git -C ${repo} worktree remove /repo/main`) {
+          return { status: 0, stdout: "", stderr: "" };
+        }
+        throw new Error(`unexpected command: ${rendered}`);
+      }),
     ).toThrow(/Refusing to delete protected branch 'main'/);
   });
 
@@ -10664,42 +11402,7 @@ describe("pr_state cli", () => {
     mkdirSync(worktreePath);
 
     expect(() =>
-      removeWorktree(
-        repo,
-        "gh_674_h5e",
-        { deleteBranch: true, prune: false },
-        (cmd) => {
-          const rendered = cmd.join(" ");
-          if (rendered === `git -C ${repo} worktree list --porcelain`) {
-            return {
-              status: 0,
-              stdout: `worktree ${worktreePath}\nbranch refs/heads/GH-674\n\n`,
-              stderr: "",
-            };
-          }
-          if (rendered === `git -C ${worktreePath} status --porcelain=v1`) {
-            return {
-              status: 0,
-              stdout: "UU src/foo.ts\n M test/bar.ts\n",
-              stderr: "",
-            };
-          }
-          throw new Error(`unexpected command: ${rendered}`);
-        },
-      ),
-    ).toThrow(/has uncommitted changes/);
-  });
-
-  test("removeWorktree proceeds on dirty worktree when --force is set (GH-757)", () => {
-    const repo = mkdtempSync(join(tmpdir(), "pr-state-worktree-dirty-force-"));
-    const worktreePath = join(repo, "gh_674_h5e");
-    mkdirSync(worktreePath);
-
-    const result = removeWorktree(
-      repo,
-      "gh_674_h5e",
-      { force: true, prune: false },
-      (cmd) => {
+      removeWorktree(repo, "gh_674_h5e", { deleteBranch: true, prune: false }, (cmd) => {
         const rendered = cmd.join(" ");
         if (rendered === `git -C ${repo} worktree list --porcelain`) {
           return {
@@ -10708,13 +11411,38 @@ describe("pr_state cli", () => {
             stderr: "",
           };
         }
-        if (rendered === `git -C ${repo} worktree remove --force ${worktreePath}`) {
-          rmSync(worktreePath, { recursive: true, force: true });
-          return { status: 0, stdout: "", stderr: "" };
+        if (rendered === `git -C ${worktreePath} status --porcelain=v1`) {
+          return {
+            status: 0,
+            stdout: "UU src/foo.ts\n M test/bar.ts\n",
+            stderr: "",
+          };
         }
         throw new Error(`unexpected command: ${rendered}`);
-      },
-    );
+      }),
+    ).toThrow(/has uncommitted changes/);
+  });
+
+  test("removeWorktree proceeds on dirty worktree when --force is set (GH-757)", () => {
+    const repo = mkdtempSync(join(tmpdir(), "pr-state-worktree-dirty-force-"));
+    const worktreePath = join(repo, "gh_674_h5e");
+    mkdirSync(worktreePath);
+
+    const result = removeWorktree(repo, "gh_674_h5e", { force: true, prune: false }, (cmd) => {
+      const rendered = cmd.join(" ");
+      if (rendered === `git -C ${repo} worktree list --porcelain`) {
+        return {
+          status: 0,
+          stdout: `worktree ${worktreePath}\nbranch refs/heads/GH-674\n\n`,
+          stderr: "",
+        };
+      }
+      if (rendered === `git -C ${repo} worktree remove --force ${worktreePath}`) {
+        rmSync(worktreePath, { recursive: true, force: true });
+        return { status: 0, stdout: "", stderr: "" };
+      }
+      throw new Error(`unexpected command: ${rendered}`);
+    });
 
     expect(result.removed).toBe(true);
     expect(existsSync(worktreePath)).toBe(false);
@@ -10724,22 +11452,18 @@ describe("pr_state cli", () => {
     const repo = mkdtempSync(join(tmpdir(), "pr-state-worktree-locked-repo-"));
 
     expect(() =>
-      removeWorktree(
-        repo,
-        "feature-123",
-        { force: true, prune: false },
-        (cmd) => {
-          const rendered = cmd.join(" ");
-          if (rendered === `git -C ${repo} worktree list --porcelain`) {
-            return {
-              status: 0,
-              stdout: "worktree feature-123\nbranch refs/heads/feature-123\nlocked prx session runtime active for FEATURE-123\n\n",
-              stderr: "",
-            };
-          }
-          throw new Error(`unexpected command: ${rendered}`);
-        },
-      ),
+      removeWorktree(repo, "feature-123", { force: true, prune: false }, (cmd) => {
+        const rendered = cmd.join(" ");
+        if (rendered === `git -C ${repo} worktree list --porcelain`) {
+          return {
+            status: 0,
+            stdout:
+              "worktree feature-123\nbranch refs/heads/feature-123\nlocked prx session runtime active for FEATURE-123\n\n",
+            stderr: "",
+          };
+        }
+        throw new Error(`unexpected command: ${rendered}`);
+      }),
     ).toThrow(/Worktree 'feature-123' is locked: prx session runtime active for FEATURE-123/);
   });
 
@@ -10856,26 +11580,20 @@ describe("pr_state cli", () => {
     const repo = join(mkdtempSync(join(tmpdir(), "pr state worktree locked repo ")), "repo root");
 
     expect(() =>
-      removeWorktree(
-        repo,
-        "feature path",
-        { force: true, prune: false },
-        (cmd) => {
-          const rendered = cmd.join(" ");
-          if (rendered === `git -C ${repo} worktree list --porcelain`) {
-            return {
-              status: 0,
-              stdout: "worktree feature path\nbranch refs/heads/feature-path\nlocked session still active\n\n",
-              stderr: "",
-            };
-          }
-          throw new Error(`unexpected command: ${rendered}`);
-        },
-      ),
+      removeWorktree(repo, "feature path", { force: true, prune: false }, (cmd) => {
+        const rendered = cmd.join(" ");
+        if (rendered === `git -C ${repo} worktree list --porcelain`) {
+          return {
+            status: 0,
+            stdout:
+              "worktree feature path\nbranch refs/heads/feature-path\nlocked session still active\n\n",
+            stderr: "",
+          };
+        }
+        throw new Error(`unexpected command: ${rendered}`);
+      }),
     ).toThrow(
-      new RegExp(
-        `git -C '${repo.replace(/'/g, `'\\\\''`)}' worktree unlock 'feature path'`,
-      ),
+      new RegExp(`git -C '${repo.replace(/'/g, `'\\\\''`)}' worktree unlock 'feature path'`),
     );
   });
 
@@ -10903,7 +11621,13 @@ describe("pr_state cli", () => {
               diverged: false,
               sync: "up_to_date",
             },
-            files: { staged: [], unstaged: ["db/schema.rb"], untracked: [], ignored: [], conflicts: [] },
+            files: {
+              staged: [],
+              unstaged: ["db/schema.rb"],
+              untracked: [],
+              ignored: [],
+              conflicts: [],
+            },
             counts: { staged: 0, unstaged: 1, untracked: 0, ignored: 0, conflicts: 0 },
             clean: false,
             codes: {
@@ -11064,13 +11788,10 @@ describe("pr_state cli", () => {
 
   test("repos rejects unexpected positionals", () => {
     const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["repos", "normlize"],
-      {
-        log: () => {},
-        error: (line) => errors.push(line),
-      },
-    );
+    const exitCode = runCliDirect(["repos", "normlize"], {
+      log: () => {},
+      error: (line) => errors.push(line),
+    });
 
     expect(exitCode).toBe(1);
     expect(errors[0]).toContain("Unexpected argument");
@@ -11164,7 +11885,17 @@ describe("pr_state cli", () => {
               ticket: null,
               branch: "main",
               worktree_path: null,
-              pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+              pr: {
+                exists: false,
+                number: null,
+                title: null,
+                url: null,
+                draft: null,
+                checks: null,
+                review: null,
+                approvals: null,
+                mergeable: null,
+              },
               local: { clean: true, staged: 0, unstaged: 0, untracked: 0, conflicts: 0 },
               state: "pushed",
               reasons: [],
@@ -11175,7 +11906,17 @@ describe("pr_state cli", () => {
               ticket: null,
               branch: "release/next",
               worktree_path: null,
-              pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+              pr: {
+                exists: false,
+                number: null,
+                title: null,
+                url: null,
+                draft: null,
+                checks: null,
+                review: null,
+                approvals: null,
+                mergeable: null,
+              },
               local: { clean: true, staged: 0, unstaged: 0, untracked: 0, conflicts: 0 },
               state: "pushed",
               reasons: [],
@@ -11337,7 +12078,8 @@ describe("pr_state cli", () => {
       },
       {
         chainStatus: (repoPath, options) => {
-          const remote = options && typeof options !== "function" ? (options.remote ?? false) : false;
+          const remote =
+            options && typeof options !== "function" ? (options.remote ?? false) : false;
           calls.push({ repoPath, remote });
           return {
             source: "chains",
@@ -11355,13 +12097,10 @@ describe("pr_state cli", () => {
 
   test("board is no longer a supported command", () => {
     const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["board"],
-      {
-        log: () => {},
-        error: (line) => errors.push(line),
-      },
-    );
+    const exitCode = runCliDirect(["board"], {
+      log: () => {},
+      error: (line) => errors.push(line),
+    });
 
     expect(exitCode).toBe(1);
     expect(errors[0]).toContain("Unknown subcommand: board");
@@ -11661,11 +12400,15 @@ describe("pr_state cli", () => {
             },
           ],
         }),
-        applyParityChainActions: (summary, cwd) => summary.actions.map((action) => {
-          const command = commandForSurfaceSyncAction(action, { repoPath: cwd ?? ".", bufferPath: null });
-          applyCalls.push({ command, cwd: cwd ?? "" });
-          return { action, command, status: 0, stdout: "", stderr: "" };
-        }),
+        applyParityChainActions: (summary, cwd) =>
+          summary.actions.map((action) => {
+            const command = commandForSurfaceSyncAction(action, {
+              repoPath: cwd ?? ".",
+              bufferPath: null,
+            });
+            applyCalls.push({ command, cwd: cwd ?? "" });
+            return { action, command, status: 0, stdout: "", stderr: "" };
+          }),
       },
     );
 
@@ -11691,7 +12434,9 @@ describe("pr_state cli", () => {
         error: () => {},
       },
       {
-        pruneStaleRemoteRefs: () => { order.push("prune"); },
+        pruneStaleRemoteRefs: () => {
+          order.push("prune");
+        },
         buildParityChain: () => {
           order.push("parityChain");
           return {
@@ -11723,7 +12468,9 @@ describe("pr_state cli", () => {
         error: () => {},
       },
       {
-        pruneStaleRemoteRefs: () => { pruneCalls += 1; },
+        pruneStaleRemoteRefs: () => {
+          pruneCalls += 1;
+        },
         buildParityChain: () => ({
           source: "surface-sync",
           repo: "owner/repo",
@@ -11746,13 +12493,10 @@ describe("pr_state cli", () => {
     // no longer a knob. Reject it loudly rather than silently ignoring it
     // so stale callers learn about the new UX.
     const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["prune", "--authority", "issue", "--scope", "all", "--apply"],
-      {
-        log: () => {},
-        error: (line) => errors.push(line),
-      },
-    );
+    const exitCode = runCliDirect(["prune", "--authority", "issue", "--scope", "all", "--apply"], {
+      log: () => {},
+      error: (line) => errors.push(line),
+    });
 
     expect(exitCode).toBe(1);
     expect(errors[0]).toContain("`prx prune` no longer accepts --apply");
@@ -11803,33 +12547,54 @@ describe("pr_state cli", () => {
           scope: "all",
           apply: true,
           units: [
-            { branch: "GH-A", ticket: "GH-A", actions: [{
-              type: "delete_remote_branch", branch: "GH-A", ticket: "GH-A",
-              reason: "r",
-            }] },
-            { branch: "GH-B", ticket: "GH-B", actions: [{
-              type: "delete_local_branch", branch: "GH-B", ticket: "GH-B",
-              reason: "r",
-            }] },
+            {
+              branch: "GH-A",
+              ticket: "GH-A",
+              actions: [
+                {
+                  type: "delete_remote_branch",
+                  branch: "GH-A",
+                  ticket: "GH-A",
+                  reason: "r",
+                },
+              ],
+            },
+            {
+              branch: "GH-B",
+              ticket: "GH-B",
+              actions: [
+                {
+                  type: "delete_local_branch",
+                  branch: "GH-B",
+                  ticket: "GH-B",
+                  reason: "r",
+                },
+              ],
+            },
           ],
           actions: [
             {
-              type: "delete_remote_branch", branch: "GH-A", ticket: "GH-A",
+              type: "delete_remote_branch",
+              branch: "GH-A",
+              ticket: "GH-A",
               reason: "r",
             },
             {
-              type: "delete_local_branch", branch: "GH-B", ticket: "GH-B",
+              type: "delete_local_branch",
+              branch: "GH-B",
+              ticket: "GH-B",
               reason: "r",
             },
           ],
         }),
-        applyParityChainActions: (summary) => summary.actions.map((action, i) => ({
-          action,
-          command: commandForSurfaceSyncAction(action, { repoPath: ".", bufferPath: null }),
-          status: i === 0 ? 128 : 0,
-          stdout: "",
-          stderr: i === 0 ? "remote branch already gone" : "",
-        })),
+        applyParityChainActions: (summary) =>
+          summary.actions.map((action, i) => ({
+            action,
+            command: commandForSurfaceSyncAction(action, { repoPath: ".", bufferPath: null }),
+            status: i === 0 ? 128 : 0,
+            stdout: "",
+            stderr: i === 0 ? "remote branch already gone" : "",
+          })),
       },
     );
 
@@ -11884,13 +12649,10 @@ describe("pr_state cli", () => {
 
   test("prune rejects explicit --mode", () => {
     const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["prune", "--mode", "full"],
-      {
-        log: () => {},
-        error: (line) => errors.push(line),
-      },
-    );
+    const exitCode = runCliDirect(["prune", "--mode", "full"], {
+      log: () => {},
+      error: (line) => errors.push(line),
+    });
 
     expect(exitCode).toBe(1);
     expect(errors[0]).toContain("--mode is not supported with `prune`");
@@ -11918,10 +12680,14 @@ describe("pr_state cli", () => {
             apply: safeOptions.apply ?? false,
             ...(safeOptions.ticket ? { ticket: safeOptions.ticket } : {}),
             units: [],
-            actions: [{
-              type: "delete_worktree", branch: "GH-1048", ticket: "GH-1048",
-              reason: "r",
-            }],
+            actions: [
+              {
+                type: "delete_worktree",
+                branch: "GH-1048",
+                ticket: "GH-1048",
+                reason: "r",
+              },
+            ],
           };
         },
         applyParityChainActions: () => {
@@ -11942,7 +12708,12 @@ describe("pr_state cli", () => {
   test("prune --ticket (no --dry-run) aliases to `gc teardown`: apply:true + applies (GH-1126/2l4ua)", async () => {
     const calls: Array<Record<string, unknown>> = [];
     let applyCalls = 0;
-    const action = { type: "delete_worktree" as const, branch: "GH-1048", ticket: "GH-1048", reason: "r" };
+    const action = {
+      type: "delete_worktree" as const,
+      branch: "GH-1048",
+      ticket: "GH-1048",
+      reason: "r",
+    };
     const exitCode = await runCliDirect(
       ["prune", "--ticket", "GH-1048"],
       { log: () => {}, error: () => {} },
@@ -11977,9 +12748,14 @@ describe("pr_state cli", () => {
   test("prx prune --ticket emits the deprecation hint once; gc teardown does not (2l4ua)", async () => {
     const { PRX_PRUNE_GC_ALIAS_HINT } = await import("../../src/machine/gc/cli.ts");
     const chain = () => ({
-      source: "surface-sync" as const, repo: "o/r", mode: "prune" as const,
-      authority: "issue" as const, scope: "all" as const, apply: false,
-      units: [], actions: [],
+      source: "surface-sync" as const,
+      repo: "o/r",
+      mode: "prune" as const,
+      authority: "issue" as const,
+      scope: "all" as const,
+      apply: false,
+      units: [],
+      actions: [],
     });
     const aliasErrors: string[] = [];
     await runCliDirect(
@@ -12009,8 +12785,14 @@ describe("pr_state cli", () => {
         buildParityChain: () => {
           built += 1;
           return {
-            source: "surface-sync", repo: "o/r", mode: "prune",
-            authority: "issue", scope: "all", apply: false, units: [], actions: [],
+            source: "surface-sync",
+            repo: "o/r",
+            mode: "prune",
+            authority: "issue",
+            scope: "all",
+            apply: false,
+            units: [],
+            actions: [],
           };
         },
       },
@@ -12057,7 +12839,7 @@ describe("pr_state cli", () => {
             mergeReady: true,
             phase: "ready_to_merge",
             currentUnit: null,
-            rawState: ({
+            rawState: {
               unitId: "GH-1001",
               artifacts: {
                 ticket: { exists: true, id: "GH-1001", system: "other", url: null },
@@ -12100,7 +12882,7 @@ describe("pr_state cli", () => {
                   ticketSystem: "2026-03-19T00:00:00Z",
                 },
               },
-            }) as unknown as RawStateV1,
+            } as unknown as RawStateV1,
             invariants: { valid: true, findings: [] },
           },
           actions: [
@@ -12141,7 +12923,9 @@ describe("pr_state cli", () => {
 
     expect(exitCode).toBe(0);
     expect(logs[0]!).toContain("Workflow phase: ready_to_merge");
-    expect(logs[0]!).toContain("Derived actions (enabled and disabled, from the XState workflow model plus local repo signals):");
+    expect(logs[0]!).toContain(
+      "Derived actions (enabled and disabled, from the XState workflow model plus local repo signals):",
+    );
     expect(logs[0]!).toContain("contract.init [disabled] (skill) -> prx contract init");
     expect(logs[0]!).toContain("blocked: PR contract already initialized");
     expect(logs[0]!).not.toContain("reason: undefined");
@@ -12185,7 +12969,7 @@ describe("pr_state cli", () => {
             mergeReady: false,
             phase: "draft",
             currentUnit: null,
-            rawState: ({
+            rawState: {
               unitId: "GH-1001",
               artifacts: {
                 ticket: { exists: false, id: null, system: "other", url: null },
@@ -12228,7 +13012,7 @@ describe("pr_state cli", () => {
                   ticketSystem: null,
                 },
               },
-            }) as unknown as RawStateV1,
+            } as unknown as RawStateV1,
             invariants: { valid: true, findings: [] },
           },
           actions: [
@@ -12299,11 +13083,16 @@ describe("pr_state cli", () => {
             mergeReady: false,
             phase: "draft",
             currentUnit: null,
-            rawState: ({
+            rawState: {
               unitId: "GH-1001",
               artifacts: {
                 ticket: { exists: true, id: "GH-1001", system: "other", url: null },
-                worktree: { exists: true, path: "/repo", checkedOutBranch: "GH-1001", headSha: "abc" },
+                worktree: {
+                  exists: true,
+                  path: "/repo",
+                  checkedOutBranch: "GH-1001",
+                  headSha: "abc",
+                },
                 branch: {
                   name: "GH-1001",
                   existsLocal: true,
@@ -12337,19 +13126,21 @@ describe("pr_state cli", () => {
                   ticketSystem: "2026-03-19T00:00:00Z",
                 },
               },
-            }) as unknown as RawStateV1,
+            } as unknown as RawStateV1,
             invariants: { valid: true, findings: [] },
           },
-          actions: [{
-            id: "contract.init",
-            actor: "git",
-            surface: "skill",
-            label: "Initialize PR contract",
-            reason: "Missing .pr/local/pr.json",
-            command: "prx contract init",
-            priority: 10,
-            enabled: true,
-          }],
+          actions: [
+            {
+              id: "contract.init",
+              actor: "git",
+              surface: "skill",
+              label: "Initialize PR contract",
+              reason: "Missing .pr/local/pr.json",
+              command: "prx contract init",
+              priority: 10,
+              enabled: true,
+            },
+          ],
           next: {
             id: "contract.init",
             actor: "git",
@@ -12406,11 +13197,16 @@ describe("pr_state cli", () => {
             mergeReady: true,
             phase: "ready_to_merge",
             currentUnit: null,
-            rawState: ({
+            rawState: {
               unitId: "GH-1001",
               artifacts: {
                 ticket: { exists: true, id: "GH-1001", system: "other", url: null },
-                worktree: { exists: true, path: "/repo", checkedOutBranch: "GH-1001", headSha: "abc" },
+                worktree: {
+                  exists: true,
+                  path: "/repo",
+                  checkedOutBranch: "GH-1001",
+                  headSha: "abc",
+                },
                 branch: {
                   name: "GH-1001",
                   existsLocal: true,
@@ -12444,19 +13240,21 @@ describe("pr_state cli", () => {
                   ticketSystem: "2026-03-19T00:00:00Z",
                 },
               },
-            }) as unknown as RawStateV1,
+            } as unknown as RawStateV1,
             invariants: { valid: true, findings: [] },
           },
-          actions: [{
-            id: "pr.validate",
-            actor: "local_ci",
-            surface: "skill",
-            label: "Run PR validation skill",
-            command: "prx event --skill pr-validate",
-            priority: 80,
-            enabled: false,
-            disabledReason: "CI is not pending or running",
-          }],
+          actions: [
+            {
+              id: "pr.validate",
+              actor: "local_ci",
+              surface: "skill",
+              label: "Run PR validation skill",
+              command: "prx event --skill pr-validate",
+              priority: 80,
+              enabled: false,
+              disabledReason: "CI is not pending or running",
+            },
+          ],
           next: null,
         }),
       },
@@ -12506,11 +13304,16 @@ describe("pr_state cli", () => {
             mergeReady: false,
             phase: "waiting_on_ci",
             currentUnit: null,
-            rawState: ({
+            rawState: {
               unitId: "GH-1001",
               artifacts: {
                 ticket: { exists: true, id: "GH-1001", system: "other", url: null },
-                worktree: { exists: true, path: "/repo", checkedOutBranch: "GH-1001", headSha: "abc" },
+                worktree: {
+                  exists: true,
+                  path: "/repo",
+                  checkedOutBranch: "GH-1001",
+                  headSha: "abc",
+                },
                 branch: {
                   name: "GH-1001",
                   existsLocal: true,
@@ -12544,19 +13347,21 @@ describe("pr_state cli", () => {
                   ticketSystem: "2026-03-19T00:00:00Z",
                 },
               },
-            }) as unknown as RawStateV1,
+            } as unknown as RawStateV1,
             invariants: { valid: true, findings: [] },
           },
-          actions: [{
-            id: "pr.validate",
-            actor: "local_ci",
-            surface: "skill",
-            label: "Run PR validation skill",
-            reason: "CI is still pending/running",
-            command: "prx event --skill pr-validate",
-            priority: 80,
-            enabled: true,
-          }],
+          actions: [
+            {
+              id: "pr.validate",
+              actor: "local_ci",
+              surface: "skill",
+              label: "Run PR validation skill",
+              reason: "CI is still pending/running",
+              command: "prx event --skill pr-validate",
+              priority: 80,
+              enabled: true,
+            },
+          ],
           next: {
             id: "pr.validate",
             actor: "local_ci",
@@ -12581,7 +13386,16 @@ describe("pr_state cli", () => {
   test("do lets explicit actor and reason override derived action metadata", async () => {
     const contractPath = makeContractFile("drafting", false);
     const exitCode = await runCliDirect(
-      ["do", "pr.validate", "--contract", contractPath, "--actor", "codex", "--reason", "manual override"],
+      [
+        "do",
+        "pr.validate",
+        "--contract",
+        contractPath,
+        "--actor",
+        "codex",
+        "--reason",
+        "manual override",
+      ],
       {
         log: () => {},
         error: () => {},
@@ -12615,11 +13429,16 @@ describe("pr_state cli", () => {
             mergeReady: false,
             phase: "waiting_on_ci",
             currentUnit: null,
-            rawState: ({
+            rawState: {
               unitId: "GH-1001",
               artifacts: {
                 ticket: { exists: true, id: "GH-1001", system: "other", url: null },
-                worktree: { exists: true, path: "/repo", checkedOutBranch: "GH-1001", headSha: "abc" },
+                worktree: {
+                  exists: true,
+                  path: "/repo",
+                  checkedOutBranch: "GH-1001",
+                  headSha: "abc",
+                },
                 branch: {
                   name: "GH-1001",
                   existsLocal: true,
@@ -12653,19 +13472,21 @@ describe("pr_state cli", () => {
                   ticketSystem: "2026-03-19T00:00:00Z",
                 },
               },
-            }) as unknown as RawStateV1,
+            } as unknown as RawStateV1,
             invariants: { valid: true, findings: [] },
           },
-          actions: [{
-            id: "pr.validate",
-            actor: "local_ci",
-            surface: "skill",
-            label: "Run PR validation skill",
-            reason: "CI is still pending/running",
-            command: "prx event --skill pr-validate",
-            priority: 80,
-            enabled: true,
-          }],
+          actions: [
+            {
+              id: "pr.validate",
+              actor: "local_ci",
+              surface: "skill",
+              label: "Run PR validation skill",
+              reason: "CI is still pending/running",
+              command: "prx event --skill pr-validate",
+              priority: 80,
+              enabled: true,
+            },
+          ],
           next: {
             id: "pr.validate",
             actor: "local_ci",
@@ -12723,7 +13544,7 @@ describe("pr_state cli", () => {
             mergeReady: false,
             phase: "waiting_on_ci",
             currentUnit: null,
-            rawState: ({
+            rawState: {
               unitId: "GH-1001",
               artifacts: {
                 ticket: { exists: true, id: "GH-1001", system: "other", url: null },
@@ -12766,7 +13587,7 @@ describe("pr_state cli", () => {
                   ticketSystem: "2026-03-19T00:00:00Z",
                 },
               },
-            }) as unknown as RawStateV1,
+            } as unknown as RawStateV1,
             invariants: { valid: true, findings: [] },
           },
           actions: [],
@@ -12788,139 +13609,140 @@ describe("pr_state cli", () => {
         error: () => {},
       },
       {
-        buildDomainState: () => ({
-          kind: "DomainStateV1",
-          ci: { verdict: "unchecked", freshness: "unknown" },
-          taskContract: null,
-          prState: {
-            pr: {
-              exists: true,
-              number: 10,
-              title: "PR",
-              url: "https://example.com/pr/10",
-              draft: false,
-              checks: "green",
-              review: "approved",
+        buildDomainState: () =>
+          ({
+            kind: "DomainStateV1",
+            ci: { verdict: "unchecked", freshness: "unknown" },
+            taskContract: null,
+            prState: {
+              pr: {
+                exists: true,
+                number: 10,
+                title: "PR",
+                url: "https://example.com/pr/10",
+                draft: false,
+                checks: "green",
+                review: "approved",
+                approvals: 1,
+                mergeable: "mergeable",
+              },
+              system: {
+                lifecycle: "open",
+                review: "approved",
+                ci: "passed",
+                mergeability: "clean",
+              },
+              contract: {
+                exists: true,
+                mode: "ready",
+                state: "merge_ready",
+                title: "PR",
+                reason: "Approved and green",
+              },
+              mergeReady: true,
+            },
+            workflowState: {
+              phase: "ready_to_merge",
+              task: {
+                exists: false,
+                currentRole: null,
+                machineState: null,
+                handoffStatus: null,
+                blockers: [],
+                nextRole: null,
+              },
+            },
+            repoState: {
+              repoRoot: "/repo",
+              branch: "PROJ-1001",
+              operation: "none",
+              remoteFreshness: "fresh",
+              local: { staged: 0, unstaged: 0, untracked: 0, ignored: 0, conflicts: 0 },
+              currentUnit: null,
+              artifacts: {
+                ticket: { exists: true, id: "PROJ-1001", system: "other", url: null },
+                worktree: {
+                  exists: true,
+                  path: "/repo",
+                  checkedOutBranch: "PROJ-1001",
+                  headSha: "abc",
+                },
+                branch: {
+                  name: "PROJ-1001",
+                  existsLocal: true,
+                  existsRemote: true,
+                  ahead: 0,
+                  behind: 0,
+                  headShaLocal: "abc",
+                  headShaRemote: "abc",
+                },
+                pr: {
+                  exists: true,
+                  number: 10,
+                  state: "open",
+                  isDraft: false,
+                  headRef: "PROJ-1001",
+                  baseRef: "main",
+                  url: "https://example.com/pr/10",
+                },
+              },
+              sync: { remoteFresh: true, ticketLinkedToPR: true },
+            },
+            reviewState: {
+              decision: "approved",
+              reviewersRequested: true,
+              unresolvedThreads: 0,
               approvals: 1,
-              mergeable: "mergeable",
+              agentReview: null,
+              humanReview: null,
+              commentsResolved: null,
             },
-            system: {
-              lifecycle: "open",
-              review: "approved",
-              ci: "passed",
-              mergeability: "clean",
-            },
-            contract: {
-              exists: true,
-              mode: "ready",
-              state: "merge_ready",
-              title: "PR",
-              reason: "Approved and green",
-            },
-            mergeReady: true,
-          },
-          workflowState: {
-            phase: "ready_to_merge",
-            task: {
-              exists: false,
-              currentRole: null,
-              machineState: null,
-              handoffStatus: null,
-              blockers: [],
-              nextRole: null,
-            },
-          },
-          repoState: {
-            repoRoot: "/repo",
-            branch: "PROJ-1001",
-            operation: "none",
-            remoteFreshness: "fresh",
-            local: { staged: 0, unstaged: 0, untracked: 0, ignored: 0, conflicts: 0 },
-            currentUnit: null,
-            artifacts: {
-              ticket: { exists: true, id: "PROJ-1001", system: "other", url: null },
-              worktree: {
-                exists: true,
-                path: "/repo",
-                checkedOutBranch: "PROJ-1001",
-                headSha: "abc",
+            rawState: {
+              unitId: "PROJ-1001",
+              artifacts: {
+                ticket: { exists: true, id: "PROJ-1001", system: "other", url: null },
+                worktree: {
+                  exists: true,
+                  path: "/repo",
+                  checkedOutBranch: "PROJ-1001",
+                  headSha: "abc",
+                },
+                branch: {
+                  name: "PROJ-1001",
+                  existsLocal: true,
+                  existsRemote: true,
+                  ahead: 0,
+                  behind: 0,
+                  headShaLocal: "abc",
+                  headShaRemote: "abc",
+                },
+                pr: {
+                  exists: true,
+                  number: 10,
+                  state: "open",
+                  isDraft: false,
+                  headRef: "PROJ-1001",
+                  baseRef: "main",
+                  url: "https://example.com/pr/10",
+                },
               },
-              branch: {
-                name: "PROJ-1001",
-                existsLocal: true,
-                existsRemote: true,
-                ahead: 0,
-                behind: 0,
-                headShaLocal: "abc",
-                headShaRemote: "abc",
+              signals: {
+                review: { decision: "approved", reviewersRequested: true, unresolvedThreads: 0 },
+                ci: { state: "passed", requiredTotal: 1, requiredPassed: 1, failing: [] },
+                mergeability: { state: "mergeable", blockedReasons: [] },
               },
-              pr: {
-                exists: true,
-                number: 10,
-                state: "open",
-                isDraft: false,
-                headRef: "PROJ-1001",
-                baseRef: "main",
-                url: "https://example.com/pr/10",
+              sync: { remoteFresh: true, ticketLinkedToPR: true },
+              meta: {
+                observedAt: "2026-03-19T00:00:00Z",
+                sources: {
+                  git: "2026-03-19T00:00:00Z",
+                  gh: "2026-03-19T00:00:00Z",
+                  ticketSystem: "2026-03-19T00:00:00Z",
+                },
               },
             },
-            sync: { remoteFresh: true, ticketLinkedToPR: true },
-          },
-          reviewState: {
-            decision: "approved",
-            reviewersRequested: true,
-            unresolvedThreads: 0,
-            approvals: 1,
-            agentReview: null,
-            humanReview: null,
-            commentsResolved: null,
-          },
-          rawState: {
-            unitId: "PROJ-1001",
-            artifacts: {
-              ticket: { exists: true, id: "PROJ-1001", system: "other", url: null },
-              worktree: {
-                exists: true,
-                path: "/repo",
-                checkedOutBranch: "PROJ-1001",
-                headSha: "abc",
-              },
-              branch: {
-                name: "PROJ-1001",
-                existsLocal: true,
-                existsRemote: true,
-                ahead: 0,
-                behind: 0,
-                headShaLocal: "abc",
-                headShaRemote: "abc",
-              },
-              pr: {
-                exists: true,
-                number: 10,
-                state: "open",
-                isDraft: false,
-                headRef: "PROJ-1001",
-                baseRef: "main",
-                url: "https://example.com/pr/10",
-              },
-            },
-            signals: {
-              review: { decision: "approved", reviewersRequested: true, unresolvedThreads: 0 },
-              ci: { state: "passed", requiredTotal: 1, requiredPassed: 1, failing: [] },
-              mergeability: { state: "mergeable", blockedReasons: [] },
-            },
-            sync: { remoteFresh: true, ticketLinkedToPR: true },
-            meta: {
-              observedAt: "2026-03-19T00:00:00Z",
-              sources: {
-                git: "2026-03-19T00:00:00Z",
-                gh: "2026-03-19T00:00:00Z",
-                ticketSystem: "2026-03-19T00:00:00Z",
-              },
-            },
-          },
-          invariants: { valid: true, findings: [] },
-        }) as unknown as DomainStateV1,
+            invariants: { valid: true, findings: [] },
+          }) as unknown as DomainStateV1,
       },
     );
 
@@ -12986,7 +13808,7 @@ describe("pr_state cli", () => {
             mergeReady: false,
             phase: "waiting_on_ci",
             currentUnit: { ticket: "GH-1001" } as never,
-            rawState: ({
+            rawState: {
               unitId: "GH-1001",
               artifacts: {
                 ticket: { exists: true, id: "GH-1001", system: "other", url: null },
@@ -13029,7 +13851,7 @@ describe("pr_state cli", () => {
                   ticketSystem: "2026-03-19T00:00:00Z",
                 },
               },
-            }) as unknown as RawStateV1,
+            } as unknown as RawStateV1,
             invariants: { valid: true, findings: [] },
           },
           actions: [],
@@ -13062,29 +13884,32 @@ describe("pr_state cli", () => {
   // in test/pr-state/model-verb.test.ts. The compiled CLI still exercises the
   // routing end-to-end elsewhere.
 
-  test.skipIf(!existsSync(join(repoRoot, "skills/pr-contract/example.pr.json")))("example contract still resolves to draft mode", () => {
-    const result = Bun.spawnSync({
-      cmd: [
-        "bun",
-        "run",
-        scriptPath,
-        "status",
-        "--contract",
-        "skills/pr-contract/example.pr.json",
-        "--format",
-        "json",
-      ],
-      cwd: repoRoot,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+  test.skipIf(!existsSync(join(repoRoot, "skills/pr-contract/example.pr.json")))(
+    "example contract still resolves to draft mode",
+    () => {
+      const result = Bun.spawnSync({
+        cmd: [
+          "bun",
+          "run",
+          scriptPath,
+          "status",
+          "--contract",
+          "skills/pr-contract/example.pr.json",
+          "--format",
+          "json",
+        ],
+        cwd: repoRoot,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
 
-    expect(result.exitCode).toBe(0);
-    expect(JSON.parse(new TextDecoder().decode(result.stdout))).toMatchObject({
-      mode: "draft",
-      state: "drafting",
-    });
-  });
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(new TextDecoder().decode(result.stdout))).toMatchObject({
+        mode: "draft",
+        state: "drafting",
+      });
+    },
+  );
 });
 
 describe("prx doctor gh-budget (GH-1533)", () => {
@@ -13130,7 +13955,16 @@ describe("prx doctor gh-budget (GH-1533)", () => {
             row({ verb: null, cost: null }),
             row({ verb: "intake.search", api: "rest", bucket: "core" }), // REST — not graphql-charged
             // a pre-GH-1533 row (no `api`) on the graphql bucket still counts
-            { ts: "2026-05-12T14:45:00.000Z", argv: ["gh", "pr", "view", "--json", "x"], bucket: "graphql", remaining_before: null, remaining_after: null, exit_code: 0, threw: null, cost_delta: null },
+            {
+              ts: "2026-05-12T14:45:00.000Z",
+              argv: ["gh", "pr", "view", "--json", "x"],
+              bucket: "graphql",
+              remaining_before: null,
+              remaining_after: null,
+              exit_code: 0,
+              threw: null,
+              cost_delta: null,
+            },
           ] as never,
       },
     );
@@ -13139,7 +13973,13 @@ describe("prx doctor gh-budget (GH-1533)", () => {
       since: string;
       windowMs: number;
       restCalls: number;
-      rows: Array<{ verb: string | null; calls: number; cost: number; costRowsMissing: number; exhausted: number }>;
+      rows: Array<{
+        verb: string | null;
+        calls: number;
+        cost: number;
+        costRowsMissing: number;
+        exhausted: number;
+      }>;
       totals: { calls: number; cost: number; costRowsMissing: number; exhausted: number };
     };
     expect(parsed.since).toBe("2026-05-12T14:00:00.000Z");
@@ -13404,10 +14244,7 @@ describe("hooks command", () => {
 
   test("hooks errors when no subcommand given", () => {
     const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["hooks"],
-      { log: () => {}, error: (line) => errors.push(line) },
-    );
+    const exitCode = runCliDirect(["hooks"], { log: () => {}, error: (line) => errors.push(line) });
     expect(exitCode).toBe(1);
     expect(errors.join("\n")).toContain("hooks requires a subcommand");
   });
@@ -13615,10 +14452,7 @@ describe("plan handoff command (GH-643; renamed from session close in GH-1166)",
       issueState: "CLOSED",
       remoteBranchPresent: false,
       mainxReset: "done",
-      handoff: [
-        "prx worktree-remove GH-643 --delete-branch --force",
-        "prx delegate next",
-      ],
+      handoff: ["prx worktree-remove GH-643 --delete-branch --force", "prx delegate next"],
       handoffRequired: true,
       refusalReason: null,
       dryRun: false,
@@ -13771,10 +14605,7 @@ describe("plan handoff command (GH-643; renamed from session close in GH-1166)",
     expect(parsed).toMatchObject({
       workUnitId: "GH-643",
       prState: "merged",
-      handoff: [
-        "prx worktree-remove GH-643 --delete-branch --force",
-        "prx delegate next",
-      ],
+      handoff: ["prx worktree-remove GH-643 --delete-branch --force", "prx delegate next"],
       handoffRequired: true,
     });
   });
@@ -13821,7 +14652,9 @@ describe("plan handoff command (GH-643; renamed from session close in GH-1166)",
   });
 
   describe("closeSession executor", () => {
-    function makeSpawn(responses: Map<string, { status: number; stdout?: string; stderr?: string }>) {
+    function makeSpawn(
+      responses: Map<string, { status: number; stdout?: string; stderr?: string }>,
+    ) {
       return ((_file, args) => {
         const key = args.join(" ");
         const match = responses.get(key);
@@ -13836,7 +14669,9 @@ describe("plan handoff command (GH-643; renamed from session close in GH-1166)",
         : never;
     }
 
-    function makeRunner(responses: Map<string, { status: number; stdout?: string; stderr?: string }>) {
+    function makeRunner(
+      responses: Map<string, { status: number; stdout?: string; stderr?: string }>,
+    ) {
       return ((cmd) => {
         const key = cmd.join(" ");
         const match = responses.get(key);
@@ -13863,14 +14698,10 @@ describe("plan handoff command (GH-643; renamed from session close in GH-1166)",
         {
           cwd: "/repo",
           spawn: makeSpawn(
-            new Map([
-              ["rev-parse --show-toplevel", { status: 0, stdout: "/repo\n" }],
-            ]),
+            new Map([["rev-parse --show-toplevel", { status: 0, stdout: "/repo\n" }]]),
           ),
           runner: makeRunner(
-            new Map([
-              ["git -C /repo worktree list --porcelain", { status: 0, stdout: "" }],
-            ]),
+            new Map([["git -C /repo worktree list --porcelain", { status: 0, stdout: "" }]]),
           ),
         },
       );
@@ -13933,7 +14764,8 @@ describe("plan handoff command (GH-643; renamed from session close in GH-1166)",
         if (key === `-C ${repoRoot} worktree list --porcelain`) {
           return { status: 0, stdout: `worktree ${mainxPath}\nHEAD abc\n\n` };
         }
-        if (key === `-C ${mainxPath} checkout --detach origin/main`) return { status: 0, stdout: "" };
+        if (key === `-C ${mainxPath} checkout --detach origin/main`)
+          return { status: 0, stdout: "" };
         return { status: 1, stdout: "", stderr: `unexpected spawn: ${key}` };
       }) as Parameters<typeof closeSession>[1] extends infer D
         ? D extends { spawn?: infer S }
@@ -14120,7 +14952,8 @@ describe("plan handoff command (GH-643; renamed from session close in GH-1166)",
           cwd: wtPath,
           spawn: ((_file, args) => {
             const key = args.join(" ");
-            if (key === "rev-parse --show-toplevel") return { status: 0, stdout: `${repoRoot}\n`, stderr: "" };
+            if (key === "rev-parse --show-toplevel")
+              return { status: 0, stdout: `${repoRoot}\n`, stderr: "" };
             return { status: 1, stdout: "", stderr: `unexpected: ${key}` };
           }) as Parameters<typeof closeSession>[1] extends infer D
             ? D extends { spawn?: infer S }
@@ -14143,7 +14976,11 @@ describe("plan handoff command (GH-643; renamed from session close in GH-1166)",
               return { status: 0, stdout: "bdelanghe/ai-home\n", stderr: "" };
             }
             if (key === "gh issue view 643 --json number,state -R bdelanghe/ai-home") {
-              return { status: 0, stdout: JSON.stringify({ number: 643, state: "CLOSED" }), stderr: "" };
+              return {
+                status: 0,
+                stdout: JSON.stringify({ number: 643, state: "CLOSED" }),
+                stderr: "",
+              };
             }
             if (key === `git -C ${wtPath} ls-remote --exit-code --heads origin GH-643`) {
               return { status: 2, stdout: "", stderr: "" };
@@ -14178,7 +15015,8 @@ describe("plan handoff command (GH-643; renamed from session close in GH-1166)",
           cwd: wtPath,
           spawn: ((_file, args) => {
             const key = args.join(" ");
-            if (key === "rev-parse --show-toplevel") return { status: 0, stdout: `${repoRoot}\n`, stderr: "" };
+            if (key === "rev-parse --show-toplevel")
+              return { status: 0, stdout: `${repoRoot}\n`, stderr: "" };
             return { status: 1, stdout: "", stderr: `unexpected: ${key}` };
           }) as Parameters<typeof closeSession>[1] extends infer D
             ? D extends { spawn?: infer S }
@@ -14188,7 +15026,11 @@ describe("plan handoff command (GH-643; renamed from session close in GH-1166)",
           runner: ((cmd) => {
             const key = cmd.join(" ");
             if (key === `git -C ${repoRoot} worktree list --porcelain`) {
-              return { status: 0, stdout: `worktree ${wtPath}\nbranch refs/heads/GH-643\n\n`, stderr: "" };
+              return {
+                status: 0,
+                stdout: `worktree ${wtPath}\nbranch refs/heads/GH-643\n\n`,
+                stderr: "",
+              };
             }
             if (
               key ===
@@ -14200,7 +15042,11 @@ describe("plan handoff command (GH-643; renamed from session close in GH-1166)",
               return { status: 0, stdout: "bdelanghe/ai-home\n", stderr: "" };
             }
             if (key === "gh issue view 643 --json number,state -R bdelanghe/ai-home") {
-              return { status: 0, stdout: JSON.stringify({ number: 643, state: "CLOSED" }), stderr: "" };
+              return {
+                status: 0,
+                stdout: JSON.stringify({ number: 643, state: "CLOSED" }),
+                stderr: "",
+              };
             }
             if (key === `git -C ${wtPath} ls-remote --exit-code --heads origin GH-643`) {
               return { status: 128, stdout: "", stderr: "fatal: unable to access origin" };
@@ -14222,20 +15068,20 @@ describe("plan handoff command (GH-643; renamed from session close in GH-1166)",
 describe("prx intake (GH-666)", () => {
   test("requires a type positional", () => {
     const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["intake"],
-      { log: () => {}, error: (line) => errors.push(line) },
-    );
+    const exitCode = runCliDirect(["intake"], {
+      log: () => {},
+      error: (line) => errors.push(line),
+    });
     expect(exitCode).toBe(1);
     expect(errors.join("\n")).toContain("intake requires a type positional");
   });
 
   test("rejects unknown types", () => {
     const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["intake", "banana", "--title", "x"],
-      { log: () => {}, error: (line) => errors.push(line) },
-    );
+    const exitCode = runCliDirect(["intake", "banana", "--title", "x"], {
+      log: () => {},
+      error: (line) => errors.push(line),
+    });
     expect(exitCode).toBe(1);
     expect(errors.join("\n")).toContain("unknown type 'banana'");
   });
@@ -14260,10 +15106,10 @@ describe("prx intake (GH-666)", () => {
 
   test("requires a title", () => {
     const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["intake", "task"],
-      { log: () => {}, error: (line) => errors.push(line) },
-    );
+    const exitCode = runCliDirect(["intake", "task"], {
+      log: () => {},
+      error: (line) => errors.push(line),
+    });
     expect(exitCode).toBe(1);
     expect(errors.join("\n")).toContain("intake requires a title");
   });
@@ -14280,16 +15126,24 @@ describe("prx intake (GH-666)", () => {
 
   test("rejects both --title and a second positional", () => {
     const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["intake", "task", "title-positional", "--title", "title-flag"],
-      { log: () => {}, error: (line) => errors.push(line) },
-    );
+    const exitCode = runCliDirect(["intake", "task", "title-positional", "--title", "title-flag"], {
+      log: () => {},
+      error: (line) => errors.push(line),
+    });
     expect(exitCode).toBe(1);
     expect(errors.join("\n")).toContain("via both --title and positional");
   });
 
   test("dry-run forwards parsed options to runIntake handler", () => {
-    let captured: { type?: string | undefined; title?: string | undefined; scope?: string | undefined; to?: string | undefined; bodyFile?: string | undefined; format?: string | undefined; dryRun?: boolean | undefined } | null = null;
+    let captured: {
+      type?: string | undefined;
+      title?: string | undefined;
+      scope?: string | undefined;
+      to?: string | undefined;
+      bodyFile?: string | undefined;
+      format?: string | undefined;
+      dryRun?: boolean | undefined;
+    } | null = null;
     const exitCode = runCliDirect(
       [
         "intake",
@@ -14499,7 +15353,10 @@ describe("prx plan prime (GH-1056)", () => {
             exitCode: 0,
           }),
           ensureRuntimeArtifacts: () => ({ mcpServers: [] }),
-          ensureClaudeAllowlist: () => ({ status: "created", path: `${cwd}/.claude/settings.local.json` }),
+          ensureClaudeAllowlist: () => ({
+            status: "created",
+            path: `${cwd}/.claude/settings.local.json`,
+          }),
           findSavedClaudeSession: () => false,
         },
       );
@@ -14542,7 +15399,10 @@ describe("prx plan prime (GH-1056)", () => {
             exitCode: 0,
           }),
           ensureRuntimeArtifacts: () => ({ mcpServers: [] }),
-          ensureClaudeAllowlist: () => ({ status: "unchanged", path: `${cwd}/.claude/settings.local.json` }),
+          ensureClaudeAllowlist: () => ({
+            status: "unchanged",
+            path: `${cwd}/.claude/settings.local.json`,
+          }),
           findSavedClaudeSession: () => true,
         },
       );
@@ -14583,7 +15443,10 @@ describe("prx plan prime (GH-1056)", () => {
             exitCode: 1,
           }),
           ensureRuntimeArtifacts: () => ({ mcpServers: [] }),
-          ensureClaudeAllowlist: () => ({ status: "unchanged", path: `${cwd}/.claude/settings.local.json` }),
+          ensureClaudeAllowlist: () => ({
+            status: "unchanged",
+            path: `${cwd}/.claude/settings.local.json`,
+          }),
           findSavedClaudeSession: () => false,
         },
       );
@@ -14655,7 +15518,10 @@ describe("prx plan prime (GH-1056)", () => {
             exitCode: 0,
           }),
           ensureRuntimeArtifacts: () => ({ mcpServers: [] }),
-          ensureClaudeAllowlist: () => ({ status: "unchanged", path: `${cwd}/.claude/settings.local.json` }),
+          ensureClaudeAllowlist: () => ({
+            status: "unchanged",
+            path: `${cwd}/.claude/settings.local.json`,
+          }),
           findSavedClaudeSession: () => false,
         },
       );
@@ -14690,7 +15556,10 @@ describe("prx plan prime (GH-1056)", () => {
             exitCode: 0,
           }),
           ensureRuntimeArtifacts: () => ({ mcpServers: [] }),
-          ensureClaudeAllowlist: () => ({ status: "unchanged", path: `${cwd}/.claude/settings.local.json` }),
+          ensureClaudeAllowlist: () => ({
+            status: "unchanged",
+            path: `${cwd}/.claude/settings.local.json`,
+          }),
           findSavedClaudeSession: () => false,
         },
       );
@@ -14968,9 +15837,7 @@ describe("resolveEpicChildBdIds — door-backed reads (prx-zbsi)", () => {
     const read = (cmd: string[]): string | null =>
       cmd[1] === "list"
         ? JSON.stringify([{ id: "prx-epic", external_ref: "issues/42" }])
-        : JSON.stringify([
-            { id: "prx-c1", dependency_type: "parent-child", title: "x" },
-          ]);
+        : JSON.stringify([{ id: "prx-c1", dependency_type: "parent-child", title: "x" }]);
     expect([...resolveEpicChildBdIds("/repo", "issues/42", read)]).toEqual(["prx-c1"]);
   });
 

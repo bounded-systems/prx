@@ -19,7 +19,11 @@
  * upstream so the worktree/branch/parity-chain row id stays uniform.
  */
 
-import { beadsDomainAdapter, BdDomainAdapterError, ForeignWorkspacePrefixError } from "../../adapters/beads.ts";
+import {
+  beadsDomainAdapter,
+  BdDomainAdapterError,
+  ForeignWorkspacePrefixError,
+} from "../../adapters/beads.ts";
 import type { BeadsRecord } from "../../triage/triage.ts";
 // GH-296: read through beadsd (one true source). The daemon serves one
 // workspace = one repo (multi-tenant is rejected as a security risk), so the
@@ -68,10 +72,7 @@ export class BeadsResolver implements WorkUnitResolver {
     this.externalRefPrefix = deps.externalRefPrefix ?? null;
   }
 
-  async fetch(
-    canonicalId: string,
-    opts?: { runner?: CommandRunner },
-  ): Promise<ResolvedWorkUnit> {
+  async fetch(canonicalId: string, opts?: { runner?: CommandRunner }): Promise<ResolvedWorkUnit> {
     const _runner = opts?.runner ?? defaultRunner;
     // GH-852: BD-* / bare-workspace-long-id surface ids go through the
     // existing snapshot scan; non-BD canonical ids (e.g. PROJ-5743)
@@ -90,10 +91,7 @@ export class BeadsResolver implements WorkUnitResolver {
     if (!record) {
       throw new BeadsResolverError(`bd show ${longId}: record not found`);
     }
-    const state =
-      record.status === "closed" || record.status === "resolved"
-        ? "closed"
-        : "open";
+    const state = record.status === "closed" || record.status === "resolved" ? "closed" : "open";
     return {
       id: canonicalId,
       title: record.title,
@@ -179,13 +177,10 @@ export class BeadsResolver implements WorkUnitResolver {
     const snapshot = await this.loadBeads();
     const hit = snapshot.find(
       (r: BeadsRecord) =>
-        r.externalRefs?.[this.externalRefPrefix!] === externalRef
-        || r.externalRef === externalRef,
+        r.externalRefs?.[this.externalRefPrefix!] === externalRef || r.externalRef === externalRef,
     );
     if (!hit) {
-      throw new BeadsResolverError(
-        `no bd row with external_ref ${externalRef} in ${this.cwd}`,
-      );
+      throw new BeadsResolverError(`no bd row with external_ref ${externalRef} in ${this.cwd}`);
     }
     return hit.id;
   }

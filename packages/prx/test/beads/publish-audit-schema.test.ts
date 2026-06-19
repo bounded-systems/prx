@@ -67,12 +67,8 @@ describe("beadsPublishAuditRowSchema", () => {
   });
 
   test("rejects rows with a non-positive ghNumber", () => {
-    expect(() =>
-      beadsPublishAuditRowSchema.parse({ ...CREATED_ROW, ghNumber: 0 }),
-    ).toThrow();
-    expect(() =>
-      beadsPublishAuditRowSchema.parse({ ...CREATED_ROW, ghNumber: -3 }),
-    ).toThrow();
+    expect(() => beadsPublishAuditRowSchema.parse({ ...CREATED_ROW, ghNumber: 0 })).toThrow();
+    expect(() => beadsPublishAuditRowSchema.parse({ ...CREATED_ROW, ghNumber: -3 })).toThrow();
   });
 
   test("rejects rows missing bdId", () => {

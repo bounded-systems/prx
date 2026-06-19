@@ -130,18 +130,13 @@ function resolveTarget(input: ScoutReadInput): string {
   return isAbsolute(input.path) ? input.path : resolve(cwd, input.path);
 }
 
-export async function runScoutRead(
-  input: ScoutReadInput,
-): Promise<ScoutReadResult> {
+export async function runScoutRead(input: ScoutReadInput): Promise<ScoutReadResult> {
   if (typeof input.path !== "string" || input.path.length === 0) {
     throw new ScoutReadError("path must not be empty", "MISSING_PATH");
   }
   const requestedMax = input.maxBytes ?? DEFAULT_MAX_BYTES;
   if (requestedMax <= 0) {
-    throw new ScoutReadError(
-      "maxBytes must be positive",
-      "INVALID_MAX_BYTES",
-    );
+    throw new ScoutReadError("maxBytes must be positive", "INVALID_MAX_BYTES");
   }
   const target = resolveTarget(input);
   // Open once and stat/read the same descriptor: the metadata checks and the
@@ -157,10 +152,7 @@ export async function runScoutRead(
   try {
     const stat = fstatSync(fd);
     if (!stat.isFile()) {
-      throw new ScoutReadError(
-        `path is not a regular file: ${target}`,
-        "NOT_A_FILE",
-      );
+      throw new ScoutReadError(`path is not a regular file: ${target}`, "NOT_A_FILE");
     }
     if (stat.size > requestedMax) {
       throw new ScoutReadError(
@@ -177,18 +169,12 @@ export async function runScoutRead(
     buf = readFileSync(fd);
   } catch (err) {
     if (err instanceof ScoutReadError) throw err;
-    throw new ScoutReadError(
-      `read failed: ${(err as Error).message}`,
-      "READ_FAILED",
-    );
+    throw new ScoutReadError(`read failed: ${(err as Error).message}`, "READ_FAILED");
   } finally {
     closeSync(fd);
   }
   if (looksBinary(buf)) {
-    throw new ScoutReadError(
-      `path looks binary (NUL byte in head): ${target}`,
-      "BINARY_CONTENT",
-    );
+    throw new ScoutReadError(`path looks binary (NUL byte in head): ${target}`, "BINARY_CONTENT");
   }
   const content = buf.toString("utf8");
   const sha256 = sha256BareHex(buf);

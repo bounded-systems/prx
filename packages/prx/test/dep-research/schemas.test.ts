@@ -28,12 +28,18 @@ describe("DepManifestEntry", () => {
   });
 
   test("rejects unknown source.kind", () => {
-    const bad = { ...(validEntry as object), source: { kind: "ftp", url: "https://x", paths: ["a"] } };
+    const bad = {
+      ...(validEntry as object),
+      source: { kind: "ftp", url: "https://x", paths: ["a"] },
+    };
     expect(() => DepManifestEntry.parse(bad)).toThrow();
   });
 
   test("rejects malformed url", () => {
-    const bad = { ...(validEntry as object), source: { kind: "git", url: "not-a-url", paths: ["a"] } };
+    const bad = {
+      ...(validEntry as object),
+      source: { kind: "git", url: "not-a-url", paths: ["a"] },
+    };
     expect(() => DepManifestEntry.parse(bad)).toThrow();
   });
 

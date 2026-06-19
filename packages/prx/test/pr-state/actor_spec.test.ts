@@ -6,10 +6,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { ActorName } from "../../src/cli/registry.ts";
-import {
-  actorSpecFor,
-  prxActorRegistry,
-} from "../../src/cli/registry.data.ts";
+import { actorSpecFor, prxActorRegistry } from "../../src/cli/registry.data.ts";
 import { SESSION_PROFILES, sessionProfileNames } from "../../src/machine/runtime_profiles.ts";
 
 const VALID_ACTORS: ReadonlySet<string> = new Set(ActorName.options);

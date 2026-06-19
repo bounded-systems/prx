@@ -46,10 +46,7 @@ function makeSurface(overrides: Partial<UnitOfWorkSurface> = {}): UnitOfWorkSurf
 
 describe("prx api snapshot", () => {
   test("reports runnable canonical work units", () => {
-    const snapshot = getPrxSnapshot(
-      makeContext(),
-      () => makeSurface(),
-    );
+    const snapshot = getPrxSnapshot(makeContext(), () => makeSurface());
 
     expect(snapshot.canRun).toBe(true);
     expect(snapshot.runBlockers).toEqual([]);
@@ -79,9 +76,8 @@ describe("prx api snapshot", () => {
   });
 
   test("reflects running control state in the active agent projection", () => {
-    const snapshot = getPrxSnapshot(
-      makeContext({ controlState: "dispatching" }),
-      () => makeSurface({
+    const snapshot = getPrxSnapshot(makeContext({ controlState: "dispatching" }), () =>
+      makeSurface({
         rows: [
           {
             id: "GH-5195",

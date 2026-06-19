@@ -32,5 +32,5 @@ export function resolveFeatureForPrefix(
     return null;
   }
   const prefix = match[1];
-  return prefix ? config.features[prefix] ?? null : null;
+  return prefix ? (config.features[prefix] ?? null) : null;
 }

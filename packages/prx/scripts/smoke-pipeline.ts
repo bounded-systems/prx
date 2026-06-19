@@ -17,11 +17,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import {
-  consumeUow,
-  pinUow,
-  uowFresh,
-} from "../src/pipeline/edges/intake-triage.ts";
+import { consumeUow, pinUow, uowFresh } from "../src/pipeline/edges/intake-triage.ts";
 
 function anyOpenUnit(): string | null {
   const r = spawnSync("bd", ["list", "--status=open", "--json"], { encoding: "utf8" });

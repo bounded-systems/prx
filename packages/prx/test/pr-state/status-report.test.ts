@@ -35,7 +35,10 @@ function worktree(): string {
 
 function seededTask(): string {
   const root = worktree();
-  writeTaskContract(defaultTaskPath(root), createTaskContract({ workUnitId: "GH-339", worktree: root, branch: "GH-339" }));
+  writeTaskContract(
+    defaultTaskPath(root),
+    createTaskContract({ workUnitId: "GH-339", worktree: root, branch: "GH-339" }),
+  );
   return defaultTaskPath(root);
 }
 
@@ -178,7 +181,10 @@ describe("renderStatus", () => {
     });
     // A task contract at the cwd-derived defaultTaskPath() makes the plain path
     // fire refreshTaskSignals; injected deps keep it off git/gh.
-    writeTaskContract(defaultTaskPath(root), createTaskContract({ workUnitId: "GH-339", worktree: root, branch: "GH-339" }));
+    writeTaskContract(
+      defaultTaskPath(root),
+      createTaskContract({ workUnitId: "GH-339", worktree: root, branch: "GH-339" }),
+    );
     const deps: StatusSignalsDeps = {
       loadReviewConfig: () => changedReviewConfig(),
       currentBranchName: () => "GH-339",

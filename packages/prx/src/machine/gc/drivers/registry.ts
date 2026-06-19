@@ -9,12 +9,7 @@
  */
 
 import type { applyParityChainActions } from "../../../pr-state/cli.ts";
-import type {
-  deleteBlob,
-  listBlobs,
-  listRefs,
-  readBlob,
-} from "../../../plan-store/cas.ts";
+import type { deleteBlob, listBlobs, listRefs, readBlob } from "../../../plan-store/cas.ts";
 import type { buildParityChain } from "../../../pr-state/github.ts";
 import type { applyHooks, hookStatus } from "../../../pr-state/hooks.ts";
 import type { RepoGcReport } from "../../../pr-state/repo_gc.ts";
@@ -88,9 +83,7 @@ export type GcDriverDeps = {
 
 /** Build the `component → driver` registry. Unregistered components are absent
  * (the fan-out skips them). */
-export function buildGcRegistry(
-  deps: GcDriverDeps,
-): Partial<Record<GcComponent, GcDriver>> {
+export function buildGcRegistry(deps: GcDriverDeps): Partial<Record<GcComponent, GcDriver>> {
   return {
     worktree: createWorktreeDriver(deps),
     cas: createCasDriver(deps),

@@ -20,10 +20,7 @@
 import { z } from "zod";
 
 import { dispatchActors } from "./dispatch.ts";
-import {
-  sessionProfileNames,
-  taskAgentRoles,
-} from "./runtime_profiles.ts";
+import { sessionProfileNames, taskAgentRoles } from "./runtime_profiles.ts";
 
 // ── identifiers ───────────────────────────────────────────────────────────
 
@@ -34,9 +31,7 @@ const artifactTypeIdSchema = z
   .regex(/^[a-z][a-z0-9_]*$/, "artifact ids must be snake_case");
 
 /** Pattern `prx.<type>.v<n>` — mirrors the runtime-output schema-version shape. */
-const schemaVersionSchema = z
-  .string()
-  .regex(/^prx\.[a-z][a-z0-9_]*\.v\d+$/);
+const schemaVersionSchema = z.string().regex(/^prx\.[a-z][a-z0-9_]*\.v\d+$/);
 
 /**
  * `validationRef` points readers at the Zod / JSON-schema that validates an
@@ -76,10 +71,10 @@ export type ArtifactContract = z.infer<typeof artifactContractSchema>;
 
 // ── AgentContract ─────────────────────────────────────────────────────────
 
-const agentRoleSchema = z.enum([
-  ...taskAgentRoles,
-  ...sessionProfileNames,
-] as [string, ...string[]]);
+const agentRoleSchema = z.enum([...taskAgentRoles, ...sessionProfileNames] as [
+  string,
+  ...string[],
+]);
 
 export const agentContractSchema = z
   .object({
@@ -121,12 +116,7 @@ export type TransitionAxis = (typeof transitionAxes)[number];
 // spike). The aggregate kinds live on this axis-level enum because they
 // are referenced by every artifact slot in the registry, not just the
 // lifecycle-axis transitions.
-export const aggregateUowKinds = [
-  "epic",
-  "sprint",
-  "release",
-  "spike",
-] as const;
+export const aggregateUowKinds = ["epic", "sprint", "release", "spike"] as const;
 export type AggregateUowKind = (typeof aggregateUowKinds)[number];
 export const aggregateUowKindSchema = z.enum(aggregateUowKinds);
 
@@ -212,9 +202,7 @@ export const LEGACY_PREDICATE_BINDING: PredicateBinding = "property";
  * merge-verdict bundle read through, so neither has to branch on which form a
  * contract was authored in.
  */
-export function requiredPredicatesOf(
-  contract: TransitionContract,
-): readonly RequiredPredicate[] {
+export function requiredPredicatesOf(contract: TransitionContract): readonly RequiredPredicate[] {
   if (contract.requiredPredicates && contract.requiredPredicates.length > 0) {
     return contract.requiredPredicates;
   }
@@ -281,9 +269,7 @@ export const artifactGraphSchema = z.record(
 
 export type ArtifactGraph = z.infer<typeof artifactGraphSchema>;
 
-export type GuardVerdict =
-  | { ok: true }
-  | { ok: false; reason: string };
+export type GuardVerdict = { ok: true } | { ok: false; reason: string };
 
 // ── re-exports for downstream consumers ───────────────────────────────────
 

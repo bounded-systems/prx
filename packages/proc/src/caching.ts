@@ -14,7 +14,12 @@
 // Cache keys are the canonical-JSON of the request today; when proc I/O moves
 // to CAS, the key becomes the request digest and the value a CAS blob — a
 // cached proc run is then an anchored-chain derivation.
-import { isKnownSubcommand, isPolicyTool, isReadOnly, type PolicyTool } from "@bounded-systems/policy";
+import {
+  isKnownSubcommand,
+  isPolicyTool,
+  isReadOnly,
+  type PolicyTool,
+} from "@bounded-systems/policy";
 
 import type { ProcExecutor, ProcRequest, ProcResult } from "./contract.ts";
 import { procRequestSchema } from "./contract.ts";

@@ -84,7 +84,11 @@ describe("runPromoteActor", () => {
         ...STD_DEPS_BASE,
         // GH-296: create runs `prx beads create …` through the daemon (sync
         // runner) which echoes the record as JSON.
-        run: (() => ({ status: 0, stdout: JSON.stringify({ id: "bd-9000" }), stderr: "" })) as never,
+        run: (() => ({
+          status: 0,
+          stdout: JSON.stringify({ id: "bd-9000" }),
+          stderr: "",
+        })) as never,
         execGh: () => ({ exitCode: 0, stdout: "", stderr: "", policy: null }),
         readFileSync: () => fixture,
         loadAllBeads: noBeads,

@@ -55,7 +55,6 @@ function renderEntry(entry: MapSequenceEntry): string {
 export async function runMapShow(opts: MapShowOptions): Promise<MapShowActorResult> {
   const parsed = mapShowOptionsSchema.parse(opts);
   const record = readMapRecord(parsed.repoRoot, parsed.name);
-  const rendered =
-    parsed.format === "json" ? JSON.stringify(record, null, 2) : renderPlain(record);
+  const rendered = parsed.format === "json" ? JSON.stringify(record, null, 2) : renderPlain(record);
   return { record, rendered };
 }

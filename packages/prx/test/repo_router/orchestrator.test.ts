@@ -18,17 +18,12 @@ import {
   runRepoRouter,
   type RunRepoRouterDeps,
 } from "../../src/repo_router/index.ts";
-import type {
-  LocalRepo,
-  RepoInventory,
-  RepoInventoryConfig,
-} from "../../src/pr-state/repos.ts";
+import type { LocalRepo, RepoInventory, RepoInventoryConfig } from "../../src/pr-state/repos.ts";
 
 function makeLocalRepo(overrides: Partial<LocalRepo>): LocalRepo {
   return {
     name: overrides.name ?? "demo-repo",
-    commonDir:
-      overrides.commonDir ?? "/Users/dev/.local/state/bare/demo-repo.git",
+    commonDir: overrides.commonDir ?? "/Users/dev/.local/state/bare/demo-repo.git",
     kind: overrides.kind ?? "bare",
     mainWorktree: overrides.mainWorktree ?? null,
     worktrees: overrides.worktrees ?? [],
@@ -67,10 +62,7 @@ function makeRecorder(): {
   recordEvent: NonNullable<RunRepoRouterDeps["recordEvent"]>;
 } {
   const calls: EventCall[] = [];
-  const recordEvent: NonNullable<RunRepoRouterDeps["recordEvent"]> = (
-    event,
-    opts,
-  ) => {
+  const recordEvent: NonNullable<RunRepoRouterDeps["recordEvent"]> = (event, opts) => {
     calls.push({ event, details: opts?.details });
   };
   return { calls, recordEvent };
@@ -88,11 +80,7 @@ describe("decideRoute — pure classifier", () => {
 
   test("local: embedded prefix matches localPrefix", () => {
     expect(
-      decideRoute(
-        "BD-ai-home-1777747201085-737-407f177f",
-        makeInventory([]),
-        "ai-home",
-      ),
+      decideRoute("BD-ai-home-1777747201085-737-407f177f", makeInventory([]), "ai-home"),
     ).toEqual({ kind: "local", prefix: "ai-home" });
   });
 
@@ -117,22 +105,15 @@ describe("decideRoute — pure classifier", () => {
 
   test("missing-pin: prefix has no index entry", () => {
     expect(
-      decideRoute(
-        "BD-unknown-prefix-1777747201085-737-407f177f",
-        makeInventory([]),
-        "ai-home",
-      ),
+      decideRoute("BD-unknown-prefix-1777747201085-737-407f177f", makeInventory([]), "ai-home"),
     ).toEqual({ kind: "missing-pin", prefix: "unknown-prefix" });
   });
 
   test("null inventory falls through to missing-pin", () => {
-    expect(
-      decideRoute(
-        "BD-demo-repo-1777747201085-737-407f177f",
-        null,
-        "ai-home",
-      ),
-    ).toEqual({ kind: "missing-pin", prefix: "demo-repo" });
+    expect(decideRoute("BD-demo-repo-1777747201085-737-407f177f", null, "ai-home")).toEqual({
+      kind: "missing-pin",
+      prefix: "demo-repo",
+    });
   });
 });
 
@@ -266,17 +247,10 @@ describe("runRepoRouter — missing-pin arm", () => {
       expect(result.hint).toBe(missingPinHint("demo-repo"));
       // ADR §6 byte-pin: hint is the only operator-facing surface — make
       // sure the literal text the design doc promises is present.
-      expect(result.hint).toContain(
-        'bd workspace prefix "demo-repo" is not pinned',
-      );
-      expect(result.hint).toContain(
-        "prx repo add --bd-workspace-prefix demo-repo",
-      );
+      expect(result.hint).toContain('bd workspace prefix "demo-repo" is not pinned');
+      expect(result.hint).toContain("prx repo add --bd-workspace-prefix demo-repo");
     }
-    expect(calls.map((c) => c.event)).toEqual([
-      "BD_PREFIX_DETECTED",
-      "ROUTE_REFUSED_NO_PIN",
-    ]);
+    expect(calls.map((c) => c.event)).toEqual(["BD_PREFIX_DETECTED", "ROUTE_REFUSED_NO_PIN"]);
     expect(materializeCalls).toBe(0);
     expect(redispatchCalls).toBe(0);
   });
@@ -516,16 +490,11 @@ describe("runRepoRouter — repoOverride conflicts with foreign decision", () =>
       expect(result.requestedRepo).toBe("ai-home");
       expect(result.embeddedPrefix).toBe("demo-repo");
       expect(result.embeddedRepo).toBe("demo-repo");
-      expect(result.hint).toBe(
-        conflictHint("ai-home", "demo-repo", "demo-repo"),
-      );
+      expect(result.hint).toBe(conflictHint("ai-home", "demo-repo", "demo-repo"));
       expect(result.hint).toContain("--repo ai-home");
       expect(result.hint).toContain("demo-repo");
     }
-    expect(calls.map((c) => c.event)).toEqual([
-      "BD_PREFIX_DETECTED",
-      "ROUTE_REFUSED_CONFLICT",
-    ]);
+    expect(calls.map((c) => c.event)).toEqual(["BD_PREFIX_DETECTED", "ROUTE_REFUSED_CONFLICT"]);
     expect(materializeCalls).toBe(0);
     expect(redispatchCalls).toBe(0);
   });
@@ -565,10 +534,7 @@ describe("runRepoRouter — repoOverride with missing-pin decision", () => {
       },
     );
     expect(result.status).toBe("refused-no-pin");
-    expect(calls.map((c) => c.event)).toEqual([
-      "BD_PREFIX_DETECTED",
-      "ROUTE_REFUSED_NO_PIN",
-    ]);
+    expect(calls.map((c) => c.event)).toEqual(["BD_PREFIX_DETECTED", "ROUTE_REFUSED_NO_PIN"]);
   });
 });
 
@@ -625,10 +591,7 @@ describe("runRepoRouter — repoOverride conflicts with local arm", () => {
       expect(result.embeddedPrefix).toBe("ai-home");
       expect(result.embeddedRepo).toBe("ai-home");
     }
-    expect(calls.map((c) => c.event)).toEqual([
-      "BD_PREFIX_DETECTED",
-      "ROUTE_REFUSED_CONFLICT",
-    ]);
+    expect(calls.map((c) => c.event)).toEqual(["BD_PREFIX_DETECTED", "ROUTE_REFUSED_CONFLICT"]);
   });
 });
 

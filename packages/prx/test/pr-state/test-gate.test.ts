@@ -125,18 +125,15 @@ describe("runTestGate (prx-x8ji)", () => {
     const result = await runTestGate("u", "/repo", mkDeps(store, exec, impl()));
 
     expect(result.pass).toBe(false);
-    expect(result.verdict.violations).toEqual([
-      "bun run typecheck (exit 2)",
-      "bun test (exit 1)",
-    ]);
+    expect(result.verdict.violations).toEqual(["bun run typecheck (exit 2)", "bun test (exit 1)"]);
   });
 
   test("no implement artifact → TestGateInputError (nothing to gate)", async () => {
     const store = fakeStore();
     const { exec } = recordingExec([0, 0]);
-    await expect(
-      runTestGate("u", "/repo", mkDeps(store, exec, null)),
-    ).rejects.toBeInstanceOf(TestGateInputError);
+    await expect(runTestGate("u", "/repo", mkDeps(store, exec, null))).rejects.toBeInstanceOf(
+      TestGateInputError,
+    );
     expect(store.appended).toHaveLength(0);
   });
 });

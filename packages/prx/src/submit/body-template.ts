@@ -76,9 +76,7 @@ function resolveOneClosesArg(raw: string): ResolvedClose {
   return { kind: "notion", refValue: resolved.id.value };
 }
 
-export function renderBodyTemplate(
-  opts: BodyTemplateOptions,
-): BodyTemplateRender {
+export function renderBodyTemplate(opts: BodyTemplateOptions): BodyTemplateRender {
   const seenGh = new Set<number>();
   const numbers: number[] = [];
   const closesLines: string[] = [];
@@ -129,14 +127,9 @@ export function formatBodyTemplateRender(
   return parts.join("\n\n");
 }
 
-export function runBodyTemplate(
-  opts: BodyTemplateOptions,
-  output: Output,
-): number {
+export function runBodyTemplate(opts: BodyTemplateOptions, output: Output): number {
   if (opts.closes.length === 0) {
-    output.error(
-      "prx submit body-template: at least one --closes <id> is required",
-    );
+    output.error("prx submit body-template: at least one --closes <id> is required");
     return 1;
   }
   let render: BodyTemplateRender;

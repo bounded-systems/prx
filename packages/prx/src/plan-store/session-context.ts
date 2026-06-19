@@ -35,9 +35,10 @@ export type ResolvedPlanUnit =
   | { readonly unit: string; readonly source: "flag" | "session" | "detected" }
   | { readonly unit: null; readonly source: "missing" };
 
-export type PlanUnitDetector = (
-  cwd?: string,
-) => { workUnitId: string; launchFromCurrentWorkspace: boolean };
+export type PlanUnitDetector = (cwd?: string) => {
+  workUnitId: string;
+  launchFromCurrentWorkspace: boolean;
+};
 
 export type ResolvePlanSessionUnitDeps = {
   env?: NodeJS.ProcessEnv;

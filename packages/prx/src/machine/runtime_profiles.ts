@@ -37,16 +37,10 @@ export function agentOtelEnv(role: string): Record<string, string> {
     OTEL_RESOURCE_ATTRIBUTES: `service.name=prx,prx.actor=${role}`,
   };
 }
-import {
-  type ArgComponent,
-  assertArgvWithinCeiling,
-} from "./argv_size.ts";
+import { type ArgComponent, assertArgvWithinCeiling } from "./argv_size.ts";
 import { actorRuleset } from "./actor_ruleset.ts";
 import { claudeSupportsSystemPromptFile } from "./claude_capabilities.ts";
-import {
-  type DispatchActor,
-  defaultDispatchCapabilities,
-} from "./dispatch.ts";
+import { type DispatchActor, defaultDispatchCapabilities } from "./dispatch.ts";
 
 export const runtimeProfiles = ["work-unit", "user"] as const;
 export type RuntimeProfileName = (typeof runtimeProfiles)[number];
@@ -88,7 +82,15 @@ export const taskAgentRoles = [
 ] as const;
 export type TaskAgentRole = (typeof taskAgentRoles)[number];
 
-export const sessionProfileNames = ["plan", "intake", "triage", "implement", "submit", "author", "scratch"] as const;
+export const sessionProfileNames = [
+  "plan",
+  "intake",
+  "triage",
+  "implement",
+  "submit",
+  "author",
+  "scratch",
+] as const;
 export type SessionProfileName = (typeof sessionProfileNames)[number];
 
 /**
@@ -200,8 +202,7 @@ export const SESSION_PROFILES: Record<SessionProfileName, SessionProfileConfig> 
   triage: {
     name: "triage",
     binding: "mainx",
-    banner:
-      "prx triage agent — promote intake → beads, label sync, classifier. No execution.",
+    banner: "prx triage agent — promote intake → beads, label sync, classifier. No execution.",
     // GH-1530: registry-derived. The own `prx triage:*` namespace glob covers
     // classify/apply (and any new triage verb). Triage does not pass
     // --allowedTools today, so the toolset is documentary (it surfaces in the
@@ -362,9 +363,7 @@ export const SESSION_PROFILES: Record<SessionProfileName, SessionProfileConfig> 
     // git/bd/filesystem across all profiles is the effect-model follow-up.
     ...actorRuleset("author", {
       role: "reader",
-      extraAllow: [
-        "TodoWrite",
-      ],
+      extraAllow: ["TodoWrite"],
     }),
     allowedActors: ["prx"],
     disallowedActors: ["git", "gh", "wt", "beads", "gmail", "gcal"],
@@ -389,12 +388,7 @@ export const SESSION_PROFILES: Record<SessionProfileName, SessionProfileConfig> 
     binding: "mainx",
     banner:
       "prx scratch — least-privilege, work-unit-UNBOUND Claude session (safe by default). Read/Grep/Glob + `prx:*` only; Edit/Write and raw git/gh/bd are denied at the flag layer; claude.ai connectors (Notion/Google/computer-use) are killed via ENABLE_CLAUDEAI_MCP_SERVERS=false; the macOS sandbox jails writes to the cwd + $TMPDIR and the network to a minimal allowlist. `prx scratch --unsafe` is the single escape hatch back to ambient authority (connectors on, sandbox off). See docs/prx/scratch-runbook.md.",
-    allowedTools: [
-      "Read",
-      "Grep",
-      "Glob",
-      "Bash(prx:*)",
-    ],
+    allowedTools: ["Read", "Grep", "Glob", "Bash(prx:*)"],
     // Explicit legibility denies layered on the strict allowlist (mirrors the
     // plan/author deny shape): anything not on `allowedTools` is already denied,
     // but naming the high-blast-radius tools keeps the safe-by-default intent
@@ -586,13 +580,14 @@ export function buildTaskRoleAgentId(workUnitId: string, role: TaskAgentRole): s
 // `SYSTEM_PROMPT_DYNAMIC_BOUNDARY` between them so the Anthropic prompt
 // cache can match the prefix across UoWs that share a role.
 function buildRoleStableSystemPrompt(role: TaskAgentRole = "executor"): string {
-  const roleSpecific = role === "planner"
-    ? "You are the planner: read-only, machine-first, and responsible for scope, constraints, and success criteria. Do not edit code."
-    : role === "executor"
-      ? "You are the executor: summarize the relevant model boundary, produce a short implementation plan, then implement only the already-confirmed scope. Do not widen scope."
-      : role === "tester"
-        ? "You are the tester: validate with tests and diagnostics first. Prefer evidence over edits."
-        : "You are the reviewer: read-only, validate diffs and evidence, and reject unclear or unsafe work.";
+  const roleSpecific =
+    role === "planner"
+      ? "You are the planner: read-only, machine-first, and responsible for scope, constraints, and success criteria. Do not edit code."
+      : role === "executor"
+        ? "You are the executor: summarize the relevant model boundary, produce a short implementation plan, then implement only the already-confirmed scope. Do not widen scope."
+        : role === "tester"
+          ? "You are the tester: validate with tests and diagnostics first. Prefer evidence over edits."
+          : "You are the reviewer: read-only, validate diffs and evidence, and reject unclear or unsafe work.";
 
   return [
     `You are the ${role} agent.`,
@@ -633,16 +628,16 @@ function buildHeadlessExecutorStableSystemPrompt(): string {
   ].join(" ");
 }
 
-function buildWorkUnitDynamicSystemSegment(
-  workUnitId: string,
-  planPath?: string,
-): string {
+function buildWorkUnitDynamicSystemSegment(workUnitId: string, planPath?: string): string {
   const segments = [`Work unit: ${workUnitId}.`];
   if (planPath) segments.push(`Execute the plan at ${planPath}.`);
   return segments.join(" ");
 }
 
-function buildWorkUnitMachineFirstPrompt(workUnitId: string, role: TaskAgentRole = "executor"): string {
+function buildWorkUnitMachineFirstPrompt(
+  workUnitId: string,
+  role: TaskAgentRole = "executor",
+): string {
   // Legacy single-string surface kept for subprocess callers (--append-system-prompt
   // in argv shapes). SDK callers should reach for the split helpers above
   // and feed `sdkSpec.systemPromptStable` / `sdkSpec.systemPromptDynamic`.
@@ -697,7 +692,12 @@ export function buildWorkUnitClaudeRuntimeProfile(input: {
     command: "claude",
     args,
     trustTiers: {
-      tierA_controlled: ["generated agents", "project/local settings", "project MCP config", "explicit plugins"],
+      tierA_controlled: [
+        "generated agents",
+        "project/local settings",
+        "project MCP config",
+        "explicit plugins",
+      ],
       tierB_partial: ["user-scoped MCP entries"],
       tierC_ambient: ["claude.ai connectors", "built-in agents"],
     },
@@ -818,36 +818,36 @@ export function buildWorkUnitClaudePlanPrintRuntimeProfile(input: {
   // no-source branch here is a defensive notice (e.g. a dry-run preview) — NOT a
   // "go fetch it yourself" instruction, which is exactly what made the planner
   // flail/fabricate (GH-230).
-  const sourceSegment = input.sourceBody !== undefined
-    ? [
-        "The work unit's source authority (issue/bead) is reproduced below — this is the task.",
-        "",
-        "----- BEGIN WORK UNIT SOURCE -----",
-        input.sourceBody,
-        "----- END WORK UNIT SOURCE -----",
-        "",
-        "Read the codebase directly (Read/Grep/Glob) to ground the plan; do NOT run `prx`/`bd` to re-fetch the source — it is above.",
-      ].join("\n")
-    : [
-        `NO source was handed in for ${input.workUnitId}. The planner receives the issue as`,
-        "input and must NOT fetch or fabricate. This run should be rejected upstream — pin",
-        `the source first: \`prx intake source ${input.workUnitId}\`.`,
-      ].join("\n");
+  const sourceSegment =
+    input.sourceBody !== undefined
+      ? [
+          "The work unit's source authority (issue/bead) is reproduced below — this is the task.",
+          "",
+          "----- BEGIN WORK UNIT SOURCE -----",
+          input.sourceBody,
+          "----- END WORK UNIT SOURCE -----",
+          "",
+          "Read the codebase directly (Read/Grep/Glob) to ground the plan; do NOT run `prx`/`bd` to re-fetch the source — it is above.",
+        ].join("\n")
+      : [
+          `NO source was handed in for ${input.workUnitId}. The planner receives the issue as`,
+          "input and must NOT fetch or fabricate. This run should be rejected upstream — pin",
+          `the source first: \`prx intake source ${input.workUnitId}\`.`,
+        ].join("\n");
   const submitLine =
     "Submit the plan by calling the `submit_plan` tool with these fields: problem, scope, approach, changes (a file-level list), risks, and acceptance criteria. The `submit_plan` call is the deliverable — do not reply with prose or markdown, and do not ask clarifying questions.";
-  const userPrompt = input.resumePartialPlan !== undefined
-    ? [
-        `Continue drafting the implementation plan for ${input.workUnitId} from this partial draft:`,
-        "",
-        input.resumePartialPlan,
-        "",
-        submitLine,
-      ].join("\n")
-    : [
-        `Draft the implementation plan for ${input.workUnitId}.`,
-        sourceSegment,
-        submitLine,
-      ].join("\n");
+  const userPrompt =
+    input.resumePartialPlan !== undefined
+      ? [
+          `Continue drafting the implementation plan for ${input.workUnitId} from this partial draft:`,
+          "",
+          input.resumePartialPlan,
+          "",
+          submitLine,
+        ].join("\n")
+      : [`Draft the implementation plan for ${input.workUnitId}.`, sourceSegment, submitLine].join(
+          "\n",
+        );
   const args = [
     "--print",
     "--output-format",
@@ -1006,7 +1006,12 @@ export function buildWorkUnitClaudeImplementSdkRuntimeProfile(input: {
       settingSources: ["project", "local"],
     },
     trustTiers: {
-      tierA_controlled: ["project cwd", `${role} system prompt`, "implement allowlist", "project MCP config"],
+      tierA_controlled: [
+        "project cwd",
+        `${role} system prompt`,
+        "implement allowlist",
+        "project MCP config",
+      ],
       tierB_partial: ["user-scoped MCP entries"],
       tierC_ambient: ["claude.ai connectors", "built-in agents"],
     },
@@ -1032,7 +1037,15 @@ export function buildWorkUnitCodexRuntimeProfile(input: {
   mode: RuntimeMode;
 }): RuntimeProfileProjection {
   const prompt = buildWorkUnitMachineFirstPrompt(input.workUnitId);
-  const interactiveArgs = ["resume", "-s", "workspace-write", "-a", "on-request", input.workUnitId, prompt];
+  const interactiveArgs = [
+    "resume",
+    "-s",
+    "workspace-write",
+    "-a",
+    "on-request",
+    input.workUnitId,
+    prompt,
+  ];
   const freshArgs = ["-s", "workspace-write", "-a", "on-request", prompt];
 
   return {
@@ -1042,7 +1055,11 @@ export function buildWorkUnitCodexRuntimeProfile(input: {
     args: interactiveArgs,
     fallbackArgs: freshArgs,
     trustTiers: {
-      tierA_controlled: ["project cwd", "inline work-unit prompt", "explicit Codex sandbox/approval flags"],
+      tierA_controlled: [
+        "project cwd",
+        "inline work-unit prompt",
+        "explicit Codex sandbox/approval flags",
+      ],
       tierB_partial: ["user-scoped Codex config"],
       tierC_ambient: ["ambient Codex MCP servers", "global Codex defaults"],
     },
@@ -1079,7 +1096,11 @@ export function buildWorkUnitCopilotRuntimeProfile(input: {
     command: "gh",
     args: ["copilot", "--", "-i", prompt],
     trustTiers: {
-      tierA_controlled: ["project cwd", "inline work-unit prompt", "explicit gh copilot launch path"],
+      tierA_controlled: [
+        "project cwd",
+        "inline work-unit prompt",
+        "explicit gh copilot launch path",
+      ],
       tierB_partial: ["user-scoped Copilot config"],
       tierC_ambient: ["ambient Copilot MCP servers", "global Copilot defaults"],
     },
@@ -1102,7 +1123,10 @@ export function buildWorkUnitCopilotRuntimeProfile(input: {
   };
 }
 
-function buildGeminiMachineFirstPrompt(workUnitId: string, role: TaskAgentRole = "executor"): string {
+function buildGeminiMachineFirstPrompt(
+  workUnitId: string,
+  role: TaskAgentRole = "executor",
+): string {
   const prompt = buildWorkUnitMachineFirstPrompt(workUnitId, role);
   return role === "planner" ? `/plan\n${prompt}` : prompt;
 }
@@ -1120,7 +1144,11 @@ export function buildWorkUnitGeminiRuntimeProfile(input: {
     command: "gemini",
     args: ["-p", prompt, "--output-format", input.ioFormat],
     trustTiers: {
-      tierA_controlled: ["project cwd", "inline work-unit prompt", "explicit Gemini CLI launch path"],
+      tierA_controlled: [
+        "project cwd",
+        "inline work-unit prompt",
+        "explicit Gemini CLI launch path",
+      ],
       tierB_partial: ["user-scoped Gemini config"],
       tierC_ambient: ["ambient Gemini settings", "global Gemini defaults"],
     },
@@ -1155,7 +1183,11 @@ export function buildWorkUnitCursorRuntimeProfile(input: {
     command: "cursor-agent",
     args: ["--print", "--output-format", input.ioFormat, "--trust", prompt],
     trustTiers: {
-      tierA_controlled: ["project cwd", "inline work-unit prompt", "explicit Cursor Agent launch path"],
+      tierA_controlled: [
+        "project cwd",
+        "inline work-unit prompt",
+        "explicit Cursor Agent launch path",
+      ],
       tierB_partial: ["user-scoped Cursor Agent config"],
       tierC_ambient: ["ambient Cursor Agent MCP servers", "global Cursor Agent defaults"],
     },
@@ -1251,7 +1283,12 @@ export function buildTaskRoleClaudeRuntimeProfile(input: {
       ...agentOtelEnv(input.role),
     },
     trustTiers: {
-      tierA_controlled: ["generated agents", "project/local settings", "project MCP config", "role-scoped wrappers"],
+      tierA_controlled: [
+        "generated agents",
+        "project/local settings",
+        "project MCP config",
+        "role-scoped wrappers",
+      ],
       tierB_partial: ["user-scoped MCP entries"],
       tierC_ambient: ["claude.ai connectors", "built-in agents"],
     },
@@ -1277,7 +1314,15 @@ export function buildTaskRoleCodexRuntimeProfile(input: {
   mode: RuntimeMode;
 }): RuntimeProfileProjection {
   const prompt = buildWorkUnitMachineFirstPrompt(input.workUnitId, input.role);
-  const interactiveArgs = ["resume", "-s", "workspace-write", "-a", "on-request", input.workUnitId, prompt];
+  const interactiveArgs = [
+    "resume",
+    "-s",
+    "workspace-write",
+    "-a",
+    "on-request",
+    input.workUnitId,
+    prompt,
+  ];
   const freshArgs = ["-s", "workspace-write", "-a", "on-request", prompt];
   return {
     profile: "work-unit",
@@ -1290,7 +1335,11 @@ export function buildTaskRoleCodexRuntimeProfile(input: {
       ...agentOtelEnv(input.role),
     },
     trustTiers: {
-      tierA_controlled: ["project cwd", "inline role prompt", "explicit Codex sandbox/approval flags"],
+      tierA_controlled: [
+        "project cwd",
+        "inline role prompt",
+        "explicit Codex sandbox/approval flags",
+      ],
       tierB_partial: ["user-scoped Codex config"],
       tierC_ambient: ["ambient Codex MCP servers", "global Codex defaults"],
     },
@@ -1421,7 +1470,10 @@ export function buildTaskRoleCursorRuntimeProfile(input: {
   };
 }
 
-export function buildWorkUnitMachineFirstPromptText(workUnitId: string, role: TaskAgentRole = "executor"): string {
+export function buildWorkUnitMachineFirstPromptText(
+  workUnitId: string,
+  role: TaskAgentRole = "executor",
+): string {
   return buildWorkUnitMachineFirstPrompt(workUnitId, role);
 }
 
@@ -1495,9 +1547,8 @@ export function buildOpsImplementPrompt(
   legacyPlanPath?: string,
 ): string {
   // Legacy positional form: buildOpsImplementPrompt("GH-1", "/tmp/plan.md").
-  const norm: BuildOpsImplementPromptInput = typeof input === "string"
-    ? { workUnitId: input, planPath: legacyPlanPath }
-    : input;
+  const norm: BuildOpsImplementPromptInput =
+    typeof input === "string" ? { workUnitId: input, planPath: legacyPlanPath } : input;
   if (norm.planPath && norm.planBody) {
     throw new Error("buildOpsImplementPrompt: planPath and planBody are mutually exclusive");
   }
@@ -1702,13 +1753,12 @@ function buildSessionProfileClaudeArgs(input: {
   // file path (`--append-system-prompt-file <path>`) instead of inlining it
   // into argv, sidestepping the macOS posix_spawn `command too long` (E2BIG)
   // ceiling for large saved-plan blobs. Other profiles still pass `prompt`.
-  const delivery: SessionProfilePromptDelivery = input.promptDelivery
-    ?? (input.prompt !== undefined
+  const delivery: SessionProfilePromptDelivery =
+    input.promptDelivery ??
+    (input.prompt !== undefined
       ? { kind: "inline", prompt: input.prompt }
       : (() => {
-          throw new Error(
-            "buildSessionProfileClaudeArgs: prompt or promptDelivery is required",
-          );
+          throw new Error("buildSessionProfileClaudeArgs: prompt or promptDelivery is required");
         })());
   if (delivery.kind === "file") {
     args.push("--append-system-prompt-file", delivery.path);
@@ -1730,9 +1780,7 @@ function buildSessionProfileClaudeArgs(input: {
  * GH-950: allowlist is sourced from `SESSION_PROFILES.triage` (config, not
  * embedded in prompt strings).
  */
-export function buildOpsTriageClaudeRuntimeProfile(
-  message?: string,
-): RuntimeProfileProjection {
+export function buildOpsTriageClaudeRuntimeProfile(message?: string): RuntimeProfileProjection {
   const profile = SESSION_PROFILES.triage;
   const seed = message?.trim();
   const args = buildSessionProfileClaudeArgs({
@@ -1779,9 +1827,7 @@ export function buildOpsTriageClaudeRuntimeProfile(
  * work-unit-unbound, pre-triage shape: search the queue, file or merge,
  * mirror — no execution, no promotion to beads.
  */
-export function buildOpsIntakeClaudeRuntimeProfile(
-  message?: string,
-): RuntimeProfileProjection {
+export function buildOpsIntakeClaudeRuntimeProfile(message?: string): RuntimeProfileProjection {
   const profile = SESSION_PROFILES.intake;
   const seed = message?.trim();
   const args = buildSessionProfileClaudeArgs({
@@ -1806,7 +1852,12 @@ export function buildOpsIntakeClaudeRuntimeProfile(
       PRX_AGENT_ROLE: "intake",
     },
     trustTiers: {
-      tierA_controlled: ["mainx cwd", "intake operator system prompt", "project MCP config", "static intake allowlist"],
+      tierA_controlled: [
+        "mainx cwd",
+        "intake operator system prompt",
+        "project MCP config",
+        "static intake allowlist",
+      ],
       tierB_partial: ["user-scoped MCP entries"],
       tierC_ambient: ["claude.ai connectors", "built-in agents"],
     },
@@ -1845,7 +1896,9 @@ export function buildOpsSubmitClaudeRuntimeProfile(
   input: BuildOpsSubmitClaudeRuntimeProfileInput,
 ): RuntimeProfileProjection {
   if (input.planPath && input.planBody) {
-    throw new Error("buildOpsSubmitClaudeRuntimeProfile: planPath and planBody are mutually exclusive");
+    throw new Error(
+      "buildOpsSubmitClaudeRuntimeProfile: planPath and planBody are mutually exclusive",
+    );
   }
   const profile = SESSION_PROFILES.submit;
   const args = buildSessionProfileClaudeArgs({
@@ -1873,7 +1926,9 @@ export function buildOpsSubmitClaudeRuntimeProfile(
     "GH-1900: env exports PRX_SUBMIT_SESSION_UNIT so submit-toolset verbs can infer the active unit without re-passing --unit.",
   ];
   if (input.planPath) {
-    notes.push(`Plan injection: appended 'Execute the plan at ${input.planPath}.' to system prompt.`);
+    notes.push(
+      `Plan injection: appended 'Execute the plan at ${input.planPath}.' to system prompt.`,
+    );
   }
 
   return {
@@ -1889,7 +1944,12 @@ export function buildOpsSubmitClaudeRuntimeProfile(
       PRX_SUBMIT_SESSION_UNIT: input.workUnitId,
     },
     trustTiers: {
-      tierA_controlled: ["project cwd", "submit operator system prompt", "project MCP config", "static submit allowlist"],
+      tierA_controlled: [
+        "project cwd",
+        "submit operator system prompt",
+        "project MCP config",
+        "static submit allowlist",
+      ],
       tierB_partial: ["user-scoped MCP entries"],
       tierC_ambient: ["claude.ai connectors", "built-in agents"],
     },
@@ -1980,7 +2040,12 @@ export function buildOpsPlanClaudeRuntimeProfile(input: {
       PRX_PLAN_SESSION_UNIT: input.workUnitId,
     },
     trustTiers: {
-      tierA_controlled: ["project cwd", "planner system prompt", "project MCP config", "static plan allowlist"],
+      tierA_controlled: [
+        "project cwd",
+        "planner system prompt",
+        "project MCP config",
+        "static plan allowlist",
+      ],
       tierB_partial: ["user-scoped MCP entries"],
       tierC_ambient: ["claude.ai connectors", "built-in agents"],
     },
@@ -2004,7 +2069,9 @@ export function buildOpsPlanClaudeRuntimeProfile(input: {
       "GH-1311: env exports PRX_PLAN_SESSION_UNIT so plan toolset verbs (save / load / show / view / search) infer the active unit without --unit GH-N.",
       stagingNote,
       ...(input.planPath
-        ? [`Plan injection: appended 'Execute the plan at ${input.planPath}.' to system prompt (GH-1044).`]
+        ? [
+            `Plan injection: appended 'Execute the plan at ${input.planPath}.' to system prompt (GH-1044).`,
+          ]
         : []),
     ],
   };
@@ -2055,11 +2122,13 @@ export function buildOpsImplementClaudeRuntimeProfile(
   input: BuildOpsImplementClaudeRuntimeProfileInput,
 ): RuntimeProfileProjection {
   if (input.planPath && input.planBody) {
-    throw new Error("buildOpsImplementClaudeRuntimeProfile: planPath and planBody are mutually exclusive");
+    throw new Error(
+      "buildOpsImplementClaudeRuntimeProfile: planPath and planBody are mutually exclusive",
+    );
   }
   const profile = SESSION_PROFILES.implement;
-  const supportsFile = input.capabilities?.supportsSystemPromptFile
-    ?? claudeSupportsSystemPromptFile();
+  const supportsFile =
+    input.capabilities?.supportsSystemPromptFile ?? claudeSupportsSystemPromptFile();
   const repoRoot = input.repoRoot ?? process.cwd();
 
   // GH-1287: choose between the file-based primary path and the in-prompt-fetch
@@ -2143,7 +2212,9 @@ export function buildOpsImplementClaudeRuntimeProfile(
     "Allowlist sourced from SESSION_PROFILES.implement; collapsed onto the actor namespace (GH-1238).",
   ];
   if (input.planPath) {
-    notes.push(`Plan injection: appended 'Execute the plan at ${input.planPath}.' to system prompt (GH-1044).`);
+    notes.push(
+      `Plan injection: appended 'Execute the plan at ${input.planPath}.' to system prompt (GH-1044).`,
+    );
   }
   if (usesFileDelivery && promptFilePath) {
     notes.push(
@@ -2164,7 +2235,12 @@ export function buildOpsImplementClaudeRuntimeProfile(
       PRX_AGENT_ROLE: "executor",
     },
     trustTiers: {
-      tierA_controlled: ["project cwd", "executor system prompt", "project MCP config", "static implement allowlist"],
+      tierA_controlled: [
+        "project cwd",
+        "executor system prompt",
+        "project MCP config",
+        "static implement allowlist",
+      ],
       tierB_partial: ["user-scoped MCP entries"],
       tierC_ambient: ["claude.ai connectors", "built-in agents"],
     },
@@ -2245,7 +2321,9 @@ export function buildOpsAuthorClaudeRuntimeProfile(
   input: BuildOpsAuthorClaudeRuntimeProfileInput,
 ): RuntimeProfileProjection {
   if (input.planPath && input.planBody) {
-    throw new Error("buildOpsAuthorClaudeRuntimeProfile: planPath and planBody are mutually exclusive");
+    throw new Error(
+      "buildOpsAuthorClaudeRuntimeProfile: planPath and planBody are mutually exclusive",
+    );
   }
   const profile = SESSION_PROFILES.author;
   const args = buildSessionProfileClaudeArgs({
@@ -2272,7 +2350,9 @@ export function buildOpsAuthorClaudeRuntimeProfile(
     "Allowlist sourced from SESSION_PROFILES.author (GH-1206); read+gh-pr-only — no Edit/Write on source, no git push, no gh pr merge.",
   ];
   if (input.planPath) {
-    notes.push(`Plan injection: appended 'Execute the plan at ${input.planPath}.' to system prompt.`);
+    notes.push(
+      `Plan injection: appended 'Execute the plan at ${input.planPath}.' to system prompt.`,
+    );
   }
 
   return {
@@ -2284,7 +2364,12 @@ export function buildOpsAuthorClaudeRuntimeProfile(
       PRX_AGENT_ROLE: "author",
     },
     trustTiers: {
-      tierA_controlled: ["project cwd", "author system prompt", "project MCP config", "static author allowlist"],
+      tierA_controlled: [
+        "project cwd",
+        "author system prompt",
+        "project MCP config",
+        "static author allowlist",
+      ],
       tierB_partial: ["user-scoped MCP entries"],
       tierC_ambient: ["claude.ai connectors", "built-in agents"],
     },
@@ -2299,7 +2384,6 @@ export function buildOpsAuthorClaudeRuntimeProfile(
     notes,
   };
 }
-
 
 /**
  * GH-2394: default network allowlist for the scratch sandbox. Kept minimal —
@@ -2468,7 +2552,12 @@ export function buildOpsScratchClaudeRuntimeProfile(
       trustTiers: {
         tierA_controlled: ["scratch cwd", "scratch operator system prompt"],
         tierB_partial: ["user-scoped MCP entries", "project MCP config"],
-        tierC_ambient: ["claude.ai connectors", "built-in agents", "full tool surface", "no OS sandbox"],
+        tierC_ambient: [
+          "claude.ai connectors",
+          "built-in agents",
+          "full tool surface",
+          "no OS sandbox",
+        ],
       },
       sourcesOfTruth: {
         agents: "inline_prompt",
@@ -2666,9 +2755,9 @@ export function intakeUserPrompt(message?: string): string {
       "`prx intake mirror` so the work-unit exists beads-first. " +
       "FINALLY you MUST report the outcome with the result tool — exactly one of:\n" +
       "  prx intake result --disposition filed --uow <bd-id>\n" +
-      "  prx intake result --disposition merged --uow <canonical-bd-id> --reason \"<why>\"\n" +
-      "  prx intake result --disposition duplicate --uow <existing-bd-id> --reason \"<why>\"\n" +
-      "  prx intake result --disposition no_action --reason \"<why nothing was filed>\"\n" +
+      '  prx intake result --disposition merged --uow <canonical-bd-id> --reason "<why>"\n' +
+      '  prx intake result --disposition duplicate --uow <existing-bd-id> --reason "<why>"\n' +
+      '  prx intake result --disposition no_action --reason "<why nothing was filed>"\n' +
       "Do not ask clarifying questions."
     );
   }
@@ -2683,9 +2772,7 @@ export function intakeUserPrompt(message?: string): string {
  * work-unit-unbound. SDK counterpart to `buildOpsIntakeClaudeRuntimeProfile`.
  * prx-28w: an optional `--message` seeds the intake to one specific item.
  */
-export function buildOpsIntakeSdkRuntimeProfile(
-  message?: string,
-): RuntimeProfileProjection {
+export function buildOpsIntakeSdkRuntimeProfile(message?: string): RuntimeProfileProjection {
   return buildSessionProfileSdkRuntimeProfile({
     name: "intake",
     role: "intake",
@@ -2708,8 +2795,8 @@ export function triageUserPrompt(unit?: string): string {
       `  prx triage result --disposition classified --uow ${seed} --reason "<type/axes set>"\n` +
       `  prx triage result --disposition promoted --uow ${seed} --reason "<now execution-ready>"\n` +
       `  prx triage result --disposition deferred --uow ${seed} --reason "<why deferred>"\n` +
-      "  prx triage result --disposition merged --uow <canonical-bd-id> --reason \"<why>\"\n" +
-      "  prx triage result --disposition no_action --reason \"<why nothing changed>\"\n" +
+      '  prx triage result --disposition merged --uow <canonical-bd-id> --reason "<why>"\n' +
+      '  prx triage result --disposition no_action --reason "<why nothing changed>"\n' +
       "Do not ask clarifying questions."
     );
   }
@@ -2724,9 +2811,7 @@ export function triageUserPrompt(unit?: string): string {
  * work-unit-unbound. SDK counterpart to `buildOpsTriageClaudeRuntimeProfile`.
  * prx-383: an optional work-unit id seeds triage to one item.
  */
-export function buildOpsTriageSdkRuntimeProfile(
-  message?: string,
-): RuntimeProfileProjection {
+export function buildOpsTriageSdkRuntimeProfile(message?: string): RuntimeProfileProjection {
   return buildSessionProfileSdkRuntimeProfile({
     name: "triage",
     role: "triage",

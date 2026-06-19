@@ -22,10 +22,7 @@
 import { type BlobStore, type Digest } from "@bounded-systems/cas";
 
 import { runFetchSlack, type SlackFetchDeps, type SlackMessage } from "./slack.ts";
-import {
-  getSlackWatermark,
-  setSlackWatermark,
-} from "./slack-watermark.ts";
+import { getSlackWatermark, setSlackWatermark } from "./slack-watermark.ts";
 import { WatermarkError, type WatermarkDeps } from "./watermark.ts";
 import { execSlackScoutRead } from "../slack/scout-cli.ts";
 import { hasBlob, writeBlob } from "../plan-store/cas.ts";
@@ -197,8 +194,7 @@ export async function runFetchSlackSync(
   // Advance only when the fetch produced a strictly-newer max(ts). An empty
   // fetch leaves the core's watermark at the prior value (or undefined on a
   // cold empty start) — nothing to persist.
-  const advanced =
-    core.watermark !== undefined && core.watermark !== from && core.fetched > 0;
+  const advanced = core.watermark !== undefined && core.watermark !== from && core.fetched > 0;
   if (advanced) {
     try {
       setSlackWatermark(input.channel, core.watermark!, watermarkDeps);

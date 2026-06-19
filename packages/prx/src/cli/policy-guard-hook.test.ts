@@ -58,7 +58,11 @@ describe("runHookVerb", () => {
   const sink = () => {
     const logs: string[] = [];
     const errors: string[] = [];
-    return { out: { log: (l: string) => logs.push(l), error: (e: string) => errors.push(e) }, logs, errors };
+    return {
+      out: { log: (l: string) => logs.push(l), error: (e: string) => errors.push(e) },
+      logs,
+      errors,
+    };
   };
   const denyInput = JSON.stringify({
     tool_name: "Bash",

@@ -24,7 +24,9 @@ const MONOLITHS = new Set<string>([
 ]);
 
 function trackedSrc(): string[] {
-  const r = spawnSync("git", ["-C", REPO_ROOT, "ls-files", "packages/*/src/**/*.ts"], { encoding: "utf8" });
+  const r = spawnSync("git", ["-C", REPO_ROOT, "ls-files", "packages/*/src/**/*.ts"], {
+    encoding: "utf8",
+  });
   return (r.stdout ?? "").split("\n").filter((f) => f && !f.endsWith(".test.ts"));
 }
 
@@ -46,7 +48,8 @@ describe("code-health ratchet", () => {
     const stale: string[] = [];
     for (const f of MONOLITHS) {
       const lines = readFileSync(join(REPO_ROOT, f), "utf8").split("\n").length;
-      if (lines <= LINE_BUDGET) stale.push(`${f} (${lines}) — now under budget, remove from MONOLITHS`);
+      if (lines <= LINE_BUDGET)
+        stale.push(`${f} (${lines}) — now under budget, remove from MONOLITHS`);
     }
     expect(stale).toEqual([]);
   });

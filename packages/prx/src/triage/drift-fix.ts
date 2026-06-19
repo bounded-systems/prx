@@ -66,11 +66,7 @@ import { readFileSync as defaultReadFileSync } from "node:fs";
 
 import { z } from "zod";
 
-import {
-  appendAuditRow,
-  auditSinkPath,
-  type AuditSinkDeps,
-} from "../audit/sink.ts";
+import { appendAuditRow, auditSinkPath, type AuditSinkDeps } from "../audit/sink.ts";
 
 import { BD_TYPE_ENUM } from "./labels.ts";
 import {
@@ -87,10 +83,7 @@ import {
   type DriftRow,
 } from "./triage.ts";
 import { execBd as defaultExecBd } from "@bounded-systems/bd";
-import {
-  updateBeadViaDaemon,
-  reopenBeadViaDaemon,
-} from "../beadsd/writes.ts";
+import { updateBeadViaDaemon, reopenBeadViaDaemon } from "../beadsd/writes.ts";
 import {
   bdDoctorReportSchema,
   bdDuplicatesClusterSchema,
@@ -106,10 +99,7 @@ import {
   type BdMergeOptions,
   type BdMergeResult,
 } from "@bounded-systems/bd";
-import {
-  runBeadsSync as defaultRunBeadsSync,
-  type BeadsSyncResult,
-} from "../sync/run.ts";
+import { runBeadsSync as defaultRunBeadsSync, type BeadsSyncResult } from "../sync/run.ts";
 import { DEFAULT_SYNC_LIMIT } from "../sync/limits.ts";
 import {
   repoNameWithOwner as defaultRepoNameWithOwner,
@@ -441,7 +431,6 @@ export type DriftFixAuditEntry =
 
 export type DriftFixSyncOutcome = "ok" | "failed" | "skipped";
 
-
 function isBdType(value: string): value is (typeof BD_TYPE_ENUM)[number] {
   return (BD_TYPE_ENUM as readonly string[]).includes(value);
 }
@@ -463,9 +452,7 @@ export function selectDriftFixDecision(
   // inclusion gate and the apply phase's carry-forward gate were skewed,
   // emitting `decision=fix` rows with `axesFixed` including an axis whose
   // GH-side label failed Zod validation.
-  const typePair = drift.fields.type
-    ? driftTypePairSchema.safeParse(drift.fields.type)
-    : null;
+  const typePair = drift.fields.type ? driftTypePairSchema.safeParse(drift.fields.type) : null;
   const priorityPair = drift.fields.priority
     ? driftPriorityPairSchema.safeParse(drift.fields.priority)
     : null;
@@ -499,18 +486,10 @@ export function selectDriftFixDecision(
   if (wantType && drift.fields.type !== undefined && carriedType === undefined) {
     unpairedAxes.push("type");
   }
-  if (
-    wantPriority
-    && drift.fields.priority !== undefined
-    && carriedPriority === undefined
-  ) {
+  if (wantPriority && drift.fields.priority !== undefined && carriedPriority === undefined) {
     unpairedAxes.push("priority");
   }
-  if (
-    wantStatus
-    && drift.fields.status !== undefined
-    && carriedStatus === undefined
-  ) {
+  if (wantStatus && drift.fields.status !== undefined && carriedStatus === undefined) {
     unpairedAxes.push("status");
   }
   if (unpairedAxes.length > 0) {
@@ -527,9 +506,9 @@ export function selectDriftFixDecision(
   // findDrift() may flag rows for title only (which we ignore here).
   if (!typeDriftInScope && !priorityDriftInScope && !statusDriftInScope) {
     const hasAnyAxisDrift =
-      drift.fields.type !== undefined
-      || drift.fields.priority !== undefined
-      || drift.fields.status !== undefined;
+      drift.fields.type !== undefined ||
+      drift.fields.priority !== undefined ||
+      drift.fields.status !== undefined;
     if (!hasAnyAxisDrift) {
       return {
         ...base,
@@ -771,8 +750,7 @@ function buildPlanFromGitHubAndBeads(
   const dupeRows: DriftFixPlanRow[] = [];
 
   if (opts.includeDupes) {
-    const dupeRunner =
-      deps.runBdDuplicatesDryRun ?? (() => defaultRunBdDuplicatesDryRun(cwd));
+    const dupeRunner = deps.runBdDuplicatesDryRun ?? (() => defaultRunBdDuplicatesDryRun(cwd));
     const dupeResult = dupeRunner();
     if (dupeResult.exitCode === 0) {
       duplicates = dupeResult.clusters;
@@ -787,9 +765,7 @@ function buildPlanFromGitHubAndBeads(
         if (matched) ghLabelsByBeadsId.set(bead.id, matched.labels);
       }
       for (const cluster of duplicates) {
-        dupeRows.push(
-          ...selectDuplicateDecision(cluster, beadsById, ghLabelsByBeadsId),
-        );
+        dupeRows.push(...selectDuplicateDecision(cluster, beadsById, ghLabelsByBeadsId));
       }
     } else {
       const detail = dupeResult.stderr.trim() || dupeResult.stdout.trim();
@@ -802,8 +778,7 @@ function buildPlanFromGitHubAndBeads(
   }
 
   if (opts.includeDoctor) {
-    const doctorRunner =
-      deps.runBdDoctorJson ?? (() => defaultRunBdDoctorJson(cwd));
+    const doctorRunner = deps.runBdDoctorJson ?? (() => defaultRunBdDoctorJson(cwd));
     const doctorResult = doctorRunner();
     if (doctorResult.exitCode === 0) {
       substrateHealth = doctorResult.report;
@@ -840,10 +815,7 @@ function runScanPhase(
 // Re-check the bd record at apply time to short-circuit rows where the bd
 // columns already match the planned GH values for every axis the row fixes
 // (the plan may be stale).
-function rowAlreadyMatches(
-  row: DriftFixPlanRow,
-  beadsById: Map<string, BeadsRecord>,
-): boolean {
+function rowAlreadyMatches(row: DriftFixPlanRow, beadsById: Map<string, BeadsRecord>): boolean {
   if (row.decision !== "fix" || !row.axesFixed) return false;
   const bead = beadsById.get(row.beadsId);
   if (!bead) return false;
@@ -889,8 +861,7 @@ async function applyPlan(
     ...(deps.auditSink ?? {}),
     now: deps.auditSink?.now ?? (() => now),
   };
-  const append = (entry: DriftFixAuditEntry): void =>
-    appendAuditRow(entry, auditSink);
+  const append = (entry: DriftFixAuditEntry): void => appendAuditRow(entry, auditSink);
 
   let rows = plan.rows;
   if (opts.limit > 0) rows = rows.slice(0, opts.limit);
@@ -971,7 +942,9 @@ async function applyPlan(
           reason: "parity-mismatch",
         };
         append(merge);
-        output.log(`skip ${dupe.source} (dupe: parity-mismatch ${dupe.parityReason ?? ""})`.trimEnd());
+        output.log(
+          `skip ${dupe.source} (dupe: parity-mismatch ${dupe.parityReason ?? ""})`.trimEnd(),
+        );
         skips += 1;
         continue;
       }
@@ -1004,8 +977,8 @@ async function applyPlan(
 
       // Real merge.
       const mergeRunner =
-        deps.runBdMerge
-        ?? ((mergeOpts) => defaultRunBdMerge((deps.cwd ?? process.cwd)(), mergeOpts));
+        deps.runBdMerge ??
+        ((mergeOpts) => defaultRunBdMerge((deps.cwd ?? process.cwd)(), mergeOpts));
       const mergeResult = mergeRunner({
         target: dupe.target,
         sources: [dupe.source],
@@ -1026,7 +999,9 @@ async function applyPlan(
           stderr,
         };
         append(merge);
-        output.error(`error bd merge ${dupe.source} → ${dupe.target} exit=${mergeResult.exitCode}: ${stderr}`);
+        output.error(
+          `error bd merge ${dupe.source} → ${dupe.target} exit=${mergeResult.exitCode}: ${stderr}`,
+        );
         errors += 1;
         continue;
       }
@@ -1103,7 +1078,9 @@ async function applyPlan(
         stderr: "axesFixed includes priority but row has no priority pair",
       };
       append(entry);
-      output.error(`error GH-${row.issueNumber}: axesFixed includes priority but row has no priority pair`);
+      output.error(
+        `error GH-${row.issueNumber}: axesFixed includes priority but row has no priority pair`,
+      );
       errors += 1;
       continue;
     }
@@ -1115,9 +1092,7 @@ async function applyPlan(
         stderr: "fix priority row has priority::none (operator-undecided)",
       };
       append(entry);
-      output.error(
-        `error GH-${row.issueNumber}: priority::none is operator-undecided, cannot fix`,
-      );
+      output.error(`error GH-${row.issueNumber}: priority::none is operator-undecided, cannot fix`);
       errors += 1;
       continue;
     }
@@ -1129,7 +1104,9 @@ async function applyPlan(
         stderr: "axesFixed includes status but row has no status pair",
       };
       append(entry);
-      output.error(`error GH-${row.issueNumber}: axesFixed includes status but row has no status pair`);
+      output.error(
+        `error GH-${row.issueNumber}: axesFixed includes status but row has no status pair`,
+      );
       errors += 1;
       continue;
     }

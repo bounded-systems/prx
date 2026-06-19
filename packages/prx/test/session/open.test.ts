@@ -23,14 +23,8 @@ import {
   sessionOpenMachine,
   type SessionOpenContext,
 } from "../../src/machine/machines/session-open.ts";
-import {
-  SessionOpenInput,
-  type SessionActor,
-} from "../../src/session/schema.ts";
-import {
-  deriveSessionBranch,
-  openSession,
-} from "../../src/session/open.ts";
+import { SessionOpenInput, type SessionActor } from "../../src/session/schema.ts";
+import { deriveSessionBranch, openSession } from "../../src/session/open.ts";
 import type { RuntimeProfileProjection } from "../../src/machine/runtime_profiles.ts";
 
 function startMachine() {
@@ -71,23 +65,17 @@ describe("deriveSessionBranch", () => {
   });
 
   test("plan → <workUnitId>", () => {
-    expect(
-      deriveSessionBranch({ actor: "plan", workUnitId: "GH-2027" }),
-    ).toBe("GH-2027");
+    expect(deriveSessionBranch({ actor: "plan", workUnitId: "GH-2027" })).toBe("GH-2027");
   });
 
   test("implement|submit|author all reuse workUnitId", () => {
     for (const actor of ["implement", "submit", "author"] as const) {
-      expect(
-        deriveSessionBranch({ actor, workUnitId: "GH-2027" }),
-      ).toBe("GH-2027");
+      expect(deriveSessionBranch({ actor, workUnitId: "GH-2027" })).toBe("GH-2027");
     }
   });
 
   test("plan without workUnitId throws", () => {
-    expect(() => deriveSessionBranch({ actor: "plan" })).toThrow(
-      /workUnitId required/,
-    );
+    expect(() => deriveSessionBranch({ actor: "plan" })).toThrow(/workUnitId required/);
   });
 
   test("I-SO2: two intake calls produce distinct branches (fresh short id)", () => {
@@ -108,11 +96,7 @@ describe("SessionOpenInput", () => {
     const result = SessionOpenInput.safeParse({ actor: "plan" });
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(
-        result.error.issues.some((i) =>
-          /workUnitId required/.test(i.message),
-        ),
-      ).toBe(true);
+      expect(result.error.issues.some((i) => /workUnitId required/.test(i.message))).toBe(true);
     }
   });
 
@@ -331,7 +315,11 @@ describe("sessionOpenMachine — failure paths", () => {
 // openSession orchestrator — stubbed seams
 // ---------------------------------------------------------------------------
 
-type Recorded = { event: string; details?: Record<string, unknown> | undefined; workUnitId?: string | undefined };
+type Recorded = {
+  event: string;
+  details?: Record<string, unknown> | undefined;
+  workUnitId?: string | undefined;
+};
 
 function makeRecorder() {
   const recorded: Recorded[] = [];
@@ -445,9 +433,7 @@ describe("openSession — happy path", () => {
     expect(result.lifecycle).toBe("attached");
     expect(result.branch_ref).toBe("GH-2027");
     expect(result.reserved_status).toBe("exists-local");
-    const nameEvent = recorded.find(
-      (r) => r.event === "SESSION_OPEN_NAME_DERIVED",
-    );
+    const nameEvent = recorded.find((r) => r.event === "SESSION_OPEN_NAME_DERIVED");
     expect(nameEvent?.details).toMatchObject({ branch: "GH-2027" });
   });
 });
@@ -750,7 +736,10 @@ describe("session_open actor registration", () => {
 // that ran blind. resolveLegInput + dispatchSessionEntry are injected so these
 // stay offline (no CAS, no claude).
 describe("openSession — leg input gate + signed spawn (GH-288 / GH-293)", () => {
-  type Capture = { event?: unknown; mint?: { unit: string; role: string; input: { ref: string; sha: string } } };
+  type Capture = {
+    event?: unknown;
+    mint?: { unit: string; role: string; input: { ref: string; sha: string } };
+  };
   const baseDeps = (capture: Capture) => ({
     runReserve: () => ({
       workspace_id: "feedface0001",
@@ -777,7 +766,10 @@ describe("openSession — leg input gate + signed spawn (GH-288 / GH-293)", () =
     resolveSigner: (() => ({})) as never,
     mintSpawn: (async (a: { unit: string; role: string; input: { ref: string; sha: string } }) => {
       capture.mint = { unit: a.unit, role: a.role, input: a.input };
-      return { statement: {} as never, emit: { ref: `${a.unit}:spawn@${a.role}`, sha: "sha256:stub" } };
+      return {
+        statement: {} as never,
+        emit: { ref: `${a.unit}:spawn@${a.role}`, sha: "sha256:stub" },
+      };
     }) as never,
     chdir: () => {},
     cwd: () => "/tmp/wt/plan",
@@ -794,7 +786,13 @@ describe("openSession — leg input gate + signed spawn (GH-288 / GH-293)", () =
   test("plan/headless: embeds source AND mints a spawn attestation over the input material", async () => {
     const capture: Capture = {};
     const result = await openSession(
-      { actor: "plan", workUnitId: "GH-288", interaction: "headless", shortId: "gh2880", now: "2026-06-06T00:00:00Z" },
+      {
+        actor: "plan",
+        workUnitId: "GH-288",
+        interaction: "headless",
+        shortId: "gh2880",
+        now: "2026-06-06T00:00:00Z",
+      },
       { ...baseDeps(capture), resolveLegInput: presentInput },
     );
     expect(result.status).toBe("opened");
@@ -812,8 +810,17 @@ describe("openSession — leg input gate + signed spawn (GH-288 / GH-293)", () =
   test("plan/headless: FAILS CLOSED when the input artifact is missing (no spawn, no mint)", async () => {
     const capture: Capture = {};
     const result = await openSession(
-      { actor: "plan", workUnitId: "GH-288", interaction: "headless", shortId: "gh2881", now: "2026-06-06T00:00:00Z" },
-      { ...baseDeps(capture), resolveLegInput: async () => ({ missing: true, ref: "GH-288:source@pinned" }) },
+      {
+        actor: "plan",
+        workUnitId: "GH-288",
+        interaction: "headless",
+        shortId: "gh2881",
+        now: "2026-06-06T00:00:00Z",
+      },
+      {
+        ...baseDeps(capture),
+        resolveLegInput: async () => ({ missing: true, ref: "GH-288:source@pinned" }),
+      },
     );
     expect(result.status).toBe("error");
     if (result.status === "error") expect(result.stage).toBe("dispatch");
@@ -824,7 +831,13 @@ describe("openSession — leg input gate + signed spawn (GH-288 / GH-293)", () =
   test("plan/headless: FAILS CLOSED with a present input but NO signer (no unsigned spawn)", async () => {
     const capture: Capture = {};
     const result = await openSession(
-      { actor: "plan", workUnitId: "GH-288", interaction: "headless", shortId: "gh2883", now: "2026-06-06T00:00:00Z" },
+      {
+        actor: "plan",
+        workUnitId: "GH-288",
+        interaction: "headless",
+        shortId: "gh2883",
+        now: "2026-06-06T00:00:00Z",
+      },
       { ...baseDeps(capture), resolveLegInput: presentInput, resolveSigner: (() => null) as never },
     );
     expect(result.status).toBe("error");
@@ -836,8 +849,17 @@ describe("openSession — leg input gate + signed spawn (GH-288 / GH-293)", () =
   test("plan/interactive: missing input does NOT hard-fail (human can pin mid-session)", async () => {
     const capture: Capture = {};
     const result = await openSession(
-      { actor: "plan", workUnitId: "GH-288", interaction: "interactive", shortId: "gh2882", now: "2026-06-06T00:00:00Z" },
-      { ...baseDeps(capture), resolveLegInput: async () => ({ missing: true, ref: "GH-288:source@pinned" }) },
+      {
+        actor: "plan",
+        workUnitId: "GH-288",
+        interaction: "interactive",
+        shortId: "gh2882",
+        now: "2026-06-06T00:00:00Z",
+      },
+      {
+        ...baseDeps(capture),
+        resolveLegInput: async () => ({ missing: true, ref: "GH-288:source@pinned" }),
+      },
     );
     expect(result.status).toBe("opened");
     expect(capture.mint).toBeUndefined();
@@ -846,7 +868,12 @@ describe("openSession — leg input gate + signed spawn (GH-288 / GH-293)", () =
   test("implement/headless: embeds the plan as planBody AND mints a spawn over it (GH-325)", async () => {
     const capture: Capture = {};
     const result = await openSession(
-      { actor: "implement", workUnitId: "GH-288", interaction: "headless", now: "2026-06-06T00:00:00Z" },
+      {
+        actor: "implement",
+        workUnitId: "GH-288",
+        interaction: "headless",
+        now: "2026-06-06T00:00:00Z",
+      },
       {
         ...baseDeps(capture),
         resolveLegInput: async () => ({
@@ -872,8 +899,16 @@ describe("openSession — leg input gate + signed spawn (GH-288 / GH-293)", () =
   test("implement/headless: FAILS CLOSED when no plan@draft exists (GH-325)", async () => {
     const capture: Capture = {};
     const result = await openSession(
-      { actor: "implement", workUnitId: "GH-288", interaction: "headless", now: "2026-06-06T00:00:00Z" },
-      { ...baseDeps(capture), resolveLegInput: async () => ({ missing: true, ref: "GH-288:plan@draft" }) },
+      {
+        actor: "implement",
+        workUnitId: "GH-288",
+        interaction: "headless",
+        now: "2026-06-06T00:00:00Z",
+      },
+      {
+        ...baseDeps(capture),
+        resolveLegInput: async () => ({ missing: true, ref: "GH-288:plan@draft" }),
+      },
     );
     expect(result.status).toBe("error");
     expect(capture.event).toBeUndefined();

@@ -10,19 +10,18 @@ import { normalizeNamespaceArgv } from "../../src/pr-state/cli.ts";
 
 describe("prx plan agent alias (prx-383)", () => {
   test("`plan agent <id>` normalizes to the plan-session engine, like `plan session`", () => {
-    expect(normalizeNamespaceArgv(["plan", "agent", "GH-1"])).toEqual([
-      "plan-session",
-      "GH-1",
-    ]);
+    expect(normalizeNamespaceArgv(["plan", "agent", "GH-1"])).toEqual(["plan-session", "GH-1"]);
     expect(normalizeNamespaceArgv(["plan", "agent", "GH-1"])).toEqual(
       normalizeNamespaceArgv(["plan", "session", "GH-1"]),
     );
   });
 
   test("`plan agent --interactive` still opts into the tmux session", () => {
-    expect(
-      normalizeNamespaceArgv(["plan", "agent", "GH-1", "--interactive"]),
-    ).toEqual(["plan-session", "GH-1", "--interactive"]);
+    expect(normalizeNamespaceArgv(["plan", "agent", "GH-1", "--interactive"])).toEqual([
+      "plan-session",
+      "GH-1",
+      "--interactive",
+    ]);
   });
 
   test("`plan` with no subcommand lists `agent` as an option", () => {
@@ -39,10 +38,7 @@ describe("prx upgrade self-update alias (prx-1ab, prx-9lc, GH-411 slice 3)", () 
   });
 
   test("tail flags pass through", () => {
-    expect(normalizeNamespaceArgv(["upgrade", "--dry-run"])).toEqual([
-      "home-update",
-      "--dry-run",
-    ]);
+    expect(normalizeNamespaceArgv(["upgrade", "--dry-run"])).toEqual(["home-update", "--dry-run"]);
   });
 
   test("an explicit --input still overrides the configured set", () => {

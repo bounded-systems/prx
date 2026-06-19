@@ -17,20 +17,13 @@
  */
 
 import { defaultRunner } from "@bounded-systems/proc";
-import {
-  readFileSync as nodeReadFileSync,
-  readSync as nodeReadSync,
-} from "node:fs";
+import { readFileSync as nodeReadFileSync, readSync as nodeReadSync } from "node:fs";
 import { basename, relative } from "node:path";
 import { z } from "zod";
 
 import { execBd } from "@bounded-systems/bd";
 import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
-import {
-  publishOne,
-  type BeadsPublishRender,
-  type PublishCoreResult,
-} from "../beads/publish.ts";
+import { publishOne, type BeadsPublishRender, type PublishCoreResult } from "../beads/publish.ts";
 import { AREA, type LabelArea } from "../triage/labels.ts";
 import { areaLabelString, typeLabelString } from "../triage/label-vocab.ts";
 import {
@@ -101,7 +94,15 @@ export const intakeOptionsSchema = z
     if (structuredPresent && freeformPresent) {
       const message =
         "structured fields (--description/--design/--acceptance/--notes) and freeform body (--body, --body @file, --body-stdin) are mutually exclusive";
-      for (const path of ["body", "bodyFile", "bodyStdin", "description", "design", "acceptance", "notes"]) {
+      for (const path of [
+        "body",
+        "bodyFile",
+        "bodyStdin",
+        "description",
+        "design",
+        "acceptance",
+        "notes",
+      ]) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
       }
     }
@@ -198,9 +199,10 @@ export class IntakeTitleMismatchError extends Error {
     public readonly flagType: IntakeIntent,
     public readonly mappedType: IntakeIntent | null,
   ) {
-    const reason = mappedType === null
-      ? `title prefix '${innerPrefix}' has no intake-type mapping (intake type was '${flagType}')`
-      : `title prefix '${innerPrefix}' disagrees with intake type '${flagType}'`;
+    const reason =
+      mappedType === null
+        ? `title prefix '${innerPrefix}' has no intake-type mapping (intake type was '${flagType}')`
+        : `title prefix '${innerPrefix}' disagrees with intake type '${flagType}'`;
     super(reason);
     this.name = "IntakeTitleMismatchError";
   }
@@ -460,11 +462,7 @@ function defaultConfirmIntake(preview: string, output: Output): boolean {
   return answer === "y" || answer === "yes";
 }
 
-export function runIntake(
-  opts: IntakeOptions,
-  output: Output,
-  deps: IntakeDeps = {},
-): number {
+export function runIntake(opts: IntakeOptions, output: Output, deps: IntakeDeps = {}): number {
   const detectBranch = deps.detectBranchName ?? defaultDetectBranchName;
   const getRepoRoot = deps.getRepoRoot ?? defaultGetRepoRoot;
   const cwd = (deps.cwd ?? process.cwd)();
@@ -497,9 +495,10 @@ export function runIntake(
     title = composeTitle(opts.type, opts.title, scope);
   } catch (err) {
     if (err instanceof IntakeTitleMismatchError) {
-      const remediation = err.mappedType === null
-        ? `drop the inner prefix from --title or use a vocab-aligned intake type`
-        : `re-run as 'prx intake ${err.mappedType} --title ...' or drop the inner prefix from --title`;
+      const remediation =
+        err.mappedType === null
+          ? `drop the inner prefix from --title or use a vocab-aligned intake type`
+          : `re-run as 'prx intake ${err.mappedType} --title ...' or drop the inner prefix from --title`;
       output.error(`prx intake: ${err.message} — ${remediation}`);
       return 2;
     }
@@ -516,11 +515,7 @@ export function runIntake(
   // (passed through to `publishOne` as `extraLabels`); the bd-only default
   // touches no GH state.
   const spec = INTENT_TO_SPEC[opts.type];
-  const stamped = [
-    ...opts.labels,
-    typeLabelString(spec.type),
-    ...spec.extraLabels,
-  ];
+  const stamped = [...opts.labels, typeLabelString(spec.type), ...spec.extraLabels];
   const withArea = scope ? [...stamped, areaLabelString(scope)] : stamped;
   const labels = Array.from(new Set(withArea));
 
@@ -592,8 +587,7 @@ export function runIntake(
   // is required because the default executor role can't bd create/update.
   const bdResult = run(["prx", "beads", "create", ...bdCreateArgs], { check: false });
   if (bdResult.status !== 0) {
-    const detail =
-      bdResult.stderr.trim() || bdResult.stdout.trim() || "prx beads create failed";
+    const detail = bdResult.stderr.trim() || bdResult.stdout.trim() || "prx beads create failed";
     output.error(`prx intake: ${detail}`);
     const result: IntakeResult = {
       title,
@@ -716,10 +710,7 @@ function shellQuote(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`;
 }
 
-export function formatIntakeResult(
-  result: IntakeResult,
-  format: "plain" | "json",
-): string {
+export function formatIntakeResult(result: IntakeResult, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(result, null, 2);
   }

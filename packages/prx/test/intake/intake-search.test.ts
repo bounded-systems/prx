@@ -162,9 +162,7 @@ describe("runIntakeSearch — bd paths", async () => {
       { log: (l) => logs.push(l), error: () => undefined },
       {
         execGh: (() =>
-          ghList([
-            { number: 999, title: "intake search", state: "OPEN", url: "u/999" },
-          ])) as never,
+          ghList([{ number: 999, title: "intake search", state: "OPEN", url: "u/999" }])) as never,
         loadBeads: (async () => [
           bead({ id: "ai-home-aaa", title: "intake matches lowercase needle" }),
           bead({ id: "ai-home-bbb", title: "unrelated" }),
@@ -185,9 +183,7 @@ describe("runIntakeSearch — bd paths", async () => {
       { log: (l) => logs.push(l), error: (l) => errors.push(l) },
       {
         execGh: (() =>
-          ghList([
-            { number: 999, title: "intake search", state: "OPEN", url: "u/999" },
-          ])) as never,
+          ghList([{ number: 999, title: "intake search", state: "OPEN", url: "u/999" }])) as never,
         loadBeads: (async () => {
           throw new Error("bd: database not found");
         }) as never,
@@ -213,9 +209,7 @@ describe("runIntakeSearch — bd paths", async () => {
       { log: (l) => logs.push(l), error: () => undefined },
       {
         execGh: (() => ghList([])) as never,
-        loadBeads: (async () => [
-          bead({ id: "ai-home-aaa", title: "bd-only thing" }),
-        ]) as never,
+        loadBeads: (async () => [bead({ id: "ai-home-aaa", title: "bd-only thing" })]) as never,
       },
     );
     const parsed = JSON.parse(logs[0]!) as {
@@ -370,9 +364,7 @@ describe("intakeSearchOptionsSchema", async () => {
   });
 
   test("rejects invalid state", async () => {
-    expect(() =>
-      intakeSearchOptionsSchema.parse({ query: "x", state: "bogus" }),
-    ).toThrow();
+    expect(() => intakeSearchOptionsSchema.parse({ query: "x", state: "bogus" })).toThrow();
   });
 });
 
@@ -406,10 +398,7 @@ describe("formatIntakeSearchRender", async () => {
   });
 
   test("json render is well-formed JSON with the full envelope", async () => {
-    const out = formatIntakeSearchRender(
-      { query: "q", state: "all", hits: [] },
-      "json",
-    );
+    const out = formatIntakeSearchRender({ query: "q", state: "all", hits: [] }, "json");
     expect(JSON.parse(out)).toEqual({ query: "q", state: "all", hits: [] });
   });
 });

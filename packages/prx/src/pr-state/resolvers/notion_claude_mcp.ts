@@ -1,11 +1,7 @@
 import { processEnv } from "@bounded-systems/env";
 import { join } from "node:path";
 
-import {
-  type CommandRunner,
-  type NotionIdentityConfig,
-  defaultRunner,
-} from "../github.ts";
+import { type CommandRunner, type NotionIdentityConfig, defaultRunner } from "../github.ts";
 import { parseClaudeJsonEnvelope } from "../../claude/envelope.ts";
 import { resolveNotionCacheDir } from "../../tools/cache_path.ts";
 import {
@@ -16,11 +12,7 @@ import {
   type NotionLookup,
   readTaskCache,
 } from "./notion_cache.ts";
-import type {
-  NotionPageLookup,
-  NotionPageResolver,
-  ResolvedWorkUnit,
-} from "./types.ts";
+import type { NotionPageLookup, NotionPageResolver, ResolvedWorkUnit } from "./types.ts";
 
 // Hyphenated or unhyphenated 32-hex Notion page UUID — short-circuits the
 // notion-search lookup when scout passes a UUID directly (GH-1420).
@@ -28,15 +20,12 @@ const NOTION_PAGE_UUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[
 
 const DEFAULT_MODEL = "claude-sonnet-4-6";
 
-const HEADLESS_OAUTH_INSTRUCTION =
-  "Please open this URL in your browser to authorize";
+const HEADLESS_OAUTH_INSTRUCTION = "Please open this URL in your browser to authorize";
 const HEADLESS_OAUTH_AUTHORIZE_URL_PREFIX = "https://mcp.notion.com/authorize";
 
 export type HeadlessOAuthDetection = { authorizeUrl: string };
 
-export function detectHeadlessOAuthRequired(
-  text: string,
-): HeadlessOAuthDetection | null {
+export function detectHeadlessOAuthRequired(text: string): HeadlessOAuthDetection | null {
   if (!text || !text.includes(HEADLESS_OAUTH_INSTRUCTION)) {
     return null;
   }
@@ -50,9 +39,7 @@ export function detectHeadlessOAuthRequired(
   return { authorizeUrl };
 }
 
-export function headlessOAuthError(
-  detection: HeadlessOAuthDetection,
-): Error {
+export function headlessOAuthError(detection: HeadlessOAuthDetection): Error {
   const urlPreview = detection.authorizeUrl.slice(0, 120);
   return new Error(
     [

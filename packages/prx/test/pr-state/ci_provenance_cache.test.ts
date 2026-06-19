@@ -47,13 +47,19 @@ describe("ci provenance cache — sync read with recomputed freshness (GH-352)",
   });
 
   test("missing cache ⇒ unchecked/unknown default", () => {
-    expect(readCiProvenanceState(dir, COMMIT)).toEqual({ verdict: "unchecked", freshness: "unknown" });
+    expect(readCiProvenanceState(dir, COMMIT)).toEqual({
+      verdict: "unchecked",
+      freshness: "unknown",
+    });
   });
 
   test("malformed cache ⇒ default (never throws)", () => {
     const path = ciProvenanceCachePath(dir);
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, "{ not valid json", "utf8");
-    expect(readCiProvenanceState(dir, COMMIT)).toEqual({ verdict: "unchecked", freshness: "unknown" });
+    expect(readCiProvenanceState(dir, COMMIT)).toEqual({
+      verdict: "unchecked",
+      freshness: "unknown",
+    });
   });
 });

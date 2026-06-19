@@ -81,15 +81,11 @@ describe("resolveProvenanceSigner — env-gated", () => {
   });
 
   test("empty value resolves to null", () => {
-    expect(
-      resolveProvenanceSigner(envFrom({ [PROVENANCE_KEY_ENV]: "" })),
-    ).toBeNull();
+    expect(resolveProvenanceSigner(envFrom({ [PROVENANCE_KEY_ENV]: "" }))).toBeNull();
   });
 
   test("a non-dev value (e.g. future 'sigstore') resolves to null this PR", () => {
-    expect(
-      resolveProvenanceSigner(envFrom({ [PROVENANCE_KEY_ENV]: "sigstore" })),
-    ).toBeNull();
+    expect(resolveProvenanceSigner(envFrom({ [PROVENANCE_KEY_ENV]: "sigstore" }))).toBeNull();
   });
 
   test("GH-2282: dev resolutions share a STABLE persisted keypair (verifiable cross-process)", async () => {
@@ -139,9 +135,7 @@ describe("resolveProvenanceSigner — env-gated", () => {
 describe("resolveProvenanceVerifier — env-gated", () => {
   test("unset / empty resolve to null", () => {
     expect(resolveProvenanceVerifier(envFrom({}))).toBeNull();
-    expect(
-      resolveProvenanceVerifier(envFrom({ [PROVENANCE_PUBKEY_ENV]: "" })),
-    ).toBeNull();
+    expect(resolveProvenanceVerifier(envFrom({ [PROVENANCE_PUBKEY_ENV]: "" }))).toBeNull();
   });
 
   test("the resolved verifier accepts a signature from the matching stable signer", async () => {
@@ -149,9 +143,7 @@ describe("resolveProvenanceVerifier — env-gated", () => {
     const signer = resolveProvenanceSigner(
       envFrom({ [PROVENANCE_KEY_ENV]: `${STABLE_KEY_PREFIX}${seed}` }),
     )!;
-    const verifier = resolveProvenanceVerifier(
-      envFrom({ [PROVENANCE_PUBKEY_ENV]: point }),
-    )!;
+    const verifier = resolveProvenanceVerifier(envFrom({ [PROVENANCE_PUBKEY_ENV]: point }))!;
     const pae = dssePae(DSSE_PAYLOAD_TYPE, new TextEncoder().encode("x"));
     expect(await verifier.verify(pae, await signer.sign(pae))).toBe(true);
   });
@@ -162,9 +154,7 @@ describe("resolveProvenanceVerifier — env-gated", () => {
     const signer = resolveProvenanceSigner(
       envFrom({ [PROVENANCE_KEY_ENV]: `${STABLE_KEY_PREFIX}${a.seed}` }),
     )!;
-    const verifier = resolveProvenanceVerifier(
-      envFrom({ [PROVENANCE_PUBKEY_ENV]: b.point }),
-    )!;
+    const verifier = resolveProvenanceVerifier(envFrom({ [PROVENANCE_PUBKEY_ENV]: b.point }))!;
     const pae = dssePae(DSSE_PAYLOAD_TYPE, new TextEncoder().encode("x"));
     expect(await verifier.verify(pae, await signer.sign(pae))).toBe(false);
   });
@@ -205,22 +195,14 @@ describe("resolveProvenanceVerifier — env-gated", () => {
 describe("requireSignedDerivations — enforcement flag", () => {
   test("truthy values turn enforcement on", () => {
     for (const v of ["1", "true", "TRUE", "on", "yes"]) {
-      expect(
-        requireSignedDerivations(envFrom({ [REQUIRE_SIGNED_ENV]: v })),
-      ).toBe(true);
+      expect(requireSignedDerivations(envFrom({ [REQUIRE_SIGNED_ENV]: v }))).toBe(true);
     }
   });
 
   test("unset / empty / non-truthy leave enforcement off (backward compatible)", () => {
     expect(requireSignedDerivations(envFrom({}))).toBe(false);
-    expect(
-      requireSignedDerivations(envFrom({ [REQUIRE_SIGNED_ENV]: "" })),
-    ).toBe(false);
-    expect(
-      requireSignedDerivations(envFrom({ [REQUIRE_SIGNED_ENV]: "0" })),
-    ).toBe(false);
-    expect(
-      requireSignedDerivations(envFrom({ [REQUIRE_SIGNED_ENV]: "off" })),
-    ).toBe(false);
+    expect(requireSignedDerivations(envFrom({ [REQUIRE_SIGNED_ENV]: "" }))).toBe(false);
+    expect(requireSignedDerivations(envFrom({ [REQUIRE_SIGNED_ENV]: "0" }))).toBe(false);
+    expect(requireSignedDerivations(envFrom({ [REQUIRE_SIGNED_ENV]: "off" }))).toBe(false);
   });
 });

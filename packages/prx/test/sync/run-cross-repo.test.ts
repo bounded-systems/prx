@@ -10,10 +10,7 @@ import {
   type RunBeadsSyncAcrossReposDeps,
   type RunBeadsSyncAcrossReposOptions,
 } from "../../src/sync/run-cross-repo.ts";
-import type {
-  BeadsSyncResult,
-  BeadsSyncSummary,
-} from "../../src/sync/run.ts";
+import type { BeadsSyncResult, BeadsSyncSummary } from "../../src/sync/run.ts";
 import type { IndexedRepoForReconcile } from "../../src/pr-state/repos.ts";
 import type { MaterializeResult } from "../../src/pr-state/materialize.ts";
 import type { CrossRepoCursor } from "../../src/sync/cross-repo-cursor.ts";
@@ -109,7 +106,12 @@ function makeDeps(over: Partial<RunBeadsSyncAcrossReposDeps> = {}): {
     },
     perRepoDeps: () => ({}),
     appendAuditRow: (row) => rows.push(row),
-    getAuditRuntimeContext: () => ({ verb: "beads.sync", actor: "test-actor", ghTruthReason: null, source: null }),
+    getAuditRuntimeContext: () => ({
+      verb: "beads.sync",
+      actor: "test-actor",
+      ghTruthReason: null,
+      source: null,
+    }),
     now: () => FIXED_NOW,
     ...over,
   };
@@ -152,7 +154,13 @@ describe("runBeadsSyncAcrossRepos — mid-repo budget pause", () => {
         perRepoCalls.push(o.repo ?? "");
         if (o.repo === "bdelanghe/repo-a") {
           return syncResult({
-            summary: summary({ repo: o.repo, budgetPaused: true, scanned: 0, pinned: 0, pulled: 0 }),
+            summary: summary({
+              repo: o.repo,
+              budgetPaused: true,
+              scanned: 0,
+              pinned: 0,
+              pulled: 0,
+            }),
           });
         }
         return syncResult({ summary: summary({ repo: o.repo ?? "" }) });
@@ -162,7 +170,10 @@ describe("runBeadsSyncAcrossRepos — mid-repo budget pause", () => {
     expect(result.budgetPaused).toBe(true);
     expect(result.drained).toBe(false);
     expect(perRepoCalls).toEqual(["bdelanghe/repo-a"]); // never advanced to repo-b
-    expect(cursorBox.value).toEqual({ tickStartedAt: FIXED_NOW.toISOString(), nextRepoSlug: "repo-a" });
+    expect(cursorBox.value).toEqual({
+      tickStartedAt: FIXED_NOW.toISOString(),
+      nextRepoSlug: "repo-a",
+    });
     expect(result.cursorAfter).toEqual(cursorBox.value);
   });
 
@@ -199,7 +210,13 @@ describe("runBeadsSyncAcrossRepos — between-repo budget pause", () => {
         perRepoCalls.push(o.repo ?? "");
         if (o.repo === "bdelanghe/repo-b") {
           return syncResult({
-            summary: summary({ repo: o.repo, budgetPaused: true, scanned: 0, pinned: 0, pulled: 0 }),
+            summary: summary({
+              repo: o.repo,
+              budgetPaused: true,
+              scanned: 0,
+              pinned: 0,
+              pulled: 0,
+            }),
           });
         }
         return syncResult({ summary: summary({ repo: o.repo ?? "" }) });
@@ -208,7 +225,10 @@ describe("runBeadsSyncAcrossRepos — between-repo budget pause", () => {
     const result = await runBeadsSyncAcrossRepos(opts(), output, deps);
     expect(result.budgetPaused).toBe(true);
     expect(perRepoCalls).toEqual(["bdelanghe/repo-a", "bdelanghe/repo-b"]);
-    expect(cursorBox.value).toEqual({ tickStartedAt: FIXED_NOW.toISOString(), nextRepoSlug: "repo-b" });
+    expect(cursorBox.value).toEqual({
+      tickStartedAt: FIXED_NOW.toISOString(),
+      nextRepoSlug: "repo-b",
+    });
   });
 });
 
@@ -230,7 +250,9 @@ describe("runBeadsSyncAcrossRepos — materialize failure", () => {
     expect(perRepoCalls).toEqual(["bdelanghe/repo-b"]); // repo-a never reaches runBeadsSync
     const skipRow = rows.find(
       (r): r is Record<string, unknown> =>
-        typeof r === "object" && r !== null && (r as Record<string, unknown>).kind === "domain-sync-materialize-failed",
+        typeof r === "object" &&
+        r !== null &&
+        (r as Record<string, unknown>).kind === "domain-sync-materialize-failed",
     );
     expect(skipRow).toBeDefined();
     expect(skipRow!.repo).toBe("bdelanghe/repo-a");
@@ -253,7 +275,13 @@ describe("runBeadsSyncAcrossRepos — dry-run no writes (I-DS6)", () => {
       },
       materializeBareRepo: ({ name, dryRun }) => {
         materializeDryRunArg = dryRun;
-        return { repo: name, barePath: `/bare/${name}`, action: "noop", lastFetchedAtMs: 1, dryRun: dryRun === true };
+        return {
+          repo: name,
+          barePath: `/bare/${name}`,
+          action: "noop",
+          lastFetchedAtMs: 1,
+          dryRun: dryRun === true,
+        };
       },
       runBeadsSync: async (o) => {
         // even if a dry-run pass reports budgetPaused, no cursor write happens

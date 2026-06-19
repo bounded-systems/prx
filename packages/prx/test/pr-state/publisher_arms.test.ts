@@ -22,7 +22,10 @@ import {
 
 const target: DoctorTarget = { workUnitId: "GH-885", repoPath: "/repo" };
 const silentAudit: AuditSinkDeps = { appendFn: () => {}, ensureDir: () => {} };
-const enforcedProtection = () => ({ requiredApprovingReviewCount: 1, requireCodeOwnerReviews: false });
+const enforcedProtection = () => ({
+  requiredApprovingReviewCount: 1,
+  requireCodeOwnerReviews: false,
+});
 
 function comments(overrides: Partial<PrCommentsResult["pr"]> = {}): PrCommentsResult {
   return {
@@ -52,14 +55,22 @@ function comments(overrides: Partial<PrCommentsResult["pr"]> = {}): PrCommentsRe
 function rec() {
   const lines: string[] = [];
   const errors: string[] = [];
-  return { lines, errors, output: { log: (l: string) => lines.push(l), error: (l: string) => errors.push(l) } };
+  return {
+    lines,
+    errors,
+    output: { log: (l: string) => lines.push(l), error: (l: string) => errors.push(l) },
+  };
 }
 
 const boom = () => {
   throw new Error("boom");
 };
-const okRunner = (stdout = "") => () => ({ stdout, stderr: "", status: 0 });
-const failRunner = (stderr = "nope") => () => ({ stdout: "", stderr, status: 1 });
+const okRunner =
+  (stdout = "") =>
+  () => ({ stdout, stderr: "", status: 0 });
+const failRunner =
+  (stderr = "nope") =>
+  () => ({ stdout: "", stderr, status: 1 });
 
 // ── runMerge error/json arms ────────────────────────────────────────────────
 
@@ -109,7 +120,10 @@ describe("runMerge — error & json arms", () => {
     const r = rec();
     const code = runMerge(target, { method: "SQUASH" }, "json", r.output, {
       fetchPrComments: () =>
-        comments({ autoMergeEnabled: true, autoMergeRequest: { enabledBy: "bot", mergeMethod: "SQUASH" } }),
+        comments({
+          autoMergeEnabled: true,
+          autoMergeRequest: { enabledBy: "bot", mergeMethod: "SQUASH" },
+        }),
       fetchBranchProtection: enforcedProtection,
       auditDeps: silentAudit,
     });
@@ -153,7 +167,9 @@ describe("runMerge — error & json arms", () => {
 describe("runReady — error & json arms", () => {
   test("loadInventory failure → exit 1", () => {
     const r = rec();
-    expect(runReady(target, "plain", r.output, { fetchPrComments: boom, auditDeps: silentAudit })).toBe(1);
+    expect(
+      runReady(target, "plain", r.output, { fetchPrComments: boom, auditDeps: silentAudit }),
+    ).toBe(1);
     expect(r.errors.join("\n")).toContain("prx publisher ready:");
   });
 
@@ -212,7 +228,9 @@ describe("runReady — error & json arms", () => {
 describe("runDraft — error & json arms", () => {
   test("loadInventory failure → exit 1", () => {
     const r = rec();
-    expect(runDraft(target, "plain", r.output, { fetchPrComments: boom, auditDeps: silentAudit })).toBe(1);
+    expect(
+      runDraft(target, "plain", r.output, { fetchPrComments: boom, auditDeps: silentAudit }),
+    ).toBe(1);
     expect(r.errors.join("\n")).toContain("prx publisher draft:");
   });
 
@@ -294,13 +312,19 @@ describe("runPrOpen", () => {
   test("plain ready open omits --draft", () => {
     const calls: string[][] = [];
     const r = rec();
-    const code = runPrOpen(target, { summary: "feat: y", ready: true, base: "dev", head: "feat-y" }, "plain", r.output, {
-      runner: (argv) => {
-        calls.push(argv);
-        return { stdout: "https://github.com/owner/repo/pull/8", stderr: "", status: 0 };
+    const code = runPrOpen(
+      target,
+      { summary: "feat: y", ready: true, base: "dev", head: "feat-y" },
+      "plain",
+      r.output,
+      {
+        runner: (argv) => {
+          calls.push(argv);
+          return { stdout: "https://github.com/owner/repo/pull/8", stderr: "", status: 0 };
+        },
+        auditDeps: silentAudit,
       },
-      auditDeps: silentAudit,
-    });
+    );
     expect(code).toBe(0);
     expect(calls[0]).not.toContain("--draft");
     expect(r.lines.join("\n")).toContain("opened ready PR");
@@ -312,7 +336,9 @@ describe("runPrOpen", () => {
 describe("runPrUpdate", () => {
   test("loadInventory failure → exit 1", () => {
     const r = rec();
-    expect(runPrUpdate(target, {}, "plain", r.output, { fetchPrComments: boom, auditDeps: silentAudit })).toBe(1);
+    expect(
+      runPrUpdate(target, {}, "plain", r.output, { fetchPrComments: boom, auditDeps: silentAudit }),
+    ).toBe(1);
     expect(r.errors.join("\n")).toContain("prx publisher pr update:");
   });
 
@@ -353,7 +379,10 @@ describe("runPrComment", () => {
   test("loadInventory failure → exit 1", () => {
     const r = rec();
     expect(
-      runPrComment(target, { body: "hi" }, "plain", r.output, { fetchPrComments: boom, auditDeps: silentAudit }),
+      runPrComment(target, { body: "hi" }, "plain", r.output, {
+        fetchPrComments: boom,
+        auditDeps: silentAudit,
+      }),
     ).toBe(1);
     expect(r.errors.join("\n")).toContain("prx publisher pr comment:");
   });
@@ -389,7 +418,10 @@ describe("runPrEdit", () => {
   test("loadInventory failure → exit 1", () => {
     const r = rec();
     expect(
-      runPrEdit(target, { title: "t" }, "plain", r.output, { fetchPrComments: boom, auditDeps: silentAudit }),
+      runPrEdit(target, { title: "t" }, "plain", r.output, {
+        fetchPrComments: boom,
+        auditDeps: silentAudit,
+      }),
     ).toBe(1);
     expect(r.errors.join("\n")).toContain("prx publisher pr edit:");
   });
@@ -426,14 +458,18 @@ describe("runPrEdit", () => {
 describe("runIssueUpdate", () => {
   test("no fields to edit → already-in-sync (plain)", () => {
     const r = rec();
-    const code = runIssueUpdate("GH-885", { number: 42 }, "plain", r.output, { auditDeps: silentAudit });
+    const code = runIssueUpdate("GH-885", { number: 42 }, "plain", r.output, {
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(0);
     expect(r.lines.join("\n")).toContain("already in sync");
   });
 
   test("no fields to edit → edited:false (json)", () => {
     const r = rec();
-    const code = runIssueUpdate("GH-885", { number: 42 }, "json", r.output, { auditDeps: silentAudit });
+    const code = runIssueUpdate("GH-885", { number: 42 }, "json", r.output, {
+      auditDeps: silentAudit,
+    });
     expect(code).toBe(0);
     expect(JSON.parse(r.lines[0]!).edited).toBe(false);
   });
@@ -452,10 +488,22 @@ describe("runIssueUpdate", () => {
     const r = rec();
     const code = runIssueUpdate(
       "GH-885",
-      { number: 42, title: "new", body: "b", addLabels: ["x"], removeLabels: ["y"], addAssignees: ["a"], removeAssignees: ["b"], repo: "o/r" },
+      {
+        number: 42,
+        title: "new",
+        body: "b",
+        addLabels: ["x"],
+        removeLabels: ["y"],
+        addAssignees: ["a"],
+        removeAssignees: ["b"],
+        repo: "o/r",
+      },
       "plain",
       r.output,
-      { execGhIssueEdit: () => ({ exitCode: 0, stdout: "ok", stderr: "" }), auditDeps: silentAudit },
+      {
+        execGhIssueEdit: () => ({ exitCode: 0, stdout: "ok", stderr: "" }),
+        auditDeps: silentAudit,
+      },
     );
     expect(code).toBe(0);
     expect(r.lines.join("\n")).toContain("edited GH-42");

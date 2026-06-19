@@ -27,14 +27,16 @@ export type RuntimeExecutor = (
   timeoutMs?: number,
 ) => RuntimeExecutionResult;
 
-const adapterResultSchema = z.object({
-  status: z.enum(["success", "error", "timeout"]),
-  data: z.unknown().optional(),
-  error: z.object({ message: z.string() }).optional(),
-  meta: z.object({
-    latency_ms: z.number().int().nonnegative(),
-  }),
-}).strict();
+const adapterResultSchema = z
+  .object({
+    status: z.enum(["success", "error", "timeout"]),
+    data: z.unknown().optional(),
+    error: z.object({ message: z.string() }).optional(),
+    meta: z.object({
+      latency_ms: z.number().int().nonnegative(),
+    }),
+  })
+  .strict();
 
 export type AdapterResult = z.infer<typeof adapterResultSchema>;
 
@@ -45,7 +47,9 @@ export function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
-function parseStrictJsonObject(raw: string): { ok: true; value: unknown } | { ok: false; message: string } {
+function parseStrictJsonObject(
+  raw: string,
+): { ok: true; value: unknown } | { ok: false; message: string } {
   const trimmed = raw.trim();
   if (!trimmed) {
     return { ok: false, message: "empty output" };
@@ -116,11 +120,15 @@ export function executeValidatedAgentOnce(
   const execution = execRuntime(profile, "json", cwd);
   const latency = Date.now() - startedAt;
   if (execution.status !== 0) {
-    const timeoutLike = /timed out|timeout/i.test(execution.stderr) || /timed out|timeout/i.test(execution.stdout);
+    const timeoutLike =
+      /timed out|timeout/i.test(execution.stderr) || /timed out|timeout/i.test(execution.stdout);
     return {
       status: timeoutLike ? "timeout" : "error",
       error: {
-        message: execution.stderr.trim() || execution.stdout.trim() || `runtime exited with status ${execution.status}`,
+        message:
+          execution.stderr.trim() ||
+          execution.stdout.trim() ||
+          `runtime exited with status ${execution.status}`,
       },
       meta: {
         latency_ms: latency,
@@ -145,7 +153,9 @@ export function executeValidatedAgentOnce(
     return {
       status: "error",
       error: {
-        message: issue ? `schema validation failed at ${issue.path.join(".") || "<root>"}: ${issue.message}` : "schema validation failed",
+        message: issue
+          ? `schema validation failed at ${issue.path.join(".") || "<root>"}: ${issue.message}`
+          : "schema validation failed",
       },
       meta: {
         latency_ms: latency,
@@ -308,9 +318,10 @@ export function agentProfileExecutionAsRuntimeResult(
     return { status: 0, stdout: sdk.stdout, stderr: "" };
   }
   if (sdk.kind === "cancelled") {
-    const detail = sdk.configured_timeout_ms !== null
-      ? `cancelled after ${sdk.elapsed_ms}ms (configured --timeout=${sdk.configured_timeout_ms}ms; reason=${sdk.reason})`
-      : `cancelled after ${sdk.elapsed_ms}ms (reason=${sdk.reason})`;
+    const detail =
+      sdk.configured_timeout_ms !== null
+        ? `cancelled after ${sdk.elapsed_ms}ms (configured --timeout=${sdk.configured_timeout_ms}ms; reason=${sdk.reason})`
+        : `cancelled after ${sdk.elapsed_ms}ms (reason=${sdk.reason})`;
     return { status: 124, stdout: sdk.partialStdout, stderr: detail };
   }
   return {

@@ -11,14 +11,8 @@
 
 import { describe, expect, test } from "bun:test";
 
-import {
-  DOLT_VERBS,
-  DOLT_VERB_DISPATCH,
-} from "../../src/dolt/schema.ts";
-import {
-  normalizeNamespaceArgv,
-  parseCommand,
-} from "../../src/pr-state/cli.ts";
+import { DOLT_VERBS, DOLT_VERB_DISPATCH } from "../../src/dolt/schema.ts";
+import { normalizeNamespaceArgv, parseCommand } from "../../src/pr-state/cli.ts";
 import { CliError } from "../../src/pr-state/cli-error.ts";
 import { prxCommandRegistry } from "../../src/cli/registry.data.ts";
 
@@ -72,9 +66,7 @@ describe("dolt dispatch parity (GH-2129)", () => {
     } catch (err) {
       if (err instanceof CliError) message = err.message;
     }
-    expect(message).toBe(
-      `dolt requires a subcommand: ${DOLT_VERBS.join(", ")}`,
-    );
+    expect(message).toBe(`dolt requires a subcommand: ${DOLT_VERBS.join(", ")}`);
   });
 
   test("an unknown verb names the available verbs instead of dying bare", () => {

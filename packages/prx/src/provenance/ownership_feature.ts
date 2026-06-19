@@ -38,9 +38,7 @@ export function attestedGitWrites(): string[] {
 
 /** Render a Gherkin Examples table with padded columns for readability. */
 function examplesTable(headers: string[], rows: string[][]): string[] {
-  const widths = headers.map((h, i) =>
-    Math.max(h.length, ...rows.map((r) => r[i]!.length)),
-  );
+  const widths = headers.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i]!.length)));
   const fmt = (cells: string[]) =>
     "      | " + cells.map((c, i) => c.padEnd(widths[i]!)).join(" | ") + " |";
   return [fmt(headers), ...rows.map(fmt)];
@@ -58,7 +56,7 @@ export function generateProvenanceFeature(): string {
     "  Rule: a signed git effect verifies iff produced by an owning actor",
     "",
     `    Scenario Outline: a signed "git <subcommand>" verifies only for its owners <owners>`,
-    "      Given a signed effect derivation for \"git <subcommand>\"",
+    '      Given a signed effect derivation for "git <subcommand>"',
     `      Then a derivation produced by one of "<owners>" verifies`,
     "      And a derivation produced by any other policy role is rejected as an orphan effect",
     "",
@@ -76,7 +74,7 @@ export function generateProvenanceFeature(): string {
     "  Rule: a signed effect for a hard-blocked subcommand is always rejected",
     "",
     `    Scenario Outline: a signed "git <subcommand>" is rejected though hard-blocked`,
-    "      Given a signed effect derivation for \"git <subcommand>\"",
+    '      Given a signed effect derivation for "git <subcommand>"',
     "      Then verification is rejected for every actor",
     "",
     "      Examples: hard-blocked git",
@@ -95,7 +93,7 @@ export function generateProvenanceFeature(): string {
     "",
     "    Scenario: an unparseable producer is rejected",
     '      Given a signed effect derivation for "git push"',
-    '      And its producer builder id is malformed',
+    "      And its producer builder id is malformed",
     "      Then verification is rejected",
     "",
   );

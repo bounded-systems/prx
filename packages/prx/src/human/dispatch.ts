@@ -29,7 +29,10 @@ export type HumanResponder = (request: HumanRequest) => Promise<unknown>;
 
 /** Thrown when a dispatch or reply violates the human-actor contract. */
 export class HumanProtocolError extends Error {
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
     super(message);
     this.name = "HumanProtocolError";
   }
@@ -67,7 +70,9 @@ export async function dispatchToHuman(
 }
 
 function parseOrThrow<T>(
-  schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: unknown } },
+  schema: {
+    safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: unknown };
+  },
   value: unknown,
   context: string,
 ): T {
@@ -80,7 +85,8 @@ function parseOrThrow<T>(
 
 function stringifyIssue(error: unknown): string {
   if (error && typeof error === "object" && "issues" in error) {
-    const issues = (error as { issues: Array<{ path: Array<string | number>; message: string }> }).issues;
+    const issues = (error as { issues: Array<{ path: Array<string | number>; message: string }> })
+      .issues;
     return issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`).join("; ");
   }
   return String(error);

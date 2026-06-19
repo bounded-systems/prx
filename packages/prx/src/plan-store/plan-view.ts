@@ -15,16 +15,8 @@
 import { z } from "zod";
 
 import { extractIssueNumber } from "../issues/dedupe.ts";
-import {
-  IssueResolveError,
-  resolveIssueId,
-  type IssueResolvedId,
-} from "../issues/resolver.ts";
-import {
-  formatIssueViewRender,
-  viewGhIssue,
-  type IssueViewRender,
-} from "../issues/render.ts";
+import { IssueResolveError, resolveIssueId, type IssueResolvedId } from "../issues/resolver.ts";
+import { formatIssueViewRender, viewGhIssue, type IssueViewRender } from "../issues/render.ts";
 import { runScoutNotion, ScoutNotionError } from "../scout/notion.ts";
 import { execBd } from "@bounded-systems/bd";
 import { execGh } from "@bounded-systems/gh";
@@ -90,9 +82,7 @@ export async function runPlanView(
           ghExec,
           bdExec,
         });
-        output.log(
-          renderPlanView({ source: "notion", payload: result }, opts.format),
-        );
+        output.log(renderPlanView({ source: "notion", payload: result }, opts.format));
         return 0;
       } catch (err) {
         if (err instanceof ScoutNotionError) {
@@ -132,9 +122,6 @@ export async function runPlanView(
   }
 }
 
-export function renderPlanView(
-  render: IssueViewRender,
-  format: "plain" | "json",
-): string {
+export function renderPlanView(render: IssueViewRender, format: "plain" | "json"): string {
   return formatIssueViewRender(render, format);
 }

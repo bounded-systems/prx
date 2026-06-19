@@ -42,7 +42,11 @@ describe("runCiPhases — surfaces per-phase results for partial-pass attestatio
   });
 
   test("single --phase failure surfaces that phase as not-passed (nothing to attest)", () => {
-    const { code, results } = runCiPhases({ phase: "test", format: "plain" }, sink, fakeRunner({ test: 1 }));
+    const { code, results } = runCiPhases(
+      { phase: "test", format: "plain" },
+      sink,
+      fakeRunner({ test: 1 }),
+    );
     expect(code).toBe(1);
     expect(results.filter((r) => r.status === 0)).toHaveLength(0);
   });

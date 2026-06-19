@@ -29,10 +29,7 @@ import {
   type TriageStatusActorResult,
   type TriageStatusOptions,
 } from "./triage.ts";
-import {
-  triagePrimeOptionsSchema,
-  type TriagePrimeOptions,
-} from "./schemas/index.ts";
+import { triagePrimeOptionsSchema, type TriagePrimeOptions } from "./schemas/index.ts";
 import { makeAuditInspector } from "../audit/sink.ts";
 
 type Output = {
@@ -141,8 +138,8 @@ export function runTriagePrime(
   const validated: TriagePrimeOptions = triagePrimeOptionsSchema.parse(opts);
   const machine = deps.machine ?? triageMachine;
   const loadStatus =
-    deps.loadStatus
-    ?? ((statusOpts: TriageStatusOptions) =>
+    deps.loadStatus ??
+    ((statusOpts: TriageStatusOptions) =>
       runStatusActor(statusOpts, deps.cwd ? { cwd: deps.cwd } : {}));
 
   return runPrimeLoop(validated, output, machine, loadStatus);

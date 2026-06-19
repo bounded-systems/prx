@@ -18,7 +18,8 @@ function depsWithPing(pingOutput: string, pingExit = 1) {
     readBinarySha256: () => "deadbeef",
     run: (command: readonly string[]): CmdResult => {
       const joined = command.join(" ");
-      if (joined.includes("--version")) return { exitCode: 0, stdout: "codex 1.2.3", stderr: "", latencyMs: 1 };
+      if (joined.includes("--version"))
+        return { exitCode: 0, stdout: "codex 1.2.3", stderr: "", latencyMs: 1 };
       return { exitCode: pingExit, stdout: pingOutput, stderr: "", latencyMs: 1 };
     },
   };

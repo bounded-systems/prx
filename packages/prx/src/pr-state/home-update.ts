@@ -69,9 +69,7 @@ const STANDALONE_DEFAULT_INPUTS = ["prx"];
 // when unconfigured/malformed (caller falls back to the standalone default).
 // Shares the single operator-config reader (operator-config.ts) with scopeMap /
 // provenance (GH-411 slice 4).
-export function readConfiguredHomeUpdateInputs(
-  deps: OperatorConfigDeps = {},
-): string[] | null {
+export function readConfiguredHomeUpdateInputs(deps: OperatorConfigDeps = {}): string[] | null {
   const raw = readOperatorConfig(deps).homeUpdate;
   if (!raw || typeof raw !== "object") return null;
   const inputs = (raw as { inputs?: unknown }).inputs;
@@ -300,9 +298,7 @@ export function runHomeUpdate(
     return 2;
   }
   if (!pathExists(resolve(flakeDir, "flake.nix"))) {
-    output.error(
-      `prx home update: flake.nix not found at ${flakeDir} (not a flake directory)`,
-    );
+    output.error(`prx home update: flake.nix not found at ${flakeDir} (not a flake directory)`);
     return 2;
   }
   if (!pathExists(resolve(flakeDir, "flake.lock"))) {
@@ -322,14 +318,11 @@ export function runHomeUpdate(
   // the requested inputs are present — preserving the single `--input <bogus>`
   // → exit 2 behavior.
   for (const name of fromRead.missing) {
-    output.error(
-      `prx home update: input "${name}" not found in ${lockPath}; skipping`,
-    );
+    output.error(`prx home update: input "${name}" not found in ${lockPath}; skipping`);
   }
   const presentInputs = requestedInputs.filter((n) => fromRead.revs.has(n));
   if (presentInputs.length === 0) {
-    const availableText =
-      fromRead.available.length > 0 ? fromRead.available.join(", ") : "(none)";
+    const availableText = fromRead.available.length > 0 ? fromRead.available.join(", ") : "(none)";
     output.error(
       `prx home update: none of the requested inputs are present in ${lockPath}. Available inputs: ${availableText}`,
     );
@@ -344,19 +337,20 @@ export function runHomeUpdate(
   // prx-9lc: `nix flake update a b` updates each named input in one invocation
   // (bare `nix flake update` would update ALL inputs incl. nixpkgs/home-manager
   // — deliberately NOT done, to keep churn scoped to the requested set).
-  const nixUpdateCmd = [
-    "nix",
-    "flake",
-    "update",
-    ...presentInputs,
-    "--flake",
-    flakeDir,
-  ];
+  const nixUpdateCmd = ["nix", "flake", "update", ...presentInputs, "--flake", flakeDir];
   // prx-1ab: the lockfile commit that keeps the git+file flake tree clean for
   // the switch (run only when `nix flake update` actually moved a rev). The
   // dry-run preview names the requested inputs; the real commit (below) names
   // only the inputs that moved with their rev transitions.
-  const gitCommitCmd = ["git", "-C", flakeDir, "commit", "flake.lock", "-m", `chore(flake): update ${inputsLabel}`];
+  const gitCommitCmd = [
+    "git",
+    "-C",
+    flakeDir,
+    "commit",
+    "flake.lock",
+    "-m",
+    `chore(flake): update ${inputsLabel}`,
+  ];
   const hmSwitchCmd = ["home-manager", "switch", "--flake", flakeDir];
 
   if (options.dryRun) {
@@ -403,25 +397,19 @@ export function runHomeUpdate(
   }
 
   if (quiet) {
-    output.log(
-      `  updating flake input${presentInputs.length > 1 ? "s" : ""} ${inputsLabel}…`,
-    );
+    output.log(`  updating flake input${presentInputs.length > 1 ? "s" : ""} ${inputsLabel}…`);
   }
-  const updateResult = spawn(
-    nixUpdateCmd[0]!,
-    nixUpdateCmd.slice(1),
-    { cwd: flakeDir, stdio: childStdio, env },
-  );
+  const updateResult = spawn(nixUpdateCmd[0]!, nixUpdateCmd.slice(1), {
+    cwd: flakeDir,
+    stdio: childStdio,
+    env,
+  });
   if (updateResult.error) {
-    output.error(
-      `prx home update: failed to invoke nix: ${updateResult.error.message}`,
-    );
+    output.error(`prx home update: failed to invoke nix: ${updateResult.error.message}`);
     return 1;
   }
   if (updateResult.status !== 0) {
-    output.error(
-      `prx home update: nix flake update exited with status ${updateResult.status}`,
-    );
+    output.error(`prx home update: nix flake update exited with status ${updateResult.status}`);
     if (quiet) dumpCaptured(captureToText(updateResult), output);
     return updateResult.status ?? 1;
   }
@@ -491,15 +479,11 @@ export function runHomeUpdate(
     env,
   });
   if (switchResult.error) {
-    output.error(
-      `prx home update: failed to invoke home-manager: ${switchResult.error.message}`,
-    );
+    output.error(`prx home update: failed to invoke home-manager: ${switchResult.error.message}`);
     return 1;
   }
   if (switchResult.status !== 0) {
-    output.error(
-      `prx home update: home-manager switch exited with status ${switchResult.status}`,
-    );
+    output.error(`prx home update: home-manager switch exited with status ${switchResult.status}`);
     if (quiet) dumpCaptured(captureToText(switchResult), output);
     return switchResult.status ?? 1;
   }

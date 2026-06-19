@@ -41,21 +41,14 @@ import { join, resolve as resolvePath } from "node:path";
 
 import { z } from "zod";
 
-import {
-  appendAuditRow,
-  auditSinkPath,
-  type AuditSinkDeps,
-} from "../audit/sink.ts";
+import { appendAuditRow, auditSinkPath, type AuditSinkDeps } from "../audit/sink.ts";
 
 import { runIntake as defaultRunIntake } from "../intake/intake.ts";
 import type { IntakeOptions } from "../intake/intake.ts";
 import { execBd as defaultExecBd } from "@bounded-systems/bd";
 import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import { loadAllBeads, type BeadsRecord } from "./triage.ts";
-import {
-  buildBeadsLookup,
-  type BeadsLookup,
-} from "../issues/dedupe.ts";
+import { buildBeadsLookup, type BeadsLookup } from "../issues/dedupe.ts";
 import {
   promoteChildrenManifestSchema,
   promoteChildrenFiledStateSchema,
@@ -74,9 +67,7 @@ export const triagePromoteChildrenOptionsSchema = z.object({
   limit: z.number().int().min(0).default(0),
 });
 
-export type TriagePromoteChildrenOptions = z.infer<
-  typeof triagePromoteChildrenOptionsSchema
->;
+export type TriagePromoteChildrenOptions = z.infer<typeof triagePromoteChildrenOptionsSchema>;
 
 export type ReadTextFile = (path: string, encoding: "utf8") => string;
 
@@ -109,7 +100,6 @@ const AI_HOME_SHORT_REF_RE = /^ai-home-(\d+)$/;
 // to bd verbatim. Kept local to avoid pulling the adapter's side-effect
 // registration into this operator-initiated verb.
 const BD_LONG_ID_RE = /^[a-z][a-z0-9-]*-\d{13,}-\d+-[0-9a-f]{8}$/i;
-
 
 function loadManifest(
   manifestPath: string,
@@ -248,10 +238,8 @@ export function runTriagePromoteChildren(
   output: Output,
   deps: TriagePromoteChildrenDeps = {},
 ): number {
-  const read: ReadTextFile =
-    deps.readFileSync ?? ((p, e) => defaultReadFileSync(p, e) as string);
-  const write =
-    deps.writeFileSyncFn ?? ((p, d) => writeFileSync(p, d, "utf8"));
+  const read: ReadTextFile = deps.readFileSync ?? ((p, e) => defaultReadFileSync(p, e) as string);
+  const write = deps.writeFileSyncFn ?? ((p, d) => writeFileSync(p, d, "utf8"));
   const exists = deps.existsSyncFn ?? existsSync;
   const intake = deps.runIntake ?? defaultRunIntake;
   const bdExec = deps.execBd ?? defaultExecBd;
@@ -289,9 +277,7 @@ export function runTriagePromoteChildren(
     const slot = opts.only;
     bodies = bodies.filter((b) => b.slot === slot);
     if (bodies.length === 0) {
-      output.error(
-        `triage promote-children: --only ${slot} matched no bodies in manifest`,
-      );
+      output.error(`triage promote-children: --only ${slot} matched no bodies in manifest`);
       return 1;
     }
   }
@@ -346,9 +332,7 @@ export function runTriagePromoteChildren(
         action: "create",
         exitCode: 0,
       });
-      output.log(
-        `dry-run slot=${body.slot} type=${body.type} title=${body.title}`,
-      );
+      output.log(`dry-run slot=${body.slot} type=${body.type} title=${body.title}`);
       // Stamp a placeholder so dep resolution can preview slot→slot edges
       // without an actual GH-N. The placeholder never escapes dry-run mode.
       filedBySlot.set(body.slot, {
@@ -377,9 +361,7 @@ export function runTriagePromoteChildren(
         exitCode,
         ...(stderrJoined ? { stderr: stderrJoined } : {}),
       });
-      output.error(
-        `title-mismatch slot=${body.slot}: ${stderrJoined || "intake refused title"}`,
-      );
+      output.error(`title-mismatch slot=${body.slot}: ${stderrJoined || "intake refused title"}`);
       bodyErrors += 1;
       continue;
     }
@@ -402,10 +384,7 @@ export function runTriagePromoteChildren(
     let issueNumber: number | null = null;
     try {
       const parsed = JSON.parse(intakeStdout.join("\n"));
-      issueUrl =
-        typeof parsed?.ghResult?.issueUrl === "string"
-          ? parsed.ghResult.issueUrl
-          : null;
+      issueUrl = typeof parsed?.ghResult?.issueUrl === "string" ? parsed.ghResult.issueUrl : null;
       issueNumber = extractIssueNumberFromUrl(issueUrl);
     } catch {
       // Fall through — issueNumber stays null, treated as filing-failure below.
@@ -511,9 +490,7 @@ export function runTriagePromoteChildren(
         exitCode: 0,
         stderr: reason,
       });
-      output.log(
-        `skip dep ${edge.type} ${edge.from}→${edge.to}: ${reason}`,
-      );
+      output.log(`skip dep ${edge.type} ${edge.from}→${edge.to}: ${reason}`);
       depsSkipped += 1;
       continue;
     }
@@ -529,21 +506,17 @@ export function runTriagePromoteChildren(
         toBead,
         exitCode: 0,
       });
-      output.log(
-        `dry-run dep ${edge.type} ${edge.from}(${fromBead})→${edge.to}(${toBead})`,
-      );
+      output.log(`dry-run dep ${edge.type} ${edge.from}(${fromBead})→${edge.to}(${toBead})`);
       depsWired += 1;
       continue;
     }
 
     // GH-296 / prx-82b: wire the edge via the daemon (single writer).
-    const result = run(
-      ["prx", "beads", "dep", "add", "--type", edge.type, fromBead, toBead],
-      { check: false },
-    );
+    const result = run(["prx", "beads", "dep", "add", "--type", edge.type, fromBead, toBead], {
+      check: false,
+    });
     if (result.status !== 0) {
-      const stderr =
-        result.stderr.trim() || result.stdout.trim() || "prx beads dep add failed";
+      const stderr = result.stderr.trim() || result.stdout.trim() || "prx beads dep add failed";
       writeAudit({
         ...baseDep,
         action: "error",
@@ -552,9 +525,7 @@ export function runTriagePromoteChildren(
         exitCode: result.status,
         stderr,
       });
-      output.error(
-        `error dep ${edge.type} ${edge.from}→${edge.to}: ${stderr}`,
-      );
+      output.error(`error dep ${edge.type} ${edge.from}→${edge.to}: ${stderr}`);
       depsErrors += 1;
       continue;
     }

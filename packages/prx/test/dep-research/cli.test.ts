@@ -83,11 +83,10 @@ describe("prx dep research <dep> --dry-run", () => {
 
     const exit = await withCwd(root, () =>
       Promise.resolve(
-        runCli(
-          ["dep", "research", "xstate", "--dry-run"],
-          captured.output,
-          { depResearchFetcher: okFetcher, depResearchNow: fixedNow },
-        ),
+        runCli(["dep", "research", "xstate", "--dry-run"], captured.output, {
+          depResearchFetcher: okFetcher,
+          depResearchNow: fixedNow,
+        }),
       ),
     );
 
@@ -98,9 +97,7 @@ describe("prx dep research <dep> --dry-run", () => {
     expect(parsed.dep).toBe("xstate");
     expect(parsed.run_id).toBe("20260505T120000Z");
     expect(parsed.run_state).toBe("ok");
-    expect(parsed.source_sha256["packages/core/src/types.ts"]).toMatch(
-      /^[0-9a-f]{64}$/,
-    );
+    expect(parsed.source_sha256["packages/core/src/types.ts"]).toMatch(/^[0-9a-f]{64}$/);
   });
 
   test("leaves no on-disk artifacts under .prx/dep-research/<dep>/", async () => {
@@ -116,18 +113,15 @@ describe("prx dep research <dep> --dry-run", () => {
 
     await withCwd(root, () =>
       Promise.resolve(
-        runCli(
-          ["dep", "research", "xstate", "--dry-run"],
-          captured.output,
-          { depResearchFetcher: okFetcher, depResearchNow: fixedNow },
-        ),
+        runCli(["dep", "research", "xstate", "--dry-run"], captured.output, {
+          depResearchFetcher: okFetcher,
+          depResearchNow: fixedNow,
+        }),
       ),
     );
 
     // Manifest is still there (we wrote it ourselves).
-    expect(existsSync(join(root, ".prx", "dep-research", "manifest.json"))).toBe(
-      true,
-    );
+    expect(existsSync(join(root, ".prx", "dep-research", "manifest.json"))).toBe(true);
     // No <dep>/ directory ever materialized under .prx/dep-research/.
     expect(existsSync(join(root, ".prx", "dep-research", "xstate"))).toBe(false);
   });
@@ -145,11 +139,10 @@ describe("prx dep research <dep> --dry-run", () => {
 
     const exit = await withCwd(root, () =>
       Promise.resolve(
-        runCli(
-          ["dep", "research", "xstate", "--dry-run"],
-          captured.output,
-          { depResearchFetcher: failingFetcher, depResearchNow: fixedNow },
-        ),
+        runCli(["dep", "research", "xstate", "--dry-run"], captured.output, {
+          depResearchFetcher: failingFetcher,
+          depResearchNow: fixedNow,
+        }),
       ),
     );
 
@@ -158,9 +151,7 @@ describe("prx dep research <dep> --dry-run", () => {
     const parsed = DepSnapshot.parse(printed);
     expect(parsed.run_state).toBe("failed");
     expect(parsed.source_sha256).toEqual({});
-    expect(captured.errors.some((e) => e.includes("repository unreachable"))).toBe(
-      true,
-    );
+    expect(captured.errors.some((e) => e.includes("repository unreachable"))).toBe(true);
     // Even after failure, the dry-run leaves no on-disk artifacts.
     expect(existsSync(join(root, ".prx", "dep-research", "xstate"))).toBe(false);
   });
@@ -180,11 +171,10 @@ describe("prx dep research <dep> (bare form)", () => {
 
     const exit = await withCwd(root, () =>
       Promise.resolve(
-        runCli(
-          ["dep", "research", "xstate"],
-          captured.output,
-          { depResearchFetcher: okFetcher, depResearchNow: fixedNow },
-        ),
+        runCli(["dep", "research", "xstate"], captured.output, {
+          depResearchFetcher: okFetcher,
+          depResearchNow: fixedNow,
+        }),
       ),
     );
 
@@ -208,18 +198,14 @@ describe("prx dep research — argv routing", () => {
 
     const exit = await withCwd(root, () =>
       Promise.resolve(
-        runCli(
-          ["dep", "research", "no-such-dep", "--dry-run"],
-          captured.output,
-          { depResearchNow: fixedNow },
-        ),
+        runCli(["dep", "research", "no-such-dep", "--dry-run"], captured.output, {
+          depResearchNow: fixedNow,
+        }),
       ),
     );
 
     expect(exit).toBe(66);
-    expect(captured.errors.some((e) => e.includes("unknown dep 'no-such-dep'"))).toBe(
-      true,
-    );
+    expect(captured.errors.some((e) => e.includes("unknown dep 'no-such-dep'"))).toBe(true);
     expect(captured.errors.some((e) => e.includes("xstate"))).toBe(true);
   });
 
@@ -229,16 +215,12 @@ describe("prx dep research — argv routing", () => {
       runCli(["dep", "research", "--dry-run"], captured.output, {}),
     );
     expect(exit).not.toBe(0);
-    expect(captured.errors.some((e) =>
-      e.includes("requires a <dep> positional"),
-    )).toBe(true);
+    expect(captured.errors.some((e) => e.includes("requires a <dep> positional"))).toBe(true);
   });
 
   test("`prx dep` lists manifest, research, and status", async () => {
     const captured = captureOutput();
-    const exit = await Promise.resolve(
-      runCli(["dep"], captured.output, {}),
-    );
+    const exit = await Promise.resolve(runCli(["dep"], captured.output, {}));
     expect(exit).not.toBe(0);
     const joined = captured.errors.join("\n");
     expect(joined).toContain("manifest");
@@ -248,9 +230,7 @@ describe("prx dep research — argv routing", () => {
 
   test("unknown dep subcommand lists available + research + status", async () => {
     const captured = captureOutput();
-    const exit = await Promise.resolve(
-      runCli(["dep", "researrch"], captured.output, {}),
-    );
+    const exit = await Promise.resolve(runCli(["dep", "researrch"], captured.output, {}));
     expect(exit).not.toBe(0);
     const joined = captured.errors.join("\n");
     expect(joined).toContain("Unknown dep subcommand");
@@ -277,9 +257,7 @@ describe("prx dep status", () => {
     const root = repoWithManifest();
     const captured = captureOutput();
     const exit = await withCwd(root, () =>
-      Promise.resolve(
-        runCli(["dep", "status", "--format", "json"], captured.output, {}),
-      ),
+      Promise.resolve(runCli(["dep", "status", "--format", "json"], captured.output, {})),
     );
     expect(exit).toBe(0);
     const printed = JSON.parse(captured.logs[0]!);

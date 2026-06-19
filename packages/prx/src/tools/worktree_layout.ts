@@ -59,16 +59,13 @@ export function isRegisteredWorktree(
   targetPath: string,
   spawn: WorktreeSpawn,
 ): boolean {
-  const listResult = spawn(
-    "git",
-    ["-C", repoRoot, "worktree", "list", "--porcelain"],
-    { cwd: repoRoot, encoding: "utf8" },
-  );
+  const listResult = spawn("git", ["-C", repoRoot, "worktree", "list", "--porcelain"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
   if (listResult.error) throw listResult.error;
   if ((listResult.status ?? 1) !== 0) return false;
-  return (listResult.stdout ?? "")
-    .split("\n")
-    .some((line) => line === `worktree ${targetPath}`);
+  return (listResult.stdout ?? "").split("\n").some((line) => line === `worktree ${targetPath}`);
 }
 
 /**
@@ -97,8 +94,9 @@ export function addWorktreeForBranch(
   const addResult = spawn("git", args, { cwd: repoRoot, encoding: "utf8" });
   if (addResult.error) throw addResult.error;
   if ((addResult.status ?? 1) !== 0) {
-    const message = (addResult.stderr ?? addResult.stdout ?? "").trim()
-      || `git worktree add failed for ${branch}`;
+    const message =
+      (addResult.stderr ?? addResult.stdout ?? "").trim() ||
+      `git worktree add failed for ${branch}`;
     throw new WorktreeAddError(message);
   }
 }

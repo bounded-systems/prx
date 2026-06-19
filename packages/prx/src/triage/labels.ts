@@ -16,15 +16,7 @@ import { z } from "zod";
 // `type::task`, but neither is in `BD_TYPE_ENUM` below — beads `typeMapping`
 // does not round-trip them. See the `BD_TYPE_ENUM` block-comment for the
 // divergence rationale.
-export const TYPE = z.enum([
-  "bug",
-  "feature",
-  "task",
-  "chore",
-  "epic",
-  "spike",
-  "decision",
-]);
+export const TYPE = z.enum(["bug", "feature", "task", "chore", "epic", "spike", "decision"]);
 
 // `none` (GH-970) is the explicit unscored marker — the operator has not
 // decided yet. `prx triage status` counts it as untriaged (see triage.ts:329).

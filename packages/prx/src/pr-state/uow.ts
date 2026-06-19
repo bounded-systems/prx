@@ -71,7 +71,9 @@ function resolveUnitOfWorkId(unit: BoardUnit): string {
   const branchId = canonicalWorkUnitIdFromBranchName(unit.branch);
 
   if (ticketId && branchId !== ticketId) {
-    throw new Error(`branch must match canonical issue-backed work unit id ${ticketId}: ${unit.branch}`);
+    throw new Error(
+      `branch must match canonical issue-backed work unit id ${ticketId}: ${unit.branch}`,
+    );
   }
 
   if (ticketId) {
@@ -85,7 +87,10 @@ function resolveUnitOfWorkId(unit: BoardUnit): string {
   return normalizeId(unit.branch);
 }
 
-function normalizeTicketOverlay(row: Partial<TicketOverlay>, fallbackSource: TicketSystem): TicketOverlay | null {
+function normalizeTicketOverlay(
+  row: Partial<TicketOverlay>,
+  fallbackSource: TicketSystem,
+): TicketOverlay | null {
   if (typeof row.id !== "string" || row.id.trim().length === 0) {
     return null;
   }

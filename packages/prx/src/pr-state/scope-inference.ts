@@ -78,10 +78,7 @@ export function isMainxPath(worktreePath: string): boolean {
  * Returns false (not-mainx) when git rev-parse fails, so callers don't
  * accidentally treat a non-git path as the ops surface.
  */
-export function isMainxWorktree(
-  cwd: string,
-  runner: CommandRunner = defaultRunner,
-): boolean {
+export function isMainxWorktree(cwd: string, runner: CommandRunner = defaultRunner): boolean {
   const toplevel = runner("git", ["-C", cwd, "rev-parse", "--show-toplevel"], { cwd });
   if ((toplevel.status ?? 1) !== 0) return false;
   return isMainxPath(toplevel.stdout.trim());

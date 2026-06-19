@@ -12,10 +12,7 @@ import { describe, expect, test } from "bun:test";
 
 import { markFindings } from "../../../../src/machine/gc/capability.ts";
 import { createHooksDriver } from "../../../../src/machine/gc/drivers/hooks.ts";
-import type {
-  GcDriverDeps,
-  HooksGcOps,
-} from "../../../../src/machine/gc/drivers/registry.ts";
+import type { GcDriverDeps, HooksGcOps } from "../../../../src/machine/gc/drivers/registry.ts";
 import { runInventory, runRun } from "../../../../src/machine/gc/actor.ts";
 import type { RepoInventory } from "../../../../src/pr-state/repos.ts";
 
@@ -45,7 +42,12 @@ function hooksStub(opts: {
       hooksPath: expected,
       repos: inv.repos.map((r) => {
         const c = cur.get(r.name) ?? null;
-        return { name: r.name, commonDir: r.commonDir, currentHooksPath: c, matches: c === expected };
+        return {
+          name: r.name,
+          commonDir: r.commonDir,
+          currentHooksPath: c,
+          matches: c === expected,
+        };
       }),
     }),
     apply: (inv, expected) => {
@@ -56,10 +58,23 @@ function hooksStub(opts: {
           const prev = cur.get(r.name) ?? null;
           const err = opts.applyError?.[r.name];
           if (err) {
-            return { name: r.name, commonDir: r.commonDir, previousHooksPath: prev, newHooksPath: expected, changed: false, error: err };
+            return {
+              name: r.name,
+              commonDir: r.commonDir,
+              previousHooksPath: prev,
+              newHooksPath: expected,
+              changed: false,
+              error: err,
+            };
           }
           cur.set(r.name, expected); // the write
-          return { name: r.name, commonDir: r.commonDir, previousHooksPath: prev, newHooksPath: expected, changed: prev !== expected };
+          return {
+            name: r.name,
+            commonDir: r.commonDir,
+            previousHooksPath: prev,
+            newHooksPath: expected,
+            changed: prev !== expected,
+          };
         }),
       };
     },
@@ -121,7 +136,10 @@ describe("createHooksDriver — sweep", () => {
   });
 
   test("per-repo apply error surfaces as failed; the rest still reclaim", async () => {
-    const { ops } = hooksStub({ current: { a: "/wrong", b: "/wrong" }, applyError: { a: "locked" } });
+    const { ops } = hooksStub({
+      current: { a: "/wrong", b: "/wrong" },
+      applyError: { a: "locked" },
+    });
     const driver = createHooksDriver(deps(ops));
     const mark = markFindings("hooks", await driver.mark());
     const { reclaimed, failed } = await driver.sweep(mark, {});
@@ -138,7 +156,9 @@ describe("createHooksDriver — sweep", () => {
   });
 
   test("no-op without injected hooks ops", async () => {
-    expect(await createHooksDriver(deps()).sweep(markFindings("hooks", []), {})).toEqual({ reclaimed: [] });
+    expect(await createHooksDriver(deps()).sweep(markFindings("hooks", []), {})).toEqual({
+      reclaimed: [],
+    });
   });
 });
 

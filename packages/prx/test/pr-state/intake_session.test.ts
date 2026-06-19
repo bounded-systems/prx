@@ -9,10 +9,7 @@ import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
 
 import { runCli } from "../../src/pr-state/cli.ts";
-import type {
-  RuntimeExecutionResult,
-  RuntimeExecutor,
-} from "../../src/pr-state/executor.ts";
+import type { RuntimeExecutionResult, RuntimeExecutor } from "../../src/pr-state/executor.ts";
 import { dispatchFromArgv } from "../../src/pr-state/session-entry/dispatch.ts";
 import type { OpenSessionResult } from "../../src/session/open.ts";
 
@@ -90,26 +87,22 @@ describe("prx intake session (GH-950)", () => {
       return { status: 0, stdout: "", stderr: "" };
     };
 
-    const exit = await runCli(
-      ["intake", "agent"],
-      output,
-      {
-        // The mainx guard is gone — a false detector must NOT reject anymore.
-        isMainxWorktree: () => false,
-        openSession: fakeOpenSession({
-          worktreePath,
-          record: (input) => {
-            routedActor = input.actor;
-          },
-        }),
-        ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-        ensureClaudeSessionAllowlist: (cwd) => {
-          allowlistCwd = cwd;
-          return { status: "created", path: `${cwd}/.claude/settings.local.json` };
+    const exit = await runCli(["intake", "agent"], output, {
+      // The mainx guard is gone — a false detector must NOT reject anymore.
+      isMainxWorktree: () => false,
+      openSession: fakeOpenSession({
+        worktreePath,
+        record: (input) => {
+          routedActor = input.actor;
         },
-        execRuntime: fakeExec,
+      }),
+      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
+      ensureClaudeSessionAllowlist: (cwd) => {
+        allowlistCwd = cwd;
+        return { status: "created", path: `${cwd}/.claude/settings.local.json` };
       },
-    );
+      execRuntime: fakeExec,
+    });
 
     expect(exit).toBe(0);
     expect(routedActor).toBe("intake");
@@ -122,29 +115,25 @@ describe("prx intake session (GH-950)", () => {
     const { errors, output } = captureOutput();
     let executorCalled = false;
 
-    const exit = await runCli(
-      ["intake", "agent"],
-      output,
-      {
-        openSession: async () => ({
-          workspace_id: "000000000000",
-          worktree_path: "",
-          branch_ref: "intake/20260526-abc123",
-          lifecycle: "materialized",
-          reserved_status: "error",
-          prepared_status: "error",
-          profile_built: false,
-          status: "error",
-          stage: "prepare",
-          error: "exclude write failed",
-        }),
-        ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-        execRuntime: () => {
-          executorCalled = true;
-          return { status: 0, stdout: "", stderr: "" };
-        },
+    const exit = await runCli(["intake", "agent"], output, {
+      openSession: async () => ({
+        workspace_id: "000000000000",
+        worktree_path: "",
+        branch_ref: "intake/20260526-abc123",
+        lifecycle: "materialized",
+        reserved_status: "error",
+        prepared_status: "error",
+        profile_built: false,
+        status: "error",
+        stage: "prepare",
+        error: "exclude write failed",
+      }),
+      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
+      execRuntime: () => {
+        executorCalled = true;
+        return { status: 0, stdout: "", stderr: "" };
       },
-    );
+    });
 
     expect(exit).not.toBe(0);
     expect(executorCalled).toBe(false);
@@ -161,22 +150,18 @@ describe("prx intake session (GH-950)", () => {
       return { status: 0, stdout: "", stderr: "" };
     };
 
-    const exit = await runCli(
-      ["intake", "agent", "--check"],
-      output,
-      {
-        openSession: async () => {
-          openSessionCalled = true;
-          throw new Error("--check must not reserve a worktree");
-        },
-        ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-        ensureClaudeSessionAllowlist: () => {
-          allowlistCalled = true;
-          return { status: "unchanged", path: "/tmp/.claude/settings.local.json" };
-        },
-        execRuntime: fakeExec,
+    const exit = await runCli(["intake", "agent", "--check"], output, {
+      openSession: async () => {
+        openSessionCalled = true;
+        throw new Error("--check must not reserve a worktree");
       },
-    );
+      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
+      ensureClaudeSessionAllowlist: () => {
+        allowlistCalled = true;
+        return { status: "unchanged", path: "/tmp/.claude/settings.local.json" };
+      },
+      execRuntime: fakeExec,
+    });
 
     expect(exit).toBe(0);
     expect(executorCalled).toBe(false);
@@ -190,14 +175,10 @@ describe("prx intake session (GH-950)", () => {
   test("--check --format json from mainx emits a JSON readiness blob", async () => {
     const { logs, output } = captureOutput();
 
-    const exit = await runCli(
-      ["intake", "agent", "--check", "--format", "json"],
-      output,
-      {
-        isMainxWorktree: () => true,
-        ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-      },
-    );
+    const exit = await runCli(["intake", "agent", "--check", "--format", "json"], output, {
+      isMainxWorktree: () => true,
+      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
+    });
 
     expect(exit).toBe(0);
     expect(logs.length).toBe(1);
@@ -218,25 +199,21 @@ describe("prx intake session (GH-950)", () => {
       return { status: 0, stdout: "", stderr: "" };
     };
 
-    const exit = await runCli(
-      ["intake", "agent", "--dry-run", "--format", "json"],
-      output,
-      {
-        openSession: async () => {
-          openSessionCalled = true;
-          throw new Error("--dry-run must not reserve a worktree");
-        },
-        ensureOpsRuntimeMcp: () => {
-          mcpProvisionCalled = true;
-          return { mcpServers: [] };
-        },
-        ensureClaudeSessionAllowlist: () => {
-          allowlistCalled = true;
-          return { status: "unchanged", path: "/tmp/.claude/settings.local.json" };
-        },
-        execRuntime: fakeExec,
+    const exit = await runCli(["intake", "agent", "--dry-run", "--format", "json"], output, {
+      openSession: async () => {
+        openSessionCalled = true;
+        throw new Error("--dry-run must not reserve a worktree");
       },
-    );
+      ensureOpsRuntimeMcp: () => {
+        mcpProvisionCalled = true;
+        return { mcpServers: [] };
+      },
+      ensureClaudeSessionAllowlist: () => {
+        allowlistCalled = true;
+        return { status: "unchanged", path: "/tmp/.claude/settings.local.json" };
+      },
+      execRuntime: fakeExec,
+    });
 
     expect(exit).toBe(0);
     expect(executorCalled).toBe(false);
@@ -296,23 +273,23 @@ describe("prx intake session (GH-950)", () => {
     let captured: { command?: string; args?: string[]; interaction?: string | undefined } = {};
     const allowlistCalls: Array<[string, string]> = [];
     const fakeExec: RuntimeExecutor = (profile): RuntimeExecutionResult => {
-      captured = { command: profile.command, args: [...profile.args], interaction: profile.interaction };
+      captured = {
+        command: profile.command,
+        args: [...profile.args],
+        interaction: profile.interaction,
+      };
       return { status: 0, stdout: "", stderr: "" };
     };
 
-    const exit = await runCli(
-      ["intake", "agent"],
-      output,
-      {
-        openSession: fakeOpenSession({ worktreePath: tmpWorktree() }),
-        ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-        ensureClaudeSessionAllowlist: (cwd, profile) => {
-          allowlistCalls.push([cwd, profile]);
-          return { status: "created", path: `${cwd}/.claude/settings.local.json` };
-        },
-        execRuntime: fakeExec,
+    const exit = await runCli(["intake", "agent"], output, {
+      openSession: fakeOpenSession({ worktreePath: tmpWorktree() }),
+      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
+      ensureClaudeSessionAllowlist: (cwd, profile) => {
+        allowlistCalls.push([cwd, profile]);
+        return { status: "created", path: `${cwd}/.claude/settings.local.json` };
       },
-    );
+      execRuntime: fakeExec,
+    });
 
     expect(exit).toBe(0);
     expect(captured.command).toBe("claude");
@@ -339,19 +316,15 @@ describe("prx intake session (GH-950)", () => {
       return { status: 0, stdout: "", stderr: "" };
     };
 
-    const exit = await runCli(
-      ["intake", "agent"],
-      output,
-      {
-        openSession: fakeOpenSession({ worktreePath: tmpWorktree() }),
-        ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-        ensureClaudeSessionAllowlist: () => ({
-          status: "skipped-malformed",
-          path: "/repo/.claude/settings.local.json",
-        }),
-        execRuntime: fakeExec,
-      },
-    );
+    const exit = await runCli(["intake", "agent"], output, {
+      openSession: fakeOpenSession({ worktreePath: tmpWorktree() }),
+      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
+      ensureClaudeSessionAllowlist: () => ({
+        status: "skipped-malformed",
+        path: "/repo/.claude/settings.local.json",
+      }),
+      execRuntime: fakeExec,
+    });
 
     expect(exit).toBe(0);
     expect(executorCalled).toBe(true);
@@ -446,9 +419,7 @@ describe("prx intake session (GH-950)", () => {
     // or it exits with a clear non-intake-session error. What MUST NOT happen
     // is the intake-session "must run from a mainx worktree" guard firing.
     // CliErrors are reported via output.error() (stderr), so check errors[].
-    const sawMainxGuard = errors.some((line) =>
-      line.includes("must run from a mainx worktree")
-    );
+    const sawMainxGuard = errors.some((line) => line.includes("must run from a mainx worktree"));
     expect(sawMainxGuard).toBe(false);
     if (exit === 0) {
       const last = logs[logs.length - 1] ?? "";
@@ -547,24 +518,27 @@ describe("prx intake namespace help (GH-1474)", () => {
   // ("open terminal failed: not a terminal" in non-TTY envs like CI), which
   // alters the routed output. Skip without a TTY so CI isn't blocked; it still
   // runs in an interactive terminal.
-  test.skipIf(!process.stdout.isTTY)("regression — `prx intake task 'title' --dry-run` still routes to the filing handler", async () => {
-    // Without --help, the intake namespace block in `normalizeNamespaceArgv`
-    // must return argv unchanged so the existing filing handler at
-    // `command === "intake"` stays in charge. Verifies via the dry-run JSON
-    // shape — title prefix `task(prx):` proves the filing path computed it.
-    const { logs, output } = captureOutput();
+  test.skipIf(!process.stdout.isTTY)(
+    "regression — `prx intake task 'title' --dry-run` still routes to the filing handler",
+    async () => {
+      // Without --help, the intake namespace block in `normalizeNamespaceArgv`
+      // must return argv unchanged so the existing filing handler at
+      // `command === "intake"` stays in charge. Verifies via the dry-run JSON
+      // shape — title prefix `task(prx):` proves the filing path computed it.
+      const { logs, output } = captureOutput();
 
-    const exit = await runCli(
-      ["intake", "task", "namespace help regression", "--dry-run", "--format", "json"],
-      output,
-      {},
-    );
+      const exit = await runCli(
+        ["intake", "task", "namespace help regression", "--dry-run", "--format", "json"],
+        output,
+        {},
+      );
 
-    expect(exit).toBe(0);
-    const last = logs[logs.length - 1] ?? "";
-    const parsed = JSON.parse(last) as { title?: string; dryRun?: boolean };
-    expect(parsed.dryRun).toBe(true);
-    expect(parsed.title).toContain("task(prx):");
-    expect(parsed.title).toContain("namespace help regression");
-  });
+      expect(exit).toBe(0);
+      const last = logs[logs.length - 1] ?? "";
+      const parsed = JSON.parse(last) as { title?: string; dryRun?: boolean };
+      expect(parsed.dryRun).toBe(true);
+      expect(parsed.title).toContain("task(prx):");
+      expect(parsed.title).toContain("namespace help regression");
+    },
+  );
 });

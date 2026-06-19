@@ -6,7 +6,10 @@ import type { BdExecOptions, BdExecResult } from "@bounded-systems/bd";
 type Recorder = {
   calls: BdExecOptions[];
   exec: (opts: BdExecOptions) => BdExecResult;
-  run: (cmd: string[], o?: { cwd?: string; check?: boolean }) => { status: number; stdout: string; stderr: string };
+  run: (
+    cmd: string[],
+    o?: { cwd?: string; check?: boolean },
+  ) => { status: number; stdout: string; stderr: string };
 };
 
 function makeExec(
@@ -46,9 +49,7 @@ function makeExec(
 const FROM_NAME = "Bounded Systems";
 const TO_LOGIN = "bdelanghe";
 
-function listStdout(
-  rows: Array<{ id: string; title?: string; assignee?: string | null }>,
-): string {
+function listStdout(rows: Array<{ id: string; title?: string; assignee?: string | null }>): string {
   return JSON.stringify(rows);
 }
 
@@ -206,9 +207,7 @@ describe("runRepairAssignees — defensive equality filter", () => {
 
 describe("runRepairAssignees — bd list failure", () => {
   test("non-zero list exit → exit 1 with detail", () => {
-    const rec = makeExec([
-      { exitCode: 2, stderr: "bd: cannot read db" },
-    ]);
+    const rec = makeExec([{ exitCode: 2, stderr: "bd: cannot read db" }]);
     const result = runRepairAssignees(
       { from: FROM_NAME, to: TO_LOGIN, apply: false, repoPath: "." },
       { execBd: rec.exec, run: rec.run },

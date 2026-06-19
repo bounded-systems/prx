@@ -28,7 +28,11 @@ describe("transcript source registry", () => {
   });
 
   test("listAdapters returns every registered adapter", () => {
-    expect(listAdapters().map((a) => a.kind).sort()).toEqual([...knownTranscriptSources].sort());
+    expect(
+      listAdapters()
+        .map((a) => a.kind)
+        .sort(),
+    ).toEqual([...knownTranscriptSources].sort());
   });
 
   test("knownTranscriptSources lists both shipping adapters", () => {

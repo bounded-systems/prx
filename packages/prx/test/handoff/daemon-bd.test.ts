@@ -16,7 +16,12 @@ describe("handoffDaemonBd (prx-44y)", () => {
       return { stdout: "[]", stderr: "", status: 0 } satisfies CommandResult;
     };
     const bd = makeHandoffDaemonBd({ run });
-    const r = bd({ subcommand: "memories", args: ["handoff/", "--json"], state: "planning", role: "planner" });
+    const r = bd({
+      subcommand: "memories",
+      args: ["handoff/", "--json"],
+      state: "planning",
+      role: "planner",
+    });
     expect(calls[0]).toEqual(["prx", "beads", "memories", "handoff/", "--json"]);
     expect(r).toEqual({ exitCode: 0, stdout: "[]", stderr: "", policy: null });
   });
@@ -34,7 +39,15 @@ describe("handoffDaemonBd (prx-44y)", () => {
       state: "planning",
       role: "planner",
     });
-    expect(calls[0]).toEqual(["prx", "beads", "remember", '{"id":"h"}', "--key", "handoff/a", "--json"]);
+    expect(calls[0]).toEqual([
+      "prx",
+      "beads",
+      "remember",
+      '{"id":"h"}',
+      "--key",
+      "handoff/a",
+      "--json",
+    ]);
     expect(r.exitCode).toBe(1);
     expect(r.stderr).toBe("boom");
   });
@@ -46,7 +59,13 @@ describe("handoffDaemonBd (prx-44y)", () => {
       return { stdout: "", stderr: "", status: 0 };
     };
     const bd = makeHandoffDaemonBd({ run, prxBinary: "/opt/prx" });
-    bd({ subcommand: "recall", args: ["k", "--json"], cwd: "/clone", state: "planning", role: "planner" });
+    bd({
+      subcommand: "recall",
+      args: ["k", "--json"],
+      cwd: "/clone",
+      state: "planning",
+      role: "planner",
+    });
     expect(calls[0]!.cmd[0]).toBe("/opt/prx");
     expect(calls[0]!.cwd).toBe("/clone");
   });

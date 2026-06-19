@@ -23,7 +23,11 @@ function memStore() {
 
 function reader(messages: SlackMessage[]) {
   const seen: { oldest?: string | undefined } = {};
-  const readHistory = async (args: { channel: string; oldest?: string | undefined; limit: number }) => {
+  const readHistory = async (args: {
+    channel: string;
+    oldest?: string | undefined;
+    limit: number;
+  }) => {
     seen.oldest = args.oldest;
     return { messages };
   };

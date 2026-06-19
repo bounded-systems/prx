@@ -4,7 +4,11 @@ import { connect, type Server } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { execBd as defaultExecBd, type BdExecOptions, type BdExecResult } from "@bounded-systems/bd";
+import {
+  execBd as defaultExecBd,
+  type BdExecOptions,
+  type BdExecResult,
+} from "@bounded-systems/bd";
 
 import { FrameDecoder, encodeFrame } from "../../src/door/framing.ts";
 import {
@@ -16,7 +20,12 @@ import type { BeadsRequest } from "../../src/beadsd/contract.ts";
 
 const READY: BeadsRequest = { kind: "ready" };
 
-const okResult = (stdout = "[]"): BdExecResult => ({ exitCode: 0, stdout, stderr: "", policy: null });
+const okResult = (stdout = "[]"): BdExecResult => ({
+  exitCode: 0,
+  stdout,
+  stderr: "",
+  policy: null,
+});
 
 /**
  * A fake `execBd` that records calls and answers with a canned result (default
@@ -117,7 +126,10 @@ describe("handleBeadsRequest", () => {
 
   test("dispatches `memories` to `bd memories <prefix> --json`; prefix is optional (prx-44y)", async () => {
     const withPrefix = fakeBd();
-    await handleBeadsRequest({ kind: "memories", prefix: "handoff/" }, { execBd: withPrefix.execBd });
+    await handleBeadsRequest(
+      { kind: "memories", prefix: "handoff/" },
+      { execBd: withPrefix.execBd },
+    );
     expect(withPrefix.calls[0]!.subcommand).toBe("memories");
     expect(withPrefix.calls[0]!.args).toEqual(["handoff/", "--json"]);
 
@@ -215,7 +227,13 @@ describe("handleBeadsRequest — writes (single-writer, policy passthrough)", ()
   test("create passes --external-ref and --silent (write parity)", async () => {
     const { execBd, calls } = fakeBd(okResult("{}"));
     await handleBeadsRequest(
-      { kind: "create", issueType: "task", title: "t", externalRef: "https://github.com/o/r/issues/9", silent: true },
+      {
+        kind: "create",
+        issueType: "task",
+        title: "t",
+        externalRef: "https://github.com/o/r/issues/9",
+        silent: true,
+      },
       { execBd },
     );
     expect(calls[0]!.args).toEqual([
@@ -295,7 +313,10 @@ describe("handleBeadsRequest — writes (single-writer, policy passthrough)", ()
 
   test("dep remove dispatches `bd dep remove <from> <to>` (GH-296)", async () => {
     const { execBd, calls } = fakeBd(okResult(""));
-    await handleBeadsRequest({ kind: "dep", action: "remove", from: "prx-a", to: "prx-b" }, { execBd });
+    await handleBeadsRequest(
+      { kind: "dep", action: "remove", from: "prx-a", to: "prx-b" },
+      { execBd },
+    );
     expect(calls[0]!.subcommand).toBe("dep");
     expect(calls[0]!.args).toEqual(["remove", "prx-a", "prx-b"]);
   });
@@ -363,7 +384,10 @@ describe("handleBeadsRequest — writes (single-writer, policy passthrough)", ()
       stderr: "bd-safe: blocked subcommand 'create' for state 'validating' role 'executor'",
       policy: null,
     });
-    const res = await handleBeadsRequest({ kind: "create", issueType: "task", title: "t" }, { execBd });
+    const res = await handleBeadsRequest(
+      { kind: "create", issueType: "task", title: "t" },
+      { execBd },
+    );
     expect(res.status).toBe("error");
     if (res.status === "error") {
       expect(res.code).toBe("bd-write");

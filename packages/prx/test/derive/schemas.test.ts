@@ -6,11 +6,7 @@ import { resolve } from "node:path";
 
 import { toJsonSchemaArtifact } from "../../src/lib/json-schema.ts";
 
-import {
-  factColumns,
-  factRelations,
-  factSchemas,
-} from "../../src/derive/schemas/relations.ts";
+import { factColumns, factRelations, factSchemas } from "../../src/derive/schemas/relations.ts";
 
 const repoRoot = resolve(import.meta.dir, "../..");
 

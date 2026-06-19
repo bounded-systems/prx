@@ -36,16 +36,19 @@ export type PlanCloseOutput = z.infer<typeof PlanCloseOutput>;
 
 export const planCloseVerb = defineVerb({
   id: "plan-close",
-  summary: "Close a plan-mode work unit's GH issue without merging, and mirror the close into beads.",
+  summary:
+    "Close a plan-mode work unit's GH issue without merging, and mirror the close into beads.",
   actor: "plan",
   positionals: ["workUnitId"],
   input: z.object({
     // Required positional — unlike `close` (which infers from branch), this
     // performs a real GH issue close, so operator intent must be explicit.
-    workUnitId: z.string({
-      error:
-        "plan close requires an explicit work-unit id (e.g., `prx plan close GH-1050`); inference from the current branch is intentionally disabled to prevent accidental closes",
-    }).describe("the work unit to close (e.g. GH-1050)"),
+    workUnitId: z
+      .string({
+        error:
+          "plan close requires an explicit work-unit id (e.g., `prx plan close GH-1050`); inference from the current branch is intentionally disabled to prevent accidental closes",
+      })
+      .describe("the work unit to close (e.g. GH-1050)"),
     reason: z
       .enum(["completed", "not-planned", "duplicate"], {
         error: "invalid --reason; expected one of: completed, not-planned, duplicate",
@@ -53,8 +56,14 @@ export const planCloseVerb = defineVerb({
       .default("completed")
       .describe("close reason"),
     upstream: z.string().optional().describe("upstream issue URL to point at on close"),
-    "dry-run": z.coerce.boolean().default(false).describe("report what would happen without closing"),
-    "no-next": z.coerce.boolean().default(false).describe("suppress the `prx delegate next` handoff hint"),
+    "dry-run": z.coerce
+      .boolean()
+      .default(false)
+      .describe("report what would happen without closing"),
+    "no-next": z.coerce
+      .boolean()
+      .default(false)
+      .describe("suppress the `prx delegate next` handoff hint"),
     format: z.enum(["plain", "json"]).default("plain").describe("output format"),
   }),
   output: PlanCloseOutput,

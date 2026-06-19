@@ -56,26 +56,21 @@ export function viewGhIssue(
     processEnv(),
   );
   if (result.exitCode !== 0) {
-    const detail =
-      result.stderr.trim() || result.stdout.trim() || "gh issue view failed";
+    const detail = result.stderr.trim() || result.stdout.trim() || "gh issue view failed";
     throw new IssueResolveError(`${verbLabel}: ${detail}`, result.exitCode || 1);
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(result.stdout);
   } catch {
-    throw new IssueResolveError(
-      `${verbLabel}: gh issue view --json returned invalid JSON`,
-    );
+    throw new IssueResolveError(`${verbLabel}: gh issue view --json returned invalid JSON`);
   }
   return normalizeGhPayload(parsed, verbLabel);
 }
 
 function normalizeGhPayload(raw: unknown, verbLabel: string): GhIssueViewPayload {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new IssueResolveError(
-      `${verbLabel}: gh issue view --json returned non-object`,
-    );
+    throw new IssueResolveError(`${verbLabel}: gh issue view --json returned non-object`);
   }
   const r = raw as Record<string, unknown>;
   const labels: Array<{ name: string }> = Array.isArray(r.labels)
@@ -110,10 +105,7 @@ function normalizeGhPayload(raw: unknown, verbLabel: string): GhIssueViewPayload
   };
 }
 
-export function formatIssueViewRender(
-  render: IssueViewRender,
-  format: "plain" | "json",
-): string {
+export function formatIssueViewRender(render: IssueViewRender, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(render, null, 2);
   }
@@ -127,7 +119,10 @@ export function formatIssueViewRender(
 }
 
 export function formatGhPayloadPlain(payload: GhIssueViewPayload): string {
-  const labels = payload.labels.map((l) => l.name).filter((n) => n.length > 0).join(", ");
+  const labels = payload.labels
+    .map((l) => l.name)
+    .filter((n) => n.length > 0)
+    .join(", ");
   const lines = [
     `title:  ${payload.title}`,
     `state:  ${payload.state}`,
@@ -166,8 +161,7 @@ export function formatNotionResultPlain(result: ScoutNotionResult): string {
 }
 
 export function formatBdRecordPlain(record: BeadsRecord): string {
-  const priority =
-    record.priority === null ? "(unscored)" : `P${record.priority}`;
+  const priority = record.priority === null ? "(unscored)" : `P${record.priority}`;
   const lines = [
     `title:    ${record.title}`,
     `bd-id:    ${record.id}`,

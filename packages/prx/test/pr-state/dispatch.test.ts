@@ -9,19 +9,13 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { fromPromise } from "xstate";
 
-import {
-  DispatchParseError,
-  parseDispatchCommand,
-} from "../../src/pr-state/dispatch/parse.ts";
+import { DispatchParseError, parseDispatchCommand } from "../../src/pr-state/dispatch/parse.ts";
 import {
   dispatchChildEnv,
   renderDispatchOutcome,
   runDispatch,
 } from "../../src/pr-state/dispatch/handler.ts";
-import {
-  DISPATCH_SOURCE_ENV,
-  readDispatchSource,
-} from "../../src/machine/dispatch.ts";
+import { DISPATCH_SOURCE_ENV, readDispatchSource } from "../../src/machine/dispatch.ts";
 import {
   isDispatchSuccess,
   type InvokeTargetVerbInput,
@@ -29,9 +23,7 @@ import {
   type WriteCasBlobInput,
   type WriteCasBlobOutput,
 } from "../../src/machine/machines/dispatch.ts";
-import {
-  readBlob,
-} from "../../src/plan-store/cas.ts";
+import { readBlob } from "../../src/plan-store/cas.ts";
 
 // ── parser ─────────────────────────────────────────────────────────────────
 
@@ -53,22 +45,12 @@ describe("parseDispatchCommand — flag walk", () => {
   });
 
   test("cross-actor with --target=", () => {
-    const parsed = parseDispatchCommand([
-      "--source=triage",
-      "--target=scout",
-      "--",
-      "grep",
-      "foo",
-    ]);
+    const parsed = parseDispatchCommand(["--source=triage", "--target=scout", "--", "grep", "foo"]);
     expect(parsed.target).toBe("scout");
   });
 
   test("self-dispatch defaults target to source when no --actor/--target", () => {
-    const parsed = parseDispatchCommand([
-      "--source=triage",
-      "status",
-      "--json",
-    ]);
+    const parsed = parseDispatchCommand(["--source=triage", "status", "--json"]);
     expect(parsed.source).toBe("triage");
     expect(parsed.target).toBe("triage");
     expect(parsed.action).toBe("status");
@@ -76,25 +58,14 @@ describe("parseDispatchCommand — flag walk", () => {
   });
 
   test("self-dispatch with -- separator", () => {
-    const parsed = parseDispatchCommand([
-      "--source=plan",
-      "--",
-      "save",
-      "--unit",
-      "GH-1194",
-    ]);
+    const parsed = parseDispatchCommand(["--source=plan", "--", "save", "--unit", "GH-1194"]);
     expect(parsed.target).toBe("plan");
     expect(parsed.action).toBe("save");
     expect(parsed.argv).toEqual(["--unit", "GH-1194"]);
   });
 
   test("--source flag accepts space-separated value", () => {
-    const parsed = parseDispatchCommand([
-      "--source",
-      "plan",
-      "--",
-      "save",
-    ]);
+    const parsed = parseDispatchCommand(["--source", "plan", "--", "save"]);
     expect(parsed.source).toBe("plan");
     expect(parsed.action).toBe("save");
   });
@@ -252,12 +223,12 @@ describe("runDispatch — handler integration", () => {
   });
 
   test("success path writes CAS blob in target domain and prints handle", async () => {
-    const stdoutBytes = Buffer.from(
-      '{"path":"src/x.ts","line":12,"content":"mkdtemp"}\n',
-    );
-    const fakeInvoke = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(
-      async () => ({ stdout: stdoutBytes, exitCode: 0, durationMs: 7 }),
-    );
+    const stdoutBytes = Buffer.from('{"path":"src/x.ts","line":12,"content":"mkdtemp"}\n');
+    const fakeInvoke = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(async () => ({
+      stdout: stdoutBytes,
+      exitCode: 0,
+      durationMs: 7,
+    }));
     // Real writeCas — exercises the cas substrate end-to-end with the new
     // domain parameter from sub-ticket A.
     const result = await runDispatch({
@@ -285,9 +256,11 @@ describe("runDispatch — handler integration", () => {
   });
 
   test("ref dispatch:<source>:<id> set in target domain", async () => {
-    const fakeInvoke = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(
-      async () => ({ stdout: Buffer.from("body"), exitCode: 0, durationMs: 1 }),
-    );
+    const fakeInvoke = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(async () => ({
+      stdout: Buffer.from("body"),
+      exitCode: 0,
+      durationMs: 1,
+    }));
     const result = await runDispatch({
       parsed: {
         source: "plan",
@@ -308,19 +281,15 @@ describe("runDispatch — handler integration", () => {
 
   test("capability deny short-circuits — no invoke, no CAS write", async () => {
     let invokeCalls = 0;
-    const fakeInvoke = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(
-      async () => {
-        invokeCalls += 1;
-        return { stdout: Buffer.alloc(0), exitCode: 0, durationMs: 0 };
-      },
-    );
+    const fakeInvoke = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(async () => {
+      invokeCalls += 1;
+      return { stdout: Buffer.alloc(0), exitCode: 0, durationMs: 0 };
+    });
     let writeCalls = 0;
-    const fakeWrite = fromPromise<WriteCasBlobOutput, WriteCasBlobInput>(
-      async () => {
-        writeCalls += 1;
-        return { sha: `sha256:${"0".repeat(64)}`, refName: "n/a" };
-      },
-    );
+    const fakeWrite = fromPromise<WriteCasBlobOutput, WriteCasBlobInput>(async () => {
+      writeCalls += 1;
+      return { sha: `sha256:${"0".repeat(64)}`, refName: "n/a" };
+    });
     const result = await runDispatch({
       parsed: {
         source: "triage",
@@ -347,12 +316,10 @@ describe("runDispatch — handler integration", () => {
   // through the real handler, parser-shaped input, and CAS substrate.
   test("implement profile: untyped dispatch denied (typedDispatchRejection on)", async () => {
     let invokeCalls = 0;
-    const fakeInvoke = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(
-      async () => {
-        invokeCalls += 1;
-        return { stdout: Buffer.alloc(0), exitCode: 0, durationMs: 0 };
-      },
-    );
+    const fakeInvoke = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(async () => {
+      invokeCalls += 1;
+      return { stdout: Buffer.alloc(0), exitCode: 0, durationMs: 0 };
+    });
     const result = await runDispatch({
       parsed: {
         source: "implement",
@@ -371,9 +338,11 @@ describe("runDispatch — handler integration", () => {
   });
 
   test("implement profile: typed dispatch (--input-artifact-type=query) proceeds", async () => {
-    const fakeInvoke = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(
-      async () => ({ stdout: Buffer.from("hit"), exitCode: 0, durationMs: 2 }),
-    );
+    const fakeInvoke = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(async () => ({
+      stdout: Buffer.from("hit"),
+      exitCode: 0,
+      durationMs: 2,
+    }));
     const result = await runDispatch({
       parsed: {
         source: "implement",
@@ -391,9 +360,11 @@ describe("runDispatch — handler integration", () => {
   test("non-implement source unaffected by implement's flip (plan stays untyped-open)", async () => {
     // plan has no per-profile flip and the env flag is unset, so an untyped
     // plan→scout dispatch still proceeds — the flip is confined to implement.
-    const fakeInvoke = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(
-      async () => ({ stdout: Buffer.from("hit"), exitCode: 0, durationMs: 1 }),
-    );
+    const fakeInvoke = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(async () => ({
+      stdout: Buffer.from("hit"),
+      exitCode: 0,
+      durationMs: 1,
+    }));
     const result = await runDispatch({
       parsed: { source: "plan", target: "scout", action: "grep", argv: [] },
       actors: { invokeTargetVerb: fakeInvoke },
@@ -406,9 +377,11 @@ describe("runDispatch — handler integration", () => {
   // dispatch A's output casHandle feeds dispatch B's inputArtifact.casHandle,
   // chaining the closure. Both hops run under the implement OCAP gate.
   test("closure chaining: dispatch A's output casHandle becomes dispatch B's typed input", async () => {
-    const aOutput = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(
-      async () => ({ stdout: Buffer.from("scout findings"), exitCode: 0, durationMs: 3 }),
-    );
+    const aOutput = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(async () => ({
+      stdout: Buffer.from("scout findings"),
+      exitCode: 0,
+      durationMs: 3,
+    }));
     const a = await runDispatch({
       parsed: {
         source: "implement",
@@ -427,9 +400,11 @@ describe("runDispatch — handler integration", () => {
     // Feed A's content-addressed output as the backing CAS pointer for B's
     // typed input. B (implement→plan) expects a `uow`; the handle is just the
     // closure pointer, and the OCAP gate authorizes on the declared type.
-    const bOutput = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(
-      async () => ({ stdout: Buffer.from("plan saved"), exitCode: 0, durationMs: 2 }),
-    );
+    const bOutput = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(async () => ({
+      stdout: Buffer.from("plan saved"),
+      exitCode: 0,
+      durationMs: 2,
+    }));
     const b = await runDispatch({
       parsed: {
         source: "implement",
@@ -447,12 +422,10 @@ describe("runDispatch — handler integration", () => {
   test("depth from PRX_DISPATCH_DEPTH propagates and triggers depth_exceeded at MAX", async () => {
     process.env.PRX_DISPATCH_DEPTH = "2";
     let invokeCalls = 0;
-    const fakeInvoke = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(
-      async () => {
-        invokeCalls += 1;
-        return { stdout: Buffer.alloc(0), exitCode: 0, durationMs: 0 };
-      },
-    );
+    const fakeInvoke = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(async () => {
+      invokeCalls += 1;
+      return { stdout: Buffer.alloc(0), exitCode: 0, durationMs: 0 };
+    });
     const result = await runDispatch({
       parsed: {
         source: "plan",

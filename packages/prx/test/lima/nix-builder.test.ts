@@ -36,9 +36,7 @@ describe("nixBuilderMachineLine", () => {
       speedFactor: 1,
       supportedFeatures: ["big-parallel"],
     };
-    expect(nixBuilderMachineLine(m)).toBe(
-      "ssh-ng://lima-prx aarch64-linux - 4 1 big-parallel - -",
-    );
+    expect(nixBuilderMachineLine(m)).toBe("ssh-ng://lima-prx aarch64-linux - 4 1 big-parallel - -");
   });
 
   test("collapses empty features to a single -", () => {

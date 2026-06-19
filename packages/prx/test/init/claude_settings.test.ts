@@ -17,10 +17,13 @@ describe("buildClaudeSettings", () => {
   // Drift sentinel: this repo's checked-in .claude/settings.json carries the
   // bounded-systems harness baseline (env + SessionStart context hook), so it
   // must match the harness builder, not the bare public scaffolder.
-  test.skipIf(!existsSync(checkedInPath))("matches the checked-in <repo>/.claude/settings.json (drift sentinel)", () => {
-    const onDisk = JSON.parse(readFileSync(checkedInPath, "utf8"));
-    expect(buildOrgHarnessSettings()).toEqual(onDisk);
-  });
+  test.skipIf(!existsSync(checkedInPath))(
+    "matches the checked-in <repo>/.claude/settings.json (drift sentinel)",
+    () => {
+      const onDisk = JSON.parse(readFileSync(checkedInPath, "utf8"));
+      expect(buildOrgHarnessSettings()).toEqual(onDisk);
+    },
+  );
 
   test("serializer round-trips into the same object", () => {
     expect(JSON.parse(claudeSettingsJson())).toEqual(buildClaudeSettings());

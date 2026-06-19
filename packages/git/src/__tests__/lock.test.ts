@@ -19,16 +19,13 @@ const GIT_LOCK_STDERR = [
 const LOCK_PATH = "/repo/.git/worktrees/mainx1/index.lock";
 
 /** Build a deps bundle with sensible test defaults, overridable per case. */
-function deps(overrides: {
-  stat?: LockStat | null;
-  holders?: number[] | null;
-  now?: number;
-} = {}) {
+function deps(overrides: { stat?: LockStat | null; holders?: number[] | null; now?: number } = {}) {
   const removed: string[] = [];
   return {
     removed,
     bundle: {
-      statLock: () => (overrides.stat === undefined ? { sizeBytes: 0, mtimeMs: 0 } : overrides.stat),
+      statLock: () =>
+        overrides.stat === undefined ? { sizeBytes: 0, mtimeMs: 0 } : overrides.stat,
       lockHolders: () => (overrides.holders === undefined ? [] : overrides.holders),
       removeLock: (p: string) => {
         removed.push(p);
@@ -133,9 +130,7 @@ describe("runWithGitLockRecovery", () => {
     const result = runWithGitLockRecovery(
       () => {
         calls += 1;
-        return calls === 1
-          ? { status: 128, stderr: GIT_LOCK_STDERR }
-          : { status: 0, stderr: "" };
+        return calls === 1 ? { status: 128, stderr: GIT_LOCK_STDERR } : { status: 0, stderr: "" };
       },
       { statLock: () => null }, // lock vanished -> recovered, retry
     );

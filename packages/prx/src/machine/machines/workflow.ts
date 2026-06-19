@@ -36,13 +36,8 @@ export type MergeGateContext = {
 };
 
 export function canEnterReadyToMerge(ctx: MergeGateContext): boolean {
-  return (
-    ctx.review === "approved" &&
-    ctx.ci === "passed" &&
-    ctx.provenance !== "unsigned"
-  );
+  return ctx.review === "approved" && ctx.ci === "passed" && ctx.provenance !== "unsigned";
 }
-
 
 const workflowBackboneStates = {
   cleaned: {

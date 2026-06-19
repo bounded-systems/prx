@@ -15,9 +15,7 @@ describe("GH-1516: @bounded-systems/policy subcommand vocabulary is disjoint fro
   const TOOLS: PolicyTool[] = ["git", "gh", "wt", "bd", "prx"];
   for (const tool of TOOLS) {
     test(`${tool}: known-subcommand set is disjoint from STOP_VERB_TOKENS`, () => {
-      const offenders = [...STOP_VERB_TOKENS].filter((token) =>
-        isKnownSubcommand(tool, token),
-      );
+      const offenders = [...STOP_VERB_TOKENS].filter((token) => isKnownSubcommand(tool, token));
       expect(offenders).toEqual([]);
     });
   }

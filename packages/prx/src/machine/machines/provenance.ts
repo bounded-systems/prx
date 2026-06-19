@@ -31,8 +31,7 @@ export type Statement = {
   sig: string;
 };
 
-export const sha256Hex = (text: string): string =>
-  createHash("sha256").update(text).digest("hex");
+export const sha256Hex = (text: string): string => createHash("sha256").update(text).digest("hex");
 
 /** Digest of any JSON value — how a parent names a child attestation. */
 export const digestOf = (value: unknown): string => sha256Hex(JSON.stringify(value));
@@ -58,7 +57,8 @@ export async function buildStatement(
 }
 
 /** Deterministic stub signer for tests/defaults. NOT for production. */
-export const stubStatementSigner = (actor: string): StatementSigner =>
+export const stubStatementSigner =
+  (actor: string): StatementSigner =>
   async ({ predicateType, subject, predicate }) => ({
     signedBy: `${actor}@stub`,
     sig: `stub-sig(${digestOf({ predicateType, subject, predicate }).slice(0, 12)})`,

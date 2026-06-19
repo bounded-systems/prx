@@ -48,7 +48,9 @@ export type WorktreePathEnv = {
  *   2. XDG_STATE_HOME/wt/worktrees/{{ repo }}/{{ branch | sanitize_db }}
  *   3. ~/.local/state/wt/worktrees/{{ repo }}/{{ branch | sanitize_db }}
  */
-export function resolveWorktreePath(env: WorktreePathEnv = processEnv() as WorktreePathEnv): WorktreePathResult {
+export function resolveWorktreePath(
+  env: WorktreePathEnv = processEnv() as WorktreePathEnv,
+): WorktreePathResult {
   const home = env.HOME ?? "/tmp";
 
   // 1. Explicit WT_WORKTREE_PATH

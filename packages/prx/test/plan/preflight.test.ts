@@ -1,14 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  formatPreflightPlain,
-  runPlanPreflight,
-} from "../../src/plan/preflight.ts";
-import type {
-  CommandResult,
-  CommandRunner,
-  IdentityConfig,
-} from "../../src/pr-state/github.ts";
+import { formatPreflightPlain, runPlanPreflight } from "../../src/plan/preflight.ts";
+import type { CommandResult, CommandRunner, IdentityConfig } from "../../src/pr-state/github.ts";
 import type { WorkUnitResolver } from "../../src/pr-state/resolvers/types.ts";
 
 type RunnerHandler = (cmd: string[]) => CommandResult;
@@ -51,7 +44,10 @@ function ghIssueViewResult(payload: {
 describe("runPlanPreflight", () => {
   test("rejects unit ids that are not GH-<number>", async () => {
     await expect(
-      runPlanPreflight({ unit: "ai-home-abc" }, { runner: makeRunner(() => ({ stdout: "", stderr: "", status: 0 })) }),
+      runPlanPreflight(
+        { unit: "ai-home-abc" },
+        { runner: makeRunner(() => ({ stdout: "", stderr: "", status: 0 })) },
+      ),
     ).rejects.toThrow(/GH-/);
   });
 
@@ -330,9 +326,7 @@ describe("runPlanPreflight", () => {
       expect(result.status).toBe("pass");
       expect(result.counts.actionsInfeasible).toBe(0);
       expect(result.counts.actionsDeferredToOtherRole).toBe(1);
-      const deferred = result.findings.find(
-        (f) => f.axis === "action-deferred-to-other-role",
-      );
+      const deferred = result.findings.find((f) => f.axis === "action-deferred-to-other-role");
       expect(deferred).toBeDefined();
       if (deferred?.axis === "action-deferred-to-other-role") {
         expect(deferred.shape).toBe("bd");
@@ -356,9 +350,7 @@ describe("runPlanPreflight", () => {
       const result = await runPlanPreflight({ unit: "GH-1575" }, { runner });
       expect(result.status).toBe("pass");
       expect(result.counts.actionsDeferredToOtherRole).toBe(1);
-      const deferred = result.findings.find(
-        (f) => f.axis === "action-deferred-to-other-role",
-      );
+      const deferred = result.findings.find((f) => f.axis === "action-deferred-to-other-role");
       expect(deferred).toBeDefined();
       if (deferred?.axis === "action-deferred-to-other-role") {
         expect(deferred.subcommand).toBe("dep");
@@ -383,9 +375,7 @@ describe("runPlanPreflight", () => {
       const result = await runPlanPreflight({ unit: "GH-1575" }, { runner });
       expect(result.status).toBe("pass");
       expect(result.counts.actionsInfeasible).toBe(0);
-      expect(
-        result.findings.filter((f) => f.axis === "infeasible-action"),
-      ).toEqual([]);
+      expect(result.findings.filter((f) => f.axis === "infeasible-action")).toEqual([]);
     });
 
     test("BLOCKED actions (e.g. `gh issue close`) never demote — refusal stays a hard infeasible-action", async () => {
@@ -428,9 +418,7 @@ describe("runPlanPreflight", () => {
       expect(result.counts.actionsDeferredToOtherRole).toBe(0);
       expect(
         result.findings.filter(
-          (f) =>
-            f.axis === "action-deferred-to-other-role" ||
-            f.axis === "infeasible-action",
+          (f) => f.axis === "action-deferred-to-other-role" || f.axis === "infeasible-action",
         ),
       ).toEqual([]);
     });
@@ -442,8 +430,7 @@ describe("runPlanPreflight", () => {
           if (issueNum === 1575) {
             return ghIssueViewResult({
               number: 1575,
-              body:
-                "## Plan\n- bd update on GH-1575\n\n## Dependencies\n- Blocked by #1247\n",
+              body: "## Plan\n- bd update on GH-1575\n\n## Dependencies\n- Blocked by #1247\n",
             });
           }
           if (issueNum === 1247) {
@@ -476,9 +463,7 @@ describe("runPlanPreflight", () => {
       // PlannedAction directly. Pins the safety-net contract independently of
       // Layer 1 — if a future caller bypasses extractPlannedActions and feeds
       // a phantom verb into the classifier, the gate still does not refuse.
-      const { checkActionFeasibility } = await import(
-        "../../src/plan/preflight.ts"
-      );
+      const { checkActionFeasibility } = await import("../../src/plan/preflight.ts");
       const findings = checkActionFeasibility(
         // GH-1516: PlannedAction now requires perspective. Synthetic inputs
         // from callers bypassing the extractor must supply it explicitly;
@@ -531,9 +516,7 @@ describe("runPlanPreflight", () => {
       const result = await runPlanPreflight({ unit: "GH-1829" }, { runner });
       expect(result.status).toBe("pass");
       expect(result.counts.actionsInfeasible).toBe(0);
-      expect(
-        result.findings.filter((f) => f.axis === "infeasible-action"),
-      ).toEqual([]);
+      expect(result.findings.filter((f) => f.axis === "infeasible-action")).toEqual([]);
     });
   });
 
@@ -585,10 +568,7 @@ describe("runPlanPreflight", () => {
       expect(adrFindings).toEqual([]);
       // And `bd as` must NOT have surfaced as an infeasible-action.
       const bdAs = result.findings.filter(
-        (f) =>
-          f.axis === "infeasible-action" &&
-          f.shape === "bd" &&
-          f.subcommand === "as",
+        (f) => f.axis === "infeasible-action" && f.shape === "bd" && f.subcommand === "as",
       );
       expect(bdAs).toEqual([]);
     });
@@ -636,9 +616,7 @@ describe("runPlanPreflight", () => {
       expect(result.status).toBe("pass");
       expect(result.counts.actionsInfeasible).toBe(0);
       expect(result.counts.actionsPerspectiveMismatched).toBeGreaterThan(0);
-      const mismatched = result.findings.filter(
-        (f) => f.axis === "action-perspective-mismatch",
-      );
+      const mismatched = result.findings.filter((f) => f.axis === "action-perspective-mismatch");
       expect(mismatched.length).toBeGreaterThan(0);
       const gitRemote = mismatched.find(
         (f) =>

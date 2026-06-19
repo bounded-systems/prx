@@ -26,16 +26,9 @@ import {
   fetchIssueLabels as defaultFetchIssueLabels,
   type GhExecResult,
 } from "@bounded-systems/gh";
-import {
-  runBeadsSync as defaultRunBeadsSync,
-  type BeadsSyncResult,
-} from "../sync/run.ts";
+import { runBeadsSync as defaultRunBeadsSync, type BeadsSyncResult } from "../sync/run.ts";
 import { DEFAULT_SYNC_LIMIT } from "../sync/limits.ts";
-import {
-  appendAuditRow,
-  auditSinkPath,
-  type AuditSinkDeps,
-} from "../audit/sink.ts";
+import { appendAuditRow, auditSinkPath, type AuditSinkDeps } from "../audit/sink.ts";
 
 export const triageApplyOptionsSchema = z.object({
   plan: z.string().trim().min(1).optional(),
@@ -126,10 +119,7 @@ export type ApplyAuditEntry = ApplyAuditRowEntry | ApplyAuditSyncEntry;
 
 export type ApplySyncOutcome = "ok" | "failed" | "skipped";
 
-export function diffRow(
-  row: LabelPlanRow,
-  liveLabels?: readonly string[],
-): ApplyDecision {
+export function diffRow(row: LabelPlanRow, liveLabels?: readonly string[]): ApplyDecision {
   // GH-1866 — `liveLabels` is a fresh GH snapshot fetched by `runTriageApply`
   // immediately before the write loop. When present, all gate computations
   // (`hasType` / `hasPriority` / `hasArea` / `hasEffort`) and the proposed
@@ -151,18 +141,29 @@ export function diffRow(
   // `proposedLabelsFor`.
   const hasType = source.some((l) => {
     const p = parseLabelName(l);
-    return p.known
-      && p.axis === "type"
-      && (BD_TYPE_ENUM as readonly string[]).includes(p.value)
-      && p.value !== "task";
+    return (
+      p.known &&
+      p.axis === "type" &&
+      (BD_TYPE_ENUM as readonly string[]).includes(p.value) &&
+      p.value !== "task"
+    );
   });
   // GH-1487 — `priority::none` is the GH-970 unscored sentinel, not an
   // operator decision. Excluded from `hasPriority` so classifier upgrades
   // (`priority::high`, etc.) strip-and-replace it instead of being suppressed.
   // Must stay in lock-step with the gate in `proposedLabelsFor`.
-  const hasPriority = source.some((l) => { const p = parseLabelName(l); return p.known && p.axis === "priority" && p.value !== "none"; });
-  const hasArea = source.some((l) => { const p = parseLabelName(l); return p.known && p.axis === "area"; });
-  const hasEffort = source.some((l) => { const p = parseLabelName(l); return p.known && p.axis === "effort"; });
+  const hasPriority = source.some((l) => {
+    const p = parseLabelName(l);
+    return p.known && p.axis === "priority" && p.value !== "none";
+  });
+  const hasArea = source.some((l) => {
+    const p = parseLabelName(l);
+    return p.known && p.axis === "area";
+  });
+  const hasEffort = source.some((l) => {
+    const p = parseLabelName(l);
+    return p.known && p.axis === "effort";
+  });
 
   const addLabels = proposed.filter((l) => !current.has(l));
   // GH-1866 — strip considers the union of plan-snapshot and live-snapshot
@@ -183,7 +184,8 @@ export function diffRow(
     // preserved across strip — `proposedLabelsFor` re-projects it via
     // `row.spike`. Foreign labels (`needs-triage`, typos, etc.) are never
     // touched.
-    if (row.type !== undefined && !hasType && l.startsWith("type::") && l !== "type::spike") return true;
+    if (row.type !== undefined && !hasType && l.startsWith("type::") && l !== "type::spike")
+      return true;
     if (row.priority !== undefined && !hasPriority && l.startsWith("priority::")) return true;
     if (row.area !== undefined && !hasArea && l.startsWith("area::")) return true;
     if (row.effort !== undefined && !hasEffort && l.startsWith("effort::")) return true;
@@ -234,7 +236,6 @@ function readStdinSync(): string {
   const fs = require("node:fs") as typeof import("node:fs");
   return fs.readFileSync(0, "utf8");
 }
-
 
 /**
  * Actor-shaped entry for `prx triage apply`. Captures stdout/stderr lines

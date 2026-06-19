@@ -22,12 +22,7 @@ import {
 
 import { drain, emitHandoffEvent, type DrainDeps } from "./drain.ts";
 import { enqueueFromFlagLayerDeny } from "./from-deny.ts";
-import {
-  enqueueHandoff,
-  getHandoff,
-  listHandoffs,
-  type HandoffStoreDeps,
-} from "./store.ts";
+import { enqueueHandoff, getHandoff, listHandoffs, type HandoffStoreDeps } from "./store.ts";
 
 // ── shared output shape ────────────────────────────────────────────────────
 
@@ -97,9 +92,7 @@ export async function runHandoffEnqueue(
       output.log(formatEnvelope(result.envelope, opts.format, "enqueued"));
       return 0;
     case "duplicate":
-      output.log(
-        formatEnvelope(result.envelope, opts.format, "duplicate"),
-      );
+      output.log(formatEnvelope(result.envelope, opts.format, "duplicate"));
       return 0;
     case "bd-unprovisioned":
       // I-HQ5: fail closed. Surface the banner-string fallback so the operator
@@ -233,9 +226,7 @@ export async function runHandoffReplay(
       workUnitId: existing.workUnitId,
       repoSlug: existing.repoSlug,
       sourceActor: existing.sourceActor,
-      ...(existing.sourceSessionId
-        ? { sourceSessionId: existing.sourceSessionId }
-        : {}),
+      ...(existing.sourceSessionId ? { sourceSessionId: existing.sourceSessionId } : {}),
       targetActor: existing.targetActor,
       intent: existing.intent,
       inputRefs: existing.inputRefs,

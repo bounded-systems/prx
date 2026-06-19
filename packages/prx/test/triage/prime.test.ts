@@ -29,16 +29,15 @@ import type { TriagePruneMergedActorResult } from "../../src/triage/prune-merged
 import type { TriagePruneMergedOptions } from "../../src/triage/schemas/index.ts";
 
 // GH-1125 — head-of-machine merged-only prune sweep stub.
-const pruneMergedOk = fromPromise<
-  TriagePruneMergedActorResult,
-  TriagePruneMergedOptions
->(async () => ({
-  exitCode: 0,
-  closedIssues: [],
-  removedWorktrees: [],
-  applyResults: [],
-  bdSync: null,
-}));
+const pruneMergedOk = fromPromise<TriagePruneMergedActorResult, TriagePruneMergedOptions>(
+  async () => ({
+    exitCode: 0,
+    closedIssues: [],
+    removedWorktrees: [],
+    applyResults: [],
+    bdSync: null,
+  }),
+);
 
 // ── builders ───────────────────────────────────────────────────────────────
 
@@ -74,9 +73,10 @@ function rowsForCount(n: number, missing: ("priority" | "type" | "beads-link")[]
   }));
 }
 
-function statusSequence(
-  totals: number[],
-): { loadStatus: (opts: TriageStatusOptions) => TriageStatusActorResult; calls: () => number } {
+function statusSequence(totals: number[]): {
+  loadStatus: (opts: TriageStatusOptions) => TriageStatusActorResult;
+  calls: () => number;
+} {
   let i = 0;
   return {
     loadStatus: (_opts) => {
@@ -101,23 +101,24 @@ function statusSequence(
 // loadingStatus → classifying → applying → promoting → done (under
 // scope:'prime' — set in the runner).
 function machineWithSuccessChain(innerStatusUntriaged = 0) {
-  const innerStatus = fromPromise<TriageStatusActorResult, TriageStatusOptions>(
-    async () => ({
-      exitCode: 0,
-      snapshot: snap({
-        totalUntriaged: innerStatusUntriaged,
-        issues:
-          innerStatusUntriaged > 0
-            ? rowsForCount(innerStatusUntriaged, ["priority", "beads-link"])
-            : [],
-      }),
-      stdout: [],
-      stderr: [],
+  const innerStatus = fromPromise<TriageStatusActorResult, TriageStatusOptions>(async () => ({
+    exitCode: 0,
+    snapshot: snap({
+      totalUntriaged: innerStatusUntriaged,
+      issues:
+        innerStatusUntriaged > 0
+          ? rowsForCount(innerStatusUntriaged, ["priority", "beads-link"])
+          : [],
     }),
-  );
-  const classify = fromPromise<TriageClassifyActorResult, TriageClassifyOptions>(
-    async () => ({ exitCode: 0, plan: null, stdout: [], stderr: [] }),
-  );
+    stdout: [],
+    stderr: [],
+  }));
+  const classify = fromPromise<TriageClassifyActorResult, TriageClassifyOptions>(async () => ({
+    exitCode: 0,
+    plan: null,
+    stdout: [],
+    stderr: [],
+  }));
   const apply = fromPromise<TriageApplyActorResult, TriageApplyOptions>(async () => ({
     exitCode: 0,
     audit: [],
@@ -125,16 +126,14 @@ function machineWithSuccessChain(innerStatusUntriaged = 0) {
     stderr: [],
     touchedIssues: [],
   }));
-  const promote = fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(
-    async () => ({
-      exitCode: 0,
-      plan: null,
-      audit: [],
-      stdout: [],
-      stderr: [],
-      promotedBeadIds: [],
-    }),
-  );
+  const promote = fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(async () => ({
+    exitCode: 0,
+    plan: null,
+    audit: [],
+    stdout: [],
+    stderr: [],
+    promotedBeadIds: [],
+  }));
   const prioritizeOk = fromPromise<TriagePrioritizeActorResult, TriagePrioritizeOptions>(
     async () => ({
       exitCode: 0,
@@ -144,18 +143,17 @@ function machineWithSuccessChain(innerStatusUntriaged = 0) {
       touchedIssues: [],
     }),
   );
-  const bulkOk = fromPromise<
-    TriagePrioritizeBulkActorResult,
-    TriagePrioritizeBulkOptions
-  >(async () => ({
-    exitCode: 0,
-    audit: [],
-    stdout: [],
-    stderr: [],
-    touchedIssues: [],
-    batchCount: 0,
-    totalCostUsd: 0,
-  }));
+  const bulkOk = fromPromise<TriagePrioritizeBulkActorResult, TriagePrioritizeBulkOptions>(
+    async () => ({
+      exitCode: 0,
+      audit: [],
+      stdout: [],
+      stderr: [],
+      touchedIssues: [],
+      batchCount: 0,
+      totalCostUsd: 0,
+    }),
+  );
   return triageMachine.provide({
     actors: {
       pruneMergedActor: pruneMergedOk,
@@ -298,23 +296,20 @@ describe("runTriagePrime — blocked propagation", () => {
     // routes there. autoPrioritize=false so we hit the interactive branch.
     const blockedMachine = machineWithSuccessChain(3).provide({
       actors: {
-        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(
-          async () => ({
-            exitCode: 0,
-            snapshot: snap({
-              totalUntriaged: 3,
-              issues: rowsForCount(3, ["priority", "beads-link"]),
-            }),
-            stdout: [],
-            stderr: [],
+        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(async () => ({
+          exitCode: 0,
+          snapshot: snap({
+            totalUntriaged: 3,
+            issues: rowsForCount(3, ["priority", "beads-link"]),
           }),
+          stdout: [],
+          stderr: [],
+        })),
+        prioritizeActor: fromPromise<TriagePrioritizeActorResult, TriagePrioritizeOptions>(
+          async () => {
+            throw new TriageStubError("prioritize", "GH-980");
+          },
         ),
-        prioritizeActor: fromPromise<
-          TriagePrioritizeActorResult,
-          TriagePrioritizeOptions
-        >(async () => {
-          throw new TriageStubError("prioritize", "GH-980");
-        }),
       },
     });
 
@@ -352,37 +347,34 @@ describe("runTriagePrime — autoPrioritize routing", () => {
     const machine = triageMachine.provide({
       actors: {
         pruneMergedActor: pruneMergedOk,
-        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(
-          async () => ({
-            exitCode: 0,
-            snapshot: snap({
-              totalUntriaged: 2,
-              issues: rowsForCount(2, ["priority", "beads-link"]),
-            }),
-            stdout: [],
-            stderr: [],
+        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(async () => ({
+          exitCode: 0,
+          snapshot: snap({
+            totalUntriaged: 2,
+            issues: rowsForCount(2, ["priority", "beads-link"]),
           }),
-        ),
-        classifyActor: fromPromise<
-          TriageClassifyActorResult,
-          TriageClassifyOptions
-        >(async () => ({ exitCode: 0, plan: null, stdout: [], stderr: [] })),
-        applyActor: fromPromise<TriageApplyActorResult, TriageApplyOptions>(
-          async () => ({
-            exitCode: 0,
-            audit: [],
-            stdout: [],
-            stderr: [],
-            touchedIssues: [],
-          }),
-        ),
+          stdout: [],
+          stderr: [],
+        })),
+        classifyActor: fromPromise<TriageClassifyActorResult, TriageClassifyOptions>(async () => ({
+          exitCode: 0,
+          plan: null,
+          stdout: [],
+          stderr: [],
+        })),
+        applyActor: fromPromise<TriageApplyActorResult, TriageApplyOptions>(async () => ({
+          exitCode: 0,
+          audit: [],
+          stdout: [],
+          stderr: [],
+          touchedIssues: [],
+        })),
         // Interactive must NOT be reached.
-        prioritizeActor: fromPromise<
-          TriagePrioritizeActorResult,
-          TriagePrioritizeOptions
-        >(async () => {
-          throw new Error("interactive prioritize must not run when autoPrioritize=true");
-        }),
+        prioritizeActor: fromPromise<TriagePrioritizeActorResult, TriagePrioritizeOptions>(
+          async () => {
+            throw new Error("interactive prioritize must not run when autoPrioritize=true");
+          },
+        ),
         prioritizeBulkActor: fromPromise<
           TriagePrioritizeBulkActorResult,
           TriagePrioritizeBulkOptions
@@ -395,16 +387,14 @@ describe("runTriagePrime — autoPrioritize routing", () => {
           batchCount: 1,
           totalCostUsd: 0.01,
         })),
-        promoteActor: fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(
-          async () => ({
-            exitCode: 0,
-            plan: null,
-            audit: [],
-            stdout: [],
-            stderr: [],
-            promotedBeadIds: [],
-          }),
-        ),
+        promoteActor: fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(async () => ({
+          exitCode: 0,
+          plan: null,
+          audit: [],
+          stdout: [],
+          stderr: [],
+          promotedBeadIds: [],
+        })),
       },
     });
 
@@ -489,40 +479,37 @@ describe("runTriagePrime — autoDriftFix routing", () => {
     const machine = triageMachine.provide({
       actors: {
         pruneMergedActor: pruneMergedOk,
-        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(
-          async () => ({
-            exitCode: 0,
-            snapshot: snap({
-              totalUntriaged: 4,
-              totalDrift: 2,
-              issues: rowsForCount(4, ["beads-link"]),
-            }),
-            stdout: [],
-            stderr: [],
+        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(async () => ({
+          exitCode: 0,
+          snapshot: snap({
+            totalUntriaged: 4,
+            totalDrift: 2,
+            issues: rowsForCount(4, ["beads-link"]),
           }),
-        ),
-        classifyActor: fromPromise<TriageClassifyActorResult, TriageClassifyOptions>(
-          async () => ({ exitCode: 0, plan: null, stdout: [], stderr: [] }),
-        ),
-        applyActor: fromPromise<TriageApplyActorResult, TriageApplyOptions>(
-          async () => ({
-            exitCode: 0,
-            audit: [],
-            stdout: [],
-            stderr: [],
-            touchedIssues: [],
-          }),
-        ),
-        promoteActor: fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(
-          async () => ({
-            exitCode: 0,
-            plan: null,
-            audit: [],
-            stdout: [],
-            stderr: [],
-            promotedBeadIds: [],
-          }),
-        ),
+          stdout: [],
+          stderr: [],
+        })),
+        classifyActor: fromPromise<TriageClassifyActorResult, TriageClassifyOptions>(async () => ({
+          exitCode: 0,
+          plan: null,
+          stdout: [],
+          stderr: [],
+        })),
+        applyActor: fromPromise<TriageApplyActorResult, TriageApplyOptions>(async () => ({
+          exitCode: 0,
+          audit: [],
+          stdout: [],
+          stderr: [],
+          touchedIssues: [],
+        })),
+        promoteActor: fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(async () => ({
+          exitCode: 0,
+          plan: null,
+          audit: [],
+          stdout: [],
+          stderr: [],
+          promotedBeadIds: [],
+        })),
         driftFixActor: driftOk,
       },
     });
@@ -561,40 +548,37 @@ describe("runTriagePrime — autoDriftFix routing", () => {
     const machine = triageMachine.provide({
       actors: {
         pruneMergedActor: pruneMergedOk,
-        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(
-          async () => ({
-            exitCode: 0,
-            snapshot: snap({
-              totalUntriaged: 2,
-              totalDrift: 5,
-              issues: rowsForCount(2, ["beads-link"]),
-            }),
-            stdout: [],
-            stderr: [],
+        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(async () => ({
+          exitCode: 0,
+          snapshot: snap({
+            totalUntriaged: 2,
+            totalDrift: 5,
+            issues: rowsForCount(2, ["beads-link"]),
           }),
-        ),
-        classifyActor: fromPromise<TriageClassifyActorResult, TriageClassifyOptions>(
-          async () => ({ exitCode: 0, plan: null, stdout: [], stderr: [] }),
-        ),
-        applyActor: fromPromise<TriageApplyActorResult, TriageApplyOptions>(
-          async () => ({
-            exitCode: 0,
-            audit: [],
-            stdout: [],
-            stderr: [],
-            touchedIssues: [],
-          }),
-        ),
-        promoteActor: fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(
-          async () => ({
-            exitCode: 0,
-            plan: null,
-            audit: [],
-            stdout: [],
-            stderr: [],
-            promotedBeadIds: [],
-          }),
-        ),
+          stdout: [],
+          stderr: [],
+        })),
+        classifyActor: fromPromise<TriageClassifyActorResult, TriageClassifyOptions>(async () => ({
+          exitCode: 0,
+          plan: null,
+          stdout: [],
+          stderr: [],
+        })),
+        applyActor: fromPromise<TriageApplyActorResult, TriageApplyOptions>(async () => ({
+          exitCode: 0,
+          audit: [],
+          stdout: [],
+          stderr: [],
+          touchedIssues: [],
+        })),
+        promoteActor: fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(async () => ({
+          exitCode: 0,
+          plan: null,
+          audit: [],
+          stdout: [],
+          stderr: [],
+          promotedBeadIds: [],
+        })),
         driftFixActor: driftMustNotRun,
       },
     });

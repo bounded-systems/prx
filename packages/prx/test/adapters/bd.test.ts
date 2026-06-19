@@ -80,9 +80,9 @@ describe("BdDomainAdapter.matchesSurfaceId / surfaceIdToExternalId", () => {
     // GH-1658: the long-id surface is now `BD-<prefix>-<tail>` (with the
     // `BD-` prefix). A bare bd-side `<prefix>-<tail>` is not a BD- surface
     // id and falls through to the generic adapter error.
-    expect(() =>
-      adapter.surfaceIdToExternalId("ai-home-1777747201085-737-407f177f"),
-    ).toThrow(BdDomainAdapterError);
+    expect(() => adapter.surfaceIdToExternalId("ai-home-1777747201085-737-407f177f")).toThrow(
+      BdDomainAdapterError,
+    );
   });
 
   test("surfaceIdToExternalId — non-bd input throws a typed adapter error", () => {
@@ -116,12 +116,8 @@ describe("BdDomainAdapter.resolve / resolveFromBeads", () => {
 
   test("exact 8-hex tail → bd record id (case-insensitive on the key)", () => {
     const a = new BdDomainAdapter();
-    expect(a.resolveFromBeads("407f177f", beads)).toBe(
-      "ai-home-1777747201085-737-407f177f",
-    );
-    expect(a.resolveFromBeads("407F177F", beads)).toBe(
-      "ai-home-1777747201085-737-407f177f",
-    );
+    expect(a.resolveFromBeads("407f177f", beads)).toBe("ai-home-1777747201085-737-407f177f");
+    expect(a.resolveFromBeads("407F177F", beads)).toBe("ai-home-1777747201085-737-407f177f");
   });
 
   test("`resolve` is the async sibling of `resolveFromBeads` — same dispatch contract", async () => {
@@ -141,10 +137,7 @@ describe("BdDomainAdapter.resolve / resolveFromBeads", () => {
   });
 
   test("ambiguous match → null (caller surfaces the error)", () => {
-    const dupes = [
-      bead({ id: "ai-home-a-1-407f177f" }),
-      bead({ id: "ai-home-b-2-407f177f" }),
-    ];
+    const dupes = [bead({ id: "ai-home-a-1-407f177f" }), bead({ id: "ai-home-b-2-407f177f" })];
     const a = new BdDomainAdapter();
     expect(a.resolveFromBeads("407f177f", dupes)).toBeNull();
   });
@@ -164,12 +157,12 @@ describe("BdDomainAdapter.pull / push", () => {
   });
 
   test("push throws — bd is canonical for pin-zero UoWs", async () => {
-    await expect(
-      new BdDomainAdapter().push(bead(), { title: "anything" }),
-    ).rejects.toThrow(BdDomainAdapterError);
-    await expect(
-      new BdDomainAdapter().push(bead(), { title: "anything" }),
-    ).rejects.toThrow(/bd is canonical|bd update/);
+    await expect(new BdDomainAdapter().push(bead(), { title: "anything" })).rejects.toThrow(
+      BdDomainAdapterError,
+    );
+    await expect(new BdDomainAdapter().push(bead(), { title: "anything" })).rejects.toThrow(
+      /bd is canonical|bd update/,
+    );
   });
 });
 
@@ -252,9 +245,7 @@ describe("BdDomainAdapter.surfaceIdToExternalId — long-id arm (GH-1658)", () =
         return "ai-home";
       },
     });
-    expect(
-      adapter.surfaceIdToExternalId(LONG_ID, { cwd: "/different/path" }),
-    ).toBe(LONG_TAIL);
+    expect(adapter.surfaceIdToExternalId(LONG_ID, { cwd: "/different/path" })).toBe(LONG_TAIL);
     expect(seenCwds).toEqual(["/different/path"]);
   });
 
@@ -318,39 +309,31 @@ describe("BdDomainAdapter — bare workspace-long-id arm (GH-1766)", () => {
     const adapter = new BdDomainAdapter({
       localWorkspacePrefix: () => "demo-repo",
     });
-    expect(
-      adapter.matchesSurfaceId("demo-repo-pin.9.4.2"),
-    ).toBe(true);
-    expect(
-      adapter.matchesSurfaceId("demo-repo-1778515181936-7-edba9d4a"),
-    ).toBe(true);
+    expect(adapter.matchesSurfaceId("demo-repo-pin.9.4.2")).toBe(true);
+    expect(adapter.matchesSurfaceId("demo-repo-1778515181936-7-edba9d4a")).toBe(true);
   });
 
   test("matchesSurfaceId — bare id with non-matching prefix is rejected", () => {
     const adapter = new BdDomainAdapter({
       localWorkspacePrefix: () => "ai-home",
     });
-    expect(
-      adapter.matchesSurfaceId("demo-repo-pin.9.4.2"),
-    ).toBe(false);
+    expect(adapter.matchesSurfaceId("demo-repo-pin.9.4.2")).toBe(false);
   });
 
   test("surfaceIdToExternalId — bare id passes through verbatim", () => {
     const adapter = new BdDomainAdapter({
       localWorkspacePrefix: () => "demo-repo",
     });
-    expect(
-      adapter.surfaceIdToExternalId("demo-repo-pin.9.4.2"),
-    ).toBe("demo-repo-pin.9.4.2");
+    expect(adapter.surfaceIdToExternalId("demo-repo-pin.9.4.2")).toBe("demo-repo-pin.9.4.2");
   });
 
   test("surfaceIdToExternalId — bare id with foreign prefix throws", () => {
     const adapter = new BdDomainAdapter({
       localWorkspacePrefix: () => "ai-home",
     });
-    expect(() =>
-      adapter.surfaceIdToExternalId("demo-repo-pin.9.4.2"),
-    ).toThrow(BdDomainAdapterError);
+    expect(() => adapter.surfaceIdToExternalId("demo-repo-pin.9.4.2")).toThrow(
+      BdDomainAdapterError,
+    );
   });
 });
 
@@ -364,15 +347,11 @@ describe("BdDomainAdapter.resolveFromBeads — semantic-id fallback (GH-1766)", 
 
   test("exact id match — semantic-id workspaces resolve via the new fallback", () => {
     const adapter = new BdDomainAdapter();
-    expect(
-      adapter.resolveFromBeads("demo-repo-pin.9.4.2", beads),
-    ).toBe("demo-repo-pin.9.4.2");
+    expect(adapter.resolveFromBeads("demo-repo-pin.9.4.2", beads)).toBe("demo-repo-pin.9.4.2");
   });
 
   test("exact-id fallback does not mask the hex8-suffix scan", () => {
     const adapter = new BdDomainAdapter();
-    expect(adapter.resolveFromBeads("407f177f", beads)).toBe(
-      "ai-home-1777747201085-737-407f177f",
-    );
+    expect(adapter.resolveFromBeads("407f177f", beads)).toBe("ai-home-1777747201085-737-407f177f");
   });
 });

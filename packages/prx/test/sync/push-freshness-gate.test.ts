@@ -33,25 +33,41 @@ describe("pushFullySucceeded", () => {
 describe("advanceLastPushedHead — retry-safety", () => {
   test("advances to current head on a full success", () => {
     expect(
-      advanceLastPushedHead({ previous: "h1", currentHead: "h2", outcome: { pushDeferred: 0, pushErrors: 0 } }),
+      advanceLastPushedHead({
+        previous: "h1",
+        currentHead: "h2",
+        outcome: { pushDeferred: 0, pushErrors: 0 },
+      }),
     ).toBe("h2");
   });
 
   test("keeps the previous watermark on a deferred push (so next tick retries)", () => {
     expect(
-      advanceLastPushedHead({ previous: "h1", currentHead: "h2", outcome: { pushDeferred: 3, pushErrors: 0 } }),
+      advanceLastPushedHead({
+        previous: "h1",
+        currentHead: "h2",
+        outcome: { pushDeferred: 3, pushErrors: 0 },
+      }),
     ).toBe("h1");
   });
 
   test("keeps the previous watermark on an errored push", () => {
     expect(
-      advanceLastPushedHead({ previous: "h1", currentHead: "h2", outcome: { pushDeferred: 0, pushErrors: 1 } }),
+      advanceLastPushedHead({
+        previous: "h1",
+        currentHead: "h2",
+        outcome: { pushDeferred: 0, pushErrors: 1 },
+      }),
     ).toBe("h1");
   });
 
   test("keeps the previous watermark when the current etag is unknown", () => {
     expect(
-      advanceLastPushedHead({ previous: "h1", currentHead: undefined, outcome: { pushDeferred: 0, pushErrors: 0 } }),
+      advanceLastPushedHead({
+        previous: "h1",
+        currentHead: undefined,
+        outcome: { pushDeferred: 0, pushErrors: 0 },
+      }),
     ).toBe("h1");
   });
 });

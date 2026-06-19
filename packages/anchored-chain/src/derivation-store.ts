@@ -1,4 +1,4 @@
-import type { Derivation, Digest } from './types.ts';
+import type { Derivation, Digest } from "./types.ts";
 
 export interface DerivationInputRow {
   readonly inputName: string;

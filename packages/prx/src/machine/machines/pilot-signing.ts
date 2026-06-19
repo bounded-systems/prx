@@ -124,8 +124,7 @@ export function verifyLeg(
 // ── ambient resolution (prod convenience) ───────────────────────────────────
 
 /** The ambient Signer (`PRX_PROVENANCE_KEY`), or null when none is configured. */
-export const provenanceSigner = (): Signer | null =>
-  resolveProvenanceSigner() as Signer | null;
+export const provenanceSigner = (): Signer | null => resolveProvenanceSigner() as Signer | null;
 
 /** The ambient Verifier (`PRX_PROVENANCE_PUBKEY` / dev fallback), or null. */
 export const provenanceVerifier = (): Verifier | null =>

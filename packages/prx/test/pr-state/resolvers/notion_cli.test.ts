@@ -116,14 +116,7 @@ describe("NotionCliResolver", () => {
     expect(resolved.source).toBe("notion");
 
     expect(calls.length).toBe(1);
-    expect(calls[0]).toEqual([
-      "notion-cli",
-      "search",
-      "PROJ-5743",
-      "--json",
-      "--limit",
-      "1",
-    ]);
+    expect(calls[0]).toEqual(["notion-cli", "search", "PROJ-5743", "--json", "--limit", "1"]);
 
     // GH-867: cache lives in the XDG dir under `_anon/<fingerprint>/<id>.json`
     // (no GitHub origin → anon fallback). Unified wrapper format.
@@ -200,15 +193,11 @@ describe("NotionCliResolver", () => {
         ParentID: "db-1",
       },
     ]);
-    const { runner } = makeRunner([
-      () => ({ stdout: stdoutWithAuthSubstring, status: 0 }),
-    ]);
+    const { runner } = makeRunner([() => ({ stdout: stdoutWithAuthSubstring, status: 0 })]);
     const resolver = new NotionCliResolver(config, repoRoot, runner, makeEnv(xdg));
     const resolved = await resolver.fetch("PROJ-FALSE-POS");
 
-    expect(resolved.title).toBe(
-      "Spec: when authorization required, fall back to OAuth",
-    );
+    expect(resolved.title).toBe("Spec: when authorization required, fall back to OAuth");
   });
 
   test("invalidate clears the cache file", async () => {
@@ -224,23 +213,13 @@ describe("NotionCliResolver", () => {
 
     // Invalidate uses a fresh resolver instance.
     const { runner: invalidateRunner } = makeRunner([]);
-    const invalidator = new NotionCliResolver(
-      config,
-      repoRoot,
-      invalidateRunner,
-      makeEnv(xdg),
-    );
+    const invalidator = new NotionCliResolver(config, repoRoot, invalidateRunner, makeEnv(xdg));
     invalidator.invalidate("PROJ-2");
     expect(existsSync(cachePath)).toBe(false);
 
     // Re-fetch re-populates.
     const refetchRunner = makeRunner([() => ({ stdout: singleResultJson() })]);
-    const resolver = new NotionCliResolver(
-      config,
-      repoRoot,
-      refetchRunner.runner,
-      makeEnv(xdg),
-    );
+    const resolver = new NotionCliResolver(config, repoRoot, refetchRunner.runner, makeEnv(xdg));
     const resolved = await resolver.fetch("PROJ-2");
     expect(resolved.title).toBe("Wire PROJ-5743 — implement checkout retry");
   });
@@ -282,9 +261,7 @@ describe("NotionCliResolver", () => {
   test("non-zero exit without auth signal → generic exit-status error", async () => {
     const repoRoot = mkdtempSync(join(tmpdir(), "prx-notion-cli-nonzero-"));
     const xdg = mkdtempSync(join(tmpdir(), "prx-cli-xdg-nonzero-"));
-    const { runner } = makeRunner([
-      () => ({ stdout: "", stderr: "boom", status: 2 }),
-    ]);
+    const { runner } = makeRunner([() => ({ stdout: "", stderr: "boom", status: 2 })]);
     const resolver = new NotionCliResolver(config, repoRoot, runner, makeEnv(xdg));
     await expect(resolver.fetch("PROJ-5")).rejects.toThrow(
       /notion-cli exited with status 2.*boom/s,
@@ -296,9 +273,7 @@ describe("NotionCliResolver", () => {
     const xdg = mkdtempSync(join(tmpdir(), "prx-cli-xdg-empty-"));
     const { runner } = makeRunner([() => ({ stdout: "[]\n" })]);
     const resolver = new NotionCliResolver(config, repoRoot, runner, makeEnv(xdg));
-    await expect(resolver.fetch("PROJ-NOPE")).rejects.toThrow(
-      /no Notion row matches "PROJ-NOPE"/,
-    );
+    await expect(resolver.fetch("PROJ-NOPE")).rejects.toThrow(/no Notion row matches "PROJ-NOPE"/);
   });
 
   test("null stdout (Go nil-slice JSON) → treated as empty results", async () => {
@@ -306,21 +281,15 @@ describe("NotionCliResolver", () => {
     const xdg = mkdtempSync(join(tmpdir(), "prx-cli-xdg-null-"));
     const { runner } = makeRunner([() => ({ stdout: "null\n" })]);
     const resolver = new NotionCliResolver(config, repoRoot, runner, makeEnv(xdg));
-    await expect(resolver.fetch("PROJ-NIL")).rejects.toThrow(
-      /no Notion row matches "PROJ-NIL"/,
-    );
+    await expect(resolver.fetch("PROJ-NIL")).rejects.toThrow(/no Notion row matches "PROJ-NIL"/);
   });
 
   test("malformed JSON stdout → clear parse error including stdout snippet", async () => {
     const repoRoot = mkdtempSync(join(tmpdir(), "prx-notion-cli-bad-json-"));
     const xdg = mkdtempSync(join(tmpdir(), "prx-cli-xdg-bad-json-"));
-    const { runner } = makeRunner([
-      () => ({ stdout: "not json at all" }),
-    ]);
+    const { runner } = makeRunner([() => ({ stdout: "not json at all" })]);
     const resolver = new NotionCliResolver(config, repoRoot, runner, makeEnv(xdg));
-    await expect(resolver.fetch("PROJ-X")).rejects.toThrow(
-      /could not parse --json output/,
-    );
+    await expect(resolver.fetch("PROJ-X")).rejects.toThrow(/could not parse --json output/);
   });
 
   test("result missing ID field → clear error", async () => {
@@ -340,9 +309,7 @@ describe("NotionCliResolver", () => {
     const xdg = mkdtempSync(join(tmpdir(), "prx-cli-xdg-no-url-"));
     const { runner } = makeRunner([
       () => ({
-        stdout: JSON.stringify([
-          { ID: "p1", Type: "page", Title: "T", URL: "" },
-        ]),
+        stdout: JSON.stringify([{ ID: "p1", Type: "page", Title: "T", URL: "" }]),
       }),
     ]);
     const resolver = new NotionCliResolver(config, repoRoot, runner, makeEnv(xdg));
@@ -387,14 +354,7 @@ describe("NotionCliResolver", () => {
     expect(resolved.source).toBe("notion");
     // "In Progress" is not in closed_statuses → open.
     expect(resolved.state).toBe("open");
-    expect(calls[0]).toEqual([
-      "notion-cli",
-      "search",
-      "PROJ-5966",
-      "--json",
-      "--limit",
-      "5",
-    ]);
+    expect(calls[0]).toEqual(["notion-cli", "search", "PROJ-5966", "--json", "--limit", "5"]);
     expect(calls[1]).toEqual(["notion-cli", "page", "view", "page-A", "--json"]);
     expect(calls[2]).toEqual(["notion-cli", "page", "view", "page-B", "--json"]);
   });
@@ -465,12 +425,7 @@ describe("NotionCliResolver", () => {
       }),
       () => ({ stdout: pageViewJson({ "Task ID": "PROJ-7", Status: "Backlog" }) }),
     ]);
-    const seeder = new NotionCliResolver(
-      verifyConfig,
-      repoRoot,
-      seedRunner.runner,
-      makeEnv(xdg),
-    );
+    const seeder = new NotionCliResolver(verifyConfig, repoRoot, seedRunner.runner, makeEnv(xdg));
     const seeded = await seeder.fetch("PROJ-7");
     expect(seeded.state).toBe("open");
 
@@ -495,9 +450,6 @@ describe("NotionCliResolver", () => {
 function anonNotionDir(xdgCacheHome: string, repoRoot: string): string {
   const { createHash } = require("node:crypto");
   const { resolve } = require("node:path");
-  const fingerprint = createHash("sha256")
-    .update(resolve(repoRoot))
-    .digest("hex")
-    .slice(0, 8);
+  const fingerprint = createHash("sha256").update(resolve(repoRoot)).digest("hex").slice(0, 8);
   return join(xdgCacheHome, "prx", "notion", "_anon", fingerprint);
 }

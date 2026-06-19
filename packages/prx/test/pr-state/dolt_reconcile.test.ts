@@ -126,10 +126,7 @@ describe("runDoltReconcile", () => {
     );
 
     expect(exit).toBe(1);
-    expect(fx.spawnCalls.map((c) => c.args.join(" "))).toEqual([
-      "dolt commit",
-      "dolt pull",
-    ]);
+    expect(fx.spawnCalls.map((c) => c.args.join(" "))).toEqual(["dolt commit", "dolt pull"]);
     const plain = fx.logs.join("\n");
     expect(plain).toContain("pull:   failed (exit 1)");
     expect(plain).toContain("state: stuck");
@@ -163,11 +160,7 @@ describe("runDoltReconcile", () => {
       },
     });
 
-    runDoltReconcile(
-      { repoPath: "/repo", dryRun: false, format: "plain" },
-      fx.output,
-      fx.deps,
-    );
+    runDoltReconcile({ repoPath: "/repo", dryRun: false, format: "plain" }, fx.output, fx.deps);
 
     const plain = fx.logs.join("\n");
     expect(plain).toContain("hint:  bd dolt pull failed: line one");
@@ -266,11 +259,7 @@ describe("runDoltReconcile", () => {
   test("JSON dry-run payload lists preview steps and dryRun=true", () => {
     const fx = makeFixture({});
 
-    runDoltReconcile(
-      { repoPath: "/repo", dryRun: true, format: "json" },
-      fx.output,
-      fx.deps,
-    );
+    runDoltReconcile({ repoPath: "/repo", dryRun: true, format: "json" }, fx.output, fx.deps);
 
     const payload = JSON.parse(fx.logs[0]!) as DoltReconcileResult & { dryRun: boolean };
     expect(payload.dryRun).toBe(true);
@@ -374,10 +363,7 @@ describe("schema-conflict detection (GH-993)", () => {
     );
 
     expect(exit).toBe(1);
-    expect(fx.spawnCalls.map((c) => c.args.join(" "))).toEqual([
-      "dolt commit",
-      "dolt pull",
-    ]);
+    expect(fx.spawnCalls.map((c) => c.args.join(" "))).toEqual(["dolt commit", "dolt pull"]);
     const plain = fx.logs.join("\n");
     expect(plain).toContain("commit: ok");
     expect(plain).toContain("pull:   failed (exit 1)");
@@ -388,18 +374,10 @@ describe("schema-conflict detection (GH-993)", () => {
     const responses = { "dolt commit": { status: 1, stderr: SCHEMA_CONFLICT_STDERR } };
 
     const fx1 = makeFixture(responses);
-    runDoltReconcile(
-      { repoPath: "/repo", dryRun: false, format: "json" },
-      fx1.output,
-      fx1.deps,
-    );
+    runDoltReconcile({ repoPath: "/repo", dryRun: false, format: "json" }, fx1.output, fx1.deps);
 
     const fx2 = makeFixture(responses);
-    runDoltReconcile(
-      { repoPath: "/repo", dryRun: false, format: "json" },
-      fx2.output,
-      fx2.deps,
-    );
+    runDoltReconcile({ repoPath: "/repo", dryRun: false, format: "json" }, fx2.output, fx2.deps);
 
     expect(fx1.logs).toEqual(fx2.logs);
     const payload = JSON.parse(fx1.logs[0]!) as DoltReconcileResult;
@@ -411,11 +389,7 @@ describe("schema-conflict detection (GH-993)", () => {
       "dolt commit": { status: 1, stderr: "fatal: permission denied\n" },
     });
 
-    runDoltReconcile(
-      { repoPath: "/repo", dryRun: false, format: "plain" },
-      fx.output,
-      fx.deps,
-    );
+    runDoltReconcile({ repoPath: "/repo", dryRun: false, format: "plain" }, fx.output, fx.deps);
 
     const plain = fx.logs.join("\n");
     expect(plain).toContain("state: stuck");
@@ -427,11 +401,7 @@ describe("schema-conflict detection (GH-993)", () => {
       "dolt commit": { status: 1, stderr: SCHEMA_CONFLICT_STDERR },
     });
 
-    runDoltReconcile(
-      { repoPath: "/repo", dryRun: false, format: "json" },
-      fx.output,
-      fx.deps,
-    );
+    runDoltReconcile({ repoPath: "/repo", dryRun: false, format: "json" }, fx.output, fx.deps);
 
     const payload = JSON.parse(fx.logs[0]!) as DoltReconcileResult & { dryRun: boolean };
     expect(payload.state).toBe("schemaConflictPending");
@@ -514,9 +484,7 @@ describe("--resolve schema-prefer-remote", () => {
           return {
             status: 0,
             stdout: JSON.stringify({
-              rows: [
-                { table_name: "wisps", their_schema: "CREATE TABLE wisps (id INT)" },
-              ],
+              rows: [{ table_name: "wisps", their_schema: "CREATE TABLE wisps (id INT)" }],
             }),
           };
         }
@@ -634,9 +602,7 @@ describe("--resolve schema-prefer-remote", () => {
     expect(plain).toContain("state: reconciled");
     expect(plain).not.toContain("resolve-schema:");
     expect(fx.calls.find((c) => c.file === "dolt")).toBeUndefined();
-    expect(
-      fx.calls.find((c) => c.file === "bd" && c.args.includes("show")),
-    ).toBeUndefined();
+    expect(fx.calls.find((c) => c.file === "bd" && c.args.includes("show"))).toBeUndefined();
   });
 
   test("JSON envelope includes resolve-schema step on successful resolution", () => {
@@ -667,9 +633,7 @@ describe("--resolve schema-prefer-remote", () => {
           return {
             status: 0,
             stdout: JSON.stringify({
-              rows: [
-                { table_name: "wisps", their_schema: "CREATE TABLE wisps (id INT)" },
-              ],
+              rows: [{ table_name: "wisps", their_schema: "CREATE TABLE wisps (id INT)" }],
             }),
           };
         }
@@ -757,15 +721,7 @@ describe("runCli — dolt reconcile dispatch", () => {
     const logs: string[] = [];
     const errs: string[] = [];
     const exit = runCli(
-      [
-        "dolt",
-        "reconcile",
-        "--repo-path",
-        "/alt/repo",
-        "--dry-run",
-        "--format",
-        "json",
-      ],
+      ["dolt", "reconcile", "--repo-path", "/alt/repo", "--dry-run", "--format", "json"],
       { log: (l) => logs.push(l), error: (e) => errs.push(e) },
       {
         runDoltReconcile: (options) => {
@@ -831,20 +787,14 @@ describe("runCli — dolt reconcile dispatch", () => {
 
   test("runCli rejects unknown `dolt` subcommand", () => {
     const errs: string[] = [];
-    const exit = runCli(
-      ["dolt", "bogus"],
-      { log: () => {}, error: (e) => errs.push(e) },
-    );
+    const exit = runCli(["dolt", "bogus"], { log: () => {}, error: (e) => errs.push(e) });
     expect(exit).not.toBe(0);
     expect(errs.join("\n")).toContain("Unknown dolt subcommand: bogus");
   });
 
   test("runCli rejects `dolt` with no subcommand", () => {
     const errs: string[] = [];
-    const exit = runCli(
-      ["dolt"],
-      { log: () => {}, error: (e) => errs.push(e) },
-    );
+    const exit = runCli(["dolt"], { log: () => {}, error: (e) => errs.push(e) });
     expect(exit).not.toBe(0);
     expect(errs.join("\n")).toContain("dolt requires a subcommand");
   });

@@ -20,9 +20,10 @@ function startMachine() {
   return actor;
 }
 
-function snapshot(
-  actor: ReturnType<typeof startMachine>,
-): { value: unknown; context: RepoRouterContext } {
+function snapshot(actor: ReturnType<typeof startMachine>): {
+  value: unknown;
+  context: RepoRouterContext;
+} {
   const snap = actor.getSnapshot();
   return { value: snap.value, context: snap.context };
 }
@@ -39,9 +40,7 @@ describe("repoRouterMachine — happy path", () => {
     });
     expect(snapshot(actor).value).toBe("resolving");
     expect(snapshot(actor).context.prefix).toBe("demo-repo");
-    expect(snapshot(actor).context.surfaceId).toBe(
-      "BD-demo-repo-1777747201085-737-407f177f",
-    );
+    expect(snapshot(actor).context.surfaceId).toBe("BD-demo-repo-1777747201085-737-407f177f");
 
     actor.send({
       type: "REPO_PIN_RESOLVED",
@@ -51,9 +50,7 @@ describe("repoRouterMachine — happy path", () => {
     });
     expect(snapshot(actor).value).toBe("materializing");
     expect(snapshot(actor).context.repo).toBe("demo-repo");
-    expect(snapshot(actor).context.barePath).toBe(
-      "/tmp/bare/demo-repo.git",
-    );
+    expect(snapshot(actor).context.barePath).toBe("/tmp/bare/demo-repo.git");
 
     actor.send({
       type: "BARE_MATERIALIZED",
@@ -89,11 +86,11 @@ describe("repoRouterMachine — missing-pin terminal", () => {
       type: "ROUTE_REFUSED_NO_PIN",
       surfaceId,
       prefix: "unknown-prefix",
-      hint: "error: bd workspace prefix \"unknown-prefix\" is not pinned",
+      hint: 'error: bd workspace prefix "unknown-prefix" is not pinned',
     });
     expect(snapshot(actor).value).toBe("failed_mid_route");
     expect(snapshot(actor).context.reason).toBe(
-      "error: bd workspace prefix \"unknown-prefix\" is not pinned",
+      'error: bd workspace prefix "unknown-prefix" is not pinned',
     );
     expect(snapshot(actor).context.prefix).toBe("unknown-prefix");
   });
@@ -122,9 +119,7 @@ describe("repoRouterMachine — failed-materialize terminal", () => {
       reason: "git clone --bare failed: exit 128",
     });
     expect(snapshot(actor).value).toBe("failed_mid_route");
-    expect(snapshot(actor).context.reason).toBe(
-      "git clone --bare failed: exit 128",
-    );
+    expect(snapshot(actor).context.reason).toBe("git clone --bare failed: exit 128");
     // Pin from the resolve step must survive the failure.
     expect(snapshot(actor).context.repo).toBe("demo-repo");
   });

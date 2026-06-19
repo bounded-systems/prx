@@ -9,17 +9,9 @@
  */
 import { describe, expect, test } from "bun:test";
 
-import type {
-  SurfaceSyncAction,
-  SurfaceSyncResult,
-} from "@bounded-systems/surface-sync";
+import type { SurfaceSyncAction, SurfaceSyncResult } from "@bounded-systems/surface-sync";
 
-import {
-  GcCliError,
-  parseGcArgs,
-  runGcCli,
-  type GcCliDeps,
-} from "../../../src/machine/gc/cli.ts";
+import { GcCliError, parseGcArgs, runGcCli, type GcCliDeps } from "../../../src/machine/gc/cli.ts";
 
 function chain(actions: SurfaceSyncAction[]): SurfaceSyncResult {
   return {
@@ -146,7 +138,11 @@ describe("runGcCli — inventory (sweep, read-only)", () => {
     const payload = JSON.parse(r.output);
     expect(payload.status).toBe("reclaimable");
     expect(payload.findings).toHaveLength(1);
-    expect(payload.findings[0]).toMatchObject({ component: "worktree", class: "orphan", ref: "GH-1234" });
+    expect(payload.findings[0]).toMatchObject({
+      component: "worktree",
+      class: "orphan",
+      ref: "GH-1234",
+    });
   });
 });
 

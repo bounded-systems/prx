@@ -71,7 +71,10 @@ describe("runDoltStart engine (DI; no live server)", () => {
     try {
       await runDoltStart(
         { repo_path: "/repo", detach: true },
-        baseDeps({ probe: () => ({ reachable: true, port: 3307, database: "db" }), readLedger: () => null }),
+        baseDeps({
+          probe: () => ({ reachable: true, port: 3307, database: "db" }),
+          readLedger: () => null,
+        }),
       );
     } catch (e) {
       threw = String(e);
@@ -103,7 +106,10 @@ describe("runDoltStart engine (DI; no live server)", () => {
   test("unresolvable repo context throws", async () => {
     let threw = "";
     try {
-      await runDoltStart({ repo_path: "/x", detach: true }, baseDeps({ resolveContext: () => null }));
+      await runDoltStart(
+        { repo_path: "/x", detach: true },
+        baseDeps({ resolveContext: () => null }),
+      );
     } catch (e) {
       threw = String(e);
     }

@@ -34,13 +34,16 @@ import {
   writeSubmitArtifact,
   type SubmitArtifact,
 } from "../../src/submit/artifact.schema.ts";
-import {
-  PublishError,
-  runSubmitPublish,
-  type PublishDeps,
-} from "../../src/submit/publish.ts";
+import { PublishError, runSubmitPublish, type PublishDeps } from "../../src/submit/publish.ts";
 
-const ENV_KEYS = ["PRX_PLAN_STORE", "PRX_CAS_ROOT", "PRX_AI_HOME_ROOT", "PRX_OPERATOR_CONFIG_ROOT", "XDG_STATE_HOME", "HOME"] as const;
+const ENV_KEYS = [
+  "PRX_PLAN_STORE",
+  "PRX_CAS_ROOT",
+  "PRX_AI_HOME_ROOT",
+  "PRX_OPERATOR_CONFIG_ROOT",
+  "XDG_STATE_HOME",
+  "HOME",
+] as const;
 type EnvSnapshot = Partial<Record<(typeof ENV_KEYS)[number], string | undefined>>;
 
 const HEAD_SHA = "1234567890abcdef1234567890abcdef12345678";
@@ -78,7 +81,10 @@ function fakeStore(): FakeStore {
   };
 }
 
-function mkAttest(store: FakeStore): { deps: AttestDeps; verifier: ReturnType<typeof ed25519Verifier> } {
+function mkAttest(store: FakeStore): {
+  deps: AttestDeps;
+  verifier: ReturnType<typeof ed25519Verifier>;
+} {
   const kp = generateEd25519Keypair();
   return {
     deps: { signer: ed25519Signer(kp.privateKey, kp.keyid), store, now: () => 1000 },

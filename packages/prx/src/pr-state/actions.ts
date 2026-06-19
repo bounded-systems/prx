@@ -52,11 +52,7 @@ type ActionDefinition = {
   disabledReason: (snapshot: ActionSnapshot) => string | null;
 };
 
-function formatPrCommand(
-  command: string,
-  prNumber: number | null,
-  ...args: string[]
-): string {
+function formatPrCommand(command: string, prNumber: number | null, ...args: string[]): string {
   const target = prNumber === null ? "<pr-number>" : String(prNumber);
   return [command, target, ...args].join(" ");
 }
@@ -65,10 +61,7 @@ function hasBranchContext(snapshot: Pick<ActionSnapshot, "branch">): boolean {
   return snapshot.branch !== null;
 }
 
-export function buildActionSnapshot(
-  repoPath: string,
-  runner?: CommandRunner,
-): ActionSnapshot {
+export function buildActionSnapshot(repoPath: string, runner?: CommandRunner): ActionSnapshot {
   const domainState = buildDomainState(repoPath, runner);
 
   return {
@@ -84,31 +77,31 @@ export function buildActionSnapshot(
     phase: domainState.workflowState.phase,
     currentUnit: domainState.repoState.currentUnit
       ? {
-        ticket: domainState.repoState.currentUnit.ticket,
-        beadId: domainState.repoState.currentUnit.beadId,
-        branch: domainState.repoState.currentUnit.branch,
-        worktree_path: domainState.repoState.currentUnit.worktreePath,
-        pr: domainState.prState.pr,
-        artifacts: {
-          worktree: domainState.rawState.artifacts.worktree.exists,
-          branch: domainState.rawState.artifacts.branch.existsLocal,
-          pr: domainState.rawState.artifacts.pr.exists,
-          ticket: domainState.rawState.artifacts.ticket.exists,
-        },
-        local: {
-          clean:
-            domainState.repoState.local.staged === 0 &&
-            domainState.repoState.local.unstaged === 0 &&
-            domainState.repoState.local.untracked === 0 &&
-            domainState.repoState.local.conflicts === 0,
-          staged: domainState.repoState.local.staged,
-          unstaged: domainState.repoState.local.unstaged,
-          untracked: domainState.repoState.local.untracked,
-          conflicts: domainState.repoState.local.conflicts,
-        },
-        column: domainState.repoState.currentUnit.column,
-        reasons: [...domainState.repoState.currentUnit.reasons],
-      }
+          ticket: domainState.repoState.currentUnit.ticket,
+          beadId: domainState.repoState.currentUnit.beadId,
+          branch: domainState.repoState.currentUnit.branch,
+          worktree_path: domainState.repoState.currentUnit.worktreePath,
+          pr: domainState.prState.pr,
+          artifacts: {
+            worktree: domainState.rawState.artifacts.worktree.exists,
+            branch: domainState.rawState.artifacts.branch.existsLocal,
+            pr: domainState.rawState.artifacts.pr.exists,
+            ticket: domainState.rawState.artifacts.ticket.exists,
+          },
+          local: {
+            clean:
+              domainState.repoState.local.staged === 0 &&
+              domainState.repoState.local.unstaged === 0 &&
+              domainState.repoState.local.untracked === 0 &&
+              domainState.repoState.local.conflicts === 0,
+            staged: domainState.repoState.local.staged,
+            unstaged: domainState.repoState.local.unstaged,
+            untracked: domainState.repoState.local.untracked,
+            conflicts: domainState.repoState.local.conflicts,
+          },
+          column: domainState.repoState.currentUnit.column,
+          reasons: [...domainState.repoState.currentUnit.reasons],
+        }
       : null,
     rawState: domainState.rawState,
     invariants: domainState.invariants,
@@ -215,7 +208,8 @@ const actionCatalog: ActionDefinition[] = [
     priority: 60,
     command: (snapshot) => formatPrCommand("gh pr ready", snapshot.pr.number),
     reason: () => "PR is still draft",
-    when: (snapshot) => hasBranchContext(snapshot) && Boolean(snapshot.pr.exists && snapshot.pr.draft),
+    when: (snapshot) =>
+      hasBranchContext(snapshot) && Boolean(snapshot.pr.exists && snapshot.pr.draft),
     disabledReason: (snapshot) => {
       if (!hasBranchContext(snapshot)) return "branch context not available";
       if (!snapshot.pr.exists) return "pull request does not exist";
@@ -231,7 +225,8 @@ const actionCatalog: ActionDefinition[] = [
     priority: 70,
     command: () => "prx event --skill pr-fix",
     reason: () => "Review state is changes requested",
-    when: (snapshot) => hasBranchContext(snapshot) && snapshot.system.review === "changes_requested",
+    when: (snapshot) =>
+      hasBranchContext(snapshot) && snapshot.system.review === "changes_requested",
     disabledReason: (snapshot) => {
       if (!hasBranchContext(snapshot)) return "branch context not available";
       if (snapshot.system.review !== "changes_requested") {
@@ -290,8 +285,7 @@ const actionCatalog: ActionDefinition[] = [
     command: () => "prx worktree refresh",
     reason: () => "Branch is behind origin/main and needs rebase",
     when: (snapshot) =>
-      hasBranchContext(snapshot) &&
-      snapshot.rawState.signals.mergeability.state === "behind",
+      hasBranchContext(snapshot) && snapshot.rawState.signals.mergeability.state === "behind",
     disabledReason: (snapshot) => {
       if (!hasBranchContext(snapshot)) return "branch context not available";
       if (snapshot.rawState.signals.mergeability.state !== "behind")
@@ -329,7 +323,8 @@ const actionCatalog: ActionDefinition[] = [
     command: (snapshot) =>
       formatPrCommand("gh pr merge", snapshot.pr.number, "--squash", "--delete-branch"),
     reason: () => "Merge gate is satisfied",
-    when: (snapshot) => hasBranchContext(snapshot) && Boolean(snapshot.pr.exists && snapshot.mergeReady),
+    when: (snapshot) =>
+      hasBranchContext(snapshot) && Boolean(snapshot.pr.exists && snapshot.mergeReady),
     disabledReason: (snapshot) => {
       if (!hasBranchContext(snapshot)) return "branch context not available";
       if (!snapshot.pr.exists) return "pull request does not exist";
@@ -373,7 +368,9 @@ export function resolveActions(snapshot: ActionSnapshot): ResolvedAction[] {
     .sort((a, b) => a.priority - b.priority)
     .map((definition) => {
       const enabled = definition.when(snapshot);
-      const disabledReason = enabled ? undefined : (definition.disabledReason(snapshot) ?? "action not currently applicable");
+      const disabledReason = enabled
+        ? undefined
+        : (definition.disabledReason(snapshot) ?? "action not currently applicable");
       return {
         id: definition.id,
         actor: definition.actor,
@@ -388,10 +385,7 @@ export function resolveActions(snapshot: ActionSnapshot): ResolvedAction[] {
     });
 }
 
-export function nextAction(
-  repoPath: string,
-  runner?: CommandRunner,
-): ActionPlan {
+export function nextAction(repoPath: string, runner?: CommandRunner): ActionPlan {
   const snapshot = buildActionSnapshot(repoPath, runner);
   const actions = resolveActions(snapshot);
   return {

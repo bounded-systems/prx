@@ -62,10 +62,7 @@ export function formatIssueSearchTable(hits: IssueSearchHit[]): string {
   const idWidth = Math.max(2, ...hits.map((h) => h.id.length));
   const stateWidth = Math.max(5, ...hits.map((h) => h.state.length));
   const sourceWidth = Math.max(6, ...hits.map((h) => h.source.length));
-  const beadWidth = Math.max(
-    6,
-    ...hits.map((h) => (h.beadId ? h.beadId.length : 0)),
-  );
+  const beadWidth = Math.max(6, ...hits.map((h) => (h.beadId ? h.beadId.length : 0)));
   const lines: string[] = [];
   lines.push(
     `${"id".padEnd(idWidth)}  ${"state".padEnd(stateWidth)}  ${"source".padEnd(sourceWidth)}  ${"bd-id".padEnd(beadWidth)}  title`,

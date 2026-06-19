@@ -75,7 +75,10 @@ describe("runDoltStatus connectivity-as-source-of-truth (GH-2154)", () => {
   test("regression #4: reachable server + missing per-worktree path ⇒ running/healthy", () => {
     // No ledger and no per-worktree dolt path — the exact incident shape that
     // false-negatived. Connectivity alone must drive the verdict.
-    const { deps, logs } = makeDeps({ show: SHOW_UP, sql: { status: 0, stdout: JSON.stringify({ rows: [{ n: 0 }] }) } });
+    const { deps, logs } = makeDeps({
+      show: SHOW_UP,
+      sql: { status: 0, stdout: JSON.stringify({ rows: [{ n: 0 }] }) },
+    });
     const out = run(deps, logs);
     expect(out.healthy).toBe(true);
     expect(["running", "healthy"]).toContain(out.lifecycle);
@@ -83,7 +86,10 @@ describe("runDoltStatus connectivity-as-source-of-truth (GH-2154)", () => {
   });
 
   test("#1/#2: reachable + no ledger ⇒ running/external, pid null (no false negative)", () => {
-    const { deps, logs } = makeDeps({ show: SHOW_UP, sql: { status: 0, stdout: JSON.stringify({ rows: [{ n: 2 }] }) } });
+    const { deps, logs } = makeDeps({
+      show: SHOW_UP,
+      sql: { status: 0, stdout: JSON.stringify({ rows: [{ n: 2 }] }) },
+    });
     const out = run(deps, logs);
     expect(out.lifecycle).toBe("running");
     expect(out.owner).toBe("external");
@@ -125,7 +131,11 @@ describe("runDoltStatus connectivity-as-source-of-truth (GH-2154)", () => {
   });
 
   test("reachable + ledger ⇒ healthy/prx, pid from ledger", () => {
-    const ledger: DoltLedger = { pid: 4242, port: 3308, dsn: "mysql://root@127.0.0.1:3308/ai_home" };
+    const ledger: DoltLedger = {
+      pid: 4242,
+      port: 3308,
+      dsn: "mysql://root@127.0.0.1:3308/ai_home",
+    };
     const { deps, logs } = makeDeps({
       show: SHOW_UP,
       sql: { status: 0, stdout: JSON.stringify({ rows: [{ n: 0 }] }) },
@@ -162,7 +172,10 @@ describe("runDoltStatus connectivity-as-source-of-truth (GH-2154)", () => {
   });
 
   test("dolt_server_id is a stable 12-hex derived id when no ledger overrides it", () => {
-    const { deps, logs } = makeDeps({ show: SHOW_UP, sql: { status: 0, stdout: JSON.stringify({ rows: [{ n: 0 }] }) } });
+    const { deps, logs } = makeDeps({
+      show: SHOW_UP,
+      sql: { status: 0, stdout: JSON.stringify({ rows: [{ n: 0 }] }) },
+    });
     const out = run(deps, logs);
     const expected = computeDoltServerId(CTX.hostRepoSlug, "/repo/.beads/dolt/ai_home");
     expect(out.dolt_server_id).toBe(expected);

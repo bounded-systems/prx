@@ -53,7 +53,14 @@ describe("prx plan save — residual arms", () => {
         readPlanFile: () => Buffer.from(VALID_BODY),
         runPlanSave: async () => {
           saveCalls++;
-          return { sha: SHA, ref: "GH-1277:plan@draft", body_sha: SHA, envelope_sha: SHA, validated_ok: true, diagnostics: [] };
+          return {
+            sha: SHA,
+            ref: "GH-1277:plan@draft",
+            body_sha: SHA,
+            envelope_sha: SHA,
+            validated_ok: true,
+            diagnostics: [],
+          };
         },
       },
     );
@@ -71,7 +78,14 @@ describe("prx plan save — residual arms", () => {
       output,
       {
         readStdinSync: () => Buffer.from(VALID_BODY),
-        runPlanSave: async () => ({ sha: SHA, ref: "GH-1277:plan@draft", body_sha: SHA, envelope_sha: SHA, validated_ok: true, diagnostics: [] }),
+        runPlanSave: async () => ({
+          sha: SHA,
+          ref: "GH-1277:plan@draft",
+          body_sha: SHA,
+          envelope_sha: SHA,
+          validated_ok: true,
+          diagnostics: [],
+        }),
       },
     );
 

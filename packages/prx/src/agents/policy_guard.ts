@@ -42,7 +42,16 @@ function isPolicyRole(value: string): value is PolicyRole {
 // gh group words that precede the real verb (`gh pr merge` → merge). The policy
 // vocabulary keys on the verb, not the group (the group check lives in the gh
 // tool layer).
-const GH_GROUP_WORDS = new Set(["pr", "issue", "repo", "release", "run", "workflow", "label", "api"]);
+const GH_GROUP_WORDS = new Set([
+  "pr",
+  "issue",
+  "repo",
+  "release",
+  "run",
+  "workflow",
+  "label",
+  "api",
+]);
 
 /**
  * Extract the policed `(tool, subcommand)` from a Bash command, or null when the

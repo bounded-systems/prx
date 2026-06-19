@@ -105,9 +105,7 @@ export type TriageMachineContext = {
   blockedReason: TriageBlockedReason | null;
 };
 
-export const initialTriageMachineContext = (
-  input: TriageMachineInput,
-): TriageMachineContext => ({
+export const initialTriageMachineContext = (input: TriageMachineInput): TriageMachineContext => ({
   repo: input.repo,
   dryRun: input.dryRun,
   autoPrioritize: input.autoPrioritize,
@@ -156,10 +154,7 @@ export function statusHasAxisConflicts(snapshot: TriageStatusSnapshot | null): b
   return snapshot.totalAxisConflicts > 0;
 }
 
-export function blockedReasonFromError(
-  actorName: string,
-  error: unknown,
-): TriageBlockedReason {
+export function blockedReasonFromError(actorName: string, error: unknown): TriageBlockedReason {
   if (error instanceof TriageStubError) {
     return { actor: actorName, ticket: error.ticket, message: error.message };
   }
@@ -312,10 +307,7 @@ export const triageMachine = setup({
       },
     },
     typePassDecision: {
-      always: [
-        { target: "typePassing", guard: "hasTypelessRows" },
-        { target: "priorityDecision" },
-      ],
+      always: [{ target: "typePassing", guard: "hasTypelessRows" }, { target: "priorityDecision" }],
     },
     typePassing: {
       invoke: {
@@ -359,8 +351,7 @@ export const triageMachine = setup({
         onError: {
           target: "blocked",
           actions: assign({
-            blockedReason: ({ event }) =>
-              blockedReasonFromError("prioritizeBulk", event.error),
+            blockedReason: ({ event }) => blockedReasonFromError("prioritizeBulk", event.error),
           }),
         },
       },
@@ -407,8 +398,7 @@ export const triageMachine = setup({
         onDone: [
           {
             target: "driftDecision",
-            guard: ({ context }) =>
-              context.scope === "prime" && context.autoDriftFix,
+            guard: ({ context }) => context.scope === "prime" && context.autoDriftFix,
             actions: assign({
               promoteResult: ({ event }) => event.output,
             }),

@@ -4,10 +4,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import {
-  checkPolicyOrEnqueue,
-  type CheckPolicyOrEnqueueDeps,
-} from "@bounded-systems/policy";
+import { checkPolicyOrEnqueue, type CheckPolicyOrEnqueueDeps } from "@bounded-systems/policy";
 
 describe("checkPolicyOrEnqueue", () => {
   test("an allowed action returns the decision and never enqueues", async () => {

@@ -79,12 +79,7 @@ describe("classifyTitle — GH-988 unscored fallback", () => {
   test("GH-970: priority defaults to 'none' with priorityConfidence 'unscored'", () => {
     // No scored priority rules exist yet; every title gets the explicit
     // unscored marker. Apply preserves operator-set priority via GH-957.
-    for (const title of [
-      "bug(prx): boom",
-      "feat: new thing",
-      "[epic] M0: spec",
-      "random title",
-    ]) {
+    for (const title of ["bug(prx): boom", "feat: new thing", "[epic] M0: spec", "random title"]) {
       const result = classifyTitle(title);
       expect(result.priority).toBe("none");
       expect(result.priorityConfidence).toBe("unscored");
@@ -360,18 +355,14 @@ describe("runTriageClassify", () => {
 
   test("classifies live queue via injected listOpenIssues", () => {
     const { output, log } = makeOutput();
-    const code = runTriageClassify(
-      { format: "json", limit: 0 },
-      output,
-      {
-        listOpenIssues: () => [
-          { number: 1, title: "feat: x", url: "https://github.com/o/r/issues/1", labels: [] },
-        ],
-        repoNameWithOwner: () => "o/r",
-        cwd: () => "/tmp",
-        now: () => new Date("2026-04-28T20:00:00Z"),
-      },
-    );
+    const code = runTriageClassify({ format: "json", limit: 0 }, output, {
+      listOpenIssues: () => [
+        { number: 1, title: "feat: x", url: "https://github.com/o/r/issues/1", labels: [] },
+      ],
+      repoNameWithOwner: () => "o/r",
+      cwd: () => "/tmp",
+      now: () => new Date("2026-04-28T20:00:00Z"),
+    });
     expect(code).toBe(0);
     const plan = JSON.parse(log[0]!);
     expect(plan.repo).toBe("o/r");
@@ -380,19 +371,15 @@ describe("runTriageClassify", () => {
 
   test("respects --limit by truncating issues", () => {
     const { output, log } = makeOutput();
-    const code = runTriageClassify(
-      { format: "json", limit: 1 },
-      output,
-      {
-        listOpenIssues: () => [
-          { number: 1, title: "feat: a", url: "https://github.com/o/r/issues/1", labels: [] },
-          { number: 2, title: "feat: b", url: "https://github.com/o/r/issues/2", labels: [] },
-        ],
-        repoNameWithOwner: () => "o/r",
-        cwd: () => "/tmp",
-        now: () => new Date("2026-04-28T20:00:00Z"),
-      },
-    );
+    const code = runTriageClassify({ format: "json", limit: 1 }, output, {
+      listOpenIssues: () => [
+        { number: 1, title: "feat: a", url: "https://github.com/o/r/issues/1", labels: [] },
+        { number: 2, title: "feat: b", url: "https://github.com/o/r/issues/2", labels: [] },
+      ],
+      repoNameWithOwner: () => "o/r",
+      cwd: () => "/tmp",
+      now: () => new Date("2026-04-28T20:00:00Z"),
+    });
     expect(code).toBe(0);
     const plan = JSON.parse(log[0]!);
     expect(plan.rows).toHaveLength(1);
@@ -405,21 +392,22 @@ describe("runTriageClassify", () => {
       totalOpen: 1,
       totalUntriaged: 1,
       issues: [
-        { number: 5, title: "feat(prx): add x", url: "https://github.com/o/r/issues/5", labels: [] },
+        {
+          number: 5,
+          title: "feat(prx): add x",
+          url: "https://github.com/o/r/issues/5",
+          labels: [],
+        },
       ],
     });
-    const code = runTriageClassify(
-      { format: "json", limit: 0, from: "/tmp/queue.json" },
-      output,
-      {
-        readFileSync: () => fixture,
-        listOpenIssues: () => {
-          throw new Error("should not call live gh when --from is set");
-        },
-        cwd: () => "/tmp",
-        now: () => new Date("2026-04-28T20:00:00Z"),
+    const code = runTriageClassify({ format: "json", limit: 0, from: "/tmp/queue.json" }, output, {
+      readFileSync: () => fixture,
+      listOpenIssues: () => {
+        throw new Error("should not call live gh when --from is set");
       },
-    );
+      cwd: () => "/tmp",
+      now: () => new Date("2026-04-28T20:00:00Z"),
+    });
     expect(code).toBe(0);
     const plan = JSON.parse(log[0]!);
     expect(plan.repo).toBe("o/r");
@@ -428,15 +416,11 @@ describe("runTriageClassify", () => {
 
   test("--from with bad JSON returns error code 1", () => {
     const { output, error } = makeOutput();
-    const code = runTriageClassify(
-      { format: "json", limit: 0, from: "/tmp/queue.json" },
-      output,
-      {
-        readFileSync: () => "not json",
-        cwd: () => "/tmp",
-        now: () => new Date(),
-      },
-    );
+    const code = runTriageClassify({ format: "json", limit: 0, from: "/tmp/queue.json" }, output, {
+      readFileSync: () => "not json",
+      cwd: () => "/tmp",
+      now: () => new Date(),
+    });
     expect(code).toBe(1);
     expect(error.join("\n")).toContain("not valid JSON");
   });
@@ -448,26 +432,18 @@ describe("runTriageClassify", () => {
     ];
     const a = makeOutput();
     const b = makeOutput();
-    runTriageClassify(
-      { format: "json", limit: 0 },
-      a.output,
-      {
-        listOpenIssues: () => issues,
-        repoNameWithOwner: () => "o/r",
-        cwd: () => "/tmp",
-        now: () => new Date("2026-04-28T20:00:00Z"),
-      },
-    );
-    runTriageClassify(
-      { format: "json", limit: 0 },
-      b.output,
-      {
-        listOpenIssues: () => issues,
-        repoNameWithOwner: () => "o/r",
-        cwd: () => "/tmp",
-        now: () => new Date("2026-04-28T20:00:00Z"),
-      },
-    );
+    runTriageClassify({ format: "json", limit: 0 }, a.output, {
+      listOpenIssues: () => issues,
+      repoNameWithOwner: () => "o/r",
+      cwd: () => "/tmp",
+      now: () => new Date("2026-04-28T20:00:00Z"),
+    });
+    runTriageClassify({ format: "json", limit: 0 }, b.output, {
+      listOpenIssues: () => issues,
+      repoNameWithOwner: () => "o/r",
+      cwd: () => "/tmp",
+      now: () => new Date("2026-04-28T20:00:00Z"),
+    });
     expect(a.log[0]).toBe(b.log[0]);
   });
 
@@ -476,7 +452,10 @@ describe("runTriageClassify", () => {
       const log: string[] = [];
       const error: string[] = [];
       return {
-        output: { log: (line: string) => log.push(line), error: (line: string) => error.push(line) },
+        output: {
+          log: (line: string) => log.push(line),
+          error: (line: string) => error.push(line),
+        },
         log,
         error,
       };
@@ -485,26 +464,22 @@ describe("runTriageClassify", () => {
     test("graphql remaining ≥ requireBudget → proceeds; refresh called once", () => {
       const { output, log } = makeOutput();
       let refreshCalls = 0;
-      const code = runTriageClassify(
-        { format: "json", limit: 0, requireBudget: 500 },
-        output,
-        {
-          listOpenIssues: () => [
-            { number: 1, title: "feat: x", url: "https://github.com/o/r/issues/1", labels: [] },
-          ],
-          repoNameWithOwner: () => "o/r",
-          cwd: () => "/tmp",
-          now: () => new Date("2026-05-02T17:36:00Z"),
-          refreshBudget: (() => {
-            refreshCalls += 1;
-            return [
-              { bucket: "core", limit: 5000, remaining: 4994, resetAt: 0, fetchedAt: 0 },
-              { bucket: "graphql", limit: 5000, remaining: 4500, resetAt: 0, fetchedAt: 0 },
-              { bucket: "search", limit: 30, remaining: 30, resetAt: 0, fetchedAt: 0 },
-            ];
-          }) as never,
-        },
-      );
+      const code = runTriageClassify({ format: "json", limit: 0, requireBudget: 500 }, output, {
+        listOpenIssues: () => [
+          { number: 1, title: "feat: x", url: "https://github.com/o/r/issues/1", labels: [] },
+        ],
+        repoNameWithOwner: () => "o/r",
+        cwd: () => "/tmp",
+        now: () => new Date("2026-05-02T17:36:00Z"),
+        refreshBudget: (() => {
+          refreshCalls += 1;
+          return [
+            { bucket: "core", limit: 5000, remaining: 4994, resetAt: 0, fetchedAt: 0 },
+            { bucket: "graphql", limit: 5000, remaining: 4500, resetAt: 0, fetchedAt: 0 },
+            { bucket: "search", limit: 30, remaining: 30, resetAt: 0, fetchedAt: 0 },
+          ];
+        }) as never,
+      });
       expect(code).toBe(0);
       expect(refreshCalls).toBe(1);
       expect(log).toHaveLength(1);
@@ -516,24 +491,20 @@ describe("runTriageClassify", () => {
       // 6 minutes 12 seconds in the future
       const resetAt = now.getTime() + (6 * 60 + 12) * 1000;
       let listIssuesCalled = false;
-      const code = runTriageClassify(
-        { format: "json", limit: 0, requireBudget: 500 },
-        output,
-        {
-          listOpenIssues: () => {
-            listIssuesCalled = true;
-            return [];
-          },
-          repoNameWithOwner: () => "o/r",
-          cwd: () => "/tmp",
-          now: () => now,
-          refreshBudget: (() => [
-            { bucket: "core", limit: 5000, remaining: 4994, resetAt, fetchedAt: 0 },
-            { bucket: "graphql", limit: 5000, remaining: 42, resetAt, fetchedAt: 0 },
-            { bucket: "search", limit: 30, remaining: 30, resetAt, fetchedAt: 0 },
-          ]) as never,
+      const code = runTriageClassify({ format: "json", limit: 0, requireBudget: 500 }, output, {
+        listOpenIssues: () => {
+          listIssuesCalled = true;
+          return [];
         },
-      );
+        repoNameWithOwner: () => "o/r",
+        cwd: () => "/tmp",
+        now: () => now,
+        refreshBudget: (() => [
+          { bucket: "core", limit: 5000, remaining: 4994, resetAt, fetchedAt: 0 },
+          { bucket: "graphql", limit: 5000, remaining: 42, resetAt, fetchedAt: 0 },
+          { bucket: "search", limit: 30, remaining: 30, resetAt, fetchedAt: 0 },
+        ]) as never,
+      });
       expect(code).toBe(1);
       expect(log).toHaveLength(0);
       expect(listIssuesCalled).toBe(false);
@@ -548,20 +519,16 @@ describe("runTriageClassify", () => {
     test("--require-budget with refreshBudget returning null fails closed (exit 1, structured error)", () => {
       const { output, log, error } = makeOutput();
       let listIssuesCalled = false;
-      const code = runTriageClassify(
-        { format: "json", limit: 0, requireBudget: 500 },
-        output,
-        {
-          listOpenIssues: () => {
-            listIssuesCalled = true;
-            return [];
-          },
-          repoNameWithOwner: () => "o/r",
-          cwd: () => "/tmp",
-          now: () => new Date("2026-05-02T17:36:00Z"),
-          refreshBudget: (() => null) as never,
+      const code = runTriageClassify({ format: "json", limit: 0, requireBudget: 500 }, output, {
+        listOpenIssues: () => {
+          listIssuesCalled = true;
+          return [];
         },
-      );
+        repoNameWithOwner: () => "o/r",
+        cwd: () => "/tmp",
+        now: () => new Date("2026-05-02T17:36:00Z"),
+        refreshBudget: (() => null) as never,
+      });
       expect(code).toBe(1);
       expect(log).toHaveLength(0);
       expect(listIssuesCalled).toBe(false);
@@ -570,19 +537,15 @@ describe("runTriageClassify", () => {
 
     test("--require-budget with no graphql bucket in snapshot fails closed", () => {
       const { output, log, error } = makeOutput();
-      const code = runTriageClassify(
-        { format: "json", limit: 0, requireBudget: 500 },
-        output,
-        {
-          listOpenIssues: () => [],
-          repoNameWithOwner: () => "o/r",
-          cwd: () => "/tmp",
-          now: () => new Date("2026-05-02T17:36:00Z"),
-          refreshBudget: (() => [
-            { bucket: "core", limit: 5000, remaining: 5000, resetAt: 0, fetchedAt: 0 },
-          ]) as never,
-        },
-      );
+      const code = runTriageClassify({ format: "json", limit: 0, requireBudget: 500 }, output, {
+        listOpenIssues: () => [],
+        repoNameWithOwner: () => "o/r",
+        cwd: () => "/tmp",
+        now: () => new Date("2026-05-02T17:36:00Z"),
+        refreshBudget: (() => [
+          { bucket: "core", limit: 5000, remaining: 5000, resetAt: 0, fetchedAt: 0 },
+        ]) as never,
+      });
       expect(code).toBe(1);
       expect(log).toHaveLength(0);
       expect(error.join("\n")).toContain("no graphql bucket");
@@ -611,9 +574,7 @@ describe("runTriageClassify", () => {
           now: () => new Date("2026-05-02T17:36:00Z"),
           refreshBudget: (() => {
             refreshCalls += 1;
-            return [
-              { bucket: "graphql", limit: 5000, remaining: 0, resetAt: 0, fetchedAt: 0 },
-            ];
+            return [{ bucket: "graphql", limit: 5000, remaining: 0, resetAt: 0, fetchedAt: 0 }];
           }) as never,
         },
       );
@@ -706,31 +667,34 @@ describe("runTriageClassify — canonical=bd branch (GH-1710)", () => {
     };
   }
 
-  function makeExecBdReturning(records: Array<{
-    id: string;
-    title: string;
-    priority: number | null;
-    issue_type: string;
-  }>) {
-    return ((_args: unknown, _env?: unknown) => ({
-      exitCode: 0,
-      stdout: JSON.stringify(
-        records.map((r) => ({
-          id: r.id,
-          title: r.title,
-          status: "open",
-          priority: r.priority,
-          issue_type: r.issue_type,
-          external_ref: null,
-          source_system: null,
-          metadata: null,
-          updated_at: null,
-          dependencies: [],
-        })),
-      ),
-      stderr: "",
-      policy: null,
-    } as BdExecResult)) as never;
+  function makeExecBdReturning(
+    records: Array<{
+      id: string;
+      title: string;
+      priority: number | null;
+      issue_type: string;
+    }>,
+  ) {
+    return ((_args: unknown, _env?: unknown) =>
+      ({
+        exitCode: 0,
+        stdout: JSON.stringify(
+          records.map((r) => ({
+            id: r.id,
+            title: r.title,
+            status: "open",
+            priority: r.priority,
+            issue_type: r.issue_type,
+            external_ref: null,
+            source_system: null,
+            metadata: null,
+            updated_at: null,
+            dependencies: [],
+          })),
+        ),
+        stderr: "",
+        policy: null,
+      }) as BdExecResult) as never;
   }
 
   test("iterates bd substrate and never calls listOpenIssues", () => {

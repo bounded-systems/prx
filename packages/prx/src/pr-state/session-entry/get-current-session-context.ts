@@ -1,8 +1,5 @@
 import { processEnv } from "@bounded-systems/env";
-import {
-  SESSION_CONTEXTS,
-  type SessionContext,
-} from "../../machine/machines/session-entry.ts";
+import { SESSION_CONTEXTS, type SessionContext } from "../../machine/machines/session-entry.ts";
 
 /**
  * GH-977: env-var carrier for the active session context.

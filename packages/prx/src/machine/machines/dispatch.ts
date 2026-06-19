@@ -118,9 +118,7 @@ export interface DispatchMachineContext {
   failure: DispatchFailure | null;
 }
 
-const initialDispatchContext = (
-  input: DispatchMachineInput,
-): DispatchMachineContext => ({
+const initialDispatchContext = (input: DispatchMachineInput): DispatchMachineContext => ({
   request: {
     source: input.source,
     target: input.target,
@@ -128,12 +126,8 @@ const initialDispatchContext = (
     args: input.args ?? {},
     // exactOptionalPropertyTypes: only attach the optional keys when present
     // so an explicit `undefined` is never threaded into the Zod-typed request.
-    ...(input.parentDispatchId !== undefined
-      ? { parentDispatchId: input.parentDispatchId }
-      : {}),
-    ...(input.inputArtifact !== undefined
-      ? { inputArtifact: input.inputArtifact }
-      : {}),
+    ...(input.parentDispatchId !== undefined ? { parentDispatchId: input.parentDispatchId } : {}),
+    ...(input.inputArtifact !== undefined ? { inputArtifact: input.inputArtifact } : {}),
   },
   depth: input.depth,
   allowedCallers: input.allowedCallers,
@@ -242,9 +236,7 @@ export function createDispatchMachine(opts: CreateDispatchMachineOptions) {
             actions: assign({
               failure: ({ event }) => ({
                 reason: "execution_failed" as const,
-                detail: event.error instanceof Error
-                  ? event.error.message
-                  : String(event.error),
+                detail: event.error instanceof Error ? event.error.message : String(event.error),
               }),
             }),
           },
@@ -271,9 +263,7 @@ export function createDispatchMachine(opts: CreateDispatchMachineOptions) {
             actions: assign({
               failure: ({ event }) => ({
                 reason: "execution_failed" as const,
-                detail: event.error instanceof Error
-                  ? event.error.message
-                  : String(event.error),
+                detail: event.error instanceof Error ? event.error.message : String(event.error),
               }),
             }),
           },

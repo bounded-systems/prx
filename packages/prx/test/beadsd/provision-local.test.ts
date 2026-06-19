@@ -55,7 +55,9 @@ describe("provisionLocalBeads", () => {
     expect(scripts.some((s) => s.includes("bd migrate"))).toBe(true);
 
     // locks the .beads dir to 0700 (bd recommends it; avoids the perms warning)
-    expect(scripts.some((s) => s.includes("chmod 700 /home/u/.local/state/prx/beads/.beads"))).toBe(true);
+    expect(scripts.some((s) => s.includes("chmod 700 /home/u/.local/state/prx/beads/.beads"))).toBe(
+      true,
+    );
   });
 
   test("throws when bd/dolt are not on PATH", () => {

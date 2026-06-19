@@ -350,11 +350,7 @@ export async function bootstrapWorktree(
   // if `bd` itself errors. Skipped on `skipped-no-beads` (nothing to repair),
   // on `error` (the prior step already flagged a hard failure), and when the
   // dep is null (test paths that disable bd).
-  if (
-    deps.repairBdSchema
-    && beads.status !== "skipped-no-beads"
-    && beads.status !== "error"
-  ) {
+  if (deps.repairBdSchema && beads.status !== "skipped-no-beads" && beads.status !== "error") {
     try {
       beads.schemaRepair = deps.repairBdSchema(cwd);
     } catch (err) {
@@ -371,17 +367,17 @@ export async function bootstrapWorktree(
   return { beads, contract, exitCode };
 }
 
-export function formatBootstrapResult(
-  result: BootstrapResult,
-  format: "plain" | "json",
-): string {
+export function formatBootstrapResult(result: BootstrapResult, format: "plain" | "json"): string {
   if (format === "json") return JSON.stringify(result, null, 2);
 
   const lines: string[] = [];
-  lines.push(`beads: ${result.beads.status}${result.beads.message ? ` — ${result.beads.message}` : ""}`);
+  lines.push(
+    `beads: ${result.beads.status}${result.beads.message ? ` — ${result.beads.message}` : ""}`,
+  );
   if (
-    (result.beads.status === "wrote-redirect" || result.beads.status === "rewrote-redirect-target")
-    && result.beads.redirectTarget
+    (result.beads.status === "wrote-redirect" ||
+      result.beads.status === "rewrote-redirect-target") &&
+    result.beads.redirectTarget
   ) {
     lines.push(`  → ${result.beads.redirectTarget}`);
   }
@@ -398,9 +394,13 @@ export function formatBootstrapResult(
     lines.push(`  hint: run 'prx beads repair-redirect' to clean up (Phase 3)`);
   }
   if (result.beads.schemaRepair) {
-    lines.push(`  bd-schema: ${result.beads.schemaRepair.status} (${result.beads.schemaRepair.durationMs}ms)`);
+    lines.push(
+      `  bd-schema: ${result.beads.schemaRepair.status} (${result.beads.schemaRepair.durationMs}ms)`,
+    );
   }
-  lines.push(`contract: ${result.contract.status}${result.contract.message ? ` — ${result.contract.message}` : ""}`);
+  lines.push(
+    `contract: ${result.contract.status}${result.contract.message ? ` — ${result.contract.message}` : ""}`,
+  );
   if (result.contract.status === "wrote-contract" && result.contract.contractPath) {
     lines.push(`  → ${result.contract.contractPath}`);
   }

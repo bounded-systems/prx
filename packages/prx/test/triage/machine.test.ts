@@ -64,51 +64,57 @@ function fakeStatusActor(snap: TriageStatusSnapshot) {
   }));
 }
 
-const fakeClassifyOk = fromPromise<TriageClassifyActorResult, TriageClassifyOptions>(
-  async () => ({ exitCode: 0, plan: null, stdout: [], stderr: [] }),
-);
+const fakeClassifyOk = fromPromise<TriageClassifyActorResult, TriageClassifyOptions>(async () => ({
+  exitCode: 0,
+  plan: null,
+  stdout: [],
+  stderr: [],
+}));
 
-const fakeApplyOk = fromPromise<TriageApplyActorResult, TriageApplyOptions>(
-  async () => ({ exitCode: 0, audit: [], stdout: [], stderr: [], touchedIssues: [] }),
-);
+const fakeApplyOk = fromPromise<TriageApplyActorResult, TriageApplyOptions>(async () => ({
+  exitCode: 0,
+  audit: [],
+  stdout: [],
+  stderr: [],
+  touchedIssues: [],
+}));
 
-const fakePromoteOk = fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(
-  async () => ({
-    exitCode: 0,
-    plan: null,
-    audit: [],
-    stdout: [],
-    stderr: [],
-    promotedBeadIds: [],
-  }),
-);
+const fakePromoteOk = fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(async () => ({
+  exitCode: 0,
+  plan: null,
+  audit: [],
+  stdout: [],
+  stderr: [],
+  promotedBeadIds: [],
+}));
 
 // GH-1021 — typePassActor is a real verb now; tests use this success stub
 // instead of the prior rejecting stub, which kept the type-pass branch
 // blocked. Helper retained (un-exported, scoped) for parity with the other
 // `fake<Verb>Ok` helpers.
-const fakeTypePassOk = fromPromise<TriageTypePassActorResult, TriageTypePassOptions>(
-  async () => ({ exitCode: 0, audit: [], stdout: [], stderr: [], touchedIssues: [] }),
-);
+const fakeTypePassOk = fromPromise<TriageTypePassActorResult, TriageTypePassOptions>(async () => ({
+  exitCode: 0,
+  audit: [],
+  stdout: [],
+  stderr: [],
+  touchedIssues: [],
+}));
 
 // GH-1125 — head-of-machine merged-only prune sweep. Stub returns a clean
 // no-op so the rest of the state graph runs unchanged in existing tests.
-const fakePruneMergedOk = fromPromise<
-  TriagePruneMergedActorResult,
-  TriagePruneMergedOptions
->(async () => ({
-  exitCode: 0,
-  closedIssues: [],
-  removedWorktrees: [],
-  applyResults: [],
-  bdSync: null,
-}));
+const fakePruneMergedOk = fromPromise<TriagePruneMergedActorResult, TriagePruneMergedOptions>(
+  async () => ({
+    exitCode: 0,
+    closedIssues: [],
+    removedWorktrees: [],
+    applyResults: [],
+    bdSync: null,
+  }),
+);
 function rejectingPrioritizeBulkActor(ticket: string) {
-  return fromPromise<TriagePrioritizeBulkActorResult, TriagePrioritizeBulkOptions>(
-    async () => {
-      throw new TriageStubError("prioritize-bulk", ticket);
-    },
-  );
+  return fromPromise<TriagePrioritizeBulkActorResult, TriagePrioritizeBulkOptions>(async () => {
+    throw new TriageStubError("prioritize-bulk", ticket);
+  });
 }
 function rejectingPrioritizeActor() {
   return fromPromise<TriagePrioritizeActorResult, TriagePrioritizeOptions>(async () => {
@@ -306,18 +312,17 @@ describe("triageMachine — decision-state branching", () => {
   // `prioritizingBulk.onDone` plumbing matches the new actor's
   // `TriagePrioritizeBulkActorResult` return type without any context assign.
   test("priority::none + autoPrioritize=true + bulk success → promoting → done path", async () => {
-    const fakeBulkOk = fromPromise<
-      TriagePrioritizeBulkActorResult,
-      TriagePrioritizeBulkOptions
-    >(async () => ({
-      exitCode: 0,
-      audit: [],
-      stdout: [],
-      stderr: [],
-      touchedIssues: [],
-      batchCount: 0,
-      totalCostUsd: 0,
-    }));
+    const fakeBulkOk = fromPromise<TriagePrioritizeBulkActorResult, TriagePrioritizeBulkOptions>(
+      async () => ({
+        exitCode: 0,
+        audit: [],
+        stdout: [],
+        stderr: [],
+        touchedIssues: [],
+        batchCount: 0,
+        totalCostUsd: 0,
+      }),
+    );
     const machine = triageMachine.provide({
       actors: {
         pruneMergedActor: fakePruneMergedOk,
@@ -432,11 +437,9 @@ describe("triageMachine — failure handling", () => {
     const machine = triageMachine.provide({
       actors: {
         pruneMergedActor: fakePruneMergedOk,
-        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(
-          async () => {
-            throw new Error("gh down");
-          },
-        ),
+        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(async () => {
+          throw new Error("gh down");
+        }),
         classifyActor: fakeClassifyOk,
         applyActor: fakeApplyOk,
         promoteActor: fakePromoteOk,
@@ -455,10 +458,7 @@ describe("triageMachine — failure handling", () => {
       actors: {
         pruneMergedActor: fakePruneMergedOk,
         statusActor: fakeStatusActor(snapshot()),
-        classifyActor: fromPromise<
-          TriageClassifyActorResult,
-          TriageClassifyOptions
-        >(async () => {
+        classifyActor: fromPromise<TriageClassifyActorResult, TriageClassifyOptions>(async () => {
           throw new Error("boom");
         }),
         applyActor: fakeApplyOk,
@@ -477,11 +477,9 @@ describe("triageMachine — initial context", () => {
     const machine = triageMachine.provide({
       actors: {
         pruneMergedActor: fakePruneMergedOk,
-        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(
-          async () => {
-            throw new Error("seed");
-          },
-        ),
+        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(async () => {
+          throw new Error("seed");
+        }),
         classifyActor: fakeClassifyOk,
         applyActor: fakeApplyOk,
         promoteActor: fakePromoteOk,
@@ -504,11 +502,9 @@ describe("triageMachine — initial context", () => {
     const machine = triageMachine.provide({
       actors: {
         pruneMergedActor: fakePruneMergedOk,
-        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(
-          async () => {
-            throw new Error("seed");
-          },
-        ),
+        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(async () => {
+          throw new Error("seed");
+        }),
         classifyActor: fakeClassifyOk,
         applyActor: fakeApplyOk,
         promoteActor: fakePromoteOk,
@@ -588,26 +584,24 @@ describe("triageMachine — GH-1015 scope clip", () => {
 describe("triageMachine — GH-1342 prime + autoDriftFix", () => {
   test("prime + autoDriftFix=true + drift>0 → driftFixing runs, lands in done", async () => {
     let driftFixCalls = 0;
-    const driftOk = fromPromise<TriageDriftFixActorResult, TriageDriftFixOptions>(
-      async () => {
-        driftFixCalls += 1;
-        return {
-          exitCode: 0,
-          audit: [],
-          stdout: [],
-          stderr: [],
-          writes: 1,
-          skips: 0,
-          errors: 0,
-          syncOutcome: "ok",
-          touchedIssues: [42],
-          duplicatesDetected: 0,
-          mergesApplied: 0,
-          mergesSkippedParity: 0,
-          substrateHealth: { total: 0, fixable: 0, fixed: false },
-        };
-      },
-    );
+    const driftOk = fromPromise<TriageDriftFixActorResult, TriageDriftFixOptions>(async () => {
+      driftFixCalls += 1;
+      return {
+        exitCode: 0,
+        audit: [],
+        stdout: [],
+        stderr: [],
+        writes: 1,
+        skips: 0,
+        errors: 0,
+        syncOutcome: "ok",
+        touchedIssues: [42],
+        duplicatesDetected: 0,
+        mergesApplied: 0,
+        mergesSkippedParity: 0,
+        substrateHealth: { total: 0, fixable: 0, fixed: false },
+      };
+    });
 
     const machine = triageMachine.provide({
       actors: {
@@ -679,9 +673,9 @@ describe("triageMachine — GH-1342 prime + autoDriftFix", () => {
   });
 
   // GH-1255 — the `driftFixing` invoke input grows four new fields that
-// thread the bd-substrate dedupe + health surfaces through the actor. The
-// machine bakes in `includeDupes:true, includeDoctor:true, applyDupes:true,
-// doctorFix:false` at this single call site; assert the actor sees them.
+  // thread the bd-substrate dedupe + health surfaces through the actor. The
+  // machine bakes in `includeDupes:true, includeDoctor:true, applyDupes:true,
+  // doctorFix:false` at this single call site; assert the actor sees them.
   test("driftFixing invoke passes GH-1255 dupe + doctor flags to the actor input", async () => {
     const observed: { input: TriageDriftFixOptions | null } = { input: null };
     const driftCapture = fromPromise<TriageDriftFixActorResult, TriageDriftFixOptions>(
@@ -790,16 +784,15 @@ describe("triageMachine — GH-1342 prime + autoDriftFix", () => {
 describe("triageMachine — GH-1125 pruneMerged head state", () => {
   test("scope:'prime' threads pruneMergedResult into context and continues to loadingStatus", async () => {
     const closed = [1048, 1049];
-    const customPruneActor = fromPromise<
-      TriagePruneMergedActorResult,
-      TriagePruneMergedOptions
-    >(async () => ({
-      exitCode: 0,
-      closedIssues: closed,
-      removedWorktrees: [],
-      applyResults: [],
-      bdSync: { exitCode: 0, stdout: "", stderr: "" },
-    }));
+    const customPruneActor = fromPromise<TriagePruneMergedActorResult, TriagePruneMergedOptions>(
+      async () => ({
+        exitCode: 0,
+        closedIssues: closed,
+        removedWorktrees: [],
+        applyResults: [],
+        bdSync: { exitCode: 0, stdout: "", stderr: "" },
+      }),
+    );
 
     const machine = triageMachine.provide({
       actors: {
@@ -821,21 +814,18 @@ describe("triageMachine — GH-1125 pruneMerged head state", () => {
   });
 
   test("pruneMergedActor rejection → blocked at pruneMerged before any other actor runs", async () => {
-    const rejectingPrune = fromPromise<
-      TriagePruneMergedActorResult,
-      TriagePruneMergedOptions
-    >(async () => {
-      throw new Error("gh rate limit");
-    });
+    const rejectingPrune = fromPromise<TriagePruneMergedActorResult, TriagePruneMergedOptions>(
+      async () => {
+        throw new Error("gh rate limit");
+      },
+    );
 
     const machine = triageMachine.provide({
       actors: {
         pruneMergedActor: rejectingPrune,
-        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(
-          async () => {
-            throw new Error("status must not run when pruneMerged failed");
-          },
-        ),
+        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(async () => {
+          throw new Error("status must not run when pruneMerged failed");
+        }),
       },
     });
 

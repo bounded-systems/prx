@@ -25,11 +25,7 @@ import {
   writeSubmitArtifact,
   type SubmitArtifact,
 } from "../../src/submit/artifact.schema.ts";
-import {
-  PublishError,
-  runSubmitPublish,
-  type PublishDeps,
-} from "../../src/submit/publish.ts";
+import { PublishError, runSubmitPublish, type PublishDeps } from "../../src/submit/publish.ts";
 
 const ENV_KEYS = [
   "PRX_PLAN_STORE",
@@ -100,12 +96,24 @@ function spy(
   preflight: Array<{ cmd: string; args: string[] }>;
   commits: Array<{ treeSha: string; parentSha: string; branch: string }>;
   pushes: string[][];
-  prOpens: Array<{ workUnitId: string; summary: string; head: string | undefined; base: string | undefined; ready: boolean | undefined }>;
+  prOpens: Array<{
+    workUnitId: string;
+    summary: string;
+    head: string | undefined;
+    base: string | undefined;
+    ready: boolean | undefined;
+  }>;
 } {
   const preflight: Array<{ cmd: string; args: string[] }> = [];
   const commits: Array<{ treeSha: string; parentSha: string; branch: string }> = [];
   const pushes: string[][] = [];
-  const prOpens: Array<{ workUnitId: string; summary: string; head: string | undefined; base: string | undefined; ready: boolean | undefined }> = [];
+  const prOpens: Array<{
+    workUnitId: string;
+    summary: string;
+    head: string | undefined;
+    base: string | undefined;
+    ready: boolean | undefined;
+  }> = [];
   const deps: PublishDeps = {
     runner:
       over.runner ??
@@ -224,7 +232,13 @@ describe("runSubmitPublish (GH-1900 / GH-2348.2)", () => {
     expect(commits).toEqual([{ treeSha: HEX40, parentSha: HEX40, branch: "GH-1900" }]);
     expect(pushes).toEqual([["origin", "GH-1900"]]);
     expect(prOpens).toEqual([
-      { workUnitId: "GH-1900", summary: "publish handoff", head: "GH-1900", base: "main", ready: false },
+      {
+        workUnitId: "GH-1900",
+        summary: "publish handoff",
+        head: "GH-1900",
+        base: "main",
+        ready: false,
+      },
     ]);
 
     // The published-slot ref now points at the artifact metadata sha.
@@ -328,15 +342,30 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
   });
   afterEach(() => restoreEnv(envSnap));
 
-  const PUBLISH = { fromCas: "GH-1900:submit@ready", dryRun: false, ready: false, format: "plain" as const };
+  const PUBLISH = {
+    fromCas: "GH-1900:submit@ready",
+    dryRun: false,
+    ready: false,
+    format: "plain" as const,
+  };
 
   test("routes the push through the keeperd door — no local push", async () => {
     await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
     const { deps, pushes, prOpens } = spy();
-    const doorCalls: Array<{ parentSha: string; commitSha: string; branch: string; remote: string }> = [];
+    const doorCalls: Array<{
+      parentSha: string;
+      commitSha: string;
+      branch: string;
+      remote: string;
+    }> = [];
     deps.keeperDoorMode = () => true;
     deps.keeperDoor = async (input) => {
-      doorCalls.push({ parentSha: input.parentSha, commitSha: input.commitSha, branch: input.branch, remote: input.remote });
+      doorCalls.push({
+        parentSha: input.parentSha,
+        commitSha: input.commitSha,
+        branch: input.branch,
+        remote: input.remote,
+      });
       return { status: "ok", commitSha: MATERIALIZED_COMMIT, pushedRef: "refs/heads/GH-1900" };
     };
     const render = await runSubmitPublish(PUBLISH, deps);
@@ -352,8 +381,14 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
     await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
     const { deps, prOpens } = spy();
     deps.keeperDoorMode = () => true;
-    deps.keeperDoor = async () => ({ status: "error", code: "git-write", message: "remote rejected" });
-    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/keeper door push failed.*remote rejected/);
+    deps.keeperDoor = async () => ({
+      status: "error",
+      code: "git-write",
+      message: "remote rejected",
+    });
+    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(
+      /keeper door push failed.*remote rejected/,
+    );
     expect(prOpens).toHaveLength(0);
   });
 
@@ -361,7 +396,11 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
     await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
     const { deps, prOpens } = spy();
     deps.keeperDoorMode = () => true;
-    deps.keeperDoor = async () => ({ status: "ok", commitSha: "f".repeat(40), pushedRef: "refs/heads/GH-1900" });
+    deps.keeperDoor = async () => ({
+      status: "ok",
+      commitSha: "f".repeat(40),
+      pushedRef: "refs/heads/GH-1900",
+    });
     await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/not the materialized commit/);
     expect(prOpens).toHaveLength(0);
   });
@@ -372,7 +411,11 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
     deps.keeperDoorMode = () => true;
     deps.requireSigned = true;
     deps.verifier = {} as unknown as NonNullable<PublishDeps["verifier"]>;
-    deps.keeperDoor = async () => ({ status: "ok", commitSha: MATERIALIZED_COMMIT, pushedRef: "refs/heads/GH-1900" });
+    deps.keeperDoor = async () => ({
+      status: "ok",
+      commitSha: MATERIALIZED_COMMIT,
+      pushedRef: "refs/heads/GH-1900",
+    });
     await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/emitted no signed derivation/);
   });
 
@@ -429,7 +472,10 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
         git: daemonGit,
         signer: ed25519Signer(kp.privateKey, kp.keyid),
         // a capturing in-memory ledger; the daemon also RETURNS the derivation (#644)
-        openLedger: () => ({ store: { append: async () => {}, get: async () => null }, close: () => {} }),
+        openLedger: () => ({
+          store: { append: async () => {}, get: async () => null },
+          close: () => {},
+        }),
       },
       async () => {
         const { deps, pushes, prOpens } = spy();
@@ -461,7 +507,9 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
         deps.requireSigned = true;
         deps.verifier = ed25519Verifier(kp.publicKey);
 
-        await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/emitted no signed derivation/);
+        await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(
+          /emitted no signed derivation/,
+        );
         expect(prOpens).toHaveLength(0); // fail closed before the PR opens
       },
     );

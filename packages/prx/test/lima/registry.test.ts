@@ -12,7 +12,9 @@ import {
 const ok = (stdout = ""): RunResult => ({ status: 0, stdout, stderr: "" });
 const script = (args: string[]) => args[args.length - 1] ?? "";
 
-function recorder(answer: (cmd: string, args: string[]) => RunResult | undefined = () => undefined) {
+function recorder(
+  answer: (cmd: string, args: string[]) => RunResult | undefined = () => undefined,
+) {
   const calls: { cmd: string; args: string[] }[] = [];
   const run = (cmd: string, args: string[]): RunResult => {
     calls.push({ cmd, args });

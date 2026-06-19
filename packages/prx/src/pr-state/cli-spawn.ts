@@ -69,7 +69,11 @@ export function copyToClipboard(text: string): void {
 
 /** Prompt for Enter, then `open` the URL. Throws if the prompt or open fails. */
 export function openAfterEnter(url: string): void {
-  const promptStatus = runInheritStatus(["/bin/zsh", "-lc", 'printf "Machine copied. Press Enter to open Stately..."; read -r _']);
+  const promptStatus = runInheritStatus([
+    "/bin/zsh",
+    "-lc",
+    'printf "Machine copied. Press Enter to open Stately..."; read -r _',
+  ]);
   if (promptStatus !== 0) {
     throw new Error("Interactive prompt cancelled.");
   }
@@ -138,16 +142,14 @@ type WorktreeResolutionEntry = {
   states: string[];
 };
 
-export function resolveRepoRootWithSpawn(
-  cwd: string,
-  spawn: SpawnLike,
-): string {
+export function resolveRepoRootWithSpawn(cwd: string, spawn: SpawnLike): string {
   const repoRootResult = spawn("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" });
   if (repoRootResult.error) {
     throw repoRootResult.error;
   }
   if ((repoRootResult.status ?? 1) !== 0) {
-    const msg = (repoRootResult.stderr ?? repoRootResult.stdout ?? "").trim() || "git rev-parse failed";
+    const msg =
+      (repoRootResult.stderr ?? repoRootResult.stdout ?? "").trim() || "git rev-parse failed";
     throw new CliError(msg);
   }
   return (repoRootResult.stdout ?? "").trim();
@@ -179,5 +181,3 @@ export function findWorktreeByDirectoryPrefix(
   const prefix = `${match[1]}_${match[2]}_`;
   return entries.find((entry) => basename(entry.path).toLowerCase().startsWith(prefix));
 }
-
-

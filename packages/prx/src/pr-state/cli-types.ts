@@ -136,5 +136,3 @@ export type ParityChainApplyResult = {
 };
 
 export type RepairBdEntry = { cwd: string; result: BdSchemaRepairResult };
-
-

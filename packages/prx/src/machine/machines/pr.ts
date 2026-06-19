@@ -238,11 +238,11 @@ export const initialPrSystemContext: PrSystemContext = {
   provenance: "unchecked",
 };
 
-export function isSystemMergeReady(context: Pick<PrSystemContext, "ci" | "review" | "mergeability">): boolean {
+export function isSystemMergeReady(
+  context: Pick<PrSystemContext, "ci" | "review" | "mergeability">,
+): boolean {
   return (
-    context.ci === "passed" &&
-    context.review === "approved" &&
-    context.mergeability === "clean"
+    context.ci === "passed" && context.review === "approved" && context.mergeability === "clean"
   );
 }
 
@@ -252,8 +252,7 @@ export const prSystemMachine = setup({
     events: {} as PrDomainEvent,
   },
   guards: {
-    isMergeable: ({ context }) =>
-      context.lifecycle === "open" && isSystemMergeReady(context),
+    isMergeable: ({ context }) => context.lifecycle === "open" && isSystemMergeReady(context),
     // Live merge gate on the workflowBackbone region's entry into
     // ready_to_merge. Reads derived context only (no ambient authority).
     mergeGate: ({ context }) => canEnterReadyToMerge(context),
@@ -526,9 +525,7 @@ export function assertValidTransition(current: LifecycleState, next: LifecycleSt
   }
 
   const allowedText = allowedTransitions(current).join(", ");
-  throw new Error(
-    `invalid transition from \`${current}\` to \`${next}\`; allowed: ${allowedText}`,
-  );
+  throw new Error(`invalid transition from \`${current}\` to \`${next}\`; allowed: ${allowedText}`);
 }
 
 export function eventForState(state: LifecycleState): LifecycleEvent["type"] {

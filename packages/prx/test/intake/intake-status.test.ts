@@ -9,9 +9,7 @@ import {
 import type { BdExecResult } from "@bounded-systems/bd";
 import type { FallbackIssue } from "../../src/pr-state/github.ts";
 
-function makeOptions(
-  overrides: Partial<IntakeStatusOptions> = {},
-): IntakeStatusOptions {
+function makeOptions(overrides: Partial<IntakeStatusOptions> = {}): IntakeStatusOptions {
   return {
     format: "plain",
     limit: 0,
@@ -21,9 +19,7 @@ function makeOptions(
   };
 }
 
-function emptyResult(
-  overrides: Partial<IntakeStatusResult> = {},
-): IntakeStatusResult {
+function emptyResult(overrides: Partial<IntakeStatusResult> = {}): IntakeStatusResult {
   return {
     repo: "o/r",
     totalOpen: 0,
@@ -54,9 +50,7 @@ describe("formatIntakeStatus", () => {
     const result = emptyResult({
       totalOpen: 2,
       totalUntriaged: 1,
-      untriaged: [
-        { number: 7, title: "fresh idea", url: "u", labels: [] },
-      ],
+      untriaged: [{ number: 7, title: "fresh idea", url: "u", labels: [] }],
     });
     const text = formatIntakeStatus(result, "plain");
     expect(text).toContain("1 unfiled · 0 drift");
@@ -76,14 +70,22 @@ describe("runIntakeStatus", () => {
           { number: 1, title: "filed", url: "https://github.com/o/r/issues/1", labels: [] },
           { number: 2, title: "fresh", url: "https://github.com/o/r/issues/2", labels: [] },
         ]) as never,
-        execBd: (() => ({
-          exitCode: 0,
-          stdout: JSON.stringify([
-            { id: "ai-home-1", title: "filed", status: "open", priority: 2, issue_type: "task", external_ref: "https://github.com/o/r/issues/1" },
-          ]),
-          stderr: "",
-          policy: null,
-        } as BdExecResult)) as never,
+        execBd: (() =>
+          ({
+            exitCode: 0,
+            stdout: JSON.stringify([
+              {
+                id: "ai-home-1",
+                title: "filed",
+                status: "open",
+                priority: 2,
+                issue_type: "task",
+                external_ref: "https://github.com/o/r/issues/1",
+              },
+            ]),
+            stderr: "",
+            policy: null,
+          }) as BdExecResult) as never,
       },
     );
     const result = JSON.parse(logs[0]!) as IntakeStatusResult;
@@ -98,17 +100,23 @@ describe("runIntakeStatus", () => {
       makeOptions({ repo: "o/r", format: "json" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
-        listOpenIssues: (() => [
-          { number: 1, title: "no labels", url: "u", labels: [] },
-        ]) as never,
-        execBd: (() => ({
-          exitCode: 0,
-          stdout: JSON.stringify([
-            { id: "ai-home-1", title: "no labels", status: "open", priority: 2, issue_type: "task", external_ref: "https://github.com/o/r/issues/1" },
-          ]),
-          stderr: "",
-          policy: null,
-        } as BdExecResult)) as never,
+        listOpenIssues: (() => [{ number: 1, title: "no labels", url: "u", labels: [] }]) as never,
+        execBd: (() =>
+          ({
+            exitCode: 0,
+            stdout: JSON.stringify([
+              {
+                id: "ai-home-1",
+                title: "no labels",
+                status: "open",
+                priority: 2,
+                issue_type: "task",
+                external_ref: "https://github.com/o/r/issues/1",
+              },
+            ]),
+            stderr: "",
+            policy: null,
+          }) as BdExecResult) as never,
       },
     );
     const result = JSON.parse(logs[0]!) as IntakeStatusResult;
@@ -121,18 +129,31 @@ describe("runIntakeStatus", () => {
       makeOptions({ repo: "o/r", format: "json" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
-        listOpenIssues: (() => [
-          { number: 100, title: "Foo", url: "u", labels: [] },
-        ]) as never,
-        execBd: (() => ({
-          exitCode: 0,
-          stdout: JSON.stringify([
-            { id: "ai-home-100", title: "Bar", status: "open", priority: 2, issue_type: "task", external_ref: "https://github.com/o/r/issues/100" },
-            { id: "ai-home-rev", title: "lonely", status: "open", priority: 2, issue_type: "task", external_ref: null },
-          ]),
-          stderr: "",
-          policy: null,
-        } as BdExecResult)) as never,
+        listOpenIssues: (() => [{ number: 100, title: "Foo", url: "u", labels: [] }]) as never,
+        execBd: (() =>
+          ({
+            exitCode: 0,
+            stdout: JSON.stringify([
+              {
+                id: "ai-home-100",
+                title: "Bar",
+                status: "open",
+                priority: 2,
+                issue_type: "task",
+                external_ref: "https://github.com/o/r/issues/100",
+              },
+              {
+                id: "ai-home-rev",
+                title: "lonely",
+                status: "open",
+                priority: 2,
+                issue_type: "task",
+                external_ref: null,
+              },
+            ]),
+            stderr: "",
+            policy: null,
+          }) as BdExecResult) as never,
       },
     );
     const result = JSON.parse(logs[0]!) as IntakeStatusResult;
@@ -150,15 +171,16 @@ describe("runIntakeStatus", () => {
       { log: (l) => logs.push(l), error: () => undefined },
       {
         listOpenIssues: (() => []) as never,
-        execBd: (() => ({ exitCode: 0, stdout: "[]", stderr: "", policy: null } as BdExecResult)) as never,
-        refreshBudget: ((() => {
+        execBd: (() =>
+          ({ exitCode: 0, stdout: "[]", stderr: "", policy: null }) as BdExecResult) as never,
+        refreshBudget: (() => {
           refreshCalls += 1;
           return null;
-        }) as never),
-        estimateSweepCost: ((() => {
+        }) as never,
+        estimateSweepCost: (() => {
           estimateCalls += 1;
           return { perBucket: { core: 0, graphql: 0, search: 0 }, sample: { calls: 0, avg: 2 } };
-        }) as never),
+        }) as never,
       },
     );
     const result = JSON.parse(logs[0]!) as IntakeStatusResult;
@@ -169,8 +191,20 @@ describe("runIntakeStatus", () => {
 
   test("--rate-limit flag set → snapshots + estimate populated; queueSize excludes reverse-orphans (prx-3f1)", () => {
     const snapshots = [
-      { bucket: "core" as const, limit: 5000, remaining: 4994, resetAt: 1700000000000, fetchedAt: 0 },
-      { bucket: "graphql" as const, limit: 5000, remaining: 4823, resetAt: 1700000000000, fetchedAt: 0 },
+      {
+        bucket: "core" as const,
+        limit: 5000,
+        remaining: 4994,
+        resetAt: 1700000000000,
+        fetchedAt: 0,
+      },
+      {
+        bucket: "graphql" as const,
+        limit: 5000,
+        remaining: 4823,
+        resetAt: 1700000000000,
+        fetchedAt: 0,
+      },
       { bucket: "search" as const, limit: 30, remaining: 29, resetAt: 1700000000000, fetchedAt: 0 },
     ];
     let receivedQueue = -1;
@@ -179,18 +213,24 @@ describe("runIntakeStatus", () => {
       makeOptions({ repo: "o/r", format: "json", rateLimit: true }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
-        listOpenIssues: (() => [
-          { number: 1, title: "fresh", url: "u", labels: [] },
-        ]) as never,
-        execBd: (() => ({
-          exitCode: 0,
-          stdout: JSON.stringify([
-            // 1 reverse orphan
-            { id: "ai-home-rev", title: "lonely", status: "open", priority: 2, issue_type: "task", external_ref: null },
-          ]),
-          stderr: "",
-          policy: null,
-        } as BdExecResult)) as never,
+        listOpenIssues: (() => [{ number: 1, title: "fresh", url: "u", labels: [] }]) as never,
+        execBd: (() =>
+          ({
+            exitCode: 0,
+            stdout: JSON.stringify([
+              // 1 reverse orphan
+              {
+                id: "ai-home-rev",
+                title: "lonely",
+                status: "open",
+                priority: 2,
+                issue_type: "task",
+                external_ref: null,
+              },
+            ]),
+            stderr: "",
+            policy: null,
+          }) as BdExecResult) as never,
         refreshBudget: (() => snapshots) as never,
         estimateSweepCost: ((queueSize: number) => {
           receivedQueue = queueSize;
@@ -216,13 +256,13 @@ describe("runIntakeStatus", () => {
       { log: (l) => logs.push(l), error: () => undefined },
       {
         listOpenIssues: (() => []) as never,
-        execBd: (() => ({ exitCode: 0, stdout: "[]", stderr: "", policy: null } as BdExecResult)) as never,
-        refreshBudget: (() =>
-          [
-            { bucket: "core", limit: 5000, remaining: 4994, resetAt: 1700000000000, fetchedAt: 0 },
-            { bucket: "graphql", limit: 5000, remaining: 4823, resetAt: 1700000000000, fetchedAt: 0 },
-            { bucket: "search", limit: 30, remaining: 29, resetAt: 1700000000000, fetchedAt: 0 },
-          ]) as never,
+        execBd: (() =>
+          ({ exitCode: 0, stdout: "[]", stderr: "", policy: null }) as BdExecResult) as never,
+        refreshBudget: (() => [
+          { bucket: "core", limit: 5000, remaining: 4994, resetAt: 1700000000000, fetchedAt: 0 },
+          { bucket: "graphql", limit: 5000, remaining: 4823, resetAt: 1700000000000, fetchedAt: 0 },
+          { bucket: "search", limit: 30, remaining: 29, resetAt: 1700000000000, fetchedAt: 0 },
+        ]) as never,
         estimateSweepCost: (() => ({
           perBucket: { core: 0, graphql: 0, search: 0 },
           sample: { calls: 0, avg: 2 },

@@ -151,8 +151,10 @@ export function execGhIssueEdit(
     env: env as NodeJS.ProcessEnv,
     encoding: "utf8",
   });
-  const stdout = typeof result.stdout === "string" ? result.stdout : (result.stdout?.toString() ?? "");
-  const stderr = typeof result.stderr === "string" ? result.stderr : (result.stderr?.toString() ?? "");
+  const stdout =
+    typeof result.stdout === "string" ? result.stdout : (result.stdout?.toString() ?? "");
+  const stderr =
+    typeof result.stderr === "string" ? result.stderr : (result.stderr?.toString() ?? "");
   const exitCode = result.status ?? 1;
 
   if (gate) {

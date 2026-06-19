@@ -5,20 +5,13 @@ import { fileURLToPath } from "node:url";
 
 import { z } from "zod";
 
-import type {
-  ContractId,
-  ContractRegistry,
-  Digest,
-} from "@bounded-systems/anchored-chain";
+import type { ContractId, ContractRegistry, Digest } from "@bounded-systems/anchored-chain";
 import { sha256Hex } from "@bounded-systems/anchored-chain";
 
 import { agentContractSchema } from "../../contracts.ts";
 import { getArtifactContract } from "../artifacts.ts";
 import { agentRegistry } from "../instances.ts";
-import {
-  defaultMachineSchemaMap,
-  anchoredChainBridge,
-} from "../anchored-chain-bridge.ts";
+import { defaultMachineSchemaMap, anchoredChainBridge } from "../anchored-chain-bridge.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BRIDGE_FILE = resolve(HERE, "..", "anchored-chain-bridge.ts");
@@ -66,10 +59,7 @@ describe("anchoredChainBridge", () => {
     // digest-mismatch (covered separately below).
     const { unitId: _omit, ...tampered } = VALID_STATUS_UPDATE;
     const { bytes, digest } = encode(tampered);
-    const verdict = registry.getValidator("status_update" as ContractId)(
-      digest,
-      bytes,
-    );
+    const verdict = registry.getValidator("status_update" as ContractId)(digest, bytes);
     expect(verdict.ok).toBe(false);
     expect(verdict.reason).toContain("unitId");
   });
@@ -81,10 +71,7 @@ describe("anchoredChainBridge", () => {
     });
     const { bytes } = encode(VALID_STATUS_UPDATE);
     const wrongDigest = sha256Hex("not-the-bytes");
-    const verdict = registry.getValidator("status_update" as ContractId)(
-      wrongDigest,
-      bytes,
-    );
+    const verdict = registry.getValidator("status_update" as ContractId)(wrongDigest, bytes);
     expect(verdict.ok).toBe(false);
     expect(verdict.reason).toMatch(/digest mismatch/);
   });
@@ -199,10 +186,7 @@ describe("anchoredChainBridge", () => {
     });
     const { verification: _omit, ...tampered } = VALID_RUNTIME_OUTPUT;
     const { bytes, digest } = encode(tampered);
-    const verdict = registry.getValidator("runtime_output" as ContractId)(
-      digest,
-      bytes,
-    );
+    const verdict = registry.getValidator("runtime_output" as ContractId)(digest, bytes);
     expect(verdict.ok).toBe(false);
     expect(verdict.reason).toContain("verification");
   });
@@ -224,10 +208,7 @@ describe("anchoredChainBridge", () => {
     });
     const { issueId: _omit, ...tampered } = VALID_DERIVE_TRANSITION;
     const { bytes, digest } = encode(tampered);
-    const verdict = registry.getValidator("derive_transition" as ContractId)(
-      digest,
-      bytes,
-    );
+    const verdict = registry.getValidator("derive_transition" as ContractId)(digest, bytes);
     expect(verdict.ok).toBe(false);
     expect(verdict.reason).toContain("issueId");
   });
@@ -294,9 +275,7 @@ describe("anchoredChainBridge", () => {
     }
     // No anchored-chain sub-module imports — extractability requires the
     // public index only.
-    const anchoredChainImports = externalSpecs.filter((s) =>
-      s.includes("anchored-chain"),
-    );
+    const anchoredChainImports = externalSpecs.filter((s) => s.includes("anchored-chain"));
     expect(anchoredChainImports.length).toBeGreaterThan(0);
     for (const spec of anchoredChainImports) {
       expect(spec).toBe("@bounded-systems/anchored-chain");

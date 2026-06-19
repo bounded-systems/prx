@@ -13,10 +13,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { getArtifactContract } from "../../../src/machine/contracts/artifacts.ts";
-import {
-  type Uow,
-  uowSchema,
-} from "../../../src/machine/contracts/lifecycle_artifacts.ts";
+import { type Uow, uowSchema } from "../../../src/machine/contracts/lifecycle_artifacts.ts";
 
 describe("uow artifact schema (prx-4fa)", () => {
   test("accepts a well-formed GH-rooted uow", () => {
@@ -25,8 +22,12 @@ describe("uow artifact schema (prx-4fa)", () => {
   });
 
   test("accepts bd- and cross-repo (<repo>#N) work-unit ids", () => {
-    expect(uowSchema.parse({ id: "bd-abc12", title: "x", status: "in_progress" }).id).toBe("bd-abc12");
-    expect(uowSchema.parse({ id: "owner/repo#42", title: "y", status: "closed" }).id).toBe("owner/repo#42");
+    expect(uowSchema.parse({ id: "bd-abc12", title: "x", status: "in_progress" }).id).toBe(
+      "bd-abc12",
+    );
+    expect(uowSchema.parse({ id: "owner/repo#42", title: "y", status: "closed" }).id).toBe(
+      "owner/repo#42",
+    );
   });
 
   test("rejects empty / missing required fields", () => {

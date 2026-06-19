@@ -22,11 +22,7 @@
 
 import { z } from "zod";
 
-import {
-  type NextWorkCandidate,
-  type NextWorkResult,
-  type NextWorkThreadKind,
-} from "./ready.ts";
+import { type NextWorkCandidate, type NextWorkResult, type NextWorkThreadKind } from "./ready.ts";
 
 // Ordering used to break priority ties when ranking across threads.
 // Matches `DEFAULT_THREAD_ORDER` in `src/pr-state/next_work.ts` —
@@ -123,10 +119,7 @@ function threadIndex(kind: NextWorkThreadKind): number {
   return idx === -1 ? DELEGATE_THREAD_PRECEDENCE.length : idx;
 }
 
-function suggestedCommandFor(
-  candidate: NextWorkCandidate,
-  threadKind: NextWorkThreadKind,
-): string {
+function suggestedCommandFor(candidate: NextWorkCandidate, threadKind: NextWorkThreadKind): string {
   // If the underlying thread already produced a typed command (e.g.
   // `prx worktree-remove GH-X` for orphan_cleanup, `gh pr ready` for
   // pr_awaiting_ci), preserve it. Otherwise fall back to opening a
@@ -219,10 +212,7 @@ export function selectDelegateCandidate(
   }));
 
   const head = candidates[0];
-  const reason =
-    head !== undefined
-      ? head.reason
-      : "no candidates matched the supplied filters";
+  const reason = head !== undefined ? head.reason : "no candidates matched the supplied filters";
   const suggestedCommand = head?.suggested_command ?? null;
 
   return {

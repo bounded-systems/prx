@@ -24,7 +24,10 @@ const defaultResolve: SignerResolver = () => resolveProvenanceSigner() as Signer
  * Resolve the signing key for `actorLabel` or REFUSE to launch. This is the
  * chokepoint every agent-launch path must pass through.
  */
-export function requireSigner(actorLabel: string, resolve: SignerResolver = defaultResolve): Signer {
+export function requireSigner(
+  actorLabel: string,
+  resolve: SignerResolver = defaultResolve,
+): Signer {
   const signer = resolve();
   if (!signer) {
     throw new Error(
@@ -49,8 +52,10 @@ export type CliActor = {
  * `noninteractive` actor. `isTTY`/`user` are injectable for tests.
  */
 export function cliActor(opts: { isTTY?: boolean; user?: string } = {}): CliActor {
-  const isTTY = opts.isTTY ?? Boolean((globalThis as { process?: { stdin?: { isTTY?: boolean } } }).process?.stdin?.isTTY);
-  return { actor: isTTY ? opts.user ?? "human" : "noninteractive", interactive: isTTY };
+  const isTTY =
+    opts.isTTY ??
+    Boolean((globalThis as { process?: { stdin?: { isTTY?: boolean } } }).process?.stdin?.isTTY);
+  return { actor: isTTY ? (opts.user ?? "human") : "noninteractive", interactive: isTTY };
 }
 
 /**

@@ -2,7 +2,10 @@ import { describe, expect, test } from "bun:test";
 
 import { loadAllBeadsViaCli } from "../../src/triage/beads-daemon-loader.ts";
 
-type Run = (cmd: string[], opts?: { check?: boolean }) => { status: number; stdout: string; stderr: string };
+type Run = (
+  cmd: string[],
+  opts?: { check?: boolean },
+) => { status: number; stdout: string; stderr: string };
 
 const ok = (stdout: string): Run => (() => ({ status: 0, stdout, stderr: "" })) as Run;
 

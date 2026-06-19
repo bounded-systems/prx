@@ -17,13 +17,7 @@
 
 import { assign, emit, setup } from "xstate";
 
-import {
-  createActor,
-  nextActor,
-  showActor,
-  syncActor,
-  MapStubError,
-} from "./actors.ts";
+import { createActor, nextActor, showActor, syncActor, MapStubError } from "./actors.ts";
 import type { MapCreateActorResult, MapCreateOptions } from "./create.ts";
 import type { MapShowActorResult, MapShowOptions } from "./show.ts";
 import type { MapNextActorResult, MapNextOptions } from "./next.ts";
@@ -168,7 +162,9 @@ export const mapMachine = setup({
           context.input.verb === "next"
             ? context.input.options
             : (() => {
-                throw new Error("map machine: invariant — nextProjecting entered with non-next verb");
+                throw new Error(
+                  "map machine: invariant — nextProjecting entered with non-next verb",
+                );
               })(),
         onDone: {
           target: "completed",

@@ -42,14 +42,7 @@ describe("probeCapabilities", () => {
     const report = await probeCapabilities(deps({}));
 
     expect(report.available).toEqual([]);
-    expect(report.unavailable).toEqual([
-      "git",
-      "git-repo",
-      "bd",
-      "gh",
-      "repos",
-      "claude-lsp",
-    ]);
+    expect(report.unavailable).toEqual(["git", "git-repo", "bd", "gh", "repos", "claude-lsp"]);
     // Every miss carries a translation ("how to enable").
     for (const cap of report.capabilities) {
       expect(cap.status).toBe("unavailable");
@@ -64,20 +57,15 @@ describe("probeCapabilities", () => {
         cwd: "/work/repo/sub",
         files: {
           "/work/repo/.git": "",
-          "/work/repo/.prx/repos/index.json": JSON.stringify({ repos: [{ name: "a" }, { name: "b" }] }),
+          "/work/repo/.prx/repos/index.json": JSON.stringify({
+            repos: [{ name: "a" }, { name: "b" }],
+          }),
         },
       }),
     );
 
     expect(report.unavailable).toEqual([]);
-    expect(report.available).toEqual([
-      "git",
-      "git-repo",
-      "bd",
-      "gh",
-      "repos",
-      "claude-lsp",
-    ]);
+    expect(report.available).toEqual(["git", "git-repo", "bd", "gh", "repos", "claude-lsp"]);
     const repoRepo = report.capabilities.find((c) => c.id === "repos")!;
     expect(repoRepo.detail).toContain("2 repo(s)");
   });

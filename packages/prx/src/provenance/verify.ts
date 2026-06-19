@@ -27,9 +27,7 @@ import { verifySlsaEnvelope, type SlsaProvenanceStatement } from "./slsa.ts";
  * payload was produced by `JSON.stringify` over a {@link SlsaProvenanceStatement}
  * (see `assembleSlsaEnvelope`), so a parse round-trips the same shape.
  */
-export function decodeSlsaStatement(
-  envelope: DsseEnvelope,
-): SlsaProvenanceStatement {
+export function decodeSlsaStatement(envelope: DsseEnvelope): SlsaProvenanceStatement {
   const json = Buffer.from(envelope.payload, "base64").toString("utf8");
   return JSON.parse(json) as SlsaProvenanceStatement;
 }

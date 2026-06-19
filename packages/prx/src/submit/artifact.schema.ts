@@ -34,7 +34,9 @@ const SUBMIT_REF_RE = /^[A-Za-z][A-Za-z0-9_]*-[A-Za-z0-9]+:submit@(draft|ready|p
 
 export const SubmitArtifactSchema = z
   .object({
-    workUnitId: z.string().regex(WORK_UNIT_RE, "workUnitId must be a canonical work-unit id (<prefix>-<suffix>)"),
+    workUnitId: z
+      .string()
+      .regex(WORK_UNIT_RE, "workUnitId must be a canonical work-unit id (<prefix>-<suffix>)"),
     baseRef: z.string().min(1),
     baseSha: z.string().regex(SHA1_RE, "baseSha must be a 40-char hex"),
     // GH-2381: the artifact's identity is a git TREE SHA — a pure content hash
@@ -121,9 +123,7 @@ export interface WritePatchBlobResult {
  * Write the raw patch bytes (e.g. `git format-patch` output) into the submit
  * CAS domain so the artifact metadata can reference it via {sha, bytes}.
  */
-export async function writeSubmitPatchBlob(
-  patch: string | Buffer,
-): Promise<WritePatchBlobResult> {
+export async function writeSubmitPatchBlob(patch: string | Buffer): Promise<WritePatchBlobResult> {
   const buf = typeof patch === "string" ? Buffer.from(patch, "utf8") : patch;
   const { sha } = await writeBlob(buf, { domain: SUBMIT_DOMAIN });
   return { sha, bytes: buf.length };
@@ -140,9 +140,7 @@ export interface ReadSubmitArtifactInput {
  * indirection upstream when needed (via `getRef`); this helper expects the
  * sha when no ref is provided.
  */
-export async function readSubmitArtifact(
-  input: ReadSubmitArtifactInput,
-): Promise<SubmitArtifact> {
+export async function readSubmitArtifact(input: ReadSubmitArtifactInput): Promise<SubmitArtifact> {
   if (!input.sha) {
     throw new PlanStoreError(
       "readSubmitArtifact: sha is required (resolve ref → sha via getRef)",

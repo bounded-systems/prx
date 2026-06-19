@@ -80,8 +80,16 @@ export type GhExecEnv = {
 };
 
 const ALLOWED_PR_SUBCOMMANDS = [
-  "status", "list", "view", "checks", "diff", "comment",
-  "create", "edit", "ready", "review",
+  "status",
+  "list",
+  "view",
+  "checks",
+  "diff",
+  "comment",
+  "create",
+  "edit",
+  "ready",
+  "review",
 ] as const;
 
 // `comment` is needed by `prx triage promote` (GH-936) so the verb can post the
@@ -89,9 +97,7 @@ const ALLOWED_PR_SUBCOMMANDS = [
 // needed by `prx beads publish` (GH-1507) so the verb can mirror reverse-orphan
 // beads into fresh GH issues. The `gh:*:executor` policy table already permits
 // `comment` and `create`, so this allowlist extension is the only gate.
-const ALLOWED_ISSUE_SUBCOMMANDS = [
-  "list", "view", "edit", "comment", "create",
-] as const;
+const ALLOWED_ISSUE_SUBCOMMANDS = ["list", "view", "edit", "comment", "create"] as const;
 
 const GROUP_ALLOWLISTS: Record<AllowedGroup, readonly string[]> = {
   pr: ALLOWED_PR_SUBCOMMANDS,
@@ -249,7 +255,8 @@ export function fetchIssueLabels(
   const name = repo.slice(slash + 1);
 
   const aliasLines = numbers.map(
-    (n) => `i${n}: issue(number: ${n}) { labels(first: 50) { nodes { name } pageInfo { hasNextPage } } }`,
+    (n) =>
+      `i${n}: issue(number: ${n}) { labels(first: 50) { nodes { name } pageInfo { hasNextPage } } }`,
   );
   const query = `query FetchIssueLabels($owner: String!, $name: String!) {
   repository(owner: $owner, name: $name) {
@@ -257,7 +264,17 @@ ${aliasLines.map((l) => `    ${l}`).join("\n")}
   }
 }`;
 
-  const argv = ["gh", "api", "graphql", "-f", `query=${query}`, "-F", `owner=${owner}`, "-F", `name=${name}`];
+  const argv = [
+    "gh",
+    "api",
+    "graphql",
+    "-f",
+    `query=${query}`,
+    "-F",
+    `owner=${owner}`,
+    "-F",
+    `name=${name}`,
+  ];
   const runner = deps.rawRunner ?? ((cmd: string[]) => runCaptured(cmd, { check: false }));
   const result = runner(argv);
   if (result.status !== 0) {
@@ -287,7 +304,8 @@ ${aliasLines.map((l) => `    ${l}`).join("\n")}
     if (!alias || typeof alias !== "object") {
       throw new Error(`fetchIssueLabels: missing alias i${n} in response`);
     }
-    const labels = (alias as { labels?: { nodes?: unknown; pageInfo?: { hasNextPage?: unknown } } }).labels;
+    const labels = (alias as { labels?: { nodes?: unknown; pageInfo?: { hasNextPage?: unknown } } })
+      .labels;
     if (!labels || !Array.isArray(labels.nodes)) {
       throw new Error(`fetchIssueLabels: missing labels.nodes for issue ${n}`);
     }
@@ -296,7 +314,11 @@ ${aliasLines.map((l) => `    ${l}`).join("\n")}
     }
     const names: string[] = [];
     for (const node of labels.nodes as unknown[]) {
-      if (node && typeof node === "object" && typeof (node as { name?: unknown }).name === "string") {
+      if (
+        node &&
+        typeof node === "object" &&
+        typeof (node as { name?: unknown }).name === "string"
+      ) {
         names.push((node as { name: string }).name);
       }
     }

@@ -7,14 +7,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, test } from "bun:test";
 
-import {
-  BdDomainAdapter,
-  ForeignWorkspacePrefixError,
-} from "../../src/adapters/beads.ts";
-import {
-  localWorkspacePrefixForCwd,
-  type RepoRunner,
-} from "../../src/pr-state/repos.ts";
+import { BdDomainAdapter, ForeignWorkspacePrefixError } from "../../src/adapters/beads.ts";
+import { localWorkspacePrefixForCwd, type RepoRunner } from "../../src/pr-state/repos.ts";
 
 type IndexShape = {
   roots: string[];
@@ -23,7 +17,12 @@ type IndexShape = {
     commonDir: string;
     kind: "bare" | "standard";
     mainWorktree: string | null;
-    worktrees: Array<{ path: string; branch: string | null; current: boolean; kind: "standard" | "worktree" }>;
+    worktrees: Array<{
+      path: string;
+      branch: string | null;
+      current: boolean;
+      kind: "standard" | "worktree";
+    }>;
     localOnlyBranches: string[];
     findings: unknown[];
     remotes: unknown[];
@@ -237,7 +236,11 @@ describe("BdDomainAdapter — bare workspace-long-id from a worktree (GH-2156)",
 
     writeFileSync(
       join(homeRoot, ".config", "prx", "config.json"),
-      JSON.stringify({ bareRoot: join(root, "share", "bare"), indexPath: centralIndexPath }, null, 2),
+      JSON.stringify(
+        { bareRoot: join(root, "share", "bare"), indexPath: centralIndexPath },
+        null,
+        2,
+      ),
     );
 
     const commonByWt = new Map<string, string>([

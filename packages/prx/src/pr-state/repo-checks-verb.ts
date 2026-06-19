@@ -29,7 +29,10 @@ export const repoChecksVerb = defineVerb({
   actor: "work",
   input: z.object({
     "repo-path": z.string().default(".").describe("repo worktree path"),
-    repo: z.string().optional().describe("owner/name override (defaults to the repo at --repo-path)"),
+    repo: z
+      .string()
+      .optional()
+      .describe("owner/name override (defaults to the repo at --repo-path)"),
     branch: z.string().default("main").describe("branch whose checks to read"),
     format: z.enum(["plain", "json"]).default("plain").describe("output format"),
   }),

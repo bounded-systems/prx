@@ -24,10 +24,7 @@ function makeEnv(xdgCacheHome: string): NodeJS.ProcessEnv {
 // GH-867: the resolver's `git remote get-url origin` probe returns non-zero
 // in tests (no real remote), so the cache resolves to `_anon/<fingerprint>`.
 function anonNotionDir(xdgCacheHome: string, repoRoot: string): string {
-  const fingerprint = createHash("sha256")
-    .update(resolve(repoRoot))
-    .digest("hex")
-    .slice(0, 8);
+  const fingerprint = createHash("sha256").update(resolve(repoRoot)).digest("hex").slice(0, 8);
   return join(xdgCacheHome, "prx", "notion", "_anon", fingerprint);
 }
 
@@ -196,9 +193,7 @@ describe("NotionClaudeMcpResolver", () => {
   test("throws on malformed JSON in claude output", async () => {
     const repoRoot = mkdtempSync(join(tmpdir(), "prx-notion-mcp-bad-json-"));
     const xdg = mkdtempSync(join(tmpdir(), "prx-mcp-xdg-bad-json-"));
-    const { runner } = makeRunner([
-      () => ({ stdout: envelope("this is not json at all") }),
-    ]);
+    const { runner } = makeRunner([() => ({ stdout: envelope("this is not json at all") })]);
     const resolver = new NotionClaudeMcpResolver(config, repoRoot, runner, makeEnv(xdg));
     await expect(resolver.fetch("PROD-5")).rejects.toThrow(
       /did not contain JSON|could not parse JSON/,
@@ -231,9 +226,7 @@ describe("NotionClaudeMcpResolver", () => {
     const { runner } = makeRunner([
       () => ({ stdout: legacyEnvelope('{"pageId": "p-legacy", "pageUrl": null}') }),
       () => ({
-        stdout: legacyEnvelope(
-          '{"title": "Legacy", "body": null, "state": "open", "url": null}',
-        ),
+        stdout: legacyEnvelope('{"title": "Legacy", "body": null, "state": "open", "url": null}'),
       }),
     ]);
     const resolver = new NotionClaudeMcpResolver(config, repoRoot, runner, makeEnv(xdg));
@@ -261,9 +254,7 @@ describe("NotionClaudeMcpResolver", () => {
   test("search missing pageId field → clear error", async () => {
     const repoRoot = mkdtempSync(join(tmpdir(), "prx-notion-mcp-missing-pageid-"));
     const xdg = mkdtempSync(join(tmpdir(), "prx-mcp-xdg-missing-pageid-"));
-    const { runner } = makeRunner([
-      () => ({ stdout: envelope('{"pageUrl": "https://x"}') }),
-    ]);
+    const { runner } = makeRunner([() => ({ stdout: envelope('{"pageUrl": "https://x"}') })]);
     const resolver = new NotionClaudeMcpResolver(config, repoRoot, runner, makeEnv(xdg));
     await expect(resolver.fetch("PROD-7")).rejects.toThrow(/missing "pageId"/);
   });
@@ -271,9 +262,7 @@ describe("NotionClaudeMcpResolver", () => {
   test("search not_found → clear error", async () => {
     const repoRoot = mkdtempSync(join(tmpdir(), "prx-notion-mcp-404-"));
     const xdg = mkdtempSync(join(tmpdir(), "prx-mcp-xdg-404-"));
-    const { runner } = makeRunner([
-      () => ({ stdout: envelope('{"error": "not_found"}') }),
-    ]);
+    const { runner } = makeRunner([() => ({ stdout: envelope('{"error": "not_found"}') })]);
     const resolver = new NotionClaudeMcpResolver(config, repoRoot, runner, makeEnv(xdg));
     await expect(resolver.fetch("PROD-404")).rejects.toThrow(/no page matching/);
   });
@@ -281,9 +270,7 @@ describe("NotionClaudeMcpResolver", () => {
   test("claude non-zero exit → error", async () => {
     const repoRoot = mkdtempSync(join(tmpdir(), "prx-notion-mcp-nonzero-"));
     const xdg = mkdtempSync(join(tmpdir(), "prx-mcp-xdg-nonzero-"));
-    const { runner } = makeRunner([
-      () => ({ stdout: "", stderr: "boom", status: 2 }),
-    ]);
+    const { runner } = makeRunner([() => ({ stdout: "", stderr: "boom", status: 2 })]);
     const resolver = new NotionClaudeMcpResolver(config, repoRoot, runner, makeEnv(xdg));
     await expect(resolver.fetch("PROD-9")).rejects.toThrow(/claude exited with status 2/);
   });
@@ -294,9 +281,7 @@ describe("NotionClaudeMcpResolver", () => {
     const oauthStdout =
       "Please open this URL in your browser to authorize Notion access:\n" +
       "https://mcp.notion.com/authorize?response_type=code&client_id=foo";
-    const { runner, calls } = makeRunner([
-      () => ({ stdout: oauthStdout, status: 0 }),
-    ]);
+    const { runner, calls } = makeRunner([() => ({ stdout: oauthStdout, status: 0 })]);
     const resolver = new NotionClaudeMcpResolver(config, repoRoot, runner, makeEnv(xdg));
     await expect(resolver.fetch("PROD-OAUTH-0")).rejects.toThrow(
       /headless OAuth required.*GH-847/s,
@@ -310,9 +295,7 @@ describe("NotionClaudeMcpResolver", () => {
     const oauthText =
       "Please open this URL in your browser to authorize Notion access:\n" +
       "https://mcp.notion.com/authorize?response_type=code&client_id=foo&code_challenge=bar";
-    const { runner, calls } = makeRunner([
-      () => ({ stdout: envelope(oauthText) }),
-    ]);
+    const { runner, calls } = makeRunner([() => ({ stdout: envelope(oauthText) })]);
     const resolver = new NotionClaudeMcpResolver(config, repoRoot, runner, makeEnv(xdg));
     await expect(resolver.fetch("PROD-OAUTH-1")).rejects.toThrow(
       /headless OAuth required.*GH-847/s,
@@ -320,9 +303,7 @@ describe("NotionClaudeMcpResolver", () => {
     expect(calls.length).toBe(1);
     // GH-867: no cache writes anywhere (XDG dir or worktree).
     expect(existsSync(taskCacheFile(xdg, repoRoot, "PROD-OAUTH-1"))).toBe(false);
-    expect(existsSync(join(repoRoot, ".prx/notion-cache/PROD-OAUTH-1.lookup.json"))).toBe(
-      false,
-    );
+    expect(existsSync(join(repoRoot, ".prx/notion-cache/PROD-OAUTH-1.lookup.json"))).toBe(false);
   });
 
   test("headless OAuth signature on stderr with non-zero exit → GH-847 error", async () => {
@@ -331,9 +312,7 @@ describe("NotionClaudeMcpResolver", () => {
     const stderr =
       "Please open this URL in your browser to authorize Notion access:\n" +
       "https://mcp.notion.com/authorize?response_type=code&client_id=foo";
-    const { runner } = makeRunner([
-      () => ({ stdout: "", stderr, status: 1 }),
-    ]);
+    const { runner } = makeRunner([() => ({ stdout: "", stderr, status: 1 })]);
     const resolver = new NotionClaudeMcpResolver(config, repoRoot, runner, makeEnv(xdg));
     await expect(resolver.fetch("PROD-OAUTH-2")).rejects.toThrow(
       /headless OAuth required.*GH-847/s,
@@ -359,14 +338,10 @@ describe("NotionClaudeMcpResolver", () => {
     const xdg = mkdtempSync(join(tmpdir(), "prx-mcp-xdg-fenced-"));
     const { runner } = makeRunner([
       () => ({
-        stdout: envelope(
-          '```json\n{"pageId": "p", "pageUrl": null}\n```',
-        ),
+        stdout: envelope('```json\n{"pageId": "p", "pageUrl": null}\n```'),
       }),
       () => ({
-        stdout: envelope(
-          '```\n{"title": "t", "body": null, "state": "open", "url": null}\n```',
-        ),
+        stdout: envelope('```\n{"title": "t", "body": null, "state": "open", "url": null}\n```'),
       }),
     ]);
     const resolver = new NotionClaudeMcpResolver(config, repoRoot, runner, makeEnv(xdg));
@@ -385,9 +360,7 @@ describe("NotionClaudeMcpResolver", () => {
     ]);
     const resolver = new NotionClaudeMcpResolver(config, repoRoot, runner, makeEnv(xdg));
     await resolver.fetch("PROD-12");
-    const cached = JSON.parse(
-      readFileSync(taskCacheFile(xdg, repoRoot, "PROD-12"), "utf8"),
-    );
+    const cached = JSON.parse(readFileSync(taskCacheFile(xdg, repoRoot, "PROD-12"), "utf8"));
     expect(cached.schemaVersion).toBe(1);
     expect(cached.lookup).toEqual({
       pageId: "p123",

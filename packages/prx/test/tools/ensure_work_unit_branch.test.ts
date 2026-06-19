@@ -18,9 +18,7 @@ type Fixture = {
 function git(cwd: string, ...args: string[]): string {
   const r = spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" });
   if (r.status !== 0) {
-    throw new Error(
-      `git ${args.join(" ")} failed in ${cwd}: ${r.stderr || r.stdout}`,
-    );
+    throw new Error(`git ${args.join(" ")} failed in ${cwd}: ${r.stderr || r.stdout}`);
   }
   return (r.stdout ?? "").trim();
 }
@@ -219,7 +217,13 @@ describe("formatEnsureWorkUnitBranchResult", () => {
 
     expect(
       formatEnsureWorkUnitBranchResult(
-        { status: "upstream-fixed", id: "GH-1", upstream: "origin/GH-1", ...base, upstreamChanged: true },
+        {
+          status: "upstream-fixed",
+          id: "GH-1",
+          upstream: "origin/GH-1",
+          ...base,
+          upstreamChanged: true,
+        },
         "plain",
       ),
     ).toBe("upstream-fixed: GH-1 -> origin/GH-1");

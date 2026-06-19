@@ -92,9 +92,7 @@ describe("actorRuleset — shared deny (AC1)", () => {
 
 describe("actorRuleset — uniqueness across owning actors (AC2)", () => {
   test("the six owning actors produce six distinct rulesets", () => {
-    const fingerprints = OWNING_ACTORS.map((a) =>
-      JSON.stringify(actorRuleset(a)),
-    );
+    const fingerprints = OWNING_ACTORS.map((a) => JSON.stringify(actorRuleset(a)));
     expect(new Set(fingerprints).size).toBe(OWNING_ACTORS.length);
   });
 
@@ -117,10 +115,7 @@ describe("actorRuleset — registry-vocabulary invariance (AC4)", () => {
     // verb becomes runnable via the existing glob with zero edits here.
     for (const role of ["reader", "executor"] as const satisfies readonly RulesetRole[]) {
       const { allowedTools } = actorRuleset("plan", { role });
-      expect(allowedTools).toEqual([
-        ...BASE_TOOLS_BY_ROLE[role],
-        "Bash(prx plan:*)",
-      ]);
+      expect(allowedTools).toEqual([...BASE_TOOLS_BY_ROLE[role], "Bash(prx plan:*)"]);
     }
   });
 

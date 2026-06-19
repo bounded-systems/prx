@@ -14,20 +14,12 @@
 import { atom, c, not, rule, v, type Rule } from "../engine.ts";
 
 export const readinessRules: Rule[] = [
-  rule(
-    "has_open_blocker",
-    atom("has_open_blocker", v("I")),
-    [
-      atom("blockedBy", v("I"), v("J")),
-      atom("issue", v("J"), c(true), v("_jc")),
-    ],
-  ),
-  rule(
-    "ready",
-    atom("ready", v("I")),
-    [
-      atom("issue", v("I"), c(true), v("_c")),
-      not(atom("has_open_blocker", v("I"))),
-    ],
-  ),
+  rule("has_open_blocker", atom("has_open_blocker", v("I")), [
+    atom("blockedBy", v("I"), v("J")),
+    atom("issue", v("J"), c(true), v("_jc")),
+  ]),
+  rule("ready", atom("ready", v("I")), [
+    atom("issue", v("I"), c(true), v("_c")),
+    not(atom("has_open_blocker", v("I"))),
+  ]),
 ];

@@ -14,10 +14,7 @@
 
 import { z } from "zod";
 
-import {
-  buildDoltRemoteUrl,
-  parseGitOrigin,
-} from "../beads/hydrate.ts";
+import { buildDoltRemoteUrl, parseGitOrigin } from "../beads/hydrate.ts";
 import type { BeadsWorkspaceMode } from "../beads/workspace_mode.ts";
 import type { LocalRepo, RepoInventory } from "./repos.ts";
 
@@ -105,9 +102,7 @@ function buildAuditRow(repo: LocalRepo, deps: RepoAuditDeps): RepoAuditRow {
   // migration recommendation.
   const originUrl = deps.getGitOrigin(repo);
   const components = originUrl ? parseGitOrigin(originUrl) : null;
-  const derivedDoltRemote = components
-    ? buildDoltRemoteUrl(components, deps.dolthubOwner)
-    : null;
+  const derivedDoltRemote = components ? buildDoltRemoteUrl(components, deps.dolthubOwner) : null;
   const dolt_remote = repo.dolt_remote ?? derivedDoltRemote;
 
   const issue_count =
@@ -145,10 +140,7 @@ function beadsStateForMode(mode: BeadsWorkspaceMode): BeadsState {
   }
 }
 
-function migrationCandidateFor(
-  state: BeadsState,
-  doltRemote: string | null,
-): MigrationCandidate {
+function migrationCandidateFor(state: BeadsState, doltRemote: string | null): MigrationCandidate {
   switch (state) {
     case "none":
       return "bootstrap";
@@ -188,9 +180,7 @@ export function formatRepoAudit(
   if (adopted) {
     // GH-1760: surface the prx-wide registry counts so the operator can spot
     // drift between `.prx/repos/index.json` and `registry.sqlite` at a glance.
-    lines.push(
-      `adopted (registry.sqlite): ${adopted.repos} repos, ${adopted.branches} branches`,
-    );
+    lines.push(`adopted (registry.sqlite): ${adopted.repos} repos, ${adopted.branches} branches`);
   }
   lines.push("");
 
@@ -204,9 +194,7 @@ export function formatRepoAudit(
     lines.push(`${row.name} [prefix=${prefix}]`);
     lines.push(`  state: ${row.beads_state}`);
     lines.push(`  remote: ${row.dolt_remote ?? "(none)"}`);
-    lines.push(
-      `  issues: ${row.issue_count === "unknown" ? "unknown" : row.issue_count}`,
-    );
+    lines.push(`  issues: ${row.issue_count === "unknown" ? "unknown" : row.issue_count}`);
     lines.push(`  migration: ${row.migration_candidate}`);
     lines.push("");
   }

@@ -1,12 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -31,19 +24,14 @@ describe("writeBeadsRedirect (prx-jkb)", () => {
     const written = writeBeadsRedirect(src, dest);
     const redirectPath = join(dest, ".beads", "redirect");
     expect(written).toEqual([redirectPath]);
-    expect(readFileSync(redirectPath, "utf8").trim()).toBe(
-      resolve(src, ".beads"),
-    );
+    expect(readFileSync(redirectPath, "utf8").trim()).toBe(resolve(src, ".beads"));
   });
 
   test("deref: points at the ultimate target when the source is itself redirected", () => {
     const canonical = join(root, "canonical");
     mkdirSync(join(canonical, ".beads"), { recursive: true });
     // src is a feature worktree whose .beads redirects to canonical (absolute).
-    writeFileSync(
-      join(src, ".beads", "redirect"),
-      `${resolve(canonical, ".beads")}\n`,
-    );
+    writeFileSync(join(src, ".beads", "redirect"), `${resolve(canonical, ".beads")}\n`);
 
     writeBeadsRedirect(src, dest);
     expect(readFileSync(join(dest, ".beads", "redirect"), "utf8").trim()).toBe(

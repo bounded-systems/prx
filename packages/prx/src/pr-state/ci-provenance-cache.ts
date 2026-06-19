@@ -18,14 +18,16 @@ import {
   type CiVerdict,
 } from "./ci-provenance-state.ts";
 
-export const ciProvenanceCacheSchema = z.object({
-  kind: z.literal("CiProvenanceCacheV1"),
-  /** The commit the verdict was resolved for. */
-  commit: z.string(),
-  /** The merge-guard verdict (from `resolveCiProvenanceState`) at write time. */
-  verdict: z.enum(["verified", "unsigned", "unchecked"]),
-  ts: z.number(),
-}).strict();
+export const ciProvenanceCacheSchema = z
+  .object({
+    kind: z.literal("CiProvenanceCacheV1"),
+    /** The commit the verdict was resolved for. */
+    commit: z.string(),
+    /** The merge-guard verdict (from `resolveCiProvenanceState`) at write time. */
+    verdict: z.enum(["verified", "unsigned", "unchecked"]),
+    ts: z.number(),
+  })
+  .strict();
 
 export type CiProvenanceCache = z.infer<typeof ciProvenanceCacheSchema>;
 

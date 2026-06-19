@@ -50,7 +50,10 @@ export function openLimaBeadsChannel(
   opts: LimaBeadsChannelOptions,
   deps: LimaBeadsChannelDeps = {},
 ): Promise<LimaBeadsChannel> {
-  return openLimaChannel<BeadsTransport>({ ...opts, namePrefix: opts.namePrefix ?? NAME_PREFIX }, deps);
+  return openLimaChannel<BeadsTransport>(
+    { ...opts, namePrefix: opts.namePrefix ?? NAME_PREFIX },
+    deps,
+  );
 }
 
 /**

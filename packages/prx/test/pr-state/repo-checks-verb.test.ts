@@ -71,6 +71,9 @@ describe("repo-checks verb", () => {
         },
       },
     );
-    expect(seen).toEqual({ repoPath: "/some/repo", opts: { repo: "owner/name", branch: "release" } });
+    expect(seen).toEqual({
+      repoPath: "/some/repo",
+      opts: { repo: "owner/name", branch: "release" },
+    });
   });
 });

@@ -129,9 +129,7 @@ describe("auditRegisteredRepos: migration_candidate mapping (GH-1701)", () => {
         dolthubOwner: "bdelanghe",
       }),
     );
-    expect(rows[0]!.dolt_remote).toBe(
-      "https://doltremoteapi.dolthub.com/bdelanghe/ai-home",
-    );
+    expect(rows[0]!.dolt_remote).toBe("https://doltremoteapi.dolthub.com/bdelanghe/ai-home");
     expect(rows[0]!.migration_candidate).toBe("add-dolthub");
   });
 
@@ -148,9 +146,7 @@ describe("auditRegisteredRepos: migration_candidate mapping (GH-1701)", () => {
         dolthubOwner: "bdelanghe",
       }),
     );
-    expect(rows[0]!.dolt_remote).toBe(
-      "https://doltremoteapi.dolthub.com/bdelanghe/custom-name",
-    );
+    expect(rows[0]!.dolt_remote).toBe("https://doltremoteapi.dolthub.com/bdelanghe/custom-name");
     expect(rows[0]!.migration_candidate).toBe("none");
   });
 

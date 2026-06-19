@@ -25,7 +25,9 @@ const nonEmpty = z.string().trim().min(1);
 // SDK's `tool(name, desc, inputSchema, handler)`, which expects a raw shape.
 export const PlanArtifactShape = {
   problem: nonEmpty.describe("Problem statement: what is broken or missing and why it matters."),
-  scope: nonEmpty.describe("Scope boundary: exactly what this work changes (and implicitly, what it does not)."),
+  scope: nonEmpty.describe(
+    "Scope boundary: exactly what this work changes (and implicitly, what it does not).",
+  ),
   approach: nonEmpty.describe("Proposed approach: how the change is made."),
   changes: z
     .array(nonEmpty)
@@ -120,8 +122,10 @@ export function renderPlanArtifact(artifact: PlanArtifact): string {
  * body-shape contract printed by `prx plan schema`. Derived (not hand-authored)
  * so it cannot drift from the Zod schema.
  */
-export const planArtifactJsonSchema: Record<string, unknown> =
-  toJsonSchemaArtifact(PlanArtifactSchema, "PlanArtifact");
+export const planArtifactJsonSchema: Record<string, unknown> = toJsonSchemaArtifact(
+  PlanArtifactSchema,
+  "PlanArtifact",
+);
 
 /**
  * Classify a plan body by serialized form: a body that begins with an object

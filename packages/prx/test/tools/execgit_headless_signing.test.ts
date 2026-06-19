@@ -28,7 +28,10 @@ describe("execGit headless-safe signing (GH-388)", () => {
     writeFileSync(join(dir, "a.txt"), "hi");
 
     execGit({ subcommand: "add", args: ["a.txt"], cwd: dir, role: "keeper" }, { HOME: dir });
-    const res = execGit({ subcommand: "commit", args: ["-m", "x"], cwd: dir, role: "keeper" }, { HOME: dir });
+    const res = execGit(
+      { subcommand: "commit", args: ["-m", "x"], cwd: dir, role: "keeper" },
+      { HOME: dir },
+    );
 
     // execGit injects `-c commit.gpgsign=false`, overriding the repo-local true.
     expect(res.exitCode).toBe(0);

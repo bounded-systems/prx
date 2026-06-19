@@ -13,14 +13,8 @@
 
 import { readFileSync } from "node:fs";
 
-import {
-  ALIAS_SUPPLY_STUB_TICKET,
-  loadAliasSupplyStub,
-} from "./loaders/alias-supply.ts";
-import {
-  MEMORY_INDEX_STUB_TICKET,
-  loadMemoryIndexStub,
-} from "./loaders/memory-index.ts";
+import { ALIAS_SUPPLY_STUB_TICKET, loadAliasSupplyStub } from "./loaders/alias-supply.ts";
+import { MEMORY_INDEX_STUB_TICKET, loadMemoryIndexStub } from "./loaders/memory-index.ts";
 import { loadVerbSupply } from "./loaders/verb-supply.ts";
 import {
   WORKTREE_GESTURES_STUB_TICKET,

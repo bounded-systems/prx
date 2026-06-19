@@ -73,27 +73,21 @@ describe("I-AUD2 assertArtifactLineage", () => {
   });
 
   it("flags a present artifact without uow_id", () => {
-    const findings = assertArtifactLineage([
-      slot({ type: "patch_proposal", uow_id: "" }),
-    ]);
+    const findings = assertArtifactLineage([slot({ type: "patch_proposal", uow_id: "" })]);
     expect(findings).toHaveLength(1);
     expect(findings[0]!.id).toBe("I-AUD2");
     expect(findings[0]!.message).toContain("no uow_id");
   });
 
   it("flags a lineage-required artifact with empty input_refs", () => {
-    const findings = assertArtifactLineage([
-      slot({ type: "test_run", input_refs: [] }),
-    ]);
+    const findings = assertArtifactLineage([slot({ type: "test_run", input_refs: [] })]);
     expect(findings).toHaveLength(1);
     expect(findings[0]!.id).toBe("I-AUD2");
     expect(findings[0]!.message).toContain("input_refs");
   });
 
   it("does NOT flag a lineage-optional artifact with empty input_refs", () => {
-    const findings = assertArtifactLineage([
-      slot({ type: "status_update", input_refs: [] }),
-    ]);
+    const findings = assertArtifactLineage([slot({ type: "status_update", input_refs: [] })]);
     expect(findings).toEqual([]);
   });
 });
@@ -228,9 +222,7 @@ describe("I-AUD4 assertNoAmbientGit", () => {
   });
 
   it("flags an agent-actor running git push", () => {
-    const findings = assertNoAmbientGit([
-      ev({ actor: "claude-code", action: "git push" }),
-    ]);
+    const findings = assertNoAmbientGit([ev({ actor: "claude-code", action: "git push" })]);
     expect(findings).toHaveLength(1);
     expect(findings[0]!.id).toBe("I-AUD4");
     expect(findings[0]!.message).toContain("git push");

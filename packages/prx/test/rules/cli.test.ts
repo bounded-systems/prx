@@ -66,9 +66,7 @@ describe("runRulesCli — render verb", () => {
     // as exit 1.
     expect(code).toBe(1);
     const aliasFailures = captured.events.filter(
-      (e) =>
-        e.type === "RULES_ASSERTION_FAILED" &&
-        (e as { rule: string }).rule === "alias-exists",
+      (e) => e.type === "RULES_ASSERTION_FAILED" && (e as { rule: string }).rule === "alias-exists",
     );
     expect(aliasFailures.length).toBeGreaterThanOrEqual(3);
   });

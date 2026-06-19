@@ -71,11 +71,7 @@ export function writeSnapshot(snapshot: DepSnapshot, baseDir: string): string {
 
   mkdirSync(tmpDir, { recursive: true });
   try {
-    writeFileSync(
-      join(tmpDir, "snapshot.json"),
-      JSON.stringify(snapshot, null, 2),
-      "utf8",
-    );
+    writeFileSync(join(tmpDir, "snapshot.json"), JSON.stringify(snapshot, null, 2), "utf8");
     renameSync(tmpDir, finalDir);
   } catch (err) {
     try {

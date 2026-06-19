@@ -13,7 +13,8 @@ const KEEPERD_SPEC: ExecutorSpec = {
   arch: "aarch64",
   images: [
     {
-      location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img",
+      location:
+        "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img",
       arch: "aarch64",
     },
   ],
@@ -26,7 +27,8 @@ const KEEPERD_SPEC: ExecutorSpec = {
   provision: [
     {
       mode: "system",
-      script: "#!/bin/sh\nif ! id dev >/dev/null 2>&1; then\n  useradd -m -s /bin/bash dev\n  passwd -d dev\n  usermod -aG sudo dev\nfi\n",
+      script:
+        "#!/bin/sh\nif ! id dev >/dev/null 2>&1; then\n  useradd -m -s /bin/bash dev\n  passwd -d dev\n  usermod -aG sudo dev\nfi\n",
     },
   ],
   rosetta: { enabled: true, binfmt: true },

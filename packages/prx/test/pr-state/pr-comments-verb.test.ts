@@ -42,7 +42,9 @@ const summary = (over: Record<string, unknown> = {}) => ({
 });
 
 function runVerb(args: string[], deps: PrCommentsDeps): { rendered: string; exit: number } {
-  const input = parseArgs(prCommentsVerb as never, args) as Parameters<typeof prCommentsVerb.run>[0];
+  const input = parseArgs(prCommentsVerb as never, args) as Parameters<
+    typeof prCommentsVerb.run
+  >[0];
   const out = prCommentsVerb.run(input, deps) as PrCommentsOutput;
   return {
     rendered: prCommentsVerb.render!(out, input as never),
@@ -58,7 +60,9 @@ describe("pr-comments verb — show", () => {
         summary({
           repoPath: dir,
           unresolvedThreads: 1,
-          threads: [{ id: "thread-1", isResolved: false, isOutdated: false, path: "a.ts", comments: [] }],
+          threads: [
+            { id: "thread-1", isResolved: false, isOutdated: false, path: "a.ts", comments: [] },
+          ],
         }) as never,
       resolvePrReviewThreads: () => [] as never,
     });
@@ -67,16 +71,24 @@ describe("pr-comments verb — show", () => {
     expect(rendered).toContain("pr comments for #334");
     expect(rendered).toContain("unresolved_threads=1");
     expect(rendered).toContain(`saved=${outputPath}`);
-    expect(JSON.parse(readFileSync(outputPath, "utf8"))).toMatchObject({ unresolvedThreads: 1, pr: { number: 334 } });
+    expect(JSON.parse(readFileSync(outputPath, "utf8"))).toMatchObject({
+      unresolvedThreads: 1,
+      pr: { number: 334 },
+    });
   });
 
   test("json output; exits 0 when clean", () => {
     const { rendered, exit } = runVerb(["--format", "json", "--pr", "GH-321"], {
-      fetchPrComments: () => summary({ repoPath: "/repo", unresolvedThreads: 0, threads: [] }) as never,
+      fetchPrComments: () =>
+        summary({ repoPath: "/repo", unresolvedThreads: 0, threads: [] }) as never,
       resolvePrReviewThreads: () => [] as never,
     });
     expect(exit).toBe(0);
-    expect(JSON.parse(rendered)).toMatchObject({ repoPath: "/repo", unresolvedThreads: 0, pr: { number: 334 } });
+    expect(JSON.parse(rendered)).toMatchObject({
+      repoPath: "/repo",
+      unresolvedThreads: 0,
+      pr: { number: 334 },
+    });
   });
 });
 
@@ -90,16 +102,30 @@ describe("pr-comments verb — resolve", () => {
       {
         fetchPrComments: () => {
           fetchCount += 1;
-          return (fetchCount === 1
-            ? summary({
-                repoPath: dir,
-                unresolvedThreads: 2,
-                threads: [
-                  { id: "thread-1", isResolved: false, isOutdated: false, path: "a.ts", comments: [] },
-                  { id: "thread-2", isResolved: false, isOutdated: true, path: "b.ts", comments: [] },
-                ],
-              })
-            : summary({ repoPath: dir, unresolvedThreads: 0, threads: [] })) as never;
+          return (
+            fetchCount === 1
+              ? summary({
+                  repoPath: dir,
+                  unresolvedThreads: 2,
+                  threads: [
+                    {
+                      id: "thread-1",
+                      isResolved: false,
+                      isOutdated: false,
+                      path: "a.ts",
+                      comments: [],
+                    },
+                    {
+                      id: "thread-2",
+                      isResolved: false,
+                      isOutdated: true,
+                      path: "b.ts",
+                      comments: [],
+                    },
+                  ],
+                })
+              : summary({ repoPath: dir, unresolvedThreads: 0, threads: [] })
+          ) as never;
         },
         resolvePrReviewThreads: (_repoPath, ids) => {
           seen = ids;
@@ -120,28 +146,48 @@ describe("pr-comments verb — resolve", () => {
   test("--all-unresolved resolves every open thread", () => {
     let seen: string[] = [];
     let fetchCount = 0;
-    const { rendered, exit } = runVerb(["--action=resolve", "--all-unresolved", "--format", "json", "--pr", "GH-321"], {
-      fetchPrComments: () => {
-        fetchCount += 1;
-        return (fetchCount === 1
-          ? summary({
-              unresolvedThreads: 2,
-              threads: [
-                { id: "thread-1", isResolved: false, isOutdated: false, path: "a.ts", comments: [] },
-                { id: "thread-2", isResolved: false, isOutdated: false, path: "b.ts", comments: [] },
-              ],
-            })
-          : summary({ unresolvedThreads: 0, threads: [] })) as never;
+    const { rendered, exit } = runVerb(
+      ["--action=resolve", "--all-unresolved", "--format", "json", "--pr", "GH-321"],
+      {
+        fetchPrComments: () => {
+          fetchCount += 1;
+          return (
+            fetchCount === 1
+              ? summary({
+                  unresolvedThreads: 2,
+                  threads: [
+                    {
+                      id: "thread-1",
+                      isResolved: false,
+                      isOutdated: false,
+                      path: "a.ts",
+                      comments: [],
+                    },
+                    {
+                      id: "thread-2",
+                      isResolved: false,
+                      isOutdated: false,
+                      path: "b.ts",
+                      comments: [],
+                    },
+                  ],
+                })
+              : summary({ unresolvedThreads: 0, threads: [] })
+          ) as never;
+        },
+        resolvePrReviewThreads: (_repoPath, ids) => {
+          seen = ids;
+          return ids.map((id) => ({ id, isResolved: true })) as never;
+        },
       },
-      resolvePrReviewThreads: (_repoPath, ids) => {
-        seen = ids;
-        return ids.map((id) => ({ id, isResolved: true })) as never;
-      },
-    });
+    );
     expect(exit).toBe(0);
     expect(seen).toEqual(["thread-1", "thread-2"]);
     expect(JSON.parse(rendered)).toMatchObject({
-      resolvedThreads: [{ id: "thread-1", isResolved: true }, { id: "thread-2", isResolved: true }],
+      resolvedThreads: [
+        { id: "thread-1", isResolved: true },
+        { id: "thread-2", isResolved: true },
+      ],
       postResolution: { unresolvedThreads: 0 },
     });
   });

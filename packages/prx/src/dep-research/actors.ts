@@ -13,18 +13,8 @@ import { fromPromise } from "xstate";
 import { z } from "zod";
 
 import { diffSnapshots } from "./diff.ts";
-import {
-  defaultFetchSource,
-  fetchSources,
-  type FetchResult,
-  type FetchSourceFn,
-} from "./fetch.ts";
-import {
-  DepClassificationHints,
-  DepDelta,
-  DepManifestEntry,
-  DepSnapshot,
-} from "./schemas.ts";
+import { defaultFetchSource, fetchSources, type FetchResult, type FetchSourceFn } from "./fetch.ts";
+import { DepClassificationHints, DepDelta, DepManifestEntry, DepSnapshot } from "./schemas.ts";
 import { buildSnapshot, writeSnapshot } from "./snapshot.ts";
 
 // ── fetch actor ────────────────────────────────────────────────────────────
@@ -65,9 +55,7 @@ const buildAndWriteInputSchema = z.object({
   baseDir: z.string().min(1),
 });
 
-export type BuildAndWriteSnapshotActorInput = z.infer<
-  typeof buildAndWriteInputSchema
->;
+export type BuildAndWriteSnapshotActorInput = z.infer<typeof buildAndWriteInputSchema>;
 
 export type BuildAndWriteSnapshotActorResult = {
   snapshot: DepSnapshot;
@@ -99,18 +87,15 @@ const loadPrevAndDiffInputSchema = z.object({
   hints: DepClassificationHints,
 });
 
-export type LoadPrevAndDiffActorInput = z.infer<
-  typeof loadPrevAndDiffInputSchema
->;
+export type LoadPrevAndDiffActorInput = z.infer<typeof loadPrevAndDiffInputSchema>;
 
-export const loadPrevAndDiffActor = fromPromise<
-  DepDelta,
-  LoadPrevAndDiffActorInput
->(async ({ input }) => {
-  const opts = loadPrevAndDiffInputSchema.parse(input);
-  const prev = loadPrevSnapshot(opts.baseDir, opts.dep, opts.currSnapshot.run_id);
-  return diffSnapshots(prev, opts.currSnapshot, opts.hints);
-});
+export const loadPrevAndDiffActor = fromPromise<DepDelta, LoadPrevAndDiffActorInput>(
+  async ({ input }) => {
+    const opts = loadPrevAndDiffInputSchema.parse(input);
+    const prev = loadPrevSnapshot(opts.baseDir, opts.dep, opts.currSnapshot.run_id);
+    return diffSnapshots(prev, opts.currSnapshot, opts.hints);
+  },
+);
 
 /**
  * Locate the snapshot of the run immediately preceding `currRunId` for a

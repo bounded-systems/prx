@@ -9,10 +9,7 @@ import {
   readOperatorConfigStringMap,
 } from "../src/operator-config.ts";
 
-const KEYS = [
-  "PRX_OPERATOR_CONFIG_ROOT",
-  "BAKED_OPERATOR_CONFIG_ROOT",
-] as const;
+const KEYS = ["PRX_OPERATOR_CONFIG_ROOT", "BAKED_OPERATOR_CONFIG_ROOT"] as const;
 
 let saved: Record<string, string | undefined>;
 
@@ -75,9 +72,7 @@ describe("readOperatorConfig / readOperatorConfigStringMap (GH-411 slice 4)", ()
   });
 
   test("operatorConfigPath joins ~/.config/prx/config.json", () => {
-    expect(operatorConfigPath({ homeDir: "/home/op" })).toBe(
-      "/home/op/.config/prx/config.json",
-    );
+    expect(operatorConfigPath({ homeDir: "/home/op" })).toBe("/home/op/.config/prx/config.json");
   });
 
   test("readOperatorConfig parses the file, {} when absent or malformed", () => {

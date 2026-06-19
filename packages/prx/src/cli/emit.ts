@@ -48,13 +48,7 @@ export function result<T>(
  * pretty JSON under `format === "json"` or via `pretty` otherwise. The single
  * json-vs-human decision point for the CLI — and the single validation boundary.
  */
-export function emit<T>(
-  output: OutputSink,
-  res: CliResult<T>,
-  format: OutputFormat,
-): void {
+export function emit<T>(output: OutputSink, res: CliResult<T>, format: OutputFormat): void {
   const data = res.schema.parse(res.data);
-  output.log(
-    format === "json" ? JSON.stringify(data, null, 2) : res.pretty(data),
-  );
+  output.log(format === "json" ? JSON.stringify(data, null, 2) : res.pretty(data));
 }

@@ -15,12 +15,10 @@
 // section-composition pattern (Identity / DomainSection) but emits markdown
 // rather than ANSI-friendly aligned text.
 
-import type {
-  RulesInputs,
-  VerbSupplyEntry,
-} from "../schemas/inputs.ts";
+import type { RulesInputs, VerbSupplyEntry } from "../schemas/inputs.ts";
 
-const HEADING = "# Core Project Rules (generated)\n\nGenerated from typed substrate by `prx rules render`. Do not edit by hand.\n";
+const HEADING =
+  "# Core Project Rules (generated)\n\nGenerated from typed substrate by `prx rules render`. Do not edit by hand.\n";
 
 const STATIC_PROSE_AGENT_PATTERNS = `<!-- assert:none -->
 
@@ -76,9 +74,7 @@ function renderVerbSupplySection(supply: VerbSupplyEntry[]): string {
   sections.push("## Verbs\n");
   sections.push("Every backticked `prx <verb>` below is projected from `prxCommandRegistry`.\n");
   for (const actor of actorNames) {
-    const rows = (grouped.get(actor) ?? []).slice().sort((a, b) =>
-      a.name.localeCompare(b.name),
-    );
+    const rows = (grouped.get(actor) ?? []).slice().sort((a, b) => a.name.localeCompare(b.name));
     sections.push(`### actor: \`${actor}\`\n`);
     for (const r of rows) {
       sections.push(`- \`prx ${r.name}\``);

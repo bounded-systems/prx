@@ -12,12 +12,8 @@
 import { atom, rule, v, type Rule } from "../engine.ts";
 
 export const cacheScopeRules: Rule[] = [
-  rule(
-    "affected",
-    atom("affected", v("Scope"), v("Sha")),
-    [
-      atom("changedTree", v("Sha"), v("Tree")),
-      atom("scopeOwns", v("Scope"), v("Tree")),
-    ],
-  ),
+  rule("affected", atom("affected", v("Scope"), v("Sha")), [
+    atom("changedTree", v("Sha"), v("Tree")),
+    atom("scopeOwns", v("Scope"), v("Tree")),
+  ]),
 ];

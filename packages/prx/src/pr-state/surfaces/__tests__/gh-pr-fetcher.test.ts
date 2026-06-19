@@ -105,9 +105,7 @@ describe("runPrEndToEnd", () => {
     expect(derivation?.manifest.producer).toBe("fetcher:gh-pr");
     expect(derivation?.manifest.outputs.pr).toBe(result.refDigest);
     expect(derivation?.manifest.params.refName).toBe(ref.name);
-    expect(derivation?.manifest.params.freshnessSignal).toBe(
-      "2026-05-19T15:00:00Z",
-    );
+    expect(derivation?.manifest.params.freshnessSignal).toBe("2026-05-19T15:00:00Z");
   });
 
   test("second fetch with identical payload is a cache hit (no ref advance, no append)", async () => {
@@ -134,11 +132,7 @@ describe("runPrEndToEnd", () => {
   });
 
   test("third fetch with fresher fixture appends a new derivation and invalidates downstream consumers of the prior pr digest", async () => {
-    const runner = scriptedRunner([
-      FIXTURE_BEFORE_JSON,
-      FIXTURE_BEFORE_JSON,
-      FIXTURE_AFTER_JSON,
-    ]);
+    const runner = scriptedRunner([FIXTURE_BEFORE_JSON, FIXTURE_BEFORE_JSON, FIXTURE_AFTER_JSON]);
     const fetcher = createGhPrFetcher({ runner });
     const ref = prSurfaceRef("GH-1961");
 

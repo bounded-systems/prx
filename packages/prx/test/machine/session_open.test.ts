@@ -70,7 +70,10 @@ describe("session_open copy (workflow machine semantics)", () => {
 
 describe("prxSessionParityCleanupMessage (GH-914)", () => {
   test("operator-only prune actions still recommend `prx chain prune`", () => {
-    const msg = prxSessionParityCleanupMessage("GH-321", ["delete_local_branch", "delete_remote_branch"]);
+    const msg = prxSessionParityCleanupMessage("GH-321", [
+      "delete_local_branch",
+      "delete_remote_branch",
+    ]);
     expect(msg).toContain("Cannot open PRX session for GH-321:");
     expect(msg).toContain("parity-chain cleanup is required first");
     expect(msg).toContain("delete_local_branch, delete_remote_branch");
@@ -215,9 +218,7 @@ describe("prxSessionNotProjectedLocallyEnvelope (GH-2067)", () => {
   test("includes the canonical materialize hint for notion-resolved units too", () => {
     const envelope = prxSessionNotProjectedLocallyEnvelope("PROJ-1", resolved("notion"));
     expect(envelope.source).toBe("notion");
-    expect(envelope.suggestedNextCommands).toContain(
-      "prx plan agent PROJ-1 --create",
-    );
+    expect(envelope.suggestedNextCommands).toContain("prx plan agent PROJ-1 --create");
   });
 
   test("omits the materialize hint when the source is not in workUnitSources (parity with GH-2089 text gate)", () => {

@@ -79,10 +79,7 @@ export const prioritizeAuditSyncSchema = z.object({
 });
 export type PrioritizeAuditSync = z.infer<typeof prioritizeAuditSyncSchema>;
 
-export const prioritizeAuditSchema = z.union([
-  prioritizeAuditRowSchema,
-  prioritizeAuditSyncSchema,
-]);
+export const prioritizeAuditSchema = z.union([prioritizeAuditRowSchema, prioritizeAuditSyncSchema]);
 export type PrioritizeAudit = z.infer<typeof prioritizeAuditSchema>;
 
 // `prx triage promote` (GH-936) — promote.ts:128-141.
@@ -189,15 +186,9 @@ export const driftFixAuditRowSchema = z.object({
   axesFixed: z.array(z.enum(["type", "priority", "status"])).optional(),
   beforeAfter: z
     .object({
-      type: z
-        .object({ before: z.string(), after: z.string() })
-        .optional(),
-      priority: z
-        .object({ before: z.string(), after: z.string() })
-        .optional(),
-      status: z
-        .object({ before: z.literal("closed"), after: z.literal("open") })
-        .optional(),
+      type: z.object({ before: z.string(), after: z.string() }).optional(),
+      priority: z.object({ before: z.string(), after: z.string() }).optional(),
+      status: z.object({ before: z.literal("closed"), after: z.literal("open") }).optional(),
     })
     .optional(),
   actor: actorLiteralSchema,
@@ -235,9 +226,7 @@ export const driftFixDupeDetectedAuditRowSchema = z.object({
   dryRun: z.boolean(),
   exitCode: z.number().int(),
 });
-export type DriftFixDupeDetectedAuditRow = z.infer<
-  typeof driftFixDupeDetectedAuditRowSchema
->;
+export type DriftFixDupeDetectedAuditRow = z.infer<typeof driftFixDupeDetectedAuditRowSchema>;
 
 // GH-1255 — drift-fix dupe-cluster merge row. One row per (target, source)
 // merge proposal: `applied=false` for parity-mismatch or dry-run; `applied=
@@ -255,9 +244,7 @@ export const driftFixDupeMergeAuditRowSchema = z.object({
   reason: z.string().optional(),
   stderr: z.string().optional(),
 });
-export type DriftFixDupeMergeAuditRow = z.infer<
-  typeof driftFixDupeMergeAuditRowSchema
->;
+export type DriftFixDupeMergeAuditRow = z.infer<typeof driftFixDupeMergeAuditRowSchema>;
 
 // GH-1255 — drift-fix substrate-health row. One row per `bd doctor` surface
 // (read-only by default). A second row with `applied=true` is emitted when
@@ -662,13 +649,7 @@ export const repoGcEntryAuditSchema = z.object({
   slug: z.string(),
   commonDir: z.string(),
   workspacePath: z.string(),
-  classification: z.enum([
-    "none",
-    "embedded",
-    "per_project",
-    "shared_server",
-    "ambiguous",
-  ]),
+  classification: z.enum(["none", "embedded", "per_project", "shared_server", "ambiguous"]),
   orphanPath: z.string().nullable(),
   orphanBytes: z.number().int().nonnegative().nullable(),
   action: z.enum(["swept", "would-sweep", "refused", "nothing-to-clean"]),
@@ -692,10 +673,7 @@ export const repoGcRunAuditSchema = z.object({
 });
 export type RepoGcRunAuditRow = z.infer<typeof repoGcRunAuditSchema>;
 
-export const repoGcAuditSchema = z.union([
-  repoGcEntryAuditSchema,
-  repoGcRunAuditSchema,
-]);
+export const repoGcAuditSchema = z.union([repoGcEntryAuditSchema, repoGcRunAuditSchema]);
 export type RepoGcAudit = z.infer<typeof repoGcAuditSchema>;
 
 // GH-867 — one row per `migrateLegacyNotionCache` call that actually moved
@@ -709,9 +687,7 @@ export const notionCacheMigratedAuditSchema = z.object({
   targetDir: z.string(),
   actor: z.string(),
 });
-export type NotionCacheMigratedAuditRow = z.infer<
-  typeof notionCacheMigratedAuditSchema
->;
+export type NotionCacheMigratedAuditRow = z.infer<typeof notionCacheMigratedAuditSchema>;
 
 // GH-1828 — non-interactive Claude agent lifecycle. Emitted by the SDK
 // service (`src/claude/agent_service.ts`) for every plan-print, triage Haiku

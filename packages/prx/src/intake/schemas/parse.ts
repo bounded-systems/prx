@@ -30,7 +30,10 @@ export type ParsedStructuredBody = {
 const HEADING_RE = /^##\s+(.+?)\s*$/;
 
 function normalizeHeading(text: string): string {
-  return text.replace(/[:.\s]+$/, "").trim().toLowerCase();
+  return text
+    .replace(/[:.\s]+$/, "")
+    .trim()
+    .toLowerCase();
 }
 
 function trimSectionContent(content: string): string {
@@ -60,7 +63,9 @@ export function parseStructuredBody(
     if (currentField !== null) {
       fields[currentField] = text;
     } else if (currentUnparsedHeading !== null) {
-      unparsedSections.push(text.length > 0 ? `${currentUnparsedHeading}\n\n${text}` : currentUnparsedHeading);
+      unparsedSections.push(
+        text.length > 0 ? `${currentUnparsedHeading}\n\n${text}` : currentUnparsedHeading,
+      );
     } else if (text.length > 0) {
       unparsedSections.push(text);
     }

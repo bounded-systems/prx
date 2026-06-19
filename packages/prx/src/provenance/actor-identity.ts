@@ -23,10 +23,7 @@
  * with its own secret, derives its signing key); the keymaker only ever produces
  * public material. No god-actor.
  */
-import {
-  ed25519Keyid,
-  importEd25519PrivateKey,
-} from "@bounded-systems/anchored-chain";
+import { ed25519Keyid, importEd25519PrivateKey } from "@bounded-systems/anchored-chain";
 import { createHash, createHmac, createPublicKey, type KeyObject } from "node:crypto";
 
 import {
@@ -52,9 +49,7 @@ export interface ActorAuthorityContract {
   allowedDispatchTargets: string[];
 }
 
-export function actorAuthorityContract(
-  actor: SessionProfileName,
-): ActorAuthorityContract {
+export function actorAuthorityContract(actor: SessionProfileName): ActorAuthorityContract {
   const p = SESSION_PROFILES[actor];
   const sort = (xs: readonly string[]): string[] => [...xs].sort();
   return {
@@ -142,10 +137,7 @@ const KDF_INFO_PREFIX = "prx/actor/";
  * same key, and a different identity (rotated contract) yields a different key
  * from the same secret. HMAC-SHA256 produces exactly a 32-byte ed25519 seed.
  */
-export function deriveActorKeypair(
-  masterSecret: Buffer,
-  identity: string,
-): DerivedActorKeypair {
+export function deriveActorKeypair(masterSecret: Buffer, identity: string): DerivedActorKeypair {
   const seed = createHmac("sha256", masterSecret)
     .update(KDF_INFO_PREFIX + identity)
     .digest(); // 32 bytes
@@ -172,9 +164,7 @@ export interface TrustMapEntry {
  * Takes the master secret to *derive* the public halves, but emits only public
  * material — the private keys never leave this function.
  */
-export function buildActorTrustMap(
-  masterSecret: Buffer,
-): Record<string, TrustMapEntry> {
+export function buildActorTrustMap(masterSecret: Buffer): Record<string, TrustMapEntry> {
   const map: Record<string, TrustMapEntry> = {};
   for (const actor of sessionProfileNames) {
     const identity = actorIdentity(actor);

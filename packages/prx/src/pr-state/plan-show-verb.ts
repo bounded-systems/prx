@@ -38,10 +38,19 @@ export const planShowVerb = defineVerb({
   actor: "plan",
   positionals: ["unit"],
   input: z.object({
-    unit: z.string().optional().describe("work unit (positional or --unit; or an open planner pane)"),
-    slot: z.enum(["draft", "approved"]).optional().describe("plan slot (defaults to the store's default)"),
+    unit: z
+      .string()
+      .optional()
+      .describe("work unit (positional or --unit; or an open planner pane)"),
+    slot: z
+      .enum(["draft", "approved"])
+      .optional()
+      .describe("plan slot (defaults to the store's default)"),
     format: z.enum(["text", "json"]).default("text").describe("output format"),
-    paths: z.coerce.boolean().default(false).describe("report CAS root + staging dir without reading a blob"),
+    paths: z.coerce
+      .boolean()
+      .default(false)
+      .describe("report CAS root + staging dir without reading a blob"),
   }),
   output: PlanShowOutputSchema,
   deps: realPlanShowDeps,
@@ -53,7 +62,9 @@ export const planShowVerb = defineVerb({
       );
     }
     const unit =
-      resolved.source === "flag" ? parseCanonicalWorkUnitId(resolved.unit, "plan show") : resolved.unit;
+      resolved.source === "flag"
+        ? parseCanonicalWorkUnitId(resolved.unit, "plan show")
+        : resolved.unit;
 
     if (input.paths) {
       const resolution = resolveStoreRootForDisplay("plans");
@@ -67,7 +78,14 @@ export const planShowVerb = defineVerb({
         // Only swallow the documented env-underpopulated case.
         if (!(error instanceof PlanStoreError) || error.code !== "NO_STAGING_ROOT") throw error;
       }
-      return { mode: "paths", unit, casRoot: resolution.root, source: resolution.source, staging, stagingSource };
+      return {
+        mode: "paths",
+        unit,
+        casRoot: resolution.root,
+        source: resolution.source,
+        staging,
+        stagingSource,
+      };
     }
 
     try {
@@ -83,7 +101,14 @@ export const planShowVerb = defineVerb({
     if (o.mode === "paths") {
       if (json) {
         return JSON.stringify(
-          { unit: o.unit, domain: "plans", cas_root: o.casRoot, source: o.source, staging: o.staging, staging_source: o.stagingSource },
+          {
+            unit: o.unit,
+            domain: "plans",
+            cas_root: o.casRoot,
+            source: o.source,
+            staging: o.staging,
+            staging_source: o.stagingSource,
+          },
           null,
           2,
         );
@@ -107,7 +132,14 @@ export const planShowVerb = defineVerb({
     }
     const lines = r.body.toString("utf8").split("\n");
     const head = lines.slice(0, 20);
-    const out2 = [`unit: ${r.unit}`, `slot: ${r.slot}`, `sha:  ${r.sha}`, `size: ${r.size} bytes`, "---", ...head];
+    const out2 = [
+      `unit: ${r.unit}`,
+      `slot: ${r.slot}`,
+      `sha:  ${r.sha}`,
+      `size: ${r.size} bytes`,
+      "---",
+      ...head,
+    ];
     if (lines.length > 20) {
       out2.push(`... (${lines.length - 20} more lines; use --format json for full body)`);
     }

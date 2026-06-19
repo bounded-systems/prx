@@ -64,7 +64,7 @@ describe("prx plugin emit", () => {
 
     // The watcher script is on disk and executable (the monitor runs it).
     const watch = join(dir, "bin/prx-audit-watch.sh");
-    expect((await readFile(watch, "utf8"))).toContain("tail -n0 -F");
+    expect(await readFile(watch, "utf8")).toContain("tail -n0 -F");
     expect((await stat(watch)).mode & 0o111).not.toBe(0);
 
     // Reports a JSON summary of what was written.

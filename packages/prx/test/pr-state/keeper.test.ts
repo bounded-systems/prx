@@ -55,19 +55,33 @@ describe("runKeeperEnsureWorktree — worktree placement + self-heal (prx-0yf / 
     const git = (({ subcommand, args }: GitExecOptions): GitExecResult => {
       calls.push([subcommand, ...args]);
       if (subcommand === "worktree" && args[0] === "list") {
-        return { exitCode: 0, stdout: opts.registered ? "worktree /wt/GH-7\n" : "", stderr: "" } as GitExecResult;
+        return {
+          exitCode: 0,
+          stdout: opts.registered ? "worktree /wt/GH-7\n" : "",
+          stderr: "",
+        } as GitExecResult;
       }
       if (subcommand === "rev-parse") {
-        return { exitCode: opts.branchExists === false ? 1 : 0, stdout: "", stderr: "" } as GitExecResult;
+        return {
+          exitCode: opts.branchExists === false ? 1 : 0,
+          stdout: "",
+          stderr: "",
+        } as GitExecResult;
       }
       if (subcommand === "worktree" && args[0] === "add") {
-        return { exitCode: opts.addExit ?? 0, stdout: "", stderr: opts.addExit ? "boom" : "" } as GitExecResult;
+        return {
+          exitCode: opts.addExit ?? 0,
+          stdout: "",
+          stderr: opts.addExit ? "boom" : "",
+        } as GitExecResult;
       }
       return { exitCode: 0, stdout: "", stderr: "" } as GitExecResult;
     }) as typeof execGit;
     const exists = (p: string) =>
       p.endsWith(".git") ? opts.worktreeHealthy === true : opts.targetExistsOnDisk === true;
-    const remove = (p: string) => { removed.push(p); };
+    const remove = (p: string) => {
+      removed.push(p);
+    };
     return { git, exists, remove, calls, removed };
   }
 
@@ -89,7 +103,12 @@ describe("runKeeperEnsureWorktree — worktree placement + self-heal (prx-0yf / 
   test("self-heal: a registered-but-broken worktree (.git gone) is pruned + recreated (prx-5h0)", () => {
     // The #47 regression: registered but unhealthy was treated as a healthy
     // "exists", leaving a worktree with no `.git`. Keeper now removes + recreates.
-    const s = stub({ registered: true, worktreeHealthy: false, targetExistsOnDisk: true, branchExists: true });
+    const s = stub({
+      registered: true,
+      worktreeHealthy: false,
+      targetExistsOnDisk: true,
+      branchExists: true,
+    });
     const out = runKeeperEnsureWorktree({ branch: "GH-7", targetPath: "/wt/GH-7" }, "/repo", s);
     expect(out.status).toBe("recreated");
     expect(s.calls.some((c) => c.join(" ").includes("worktree prune"))).toBe(true);
@@ -100,9 +119,9 @@ describe("runKeeperEnsureWorktree — worktree placement + self-heal (prx-0yf / 
 
   test("a failing `git worktree add` throws KeeperGitError", () => {
     const s = stub({ registered: false, branchExists: true, addExit: 1 });
-    expect(() => runKeeperEnsureWorktree({ branch: "GH-7", targetPath: "/wt/GH-7" }, "/repo", s)).toThrow(
-      KeeperGitError,
-    );
+    expect(() =>
+      runKeeperEnsureWorktree({ branch: "GH-7", targetPath: "/wt/GH-7" }, "/repo", s),
+    ).toThrow(KeeperGitError);
   });
 });
 
@@ -113,12 +132,18 @@ describe("runKeeperRemoveWorktree — keeper-owned git worktree removal (prx-6jb
     const git = (({ subcommand, args }: GitExecOptions): GitExecResult => {
       calls.push([subcommand, ...args]);
       if (subcommand === "worktree" && args[0] === "list") {
-        return { exitCode: 0, stdout: opts.registered ? "worktree /wt/GH-7\n" : "", stderr: "" } as GitExecResult;
+        return {
+          exitCode: 0,
+          stdout: opts.registered ? "worktree /wt/GH-7\n" : "",
+          stderr: "",
+        } as GitExecResult;
       }
       return { exitCode: 0, stdout: "", stderr: "" } as GitExecResult;
     }) as typeof execGit;
     const exists = (_p: string) => opts.targetExistsOnDisk === true;
-    const remove = (p: string) => { removed.push(p); };
+    const remove = (p: string) => {
+      removed.push(p);
+    };
     return { git, exists, remove, calls, removed };
   }
 
@@ -216,12 +241,8 @@ describe("prx keeper commit — headless commit (GH-2346)", () => {
 
     expect(exit).toBe(0);
     // HEAD advanced to the keeper commit, and the change is in it.
-    expect(git(["log", "-1", "--format=%s"]).trim()).toBe(
-      "feat: headless via keeper",
-    );
-    expect(git(["show", "--name-only", "--format=", "HEAD"])).toContain(
-      "feature.ts",
-    );
+    expect(git(["log", "-1", "--format=%s"]).trim()).toBe("feat: headless via keeper");
+    expect(git(["show", "--name-only", "--format=", "HEAD"])).toContain("feature.ts");
   }, 30_000);
 });
 
@@ -297,9 +318,7 @@ describe("runKeeperPush attestation (GH-2348.2)", () => {
       invocationId: d.derivationId as string,
       startedOn: new Date(NOW).toISOString(),
     });
-    expect(
-      await verifySlsaEnvelope(stmt, d.envelope!, ed25519Verifier(publicKey)),
-    ).toBe(true);
+    expect(await verifySlsaEnvelope(stmt, d.envelope!, ed25519Verifier(publicKey))).toBe(true);
   });
 
   test("without attest deps, the push emits nothing (bare execGit)", async () => {
@@ -324,8 +343,13 @@ describe("attestWorktreeAdd — signed worktree-add/v1 (prx-hc5)", () => {
     const appended: Derivation[] = [];
     return {
       appended,
-      async append(d) { map.set(d.derivationId as string, d); appended.push(d); },
-      async get(id) { return map.get(id as string) ?? null; },
+      async append(d) {
+        map.set(d.derivationId as string, d);
+        appended.push(d);
+      },
+      async get(id) {
+        return map.get(id as string) ?? null;
+      },
     };
   }
   function mkAttest(store: FakeStore) {
@@ -344,7 +368,12 @@ describe("attestWorktreeAdd — signed worktree-add/v1 (prx-hc5)", () => {
     const fn = ((opts: GitExecOptions): GitExecResult => {
       calls.push(opts);
       if (opts.subcommand === "rev-parse") {
-        return { exitCode: headOk ? 0 : 1, stdout: headOk ? `${WT_OID}\n` : "", stderr: "", policy: null };
+        return {
+          exitCode: headOk ? 0 : 1,
+          stdout: headOk ? `${WT_OID}\n` : "",
+          stderr: "",
+          policy: null,
+        };
       }
       return { exitCode: 0, stdout: "", stderr: "", policy: null };
     }) as typeof execGit & { calls: GitExecOptions[] };
@@ -364,7 +393,9 @@ describe("attestWorktreeAdd — signed worktree-add/v1 (prx-hc5)", () => {
     });
     expect(d).not.toBeNull();
     // HEAD resolved IN THE TARGET worktree (declared subject, not cwd-describing)
-    expect(git.calls.some((c) => c.subcommand === "rev-parse" && c.cwd === "/wt/feat-x")).toBe(true);
+    expect(git.calls.some((c) => c.subcommand === "rev-parse" && c.cwd === "/wt/feat-x")).toBe(
+      true,
+    );
     expect(store.appended).toHaveLength(1);
 
     const stored = store.appended[0]!;
@@ -469,10 +500,20 @@ describe("runKeeperCommitTree (GH-2381)", () => {
   const TREE = "3".repeat(40);
   const BASE = "4".repeat(40);
 
-  function fakeGit(over: { commitExit?: number; switchExit?: number; switchStderr?: string } = {}): typeof execGit & {
-    calls: Array<{ sub: string; args: string[]; env?: Record<string, string | undefined> | undefined }>;
+  function fakeGit(
+    over: { commitExit?: number; switchExit?: number; switchStderr?: string } = {},
+  ): typeof execGit & {
+    calls: Array<{
+      sub: string;
+      args: string[];
+      env?: Record<string, string | undefined> | undefined;
+    }>;
   } {
-    const calls: Array<{ sub: string; args: string[]; env?: Record<string, string | undefined> | undefined }> = [];
+    const calls: Array<{
+      sub: string;
+      args: string[];
+      env?: Record<string, string | undefined> | undefined;
+    }> = [];
     const fn = ((opts: GitExecOptions, env?: Record<string, string | undefined>): GitExecResult => {
       calls.push({ sub: opts.subcommand, args: opts.args, env });
       if (opts.subcommand === "commit-tree") {
@@ -493,7 +534,11 @@ describe("runKeeperCommitTree (GH-2381)", () => {
       }
       return { exitCode: 0, stdout: "", stderr: "", policy: null };
     }) as typeof execGit & {
-      calls: Array<{ sub: string; args: string[]; env?: Record<string, string | undefined> | undefined }>;
+      calls: Array<{
+        sub: string;
+        args: string[];
+        env?: Record<string, string | undefined> | undefined;
+      }>;
     };
     fn.calls = calls;
     return fn;
@@ -523,13 +568,17 @@ describe("runKeeperCommitTree (GH-2381)", () => {
 
   test("a failing commit-tree aborts before the branch switch", async () => {
     const git = fakeGit({ commitExit: 1 });
-    await expect(runKeeperCommitTree(input, "/repo", { git })).rejects.toBeInstanceOf(KeeperGitError);
+    await expect(runKeeperCommitTree(input, "/repo", { git })).rejects.toBeInstanceOf(
+      KeeperGitError,
+    );
     expect(git.calls.map((c) => c.sub)).toEqual(["commit-tree"]);
   });
 
   test("a failing switch raises KeeperGitError", async () => {
     const git = fakeGit({ switchExit: 1 });
-    await expect(runKeeperCommitTree(input, "/repo", { git })).rejects.toBeInstanceOf(KeeperGitError);
+    await expect(runKeeperCommitTree(input, "/repo", { git })).rejects.toBeInstanceOf(
+      KeeperGitError,
+    );
   });
 
   // prx-5l3: when the branch is checked out in another worktree, git refuses the

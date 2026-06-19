@@ -25,10 +25,7 @@
 
 import { processEnv } from "@bounded-systems/env";
 import { buildTriageHaikuClassifierRuntimeProfile } from "../machine/runtime_profiles.ts";
-import {
-  agentProfileExecutionAsRuntimeResult,
-  executeAgentProfile,
-} from "../pr-state/executor.ts";
+import { agentProfileExecutionAsRuntimeResult, executeAgentProfile } from "../pr-state/executor.ts";
 
 import { z } from "zod";
 
@@ -43,17 +40,11 @@ import { listOpenIssuesFromBeads as defaultListOpenIssues } from "./issues-from-
 import { parseLabelName } from "./labels.ts";
 import { PRIORITY_LABELS, priorityLabelString } from "./label-vocab.ts";
 import { execGh as defaultExecGh, type GhExecResult } from "@bounded-systems/gh";
-import {
-  runBeadsSync as defaultRunBeadsSync,
-  type BeadsSyncResult,
-} from "../sync/run.ts";
+import { runBeadsSync as defaultRunBeadsSync, type BeadsSyncResult } from "../sync/run.ts";
 import { DEFAULT_SYNC_LIMIT } from "../sync/limits.ts";
 import { parseClaudeJsonEnvelope } from "../claude/envelope.ts";
 import { stripCodeFence } from "../claude/strip-code-fence.ts";
-import {
-  readBlob as defaultReadBlob,
-  writeBlob as defaultWriteBlob,
-} from "../plan-store/cas.ts";
+import { readBlob as defaultReadBlob, writeBlob as defaultWriteBlob } from "../plan-store/cas.ts";
 import { casUriFor } from "../plan-store/uri.ts";
 import {
   triagePrioritizeBulkOptionsSchema,
@@ -61,11 +52,7 @@ import {
   prioritizeBulkAuditRowSchema,
   type PrioritizeBulkAuditRow,
 } from "./schemas/index.ts";
-import {
-  appendAuditRow,
-  auditSinkPath,
-  type AuditSinkDeps,
-} from "../audit/sink.ts";
+import { appendAuditRow, auditSinkPath, type AuditSinkDeps } from "../audit/sink.ts";
 
 export { triagePrioritizeBulkOptionsSchema };
 export type { TriagePrioritizeBulkOptions };
@@ -268,7 +255,6 @@ export function selectCandidates(issues: FallbackIssue[]): Candidate[] {
   return candidates;
 }
 
-
 export function chunkIntoBatches<T>(items: T[], batchSize: number): T[][] {
   if (batchSize <= 0) throw new Error(`batchSize must be positive, got ${batchSize}`);
   const out: T[][] = [];
@@ -323,8 +309,7 @@ export async function runHaikuBatch(opts: {
   // (round-trip also verifies the stored sha via readBlob's integrity check).
   const { sha } = await opts.cas.writeBlob(batchJson, { domain: SCOUT_DOMAIN });
   const casHandle = casUriFor(SCOUT_DOMAIN, sha);
-  const userPrompt = (await opts.cas.readBlob(sha, { domain: SCOUT_DOMAIN }))
-    .toString("utf8");
+  const userPrompt = (await opts.cas.readBlob(sha, { domain: SCOUT_DOMAIN })).toString("utf8");
   const result = await opts.runClaude({
     model: opts.model,
     systemPrompt: opts.systemPrompt,
@@ -370,8 +355,7 @@ export async function runTriagePrioritizeBulk(
     ...(deps.auditSink ?? {}),
     now: deps.auditSink?.now ?? (() => now),
   };
-  const append = (entry: PrioritizeBulkAuditRow): void =>
-    appendAuditRow(entry, auditSink);
+  const append = (entry: PrioritizeBulkAuditRow): void => appendAuditRow(entry, auditSink);
   const batchIdGen = deps.generateBatchId ?? ((i: number) => defaultBatchId(i, now));
 
   let repo = opts.repo;
@@ -379,16 +363,12 @@ export async function runTriagePrioritizeBulk(
     try {
       repo = resolveRepo(cwd);
     } catch (err) {
-      outputSink.error(
-        `triage prioritize-bulk: failed to resolve repo: ${(err as Error).message}`,
-      );
+      outputSink.error(`triage prioritize-bulk: failed to resolve repo: ${(err as Error).message}`);
       return 1;
     }
   }
   if (!repo) {
-    outputSink.error(
-      "triage prioritize-bulk: --repo is required (could not resolve from cwd)",
-    );
+    outputSink.error("triage prioritize-bulk: --repo is required (could not resolve from cwd)");
     return 1;
   }
 
@@ -414,9 +394,7 @@ export async function runTriagePrioritizeBulk(
   );
 
   const batches = chunkIntoBatches(candidates, opts.batchSize);
-  const candidateByNumber = new Map<number, Candidate>(
-    candidates.map((c) => [c.number, c]),
-  );
+  const candidateByNumber = new Map<number, Candidate>(candidates.map((c) => [c.number, c]));
 
   let writeErrors = 0;
   let inferenceErrors = 0;
@@ -491,9 +469,7 @@ export async function runTriagePrioritizeBulk(
       // `priority::high`. Stripping every non-target priority label sourced
       // from `PRIORITY_LABELS` is race-free regardless of snapshot freshness;
       // `gh issue edit --remove-label` no-ops on absent labels.
-      const removeLabels = PRIORITY_LABELS
-        .map(priorityLabelString)
-        .filter((l) => l !== addLabel);
+      const removeLabels = PRIORITY_LABELS.map(priorityLabelString).filter((l) => l !== addLabel);
 
       if (opts.dryRun) {
         emit({
@@ -602,8 +578,7 @@ export async function runTriagePrioritizeBulk(
       outputSink.log(`OK bd github sync: ${touchedIssues.length} issue(s) reconciled`);
     } else {
       syncOutcome = "failed";
-      const detail =
-        syncCapture.stderr.join("\n").trim() || syncCapture.stdout.join("\n").trim();
+      const detail = syncCapture.stderr.join("\n").trim() || syncCapture.stdout.join("\n").trim();
       outputSink.error(detail ? `FAIL bd github sync: ${detail}` : "FAIL bd github sync");
     }
   }

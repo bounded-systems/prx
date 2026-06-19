@@ -95,7 +95,8 @@ export function parseClaudeJsonl(body: string): ParseJsonlResult {
     if (obj.type === "file-history-snapshot") continue;
 
     const role = normalizeRole(
-      typeof obj.type === "string" && (obj.type === "user" || obj.type === "assistant" || obj.type === "system")
+      typeof obj.type === "string" &&
+        (obj.type === "user" || obj.type === "assistant" || obj.type === "system")
         ? obj.type
         : (obj.message as Record<string, unknown> | undefined)?.role,
     );

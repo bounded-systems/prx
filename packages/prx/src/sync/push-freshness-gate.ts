@@ -22,9 +22,7 @@ export function shouldSkipPush(
   lastPushedHead: string | undefined,
 ): boolean {
   return (
-    currentHead !== undefined &&
-    lastPushedHead !== undefined &&
-    currentHead === lastPushedHead
+    currentHead !== undefined && lastPushedHead !== undefined && currentHead === lastPushedHead
   );
 }
 

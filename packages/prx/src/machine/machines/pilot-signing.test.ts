@@ -4,7 +4,11 @@ import { tmpDir } from "@bounded-systems/host";
 import { join } from "node:path";
 import { createActor, waitFor, type AnyStateMachine } from "xstate";
 
-import { ed25519Signer, ed25519Verifier, generateEd25519Keypair } from "@bounded-systems/anchored-chain";
+import {
+  ed25519Signer,
+  ed25519Verifier,
+  generateEd25519Keypair,
+} from "@bounded-systems/anchored-chain";
 import { resolveProvenanceSigner, resolveProvenanceVerifier } from "../../provenance/signer.ts";
 
 import { createFleetMachine } from "./fleet.ts";
@@ -62,7 +66,10 @@ describe("real ed25519/DSSE signing of pilot + fleet artifacts", () => {
     const verifier = ed25519Verifier(kp.publicKey);
 
     const makePilot = (_u: string): AnyStateMachine =>
-      createPilotMachine({ runLeg: stubLegRunner, signSummary: realStatementSigner(signer) }) as AnyStateMachine;
+      createPilotMachine({
+        runLeg: stubLegRunner,
+        signSummary: realStatementSigner(signer),
+      }) as AnyStateMachine;
 
     const fleet = createActor(
       createFleetMachine(makePilot, { signBatch: realStatementSigner(signer) }),
@@ -87,7 +94,12 @@ describe("real ed25519/DSSE signing of pilot + fleet artifacts", () => {
       predicate: "executor.completed",
       outputHash: "deadbeef",
     });
-    const link = { stage: "executor", subject: "prx-x:implement@latest", predicate: "executor.completed", sig: att.sig };
+    const link = {
+      stage: "executor",
+      subject: "prx-x:implement@latest",
+      predicate: "executor.completed",
+      sig: att.sig,
+    };
 
     expect(await verifyLeg(verifier, link, "deadbeef")).toBe(true);
     expect(await verifyLeg(verifier, link, "cafe")).toBe(false); // wrong content

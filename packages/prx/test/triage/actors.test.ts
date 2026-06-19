@@ -17,11 +17,7 @@ import { describe, expect, test } from "bun:test";
 
 import { createActor, type AnyActorLogic } from "xstate";
 
-import {
-  reportActor,
-  statusActor,
-  TriageStubError,
-} from "../../src/triage/actors.ts";
+import { reportActor, statusActor, TriageStubError } from "../../src/triage/actors.ts";
 
 // Drive a fromPromise actor and surface its settlement as a promise. The
 // `error` observer is required: a standalone (un-parented) actor whose promise

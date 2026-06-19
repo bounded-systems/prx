@@ -188,7 +188,10 @@ describe("buildSurfaceSyncFromBoard authorship gate (GH-914)", () => {
       if (cmd.includes("user.name")) return { stdout: "Operator\n", stderr: "", status: 0 };
       throw new Error(`unexpected: ${cmd.join(" ")}`);
     };
-    expect(getOperatorIdentity("/tmp", runner)).toEqual({ name: "Operator", email: "Me@Example.com" });
+    expect(getOperatorIdentity("/tmp", runner)).toEqual({
+      name: "Operator",
+      email: "Me@Example.com",
+    });
   });
 
   test("readRemoteBranchAuthors normalizes emails and skips origin/HEAD pointers", () => {

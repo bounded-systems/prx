@@ -23,7 +23,10 @@ export type FeatureArtifact = { path: string; content: string };
 /** Every generated .feature, freshly rendered from its source of truth. */
 export function featureArtifacts(): FeatureArtifact[] {
   const dir = resolve(getRepoRoot(), "features");
-  const at = (file: string, content: string): FeatureArtifact => ({ path: resolve(dir, file), content });
+  const at = (file: string, content: string): FeatureArtifact => ({
+    path: resolve(dir, file),
+    content,
+  });
   return [
     at("provenance-ownership.feature", generateProvenanceFeature()),
     at("capability-ownership.feature", generateCapabilityFeature()),

@@ -17,15 +17,7 @@ import { z } from "zod";
  * (Rule 3: `beads` is a surface, never an actor). Mirrors `#Surface` in
  * spec/prx/schema.cue.
  */
-export const Surface = z.enum([
-  "github",
-  "beads",
-  "dolt",
-  "notion",
-  "filesystem",
-  "cas",
-  "tmux",
-]);
+export const Surface = z.enum(["github", "beads", "dolt", "notion", "filesystem", "cas", "tmux"]);
 export type Surface = z.infer<typeof Surface>;
 
 export const ALL_SURFACES: readonly Surface[] = Surface.options;

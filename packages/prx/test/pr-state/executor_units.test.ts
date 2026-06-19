@@ -35,7 +35,9 @@ function makeProfile(overrides: Partial<RuntimeProfileProjection> = {}): Runtime
 
 const ok = (data: object = { echo: "x" }) =>
   JSON.stringify({ status: "success", data, meta: { latency_ms: 1 } });
-const exec = (status: number, stdout = "", stderr = ""): RuntimeExecutor => () => ({ status, stdout, stderr });
+const exec =
+  (status: number, stdout = "", stderr = ""): RuntimeExecutor =>
+  () => ({ status, stdout, stderr });
 
 // ── shellQuote ────────────────────────────────────────────────────────────────
 
@@ -85,7 +87,8 @@ describe("executeValidatedAgentWithRetry", () => {
   const p = makeProfile();
   test("retries past a transient error then succeeds", () => {
     let n = 0;
-    const e: RuntimeExecutor = () => (++n === 1 ? { status: 1, stdout: "", stderr: "x" } : { status: 0, stdout: ok(), stderr: "" });
+    const e: RuntimeExecutor = () =>
+      ++n === 1 ? { status: 1, stdout: "", stderr: "x" } : { status: 0, stdout: ok(), stderr: "" };
     const r = executeValidatedAgentWithRetry(p, "/c", e);
     expect(r.attempts).toBe(2);
     expect(r.result.status).toBe("success");
@@ -136,7 +139,12 @@ describe("executeAgentProfile", () => {
           duration_api_ms: 1,
           num_turns: 1,
           total_cost_usd: 0,
-          usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+          usage: {
+            input_tokens: 1,
+            output_tokens: 1,
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+          },
           modelUsage: {},
           permission_denials: [],
           stop_reason: "end_turn",
@@ -144,9 +152,16 @@ describe("executeAgentProfile", () => {
           session_id: "s-1",
         };
       }
-      return Object.assign(gen(), { interrupt: async () => {}, close: () => {} }) as unknown as ReturnType<ClaudeAgentQuery>;
+      return Object.assign(gen(), {
+        interrupt: async () => {},
+        close: () => {},
+      }) as unknown as ReturnType<ClaudeAgentQuery>;
     };
-    const r = await executeAgentProfile(sdkProfile, { cwd: "/c", timeoutMs: 5_000, sdkDeps: { query } });
+    const r = await executeAgentProfile(sdkProfile, {
+      cwd: "/c",
+      timeoutMs: 5_000,
+      sdkDeps: { query },
+    });
     expect(r.kind).toBe("sdk");
     if (r.kind === "sdk") expect(r.result.kind).toBe("success");
   });
@@ -159,7 +174,12 @@ describe("agentProfileExecutionAsRuntimeResult", () => {
     const e = { status: 0, stdout: "s", stderr: "" };
     expect(agentProfileExecutionAsRuntimeResult({ kind: "subprocess", execution: e })).toEqual(e);
   });
-  const usage = { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
+  const usage = {
+    input_tokens: 0,
+    output_tokens: 0,
+    cache_creation_input_tokens: 0,
+    cache_read_input_tokens: 0,
+  };
   test("sdk success → status 0 + stdout", () => {
     const r = agentProfileExecutionAsRuntimeResult({
       kind: "sdk",
@@ -170,7 +190,14 @@ describe("agentProfileExecutionAsRuntimeResult", () => {
   test("sdk cancelled (configured timeout) → 124 + partial", () => {
     const r = agentProfileExecutionAsRuntimeResult({
       kind: "sdk",
-      result: { kind: "cancelled", reason: "watchdog", elapsed_ms: 50, configured_timeout_ms: 40, draftRef: null, partialStdout: "p" },
+      result: {
+        kind: "cancelled",
+        reason: "watchdog",
+        elapsed_ms: 50,
+        configured_timeout_ms: 40,
+        draftRef: null,
+        partialStdout: "p",
+      },
     });
     expect(r.status).toBe(124);
     expect(r.stdout).toBe("p");
@@ -179,7 +206,14 @@ describe("agentProfileExecutionAsRuntimeResult", () => {
   test("sdk cancelled (no configured timeout) → 124", () => {
     const r = agentProfileExecutionAsRuntimeResult({
       kind: "sdk",
-      result: { kind: "cancelled", reason: "operator", elapsed_ms: 9, configured_timeout_ms: null, draftRef: null, partialStdout: "" },
+      result: {
+        kind: "cancelled",
+        reason: "operator",
+        elapsed_ms: 9,
+        configured_timeout_ms: null,
+        draftRef: null,
+        partialStdout: "",
+      },
     });
     expect(r.status).toBe(124);
     expect(r.stderr).toMatch(/reason=operator/);
@@ -197,7 +231,11 @@ describe("agentProfileExecutionAsRuntimeResult", () => {
 
 describe("localRuntimeExecutor", () => {
   test("json format pipes the command output", () => {
-    const r = localRuntimeExecutor(makeProfile({ args: ["-e", "process.stdout.write('hi')"] }), "json", process.cwd());
+    const r = localRuntimeExecutor(
+      makeProfile({ args: ["-e", "process.stdout.write('hi')"] }),
+      "json",
+      process.cwd(),
+    );
     expect(r.status).toBe(0);
     expect(r.stdout).toBe("hi");
   });
@@ -206,7 +244,11 @@ describe("localRuntimeExecutor", () => {
   // Linux CI runner may not ship /bin/zsh), so we assert only that a numeric
   // status comes back, not a specific exit code.
   test("plain format runs through a login shell (exec form)", () => {
-    const r = localRuntimeExecutor(makeProfile({ command: "true" as never, args: [] }), "plain", process.cwd());
+    const r = localRuntimeExecutor(
+      makeProfile({ command: "true" as never, args: [] }),
+      "plain",
+      process.cwd(),
+    );
     expect(typeof r.status).toBe("number");
   });
   test("plain format with fallbackArgs builds the rc=1 fallback", () => {
@@ -218,11 +260,20 @@ describe("localRuntimeExecutor", () => {
     expect(typeof r.status).toBe("number");
   });
   test("a spawn error maps to status 1", () => {
-    const r = localRuntimeExecutor(makeProfile({ command: "prx-not-a-real-bin-xyz" as never, args: [] }), "json", process.cwd());
+    const r = localRuntimeExecutor(
+      makeProfile({ command: "prx-not-a-real-bin-xyz" as never, args: [] }),
+      "json",
+      process.cwd(),
+    );
     expect(r.status).toBe(1);
   });
   test("a fired timeout maps to 124", () => {
-    const r = localRuntimeExecutor(makeProfile({ command: "sleep" as never, args: ["5"] }), "json", process.cwd(), 50);
+    const r = localRuntimeExecutor(
+      makeProfile({ command: "sleep" as never, args: ["5"] }),
+      "json",
+      process.cwd(),
+      50,
+    );
     expect(r.status).toBe(124);
   });
 });

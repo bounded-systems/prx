@@ -67,19 +67,23 @@ describe("scaffoldRepo", () => {
   test("selective scaffold — keeps existing settings.json, creates missing AGENTS.md", () => {
     const root = makeRepo();
     mkdirSync(join(root, ".claude"), { recursive: true });
-    writeFileSync(join(root, ".claude", "settings.json"), "{ \"existing\": true }\n");
+    writeFileSync(join(root, ".claude", "settings.json"), '{ "existing": true }\n');
 
     const result = scaffoldRepo({}, { cwd: root, spawn: spawnReturning(root) });
 
     const outcomes = Object.fromEntries(result.files.map((f) => [f.path, f.outcome]));
     expect(outcomes[join(root, "AGENTS.md")]).toBe("created");
     expect(outcomes[join(root, ".claude", "settings.json")]).toBe("skipped");
-    expect(readFileSync(join(root, ".claude", "settings.json"), "utf8")).toBe("{ \"existing\": true }\n");
+    expect(readFileSync(join(root, ".claude", "settings.json"), "utf8")).toBe(
+      '{ "existing": true }\n',
+    );
   });
 
   test("throws ScaffoldError when not in a git repo", () => {
     const root = makeRepo();
-    expect(() => scaffoldRepo({}, { cwd: root, spawn: spawnReturning(null) })).toThrow(ScaffoldError);
+    expect(() => scaffoldRepo({}, { cwd: root, spawn: spawnReturning(null) })).toThrow(
+      ScaffoldError,
+    );
   });
 
   test("rejects PATH_TYPE_CONFLICT when AGENTS.md exists as a directory", () => {

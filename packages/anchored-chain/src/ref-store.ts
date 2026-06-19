@@ -1,4 +1,4 @@
-import type { Digest, Ref, RefLogEntry } from './types.ts';
+import type { Digest, Ref, RefLogEntry } from "./types.ts";
 
 export interface RefStore {
   get(name: string): Promise<Ref | null>;
@@ -14,7 +14,7 @@ export interface RefStore {
 }
 
 export class RefMismatchError extends Error {
-  readonly name = 'RefMismatchError';
+  readonly name = "RefMismatchError";
   readonly refName: string;
   readonly expectedPrev: Digest | null;
   readonly actual: Digest | null;
@@ -25,7 +25,7 @@ export class RefMismatchError extends Error {
     actual: Digest | null;
   }) {
     super(
-      `ref CAS mismatch on "${args.refName}": expected prev=${args.expectedPrev ?? 'null'}, actual=${args.actual ?? 'null'}`,
+      `ref CAS mismatch on "${args.refName}": expected prev=${args.expectedPrev ?? "null"}, actual=${args.actual ?? "null"}`,
     );
     this.refName = args.refName;
     this.expectedPrev = args.expectedPrev;

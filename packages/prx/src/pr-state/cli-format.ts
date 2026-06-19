@@ -1,15 +1,47 @@
 import { basename, join } from "node:path";
 import { existsSync } from "node:fs";
 import { deriveInfo, loadContract, type StateMode } from "./contract.ts";
-import { type ScoutLogsResult, type OverviewResult, type ChainStatusResult, type RemoteCiCheckResult, type PrCommentsResult, type PrReviewThreadResolution, type ProtectMainBranchResult, type RepoCheckNamesResult, type ProtectMainBranchCheckResult, type RepoStatusResult, type WorktreeStatus, type WorktreeRemoveResult, type WtStatusResult } from "./github.ts";
+import {
+  type ScoutLogsResult,
+  type OverviewResult,
+  type ChainStatusResult,
+  type RemoteCiCheckResult,
+  type PrCommentsResult,
+  type PrReviewThreadResolution,
+  type ProtectMainBranchResult,
+  type RepoCheckNamesResult,
+  type ProtectMainBranchCheckResult,
+  type RepoStatusResult,
+  type WorktreeStatus,
+  type WorktreeRemoveResult,
+  type WtStatusResult,
+} from "./github.ts";
 import type { ResolvedWorkUnit } from "./resolvers/types.ts";
 import { type ActionPlan, type ResolvedAction } from "./actions.ts";
 import type { NextWorkResult } from "../beads/ready.ts";
 import { type DomainStateV1 } from "./domain_state.ts";
-import { type RepoAddResult, type RepoInventory, type RepoNormalizationResult, type RepoRefreshResult, type SetRepoAxisDelta } from "./repos.ts";
+import {
+  type RepoAddResult,
+  type RepoInventory,
+  type RepoNormalizationResult,
+  type RepoRefreshResult,
+  type SetRepoAxisDelta,
+} from "./repos.ts";
 import { type MaterializeResult } from "./materialize.ts";
-import { actorsForScope, eventOwnersForScope, rawFieldOwnersForScope, type ActorScope } from "./actors.ts";
-import { allowedTransitions, canonicalPrEventAliases, eventForSkill, prSystemMachine, prSkillNames, type LifecycleState } from "./machine.ts";
+import {
+  actorsForScope,
+  eventOwnersForScope,
+  rawFieldOwnersForScope,
+  type ActorScope,
+} from "./actors.ts";
+import {
+  allowedTransitions,
+  canonicalPrEventAliases,
+  eventForSkill,
+  prSystemMachine,
+  prSkillNames,
+  type LifecycleState,
+} from "./machine.ts";
 import { invariantSpecs, phasePrecedence } from "./raw_state.ts";
 import { type SprintStateV1 } from "./sprint.ts";
 import { type RuntimeProfileProjection } from "../machine/runtime_profiles.ts";
@@ -25,13 +57,27 @@ import { getCurrentSessionContext } from "./help/session-context.ts";
 import { depResearchMachine } from "../dep-research/machine.ts";
 import { domainSyncMachine } from "../sync/machine.ts";
 import { fetchMachine } from "../machine/machines/fetch.ts";
-import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type ParityChainApplyResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
+import {
+  type BeadsGithubIssueMatch,
+  type BeadsInitSetupResult,
+  type CloseSessionResult,
+  type ParityChainApplyResult,
+  type RepairBdEntry,
+  type SessionOpenCheckReport,
+  VERB_HELP_SEE_ALSO,
+  type WorkUnitChainCheckResult,
+  type WorkUnitIssueCheckResult,
+  type WorkUnitSessionCheckResult,
+} from "./cli-types.ts";
 import { type PlanCloseResult } from "./plan-close-bd.ts";
 
 // Extracted from packages/prx/src/pr-state/cli.ts by scripts/codemod/extract-module.ts — part of the
 // §4 decomposition of the pr-state/cli.ts monolith into focused modules.
 
-export function formatWorkUnitIssueCheck(result: WorkUnitIssueCheckResult, format: "plain" | "json"): string {
+export function formatWorkUnitIssueCheck(
+  result: WorkUnitIssueCheckResult,
+  format: "plain" | "json",
+): string {
   if (format === "json") {
     return JSON.stringify(result, null, 2);
   }
@@ -100,7 +146,10 @@ export function formatBeadsIssueMatches(
     .join("\n");
 }
 
-export function formatWorkUnitSessionCheck(result: WorkUnitSessionCheckResult, format: "plain" | "json"): string {
+export function formatWorkUnitSessionCheck(
+  result: WorkUnitSessionCheckResult,
+  format: "plain" | "json",
+): string {
   if (format === "json") {
     return JSON.stringify(result, null, 2);
   }
@@ -112,7 +161,10 @@ export function formatWorkUnitSessionCheck(result: WorkUnitSessionCheckResult, f
   return `No active session for ${result.workUnitId}; no matching worktree is currently attached.`;
 }
 
-export function formatWorkUnitChainCheck(result: WorkUnitChainCheckResult, format: "plain" | "json"): string {
+export function formatWorkUnitChainCheck(
+  result: WorkUnitChainCheckResult,
+  format: "plain" | "json",
+): string {
   if (format === "json") {
     return JSON.stringify(result, null, 2);
   }
@@ -220,10 +272,7 @@ function formatWorkflowBackboneMermaidLines(): string[] {
   if (typeof initial !== "string" || !states || typeof states !== "object") {
     return [];
   }
-  const lines = [
-    '  state "workflowBackbone" as workflowBackbone {',
-    `    [*] --> ${initial}`,
-  ];
+  const lines = ['  state "workflowBackbone" as workflowBackbone {', `    [*] --> ${initial}`];
   for (const [stateName, stateCfg] of Object.entries(states)) {
     const on = (stateCfg as { on?: Record<string, unknown> }).on;
     if (!on) continue;
@@ -345,7 +394,7 @@ export function formatGraph(
   ) {
     return [
       "stateDiagram-v2",
-      "  state \"lifecycle\" as lifecycle {",
+      '  state "lifecycle" as lifecycle {',
       "    [*] --> drafting",
       "    drafting --> open: SUBMIT",
       "    drafting --> closed: CLOSE",
@@ -354,7 +403,7 @@ export function formatGraph(
       "    open --> closed: CLOSE",
       "    closed --> open: REOPEN",
       "  }",
-      "  state \"review\" as review {",
+      '  state "review" as review {',
       "    [*] --> none",
       "    none --> in_review: REQUEST_REVIEW",
       "    in_review --> changes_requested: REQUEST_CHANGES",
@@ -365,7 +414,7 @@ export function formatGraph(
       "    approved --> changes_requested: REQUEST_CHANGES",
       "    approved --> none: PUSH_COMMIT",
       "  }",
-      "  state \"ci\" as ci {",
+      '  state "ci" as ci {',
       "    [*] --> pending",
       "    pending --> running: CI_START",
       "    pending --> passed: CI_PASS",
@@ -375,7 +424,7 @@ export function formatGraph(
       "    passed --> pending: PUSH_COMMIT",
       "    failed --> pending: PUSH_COMMIT",
       "  }",
-      "  state \"mergeability\" as mergeability {",
+      '  state "mergeability" as mergeability {',
       "    [*] --> unknown",
       "    unknown --> clean: MERGEABILITY_CLEAN",
       "    unknown --> blocked: MERGEABILITY_BLOCKED",
@@ -456,16 +505,28 @@ export function formatTaskStatus(task: TaskContract, format: "plain" | "json"): 
   }
   if (status.machineState === "reviewing" && !task.signals.reviewAdded) {
     lines.push("nextAction=Wait for the reviewer to add feedback (reviewAdded)");
-  } else if (status.machineState === "reviewing" && task.signals.reviewAdded && !task.signals.reviewApproved) {
+  } else if (
+    status.machineState === "reviewing" &&
+    task.signals.reviewAdded &&
+    !task.signals.reviewApproved
+  ) {
     lines.push("nextAction=Resolve review threads/outdated items and mark approval");
   }
   if (task.success.requireCommentsResolved && !task.signals.commentsResolved) {
     lines.push("nextAction=Resolve review comments (scout)");
   } else {
-    if (task.success.requireAgentReview && task.signals.agentReview && !task.signals.reviewApproved) {
+    if (
+      task.success.requireAgentReview &&
+      task.signals.agentReview &&
+      !task.signals.reviewApproved
+    ) {
       lines.push("nextAction=Scout confirm agent review comments are cleared");
     }
-    if (task.success.requireHumanReview && task.signals.humanReview && !task.signals.reviewApproved) {
+    if (
+      task.success.requireHumanReview &&
+      task.signals.humanReview &&
+      !task.signals.reviewApproved
+    ) {
       lines.push("nextAction=Resolve human review feedback");
     }
   }
@@ -530,9 +591,7 @@ export function formatPlanNamespaceHelp(): string {
   // GH-1311: groups the plan namespace by `session_role` (lifecycle / toolset
   // / preflight) so the cleavage between session-bootstrapping verbs and
   // verbs called from inside an open session is visible at the help surface.
-  const planEntries = prxCommandRegistry.filter(
-    (entry) => entry.parent === "plan",
-  );
+  const planEntries = prxCommandRegistry.filter((entry) => entry.parent === "plan");
   const lines: string[] = ["prx plan", "==========", ""];
   lines.push(ActorSection("Subcommands", planEntries));
   lines.push("");
@@ -543,9 +602,7 @@ export function formatPlanNamespaceHelp(): string {
 }
 
 export function formatIntakeNamespaceHelp(): string {
-  const intakeEntries = prxCommandRegistry.filter(
-    (entry) => entry.parent === "intake",
-  );
+  const intakeEntries = prxCommandRegistry.filter((entry) => entry.parent === "intake");
   const lines: string[] = ["prx intake", "==========", ""];
   lines.push(ActorSection("Subcommands", intakeEntries));
   lines.push("");
@@ -597,7 +654,10 @@ export function formatBinaryUpdateWarning(update: { current: string; latest: str
   );
 }
 
-export function formatRuntimeProfile(profile: RuntimeProfileProjection, format: "plain" | "json"): string {
+export function formatRuntimeProfile(
+  profile: RuntimeProfileProjection,
+  format: "plain" | "json",
+): string {
   if (format === "json") {
     return JSON.stringify(profile, null, 2);
   }
@@ -660,11 +720,15 @@ export function formatInitResult(
   if (result.workspaceTrackPersisted && result.workspaceConfigPath) {
     lines.push(`Persisted [workspace] track = false in ${result.workspaceConfigPath}`);
   }
-  if (result.workspaceTrack === false && result.trackedPrxFiles && result.trackedPrxFiles.length > 0) {
+  if (
+    result.workspaceTrack === false &&
+    result.trackedPrxFiles &&
+    result.trackedPrxFiles.length > 0
+  ) {
     lines.push(
       "Detected tracked .prx/ files. To complete the transition, run:",
       "    git rm -r --cached .prx/",
-      "    git commit -m \"chore(prx): stop tracking .prx/ after --untracked opt-in\"",
+      '    git commit -m "chore(prx): stop tracking .prx/ after --untracked opt-in"',
     );
   }
   if (result.beadsSetup?.status === "initialized") {
@@ -695,12 +759,10 @@ export function formatUpdateResult(
   return result.lines.join("\n");
 }
 
-export function formatSkillCatalog(
-  contractPath: string,
-  format: "plain" | "json",
-): string {
-  const currentState =
-    existsSync(contractPath) ? deriveInfo(loadContract(contractPath)).state : null;
+export function formatSkillCatalog(contractPath: string, format: "plain" | "json"): string {
+  const currentState = existsSync(contractPath)
+    ? deriveInfo(loadContract(contractPath)).state
+    : null;
   const allowed = currentState ? new Set(allowedTransitions(currentState)) : null;
   const skills = prSkillNames.map((skill) => {
     const definition = eventForSkill(skill);
@@ -710,9 +772,7 @@ export function formatSkillCatalog(
       kind: definition.kind,
       to: definition.kind === "transition" ? definition.to : null,
       allowedFromCurrent:
-        definition.kind === "transition" && allowed
-          ? allowed.has(definition.to)
-          : null,
+        definition.kind === "transition" && allowed ? allowed.has(definition.to) : null,
     };
   });
 
@@ -737,10 +797,10 @@ export function formatSkillCatalog(
   for (const item of skills) {
     if (item.kind === "transition") {
       const allowedText =
-        item.allowedFromCurrent === null ? "allowed=unknown" : `allowed=${item.allowedFromCurrent ? "yes" : "no"}`;
-      lines.push(
-        `${item.skill} -> ${item.event} -> ${item.to} (${allowedText})`,
-      );
+        item.allowedFromCurrent === null
+          ? "allowed=unknown"
+          : `allowed=${item.allowedFromCurrent ? "yes" : "no"}`;
+      lines.push(`${item.skill} -> ${item.event} -> ${item.to} (${allowedText})`);
     } else {
       lines.push(`${item.skill} -> ${item.event} (observe)`);
     }
@@ -807,7 +867,9 @@ export function formatOverview(overview: OverviewResult, format: "plain" | "json
   if (overview.currentBranch) {
     const row = overview.currentBranch;
     lines.push(`  #${row.number}  ${truncate(row.title)} [${row.branch}]`);
-    lines.push(`  ${checksLabel(row.checks)} - ${reviewLabel(row.review, row.approvals)} | ${detailSuffix(row)}`);
+    lines.push(
+      `  ${checksLabel(row.checks)} - ${reviewLabel(row.review, row.approvals)} | ${detailSuffix(row)}`,
+    );
   } else {
     lines.push("  no PR associated with the current branch");
   }
@@ -818,14 +880,20 @@ export function formatOverview(overview: OverviewResult, format: "plain" | "json
   } else {
     for (const row of overview.createdByYou) {
       lines.push(`  #${row.number}  ${truncate(row.title)} [${row.branch}]`);
-      lines.push(`  ${checksLabel(row.checks)} - ${reviewLabel(row.review, row.approvals)} | ${detailSuffix(row)}`);
+      lines.push(
+        `  ${checksLabel(row.checks)} - ${reviewLabel(row.review, row.approvals)} | ${detailSuffix(row)}`,
+      );
     }
   }
 
   return lines.join("\n");
 }
 
-export function formatRepos(inventory: RepoInventory, format: "plain" | "json", localOnly = false): string {
+export function formatRepos(
+  inventory: RepoInventory,
+  format: "plain" | "json",
+  localOnly = false,
+): string {
   if (format === "json") {
     return JSON.stringify(inventory, null, 2);
   }
@@ -897,7 +965,11 @@ export function formatRepoSet<T>(
   format: "plain" | "json",
 ): string {
   if (format === "json") {
-    return JSON.stringify({ slug, axis, previous: delta.previous, current: delta.current }, null, 2);
+    return JSON.stringify(
+      { slug, axis, previous: delta.previous, current: delta.current },
+      null,
+      2,
+    );
   }
   const prev = delta.previous === undefined ? "(unset)" : String(delta.previous);
   return `repo set: ${slug}.${axis}: ${prev} -> ${String(delta.current)}`;
@@ -932,7 +1004,9 @@ export function formatRepoAdd(result: RepoAddResult, format: "plain" | "json"): 
   // LocalRepo.name lookup so an operator can copy-paste it.
   const hydrate = result.beadsHydrate;
   if (hydrate.status === "clone-failed") {
-    lines.push(`  beads: clone-failed — mirror clone failed for ${hydrate.doltRemote ?? "<unknown remote>"}`);
+    lines.push(
+      `  beads: clone-failed — mirror clone failed for ${hydrate.doltRemote ?? "<unknown remote>"}`,
+    );
     lines.push(`         → run \`prx repo refresh ${result.parsed.name}\` once reachable`);
   } else if (hydrate.status === "hydrated" || hydrate.status === "already-hydrated") {
     const db = hydrate.doltDatabase ?? "<unknown db>";
@@ -943,10 +1017,7 @@ export function formatRepoAdd(result: RepoAddResult, format: "plain" | "json"): 
   return lines.join("\n");
 }
 
-export function formatRepoRefresh(
-  result: RepoRefreshResult,
-  format: "plain" | "json",
-): string {
+export function formatRepoRefresh(result: RepoRefreshResult, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(result, null, 2);
   }
@@ -956,7 +1027,9 @@ export function formatRepoRefresh(
   lines.push(`  mainx:   ${result.mainxPath}${result.mainxCreated ? "  (created)" : ""}`);
   if (result.refspecUpgraded) {
     const action = result.dryRun ? "would upgrade" : "upgraded";
-    lines.push(`  refspec: ${action} (${result.refspecBefore.length} → ${result.refspecAfter.length} lines)`);
+    lines.push(
+      `  refspec: ${action} (${result.refspecBefore.length} → ${result.refspecAfter.length} lines)`,
+    );
   } else {
     lines.push(`  refspec: unchanged (${result.refspecAfter.length} lines)`);
   }
@@ -976,7 +1049,9 @@ export function formatRepoRefresh(
   }
   const hydrate = result.beadsHydrate;
   if (hydrate.status === "clone-failed") {
-    lines.push(`  beads:   clone-failed — mirror clone failed for ${hydrate.doltRemote ?? "<unknown remote>"}`);
+    lines.push(
+      `  beads:   clone-failed — mirror clone failed for ${hydrate.doltRemote ?? "<unknown remote>"}`,
+    );
   } else if (hydrate.status === "hydrated" || hydrate.status === "already-hydrated") {
     const db = hydrate.doltDatabase ?? "<unknown db>";
     lines.push(`  beads:   ${hydrate.status} — ${db}`);
@@ -1030,7 +1105,10 @@ export function formatMaterialize(result: MaterializeResult, format: "plain" | "
   return lines.join("\n");
 }
 
-export function formatRepoNormalization(result: RepoNormalizationResult, format: "plain" | "json"): string {
+export function formatRepoNormalization(
+  result: RepoNormalizationResult,
+  format: "plain" | "json",
+): string {
   if (format === "json") {
     return JSON.stringify(result, null, 2);
   }
@@ -1073,9 +1151,7 @@ export function formatWorktree(summary: WorktreeStatus, format: "plain" | "json"
     return JSON.stringify(summary, null, 2);
   }
 
-  const branchName = summary.branch.detached
-    ? "detached"
-    : summary.branch.name ?? "unknown";
+  const branchName = summary.branch.detached ? "detached" : (summary.branch.name ?? "unknown");
   const upstream = summary.branch.upstream ?? "none";
   const lines = [
     `branch=${branchName} sync=${summary.branch.sync} upstream=${upstream} ahead=${summary.branch.ahead} behind=${summary.branch.behind}`,
@@ -1109,9 +1185,7 @@ export function formatWtStatus(summary: WtStatusResult, format: "plain" | "json"
       `  structural: detached=${item.structural.detached} mismatch=${item.structural.mismatch}${item.structural.states.length ? ` states=${item.structural.states.join(",")}` : ""}`,
     );
     if (item.symbols.length) {
-      lines.push(
-        `  symbols: ${item.symbols.join(" ")} (${item.symbol_meanings.join(", ")})`,
-      );
+      lines.push(`  symbols: ${item.symbols.join(" ")} (${item.symbol_meanings.join(", ")})`);
     }
     if (item.git) {
       lines.push(
@@ -1170,7 +1244,9 @@ export function formatCloseSession(result: CloseSessionResult, format: "plain" |
   const prLabel = result.prNumber ? `#${result.prNumber} ${result.prState}` : result.prState;
   lines.push(`pr=${prLabel}`);
   lines.push(`issue=${result.issueState ?? "unknown"}`);
-  lines.push(`remote_branch=${result.remoteBranchPresent === null ? "unknown" : result.remoteBranchPresent ? "present" : "gone"}`);
+  lines.push(
+    `remote_branch=${result.remoteBranchPresent === null ? "unknown" : result.remoteBranchPresent ? "present" : "gone"}`,
+  );
   lines.push(`mainx_reset=${result.mainxReset}`);
   lines.push(`dry_run=${result.dryRun}`);
 
@@ -1184,10 +1260,7 @@ export function formatCloseSession(result: CloseSessionResult, format: "plain" |
   return lines.join("\n");
 }
 
-export function formatPlanCloseResult(
-  result: PlanCloseResult,
-  format: "plain" | "json",
-): string {
+export function formatPlanCloseResult(result: PlanCloseResult, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(result, null, 2);
   }
@@ -1229,7 +1302,10 @@ export function formatPlanCloseResult(
   return lines.join("\n");
 }
 
-export function formatWorktreeRemove(summary: WorktreeRemoveResult, format: "plain" | "json"): string {
+export function formatWorktreeRemove(
+  summary: WorktreeRemoveResult,
+  format: "plain" | "json",
+): string {
   if (format === "json") {
     return JSON.stringify(summary, null, 2);
   }
@@ -1252,15 +1328,15 @@ export function formatWorktreeRemove(summary: WorktreeRemoveResult, format: "pla
   return lines.join("\n");
 }
 
-export function formatRemoteCiCheck(summary: RemoteCiCheckResult, format: "plain" | "json"): string {
+export function formatRemoteCiCheck(
+  summary: RemoteCiCheckResult,
+  format: "plain" | "json",
+): string {
   if (format === "json") {
     return JSON.stringify(summary, null, 2);
   }
 
-  const lines = [
-    `remote ci check`,
-    `repo=${summary.repoPath} pr=${summary.pr}`,
-  ];
+  const lines = [`remote ci check`, `repo=${summary.repoPath} pr=${summary.pr}`];
 
   if (summary.failingChecks.length === 0) {
     lines.push("no failing checks");
@@ -1293,10 +1369,7 @@ export function formatScoutLogs(result: ScoutLogsResult, format: "plain" | "json
     return JSON.stringify(result, null, 2);
   }
 
-  const lines = [
-    `scout logs for pr=${result.pr}`,
-    `failing_checks=${result.checks.length}`,
-  ];
+  const lines = [`scout logs for pr=${result.pr}`, `failing_checks=${result.checks.length}`];
 
   if (result.checks.length === 0) {
     lines.push("no failing checks — CI is clean");
@@ -1321,7 +1394,11 @@ export function formatScoutLogs(result: ScoutLogsResult, format: "plain" | "json
   return lines.join("\n");
 }
 
-export function formatPrComments(summary: PrCommentsResult, format: "plain" | "json", savedTo?: string): string {
+export function formatPrComments(
+  summary: PrCommentsResult,
+  format: "plain" | "json",
+  savedTo?: string,
+): string {
   if (format === "json") {
     return JSON.stringify(savedTo ? { ...summary, savedTo } : summary, null, 2);
   }
@@ -1335,7 +1412,9 @@ export function formatPrComments(summary: PrCommentsResult, format: "plain" | "j
   ];
   for (const thread of summary.threads) {
     const status = thread.isResolved ? "resolved" : "unresolved";
-    lines.push(`- ${status} outdated=${thread.isOutdated} path=${thread.path ?? "(none)"} id=${thread.id}`);
+    lines.push(
+      `- ${status} outdated=${thread.isOutdated} path=${thread.path ?? "(none)"} id=${thread.id}`,
+    );
     for (const comment of thread.comments) {
       lines.push(`  - ${comment.authorLogin ?? "unknown"}: ${comment.body}`);
     }
@@ -1375,10 +1454,7 @@ export function formatRepoChecks(result: RepoCheckNamesResult, format: "plain" |
     return JSON.stringify(result, null, 2);
   }
 
-  const lines = [
-    `check names for ${result.repo} @ ${result.branch}`,
-    `sha=${result.sha}`,
-  ];
+  const lines = [`check names for ${result.repo} @ ${result.branch}`, `sha=${result.sha}`];
 
   if (result.checks.length === 0) {
     lines.push("no check runs found");
@@ -1392,7 +1468,10 @@ export function formatRepoChecks(result: RepoCheckNamesResult, format: "plain" |
   return lines.join("\n");
 }
 
-export function formatProtectMain(result: ProtectMainBranchResult, format: "plain" | "json"): string {
+export function formatProtectMain(
+  result: ProtectMainBranchResult,
+  format: "plain" | "json",
+): string {
   if (format === "json") {
     return JSON.stringify(result, null, 2);
   }
@@ -1413,15 +1492,22 @@ export function formatProtectMain(result: ProtectMainBranchResult, format: "plai
     `require_conversation_resolution=${result.requireConversationResolution}`,
     `required_approving_review_count=${result.requiredApprovingReviewCount}`,
     `require_last_push_approval=${result.requireLastPushApproval}`,
-    ...(result.requiredApprovingReviewCountSuppressed ? ["required_approving_review_count_suppressed=true"] : []),
-    ...(result.requireLastPushApprovalSuppressed ? ["require_last_push_approval_suppressed=true"] : []),
+    ...(result.requiredApprovingReviewCountSuppressed
+      ? ["required_approving_review_count_suppressed=true"]
+      : []),
+    ...(result.requireLastPushApprovalSuppressed
+      ? ["require_last_push_approval_suppressed=true"]
+      : []),
     `require_linear_history=${result.requireLinearHistory}`,
     `required_status_checks=${result.requiredStatusChecks.join(",") || "none"}`,
     `command=${result.command.join(" ")}`,
   ].join("\n");
 }
 
-export function formatProtectMainCheck(result: ProtectMainBranchCheckResult, format: "plain" | "json"): string {
+export function formatProtectMainCheck(
+  result: ProtectMainBranchCheckResult,
+  format: "plain" | "json",
+): string {
   if (format === "json") {
     return JSON.stringify(result, null, 2);
   }
@@ -1442,8 +1528,12 @@ export function formatProtectMainCheck(result: ProtectMainBranchCheckResult, for
     `require_conversation_resolution=${result.requireConversationResolution}`,
     `required_approving_review_count=${result.requiredApprovingReviewCount}`,
     `require_last_push_approval=${result.requireLastPushApproval}`,
-    ...(result.requiredApprovingReviewCountSuppressed ? ["required_approving_review_count_suppressed=true"] : []),
-    ...(result.requireLastPushApprovalSuppressed ? ["require_last_push_approval_suppressed=true"] : []),
+    ...(result.requiredApprovingReviewCountSuppressed
+      ? ["required_approving_review_count_suppressed=true"]
+      : []),
+    ...(result.requireLastPushApprovalSuppressed
+      ? ["require_last_push_approval_suppressed=true"]
+      : []),
     `require_linear_history=${result.requireLinearHistory}`,
     `required_status_checks=${result.requiredStatusChecks.join(",") || "none"}`,
   ].join("\n");
@@ -1464,9 +1554,8 @@ export function formatParityChainApplyResults(
   const lines: string[] = ["", "Applied:"];
   for (const result of results) {
     const label = result.status === 0 ? "ok " : "err";
-    const subject = result.action.type === "close_issue"
-      ? `GH-${result.action.issue}`
-      : result.action.branch;
+    const subject =
+      result.action.type === "close_issue" ? `GH-${result.action.issue}` : result.action.branch;
     lines.push(`  [${label}] ${result.action.type} ${subject}`);
     lines.push(`    $ ${result.command}`);
     if (result.stderr.trim()) {
@@ -1483,10 +1572,7 @@ export function formatParityChainApplyResults(
   return lines.join("\n");
 }
 
-export function formatRepairBdResults(
-  entries: RepairBdEntry[],
-  format: "plain" | "json",
-): string {
+export function formatRepairBdResults(entries: RepairBdEntry[], format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(entries, null, 2);
   }
@@ -1520,11 +1606,12 @@ export function formatChainsStatus(summary: ChainStatusResult, format: "plain" |
   for (const row of summary.rows) {
     const identifier = row.ticket === null ? row.id : row.display_id;
     const pr = row.pr.exists ? `#${row.pr.number} ${row.pr.draft ? "draft" : "ready"}` : "no-pr";
-    const local = row.local.clean === null
-      ? "local=unknown"
-      : row.local.clean
-        ? "local=clean"
-        : `local=dirty(s=${row.local.staged} u=${row.local.unstaged} ?=${row.local.untracked} c=${row.local.conflicts})`;
+    const local =
+      row.local.clean === null
+        ? "local=unknown"
+        : row.local.clean
+          ? "local=clean"
+          : `local=dirty(s=${row.local.staged} u=${row.local.unstaged} ?=${row.local.untracked} c=${row.local.conflicts})`;
     const status = row.status
       ? ` | remote=gh_issue:${row.status.remote.gh_issue},beads_issue:${row.status.remote.beads_issue},project_item:${row.status.remote.project_item},branch:${row.status.remote.branch},pr:${row.status.remote.pr},merge_state:${row.status.remote.merge_state},ci:${row.status.remote.ci},problem:${row.status.remote.problem} | local=branch:${row.status.local.branch},worktree:${row.status.local.worktree},dir:${row.status.local.dir},problem:${row.status.local.problem}`
       : ` | ${local}`;
@@ -1607,7 +1694,9 @@ export function formatActionPlan(
   ];
 
   for (const action of plan.actions) {
-    lines.push(`  ${action.id} [${action.enabled ? "enabled" : "disabled"}] (${action.surface}) -> ${action.command}`);
+    lines.push(
+      `  ${action.id} [${action.enabled ? "enabled" : "disabled"}] (${action.surface}) -> ${action.command}`,
+    );
     if (action.reason) {
       lines.push(`    reason: ${action.reason}`);
     }
@@ -1634,11 +1723,7 @@ export function formatActionExecutionResult(
       2,
     );
   }
-  return [
-    `${action.id}: ${result.status}`,
-    action.label,
-    result.message,
-  ].join("\n");
+  return [`${action.id}: ${result.status}`, action.label, result.message].join("\n");
 }
 
 export function formatPhase(plan: ActionPlan, format: "plain" | "json"): string {
@@ -1677,16 +1762,18 @@ export function formatSnapshot(state: DomainStateV1, format: "plain" | "json"): 
 }
 
 export function formatStatusLine(plan: ActionPlan, format: "plain" | "json"): string {
-  const unit = plan.snapshot.currentUnit?.ticket ?? plan.snapshot.branch ?? basename(plan.snapshot.repoRoot);
+  const unit =
+    plan.snapshot.currentUnit?.ticket ?? plan.snapshot.branch ?? basename(plan.snapshot.repoRoot);
   const prLabel = plan.snapshot.pr.exists
     ? `#${plan.snapshot.pr.number}${plan.snapshot.pr.draft ? " draft" : ""}`
     : "none";
-  const wtLabel = plan.snapshot.local.staged === 0 &&
-      plan.snapshot.local.unstaged === 0 &&
-      plan.snapshot.local.untracked === 0 &&
-      plan.snapshot.local.conflicts === 0
-    ? "clean"
-    : `s${plan.snapshot.local.staged}/u${plan.snapshot.local.unstaged}/?${plan.snapshot.local.untracked}/c${plan.snapshot.local.conflicts}`;
+  const wtLabel =
+    plan.snapshot.local.staged === 0 &&
+    plan.snapshot.local.unstaged === 0 &&
+    plan.snapshot.local.untracked === 0 &&
+    plan.snapshot.local.conflicts === 0
+      ? "clean"
+      : `s${plan.snapshot.local.staged}/u${plan.snapshot.local.unstaged}/?${plan.snapshot.local.untracked}/c${plan.snapshot.local.conflicts}`;
   // GH-1172: surface the active session mode so tmux status-right and
   // operator inspection answer "am I in plan or implement?" without
   // resorting to listing tmux session names.
@@ -1846,5 +1933,3 @@ export function formatGhBudgetWindow(ms: number): string {
   if (ms % 60_000 === 0) return `${ms / 60_000}m`;
   return `${Math.round(ms / 1000)}s`;
 }
-
-

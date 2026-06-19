@@ -30,7 +30,10 @@ const protectMainAllowChoices = [
 
 type ProtectMainAllowChoice = (typeof protectMainAllowChoices)[number];
 
-function parseProtectMainAllow(value: string): { type: ProtectMainAllowChoice | "status-check"; value?: string } {
+function parseProtectMainAllow(value: string): {
+  type: ProtectMainAllowChoice | "status-check";
+  value?: string;
+} {
   const normalized = value.trim();
   if (protectMainAllowChoices.includes(normalized as ProtectMainAllowChoice)) {
     return { type: normalized as ProtectMainAllowChoice };
@@ -51,7 +54,10 @@ export type ProtectMainDeps = {
   checkMainBranchProtection: typeof checkMainBranchProtection;
   protectMainBranch: typeof protectMainBranch;
 };
-const realProtectMainDeps = (): ProtectMainDeps => ({ checkMainBranchProtection, protectMainBranch });
+const realProtectMainDeps = (): ProtectMainDeps => ({
+  checkMainBranchProtection,
+  protectMainBranch,
+});
 
 // `check` and `apply` return different rich result shapes; the projection keeps
 // the discriminant + the opaque result (render/exitCode narrow on `kind`).
@@ -67,26 +73,57 @@ export const protectMainVerb = defineVerb({
   actor: "work",
   input: z.object({
     "repo-path": z.string().default(".").describe("repo worktree path"),
-    ruleset: z.coerce.boolean().default(false).describe("use the ruleset backend (shorthand for --backend ruleset)"),
+    ruleset: z.coerce
+      .boolean()
+      .default(false)
+      .describe("use the ruleset backend (shorthand for --backend ruleset)"),
     backend: z.enum(["branch-protection", "ruleset"]).optional().describe("protection backend"),
     repo: z.string().optional().describe("owner/name override"),
     branch: z.string().default("main").describe("branch to protect"),
     apply: z.coerce.boolean().default(false).describe("apply the protection (default is dry-run)"),
-    check: z.coerce.boolean().default(false).describe("report drift instead of applying; exits 1 on mismatch"),
-    solo: z.coerce.boolean().default(false).describe("solo-maintainer mode (relax contributor-count requirements)"),
-    allow: z.array(z.string()).default([]).describe("deno-style allowances (repeatable): strict | enforce-admins | conversation-resolution | last-push-approval | linear-history | status-check:<name>"),
+    check: z.coerce
+      .boolean()
+      .default(false)
+      .describe("report drift instead of applying; exits 1 on mismatch"),
+    solo: z.coerce
+      .boolean()
+      .default(false)
+      .describe("solo-maintainer mode (relax contributor-count requirements)"),
+    allow: z
+      .array(z.string())
+      .default([])
+      .describe(
+        "deno-style allowances (repeatable): strict | enforce-admins | conversation-resolution | last-push-approval | linear-history | status-check:<name>",
+      ),
     strict: z.coerce.boolean().default(false).describe("enable the full strict requirement set"),
-    "enforce-admins": z.coerce.boolean().default(false).describe("include administrators in protection"),
-    "require-conversation-resolution": z.coerce.boolean().default(false).describe("require conversation resolution before merge"),
-    "require-last-push-approval": z.coerce.boolean().default(false).describe("require approval of the most recent push"),
-    "require-linear-history": z.coerce.boolean().default(false).describe("require a linear history"),
-    "require-status-check": z.array(z.string()).default([]).describe("required status-check context (repeatable)"),
+    "enforce-admins": z.coerce
+      .boolean()
+      .default(false)
+      .describe("include administrators in protection"),
+    "require-conversation-resolution": z.coerce
+      .boolean()
+      .default(false)
+      .describe("require conversation resolution before merge"),
+    "require-last-push-approval": z.coerce
+      .boolean()
+      .default(false)
+      .describe("require approval of the most recent push"),
+    "require-linear-history": z.coerce
+      .boolean()
+      .default(false)
+      .describe("require a linear history"),
+    "require-status-check": z
+      .array(z.string())
+      .default([])
+      .describe("required status-check context (repeatable)"),
     format: z.enum(["plain", "json"]).default("plain").describe("output format"),
   }),
   output: ProtectMainOutput,
   deps: realProtectMainDeps,
   run: (input, deps: ProtectMainDeps = realProtectMainDeps()): ProtectMainOutput => {
-    const backend: ProtectMainBackend = input.ruleset ? "ruleset" : (input.backend ?? "branch-protection");
+    const backend: ProtectMainBackend = input.ruleset
+      ? "ruleset"
+      : (input.backend ?? "branch-protection");
 
     const allowEntries = input.allow.map(parseProtectMainAllow);
     const strictFromAllow = allowEntries.some((e) => e.type === "strict");
@@ -107,7 +144,10 @@ export const protectMainVerb = defineVerb({
       branch: input.branch,
       solo: input.solo,
       enforceAdmins: req(input["enforce-admins"], "enforce-admins"),
-      requireConversationResolution: req(input["require-conversation-resolution"], "conversation-resolution"),
+      requireConversationResolution: req(
+        input["require-conversation-resolution"],
+        "conversation-resolution",
+      ),
       requireLastPushApproval: req(input["require-last-push-approval"], "last-push-approval"),
       requireLinearHistory: req(input["require-linear-history"], "linear-history"),
       requiredStatusChecks: requiredStatusChecks.length > 0 ? requiredStatusChecks : undefined,
@@ -117,7 +157,10 @@ export const protectMainVerb = defineVerb({
       return { kind: "check", result: deps.checkMainBranchProtection(input["repo-path"], opts) };
     }
     // --check forces dry-run; otherwise honor --apply.
-    return { kind: "apply", result: deps.protectMainBranch(input["repo-path"], { ...opts, apply: input.apply }) };
+    return {
+      kind: "apply",
+      result: deps.protectMainBranch(input["repo-path"], { ...opts, apply: input.apply }),
+    };
   },
   render: (out, input) =>
     out.kind === "check"

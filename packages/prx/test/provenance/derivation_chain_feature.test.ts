@@ -33,7 +33,10 @@ describe("derivation-chain .feature", () => {
   test("FAITHFUL: changing any manifest field changes the derivation id", () => {
     const base = digestManifest(BASELINE_MANIFEST);
     for (const field of MANIFEST_FIELDS) {
-      expect(digestManifest(mutatedManifest(field)), `field "${field}" did not change the id`).not.toBe(base);
+      expect(
+        digestManifest(mutatedManifest(field)),
+        `field "${field}" did not change the id`,
+      ).not.toBe(base);
     }
   });
 

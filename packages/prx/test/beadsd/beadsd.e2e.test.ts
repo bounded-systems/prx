@@ -74,7 +74,12 @@ suite("beadsd e2e — real daemon + real bd over a unix socket", () => {
   });
 
   test("create → an issue with an e2e- id", async () => {
-    const res = await client.query({ kind: "create", issueType: "task", title: "e2e task", priority: 2 });
+    const res = await client.query({
+      kind: "create",
+      issueType: "task",
+      title: "e2e task",
+      priority: 2,
+    });
     expect(res.status).toBe("ok");
     if (res.status === "ok") {
       const issue = res.result as { id: string; title: string };

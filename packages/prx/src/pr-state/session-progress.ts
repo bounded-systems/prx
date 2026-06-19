@@ -51,7 +51,8 @@ export async function runStep<T>(
   const now = opts.now ?? (() => Date.now());
   const heartbeatMs = opts.heartbeatMs ?? DEFAULT_HEARTBEAT_MS;
   const setIntervalFn = opts.setInterval ?? ((cb, ms) => setInterval(cb, ms));
-  const clearIntervalFn = opts.clearInterval ?? ((h) => clearInterval(h as ReturnType<typeof setInterval>));
+  const clearIntervalFn =
+    opts.clearInterval ?? ((h) => clearInterval(h as ReturnType<typeof setInterval>));
   const start = now();
   if (!silent) write(`▸ ${name}\n`);
   let handle: unknown | undefined;

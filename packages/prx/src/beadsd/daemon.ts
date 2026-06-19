@@ -187,7 +187,11 @@ export async function handleBeadsRequest(
     if (err instanceof EmptyUpdateError) {
       return { status: "error", code: "bad-request", message: err.message };
     }
-    return { status: "error", code: "beadsd", message: err instanceof Error ? err.message : String(err) };
+    return {
+      status: "error",
+      code: "beadsd",
+      message: err instanceof Error ? err.message : String(err),
+    };
   }
   let result: BdExecResult;
   try {
@@ -195,9 +199,19 @@ export async function handleBeadsRequest(
     // role/state so bd's policy allows the write surface (create/update/close).
     // Per-caller authority is gated at the `prx beads` invocation layer (the
     // capability guard), not here — reaching the socket already implies it.
-    result = execBd({ subcommand: beadsSubcommand(request), args, cwd: deps.cwd, state: "planning", role: "planner" });
+    result = execBd({
+      subcommand: beadsSubcommand(request),
+      args,
+      cwd: deps.cwd,
+      state: "planning",
+      role: "planner",
+    });
   } catch (err) {
-    return { status: "error", code: "beadsd", message: err instanceof Error ? err.message : String(err) };
+    return {
+      status: "error",
+      code: "beadsd",
+      message: err instanceof Error ? err.message : String(err),
+    };
   }
   if (result.exitCode !== 0) {
     return {
@@ -318,7 +332,7 @@ export async function runBeadsServe(options: BeadsServeOptions): Promise<Server>
   let currentEtag: string | undefined = safeReadHead();
   const effectiveDeps: BeadsDaemonDeps = readHead
     ? { ...deps, etag: () => currentEtag }
-    : deps ?? {};
+    : (deps ?? {});
   const handler = (request: BeadsRequest): Promise<BeadsResponse> =>
     handleBeadsRequest(request, effectiveDeps);
   const server = await runFramedServe(socketPath, pidfile, (socket) =>

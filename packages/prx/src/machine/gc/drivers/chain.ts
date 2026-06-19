@@ -23,10 +23,7 @@
  * surfaces as `partial`, exactly as the worktree driver handles a locked one.
  */
 
-import type {
-  SurfaceSyncAction,
-  SurfaceSyncResult,
-} from "@bounded-systems/surface-sync";
+import type { SurfaceSyncAction, SurfaceSyncResult } from "@bounded-systems/surface-sync";
 
 import { sweepableFromMark, type GcDriver, type GcMark } from "../capability.ts";
 import type { GcFinding } from "../schema.ts";
@@ -122,9 +119,7 @@ export function createChainDriver(deps: GcDriverDeps): GcDriver {
           failures.push(`${refOf(action)}: ${why}`);
         }
       }
-      return failures.length > 0
-        ? { reclaimed, failed: failures.join("; ") }
-        : { reclaimed };
+      return failures.length > 0 ? { reclaimed, failed: failures.join("; ") } : { reclaimed };
     },
   };
 }

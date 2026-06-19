@@ -30,7 +30,11 @@ function tmp(prefix: string): string {
 function rec() {
   const lines: string[] = [];
   const errors: string[] = [];
-  return { lines, errors, output: { log: (l: string) => lines.push(l), error: (l: string) => errors.push(l) } };
+  return {
+    lines,
+    errors,
+    output: { log: (l: string) => lines.push(l), error: (l: string) => errors.push(l) },
+  };
 }
 
 const NOW = new Date("2026-06-07T00:00:00.000Z");
@@ -134,12 +138,19 @@ describe("runTranscriptsDigest", () => {
     const r = rec();
     const audit: Array<Record<string, unknown>> = [];
     const out = await runTranscriptsDigest(
-      digestInput({ source: "claude-code-jsonl", inputPath: input, mode: "dry-run", format: "plain" }),
+      digestInput({
+        source: "claude-code-jsonl",
+        inputPath: input,
+        mode: "dry-run",
+        format: "plain",
+      }),
       r.output,
       {
         now: () => NOW,
         runner: unusedRunner,
-        appendAuditRow: (row) => { audit.push(row as Record<string, unknown>); },
+        appendAuditRow: (row) => {
+          audit.push(row as Record<string, unknown>);
+        },
         getAuditRuntimeContext: () => ({ actor: "tester" }) as never,
         resolveMemoryDir: () => tmp("td-mem3-"),
       },
@@ -155,7 +166,12 @@ describe("runTranscriptsDigest", () => {
     const input = tmp("td-input2-");
     const r = rec();
     const out = await runTranscriptsDigest(
-      digestInput({ source: "claude-code-jsonl", inputPath: input, mode: "dry-run", format: "json" }),
+      digestInput({
+        source: "claude-code-jsonl",
+        inputPath: input,
+        mode: "dry-run",
+        format: "json",
+      }),
       r.output,
       {
         now: () => NOW,
@@ -176,12 +192,19 @@ describe("runTranscriptsDigest", () => {
     const input = tmp("td-input3-");
     const r = rec();
     const out = await runTranscriptsDigest(
-      digestInput({ source: "claude-code-jsonl", inputPath: input, mode: "dry-run", format: "plain" }),
+      digestInput({
+        source: "claude-code-jsonl",
+        inputPath: input,
+        mode: "dry-run",
+        format: "plain",
+      }),
       r.output,
       {
         now: () => NOW,
         runner: unusedRunner,
-        appendAuditRow: () => { throw new Error("sink down"); },
+        appendAuditRow: () => {
+          throw new Error("sink down");
+        },
         getAuditRuntimeContext: () => ({ actor: "tester" }) as never,
         resolveMemoryDir: () => tmp("td-mem5-"),
       },
@@ -194,7 +217,11 @@ describe("runTranscriptsDigest", () => {
     const out = await runTranscriptsDigest(
       digestInput({ source: "bogus-source" as never }),
       r.output,
-      { now: () => NOW, runner: unusedRunner, getAuditRuntimeContext: () => ({ actor: "t" }) as never },
+      {
+        now: () => NOW,
+        runner: unusedRunner,
+        getAuditRuntimeContext: () => ({ actor: "t" }) as never,
+      },
     );
     expect(out.exitCode).toBe(64);
     expect(r.errors.join("\n")).toContain("unknown transcripts source");
@@ -205,7 +232,12 @@ describe("runTranscriptsDigest", () => {
     const memoryDir = join(tmp("td-mem-stage-"), "nested", "memory");
     const r = rec();
     const out = await runTranscriptsDigest(
-      digestInput({ source: "claude-code-jsonl", inputPath: input, mode: "stage", format: "plain" }),
+      digestInput({
+        source: "claude-code-jsonl",
+        inputPath: input,
+        mode: "stage",
+        format: "plain",
+      }),
       r.output,
       {
         now: () => NOW,
@@ -234,27 +266,36 @@ describe("runTranscriptsDigest", () => {
   }
 
   // A runner returning the claude envelope wrapping a candidate array.
-  const candidateRunner = (candidates: object[], exitCode = 0): ClaudePrintRunner => async () => ({
-    exitCode,
-    stdout: JSON.stringify([
-      { type: "system" },
-      { type: "result", subtype: "success", is_error: false, result: JSON.stringify(candidates) },
-    ]),
-    stderr: exitCode === 0 ? "" : "extract boom",
-  });
+  const candidateRunner =
+    (candidates: object[], exitCode = 0): ClaudePrintRunner =>
+    async () => ({
+      exitCode,
+      stdout: JSON.stringify([
+        { type: "system" },
+        { type: "result", subtype: "success", is_error: false, result: JSON.stringify(candidates) },
+      ]),
+      stderr: exitCode === 0 ? "" : "extract boom",
+    });
 
-  const oneCandidate = [{
-    type: "feedback",
-    name: "prefer-terse",
-    description: "user wants terse replies",
-    body: "Keep it tight. **Why:** stated preference. **How to apply:** no preamble.",
-  }];
+  const oneCandidate = [
+    {
+      type: "feedback",
+      name: "prefer-terse",
+      description: "user wants terse replies",
+      body: "Keep it tight. **Why:** stated preference. **How to apply:** no preamble.",
+    },
+  ];
 
   test("stage mode stages candidates and renders the stage summary (plain)", async () => {
     const input = jsonlSessionDir();
     const r = rec();
     const out = await runTranscriptsDigest(
-      digestInput({ source: "claude-code-jsonl", inputPath: input, mode: "stage", format: "plain" }),
+      digestInput({
+        source: "claude-code-jsonl",
+        inputPath: input,
+        mode: "stage",
+        format: "plain",
+      }),
       r.output,
       {
         now: () => NOW,
@@ -273,7 +314,12 @@ describe("runTranscriptsDigest", () => {
     const input = jsonlSessionDir();
     const r = rec();
     const out = await runTranscriptsDigest(
-      digestInput({ source: "claude-code-jsonl", inputPath: input, mode: "commit", format: "plain" }),
+      digestInput({
+        source: "claude-code-jsonl",
+        inputPath: input,
+        mode: "commit",
+        format: "plain",
+      }),
       r.output,
       {
         now: () => NOW,
@@ -292,7 +338,12 @@ describe("runTranscriptsDigest", () => {
     const input = jsonlSessionDir();
     const r = rec();
     await runTranscriptsDigest(
-      digestInput({ source: "claude-code-jsonl", inputPath: input, mode: "dry-run", format: "plain" }),
+      digestInput({
+        source: "claude-code-jsonl",
+        inputPath: input,
+        mode: "dry-run",
+        format: "plain",
+      }),
       r.output,
       {
         now: () => NOW,
@@ -310,7 +361,12 @@ describe("runTranscriptsDigest", () => {
   test("a non-existent web-export file fails in the machine with a blockedReason", async () => {
     const r = rec();
     const out = await runTranscriptsDigest(
-      digestInput({ source: "claude-web-export", inputPath: "/no/such/export.json", mode: "dry-run", format: "plain" }),
+      digestInput({
+        source: "claude-web-export",
+        inputPath: "/no/such/export.json",
+        mode: "dry-run",
+        format: "plain",
+      }),
       r.output,
       {
         now: () => NOW,

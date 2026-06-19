@@ -49,10 +49,7 @@ import type {
 } from "../pr-state/resolvers/types.ts";
 import { execBd as defaultExecBd } from "@bounded-systems/bd";
 import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
-import {
-  loadAllBeads as defaultLoadAllBeads,
-  type BeadsRecord,
-} from "../triage/triage.ts";
+import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../triage/triage.ts";
 import {
   NOTION_SURFACE_ID_PATTERN,
   registerDomainAdapter,
@@ -72,8 +69,7 @@ const NOTION_API_VERSION = "2022-06-28";
 // Hyphenated or unhyphenated 32-hex Notion page UUID. Mirrors the regex in
 // `src/pr-state/resolvers/notion.ts:13`; that one is module-private. The shape
 // is the same: 8-4-4-4-12 hex with optional dashes.
-const NOTION_PAGE_UUID_RE =
-  /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+const NOTION_PAGE_UUID_RE = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
 
 const NOTION_SURFACE_ID_RE = /^NOTION-([0-9a-fA-F]{32}|\d+)$/;
 
@@ -127,8 +123,7 @@ export const NOTION_OWNED_ON_PULL = ["status"] as const;
 export class NotionDomainAdapter implements DomainAdapter {
   readonly config: DomainAdapterConfig;
 
-  private readonly deps: Required<Pick<NotionDomainAdapterDeps, "cwd">> &
-    NotionDomainAdapterDeps;
+  private readonly deps: Required<Pick<NotionDomainAdapterDeps, "cwd">> & NotionDomainAdapterDeps;
 
   constructor(deps: NotionDomainAdapterDeps = {}) {
     this.config = {
@@ -162,7 +157,7 @@ export class NotionDomainAdapter implements DomainAdapter {
     const src = findFirstSourceOfKind(identity, "notion");
     if (!src) {
       throw new NotionDomainAdapterError(
-        "notion adapter: prx.toml has no [sources.<name>] block with kind = \"notion\"; configure one to use the notion domain",
+        'notion adapter: prx.toml has no [sources.<name>] block with kind = "notion"; configure one to use the notion domain',
       );
     }
     return src.notion;
@@ -172,7 +167,10 @@ export class NotionDomainAdapter implements DomainAdapter {
     return (this.deps.loadAllBeads ?? defaultLoadAllBeads)(this.deps.execBd);
   }
 
-  private buildResolver(cfg: NotionIdentityConfig, cwd: string): NotionPageResolver | WorkUnitResolver {
+  private buildResolver(
+    cfg: NotionIdentityConfig,
+    cwd: string,
+  ): NotionPageResolver | WorkUnitResolver {
     if (cfg.auth === "rest") {
       const factory = this.deps.createRestResolver ?? ((c, e, f) => new NotionResolver(c, e, f));
       return factory(cfg, this.env, this.fetchImpl);
@@ -309,10 +307,10 @@ export class NotionDomainAdapter implements DomainAdapter {
     const records = this.loadBeads();
     const titleDuplicate = records.find(
       (r) =>
-        r.id !== bd.id
-        && typeof r.externalRefs?.notion === "string"
-        && r.externalRefs.notion.length > 0
-        && r.title === titleText,
+        r.id !== bd.id &&
+        typeof r.externalRefs?.notion === "string" &&
+        r.externalRefs.notion.length > 0 &&
+        r.title === titleText,
     );
     if (titleDuplicate) {
       throw new NotionDomainAdapterError(
@@ -377,10 +375,7 @@ export class NotionDomainAdapter implements DomainAdapter {
    * error so the interface stays total while non-gh backfill remains out of
    * scope.
    */
-  async enumerate(
-    _range: EnumerateRange,
-    _opts?: AdapterIoOpts,
-  ): Promise<ExternalRecordRef[]> {
+  async enumerate(_range: EnumerateRange, _opts?: AdapterIoOpts): Promise<ExternalRecordRef[]> {
     throw new NotionDomainAdapterError(
       "notion adapter: enumerate (prx sync backfill) is not implemented for the notion domain",
     );
@@ -407,10 +402,10 @@ export class NotionDomainAdapter implements DomainAdapter {
     const stderrParts: string[] = [];
     for (const beadId of opts.beadIds) {
       // GH-296 / prx-82b: close via the daemon (single writer).
-      const result = this.run(
-        ["prx", "beads", "update", beadId, "--status", "closed"],
-        { cwd: opts.cwd, check: false },
-      );
+      const result = this.run(["prx", "beads", "update", beadId, "--status", "closed"], {
+        cwd: opts.cwd,
+        check: false,
+      });
       if (result.stdout) stdoutParts.push(result.stdout);
       if (result.stderr) stderrParts.push(result.stderr);
       if (result.status !== 0) {
@@ -440,9 +435,7 @@ export class NotionDomainAdapter implements DomainAdapter {
 function hasFetchByPageId(
   resolver: NotionPageResolver | WorkUnitResolver,
 ): resolver is NotionPageResolver {
-  return (
-    typeof (resolver as Partial<NotionPageResolver>).fetchByPageId === "function"
-  );
+  return typeof (resolver as Partial<NotionPageResolver>).fetchByPageId === "function";
 }
 
 function paragraphChildrenFromText(text: string): unknown[] {

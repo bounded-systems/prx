@@ -14,10 +14,7 @@
  * `@bounded-systems/proc`) so tests and the fixture-mode example wire a
  * stubbed runner without touching the network.
  */
-import {
-  defaultRunner,
-  type CommandRunner,
-} from "@bounded-systems/proc";
+import { defaultRunner, type CommandRunner } from "@bounded-systems/proc";
 
 import {
   canonicalJson,
@@ -57,28 +54,24 @@ export function createGhPrFetcher(opts: GhPrFetcherOptions = {}): Fetcher {
   return {
     async fetch(ref) {
       const unit = unitFromSurfaceRef(ref);
-      const result = runner(
-        ["gh", "pr", "view", unit, "--json", PR_JSON_FIELDS],
-        { ...(cwd !== undefined ? { cwd } : {}) },
-      );
+      const result = runner(["gh", "pr", "view", unit, "--json", PR_JSON_FIELDS], {
+        ...(cwd !== undefined ? { cwd } : {}),
+      });
       const parsed = JSON.parse(result.stdout) as { updatedAt?: unknown };
       const canonical = canonicalJson(parsed);
       const bytes = new TextEncoder().encode(canonical);
       const digest: Digest = sha256Hex(canonical);
       const updatedAt = parsed.updatedAt;
       if (typeof updatedAt !== "string") {
-        throw new Error(
-          `gh-pr-fetcher: response for ${ref.name} is missing string updatedAt`,
-        );
+        throw new Error(`gh-pr-fetcher: response for ${ref.name} is missing string updatedAt`);
       }
       return { digest, bytes, freshnessSignal: updatedAt };
     },
     async isFresh(ref, lastSignal) {
       const unit = unitFromSurfaceRef(ref);
-      const result = runner(
-        ["gh", "pr", "view", unit, "--json", "updatedAt"],
-        { ...(cwd !== undefined ? { cwd } : {}) },
-      );
+      const result = runner(["gh", "pr", "view", unit, "--json", "updatedAt"], {
+        ...(cwd !== undefined ? { cwd } : {}),
+      });
       const parsed = JSON.parse(result.stdout) as { updatedAt?: unknown };
       return parsed.updatedAt === lastSignal;
     },

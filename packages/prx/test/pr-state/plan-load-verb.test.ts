@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  planLoadVerb,
-  type PlanLoadDeps,
-} from "../../src/pr-state/plan-load-verb.ts";
+import { planLoadVerb, type PlanLoadDeps } from "../../src/pr-state/plan-load-verb.ts";
 
 // `prx plan load` migrated off cli.ts to a deps-bearing VerbSpec (ADR
 // docs/prx/cli-decomposition.md). Covers the raw (Buffer) vs json render, the
@@ -33,7 +30,11 @@ const run = (input: { unit?: string; slot?: string; format: string }, d: PlanLoa
 describe("plan-load verb", () => {
   test("raw format renders the exact body Buffer (no trailing newline)", async () => {
     const out = await run({ unit: "GH-1", slot: "approved", format: "raw" }, deps());
-    const raw = planLoadVerb.renderRaw!(out, { unit: "GH-1", slot: "approved", format: "raw" } as never);
+    const raw = planLoadVerb.renderRaw!(out, {
+      unit: "GH-1",
+      slot: "approved",
+      format: "raw",
+    } as never);
     expect(Buffer.isBuffer(raw)).toBe(true);
     expect((raw as Buffer).equals(body)).toBe(true);
   });

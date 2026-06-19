@@ -3,7 +3,11 @@ import { describe, expect, test } from "bun:test";
 import { handleMcpRequest, MCP_PROTOCOL_VERSION, type JsonRpcRequest } from "./mcp-server.ts";
 import { orchestratorRegistry } from "./pilot-verbs.ts";
 
-const call = (method: string, params?: Record<string, unknown>, id: number | null = 1): JsonRpcRequest => ({
+const call = (
+  method: string,
+  params?: Record<string, unknown>,
+  id: number | null = 1,
+): JsonRpcRequest => ({
   jsonrpc: "2.0",
   id,
   method,
@@ -13,7 +17,11 @@ const call = (method: string, params?: Record<string, unknown>, id: number | nul
 describe("prx mcp serve (registry mounted as an MCP server)", () => {
   test("initialize advertises the tools capability + serverInfo", async () => {
     const res = await handleMcpRequest(orchestratorRegistry, call("initialize"));
-    const result = res!.result as { protocolVersion: string; capabilities: object; serverInfo: { name: string } };
+    const result = res!.result as {
+      protocolVersion: string;
+      capabilities: object;
+      serverInfo: { name: string };
+    };
     expect(result.protocolVersion).toBe(MCP_PROTOCOL_VERSION);
     expect(result.serverInfo.name).toBe("prx");
     expect(result.capabilities).toHaveProperty("tools");
@@ -46,7 +54,10 @@ describe("prx mcp serve (registry mounted as an MCP server)", () => {
   });
 
   test("an unknown tool and invalid args are isError tool results, not RPC errors", async () => {
-    const unknown = await handleMcpRequest(orchestratorRegistry, call("tools/call", { name: "nope", arguments: {} }));
+    const unknown = await handleMcpRequest(
+      orchestratorRegistry,
+      call("tools/call", { name: "nope", arguments: {} }),
+    );
     expect((unknown!.result as { isError: boolean }).isError).toBe(true);
 
     const invalid = await handleMcpRequest(
@@ -59,7 +70,12 @@ describe("prx mcp serve (registry mounted as an MCP server)", () => {
   });
 
   test("notifications get no reply; unknown methods are JSON-RPC errors", async () => {
-    expect(await handleMcpRequest(orchestratorRegistry, call("notifications/initialized", undefined, null))).toBeNull();
+    expect(
+      await handleMcpRequest(
+        orchestratorRegistry,
+        call("notifications/initialized", undefined, null),
+      ),
+    ).toBeNull();
 
     const bad = await handleMcpRequest(orchestratorRegistry, call("does/not/exist"));
     expect(bad!.error!.code).toBe(-32601);

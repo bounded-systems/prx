@@ -77,7 +77,10 @@ function provenanceEnvPrefix(provenanceKeyFile?: string): string {
 }
 
 /** Copy a (Linux) prx binary into the VM and make it executable. Returns its VM path. */
-export function deployKeeperdBinary(opts: DeployKeeperdOptions, deps: KeeperdLifecycleDeps = {}): string {
+export function deployKeeperdBinary(
+  opts: DeployKeeperdOptions,
+  deps: KeeperdLifecycleDeps = {},
+): string {
   return deployDaemonBinary(opts, deps);
 }
 
@@ -110,7 +113,10 @@ export async function startKeeperd(
  * Stop keeperd in the VM by its own pidfile and remove its socket/log/pidfile
  * (best-effort; never throws). Delegates to {@link stopDaemon}.
  */
-export async function stopKeeperd(opts: StopKeeperdOptions, deps: KeeperdLifecycleDeps = {}): Promise<void> {
+export async function stopKeeperd(
+  opts: StopKeeperdOptions,
+  deps: KeeperdLifecycleDeps = {},
+): Promise<void> {
   return stopDaemon(KEEPER_SPEC, opts, deps);
 }
 

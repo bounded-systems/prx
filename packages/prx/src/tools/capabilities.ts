@@ -148,7 +148,9 @@ export async function probeCapabilities(
       status: git ? "available" : "unavailable",
       detail: git ? `resolved ${git}` : "no `git` on PATH",
       grants: ["repo materialization", "branch/worktree ops", "prx repo add/adopt"],
-      enable: git ? null : "Install git (e.g. `nix profile install nixpkgs#git` or your OS package manager).",
+      enable: git
+        ? null
+        : "Install git (e.g. `nix profile install nixpkgs#git` or your OS package manager).",
     },
     {
       id: "git-repo",
@@ -184,25 +186,26 @@ export async function probeCapabilities(
       id: "repos",
       label: "registered repos (prx inventory)",
       status: repos && repos.count > 0 ? "available" : "unavailable",
-      detail: repos
-        ? `${repos.count} repo(s) in ${repos.indexPath}`
-        : "no prx repo index found",
+      detail: repos ? `${repos.count} repo(s) in ${repos.indexPath}` : "no prx repo index found",
       grants: ["repo routing", "cross-repo sync", "prx next portfolio mode"],
-      enable: repos && repos.count > 0
-        ? null
-        : "Register a repo with `prx repo add <git-url>`. `prx repo list` shows what's known.",
+      enable:
+        repos && repos.count > 0
+          ? null
+          : "Register a repo with `prx repo add <git-url>`. `prx repo list` shows what's known.",
     },
     {
       id: "claude-lsp",
       label: "Claude runtime LSP (typescript-language-server, tsserver)",
       status: tsls && tsserver ? "available" : "unavailable",
-      detail: tsls && tsserver
-        ? "both LSP binaries resolved"
-        : `missing: ${[!tsls && "typescript-language-server", !tsserver && "tsserver"].filter(Boolean).join(", ")}`,
+      detail:
+        tsls && tsserver
+          ? "both LSP binaries resolved"
+          : `missing: ${[!tsls && "typescript-language-server", !tsserver && "tsserver"].filter(Boolean).join(", ")}`,
       grants: ["non-interactive `claude` sessions (prx claude / implement / plan agent)"],
-      enable: tsls && tsserver
-        ? null
-        : "Install via home-manager (programs.claude-runtime.enable = true) or `npm i -g typescript typescript-language-server`.",
+      enable:
+        tsls && tsserver
+          ? null
+          : "Install via home-manager (programs.claude-runtime.enable = true) or `npm i -g typescript typescript-language-server`.",
     },
   ];
 
@@ -213,15 +216,15 @@ export async function probeCapabilities(
   };
 }
 
-export function formatCapabilities(
-  report: CapabilityReport,
-  format: "plain" | "json",
-): string {
+export function formatCapabilities(report: CapabilityReport, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(report);
   }
 
-  const lines: string[] = ["prx capabilities — what this box can and cannot do", "=================================================="];
+  const lines: string[] = [
+    "prx capabilities — what this box can and cannot do",
+    "==================================================",
+  ];
 
   const available = report.capabilities.filter((c) => c.status === "available");
   const unavailable = report.capabilities.filter((c) => c.status === "unavailable");

@@ -38,11 +38,7 @@ import { GH_PREFIX_RE, normalizeToBdSurfaceShort } from "../issues/resolver.ts";
 import { loadIdentityConfig } from "../pr-state/github.ts";
 import type { IdentityConfig } from "../pr-state/github.ts";
 import { extractCanonicalRefs } from "./extract-refs.ts";
-import {
-  BD_SURFACE_LONG_ID_RE,
-  decideRoute,
-  missingPinHint,
-} from "../repo_router/index.ts";
+import { BD_SURFACE_LONG_ID_RE, decideRoute, missingPinHint } from "../repo_router/index.ts";
 import {
   loadRepoInventoryConfig,
   loadRepoInventoryIndex,
@@ -148,11 +144,7 @@ function buildIssueViewArgs(n: number, repo: string | undefined): string[] {
   return args;
 }
 
-function buildCommentArgs(
-  n: number,
-  body: string,
-  repo: string | undefined,
-): string[] {
+function buildCommentArgs(n: number, body: string, repo: string | undefined): string[] {
   const args: string[] = [String(n), "--body", body];
   if (repo) args.push("--repo", repo);
   return args;
@@ -206,7 +198,7 @@ function bdRefCandidates(refs: string[]): BdRefCandidate[] {
     const longMatch = ref.match(BD_SURFACE_LONG_ID_RE);
     const embeddedPrefix = longMatch ? longMatch[1]! : null;
     const normalized = normalizeToBdSurfaceShort(ref);
-    const key = (longMatch ? ref : normalized ?? ref).toUpperCase();
+    const key = (longMatch ? ref : (normalized ?? ref)).toUpperCase();
     if (seen.has(key)) continue;
     seen.add(key);
     out.push({ raw: ref, normalized, embeddedPrefix });
@@ -261,12 +253,9 @@ export function runPostmerge(
   const bdClose = deps.execBdIssueClose ?? execBdIssueClose;
   const bdShow = deps.runBdShow ?? runBdShow;
   const loadIdentity = deps.loadIdentityConfig ?? loadIdentityConfig;
-  const loadInventoryConfig =
-    deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig;
-  const loadInventoryIndex =
-    deps.loadRepoInventoryIndex ?? loadRepoInventoryIndex;
-  const localPrefixFor =
-    deps.localWorkspacePrefixForCwd ?? localWorkspacePrefixForCwd;
+  const loadInventoryConfig = deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig;
+  const loadInventoryIndex = deps.loadRepoInventoryIndex ?? loadRepoInventoryIndex;
+  const localPrefixFor = deps.localWorkspacePrefixForCwd ?? localWorkspacePrefixForCwd;
 
   const repo = opts.repo;
   const cwd = opts.cwd ?? process.cwd();
@@ -280,9 +269,7 @@ export function runPostmerge(
   }
   const view = parseGhPrViewJson(viewResult.stdout);
   if (!view) {
-    output.error(
-      `prx submit postmerge: failed to parse gh pr view --json (pr #${opts.prNumber})`,
-    );
+    output.error(`prx submit postmerge: failed to parse gh pr view --json (pr #${opts.prNumber})`);
     return 2;
   }
   if (view.state !== "MERGED") {
@@ -297,17 +284,12 @@ export function runPostmerge(
   // GH-1806: union the overlay's extraction with a global BD long-id scan so
   // a narrowed per-repo overlay cannot hide a foreign-workspace long-id from
   // the cross-workspace skip diagnostic.
-  const extracted = unionWithBdLongIdScan(
-    blob,
-    extractCanonicalRefs(blob, identity),
-  );
+  const extracted = unionWithBdLongIdScan(blob, extractCanonicalRefs(blob, identity));
   const ghNumbers = ghOnlyRefsToNumbers(extracted);
   const autoClosed = new Set(view.closingIssuesReferences.map((r) => r.number));
   const candidates = ghNumbers.filter((n) => !autoClosed.has(n));
   const bdRefs = bdRefCandidates(extracted);
-  const bdCandidates = bdRefs
-    .map((c) => c.normalized)
-    .filter((id): id is string => id !== null);
+  const bdCandidates = bdRefs.map((c) => c.normalized).filter((id): id is string => id !== null);
 
   // GH-1806: read repo inventory + local workspace prefix once for the bd
   // close arm so `decideRoute` can classify each long-id ref against the same
@@ -356,8 +338,7 @@ export function runPostmerge(
       processEnv(),
     );
     if (issueView.exitCode !== 0) {
-      const detail =
-        issueView.stderr.trim() || issueView.stdout.trim() || "gh issue view failed";
+      const detail = issueView.stderr.trim() || issueView.stdout.trim() || "gh issue view failed";
       targets.push({ kind: "error", number: n, detail });
       hadError = true;
       continue;
@@ -380,9 +361,7 @@ export function runPostmerge(
     );
     if (commentResult.exitCode !== 0) {
       const detail =
-        commentResult.stderr.trim() ||
-        commentResult.stdout.trim() ||
-        "gh issue comment failed";
+        commentResult.stderr.trim() || commentResult.stdout.trim() || "gh issue comment failed";
       targets.push({ kind: "error", number: n, detail });
       hadError = true;
       continue;
@@ -395,9 +374,7 @@ export function runPostmerge(
     });
     if (closeResult.exitCode !== 0) {
       const detail =
-        closeResult.stderr.trim() ||
-        closeResult.stdout.trim() ||
-        "gh issue close failed";
+        closeResult.stderr.trim() || closeResult.stdout.trim() || "gh issue close failed";
       targets.push({ kind: "error", number: n, detail });
       hadError = true;
       continue;
@@ -462,10 +439,7 @@ export function runPostmerge(
 
     const showResult: BdShowResult = bdShow(bdId, cwd);
     if (!showResult.ok) {
-      const detail =
-        showResult.stderr.trim() ||
-        showResult.stdout.trim() ||
-        "bd show failed";
+      const detail = showResult.stderr.trim() || showResult.stdout.trim() || "bd show failed";
       targets.push({ kind: "error-bd", id: bdId, detail });
       hadError = true;
       continue;
@@ -477,10 +451,7 @@ export function runPostmerge(
 
     const closeResult: BdIssueCloseResult = bdClose({ id: bdId, cwd });
     if (closeResult.exitCode !== 0) {
-      const detail =
-        closeResult.stderr.trim() ||
-        closeResult.stdout.trim() ||
-        "bd close failed";
+      const detail = closeResult.stderr.trim() || closeResult.stdout.trim() || "bd close failed";
       targets.push({ kind: "error-bd", id: bdId, detail });
       hadError = true;
       continue;
@@ -508,16 +479,11 @@ export function runPostmerge(
   return exitCode;
 }
 
-export function formatPostmergeRender(
-  render: PostmergeRender,
-  format: "plain" | "json",
-): string {
+export function formatPostmergeRender(render: PostmergeRender, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(render, null, 2);
   }
-  const header = render.dryRun
-    ? "prx submit postmerge (dry-run)"
-    : "prx submit postmerge";
+  const header = render.dryRun ? "prx submit postmerge (dry-run)" : "prx submit postmerge";
   const lines: string[] = [
     header,
     `  pr:                  #${render.prNumber}`,

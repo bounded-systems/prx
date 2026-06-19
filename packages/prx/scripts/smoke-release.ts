@@ -47,9 +47,7 @@ function prx(
 ) {
   // A PTY (`script -q /dev/null …`) is only needed for the interactive agent
   // path; the materialize smoke uses PRX_SESSION_NO_LAUNCH instead (no PTY).
-  const [file, argv] = opts.pty
-    ? ["script", ["-q", "/dev/null", PRX, ...args]]
-    : [PRX, args];
+  const [file, argv] = opts.pty ? ["script", ["-q", "/dev/null", PRX, ...args]] : [PRX, args];
   const r = spawnSync(file as string, argv as string[], {
     cwd: opts.cwd,
     encoding: "utf8",
@@ -64,7 +62,9 @@ function onPath(bin: string): boolean {
   return spawnSync("which", [bin], { encoding: "utf8" }).status === 0;
 }
 function doltServers(): number {
-  const r = spawnSync("bash", ["-c", "ps aux | grep '[d]olt sql-server' | wc -l"], { encoding: "utf8" });
+  const r = spawnSync("bash", ["-c", "ps aux | grep '[d]olt sql-server' | wc -l"], {
+    encoding: "utf8",
+  });
   return Number((r.stdout ?? "0").trim()) || 0;
 }
 function triageWorktrees(repoGitDir: string): string[] {
@@ -109,7 +109,8 @@ smoke("materialize-redirect", () => {
   if (top.status !== 0) return { skip: "not in a git worktree" };
   // The triage/<dated> worktrees live as siblings under the bare-repo worktrees dir.
   const wtRoot = join((top.stdout ?? "").trim(), "..");
-  if (doltServers() === 0) return { skip: "no Dolt server running (start the shared server first)" };
+  if (doltServers() === 0)
+    return { skip: "no Dolt server running (start the shared server first)" };
 
   const before = new Set(triageWorktrees(wtRoot));
   prx(["triage", "agent"], { env: { PRX_SESSION_NO_LAUNCH: "1" }, timeoutMs: 30_000 });
@@ -125,8 +126,10 @@ smoke("materialize-redirect", () => {
   // best-effort cleanup of the throwaway worktree
   spawnSync("git", ["worktree", "remove", "--force", fresh], { encoding: "utf8" });
 
-  if (!hasRedirect) return { ok: false, detail: `no .beads/redirect in ${fresh} (prx-jkb regression)` };
-  if (spawnedStray) return { ok: false, detail: `stray dolt-server.port spawned in ${fresh} (prx-jkb)` };
+  if (!hasRedirect)
+    return { ok: false, detail: `no .beads/redirect in ${fresh} (prx-jkb regression)` };
+  if (spawnedStray)
+    return { ok: false, detail: `stray dolt-server.port spawned in ${fresh} (prx-jkb)` };
   return { ok: true, detail: `redirect → ${target}, no stray` };
 });
 
@@ -154,10 +157,9 @@ smoke("intake-message-seed", () => {
   const top = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" });
   if (top.status !== 0) return { skip: "not in a git worktree" };
   const probe = "smoke-probe: the readme is out of date";
-  const { out } = prx(
-    ["intake", "agent", "--message", probe, "--dry-run", "--format", "json"],
-    { cwd: (top.stdout ?? "").trim() },
-  );
+  const { out } = prx(["intake", "agent", "--message", probe, "--dry-run", "--format", "json"], {
+    cwd: (top.stdout ?? "").trim(),
+  });
   const seeded = /operator reports/i.test(out) && out.includes("readme is out of date");
   return {
     ok: seeded,

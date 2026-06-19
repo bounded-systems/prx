@@ -1,5 +1,16 @@
 import { join } from "node:path";
-import { buildWorkUnitCopilotRuntimeProfile, buildWorkUnitCodexRuntimeProfile, buildWorkUnitCursorRuntimeProfile, buildWorkUnitGeminiRuntimeProfile, buildWorkUnitClaudeRuntimeProfile, workAgentImplementations, type WorkAgentImplementation, type RuntimeIoFormat, type RuntimeMode, type RuntimeProfileProjection } from "../machine/runtime_profiles.ts";
+import {
+  buildWorkUnitCopilotRuntimeProfile,
+  buildWorkUnitCodexRuntimeProfile,
+  buildWorkUnitCursorRuntimeProfile,
+  buildWorkUnitGeminiRuntimeProfile,
+  buildWorkUnitClaudeRuntimeProfile,
+  workAgentImplementations,
+  type WorkAgentImplementation,
+  type RuntimeIoFormat,
+  type RuntimeMode,
+  type RuntimeProfileProjection,
+} from "../machine/runtime_profiles.ts";
 import { CliError } from "./cli-error.ts";
 
 // Extracted from packages/prx/src/pr-state/cli.ts by scripts/codemod/extract-module.ts — part of the
@@ -9,7 +20,10 @@ const workAgentAliases = {
   "gh-copilot": "copilot",
 } as const satisfies Record<string, WorkAgentImplementation>;
 
-const executionWorkAgents = ["claude", "codex"] as const satisfies readonly WorkAgentImplementation[];
+const executionWorkAgents = [
+  "claude",
+  "codex",
+] as const satisfies readonly WorkAgentImplementation[];
 
 export type ExecutionWorkAgent = (typeof executionWorkAgents)[number];
 
@@ -29,15 +43,23 @@ export const POLICY: ExecutionPolicy = {
   temperature: 0,
 };
 
-export function interactiveTimeoutMs(format: "plain" | "json", timeoutMs: number): number | undefined {
+export function interactiveTimeoutMs(
+  format: "plain" | "json",
+  timeoutMs: number,
+): number | undefined {
   return format === "plain" ? undefined : timeoutMs;
 }
 
-function supportsExecutionWorkflowAgent(agent: WorkAgentImplementation): agent is ExecutionWorkAgent {
+function supportsExecutionWorkflowAgent(
+  agent: WorkAgentImplementation,
+): agent is ExecutionWorkAgent {
   return executionWorkAgentSet.has(agent);
 }
 
-export function ensureExecutionWorkflowAgent(agent: WorkAgentImplementation, flag = "--agent"): ExecutionWorkAgent {
+export function ensureExecutionWorkflowAgent(
+  agent: WorkAgentImplementation,
+  flag = "--agent",
+): ExecutionWorkAgent {
   if (supportsExecutionWorkflowAgent(agent)) {
     return agent;
   }
@@ -73,7 +95,9 @@ export function parseWorkAgentImplementation(value: string, flag: string): WorkA
   if (workAgentImplementations.includes(normalized as WorkAgentImplementation)) {
     return normalized as WorkAgentImplementation;
   }
-  throw new CliError(`Invalid value for ${flag}: ${value}. Valid options: ${formatSupportedWorkAgents()}`);
+  throw new CliError(
+    `Invalid value for ${flag}: ${value}. Valid options: ${formatSupportedWorkAgents()}`,
+  );
 }
 
 export function buildWorkAutomationProfile(
@@ -117,5 +141,3 @@ export function buildWorkAutomationProfile(
     mode,
   });
 }
-
-

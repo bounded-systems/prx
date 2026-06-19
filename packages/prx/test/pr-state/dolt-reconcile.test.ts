@@ -12,7 +12,10 @@ import {
 
 function rec() {
   const lines: string[] = [];
-  return { lines, output: { log: (l: string) => lines.push(l), error: (l: string) => lines.push(l) } };
+  return {
+    lines,
+    output: { log: (l: string) => lines.push(l), error: (l: string) => lines.push(l) },
+  };
 }
 
 const ok = (stdout = ""): DoltReconcileSpawnResult => ({ status: 0, stdout, stderr: "" });
@@ -37,21 +40,25 @@ describe("detectSchemaConflict", () => {
     expect(detectSchemaConflict("some unrelated error")).toBeNull();
   });
   test("a dolt_schema_conflicts indicator → a schema conflict", () => {
-    expect(detectSchemaConflict("error: dolt_schema_conflicts present")).toMatchObject({ kind: "schema" });
+    expect(detectSchemaConflict("error: dolt_schema_conflicts present")).toMatchObject({
+      kind: "schema",
+    });
   });
   test("a Buffer stderr is decoded", () => {
-    expect(detectSchemaConflict(Buffer.from("failed to initialize schema"))).toMatchObject({ kind: "schema" });
+    expect(detectSchemaConflict(Buffer.from("failed to initialize schema"))).toMatchObject({
+      kind: "schema",
+    });
   });
 });
 
 describe("runDoltReconcileWithResult", () => {
   test("dry-run previews the pipeline without running it", () => {
     const r = rec();
-    const { result } = runDoltReconcileWithResult(
-      { ...baseOpts, dryRun: true },
-      r.output,
-      { spawn: (() => { throw new Error("spawn must not run on dry-run"); }) as DoltReconcileSpawn },
-    );
+    const { result } = runDoltReconcileWithResult({ ...baseOpts, dryRun: true }, r.output, {
+      spawn: (() => {
+        throw new Error("spawn must not run on dry-run");
+      }) as DoltReconcileSpawn,
+    });
     expect(result.steps.every((s) => s.status === "preview")).toBe(true);
   });
 
@@ -80,13 +87,17 @@ describe("runDoltReconcileWithResult", () => {
 
   test("push-only mode does not run the pull step", () => {
     const r = rec();
-    const { result } = runDoltReconcileWithResult({ ...baseOpts, mode: "push-only" }, r.output, { spawn: spawnFor({}) });
+    const { result } = runDoltReconcileWithResult({ ...baseOpts, mode: "push-only" }, r.output, {
+      spawn: spawnFor({}),
+    });
     expect(result.steps.filter((s) => s.step === "pull" && s.status === "ok")).toHaveLength(0);
   });
 
   test("pull-only mode does not run the push step", () => {
     const r = rec();
-    const { result } = runDoltReconcileWithResult({ ...baseOpts, mode: "pull-only" }, r.output, { spawn: spawnFor({}) });
+    const { result } = runDoltReconcileWithResult({ ...baseOpts, mode: "pull-only" }, r.output, {
+      spawn: spawnFor({}),
+    });
     expect(result.steps.filter((s) => s.step === "push" && s.status === "ok")).toHaveLength(0);
   });
 });

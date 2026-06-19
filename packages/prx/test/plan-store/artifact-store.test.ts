@@ -7,10 +7,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { getRef, readBlob } from "../../src/plan-store/cas.ts";
-import {
-  artifactRef,
-  putArtifact,
-} from "../../src/plan-store/artifact-store.ts";
+import { artifactRef, putArtifact } from "../../src/plan-store/artifact-store.ts";
 
 const ENV_KEYS = [
   "PRX_PLAN_STORE",

@@ -34,16 +34,9 @@ import {
 import { listOpenIssuesFromBeads as defaultListOpenIssues } from "./issues-from-beads.ts";
 import { parseLabelName } from "./labels.ts";
 import { execGh as defaultExecGh, type GhExecResult } from "@bounded-systems/gh";
-import {
-  runBeadsSync as defaultRunBeadsSync,
-  type BeadsSyncResult,
-} from "../sync/run.ts";
+import { runBeadsSync as defaultRunBeadsSync, type BeadsSyncResult } from "../sync/run.ts";
 import { DEFAULT_SYNC_LIMIT } from "../sync/limits.ts";
-import {
-  appendAuditRow,
-  auditSinkPath,
-  type AuditSinkDeps,
-} from "../audit/sink.ts";
+import { appendAuditRow, auditSinkPath, type AuditSinkDeps } from "../audit/sink.ts";
 
 export const triagePrioritizeOptionsSchema = z.object({
   repo: z.string().trim().min(1).optional(),
@@ -133,7 +126,6 @@ const KEY_TO_CHOICE: Record<"c" | "h" | "m" | "l", PriorityChoice> = {
   l: "low",
 };
 
-
 /**
  * Filter open issues to those operators need to prioritize: rows tagged
  * `priority::none` (the GH-970 unscored marker) plus rows with no priority
@@ -169,9 +161,7 @@ export function selectCandidates(issues: FallbackIssue[]): Candidate[] {
 
 function formatCandidate(candidate: Candidate): string {
   const labelStr =
-    candidate.currentLabels.length > 0
-      ? candidate.currentLabels.join(", ")
-      : "(none)";
+    candidate.currentLabels.length > 0 ? candidate.currentLabels.join(", ") : "(none)";
   return [
     `GH-${candidate.number} ${candidate.title}`,
     `  ${candidate.url}`,

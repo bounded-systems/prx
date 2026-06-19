@@ -42,19 +42,17 @@ const SAMPLE_DSN = "mysql://prx@127.0.0.1:3306/db";
 
 describe("dolt contract", () => {
   test("DOLT_VERBS lists every verb exactly once", () => {
-    expect([...DOLT_VERBS].sort()).toEqual(
-      [
-        "adopt",
-        "policy",
-        "provision",
-        "reconcile",
-        "start",
-        "status",
-        "stop",
-        "supervise",
-        "sync-all",
-      ],
-    );
+    expect([...DOLT_VERBS].sort()).toEqual([
+      "adopt",
+      "policy",
+      "provision",
+      "reconcile",
+      "start",
+      "status",
+      "stop",
+      "supervise",
+      "sync-all",
+    ]);
   });
 
   test("DOLT_*_SCHEMAS has a schema for every verb", () => {
@@ -83,13 +81,7 @@ describe("dolt contract", () => {
   });
 
   test("Lifecycle is provisioned|running|healthy|stopped|orphaned", () => {
-    for (const s of [
-      "provisioned",
-      "running",
-      "healthy",
-      "stopped",
-      "orphaned",
-    ] as const) {
+    for (const s of ["provisioned", "running", "healthy", "stopped", "orphaned"] as const) {
       expect(Lifecycle.safeParse(s).success).toBe(true);
     }
     expect(Lifecycle.safeParse("torn-down").success).toBe(false);
@@ -102,9 +94,10 @@ describe("dolt.provision", () => {
     expect(ProvisionInput.parse({ repo_path: SAMPLE_PATH })).toEqual({
       repo_path: SAMPLE_PATH,
     });
-    expect(
-      ProvisionInput.parse({ repo_path: SAMPLE_PATH, dolt_database: SAMPLE_SLUG }),
-    ).toEqual({ repo_path: SAMPLE_PATH, dolt_database: SAMPLE_SLUG });
+    expect(ProvisionInput.parse({ repo_path: SAMPLE_PATH, dolt_database: SAMPLE_SLUG })).toEqual({
+      repo_path: SAMPLE_PATH,
+      dolt_database: SAMPLE_SLUG,
+    });
   });
 
   test("ProvisionInput rejects empty repo_path", () => {
@@ -182,13 +175,7 @@ describe("dolt.status", () => {
   });
 
   test("StatusOutput accepts every Lifecycle state", () => {
-    for (const lifecycle of [
-      "provisioned",
-      "running",
-      "healthy",
-      "stopped",
-      "orphaned",
-    ] as const) {
+    for (const lifecycle of ["provisioned", "running", "healthy", "stopped", "orphaned"] as const) {
       const out = StatusOutput.parse({
         dolt_server_id: SAMPLE_ID,
         lifecycle,
@@ -269,12 +256,7 @@ describe("dolt.reconcile", () => {
   });
 
   test("ReconcileOutput status surface", () => {
-    for (const status of [
-      "reconciled",
-      "noop",
-      "schema-conflict",
-      "error",
-    ] as const) {
+    for (const status of ["reconciled", "noop", "schema-conflict", "error"] as const) {
       const out = ReconcileOutput.parse({
         dolt_server_id: SAMPLE_ID,
         status,

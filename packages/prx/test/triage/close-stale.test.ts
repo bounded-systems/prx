@@ -110,11 +110,7 @@ describe("runTriageCloseStale", () => {
   test("empty stale set: no bd writes, summary line writes=0", () => {
     const { deps, calls, audit } = makeDeps({ staleRows: [] });
     const { output, log, error } = makeOutput();
-    const result = runTriageCloseStale(
-      triageCloseStaleOptionsSchema.parse({}),
-      output,
-      deps,
-    );
+    const result = runTriageCloseStale(triageCloseStaleOptionsSchema.parse({}), output, deps);
     expect(result.writes).toBe(0);
     expect(result.errors).toBe(0);
     expect(calls).toHaveLength(0);
@@ -154,24 +150,13 @@ describe("runTriageCloseStale", () => {
     ];
     const { deps, calls, audit, invalidations } = makeDeps({ staleRows: rows });
     const { output } = makeOutput();
-    const result = runTriageCloseStale(
-      triageCloseStaleOptionsSchema.parse({}),
-      output,
-      deps,
-    );
+    const result = runTriageCloseStale(triageCloseStaleOptionsSchema.parse({}), output, deps);
     expect(result.writes).toBe(2);
     expect(result.errors).toBe(0);
     expect(calls).toHaveLength(2);
     expect(calls[0]?.subcommand).toBe("update");
-    expect(calls[0]?.args.slice(0, 4)).toEqual([
-      "ai-home-a",
-      "-s",
-      "closed",
-      "--notes",
-    ]);
-    expect(calls[0]?.args[4]).toBe(
-      "closed via prx triage close-stale (reason=completed)",
-    );
+    expect(calls[0]?.args.slice(0, 4)).toEqual(["ai-home-a", "-s", "closed", "--notes"]);
+    expect(calls[0]?.args[4]).toBe("closed via prx triage close-stale (reason=completed)");
     expect(calls[0]?.state).toBe("planning");
     expect(calls[0]?.role).toBe("planner");
     expect(invalidations).toHaveLength(2);
@@ -191,9 +176,7 @@ describe("runTriageCloseStale", () => {
       output,
       deps,
     );
-    expect(calls[0]?.args[4]).toBe(
-      "closed via prx triage close-stale (reason=not-planned)",
-    );
+    expect(calls[0]?.args[4]).toBe("closed via prx triage close-stale (reason=not-planned)");
     const parsed = parseAudit(audit) as Array<Record<string, unknown>>;
     expect(parsed[0]?.reason).toBe("not-planned");
   });
@@ -202,14 +185,8 @@ describe("runTriageCloseStale", () => {
     const rows = [stale()];
     const { deps, calls, audit } = makeDeps({ staleRows: rows });
     const { output } = makeOutput();
-    runTriageCloseStale(
-      triageCloseStaleOptionsSchema.parse({ reason: "duplicate" }),
-      output,
-      deps,
-    );
-    expect(calls[0]?.args[4]).toBe(
-      "closed via prx triage close-stale (reason=duplicate)",
-    );
+    runTriageCloseStale(triageCloseStaleOptionsSchema.parse({ reason: "duplicate" }), output, deps);
+    expect(calls[0]?.args[4]).toBe("closed via prx triage close-stale (reason=duplicate)");
     const parsed = parseAudit(audit) as Array<Record<string, unknown>>;
     expect(parsed[0]?.reason).toBe("duplicate");
   });
@@ -258,11 +235,7 @@ describe("runTriageCloseStale", () => {
       ],
     });
     const { output, error } = makeOutput();
-    const result = runTriageCloseStale(
-      triageCloseStaleOptionsSchema.parse({}),
-      output,
-      deps,
-    );
+    const result = runTriageCloseStale(triageCloseStaleOptionsSchema.parse({}), output, deps);
     expect(result.writes).toBe(1);
     expect(result.errors).toBe(1);
     const parsed = parseAudit(audit) as Array<Record<string, unknown>>;
@@ -276,11 +249,7 @@ describe("runTriageCloseStale", () => {
   test("canonical=bd repo: refuses with a clear message", () => {
     const { deps, calls } = makeDeps({ staleRows: [], canonical: "bd" });
     const { output, error } = makeOutput();
-    const result = runTriageCloseStale(
-      triageCloseStaleOptionsSchema.parse({}),
-      output,
-      deps,
-    );
+    const result = runTriageCloseStale(triageCloseStaleOptionsSchema.parse({}), output, deps);
     expect(result.errors).toBe(1);
     expect(calls).toHaveLength(0);
     expect(error.some((l) => l.includes("bd-canonical repo"))).toBe(true);
@@ -290,11 +259,7 @@ describe("runTriageCloseStale", () => {
     const rows = [stale()];
     const { deps, audit } = makeDeps({ staleRows: rows });
     const { output } = makeOutput();
-    runTriageCloseStale(
-      triageCloseStaleOptionsSchema.parse({}),
-      output,
-      deps,
-    );
+    runTriageCloseStale(triageCloseStaleOptionsSchema.parse({}), output, deps);
     for (const line of audit) {
       const parsed = JSON.parse(line);
       expect(() => auditRowSchema.parse(parsed)).not.toThrow();
@@ -360,11 +325,7 @@ describe("runTriageCloseStale", () => {
   test("format=plain (default): summary line still streams via output.log", () => {
     const { deps } = makeDeps({ staleRows: [] });
     const { output, log } = makeOutput();
-    runTriageCloseStale(
-      triageCloseStaleOptionsSchema.parse({ format: "plain" }),
-      output,
-      deps,
-    );
+    runTriageCloseStale(triageCloseStaleOptionsSchema.parse({ format: "plain" }), output, deps);
     expect(log.some((l) => l.startsWith("triage close-stale: writes=0"))).toBe(true);
   });
 });

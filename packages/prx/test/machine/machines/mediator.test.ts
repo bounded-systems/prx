@@ -8,10 +8,7 @@
 import { describe, expect, test } from "bun:test";
 import { createActor } from "xstate";
 
-import {
-  mediatorMachine,
-  type MediatorContext,
-} from "../../../src/machine/machines/mediator.ts";
+import { mediatorMachine, type MediatorContext } from "../../../src/machine/machines/mediator.ts";
 
 function startMachine() {
   const actor = createActor(mediatorMachine);
@@ -19,9 +16,10 @@ function startMachine() {
   return actor;
 }
 
-function snapshot(
-  actor: ReturnType<typeof startMachine>,
-): { value: unknown; context: MediatorContext } {
+function snapshot(actor: ReturnType<typeof startMachine>): {
+  value: unknown;
+  context: MediatorContext;
+} {
   const snap = actor.getSnapshot();
   return { value: snap.value, context: snap.context };
 }

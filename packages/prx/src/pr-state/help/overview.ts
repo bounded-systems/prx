@@ -6,20 +6,10 @@
 // registry.
 
 import type { CommandSpec, SessionContext } from "../../cli/registry.ts";
-import {
-  FooterPointers,
-  Identity,
-  PromotedList,
-  SessionContextLine,
-} from "./components.ts";
+import { FooterPointers, Identity, PromotedList, SessionContextLine } from "./components.ts";
 
-export function HelpOverview(
-  registry: CommandSpec[],
-  ctx: SessionContext,
-): string {
-  const promoted = registry.filter(
-    (c) => c.promoted_in.includes(ctx) && !c.deprecation,
-  );
+export function HelpOverview(registry: CommandSpec[], ctx: SessionContext): string {
+  const promoted = registry.filter((c) => c.promoted_in.includes(ctx) && !c.deprecation);
   return [
     Identity(),
     SessionContextLine(ctx),

@@ -11,17 +11,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type {
-  TranscriptMessage,
-  TranscriptSession,
-  TranscriptSourceConfig,
-} from "../schemas.ts";
+import type { TranscriptMessage, TranscriptSession, TranscriptSourceConfig } from "../schemas.ts";
 import type { DiscoverOptions } from "./registry.ts";
 
-type ClaudeWebExportConfig = Extract<
-  TranscriptSourceConfig,
-  { kind: "claude-web-export" }
->;
+type ClaudeWebExportConfig = Extract<TranscriptSourceConfig, { kind: "claude-web-export" }>;
 
 type WebMessage = {
   role: string;
@@ -106,8 +99,7 @@ function parseMemories(raw: unknown): WebMemory[] {
     const obj = entry as Record<string, unknown>;
     const text = asString(obj.text ?? obj.content);
     if (!text) continue;
-    const conversationId =
-      asString(obj.conversation_id ?? obj.conversationId) || null;
+    const conversationId = asString(obj.conversation_id ?? obj.conversationId) || null;
     const ts = asString(obj.created_at ?? obj.timestamp);
     memories.push({ conversationId, text, ts });
   }
@@ -128,8 +120,7 @@ function buildSession(
     });
   }
   for (const m of conversation.messages) {
-    const role =
-      m.role === "user" || m.role === "assistant" ? m.role : "user";
+    const role = m.role === "user" || m.role === "assistant" ? m.role : "user";
     messages.push({
       role,
       ts: m.ts,

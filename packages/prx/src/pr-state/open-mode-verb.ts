@@ -15,7 +15,8 @@ export type OpenModeOutput = z.infer<typeof OpenModeOutput>;
 
 export const openModeVerb = defineVerb({
   id: "open-mode",
-  summary: "Derive the pr open mode (draft/ready) from the contract; emit as mode, JSON, or a gh command.",
+  summary:
+    "Derive the pr open mode (draft/ready) from the contract; emit as mode, JSON, or a gh command.",
   actor: "work",
   input: z.object({
     contract: z.string().default(".pr/local/pr.json").describe("path to the pr contract"),

@@ -32,10 +32,7 @@ import {
   runBdAdminCompact as defaultRunBdAdminCompact,
   type BdAdminCompactResult,
 } from "@bounded-systems/bd";
-import {
-  loadAllBeads as defaultLoadAllBeads,
-  type BeadsRecord,
-} from "../triage/triage.ts";
+import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../triage/triage.ts";
 
 // ── options + deps ─────────────────────────────────────────────────────────
 
@@ -137,10 +134,7 @@ function hasKeepCompactFalse(record: BeadsRecord): boolean {
  *
  * One batched call (`bd dep list <id1> <id2> ... --direction down --json`).
  */
-function loadActiveWorkPins(
-  openIds: string[],
-  exec: typeof defaultExecBd,
-): Set<string> {
+function loadActiveWorkPins(openIds: string[], exec: typeof defaultExecBd): Set<string> {
   const pins = new Set<string>();
   if (openIds.length === 0) return pins;
   const result = exec(
@@ -206,9 +200,8 @@ export function runMemoryCompact(
 
   let repo: string;
   try {
-    repo = (opts.repo && opts.repo.trim().length > 0
-      ? opts.repo.trim()
-      : repoNameWithOwner(cwd).trim());
+    repo =
+      opts.repo && opts.repo.trim().length > 0 ? opts.repo.trim() : repoNameWithOwner(cwd).trim();
   } catch {
     repo = "";
   }
@@ -291,9 +284,8 @@ export function runMemoryCompact(
         issueType: record.issueType,
         ageDays: ageDaysValue,
         decision: "under-horizon",
-        reason: age === null
-          ? "no updated_at timestamp"
-          : `age ${age.toFixed(1)}d ≤ horizon ${horizon}d`,
+        reason:
+          age === null ? "no updated_at timestamp" : `age ${age.toFixed(1)}d ≤ horizon ${horizon}d`,
       });
       continue;
     }
@@ -334,7 +326,7 @@ export function runMemoryCompact(
       } else {
         // bd refused this id; reflect it back to the per-record detail.
         const detail = records.find((d) => d.beadId === r.id);
-        const errMsg = (r.stderr.trim() || r.stdout.trim() || "bd admin compact failed");
+        const errMsg = r.stderr.trim() || r.stdout.trim() || "bd admin compact failed";
         if (detail) {
           detail.decision = "deferred";
           detail.reason = `bd admin compact: ${errMsg}`;
@@ -416,7 +408,9 @@ function renderSummary(
   }
   const lines: string[] = [];
   lines.push(`memory compact — ${s.repo}${s.dryRun ? " [dry-run]" : ""}`);
-  lines.push(`  scanned ${s.scanned}  closed ${s.closed}  eligible ${s.eligible}  compacted ${s.compacted}`);
+  lines.push(
+    `  scanned ${s.scanned}  closed ${s.closed}  eligible ${s.eligible}  compacted ${s.compacted}`,
+  );
   lines.push(
     `  preserved: marker ${s.preservedByMarker}  type ${s.preservedByType}  active-work ${s.preservedByActiveWork}`,
   );

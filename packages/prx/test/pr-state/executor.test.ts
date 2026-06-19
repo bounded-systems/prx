@@ -99,12 +99,20 @@ describe("headless-first axis resolution", () => {
   });
 
   test("backend is sdk only for headless claude; everything else is subprocess", () => {
-    expect(resolveAgentBackend(makeProfile({ command: "claude", interaction: "headless" }))).toBe("sdk");
+    expect(resolveAgentBackend(makeProfile({ command: "claude", interaction: "headless" }))).toBe(
+      "sdk",
+    );
     // Pre-axis sdk profiles (agentRuntime only) still derive to the sdk backend.
-    expect(resolveAgentBackend(makeProfile({ command: "claude", agentRuntime: "sdk" }))).toBe("sdk");
+    expect(resolveAgentBackend(makeProfile({ command: "claude", agentRuntime: "sdk" }))).toBe(
+      "sdk",
+    );
     // Headless non-claude agents stay subprocess (their --print mode).
-    expect(resolveAgentBackend(makeProfile({ command: "codex", interaction: "headless" }))).toBe("subprocess");
+    expect(resolveAgentBackend(makeProfile({ command: "codex", interaction: "headless" }))).toBe(
+      "subprocess",
+    );
     // Interactive claude is subprocess (tmux), not the SDK.
-    expect(resolveAgentBackend(makeProfile({ command: "claude", interaction: "interactive" }))).toBe("subprocess");
+    expect(
+      resolveAgentBackend(makeProfile({ command: "claude", interaction: "interactive" })),
+    ).toBe("subprocess");
   });
 });

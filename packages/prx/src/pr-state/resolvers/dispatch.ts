@@ -26,7 +26,8 @@ function resolverForSource(src: SourceConfig, repoPath: string): WorkUnitResolve
       return new BeadsResolver(repoPath, { externalRefPrefix: src.externalRefPrefix ?? null });
     case "notion":
       if (src.notion.auth === "notion-cli") return new NotionCliResolver(src.notion, repoPath);
-      if (src.notion.auth === "claude-mcp") return new NotionClaudeMcpResolver(src.notion, repoPath);
+      if (src.notion.auth === "claude-mcp")
+        return new NotionClaudeMcpResolver(src.notion, repoPath);
       return new NotionResolver(src.notion);
   }
 }

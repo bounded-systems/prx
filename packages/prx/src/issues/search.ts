@@ -57,22 +57,17 @@ export function searchGh(
     processEnv(),
   );
   if (result.exitCode !== 0) {
-    const detail =
-      result.stderr.trim() || result.stdout.trim() || "gh issue list failed";
+    const detail = result.stderr.trim() || result.stdout.trim() || "gh issue list failed";
     throw new IssueSearchError(`${verbLabel}: ${detail}`, result.exitCode || 1);
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(result.stdout || "[]");
   } catch {
-    throw new IssueSearchError(
-      `${verbLabel}: gh issue list --json returned invalid JSON`,
-    );
+    throw new IssueSearchError(`${verbLabel}: gh issue list --json returned invalid JSON`);
   }
   if (!Array.isArray(parsed)) {
-    throw new IssueSearchError(
-      `${verbLabel}: gh issue list --json did not return an array`,
-    );
+    throw new IssueSearchError(`${verbLabel}: gh issue list --json did not return an array`);
   }
   const hits: IssueSearchHit[] = [];
   for (const entry of parsed) {
@@ -115,10 +110,7 @@ export function searchBd(
 // terminal, `open`/`in_progress`/`blocked`/`ready` are all "open" from the
 // operator's filter perspective. Keep the same partition GH uses for its
 // `--state` flag so plan/intake search behave consistently across sources.
-function matchesBdState(
-  status: string,
-  filter: "open" | "closed",
-): boolean {
+function matchesBdState(status: string, filter: "open" | "closed"): boolean {
   const isClosed = status === "closed";
   return filter === "closed" ? isClosed : !isClosed;
 }

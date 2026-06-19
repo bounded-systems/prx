@@ -81,7 +81,9 @@ describe("pilot (Layer-1: self-driving, CI-gated, signed in-toto)", () => {
     expect(done.value).toBe("merged");
     // The anchor rides in the summary predicate — the pilot's signature commits
     // to it — but it never affected an edge: the run still reached merged.
-    const observed = (done.context.summary!.predicate as { observed?: { digest: string; count: number } }).observed;
+    const observed = (
+      done.context.summary!.predicate as { observed?: { digest: string; count: number } }
+    ).observed;
     expect(observed).toEqual({ digest: "deadbeef", count: 5 });
   });
 
@@ -106,10 +108,9 @@ describe("pilot (Layer-1: self-driving, CI-gated, signed in-toto)", () => {
         },
       });
 
-    const actor = createActor(
-      createPilotMachine({ runLeg: stubLegRunner, runCiGate: redGate }),
-      { input: { workUnitId: "prx-redci", retreatBudget: 2 } },
-    ).start();
+    const actor = createActor(createPilotMachine({ runLeg: stubLegRunner, runCiGate: redGate }), {
+      input: { workUnitId: "prx-redci", retreatBudget: 2 },
+    }).start();
     const halted = await waitFor(actor, (s) => s.status === "done", { timeout: 2000 });
 
     expect(halted.value).toBe("abandoned");
@@ -132,10 +133,9 @@ describe("pilot (Layer-1: self-driving, CI-gated, signed in-toto)", () => {
         },
       });
 
-    const actor = createActor(
-      createPilotMachine({ runLeg: stubLegRunner, runChecks: redChecks }),
-      { input: { workUnitId: "prx-redchecks", retreatBudget: 2 } },
-    ).start();
+    const actor = createActor(createPilotMachine({ runLeg: stubLegRunner, runChecks: redChecks }), {
+      input: { workUnitId: "prx-redchecks", retreatBudget: 2 },
+    }).start();
     const halted = await waitFor(actor, (s) => s.status === "done", { timeout: 2000 });
 
     expect(halted.value).toBe("abandoned");
@@ -143,7 +143,9 @@ describe("pilot (Layer-1: self-driving, CI-gated, signed in-toto)", () => {
     expect(halted.context.chain.some((l) => l.stage === "merge")).toBe(false);
     expect(halted.context.chain.some((l) => l.subject.endsWith("gate@ci-remote"))).toBe(false);
     expect(halted.context.chain.some((l) => l.subject.endsWith("review@validated"))).toBe(false);
-    expect(halted.context.chain.filter((l) => l.predicate === "checks.failed").length).toBeGreaterThan(0);
+    expect(
+      halted.context.chain.filter((l) => l.predicate === "checks.failed").length,
+    ).toBeGreaterThan(0);
     expect(halted.context.retreatBudget).toBe(0);
   });
 

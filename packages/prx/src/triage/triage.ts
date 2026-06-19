@@ -52,11 +52,7 @@ import { z } from "zod";
 import { execBd, type BdExecResult } from "@bounded-systems/bd";
 import { adapterForDomain } from "../adapters/domain-adapter.ts";
 import { isEmbeddedDoltMode } from "../beads/hydrate.ts";
-import {
-  localRepoForCwd,
-  repoCanonical,
-  repoStaleThresholdDays,
-} from "../pr-state/repos.ts";
+import { localRepoForCwd, repoCanonical, repoStaleThresholdDays } from "../pr-state/repos.ts";
 import {
   listOpenIssues as defaultListOpenIssues,
   listIssuesByState as defaultListIssuesByState,
@@ -222,10 +218,12 @@ export type TriageStatusResult = {
   bdUntriaged?: BdUntriagedRow[] | undefined;
   /** GH-1710: populated when canonical=bd; empty otherwise. */
   bdStale?: BdStaleRow[] | undefined;
-  rateLimit?: {
-    snapshots: BudgetSnapshot[];
-    estimate: SweepCostEstimate;
-  } | undefined;
+  rateLimit?:
+    | {
+        snapshots: BudgetSnapshot[];
+        estimate: SweepCostEstimate;
+      }
+    | undefined;
 };
 
 export type TriageStatusDeps = {
@@ -519,10 +517,10 @@ function deriveExternalRefs(
 ): Record<string, string> {
   const externalRefs: Record<string, string> = {};
   const metadataRefs =
-    metadata
-    && metadata.external_refs
-    && typeof metadata.external_refs === "object"
-    && !Array.isArray(metadata.external_refs)
+    metadata &&
+    metadata.external_refs &&
+    typeof metadata.external_refs === "object" &&
+    !Array.isArray(metadata.external_refs)
       ? (metadata.external_refs as Record<string, unknown>)
       : null;
   if (metadataRefs) {
@@ -567,8 +565,7 @@ function parseDependencies(raw: unknown): BeadsDependency[] {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
     const row = entry as Record<string, unknown>;
     const issueId = typeof row.issue_id === "string" ? row.issue_id : null;
-    const dependsOnId =
-      typeof row.depends_on_id === "string" ? row.depends_on_id : null;
+    const dependsOnId = typeof row.depends_on_id === "string" ? row.depends_on_id : null;
     const type = typeof row.type === "string" ? row.type : null;
     if (!issueId || !dependsOnId || !type) continue;
     out.push({ issueId, dependsOnId, type });
@@ -610,9 +607,9 @@ const sqlBeadRowSchema = z.object({
 });
 
 const JOIN_RELEVANT_BEADS_QUERY =
-  "SELECT id, title, status, priority, issue_type, external_ref, source_system, metadata, updated_at, notes "
-  + "FROM issues "
-  + "WHERE status != 'closed' OR external_ref IS NOT NULL";
+  "SELECT id, title, status, priority, issue_type, external_ref, source_system, metadata, updated_at, notes " +
+  "FROM issues " +
+  "WHERE status != 'closed' OR external_ref IS NOT NULL";
 
 export function loadJoinRelevantBeads(exec: typeof execBd = execBd): BeadsRecord[] {
   const result: BdExecResult = exec(
@@ -707,8 +704,8 @@ export function loadTriageScopedBeads(
 ): BeadsRecord[] {
   if (isEmbeddedDoltMode(beadsDir)) {
     warn(
-      "triage status: bd workspace is embedded-mode; bd sql unavailable, "
-      + "using bd list fallback (GH-1691)",
+      "triage status: bd workspace is embedded-mode; bd sql unavailable, " +
+        "using bd list fallback (GH-1691)",
     );
     return loadAllBeads(exec, warn);
   }
@@ -733,9 +730,7 @@ export function indexBeadsByIssueNumber(records: BeadsRecord[]): Map<number, Bea
  * suppressed from drift. Other callers (`classifyIssue`, etc.) still want
  * the single-record map.
  */
-export function indexBeadsByIssueNumberAll(
-  records: BeadsRecord[],
-): Map<number, BeadsRecord[]> {
+export function indexBeadsByIssueNumberAll(records: BeadsRecord[]): Map<number, BeadsRecord[]> {
   const map = new Map<number, BeadsRecord[]>();
   for (const record of records) {
     if (record.externalIssueNumber === null) continue;
@@ -875,10 +870,7 @@ function firstLabelValue(labels: string[], prefix: string): string | null {
   return value.length > 0 ? value : null;
 }
 
-export function findDrift(
-  records: BeadsRecord[],
-  openIssues: FallbackIssue[],
-): DriftRow[] {
+export function findDrift(records: BeadsRecord[], openIssues: FallbackIssue[]): DriftRow[] {
   const beadsByNumber = indexBeadsByIssueNumber(records);
   const allByNumber = indexBeadsByIssueNumberAll(records);
   const out: DriftRow[] = [];
@@ -952,10 +944,10 @@ export function findDrift(
     const ghPriority = firstLabelValue(labelNames, "priority::");
     const bdPriority = bdPriorityToLabel(bead.priority);
     if (
-      ghPriority !== null
-      && ghPriority !== "none"
-      && bdPriority !== "unknown"
-      && ghPriority !== bdPriority
+      ghPriority !== null &&
+      ghPriority !== "none" &&
+      bdPriority !== "unknown" &&
+      ghPriority !== bdPriority
     ) {
       fields.priority = { gh: ghPriority, bd: bdPriority };
     }
@@ -1209,10 +1201,7 @@ function attachRateLimit(
   // prx-3f1: totalReverseOrphans is excluded — bd-native records (no external_ref)
   // are the expected beads-first state, not actionable sweep work, so they must
   // not inflate the rate-limit budget.
-  const queueSize =
-    base.totalUntriaged
-    + base.totalDrift
-    + base.totalAxisConflicts;
+  const queueSize = base.totalUntriaged + base.totalDrift + base.totalAxisConflicts;
   const snapshots = refresh() ?? [];
   return {
     ...base,
@@ -1252,10 +1241,8 @@ export function findStaleProjection(
   const canonical: "gh" | "bd" = localRepo ? repoCanonical(localRepo) : "gh";
 
   if (canonical === "bd") {
-    const repo = opts.repo
-      ?? localRepo?.primaryRemote?.githubRepo
-      ?? localRepo?.name
-      ?? "<bd-canonical>";
+    const repo =
+      opts.repo ?? localRepo?.primaryRemote?.githubRepo ?? localRepo?.name ?? "<bd-canonical>";
     return { repo, canonical: "bd", rows: [] };
   }
 
@@ -1265,9 +1252,7 @@ export function findStaleProjection(
 
   const repo = opts.repo ?? resolveRepo(cwd);
   const ghLimit = (opts.limit ?? 0) > 0 ? (opts.limit as number) : 1000;
-  const openIssues = withGhTruthReason("drift-comparator", () =>
-    listIssues(repo, ghLimit),
-  );
+  const openIssues = withGhTruthReason("drift-comparator", () => listIssues(repo, ghLimit));
   const allBeads = loadTriageScopedBeads(join(cwd, ".beads"), bdExec, () => {});
   const rows = computeStaleRowsForGh(allBeads, openIssues, repo, ghLimit, listByState);
 
@@ -1298,10 +1283,8 @@ export function runStatusActor(
     const openBeads = allBeads.filter((r) => r.status !== "closed");
     const bdUntriaged = findBdUntriaged(allBeads, opts.includeIntentional);
     const bdStale = findBdStale(allBeads, thresholdDays, now, opts.includeIntentional);
-    const repo = opts.repo
-      ?? localRepo?.primaryRemote?.githubRepo
-      ?? localRepo?.name
-      ?? "<bd-canonical>";
+    const repo =
+      opts.repo ?? localRepo?.primaryRemote?.githubRepo ?? localRepo?.name ?? "<bd-canonical>";
     const base: TriageStatusResult = {
       repo,
       canonical: "bd",
@@ -1354,9 +1337,7 @@ export function runStatusActor(
   // unscoped `bd list --all --json` path. Neither read hits the non-zero-
   // exit-with-valid-stdout failure mode the GH-1551 parse-then-warn fix
   // covers, since the scoped path has no post-listing dolt sync.
-  const allBeads = loadTriageScopedBeads(join(cwd, ".beads"), bdExec, (line) =>
-    stderr.push(line),
-  );
+  const allBeads = loadTriageScopedBeads(join(cwd, ".beads"), bdExec, (line) => stderr.push(line));
   const beadsByNumber = indexBeadsByIssueNumber(allBeads);
 
   const rows = openIssues
@@ -1408,10 +1389,8 @@ export function runTriageStatus(
     const openBeads = allBeads.filter((r) => r.status !== "closed");
     const bdUntriaged = findBdUntriaged(allBeads, opts.includeIntentional);
     const bdStale = findBdStale(allBeads, thresholdDays, now, opts.includeIntentional);
-    const repo = opts.repo
-      ?? localRepo?.primaryRemote?.githubRepo
-      ?? localRepo?.name
-      ?? "<bd-canonical>";
+    const repo =
+      opts.repo ?? localRepo?.primaryRemote?.githubRepo ?? localRepo?.name ?? "<bd-canonical>";
     const base: TriageStatusResult = {
       repo,
       canonical: "bd",
@@ -1528,10 +1507,7 @@ function truncate(value: string, max: number): string {
   return value.slice(0, max - 1) + "…";
 }
 
-export function formatTriageStatus(
-  result: TriageStatusResult,
-  format: "plain" | "json",
-): string {
+export function formatTriageStatus(result: TriageStatusResult, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(result, null, 2);
   }
@@ -1546,10 +1522,10 @@ export function formatTriageStatus(
   // records (no external_ref) are the expected beads-first state, so they no
   // longer block the all-clear nor appear in the remediation headline.
   if (
-    result.totalUntriaged === 0
-    && result.totalDrift === 0
-    && result.totalStale === 0
-    && result.totalAxisConflicts === 0
+    result.totalUntriaged === 0 &&
+    result.totalDrift === 0 &&
+    result.totalStale === 0 &&
+    result.totalAxisConflicts === 0
   ) {
     const head = `All ${result.totalOpen} open issues in ${result.repo} are triaged with no pair drift, stale beads, or axis conflicts.`;
     return appendRateLimitBlock(head, result.rateLimit);
@@ -1585,7 +1561,9 @@ export function formatTriageStatus(
   // counted in the headline and need no GH backfill.
   if (result.reverseOrphans.length > 0) {
     lines.push("");
-    lines.push(`Bead-native, no GH mirror (${result.reverseOrphans.length}) — expected under beads-first, informational only:`);
+    lines.push(
+      `Bead-native, no GH mirror (${result.reverseOrphans.length}) — expected under beads-first, informational only:`,
+    );
     const idCol = Math.max(...result.reverseOrphans.map((row) => row.beadsId.length), 8);
     const titleCol = 60;
     for (const row of result.reverseOrphans) {
@@ -1620,24 +1598,21 @@ export function formatTriageStatus(
       const id = padEnd(row.beadsId, idCol);
       const title = padEnd(truncate(row.title, titleCol), titleCol);
       const tag = `${row.issueType || "?"}/${row.priority}`;
-      lines.push(`  ${id}  GH-${row.issueNumber}  ${title}  [${tag}]  → GH issue closed; bead still ${row.status}`);
+      lines.push(
+        `  ${id}  GH-${row.issueNumber}  ${title}  [${tag}]  → GH issue closed; bead still ${row.status}`,
+      );
     }
   }
 
   if (result.axisConflicts.length > 0) {
     lines.push("");
     lines.push(`Axis Conflicts (${result.axisConflicts.length}):`);
-    const idCol = Math.max(
-      ...result.axisConflicts.map((row) => `GH-${row.number}`.length),
-      5,
-    );
+    const idCol = Math.max(...result.axisConflicts.map((row) => `GH-${row.number}`.length), 5);
     const titleCol = 60;
     for (const row of result.axisConflicts) {
       const id = padEnd(`GH-${row.number}`, idCol);
       const title = padEnd(truncate(row.title, titleCol), titleCol);
-      const detail = row.conflicts
-        .map((c) => `${c.axis}: ${c.values.join(", ")}`)
-        .join("; ");
+      const detail = row.conflicts.map((c) => `${c.axis}: ${c.values.join(", ")}`).join("; ");
       lines.push(`  ${id}  ${title}  [${detail}]`);
     }
   }
@@ -1654,8 +1629,7 @@ function formatTriageStatusBd(result: TriageStatusResult): string {
   const stale = result.bdStale ?? [];
 
   if (untriaged.length === 0 && stale.length === 0) {
-    const head =
-      `All ${result.totalOpen} open beads in ${result.repo} (bd-canonical) are triaged with none stale.`;
+    const head = `All ${result.totalOpen} open beads in ${result.repo} (bd-canonical) are triaged with none stale.`;
     return appendRateLimitBlock(head, result.rateLimit);
   }
 
@@ -1684,19 +1658,14 @@ function formatTriageStatusBd(result: TriageStatusResult): string {
     for (const row of stale) {
       const id = padEnd(row.beadsId, idCol);
       const title = padEnd(truncate(row.title, titleCol), titleCol);
-      lines.push(
-        `  ${id}  ${title}  [${row.daysSince}d since ${row.lastTouched}]`,
-      );
+      lines.push(`  ${id}  ${title}  [${row.daysSince}d since ${row.lastTouched}]`);
     }
   }
 
   return appendRateLimitBlock(lines.join("\n"), result.rateLimit);
 }
 
-function appendRateLimitBlock(
-  body: string,
-  rateLimit: TriageStatusResult["rateLimit"],
-): string {
+function appendRateLimitBlock(body: string, rateLimit: TriageStatusResult["rateLimit"]): string {
   if (!rateLimit) return body;
   const block = formatBudgetBlock(rateLimit.snapshots, rateLimit.estimate);
   return body.length > 0 ? `${body}\n\n${block}` : block;

@@ -26,7 +26,10 @@ function effectDerivation(actor: string, subcommand: string): Derivation {
 
 describe("effectKindOf (prx-1dz)", () => {
   test("git effects expose their (tool, subcommand)", () => {
-    expect(effectKindOf(effectDerivation("keeper", "push"))).toEqual({ tool: "git", subcommand: "push" });
+    expect(effectKindOf(effectDerivation("keeper", "push"))).toEqual({
+      tool: "git",
+      subcommand: "push",
+    });
   });
 
   test("a derivation with no subcommand is not an enforced effect", () => {

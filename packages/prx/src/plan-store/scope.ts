@@ -51,7 +51,10 @@ export function parsePlanScope(body: Buffer | string): ParsePlanScopeResult {
     }
   }
 
-  const scopeBody = lines.slice(scopeStart + 1, scopeEnd).join("\n").trim();
+  const scopeBody = lines
+    .slice(scopeStart + 1, scopeEnd)
+    .join("\n")
+    .trim();
   // Strip HTML comments to a fixed point: a single pass can leave residue for
   // nested/overlapping comments (CodeQL js/incomplete-multi-character-sanitization).
   let stripped = scopeBody;
@@ -77,10 +80,7 @@ export interface PlanShapeVerdict {
   diagnostics: PlanDiagnostic[];
 }
 
-export function validatePlanShape(
-  body: Buffer | string,
-  unitId: string,
-): PlanShapeVerdict {
+export function validatePlanShape(body: Buffer | string, unitId: string): PlanShapeVerdict {
   const scope = parsePlanScope(body);
   if (!scope.hasScope) {
     return {

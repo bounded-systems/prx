@@ -50,7 +50,9 @@ describe("findPageId", () => {
   test("throws when database_id / id_property are missing for a Task-ID", async () => {
     const { fetch } = makeFetch([]);
     const resolver = new NotionResolver({ ...config, databaseId: null }, env, fetch);
-    await expect(resolver.findPageId("PROJECT-42")).rejects.toThrow(/requires database_id and id_property/);
+    await expect(resolver.findPageId("PROJECT-42")).rejects.toThrow(
+      /requires database_id and id_property/,
+    );
   });
 
   test("a Task-ID resolves through the canonical-id filter query", async () => {
@@ -89,7 +91,12 @@ describe("fetchByPageId", () => {
             Status: { status: { name: "Done" } },
           },
         }),
-      () => json(200, { results: [{ type: "paragraph", paragraph: { rich_text: [{ plain_text: "Body text." }] } }] }),
+      () =>
+        json(200, {
+          results: [
+            { type: "paragraph", paragraph: { rich_text: [{ plain_text: "Body text." }] } },
+          ],
+        }),
     ]);
     const resolver = new NotionResolver(config, env, fetch);
     const resolved = await resolver.fetchByPageId(PAGE_UUID);
@@ -109,7 +116,9 @@ describe("fetchByPageId", () => {
   test("a non-ok page retrieve surfaces the Notion error", async () => {
     const { fetch } = makeFetch([() => json(404, { message: "Not found" })]);
     const resolver = new NotionResolver(config, env, fetch);
-    await expect(resolver.fetchByPageId(PAGE_UUID)).rejects.toThrow(/page retrieve failed \(404\): Not found/);
+    await expect(resolver.fetchByPageId(PAGE_UUID)).rejects.toThrow(
+      /page retrieve failed \(404\): Not found/,
+    );
   });
 
   test("falls back to the requested pageId when the retrieve omits id/url", async () => {

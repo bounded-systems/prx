@@ -96,20 +96,9 @@ type IssueViewResult = {
   labels: IssueViewLabel[];
 };
 
-function readIssueView(
-  runner: CommandRunner,
-  cwd: string,
-  issue: number,
-): IssueViewResult | null {
+function readIssueView(runner: CommandRunner, cwd: string, issue: number): IssueViewResult | null {
   const res = runner(
-    [
-      "gh",
-      "issue",
-      "view",
-      String(issue),
-      "--json",
-      "number,title,state,body,comments,labels",
-    ],
+    ["gh", "issue", "view", String(issue), "--json", "number,title,state,body,comments,labels"],
     { cwd, check: false },
   );
   if (res.status !== 0) return null;
@@ -142,10 +131,10 @@ function readPrView(
   cwd: string,
   pr: number,
 ): { state: string; mergedAt: string | null } | null {
-  const res = runner(
-    ["gh", "pr", "view", String(pr), "--json", "state,mergedAt"],
-    { cwd, check: false },
-  );
+  const res = runner(["gh", "pr", "view", String(pr), "--json", "state,mergedAt"], {
+    cwd,
+    check: false,
+  });
   if (res.status !== 0) return null;
   try {
     const parsed = JSON.parse(res.stdout) as { state?: string; mergedAt?: string | null };
@@ -159,11 +148,7 @@ function readPrView(
   }
 }
 
-function fileTracked(
-  runner: CommandRunner,
-  cwd: string,
-  path: string,
-): boolean {
+function fileTracked(runner: CommandRunner, cwd: string, path: string): boolean {
   const res = runner(["git", "ls-files", "--error-unmatch", path], {
     cwd,
     check: false,
@@ -196,7 +181,8 @@ function checkAlreadyDone(
         // determined — preserves the pre-GH-1516 wire shape for callers that
         // compare against `{axis, shape, target}` exactly.
         if (d.context !== "unknown") {
-          (finding as PreflightFinding & { governingContext?: string }).governingContext = d.context;
+          (finding as PreflightFinding & { governingContext?: string }).governingContext =
+            d.context;
         }
         findings.push(finding);
       }
@@ -244,10 +230,7 @@ type ProfileLite = {
 // in the action shape. We keep the comparison surface narrow because the
 // in-session gate already enforces full glob semantics; the preflight only
 // needs the conservative "does the head appear in the disallow list" check.
-function disallowedByProfile(
-  profile: ProfileLite,
-  toolHead: string,
-): boolean {
+function disallowedByProfile(profile: ProfileLite, toolHead: string): boolean {
   for (const entry of profile.disallowedTools) {
     if (entry === toolHead) return true;
     // Match `Bash(<head>:*)` and `Bash(<head> --flag:*)` shapes.
@@ -315,10 +298,7 @@ const PROFILE_UNBLOCK_HINT: Record<UnblockProfileName, string> = {
   author: "prx author agent <GH-N>",
 };
 
-function toolHeadFor(
-  shape: PlannedAction["shape"],
-  subcommand: string,
-): string {
+function toolHeadFor(shape: PlannedAction["shape"], subcommand: string): string {
   if (shape === "git") return `git ${subcommand}`;
   if (shape === "gh-issue") return `gh issue ${subcommand}`;
   if (shape === "gh-pr") return `gh pr ${subcommand}`;
@@ -419,7 +399,11 @@ function classifyInfeasible(
     };
   }
   if (verdict.reason === "blocked") {
-    return { finding: actionFinding(shape, subcommand, "blocked"), deferred: false, mismatched: false };
+    return {
+      finding: actionFinding(shape, subcommand, "blocked"),
+      deferred: false,
+      mismatched: false,
+    };
   }
   const owning = findOwningRoles(tool, subcommand, state);
   if (owning.length > 0 && !owning.includes(currentRole)) {
@@ -437,7 +421,11 @@ function classifyInfeasible(
     };
     return { finding, deferred: false, mismatched: false };
   }
-  return { finding: actionFinding(shape, subcommand, verdict.reason), deferred: false, mismatched: false };
+  return {
+    finding: actionFinding(shape, subcommand, verdict.reason),
+    deferred: false,
+    mismatched: false,
+  };
 }
 
 // Axis 2 — collapse each declared action into the (tool, subcommand) pair the
@@ -491,7 +479,14 @@ export function checkActionFeasibility(
       // exposing this branch's missing perspective demotion.
       if (perspective === "executor-later" && role !== "executor") {
         findings.push(
-          perspectiveMismatchFinding(shape, subcommand, perspective, role, section, "disallowed-by-profile"),
+          perspectiveMismatchFinding(
+            shape,
+            subcommand,
+            perspective,
+            role,
+            section,
+            "disallowed-by-profile",
+          ),
         );
       } else {
         findings.push(actionFinding(shape, subcommand, "disallowed-by-profile"));
@@ -505,8 +500,7 @@ export function checkActionFeasibility(
     // branch never fires for hand-constructed inputs.
     const perspective: ActionPerspective =
       (action as { perspective?: ActionPerspective }).perspective ?? "unknown";
-    const section: string | undefined =
-      (action as { section?: string }).section;
+    const section: string | undefined = (action as { section?: string }).section;
     if (action.shape === "edit" || action.shape === "write") {
       const toolName = action.shape === "edit" ? "Edit" : "Write";
       if (!allowedByProfile(profile, toolName)) {
@@ -526,11 +520,25 @@ export function checkActionFeasibility(
       continue;
     }
     if (action.shape === "gh-issue") {
-      dispatch("gh", "gh-issue", action.subcommand, `gh issue ${action.subcommand}`, perspective, section);
+      dispatch(
+        "gh",
+        "gh-issue",
+        action.subcommand,
+        `gh issue ${action.subcommand}`,
+        perspective,
+        section,
+      );
       continue;
     }
     if (action.shape === "gh-pr") {
-      dispatch("gh", "gh-pr", action.subcommand, `gh pr ${action.subcommand}`, perspective, section);
+      dispatch(
+        "gh",
+        "gh-pr",
+        action.subcommand,
+        `gh pr ${action.subcommand}`,
+        perspective,
+        section,
+      );
       continue;
     }
     if (action.shape === "bd") {
@@ -615,9 +623,7 @@ export async function runPlanPreflight(
   if (ghIssue !== null) {
     const view = readIssueView(runner, cwd, ghIssue);
     if (!view) {
-      throw new Error(
-        `plan preflight: could not resolve ${input.unit} via gh issue view`,
-      );
+      throw new Error(`plan preflight: could not resolve ${input.unit} via gh issue view`);
     }
     body = view.body;
     issueNumber = ghIssue;
@@ -660,17 +666,9 @@ export async function runPlanPreflight(
     intakeType = detectIntakeTypeFromIssue(null, resolved.title);
   }
 
-  const extracted: ExtractAllResult = extractAll(
-    body,
-    issueNumber,
-    intakeType ?? undefined,
-  );
+  const extracted: ExtractAllResult = extractAll(body, issueNumber, intakeType ?? undefined);
 
-  const alreadyDoneFindings = checkAlreadyDone(
-    extracted.deliverables,
-    runner,
-    cwd,
-  );
+  const alreadyDoneFindings = checkAlreadyDone(extracted.deliverables, runner, cwd);
 
   // The executor profile drives axis-2 by default. The implement profile is
   // bound to (planning, executor) once it enters the executor session; the
@@ -700,9 +698,7 @@ export async function runPlanPreflight(
     ...blockerFindings,
   ];
 
-  const infeasibleActions = actionFindings.filter(
-    (f) => f.axis === "infeasible-action",
-  ).length;
+  const infeasibleActions = actionFindings.filter((f) => f.axis === "infeasible-action").length;
   const deferredActions = actionFindings.filter(
     (f) => f.axis === "action-deferred-to-other-role",
   ).length;
@@ -758,9 +754,7 @@ export function formatPreflightPlain(result: PreflightResult): string {
   // GH-1516: render perspective-mismatched count only when non-zero so the
   // axes line stays unchanged for runs that don't trigger the new axis.
   if (mismatched > 0) axesParts.push(`perspective-mismatched=${mismatched}`);
-  axesParts.push(
-    `blockers=${result.counts.blockersOpen}/${result.counts.blockersExtracted}`,
-  );
+  axesParts.push(`blockers=${result.counts.blockersOpen}/${result.counts.blockersExtracted}`);
   lines.push(`axes:   ${axesParts.join(" ")}`);
   if (result.findings.length === 0) {
     lines.push("findings: none — safe to draft");
@@ -769,9 +763,7 @@ export function formatPreflightPlain(result: PreflightResult): string {
   lines.push("findings:");
   for (const f of result.findings) {
     if (f.axis === "already-done") {
-      lines.push(
-        `  - already-done [${f.shape}]: ${f.target}${f.detail ? ` (${f.detail})` : ""}`,
-      );
+      lines.push(`  - already-done [${f.shape}]: ${f.target}${f.detail ? ` (${f.detail})` : ""}`);
       continue;
     }
     if (f.axis === "infeasible-action") {
@@ -782,9 +774,10 @@ export function formatPreflightPlain(result: PreflightResult): string {
     }
     if (f.axis === "action-deferred-to-other-role") {
       const rolePart = `owned by role(s) '${f.owningRoles.join(", ")}'`;
-      const profilePart = f.owningProfiles && f.owningProfiles.length > 0
-        ? ` / profile(s) '${f.owningProfiles.join(", ")}'`
-        : "";
+      const profilePart =
+        f.owningProfiles && f.owningProfiles.length > 0
+          ? ` / profile(s) '${f.owningProfiles.join(", ")}'`
+          : "";
       const hint = f.suggestedUnblock ? ` (run \`${f.suggestedUnblock}\` first)` : "";
       lines.push(
         `  - deferred-to-other-role [${f.shape}]: ${f.subcommand} — ${rolePart}${profilePart}${hint}`,
@@ -799,9 +792,7 @@ export function formatPreflightPlain(result: PreflightResult): string {
       continue;
     }
     if (f.axis === "infeasible-blocker") {
-      lines.push(
-        `  - infeasible-blocker: #${f.issue}${f.title ? ` (${f.title})` : ""}`,
-      );
+      lines.push(`  - infeasible-blocker: #${f.issue}${f.title ? ` (${f.title})` : ""}`);
       continue;
     }
     lines.push(`  - warning: ${f.message}`);

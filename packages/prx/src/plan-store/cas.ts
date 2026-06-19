@@ -56,10 +56,7 @@ function validateDomain(domain: string): string {
     throw new PlanStoreError("domain must not be empty", "INVALID_DOMAIN");
   }
   if (domain.length > MAX_DOMAIN) {
-    throw new PlanStoreError(
-      `domain too long (>${MAX_DOMAIN})`,
-      "INVALID_DOMAIN",
-    );
+    throw new PlanStoreError(`domain too long (>${MAX_DOMAIN})`, "INVALID_DOMAIN");
   }
   if (!DOMAIN_RE.test(domain)) {
     throw new PlanStoreError(
@@ -89,11 +86,7 @@ function resolveStoreRoot(domain: string = DEFAULT_DOMAIN): string {
 
 export interface StoreRootResolution {
   root: string;
-  source:
-    | "PRX_CAS_ROOT"
-    | "PRX_PLAN_STORE"
-    | "XDG_STATE_HOME"
-    | "XDG_STATE_HOME (default)";
+  source: "PRX_CAS_ROOT" | "PRX_PLAN_STORE" | "XDG_STATE_HOME" | "XDG_STATE_HOME (default)";
 }
 
 /**
@@ -101,9 +94,7 @@ export interface StoreRootResolution {
  * Used by `prx plan show --paths` (GH-1226) so the operator can see the
  * resolved location and confirm overrides without re-implementing the chain.
  */
-export function resolveStoreRootForDisplay(
-  domain: string = DEFAULT_DOMAIN,
-): StoreRootResolution {
+export function resolveStoreRootForDisplay(domain: string = DEFAULT_DOMAIN): StoreRootResolution {
   validateDomain(domain);
   const casRoot = getEnv("PRX_CAS_ROOT");
   if (casRoot && casRoot.length > 0) {
@@ -221,10 +212,7 @@ export function resolvePlanStagingDirForDisplay(): StagingDirResolution {
       source: "XDG_CACHE_HOME (default)",
     };
   }
-  throw new PlanStoreError(
-    "no plan staging root: set XDG_CACHE_HOME or HOME",
-    "NO_STAGING_ROOT",
-  );
+  throw new PlanStoreError("no plan staging root: set XDG_CACHE_HOME or HOME", "NO_STAGING_ROOT");
 }
 
 function ensureLayout(root: string): { objects: string; refs: string; tmp: string } {
@@ -306,34 +294,17 @@ function validateRefName(name: string): void {
     throw new PlanStoreError("ref name must not be empty", "INVALID_REF_NAME");
   }
   if (name.length > MAX_REF_NAME) {
-    throw new PlanStoreError(
-      `ref name too long (>${MAX_REF_NAME})`,
-      "INVALID_REF_NAME",
-    );
+    throw new PlanStoreError(`ref name too long (>${MAX_REF_NAME})`, "INVALID_REF_NAME");
   }
   if (name.startsWith(".")) {
-    throw new PlanStoreError(
-      "ref name must not start with '.'",
-      "INVALID_REF_NAME",
-    );
+    throw new PlanStoreError("ref name must not start with '.'", "INVALID_REF_NAME");
   }
-  if (
-    name.includes("..") ||
-    name.includes("/") ||
-    name.includes("\\") ||
-    name.includes("\0")
-  ) {
-    throw new PlanStoreError(
-      "ref name contains forbidden separator/sequence",
-      "INVALID_REF_NAME",
-    );
+  if (name.includes("..") || name.includes("/") || name.includes("\\") || name.includes("\0")) {
+    throw new PlanStoreError("ref name contains forbidden separator/sequence", "INVALID_REF_NAME");
   }
   for (let i = 0; i < name.length; i++) {
     if (name.charCodeAt(i) < 0x20) {
-      throw new PlanStoreError(
-        "ref name contains control character",
-        "INVALID_REF_NAME",
-      );
+      throw new PlanStoreError("ref name contains control character", "INVALID_REF_NAME");
     }
   }
 }
@@ -345,10 +316,7 @@ export async function writeBlob(
   const domain = opts?.domain ?? DEFAULT_DOMAIN;
   const buf = typeof content === "string" ? Buffer.from(content, "utf8") : content;
   if (buf.length > MAX_BLOB_BYTES) {
-    throw new PlanStoreError(
-      `blob too large: ${buf.length} > ${MAX_BLOB_BYTES}`,
-      "BLOB_TOO_LARGE",
-    );
+    throw new PlanStoreError(`blob too large: ${buf.length} > ${MAX_BLOB_BYTES}`, "BLOB_TOO_LARGE");
   }
   const hex = sha256BareHex(buf);
   const sha: CasSha = `sha256:${hex}`;
@@ -406,11 +374,7 @@ export async function hasBlob(sha: CasSha, opts?: DomainOptions): Promise<boolea
   return existsSync(file);
 }
 
-export async function setRef(
-  name: string,
-  sha: CasSha,
-  opts?: DomainOptions,
-): Promise<void> {
+export async function setRef(name: string, sha: CasSha, opts?: DomainOptions): Promise<void> {
   const domain = opts?.domain ?? DEFAULT_DOMAIN;
   validateRefName(name);
   const hex = parseSha(sha);
@@ -418,10 +382,7 @@ export async function setRef(
   const { refs, tmp } = ensureLayout(root);
   const { file: blobFile } = objectPathFor(root, hex);
   if (!existsSync(blobFile)) {
-    throw new PlanStoreError(
-      `ref target blob missing: ${sha}`,
-      "REF_TARGET_MISSING",
-    );
+    throw new PlanStoreError(`ref target blob missing: ${sha}`, "REF_TARGET_MISSING");
   }
   const tmpPath = join(tmp, tmpName("ref"));
   const fd = openSync(tmpPath, "wx", 0o644);
@@ -436,10 +397,7 @@ export async function setRef(
   fsyncDir(refs);
 }
 
-export async function getRef(
-  name: string,
-  opts?: DomainOptions,
-): Promise<CasSha | null> {
+export async function getRef(name: string, opts?: DomainOptions): Promise<CasSha | null> {
   const domain = opts?.domain ?? DEFAULT_DOMAIN;
   validateRefName(name);
   const root = resolveStoreRoot(domain);
@@ -449,10 +407,7 @@ export async function getRef(
   }
   const raw = readFileSync(refPath, "utf8").trim();
   if (!SHA_RE.test(raw)) {
-    throw new PlanStoreError(
-      `ref ${name} contains invalid sha: ${raw}`,
-      "INVALID_SHA",
-    );
+    throw new PlanStoreError(`ref ${name} contains invalid sha: ${raw}`, "INVALID_SHA");
   }
   return raw;
 }
@@ -550,10 +505,7 @@ export async function deleteBlob(sha: CasSha, opts?: DomainOptions): Promise<voi
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
       return; // already gone — idempotent
     }
-    throw new PlanStoreError(
-      `failed to delete blob ${sha}: ${(err as Error).message}`,
-      "IO_ERROR",
-    );
+    throw new PlanStoreError(`failed to delete blob ${sha}: ${(err as Error).message}`, "IO_ERROR");
   }
   try {
     rmdirSync(dir); // best-effort: prune the shard if this was its last blob

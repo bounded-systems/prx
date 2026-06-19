@@ -30,8 +30,8 @@ describe("resolveClaudeExecutablePath (prx-5el)", () => {
   });
 
   test("ignores empty/undefined candidates", () => {
-    expect(
-      resolveClaudeExecutablePath([undefined, "", "/real"], (p) => p === "/real"),
-    ).toBe("/real");
+    expect(resolveClaudeExecutablePath([undefined, "", "/real"], (p) => p === "/real")).toBe(
+      "/real",
+    );
   });
 });

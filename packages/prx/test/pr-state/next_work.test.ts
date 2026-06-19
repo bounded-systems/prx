@@ -8,10 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type { AuditSinkDeps } from "../../src/audit/sink.ts";
-import {
-  BdReadyExplainEnvelopeSchema,
-  type BdReadyCandidate,
-} from "../../src/beads/ready.ts";
+import { BdReadyExplainEnvelopeSchema, type BdReadyCandidate } from "../../src/beads/ready.ts";
 import type { GetBdReadyResult } from "../../src/beads/ready_cache.ts";
 import { derivePausedPlans, nextWork, DEFAULT_THREAD_ORDER } from "../../src/pr-state/next_work.ts";
 import type { BoardStatusResult, BoardUnit, BoardColumn } from "../../src/pr-state/github.ts";
@@ -38,8 +35,11 @@ function eventsOf(rows: Record<string, unknown>[], prefix?: string): string[] {
     .filter((e) => (prefix ? e.startsWith(prefix) : true));
 }
 
-const MIXED_FIXTURE_PATH = new URL("../beads/fixtures/bd-ready-mixed.json", import.meta.url).pathname;
-const mixedFixture = BdReadyExplainEnvelopeSchema.parse(JSON.parse(readFileSync(MIXED_FIXTURE_PATH, "utf8")));
+const MIXED_FIXTURE_PATH = new URL("../beads/fixtures/bd-ready-mixed.json", import.meta.url)
+  .pathname;
+const mixedFixture = BdReadyExplainEnvelopeSchema.parse(
+  JSON.parse(readFileSync(MIXED_FIXTURE_PATH, "utf8")),
+);
 
 const FAKE_REPO = "owner/repo";
 
@@ -70,7 +70,9 @@ function emptyBoard(units: BoardUnit[] = []): BoardStatusResult {
   };
 }
 
-function makeUnit(overrides: Partial<BoardUnit> & { branch: string; column: BoardColumn }): BoardUnit {
+function makeUnit(
+  overrides: Partial<BoardUnit> & { branch: string; column: BoardColumn },
+): BoardUnit {
   return {
     ticket: overrides.ticket ?? null,
     branch: overrides.branch,
@@ -86,7 +88,12 @@ function makeUnit(overrides: Partial<BoardUnit> & { branch: string; column: Boar
       approvals: null,
       mergeable: null,
     },
-    artifacts: overrides.artifacts ?? { worktree: true, branch: true, pr: false, ticket: !!overrides.ticket },
+    artifacts: overrides.artifacts ?? {
+      worktree: true,
+      branch: true,
+      pr: false,
+      ticket: !!overrides.ticket,
+    },
     local: overrides.local ?? { clean: true, staged: 0, unstaged: 0, untracked: 0, conflicts: 0 },
     column: overrides.column,
     reasons: overrides.reasons ?? [],
@@ -105,7 +112,9 @@ function threadIds(result: ReturnType<typeof nextWork>, kind: string): string[] 
 // row arrays. Tests pass this through `opts.triage` so the picker projects
 // it deterministically.
 function makeTriageSnapshot(
-  overrides: Partial<Pick<TriageStatusResult, "issues" | "reverseOrphans" | "drift" | "stale">> = {},
+  overrides: Partial<
+    Pick<TriageStatusResult, "issues" | "reverseOrphans" | "drift" | "stale">
+  > = {},
 ): TriageStatusResult {
   const issues = overrides.issues ?? [];
   const reverseOrphans = overrides.reverseOrphans ?? [];
@@ -130,7 +139,9 @@ function makeTriageSnapshot(
 
 // GH-1617: build a transition-log entry with sensible defaults so callers
 // only have to spell out the fields under test.
-function makeTransitionEntry(overrides: Partial<TransitionEntry> & { issue: string; actor: string; timestamp: string }): TransitionEntry {
+function makeTransitionEntry(
+  overrides: Partial<TransitionEntry> & { issue: string; actor: string; timestamp: string },
+): TransitionEntry {
   return {
     id: overrides.id ?? `id-${overrides.issue}-${overrides.timestamp}`,
     issue: overrides.issue,
@@ -710,11 +721,24 @@ describe("nextWork — catalog-event audit emissions (GH-1616)", () => {
 describe("nextWork — per-column recommended actions", () => {
   test("projects a board with a unit in every column (exercises the next-action switch)", () => {
     const columns: BoardColumn[] = [
-      "no_worktree", "worktree_created", "branch_created", "committing", "pushed",
-      "pr_open", "ci_running", "review", "changes_requested", "approved",
-      "merge_ready", "cleanup_pending", "merged", "cleaned",
+      "no_worktree",
+      "worktree_created",
+      "branch_created",
+      "committing",
+      "pushed",
+      "pr_open",
+      "ci_running",
+      "review",
+      "changes_requested",
+      "approved",
+      "merge_ready",
+      "cleanup_pending",
+      "merged",
+      "cleaned",
     ];
-    const units = columns.map((column, i) => makeUnit({ branch: `GH-${100 + i}`, column, ticket: `GH-${100 + i}` }));
+    const units = columns.map((column, i) =>
+      makeUnit({ branch: `GH-${100 + i}`, column, ticket: `GH-${100 + i}` }),
+    );
     const result = nextWork("/dev/null", { bdReady: bdReadyResult(), board: emptyBoard(units) });
     expect(result).toBeDefined();
     expect(Array.isArray(result.threads)).toBe(true);
@@ -734,7 +758,7 @@ describe("nextWork — prx.toml [next_work] config readers", () => {
     const dir = repoWithConfig(
       [
         "[next_work]",
-        '# a comment, and a blank line follow',
+        "# a comment, and a blank line follow",
         "",
         'thread_order = ["blocked", "blocked", "ready_to_start"]',
         "plan_paused_ttl_seconds = 4242",
@@ -790,9 +814,15 @@ describe("nextWork — priorityLabelToNumber via stale triage rows", () => {
         staleRow("garbage", "bd-unk", 4),
       ],
     });
-    const result = nextWork("/dev/null", { bdReady: bdReadyResult([], []), board: emptyBoard(), triage });
+    const result = nextWork("/dev/null", {
+      bdReady: bdReadyResult([], []),
+      board: emptyBoard(),
+      triage,
+    });
     const byId = new Map(
-      result.threads.find((t) => t.kind === "triage_backlog")!.candidates.map((c) => [c.bd_id, c.priority]),
+      result.threads
+        .find((t) => t.kind === "triage_backlog")!
+        .candidates.map((c) => [c.bd_id, c.priority]),
     );
     expect(byId.get("bd-crit")).toBe(0);
     expect(byId.get("bd-high")).toBe(1);

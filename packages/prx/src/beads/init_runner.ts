@@ -10,10 +10,7 @@
 // temp-file streaming + no-1 MiB cap behavior from GH-1609 applies. Tests
 // inject a fake runner to drive every step without spawning real bd.
 
-import {
-  spawnCapture,
-  type SpawnCaptureResult,
-} from "@bounded-systems/proc";
+import { spawnCapture, type SpawnCaptureResult } from "@bounded-systems/proc";
 
 export type BdInitRunner = (
   cmd: readonly string[],

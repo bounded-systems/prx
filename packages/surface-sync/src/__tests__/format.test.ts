@@ -2,9 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { formatSurfaceSync, type SurfaceSyncResult } from "@bounded-systems/surface-sync";
 
-function pruneResult(
-  unit: SurfaceSyncResult["units"][number],
-): SurfaceSyncResult {
+function pruneResult(unit: SurfaceSyncResult["units"][number]): SurfaceSyncResult {
   return {
     source: "surface-sync",
     repo: "owner/repo",

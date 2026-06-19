@@ -123,7 +123,9 @@ describe("formatBootstrapResult — plain render branches", () => {
     };
     const plain = formatBootstrapResult(result, "plain");
     expect(plain).toContain("→ /m/.beads");
-    expect(plain).toContain("stale: dolt-data, dolt-server.pid, dolt-server.port, dolt-server.lock");
+    expect(plain).toContain(
+      "stale: dolt-data, dolt-server.pid, dolt-server.port, dolt-server.lock",
+    );
     expect(plain).toContain("repair-redirect");
     expect(plain).toContain("bd-schema: repaired (7ms)");
     expect(plain).toContain("→ /w/.pr/local/pr.json");

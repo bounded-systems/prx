@@ -8,12 +8,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { toJsonSchemaArtifact } from "../../src/lib/json-schema.ts";
-import {
-  GRAPH_OUTPUT,
-  buildGraph,
-  collectPackages,
-  renderGraph,
-} from "../../src/graph/build.ts";
+import { GRAPH_OUTPUT, buildGraph, collectPackages, renderGraph } from "../../src/graph/build.ts";
 import {
   PROJECT_GRAPH_SCHEMA_NAME,
   ProjectGraph,
@@ -33,10 +28,7 @@ describe("project graph (prx.jsonld)", () => {
 
   test("project-graph.schema.json matches the Zod model (run `bun run schemas:export`)", () => {
     const onDisk = JSON.parse(
-      readFileSync(
-        resolve(repoRoot, "schemas/graph/project-graph.schema.json"),
-        "utf8",
-      ),
+      readFileSync(resolve(repoRoot, "schemas/graph/project-graph.schema.json"), "utf8"),
     );
     const regenerated = toJsonSchemaArtifact(ProjectGraph, PROJECT_GRAPH_SCHEMA_NAME);
     expect(onDisk).toEqual(regenerated);

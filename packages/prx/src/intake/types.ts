@@ -46,7 +46,8 @@ export const INTENT_TO_SPEC: Record<IntakeIntent, IntentSpec> = {
 };
 
 // Conv-commit + intake-type vocab; matches GH-1122 normalization regex.
-export const PREFIX_RE = /^(feat|fix|bug|chore|docs|refactor|test|feature|task|spike|decision)(?:\(([^)]+)\))?:\s+/;
+export const PREFIX_RE =
+  /^(feat|fix|bug|chore|docs|refactor|test|feature|task|spike|decision)(?:\(([^)]+)\))?:\s+/;
 
 // feat→feature, fix→bug; identity for bug|task|feature|chore|spike|decision.
 // docs|refactor|test have no intake-intent counterpart — always mismatch.

@@ -74,20 +74,14 @@ describe("selectDecision", () => {
   const emptyLookup = { byUrl: new Map(), byIssueNumber: new Map(), byDomainExternalId: new Map() };
 
   test("skip:missing-labels when no type::*", () => {
-    const row = selectDecision(
-      issue({ labels: [ghLabel("priority::medium")] }),
-      emptyLookup,
-    );
+    const row = selectDecision(issue({ labels: [ghLabel("priority::medium")] }), emptyLookup);
     expect(row.decision).toBe("skip:missing-labels");
     expect(row.type).toBeUndefined();
     expect(row.reason).toMatch(/no type/);
   });
 
   test("skip:missing-labels when type set but priority absent", () => {
-    const row = selectDecision(
-      issue({ labels: [ghLabel("type::bug")] }),
-      emptyLookup,
-    );
+    const row = selectDecision(issue({ labels: [ghLabel("type::bug")] }), emptyLookup);
     expect(row.decision).toBe("skip:missing-labels");
     expect(row.type).toBe("bug");
     expect(row.priority).toBeUndefined();
@@ -219,23 +213,19 @@ describe("buildPromotePlan (Phase 1 scan)", () => {
 describe("runTriagePromote — scan phase", () => {
   test("emits a JSON plan to stdout when --from is omitted", () => {
     const o = makeOutput();
-    const code = runTriagePromote(
-      { dryRun: false, limit: 0 },
-      o.output,
-      {
-        ...STD_DEPS_BASE,
-        listOpenIssues: () => [
-          issue({
-            number: 7,
-            url: "https://github.com/bdelanghe/ai-home/issues/7",
-            labels: [ghLabel("type::feature"), ghLabel("priority::medium")],
-          }),
-        ],
-        repoNameWithOwner: () => "bdelanghe/ai-home",
-        loadAllBeads: () => [],
-        cwd: () => "/tmp/repo",
-      },
-    );
+    const code = runTriagePromote({ dryRun: false, limit: 0 }, o.output, {
+      ...STD_DEPS_BASE,
+      listOpenIssues: () => [
+        issue({
+          number: 7,
+          url: "https://github.com/bdelanghe/ai-home/issues/7",
+          labels: [ghLabel("type::feature"), ghLabel("priority::medium")],
+        }),
+      ],
+      repoNameWithOwner: () => "bdelanghe/ai-home",
+      loadAllBeads: () => [],
+      cwd: () => "/tmp/repo",
+    });
     expect(code).toBe(0);
     expect(o.log).toHaveLength(1);
     const plan = JSON.parse(o.log[0]!) as PromotePlan;
@@ -245,11 +235,14 @@ describe("runTriagePromote — scan phase", () => {
 });
 
 describe("runTriagePromote — apply phase", () => {
-  function setup(rows: PromotePlanRow[], options: {
-    bdResults?: BdExecResult[];
-    ghResults?: GhExecResult[];
-    beadsAtApply?: BeadsRecord[];
-  } = {}) {
+  function setup(
+    rows: PromotePlanRow[],
+    options: {
+      bdResults?: BdExecResult[];
+      ghResults?: GhExecResult[];
+      beadsAtApply?: BeadsRecord[];
+    } = {},
+  ) {
     const audit: string[] = [];
     let bdIndex = 0;
     let ghIndex = 0;
@@ -329,11 +322,7 @@ describe("runTriagePromote — apply phase", () => {
 
   test("dry-run writes audit entries and skips both bd and gh", () => {
     const { audit, o, deps, bdCalls, ghCalls } = setup([promoteRow()]);
-    const code = runTriagePromote(
-      { from: "/tmp/p.json", dryRun: true, limit: 0 },
-      o.output,
-      deps,
-    );
+    const code = runTriagePromote({ from: "/tmp/p.json", dryRun: true, limit: 0 }, o.output, deps);
     expect(code).toBe(0);
     expect(bdCalls()).toBe(0);
     expect(ghCalls()).toBe(0);
@@ -350,11 +339,7 @@ describe("runTriagePromote — apply phase", () => {
       promoteRow({ number: 2, decision: "skip:non-execution-type", reason: "epic" }),
       promoteRow({ number: 3, decision: "skip:already-in-bd", reason: "bd-1" }),
     ]);
-    const code = runTriagePromote(
-      { from: "/tmp/p.json", dryRun: false, limit: 0 },
-      o.output,
-      deps,
-    );
+    const code = runTriagePromote({ from: "/tmp/p.json", dryRun: false, limit: 0 }, o.output, deps);
     expect(code).toBe(0);
     expect(bdCalls()).toBe(0);
     expect(ghCalls()).toBe(0);
@@ -371,28 +356,24 @@ describe("runTriagePromote — apply phase", () => {
     const fixture = JSON.stringify(planFixture([promoteRow()]));
     const audit: string[] = [];
     const o = makeOutput();
-    const code = runTriagePromote(
-      { from: "/tmp/p.json", dryRun: false, limit: 0 },
-      o.output,
-      {
-        ...STD_DEPS_BASE,
-        run: ((cmd: string[]) => {
-          bdCalls.push({ args: cmd.slice(3) });
-          return { status: 0, stdout: JSON.stringify({ id: "bd-9000" }), stderr: "" };
-        }) as never,
-        execGh: (opts) => {
-          ghCalls.push({ args: opts.args });
-          return { exitCode: 0, stdout: "", stderr: "", policy: null };
-        },
-        readFileSync: () => fixture,
-        loadAllBeads: () => [],
-        auditSink: {
-          stateDirOverride: "/tmp/state",
-          ensureDir: () => {},
-          appendFn: (_path: string, line: string) => audit.push(line),
-        },
+    const code = runTriagePromote({ from: "/tmp/p.json", dryRun: false, limit: 0 }, o.output, {
+      ...STD_DEPS_BASE,
+      run: ((cmd: string[]) => {
+        bdCalls.push({ args: cmd.slice(3) });
+        return { status: 0, stdout: JSON.stringify({ id: "bd-9000" }), stderr: "" };
+      }) as never,
+      execGh: (opts) => {
+        ghCalls.push({ args: opts.args });
+        return { exitCode: 0, stdout: "", stderr: "", policy: null };
       },
-    );
+      readFileSync: () => fixture,
+      loadAllBeads: () => [],
+      auditSink: {
+        stateDirOverride: "/tmp/state",
+        ensureDir: () => {},
+        appendFn: (_path: string, line: string) => audit.push(line),
+      },
+    });
     expect(code).toBe(0);
     expect(bdCalls).toHaveLength(1);
     expect(bdCalls[0]!.args).toContain("--external-ref");
@@ -423,25 +404,21 @@ describe("runTriagePromote — apply phase", () => {
       const captured: Array<{ args: string[] }> = [];
       const fixture = JSON.stringify(planFixture([promoteRow({ priority: label })]));
       const o = makeOutput();
-      runTriagePromote(
-        { from: "/tmp/p.json", dryRun: false, limit: 0 },
-        o.output,
-        {
-          ...STD_DEPS_BASE,
-          run: ((cmd: string[]) => {
-            captured.push({ args: cmd.slice(3) });
-            return { status: 0, stdout: JSON.stringify({ id: "bd-1" }), stderr: "" };
-          }) as never,
-          execGh: () => ({ exitCode: 0, stdout: "", stderr: "", policy: null }),
-          readFileSync: () => fixture,
-          loadAllBeads: () => [],
-          auditSink: {
-            stateDirOverride: "/tmp/state",
-            ensureDir: () => {},
-            appendFn: () => {},
-          },
+      runTriagePromote({ from: "/tmp/p.json", dryRun: false, limit: 0 }, o.output, {
+        ...STD_DEPS_BASE,
+        run: ((cmd: string[]) => {
+          captured.push({ args: cmd.slice(3) });
+          return { status: 0, stdout: JSON.stringify({ id: "bd-1" }), stderr: "" };
+        }) as never,
+        execGh: () => ({ exitCode: 0, stdout: "", stderr: "", policy: null }),
+        readFileSync: () => fixture,
+        loadAllBeads: () => [],
+        auditSink: {
+          stateDirOverride: "/tmp/state",
+          ensureDir: () => {},
+          appendFn: () => {},
         },
-      );
+      });
       const idx = captured[0]!.args.indexOf("--priority");
       expect(captured[0]!.args[idx + 1]).toBe(expected);
     }
@@ -469,32 +446,21 @@ describe("runTriagePromote — apply phase", () => {
       promoteRow({ number: 2 }),
       promoteRow({ number: 3 }),
     ]);
-    runTriagePromote(
-      { from: "/tmp/p.json", dryRun: true, limit: 2 },
-      o.output,
-      deps,
-    );
+    runTriagePromote({ from: "/tmp/p.json", dryRun: true, limit: 2 }, o.output, deps);
     expect(audit).toHaveLength(2);
   });
 
   test("defensive idempotency: skip if beads has the row at apply time even when plan says promote", () => {
-    const { audit, o, deps, bdCalls } = setup(
-      [promoteRow({ number: 42 })],
-      {
-        beadsAtApply: [
-          bead({
-            id: "bd-prior",
-            externalRef: "https://github.com/bdelanghe/ai-home/issues/42",
-            externalIssueNumber: 42,
-          }),
-        ],
-      },
-    );
-    const code = runTriagePromote(
-      { from: "/tmp/p.json", dryRun: false, limit: 0 },
-      o.output,
-      deps,
-    );
+    const { audit, o, deps, bdCalls } = setup([promoteRow({ number: 42 })], {
+      beadsAtApply: [
+        bead({
+          id: "bd-prior",
+          externalRef: "https://github.com/bdelanghe/ai-home/issues/42",
+          externalIssueNumber: 42,
+        }),
+      ],
+    });
+    const code = runTriagePromote({ from: "/tmp/p.json", dryRun: false, limit: 0 }, o.output, deps);
     expect(code).toBe(0);
     expect(bdCalls()).toBe(0);
     const entry = JSON.parse(audit[0]!);
@@ -504,18 +470,11 @@ describe("runTriagePromote — apply phase", () => {
   });
 
   test("partial-error: bd succeeds, gh comment fails — exit 1, audit logs partial", () => {
-    const { audit, o, deps } = setup(
-      [promoteRow()],
-      {
-        bdResults: [{ exitCode: 0, stdout: "bd-7", stderr: "", policy: null }],
-        ghResults: [{ exitCode: 1, stdout: "", stderr: "comment denied", policy: null }],
-      },
-    );
-    const code = runTriagePromote(
-      { from: "/tmp/p.json", dryRun: false, limit: 0 },
-      o.output,
-      deps,
-    );
+    const { audit, o, deps } = setup([promoteRow()], {
+      bdResults: [{ exitCode: 0, stdout: "bd-7", stderr: "", policy: null }],
+      ghResults: [{ exitCode: 1, stdout: "", stderr: "comment denied", policy: null }],
+    });
+    const code = runTriagePromote({ from: "/tmp/p.json", dryRun: false, limit: 0 }, o.output, deps);
     expect(code).toBe(1);
     const entry = JSON.parse(audit[0]!);
     expect(entry.action).toBe("partial-error");
@@ -524,17 +483,10 @@ describe("runTriagePromote — apply phase", () => {
   });
 
   test("error: bd create fails — exit 1, no gh call", () => {
-    const { audit, o, deps, ghCalls } = setup(
-      [promoteRow()],
-      {
-        bdResults: [{ exitCode: 1, stdout: "", stderr: "bd boom", policy: null }],
-      },
-    );
-    const code = runTriagePromote(
-      { from: "/tmp/p.json", dryRun: false, limit: 0 },
-      o.output,
-      deps,
-    );
+    const { audit, o, deps, ghCalls } = setup([promoteRow()], {
+      bdResults: [{ exitCode: 1, stdout: "", stderr: "bd boom", policy: null }],
+    });
+    const code = runTriagePromote({ from: "/tmp/p.json", dryRun: false, limit: 0 }, o.output, deps);
     expect(code).toBe(1);
     expect(ghCalls()).toBe(0);
     const entry = JSON.parse(audit[0]!);
@@ -543,17 +495,10 @@ describe("runTriagePromote — apply phase", () => {
   });
 
   test("error: bd succeeds but stdout is empty — exit 1, no gh call", () => {
-    const { audit, o, deps, ghCalls } = setup(
-      [promoteRow()],
-      {
-        bdResults: [{ exitCode: 0, stdout: "   \n", stderr: "", policy: null }],
-      },
-    );
-    const code = runTriagePromote(
-      { from: "/tmp/p.json", dryRun: false, limit: 0 },
-      o.output,
-      deps,
-    );
+    const { audit, o, deps, ghCalls } = setup([promoteRow()], {
+      bdResults: [{ exitCode: 0, stdout: "   \n", stderr: "", policy: null }],
+    });
+    const code = runTriagePromote({ from: "/tmp/p.json", dryRun: false, limit: 0 }, o.output, deps);
     expect(code).toBe(1);
     expect(ghCalls()).toBe(0);
     const entry = JSON.parse(audit[0]!);
@@ -563,21 +508,17 @@ describe("runTriagePromote — apply phase", () => {
 
   test("rejects plan that fails schema validation", () => {
     const o = makeOutput();
-    const code = runTriagePromote(
-      { from: "/tmp/p.json", dryRun: false, limit: 0 },
-      o.output,
-      {
-        ...STD_DEPS_BASE,
-        readFileSync: () => JSON.stringify({ rows: [{ bogus: true }] }),
-        loadAllBeads: () => [],
-        auditSink: {
-          ...STD_DEPS_BASE.auditSink,
-          appendFn: () => {},
-        },
-        execBd: () => ({ exitCode: 0, stdout: "", stderr: "", policy: null }),
-        execGh: () => ({ exitCode: 0, stdout: "", stderr: "", policy: null }),
+    const code = runTriagePromote({ from: "/tmp/p.json", dryRun: false, limit: 0 }, o.output, {
+      ...STD_DEPS_BASE,
+      readFileSync: () => JSON.stringify({ rows: [{ bogus: true }] }),
+      loadAllBeads: () => [],
+      auditSink: {
+        ...STD_DEPS_BASE.auditSink,
+        appendFn: () => {},
       },
-    );
+      execBd: () => ({ exitCode: 0, stdout: "", stderr: "", policy: null }),
+      execGh: () => ({ exitCode: 0, stdout: "", stderr: "", policy: null }),
+    });
     expect(code).toBe(1);
     expect(o.error.join("\n")).toMatch(/schema validation/);
   });

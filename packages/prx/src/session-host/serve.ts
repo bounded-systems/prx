@@ -16,11 +16,7 @@
 import { type Socket } from "node:net";
 
 import { FrameDecoder, encodeFrame } from "../door/framing.ts";
-import {
-  SessionRequestSchema,
-  type SessionRequest,
-  type SessionResponse,
-} from "./contract.ts";
+import { SessionRequestSchema, type SessionRequest, type SessionResponse } from "./contract.ts";
 import { handleSessionRequest, type SessionHostDeps } from "./handler.ts";
 
 function badRequest(message: string): SessionResponse {

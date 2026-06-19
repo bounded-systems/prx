@@ -66,9 +66,7 @@ describe("extractMemoryCandidates", () => {
   });
 
   test("strips json code fence around the array", async () => {
-    const runner = envelopeReturning(
-      "```json\n[]\n```",
-    );
+    const runner = envelopeReturning("```json\n[]\n```");
     const result = await extractMemoryCandidates(baseSession, {
       uowId: "uow-3",
       runner,

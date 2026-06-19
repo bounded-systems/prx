@@ -22,23 +22,14 @@
 // `triageMachine` `pruneMerged` state and surfaced to `prx triage prime`'s
 // per-iteration log so the operator sees what the sweep closed.
 
-import {
-  applyParityChainActions,
-  pruneStaleRemoteRefs,
-} from "../pr-state/parity-chain.ts";
+import { applyParityChainActions, pruneStaleRemoteRefs } from "../pr-state/parity-chain.ts";
 import type { ParityChainApplyResult } from "../pr-state/cli-types.ts";
 import { buildParityChain, repoNameWithOwner } from "../pr-state/github.ts";
 import type { SurfaceSyncAction } from "@bounded-systems/surface-sync";
-import {
-  runBeadsSync as defaultRunBeadsSync,
-  type BeadsSyncResult,
-} from "../sync/run.ts";
+import { runBeadsSync as defaultRunBeadsSync, type BeadsSyncResult } from "../sync/run.ts";
 import { DEFAULT_SYNC_LIMIT } from "../sync/limits.ts";
 
-import {
-  triagePruneMergedOptionsSchema,
-  type TriagePruneMergedOptions,
-} from "./schemas/index.ts";
+import { triagePruneMergedOptionsSchema, type TriagePruneMergedOptions } from "./schemas/index.ts";
 
 /**
  * Result of one `prx prune --merged-only` sweep.
@@ -81,8 +72,7 @@ export async function runPruneMergedActor(
   const build = deps.buildParityChain ?? buildParityChain;
   const apply = deps.applyParityChainActions ?? applyParityChainActions;
   const refresh = deps.pruneStaleRemoteRefs ?? pruneStaleRemoteRefs;
-  const resolveRepo =
-    deps.resolveRepoNameWithOwner ?? ((path: string) => repoNameWithOwner(path));
+  const resolveRepo = deps.resolveRepoNameWithOwner ?? ((path: string) => repoNameWithOwner(path));
   const beadsSync = deps.runBeadsSync ?? defaultRunBeadsSync;
 
   // GH-1125 / Copilot review: this actor plans, applies, AND syncs against

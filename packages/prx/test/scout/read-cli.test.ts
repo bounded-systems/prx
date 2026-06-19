@@ -70,9 +70,7 @@ describe("prx scout read --ledger", () => {
       // digest include the recorded read.
       const store = openAnchoredChain(ledger);
       try {
-        const consumers = await store.invalidate.descendants(
-          `sha256:${envelope.sha256}` as Digest,
-        );
+        const consumers = await store.invalidate.descendants(`sha256:${envelope.sha256}` as Digest);
         expect(consumers.length).toBe(1);
       } finally {
         store.close();

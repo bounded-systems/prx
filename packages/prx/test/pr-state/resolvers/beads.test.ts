@@ -76,7 +76,9 @@ describe("BeadsResolver.fetch", () => {
     // The covering BdDomainAdapter consults process.cwd() for the local
     // workspace prefix; for this synthetic test we accept the foreign-prefix
     // throw and just verify the dispatch reaches the adapter path.
-    await expect(resolver.toBdLongId("BD-foreign-prefix-1778515181936-7-edba9d4a")).rejects.toThrow();
+    await expect(
+      resolver.toBdLongId("BD-foreign-prefix-1778515181936-7-edba9d4a"),
+    ).rejects.toThrow();
   });
 
   test("toBdLongId — bare bd-native long id passes through verbatim", async () => {
@@ -89,9 +91,7 @@ describe("BeadsResolver.fetch", () => {
       loadBeads: async () => [],
       showBead: async () => bead(),
     });
-    await expect(resolver.fetch("BD-deadbeef")).rejects.toThrow(
-      /bd record not found/,
-    );
+    await expect(resolver.fetch("BD-deadbeef")).rejects.toThrow(/bd record not found/);
   });
 
   test("bd show failure → BeadsResolverError", async () => {
@@ -182,8 +182,6 @@ describe("BeadsResolver.fetch", () => {
       loadBeads: async () => [bead({ externalRefs: { proj: "proj-5743" } })],
       showBead: async () => bead(),
     });
-    await expect(resolver.fetch("PROJ-5743")).rejects.toThrow(
-      /no external_ref_prefix configured/,
-    );
+    await expect(resolver.fetch("PROJ-5743")).rejects.toThrow(/no external_ref_prefix configured/);
   });
 });

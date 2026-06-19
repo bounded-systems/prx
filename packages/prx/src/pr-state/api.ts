@@ -1,6 +1,10 @@
 import type { RuntimeIoFormat, RuntimeMode } from "../machine/runtime_profiles.ts";
 import { canonicalWorkUnitIdPattern } from "../machine/work_unit.ts";
-import { hydrateUnitOfWorkSurface, type UnitOfWorkSurface, type UnitOfWorkSurfaceRow } from "./uow.ts";
+import {
+  hydrateUnitOfWorkSurface,
+  type UnitOfWorkSurface,
+  type UnitOfWorkSurfaceRow,
+} from "./uow.ts";
 import type { ClaudeRunResult } from "./tui.ts";
 
 export type PrxControlState = "idle" | "dispatching" | "done" | "failed";
@@ -41,7 +45,9 @@ export type PrxApiSnapshot = {
 
 type SurfaceHydrator = typeof hydrateUnitOfWorkSurface;
 
-function controlToSurfaceState(controlState: PrxControlState): UnitOfWorkSurfaceRow["agent"]["state"] {
+function controlToSurfaceState(
+  controlState: PrxControlState,
+): UnitOfWorkSurfaceRow["agent"]["state"] {
   switch (controlState) {
     case "dispatching":
       return "running";
@@ -113,4 +119,3 @@ export function getPrxSnapshot(
     lastError: context.lastError,
   };
 }
-

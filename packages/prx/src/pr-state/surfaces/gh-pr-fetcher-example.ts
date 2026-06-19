@@ -84,8 +84,7 @@ export function createFixtureRunner(): CommandRunner {
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  const runner: CommandRunner =
-    args.mode === "fixture" ? createFixtureRunner() : defaultRunner;
+  const runner: CommandRunner = args.mode === "fixture" ? createFixtureRunner() : defaultRunner;
   const fetcher = createGhPrFetcher({ runner });
   const surface = prSurfaceRef(args.unit);
 

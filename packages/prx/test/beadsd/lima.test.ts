@@ -6,7 +6,11 @@ import {
   stopBeadsd,
   withLimaBeadsClient,
 } from "../../src/beadsd/lima.ts";
-import type { BeadsdLifecycleDeps, LimaBeadsChannelDeps, RunResult } from "../../src/beadsd/lima.ts";
+import type {
+  BeadsdLifecycleDeps,
+  LimaBeadsChannelDeps,
+  RunResult,
+} from "../../src/beadsd/lima.ts";
 import type { BeadsTransport } from "../../src/beadsd/client.ts";
 
 const ok = (stdout = ""): RunResult => ({ status: 0, stdout, stderr: "" });
@@ -28,7 +32,13 @@ const fakeTransport: BeadsTransport = async () => ({ status: "ok", result: [{ id
 
 function deps(): LimaBeadsChannelDeps & { calls: { cmd: string; args: string[] }[] } {
   const { calls, run } = recorder();
-  return { calls, run, exists: () => true, sleep: async () => {}, makeTransport: () => fakeTransport };
+  return {
+    calls,
+    run,
+    exists: () => true,
+    sleep: async () => {},
+    makeTransport: () => fakeTransport,
+  };
 }
 
 describe("withLimaBeadsClient", () => {
@@ -41,17 +51,25 @@ describe("withLimaBeadsClient", () => {
     // the forward was bridged to the beadsd VM socket and torn down (-O exit)
     const fwd = d.calls.find((c) => c.cmd === "ssh" && c.args.includes("-L"))!;
     expect(fwd.args).toContain("/tmp/beadsd-host.sock:/vm/beadsd.sock");
-    expect(d.calls.some((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit"))).toBe(true);
+    expect(
+      d.calls.some((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit")),
+    ).toBe(true);
   });
 
   test("closes the forward even when fn throws", async () => {
     const d = deps();
     await expect(
-      withLimaBeadsClient(OPTS, async () => {
-        throw new Error("boom");
-      }, d),
+      withLimaBeadsClient(
+        OPTS,
+        async () => {
+          throw new Error("boom");
+        },
+        d,
+      ),
     ).rejects.toThrow("boom");
-    expect(d.calls.some((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit"))).toBe(true);
+    expect(
+      d.calls.some((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit")),
+    ).toBe(true);
   });
 });
 
@@ -92,7 +110,10 @@ describe("provisionBeadsd / stopBeadsd", () => {
     );
 
     expect(handle.socket).toBe("/tmp/beadsd.sock");
-    expect(calls[0]).toEqual({ cmd: "limactl", args: ["copy", "dist/prx-linux-arm64", "myvm:/tmp/prx"] });
+    expect(calls[0]).toEqual({
+      cmd: "limactl",
+      args: ["copy", "dist/prx-linux-arm64", "myvm:/tmp/prx"],
+    });
     const launch = script(calls.find((c) => script(c.args).includes("beads serve"))!.args);
     expect(launch).toContain(
       "setsid nohup /tmp/prx beads serve --socket /tmp/beadsd.sock --cwd /vm/clone --pidfile /tmp/beadsd.pid",

@@ -34,16 +34,12 @@ describe("runCli — `prx intake bd` parser routing", () => {
   test("routes `intake bd ls` to the ls handler with --limit 20 default", async () => {
     const { output } = captureOutput();
     const captured: Array<{ args: string[] }> = [];
-    const exit = await runCli(
-      ["intake", "bd", "ls"],
-      output,
-      {
-        runIntakeBdLs: (opts, _o, _deps) => {
-          captured.push({ args: ["--limit", String(opts.limit)] });
-          return 0;
-        },
+    const exit = await runCli(["intake", "bd", "ls"], output, {
+      runIntakeBdLs: (opts, _o, _deps) => {
+        captured.push({ args: ["--limit", String(opts.limit)] });
+        return 0;
       },
-    );
+    });
     expect(exit).toBe(0);
     expect(captured).toEqual([{ args: ["--limit", "20"] }]);
   });
@@ -67,11 +63,7 @@ describe("runCli — `prx intake bd` parser routing", () => {
 
   test("`intake bd ls --limit 1.5` is rejected (no silent truncation)", async () => {
     const { errors, output } = captureOutput();
-    const exit = await runCli(
-      ["intake", "bd", "ls", "--limit", "1.5"],
-      output,
-      {},
-    );
+    const exit = await runCli(["intake", "bd", "ls", "--limit", "1.5"], output, {});
     expect(exit).not.toBe(0);
     expect(errors.some((l) => l.includes("--limit must be a non-negative integer"))).toBe(true);
   });
@@ -79,48 +71,36 @@ describe("runCli — `prx intake bd` parser routing", () => {
   test("`--json` flag flips format to json before dispatch", async () => {
     const { output } = captureOutput();
     const captured: string[] = [];
-    await runCli(
-      ["intake", "bd", "ls", "--json"],
-      output,
-      {
-        runIntakeBdLs: (opts) => {
-          captured.push(opts.format);
-          return 0;
-        },
+    await runCli(["intake", "bd", "ls", "--json"], output, {
+      runIntakeBdLs: (opts) => {
+        captured.push(opts.format);
+        return 0;
       },
-    );
+    });
     expect(captured).toEqual(["json"]);
   });
 
   test("routes `intake bd memory ls <search>` with the search positional", async () => {
     const { output } = captureOutput();
     const captured: Array<string | undefined> = [];
-    await runCli(
-      ["intake", "bd", "memory", "ls", "dolt"],
-      output,
-      {
-        runIntakeBdMemoryLs: (opts) => {
-          captured.push(opts.search);
-          return 0;
-        },
+    await runCli(["intake", "bd", "memory", "ls", "dolt"], output, {
+      runIntakeBdMemoryLs: (opts) => {
+        captured.push(opts.search);
+        return 0;
       },
-    );
+    });
     expect(captured).toEqual(["dolt"]);
   });
 
   test("routes `intake bd memory get <key>`", async () => {
     const { output } = captureOutput();
     const captured: string[] = [];
-    await runCli(
-      ["intake", "bd", "memory", "get", "the-key"],
-      output,
-      {
-        runIntakeBdMemoryGet: (opts) => {
-          captured.push(opts.key);
-          return 0;
-        },
+    await runCli(["intake", "bd", "memory", "get", "the-key"], output, {
+      runIntakeBdMemoryGet: (opts) => {
+        captured.push(opts.key);
+        return 0;
       },
-    );
+    });
     expect(captured).toEqual(["the-key"]);
   });
 
@@ -134,26 +114,18 @@ describe("runCli — `prx intake bd` parser routing", () => {
   test("routes `intake bd memory set <key> --body <text>`", async () => {
     const { output } = captureOutput();
     const captured: Array<{ key: string; body: string }> = [];
-    await runCli(
-      ["intake", "bd", "memory", "set", "the-key", "--body", "the value"],
-      output,
-      {
-        runIntakeBdMemorySet: (opts) => {
-          captured.push({ key: opts.key, body: opts.body });
-          return 0;
-        },
+    await runCli(["intake", "bd", "memory", "set", "the-key", "--body", "the value"], output, {
+      runIntakeBdMemorySet: (opts) => {
+        captured.push({ key: opts.key, body: opts.body });
+        return 0;
       },
-    );
+    });
     expect(captured).toEqual([{ key: "the-key", body: "the value" }]);
   });
 
   test("`intake bd memory set` without --body errors at parse time", async () => {
     const { errors, output } = captureOutput();
-    const exit = await runCli(
-      ["intake", "bd", "memory", "set", "the-key"],
-      output,
-      {},
-    );
+    const exit = await runCli(["intake", "bd", "memory", "set", "the-key"], output, {});
     expect(exit).not.toBe(0);
     expect(errors.some((l) => l.includes("requires --body"))).toBe(true);
   });
@@ -167,16 +139,12 @@ describe("runCli — `prx intake bd` parser routing", () => {
   test("`intake bd close 1` is rejected at the verb layer", async () => {
     const { errors, output } = captureOutput();
     let bdCalled = false;
-    const exit = await runCli(
-      ["intake", "bd", "close", "1"],
-      output,
-      {
-        runIntakeBdLs: () => {
-          bdCalled = true;
-          return 0;
-        },
+    const exit = await runCli(["intake", "bd", "close", "1"], output, {
+      runIntakeBdLs: () => {
+        bdCalled = true;
+        return 0;
       },
-    );
+    });
     expect(exit).not.toBe(0);
     expect(bdCalled).toBe(false);
     expect(errors.some((l) => l.includes("unknown subcommand 'close'"))).toBe(true);
@@ -184,35 +152,25 @@ describe("runCli — `prx intake bd` parser routing", () => {
 
   test("`intake bd github sync` is rejected at the verb layer", async () => {
     const { errors, output } = captureOutput();
-    const exit = await runCli(
-      ["intake", "bd", "github", "sync"],
-      output,
-      {},
-    );
+    const exit = await runCli(["intake", "bd", "github", "sync"], output, {});
     expect(exit).not.toBe(0);
     expect(errors.some((l) => l.includes("unknown subcommand 'github'"))).toBe(true);
   });
 
   test("`intake bd forget some-key` is rejected at the verb layer", async () => {
     const { errors, output } = captureOutput();
-    const exit = await runCli(
-      ["intake", "bd", "forget", "some-key"],
-      output,
-      {},
-    );
+    const exit = await runCli(["intake", "bd", "forget", "some-key"], output, {});
     expect(exit).not.toBe(0);
     expect(errors.some((l) => l.includes("unknown subcommand 'forget'"))).toBe(true);
   });
 
   test("`intake bd memory unknown` is rejected at the memory verb layer", async () => {
     const { errors, output } = captureOutput();
-    const exit = await runCli(
-      ["intake", "bd", "memory", "delete", "k"],
-      output,
-      {},
-    );
+    const exit = await runCli(["intake", "bd", "memory", "delete", "k"], output, {});
     expect(exit).not.toBe(0);
-    expect(errors.some((l) => l.includes("intake bd memory: unknown subcommand 'delete'"))).toBe(true);
+    expect(errors.some((l) => l.includes("intake bd memory: unknown subcommand 'delete'"))).toBe(
+      true,
+    );
   });
 
   test("schema-validated options pass through dispatch unchanged", async () => {

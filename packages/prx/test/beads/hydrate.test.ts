@@ -112,9 +112,7 @@ describe("buildDoltRemoteUrl", () => {
       { host: "github-com", owner: "anthropic", repo: "claude-code" },
       "bdelanghe",
     );
-    expect(url).toBe(
-      "https://doltremoteapi.dolthub.com/bdelanghe/claude-code",
-    );
+    expect(url).toBe("https://doltremoteapi.dolthub.com/bdelanghe/claude-code");
   });
 
   test("ignores empty / whitespace override", () => {
@@ -203,9 +201,11 @@ type DepsState = {
   copyCalls: Array<{ src: string; dest: string }>;
 };
 
-function makeDeps(
-  overrides: Partial<HydrateDeps> & { state?: DepsState; homeDir?: string } = {},
-): { deps: HydrateDeps; state: DepsState; homeDir: string } {
+function makeDeps(overrides: Partial<HydrateDeps> & { state?: DepsState; homeDir?: string } = {}): {
+  deps: HydrateDeps;
+  state: DepsState;
+  homeDir: string;
+} {
   const state: DepsState = overrides.state ?? {
     cloneCalls: [],
     stopCalls: 0,
@@ -218,34 +218,42 @@ function makeDeps(
   // via overrides.env (HOME key) or overrides.homeDir.
   const envOverride = overrides.env ?? {};
   const homeDir =
-    overrides.homeDir ??
-    envOverride.HOME ??
-    mkdtempSync(join(tmpdir(), "hydrate-home-"));
+    overrides.homeDir ?? envOverride.HOME ?? mkdtempSync(join(tmpdir(), "hydrate-home-"));
   const envWithHome: NodeJS.ProcessEnv = { ...envOverride, HOME: homeDir };
   const deps: HydrateDeps = {
     getGitOrigin: overrides.getGitOrigin ?? (() => "git@github.com:bdelanghe/ai-home.git"),
-    stopBdDoltServer: overrides.stopBdDoltServer ?? (() => {
-      state.stopCalls++;
-    }),
-    doltClone: overrides.doltClone ?? ((url, dest) => {
-      state.cloneCalls.push({ url, dest });
-      // Create the destination dir so subsequent "already hydrated" checks work.
-      mkdirSync(dest, { recursive: true });
-      return { exitCode: 0, stderr: "" };
-    }),
+    stopBdDoltServer:
+      overrides.stopBdDoltServer ??
+      (() => {
+        state.stopCalls++;
+      }),
+    doltClone:
+      overrides.doltClone ??
+      ((url, dest) => {
+        state.cloneCalls.push({ url, dest });
+        // Create the destination dir so subsequent "already hydrated" checks work.
+        mkdirSync(dest, { recursive: true });
+        return { exitCode: 0, stderr: "" };
+      }),
     env: envWithHome,
-    fsRename: overrides.fsRename ?? ((from, to) => {
-      state.renameCalls.push({ from, to });
-      renameSync(from, to);
-    }),
-    rmTree: overrides.rmTree ?? ((path) => {
-      state.rmTreeCalls.push(path);
-      rmSync(path, { recursive: true, force: true });
-    }),
-    copyTree: overrides.copyTree ?? ((src, dest) => {
-      state.copyCalls.push({ src, dest });
-      mkdirSync(dest, { recursive: true });
-    }),
+    fsRename:
+      overrides.fsRename ??
+      ((from, to) => {
+        state.renameCalls.push({ from, to });
+        renameSync(from, to);
+      }),
+    rmTree:
+      overrides.rmTree ??
+      ((path) => {
+        state.rmTreeCalls.push(path);
+        rmSync(path, { recursive: true, force: true });
+      }),
+    copyTree:
+      overrides.copyTree ??
+      ((src, dest) => {
+        state.copyCalls.push({ src, dest });
+        mkdirSync(dest, { recursive: true });
+      }),
     // GH-653: default to "primary" so existing tests don't trip the new
     // feature-worktree skip gate. Tests that exercise the gate inject their
     // own resolver. Identity (cwd === main) keeps hydrate on its previous
@@ -270,7 +278,11 @@ describe("hydrate", () => {
     while (created.length) created.pop()!.cleanup();
     while (tmpDirs.length) {
       const p = tmpDirs.pop()!;
-      try { rmSync(p, { recursive: true, force: true }); } catch { /* best-effort */ }
+      try {
+        rmSync(p, { recursive: true, force: true });
+      } catch {
+        /* best-effort */
+      }
     }
   });
 
@@ -333,16 +345,12 @@ describe("hydrate", () => {
     const { deps, state } = makeDeps({ homeDir });
     const result = hydrate({ cwd: wt.root, dryRun: true }, deps);
     expect(result.status).toBe("dry-run");
-    expect(result.doltRemote).toBe(
-      "https://doltremoteapi.dolthub.com/bdelanghe/ai-home",
-    );
+    expect(result.doltRemote).toBe("https://doltremoteapi.dolthub.com/bdelanghe/ai-home");
     const expectedMirror = join(
       homeDir,
       ".local/state/dolt/buffer/bdelanghe/ai-home/io_github_bdelanghe_ai_home",
     );
-    expect(result.message).toContain(
-      "https://doltremoteapi.dolthub.com/bdelanghe/ai-home",
-    );
+    expect(result.message).toContain("https://doltremoteapi.dolthub.com/bdelanghe/ai-home");
     // GH-879: second hop is now a recursive copy, not a `dolt clone file://`.
     expect(result.message).toContain(`would copy ${expectedMirror}`);
     expect(state.cloneCalls).toHaveLength(0);
@@ -370,9 +378,7 @@ describe("hydrate", () => {
       homeDir,
       ".local/state/dolt/buffer/bdelanghe/ai-home/io_github_bdelanghe_ai_home",
     );
-    expect(state.cloneCalls[0]!.url).toBe(
-      "https://doltremoteapi.dolthub.com/bdelanghe/ai-home",
-    );
+    expect(state.cloneCalls[0]!.url).toBe("https://doltremoteapi.dolthub.com/bdelanghe/ai-home");
     expect(state.cloneCalls[0]!.dest.startsWith(`${mirrorPath}.tmp-`)).toBe(true);
     expect(state.renameCalls).toHaveLength(1);
     expect(state.renameCalls[0]!.to).toBe(mirrorPath);
@@ -535,10 +541,7 @@ describe("hydrate", () => {
     });
     const result = hydrate({ cwd: wt.root }, deps);
     expect(result.status).toBe("hydrated");
-    const expectedMirror = join(
-      customRoot,
-      "bdelanghe/ai-home/io_github_bdelanghe_ai_home",
-    );
+    const expectedMirror = join(customRoot, "bdelanghe/ai-home/io_github_bdelanghe_ai_home");
     expect(state.renameCalls[0]!.to).toBe(expectedMirror);
     // GH-879: the override propagates to the copy source as well.
     expect(state.copyCalls[0]!.src).toBe(expectedMirror);
@@ -622,14 +625,8 @@ describe("hydrate", () => {
     );
     mkdirSync(join(mirrorPath, ".dolt", "noms"), { recursive: true });
     writeFileSync(join(mirrorPath, ".dolt", "config.json"), '{"user.name":"beads"}');
-    writeFileSync(
-      join(mirrorPath, ".dolt", "repo_state.json"),
-      '{"head":"refs/heads/main"}',
-    );
-    writeFileSync(
-      join(mirrorPath, ".dolt", "noms", "abc123.darc"),
-      "binary-chunk-data",
-    );
+    writeFileSync(join(mirrorPath, ".dolt", "repo_state.json"), '{"head":"refs/heads/main"}');
+    writeFileSync(join(mirrorPath, ".dolt", "noms", "abc123.darc"), "binary-chunk-data");
     // Use the real fs.cpSync as copyTree to verify the production code
     // path produces the expected on-disk shape.
     const { deps } = makeDeps({
@@ -640,9 +637,7 @@ describe("hydrate", () => {
     expect(result.status).toBe("hydrated");
     const dbDir = join(wt.root, ".beads", "dolt", "io_github_bdelanghe_ai_home");
     expect(existsSync(dbDir)).toBe(true);
-    expect(readFileSync(join(dbDir, ".dolt", "config.json"), "utf8")).toBe(
-      '{"user.name":"beads"}',
-    );
+    expect(readFileSync(join(dbDir, ".dolt", "config.json"), "utf8")).toBe('{"user.name":"beads"}');
     expect(readFileSync(join(dbDir, ".dolt", "repo_state.json"), "utf8")).toBe(
       '{"head":"refs/heads/main"}',
     );
@@ -768,10 +763,12 @@ describe("hydrate", () => {
         ).status,
       ).toBe(0);
       expect(
-        runDolt(["sql", "-q", "CREATE TABLE smoke (id INT PRIMARY KEY, msg VARCHAR(64));"], workDir).status,
+        runDolt(["sql", "-q", "CREATE TABLE smoke (id INT PRIMARY KEY, msg VARCHAR(64));"], workDir)
+          .status,
       ).toBe(0);
       expect(
-        runDolt(["sql", "-q", "INSERT INTO smoke VALUES (1, 'hydrate-roundtrip');"], workDir).status,
+        runDolt(["sql", "-q", "INSERT INTO smoke VALUES (1, 'hydrate-roundtrip');"], workDir)
+          .status,
       ).toBe(0);
       expect(runDolt(["add", "."], workDir).status).toBe(0);
       expect(runDolt(["commit", "-m", "seed smoke table"], workDir).status).toBe(0);

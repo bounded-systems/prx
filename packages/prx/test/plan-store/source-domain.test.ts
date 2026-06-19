@@ -64,13 +64,15 @@ function listSrcFiles(dir: string): string[] {
  * write to the CAS — robust against call-site aliasing (`setRefFn(...)`).
  */
 function importsWritePrimitive(content: string): boolean {
-  const importRe =
-    /import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+["']([^"']+)["']/g;
+  const importRe = /import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+["']([^"']+)["']/g;
   for (const m of content.matchAll(importRe)) {
     const [, names, modPath] = m;
     if (!modPath || !/(?:^|\/)(?:cas|artifact-store)\.ts$/.test(modPath)) continue;
     for (const raw of (names ?? "").split(",")) {
-      const imported = raw.trim().split(/\s+as\s+/)[0]?.trim();
+      const imported = raw
+        .trim()
+        .split(/\s+as\s+/)[0]
+        ?.trim();
       if ((WRITE_PRIMITIVES as readonly string[]).includes(imported ?? "")) {
         return true;
       }
@@ -119,9 +121,7 @@ describe("source→domain map coverage (GH-2401, spike §1 verification)", () =>
   });
 
   test("every declared producer call site actually writes to the CAS (no stale entries)", () => {
-    const stale = CAS_PRODUCERS.map((p) => p.callSite).filter(
-      (f) => !discovered.has(f),
-    );
+    const stale = CAS_PRODUCERS.map((p) => p.callSite).filter((f) => !discovered.has(f));
     expect(stale).toEqual([]);
   });
 
@@ -149,9 +149,7 @@ describe("source→domain map coverage (GH-2401, spike §1 verification)", () =>
 
   test("no producer writes a sync/mirror domain as a CAS prefix (spike §3)", () => {
     const mirror = new Set<string>(SYNC_MIRROR_DOMAINS);
-    const leaked = CAS_PRODUCERS.filter((p) => mirror.has(p.domain)).map(
-      (p) => p.source,
-    );
+    const leaked = CAS_PRODUCERS.filter((p) => mirror.has(p.domain)).map((p) => p.source);
     expect(leaked).toEqual([]);
   });
 

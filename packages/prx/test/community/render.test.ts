@@ -14,10 +14,13 @@ const cliEntry = resolve(here, "..", "..", "scripts", "pr_state.ts");
 
 describe("community health files", () => {
   test("committed files match a fresh render (no drift) and data is schema-valid", () => {
-    const result = Bun.spawnSync(["bun", "run", cliEntry, "docs", "--only", "community", "--check"], {
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    const result = Bun.spawnSync(
+      ["bun", "run", cliEntry, "docs", "--only", "community", "--check"],
+      {
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    );
     const output = result.stderr.toString() + result.stdout.toString();
     expect(output).not.toContain("failed schema validation");
     expect(result.exitCode, output).toBe(0);

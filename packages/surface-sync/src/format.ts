@@ -10,10 +10,7 @@
 
 import type { SurfaceSyncResult } from "./result.ts";
 
-export function formatSurfaceSync(
-  summary: SurfaceSyncResult,
-  format: "plain" | "json",
-): string {
+export function formatSurfaceSync(summary: SurfaceSyncResult, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(summary, null, 2);
   }

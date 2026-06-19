@@ -84,10 +84,7 @@ const DEV_KEY_STRING_FIELDS = ["seed", "point", "keyid", "createdAt"] as const;
 /** Narrow unknown parsed JSON to a {@link DevKeyFile}, or throw on any deviation. */
 function parseDevKeyFile(json: unknown, path: string): DevKeyFile {
   if (typeof json !== "object" || json === null || Array.isArray(json)) {
-    throw new DevKeyError(
-      `dev key file ${path} is not a JSON object`,
-      "MALFORMED",
-    );
+    throw new DevKeyError(`dev key file ${path} is not a JSON object`, "MALFORMED");
   }
   const rec = json as Record<string, unknown>;
   for (const field of DEV_KEY_STRING_FIELDS) {
@@ -157,9 +154,7 @@ export function resolveDevKeyPathForDisplay(
 }
 
 /** Resolve just the path to the persisted dev keypair (see {@link resolveDevKeyPathForDisplay}). */
-export function resolveDevKeyPath(
-  env: (key: string) => string | undefined = getEnv,
-): string {
+export function resolveDevKeyPath(env: (key: string) => string | undefined = getEnv): string {
   return resolveDevKeyPathForDisplay(env).path;
 }
 
@@ -220,10 +215,7 @@ function readDevKeyFile(path: string): DevKeyFile {
   try {
     json = JSON.parse(text);
   } catch {
-    throw new DevKeyError(
-      `dev key file ${path} is not valid JSON`,
-      "MALFORMED",
-    );
+    throw new DevKeyError(`dev key file ${path} is not valid JSON`, "MALFORMED");
   }
   return parseDevKeyFile(json, path);
 }
@@ -299,9 +291,7 @@ export function loadOrCreateDevKeypair(
  * The seed never leaves dev/local; production supplies a real master via the
  * deployment-secret seam (a later slice), not this.
  */
-export function loadOrCreateDevMaster(
-  env: (key: string) => string | undefined = getEnv,
-): Buffer {
+export function loadOrCreateDevMaster(env: (key: string) => string | undefined = getEnv): Buffer {
   const kp = loadOrCreateDevKeypair(env);
   const seedB64 = (kp.privateKey.export({ format: "jwk" }) as { d?: string }).d;
   if (typeof seedB64 !== "string") {

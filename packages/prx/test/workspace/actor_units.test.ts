@@ -101,7 +101,13 @@ describe("computeWorkspaceId + resolveWorkspaceContext", () => {
 
   test("returns null for a non-GitHub origin", () => {
     const repo = gitRepo();
-    expect(resolveWorkspaceContext({ cwd: repo, branch: "feat", originUrl: "https://example.com/x.git" })).toBeNull();
+    expect(
+      resolveWorkspaceContext({
+        cwd: repo,
+        branch: "feat",
+        originUrl: "https://example.com/x.git",
+      }),
+    ).toBeNull();
   });
 
   test("returns null when worktree path is unresolvable (not a repo)", () => {
@@ -181,9 +187,13 @@ describe("gated verbs after a real reserve", () => {
 
   test("prepare (materialized) writes a beads redirect instead of hydrating", () => {
     const { repo, id } = reserved();
-    const out = runPrepare({ workspace_id: id, lifecycle: "materialized", launchCwd: "/launch" }, repo, {
-      writeRedirect: (src, dest) => [`${src}->${dest}/.beads/redirect`],
-    });
+    const out = runPrepare(
+      { workspace_id: id, lifecycle: "materialized", launchCwd: "/launch" },
+      repo,
+      {
+        writeRedirect: (src, dest) => [`${src}->${dest}/.beads/redirect`],
+      },
+    );
     expect(out.status).toBe("ok");
     expect(out.files_written.some((f) => f.includes("/launch->"))).toBe(true);
   });
@@ -256,7 +266,9 @@ describe("I-WS1 gate — no prior reserve", () => {
   });
   test("service fails closed", () => {
     const repo = gitRepo();
-    expect(runService({ workspace_id: id, action: "start", auto: false }, repo).status).toBe("error");
+    expect(runService({ workspace_id: id, action: "start", auto: false }, repo).status).toBe(
+      "error",
+    );
   });
   test("materialize fails closed", () => {
     const repo = gitRepo();
@@ -291,7 +303,9 @@ describe("I-WS5 mainx guard", () => {
     expect(runSync({ workspace_id: id }, repoWithMainxLedger()).status).toBe("error");
   });
   test("service refuses the mainx replica", () => {
-    expect(runService({ workspace_id: id, action: "start", auto: false }, repoWithMainxLedger()).status).toBe("error");
+    expect(
+      runService({ workspace_id: id, action: "start", auto: false }, repoWithMainxLedger()).status,
+    ).toBe("error");
   });
   test("teardown --force still refuses the mainx replica (guard wins over force)", () => {
     const out = runTeardown({ workspace_id: id, force: true }, repoWithMainxLedger());
@@ -328,7 +342,11 @@ describe("runMaterialize — keeper seam", () => {
   // the target; everything else exits 0.
   const gitStub = (registeredTarget?: string) => (call: { subcommand: string; args: string[] }) => {
     if (call.subcommand === "worktree" && call.args[0] === "list") {
-      return { exitCode: 0, stdout: registeredTarget ? `worktree ${registeredTarget}\n` : "", stderr: "" };
+      return {
+        exitCode: 0,
+        stdout: registeredTarget ? `worktree ${registeredTarget}\n` : "",
+        stderr: "",
+      };
     }
     return { exitCode: 0, stdout: "", stderr: "" };
   };
@@ -425,15 +443,13 @@ describe("firstNonBareWorktree — bare-repo layout resolution (prx-ph7)", () =>
   ].join("\n");
 
   test("skips the bare entry, returns the first real worktree", () => {
-    expect(firstNonBareWorktree(porcelain)).toBe(
-      "/home/u/.local/state/wt/worktrees/x.git/mainx",
-    );
+    expect(firstNonBareWorktree(porcelain)).toBe("/home/u/.local/state/wt/worktrees/x.git/mainx");
   });
 
   test("a non-bare repo's list (no `bare` line) returns its first worktree", () => {
-    expect(
-      firstNonBareWorktree("worktree /repo/mainx\nHEAD abc\nbranch refs/heads/main"),
-    ).toBe("/repo/mainx");
+    expect(firstNonBareWorktree("worktree /repo/mainx\nHEAD abc\nbranch refs/heads/main")).toBe(
+      "/repo/mainx",
+    );
   });
 
   test("null / empty input → null (no worktrees to anchor on)", () => {

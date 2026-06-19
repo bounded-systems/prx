@@ -11,11 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
 
-import type {
-  LocalRepo,
-  RepoInventory,
-  RepoInventoryConfig,
-} from "../../src/pr-state/repos.ts";
+import type { LocalRepo, RepoInventory, RepoInventoryConfig } from "../../src/pr-state/repos.ts";
 import { runCli as runCliDirect } from "../../src/pr-state/cli.ts";
 
 function bareRepo(name: string, commonDir: string, ownerName?: string): LocalRepo {

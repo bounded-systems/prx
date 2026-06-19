@@ -66,7 +66,10 @@ export async function handleMcpRequest(
       const args = (req.params?.arguments ?? {}) as Record<string, unknown>;
       const verb = Object.values(reg).find((v) => verbToken(v.id) === name);
       if (!verb) {
-        return ok(id, { content: [{ type: "text", text: `unknown tool: ${name}` }], isError: true });
+        return ok(id, {
+          content: [{ type: "text", text: `unknown tool: ${name}` }],
+          isError: true,
+        });
       }
       try {
         const input = verb.input.parse(args); // structured JSON → Zod validates
@@ -78,7 +81,11 @@ export async function handleMcpRequest(
       }
     }
     default:
-      return { jsonrpc: "2.0", id, error: { code: -32601, message: `method not found: ${req.method}` } };
+      return {
+        jsonrpc: "2.0",
+        id,
+        error: { code: -32601, message: `method not found: ${req.method}` },
+      };
   }
 }
 

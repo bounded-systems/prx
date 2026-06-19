@@ -101,8 +101,7 @@ export async function recordScoutReadDerivation(
 
 export const IN_TOTO_STATEMENT_TYPE = "https://in-toto.io/Statement/v1";
 export const SLSA_PROVENANCE_PREDICATE_TYPE = "https://slsa.dev/provenance/v1";
-export const SCOUT_READ_BUILD_TYPE =
-  "https://anchored-chain.dev/scout/read/v1";
+export const SCOUT_READ_BUILD_TYPE = "https://anchored-chain.dev/scout/read/v1";
 export const SCOUT_READ_BUILDER_ID = "https://anchored-chain.dev/scout.read";
 
 interface SlsaResourceDescriptor {
@@ -147,12 +146,13 @@ export function scoutReadProvenance(
   const derivation = scoutReadDerivation(result, opts);
   const { inputs, outputs, params } = derivation.manifest;
 
-  const subject: InTotoSubject[] = Object.entries(outputs).map(
+  const subject: InTotoSubject[] = Object.entries(outputs).map(([name, digest]) => ({
+    name,
+    digest: { sha256: bareHex(digest) },
+  }));
+  const resolvedDependencies: SlsaResourceDescriptor[] = Object.entries(inputs).map(
     ([name, digest]) => ({ name, digest: { sha256: bareHex(digest) } }),
   );
-  const resolvedDependencies: SlsaResourceDescriptor[] = Object.entries(
-    inputs,
-  ).map(([name, digest]) => ({ name, digest: { sha256: bareHex(digest) } }));
 
   return {
     _type: IN_TOTO_STATEMENT_TYPE,

@@ -64,7 +64,10 @@ function recordingBdExec(
   result: BdExecResult = { exitCode: 0, stdout: "", stderr: "", policy: null },
 ): {
   exec: (opts: BdExecOptions) => BdExecResult;
-  run: (cmd: string[], o?: { cwd?: string; check?: boolean }) => { status: number; stdout: string; stderr: string };
+  run: (
+    cmd: string[],
+    o?: { cwd?: string; check?: boolean },
+  ) => { status: number; stdout: string; stderr: string };
   calls: BdExecOptions[];
 } {
   const calls: BdExecOptions[] = [];
@@ -91,9 +94,10 @@ function recordingBdExec(
 
 type FetchCall = { url: string; init: RequestInit | undefined };
 
-function recordingFetch(
-  responder: (call: FetchCall) => Response,
-): { fetchImpl: typeof fetch; calls: FetchCall[] } {
+function recordingFetch(responder: (call: FetchCall) => Response): {
+  fetchImpl: typeof fetch;
+  calls: FetchCall[];
+} {
   const calls: FetchCall[] = [];
   const impl = async (url: URL | RequestInfo, init?: RequestInit): Promise<Response> => {
     const call: FetchCall = { url: String(url), init };
@@ -112,9 +116,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function fakeResolver(
-  unit: Partial<ResolvedWorkUnit> = {},
-): NotionPageResolver {
+function fakeResolver(unit: Partial<ResolvedWorkUnit> = {}): NotionPageResolver {
   const resolved: ResolvedWorkUnit = {
     id: "uuid",
     title: "t",
@@ -189,9 +191,9 @@ describe("NotionDomainAdapter — id helpers", () => {
     expect(adapter.matchesSurfaceId("NOTION-42")).toBe(true);
     expect(adapter.matchesSurfaceId("GH-1")).toBe(false);
     expect(adapter.matchesSurfaceId("notion-1")).toBe(false);
-    expect(
-      adapter.surfaceIdToExternalId("NOTION-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-    ).toBe("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    expect(adapter.surfaceIdToExternalId("NOTION-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")).toBe(
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    );
     expect(() => adapter.surfaceIdToExternalId("GH-1")).toThrow(NotionDomainAdapterError);
   });
 
@@ -288,11 +290,11 @@ describe("NotionDomainAdapter.push", () => {
       edited: true,
     });
     expect(calls).toHaveLength(1);
-    expect(calls[0]!.url).toBe(
-      "https://api.notion.com/v1/pages/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    );
+    expect(calls[0]!.url).toBe("https://api.notion.com/v1/pages/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     expect(calls[0]!.init?.method).toBe("PATCH");
-    const body = JSON.parse(calls[0]!.init?.body as string) as { properties: Record<string, unknown> };
+    const body = JSON.parse(calls[0]!.init?.body as string) as {
+      properties: Record<string, unknown>;
+    };
     expect(body.properties).toHaveProperty("Name");
     expect(bd.calls).toEqual([]);
   });
@@ -377,9 +379,7 @@ describe("NotionDomainAdapter.push", () => {
   });
 
   test("propagates non-2xx errors as NotionDomainAdapterError with status", async () => {
-    const { fetchImpl } = recordingFetch(() =>
-      jsonResponse({ message: "rate limited" }, 429),
-    );
+    const { fetchImpl } = recordingFetch(() => jsonResponse({ message: "rate limited" }, 429));
     const adapter = makeAdapter({ fetchImpl, loadAllBeads: () => [] });
     await expect(adapter.push(bead(), { title: "x" })).rejects.toBeInstanceOf(
       NotionDomainAdapterError,
@@ -409,9 +409,7 @@ describe("NotionDomainAdapter.resolve / resolveFromBeads", () => {
 
   test("resolveFromBeads is the sync sibling — same dispatch contract", () => {
     const adapter = makeAdapter();
-    expect(
-      adapter.resolveFromBeads("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", records),
-    ).toBe("ai-home-b");
+    expect(adapter.resolveFromBeads("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", records)).toBe("ai-home-b");
     expect(adapter.resolveFromBeads("not-a-uuid", records)).toBeNull();
     expect(adapter.resolveFromBeads("ai-home-a", records)).toBeNull();
   });

@@ -102,10 +102,7 @@ export interface ScopedSlackKey {
    * read reaches; each dimension is checked against {@link scope}.
    * @throws SlackReadError SCOPE_DENIED | KEY_EXPIRED
    */
-  authorize(
-    target: SlackAuthTarget,
-    req: SlackRequest,
-  ): AuthorizedSlackRequest;
+  authorize(target: SlackAuthTarget, req: SlackRequest): AuthorizedSlackRequest;
 }
 
 /** A request to mint a key: the scope to grant and how long it lives. */
@@ -171,15 +168,9 @@ export function slackScopedKeymaker(
         keyId: credential.keyId,
         scope,
         expiresAt: credential.expiresAt,
-        authorize(
-          target: SlackAuthTarget,
-          req: SlackRequest,
-        ): AuthorizedSlackRequest {
+        authorize(target: SlackAuthTarget, req: SlackRequest): AuthorizedSlackRequest {
           if (now() >= credential.expiresAt) {
-            throw new SlackReadError(
-              `slack key ${credential.keyId} expired`,
-              "KEY_EXPIRED",
-            );
+            throw new SlackReadError(`slack key ${credential.keyId} expired`, "KEY_EXPIRED");
           }
           if (!scope.ops.includes(target.op)) {
             throw new SlackReadError(

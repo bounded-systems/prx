@@ -109,10 +109,10 @@ function resolveGhRef(row: BdListRow): string | null {
       ? (row.metadata as Record<string, unknown>)
       : null;
   const externalRefs =
-    metadata
-    && metadata.external_refs
-    && typeof metadata.external_refs === "object"
-    && !Array.isArray(metadata.external_refs)
+    metadata &&
+    metadata.external_refs &&
+    typeof metadata.external_refs === "object" &&
+    !Array.isArray(metadata.external_refs)
       ? (metadata.external_refs as Record<string, unknown>)
       : null;
   if (!externalRefs) return null;

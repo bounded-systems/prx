@@ -65,10 +65,7 @@ describe("runStep", () => {
       },
     );
     expect(result).toBe("ok");
-    expect(writes).toEqual([
-      "▸ validate-work-session\n",
-      "✓ validate-work-session (42ms)\n",
-    ]);
+    expect(writes).toEqual(["▸ validate-work-session\n", "✓ validate-work-session (42ms)\n"]);
     expect(runner.timers.every((t) => t.cleared)).toBe(true);
   });
 
@@ -132,10 +129,7 @@ describe("runStep", () => {
     }
     expect(caught).toBeInstanceOf(Error);
     expect((caught as Error).message).toBe("boom");
-    expect(writes).toEqual([
-      "▸ materialize-worktree\n",
-      "✗ materialize-worktree (7ms): boom\n",
-    ]);
+    expect(writes).toEqual(["▸ materialize-worktree\n", "✗ materialize-worktree (7ms): boom\n"]);
     expect(runner.timers[0]?.cleared).toBe(true);
   });
 

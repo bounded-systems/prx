@@ -12,17 +12,10 @@
 
 import { existsSync as defaultExistsSync } from "node:fs";
 
-import {
-  appendAuditRow as defaultAppendAuditRow,
-} from "../audit/sink.ts";
+import { appendAuditRow as defaultAppendAuditRow } from "../audit/sink.ts";
 import { getAuditRuntimeContext as defaultGetAuditRuntimeContext } from "@bounded-systems/audit-context";
-import {
-  buildDoltRemoteUrl,
-  parseGitOrigin,
-} from "../beads/hydrate.ts";
-import {
-  hydrateAfterMaterialize as defaultHydrateAfterMaterialize,
-} from "../beads/repo_hydrate.ts";
+import { buildDoltRemoteUrl, parseGitOrigin } from "../beads/hydrate.ts";
+import { hydrateAfterMaterialize as defaultHydrateAfterMaterialize } from "../beads/repo_hydrate.ts";
 import {
   canonicalMainxPathFromParsed,
   defaultRepoRunner,
@@ -107,7 +100,10 @@ export type RepoBackfillReport = {
 // ── error class ────────────────────────────────────────────────────────────
 
 export class RepoBackfillError extends Error {
-  constructor(message: string, readonly code: string) {
+  constructor(
+    message: string,
+    readonly code: string,
+  ) {
     super(message);
     this.name = "RepoBackfillError";
   }
@@ -385,8 +381,7 @@ export function runRepoBackfill(
       try {
         const hydrateResult = hydrate(mainxPath);
         hydrated =
-          hydrateResult.status === "hydrated" ||
-          hydrateResult.status === "already-hydrated";
+          hydrateResult.status === "hydrated" || hydrateResult.status === "already-hydrated";
       } catch {
         // hydrate is best-effort; a thrown error here is surprising (the
         // wrapper is designed to capture failure on the result) but must not
@@ -414,10 +409,7 @@ export function runRepoBackfill(
       }
 
       if (prefixesInUse.has(prefix)) {
-        throw new RepoBackfillError(
-          `prefix_collision:${prefix}`,
-          "prefix_collision",
-        );
+        throw new RepoBackfillError(`prefix_collision:${prefix}`, "prefix_collision");
       }
 
       inventory.repos[i] = { ...repo, bd_workspace_prefix: prefix };
@@ -443,8 +435,7 @@ export function runRepoBackfill(
       // shapes its messages as colon-suffixed codes (`name_unprojectable:…`,
       // `prefix_collision:…`) so it continues to flow through `err.message`.
       const reason =
-        err instanceof RepoAddError ? err.code :
-        err instanceof Error ? err.message : String(err);
+        err instanceof RepoAddError ? err.code : err instanceof Error ? err.message : String(err);
       const detail = err instanceof RepoAddError ? err.message : undefined;
       report.failed += 1;
       emitEntry({
@@ -485,19 +476,13 @@ export function runRepoBackfill(
 
 // ── report formatter ───────────────────────────────────────────────────────
 
-export function formatRepoBackfill(
-  report: RepoBackfillReport,
-  format: "plain" | "json",
-): string {
+export function formatRepoBackfill(report: RepoBackfillReport, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(report, null, 2);
   }
 
   const dryTag = report.dryRun ? " (dry-run)" : "";
-  const lines: string[] = [
-    `repo backfill${dryTag}`,
-    "================",
-  ];
+  const lines: string[] = [`repo backfill${dryTag}`, "================"];
 
   if (report.entries.length === 0) {
     lines.push("(empty inventory)");
@@ -520,9 +505,7 @@ export function formatRepoBackfill(
       }
     } else if (entry.action === "skipped") {
       if (entry.source === "preexisting") {
-        lines.push(
-          `= ${slugCol} prefix=${entry.bdWorkspacePrefix ?? ""}  [preexisting]`,
-        );
+        lines.push(`= ${slugCol} prefix=${entry.bdWorkspacePrefix ?? ""}  [preexisting]`);
       } else {
         lines.push(`- ${slugCol} [skipped: ${entry.reason ?? "unknown"}]`);
       }

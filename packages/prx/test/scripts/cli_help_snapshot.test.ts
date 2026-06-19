@@ -16,10 +16,15 @@ const helpCommands: readonly HelpCommand[] = [
 ];
 
 function normalizeText(value: string): string {
-  const normalizedNewlines = value.replaceAll("\r\n", "\n").replace(/[ \t]+$/gm, "").trimEnd();
+  const normalizedNewlines = value
+    .replaceAll("\r\n", "\n")
+    .replace(/[ \t]+$/gm, "")
+    .trimEnd();
   const sanitizedWarnings = normalizedNewlines
     .split("\n")
-    .filter((line) => !line.startsWith("WARNING: proceeding, even though we could not update PATH:"))
+    .filter(
+      (line) => !line.startsWith("WARNING: proceeding, even though we could not update PATH:"),
+    )
     .join("\n");
   const homeDir = process.env.HOME;
   return homeDir && homeDir.length > 1
@@ -78,7 +83,9 @@ describe("CLI help snapshot", () => {
       label: command.label,
       output: runHelp(command),
     }));
-    const unavailable = sections.filter((section) => section.output.startsWith("status: unavailable"));
+    const unavailable = sections.filter((section) =>
+      section.output.startsWith("status: unavailable"),
+    );
 
     // CI runners may not have all external CLIs installed; only enforce help snapshots
     // when every command is available in the environment.
@@ -89,7 +96,9 @@ describe("CLI help snapshot", () => {
       return;
     }
 
-    const snapshot = sections.map((section) => `## ${section.label}\n\n${section.output}`).join("\n\n");
+    const snapshot = sections
+      .map((section) => `## ${section.label}\n\n${section.output}`)
+      .join("\n\n");
     expect(snapshot).toMatchSnapshot();
   }, 60_000);
 });

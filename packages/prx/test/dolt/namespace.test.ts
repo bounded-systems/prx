@@ -33,7 +33,9 @@ describe("resolveDoltDatabaseName", () => {
 
   test("rejects a scheme that produces an unsafe identifier (fail closed)", () => {
     const unsafe: DoltNamespaceScheme = () => "robert'); DROP DATABASE x;--";
-    expect(() => resolveDoltDatabaseName("o/r", { scheme: unsafe })).toThrow(/unsafe dolt database name/);
+    expect(() => resolveDoltDatabaseName("o/r", { scheme: unsafe })).toThrow(
+      /unsafe dolt database name/,
+    );
     // a scheme leaking the raw slug's hyphens/uppercase is also caught
     const raw: DoltNamespaceScheme = (slug) => slug;
     expect(() => resolveDoltDatabaseName("Bounded-Systems/PRX", { scheme: raw })).toThrow(/unsafe/);
@@ -42,7 +44,14 @@ describe("resolveDoltDatabaseName", () => {
 
 describe("isSafeDoltIdentifier (the SQL-safety guard)", () => {
   test("accepts reverse-DNS and plain names (leading digit is safe, just unusual)", () => {
-    for (const ok of ["io_github_bounded_systems_prx", "prx", "beads", "a", "a1_b2", "1leading_digit"]) {
+    for (const ok of [
+      "io_github_bounded_systems_prx",
+      "prx",
+      "beads",
+      "a",
+      "a1_b2",
+      "1leading_digit",
+    ]) {
       expect(isSafeDoltIdentifier(ok)).toBe(true);
     }
   });

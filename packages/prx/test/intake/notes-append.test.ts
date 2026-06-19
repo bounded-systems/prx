@@ -10,20 +10,14 @@ import {
 describe("buildNotesAppendMarker", () => {
   test("encodes verb and 8-hex sha256 prefix of the body", () => {
     const body = "follow-up note";
-    const expected = createHash("sha256")
-      .update(body, "utf8")
-      .digest("hex")
-      .slice(0, 8);
+    const expected = createHash("sha256").update(body, "utf8").digest("hex").slice(0, 8);
     const marker = buildNotesAppendMarker("prx-intake-comment", body);
     expect(marker).toBe(`[prx-intake-comment sha256-prefix=${expected}]`);
     expect(marker).toMatch(/^\[prx-intake-comment sha256-prefix=[0-9a-f]{8}\]$/);
   });
 
   test("merge verb has its own prefix", () => {
-    const marker = buildNotesAppendMarker(
-      "prx-intake-merge",
-      "Merging into ai-home-abc",
-    );
+    const marker = buildNotesAppendMarker("prx-intake-merge", "Merging into ai-home-abc");
     expect(marker.startsWith("[prx-intake-merge sha256-prefix=")).toBe(true);
   });
 

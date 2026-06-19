@@ -199,13 +199,21 @@ describe("makeAuditInspector", () => {
       },
     });
     const actor = createActor(m, {
-      inspect: makeAuditInspector("pilot", { workUnitId: "GH-360", deps: { ...cap.deps, stateDirOverride: "/tmp/s" } }),
+      inspect: makeAuditInspector("pilot", {
+        workUnitId: "GH-360",
+        deps: { ...cap.deps, stateDirOverride: "/tmp/s" },
+      }),
     });
     actor.start();
     actor.send({ type: "ADVANCE" });
 
     const rows = cap.writes.map((w) => JSON.parse(w.line.trimEnd()));
-    expect(rows[0]).toMatchObject({ machine: "pilot", kind: "entry", state: "planning", workUnitId: "GH-360" });
+    expect(rows[0]).toMatchObject({
+      machine: "pilot",
+      kind: "entry",
+      state: "planning",
+      workUnitId: "GH-360",
+    });
     expect(rows.find((r) => r.kind === "entry" && r.state === "executing")).toBeDefined();
   });
 

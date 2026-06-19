@@ -48,12 +48,7 @@ export type WorktreeGestureEntry = z.infer<typeof worktreeGestureEntrySchema>;
 export const worktreeGesturesSchema = z.array(worktreeGestureEntrySchema);
 export type WorktreeGestures = z.infer<typeof worktreeGesturesSchema>;
 
-export const memoryIndexTypeSchema = z.enum([
-  "user",
-  "feedback",
-  "project",
-  "reference",
-]);
+export const memoryIndexTypeSchema = z.enum(["user", "feedback", "project", "reference"]);
 export type MemoryIndexType = z.infer<typeof memoryIndexTypeSchema>;
 
 export const memoryIndexEntrySchema = z.object({
@@ -66,11 +61,7 @@ export type MemoryIndexEntry = z.infer<typeof memoryIndexEntrySchema>;
 export const memoryIndexSchema = z.array(memoryIndexEntrySchema);
 export type MemoryIndex = z.infer<typeof memoryIndexSchema>;
 
-export type RulesInputKind =
-  | "verb-supply"
-  | "alias-supply"
-  | "worktree-gestures"
-  | "memory-index";
+export type RulesInputKind = "verb-supply" | "alias-supply" | "worktree-gestures" | "memory-index";
 
 export type RulesInputs = {
   verbSupply: VerbSupply;

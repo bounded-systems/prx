@@ -31,10 +31,41 @@ type UsageEvent = {
 
 /** Raw usage events for two work units (GH-1 twice → aggregation), one unattached. */
 export const USAGE_FIXTURE: readonly UsageEvent[] = [
-  { ts: "2026-05-15T00:00:00Z", workUnitId: "GH-1", actor: "claude-code", input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 200, total_cost_usd: 0.005 },
-  { ts: "2026-05-15T00:01:00Z", workUnitId: "GH-1", actor: "claude-code", input_tokens: 50, output_tokens: 25, cache_read_input_tokens: 100, total_cost_usd: 0.003 },
-  { ts: "2026-05-15T00:02:00Z", workUnitId: "GH-2", actor: "claude-code", input_tokens: 200, output_tokens: 100, cache_read_input_tokens: 400, total_cost_usd: 0.010 },
-  { ts: "2026-05-15T00:03:00Z", actor: "claude-code", input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 0, total_cost_usd: 0.001 },
+  {
+    ts: "2026-05-15T00:00:00Z",
+    workUnitId: "GH-1",
+    actor: "claude-code",
+    input_tokens: 100,
+    output_tokens: 50,
+    cache_read_input_tokens: 200,
+    total_cost_usd: 0.005,
+  },
+  {
+    ts: "2026-05-15T00:01:00Z",
+    workUnitId: "GH-1",
+    actor: "claude-code",
+    input_tokens: 50,
+    output_tokens: 25,
+    cache_read_input_tokens: 100,
+    total_cost_usd: 0.003,
+  },
+  {
+    ts: "2026-05-15T00:02:00Z",
+    workUnitId: "GH-2",
+    actor: "claude-code",
+    input_tokens: 200,
+    output_tokens: 100,
+    cache_read_input_tokens: 400,
+    total_cost_usd: 0.01,
+  },
+  {
+    ts: "2026-05-15T00:03:00Z",
+    actor: "claude-code",
+    input_tokens: 10,
+    output_tokens: 5,
+    cache_read_input_tokens: 0,
+    total_cost_usd: 0.001,
+  },
 ];
 
 /** The per-unit aggregate USAGE_FIXTURE must project to (the declared truth). */
@@ -46,7 +77,7 @@ export const EXPECTED_BY_UNIT: readonly {
 }[] = [
   { bucket: "(unattached)", calls: 1, input_tokens: 10, total_cost_usd: 0.001 },
   { bucket: "GH-1", calls: 2, input_tokens: 150, total_cost_usd: 0.008 },
-  { bucket: "GH-2", calls: 1, input_tokens: 200, total_cost_usd: 0.010 },
+  { bucket: "GH-2", calls: 1, input_tokens: 200, total_cost_usd: 0.01 },
 ];
 
 function seededDb(): Database {
@@ -66,18 +97,35 @@ function seededDb(): Database {
   USAGE_FIXTURE.forEach((e, i) => {
     const raw = JSON.stringify({ kind: "non-interactive-agent", subkind: "usage", ...e });
     db.run("INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [
-      `e${i}`, e.ts, e.actor, "non-interactive-agent", e.workUnitId ?? null, null, null, raw,
+      `e${i}`,
+      e.ts,
+      e.actor,
+      "non-interactive-agent",
+      e.workUnitId ?? null,
+      null,
+      null,
+      raw,
     ]);
   });
   return db;
 }
 
 /** The REAL projector over the fixture, reduced to the asserted columns. */
-export function projectFixtureByUnit(): { bucket: string; calls: number; input_tokens: number; total_cost_usd: number }[] {
+export function projectFixtureByUnit(): {
+  bucket: string;
+  calls: number;
+  input_tokens: number;
+  total_cost_usd: number;
+}[] {
   const db = seededDb();
   try {
     return projectAnthropicUsage(db, { by: "workUnitId" })
-      .map((b) => ({ bucket: b.bucket, calls: b.calls, input_tokens: b.input_tokens, total_cost_usd: b.total_cost_usd }))
+      .map((b) => ({
+        bucket: b.bucket,
+        calls: b.calls,
+        input_tokens: b.input_tokens,
+        total_cost_usd: b.total_cost_usd,
+      }))
       .sort((a, b) => a.bucket.localeCompare(b.bucket));
   } finally {
     db.close();
@@ -92,7 +140,12 @@ export function perUnitCostIsVisible(): boolean {
   if (got.length !== EXPECTED_BY_UNIT.length) return false;
   return EXPECTED_BY_UNIT.every((exp, i) => {
     const g = got[i]!;
-    return g.bucket === exp.bucket && g.calls === exp.calls && g.input_tokens === exp.input_tokens && near(g.total_cost_usd, exp.total_cost_usd);
+    return (
+      g.bucket === exp.bucket &&
+      g.calls === exp.calls &&
+      g.input_tokens === exp.input_tokens &&
+      near(g.total_cost_usd, exp.total_cost_usd)
+    );
   });
 }
 
@@ -123,15 +176,20 @@ export function generateCostVisibilityFeature(): string {
     "      Examples: per-unit cost",
     ...examplesTable(
       ["workUnit", "calls", "input_tokens", "total_cost_usd"],
-      attached.map((b) => [b.bucket, String(b.calls), String(b.input_tokens), b.total_cost_usd.toFixed(3)]),
+      attached.map((b) => [
+        b.bucket,
+        String(b.calls),
+        String(b.input_tokens),
+        b.total_cost_usd.toFixed(3),
+      ]),
     ),
     "",
     "  Rule: usage with no work unit is still accounted for",
     "",
-    "    Scenario: an event with no workUnitId groups as \"(unattached)\"",
+    '    Scenario: an event with no workUnitId groups as "(unattached)"',
     "      Given a usage event with no workUnitId",
     "      When usage is projected by workUnitId",
-    "      Then it appears in the \"(unattached)\" bucket",
+    '      Then it appears in the "(unattached)" bucket',
     "",
   ];
   return lines.join("\n");

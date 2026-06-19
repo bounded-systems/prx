@@ -1,18 +1,11 @@
-import { isStale as lineageIsStale, type LineageCapable } from './lineage.ts';
-import {
-  validateRef,
-  type ValidationCapable,
-  type Verdict,
-} from './validate.ts';
-import type { ContractRegistry } from './interfaces.ts';
-import type { Digest } from './types.ts';
+import { isStale as lineageIsStale, type LineageCapable } from "./lineage.ts";
+import { validateRef, type ValidationCapable, type Verdict } from "./validate.ts";
+import type { ContractRegistry } from "./interfaces.ts";
+import type { Digest } from "./types.ts";
 
 export interface ProjectionCapable extends ValidationCapable, LineageCapable {}
 
-export type Projection<T> = (
-  store: ProjectionCapable,
-  registry: ContractRegistry,
-) => Promise<T>;
+export type Projection<T> = (store: ProjectionCapable, registry: ContractRegistry) => Promise<T>;
 
 export interface RefProjectionView {
   readonly digest: Digest;
@@ -20,7 +13,7 @@ export interface RefProjectionView {
   readonly staleSince?: Digest;
 }
 
-const ZERO_DIGEST = `sha256:${'0'.repeat(64)}` as Digest;
+const ZERO_DIGEST = `sha256:${"0".repeat(64)}` as Digest;
 
 export function projectRef(refName: string): Projection<RefProjectionView> {
   return async (store, registry) => {

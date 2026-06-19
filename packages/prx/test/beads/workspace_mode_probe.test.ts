@@ -15,7 +15,8 @@ const cap = (stdout: string, status = 0): ReturnType<SpawnCaptureFn> => ({
   stdout,
   stderr: "",
 });
-const spawnReturning = (stdout: string, status = 0): SpawnCaptureFn => (() => cap(stdout, status)) as SpawnCaptureFn;
+const spawnReturning = (stdout: string, status = 0): SpawnCaptureFn =>
+  (() => cap(stdout, status)) as SpawnCaptureFn;
 
 describe("probeSharedServerHasIssues", () => {
   test("a spawn failure reads as no issues", () => {
@@ -31,13 +32,19 @@ describe("probeSharedServerHasIssues", () => {
     expect(probeSharedServerHasIssues("/x", { spawn: spawnReturning("[]") })).toBe(false);
   });
   test("an { issues: [...] } envelope → true", () => {
-    expect(probeSharedServerHasIssues("/x", { spawn: spawnReturning('{"issues":[{"id":1}]}') })).toBe(true);
+    expect(
+      probeSharedServerHasIssues("/x", { spawn: spawnReturning('{"issues":[{"id":1}]}') }),
+    ).toBe(true);
   });
   test("an { items: [...] } envelope → true", () => {
-    expect(probeSharedServerHasIssues("/x", { spawn: spawnReturning('{"items":[{"id":1}]}') })).toBe(true);
+    expect(
+      probeSharedServerHasIssues("/x", { spawn: spawnReturning('{"items":[{"id":1}]}') }),
+    ).toBe(true);
   });
   test("an object with neither issues nor items → false", () => {
-    expect(probeSharedServerHasIssues("/x", { spawn: spawnReturning('{"other":true}') })).toBe(false);
+    expect(probeSharedServerHasIssues("/x", { spawn: spawnReturning('{"other":true}') })).toBe(
+      false,
+    );
   });
   test("unparseable stdout reads as no issues", () => {
     expect(probeSharedServerHasIssues("/x", { spawn: spawnReturning("{not json") })).toBe(false);

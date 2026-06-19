@@ -7,10 +7,7 @@ import {
   type HomeSyncSpawn,
 } from "../../src/pr-state/home-sync.ts";
 import { runCli } from "../../src/pr-state/cli.ts";
-import type {
-  WorktreeStatus,
-  CommandRunner,
-} from "../../src/pr-state/github.ts";
+import type { WorktreeStatus, CommandRunner } from "../../src/pr-state/github.ts";
 
 function cleanStatus(): WorktreeStatus {
   return {
@@ -192,11 +189,7 @@ describe("runHomeSync", () => {
   test("dry-run does not call prepareMainx; runHomeUpdate is called with dryRun=true", () => {
     const fx = makeFixture({});
 
-    const exit = runHomeSync(
-      { ...baseOpts, dryRun: true },
-      fx.output,
-      fx.deps,
-    );
+    const exit = runHomeSync({ ...baseOpts, dryRun: true }, fx.output, fx.deps);
 
     expect(exit).toBe(0);
     expect(fx.prepareCalls).toHaveLength(0);
@@ -209,14 +202,12 @@ describe("runHomeSync", () => {
 
   test("dry-run JSON envelope nests homeUpdate payload and sets fetch.ran=false", () => {
     const fx = makeFixture({
-      updateLogs: [JSON.stringify({ dryRun: true, flakeDir: "/fake/flake", input: "ai-home" }, null, 2)],
+      updateLogs: [
+        JSON.stringify({ dryRun: true, flakeDir: "/fake/flake", input: "ai-home" }, null, 2),
+      ],
     });
 
-    const exit = runHomeSync(
-      { ...baseOpts, dryRun: true, format: "json" },
-      fx.output,
-      fx.deps,
-    );
+    const exit = runHomeSync({ ...baseOpts, dryRun: true, format: "json" }, fx.output, fx.deps);
 
     expect(exit).toBe(0);
     expect(fx.logs).toHaveLength(1);
@@ -224,21 +215,26 @@ describe("runHomeSync", () => {
     expect(payload.dryRun).toBe(true);
     expect(payload.guards).toEqual({ mainx: "ok", clean: "ok" });
     expect(payload.fetch).toEqual({ ran: false, plan: ["git", "fetch", "origin"] });
-    expect(payload.detach).toEqual({ ran: false, plan: ["git", "checkout", "--detach", "origin/main"] });
+    expect(payload.detach).toEqual({
+      ran: false,
+      plan: ["git", "checkout", "--detach", "origin/main"],
+    });
     expect(payload.homeUpdate.dryRun).toBe(true);
     expect(payload.homeUpdate.input).toBe("ai-home");
   });
 
   test("live JSON envelope nests homeUpdate payload and sets fetch.ran=true", () => {
     const fx = makeFixture({
-      updateLogs: [JSON.stringify({ flakeDir: "/fake/flake", from: "abc", to: "def", noop: false, switched: true }, null, 2)],
+      updateLogs: [
+        JSON.stringify(
+          { flakeDir: "/fake/flake", from: "abc", to: "def", noop: false, switched: true },
+          null,
+          2,
+        ),
+      ],
     });
 
-    const exit = runHomeSync(
-      { ...baseOpts, format: "json" },
-      fx.output,
-      fx.deps,
-    );
+    const exit = runHomeSync({ ...baseOpts, format: "json" }, fx.output, fx.deps);
 
     expect(exit).toBe(0);
     expect(fx.prepareCalls).toEqual(["/wt/main/mainx"]);
@@ -310,10 +306,7 @@ describe("runCli wiring for `home sync`", () => {
 
   test("`prx home` (no subcommand) error message lists both update and sync", () => {
     const errs: string[] = [];
-    const exit = runCli(
-      ["home"],
-      { log: () => {}, error: (e) => errs.push(e) },
-    );
+    const exit = runCli(["home"], { log: () => {}, error: (e) => errs.push(e) });
     expect(exit).not.toBe(0);
     expect(errs.join("\n")).toContain("update");
     expect(errs.join("\n")).toContain("sync");

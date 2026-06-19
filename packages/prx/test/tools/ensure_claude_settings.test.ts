@@ -1,12 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -21,16 +14,17 @@ type Fixture = {
   localPath: string;
 };
 
-const CANONICAL = JSON.stringify(
-  {
-    permissions: {
-      allow: ["Read(**)", "Bash(prx doctor:*)"],
-      deny: ["Bash(rm -rf:*)"],
+const CANONICAL =
+  JSON.stringify(
+    {
+      permissions: {
+        allow: ["Read(**)", "Bash(prx doctor:*)"],
+        deny: ["Bash(rm -rf:*)"],
+      },
     },
-  },
-  null,
-  2,
-) + "\n";
+    null,
+    2,
+  ) + "\n";
 
 function makeFixture(): Fixture {
   const root = mkdtempSync(join(tmpdir(), "prx-ensure-claude-settings-"));

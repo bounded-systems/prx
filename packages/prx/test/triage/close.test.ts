@@ -221,7 +221,9 @@ describe("runTriageClose — happy path", () => {
 
   test("surfaces a daemon close failure as refusalReason", async () => {
     const o = makeOutput();
-    const { deps, invalidations } = makeDeps(bead(), { closeThrows: "beadsd close: bd-write: bd boom" });
+    const { deps, invalidations } = makeDeps(bead(), {
+      closeThrows: "beadsd close: bd-write: bd boom",
+    });
     const result = await runTriageClose(
       { bdId: "ai-home-mgwqw", reason: "not-planned", dryRun: false, format: "plain" },
       o.output,

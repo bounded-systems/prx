@@ -39,14 +39,22 @@ describe("daemon write helpers route through beadsd (GH-296 wave 2)", () => {
 
   test("createBeadViaDaemon omits optional fields when absent", async () => {
     let seen: BeadsRequest | undefined;
-    await createBeadViaDaemon({ issueType: "bug", title: "t" }, fakeDeps({ status: "ok", result: RAW }, (r) => (seen = r)));
+    await createBeadViaDaemon(
+      { issueType: "bug", title: "t" },
+      fakeDeps({ status: "ok", result: RAW }, (r) => (seen = r)),
+    );
     expect(seen).toEqual({ kind: "create", issueType: "bug", title: "t" });
   });
 
   test("createBeadViaDaemon forwards externalRef + silent (write parity)", async () => {
     let seen: BeadsRequest | undefined;
     await createBeadViaDaemon(
-      { issueType: "task", title: "t", externalRef: "https://github.com/o/r/issues/9", silent: true },
+      {
+        issueType: "task",
+        title: "t",
+        externalRef: "https://github.com/o/r/issues/9",
+        silent: true,
+      },
       fakeDeps({ status: "ok", result: RAW }, (r) => (seen = r)),
     );
     expect(seen).toEqual({
@@ -60,16 +68,38 @@ describe("daemon write helpers route through beadsd (GH-296 wave 2)", () => {
 
   test("updateBeadViaDaemon forwards issueType (write parity)", async () => {
     let seen: BeadsRequest | undefined;
-    await updateBeadViaDaemon("prx-abb", { issueType: "bug" }, fakeDeps({ status: "ok", result: {} }, (r) => (seen = r)));
+    await updateBeadViaDaemon(
+      "prx-abb",
+      { issueType: "bug" },
+      fakeDeps({ status: "ok", result: {} }, (r) => (seen = r)),
+    );
     expect(seen).toEqual({ kind: "update", id: "prx-abb", issueType: "bug" });
   });
 
   test("depViaDaemon sends a dep add/remove request (GH-296)", async () => {
     let seen: BeadsRequest | undefined;
-    await depViaDaemon("add", "prx-a", "prx-b", "parent-child", fakeDeps({ status: "ok", result: null }, (r) => (seen = r)));
-    expect(seen).toEqual({ kind: "dep", action: "add", from: "prx-a", to: "prx-b", depType: "parent-child" });
+    await depViaDaemon(
+      "add",
+      "prx-a",
+      "prx-b",
+      "parent-child",
+      fakeDeps({ status: "ok", result: null }, (r) => (seen = r)),
+    );
+    expect(seen).toEqual({
+      kind: "dep",
+      action: "add",
+      from: "prx-a",
+      to: "prx-b",
+      depType: "parent-child",
+    });
 
-    await depViaDaemon("remove", "prx-a", "prx-b", undefined, fakeDeps({ status: "ok", result: null }, (r) => (seen = r)));
+    await depViaDaemon(
+      "remove",
+      "prx-a",
+      "prx-b",
+      undefined,
+      fakeDeps({ status: "ok", result: null }, (r) => (seen = r)),
+    );
     expect(seen).toEqual({ kind: "dep", action: "remove", from: "prx-a", to: "prx-b" });
   });
 
@@ -111,18 +141,29 @@ describe("daemon write helpers route through beadsd (GH-296 wave 2)", () => {
 
   test("reopenBeadViaDaemon sends a reopen request", async () => {
     let seen: BeadsRequest | undefined;
-    await reopenBeadViaDaemon("prx-abb", fakeDeps({ status: "ok", result: {} }, (r) => (seen = r)));
+    await reopenBeadViaDaemon(
+      "prx-abb",
+      fakeDeps({ status: "ok", result: {} }, (r) => (seen = r)),
+    );
     expect(seen).toEqual({ kind: "reopen", id: "prx-abb" });
   });
 
   test("closeBeadViaDaemon sends a close request with the reason", async () => {
     let seen: BeadsRequest | undefined;
-    await closeBeadViaDaemon("prx-abb", "done", fakeDeps({ status: "ok", result: {} }, (r) => (seen = r)));
+    await closeBeadViaDaemon(
+      "prx-abb",
+      "done",
+      fakeDeps({ status: "ok", result: {} }, (r) => (seen = r)),
+    );
     expect(seen).toEqual({ kind: "close", id: "prx-abb", reason: "done" });
   });
 
   test("an empty `{}` echo parses to null (success, no record), not an error", async () => {
-    const rec = await updateBeadViaDaemon("prx-abb", { status: "closed" }, fakeDeps({ status: "ok", result: {} }));
+    const rec = await updateBeadViaDaemon(
+      "prx-abb",
+      { status: "closed" },
+      fakeDeps({ status: "ok", result: {} }),
+    );
     expect(rec).toBeNull();
   });
 

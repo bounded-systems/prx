@@ -20,9 +20,7 @@ We will land:
 - test/plan/preflight.test.ts
 `;
     const out = extractDeliverables({ body });
-    const paths = out
-      .filter(isFileEntry)
-      .map((d) => d.path);
+    const paths = out.filter(isFileEntry).map((d) => d.path);
     expect(paths).toEqual([
       "src/plan/preflight.ts",
       "docs/prx/help-surface.md",
@@ -72,8 +70,7 @@ Steps:
   });
 
   test("dedupes identical deliverables", () => {
-    const body =
-      "src/foo.ts is the target. We will edit src/foo.ts in two passes.";
+    const body = "src/foo.ts is the target. We will edit src/foo.ts in two passes.";
     const out = extractDeliverables({ body });
     expect(out.length).toBe(1);
     expect(out[0]).toMatchObject({ shape: "file", path: "src/foo.ts" });
@@ -96,9 +93,7 @@ describe("extractBlockers", () => {
 - Depends on GH-998
 `;
     const out = extractBlockers(body);
-    expect(out.map((b) => b.issue).sort((a, b) => a - b)).toEqual([
-      998, 1244, 1247,
-    ]);
+    expect(out.map((b) => b.issue).sort((a, b) => a - b)).toEqual([998, 1244, 1247]);
   });
 
   test("does not match arbitrary mid-sentence #N references", () => {
@@ -141,7 +136,11 @@ Steps:
     const body = "Use Edit src/foo/bar.ts to land the change; Write src/new/file.ts.";
     const out = extractPlannedActions(body);
     expect(out).toContainEqual({ shape: "edit", target: "src/foo/bar.ts", perspective: "unknown" });
-    expect(out).toContainEqual({ shape: "write", target: "src/new/file.ts", perspective: "unknown" });
+    expect(out).toContainEqual({
+      shape: "write",
+      target: "src/new/file.ts",
+      perspective: "unknown",
+    });
   });
 
   test("dedupes repeated subcommand mentions", () => {
@@ -277,9 +276,7 @@ describe("schema-aware extraction (GH-1359)", () => {
       "Examples: src/old/example.ts is the prior path.",
     ].join("\n");
     const out = extractDeliverables({ body, intakeType: "bug" });
-    const paths = out
-      .filter(isFileEntry)
-      .map((d) => d.path);
+    const paths = out.filter(isFileEntry).map((d) => d.path);
     expect(paths).toEqual(["src/feature/landed.ts"]);
   });
 
@@ -355,9 +352,7 @@ describe("schema-aware extraction (GH-1359)", () => {
   test("GH-1832 repro: noun-as-verb prose (bd records, gh issues, git commits) is dropped under type=bug", () => {
     const actions = extractPlannedActions(bug1832Body, "bug");
     const bdActions = actions.filter((a) => a.shape === "bd");
-    const ghActions = actions.filter(
-      (a) => a.shape === "gh-pr" || a.shape === "gh-issue",
-    );
+    const ghActions = actions.filter((a) => a.shape === "gh-pr" || a.shape === "gh-issue");
     const gitActions = actions.filter((a) => a.shape === "git");
     expect(bdActions).toEqual([]);
     expect(ghActions).toEqual([]);
@@ -393,9 +388,7 @@ describe("schema-aware extraction (GH-1359)", () => {
         "Author docs/architecture/Architecture.md.",
       ].join("\n");
       const actions = extractPlannedActions(body, "chore");
-      const bdAs = actions.filter(
-        (a) => a.shape === "bd" && a.subcommand === "as",
-      );
+      const bdAs = actions.filter((a) => a.shape === "bd" && a.subcommand === "as");
       expect(bdAs).toEqual([]);
     });
 
@@ -412,9 +405,7 @@ describe("schema-aware extraction (GH-1359)", () => {
       ].join("\n");
       const out = extractDeliverables({ body, intakeType: "chore" });
       const fileMentions = out.filter(isFileEntry);
-      const adr = fileMentions.find(
-        (d) => d.path === "docs/spikes/GH-1500-authority.md",
-      );
+      const adr = fileMentions.find((d) => d.path === "docs/spikes/GH-1500-authority.md");
       expect(adr).toBeDefined();
       expect(adr?.context).toBe("reference");
     });
@@ -448,9 +439,7 @@ describe("schema-aware extraction (GH-1359)", () => {
         "Edit src/pr-state/github.ts to add `repoNameWithOwner`.",
       ].join("\n");
       const out = extractDeliverables({ body, intakeType: "chore" });
-      const target = out
-        .filter(isFileEntry)
-        .find((d) => d.path === "src/pr-state/github.ts");
+      const target = out.filter(isFileEntry).find((d) => d.path === "src/pr-state/github.ts");
       expect(target).toBeDefined();
       // ACTION_EDIT_RE strips "Edit src/..." from the section before
       // deliverables sees it; the path is then governed by the next nearest
@@ -477,9 +466,7 @@ describe("schema-aware extraction (GH-1359)", () => {
       // Legacy scan — no intakeType — so the section walker picks up the
       // non-canonical `## Approach` heading and tags it executor-later.
       const actions = extractPlannedActions(body);
-      const gitRemote = actions.find(
-        (a) => a.shape === "git" && a.subcommand === "remote",
-      );
+      const gitRemote = actions.find((a) => a.shape === "git" && a.subcommand === "remote");
       expect(gitRemote).toBeDefined();
       expect(gitRemote?.perspective).toBe("executor-later");
       expect(gitRemote?.section).toBe("Approach");

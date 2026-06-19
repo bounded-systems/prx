@@ -11,21 +11,11 @@
 // small follow-up composers without rewriting XDG logic.
 
 import { processEnv } from "@bounded-systems/env";
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  rmdirSync,
-  unlinkSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmdirSync, unlinkSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 
-import {
-  type CommandRunner,
-  defaultRunner,
-} from "../pr-state/github.ts";
+import { type CommandRunner, defaultRunner } from "../pr-state/github.ts";
 import { parseRepoUrl } from "../pr-state/repos.ts";
 import {
   mergeFetch,
@@ -37,10 +27,12 @@ import { appendAuditRow } from "../audit/sink.ts";
 
 // GH-867: shape is structurally NodeJS.ProcessEnv-compatible — callers pass
 // `processEnv()` directly. The explicit type makes test stubs ergonomic.
-export type CachePathEnv = NodeJS.ProcessEnv | {
-  XDG_CACHE_HOME?: string | undefined;
-  HOME?: string | undefined;
-};
+export type CachePathEnv =
+  | NodeJS.ProcessEnv
+  | {
+      XDG_CACHE_HOME?: string | undefined;
+      HOME?: string | undefined;
+    };
 
 export type CacheRootResult = {
   /** The resolved cache root: `${XDG_CACHE_HOME ?? ${HOME}/.cache}/prx`. */
@@ -87,10 +79,9 @@ export function resolveNotionCacheDir(deps: NotionCacheDirDeps): string {
 
   let originUrl: string | null = null;
   try {
-    const result = runner(
-      ["git", "-C", deps.repoRoot, "remote", "get-url", "origin"],
-      { check: false },
-    );
+    const result = runner(["git", "-C", deps.repoRoot, "remote", "get-url", "origin"], {
+      check: false,
+    });
     if (result.status === 0) {
       const trimmed = result.stdout.trim();
       originUrl = trimmed.length > 0 ? trimmed : null;
@@ -104,18 +95,11 @@ export function resolveNotionCacheDir(deps: NotionCacheDirDeps): string {
     return join(root, "notion", parsed.owner, parsed.name);
   }
 
-  const fingerprint = createHash("sha256")
-    .update(resolve(deps.repoRoot))
-    .digest("hex")
-    .slice(0, 8);
+  const fingerprint = createHash("sha256").update(resolve(deps.repoRoot)).digest("hex").slice(0, 8);
   return join(root, "notion", "_anon", fingerprint);
 }
 
-const LEGACY_SUFFIXES = [
-  ".notion-cli.json",
-  ".lookup.json",
-  ".fetch.json",
-] as const;
+const LEGACY_SUFFIXES = [".notion-cli.json", ".lookup.json", ".fetch.json"] as const;
 
 function stripLegacySuffix(name: string): { taskId: string; suffix: string } {
   for (const suffix of LEGACY_SUFFIXES) {
@@ -234,11 +218,7 @@ function coerceLegacyLookup(raw: unknown): NotionLookup | null {
 
   // notion-cli legacy stored `url`; notion-claude-mcp legacy stored `pageUrl`.
   const url =
-    typeof obj.url === "string"
-      ? obj.url
-      : typeof obj.pageUrl === "string"
-        ? obj.pageUrl
-        : null;
+    typeof obj.url === "string" ? obj.url : typeof obj.pageUrl === "string" ? obj.pageUrl : null;
   const title = typeof obj.title === "string" ? obj.title : null;
   return { pageId: obj.pageId, title, url };
 }

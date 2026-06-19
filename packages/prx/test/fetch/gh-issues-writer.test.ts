@@ -69,7 +69,13 @@ function makeRecordingRun(
   behavior: (callIndex: number) => { status: number; stderr?: string } = () => ({
     status: 0,
   }),
-): { run: (cmd: string[], o?: { check?: boolean }) => { status: number; stdout: string; stderr: string }; recorded: string[][] } {
+): {
+  run: (
+    cmd: string[],
+    o?: { check?: boolean },
+  ) => { status: number; stdout: string; stderr: string };
+  recorded: string[][];
+} {
   const recorded: string[][] = [];
   const run = (cmd: string[]) => {
     const idx = recorded.length;

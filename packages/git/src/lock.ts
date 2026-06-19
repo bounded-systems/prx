@@ -104,10 +104,7 @@ function defaultRemoveLock(path: string): void {
  * Decide whether the lock named in `stderr` is a safe-to-clear stale lock and,
  * if so, remove it. Returns whether the caller may now retry the git op.
  */
-export function recoverStaleLock(
-  stderr: string,
-  deps: LockRecoveryDeps = {},
-): LockRecovery {
+export function recoverStaleLock(stderr: string, deps: LockRecoveryDeps = {}): LockRecovery {
   const path = parseLockPath(stderr);
   if (!path) {
     return { recovered: false, path: null, reason: "no lock path in git error" };
@@ -197,11 +194,7 @@ export function runWithGitLockRecovery<R extends MinimalSpawnResult>(
   return recovery.recovered ? run() : first;
 }
 
-type SpawnSeam<O, R extends MinimalSpawnResult> = (
-  file: string,
-  args: string[],
-  options: O,
-) => R;
+type SpawnSeam<O, R extends MinimalSpawnResult> = (file: string, args: string[], options: O) => R;
 
 /**
  * Decorate a `(file, args, opts)` spawn seam so any **git** call that fails on

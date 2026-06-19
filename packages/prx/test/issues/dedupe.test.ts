@@ -3,11 +3,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import {
-  buildBeadsLookup,
-  extractIssueNumber,
-  lookupBead,
-} from "../../src/issues/dedupe.ts";
+import { buildBeadsLookup, extractIssueNumber, lookupBead } from "../../src/issues/dedupe.ts";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
 
 function bead(overrides: Partial<BeadsRecord> = {}): BeadsRecord {
@@ -90,12 +86,10 @@ describe("buildBeadsLookup — byDomainExternalId", () => {
       }),
     ];
     const lookup = buildBeadsLookup(records);
-    expect(lookup.byDomainExternalId.get("gh")?.get(ghUrl.toLowerCase())?.id).toBe(
+    expect(lookup.byDomainExternalId.get("gh")?.get(ghUrl.toLowerCase())?.id).toBe("ai-home-c");
+    expect(lookup.byDomainExternalId.get("notion")?.get(notionUrl.toLowerCase())?.id).toBe(
       "ai-home-c",
     );
-    expect(
-      lookup.byDomainExternalId.get("notion")?.get(notionUrl.toLowerCase())?.id,
-    ).toBe("ai-home-c");
   });
 
   test("records with empty `externalRefs` produce no domain entries", () => {
@@ -114,8 +108,9 @@ describe("lookupBead — unchanged GH-only contract", () => {
         externalIssueNumber: 9,
       }),
     ]);
-    expect(lookupBead({ number: 9, url: "https://github.com/o/r/issues/9" }, lookup)?.id)
-      .toBe("ai-home-a");
+    expect(lookupBead({ number: 9, url: "https://github.com/o/r/issues/9" }, lookup)?.id).toBe(
+      "ai-home-a",
+    );
     expect(lookupBead({ number: 9 }, lookup)?.id).toBe("ai-home-a");
     expect(lookupBead({ number: 12 }, lookup)).toBeNull();
   });

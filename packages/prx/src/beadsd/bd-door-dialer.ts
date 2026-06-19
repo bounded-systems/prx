@@ -67,11 +67,20 @@ export function makePrxBeadsDoorDialer(deps: PrxBeadsDoorDialerDeps = {}): BdDoo
     // epic-children dep-list read (epic_children.ts) reaches the door with its
     // argv — and result shape — unchanged. Only the parent-child *list* form
     // maps; `dep add`/`remove` (writes) fall through to fail-closed.
-    if (opts.subcommand === "dep" && opts.args[0] === "list" && opts.args.includes("parent-child")) {
+    if (
+      opts.subcommand === "dep" &&
+      opts.args[0] === "list" &&
+      opts.args.includes("parent-child")
+    ) {
       const epicId = opts.args[1];
       if (typeof epicId === "string" && epicId.length > 0 && !epicId.startsWith("-")) {
         const result = run([bin, "beads", "children", epicId, "--json"], { check: false });
-        return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr, policy: null };
+        return {
+          exitCode: result.status,
+          stdout: result.stdout,
+          stderr: result.stderr,
+          policy: null,
+        };
       }
     }
 

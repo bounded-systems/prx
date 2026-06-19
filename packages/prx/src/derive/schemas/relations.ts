@@ -147,13 +147,9 @@ export const changedTreeSchema = z
 // flag; rules in `rules/drift.ts` consume them as ordinary atoms.
 // Documented in the retro as a finding: arithmetic leakage into
 // projection.
-export const ciRequiredOverflowSchema = z
-  .object({ issueId: z.string() })
-  .strict();
+export const ciRequiredOverflowSchema = z.object({ issueId: z.string() }).strict();
 
-export const ciPassedButIncompleteSchema = z
-  .object({ issueId: z.string() })
-  .strict();
+export const ciPassedButIncompleteSchema = z.object({ issueId: z.string() }).strict();
 
 // Column order — the projection writer mirrors these tuples when calling
 // `fact()`, and rules pattern-match positionally. Keep in sync with the
@@ -173,15 +169,7 @@ export const factColumns = {
     "behind",
   ],
   worktree: ["issueId", "exists", "path", "checkedOutBranch", "headSha"],
-  pr: [
-    "issueId",
-    "exists",
-    "number",
-    "state",
-    "isDraft",
-    "headRef",
-    "autoMergeEnabled",
-  ],
+  pr: ["issueId", "exists", "number", "state", "isDraft", "headRef", "autoMergeEnabled"],
   ciRun: ["issueId", "state", "requiredTotal", "requiredPassed"],
   review: ["issueId", "decision", "reviewersRequested", "unresolvedThreads"],
   sync: ["issueId", "remoteFresh"],

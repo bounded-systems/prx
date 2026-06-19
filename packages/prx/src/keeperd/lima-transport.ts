@@ -40,7 +40,10 @@ export function openLimaKeeperChannel(
   opts: LimaKeeperChannelOptions,
   deps: LimaChannelDeps = {},
 ): Promise<LimaKeeperChannel> {
-  return openLimaChannel<KeeperTransport>({ ...opts, namePrefix: opts.namePrefix ?? NAME_PREFIX }, deps);
+  return openLimaChannel<KeeperTransport>(
+    { ...opts, namePrefix: opts.namePrefix ?? NAME_PREFIX },
+    deps,
+  );
 }
 
 /**

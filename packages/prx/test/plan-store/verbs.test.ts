@@ -3,13 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import {
-  getRef,
-  PlanStoreError,
-  readBlob,
-  setRef,
-  writeBlob,
-} from "../../src/plan-store/cas.ts";
+import { getRef, PlanStoreError, readBlob, setRef, writeBlob } from "../../src/plan-store/cas.ts";
 import {
   PlanRefNotFound,
   refName,
@@ -19,7 +13,13 @@ import {
 } from "../../src/plan-store/verbs.ts";
 import { parseEnvelope, serializeEnvelope } from "../../src/plan-store/envelope.ts";
 
-const ENV_KEYS = ["PRX_PLAN_STORE", "PRX_AI_HOME_ROOT", "BAKED_AI_HOME_ROOT", "PRX_OPERATOR_CONFIG_ROOT", "BAKED_OPERATOR_CONFIG_ROOT"] as const;
+const ENV_KEYS = [
+  "PRX_PLAN_STORE",
+  "PRX_AI_HOME_ROOT",
+  "BAKED_AI_HOME_ROOT",
+  "PRX_OPERATOR_CONFIG_ROOT",
+  "BAKED_OPERATOR_CONFIG_ROOT",
+] as const;
 type EnvSnapshot = Partial<Record<(typeof ENV_KEYS)[number], string | undefined>>;
 
 function snapshotEnv(): EnvSnapshot {
@@ -82,7 +82,12 @@ describe("plan-store/verbs", () => {
 
   test("prx-bs4: a JSON PlanArtifact body validates via the schema branch of the unified contract", async () => {
     const validJson = JSON.stringify({
-      problem: "p", scope: "s", approach: "a", changes: [], risks: [], acceptance: ["done"],
+      problem: "p",
+      scope: "s",
+      approach: "a",
+      changes: [],
+      risks: [],
+      acceptance: ["done"],
     });
     const ok = await runPlanSave({ unit: "GH-9a", slot: "draft", content: validJson });
     expect(ok.validated_ok).toBe(true);
@@ -90,7 +95,12 @@ describe("plan-store/verbs", () => {
 
     // Empty scope → the schema rejects it (no `## Scope` markdown grep involved).
     const noScope = JSON.stringify({
-      problem: "p", scope: "", approach: "a", changes: [], risks: [], acceptance: ["done"],
+      problem: "p",
+      scope: "",
+      approach: "a",
+      changes: [],
+      risks: [],
+      acceptance: ["done"],
     });
     const bad = await runPlanSave({ unit: "GH-9b", slot: "draft", content: noScope });
     expect(bad.validated_ok).toBe(false);

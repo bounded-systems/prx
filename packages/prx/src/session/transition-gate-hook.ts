@@ -19,10 +19,7 @@
 
 import { join } from "node:path";
 
-import {
-  evaluateTransitionGate,
-  type TransitionGateInput,
-} from "./transition-gate.ts";
+import { evaluateTransitionGate, type TransitionGateInput } from "./transition-gate.ts";
 import type { PinTransitionDeps } from "./transition-artifact.ts";
 
 /** Slot path relative to the session cwd, beside the other runtime files. */
@@ -48,9 +45,7 @@ export function parseStopEnvelope(stdin: string): StopHookEnvelope {
   if (typeof stdin !== "string" || stdin.trim().length === 0) return {};
   try {
     const parsed: unknown = JSON.parse(stdin);
-    return typeof parsed === "object" && parsed !== null
-      ? (parsed as StopHookEnvelope)
-      : {};
+    return typeof parsed === "object" && parsed !== null ? (parsed as StopHookEnvelope) : {};
   } catch {
     return {};
   }
@@ -84,12 +79,7 @@ export interface TransitionHookResult {
 }
 
 function resolveWorkUnit(env: TransitionHookEnv): string {
-  return (
-    env.PRX_PLAN_SESSION_UNIT ??
-    env.PRX_SUBMIT_SESSION_UNIT ??
-    env.PRX_WORK_UNIT ??
-    "session"
-  );
+  return env.PRX_PLAN_SESSION_UNIT ?? env.PRX_SUBMIT_SESSION_UNIT ?? env.PRX_WORK_UNIT ?? "session";
 }
 
 /**
@@ -107,8 +97,7 @@ export async function runTransitionGateHook(
   // The slot resolves relative to the session cwd Claude Code reports in the
   // envelope (the hook also runs in that cwd, but the envelope is authoritative).
   const slotPath =
-    deps.env.PRX_TRANSITION_SLOT ??
-    join(envelope.cwd ?? ".", DEFAULT_TRANSITION_SLOT);
+    deps.env.PRX_TRANSITION_SLOT ?? join(envelope.cwd ?? ".", DEFAULT_TRANSITION_SLOT);
   const raw = deps.readSlot(slotPath) ?? "";
 
   const input: TransitionGateInput = {
@@ -135,9 +124,7 @@ export interface StopHookSettings {
  * settings). `hookCommand` is the shell command that runs the hook script, e.g.
  * `bun ${CLAUDE_PROJECT_DIR}/.claude/hooks/transition-gate.ts`.
  */
-export function buildTransitionGateStopSettings(
-  hookCommand: string,
-): StopHookSettings {
+export function buildTransitionGateStopSettings(hookCommand: string): StopHookSettings {
   return {
     hooks: {
       Stop: [{ hooks: [{ type: "command", command: hookCommand }] }],

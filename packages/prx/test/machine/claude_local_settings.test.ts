@@ -226,7 +226,7 @@ describe("ensureClaudeSessionProfileAllowlist (GH-1545)", () => {
     const result = ensureClaudeSessionProfileAllowlist(cwd, "triage");
 
     expect(result.status).toBe("updated");
-    const permissions = (readSettings(cwd).permissions as { allow: string[] });
+    const permissions = readSettings(cwd).permissions as { allow: string[] };
     expect(permissions.allow).toEqual([
       // GH-1530: the own-namespace glob is already present; only the remaining
       // patterns are appended, in profile order. GH-1530 PR-6: intake search
@@ -278,7 +278,9 @@ describe("ensureClaudeWorktreeHooks (prx-5q3)", () => {
       join(cwd, CLAUDE_LOCAL_SETTINGS_RELATIVE_PATH),
       JSON.stringify({
         permissions: { allow: ["Bash(prx:*)"] },
-        hooks: { SessionStart: [{ matcher: "", hooks: [{ type: "command", command: "prx beads prime" }] }] },
+        hooks: {
+          SessionStart: [{ matcher: "", hooks: [{ type: "command", command: "prx beads prime" }] }],
+        },
       }),
     );
     const result = ensureClaudeWorktreeHooks(cwd);

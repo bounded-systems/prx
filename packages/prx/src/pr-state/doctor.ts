@@ -192,10 +192,7 @@ function deriveBehindBy(comments: PrCommentsResult): number {
   return comments.pr.mergeStateStatus === "BEHIND" ? 1 : 0;
 }
 
-export function loadInventory(
-  target: DoctorTarget,
-  deps: DoctorDeps = {},
-): DoctorInventory {
+export function loadInventory(target: DoctorTarget, deps: DoctorDeps = {}): DoctorInventory {
   const fetcher = deps.fetchPrComments ?? fetchPrComments;
   const protectionFetcher = deps.fetchBranchProtection ?? fetchBranchProtection;
   const runner = deps.runner ?? defaultRunner;
@@ -209,10 +206,7 @@ export function loadInventory(
     : { ...inventory, provenance: deps.provenanceAxis };
 }
 
-export function gateTransition(
-  verb: DoctorVerb,
-  inventory: DoctorInventory,
-): DoctorGateResult {
+export function gateTransition(verb: DoctorVerb, inventory: DoctorInventory): DoctorGateResult {
   const blockers: DoctorBlocker[] = [];
 
   if (verb === "draft") {
@@ -233,7 +227,8 @@ export function gateTransition(
     if (inventory.unresolvedThreads > 0) {
       blockers.push({
         predicate: `signals.review.unresolvedThreads=${inventory.unresolvedThreads}`,
-        fixHint: "resolve the open review threads on GitHub or via the contract before promoting to ready",
+        fixHint:
+          "resolve the open review threads on GitHub or via the contract before promoting to ready",
         class: "blocker",
       });
     }
@@ -255,8 +250,8 @@ export function gateTransition(
   // than a hard blocker — `enablePullRequestAutoMerge` queues safely until
   // the approval lands and fires automatically.
   if (
-    reviewGateDisposition(inventory.protection) === "enforced"
-    && inventory.reviewDecision !== "APPROVED"
+    reviewGateDisposition(inventory.protection) === "enforced" &&
+    inventory.reviewDecision !== "APPROVED"
   ) {
     blockers.push({
       predicate: `signals.review.decision=${inventory.reviewDecision ?? "none"}`,
@@ -327,10 +322,7 @@ export function gateTransition(
  * surfaced a real failure. Actor-agnostic — rides the doctor→publisher move
  * (GH-1559) with the rest of the gate.
  */
-function pushProvenanceBlocker(
-  blockers: DoctorBlocker[],
-  inventory: DoctorInventory,
-): void {
+function pushProvenanceBlocker(blockers: DoctorBlocker[], inventory: DoctorInventory): void {
   if (inventory.provenance === "unsigned") {
     blockers.push({
       predicate: "provenance.signed=unsigned",
@@ -408,9 +400,10 @@ export function runInventory(
     return 0;
   }
 
-  const protectionLine = inventory.protection === null
-    ? `(none on ${inventory.baseRefName})`
-    : `requires ${inventory.protection.requiredApprovingReviewCount} approval(s), code-owners=${inventory.protection.requireCodeOwnerReviews}`;
+  const protectionLine =
+    inventory.protection === null
+      ? `(none on ${inventory.baseRefName})`
+      : `requires ${inventory.protection.requiredApprovingReviewCount} approval(s), code-owners=${inventory.protection.requireCodeOwnerReviews}`;
   output.log(`prx doctor inventory — ${target.workUnitId} (PR #${inventory.prNumber})`);
   output.log(`  url:               ${inventory.prUrl}`);
   output.log(`  title:             ${inventory.prTitle}`);
@@ -447,9 +440,8 @@ export function runInventory(
       output.log(`    - ${blocker.predicate}`);
     }
   }
-  const reviewGateNote = reviewGate === "skipped"
-    ? "skipped (protection requires 0 approvals)"
-    : "enforced";
+  const reviewGateNote =
+    reviewGate === "skipped" ? "skipped (protection requires 0 approvals)" : "enforced";
   output.log(`  gate merge.review: ${reviewGateNote}`);
   return 0;
 }

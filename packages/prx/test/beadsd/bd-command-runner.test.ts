@@ -6,7 +6,12 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
 import { registerBdDoorDialer } from "@bounded-systems/bd";
-import type { CommandResult, CommandRunner, SpawnCaptureResult, SpawnCaptureFn } from "@bounded-systems/proc";
+import type {
+  CommandResult,
+  CommandRunner,
+  SpawnCaptureResult,
+  SpawnCaptureFn,
+} from "@bounded-systems/proc";
 
 import {
   doorGatedCommandRunner,
@@ -64,7 +69,9 @@ describe("doorGatedCommandRunner", () => {
       innerCalled = true;
       return { stdout: "tok", stderr: "", status: 0 };
     };
-    const r = withDoor(() => doorGatedCommandRunner(inner)(["gh", "auth", "token"], { check: false }));
+    const r = withDoor(() =>
+      doorGatedCommandRunner(inner)(["gh", "auth", "token"], { check: false }),
+    );
     expect(innerCalled).toBe(true);
     expect(r.stdout).toBe("tok");
   });
@@ -87,7 +94,9 @@ describe("doorGatedSpawnCapture", () => {
   test("door mode: a dialed read yields a clean (status 0) capture result", () => {
     registerBdDoorDialer(() => ({ exitCode: 0, stdout: "[{}]", stderr: "", policy: null }));
     const inner: SpawnCaptureFn = () => okCapture("should-not-run");
-    const r = withDoor(() => doorGatedSpawnCapture(inner)(["bd", "list", "--json", "--limit", "1"]));
+    const r = withDoor(() =>
+      doorGatedSpawnCapture(inner)(["bd", "list", "--json", "--limit", "1"]),
+    );
     expect(r.status).toBe(0);
     expect(r.stdout).toBe("[{}]");
   });
@@ -95,7 +104,9 @@ describe("doorGatedSpawnCapture", () => {
   test("door mode: a fail-closed op reads as a capture failure (status≠0)", () => {
     registerBdDoorDialer(() => null);
     const inner: SpawnCaptureFn = () => okCapture("should-not-run");
-    const r = withDoor(() => doorGatedSpawnCapture(inner)(["bd", "list", "--json", "--limit", "1"]));
+    const r = withDoor(() =>
+      doorGatedSpawnCapture(inner)(["bd", "list", "--json", "--limit", "1"]),
+    );
     expect(r.status).toBe(1);
     expect(r.stderr).toMatch(/not wired for 'bd list'/);
   });

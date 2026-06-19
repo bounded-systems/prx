@@ -31,9 +31,7 @@ const adapters: Record<TranscriptSourceKind, TranscriptSourceAdapter> = {
     kind: "claude-code-jsonl",
     discover: (config, opts) => {
       if (config.kind !== "claude-code-jsonl") {
-        throw new Error(
-          `claude-code-jsonl adapter received config kind=${config.kind}`,
-        );
+        throw new Error(`claude-code-jsonl adapter received config kind=${config.kind}`);
       }
       return discoverClaudeCodeJsonl(config, opts);
     },
@@ -42,9 +40,7 @@ const adapters: Record<TranscriptSourceKind, TranscriptSourceAdapter> = {
     kind: "claude-web-export",
     discover: (config, opts) => {
       if (config.kind !== "claude-web-export") {
-        throw new Error(
-          `claude-web-export adapter received config kind=${config.kind}`,
-        );
+        throw new Error(`claude-web-export adapter received config kind=${config.kind}`);
       }
       return discoverClaudeWebExport(config, opts);
     },
@@ -63,6 +59,4 @@ export function listAdapters(): TranscriptSourceAdapter[] {
   return Object.values(adapters);
 }
 
-export const knownTranscriptSources = Object.keys(
-  adapters,
-) as TranscriptSourceKind[];
+export const knownTranscriptSources = Object.keys(adapters) as TranscriptSourceKind[];

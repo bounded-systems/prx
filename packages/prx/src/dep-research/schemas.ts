@@ -14,14 +14,7 @@ import { z } from "zod";
 export const DepSourceKind = z.enum(["git", "npm", "docs", "flake-input"]);
 export type DepSourceKind = z.infer<typeof DepSourceKind>;
 
-export const DepClassification = z.enum([
-  "schema",
-  "state",
-  "cli",
-  "config",
-  "breaking",
-  "none",
-]);
+export const DepClassification = z.enum(["schema", "state", "cli", "config", "breaking", "none"]);
 export type DepClassification = z.infer<typeof DepClassification>;
 
 export const DepSource = z.object({
@@ -57,9 +50,7 @@ export const DepManifest = z.object({
 });
 export type DepManifest = z.infer<typeof DepManifest>;
 
-const Sha256Hex = z
-  .string()
-  .regex(/^[0-9a-f]{64}$/, "expected lowercase sha256 hex digest");
+const Sha256Hex = z.string().regex(/^[0-9a-f]{64}$/, "expected lowercase sha256 hex digest");
 
 export const DepSnapshot = z.object({
   dep: z.string().min(1),

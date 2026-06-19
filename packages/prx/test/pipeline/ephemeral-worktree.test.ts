@@ -63,7 +63,9 @@ describe("create / destroy (prx-g88.5)", () => {
 
   test("create throws on a failing worktree add", () => {
     const git = fakeGit({ failAdd: true });
-    expect(() => createEphemeralActorWorktree(SPEC, { git })).toThrow(/ephemeral worktree add failed/);
+    expect(() => createEphemeralActorWorktree(SPEC, { git })).toThrow(
+      /ephemeral worktree add failed/,
+    );
   });
 
   test("destroy removes the worktree and deletes the branch", () => {
@@ -81,9 +83,13 @@ describe("withEphemeralActorWorktree lifecycle (prx-g88.5)", () => {
   test("destroys the worktree even when the body throws", async () => {
     const git = fakeGit();
     await expect(
-      withEphemeralActorWorktree(SPEC, () => {
-        throw new Error("body failed");
-      }, { git, exists: () => false, remove: () => {} }),
+      withEphemeralActorWorktree(
+        SPEC,
+        () => {
+          throw new Error("body failed");
+        },
+        { git, exists: () => false, remove: () => {} },
+      ),
     ).rejects.toThrow("body failed");
     // create (add) happened, and cleanup (remove) still ran.
     const subs = git.calls.map((c) => `${c.sub} ${c.args[0]}`);

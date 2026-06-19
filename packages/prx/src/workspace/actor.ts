@@ -34,20 +34,11 @@
  */
 
 import { createHash } from "node:crypto";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  renameSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { spawnCapture } from "@bounded-systems/proc";
 
-import {
-  ensureBranch,
-  type EnsureBranchResult,
-} from "../tools/ensure_branch.ts";
+import { ensureBranch, type EnsureBranchResult } from "../tools/ensure_branch.ts";
 import {
   expectedWorktreePath,
   WorktreeAddError,
@@ -244,10 +235,7 @@ function updateLedgerState(
 }
 
 /** Patch one or more ledger fields atomically (I-WS2). */
-function updateLedger(
-  ledgerPath: string,
-  patch: Partial<WorkspaceLedger>,
-): WorkspaceLedger | null {
+function updateLedger(ledgerPath: string, patch: Partial<WorkspaceLedger>): WorkspaceLedger | null {
   const ledger = readLedger(ledgerPath);
   if (!ledger) return null;
   const next: WorkspaceLedger = { ...ledger, ...patch };
@@ -334,10 +322,7 @@ export type ReserveDeps = {
   worktreePath?: string;
 };
 
-const ENSURE_TO_RESERVE_STATUS: Record<
-  EnsureBranchResult["status"],
-  ReserveOutput["status"]
-> = {
+const ENSURE_TO_RESERVE_STATUS: Record<EnsureBranchResult["status"], ReserveOutput["status"]> = {
   created: "created",
   "exists-local": "exists-local",
   "exists-remote": "exists-remote",
@@ -362,7 +347,8 @@ export function runReserve(
       workspace_id: "000000000000",
       branch_ref: input.branch,
       status: "error",
-      error: "workspace.reserve: cwd is not a recognized GitHub repo (no origin or non-GitHub host)",
+      error:
+        "workspace.reserve: cwd is not a recognized GitHub repo (no origin or non-GitHub host)",
     };
   }
 
@@ -378,9 +364,8 @@ export function runReserve(
   });
 
   const status = ENSURE_TO_RESERVE_STATUS[result.status];
-  const error = result.status === "error" || result.status === "base-unresolved"
-    ? result.message
-    : undefined;
+  const error =
+    result.status === "error" || result.status === "base-unresolved" ? result.message : undefined;
 
   // I-WS1: write the ledger so subsequent verbs can verify a prior
   // reservation. Skip on terminal-error paths so an `error` reservation
@@ -448,8 +433,7 @@ export function runMaterialize(
       worktree_path: "",
       branch: "",
       status: "error",
-      error:
-        "workspace.materialize: no prior reserve (run `prx workspace reserve` first)",
+      error: "workspace.materialize: no prior reserve (run `prx workspace reserve` first)",
     };
   }
   const { ledgerPath, ledger } = reserved;
@@ -473,15 +457,11 @@ export function runMaterialize(
     // but-broken worktree was treated as a healthy "exists", yielding a worktree
     // with no `.git`; keeper now prunes + recreates it — fixes the #47
     // regression / prx-5h0.)
-    const ensured = runKeeperEnsureWorktree(
-      { branch: ledger.branch, targetPath },
-      repoTop,
-      {
-        ...(deps.git ? { git: deps.git } : {}),
-        ...(deps.exists ? { exists: deps.exists } : {}),
-        ...(deps.remove ? { remove: deps.remove } : {}),
-      },
-    );
+    const ensured = runKeeperEnsureWorktree({ branch: ledger.branch, targetPath }, repoTop, {
+      ...(deps.git ? { git: deps.git } : {}),
+      ...(deps.exists ? { exists: deps.exists } : {}),
+      ...(deps.remove ? { remove: deps.remove } : {}),
+    });
     updateLedger(ledgerPath, {
       worktree_path: ensured.worktree_path,
       state: "materialized",
@@ -495,11 +475,12 @@ export function runMaterialize(
       status: ensured.status === "exists" ? "exists" : "created",
     };
   } catch (err) {
-    const message = err instanceof WorktreeAddError
-      ? err.message
-      : err instanceof Error
+    const message =
+      err instanceof WorktreeAddError
         ? err.message
-        : String(err);
+        : err instanceof Error
+          ? err.message
+          : String(err);
     return {
       workspace_id: input.workspace_id,
       worktree_path: targetPath,
@@ -540,7 +521,10 @@ function ensurePrxExcludesForWorkspace(repoRoot: string): {
     workspaceTrack: workspaceConfig.track,
   });
   const filesWritten: string[] = [];
-  if (result.excludePath && (result.excludeUpdatedRules.length > 0 || result.excludeRemovedRules.length > 0)) {
+  if (
+    result.excludePath &&
+    (result.excludeUpdatedRules.length > 0 || result.excludeRemovedRules.length > 0)
+  ) {
     filesWritten.push(result.excludePath);
   }
   return { files_written: filesWritten };
@@ -640,10 +624,7 @@ export function runSync(input: SyncInput, cwd: string): SyncOutput {
       repoRoot: worktreePath,
       workspaceTrack: workspaceConfig.track,
     });
-    const drift = [
-      ...result.excludeRemovedRules,
-      ...result.excludeUpdatedRules,
-    ];
+    const drift = [...result.excludeRemovedRules, ...result.excludeUpdatedRules];
     const status: SyncOutput["status"] = drift.length === 0 ? "noop" : "ok";
     return {
       workspace_id: input.workspace_id,
@@ -677,25 +658,24 @@ export type ServiceDeps = {
    * `docker compose -f <a> -f <b> up -d` / `down`. Tests inject a stub
    * that records the invocation.
    */
-  runCompose?: (args: {
-    cwd: string;
-    files: string[];
-    action: "up" | "down";
-  }) => { exitCode: number; stderr?: string };
+  runCompose?: (args: { cwd: string; files: string[]; action: "up" | "down" }) => {
+    exitCode: number;
+    stderr?: string;
+  };
 };
 
-function defaultRunCompose(args: {
-  cwd: string;
-  files: string[];
-  action: "up" | "down";
-}): { exitCode: number; stderr?: string } {
+function defaultRunCompose(args: { cwd: string; files: string[]; action: "up" | "down" }): {
+  exitCode: number;
+  stderr?: string;
+} {
   const filesArgs: string[] = [];
   for (const f of args.files) {
     filesArgs.push("-f", f);
   }
-  const composeArgs = args.action === "up"
-    ? ["compose", ...filesArgs, "up", "-d"]
-    : ["compose", ...filesArgs, "down"];
+  const composeArgs =
+    args.action === "up"
+      ? ["compose", ...filesArgs, "up", "-d"]
+      : ["compose", ...filesArgs, "down"];
   const r = spawnCapture(["docker", ...composeArgs], { cwd: args.cwd });
   return {
     exitCode: r.status ?? 1,
@@ -726,9 +706,7 @@ export function runService(
   // repo means neither `docker-compose.yml` + `compose.worktree.yml`
   // exists. The legacy `wtctl up/down --auto` profile config (XDG) is
   // intentionally not consulted — that surface retires with wtctl.
-  const haveBoth = WORKTREE_COMPOSE_PAIR.every((f) =>
-    existsSync(join(worktreePath, f)),
-  );
+  const haveBoth = WORKTREE_COMPOSE_PAIR.every((f) => existsSync(join(worktreePath, f)));
   if (!haveBoth) {
     if (input.auto) {
       return {
@@ -781,10 +759,7 @@ export function runService(
 // teardown
 // ---------------------------------------------------------------------------
 
-export function runTeardown(
-  input: TeardownInput,
-  cwd: string,
-): TeardownOutput {
+export function runTeardown(input: TeardownInput, cwd: string): TeardownOutput {
   const reserved = resolveReservedLedger(cwd, input.workspace_id);
   if (!reserved) {
     if (input.force) {

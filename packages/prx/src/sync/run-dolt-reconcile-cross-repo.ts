@@ -57,10 +57,7 @@ import {
   type DoltReconcileResult,
   type DoltReconcileStep,
 } from "../pr-state/dolt-reconcile.ts";
-import {
-  classifyBeadsWorkspace,
-  type BeadsWorkspaceMode,
-} from "../beads/workspace_mode.ts";
+import { classifyBeadsWorkspace, type BeadsWorkspaceMode } from "../beads/workspace_mode.ts";
 import { appendAuditRow as defaultAppendAuditRow } from "../audit/sink.ts";
 import { getAuditRuntimeContext as defaultGetAuditRuntimeContext } from "@bounded-systems/audit-context";
 import {
@@ -157,7 +154,8 @@ function classifyReconcile(result: DoltReconcileResult): {
       // `no-op` iff the executed pipeline ran no work — every step either
       // `skipped` (commit: nothing to commit) or this is a dry-run preview.
       // Otherwise: `success`.
-      const allSkipped = result.steps.length > 0 && result.steps.every((s) => s.status === "skipped");
+      const allSkipped =
+        result.steps.length > 0 && result.steps.every((s) => s.status === "skipped");
       const out: { status: DoltReconcileRepoResult["status"]; hint?: string; error?: string } = {
         status: allSkipped ? "no-op" : "success",
       };
@@ -165,12 +163,16 @@ function classifyReconcile(result: DoltReconcileResult): {
       return out;
     }
     case "preview": {
-      const out: { status: DoltReconcileRepoResult["status"]; hint?: string } = { status: "success" };
+      const out: { status: DoltReconcileRepoResult["status"]; hint?: string } = {
+        status: "success",
+      };
       if (result.hint) out.hint = result.hint;
       return out;
     }
     case "schemaConflictPending": {
-      const out: { status: DoltReconcileRepoResult["status"]; hint?: string } = { status: "conflict" };
+      const out: { status: DoltReconcileRepoResult["status"]; hint?: string } = {
+        status: "conflict",
+      };
       if (result.hint) out.hint = result.hint;
       return out;
     }
@@ -229,7 +231,9 @@ function renderTable(
   }
   lines.push("");
 
-  const succeeded = result.perRepo.filter((r) => r.status === "success" || r.status === "no-op").length;
+  const succeeded = result.perRepo.filter(
+    (r) => r.status === "success" || r.status === "no-op",
+  ).length;
   const failed = result.perRepo.filter((r) => r.status === "failed").length;
   const conflicts = result.perRepo.filter((r) => r.status === "conflict").length;
   lines.push(
@@ -247,7 +251,8 @@ export async function runDoltReconcileAcrossRepos(
   const cwd = (deps.cwd ?? (() => process.cwd()))();
   const classifyBeadsState = deps.classifyBeadsState ?? defaultClassifyBeadsState;
   const loadCandidates =
-    deps.loadCandidates ?? ((c: string) => defaultLoadCandidates(c, classifyBeadsState, deps.runner));
+    deps.loadCandidates ??
+    ((c: string) => defaultLoadCandidates(c, classifyBeadsState, deps.runner));
   const runPerRepo = deps.runDoltReconcile ?? runDoltReconcileWithResult;
   const appendAuditRow = deps.appendAuditRow ?? defaultAppendAuditRow;
   const getAuditRuntimeContext = deps.getAuditRuntimeContext ?? defaultGetAuditRuntimeContext;
@@ -416,7 +421,9 @@ export async function runDoltReconcileAcrossRepos(
     }
   }
 
-  const failedCount = perRepo.filter((r) => r.status === "failed" || r.status === "conflict").length;
+  const failedCount = perRepo.filter(
+    (r) => r.status === "failed" || r.status === "conflict",
+  ).length;
   const exitCode = failedCount > 0 ? 1 : 0;
 
   const aggregate: DoltReconcileAcrossReposResult = doltReconcileAcrossReposResultSchema.parse({

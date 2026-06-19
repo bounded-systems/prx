@@ -11,10 +11,7 @@ import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-import {
-  isPrimaryWorktree,
-  resolveMainWorktree,
-} from "../../src/beads/primary_worktree.ts";
+import { isPrimaryWorktree, resolveMainWorktree } from "../../src/beads/primary_worktree.ts";
 
 function mkTmp(prefix: string): string {
   return realpathSync(mkdtempSync(join(tmpdir(), prefix)));
@@ -32,11 +29,7 @@ function gitInit(cwd: string): void {
 function gitCommit(cwd: string, msg: string): void {
   writeFileSync(join(cwd, "seed.txt"), `${msg}\n`);
   spawnSync("git", ["-C", cwd, "add", "seed.txt"]);
-  const r = spawnSync(
-    "git",
-    ["-C", cwd, "commit", "-q", "-m", msg],
-    { encoding: "utf8" },
-  );
+  const r = spawnSync("git", ["-C", cwd, "commit", "-q", "-m", msg], { encoding: "utf8" });
   if (r.status !== 0) throw new Error(`git commit failed: ${r.stderr}`);
 }
 
@@ -53,11 +46,9 @@ function makePrimaryAndLinked(): Fixture {
   gitInit(primary);
   gitCommit(primary, "seed");
   const worktree = join(root, "linked");
-  const r = spawnSync(
-    "git",
-    ["-C", primary, "worktree", "add", "-q", "-b", "feature", worktree],
-    { encoding: "utf8" },
-  );
+  const r = spawnSync("git", ["-C", primary, "worktree", "add", "-q", "-b", "feature", worktree], {
+    encoding: "utf8",
+  });
   if (r.status !== 0) throw new Error(`git worktree add failed: ${r.stderr}`);
   return {
     primary,
@@ -140,11 +131,9 @@ describe("resolveMainWorktree on bare-cloned mainx (GH-1680)", () => {
     gitCommit(seed, "seed");
 
     const bare = join(root, "scratch.git");
-    const cloneResult = spawnSync(
-      "git",
-      ["clone", "--bare", "-q", seed, bare],
-      { encoding: "utf8" },
-    );
+    const cloneResult = spawnSync("git", ["clone", "--bare", "-q", seed, bare], {
+      encoding: "utf8",
+    });
     if (cloneResult.status !== 0) {
       throw new Error(`git clone --bare failed: ${cloneResult.stderr}`);
     }

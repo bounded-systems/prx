@@ -56,18 +56,31 @@ export const VALUE_PROPS: readonly ValueProp[] = [
     forcing: [
       {
         name: "forge is denied a git push",
-        check: () => decideAgentToolCall({ agentType: "forge", command: "git push origin x" }).allow === false,
-        exercises: ["agents/policy_guard.ts:decideAgentToolCall", "agents/policy_guard.ts:parsePolicedCommand", "@bounded-systems/policy:allowedSubcommands"],
+        check: () =>
+          decideAgentToolCall({ agentType: "forge", command: "git push origin x" }).allow === false,
+        exercises: [
+          "agents/policy_guard.ts:decideAgentToolCall",
+          "agents/policy_guard.ts:parsePolicedCommand",
+          "@bounded-systems/policy:allowedSubcommands",
+        ],
       },
       {
         name: "keeper may git push",
-        check: () => decideAgentToolCall({ agentType: "keeper", command: "git push origin x" }).allow === true,
-        exercises: ["agents/policy_guard.ts:decideAgentToolCall", "@bounded-systems/policy:allowedSubcommands"],
+        check: () =>
+          decideAgentToolCall({ agentType: "keeper", command: "git push origin x" }).allow === true,
+        exercises: [
+          "agents/policy_guard.ts:decideAgentToolCall",
+          "@bounded-systems/policy:allowedSubcommands",
+        ],
       },
       {
         name: "the orchestrator owns nothing",
-        check: () => decideAgentToolCall({ agentType: "orchestrator", command: "git status" }).allow === false,
-        exercises: ["agents/policy_guard.ts:decideAgentToolCall", "agents/generate.ts:generateOrchestratorDoc"],
+        check: () =>
+          decideAgentToolCall({ agentType: "orchestrator", command: "git status" }).allow === false,
+        exercises: [
+          "agents/policy_guard.ts:decideAgentToolCall",
+          "agents/generate.ts:generateOrchestratorDoc",
+        ],
       },
     ],
   },
@@ -81,10 +94,20 @@ export const VALUE_PROPS: readonly ValueProp[] = [
         check: () =>
           verifyEffectOwnership({
             derivationId: "sha256:" + "0".repeat(64),
-            manifest: { producer: "prx://reviewer/push", inputs: {}, outputs: {}, contracts: [], params: { subcommand: "push" } },
+            manifest: {
+              producer: "prx://reviewer/push",
+              inputs: {},
+              outputs: {},
+              contracts: [],
+              params: { subcommand: "push" },
+            },
             ts: 0,
           } as never).ok === false,
-        exercises: ["provenance/effect-ownership.ts:verifyEffectOwnership", "provenance/signer.ts:actorFromBuilderId", "@bounded-systems/policy:findOwningRoles"],
+        exercises: [
+          "provenance/effect-ownership.ts:verifyEffectOwnership",
+          "provenance/signer.ts:actorFromBuilderId",
+          "@bounded-systems/policy:findOwningRoles",
+        ],
       },
     ],
   },
@@ -96,17 +119,26 @@ export const VALUE_PROPS: readonly ValueProp[] = [
       {
         name: "submit accepts a beads canonical id (not GH-only)",
         check: () => submitRefFor("prx-2c4", "ready") === "prx-2c4:submit@ready",
-        exercises: ["submit/artifact.schema.ts:submitRefFor", "submit/artifact.schema.ts:WORK_UNIT_RE"],
+        exercises: [
+          "submit/artifact.schema.ts:submitRefFor",
+          "submit/artifact.schema.ts:WORK_UNIT_RE",
+        ],
       },
       {
         name: "driven end-to-end to a merged PR",
-        evidence: "prx-2c4 → PR #85 (merged); chain source@pinned→plan→implement on disk; prx publisher did the merge",
-        exercises: ["submit/stage.ts:runSubmitStage", "submit/publish.ts:runSubmitPublish", "pr-state/keeper.ts:runKeeperCommitTree"],
+        evidence:
+          "prx-2c4 → PR #85 (merged); chain source@pinned→plan→implement on disk; prx publisher did the merge",
+        exercises: [
+          "submit/stage.ts:runSubmitStage",
+          "submit/publish.ts:runSubmitPublish",
+          "pr-state/keeper.ts:runKeeperCommitTree",
+        ],
       },
     ],
   },
   {
-    claim: "A derivation's identity is content-addressed: any change to its manifest changes its id.",
+    claim:
+      "A derivation's identity is content-addressed: any change to its manifest changes its id.",
     whyNot:
       "vs a mutable build record: the id IS the hash of the manifest, so a step can't be edited after the fact without becoming a different derivation — the chain is tamper-evident.",
     forcing: [
@@ -212,13 +244,12 @@ const BANNER =
 
 function forcingLine(f: ForcingFunction): string {
   const backing = backingOf(f);
-  const mark = backing === "backed" ? "[backed]" : backing === "evidence" ? "[evidence]" : "[learning goal]";
+  const mark =
+    backing === "backed" ? "[backed]" : backing === "evidence" ? "[evidence]" : "[learning goal]";
   const tail =
     "evidence" in f ? ` — ${f.evidence}` : "pending" in f ? ` — learning goal: ${f.pending}` : "";
   const exercises =
-    "exercises" in f && f.exercises.length > 0
-      ? `\n  - exercises: ${f.exercises.join(", ")}`
-      : "";
+    "exercises" in f && f.exercises.length > 0 ? `\n  - exercises: ${f.exercises.join(", ")}` : "";
   return `- ${mark} ${f.name}${tail}${exercises}`;
 }
 
@@ -299,7 +330,11 @@ export function generateStatusDoc(): string {
       }
     }
   }
-  lines.push("", "_See [docs/value-props.md](docs/value-props.md) for the forcing functions + the code→value-prop map._", "");
+  lines.push(
+    "",
+    "_See [docs/value-props.md](docs/value-props.md) for the forcing functions + the code→value-prop map._",
+    "",
+  );
 
   return lines.join("\n");
 }

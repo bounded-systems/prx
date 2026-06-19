@@ -116,9 +116,7 @@ export function createCasDriver(deps: GcDriverDeps): GcDriver {
           failures.push(`${f.ref}: ${err instanceof Error ? err.message : String(err)}`);
         }
       }
-      return failures.length > 0
-        ? { reclaimed, failed: failures.join("; ") }
-        : { reclaimed };
+      return failures.length > 0 ? { reclaimed, failed: failures.join("; ") } : { reclaimed };
     },
   };
 }

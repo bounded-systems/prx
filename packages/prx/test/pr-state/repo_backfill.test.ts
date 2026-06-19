@@ -105,9 +105,7 @@ describe("runRepoBackfill", () => {
     const tmp = mkdtempSync(join(tmpdir(), "prx-backfill-bare-"));
     const bareDir = join(tmp, "bare", "io.github", "owner", "imdb-kaggle.git");
     mkdirSync(bareDir, { recursive: true });
-    const { config, wtRoot, indexPath } = withTempInventory([
-      makeEntry("imdb-kaggle", bareDir),
-    ]);
+    const { config, wtRoot, indexPath } = withTempInventory([makeEntry("imdb-kaggle", bareDir)]);
     const indexBefore = readFileSync(indexPath, "utf8");
     const auditRows: unknown[] = [];
 

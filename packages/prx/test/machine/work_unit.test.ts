@@ -210,9 +210,7 @@ describe("resolveUoW — GH dispatch via the GitHub adapter", () => {
   test("returns null when no adapter is registered for the surface id's domain", () => {
     // NOTION-… matches the *baseline* surface-id pattern (it is recognised
     // canonical), but no Notion adapter is registered → no resolver path.
-    expect(
-      resolveUoW("NOTION-0123456789abcdef0123456789abcdef", beads),
-    ).toBeNull();
+    expect(resolveUoW("NOTION-0123456789abcdef0123456789abcdef", beads)).toBeNull();
   });
 });
 
@@ -269,13 +267,9 @@ describe("resolveUoW — BD long-id dispatch via the BdDomainAdapter (GH-1674)",
           localWorkspacePrefix: () => "ai-home",
         }),
       );
-      expect(
-        resolveUoW(
-          "BD-ai-home-1777747201085-737-407f177f",
-          beads,
-          { cwd: "/fixture" },
-        ),
-      ).toBe("ai-home-1777747201085-737-407f177f");
+      expect(resolveUoW("BD-ai-home-1777747201085-737-407f177f", beads, { cwd: "/fixture" })).toBe(
+        "ai-home-1777747201085-737-407f177f",
+      );
     } finally {
       registerDomainAdapter(beadsDomainAdapter);
     }

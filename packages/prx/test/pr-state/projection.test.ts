@@ -1,13 +1,7 @@
 // GH-2074 PR-3 / ai-home-udqx2.10 (.3.2) — per-unit CAS+TTL projection store.
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import {
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { deleteEnv, getEnv, setEnv } from "@bounded-systems/env";
@@ -20,7 +14,10 @@ import {
   putUnit,
 } from "../../src/pr-state/projection.ts";
 
-type Snap = { issue: { number: number; state?: string | null } | null; beads: { id: string } | null };
+type Snap = {
+  issue: { number: number; state?: string | null } | null;
+  beads: { id: string } | null;
+};
 
 const SCOPE = "repo-scope-abc";
 const SNAP: Snap = { issue: { number: 2084, state: "OPEN" }, beads: { id: "ai-home-udqx2.10" } };
@@ -82,7 +79,10 @@ describe("projection store (per-unit CAS + TTL)", () => {
 
   test("CAS integrity: a tampered blob reads null (sha mismatch)", () => {
     const sha = putUnit(SCOPE, "GH-1", SNAP, dir);
-    writeFileSync(join(dir, "blobs", `${sha}.json`), JSON.stringify({ issue: { number: 9999 }, beads: null }));
+    writeFileSync(
+      join(dir, "blobs", `${sha}.json`),
+      JSON.stringify({ issue: { number: 9999 }, beads: null }),
+    );
     expect(getUnit<Snap>(SCOPE, "GH-1", dir)).toBeNull();
   });
 

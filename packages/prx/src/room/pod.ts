@@ -84,7 +84,11 @@ export function resolvePodDoors(pod: PodSpec): {
   const providers = new Map<string, { room: string; socket: string }>();
   for (const room of parsed.rooms) {
     for (const door of room.doors) {
-      if (door.direction === "expose" && door.state !== "closed" && !providers.has(door.capability)) {
+      if (
+        door.direction === "expose" &&
+        door.state !== "closed" &&
+        !providers.has(door.capability)
+      ) {
         providers.set(door.capability, { room: room.name, socket: door.socket });
       }
     }

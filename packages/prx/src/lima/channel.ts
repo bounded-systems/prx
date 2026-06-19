@@ -110,13 +110,20 @@ export async function openLimaChannel<T = FramedTransport>(
     //    backgrounds (-f) and close() can always reach it (-O exit).
     if (exists(hostSocket)) rmSync(hostSocket, { force: true });
     const fwd = run("ssh", [
-      "-F", sshConfig,
-      "-o", "ControlMaster=auto",
-      "-o", `ControlPath=${controlPath}`,
-      "-o", "ControlPersist=yes",
-      "-o", "ExitOnForwardFailure=yes",
-      "-f", "-N",
-      "-L", `${hostSocket}:${opts.vmSocket}`,
+      "-F",
+      sshConfig,
+      "-o",
+      "ControlMaster=auto",
+      "-o",
+      `ControlPath=${controlPath}`,
+      "-o",
+      "ControlPersist=yes",
+      "-o",
+      "ExitOnForwardFailure=yes",
+      "-f",
+      "-N",
+      "-L",
+      `${hostSocket}:${opts.vmSocket}`,
       sshHost,
     ]);
     if (fwd.status !== 0) {

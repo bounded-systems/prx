@@ -33,11 +33,7 @@ import {
   localWorkspacePrefixForCwd,
   type RepoRunner,
 } from "../../src/pr-state/repos.ts";
-import {
-  actorsForScope,
-  eventOwnerMap,
-  toolActorCatalog,
-} from "../../src/machine/actors.ts";
+import { actorsForScope, eventOwnerMap, toolActorCatalog } from "../../src/machine/actors.ts";
 
 type IndexShape = {
   roots: string[];
@@ -86,9 +82,7 @@ function fixture(): {
         commonDir: aiHomeBare,
         kind: "bare",
         mainWorktree: null,
-        worktrees: [
-          { path: aiHomeWt, branch: "main", current: false, kind: "worktree" },
-        ],
+        worktrees: [{ path: aiHomeWt, branch: "main", current: false, kind: "worktree" }],
         localOnlyBranches: [],
         findings: [],
         remotes: [],
@@ -111,21 +105,11 @@ function fixture(): {
       },
     ],
   };
-  writeFileSync(
-    join(indexDir, "config.json"),
-    `${JSON.stringify({}, null, 2)}\n`,
-  );
-  writeFileSync(
-    join(indexDir, "index.json"),
-    `${JSON.stringify(index, null, 2)}\n`,
-  );
+  writeFileSync(join(indexDir, "config.json"), `${JSON.stringify({}, null, 2)}\n`);
+  writeFileSync(join(indexDir, "index.json"), `${JSON.stringify(index, null, 2)}\n`);
 
   const runner: RepoRunner = (cmd, options = {}) => {
-    if (
-      cmd[0] === "git" &&
-      cmd[1] === "rev-parse" &&
-      cmd[2] === "--show-toplevel"
-    ) {
+    if (cmd[0] === "git" && cmd[1] === "rev-parse" && cmd[2] === "--show-toplevel") {
       const cwd = options.cwd ?? "";
       if (cwd === root || cwd.startsWith(`${root}/`)) {
         return { stdout: `${root}\n`, stderr: "", status: 0 };
@@ -157,8 +141,7 @@ describe("repo_router — end-to-end against a real index", () => {
       {
         loadRepoInventoryConfig: (cwd) => loadRepoInventoryConfig(cwd, runner),
         loadRepoInventoryIndex,
-        localWorkspacePrefixForCwd: (cwd) =>
-          localWorkspacePrefixForCwd(cwd, runner),
+        localWorkspacePrefixForCwd: (cwd) => localWorkspacePrefixForCwd(cwd, runner),
         materializeRepo: (repo) => {
           materializeCalls += 1;
           return { action: "cloned", barePath: repo.commonDir };
@@ -201,8 +184,7 @@ describe("repo_router — end-to-end against a real index", () => {
       {
         loadRepoInventoryConfig: (cwd) => loadRepoInventoryConfig(cwd, runner),
         loadRepoInventoryIndex,
-        localWorkspacePrefixForCwd: (cwd) =>
-          localWorkspacePrefixForCwd(cwd, runner),
+        localWorkspacePrefixForCwd: (cwd) => localWorkspacePrefixForCwd(cwd, runner),
         materializeRepo: () => {
           materializeCalls += 1;
           return { action: "cloned", barePath: "/should-not-be-called" };
@@ -220,17 +202,14 @@ describe("repo_router — end-to-end against a real index", () => {
 // conflicts. Each scenario stubs `materializeRepo` so the test does not
 // shell out, but the routing decision flows through the real router.
 describe("dispatchFromArgvWithRouting — --repo threading", () => {
-  function makeDeps(
-    fixtureBundle: ReturnType<typeof fixture>,
-  ): DispatchFromArgvRoutingDeps {
+  function makeDeps(fixtureBundle: ReturnType<typeof fixture>): DispatchFromArgvRoutingDeps {
     const { aiHomeWt, runner } = fixtureBundle;
     return {
       cwd: () => aiHomeWt,
       routerDeps: {
         loadRepoInventoryConfig: (cwd) => loadRepoInventoryConfig(cwd, runner),
         loadRepoInventoryIndex,
-        localWorkspacePrefixForCwd: (cwd) =>
-          localWorkspacePrefixForCwd(cwd, runner),
+        localWorkspacePrefixForCwd: (cwd) => localWorkspacePrefixForCwd(cwd, runner),
         materializeRepo: (repo) => ({
           action: "cloned",
           barePath: repo.commonDir,
@@ -264,13 +243,7 @@ describe("dispatchFromArgvWithRouting — --repo threading", () => {
     const restore = setSessionEntryStderrSink(() => {});
     try {
       const result = dispatchFromArgvWithRouting(
-        [
-          "plan",
-          "session",
-          "BD-demo-repo-1778515181936-7-edba9d4a",
-          "--repo",
-          "demo-repo",
-        ],
+        ["plan", "session", "BD-demo-repo-1778515181936-7-edba9d4a", "--repo", "demo-repo"],
         makeDeps(bundle),
       );
       expect(result.kind).toBe("routed");
@@ -286,13 +259,7 @@ describe("dispatchFromArgvWithRouting — --repo threading", () => {
   test("explicit --repo conflicts with embedded prefix → refused (no materialize)", () => {
     const bundle = fixture();
     const result = dispatchFromArgvWithRouting(
-      [
-        "plan",
-        "session",
-        "BD-demo-repo-1778515181936-7-edba9d4a",
-        "--repo",
-        "ai-home",
-      ],
+      ["plan", "session", "BD-demo-repo-1778515181936-7-edba9d4a", "--repo", "ai-home"],
       makeDeps(bundle),
     );
     expect(result.kind).toBe("refused");
@@ -374,9 +341,7 @@ describe("repo_router — catalog wiring (acceptance: prx actors --scope workflo
 
   test("toolActorCatalog.repo_router matches actorsForScope output (no skew)", () => {
     const direct = toolActorCatalog.repo_router;
-    const fromScope = actorsForScope("workflow").find(
-      (a) => a.actor === "repo_router",
-    );
+    const fromScope = actorsForScope("workflow").find((a) => a.actor === "repo_router");
     expect(direct).toEqual(fromScope!);
   });
 });

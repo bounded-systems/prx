@@ -56,13 +56,10 @@ describe("safe tool wrappers", () => {
   });
 
   test("gh-safe blocks merge", () => {
-    const result = runWithEnv(
-      [join(repoRoot, "scripts/gh-safe"), "pr", "merge", "1"],
-      {
-        PRX_CAPABILITY_STATE: "validating",
-        PRX_SAFE_DRY_RUN: "1",
-      },
-    );
+    const result = runWithEnv([join(repoRoot, "scripts/gh-safe"), "pr", "merge", "1"], {
+      PRX_CAPABILITY_STATE: "validating",
+      PRX_SAFE_DRY_RUN: "1",
+    });
     expect(result.exitCode).toBe(1);
     expect(stderrText(result)).toContain("blocked subcommand 'merge'");
   });
@@ -74,68 +71,47 @@ describe("safe tool wrappers", () => {
   });
 
   test("git-safe nudges 'prx repo-status' on status", () => {
-    const result = runWithEnv(
-      [join(repoRoot, "scripts/git-safe"), "status"],
-      {
-        PRX_CAPABILITY_STATE: "planning",
-        PRX_SAFE_DRY_RUN: "1",
-      },
-    );
+    const result = runWithEnv([join(repoRoot, "scripts/git-safe"), "status"], {
+      PRX_CAPABILITY_STATE: "planning",
+      PRX_SAFE_DRY_RUN: "1",
+    });
     expect(stderrText(result)).toContain(
       "git-safe: prefer 'prx repo-status' (this is a safety wrapper)",
     );
   });
 
   test("git-safe emits generic nudge on unmapped verb", () => {
-    const result = runWithEnv(
-      [join(repoRoot, "scripts/git-safe"), "diff"],
-      {
-        PRX_CAPABILITY_STATE: "validating",
-        PRX_SAFE_DRY_RUN: "1",
-      },
-    );
-    expect(stderrText(result)).toContain(
-      "git-safe: prefer 'prx diff' (this is a safety wrapper)",
-    );
+    const result = runWithEnv([join(repoRoot, "scripts/git-safe"), "diff"], {
+      PRX_CAPABILITY_STATE: "validating",
+      PRX_SAFE_DRY_RUN: "1",
+    });
+    expect(stderrText(result)).toContain("git-safe: prefer 'prx diff' (this is a safety wrapper)");
   });
 
   test("gh-safe nudges 'prx repo overview' on list", () => {
-    const result = runWithEnv(
-      [join(repoRoot, "scripts/gh-safe"), "pr", "list"],
-      {
-        PRX_CAPABILITY_STATE: "validating",
-        PRX_SAFE_DRY_RUN: "1",
-      },
-    );
+    const result = runWithEnv([join(repoRoot, "scripts/gh-safe"), "pr", "list"], {
+      PRX_CAPABILITY_STATE: "validating",
+      PRX_SAFE_DRY_RUN: "1",
+    });
     expect(stderrText(result)).toContain(
       "gh-safe: prefer 'prx repo overview' (this is a safety wrapper)",
     );
   });
 
   test("gh-safe nudges 'prx review' on review", () => {
-    const result = runWithEnv(
-      [join(repoRoot, "scripts/gh-safe"), "pr", "review", "1"],
-      {
-        PRX_CAPABILITY_STATE: "validating",
-        PRX_SAFE_DRY_RUN: "1",
-      },
-    );
-    expect(stderrText(result)).toContain(
-      "gh-safe: prefer 'prx review' (this is a safety wrapper)",
-    );
+    const result = runWithEnv([join(repoRoot, "scripts/gh-safe"), "pr", "review", "1"], {
+      PRX_CAPABILITY_STATE: "validating",
+      PRX_SAFE_DRY_RUN: "1",
+    });
+    expect(stderrText(result)).toContain("gh-safe: prefer 'prx review' (this is a safety wrapper)");
   });
 
   test("bd-safe emits generic nudge on list", () => {
-    const result = runWithEnv(
-      [join(repoRoot, "scripts/bd-safe"), "list"],
-      {
-        PRX_CAPABILITY_STATE: "validating",
-        PRX_SAFE_DRY_RUN: "1",
-      },
-    );
-    expect(stderrText(result)).toContain(
-      "bd-safe: prefer 'prx list' (this is a safety wrapper)",
-    );
+    const result = runWithEnv([join(repoRoot, "scripts/bd-safe"), "list"], {
+      PRX_CAPABILITY_STATE: "validating",
+      PRX_SAFE_DRY_RUN: "1",
+    });
+    expect(stderrText(result)).toContain("bd-safe: prefer 'prx list' (this is a safety wrapper)");
   });
 
   test("prx-safe blocks recursive session entry commands", () => {
@@ -178,7 +154,9 @@ describe("safe tool wrappers", () => {
       },
     );
     expect(blockedInPlanning.exitCode).toBe(1);
-    expect(stderrText(blockedInPlanning)).toContain("blocked subcommand 'commit' for state 'planning'");
+    expect(stderrText(blockedInPlanning)).toContain(
+      "blocked subcommand 'commit' for state 'planning'",
+    );
 
     const allowedInValidating = runWithEnv(
       [join(repoRoot, "scripts/git-safe"), "commit", "-m", "x"],
@@ -192,25 +170,23 @@ describe("safe tool wrappers", () => {
   });
 
   test("gh-safe blocks merge for all roles", () => {
-    const blocked = runWithEnv(
-      [join(repoRoot, "scripts/gh-safe"), "pr", "merge", "1"],
-      {
-        PRX_CAPABILITY_STATE: "validating",
-        PRX_SAFE_DRY_RUN: "1",
-      },
-    );
+    const blocked = runWithEnv([join(repoRoot, "scripts/gh-safe"), "pr", "merge", "1"], {
+      PRX_CAPABILITY_STATE: "validating",
+      PRX_SAFE_DRY_RUN: "1",
+    });
     expect(blocked.exitCode).toBe(1);
-    expect(stderrText(blocked)).toContain("blocked subcommand 'merge' for state 'validating' role 'executor'");
-
-    const stillBlocked = runWithEnv(
-      [join(repoRoot, "scripts/gh-safe"), "pr", "merge", "1"],
-      {
-        PRX_CAPABILITY_STATE: "merging",
-        PRX_SAFE_DRY_RUN: "1",
-      },
+    expect(stderrText(blocked)).toContain(
+      "blocked subcommand 'merge' for state 'validating' role 'executor'",
     );
+
+    const stillBlocked = runWithEnv([join(repoRoot, "scripts/gh-safe"), "pr", "merge", "1"], {
+      PRX_CAPABILITY_STATE: "merging",
+      PRX_SAFE_DRY_RUN: "1",
+    });
     expect(stillBlocked.exitCode).toBe(1);
-    expect(stderrText(stillBlocked)).toContain("blocked subcommand 'merge' for state 'merging' role 'executor'");
+    expect(stderrText(stillBlocked)).toContain(
+      "blocked subcommand 'merge' for state 'merging' role 'executor'",
+    );
   });
 
   test("prx-safe allows workflow reads in planning state", () => {
@@ -246,7 +222,9 @@ describe("safe tool wrappers", () => {
       },
     );
     expect(result.exitCode).toBe(0);
-    expect(stderrText(result)).toContain("allow 'transition' for state 'validating' role 'executor'");
+    expect(stderrText(result)).toContain(
+      "allow 'transition' for state 'validating' role 'executor'",
+    );
   });
 
   test("cursor-agent-prx appends json format and passes prompt to cursor-agent", () => {
@@ -305,11 +283,7 @@ printf '{}'
       { mode: 0o755 },
     );
 
-    writeFileSync(
-      cursorAgentStub,
-      "#!/usr/bin/env bash\nexit 0\n",
-      { mode: 0o755 },
-    );
+    writeFileSync(cursorAgentStub, "#!/usr/bin/env bash\nexit 0\n", { mode: 0o755 });
 
     const result = runWithEnv(
       [join(repoRoot, "scripts/cursor-agent-prx"), "snapshot", "--format", "text"],
@@ -330,11 +304,7 @@ printf '{}'
     const cursorAgentStub = join(binDir, "cursor-agent-stub");
     const cursorLog = join(binDir, "cursor.log");
 
-    writeFileSync(
-      prxSafeStub,
-      "#!/usr/bin/env bash\nprintf '{}'\n",
-      { mode: 0o755 },
-    );
+    writeFileSync(prxSafeStub, "#!/usr/bin/env bash\nprintf '{}'\n", { mode: 0o755 });
 
     writeFileSync(
       cursorAgentStub,
@@ -371,89 +341,93 @@ printf '%s\n' "$*" > "$CURSOR_LOG"
     expect(stderrText(result)).toContain("missing executable prx-safe wrapper");
   });
 
-  test.skipIf(!existsSync(join(monoRoot, "hooks/pre-commit")))("hooks pre-commit blocks commits on main", () => {
-    const result = runWithEnv(["sh", join(monoRoot, "hooks/pre-commit")], {
-      MAIN_GUARD_CURRENT_BRANCH: "main",
-    });
+  test.skipIf(!existsSync(join(monoRoot, "hooks/pre-commit")))(
+    "hooks pre-commit blocks commits on main",
+    () => {
+      const result = runWithEnv(["sh", join(monoRoot, "hooks/pre-commit")], {
+        MAIN_GUARD_CURRENT_BRANCH: "main",
+      });
 
-    expect(result.exitCode).toBe(1);
-    expect(stderrText(result)).toContain("refusing to commit on 'main'");
-    expect(stderrText(result)).toContain("wt switch <branch>");
-  });
+      expect(result.exitCode).toBe(1);
+      expect(stderrText(result)).toContain("refusing to commit on 'main'");
+      expect(stderrText(result)).toContain("wt switch <branch>");
+    },
+  );
 
-  test.skipIf(!existsSync(join(monoRoot, "hooks/pre-commit")))("hooks pre-commit allows feature branches", () => {
-    const result = runWithEnv(["sh", join(monoRoot, "hooks/pre-commit")], {
-      MAIN_GUARD_CURRENT_BRANCH: "cursor-agent-hardening",
-      PATH: "/usr/bin:/bin",
-    });
+  test.skipIf(!existsSync(join(monoRoot, "hooks/pre-commit")))(
+    "hooks pre-commit allows feature branches",
+    () => {
+      const result = runWithEnv(["sh", join(monoRoot, "hooks/pre-commit")], {
+        MAIN_GUARD_CURRENT_BRANCH: "cursor-agent-hardening",
+        PATH: "/usr/bin:/bin",
+      });
 
-    expect(result.exitCode).toBe(0);
-  });
+      expect(result.exitCode).toBe(0);
+    },
+  );
 
-  test.skipIf(!existsSync(join(monoRoot, "hooks/pre-commit")))("hooks pre-commit tolerates beads timeouts under errexit", () => {
-    const binDir = tempDir("main-guard-pre-commit-");
-    const timeoutStub = join(binDir, "timeout");
-    const bdStub = join(binDir, "bd");
+  test.skipIf(!existsSync(join(monoRoot, "hooks/pre-commit")))(
+    "hooks pre-commit tolerates beads timeouts under errexit",
+    () => {
+      const binDir = tempDir("main-guard-pre-commit-");
+      const timeoutStub = join(binDir, "timeout");
+      const bdStub = join(binDir, "bd");
 
-    writeFileSync(
-      timeoutStub,
-      `#!/usr/bin/env bash
+      writeFileSync(
+        timeoutStub,
+        `#!/usr/bin/env bash
 exit 124
 `,
-      { mode: 0o755 },
-    );
+        { mode: 0o755 },
+      );
 
-    writeFileSync(
-      bdStub,
-      `#!/usr/bin/env bash
+      writeFileSync(
+        bdStub,
+        `#!/usr/bin/env bash
 exit 0
 `,
-      { mode: 0o755 },
-    );
+        { mode: 0o755 },
+      );
 
-    const result = runWithEnv(["sh", join(monoRoot, "hooks/pre-commit")], {
-      PATH: `${binDir}:${process.env.PATH ?? ""}`,
-      MAIN_GUARD_CURRENT_BRANCH: "main-guard",
-      BEADS_HOOK_TIMEOUT: "1",
-    });
+      const result = runWithEnv(["sh", join(monoRoot, "hooks/pre-commit")], {
+        PATH: `${binDir}:${process.env.PATH ?? ""}`,
+        MAIN_GUARD_CURRENT_BRANCH: "main-guard",
+        BEADS_HOOK_TIMEOUT: "1",
+      });
 
-    expect(result.exitCode).toBe(0);
-    expect(stderrText(result)).toContain("timed out after 1s");
-  });
+      expect(result.exitCode).toBe(0);
+      expect(stderrText(result)).toContain("timed out after 1s");
+    },
+  );
 
   test("planner role blocks git commit even in validating state", () => {
-    const result = runWithEnv(
-      [join(repoRoot, "scripts/git-safe"), "commit", "-m", "x"],
-      {
-        PRX_CAPABILITY_STATE: "validating",
-        PRX_AGENT_ROLE: "planner",
-        PRX_SAFE_DRY_RUN: "1",
-      },
-    );
+    const result = runWithEnv([join(repoRoot, "scripts/git-safe"), "commit", "-m", "x"], {
+      PRX_CAPABILITY_STATE: "validating",
+      PRX_AGENT_ROLE: "planner",
+      PRX_SAFE_DRY_RUN: "1",
+    });
     expect(result.exitCode).toBe(1);
-    expect(stderrText(result)).toContain("blocked subcommand 'commit' for state 'validating' role 'planner'");
+    expect(stderrText(result)).toContain(
+      "blocked subcommand 'commit' for state 'validating' role 'planner'",
+    );
   });
 
   test("planner role only allows read-only gh commands", () => {
-    const blocked = runWithEnv(
-      [join(repoRoot, "scripts/gh-safe"), "pr", "edit", "1"],
-      {
-        PRX_CAPABILITY_STATE: "planning",
-        PRX_AGENT_ROLE: "planner",
-        PRX_SAFE_DRY_RUN: "1",
-      },
-    );
+    const blocked = runWithEnv([join(repoRoot, "scripts/gh-safe"), "pr", "edit", "1"], {
+      PRX_CAPABILITY_STATE: "planning",
+      PRX_AGENT_ROLE: "planner",
+      PRX_SAFE_DRY_RUN: "1",
+    });
     expect(blocked.exitCode).toBe(1);
-    expect(stderrText(blocked)).toContain("blocked subcommand 'edit' for state 'planning' role 'planner'");
-
-    const allowed = runWithEnv(
-      [join(repoRoot, "scripts/gh-safe"), "pr", "view", "1"],
-      {
-        PRX_CAPABILITY_STATE: "planning",
-        PRX_AGENT_ROLE: "planner",
-        PRX_SAFE_DRY_RUN: "1",
-      },
+    expect(stderrText(blocked)).toContain(
+      "blocked subcommand 'edit' for state 'planning' role 'planner'",
     );
+
+    const allowed = runWithEnv([join(repoRoot, "scripts/gh-safe"), "pr", "view", "1"], {
+      PRX_CAPABILITY_STATE: "planning",
+      PRX_AGENT_ROLE: "planner",
+      PRX_SAFE_DRY_RUN: "1",
+    });
     expect(allowed.exitCode).toBe(0);
     expect(stderrText(allowed)).toContain("allow 'view' for state 'planning' role 'planner'");
   });

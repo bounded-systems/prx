@@ -5,10 +5,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { ArgvOverflowError } from "../../src/machine/argv_size.ts";
-import {
-  BASE_TOOLS_BY_ROLE,
-  SHARED_DENY,
-} from "../../src/machine/actor_ruleset.ts";
+import { BASE_TOOLS_BY_ROLE, SHARED_DENY } from "../../src/machine/actor_ruleset.ts";
 import { defaultDispatchCapabilities } from "../../src/machine/dispatch.ts";
 import { actorNames } from "../../src/machine/actor_names.ts";
 import {
@@ -201,7 +198,6 @@ describe("buildWorkUnitClaudeInteractiveRuntimeProfile", () => {
     expect(prompt).toContain("executor");
     expect(profile.env?.PRX_AGENT_ROLE).toBe("executor");
   });
-
 });
 
 describe("buildOpsImplementPrompt planBody injection (GH-1238)", () => {
@@ -277,7 +273,9 @@ describe("buildOpsImplementClaudeRuntimeProfile prompt delivery (GH-1287)", () =
     expect(Buffer.byteLength(written, "utf8")).toBeGreaterThan(64 * 1024);
 
     expect(
-      profile.notes?.some((n) => n.includes("--append-system-prompt-file") && n.includes("primary path")),
+      profile.notes?.some(
+        (n) => n.includes("--append-system-prompt-file") && n.includes("primary path"),
+      ),
     ).toBe(true);
   });
 
@@ -307,7 +305,11 @@ describe("buildOpsImplementClaudeRuntimeProfile prompt delivery (GH-1287)", () =
     expect(existsSync(join(tmpRoot, ".prx", "run", "GH-1287", "implement-prompt.txt"))).toBe(false);
 
     expect(
-      profile.notes?.some((n) => n.includes("fallback path") && n.includes("prx implement dispatch --actor=plan -- show GH-1287")),
+      profile.notes?.some(
+        (n) =>
+          n.includes("fallback path") &&
+          n.includes("prx implement dispatch --actor=plan -- show GH-1287"),
+      ),
     ).toBe(true);
   });
 
@@ -389,9 +391,7 @@ describe("buildOpsPlanClaudeRuntimeProfile planPath injection (GH-1044)", () => 
     });
     expect(profile.env?.PRX_PLAN_SESSION_UNIT).toBe("GH-1311");
     expect(profile.env?.PRX_AGENT_ROLE).toBe("planner");
-    expect(
-      profile.notes?.some((n) => n.includes("PRX_PLAN_SESSION_UNIT")),
-    ).toBe(true);
+    expect(profile.notes?.some((n) => n.includes("PRX_PLAN_SESSION_UNIT"))).toBe(true);
   });
 });
 
@@ -480,7 +480,12 @@ describe("buildOpsPlanClaudeRuntimeProfile staging-dir Write carve-out (GH-1175)
         hasPriorSession: false,
       });
       const notes = profile.notes ?? [];
-      expect(notes.some((n) => n.includes("Staging carve-out") && n.includes("Write(/tmp/x/prx/plans/staging/**)"))).toBe(true);
+      expect(
+        notes.some(
+          (n) =>
+            n.includes("Staging carve-out") && n.includes("Write(/tmp/x/prx/plans/staging/**)"),
+        ),
+      ).toBe(true);
     } finally {
       restore();
     }
@@ -589,7 +594,15 @@ describe("ops triage runtime profile (GH-893)", () => {
 
 describe("session profiles config (GH-950)", () => {
   test("SESSION_PROFILES exposes plan, intake, triage, implement, submit, author, scratch as machine-readable config", () => {
-    expect(sessionProfileNames).toEqual(["plan", "intake", "triage", "implement", "submit", "author", "scratch"]);
+    expect(sessionProfileNames).toEqual([
+      "plan",
+      "intake",
+      "triage",
+      "implement",
+      "submit",
+      "author",
+      "scratch",
+    ]);
     for (const name of sessionProfileNames) {
       const profile = SESSION_PROFILES[name];
       expect(profile.name).toBe(name);
@@ -620,18 +633,13 @@ describe("session profiles config (GH-950)", () => {
     submit: "reader",
     author: "reader",
   } as const satisfies Record<string, "reader" | "executor">;
-  const GH1530_PROFILES = Object.keys(PROFILE_ROLE) as Array<
-    keyof typeof PROFILE_ROLE
-  >;
+  const GH1530_PROFILES = Object.keys(PROFILE_ROLE) as Array<keyof typeof PROFILE_ROLE>;
 
   test("every profile's disallowedTools is a superset of SHARED_DENY (AC1/AC3)", () => {
     for (const name of GH1530_PROFILES) {
       const deny = SESSION_PROFILES[name].disallowedTools;
       for (const shared of SHARED_DENY) {
-        expect(
-          deny,
-          `profile '${name}' must inherit shared deny '${shared}'`,
-        ).toContain(shared);
+        expect(deny, `profile '${name}' must inherit shared deny '${shared}'`).toContain(shared);
       }
       // AC1: raw gh/bd/git are denied for every actor's session.
       expect(deny).toContain("Bash(gh:*)");
@@ -644,10 +652,7 @@ describe("session profiles config (GH-950)", () => {
     for (const name of GH1530_PROFILES) {
       const allow = SESSION_PROFILES[name].allowedTools;
       for (const base of BASE_TOOLS_BY_ROLE[PROFILE_ROLE[name]]) {
-        expect(
-          allow,
-          `profile '${name}' must include role base tool '${base}'`,
-        ).toContain(base);
+        expect(allow, `profile '${name}' must include role base tool '${base}'`).toContain(base);
       }
     }
   });
@@ -1326,18 +1331,19 @@ describe("prx-pln — plan-print enforces the structured plan artifact", () => {
   });
 
   test("the planner embeds the consumed source body; falls back when absent (prx-pl2)", () => {
-    const withSrc = buildWorkUnitClaudePlanPrintRuntimeProfile({
-      workUnitId: "prx-2c4",
-      sourceBody: "task: Document the opt-out\n\nAdd a note to keymaker.ts.",
-    }).sdkSpec?.prompt ?? "";
+    const withSrc =
+      buildWorkUnitClaudePlanPrintRuntimeProfile({
+        workUnitId: "prx-2c4",
+        sourceBody: "task: Document the opt-out\n\nAdd a note to keymaker.ts.",
+      }).sdkSpec?.prompt ?? "";
     expect(withSrc).toContain("BEGIN WORK UNIT SOURCE");
     expect(withSrc).toContain("Add a note to keymaker.ts");
     expect(withSrc).toContain("do NOT run `prx`/`bd` to re-fetch");
     expect(withSrc).toContain("submit_plan");
     // GH-261: NO hydrate path. Absent source ⇒ a no-fabricate notice pointing at
     // intake (real headless launches hard-fail upstream), NOT "fetch it yourself".
-    const noSrc = buildWorkUnitClaudePlanPrintRuntimeProfile({ workUnitId: "prx-2c4" })
-      .sdkSpec?.prompt ?? "";
+    const noSrc =
+      buildWorkUnitClaudePlanPrintRuntimeProfile({ workUnitId: "prx-2c4" }).sdkSpec?.prompt ?? "";
     expect(noSrc).not.toContain("BEGIN WORK UNIT SOURCE");
     expect(noSrc).not.toContain("Hydrate workflow context");
     expect(noSrc).toContain("must NOT fetch or fabricate");
@@ -1398,9 +1404,7 @@ describe("GH-1407 — non-interactive sdkSpec cache split", () => {
       systemPrompt: "constant type-pass system prompt",
       userPrompt: "row body to classify",
     });
-    expect(profile.sdkSpec?.systemPromptStable).toEqual([
-      "constant type-pass system prompt",
-    ]);
+    expect(profile.sdkSpec?.systemPromptStable).toEqual(["constant type-pass system prompt"]);
     // user prompt goes to the user message, not the system slot.
     expect(profile.sdkSpec?.systemPromptDynamic).toBeUndefined();
     expect(profile.sdkSpec?.prompt).toBe("row body to classify");
@@ -1459,14 +1463,16 @@ describe("buildWorkUnitClaudeImplementSdkRuntimeProfile (headless-first step 2)"
   test("prompt tells the executor to commit WITHOUT running checks — prx signs them (prx-who)", () => {
     // bun is outside the executor's exec sandbox, so "run the project checks"
     // wasted a real run's budget. prx runs + signs checks/v1 post-commit.
-    const withPlan = buildWorkUnitClaudeImplementSdkRuntimeProfile({
-      workUnitId: "prx-0v5",
-      planBody: "## Scope\nx",
-    }).sdkSpec?.prompt ?? "";
+    const withPlan =
+      buildWorkUnitClaudeImplementSdkRuntimeProfile({
+        workUnitId: "prx-0v5",
+        planBody: "## Scope\nx",
+      }).sdkSpec?.prompt ?? "";
     expect(withPlan).toContain("Do NOT run the project checks");
     expect(withPlan).toContain("commit");
-    const noPlan = buildWorkUnitClaudeImplementSdkRuntimeProfile({ workUnitId: "prx-0v5" })
-      .sdkSpec?.prompt ?? "";
+    const noPlan =
+      buildWorkUnitClaudeImplementSdkRuntimeProfile({ workUnitId: "prx-0v5" }).sdkSpec?.prompt ??
+      "";
     expect(noPlan).toContain("Do NOT run the project checks");
   });
 
@@ -1474,8 +1480,10 @@ describe("buildWorkUnitClaudeImplementSdkRuntimeProfile (headless-first step 2)"
     // The shared interactive mandate ("inspect prx graph/model/actors") orders
     // tools the headless allowlist denies — the executor's stated refusal
     // reason. The headless system prompt must not carry it.
-    const sys = buildWorkUnitClaudeImplementSdkRuntimeProfile({ workUnitId: "prx-0v5" })
-      .sdkSpec?.systemPromptStable?.join(" ") ?? "";
+    const sys =
+      buildWorkUnitClaudeImplementSdkRuntimeProfile({
+        workUnitId: "prx-0v5",
+      }).sdkSpec?.systemPromptStable?.join(" ") ?? "";
     expect(sys).not.toContain("prx graph");
     expect(sys).not.toContain("prx model");
     expect(sys).not.toContain("prx actors");
@@ -1517,7 +1525,16 @@ describe("scratch session profile (GH-2394)", () => {
     expect(scratch.allowedTools).not.toContain("Bash(gh:*)");
     expect(scratch.allowedTools).not.toContain("Bash(git:*)");
     // Explicit legibility denies layered on the strict allowlist.
-    for (const denied of ["Edit", "Write", "Bash(gh:*)", "Bash(bd:*)", "Bash(git:*)", "Bash(rm:*)", "WebFetch", "Agent"]) {
+    for (const denied of [
+      "Edit",
+      "Write",
+      "Bash(gh:*)",
+      "Bash(bd:*)",
+      "Bash(git:*)",
+      "Bash(rm:*)",
+      "WebFetch",
+      "Agent",
+    ]) {
       expect(scratch.disallowedTools).toContain(denied);
     }
     // Actor boundary: only prx + the llm_agent; the connector actors are denied.
@@ -1588,7 +1605,11 @@ describe("scratch session profile (GH-2394)", () => {
   test("--continue threads through when a prior session exists", () => {
     const safe = buildOpsScratchClaudeRuntimeProfile({ cwd, hasPriorSession: true });
     expect(safe.args).toContain("--continue");
-    const unsafe = buildOpsScratchClaudeRuntimeProfile({ cwd, unsafe: true, hasPriorSession: true });
+    const unsafe = buildOpsScratchClaudeRuntimeProfile({
+      cwd,
+      unsafe: true,
+      hasPriorSession: true,
+    });
     expect(unsafe.args).toContain("--continue");
     const fresh = buildOpsScratchClaudeRuntimeProfile({ cwd });
     expect(fresh.args).not.toContain("--continue");
@@ -1607,10 +1628,30 @@ describe("scratch session profile (GH-2394)", () => {
 
 describe("ops session SDK runtime profiles (headless-first step 2/2b, GH-2380)", () => {
   const cases = [
-    { name: "intake" as const, build: () => buildOpsIntakeSdkRuntimeProfile(), role: "intake", profile: "user" as const },
-    { name: "triage" as const, build: () => buildOpsTriageSdkRuntimeProfile(), role: "triage", profile: "user" as const },
-    { name: "submit" as const, build: () => buildOpsSubmitSdkRuntimeProfile({ workUnitId: "GH-1900" }), role: "submit", profile: "work-unit" as const },
-    { name: "author" as const, build: () => buildOpsAuthorSdkRuntimeProfile({ workUnitId: "GH-1206" }), role: "author", profile: "work-unit" as const },
+    {
+      name: "intake" as const,
+      build: () => buildOpsIntakeSdkRuntimeProfile(),
+      role: "intake",
+      profile: "user" as const,
+    },
+    {
+      name: "triage" as const,
+      build: () => buildOpsTriageSdkRuntimeProfile(),
+      role: "triage",
+      profile: "user" as const,
+    },
+    {
+      name: "submit" as const,
+      build: () => buildOpsSubmitSdkRuntimeProfile({ workUnitId: "GH-1900" }),
+      role: "submit",
+      profile: "work-unit" as const,
+    },
+    {
+      name: "author" as const,
+      build: () => buildOpsAuthorSdkRuntimeProfile({ workUnitId: "GH-1206" }),
+      role: "author",
+      profile: "work-unit" as const,
+    },
   ];
 
   for (const c of cases) {

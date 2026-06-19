@@ -122,9 +122,7 @@ describe("claude-web-export adapter", () => {
     );
     writeFileSync(
       join(archive, "memories.json"),
-      JSON.stringify([
-        { conversation_id: "conv-1", text: "user prefers terse responses" },
-      ]),
+      JSON.stringify([{ conversation_id: "conv-1", text: "user prefers terse responses" }]),
     );
 
     const sessions = [];

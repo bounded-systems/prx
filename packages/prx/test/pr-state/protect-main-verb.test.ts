@@ -89,7 +89,9 @@ type Captured = Array<Record<string, unknown>>;
 
 // parse argv (verb subcommand args) → run → render → exitCode, like the CLI.
 function runVerb(args: string[], deps: ProtectMainDeps): { rendered: string; exit: number } {
-  const input = parseArgs(protectMainVerb as never, args) as Parameters<typeof protectMainVerb.run>[0];
+  const input = parseArgs(protectMainVerb as never, args) as Parameters<
+    typeof protectMainVerb.run
+  >[0];
   const out = protectMainVerb.run(input, deps) as ProtectMainOutput;
   return {
     rendered: protectMainVerb.render!(out, input as never),
@@ -107,15 +109,20 @@ const applyDeps = (fixture: unknown, calls?: Captured): ProtectMainDeps => ({
 
 describe("protect-main verb", () => {
   test("apply dry-run plain output", () => {
-    const { rendered, exit } = runVerb([], applyDeps(protectMainBranchResultFixture({
-      requireConversationResolution: true,
-      requiredStatusChecks: ["ci / test", "lint"],
-      payload: {
-        ...protectMainBranchResultFixture().payload,
-        required_status_checks: { strict: true, contexts: ["ci / test", "lint"] },
-        required_conversation_resolution: true,
-      },
-    })));
+    const { rendered, exit } = runVerb(
+      [],
+      applyDeps(
+        protectMainBranchResultFixture({
+          requireConversationResolution: true,
+          requiredStatusChecks: ["ci / test", "lint"],
+          payload: {
+            ...protectMainBranchResultFixture().payload,
+            required_status_checks: { strict: true, contexts: ["ci / test", "lint"] },
+            required_conversation_resolution: true,
+          },
+        }),
+      ),
+    );
     expect(exit).toBe(0);
     expect(rendered).toContain("WOULD APPLY main protection");
     expect(rendered).toContain("backend=branch-protection");
@@ -130,7 +137,11 @@ describe("protect-main verb", () => {
       applyDeps(protectMainBranchResultFixture({ apply: true, applied: true })),
     );
     expect(exit).toBe(0);
-    expect(JSON.parse(rendered)).toMatchObject({ repo: "bdelanghe/ai-home", applied: true, branch: "main" });
+    expect(JSON.parse(rendered)).toMatchObject({
+      repo: "bdelanghe/ai-home",
+      applied: true,
+      branch: "main",
+    });
   });
 
   test("--strict enables the full requirement set (apply=false)", () => {
@@ -149,7 +160,10 @@ describe("protect-main verb", () => {
     const calls: Captured = [];
     runVerb(
       ["--allow", "enforce-admins", "--allow", "status-check:ci"],
-      applyDeps(protectMainBranchResultFixture({ enforceAdmins: true, requiredStatusChecks: ["ci"] }), calls),
+      applyDeps(
+        protectMainBranchResultFixture({ enforceAdmins: true, requiredStatusChecks: ["ci"] }),
+        calls,
+      ),
     );
     expect(calls[0]!).toMatchObject({
       backend: "branch-protection",
@@ -161,7 +175,10 @@ describe("protect-main verb", () => {
 
   test("--ruleset selects the ruleset backend", () => {
     const calls: Captured = [];
-    runVerb(["--ruleset"], applyDeps(protectMainBranchResultFixture({ backend: "ruleset" }), calls));
+    runVerb(
+      ["--ruleset"],
+      applyDeps(protectMainBranchResultFixture({ backend: "ruleset" }), calls),
+    );
     expect(calls[0]!).toMatchObject({ backend: "ruleset" });
   });
 
@@ -190,7 +207,8 @@ describe("protect-main verb", () => {
   test("--check that matches exits 0", () => {
     const { exit } = runVerb(["--check"], {
       protectMainBranch: () => protectMainBranchResultFixture() as never,
-      checkMainBranchProtection: () => checkMainBranchProtectionResultFixture({ matches: true }) as never,
+      checkMainBranchProtection: () =>
+        checkMainBranchProtectionResultFixture({ matches: true }) as never,
     });
     expect(exit).toBe(0);
   });

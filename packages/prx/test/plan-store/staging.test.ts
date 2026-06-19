@@ -43,13 +43,9 @@ describe("resolvePlanStagingDir (GH-1175)", () => {
   test("XDG_CACHE_HOME wins over HOME", () => {
     process.env.XDG_CACHE_HOME = "/tmp/xdg-cache";
     process.env.HOME = "/home/operator";
-    expect(resolvePlanStagingDir()).toBe(
-      join("/tmp/xdg-cache", "prx", "plans", "staging"),
-    );
+    expect(resolvePlanStagingDir()).toBe(join("/tmp/xdg-cache", "prx", "plans", "staging"));
     const display = resolvePlanStagingDirForDisplay();
-    expect(display.dir).toBe(
-      join("/tmp/xdg-cache", "prx", "plans", "staging"),
-    );
+    expect(display.dir).toBe(join("/tmp/xdg-cache", "prx", "plans", "staging"));
     expect(display.source).toBe("XDG_CACHE_HOME");
   });
 
@@ -68,9 +64,7 @@ describe("resolvePlanStagingDir (GH-1175)", () => {
     process.env.HOME = "/home/operator";
     const display = resolvePlanStagingDirForDisplay();
     expect(display.source).toBe("XDG_CACHE_HOME (default)");
-    expect(display.dir).toBe(
-      join("/home/operator", ".cache", "prx", "plans", "staging"),
-    );
+    expect(display.dir).toBe(join("/home/operator", ".cache", "prx", "plans", "staging"));
   });
 
   test("throws PlanStoreError(NO_STAGING_ROOT) when neither var is set", () => {
@@ -129,8 +123,6 @@ describe("resolvePlanStagingDir (GH-1175)", () => {
 
   test("accepts env values with spaces and dashes (valid mac/linux paths)", () => {
     process.env.XDG_CACHE_HOME = "/Users/Dana Foo/cache-dir";
-    expect(resolvePlanStagingDir()).toBe(
-      "/Users/Dana Foo/cache-dir/prx/plans/staging",
-    );
+    expect(resolvePlanStagingDir()).toBe("/Users/Dana Foo/cache-dir/prx/plans/staging");
   });
 });

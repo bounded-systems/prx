@@ -103,16 +103,18 @@ function readBuffer(value: string | Buffer | null | undefined): string {
  * component is the `.beads/dolt/<database>` location; when the database is
  * unknown (server down, no ledger) the dolt dir root keeps the id stable.
  */
-export function computeDoltServerId(
-  hostRepoSlug: string,
-  doltPath: string,
-): DoltServerId {
+export function computeDoltServerId(hostRepoSlug: string, doltPath: string): DoltServerId {
   const hash = createHash("sha256");
   hash.update(`${hostRepoSlug} ${doltPath}`);
   return hash.digest("hex").slice(0, 12);
 }
 
-function tryGit(spawn: DoltStatusSpawn, args: string[], cwd: string, env: NodeJS.ProcessEnv): string | null {
+function tryGit(
+  spawn: DoltStatusSpawn,
+  args: string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+): string | null {
   const r = spawn("git", args, { cwd, env });
   if (r.error || (r.status ?? 1) !== 0) return null;
   const out = readBuffer(r.stdout).trim();
@@ -150,11 +152,7 @@ type Probe =
   | { reachable: false; port: null; database: null };
 
 /** Probe actual connectivity. This verdict — not pid/path — decides up/down. */
-function probeConnectivity(
-  spawn: DoltStatusSpawn,
-  env: NodeJS.ProcessEnv,
-  cwd: string,
-): Probe {
+function probeConnectivity(spawn: DoltStatusSpawn, env: NodeJS.ProcessEnv, cwd: string): Probe {
   const down: Probe = { reachable: false, port: null, database: null };
   const show = spawn("bd", ["dolt", "show", "--format=json"], { cwd, env });
   if (show.error || (show.status ?? 1) !== 0) return down;
@@ -209,7 +207,8 @@ function countUnpushed(
   try {
     const payload = JSON.parse(readBuffer(r.stdout)) as { rows?: Array<{ n?: unknown }> };
     const raw = payload?.rows?.[0]?.n;
-    const n = typeof raw === "number" ? raw : typeof raw === "string" ? Number.parseInt(raw, 10) : NaN;
+    const n =
+      typeof raw === "number" ? raw : typeof raw === "string" ? Number.parseInt(raw, 10) : NaN;
     return Number.isFinite(n) && n >= 0 ? n : null;
   } catch {
     return null;
@@ -271,7 +270,8 @@ export function runDoltStatus(
       owner: null,
       healthy: false,
       unpushed_commits: null,
-      error: "dolt.status: repo_path is not a recognized GitHub repo (no origin or non-GitHub host)",
+      error:
+        "dolt.status: repo_path is not a recognized GitHub repo (no origin or non-GitHub host)",
     };
     output.log(formatStatus(out, options.format));
     return 1;

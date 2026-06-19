@@ -143,7 +143,8 @@ export function formatHookApply(result: HookApplyResult, format: "plain" | "json
     return lines.join("\n");
   }
   for (const repo of result.repos) {
-    const retrySuffix = repo.lockRetries && repo.lockRetries > 0 ? ` (retried ${repo.lockRetries}x)` : "";
+    const retrySuffix =
+      repo.lockRetries && repo.lockRetries > 0 ? ` (retried ${repo.lockRetries}x)` : "";
     if (repo.error) {
       lines.push(`  err    ${repo.name}  ${repo.error}`);
     } else if (repo.changed) {

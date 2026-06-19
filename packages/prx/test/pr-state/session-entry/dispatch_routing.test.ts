@@ -16,7 +16,9 @@ function route(result: unknown) {
 
 describe("dispatchFromArgvWithRouting", () => {
   test("throws when no SessionEntryEvent matches the argv", () => {
-    expect(() => dispatchFromArgvWithRouting(["totally", "bogus"])).toThrow(/no SessionEntryEvent matched/);
+    expect(() => dispatchFromArgvWithRouting(["totally", "bogus"])).toThrow(
+      /no SessionEntryEvent matched/,
+    );
   });
 
   test("local → a profile for the original event", () => {
@@ -50,7 +52,10 @@ describe("dispatchFromArgvWithRouting", () => {
   test("routed (redispatch ran) → routed with the redispatched profile", () => {
     const r = dispatchFromArgvWithRouting(ARGV, {
       cwd: () => "/repo",
-      runRepoRouter: ((_input: unknown, deps: { redispatchOpenPlanSession: (a: unknown) => void }) => {
+      runRepoRouter: ((
+        _input: unknown,
+        deps: { redispatchOpenPlanSession: (a: unknown) => void },
+      ) => {
         // The router invokes the recursion-guarded redispatch, then reports routed.
         deps.redispatchOpenPlanSession({ repo: { name: "x" }, barePath: "/bare/x" });
         return { status: "routed", repo: { name: "x" }, barePath: "/bare/x" };

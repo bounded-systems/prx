@@ -9,19 +9,13 @@ import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "nod
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 
-import {
-  parseWorkspaceArgs,
-  runWorkspaceCli,
-  WorkspaceCliError,
-} from "../../src/workspace/cli.ts";
+import { parseWorkspaceArgs, runWorkspaceCli, WorkspaceCliError } from "../../src/workspace/cli.ts";
 import { materializeWorkUnitBranch, normalizeNamespaceArgv } from "../../src/pr-state/cli.ts";
 
 function sh(cwd: string, file: string, args: string[]): void {
   const r = spawnSync(file, args, { cwd, encoding: "utf8" });
   if ((r.status ?? 1) !== 0) {
-    throw new Error(
-      `${file} ${args.join(" ")} (cwd=${cwd}) exit=${r.status}\n${r.stderr ?? ""}`,
-    );
+    throw new Error(`${file} ${args.join(" ")} (cwd=${cwd}) exit=${r.status}\n${r.stderr ?? ""}`);
   }
 }
 
@@ -77,13 +71,7 @@ describe("parseWorkspaceArgs", () => {
   });
 
   test("reserve --branch X --base Y", () => {
-    const args = parseWorkspaceArgs([
-      "reserve",
-      "--branch",
-      "GH-1978",
-      "--base",
-      "origin/release",
-    ]);
+    const args = parseWorkspaceArgs(["reserve", "--branch", "GH-1978", "--base", "origin/release"]);
     expect(args).toEqual({
       verb: "reserve",
       format: "plain",
@@ -98,13 +86,7 @@ describe("parseWorkspaceArgs", () => {
   });
 
   test("prepare --lifecycle materialized --format json", () => {
-    const args = parseWorkspaceArgs([
-      "prepare",
-      "--lifecycle",
-      "materialized",
-      "--format",
-      "json",
-    ]);
+    const args = parseWorkspaceArgs(["prepare", "--lifecycle", "materialized", "--format", "json"]);
     expect(args.verb).toBe("prepare");
     expect(args.lifecycle).toBe("materialized");
     expect(args.format).toBe("json");
@@ -121,20 +103,16 @@ describe("parseWorkspaceArgs", () => {
     // was missing from the `prx workspace <verb>` router allow-list, so the verb
     // was unreachable. The full lifecycle (reserve → materialize → prepare → …)
     // is now routable.
-    expect(normalizeNamespaceArgv(["workspace", "materialize", "--workspace-id", "abcdef012345"]))
-      .toEqual(["workspace", "materialize", "--workspace-id", "abcdef012345"]);
+    expect(
+      normalizeNamespaceArgv(["workspace", "materialize", "--workspace-id", "abcdef012345"]),
+    ).toEqual(["workspace", "materialize", "--workspace-id", "abcdef012345"]);
     expect(() => normalizeNamespaceArgv(["workspace", "bogus"])).toThrow(
       /Unknown workspace subcommand: bogus/,
     );
   });
 
   test("service --action start --auto", () => {
-    const args = parseWorkspaceArgs([
-      "service",
-      "--action",
-      "start",
-      "--auto",
-    ]);
+    const args = parseWorkspaceArgs(["service", "--action", "start", "--auto"]);
     expect(args.action).toBe("start");
     expect(args.auto).toBe(true);
   });
@@ -180,26 +158,23 @@ describe.skipIf(!GIT_COMMIT_AVAILABLE)("runWorkspaceCli — happy paths", () => 
     expect(prepare.exitCode).toBe(0);
     expect((prepare.payload as { workspace_id: string }).workspace_id).toBe(wid);
 
-    const sync = runWorkspaceCli(
-      parseWorkspaceArgs(["sync", "--format", "json"]),
-      { cwd: fixture.repoDir },
-    );
+    const sync = runWorkspaceCli(parseWorkspaceArgs(["sync", "--format", "json"]), {
+      cwd: fixture.repoDir,
+    });
     expect(sync.exitCode).toBe(0);
     expect((sync.payload as { workspace_id: string }).workspace_id).toBe(wid);
 
-    const teardown = runWorkspaceCli(
-      parseWorkspaceArgs(["teardown", "--format", "json"]),
-      { cwd: fixture.repoDir },
-    );
+    const teardown = runWorkspaceCli(parseWorkspaceArgs(["teardown", "--format", "json"]), {
+      cwd: fixture.repoDir,
+    });
     expect(teardown.exitCode).toBe(0);
     expect((teardown.payload as { status: string }).status).toBe("torn-down");
   });
 
   test("service --auto with no compose yields no-profile + exit 0", () => {
-    runWorkspaceCli(
-      parseWorkspaceArgs(["reserve", "--branch", "main", "--format", "json"]),
-      { cwd: fixture.repoDir },
-    );
+    runWorkspaceCli(parseWorkspaceArgs(["reserve", "--branch", "main", "--format", "json"]), {
+      cwd: fixture.repoDir,
+    });
     const result = runWorkspaceCli(
       parseWorkspaceArgs(["service", "--action", "start", "--auto", "--format", "json"]),
       { cwd: fixture.repoDir },
@@ -209,14 +184,8 @@ describe.skipIf(!GIT_COMMIT_AVAILABLE)("runWorkspaceCli — happy paths", () => 
   });
 
   test("plain format emits human-readable lines", () => {
-    runWorkspaceCli(
-      parseWorkspaceArgs(["reserve", "--branch", "main"]),
-      { cwd: fixture.repoDir },
-    );
-    const result = runWorkspaceCli(
-      parseWorkspaceArgs(["sync"]),
-      { cwd: fixture.repoDir },
-    );
+    runWorkspaceCli(parseWorkspaceArgs(["reserve", "--branch", "main"]), { cwd: fixture.repoDir });
+    const result = runWorkspaceCli(parseWorkspaceArgs(["sync"]), { cwd: fixture.repoDir });
     expect(result.exitCode).toBe(0);
     expect(result.output).toContain("workspace.sync");
     expect(result.output).toContain("workspace_id=");
@@ -231,27 +200,20 @@ describe.skipIf(!GIT_COMMIT_AVAILABLE)("runWorkspaceCli — I-WS1 gate (no prior
   afterEach(() => fixture.cleanup());
 
   test("prepare exits non-zero when no reserve happened", () => {
-    const result = runWorkspaceCli(
-      parseWorkspaceArgs(["prepare", "--lifecycle", "materialized"]),
-      { cwd: fixture.repoDir },
-    );
+    const result = runWorkspaceCli(parseWorkspaceArgs(["prepare", "--lifecycle", "materialized"]), {
+      cwd: fixture.repoDir,
+    });
     expect(result.exitCode).toBe(1);
     expect(result.output).toContain("no prior reserve");
   });
 
   test("sync exits non-zero when no reserve happened", () => {
-    const result = runWorkspaceCli(
-      parseWorkspaceArgs(["sync"]),
-      { cwd: fixture.repoDir },
-    );
+    const result = runWorkspaceCli(parseWorkspaceArgs(["sync"]), { cwd: fixture.repoDir });
     expect(result.exitCode).toBe(1);
   });
 
   test("teardown without --force exits non-zero when no ledger", () => {
-    const result = runWorkspaceCli(
-      parseWorkspaceArgs(["teardown"]),
-      { cwd: fixture.repoDir },
-    );
+    const result = runWorkspaceCli(parseWorkspaceArgs(["teardown"]), { cwd: fixture.repoDir });
     expect(result.exitCode).toBe(1);
   });
 });
@@ -289,13 +251,7 @@ describe.skipIf(!GIT_COMMIT_AVAILABLE)("runWorkspaceCli — materialize --branch
     expect(reservedId).toMatch(/^[a-f0-9]{12}$/);
 
     const materialize = runWorkspaceCli(
-      parseWorkspaceArgs([
-        "materialize",
-        "--branch",
-        branch,
-        "--format",
-        "json",
-      ]),
+      parseWorkspaceArgs(["materialize", "--branch", branch, "--format", "json"]),
       { cwd: fixture.repoDir },
     );
     expect(materialize.exitCode).toBe(0);
@@ -315,70 +271,70 @@ describe.skipIf(!GIT_COMMIT_AVAILABLE)("runWorkspaceCli — materialize --branch
   test("materialize without --branch from a different HEAD misses the reserve (the gap)", () => {
     const branch = `wsmat2-${fixture.repoDir.split("/").pop()}`;
     sh(fixture.repoDir, "git", ["branch", branch]);
-    runWorkspaceCli(
-      parseWorkspaceArgs(["reserve", "--branch", branch, "--format", "json"]),
-      { cwd: fixture.repoDir },
-    );
+    runWorkspaceCli(parseWorkspaceArgs(["reserve", "--branch", branch, "--format", "json"]), {
+      cwd: fixture.repoDir,
+    });
 
     // cwd HEAD is still `main`; without --branch the cwd-derived id is for
     // (slug, main), which has no reserve ledger → fails closed.
-    const materialize = runWorkspaceCli(
-      parseWorkspaceArgs(["materialize", "--format", "json"]),
-      { cwd: fixture.repoDir },
-    );
+    const materialize = runWorkspaceCli(parseWorkspaceArgs(["materialize", "--format", "json"]), {
+      cwd: fixture.repoDir,
+    });
     expect(materialize.exitCode).toBe(1);
   }, 30000);
 });
 
-describe.skipIf(!GIT_COMMIT_AVAILABLE)("prx-4xb — session-open --create converges onto the workspace actor", () => {
-  let fixture: ReturnType<typeof makeFixtureRepo>;
-  const cleanupPaths: string[] = [];
-  beforeEach(() => {
-    fixture = makeFixtureRepo();
-  });
-  afterEach(() => {
-    for (const p of cleanupPaths.splice(0)) {
-      rmSync(p, { recursive: true, force: true });
-    }
-    fixture.cleanup();
-  });
-
-  test("materializeWorkUnitBranch writes a workspace ledger (one materialization owner)", () => {
-    // A bd-style work-unit id with no numeric tail skips the gh/bd issue
-    // validation; pre-creating the branch keeps reserve offline (exists-local,
-    // no network push). The injected spawn stubs the `git fetch origin` leg
-    // (the fixture's origin is a fake github URL) and delegates everything else
-    // to real git so the converge path runs end-to-end.
-    const workUnitId = `wsconv-${fixture.repoDir.split("/").pop()}`;
-    sh(fixture.repoDir, "git", ["branch", workUnitId]);
-
-    const realSpawn = (file: string, args: string[], opts: { cwd: string; encoding: "utf8" }) =>
-      spawnSync(file, args, { ...opts, encoding: "utf8" });
-    const spawn = (file: string, args: string[], opts: { cwd: string; encoding: "utf8" }) => {
-      if (file === "git" && args.join(" ").includes("fetch origin")) {
-        return { status: 0, stdout: "", stderr: "" };
+describe.skipIf(!GIT_COMMIT_AVAILABLE)(
+  "prx-4xb — session-open --create converges onto the workspace actor",
+  () => {
+    let fixture: ReturnType<typeof makeFixtureRepo>;
+    const cleanupPaths: string[] = [];
+    beforeEach(() => {
+      fixture = makeFixtureRepo();
+    });
+    afterEach(() => {
+      for (const p of cleanupPaths.splice(0)) {
+        rmSync(p, { recursive: true, force: true });
       }
-      return realSpawn(file, args, opts);
-    };
+      fixture.cleanup();
+    });
 
-    materializeWorkUnitBranch(workUnitId, fixture.repoDir, spawn);
+    test("materializeWorkUnitBranch writes a workspace ledger (one materialization owner)", () => {
+      // A bd-style work-unit id with no numeric tail skips the gh/bd issue
+      // validation; pre-creating the branch keeps reserve offline (exists-local,
+      // no network push). The injected spawn stubs the `git fetch origin` leg
+      // (the fixture's origin is a fake github URL) and delegates everything else
+      // to real git so the converge path runs end-to-end.
+      const workUnitId = `wsconv-${fixture.repoDir.split("/").pop()}`;
+      sh(fixture.repoDir, "git", ["branch", workUnitId]);
 
-    // The convergence: a workspace ledger now exists for the materialized unit
-    // (the direct addWorktreeForBranch path wrote none). `prx workspace
-    // service/teardown` can now see this --create-materialized worktree.
-    const commonDir = spawnSync(
-      "git",
-      ["-C", fixture.repoDir, "rev-parse", "--git-common-dir"],
-      { cwd: fixture.repoDir, encoding: "utf8" },
-    ).stdout.trim();
-    const absCommonDir = commonDir.startsWith("/") ? commonDir : join(fixture.repoDir, commonDir);
-    const ledgerDir = join(absCommonDir, "info", "workspace");
-    cleanupPaths.push(join(fixture.repoDir, "..", workUnitId));
-    expect(existsSync(ledgerDir)).toBe(true);
-    const ledgers = readdirSync(ledgerDir).filter((f) => f.endsWith(".json"));
-    expect(ledgers.length).toBeGreaterThan(0);
-  }, 30000);
-});
+      const realSpawn = (file: string, args: string[], opts: { cwd: string; encoding: "utf8" }) =>
+        spawnSync(file, args, { ...opts, encoding: "utf8" });
+      const spawn = (file: string, args: string[], opts: { cwd: string; encoding: "utf8" }) => {
+        if (file === "git" && args.join(" ").includes("fetch origin")) {
+          return { status: 0, stdout: "", stderr: "" };
+        }
+        return realSpawn(file, args, opts);
+      };
+
+      materializeWorkUnitBranch(workUnitId, fixture.repoDir, spawn);
+
+      // The convergence: a workspace ledger now exists for the materialized unit
+      // (the direct addWorktreeForBranch path wrote none). `prx workspace
+      // service/teardown` can now see this --create-materialized worktree.
+      const commonDir = spawnSync("git", ["-C", fixture.repoDir, "rev-parse", "--git-common-dir"], {
+        cwd: fixture.repoDir,
+        encoding: "utf8",
+      }).stdout.trim();
+      const absCommonDir = commonDir.startsWith("/") ? commonDir : join(fixture.repoDir, commonDir);
+      const ledgerDir = join(absCommonDir, "info", "workspace");
+      cleanupPaths.push(join(fixture.repoDir, "..", workUnitId));
+      expect(existsSync(ledgerDir)).toBe(true);
+      const ledgers = readdirSync(ledgerDir).filter((f) => f.endsWith(".json"));
+      expect(ledgers.length).toBeGreaterThan(0);
+    }, 30000);
+  },
+);
 
 describe.skipIf(!GIT_COMMIT_AVAILABLE)("runWorkspaceCli — argument validation", () => {
   let fixture: ReturnType<typeof makeFixtureRepo>;
@@ -422,10 +378,9 @@ describe.skipIf(!GIT_COMMIT_AVAILABLE)("runWorkspaceCli — argument validation"
       cwd: fixture.repoDir,
     });
     expect(() =>
-      runWorkspaceCli(
-        parseWorkspaceArgs(["service", "--action", "restart"]),
-        { cwd: fixture.repoDir },
-      ),
+      runWorkspaceCli(parseWorkspaceArgs(["service", "--action", "restart"]), {
+        cwd: fixture.repoDir,
+      }),
     ).toThrow(WorkspaceCliError);
   });
 });

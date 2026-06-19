@@ -16,16 +16,10 @@ import { homeDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
 import { parseClaudeJsonl } from "../parser.ts";
-import type {
-  TranscriptSession,
-  TranscriptSourceConfig,
-} from "../schemas.ts";
+import type { TranscriptSession, TranscriptSourceConfig } from "../schemas.ts";
 import type { DiscoverOptions } from "./registry.ts";
 
-type ClaudeCodeJsonlConfig = Extract<
-  TranscriptSourceConfig,
-  { kind: "claude-code-jsonl" }
->;
+type ClaudeCodeJsonlConfig = Extract<TranscriptSourceConfig, { kind: "claude-code-jsonl" }>;
 
 function resolveRoot(config: ClaudeCodeJsonlConfig): string {
   if (config.inputPath && config.inputPath.length > 0) return config.inputPath;
@@ -70,9 +64,7 @@ function listSessions(projectDir: string, sessionFilter: string | undefined): st
   } catch {
     return [];
   }
-  const sessions = entries
-    .filter((e) => e.endsWith(".jsonl"))
-    .map((e) => join(projectDir, e));
+  const sessions = entries.filter((e) => e.endsWith(".jsonl")).map((e) => join(projectDir, e));
   if (!sessionFilter) return sessions;
   return sessions.filter((p) => p.endsWith(`/${sessionFilter}.jsonl`));
 }

@@ -10,16 +10,8 @@ const MODULE_ROOT = resolve(HERE, "..");
 // touch node:fs (the `.git`-marker walk) + node:path, and shells out only through
 // @bounded-systems/proc — never raw child_process. Every other package's boundary
 // test forbids reimplementing root discovery so it stays this single edge.
-const PROD_ALLOWLIST = new Set<string>([
-  "node:fs",
-  "node:path",
-  "@bounded-systems/proc",
-]);
-const TEST_ALLOWLIST = new Set<string>([
-  ...PROD_ALLOWLIST,
-  "bun:test",
-  "node:url",
-]);
+const PROD_ALLOWLIST = new Set<string>(["node:fs", "node:path", "@bounded-systems/proc"]);
+const TEST_ALLOWLIST = new Set<string>([...PROD_ALLOWLIST, "bun:test", "node:url"]);
 
 const IMPORT_RE =
   /(?:^|\n)\s*(?:import|export)\s+(?:type\s+)?(?:[^'"`;]*?\s+from\s+)?['"]([^'"]+)['"]/g;

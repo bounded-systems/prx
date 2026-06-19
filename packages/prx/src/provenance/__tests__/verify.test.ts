@@ -56,7 +56,11 @@ const emptyRegistry: ContractRegistry = {
 };
 
 function singletonStore(d: Derivation): Pick<DerivationStore, "get"> {
-  return { async get(id) { return id === d.derivationId ? d : null; } };
+  return {
+    async get(id) {
+      return id === d.derivationId ? d : null;
+    },
+  };
 }
 
 describe("verify.ts — SLSA-aware live verifier", () => {
@@ -64,12 +68,10 @@ describe("verify.ts — SLSA-aware live verifier", () => {
     const kp = generateEd25519Keypair();
     const d = await slsaDerivation(ed25519Signer(kp.privateKey, kp.keyid));
 
-    const verdict = await validateDerivation(
-      d.derivationId,
-      singletonStore(d),
-      emptyRegistry,
-      { verifier: ed25519Verifier(kp.publicKey), requireSigned: true },
-    );
+    const verdict = await validateDerivation(d.derivationId, singletonStore(d), emptyRegistry, {
+      verifier: ed25519Verifier(kp.publicKey),
+      requireSigned: true,
+    });
     expect(verdict.ok).toBe(false);
     // The signed payload is the SLSA Statement, not manifestToStatement(manifest).
     if (!verdict.ok) {
@@ -93,9 +95,7 @@ describe("verify.ts — SLSA-aware live verifier", () => {
   test("an unsigned derivation (no envelope) fails closed", async () => {
     const kp = generateEd25519Keypair();
     const unsigned: Pick<Derivation, "envelope"> = {};
-    expect(
-      await verifySlsaDerivation(unsigned, ed25519Verifier(kp.publicKey)),
-    ).toBe(false);
+    expect(await verifySlsaDerivation(unsigned, ed25519Verifier(kp.publicKey))).toBe(false);
   });
 
   test("decodeSlsaStatement round-trips the signed Statement", async () => {
@@ -113,8 +113,6 @@ describe("verify.ts — SLSA-aware live verifier", () => {
       ...d.envelope!,
       payload: Buffer.from("not json", "utf8").toString("base64"),
     };
-    expect(
-      await verifySlsaDerivationEnvelope(corrupt, ed25519Verifier(kp.publicKey)),
-    ).toBe(false);
+    expect(await verifySlsaDerivationEnvelope(corrupt, ed25519Verifier(kp.publicKey))).toBe(false);
   });
 });

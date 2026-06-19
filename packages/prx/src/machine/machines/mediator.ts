@@ -33,12 +33,7 @@
 import { assign, setup } from "xstate";
 
 // How a single conflicted path arose. Mirrors git's conflict taxonomy.
-export type ConflictKind =
-  | "content"
-  | "add_add"
-  | "delete_modify"
-  | "modify_delete"
-  | "rename";
+export type ConflictKind = "content" | "add_add" | "delete_modify" | "modify_delete" | "rename";
 
 // Which side carried the change relative to the rebase. During a rebase
 // `ours` is the (moved) base being replayed onto; `theirs` is the work-unit

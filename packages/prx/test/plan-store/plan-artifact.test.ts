@@ -80,7 +80,15 @@ describe("renderPlanArtifact (ai-home-r5crv)", () => {
 
   test("renders every section heading in canonical order", () => {
     const md = renderPlanArtifact(valid);
-    const order = ["## Problem", "## Scope", "## Approach", "## Changes", "## Paths", "## Risks", "## Acceptance"];
+    const order = [
+      "## Problem",
+      "## Scope",
+      "## Approach",
+      "## Changes",
+      "## Paths",
+      "## Risks",
+      "## Acceptance",
+    ];
     let last = -1;
     for (const h of order) {
       const at = md.indexOf(h);

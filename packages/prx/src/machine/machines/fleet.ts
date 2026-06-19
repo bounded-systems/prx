@@ -16,7 +16,14 @@
  * repo's `prx next` (or fan across repos).
  */
 
-import { assign, createActor, fromCallback, fromPromise, setup, type AnyStateMachine } from "xstate";
+import {
+  assign,
+  createActor,
+  fromCallback,
+  fromPromise,
+  setup,
+  type AnyStateMachine,
+} from "xstate";
 
 import type { PilotContext, PilotOutput } from "./pilot.ts";
 import {
@@ -63,7 +70,13 @@ export type FleetOutput = {
 
 type BoardEvent =
   | { type: "PILOT_PROGRESS"; unitId: string; state: string; chainLength: number }
-  | { type: "PILOT_HALTED"; unitId: string; state: string; chainLength: number; summary: Statement | null }
+  | {
+      type: "PILOT_HALTED";
+      unitId: string;
+      state: string;
+      chainLength: number;
+      summary: Statement | null;
+    }
   | { type: "FLEET_DRAINED" };
 
 const DEFAULT_WIP = 4;
@@ -162,10 +175,15 @@ export function createFleetMachine(makePilot: PilotFactory, opts: FleetOpts = {}
     actions: {
       mark: assign({
         board: ({ context, event }, params: { status: BoardEntry["status"] }) => {
-          if (event.type !== "PILOT_PROGRESS" && event.type !== "PILOT_HALTED") return context.board;
+          if (event.type !== "PILOT_PROGRESS" && event.type !== "PILOT_HALTED")
+            return context.board;
           return {
             ...context.board,
-            [event.unitId]: { state: event.state, chainLength: event.chainLength, status: params.status },
+            [event.unitId]: {
+              state: event.state,
+              chainLength: event.chainLength,
+              status: params.status,
+            },
           };
         },
       }),
@@ -197,7 +215,9 @@ export function createFleetMachine(makePilot: PilotFactory, opts: FleetOpts = {}
         },
         on: {
           PILOT_PROGRESS: { actions: { type: "mark", params: { status: "running" } } },
-          PILOT_HALTED: { actions: [{ type: "mark", params: { status: "halted" } }, { type: "collect" }] },
+          PILOT_HALTED: {
+            actions: [{ type: "mark", params: { status: "halted" } }, { type: "collect" }],
+          },
           FLEET_DRAINED: "sealing",
         },
       },

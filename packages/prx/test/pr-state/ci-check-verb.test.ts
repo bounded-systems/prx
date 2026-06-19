@@ -58,7 +58,14 @@ describe("remote-ci-check verb", () => {
                   reportArn: "arn:aws:codebuild:us-east-1:123:report/X",
                   error: null,
                   failures: [
-                    { name: "t", suite: "S", status: "FAILED", message: null, details: "x", duration_ns: 1 },
+                    {
+                      name: "t",
+                      suite: "S",
+                      status: "FAILED",
+                      message: null,
+                      details: "x",
+                      duration_ns: 1,
+                    },
                   ],
                 },
               },
@@ -81,7 +88,11 @@ describe("remote-ci-check verb", () => {
       },
     );
     expect(exit).toBe(0);
-    expect(JSON.parse(rendered)).toMatchObject({ repoPath: "/repo", pr: "16230", failingChecks: [] });
+    expect(JSON.parse(rendered)).toMatchObject({
+      repoPath: "/repo",
+      pr: "16230",
+      failingChecks: [],
+    });
   });
 
   test("without --pr it resolves the ref from the current branch", () => {
@@ -116,7 +127,14 @@ describe("scout-logs verb", () => {
             repoPath: ".",
             pr: prRef,
             checks: [
-              { name: "ci", state: "FAILURE", link: "https://x/runs/123", runId: "123", logs: "Error: test failed", error: null },
+              {
+                name: "ci",
+                state: "FAILURE",
+                link: "https://x/runs/123",
+                runId: "123",
+                logs: "Error: test failed",
+                error: null,
+              },
             ],
           } as never;
         },

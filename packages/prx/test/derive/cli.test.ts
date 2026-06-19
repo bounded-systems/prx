@@ -10,10 +10,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import {
-  runDeriveCli,
-  type DeriveEmitEvent,
-} from "../../src/derive/cli.ts";
+import { runDeriveCli, type DeriveEmitEvent } from "../../src/derive/cli.ts";
 import type { DomainStateV1 } from "../../src/pr-state/domain_state.ts";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
 

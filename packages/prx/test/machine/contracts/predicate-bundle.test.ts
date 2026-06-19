@@ -60,9 +60,7 @@ describe("predicate binding tag", () => {
 describe("requiredPredicatesOf normalizer", () => {
   test("projects the singular form to a one-member property-bound bundle", () => {
     const bundle = requiredPredicatesOf(base());
-    expect(bundle).toEqual([
-      { artifact: "work_map", status: "present", binding: "property" },
-    ]);
+    expect(bundle).toEqual([{ artifact: "work_map", status: "present", binding: "property" }]);
   });
 
   test("returns an explicit bundle verbatim when declared", () => {
@@ -94,9 +92,7 @@ describe("backward compatibility", () => {
 
   test("the bundle form parses (forward-compatible authoring)", () => {
     const contract = base({
-      requiredPredicates: [
-        { artifact: "work_map", status: "present", binding: "property" },
-      ],
+      requiredPredicates: [{ artifact: "work_map", status: "present", binding: "property" }],
     });
     expect(contract.requiredPredicates).toHaveLength(1);
   });

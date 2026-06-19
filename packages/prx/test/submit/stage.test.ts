@@ -9,10 +9,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { runCli } from "../../src/pr-state/cli.ts";
 import { getRef } from "../../src/plan-store/cas.ts";
-import {
-  readSubmitArtifact,
-  SUBMIT_DOMAIN,
-} from "../../src/submit/artifact.schema.ts";
+import { readSubmitArtifact, SUBMIT_DOMAIN } from "../../src/submit/artifact.schema.ts";
 import {
   formatStageRender,
   runSubmitStage,
@@ -254,15 +251,7 @@ describe("stage → publish round-trip (GH-2262 producer feeds GH-1900 consumer)
     const logs: string[] = [];
     const errors: string[] = [];
     const exit = await runCli(
-      [
-        "submit",
-        "publish",
-        "--from-cas",
-        "GH-2262:submit@ready",
-        "--dry-run",
-        "--format",
-        "json",
-      ],
+      ["submit", "publish", "--from-cas", "GH-2262:submit@ready", "--dry-run", "--format", "json"],
       { log: (l: string) => logs.push(l), error: (e: string) => errors.push(e) },
       {},
     );
@@ -282,9 +271,7 @@ describe("stage → publish round-trip (GH-2262 producer feeds GH-1900 consumer)
       "publisher-pr-open",
       "set-ref",
     ]);
-    expect(parsed.steps.find((s) => s.kind === "set-ref")?.ref).toBe(
-      "GH-2262:submit@published",
-    );
+    expect(parsed.steps.find((s) => s.kind === "set-ref")?.ref).toBe("GH-2262:submit@published");
   });
 
   test("GH-2267: `submit publish` defaults to draft; `--ready` opts out", async () => {
@@ -294,7 +281,16 @@ describe("stage → publish round-trip (GH-2262 producer feeds GH-1900 consumer)
     const prDetail = async (extra: string[]): Promise<string> => {
       const logs: string[] = [];
       const exit = await runCli(
-        ["submit", "publish", "--from-cas", "GH-2262:submit@ready", "--dry-run", "--format", "json", ...extra],
+        [
+          "submit",
+          "publish",
+          "--from-cas",
+          "GH-2262:submit@ready",
+          "--dry-run",
+          "--format",
+          "json",
+          ...extra,
+        ],
         { log: (l: string) => logs.push(l), error: () => {} },
         {},
       );

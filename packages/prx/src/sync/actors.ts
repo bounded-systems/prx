@@ -8,10 +8,7 @@
 
 import { fromPromise } from "xstate";
 
-import {
-  adapterForDomain,
-  type DomainAdapter,
-} from "../adapters/domain-adapter.ts";
+import { adapterForDomain, type DomainAdapter } from "../adapters/domain-adapter.ts";
 import { issueLabelsFor } from "../triage/bd-axis-labels.ts";
 import type { BeadsRecord } from "../triage/triage.ts";
 import {
@@ -52,30 +49,26 @@ export type PullActorInput = {
  * (`execBd` blocks `bd close`). Budget-exhaustion errors from the gated `gh`
  * runner propagate typed (the run loop catches them to mark `deferred`).
  */
-export const pullActor = fromPromise<DomainSyncPullResult, PullActorInput>(
-  async ({ input }) => {
-    const data = domainSyncPullInputSchema.parse({
-      beadId: input.beadId,
-      domain: input.domain,
-      externalId: input.externalId,
-      beadStatus: input.beadStatus,
-    });
-    const adapter = requireAdapter(data.domain, input.adapter);
-    const patch = await adapter.pull(data.externalId);
-    const externalStatus =
-      typeof patch.status === "string" && patch.status.length > 0
-        ? patch.status
-        : "unknown";
-    const needsClose = externalStatus === "closed" && data.beadStatus !== "closed";
-    return domainSyncPullResultSchema.parse({
-      beadId: data.beadId,
-      externalId: data.externalId,
-      externalStatus,
-      beadStatusBefore: data.beadStatus,
-      needsClose,
-    });
-  },
-);
+export const pullActor = fromPromise<DomainSyncPullResult, PullActorInput>(async ({ input }) => {
+  const data = domainSyncPullInputSchema.parse({
+    beadId: input.beadId,
+    domain: input.domain,
+    externalId: input.externalId,
+    beadStatus: input.beadStatus,
+  });
+  const adapter = requireAdapter(data.domain, input.adapter);
+  const patch = await adapter.pull(data.externalId);
+  const externalStatus =
+    typeof patch.status === "string" && patch.status.length > 0 ? patch.status : "unknown";
+  const needsClose = externalStatus === "closed" && data.beadStatus !== "closed";
+  return domainSyncPullResultSchema.parse({
+    beadId: data.beadId,
+    externalId: data.externalId,
+    externalStatus,
+    beadStatusBefore: data.beadStatus,
+    needsClose,
+  });
+});
 
 // ── push actor ─────────────────────────────────────────────────────────────
 
@@ -114,41 +107,39 @@ export type PushActorInput = {
  * (I-DS-PRIO / I-PROJ1): bd→external only — the adapter's live label read is
  * reconciliation-only and never written back to bd.
  */
-export const pushActor = fromPromise<DomainSyncPushResult, PushActorInput>(
-  async ({ input }) => {
-    const data = domainSyncPushInputSchema.parse({
-      beadId: input.bead.id,
-      domain: input.domain,
-      externalId: input.externalId,
-      beadTitle: input.bead.title,
-      beadBody: input.bead.description,
-      // GH-1874: project bd's `assignee` column onto the external record.
-      // bd is singular; the adapter wraps the value into `[assignee]` or `[]`
-      // for the push() diff. `null` clears.
-      beadAssignee: input.bead.assignee ?? null,
-      // GH-2382: the bd-axis label set the adapter swaps onto the issue.
-      beadLabels: issueLabelsFor(input.bead),
-      beadStatus: input.bead.status,
-      dryRun: input.dryRun,
-    });
-    if (data.dryRun) {
-      return domainSyncPushResultSchema.parse({
-        beadId: data.beadId,
-        externalId: data.externalId,
-        edited: false,
-      });
-    }
-    const adapter = requireAdapter(data.domain, input.adapter);
-    const result = await adapter.push(input.bead, {
-      title: data.beadTitle,
-      body: data.beadBody,
-      labels: data.beadLabels,
-      assignees: data.beadAssignee !== null ? [data.beadAssignee] : [],
-    });
+export const pushActor = fromPromise<DomainSyncPushResult, PushActorInput>(async ({ input }) => {
+  const data = domainSyncPushInputSchema.parse({
+    beadId: input.bead.id,
+    domain: input.domain,
+    externalId: input.externalId,
+    beadTitle: input.bead.title,
+    beadBody: input.bead.description,
+    // GH-1874: project bd's `assignee` column onto the external record.
+    // bd is singular; the adapter wraps the value into `[assignee]` or `[]`
+    // for the push() diff. `null` clears.
+    beadAssignee: input.bead.assignee ?? null,
+    // GH-2382: the bd-axis label set the adapter swaps onto the issue.
+    beadLabels: issueLabelsFor(input.bead),
+    beadStatus: input.bead.status,
+    dryRun: input.dryRun,
+  });
+  if (data.dryRun) {
     return domainSyncPushResultSchema.parse({
       beadId: data.beadId,
-      externalId: result.externalId,
-      edited: result.edited,
+      externalId: data.externalId,
+      edited: false,
     });
-  },
-);
+  }
+  const adapter = requireAdapter(data.domain, input.adapter);
+  const result = await adapter.push(input.bead, {
+    title: data.beadTitle,
+    body: data.beadBody,
+    labels: data.beadLabels,
+    assignees: data.beadAssignee !== null ? [data.beadAssignee] : [],
+  });
+  return domainSyncPushResultSchema.parse({
+    beadId: data.beadId,
+    externalId: result.externalId,
+    edited: result.edited,
+  });
+});

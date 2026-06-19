@@ -231,16 +231,19 @@ const REFERENCE_VERBS = new Set<string>([
 const PERSPECTIVE_BY_HEADING: Record<string, ActionPerspective> = {
   "acceptance criteria": "planner-now",
   "success criteria": "planner-now",
-  "approach": "executor-later",
+  approach: "executor-later",
   "proposed approach": "executor-later",
-  "implementation": "executor-later",
-  "plan": "executor-later",
-  "design": "executor-later",
-  "description": "documentary",
+  implementation: "executor-later",
+  plan: "executor-later",
+  design: "executor-later",
+  description: "documentary",
 };
 
 function normalizeHeading(text: string): string {
-  return text.replace(/[:.\s]+$/, "").trim().toLowerCase();
+  return text
+    .replace(/[:.\s]+$/, "")
+    .trim()
+    .toLowerCase();
 }
 
 function derivePerspective(heading: string | undefined): ActionPerspective {
@@ -394,20 +397,14 @@ export type ExtractDeliverablesInput = {
   intakeType?: IntakeBodySchemaType | undefined;
 };
 
-export function extractDeliverables(
-  input: ExtractDeliverablesInput,
-): DeliverableTarget[] {
+export function extractDeliverables(input: ExtractDeliverablesInput): DeliverableTarget[] {
   const sections = walkActionsBearingSections(input.body, input.intakeType);
   const out: DeliverableTarget[] = [];
   const seen = new Set<string>();
 
   const push = (target: DeliverableTarget) => {
     const key = `${target.shape}:${
-      target.shape === "file"
-        ? target.path
-        : target.shape === "pr-merge"
-          ? target.pr
-          : target.issue
+      target.shape === "file" ? target.path : target.shape === "pr-merge" ? target.pr : target.issue
     }`;
     if (seen.has(key)) return;
     seen.add(key);

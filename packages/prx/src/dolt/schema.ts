@@ -29,13 +29,7 @@
 
 import { z } from "zod";
 
-export const Lifecycle = z.enum([
-  "provisioned",
-  "running",
-  "healthy",
-  "stopped",
-  "orphaned",
-]);
+export const Lifecycle = z.enum(["provisioned", "running", "healthy", "stopped", "orphaned"]);
 export type Lifecycle = z.infer<typeof Lifecycle>;
 
 export const DoltServerId = z.string().regex(/^[a-f0-9]{12}$/);

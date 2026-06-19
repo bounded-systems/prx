@@ -7,20 +7,13 @@
 import { describe, expect, test } from "bun:test";
 
 import { diffSnapshots } from "../../src/dep-research/diff.ts";
-import type {
-  DepClassificationHints,
-  DepSnapshot,
-} from "../../src/dep-research/schemas.ts";
+import type { DepClassificationHints, DepSnapshot } from "../../src/dep-research/schemas.ts";
 
 const SHA_A = "a".repeat(64);
 const SHA_B = "b".repeat(64);
 const SHA_C = "c".repeat(64);
 
-function snap(opts: {
-  dep?: string;
-  runId?: string;
-  shas: Record<string, string>;
-}): DepSnapshot {
+function snap(opts: { dep?: string; runId?: string; shas: Record<string, string> }): DepSnapshot {
   const sourceShas = opts.shas;
   const byteLen: Record<string, number> = {};
   for (const path of Object.keys(sourceShas)) byteLen[path] = 1;
@@ -140,8 +133,8 @@ describe("diffSnapshots — classification matrix (per axis)", () => {
   });
 
   test("none: no changes between snapshots => classification 'none'", () => {
-    const prev = snap({ shas: { "x": SHA_A } });
-    const curr = snap({ shas: { "x": SHA_A }, runId: "20260102T000000Z" });
+    const prev = snap({ shas: { x: SHA_A } });
+    const curr = snap({ shas: { x: SHA_A }, runId: "20260102T000000Z" });
     const delta = diffSnapshots(prev, curr, {
       schema: ["x"],
       state: [],

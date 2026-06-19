@@ -12,10 +12,7 @@
 // no-1 MiB cap behavior from GH-1609 applies. Tests inject a fake runner
 // to drive every step without spawning real bd processes.
 
-import {
-  spawnCapture,
-  type SpawnCaptureResult,
-} from "@bounded-systems/proc";
+import { spawnCapture, type SpawnCaptureResult } from "@bounded-systems/proc";
 
 export type BdMigrateRunner = (
   cmd: readonly string[],

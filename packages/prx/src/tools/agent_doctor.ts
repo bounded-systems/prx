@@ -3,10 +3,7 @@ import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawnCapture } from "@bounded-systems/proc";
 import { buildAgentDoctorClaudeProbeRuntimeProfile } from "../machine/runtime_profiles.ts";
-import {
-  agentProfileExecutionAsRuntimeResult,
-  executeAgentProfile,
-} from "../pr-state/executor.ts";
+import { agentProfileExecutionAsRuntimeResult, executeAgentProfile } from "../pr-state/executor.ts";
 
 export type AgentDoctorName = "claude" | "codex" | "gemini" | "cursor-agent" | "gh-copilot";
 export type AgentDoctorErrorType =
@@ -237,7 +234,8 @@ const helpUrls: Record<AgentDoctorName, Partial<Record<AgentDoctorErrorType, str
   },
   gemini: {
     auth_error: "https://aistudio.google.com/app/apikey",
-    quota_error: "https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/quotas",
+    quota_error:
+      "https://console.cloud.google.com/apis/api/generativelanguage.googleapis.com/quotas",
     config_error: "https://ai.google.dev/gemini-api/docs",
   },
   "cursor-agent": {
@@ -254,19 +252,39 @@ const helpUrls: Record<AgentDoctorName, Partial<Record<AgentDoctorErrorType, str
 
 function classifyError(output: string): AgentDoctorErrorType {
   const text = output.toLowerCase();
-  if (/\b402\b/.test(text) || text.includes("quota") || text.includes("billing") || /\b429\b/.test(text)) {
+  if (
+    /\b402\b/.test(text) ||
+    text.includes("quota") ||
+    text.includes("billing") ||
+    /\b429\b/.test(text)
+  ) {
     return "quota_error";
   }
-  if (/\b401\b/.test(text) || text.includes("unauthorized") || text.includes("invalid api key") || text.includes("auth")) {
+  if (
+    /\b401\b/.test(text) ||
+    text.includes("unauthorized") ||
+    text.includes("invalid api key") ||
+    text.includes("auth")
+  ) {
     return "auth_error";
   }
   if (text.includes("permission") || text.includes("approval") || text.includes("sandbox")) {
     return "permission_error";
   }
-  if (text.includes("modelnotfound") || text.includes("cannot use this model") || text.includes("unknown model") || text.includes("not found")) {
+  if (
+    text.includes("modelnotfound") ||
+    text.includes("cannot use this model") ||
+    text.includes("unknown model") ||
+    text.includes("not found")
+  ) {
     return "config_error";
   }
-  if (text.includes("network") || text.includes("econn") || text.includes("timed out") || text.includes("dns")) {
+  if (
+    text.includes("network") ||
+    text.includes("econn") ||
+    text.includes("timed out") ||
+    text.includes("dns")
+  ) {
     return "network_error";
   }
   return "unknown_error";
@@ -311,7 +329,12 @@ export async function runAgentDoctor(
         required: probe.required,
         binary: { path: null, sha256: null },
         version: { command: probe.versionCommand, exitCode: 127, output: "command not found" },
-        ping: { command: probe.pingCommand, exitCode: 127, output: "command not found", latencyMs: 0 },
+        ping: {
+          command: probe.pingCommand,
+          exitCode: 127,
+          output: "command not found",
+          latencyMs: 0,
+        },
         healthy: false,
         errorType: "config_error",
         helpUrl: helpUrlFor(probe.name, "config_error"),
@@ -319,10 +342,12 @@ export async function runAgentDoctor(
       continue;
     }
     const version = deps.run(probe.versionCommand, timeoutMs);
-    const ping = probe.name === "claude"
-      ? await runClaudeProbe({ model: claudeProbeModel, prompt: claudeProbePrompt, timeoutMs })
-      : deps.run(probe.pingCommand, timeoutMs);
-    const healthy = version.exitCode === 0 && ping.exitCode === 0 && outputText(ping) !== "(no output)";
+    const ping =
+      probe.name === "claude"
+        ? await runClaudeProbe({ model: claudeProbeModel, prompt: claudeProbePrompt, timeoutMs })
+        : deps.run(probe.pingCommand, timeoutMs);
+    const healthy =
+      version.exitCode === 0 && ping.exitCode === 0 && outputText(ping) !== "(no output)";
     const errorType = healthy ? null : classifyError(outputText(ping));
     results.push({
       agent: probe.name,

@@ -23,11 +23,7 @@
 import { processEnv } from "@bounded-systems/env";
 import { z } from "zod";
 
-import {
-  IssueResolveError,
-  resolveIssueId,
-  type IssueResolvedId,
-} from "../issues/resolver.ts";
+import { IssueResolveError, resolveIssueId, type IssueResolvedId } from "../issues/resolver.ts";
 import { execBd } from "@bounded-systems/bd";
 import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import {
@@ -127,10 +123,7 @@ function composeGhComment(template: string, canonicalNumber: number): string {
   return template.replaceAll("${canonical}", String(canonicalNumber));
 }
 
-function buildIssueViewArgs(
-  dupNumber: number,
-  repo: string | undefined,
-): string[] {
+function buildIssueViewArgs(dupNumber: number, repo: string | undefined): string[] {
   const args: string[] = [String(dupNumber), "--json", "state,comments"];
   if (repo) {
     args.push("--repo", repo);
@@ -148,8 +141,7 @@ function parsePreflightView(stdout: string): PreflightView | null {
     const raw = JSON.parse(stdout) as unknown;
     if (!raw || typeof raw !== "object") return null;
     const obj = raw as { state?: unknown; comments?: unknown };
-    const state =
-      obj.state === "OPEN" || obj.state === "CLOSED" ? obj.state : null;
+    const state = obj.state === "OPEN" || obj.state === "CLOSED" ? obj.state : null;
     if (!state) return null;
     const comments: Array<{ body: string }> = [];
     if (Array.isArray(obj.comments)) {
@@ -165,11 +157,7 @@ function parsePreflightView(stdout: string): PreflightView | null {
   }
 }
 
-function buildCommentArgs(
-  dupNumber: number,
-  body: string,
-  repo: string | undefined,
-): string[] {
+function buildCommentArgs(dupNumber: number, body: string, repo: string | undefined): string[] {
   const args: string[] = [String(dupNumber), "--body", body];
   if (repo) {
     args.push("--repo", repo);
@@ -181,11 +169,7 @@ function buildBdUpdateArgs(bdId: string, newNotes: string): string[] {
   return [bdId, "--notes", newNotes];
 }
 
-function buildLabelEditArgs(
-  dupNumber: number,
-  label: string,
-  repo: string | undefined,
-): string[] {
+function buildLabelEditArgs(dupNumber: number, label: string, repo: string | undefined): string[] {
   const args: string[] = [String(dupNumber), "--add-label", label];
   if (repo) {
     args.push("--repo", repo);
@@ -293,9 +277,7 @@ function runGhMerge(
     reason: opts.reason,
     repo,
   });
-  const labelArgs = opts.label
-    ? buildLabelEditArgs(dup.number, opts.label, repo)
-    : null;
+  const labelArgs = opts.label ? buildLabelEditArgs(dup.number, opts.label, repo) : null;
 
   if (opts.dryRun) {
     const render: IntakeMergeRender = {
@@ -311,9 +293,7 @@ function runGhMerge(
       },
       comment: { argv: ["issue", "comment", ...commentArgs], body: commentBody },
       close: { argv: closeArgs, reason: opts.reason },
-      label: labelArgs
-        ? { argv: ["issue", "edit", ...labelArgs], name: opts.label! }
-        : undefined,
+      label: labelArgs ? { argv: ["issue", "edit", ...labelArgs], name: opts.label! } : undefined,
       dryRun: true,
       exitCode: 0,
     };
@@ -334,10 +314,7 @@ function runGhMerge(
     processEnv(),
   );
   if (viewResult.exitCode !== 0) {
-    const detail =
-      viewResult.stderr.trim() ||
-      viewResult.stdout.trim() ||
-      "gh issue view failed";
+    const detail = viewResult.stderr.trim() || viewResult.stdout.trim() || "gh issue view failed";
     output.error(`${VERB}: ${detail}`);
     return viewResult.exitCode || 1;
   }
@@ -345,8 +322,7 @@ function runGhMerge(
   // If the view stdout fails to parse, treat as "no pre-flight info available"
   // and fall through to the normal flow — best-effort de-dup, not correctness.
   const closed = view?.state === "CLOSED";
-  const pointerSeen =
-    view?.comments.some((c) => c.body === commentBody) ?? false;
+  const pointerSeen = view?.comments.some((c) => c.body === commentBody) ?? false;
 
   if (closed) {
     const render: IntakeMergeRender = {
@@ -362,15 +338,11 @@ function runGhMerge(
       },
       comment: { argv: ["issue", "comment", ...commentArgs], body: commentBody },
       close: { argv: closeArgs, reason: opts.reason },
-      label: labelArgs
-        ? { argv: ["issue", "edit", ...labelArgs], name: opts.label! }
-        : undefined,
+      label: labelArgs ? { argv: ["issue", "edit", ...labelArgs], name: opts.label! } : undefined,
       dryRun: false,
       exitCode: 0,
     };
-    output.log(
-      `${VERB}: GH-${dup.number} already closed — skipping comment + close`,
-    );
+    output.log(`${VERB}: GH-${dup.number} already closed — skipping comment + close`);
     output.log(formatIntakeMergeRender(render, opts.format));
     return 0;
   }
@@ -389,9 +361,7 @@ function runGhMerge(
     );
     if (commentResult.exitCode !== 0) {
       const detail =
-        commentResult.stderr.trim() ||
-        commentResult.stdout.trim() ||
-        "gh issue comment failed";
+        commentResult.stderr.trim() || commentResult.stdout.trim() || "gh issue comment failed";
       output.error(`${VERB}: ${detail}`);
       return commentResult.exitCode || 1;
     }
@@ -406,9 +376,7 @@ function runGhMerge(
   });
   if (closeResult.exitCode !== 0) {
     const detail =
-      closeResult.stderr.trim() ||
-      closeResult.stdout.trim() ||
-      "gh issue close failed";
+      closeResult.stderr.trim() || closeResult.stdout.trim() || "gh issue close failed";
     output.error(`${VERB}: ${detail}`);
     output.error(
       `${VERB}: comment posted but close failed — issue is in partial state (GH-${dup.number})`,
@@ -430,12 +398,8 @@ function runGhMerge(
     );
     if (labelResult.exitCode !== 0) {
       const detail =
-        labelResult.stderr.trim() ||
-        labelResult.stdout.trim() ||
-        "gh issue edit failed";
-      output.error(
-        `${VERB}: close succeeded but --add-label '${opts.label}' failed: ${detail}`,
-      );
+        labelResult.stderr.trim() || labelResult.stdout.trim() || "gh issue edit failed";
+      output.error(`${VERB}: close succeeded but --add-label '${opts.label}' failed: ${detail}`);
     }
   }
 
@@ -452,9 +416,7 @@ function runGhMerge(
     },
     comment: { argv: ["issue", "comment", ...commentArgs], body: commentBody },
     close: { argv: closeArgs, reason: opts.reason },
-    label: labelArgs
-      ? { argv: ["issue", "edit", ...labelArgs], name: opts.label! }
-      : undefined,
+    label: labelArgs ? { argv: ["issue", "edit", ...labelArgs], name: opts.label! } : undefined,
     dryRun: false,
     exitCode: 0,
   };
@@ -545,9 +507,7 @@ function runBdMerge(
       dryRun: false,
       exitCode: 0,
     };
-    output.log(
-      `${VERB}: ${dupId} already closed — skipping comment + close`,
-    );
+    output.log(`${VERB}: ${dupId} already closed — skipping comment + close`);
     output.log(formatIntakeMergeRender(render, opts.format));
     return 0;
   }
@@ -563,9 +523,7 @@ function runBdMerge(
     const updateResult = run(["prx", "beads", "update", ...bdUpdateArgv], { check: false });
     if (updateResult.status !== 0) {
       const detail =
-        updateResult.stderr.trim() ||
-        updateResult.stdout.trim() ||
-        "prx beads update failed";
+        updateResult.stderr.trim() || updateResult.stdout.trim() || "prx beads update failed";
       output.error(`${VERB}: ${detail}`);
       return updateResult.status || 1;
     }
@@ -578,10 +536,7 @@ function runBdMerge(
     reason: opts.reason,
   });
   if (closeResult.exitCode !== 0) {
-    const detail =
-      closeResult.stderr.trim() ||
-      closeResult.stdout.trim() ||
-      "bd close failed";
+    const detail = closeResult.stderr.trim() || closeResult.stdout.trim() || "bd close failed";
     output.error(`${VERB}: ${detail}`);
     output.error(
       `${VERB}: pointer note appended but close failed — record is in partial state (${dupId})`,
@@ -620,12 +575,8 @@ export function formatIntakeMergeRender(
   return formatGhRender(render);
 }
 
-function formatGhRender(
-  render: Extract<IntakeMergeRender, { backend: "gh" }>,
-): string {
-  const header = render.dryRun
-    ? "prx intake merge (dry-run)"
-    : "prx intake merge";
+function formatGhRender(render: Extract<IntakeMergeRender, { backend: "gh" }>): string {
+  const header = render.dryRun ? "prx intake merge (dry-run)" : "prx intake merge";
   const preflightSummary = render.preflight.skipped
     ? "(skipped — dry-run)"
     : render.preflight.closed
@@ -654,12 +605,8 @@ function formatGhRender(
   return lines.join("\n");
 }
 
-function formatBdRender(
-  render: Extract<IntakeMergeRender, { backend: "bd" }>,
-): string {
-  const header = render.dryRun
-    ? "prx intake merge (dry-run)"
-    : "prx intake merge";
+function formatBdRender(render: Extract<IntakeMergeRender, { backend: "bd" }>): string {
+  const header = render.dryRun ? "prx intake merge (dry-run)" : "prx intake merge";
   const preflightSummary = render.dryRun
     ? "(skipped — dry-run)"
     : render.alreadyClosed

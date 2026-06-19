@@ -27,11 +27,7 @@
 import { sha256BareHex } from "@bounded-systems/cas";
 import type { z } from "zod";
 
-import {
-  type ArtifactKind,
-  artifactRef,
-  putArtifact,
-} from "../plan-store/artifact-store.ts";
+import { type ArtifactKind, artifactRef, putArtifact } from "../plan-store/artifact-store.ts";
 import { type DomainOptions, getRef, readBlob } from "../plan-store/cas.ts";
 
 /**

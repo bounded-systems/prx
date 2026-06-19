@@ -49,11 +49,7 @@ export type RateLimitObservation = {
 export class GhGraphqlError extends Error {
   readonly code: "GH_GRAPHQL_FAILED" | "GH_GRAPHQL_PARSE_FAILED";
   readonly stderr: string;
-  constructor(
-    message: string,
-    code: "GH_GRAPHQL_FAILED" | "GH_GRAPHQL_PARSE_FAILED",
-    stderr = "",
-  ) {
+  constructor(message: string, code: "GH_GRAPHQL_FAILED" | "GH_GRAPHQL_PARSE_FAILED", stderr = "") {
     super(message);
     this.name = "GhGraphqlError";
     this.code = code;
@@ -183,10 +179,7 @@ function rateLimitFromResponse(stdout: string): RateLimitObservation {
  * folds into `computeFetchPlan` as `corpusSize` (replaces the dead
  * `parseBdDryRunDelta` heuristic).
  */
-export function probeCorpusCount(
-  opts: ProbeOptions,
-  deps: GhGraphqlDeps = {},
-): ProbeResult {
+export function probeCorpusCount(opts: ProbeOptions, deps: GhGraphqlDeps = {}): ProbeResult {
   const runner = deps.rawRunner ?? ((cmd: string[]) => rawDefaultRunner(cmd, { check: false }));
   const { owner, name } = splitRepo(opts.repo);
 
@@ -275,16 +268,18 @@ export function fetchIssuesPage(
     );
   }
 
-  const issues = (body as {
-    data?: {
-      repository?: {
-        issues?: {
-          pageInfo?: { hasNextPage?: unknown; endCursor?: unknown };
-          nodes?: unknown;
+  const issues = (
+    body as {
+      data?: {
+        repository?: {
+          issues?: {
+            pageInfo?: { hasNextPage?: unknown; endCursor?: unknown };
+            nodes?: unknown;
+          };
         };
       };
-    };
-  })?.data?.repository?.issues;
+    }
+  )?.data?.repository?.issues;
 
   if (!issues || !Array.isArray(issues.nodes)) {
     throw new GhGraphqlError(
@@ -325,8 +320,7 @@ export function fetchIssuesPage(
     nodes,
     pageInfo: {
       hasNextPage: pageInfo.hasNextPage === true,
-      endCursor:
-        typeof pageInfo.endCursor === "string" ? pageInfo.endCursor : null,
+      endCursor: typeof pageInfo.endCursor === "string" ? pageInfo.endCursor : null,
     },
     rateLimit: rateLimitFromResponse(result.stdout),
   };

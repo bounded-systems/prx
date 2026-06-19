@@ -79,9 +79,7 @@ export function resolveIssueId(
   }
 
   if (FORBIDDEN_INPUT_RE.test(trimmed)) {
-    throw new IssueResolveError(
-      `${verbLabel}: id contains invalid characters: ${raw}`,
-    );
+    throw new IssueResolveError(`${verbLabel}: id contains invalid characters: ${raw}`);
   }
 
   const ghMatch = trimmed.match(GH_PREFIX_RE);

@@ -25,7 +25,10 @@ function dq(value: string): string {
  * block scalar reads as blanks.
  */
 function blockScalar(script: string, indent: string): string[] {
-  return script.replace(/\n+$/, "").split("\n").map((line) => (line.length ? `${indent}${line}` : ""));
+  return script
+    .replace(/\n+$/, "")
+    .split("\n")
+    .map((line) => (line.length ? `${indent}${line}` : ""));
 }
 
 /**
@@ -67,7 +70,8 @@ export function renderLima(spec: ExecutorSpec): string {
   if (s.ssh) {
     lines.push("ssh:");
     if (s.ssh.localPort !== undefined) lines.push(`  localPort: ${s.ssh.localPort}`);
-    if (s.ssh.loadDotSSHPubKeys !== undefined) lines.push(`  loadDotSSHPubKeys: ${s.ssh.loadDotSSHPubKeys}`);
+    if (s.ssh.loadDotSSHPubKeys !== undefined)
+      lines.push(`  loadDotSSHPubKeys: ${s.ssh.loadDotSSHPubKeys}`);
     if (s.ssh.forwardAgent !== undefined) lines.push(`  forwardAgent: ${s.ssh.forwardAgent}`);
   }
 

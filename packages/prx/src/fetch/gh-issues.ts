@@ -44,10 +44,7 @@ import {
 import { repoNameWithOwner as defaultRepoNameWithOwner } from "../pr-state/github.ts";
 import type { CommandRunner } from "../pr-state/github.ts";
 import { GhDomainAdapter } from "../adapters/github.ts";
-import {
-  loadAllBeads as defaultLoadAllBeads,
-  type BeadsRecord,
-} from "../triage/triage.ts";
+import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../triage/triage.ts";
 import {
   runIntakeMirror as defaultRunIntakeMirror,
   type IntakeMirrorRender,
@@ -61,12 +58,7 @@ import {
   type FetchPlan,
   type FetchRunSummary,
 } from "./types.ts";
-import {
-  getWatermark,
-  setWatermark,
-  type WatermarkDeps,
-  WatermarkError,
-} from "./watermark.ts";
+import { getWatermark, setWatermark, type WatermarkDeps, WatermarkError } from "./watermark.ts";
 
 export class FetchGhIssuesError extends Error {
   readonly code: string;
@@ -109,9 +101,8 @@ export function computeFetchPlan(args: {
   const estimatedPoints = Math.ceil(estimatedRequests * args.sweepAvgPoints);
 
   const overrideThreshold = args.input.budget;
-  const required = overrideThreshold !== undefined
-    ? overrideThreshold
-    : Math.ceil(estimatedPoints * margin);
+  const required =
+    overrideThreshold !== undefined ? overrideThreshold : Math.ceil(estimatedPoints * margin);
 
   // I-F3: hard exhaust ⇒ fail. The pure projection has no other way to
   // tell hard-fail from skip — the caller signals `gateThrew` when
@@ -266,17 +257,11 @@ export function runFetchGhIssues(
   //    catalog has a deterministic exit.
   const snapshots = refreshBudget(deps.rateLimit);
   if (!snapshots) {
-    throw new FetchGhIssuesError(
-      "could not refresh GitHub rate-limit budget",
-      "NO_BUDGET",
-    );
+    throw new FetchGhIssuesError("could not refresh GitHub rate-limit budget", "NO_BUDGET");
   }
   const graphql = snapshots.find((s) => s.bucket === "graphql");
   if (!graphql) {
-    throw new FetchGhIssuesError(
-      "rate-limit response missing graphql bucket",
-      "NO_BUDGET",
-    );
+    throw new FetchGhIssuesError("rate-limit response missing graphql bucket", "NO_BUDGET");
   }
   const budget: BudgetSnapshot = graphql;
 
@@ -290,10 +275,7 @@ export function runFetchGhIssues(
     } else if (deps.repoResolver) {
       repo = deps.repoResolver(deps.cwd);
     } else {
-      repo = defaultRepoNameWithOwner(
-        deps.cwd,
-        deps.repoResolverRunner,
-      );
+      repo = defaultRepoNameWithOwner(deps.cwd, deps.repoResolverRunner);
     }
   } catch (err) {
     throw new FetchGhIssuesError(
@@ -302,10 +284,7 @@ export function runFetchGhIssues(
     );
   }
   if (!repo || repo.trim().length === 0) {
-    throw new FetchGhIssuesError(
-      "repo resolution returned empty slug",
-      "REPO_UNRESOLVED",
-    );
+    throw new FetchGhIssuesError("repo resolution returned empty slug", "REPO_UNRESOLVED");
   }
 
   // 3. Read the watermark. Read failure here is its own failure mode
@@ -335,10 +314,7 @@ export function runFetchGhIssues(
     corpusSize = probe.totalCount;
   } catch (err) {
     if (err instanceof GhGraphqlError) {
-      throw new FetchGhIssuesError(
-        `gh api graphql (count probe): ${err.message}`,
-        err.code,
-      );
+      throw new FetchGhIssuesError(`gh api graphql (count probe): ${err.message}`, err.code);
     }
     throw err;
   }
@@ -385,10 +361,7 @@ export function runFetchGhIssues(
   const resolveFromBeads =
     deps.resolveBdId ??
     ((url: string, snapshot: BeadsRecord[]) =>
-      new GhDomainAdapter({ loadAllBeads: () => snapshot }).resolveFromBeads(
-        url,
-        snapshot,
-      ));
+      new GhDomainAdapter({ loadAllBeads: () => snapshot }).resolveFromBeads(url, snapshot));
   const createBead =
     deps.createBead ??
     ((args: { ghId: string; repo: string }): FetchCreateBeadResult => {
@@ -503,10 +476,7 @@ export function runFetchGhIssues(
     // claim "committed" status (I-F5: monotonicity is preserved by skipping
     // the advance if it fails).
     try {
-      setWatermark(
-        { cwd: deps.cwd, runner: deps.watermarkRunner },
-        writeResult.lastUpdatedAt,
-      );
+      setWatermark({ cwd: deps.cwd, runner: deps.watermarkRunner }, writeResult.lastUpdatedAt);
     } catch (err) {
       pages.push({
         pageNumber,
@@ -516,9 +486,7 @@ export function runFetchGhIssues(
         committed: false,
       });
       throw new FetchGhIssuesError(
-        `watermark write failed after page ${pageNumber}: ${
-          (err as Error).message
-        }`,
+        `watermark write failed after page ${pageNumber}: ${(err as Error).message}`,
         "WATERMARK_WRITE_FAILED",
       );
     }

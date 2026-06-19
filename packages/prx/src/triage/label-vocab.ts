@@ -192,14 +192,25 @@ export function proposedLabelsFor(
   const source = effectiveLabels ?? row.currentLabels;
   const hasType = source.some((l) => {
     const p = parseLabelName(l);
-    return p.known
-      && p.axis === "type"
-      && (BD_TYPE_ENUM as readonly string[]).includes(p.value)
-      && p.value !== "task";
+    return (
+      p.known &&
+      p.axis === "type" &&
+      (BD_TYPE_ENUM as readonly string[]).includes(p.value) &&
+      p.value !== "task"
+    );
   });
-  const hasPriority = source.some((l) => { const p = parseLabelName(l); return p.known && p.axis === "priority" && p.value !== "none"; });
-  const hasArea = source.some((l) => { const p = parseLabelName(l); return p.known && p.axis === "area"; });
-  const hasEffort = source.some((l) => { const p = parseLabelName(l); return p.known && p.axis === "effort"; });
+  const hasPriority = source.some((l) => {
+    const p = parseLabelName(l);
+    return p.known && p.axis === "priority" && p.value !== "none";
+  });
+  const hasArea = source.some((l) => {
+    const p = parseLabelName(l);
+    return p.known && p.axis === "area";
+  });
+  const hasEffort = source.some((l) => {
+    const p = parseLabelName(l);
+    return p.known && p.axis === "effort";
+  });
 
   const emitType = hasType ? undefined : row.type;
   const emitPriority = hasPriority ? undefined : row.priority;

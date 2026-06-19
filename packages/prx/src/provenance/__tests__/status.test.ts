@@ -27,7 +27,12 @@ describe("provenanceStatus — posture", () => {
   });
 
   test("dev master + per-actor ⇒ bootstrap (onboarding points at the operator master)", () => {
-    const s = provenanceStatus({ ...base, masterSource: "dev-bootstrap", trustedActors: 0, enforced: false });
+    const s = provenanceStatus({
+      ...base,
+      masterSource: "dev-bootstrap",
+      trustedActors: 0,
+      enforced: false,
+    });
     expect(s.posture).toBe("bootstrap");
     expect(s.onboarding.join("\n")).toContain("masterFile");
     expect(s.onboarding.join("\n")).toContain("docs/provenance/signing.md");
@@ -39,7 +44,10 @@ describe("provenanceStatus — posture", () => {
       ...base,
       masterSource: "dev-bootstrap",
       trustedActors: 0,
-      drift: [{ actor: "plan", reason: "missing" }, { actor: "submit", reason: "missing" }],
+      drift: [
+        { actor: "plan", reason: "missing" },
+        { actor: "submit", reason: "missing" },
+      ],
       enforced: false,
     });
     expect(s.posture).toBe("bootstrap");
