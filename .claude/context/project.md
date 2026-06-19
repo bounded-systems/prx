@@ -69,6 +69,9 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - ADR — signed provenance for `claude --worktree` materialization (prx-hc5) — `docs/prx/worktree-provenance.md`
 - prx — project roadmap — `docs/roadmap/prx.md`
 - Agentic causal inference — Netflix's human-augmenting OCI workflow, mapped to prx (spike) — `docs/spikes/agentic-causal-inference.md`
+- AST convention enforcement — structural rules an agent can't violate (spike) — `docs/spikes/ast-convention-enforcement.md`
+- Behavior layer — property & contract testing over the verb registry (spike) — `docs/spikes/behavior-property-testing.md`
+- Capability-package consolidation — granularity of the `@bounded-systems/*` seams (spike) — `docs/spikes/capability-package-consolidation.md`
 - GH-1836 — PRX runtime + workspace architecture: Nix + Moon + Deno/Bun hybrid (ADR) — `docs/spikes/GH-1836-prx-runtime-architecture.md`
 - Kata Containers — VM-grade isolation with container ergonomics, mapped to prx (spike) — `docs/spikes/kata-containers-isolation-boundary.md`
 - Spike — validate the keeper door: host-backed secret + live push (prx-b44y) — `docs/spikes/keeper-door-secret-validation.md`

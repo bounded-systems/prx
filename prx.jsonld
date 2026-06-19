@@ -670,6 +670,33 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/ast-convention-enforcement.md",
+      "name": "AST convention enforcement — structural rules an agent can't violate (spike)",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/ast-convention-enforcement.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/behavior-property-testing.md",
+      "name": "Behavior layer — property & contract testing over the verb registry (spike)",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/behavior-property-testing.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/capability-package-consolidation.md",
+      "name": "Capability-package consolidation — granularity of the `@bounded-systems/*` seams (spike)",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/capability-package-consolidation.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/kata-containers-isolation-boundary.md",
       "name": "Kata Containers — VM-grade isolation with container ergonomics, mapped to prx (spike)",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/kata-containers-isolation-boundary.md",

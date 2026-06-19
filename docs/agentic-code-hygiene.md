@@ -104,6 +104,28 @@ agent-written code:
 - **`VerbSpec` coverage is ~1%** — property 5 above is mostly potential, not yet
   realized across the command surface.
 
+## Roadmap — open threads (capture)
+
+So nothing is lost: every thread this doctrine surfaced, with its status and home.
+Done items shipped in [#691]; queued items are scheduled work; spikes are
+design-only docs awaiting a decision before any code moves.
+
+| Thread | Layer | Status | Where |
+|--------|-------|--------|-------|
+| Biome — format + lint | 1 (shape) | **done** (#691) | `biome.jsonc` |
+| Agentic-hygiene doctrine | — | **done** (#691) | this doc |
+| verbspec's OpenAPI surface | 5/6 (truth) | **done** (#691) | `packages/prx/openapi.json` |
+| Repo-wide `format:write` (~908 files) + `.git-blame-ignore-revs` | 1 | **queued** (own PR) | — |
+| Ratchet `noFocusedTests` / `noDoubleEquals` `warn` → `error` (both at 0) | 1 | **queued** | `biome.jsonc` |
+| OpenAPI polish — `components/schemas` hoist + Pages site | 6 | **queued** | `src/cli/openapi.ts`, `scripts/build-site.ts` |
+| Capability-package consolidation | 4 (capability) | **spike** | [`spikes/capability-package-consolidation.md`](./spikes/capability-package-consolidation.md) |
+| Behavior / property testing | 5 (behavior) | **spike** | [`spikes/behavior-property-testing.md`](./spikes/behavior-property-testing.md) |
+| AST convention enforcement | 1 & 3 | **spike** | [`spikes/ast-convention-enforcement.md`](./spikes/ast-convention-enforcement.md) |
+| Decompose `pr-state/cli.ts` | 3 (structure) | **in progress** (ADR) | [`prx/cli-decomposition.md`](./prx/cli-decomposition.md) |
+| Finish the VerbSpec migration (past ~1%) | 5 | **in progress** (ADR) | [`prx/cli-from-spec.md`](./prx/cli-from-spec.md) |
+
+[#691]: https://github.com/bounded-systems/prx/pull/691
+
 ## Adding a new check
 
 A new gate earns its place only if it is **local & deterministic**, **ratcheted**

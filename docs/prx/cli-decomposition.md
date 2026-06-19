@@ -185,3 +185,14 @@ collapses once most handlers are spec-driven.)*
 `cli.ts` ≤ 2,000 (out of `MONOLITHS`); all commands reachable (verb or legacy
 fallback); `cli.test.ts` + help snapshots green every stage; dependency graph
 acyclic; `CliDeps` reduced from ~188 fields to a small shared-primitive core.
+
+## Status — 2026-06 (post-#691)
+
+The registry this decomposition feeds now projects to a fourth surface: the
+OpenAPI doc is emitted from `verbRegistry` to `packages/prx/openapi.json`
+(drift-gated). Every handler migrated to a `VerbSpec` therefore gains CLI + MCP +
+Anthropic + OpenAPI coverage for free — extra pull toward finishing the
+migration. `cli.ts` remains the sole `MONOLITHS` entry (~23k lines); the bulk
+still leaves at the union/dispatch collapse. See
+[`docs/agentic-code-hygiene.md`](../agentic-code-hygiene.md) for where this sits
+among the self-check layers.
