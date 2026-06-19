@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { createActor, waitFor } from "xstate";
-import { ed25519Signer, ed25519Verifier, generateEd25519Keypair } from "@bounded-systems/anchored-chain";
+import {
+  ed25519Signer,
+  ed25519Verifier,
+  generateEd25519Keypair,
+} from "@bounded-systems/anchored-chain";
 
 import type { NonInteractiveAgentResult } from "../claude/agent_service.ts";
 import { createPilotMachine } from "../machine/machines/pilot.ts";
@@ -24,9 +28,11 @@ const newSigner = () => {
   return { kp, signer: ed25519Signer(kp.privateKey, kp.keyid) };
 };
 const okOpen: OpenSessionFn = async ({ workUnitId, actor }) =>
-  ({ status: "opened", worktree_path: `/wt/${workUnitId}/${actor}`, profile: {} }) as unknown as Awaited<
-    ReturnType<OpenSessionFn>
-  >;
+  ({
+    status: "opened",
+    worktree_path: `/wt/${workUnitId}/${actor}`,
+    profile: {},
+  }) as unknown as Awaited<ReturnType<OpenSessionFn>>;
 
 describe("real CI gate + merge tail", () => {
   test("parseCiConclusion maps scout statuses", () => {
@@ -40,7 +46,9 @@ describe("real CI gate + merge tail", () => {
     const { kp, signer } = newSigner();
     const out = '{"conclusion":"success"}';
     const runPrx: RunPrx = async () => ({ ok: true, stdout: out, stderr: "" });
-    const { passed, attestation } = await buildRealCiGate({ runPrx, signer })({ workUnitId: "GH-1" });
+    const { passed, attestation } = await buildRealCiGate({ runPrx, signer })({
+      workUnitId: "GH-1",
+    });
 
     expect(passed).toBe(true);
     expect(attestation.predicate).toBe("ci.passed");
@@ -50,8 +58,14 @@ describe("real CI gate + merge tail", () => {
 
   test("red CI → passed:false (no merge edge taken)", async () => {
     const { signer } = newSigner();
-    const runPrx: RunPrx = async () => ({ ok: true, stdout: '{"conclusion":"failure"}', stderr: "" });
-    const { passed, attestation } = await buildRealCiGate({ runPrx, signer })({ workUnitId: "GH-2" });
+    const runPrx: RunPrx = async () => ({
+      ok: true,
+      stdout: '{"conclusion":"failure"}',
+      stderr: "",
+    });
+    const { passed, attestation } = await buildRealCiGate({ runPrx, signer })({
+      workUnitId: "GH-2",
+    });
     expect(passed).toBe(false);
     expect(attestation.predicate).toBe("ci.failed");
   });
@@ -64,17 +78,25 @@ describe("real CI gate + merge tail", () => {
       stdout: n++ < 2 ? '{"conclusion":"pending"}' : '{"conclusion":"success"}',
       stderr: "",
     });
-    const { passed } = await buildRealCiGate({ runPrx, signer, sleep: noSleep })({ workUnitId: "GH-3" });
+    const { passed } = await buildRealCiGate({ runPrx, signer, sleep: noSleep })({
+      workUnitId: "GH-3",
+    });
     expect(passed).toBe(true);
     expect(n).toBeGreaterThanOrEqual(3);
   });
 
   test("a gate that never settles throws (machine retreats, bounded)", async () => {
     const { signer } = newSigner();
-    const runPrx: RunPrx = async () => ({ ok: true, stdout: '{"conclusion":"pending"}', stderr: "" });
+    const runPrx: RunPrx = async () => ({
+      ok: true,
+      stdout: '{"conclusion":"pending"}',
+      stderr: "",
+    });
     let threw = "";
     try {
-      await buildRealCiGate({ runPrx, signer, maxPolls: 3, sleep: noSleep })({ workUnitId: "GH-4" });
+      await buildRealCiGate({ runPrx, signer, maxPolls: 3, sleep: noSleep })({
+        workUnitId: "GH-4",
+      });
     } catch (e) {
       threw = String(e);
     }
@@ -114,7 +136,9 @@ describe("real CI gate + merge tail", () => {
   test("a failed openSession throws (machine retreats, bounded)", async () => {
     const { signer } = newSigner();
     const badOpen: OpenSessionFn = async () =>
-      ({ status: "error", worktree_path: "", profile: undefined }) as unknown as Awaited<ReturnType<OpenSessionFn>>;
+      ({ status: "error", worktree_path: "", profile: undefined }) as unknown as Awaited<
+        ReturnType<OpenSessionFn>
+      >;
     const runPrx: RunPrx = async () => ({ ok: true, stdout: "", stderr: "" });
     let threw = "";
     try {
@@ -132,7 +156,9 @@ describe("real CI gate + merge tail", () => {
       seenOpts = opts;
       return { ok: true, stdout: "ok", stderr: "" };
     };
-    await buildRealChecks({ runPrx, signer, openSession: okOpen, timeoutMs: 1234 })({ workUnitId: "GH-13" });
+    await buildRealChecks({ runPrx, signer, openSession: okOpen, timeoutMs: 1234 })({
+      workUnitId: "GH-13",
+    });
     expect(seenOpts?.timeoutMs).toBe(1234);
     expect(seenOpts?.cwd).toBe("/wt/GH-13/implement");
   });
@@ -164,7 +190,12 @@ describe("real CI gate + merge tail", () => {
       kind: "success",
       text: "ok",
       stdout: "ok",
-      usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+      usage: {
+        input_tokens: 0,
+        output_tokens: 0,
+        cache_creation_input_tokens: 0,
+        cache_read_input_tokens: 0,
+      },
       elapsed_ms: 1,
     });
     const fakeRun: RunAgentFn = async () => okRun();
@@ -190,7 +221,9 @@ describe("real CI gate + merge tail", () => {
     expect(done.context.summary!.signedBy).toBe(kp.keyid);
     // Telemetry is anchored into the signed summary: a hash-chain head over all
     // observations, committed to by the pilot's signature (tamper-evident, no gate).
-    const observed = (done.context.summary!.predicate as { observed?: { digest: string; count: number } }).observed;
+    const observed = (
+      done.context.summary!.predicate as { observed?: { digest: string; count: number } }
+    ).observed;
     expect(observed?.count).toBeGreaterThan(0);
     expect(observed?.digest).toMatch(/^[0-9a-f]{64}$/);
   });
@@ -198,15 +231,22 @@ describe("real CI gate + merge tail", () => {
   test("every deterministic seam emits start+done telemetry (parity with the LLM-leg heartbeat)", async () => {
     const { signer } = newSigner();
     const fakeOpen: OpenSessionFn = async ({ workUnitId, actor }) =>
-      ({ status: "opened", worktree_path: `/wt/${workUnitId}/${actor}`, profile: {} }) as unknown as Awaited<
-        ReturnType<OpenSessionFn>
-      >;
+      ({
+        status: "opened",
+        worktree_path: `/wt/${workUnitId}/${actor}`,
+        profile: {},
+      }) as unknown as Awaited<ReturnType<OpenSessionFn>>;
     const fakeRun: RunAgentFn = async () =>
       ({
         kind: "success",
         text: "ok",
         stdout: "ok",
-        usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+        usage: {
+          input_tokens: 0,
+          output_tokens: 0,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+        },
         elapsed_ms: 1,
       }) as NonInteractiveAgentResult;
     const runPrx: RunPrx = async (args) =>
@@ -233,7 +273,9 @@ describe("real CI gate + merge tail", () => {
     }
     expect(obs.some((o) => o.phase === "error")).toBe(false);
     // `done` observations carry elapsed time so an observer can see WHERE a run sits.
-    expect(obs.filter((o) => o.phase === "done").every((o) => typeof o.elapsedMs === "number")).toBe(true);
+    expect(
+      obs.filter((o) => o.phase === "done").every((o) => typeof o.elapsedMs === "number"),
+    ).toBe(true);
   });
 
   test("buildRealPilotDeps refuses without a signing key (no agent unsigned)", () => {

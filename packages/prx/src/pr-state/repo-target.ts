@@ -12,10 +12,7 @@ import {
   type RepoInventory,
   type RepoInventoryConfig,
 } from "./repos.ts";
-import {
-  materializeBareRepo,
-  type MaterializeResult,
-} from "./materialize.ts";
+import { materializeBareRepo, type MaterializeResult } from "./materialize.ts";
 
 export type ResolveTargetRepoInput = {
   /** Repo slug — matched against `name` first, then `owner/name`. */

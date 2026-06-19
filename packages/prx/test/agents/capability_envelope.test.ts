@@ -29,13 +29,22 @@ describe("capability envelope (prx-g88.7 / 7b)", () => {
   test("approval is monotonic — it never decreases as scope or reversibility rises", () => {
     for (let s = 0; s < ENVELOPE_SCOPES.length; s++) {
       for (let r = 0; r < ENVELOPE_REVERSIBILITY.length; r++) {
-        const here = APPROVAL_SEVERITY[evaluateEnvelope(ENVELOPE_SCOPES[s]!, ENVELOPE_REVERSIBILITY[r]!).approval];
+        const here =
+          APPROVAL_SEVERITY[
+            evaluateEnvelope(ENVELOPE_SCOPES[s]!, ENVELOPE_REVERSIBILITY[r]!).approval
+          ];
         if (s > 0) {
-          const up = APPROVAL_SEVERITY[evaluateEnvelope(ENVELOPE_SCOPES[s - 1]!, ENVELOPE_REVERSIBILITY[r]!).approval];
+          const up =
+            APPROVAL_SEVERITY[
+              evaluateEnvelope(ENVELOPE_SCOPES[s - 1]!, ENVELOPE_REVERSIBILITY[r]!).approval
+            ];
           expect(here).toBeGreaterThanOrEqual(up);
         }
         if (r > 0) {
-          const left = APPROVAL_SEVERITY[evaluateEnvelope(ENVELOPE_SCOPES[s]!, ENVELOPE_REVERSIBILITY[r - 1]!).approval];
+          const left =
+            APPROVAL_SEVERITY[
+              evaluateEnvelope(ENVELOPE_SCOPES[s]!, ENVELOPE_REVERSIBILITY[r - 1]!).approval
+            ];
           expect(here).toBeGreaterThanOrEqual(left);
         }
       }

@@ -26,14 +26,16 @@ const taskRoleSchema = z.enum(taskRoles);
 const roleExecutionStatusSchema = z.enum(roleExecutionStatuses);
 const agentImplementationSchema = z.enum(workAgentImplementations);
 
-const roleExecutionStateSchema = z.object({
-  implementation: agentImplementationSchema,
-  status: roleExecutionStatusSchema,
-  lastResult: z.string().nullable(),
-  startedAt: z.string().datetime({ offset: true }).nullable(),
-  completedAt: z.string().datetime({ offset: true }).nullable(),
-  failedAt: z.string().datetime({ offset: true }).nullable(),
-}).strict();
+const roleExecutionStateSchema = z
+  .object({
+    implementation: agentImplementationSchema,
+    status: roleExecutionStatusSchema,
+    lastResult: z.string().nullable(),
+    startedAt: z.string().datetime({ offset: true }).nullable(),
+    completedAt: z.string().datetime({ offset: true }).nullable(),
+    failedAt: z.string().datetime({ offset: true }).nullable(),
+  })
+  .strict();
 
 type RawTaskSignals = {
   ciPassed?: unknown;
@@ -63,9 +65,8 @@ function normalizeTaskSignals(signals: RawTaskSignals | undefined) {
   const reviewApproved = normalizeBoolean(signals?.reviewApproved);
   const agentReview = normalizeBoolean(signals?.agentReview);
   const humanReview = normalizeBoolean(signals?.humanReview);
-  const commentsResolved = typeof signals?.commentsResolved === "boolean"
-    ? signals.commentsResolved
-    : true;
+  const commentsResolved =
+    typeof signals?.commentsResolved === "boolean" ? signals.commentsResolved : true;
   const needsRebase = normalizeBoolean(signals?.needsRebase);
   const mergeConflict = normalizeBoolean(signals?.mergeConflict);
   const autoMergeEnabled = normalizeBoolean(signals?.autoMergeEnabled);
@@ -93,80 +94,106 @@ function normalizeTaskContractInput(raw: unknown) {
   return copied;
 }
 
-export const taskContractSchema = z.object({
-  identity: z.object({
-    workUnitId: z.string().regex(canonicalWorkUnitIdPattern),
-    beadId: z.string().nullable(),
-    branch: z.string(),
-    worktree: z.string(),
-    pr: z.number().int().nullable(),
-  }).strict(),
-  rolePlan: z.object({
-    currentRole: taskRoleSchema,
-    automaticHandoff: z.boolean(),
-    claimedBy: z.string().nullable(),
-    handoffStatus: z.enum(["ready", "blocked", "waiting", "completed"]),
-    assignedImplementations: z.object({
-      planner: agentImplementationSchema,
-      executor: agentImplementationSchema,
-      tester: agentImplementationSchema,
-      reviewer: agentImplementationSchema,
-    }).strict(),
-  }).strict(),
-  scope: z.object({
-    files: z.array(z.string()),
-    methods: z.array(z.string()),
-    concerns: z.array(z.string()),
-  }).strict(),
-  constraints: z.object({
-    forbiddenPaths: z.array(z.string()),
-    invariants: z.array(z.string()),
-  }).strict(),
-  success: z.object({
-    tests: z.array(z.string()),
-    requireCiPassed: z.boolean(),
-    requireReviewApproval: z.boolean(),
-    requireCommentsResolved: z.boolean(),
-    requireAgentReview: z.boolean(),
-    requireHumanReview: z.boolean(),
-    requireAutoMergeEnabled: z.boolean(),
-    evidence: z.array(z.string()),
-  }).strict(),
-  confirmations: z.object({
-    specSynced: z.boolean(),
-    scopeConfirmed: z.boolean(),
-    successCriteriaConfirmed: z.boolean(),
-  }).strict(),
-  signals: z.object({
-    remoteCiPassed: z.boolean(),
-    reviewAdded: z.boolean(),
-    reviewApproved: z.boolean(),
-    agentReview: z.boolean(),
-    humanReview: z.boolean(),
-    commentsResolved: z.boolean(),
-    autoMergeEnabled: z.boolean(),
-    needsRebase: z.boolean(),
-    mergeConflict: z.boolean(),
-  }).strict(),
-  execution: z.object({
-    planner: roleExecutionStateSchema,
-    executor: roleExecutionStateSchema,
-    tester: roleExecutionStateSchema,
-    reviewer: roleExecutionStateSchema,
-  }).strict(),
-  provenance: z.object({
-    beads: z.object({
-      sourceVersion: z.string().nullable(),
-      sourceHash: z.string().nullable(),
-      lastSyncedAt: z.string().datetime({ offset: true }).nullable(),
-      syncStatus: z.enum(["unknown", "synced", "drifted"]),
-    }).strict(),
-    local: z.object({
-      mirrorVersion: z.number().int().min(1),
-      updatedAt: z.string().datetime({ offset: true }),
-    }).strict(),
-  }).strict(),
-}).strict();
+export const taskContractSchema = z
+  .object({
+    identity: z
+      .object({
+        workUnitId: z.string().regex(canonicalWorkUnitIdPattern),
+        beadId: z.string().nullable(),
+        branch: z.string(),
+        worktree: z.string(),
+        pr: z.number().int().nullable(),
+      })
+      .strict(),
+    rolePlan: z
+      .object({
+        currentRole: taskRoleSchema,
+        automaticHandoff: z.boolean(),
+        claimedBy: z.string().nullable(),
+        handoffStatus: z.enum(["ready", "blocked", "waiting", "completed"]),
+        assignedImplementations: z
+          .object({
+            planner: agentImplementationSchema,
+            executor: agentImplementationSchema,
+            tester: agentImplementationSchema,
+            reviewer: agentImplementationSchema,
+          })
+          .strict(),
+      })
+      .strict(),
+    scope: z
+      .object({
+        files: z.array(z.string()),
+        methods: z.array(z.string()),
+        concerns: z.array(z.string()),
+      })
+      .strict(),
+    constraints: z
+      .object({
+        forbiddenPaths: z.array(z.string()),
+        invariants: z.array(z.string()),
+      })
+      .strict(),
+    success: z
+      .object({
+        tests: z.array(z.string()),
+        requireCiPassed: z.boolean(),
+        requireReviewApproval: z.boolean(),
+        requireCommentsResolved: z.boolean(),
+        requireAgentReview: z.boolean(),
+        requireHumanReview: z.boolean(),
+        requireAutoMergeEnabled: z.boolean(),
+        evidence: z.array(z.string()),
+      })
+      .strict(),
+    confirmations: z
+      .object({
+        specSynced: z.boolean(),
+        scopeConfirmed: z.boolean(),
+        successCriteriaConfirmed: z.boolean(),
+      })
+      .strict(),
+    signals: z
+      .object({
+        remoteCiPassed: z.boolean(),
+        reviewAdded: z.boolean(),
+        reviewApproved: z.boolean(),
+        agentReview: z.boolean(),
+        humanReview: z.boolean(),
+        commentsResolved: z.boolean(),
+        autoMergeEnabled: z.boolean(),
+        needsRebase: z.boolean(),
+        mergeConflict: z.boolean(),
+      })
+      .strict(),
+    execution: z
+      .object({
+        planner: roleExecutionStateSchema,
+        executor: roleExecutionStateSchema,
+        tester: roleExecutionStateSchema,
+        reviewer: roleExecutionStateSchema,
+      })
+      .strict(),
+    provenance: z
+      .object({
+        beads: z
+          .object({
+            sourceVersion: z.string().nullable(),
+            sourceHash: z.string().nullable(),
+            lastSyncedAt: z.string().datetime({ offset: true }).nullable(),
+            syncStatus: z.enum(["unknown", "synced", "drifted"]),
+          })
+          .strict(),
+        local: z
+          .object({
+            mirrorVersion: z.number().int().min(1),
+            updatedAt: z.string().datetime({ offset: true }),
+          })
+          .strict(),
+      })
+      .strict(),
+  })
+  .strict();
 
 export type TaskContract = z.infer<typeof taskContractSchema>;
 
@@ -178,11 +205,14 @@ export type TaskStatusView = {
   nextRole: TaskRole | null;
 };
 
-const roleEventByName: Record<TaskRole, {
-  start: TaskRoleEvent["type"];
-  complete: TaskRoleEvent["type"];
-  fail: TaskRoleEvent["type"];
-}> = {
+const roleEventByName: Record<
+  TaskRole,
+  {
+    start: TaskRoleEvent["type"];
+    complete: TaskRoleEvent["type"];
+    fail: TaskRoleEvent["type"];
+  }
+> = {
   planner: {
     start: "ROLE_PLANNER_STARTED",
     complete: "ROLE_PLANNER_COMPLETED",
@@ -238,13 +268,17 @@ export function createTaskContract(input: {
   const branch = input.branch ?? workUnitId;
   const branchWorkUnitId = canonicalWorkUnitIdFromBranchName(branch);
   if (branchWorkUnitId !== workUnitId) {
-    throw new Error(`branch must match canonical issue-backed work unit id ${workUnitId}: ${branch}`);
+    throw new Error(
+      `branch must match canonical issue-backed work unit id ${workUnitId}: ${branch}`,
+    );
   }
 
   const worktree = input.worktree ?? process.cwd();
   const worktreeWorkUnitId = canonicalWorkUnitIdFromDirectory(worktree);
   if (worktreeWorkUnitId !== workUnitId) {
-    throw new Error(`worktree directory must match canonical issue-backed work unit id ${workUnitId}: ${worktree}`);
+    throw new Error(
+      `worktree directory must match canonical issue-backed work unit id ${workUnitId}: ${worktree}`,
+    );
   }
 
   const timestamp = nowIso();
@@ -346,29 +380,38 @@ function buildMachineSnapshot(task: TaskContract) {
   actor.start();
   if (task.confirmations.specSynced) actor.send({ type: "TASK_SPEC_SYNCED" });
   if (task.confirmations.scopeConfirmed) actor.send({ type: "TASK_SCOPE_CONFIRMED" });
-  if (task.confirmations.successCriteriaConfirmed) actor.send({ type: "TASK_SUCCESS_CRITERIA_CONFIRMED" });
+  if (task.confirmations.successCriteriaConfirmed)
+    actor.send({ type: "TASK_SUCCESS_CRITERIA_CONFIRMED" });
   if (task.signals.remoteCiPassed) actor.send({ type: "REMOTE_CI_PASSED" });
   if (task.signals.reviewApproved) actor.send({ type: "REVIEW_APPROVED" });
 
-  const replayEvents = taskRoles.flatMap((role, roleIndex) => {
-    const execution = task.execution[role];
-    const roleEvents = roleEventByName[role];
-    const events: Array<{ at: string; order: number; roleIndex: number; type: TaskRoleEvent["type"] }> = [];
-    if (execution.startedAt) {
-      events.push({ at: execution.startedAt, order: 0, roleIndex, type: roleEvents.start });
-    }
-    if (execution.completedAt && execution.status === "completed") {
-      events.push({ at: execution.completedAt, order: 1, roleIndex, type: roleEvents.complete });
-    }
-    if (execution.failedAt && (execution.status === "failed" || execution.status === "blocked")) {
-      events.push({ at: execution.failedAt, order: 1, roleIndex, type: roleEvents.fail });
-    }
-    return events;
-  })
-    .sort((left, right) =>
-      left.at.localeCompare(right.at) ||
-      left.order - right.order ||
-      left.roleIndex - right.roleIndex)
+  const replayEvents = taskRoles
+    .flatMap((role, roleIndex) => {
+      const execution = task.execution[role];
+      const roleEvents = roleEventByName[role];
+      const events: Array<{
+        at: string;
+        order: number;
+        roleIndex: number;
+        type: TaskRoleEvent["type"];
+      }> = [];
+      if (execution.startedAt) {
+        events.push({ at: execution.startedAt, order: 0, roleIndex, type: roleEvents.start });
+      }
+      if (execution.completedAt && execution.status === "completed") {
+        events.push({ at: execution.completedAt, order: 1, roleIndex, type: roleEvents.complete });
+      }
+      if (execution.failedAt && (execution.status === "failed" || execution.status === "blocked")) {
+        events.push({ at: execution.failedAt, order: 1, roleIndex, type: roleEvents.fail });
+      }
+      return events;
+    })
+    .sort(
+      (left, right) =>
+        left.at.localeCompare(right.at) ||
+        left.order - right.order ||
+        left.roleIndex - right.roleIndex,
+    )
     .map(({ type }) => type);
 
   for (const type of replayEvents) {
@@ -386,11 +429,21 @@ export function deriveTaskStatus(task: TaskContract): TaskStatusView {
   if (!task.confirmations.specSynced) blockers.push("spec not synced");
   if (!task.confirmations.scopeConfirmed) blockers.push("scope not confirmed");
   if (!task.confirmations.successCriteriaConfirmed) blockers.push("success criteria not confirmed");
-  if (task.success.requireCiPassed && !task.signals.remoteCiPassed && snapshot.value === "blocked") blockers.push("ci pending");
-  if (task.success.requireReviewApproval && !task.signals.reviewAdded && snapshot.value === "reviewing") {
+  if (task.success.requireCiPassed && !task.signals.remoteCiPassed && snapshot.value === "blocked")
+    blockers.push("ci pending");
+  if (
+    task.success.requireReviewApproval &&
+    !task.signals.reviewAdded &&
+    snapshot.value === "reviewing"
+  ) {
     blockers.push("review not started");
   }
-  if (task.success.requireReviewApproval && task.signals.reviewAdded && !task.signals.reviewApproved && snapshot.value === "reviewing") {
+  if (
+    task.success.requireReviewApproval &&
+    task.signals.reviewAdded &&
+    !task.signals.reviewApproved &&
+    snapshot.value === "reviewing"
+  ) {
     blockers.push("review approval missing");
   }
   const requireAgentReview = task.success.requireAgentReview;
@@ -426,12 +479,17 @@ export function deriveTaskStatus(task: TaskContract): TaskStatusView {
   }
 
   let nextRole: TaskRole | null =
-    snapshot.value === "planning" ? "planner"
-      : snapshot.value === "executing" ? "executor"
-      : snapshot.value === "testing" ? "tester"
-      : snapshot.value === "reviewing" ? "reviewer"
-      : snapshot.value === "blocked" ? "planner"
-      : null;
+    snapshot.value === "planning"
+      ? "planner"
+      : snapshot.value === "executing"
+        ? "executor"
+        : snapshot.value === "testing"
+          ? "tester"
+          : snapshot.value === "reviewing"
+            ? "reviewer"
+            : snapshot.value === "blocked"
+              ? "planner"
+              : null;
 
   if (task.signals.needsRebase && !task.signals.mergeConflict) {
     nextRole = "executor";
@@ -450,17 +508,22 @@ export function deriveTaskStatus(task: TaskContract): TaskStatusView {
   };
 }
 
-export function syncTaskContract(task: TaskContract, input: {
-  cwd?: string | undefined;
-  beadId?: string | null | undefined;
-  sourceVersion?: string | null | undefined;
-  sourceHash?: string | null | undefined;
-}): TaskContract {
+export function syncTaskContract(
+  task: TaskContract,
+  input: {
+    cwd?: string | undefined;
+    beadId?: string | null | undefined;
+    sourceVersion?: string | null | undefined;
+    sourceHash?: string | null | undefined;
+  },
+): TaskContract {
   const workUnitId = requireCanonicalWorkUnitId(task.identity.workUnitId);
   const worktree = input.cwd ?? task.identity.worktree;
   const worktreeWorkUnitId = canonicalWorkUnitIdFromDirectory(worktree);
   if (worktreeWorkUnitId !== workUnitId) {
-    throw new Error(`worktree directory must match canonical issue-backed work unit id ${workUnitId}: ${worktree}`);
+    throw new Error(
+      `worktree directory must match canonical issue-backed work unit id ${workUnitId}: ${worktree}`,
+    );
   }
   const timestamp = nowIso();
   return taskContractSchema.parse({
@@ -534,7 +597,11 @@ export function startTaskRole(
   });
 }
 
-export function completeTaskRole(task: TaskContract, role: TaskRole, result?: string | null): TaskContract {
+export function completeTaskRole(
+  task: TaskContract,
+  role: TaskRole,
+  result?: string | null,
+): TaskContract {
   const nextTask = withUpdatedExecution(task, role, {
     status: "completed",
     completedAt: nowIso(),
@@ -555,7 +622,11 @@ export function completeTaskRole(task: TaskContract, role: TaskRole, result?: st
   });
 }
 
-export function failTaskRole(task: TaskContract, role: TaskRole, reason?: string | null): TaskContract {
+export function failTaskRole(
+  task: TaskContract,
+  role: TaskRole,
+  reason?: string | null,
+): TaskContract {
   const nextTask = withUpdatedExecution(task, role, {
     status: "failed",
     failedAt: nowIso(),
@@ -692,7 +763,10 @@ export function setTaskHumanReview(task: TaskContract, humanReview: boolean): Ta
   });
 }
 
-export function setTaskCommentsResolved(task: TaskContract, commentsResolved: boolean): TaskContract {
+export function setTaskCommentsResolved(
+  task: TaskContract,
+  commentsResolved: boolean,
+): TaskContract {
   return taskContractSchema.parse({
     ...task,
     signals: {
@@ -709,7 +783,10 @@ export function setTaskCommentsResolved(task: TaskContract, commentsResolved: bo
   });
 }
 
-export function setTaskAutoMergeEnabled(task: TaskContract, autoMergeEnabled: boolean): TaskContract {
+export function setTaskAutoMergeEnabled(
+  task: TaskContract,
+  autoMergeEnabled: boolean,
+): TaskContract {
   return taskContractSchema.parse({
     ...task,
     signals: {
@@ -762,8 +839,15 @@ export function setTaskMergeConflict(task: TaskContract, mergeConflict: boolean)
 
 export function setTaskSuccessRequirements(
   task: TaskContract,
-  patch: Partial<Pick<TaskContract["success"],
-    "requireCommentsResolved" | "requireAgentReview" | "requireHumanReview" | "requireAutoMergeEnabled">>,
+  patch: Partial<
+    Pick<
+      TaskContract["success"],
+      | "requireCommentsResolved"
+      | "requireAgentReview"
+      | "requireHumanReview"
+      | "requireAutoMergeEnabled"
+    >
+  >,
 ): TaskContract {
   if (Object.keys(patch).length === 0) {
     return task;

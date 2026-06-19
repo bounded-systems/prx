@@ -89,9 +89,10 @@ function nonZero(stderr: string, status = 1): SpawnCaptureResult {
 
 type RunnerCall = { cmd: readonly string[]; cwd: string | undefined };
 
-function makeRunner(
-  responder: (call: RunnerCall) => SpawnCaptureResult,
-): { runner: BdMigrateRunner; calls: RunnerCall[] } {
+function makeRunner(responder: (call: RunnerCall) => SpawnCaptureResult): {
+  runner: BdMigrateRunner;
+  calls: RunnerCall[];
+} {
   const calls: RunnerCall[] = [];
   const runner: BdMigrateRunner = (cmd, options) => {
     const call = { cmd, cwd: options?.cwd };
@@ -165,10 +166,7 @@ describe("runBeadsMigrate refusals (GH-1706)", () => {
   test("missing-jsonl when .beads/issues.jsonl is absent", () => {
     const { cwd, home } = makeTmpDirs();
     seedEmbeddedRepo(cwd);
-    const result = runBeadsMigrate(
-      {},
-      { cwd, homeDir: home, resolveRepo: () => fakeRepo(cwd) },
-    );
+    const result = runBeadsMigrate({}, { cwd, homeDir: home, resolveRepo: () => fakeRepo(cwd) });
     expect(result.kind).toBe("refused");
     if (result.kind === "refused") expect(result.reason).toBe("missing-jsonl");
   });
@@ -177,10 +175,7 @@ describe("runBeadsMigrate refusals (GH-1706)", () => {
     const { cwd, home } = makeTmpDirs();
     seedEmbeddedRepo(cwd);
     seedJsonl(cwd, "");
-    const result = runBeadsMigrate(
-      {},
-      { cwd, homeDir: home, resolveRepo: () => fakeRepo(cwd) },
-    );
+    const result = runBeadsMigrate({}, { cwd, homeDir: home, resolveRepo: () => fakeRepo(cwd) });
     expect(result.kind).toBe("refused");
     if (result.kind === "refused") expect(result.reason).toBe("empty-workspace");
   });
@@ -193,10 +188,7 @@ describe("runBeadsMigrate refusals (GH-1706)", () => {
     const jsonl = join(cwd, ".beads", "issues.jsonl");
     const old = new Date(Date.now() - 7200_000);
     utimesSync(jsonl, old, old);
-    const result = runBeadsMigrate(
-      {},
-      { cwd, homeDir: home, resolveRepo: () => fakeRepo(cwd) },
-    );
+    const result = runBeadsMigrate({}, { cwd, homeDir: home, resolveRepo: () => fakeRepo(cwd) });
     expect(result.kind).toBe("refused");
     if (result.kind === "refused") expect(result.reason).toBe("stale-jsonl");
   });
@@ -229,22 +221,16 @@ describe("runBeadsMigrate dry-run (GH-1706)", () => {
     expect(result.kind).toBe("dry-run");
     if (result.kind === "dry-run") {
       expect(result.slug).toBe("demo");
-      expect(result.plannedBackupDir).toContain(
-        join(home, ".local", "state", "prx", "migrations"),
-      );
+      expect(result.plannedBackupDir).toContain(join(home, ".local", "state", "prx", "migrations"));
       expect(result.plannedBackupDir).toContain("demo-");
-      const reinitStep = result.plannedSteps.find((step) =>
-        step.startsWith("bd init "),
-      );
+      const reinitStep = result.plannedSteps.find((step) => step.startsWith("bd init "));
       expect(reinitStep).toBeDefined();
       expect(reinitStep!).toContain("--reinit-local");
       expect(reinitStep!).toContain("--shared-server");
       expect(reinitStep!).toContain("--prefix=demo");
       expect(reinitStep!).toContain("--destroy-token=DESTROY-demo");
       // patch-metadata default-on → step is included.
-      expect(
-        result.plannedSteps.some((step) => step.startsWith("patch-metadata:")),
-      ).toBe(true);
+      expect(result.plannedSteps.some((step) => step.startsWith("patch-metadata:"))).toBe(true);
     }
   });
 
@@ -258,9 +244,7 @@ describe("runBeadsMigrate dry-run (GH-1706)", () => {
     );
     expect(result.kind).toBe("dry-run");
     if (result.kind === "dry-run") {
-      expect(
-        result.plannedSteps.some((step) => step.startsWith("patch-metadata:")),
-      ).toBe(false);
+      expect(result.plannedSteps.some((step) => step.startsWith("patch-metadata:"))).toBe(false);
     }
   });
 });
@@ -295,12 +279,8 @@ describe("runBeadsMigrate apply (GH-1706)", () => {
       expect(result.slug).toBe("demo");
       expect(result.patchedMetadata).toBe(true);
       expect(statSync(result.backupDir).isDirectory()).toBe(true);
-      expect(
-        statSync(join(result.backupDir, "issues.jsonl")).size,
-      ).toBeGreaterThan(0);
-      expect(
-        statSync(join(result.backupDir, "beads-full")).isDirectory(),
-      ).toBe(true);
+      expect(statSync(join(result.backupDir, "issues.jsonl")).size).toBeGreaterThan(0);
+      expect(statSync(join(result.backupDir, "beads-full")).isDirectory()).toBe(true);
       // metadata.json patched in place.
       const patched = JSON.parse(
         readFileSync(join(cwd, ".beads", "metadata.json"), "utf8"),
@@ -364,9 +344,7 @@ describe("runBeadsMigrate apply (GH-1706)", () => {
       expect(result.failedAt).toBe("BD_MIGRATION_VERIFIED");
       // backup dir survives for manual rollback.
       expect(statSync(result.backupDir).isDirectory()).toBe(true);
-      expect(
-        statSync(join(result.backupDir, "issues.jsonl")).size,
-      ).toBeGreaterThan(0);
+      expect(statSync(join(result.backupDir, "issues.jsonl")).size).toBeGreaterThan(0);
     }
   });
 
@@ -452,7 +430,14 @@ describe("runBeadsMigrate apply path (GH-1706)", () => {
     seedJsonl(cwd);
     return runBeadsMigrate(
       {},
-      { cwd, homeDir: home, resolveRepo: () => fakeRepo(cwd), runner: runner as never, recordEvent: () => {}, now: () => new Date("2026-01-01T00:00:00.000Z") },
+      {
+        cwd,
+        homeDir: home,
+        resolveRepo: () => fakeRepo(cwd),
+        runner: runner as never,
+        recordEvent: () => {},
+        now: () => new Date("2026-01-01T00:00:00.000Z"),
+      },
     );
   }
 
@@ -461,37 +446,38 @@ describe("runBeadsMigrate apply path (GH-1706)", () => {
   });
 
   test("a failing bd export → failed at backup", () => {
-    const runner = ((cmd: readonly string[]) => (cmd.includes("export") ? nonZero("disk full") : ok("")));
+    const runner = (cmd: readonly string[]) =>
+      cmd.includes("export") ? nonZero("disk full") : ok("");
     expect(runEmbedded(runner).kind).toBe("failed");
   });
 
   test("a failing reinit → failed", () => {
-    const runner = ((cmd: readonly string[]) => {
+    const runner = (cmd: readonly string[]) => {
       const j = cmd.join(" ");
       if (j.includes("export")) return ok('{"id":"BD-1"}\n');
       if (j.includes("init") || j.includes("reinit")) return nonZero("reinit boom");
       return ok("");
-    });
+    };
     expect(runEmbedded(runner).kind).toBe("failed");
   });
 
   test("verify failing when `dolt show` is not per-project → failed", () => {
-    const runner = ((cmd: readonly string[]) => {
+    const runner = (cmd: readonly string[]) => {
       const j = cmd.join(" ");
       if (j.includes("dolt show")) return ok("Mode: embedded\n");
       if (/\blist\b/.test(j)) return ok("BD-1\trow\n");
       return ok('{"id":"BD-1"}\n');
-    });
+    };
     expect(runEmbedded(runner).kind).toBe("failed");
   });
 
   test("verify failing when `bd list` is empty → failed", () => {
-    const runner = ((cmd: readonly string[]) => {
+    const runner = (cmd: readonly string[]) => {
       const j = cmd.join(" ");
       if (j.includes("dolt show")) return ok("Mode: per-project\n");
       if (/\blist\b/.test(j)) return ok("");
       return ok('{"id":"BD-1"}\n');
-    });
+    };
     expect(runEmbedded(runner).kind).toBe("failed");
   });
 });

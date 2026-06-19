@@ -78,7 +78,12 @@ export function applySkillEvent(
   if (definition.kind === "transition") {
     try {
       assertValidTransition(from, definition.to);
-      nextContract = applyTransition(contract, definition.to, input.actor, input.reason ?? definition.event);
+      nextContract = applyTransition(
+        contract,
+        definition.to,
+        input.actor,
+        input.reason ?? definition.event,
+      );
       appliedTransition = true;
     } catch {
       nextContract = recordEvent(
@@ -146,7 +151,8 @@ export type EventOutput = z.infer<typeof EventOutput>;
 
 export const eventVerb = defineVerb({
   id: "event",
-  summary: "Apply a pr-skill's lifecycle event to the contract (advancing the state or recording a blocked transition).",
+  summary:
+    "Apply a pr-skill's lifecycle event to the contract (advancing the state or recording a blocked transition).",
   actor: "work",
   input: z.object({
     contract: z.string().default(".pr/local/pr.json").describe("path to the pr contract"),
@@ -161,7 +167,14 @@ export const eventVerb = defineVerb({
   deps: realSkillEventDeps,
   run: (input, deps: SkillEventDeps = realSkillEventDeps()): EventOutput =>
     applySkillEvent(
-      { contract: input.contract, skill: input.skill, actor: input.actor, reason: input.reason, log: input.log, id: input.id },
+      {
+        contract: input.contract,
+        skill: input.skill,
+        actor: input.actor,
+        reason: input.reason,
+        log: input.log,
+        id: input.id,
+      },
       { logTransition: true },
       deps,
     ),

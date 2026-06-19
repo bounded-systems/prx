@@ -41,7 +41,8 @@ import type { BeadsRecord } from "../../src/triage/triage.ts";
 // "custom identity", which would change canonical-id resolution. Update in
 // lock-step with `test/machine/work_unit.test.ts` LEGACY_CANONICAL_ID_SOURCE.
 const LEGACY_CANONICAL_ID_SOURCE =
-  /^(GH-\d+|NOTION-([0-9a-fA-F]{32}|\d+)|BD-[0-9A-F]{8}|BD-[a-z][a-z0-9-]*-\d{13,}-\d+-[0-9a-f]{8})$/.source;
+  /^(GH-\d+|NOTION-([0-9a-fA-F]{32}|\d+)|BD-[0-9A-F]{8}|BD-[a-z][a-z0-9-]*-\d{13,}-\d+-[0-9a-f]{8})$/
+    .source;
 
 class FakeAdapter extends BaseDomainAdapter {
   constructor(config: DomainAdapterConfigInput) {
@@ -180,9 +181,7 @@ describe("combinedCanonicalIdPattern", () => {
   test("prx-default registry reproduces the GH/NOTION/BD canonical-id literal source", () => {
     expect(combinedCanonicalIdPattern().source).toBe(LEGACY_CANONICAL_ID_SOURCE);
     expect(combinedCanonicalIdPattern().test("GH-456")).toBe(true);
-    expect(
-      combinedCanonicalIdPattern().test("NOTION-0123456789abcdef0123456789abcdef"),
-    ).toBe(true);
+    expect(combinedCanonicalIdPattern().test("NOTION-0123456789abcdef0123456789abcdef")).toBe(true);
     expect(combinedCanonicalIdPattern().test("NOTION-123")).toBe(true);
     expect(combinedCanonicalIdPattern().test("BD-407F177F")).toBe(true);
     expect(combinedCanonicalIdPattern().test("PROJ-9")).toBe(false);
@@ -207,9 +206,9 @@ describe("canonicalIdPatternForIdentity", () => {
     ).toBe(LEGACY_CANONICAL_ID_SOURCE);
 
     const custom = /^ACME-\d+$/;
-    expect(
-      canonicalIdPatternForIdentity({ canonicalIdPattern: custom, isDefault: false }),
-    ).toBe(custom);
+    expect(canonicalIdPatternForIdentity({ canonicalIdPattern: custom, isDefault: false })).toBe(
+      custom,
+    );
   });
 });
 

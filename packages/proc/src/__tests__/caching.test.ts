@@ -21,7 +21,9 @@ function countingInner(): { exec: ProcExecutor["exec"]; calls: () => number } {
 
 describe("policyCacheable", () => {
   test("pure-read policy-tool subcommands are cacheable", () => {
-    expect(policyCacheable({ command: "git", args: ["--no-pager", "-C", "/x", "rev-parse", "HEAD"] })).toBe(true);
+    expect(
+      policyCacheable({ command: "git", args: ["--no-pager", "-C", "/x", "rev-parse", "HEAD"] }),
+    ).toBe(true);
     expect(policyCacheable({ command: "gh", args: ["pr", "view", "1"] })).toBe(true);
     expect(policyCacheable({ command: "bd", args: ["list", "--json"] })).toBe(true);
   });

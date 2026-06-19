@@ -24,18 +24,14 @@ describe("resolveIssueId", () => {
 
   // GH-874: Notion arm — UUID and Task-ID shapes route to `kind: "notion"`.
   test("Notion UUID (hyphenated) resolves to a notion kind with normalized value", () => {
-    expect(
-      resolveIssueId("550e8400-e29b-41d4-a716-446655440000"),
-    ).toEqual({
+    expect(resolveIssueId("550e8400-e29b-41d4-a716-446655440000")).toEqual({
       kind: "notion",
       id: { kind: "uuid", value: "550e8400-e29b-41d4-a716-446655440000" },
     });
   });
 
   test("Notion UUID (unhyphenated 32-hex) normalizes to hyphenated, lowercased", () => {
-    expect(
-      resolveIssueId("550E8400E29B41D4A716446655440000"),
-    ).toEqual({
+    expect(resolveIssueId("550E8400E29B41D4A716446655440000")).toEqual({
       kind: "notion",
       id: { kind: "uuid", value: "550e8400-e29b-41d4-a716-446655440000" },
     });
@@ -49,9 +45,7 @@ describe("resolveIssueId", () => {
   });
 
   test("Task-ID shape failing the canonical pattern is rejected (not routed to bd)", () => {
-    expect(() =>
-      resolveIssueId("PROJ-5779", "prx test", /^OPS-\d+$/),
-    ).toThrow();
+    expect(() => resolveIssueId("PROJ-5779", "prx test", /^OPS-\d+$/)).toThrow();
   });
 
   test("GH-<n> still routes to gh even though TASK_ID_SHAPE_RE matches it", () => {
@@ -73,15 +67,11 @@ describe("normalizeToBdSurfaceShort", () => {
   });
 
   test("BD-<workspace>-<ts>-<seq>-<hex8> long form extracts the tail", () => {
-    expect(
-      normalizeToBdSurfaceShort("BD-ai-home-1777747201085-737-407f177f"),
-    ).toBe("BD-407f177f");
+    expect(normalizeToBdSurfaceShort("BD-ai-home-1777747201085-737-407f177f")).toBe("BD-407f177f");
   });
 
   test("bare workspace-long-id with hex8 tail extracts the tail", () => {
-    expect(
-      normalizeToBdSurfaceShort("ai-home-1777747201085-737-407F177F"),
-    ).toBe("BD-407f177f");
+    expect(normalizeToBdSurfaceShort("ai-home-1777747201085-737-407F177F")).toBe("BD-407f177f");
   });
 
   test("returns null for semantic-id inputs with no hex8 tail", () => {
@@ -118,8 +108,6 @@ describe("recognizeBareWorkspaceLongId", () => {
 
   test("returns null when no repo covers the cwd", () => {
     const repoDir = mkdtempSync(join(homeDir, "repo-"));
-    expect(
-      recognizeBareWorkspaceLongId("any-workspace-pin.9.4.2", repoDir),
-    ).toBeNull();
+    expect(recognizeBareWorkspaceLongId("any-workspace-pin.9.4.2", repoDir)).toBeNull();
   });
 });

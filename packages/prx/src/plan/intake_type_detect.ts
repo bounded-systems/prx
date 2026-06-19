@@ -12,10 +12,7 @@
  */
 
 import { PREFIX_RE, PREFIX_TO_INTAKE_INTENT } from "../intake/types.ts";
-import {
-  INTAKE_BODY_SCHEMA_TYPES,
-  type IntakeBodySchemaType,
-} from "../intake/schemas/index.ts";
+import { INTAKE_BODY_SCHEMA_TYPES, type IntakeBodySchemaType } from "../intake/schemas/index.ts";
 
 const SCHEMA_TYPE_SET = new Set<string>(INTAKE_BODY_SCHEMA_TYPES);
 

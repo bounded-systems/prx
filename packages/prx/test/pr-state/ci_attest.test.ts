@@ -31,7 +31,11 @@ import {
 import { CI_PHASES } from "../../src/pr-state/local-ci.ts";
 
 const COMMIT = "1234567890abcdef1234567890abcdef12345678";
-const INPUTS = resolveCiInputs({ treeOid: "abc123", lock: "lockfile-bytes", toolchain: "bun 1.3.11" });
+const INPUTS = resolveCiInputs({
+  treeOid: "abc123",
+  lock: "lockfile-bytes",
+  toolchain: "bun 1.3.11",
+});
 
 let dir: string;
 let chain: ReturnType<typeof openAnchoredChain>;
@@ -42,7 +46,11 @@ beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "ci-attest-"));
   chain = openAnchoredChain(join(dir, "ledger.sqlite"));
   const kp = generateEd25519Keypair();
-  deps = { signer: ed25519Signer(kp.privateKey, kp.keyid), store: chain.derivations, now: () => 1000 };
+  deps = {
+    signer: ed25519Signer(kp.privateKey, kp.keyid),
+    store: chain.derivations,
+    now: () => 1000,
+  };
   verifier = ed25519Verifier(kp.publicKey);
 });
 
@@ -93,7 +101,11 @@ describe("attestCiPhases — signed + content-addressed CI derivation (GH-352)",
 
     expect(await chain.lineage.isStale(d!.derivationId, currentCiRefs(INPUTS))).toBe(false);
 
-    const movedTree = resolveCiInputs({ treeOid: "def456", lock: "lockfile-bytes", toolchain: "bun 1.3.11" });
+    const movedTree = resolveCiInputs({
+      treeOid: "def456",
+      lock: "lockfile-bytes",
+      toolchain: "bun 1.3.11",
+    });
     expect(await chain.lineage.isStale(d!.derivationId, currentCiRefs(movedTree))).toBe(true);
   });
 
@@ -148,7 +160,9 @@ describe("ciLedgerTarget — explicit PRX_CI_LEDGER override wins (GH-352)", () 
     expect(ciLedgerTarget({ envLedger: undefined, canonical: "/ws/canon.sqlite" })).toBe(
       "/ws/canon.sqlite",
     );
-    expect(ciLedgerTarget({ envLedger: "", canonical: "/ws/canon.sqlite" })).toBe("/ws/canon.sqlite");
+    expect(ciLedgerTarget({ envLedger: "", canonical: "/ws/canon.sqlite" })).toBe(
+      "/ws/canon.sqlite",
+    );
   });
 
   test("undefined when neither is available (no ledger ⇒ no signing)", () => {

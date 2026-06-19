@@ -449,10 +449,7 @@ describe("loadMaterializeTtlSeconds — TOML precedence", () => {
 
   test("ignores materialize_ttl_seconds outside the [wt] section", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-materialize-toml-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      "[beads]\nmaterialize_ttl_seconds = 9\n",
-    );
+    writeFileSync(join(root, "prx.toml"), "[beads]\nmaterialize_ttl_seconds = 9\n");
     expect(loadMaterializeTtlSeconds(root)).toBe(DEFAULT_MATERIALIZE_TTL_SECONDS);
   });
 

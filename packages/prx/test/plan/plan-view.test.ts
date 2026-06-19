@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  runPlanView,
-  type PlanViewOptions,
-} from "../../src/plan-store/plan-view.ts";
+import { runPlanView, type PlanViewOptions } from "../../src/plan-store/plan-view.ts";
 import type { GhIssueViewPayload } from "../../src/issues/render.ts";
 import type { GhExecResult } from "@bounded-systems/gh";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
@@ -110,9 +107,7 @@ describe("runPlanView — id resolution forwards to gh issue view", () => {
       },
     );
     expect(calls[0]!.args).toContain("--repo");
-    expect(calls[0]!.args[calls[0]!.args.indexOf("--repo") + 1]).toBe(
-      "bdelanghe/ai-home",
-    );
+    expect(calls[0]!.args[calls[0]!.args.indexOf("--repo") + 1]).toBe("bdelanghe/ai-home");
   });
 
   test("plain output renders title/state/labels/url/body and comment thread", async () => {

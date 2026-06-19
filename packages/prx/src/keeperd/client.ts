@@ -31,7 +31,10 @@ export type KeeperTransport = (request: KeeperRemoteRequest) => Promise<unknown>
 
 /** Thrown when keeperd replies but the reply doesn't satisfy the wire contract. */
 export class KeeperProtocolError extends Error {
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
     super(message);
     this.name = "KeeperProtocolError";
   }
@@ -60,16 +63,14 @@ export class IsolatedKeeperClient {
       "request failed the keeperd wire contract before send",
     );
     const raw = await this.transport(validRequest);
-    return parseOrThrow(
-      KeeperRemoteResponseSchema,
-      raw,
-      "keeperd reply failed the wire contract",
-    );
+    return parseOrThrow(KeeperRemoteResponseSchema, raw, "keeperd reply failed the wire contract");
   }
 }
 
 function parseOrThrow<T>(
-  schema: { safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: unknown } },
+  schema: {
+    safeParse: (v: unknown) => { success: true; data: T } | { success: false; error: unknown };
+  },
   value: unknown,
   context: string,
 ): T {
@@ -82,7 +83,8 @@ function parseOrThrow<T>(
 
 function stringifyIssue(error: unknown): string {
   if (error && typeof error === "object" && "issues" in error) {
-    const issues = (error as { issues: Array<{ path: Array<string | number>; message: string }> }).issues;
+    const issues = (error as { issues: Array<{ path: Array<string | number>; message: string }> })
+      .issues;
     return issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`).join("; ");
   }
   return String(error);

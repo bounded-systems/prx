@@ -29,10 +29,7 @@ export function casUriFor(domain: string, sha: CasSha): string {
     throw new CasUriError("domain must not be empty", "INVALID_DOMAIN");
   }
   if (domain.length > MAX_DOMAIN) {
-    throw new CasUriError(
-      `domain too long (>${MAX_DOMAIN})`,
-      "INVALID_DOMAIN",
-    );
+    throw new CasUriError(`domain too long (>${MAX_DOMAIN})`, "INVALID_DOMAIN");
   }
   if (!DOMAIN_RE.test(domain)) {
     throw new CasUriError(
@@ -58,10 +55,7 @@ export function parseCasUri(uri: string): ParsedCasUri {
     );
   }
   if ((m[1] as string).length > MAX_DOMAIN) {
-    throw new CasUriError(
-      `invalid cas uri: domain too long (>${MAX_DOMAIN})`,
-      "INVALID_URI",
-    );
+    throw new CasUriError(`invalid cas uri: domain too long (>${MAX_DOMAIN})`, "INVALID_URI");
   }
   return { domain: m[1] as string, sha: `sha256:${m[2] as string}` };
 }

@@ -48,9 +48,7 @@ describe("runCli — `prx intake comment` parser routing", () => {
       },
     );
     expect(exit).toBe(0);
-    expect(captured).toEqual([
-      { canonicalId: "GH-200", body: "linked from #100", dryRun: false },
-    ]);
+    expect(captured).toEqual([{ canonicalId: "GH-200", body: "linked from #100", dryRun: false }]);
   });
 
   test("routes a bd-shaped positional `ai-home-<slug>` to runIntakeComment (handler dispatches bd arm)", async () => {
@@ -74,33 +72,21 @@ describe("runCli — `prx intake comment` parser routing", () => {
       },
     );
     expect(exit).toBe(0);
-    expect(captured).toEqual([
-      { canonicalId: "ai-home-gmkwh", body: "follow-up note" },
-    ]);
+    expect(captured).toEqual([{ canonicalId: "ai-home-gmkwh", body: "follow-up note" }]);
   });
 
   test("missing positional fails with a usage-style error", async () => {
     const { errors, output } = captureOutput();
     const exit = await runCli(["intake", "comment"], output, {});
     expect(exit).not.toBe(0);
-    expect(
-      errors.some((l) =>
-        l.includes("intake comment requires one positional"),
-      ),
-    ).toBe(true);
+    expect(errors.some((l) => l.includes("intake comment requires one positional"))).toBe(true);
   });
 
   test("missing body source fails (no --body / --body-file / --body-stdin)", async () => {
     const { errors, output } = captureOutput();
-    const exit = await runCli(
-      ["intake", "comment", "GH-200"],
-      output,
-      {},
-    );
+    const exit = await runCli(["intake", "comment", "GH-200"], output, {});
     expect(exit).not.toBe(0);
-    expect(
-      errors.some((l) => l.includes("intake comment requires a body")),
-    ).toBe(true);
+    expect(errors.some((l) => l.includes("intake comment requires a body"))).toBe(true);
   });
 
   test("--body and --body-stdin together are rejected at parse layer", async () => {
@@ -113,9 +99,7 @@ describe("runCli — `prx intake comment` parser routing", () => {
     expect(exit).not.toBe(0);
     expect(
       errors.some((l) =>
-        l.includes(
-          "--body, --body-file, and --body-stdin are mutually exclusive",
-        ),
+        l.includes("--body, --body-file, and --body-stdin are mutually exclusive"),
       ),
     ).toBe(true);
   });
@@ -130,9 +114,7 @@ describe("runCli — `prx intake comment` parser routing", () => {
     expect(exit).not.toBe(0);
     expect(
       errors.some((l) =>
-        l.includes(
-          "--body, --body-file, and --body-stdin are mutually exclusive",
-        ),
+        l.includes("--body, --body-file, and --body-stdin are mutually exclusive"),
       ),
     ).toBe(true);
   });
@@ -140,23 +122,14 @@ describe("runCli — `prx intake comment` parser routing", () => {
   test("--body-file PATH and --body-stdin together are rejected", async () => {
     const { errors, output } = captureOutput();
     const exit = await runCli(
-      [
-        "intake",
-        "comment",
-        "GH-200",
-        "--body-file",
-        "body.md",
-        "--body-stdin",
-      ],
+      ["intake", "comment", "GH-200", "--body-file", "body.md", "--body-stdin"],
       output,
       {},
     );
     expect(exit).not.toBe(0);
     expect(
       errors.some((l) =>
-        l.includes(
-          "--body, --body-file, and --body-stdin are mutually exclusive",
-        ),
+        l.includes("--body, --body-file, and --body-stdin are mutually exclusive"),
       ),
     ).toBe(true);
   });
@@ -164,64 +137,46 @@ describe("runCli — `prx intake comment` parser routing", () => {
   test("--repo flag forwards through to handler", async () => {
     const { output } = captureOutput();
     const captured: Array<{ repo?: string | undefined }> = [];
-    await runCli(
-      ["intake", "comment", "GH-200", "--body", "x", "--repo", "o/r"],
-      output,
-      {
-        runIntakeComment: (opts) => {
-          captured.push({ repo: opts.repo });
-          return 0;
-        },
+    await runCli(["intake", "comment", "GH-200", "--body", "x", "--repo", "o/r"], output, {
+      runIntakeComment: (opts) => {
+        captured.push({ repo: opts.repo });
+        return 0;
       },
-    );
+    });
     expect(captured).toEqual([{ repo: "o/r" }]);
   });
 
   test("--dry-run is forwarded", async () => {
     const { output } = captureOutput();
     const captured: Array<{ dryRun: boolean }> = [];
-    await runCli(
-      ["intake", "comment", "GH-200", "--body", "x", "--dry-run"],
-      output,
-      {
-        runIntakeComment: (opts) => {
-          captured.push({ dryRun: opts.dryRun });
-          return 0;
-        },
+    await runCli(["intake", "comment", "GH-200", "--body", "x", "--dry-run"], output, {
+      runIntakeComment: (opts) => {
+        captured.push({ dryRun: opts.dryRun });
+        return 0;
       },
-    );
+    });
     expect(captured).toEqual([{ dryRun: true }]);
   });
 
   test("--json flips format before dispatch", async () => {
     const { output } = captureOutput();
     const captured: Array<{ format: "plain" | "json" }> = [];
-    await runCli(
-      ["intake", "comment", "GH-200", "--body", "x", "--json"],
-      output,
-      {
-        runIntakeComment: (opts) => {
-          captured.push({ format: opts.format });
-          return 0;
-        },
+    await runCli(["intake", "comment", "GH-200", "--body", "x", "--json"], output, {
+      runIntakeComment: (opts) => {
+        captured.push({ format: opts.format });
+        return 0;
       },
-    );
+    });
     expect(captured).toEqual([{ format: "json" }]);
   });
 
   test("extra positional is rejected", async () => {
     const { errors, output } = captureOutput();
-    const exit = await runCli(
-      ["intake", "comment", "GH-200", "extra", "--body", "x"],
-      output,
-      {},
-    );
+    const exit = await runCli(["intake", "comment", "GH-200", "extra", "--body", "x"], output, {});
     expect(exit).not.toBe(0);
-    expect(
-      errors.some((l) =>
-        l.includes("intake comment: unexpected extra positionals"),
-      ),
-    ).toBe(true);
+    expect(errors.some((l) => l.includes("intake comment: unexpected extra positionals"))).toBe(
+      true,
+    );
   });
 });
 
@@ -242,16 +197,12 @@ describe("runCli — `prx intake comment --body @file` and --body-file", () => {
   test("--body @file is promoted to bodyFile and read at the CLI layer", async () => {
     const { output } = captureOutput();
     const captured: Array<{ body: string }> = [];
-    const exit = await runCli(
-      ["intake", "comment", "GH-200", "--body", `@${bodyPath}`],
-      output,
-      {
-        runIntakeComment: (opts) => {
-          captured.push({ body: opts.body });
-          return 0;
-        },
+    const exit = await runCli(["intake", "comment", "GH-200", "--body", `@${bodyPath}`], output, {
+      runIntakeComment: (opts) => {
+        captured.push({ body: opts.body });
+        return 0;
       },
-    );
+    });
     expect(exit).toBe(0);
     expect(captured).toEqual([{ body: "from a file\nwith newlines\n" }]);
   });
@@ -259,16 +210,12 @@ describe("runCli — `prx intake comment --body @file` and --body-file", () => {
   test("--body-file PATH reads from disk at the CLI layer", async () => {
     const { output } = captureOutput();
     const captured: Array<{ body: string }> = [];
-    const exit = await runCli(
-      ["intake", "comment", "GH-200", "--body-file", bodyPath],
-      output,
-      {
-        runIntakeComment: (opts) => {
-          captured.push({ body: opts.body });
-          return 0;
-        },
+    const exit = await runCli(["intake", "comment", "GH-200", "--body-file", bodyPath], output, {
+      runIntakeComment: (opts) => {
+        captured.push({ body: opts.body });
+        return 0;
       },
-    );
+    });
     expect(exit).toBe(0);
     expect(captured).toEqual([{ body: "from a file\nwith newlines\n" }]);
   });
@@ -293,16 +240,12 @@ describe("runCli — `prx intake comment --body @file` and --body-file", () => {
   test("`--body @alice` (single-token mention) stays a literal body", async () => {
     const { output } = captureOutput();
     const captured: Array<{ body: string }> = [];
-    const exit = await runCli(
-      ["intake", "comment", "GH-200", "--body", "@alice"],
-      output,
-      {
-        runIntakeComment: (opts) => {
-          captured.push({ body: opts.body });
-          return 0;
-        },
+    const exit = await runCli(["intake", "comment", "GH-200", "--body", "@alice"], output, {
+      runIntakeComment: (opts) => {
+        captured.push({ body: opts.body });
+        return 0;
       },
-    );
+    });
     expect(exit).toBe(0);
     expect(captured).toEqual([{ body: "@alice" }]);
   });
@@ -310,23 +253,13 @@ describe("runCli — `prx intake comment --body @file` and --body-file", () => {
   test("`--body @path` and `--body-file path` together is a parse-layer error", async () => {
     const { errors, output } = captureOutput();
     const exit = await runCli(
-      [
-        "intake",
-        "comment",
-        "GH-200",
-        "--body",
-        `@${bodyPath}`,
-        "--body-file",
-        bodyPath,
-      ],
+      ["intake", "comment", "GH-200", "--body", `@${bodyPath}`, "--body-file", bodyPath],
       output,
       {},
     );
     expect(exit).not.toBe(0);
     expect(
-      errors.some((l) =>
-        l.includes("--body @file and --body-file are mutually exclusive"),
-      ),
+      errors.some((l) => l.includes("--body @file and --body-file are mutually exclusive")),
     ).toBe(true);
   });
 });

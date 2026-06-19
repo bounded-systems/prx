@@ -18,15 +18,7 @@ import {
 
 describe("axis enums", () => {
   test("type enum holds the canonical labels — bd round-trippable + GH-only `spike` (GH-1489), `decision` (GH-1955)", () => {
-    expect(TYPE_LABELS).toEqual([
-      "bug",
-      "feature",
-      "task",
-      "chore",
-      "epic",
-      "spike",
-      "decision",
-    ]);
+    expect(TYPE_LABELS).toEqual(["bug", "feature", "task", "chore", "epic", "spike", "decision"]);
   });
 
   test("priority enum holds critical/high/medium/low/none (GH-918 + GH-970)", () => {
@@ -160,11 +152,7 @@ describe("proposedLabelsFor", () => {
       priority: "medium",
       effort: "m",
     });
-    expect(proposedLabelsFor(r)).toEqual([
-      "effort::xl",
-      "type::feature",
-      "priority::medium",
-    ]);
+    expect(proposedLabelsFor(r)).toEqual(["effort::xl", "type::feature", "priority::medium"]);
   });
 
   test("preserves operator-curated effort::* when classifier is silent", () => {
@@ -173,11 +161,7 @@ describe("proposedLabelsFor", () => {
       type: "feature",
       priority: "medium",
     });
-    expect(proposedLabelsFor(r)).toEqual([
-      "effort::xl",
-      "type::feature",
-      "priority::medium",
-    ]);
+    expect(proposedLabelsFor(r)).toEqual(["effort::xl", "type::feature", "priority::medium"]);
   });
 
   test("idempotent: re-applying same labels yields same set", () => {
@@ -271,11 +255,7 @@ describe("proposedLabelsFor", () => {
       spike: true,
       priority: "medium",
     });
-    expect(proposedLabelsFor(r)).toEqual([
-      "type::task",
-      "type::spike",
-      "priority::medium",
-    ]);
+    expect(proposedLabelsFor(r)).toEqual(["type::task", "type::spike", "priority::medium"]);
   });
 
   test("GH-988: type::spike is preserved across strip when classifier emits a different scored type", () => {
@@ -288,11 +268,7 @@ describe("proposedLabelsFor", () => {
       typeConfidence: "scored",
       priority: "medium",
     });
-    expect(proposedLabelsFor(r)).toEqual([
-      "type::spike",
-      "type::feature",
-      "priority::medium",
-    ]);
+    expect(proposedLabelsFor(r)).toEqual(["type::spike", "type::feature", "priority::medium"]);
   });
 
   test("GH-988 + GH-1489: idempotent re-application on dual-labeled issue (set membership stable)", () => {
@@ -308,11 +284,9 @@ describe("proposedLabelsFor", () => {
     // through the strip. Set membership matches currentLabels + priority::medium;
     // ordering is insertion-order: surviving marker first, then re-added task,
     // then priority.
-    expect(new Set(proposedLabelsFor(r))).toEqual(new Set([
-      "type::task",
-      "type::spike",
-      "priority::medium",
-    ]));
+    expect(new Set(proposedLabelsFor(r))).toEqual(
+      new Set(["type::task", "type::spike", "priority::medium"]),
+    );
   });
 });
 

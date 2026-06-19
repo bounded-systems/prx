@@ -21,10 +21,9 @@ describe("spawnCapture: real subprocess", () => {
   });
 
   test("non-zero exit surfaces status without throwing", () => {
-    const result = spawnCapture(
-      ["bun", "-e", "process.exit(3)"],
-      { env: process.env as Record<string, string> },
-    );
+    const result = spawnCapture(["bun", "-e", "process.exit(3)"], {
+      env: process.env as Record<string, string>,
+    });
 
     expect(result.status).toBe(3);
     expect(result.error).toBeUndefined();
@@ -127,10 +126,9 @@ describe("streamCapture: real subprocess (GH-2014)", () => {
   });
 
   test("non-zero exit surfaces status without throwing", async () => {
-    const result = await streamCapture(
-      ["bun", "-e", "process.exit(7)"],
-      { env: process.env as Record<string, string> },
-    );
+    const result = await streamCapture(["bun", "-e", "process.exit(7)"], {
+      env: process.env as Record<string, string>,
+    });
     expect(result.status).toBe(7);
     expect(isCaptureFailure(result)).toBe(true);
   });

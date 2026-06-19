@@ -57,11 +57,29 @@ function repoStub(init: EntrySpec[]): {
       } as unknown as RepoGcReport;
     },
   };
-  return { ops, applies: () => applies, setEntries: (e) => { entries = e; } };
+  return {
+    ops,
+    applies: () => applies,
+    setEntries: (e) => {
+      entries = e;
+    },
+  };
 }
 
-const orphanA: EntrySpec = { slug: "repo-a", orphanPath: "/wt/repo-a/embeddeddolt/db", orphanBytes: 4096, dry: "would-sweep", apply: "swept" };
-const orphanD: EntrySpec = { slug: "repo-d", orphanPath: "/wt/repo-d/embeddeddolt/db", orphanBytes: 512, dry: "would-sweep", apply: "swept" };
+const orphanA: EntrySpec = {
+  slug: "repo-a",
+  orphanPath: "/wt/repo-a/embeddeddolt/db",
+  orphanBytes: 4096,
+  dry: "would-sweep",
+  apply: "swept",
+};
+const orphanD: EntrySpec = {
+  slug: "repo-d",
+  orphanPath: "/wt/repo-d/embeddeddolt/db",
+  orphanBytes: 512,
+  dry: "would-sweep",
+  apply: "swept",
+};
 
 function deps(ops?: RepoGcOps): GcDriverDeps {
   return {
@@ -77,7 +95,12 @@ describe("createRepoDriver — mark", () => {
   test("emits an orphan finding per would-sweep entry; skips refused + nothing-to-clean", async () => {
     const { ops } = repoStub([
       orphanA,
-      { slug: "blocked-b", orphanPath: "/wt/blocked-b/embeddeddolt/db", dry: "refused", refusalReason: "db-empty" },
+      {
+        slug: "blocked-b",
+        orphanPath: "/wt/blocked-b/embeddeddolt/db",
+        dry: "refused",
+        refusalReason: "db-empty",
+      },
       { slug: "clean-c", orphanPath: null, dry: "nothing-to-clean" },
     ]);
     const findings = await createRepoDriver(deps(ops)).mark();
@@ -121,7 +144,14 @@ describe("createRepoDriver — sweep", () => {
   test("an orphan refused at apply (precondition regressed) → failed", async () => {
     const stub = repoStub([
       orphanA,
-      { slug: "repo-d", orphanPath: "/wt/repo-d/embeddeddolt/db", orphanBytes: 512, dry: "would-sweep", apply: "refused", refusalReason: "server-unreachable" },
+      {
+        slug: "repo-d",
+        orphanPath: "/wt/repo-d/embeddeddolt/db",
+        orphanBytes: 512,
+        dry: "would-sweep",
+        apply: "refused",
+        refusalReason: "server-unreachable",
+      },
     ]);
     const driver = createRepoDriver(deps(stub.ops));
     const mark = markFindings("repo", await driver.mark());
@@ -132,13 +162,18 @@ describe("createRepoDriver — sweep", () => {
   });
 
   test("no-op without injected repo ops", async () => {
-    expect(await createRepoDriver(deps()).sweep(markFindings("repo", []), {})).toEqual({ reclaimed: [] });
+    expect(await createRepoDriver(deps()).sweep(markFindings("repo", []), {})).toEqual({
+      reclaimed: [],
+    });
   });
 });
 
 describe("repo driver — actor fan-out (destructive gate)", () => {
   test("inventory --component repo reports the orphans", async () => {
-    const out = await runInventory({ component: "repo" }, deps(repoStub([orphanA]).ops) as GcSweepDeps);
+    const out = await runInventory(
+      { component: "repo" },
+      deps(repoStub([orphanA]).ops) as GcSweepDeps,
+    );
     expect(out.status).toBe("reclaimable");
     expect(out.by_class.orphan).toBe(1);
   });

@@ -9,10 +9,7 @@ import { describe, expect, test } from "bun:test";
 
 import { transitionContractSchema } from "../../../src/machine/contracts.ts";
 import type { TransitionContract } from "../../../src/machine/contracts.ts";
-import {
-  getGuard,
-  runGuard,
-} from "../../../src/machine/contracts/guards.ts";
+import { getGuard, runGuard } from "../../../src/machine/contracts/guards.ts";
 
 const contract = (over: Partial<TransitionContract>): TransitionContract =>
   transitionContractSchema.parse({
@@ -26,8 +23,7 @@ const contract = (over: Partial<TransitionContract>): TransitionContract =>
     ...over,
   });
 
-const reason = (v: ReturnType<typeof runGuard>) =>
-  (v as { reason: string }).reason;
+const reason = (v: ReturnType<typeof runGuard>) => (v as { reason: string }).reason;
 
 // ── workflow axis: in_review → ready_to_merge ─────────────────────────────
 

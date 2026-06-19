@@ -112,7 +112,10 @@ export function parseGitOrigin(url: string): OriginComponents | null {
 
   if (!host || !path) return null;
 
-  path = path.replace(/\.git$/, "").replace(/\/$/, "").toLowerCase();
+  path = path
+    .replace(/\.git$/, "")
+    .replace(/\/$/, "")
+    .toLowerCase();
   host = host.toLowerCase().replace(/\./g, "-");
 
   const slashIdx = path.indexOf("/");
@@ -159,8 +162,7 @@ export function buildDoltMirrorPath(
   env: NodeJS.ProcessEnv,
 ): string {
   const mirrorRoot =
-    env.BEADS_DOLT_MIRROR_ROOT?.trim() ||
-    `${env.HOME ?? ""}/.local/state/dolt/buffer`;
+    env.BEADS_DOLT_MIRROR_ROOT?.trim() || `${env.HOME ?? ""}/.local/state/dolt/buffer`;
   return join(mirrorRoot, components.owner, components.repo, doltDb);
 }
 
@@ -207,14 +209,14 @@ export function isEmbeddedDoltMode(beadsDir: string): boolean {
 }
 
 export type HydrateStatus =
-  | "hydrated"       // successfully cloned from remote
+  | "hydrated" // successfully cloned from remote
   | "already-hydrated" // short-circuited — database already exists
   | "skipped-no-beads"
   | "skipped-no-metadata"
   | "skipped-no-origin"
   | "skipped-unparseable-origin"
   | "skipped-non-primary-worktree" // GH-653: feature worktree → use redirect
-  | "dry-run"        // --dry-run requested, nothing executed
+  | "dry-run" // --dry-run requested, nothing executed
   | "clone-failed";
 
 export type HydrateResult = {
@@ -367,10 +369,7 @@ export function ensureMirror(
  * Hydrate a fresh worktree's Beads database. Safe to call on every
  * post-switch: short-circuits when the database directory already exists.
  */
-export function hydrate(
-  opts: HydrateOptions = {},
-  deps: HydrateDeps = defaultDeps,
-): HydrateResult {
+export function hydrate(opts: HydrateOptions = {}, deps: HydrateDeps = defaultDeps): HydrateResult {
   const cwd = opts.cwd ?? process.cwd();
   const beadsDir = join(cwd, ".beads");
   const doltParent = join(beadsDir, "dolt");
@@ -517,10 +516,7 @@ export function hydrate(
       status: "clone-failed",
       doltRemote,
       doltDatabase: doltDb,
-      message: formatCloneFailure(
-        `beads: worktree copy failed from ${mirrorPath}`,
-        stderr,
-      ),
+      message: formatCloneFailure(`beads: worktree copy failed from ${mirrorPath}`, stderr),
       exitCode: 1,
     };
   }

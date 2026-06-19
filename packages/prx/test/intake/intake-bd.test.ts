@@ -29,9 +29,7 @@ function lsOpts(overrides: Partial<IntakeBdLsOptions> = {}): IntakeBdLsOptions {
   return intakeBdLsOptionsSchema.parse({ ...overrides });
 }
 
-function memLsOpts(
-  overrides: Partial<IntakeBdMemoryLsOptions> = {},
-): IntakeBdMemoryLsOptions {
+function memLsOpts(overrides: Partial<IntakeBdMemoryLsOptions> = {}): IntakeBdMemoryLsOptions {
   return intakeBdMemoryLsOptionsSchema.parse({ ...overrides });
 }
 
@@ -39,9 +37,7 @@ function memGetOpts(key = "k"): IntakeBdMemoryGetOptions {
   return intakeBdMemoryGetOptionsSchema.parse({ key });
 }
 
-function memSetOpts(
-  overrides: Partial<IntakeBdMemorySetOptions> = {},
-): IntakeBdMemorySetOptions {
+function memSetOpts(overrides: Partial<IntakeBdMemorySetOptions> = {}): IntakeBdMemorySetOptions {
   return intakeBdMemorySetOptionsSchema.parse({ key: "k", body: "v", ...overrides });
 }
 
@@ -59,9 +55,9 @@ describe("intakeBdLsOptionsSchema", () => {
   });
 
   test("accepts arbitrary --status (validation deferred to bd)", () => {
-    expect(
-      intakeBdLsOptionsSchema.parse({ status: "open,in_progress,pinned" }).status,
-    ).toBe("open,in_progress,pinned");
+    expect(intakeBdLsOptionsSchema.parse({ status: "open,in_progress,pinned" }).status).toBe(
+      "open,in_progress,pinned",
+    );
   });
 
   test("rejects empty --status string", () => {
@@ -81,15 +77,11 @@ describe("intakeBdMemoryGetOptionsSchema", () => {
 
 describe("intakeBdMemorySetOptionsSchema", () => {
   test("rejects empty key", () => {
-    expect(() =>
-      intakeBdMemorySetOptionsSchema.parse({ key: "", body: "v" }),
-    ).toThrow();
+    expect(() => intakeBdMemorySetOptionsSchema.parse({ key: "", body: "v" })).toThrow();
   });
 
   test("rejects empty body", () => {
-    expect(() =>
-      intakeBdMemorySetOptionsSchema.parse({ key: "k", body: "" }),
-    ).toThrow();
+    expect(() => intakeBdMemorySetOptionsSchema.parse({ key: "k", body: "" })).toThrow();
   });
 });
 
@@ -307,7 +299,7 @@ describe("runIntakeBdMemoryGet", () => {
 // ---------------------------------------------------------------------------
 
 describe("runIntakeBdMemorySet", () => {
-  test("calls bd remember \"<body>\" --key <key>", () => {
+  test('calls bd remember "<body>" --key <key>', () => {
     const calls: BdCall[] = [];
     runIntakeBdMemorySet(
       memSetOpts({ key: "k1", body: "the value" }),

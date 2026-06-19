@@ -44,10 +44,8 @@ const ROLE_GUIDANCE: Record<PolicyRole, string> = {
     "You draft plans and file/triage bd issues. You do not write code, push, or operate GitHub.",
   executor:
     "You implement the plan in your own worktree and commit/push. You do not open, review, or merge PRs — dispatch that to forge.",
-  reviewer:
-    "You review PRs and submit gh reviews. You do not commit, push, or merge.",
-  tester:
-    "You validate and may comment on the PR. You do not commit, push, review, or merge.",
+  reviewer: "You review PRs and submit gh reviews. You do not commit, push, or merge.",
+  tester: "You validate and may comment on the PR. You do not commit, push, review, or merge.",
   keeper:
     "You own git refs for one unit, in your own ephemeral worktree. You materialize and push where your branch lives. You never touch gh, bd, or another actor's tree.",
   forge:

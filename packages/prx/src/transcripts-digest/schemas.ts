@@ -15,10 +15,7 @@
 
 import { z } from "zod";
 
-export const TranscriptSourceKind = z.enum([
-  "claude-code-jsonl",
-  "claude-web-export",
-]);
+export const TranscriptSourceKind = z.enum(["claude-code-jsonl", "claude-web-export"]);
 export type TranscriptSourceKind = z.infer<typeof TranscriptSourceKind>;
 
 /**
@@ -53,12 +50,7 @@ export const TranscriptSourceConfig = z.discriminatedUnion("kind", [
 ]);
 export type TranscriptSourceConfig = z.infer<typeof TranscriptSourceConfig>;
 
-export const TranscriptMessageRole = z.enum([
-  "user",
-  "assistant",
-  "tool",
-  "system",
-]);
+export const TranscriptMessageRole = z.enum(["user", "assistant", "tool", "system"]);
 export type TranscriptMessageRole = z.infer<typeof TranscriptMessageRole>;
 
 export const TranscriptMessage = z.object({
@@ -100,12 +92,7 @@ export const TranscriptSession = z.object({
 });
 export type TranscriptSession = z.infer<typeof TranscriptSession>;
 
-export const MemoryCandidateType = z.enum([
-  "feedback",
-  "project",
-  "reference",
-  "user",
-]);
+export const MemoryCandidateType = z.enum(["feedback", "project", "reference", "user"]);
 export type MemoryCandidateType = z.infer<typeof MemoryCandidateType>;
 
 /**

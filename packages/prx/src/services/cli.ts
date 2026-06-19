@@ -53,9 +53,11 @@ export function runServicesStatus(
     return 2;
   }
 
-  const db = deps.db ?? (deps.openDb ?? openAuditDb)({
-    stateDirOverride: deps.stateDirOverride,
-  });
+  const db =
+    deps.db ??
+    (deps.openDb ?? openAuditDb)({
+      stateDirOverride: deps.stateDirOverride,
+    });
 
   // When the caller pointed us at NDJSON sources, refresh the store before
   // projecting so the verb is single-shot (no separate `audit ingest`).
@@ -73,13 +75,15 @@ export function runServicesStatus(
   });
 
   if (opts.format === "json") {
-    output.log(JSON.stringify({
-      plane: "anthropic",
-      window: opts.window ?? null,
-      since: since ?? null,
-      by: opts.by ?? "profile",
-      buckets,
-    }));
+    output.log(
+      JSON.stringify({
+        plane: "anthropic",
+        window: opts.window ?? null,
+        since: since ?? null,
+        by: opts.by ?? "profile",
+        buckets,
+      }),
+    );
   } else {
     renderText(buckets, opts, output);
   }

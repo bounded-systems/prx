@@ -12,10 +12,7 @@ import {
 import type { BdExecResult } from "@bounded-systems/bd";
 import type { GhExecResult } from "@bounded-systems/gh";
 import type { GhIssueCreateResult } from "../../src/tools/gh_issue_create.ts";
-import type {
-  execGhIssueEdit,
-  GhIssueEditOptions,
-} from "../../src/tools/gh_issue_edit.ts";
+import type { execGhIssueEdit, GhIssueEditOptions } from "../../src/tools/gh_issue_edit.ts";
 import { GhDomainAdapter } from "../../src/adapters/github.ts";
 import type { AdapterCommandRunner } from "../../src/adapters/domain-adapter.ts";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
@@ -64,7 +61,13 @@ function ghExecFail(stderr: string, code = 1): GhExecResult {
 }
 
 type GhCreateCall = { title: string; body?: string; repo?: string; labels?: readonly string[] };
-type GhExecCall = { group: string; subcommand: string; args: string[]; state?: string; role?: string };
+type GhExecCall = {
+  group: string;
+  subcommand: string;
+  args: string[];
+  state?: string;
+  role?: string;
+};
 type BdUpdateCall = { subcommand: string; args: string[]; state?: string; role?: string };
 
 const FIXED_NOW = new Date("2026-05-13T00:00:00.000Z");
@@ -125,9 +128,7 @@ function harness(opts: {
         stdout: JSON.stringify({
           ...(live.title !== undefined ? { title: live.title } : {}),
           ...(live.body !== undefined ? { body: live.body } : {}),
-          ...(live.labels !== undefined
-            ? { labels: live.labels.map((name) => ({ name })) }
-            : {}),
+          ...(live.labels !== undefined ? { labels: live.labels.map((name) => ({ name })) } : {}),
           ...(live.state !== undefined ? { state: live.state.toUpperCase() } : {}),
         }),
       };
@@ -192,10 +193,22 @@ function harness(opts: {
       return { status: r.exitCode, stdout: r.stdout, stderr: r.stderr };
     }) as never,
   };
-  return { deps, ghCreateCalls, ghExecCalls, bdCalls, listIssuesCalls, auditRows, reconcileEditCalls };
+  return {
+    deps,
+    ghCreateCalls,
+    ghExecCalls,
+    bdCalls,
+    listIssuesCalls,
+    auditRows,
+    reconcileEditCalls,
+  };
 }
 
-function capture(): { output: { log: (l: string) => void; error: (l: string) => void }; logs: string[]; errors: string[] } {
+function capture(): {
+  output: { log: (l: string) => void; error: (l: string) => void };
+  logs: string[];
+  errors: string[];
+} {
   const logs: string[] = [];
   const errors: string[] = [];
   return { output: { log: (l) => logs.push(l), error: (l) => errors.push(l) }, logs, errors };
@@ -252,9 +265,17 @@ describe("runBeadsPublish — create + link (bd-only record)", () => {
       dryRun: false,
       exitCode: 0,
     });
-    expect(runBeadsPublishUnit(makeOpts(), harness({
-      records: [makeBead()], issues: [], ghCreateResult: ghCreateOk(url), bdUpdateResult: bdOk(),
-    }).deps)).toEqual({ exitCode: 0, outcome: "created", bdId: "ai-home-target", externalRef: url });
+    expect(
+      runBeadsPublishUnit(
+        makeOpts(),
+        harness({
+          records: [makeBead()],
+          issues: [],
+          ghCreateResult: ghCreateOk(url),
+          bdUpdateResult: bdOk(),
+        }).deps,
+      ),
+    ).toEqual({ exitCode: 0, outcome: "created", bdId: "ai-home-target", externalRef: url });
   });
 
   test("issueType outside BD_TYPE_ENUM and unscored priority → type::task / priority::none", () => {
@@ -370,7 +391,12 @@ describe("runBeadsPublish — idempotency / refusals", () => {
     expect(h.listIssuesCalls).toHaveLength(0);
     expect(h.ghExecCalls).toHaveLength(0);
     expect(h.auditRows).toHaveLength(1);
-    expect(h.auditRows[0]!).toMatchObject({ bdId: "GH-123", outcome: "error", exitCode: 1, dryRun: false });
+    expect(h.auditRows[0]!).toMatchObject({
+      bdId: "GH-123",
+      outcome: "error",
+      exitCode: 1,
+      dryRun: false,
+    });
   });
 });
 
@@ -380,7 +406,12 @@ describe("runBeadsPublish — dedupe (link instead of create)", () => {
     const h = harness({
       records: [
         makeBead({ id: "ai-home-target", title: "Same Title", externalRef: null }),
-        makeBead({ id: "ai-home-sibling", title: "same title", externalRef: siblingUrl, externalIssueNumber: 9 }),
+        makeBead({
+          id: "ai-home-sibling",
+          title: "same title",
+          externalRef: siblingUrl,
+          externalIssueNumber: 9,
+        }),
       ],
       bdUpdateResult: bdOk(),
     });
@@ -405,13 +436,23 @@ describe("runBeadsPublish — dedupe (link instead of create)", () => {
       dryRun: false,
       exitCode: 0,
     });
-    expect(runBeadsPublishUnit(makeOpts(), harness({
-      records: [
-        makeBead({ id: "ai-home-target", title: "Same Title", externalRef: null }),
-        makeBead({ id: "ai-home-sibling", title: "same title", externalRef: siblingUrl, externalIssueNumber: 9 }),
-      ],
-      bdUpdateResult: bdOk(),
-    }).deps).outcome).toBe("linked");
+    expect(
+      runBeadsPublishUnit(
+        makeOpts(),
+        harness({
+          records: [
+            makeBead({ id: "ai-home-target", title: "Same Title", externalRef: null }),
+            makeBead({
+              id: "ai-home-sibling",
+              title: "same title",
+              externalRef: siblingUrl,
+              externalIssueNumber: 9,
+            }),
+          ],
+          bdUpdateResult: bdOk(),
+        }).deps,
+      ).outcome,
+    ).toBe("linked");
   });
 
   test("GH-side title scan: an existing GitHub issue matches → adopt (link), no create", () => {
@@ -444,11 +485,16 @@ describe("runBeadsPublish — dedupe (link instead of create)", () => {
       dryRun: false,
       exitCode: 0,
     });
-    expect(runBeadsPublishUnit(makeOpts(), harness({
-      records: [makeBead({ title: "Adopt me" })],
-      issues: [{ number: 55, title: "ADOPT ME", url: matchUrl }],
-      bdUpdateResult: bdOk(),
-    }).deps).outcome).toBe("adopted");
+    expect(
+      runBeadsPublishUnit(
+        makeOpts(),
+        harness({
+          records: [makeBead({ title: "Adopt me" })],
+          issues: [{ number: 55, title: "ADOPT ME", url: matchUrl }],
+          bdUpdateResult: bdOk(),
+        }).deps,
+      ).outcome,
+    ).toBe("adopted");
   });
 
   test("--no-adopt skips the GH-side scan and creates instead", () => {
@@ -468,7 +514,12 @@ describe("runBeadsPublish — dedupe (link instead of create)", () => {
     // GH-1598 — comment-back still fires under --no-adopt.
     expect(h.ghExecCalls).toHaveLength(1);
     expect(h.auditRows).toHaveLength(1);
-    expect(h.auditRows[0]!).toMatchObject({ outcome: "created", ghNumber: 77, ghUrl: url, dryRun: false });
+    expect(h.auditRows[0]!).toMatchObject({
+      outcome: "created",
+      ghNumber: 77,
+      ghUrl: url,
+      dryRun: false,
+    });
   });
 });
 
@@ -501,9 +552,17 @@ describe("runBeadsPublish — partial error & dry-run", () => {
       dryRun: false,
       exitCode: 1,
     });
-    expect(runBeadsPublishUnit(makeOpts(), harness({
-      records: [makeBead()], issues: [], ghCreateResult: ghCreateOk(url), bdUpdateResult: bdFail("nope"),
-    }).deps)).toEqual({ exitCode: 1, outcome: "partial-error", bdId: "ai-home-target", externalRef: url });
+    expect(
+      runBeadsPublishUnit(
+        makeOpts(),
+        harness({
+          records: [makeBead()],
+          issues: [],
+          ghCreateResult: ghCreateOk(url),
+          bdUpdateResult: bdFail("nope"),
+        }).deps,
+      ),
+    ).toEqual({ exitCode: 1, outcome: "partial-error", bdId: "ai-home-target", externalRef: url });
   });
 
   test("gh issue comment fails → partial-error, exit 1, durable link surfaced", () => {
@@ -584,7 +643,12 @@ describe("runBeadsPublish — partial error & dry-run", () => {
     const h = harness({
       records: [
         makeBead({ id: "ai-home-target", title: "Dup", externalRef: null }),
-        makeBead({ id: "ai-home-sib", title: "dup", externalRef: siblingUrl, externalIssueNumber: 3 }),
+        makeBead({
+          id: "ai-home-sib",
+          title: "dup",
+          externalRef: siblingUrl,
+          externalIssueNumber: 3,
+        }),
       ],
     });
     const { output, logs } = capture();
@@ -615,7 +679,11 @@ describe("runBeadsPublish — linked reconcile (GH-2382)", () => {
   test("drifted priority → reconciled: adds priority::medium, removes priority::low", () => {
     const h = harness({
       records: [makeBead({ externalRef: ref, externalIssueNumber: 100 })], // priority 2 → medium
-      linkedLive: { title: "Wire the publish verb", body: "Body text.", labels: ["type::task", "priority::low"] },
+      linkedLive: {
+        title: "Wire the publish verb",
+        body: "Body text.",
+        labels: ["type::task", "priority::low"],
+      },
     });
     const { output, logs, errors } = capture();
     const code = runBeadsPublish(makeOpts(), output, h.deps);
@@ -637,8 +705,14 @@ describe("runBeadsPublish — linked reconcile (GH-2382)", () => {
 
     // Audit: the publish row (reconciled) + the publisher-owned
     // ISSUE_UPDATE_REQUESTED catalog event (I-AUD1).
-    const publishRow = h.auditRows.find((r) => (r as { outcome?: string }).outcome === "reconciled");
-    expect(publishRow).toMatchObject({ bdId: "ai-home-target", outcome: "reconciled", ghNumber: 100 });
+    const publishRow = h.auditRows.find(
+      (r) => (r as { outcome?: string }).outcome === "reconciled",
+    );
+    expect(publishRow).toMatchObject({
+      bdId: "ai-home-target",
+      outcome: "reconciled",
+      ghNumber: 100,
+    });
     const intent = h.auditRows.find(
       (r) => (r as { event?: string }).event === "ISSUE_UPDATE_REQUESTED",
     ) as { actor?: string; workUnitId?: string } | undefined;
@@ -649,7 +723,11 @@ describe("runBeadsPublish — linked reconcile (GH-2382)", () => {
   test("--dry-run shows the swap and writes nothing", () => {
     const h = harness({
       records: [makeBead({ externalRef: ref, externalIssueNumber: 100 })],
-      linkedLive: { title: "Wire the publish verb", body: "Body text.", labels: ["type::task", "priority::low"] },
+      linkedLive: {
+        title: "Wire the publish verb",
+        body: "Body text.",
+        labels: ["type::task", "priority::low"],
+      },
     });
     const { output, logs } = capture();
     const code = runBeadsPublish(makeOpts({ dryRun: true }), output, h.deps);
@@ -663,7 +741,9 @@ describe("runBeadsPublish — linked reconcile (GH-2382)", () => {
     expect(out).toContain("priority::medium");
     expect(out).toContain("priority::low");
     // No intent event on dry-run; a single publish audit row.
-    expect(h.auditRows.some((r) => (r as { event?: string }).event === "ISSUE_UPDATE_REQUESTED")).toBe(false);
+    expect(
+      h.auditRows.some((r) => (r as { event?: string }).event === "ISSUE_UPDATE_REQUESTED"),
+    ).toBe(false);
     expect(h.auditRows).toHaveLength(1);
     expect(h.auditRows[0]!).toMatchObject({ outcome: "reconciled", dryRun: true, exitCode: 0 });
   });
@@ -678,7 +758,9 @@ describe("runBeadsPublish — linked reconcile (GH-2382)", () => {
     expect(code).toBe(0);
     expect(h.reconcileEditCalls).toHaveLength(0);
     expect(runBeadsPublishUnit(makeOpts(), h.deps).outcome).toBe("noop");
-    expect(h.auditRows.some((r) => (r as { event?: string }).event === "ISSUE_UPDATE_REQUESTED")).toBe(false);
+    expect(
+      h.auditRows.some((r) => (r as { event?: string }).event === "ISSUE_UPDATE_REQUESTED"),
+    ).toBe(false);
   });
 });
 

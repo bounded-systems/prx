@@ -17,13 +17,7 @@ export type PolicyState = "planning" | "validating" | "merging";
 // (git). It owns ALL GitHub writes (issues, labels, comments, PRs, merges) so
 // the capability lives in one actor rather than scattered across executor /
 // reviewer / publisher sessions; other actors dispatch gh to it.
-export type PolicyRole =
-  | "planner"
-  | "executor"
-  | "reviewer"
-  | "tester"
-  | "keeper"
-  | "forge";
+export type PolicyRole = "planner" | "executor" | "reviewer" | "tester" | "keeper" | "forge";
 
 export type PolicyDecision = {
   allowed: boolean;
@@ -43,18 +37,61 @@ export type PolicyDecision = {
 // table. Tests pin `KNOWN_SUBCOMMANDS[tool] ∩ STOP_VERB_TOKENS === ∅`.
 const POLICY_TABLE: Record<string, readonly string[]> = {
   // git
-  "git:planning:planner":    ["status", "diff", "log", "show", "rev-parse", "branch"],
-  "git:planning:reviewer":   ["status", "diff", "log", "show", "rev-parse", "branch"],
-  "git:planning:tester":     ["status", "diff", "log", "show", "rev-parse", "branch"],
-  "git:planning:executor":   ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch"],
-  "git:validating:planner":  ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
+  "git:planning:planner": ["status", "diff", "log", "show", "rev-parse", "branch"],
+  "git:planning:reviewer": ["status", "diff", "log", "show", "rev-parse", "branch"],
+  "git:planning:tester": ["status", "diff", "log", "show", "rev-parse", "branch"],
+  "git:planning:executor": [
+    "status",
+    "diff",
+    "log",
+    "show",
+    "rev-parse",
+    "branch",
+    "worktree",
+    "fetch",
+  ],
+  "git:validating:planner": ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
   "git:validating:reviewer": ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
-  "git:validating:tester":   ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
-  "git:validating:executor": ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch", "add", "commit", "restore", "switch", "checkout", "merge", "pull", "push"],
-  "git:merging:planner":     ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
-  "git:merging:reviewer":    ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
-  "git:merging:tester":      ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
-  "git:merging:executor":    ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch", "add", "commit", "restore", "switch", "checkout", "merge", "pull", "push"],
+  "git:validating:tester": ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
+  "git:validating:executor": [
+    "status",
+    "diff",
+    "log",
+    "show",
+    "rev-parse",
+    "branch",
+    "worktree",
+    "fetch",
+    "add",
+    "commit",
+    "restore",
+    "switch",
+    "checkout",
+    "merge",
+    "pull",
+    "push",
+  ],
+  "git:merging:planner": ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
+  "git:merging:reviewer": ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
+  "git:merging:tester": ["status", "diff", "log", "show", "rev-parse", "branch", "fetch"],
+  "git:merging:executor": [
+    "status",
+    "diff",
+    "log",
+    "show",
+    "rev-parse",
+    "branch",
+    "worktree",
+    "fetch",
+    "add",
+    "commit",
+    "restore",
+    "switch",
+    "checkout",
+    "merge",
+    "pull",
+    "push",
+  ],
   // GH-2348.3: keeper (git-write / ref custody) — reads everywhere; the full
   // write set (incl. push/branch) at validating + merging, mirroring executor.
   // Does not write during planning. GH-2381 admits the object-graph writers
@@ -63,45 +100,140 @@ const POLICY_TABLE: Record<string, readonly string[]> = {
   // publishable commit is `commit-tree`'d from it. No other role gets them.
   // GH-201: `bundle` (local commit-range export for keeperd's host→VM object
   // ship) joins keeper's read-side caps — read-only + local, no ref mutation.
-  "git:planning:keeper":     ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch", "bundle"],
-  "git:validating:keeper":   ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch", "bundle", "add", "commit", "restore", "switch", "checkout", "merge", "pull", "push", "write-tree", "commit-tree"],
-  "git:merging:keeper":      ["status", "diff", "log", "show", "rev-parse", "branch", "worktree", "fetch", "bundle", "add", "commit", "restore", "switch", "checkout", "merge", "pull", "push", "write-tree", "commit-tree"],
+  "git:planning:keeper": [
+    "status",
+    "diff",
+    "log",
+    "show",
+    "rev-parse",
+    "branch",
+    "worktree",
+    "fetch",
+    "bundle",
+  ],
+  "git:validating:keeper": [
+    "status",
+    "diff",
+    "log",
+    "show",
+    "rev-parse",
+    "branch",
+    "worktree",
+    "fetch",
+    "bundle",
+    "add",
+    "commit",
+    "restore",
+    "switch",
+    "checkout",
+    "merge",
+    "pull",
+    "push",
+    "write-tree",
+    "commit-tree",
+  ],
+  "git:merging:keeper": [
+    "status",
+    "diff",
+    "log",
+    "show",
+    "rev-parse",
+    "branch",
+    "worktree",
+    "fetch",
+    "bundle",
+    "add",
+    "commit",
+    "restore",
+    "switch",
+    "checkout",
+    "merge",
+    "pull",
+    "push",
+    "write-tree",
+    "commit-tree",
+  ],
 
   // gh (all scoped to `pr` group — the group check is in the gh tool layer)
-  "gh:planning:planner":     ["status", "list", "view", "checks", "diff"],
-  "gh:planning:reviewer":    ["status", "list", "view", "checks", "diff"],
-  "gh:planning:tester":      ["status", "list", "view", "checks", "diff"],
-  "gh:planning:executor":    ["status", "list", "view", "checks", "diff", "comment", "create", "edit"],
-  "gh:validating:planner":   ["status", "list", "view", "checks", "diff"],
-  "gh:validating:executor":  ["status", "list", "view", "checks", "diff", "comment", "create", "edit"],
-  "gh:validating:tester":    ["status", "list", "view", "checks", "diff", "comment"],
-  "gh:validating:reviewer":  ["status", "list", "view", "checks", "diff", "review"],
-  "gh:merging:planner":      ["status", "list", "view", "checks", "diff", "review"],
-  "gh:merging:tester":       ["status", "list", "view", "checks", "diff", "review"],
-  "gh:merging:reviewer":     ["status", "list", "view", "checks", "diff", "review"],
-  "gh:merging:executor":     ["status", "list", "view", "checks", "diff", "comment", "create", "edit"],
+  "gh:planning:planner": ["status", "list", "view", "checks", "diff"],
+  "gh:planning:reviewer": ["status", "list", "view", "checks", "diff"],
+  "gh:planning:tester": ["status", "list", "view", "checks", "diff"],
+  "gh:planning:executor": ["status", "list", "view", "checks", "diff", "comment", "create", "edit"],
+  "gh:validating:planner": ["status", "list", "view", "checks", "diff"],
+  "gh:validating:executor": [
+    "status",
+    "list",
+    "view",
+    "checks",
+    "diff",
+    "comment",
+    "create",
+    "edit",
+  ],
+  "gh:validating:tester": ["status", "list", "view", "checks", "diff", "comment"],
+  "gh:validating:reviewer": ["status", "list", "view", "checks", "diff", "review"],
+  "gh:merging:planner": ["status", "list", "view", "checks", "diff", "review"],
+  "gh:merging:tester": ["status", "list", "view", "checks", "diff", "review"],
+  "gh:merging:reviewer": ["status", "list", "view", "checks", "diff", "review"],
+  "gh:merging:executor": ["status", "list", "view", "checks", "diff", "comment", "create", "edit"],
   // prx-gr1: forge (gh-write / GitHub custody) — reads everywhere; the FULL gh
   // write set (issue + pr writes, review, merge/ready) at every state, mirroring
   // keeper for git. forge is the single owner of GitHub side effects; other
   // actors dispatch gh to it. The migration (removing gh-writes from the other
   // roles + the non-forge-gh architecture guard) is the rest of prx-gr1.
-  "gh:planning:forge":       ["status", "list", "view", "checks", "diff", "comment", "create", "edit", "review", "merge", "ready"],
-  "gh:validating:forge":     ["status", "list", "view", "checks", "diff", "comment", "create", "edit", "review", "merge", "ready"],
-  "gh:merging:forge":        ["status", "list", "view", "checks", "diff", "comment", "create", "edit", "review", "merge", "ready"],
+  "gh:planning:forge": [
+    "status",
+    "list",
+    "view",
+    "checks",
+    "diff",
+    "comment",
+    "create",
+    "edit",
+    "review",
+    "merge",
+    "ready",
+  ],
+  "gh:validating:forge": [
+    "status",
+    "list",
+    "view",
+    "checks",
+    "diff",
+    "comment",
+    "create",
+    "edit",
+    "review",
+    "merge",
+    "ready",
+  ],
+  "gh:merging:forge": [
+    "status",
+    "list",
+    "view",
+    "checks",
+    "diff",
+    "comment",
+    "create",
+    "edit",
+    "review",
+    "merge",
+    "ready",
+  ],
 
   // wt
-  "wt:planning:planner":     ["list", "status", "switch"],
-  "wt:planning:executor":    ["list", "status", "switch"],
-  "wt:planning:reviewer":    ["list", "status", "switch"],
-  "wt:planning:tester":      ["list", "status", "switch"],
-  "wt:validating:planner":   ["list", "status", "switch"],
-  "wt:validating:executor":  ["list", "status", "switch"],
-  "wt:validating:reviewer":  ["list", "status", "switch"],
-  "wt:validating:tester":    ["list", "status", "switch"],
-  "wt:merging:planner":      ["list", "status", "switch"],
-  "wt:merging:executor":     ["list", "status", "switch"],
-  "wt:merging:reviewer":     ["list", "status", "switch"],
-  "wt:merging:tester":       ["list", "status", "switch"],
+  "wt:planning:planner": ["list", "status", "switch"],
+  "wt:planning:executor": ["list", "status", "switch"],
+  "wt:planning:reviewer": ["list", "status", "switch"],
+  "wt:planning:tester": ["list", "status", "switch"],
+  "wt:validating:planner": ["list", "status", "switch"],
+  "wt:validating:executor": ["list", "status", "switch"],
+  "wt:validating:reviewer": ["list", "status", "switch"],
+  "wt:validating:tester": ["list", "status", "switch"],
+  "wt:merging:planner": ["list", "status", "switch"],
+  "wt:merging:executor": ["list", "status", "switch"],
+  "wt:merging:reviewer": ["list", "status", "switch"],
+  "wt:merging:tester": ["list", "status", "switch"],
 
   // bd — GH-1003 added recall/remember/memories.
   //
@@ -128,18 +260,66 @@ const POLICY_TABLE: Record<string, readonly string[]> = {
   // the wrapper layer in src/tools/bd.ts (per-arg check on `args[0]`). The
   // sibling `admin cleanup` / `admin reset` shapes are blocked there. The
   // only in-tree caller is `prx memory compact`, which runs as planner.
-  "bd:planning:planner":     ["ready", "list", "show", "view", "create", "update", "claim", "reopen", "assign", "recall", "remember", "memories", "dep", "sql", "admin"],
-  "bd:planning:executor":    ["ready", "list", "show", "view", "recall", "memories"],
-  "bd:planning:reviewer":    ["ready", "list", "show", "view", "recall", "memories"],
-  "bd:planning:tester":      ["ready", "list", "show", "view", "recall", "memories"],
-  "bd:validating:planner":   ["ready", "list", "show", "view", "create", "update", "claim", "reopen", "assign", "recall", "remember", "memories", "dep", "sql", "admin"],
-  "bd:validating:executor":  ["ready", "list", "show", "view", "recall", "memories"],
-  "bd:validating:reviewer":  ["ready", "list", "show", "view", "recall", "memories"],
-  "bd:validating:tester":    ["ready", "list", "show", "view", "recall", "memories"],
-  "bd:merging:planner":      ["ready", "list", "show", "view", "create", "update", "claim", "reopen", "assign", "recall", "remember", "memories", "dep", "sql", "admin"],
-  "bd:merging:executor":     ["ready", "list", "show", "view", "recall", "memories"],
-  "bd:merging:reviewer":     ["ready", "list", "show", "view", "recall", "memories"],
-  "bd:merging:tester":       ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:planning:planner": [
+    "ready",
+    "list",
+    "show",
+    "view",
+    "create",
+    "update",
+    "claim",
+    "reopen",
+    "assign",
+    "recall",
+    "remember",
+    "memories",
+    "dep",
+    "sql",
+    "admin",
+  ],
+  "bd:planning:executor": ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:planning:reviewer": ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:planning:tester": ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:validating:planner": [
+    "ready",
+    "list",
+    "show",
+    "view",
+    "create",
+    "update",
+    "claim",
+    "reopen",
+    "assign",
+    "recall",
+    "remember",
+    "memories",
+    "dep",
+    "sql",
+    "admin",
+  ],
+  "bd:validating:executor": ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:validating:reviewer": ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:validating:tester": ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:merging:planner": [
+    "ready",
+    "list",
+    "show",
+    "view",
+    "create",
+    "update",
+    "claim",
+    "reopen",
+    "assign",
+    "recall",
+    "remember",
+    "memories",
+    "dep",
+    "sql",
+    "admin",
+  ],
+  "bd:merging:executor": ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:merging:reviewer": ["ready", "list", "show", "view", "recall", "memories"],
+  "bd:merging:tester": ["ready", "list", "show", "view", "recall", "memories"],
 
   // slack — epic prx-zes. A READ-ONLY surface: the only subcommands are the four
   // bounded read ops (conversations.list / .history / .replies / users). All four
@@ -148,33 +328,47 @@ const POLICY_TABLE: Record<string, readonly string[]> = {
   // hard-blocked below (BLOCKED.slack) — defense in depth alongside the wrapper's
   // own SLACK_READ_OPS allowlist. keeper/forge (git/gh custody) have no slack rows
   // → no slack access, which is correct: they own ref/GitHub writes, not chat reads.
-  "slack:planning:planner":    ["channels", "history", "thread", "users"],
-  "slack:planning:executor":   ["channels", "history", "thread", "users"],
-  "slack:planning:reviewer":   ["channels", "history", "thread", "users"],
-  "slack:planning:tester":     ["channels", "history", "thread", "users"],
-  "slack:validating:planner":  ["channels", "history", "thread", "users"],
+  "slack:planning:planner": ["channels", "history", "thread", "users"],
+  "slack:planning:executor": ["channels", "history", "thread", "users"],
+  "slack:planning:reviewer": ["channels", "history", "thread", "users"],
+  "slack:planning:tester": ["channels", "history", "thread", "users"],
+  "slack:validating:planner": ["channels", "history", "thread", "users"],
   "slack:validating:executor": ["channels", "history", "thread", "users"],
   "slack:validating:reviewer": ["channels", "history", "thread", "users"],
-  "slack:validating:tester":   ["channels", "history", "thread", "users"],
-  "slack:merging:planner":     ["channels", "history", "thread", "users"],
-  "slack:merging:executor":    ["channels", "history", "thread", "users"],
-  "slack:merging:reviewer":    ["channels", "history", "thread", "users"],
-  "slack:merging:tester":      ["channels", "history", "thread", "users"],
+  "slack:validating:tester": ["channels", "history", "thread", "users"],
+  "slack:merging:planner": ["channels", "history", "thread", "users"],
+  "slack:merging:executor": ["channels", "history", "thread", "users"],
+  "slack:merging:reviewer": ["channels", "history", "thread", "users"],
+  "slack:merging:tester": ["channels", "history", "thread", "users"],
 };
 
 /** Hard-blocked subcommands (never allowed regardless of state/role). */
 const BLOCKED: Record<PolicyTool, readonly string[]> = {
   git: ["reset", "clean", "rebase", "cherry-pick", "config", "clone", "init", "remote", "gc"],
-  gh:  ["close", "reopen"],
-  wt:  [],
-  bd:  ["close", "delete", "archive", "import", "export"],
+  gh: ["close", "reopen"],
+  wt: [],
+  bd: ["close", "delete", "archive", "import", "export"],
   prx: [],
   // slack is a READ-ONLY surface (epic prx-zes): every write verb is hard-blocked,
   // independent of state/role, alongside the wrapper's own read-op allowlist.
   slack: [
-    "post", "send", "update", "delete", "invite", "kick", "archive",
-    "create", "join", "leave", "upload", "react", "pin", "unpin",
-    "schedule", "rename", "set",
+    "post",
+    "send",
+    "update",
+    "delete",
+    "invite",
+    "kick",
+    "archive",
+    "create",
+    "join",
+    "leave",
+    "upload",
+    "react",
+    "pin",
+    "unpin",
+    "schedule",
+    "rename",
+    "set",
   ],
 };
 
@@ -227,11 +421,7 @@ export const POLICY_ROLES: readonly PolicyRole[] = [
   "forge",
 ];
 
-export const POLICY_STATES: readonly PolicyState[] = [
-  "planning",
-  "validating",
-  "merging",
-];
+export const POLICY_STATES: readonly PolicyState[] = ["planning", "validating", "merging"];
 
 export function isPolicyTool(value: string): value is PolicyTool {
   return (POLICY_TOOLS as readonly string[]).includes(value);
@@ -245,9 +435,22 @@ export function isPolicyTool(value: string): value is PolicyTool {
 // over-classifying would cache a side effect.
 const READ_ONLY: Record<PolicyTool, ReadonlySet<string>> = {
   git: new Set([
-    "rev-parse", "status", "log", "show", "diff", "ls-files", "ls-tree",
-    "cat-file", "for-each-ref", "merge-base", "describe", "symbolic-ref",
-    "rev-list", "show-ref", "name-rev", "var",
+    "rev-parse",
+    "status",
+    "log",
+    "show",
+    "diff",
+    "ls-files",
+    "ls-tree",
+    "cat-file",
+    "for-each-ref",
+    "merge-base",
+    "describe",
+    "symbolic-ref",
+    "rev-list",
+    "show-ref",
+    "name-rev",
+    "var",
   ]),
   gh: new Set(["view", "list", "checks", "status"]),
   bd: new Set(["list", "show", "view", "ready", "memories", "recall", "dep", "sql"]),
@@ -286,10 +489,7 @@ export function checkPolicy(
 // `reason` is `null` when feasible. Otherwise it names which layer refused so
 // the planner-side preflight can distinguish a hard block from a state/role
 // allowlist miss.
-export type FeasibilityReason =
-  | "blocked"
-  | "not-allowlisted-for-role"
-  | "unknown-tool";
+export type FeasibilityReason = "blocked" | "not-allowlisted-for-role" | "unknown-tool";
 
 export type FeasibilityResult =
   | { feasible: true; reason: null }
@@ -393,8 +593,10 @@ export type CheckPolicyOrEnqueueDeps = {
     state: PolicyState;
     role: PolicyRole;
     owningRoles: PolicyRole[];
-  }) => Promise<{ kind: "enqueued"; handoffId: string }
-    | { kind: "skipped"; reason: "bd-unprovisioned" | "cross-repo" | "error" }>;
+  }) => Promise<
+    | { kind: "enqueued"; handoffId: string }
+    | { kind: "skipped"; reason: "bd-unprovisioned" | "cross-repo" | "error" }
+  >;
 };
 
 export async function checkPolicyOrEnqueue(

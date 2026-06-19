@@ -18,7 +18,11 @@ describe("provenance config — deployment secret + public trust map (prx-keymak
   test("resolveProvenanceMaster reads the deployment-secret file (env path wins)", () => {
     const secret = Buffer.from("deployment-master-secret-32-byte").toString("base64");
     const env = (k: string) =>
-      k === PROVENANCE_MASTER_FILE_ENV ? "/run/secrets/prx-master" : k === "HOME" ? "/home/u" : undefined;
+      k === PROVENANCE_MASTER_FILE_ENV
+        ? "/run/secrets/prx-master"
+        : k === "HOME"
+          ? "/home/u"
+          : undefined;
     const read = (p: string) => (p === "/run/secrets/prx-master" ? secret : "{}");
     const exists = (p: string) => p === "/run/secrets/prx-master";
     expect(resolveProvenanceMaster(env, read, exists).toString("base64")).toBe(secret);
@@ -39,18 +43,34 @@ describe("provenance config — deployment secret + public trust map (prx-keymak
       provenance: { trust: { keeper: "ed25519:AAAA", implement: "ed25519:BBBB" } },
     });
     const env = (k: string) => (k === "HOME" ? "/home/u" : undefined);
-    const trust = readProvenanceTrustMap(env, () => config, () => true);
+    const trust = readProvenanceTrustMap(
+      env,
+      () => config,
+      () => true,
+    );
     expect(trust.keeper).toBe("ed25519:AAAA");
     expect(trust.implement).toBe("ed25519:BBBB");
   });
 
   test("a malformed config is treated as absent — never breaks signing", () => {
     const env = (k: string) => (k === "HOME" ? "/home/u" : undefined);
-    expect(readProvenanceTrustMap(env, () => "{ not json", () => true)).toEqual({});
+    expect(
+      readProvenanceTrustMap(
+        env,
+        () => "{ not json",
+        () => true,
+      ),
+    ).toEqual({});
   });
 
   test("no trust map configured → empty (the dev derive-from-master path applies)", () => {
     const env = (k: string) => (k === "HOME" ? "/home/u" : undefined);
-    expect(readProvenanceTrustMap(env, () => "{}", () => false)).toEqual({});
+    expect(
+      readProvenanceTrustMap(
+        env,
+        () => "{}",
+        () => false,
+      ),
+    ).toEqual({});
   });
 });

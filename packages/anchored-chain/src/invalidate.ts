@@ -1,4 +1,4 @@
-import type { Digest } from './types.ts';
+import type { Digest } from "./types.ts";
 
 export interface InvalidationCapable {
   readonly invalidate: { descendants(movedDigest: Digest): Promise<Digest[]> };

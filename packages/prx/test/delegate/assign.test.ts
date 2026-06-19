@@ -9,7 +9,10 @@ import type { BdExecOptions, BdExecResult } from "@bounded-systems/bd";
 // existing call assertions hold; `result` still drives failure injection.
 type Recorder = {
   calls: BdExecOptions[];
-  run: (cmd: string[], opts?: { cwd?: string; check?: boolean }) => {
+  run: (
+    cmd: string[],
+    opts?: { cwd?: string; check?: boolean },
+  ) => {
     status: number;
     stdout: string;
     stderr: string;

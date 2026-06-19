@@ -103,9 +103,7 @@ export async function runKeeperWriteTree(
   }
   const treeSha = written.stdout.trim();
   if (!SHA1_RE.test(treeSha)) {
-    throw new KeeperGitError(
-      `keeper write-tree: expected a 40-hex tree sha, got '${treeSha}'`,
-    );
+    throw new KeeperGitError(`keeper write-tree: expected a 40-hex tree sha, got '${treeSha}'`);
   }
   return treeSha;
 }
@@ -378,14 +376,13 @@ export async function attestWorktreeAdd(
 }
 
 /** Parse `git worktree list --porcelain` for a `worktree <target>` line. */
-function worktreeIsRegistered(
-  git: typeof execGit,
-  cwd: string,
-  target: string,
-): boolean {
+function worktreeIsRegistered(git: typeof execGit, cwd: string, target: string): boolean {
   const list = git({ subcommand: "worktree", args: ["list", "--porcelain"], cwd, role: "keeper" });
   if (list.exitCode !== 0) return false;
   return list.stdout
     .split("\n")
-    .some((line) => line.startsWith("worktree ") && resolve(line.slice("worktree ".length).trim()) === target);
+    .some(
+      (line) =>
+        line.startsWith("worktree ") && resolve(line.slice("worktree ".length).trim()) === target,
+    );
 }

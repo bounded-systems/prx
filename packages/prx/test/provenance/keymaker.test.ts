@@ -65,7 +65,11 @@ describe("keymaker verbs (prx-keymaker slice 4)", () => {
     expect(drift).toContainEqual({ actor: "plan", reason: "unregistered" });
     expect(drift).toContainEqual({ actor: "implement", reason: "rotated" });
 
-    const current: KeymakerDeps = { master: () => master, readTrust: () => full, writeTrust: () => {} };
+    const current: KeymakerDeps = {
+      master: () => master,
+      readTrust: () => full,
+      writeTrust: () => {},
+    };
     expect(keymakerDrift(current)).toEqual([]);
   });
 });

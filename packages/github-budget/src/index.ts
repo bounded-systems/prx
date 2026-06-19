@@ -33,7 +33,11 @@ import { getAuditRuntimeContext, type GhTruthReason } from "@bounded-systems/aud
 import { getEnv } from "@bounded-systems/env";
 import { spawnCapture, type CommandResult } from "@bounded-systems/proc";
 
-const GH_TRUTH_REASONS = ["forward-orphan-detection", "drift-comparator", "stale-comparator"] as const;
+const GH_TRUTH_REASONS = [
+  "forward-orphan-detection",
+  "drift-comparator",
+  "stale-comparator",
+] as const;
 
 export type Bucket = "core" | "graphql" | "search";
 
@@ -63,7 +67,11 @@ export type RateLimitDeps = {
   snapshotTtlMs?: () => number;
   // GH-1533 — attribution-enrichment seams for the `rate-limit.jsonl` row.
   /** Ambient prx verb/actor for the attribution fields. Defaults to `getAuditRuntimeContext`. */
-  runtimeContext?: () => { verb: string | null; actor: string; ghTruthReason: GhTruthReason | null };
+  runtimeContext?: () => {
+    verb: string | null;
+    actor: string;
+    ghTruthReason: GhTruthReason | null;
+  };
   /**
    * Whether to do a free post-call `gh api rate_limit` refresh to derive a
    * measured `cost`. Defaults to `getEnv("PRX_GH_AUDIT_COST") === "1"` —
@@ -283,9 +291,7 @@ function rawRunnerOf(deps: RateLimitDeps): (cmd: string[]) => CommandResult {
   return deps.rawRunner ?? rawSpawnRunner;
 }
 
-function appendOf(
-  deps: RateLimitDeps,
-): (path: string, line: string) => void {
+function appendOf(deps: RateLimitDeps): (path: string, line: string) => void {
   return deps.appendAuditLine ?? ((path, line) => appendFileSync(path, line, "utf8"));
 }
 
@@ -407,7 +413,11 @@ function recordSweepCall(bucket: Bucket, costDelta: number | null): void {
   }
 }
 
-function buildExhaustedError(bucket: Bucket, snapshot: BudgetSnapshot, argv: readonly string[]): BucketBudgetExhaustedError {
+function buildExhaustedError(
+  bucket: Bucket,
+  snapshot: BudgetSnapshot,
+  argv: readonly string[],
+): BucketBudgetExhaustedError {
   const argvCopy = [...argv];
   if (bucket === "graphql") return new GraphQLBudgetExhaustedError(snapshot, argvCopy);
   if (bucket === "search") return new SearchBudgetExhaustedError(snapshot, argvCopy);
@@ -446,7 +456,17 @@ export function gateGhArgv(
       durationMs: 0,
       ghTruthReason: rt.ghTruthReason,
     };
-    writeAudit(argv, bucket, remainingBefore, null, -1, "BUDGET_EXHAUSTED", null, deps, attribution);
+    writeAudit(
+      argv,
+      bucket,
+      remainingBefore,
+      null,
+      -1,
+      "BUDGET_EXHAUSTED",
+      null,
+      deps,
+      attribution,
+    );
     throw buildExhaustedError(bucket, snapshot, argv);
   }
   return { bucket, remainingBefore };
@@ -478,20 +498,50 @@ export function recordGhResult(
     const snapshot = fresh?.find((s) => s.bucket === bucket) ?? cache.get(bucket);
     const remainingAfter = snapshot?.remaining ?? null;
     const costDelta = computeCostDelta(remainingBefore, remainingAfter);
-    writeAudit(argv, bucket, remainingBefore, remainingAfter, result.status, "BUDGET_EXHAUSTED", costDelta, deps, attribution);
+    writeAudit(
+      argv,
+      bucket,
+      remainingBefore,
+      remainingAfter,
+      result.status,
+      "BUDGET_EXHAUSTED",
+      costDelta,
+      deps,
+      attribution,
+    );
     recordSweepCall(bucket, costDelta);
     if (snapshot) {
       throw buildExhaustedError(bucket, snapshot, argv);
     }
     // No snapshot available — fall through to plain runtime error.
-    writeAudit(argv, bucket, remainingBefore, remainingAfter, result.status, "RUNTIME_ERROR", costDelta, deps, attribution);
+    writeAudit(
+      argv,
+      bucket,
+      remainingBefore,
+      remainingAfter,
+      result.status,
+      "RUNTIME_ERROR",
+      costDelta,
+      deps,
+      attribution,
+    );
     return;
   }
   const cached = cache.get(bucket);
   const remainingAfter = cached?.remaining ?? null;
   const threw = result.status !== 0 ? "RUNTIME_ERROR" : null;
   const costDelta = computeCostDelta(remainingBefore, remainingAfter);
-  writeAudit(argv, bucket, remainingBefore, remainingAfter, result.status, threw, costDelta, deps, attribution);
+  writeAudit(
+    argv,
+    bucket,
+    remainingBefore,
+    remainingAfter,
+    result.status,
+    threw,
+    costDelta,
+    deps,
+    attribution,
+  );
   recordSweepCall(bucket, costDelta);
 }
 
@@ -622,9 +672,11 @@ function measureCostOf(deps: RateLimitDeps): boolean {
   return getEnv("PRX_GH_AUDIT_COST") === "1";
 }
 
-function runtimeContextOf(
-  deps: RateLimitDeps,
-): { verb: string | null; actor: string; ghTruthReason: GhTruthReason | null } {
+function runtimeContextOf(deps: RateLimitDeps): {
+  verb: string | null;
+  actor: string;
+  ghTruthReason: GhTruthReason | null;
+} {
   return (deps.runtimeContext ?? getAuditRuntimeContext)();
 }
 
@@ -755,10 +807,7 @@ export function withBucketGate<R extends (cmd: string[], options?: any) => Comma
  * authoritative total). Replaces any prior sweep — there's only one in flight
  * per process.
  */
-export function beginSweep(
-  scope: string,
-  deps: RateLimitDeps = configuredDeps,
-): SweepCounter {
+export function beginSweep(scope: string, deps: RateLimitDeps = configuredDeps): SweepCounter {
   const startedAt = nowDate(deps).getTime();
   const snapshots = refreshBudget(deps);
   const startSnapshots: Partial<Record<Bucket, number>> = {};
@@ -879,7 +928,9 @@ function readAuditTail(path: string, maxRows: number): RateLimitAuditEntry[] {
  * `auditPath` override). Used by `prx doctor gh-budget` for its time-windowed
  * read-back (GH-1533); malformed lines are skipped, not thrown.
  */
-export function readRateLimitAuditRows(deps: RateLimitDeps = configuredDeps): RateLimitAuditEntry[] {
+export function readRateLimitAuditRows(
+  deps: RateLimitDeps = configuredDeps,
+): RateLimitAuditEntry[] {
   const path = deps.auditPath?.() ?? defaultAuditPath(() => homeDirOf(deps));
   if (!path) return [];
   return readAuditTail(path, Number.MAX_SAFE_INTEGER);
@@ -915,11 +966,11 @@ export function formatBudgetBlock(
     lines.push(`  ${label} ${snap.remaining}/${snap.limit} (resets ${reset})`);
   }
   const graphqlCost = Math.ceil(estimate.perBucket.graphql);
-  const queue =
-    estimate.sample.avg > 0 ? Math.round(graphqlCost / estimate.sample.avg) : 0;
-  const sampleNote = estimate.sample.calls > 0
-    ? `${queue} issues × avg ${estimate.sample.avg.toFixed(1)} pts, n=${estimate.sample.calls}`
-    : `cold sample, fallback avg ${estimate.sample.avg.toFixed(1)} pts/issue`;
+  const queue = estimate.sample.avg > 0 ? Math.round(graphqlCost / estimate.sample.avg) : 0;
+  const sampleNote =
+    estimate.sample.calls > 0
+      ? `${queue} issues × avg ${estimate.sample.avg.toFixed(1)} pts, n=${estimate.sample.calls}`
+      : `cold sample, fallback avg ${estimate.sample.avg.toFixed(1)} pts/issue`;
   lines.push(`Estimated sweep cost: ~${graphqlCost} GraphQL points (${sampleNote})`);
   return lines.join("\n");
 }

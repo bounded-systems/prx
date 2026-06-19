@@ -1,12 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import {
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -112,9 +105,7 @@ describe("commit-writer", () => {
     expect(result.projectedBytes).toBeGreaterThan(result.capBytes);
     // Verify no candidate file was written despite the refusal.
     const entries = readdirSync(memoryDir);
-    const candidateFiles = entries.filter((e) =>
-      e.startsWith("feedback_terse_replies"),
-    );
+    const candidateFiles = entries.filter((e) => e.startsWith("feedback_terse_replies"));
     expect(candidateFiles).toEqual([]);
   });
 });

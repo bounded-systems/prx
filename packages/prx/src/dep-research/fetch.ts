@@ -25,10 +25,7 @@ export type FetchResult = {
  * Async to match the eventual GH-1245 fetch-actor signature; the inline impl
  * is synchronous under the hood (the injected `CommandRunner` is sync).
  */
-export type FetchSourceFn = (
-  entry: DepManifestEntry,
-  destDir: string,
-) => Promise<FetchResult>;
+export type FetchSourceFn = (entry: DepManifestEntry, destDir: string) => Promise<FetchResult>;
 
 /**
  * Default fetcher factory — shells `git clone` for `kind: "git"` and `curl`
@@ -36,9 +33,7 @@ export type FetchSourceFn = (
  * not exercised by any current manifest entry, so they surface as a clear
  * per-path failure rather than crashing the whole run.
  */
-export function defaultFetchSource(
-  runner: CommandRunner = defaultRunner,
-): FetchSourceFn {
+export function defaultFetchSource(runner: CommandRunner = defaultRunner): FetchSourceFn {
   return async (entry, destDir) => {
     if (entry.source.kind === "git") {
       return fetchGit(entry, destDir, runner);
@@ -63,17 +58,11 @@ export async function fetchSources(
   return fetcher(entry, destDir);
 }
 
-function fetchGit(
-  entry: DepManifestEntry,
-  destDir: string,
-  runner: CommandRunner,
-): FetchResult {
+function fetchGit(entry: DepManifestEntry, destDir: string, runner: CommandRunner): FetchResult {
   const cloneDir = join(destDir, "repo");
-  const cloneResult = runner(
-    "git",
-    ["clone", "--depth=1", entry.source.url, cloneDir],
-    { cwd: destDir },
-  );
+  const cloneResult = runner("git", ["clone", "--depth=1", entry.source.url, cloneDir], {
+    cwd: destDir,
+  });
   if (cloneResult.status !== 0) {
     const reason =
       `git clone failed (${cloneResult.status ?? "?"}): ` +
@@ -93,11 +82,7 @@ function fetchGit(
   return { paths, failures };
 }
 
-function fetchDocs(
-  entry: DepManifestEntry,
-  destDir: string,
-  runner: CommandRunner,
-): FetchResult {
+function fetchDocs(entry: DepManifestEntry, destDir: string, runner: CommandRunner): FetchResult {
   const baseUrl = entry.source.url.replace(/\/+$/, "");
   const paths: Record<string, Buffer> = {};
   const failures: Record<string, string> = {};
@@ -123,20 +108,11 @@ function fetchDocs(
   return { paths, failures };
 }
 
-function notImplemented(
-  entry: DepManifestEntry,
-  kind: string,
-): FetchResult {
-  return allFailed(
-    entry.source.paths,
-    `fetcher not yet implemented for kind: "${kind}"`,
-  );
+function notImplemented(entry: DepManifestEntry, kind: string): FetchResult {
+  return allFailed(entry.source.paths, `fetcher not yet implemented for kind: "${kind}"`);
 }
 
-function allFailed(
-  paths: readonly string[],
-  reason: string,
-): FetchResult {
+function allFailed(paths: readonly string[], reason: string): FetchResult {
   const failures: Record<string, string> = {};
   for (const path of paths) {
     failures[path] = reason;

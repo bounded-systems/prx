@@ -78,7 +78,10 @@ export const provisionDoorFabric: ProvisionDoorFabric = (doorDir) => {
 
 /** Thrown when a podman runtime command exits non-zero. */
 export class PodmanRuntimeError extends Error {
-  constructor(message: string, readonly result: PodmanRunResult) {
+  constructor(
+    message: string,
+    readonly result: PodmanRunResult,
+  ) {
     super(message);
     this.name = "PodmanRuntimeError";
   }

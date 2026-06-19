@@ -13,7 +13,9 @@ import {
 const ok = (stdout = ""): RunResult => ({ status: 0, stdout, stderr: "" });
 const fail = (stderr: string): RunResult => ({ status: 1, stdout: "", stderr });
 
-function recorder(answer: (cmd: string, args: string[]) => RunResult | undefined = () => undefined) {
+function recorder(
+  answer: (cmd: string, args: string[]) => RunResult | undefined = () => undefined,
+) {
   const calls: { cmd: string; args: string[] }[] = [];
   const run = (cmd: string, args: string[]): RunResult => {
     calls.push({ cmd, args });
@@ -34,7 +36,10 @@ describe("deployDaemonBinary", () => {
     const { calls, run } = recorder();
     const vmBin = deployDaemonBinary({ vm: "myvm", binaryPath: "dist/prx-linux-arm64" }, { run });
     expect(vmBin).toBe("/tmp/prx");
-    expect(calls[0]).toEqual({ cmd: "limactl", args: ["copy", "dist/prx-linux-arm64", "myvm:/tmp/prx"] });
+    expect(calls[0]).toEqual({
+      cmd: "limactl",
+      args: ["copy", "dist/prx-linux-arm64", "myvm:/tmp/prx"],
+    });
     expect(calls[1]).toEqual({
       cmd: "limactl",
       args: ["shell", "--workdir", "/", "myvm", "--", "chmod", "+x", "/tmp/prx"],
@@ -43,7 +48,9 @@ describe("deployDaemonBinary", () => {
 
   test("throws if the copy fails", () => {
     const { run } = recorder((_cmd, args) => (args[0] === "copy" ? fail("no space") : undefined));
-    expect(() => deployDaemonBinary({ vm: "myvm", binaryPath: "b" }, { run })).toThrow(/copy.*failed/);
+    expect(() => deployDaemonBinary({ vm: "myvm", binaryPath: "b" }, { run })).toThrow(
+      /copy.*failed/,
+    );
   });
 });
 
@@ -90,7 +97,11 @@ describe("startDaemon", () => {
     const { run } = recorder((_cmd, args) =>
       script(args).includes("demo serve") ? fail("client_loop: send disconnect") : undefined,
     );
-    const handle = await startDaemon(SPEC, { vm: "myvm", cwd: "/vm/clone" }, { run, sleep: noSleep });
+    const handle = await startDaemon(
+      SPEC,
+      { vm: "myvm", cwd: "/vm/clone" },
+      { run, sleep: noSleep },
+    );
     expect(handle.socket).toBe("/tmp/demod.sock");
   });
 
@@ -101,7 +112,11 @@ describe("startDaemon", () => {
       return undefined;
     });
     await expect(
-      startDaemon(SPEC, { vm: "myvm", cwd: "/vm/clone", readyTimeoutMs: 100 }, { run, sleep: noSleep }),
+      startDaemon(
+        SPEC,
+        { vm: "myvm", cwd: "/vm/clone", readyTimeoutMs: 100 },
+        { run, sleep: noSleep },
+      ),
     ).rejects.toThrow(/demod socket.*did not appear.*EADDRINUSE boom/s);
   });
 });
@@ -127,7 +142,10 @@ describe("provisionDaemon", () => {
       { run, sleep: noSleep },
     );
     expect(handle.socket).toBe("/tmp/demod.sock");
-    expect(calls[0]).toEqual({ cmd: "limactl", args: ["copy", "dist/prx-linux-arm64", "myvm:/tmp/prx"] });
+    expect(calls[0]).toEqual({
+      cmd: "limactl",
+      args: ["copy", "dist/prx-linux-arm64", "myvm:/tmp/prx"],
+    });
     expect(calls.some((c) => script(c.args).includes("demo serve"))).toBe(true);
   });
 });

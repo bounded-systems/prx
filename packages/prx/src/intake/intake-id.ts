@@ -7,10 +7,7 @@
  * read verbs share a single parser instead of forking copies.
  */
 
-import {
-  resolveIssueId,
-  type IssueResolvedId,
-} from "../issues/resolver.ts";
+import { resolveIssueId, type IssueResolvedId } from "../issues/resolver.ts";
 
 export {
   EXTERNAL_REF_ISSUE_RE,

@@ -61,7 +61,8 @@ export const LIMA_DAEMONS: readonly LimaDaemon[] = [
         },
         deps,
       ),
-    stop: (o, deps) => stopKeeperd({ vm: o.vm, ...(o.socket !== undefined ? { socket: o.socket } : {}) }, deps),
+    stop: (o, deps) =>
+      stopKeeperd({ vm: o.vm, ...(o.socket !== undefined ? { socket: o.socket } : {}) }, deps),
   },
   {
     key: "beads",
@@ -78,7 +79,8 @@ export const LIMA_DAEMONS: readonly LimaDaemon[] = [
         },
         deps,
       ),
-    stop: (o, deps) => stopBeadsd({ vm: o.vm, ...(o.socket !== undefined ? { socket: o.socket } : {}) }, deps),
+    stop: (o, deps) =>
+      stopBeadsd({ vm: o.vm, ...(o.socket !== undefined ? { socket: o.socket } : {}) }, deps),
   },
 ];
 

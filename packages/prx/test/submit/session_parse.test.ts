@@ -3,10 +3,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { runCli } from "../../src/pr-state/cli.ts";
-import type {
-  RuntimeExecutionResult,
-  RuntimeExecutor,
-} from "../../src/pr-state/executor.ts";
+import type { RuntimeExecutionResult, RuntimeExecutor } from "../../src/pr-state/executor.ts";
 
 type Output = {
   log: (line: string) => void;
@@ -37,9 +34,7 @@ describe("prx submit session (GH-1900 work-unit-bound)", () => {
     const { errors, output } = captureOutput();
     const exit = await runCli(["submit", "agent"], output, {});
     expect(exit).not.toBe(0);
-    const hintLine = errors.find((line) =>
-      line.includes("requires a <work-unit-id> positional"),
-    );
+    const hintLine = errors.find((line) => line.includes("requires a <work-unit-id> positional"));
     expect(hintLine).toBeDefined();
   });
 
@@ -52,11 +47,7 @@ describe("prx submit session (GH-1900 work-unit-bound)", () => {
 
   test("--check --format json emits a work-unit-bound readiness blob", async () => {
     const { logs, output } = captureOutput();
-    const exit = await runCli(
-      ["submit", "agent", "--check", "--format", "json"],
-      output,
-      {},
-    );
+    const exit = await runCli(["submit", "agent", "--check", "--format", "json"], output, {});
     expect(exit).toBe(0);
     expect(logs.length).toBe(1);
     const parsed = JSON.parse(logs[0]!) as { profile: string; binding: string };
@@ -86,13 +77,13 @@ describe("prx submit session (GH-1900 work-unit-bound)", () => {
     expect(logs.length).toBeGreaterThan(0);
     // The dry-run output is the resolved RuntimeProfileProjection JSON.
     const joined = logs.join("\n");
-    expect(joined).toContain("\"command\": \"claude\"");
-    expect(joined).toContain("\"PRX_AGENT_ROLE\": \"submit\"");
-    expect(joined).toContain("\"PRX_SUBMIT_SESSION_UNIT\": \"GH-1767\"");
+    expect(joined).toContain('"command": "claude"');
+    expect(joined).toContain('"PRX_AGENT_ROLE": "submit"');
+    expect(joined).toContain('"PRX_SUBMIT_SESSION_UNIT": "GH-1767"');
     // GH-2380: the default is the headless SDK profile.
-    expect(joined).toContain("\"interaction\": \"headless\"");
-    expect(joined).toContain("\"agentRuntime\": \"sdk\"");
-    expect(joined).toContain("\"GH-1767\"");
+    expect(joined).toContain('"interaction": "headless"');
+    expect(joined).toContain('"agentRuntime": "sdk"');
+    expect(joined).toContain('"GH-1767"');
     expect(joined).not.toContain("mainx-submit");
   });
 
@@ -116,30 +107,22 @@ describe("prx submit session (GH-1900 work-unit-bound)", () => {
     );
     expect(exit).toBe(0);
     const joined = logs.join("\n");
-    expect(joined).not.toContain("\"interaction\": \"headless\"");
-    expect(joined).not.toContain("\"agentRuntime\": \"sdk\"");
+    expect(joined).not.toContain('"interaction": "headless"');
+    expect(joined).not.toContain('"agentRuntime": "sdk"');
     expect(joined).toContain("--name");
   });
 
   test("extra positionals rejected with hint", async () => {
     const { errors, output } = captureOutput();
-    const exit = await runCli(
-      ["submit", "agent", "GH-1767", "GH-1900"],
-      output,
-      {},
-    );
+    const exit = await runCli(["submit", "agent", "GH-1767", "GH-1900"], output, {});
     expect(exit).not.toBe(0);
-    expect(
-      errors.some((line) => line.includes("accepts a single work-unit id")),
-    ).toBe(true);
+    expect(errors.some((line) => line.includes("accepts a single work-unit id"))).toBe(true);
   });
 
   test("invalid canonical id rejected", async () => {
     const { errors, output } = captureOutput();
     const exit = await runCli(["submit", "agent", "not-a-real-id"], output, {});
     expect(exit).not.toBe(0);
-    expect(
-      errors.some((line) => line.includes("CANONICAL-ID")),
-    ).toBe(true);
+    expect(errors.some((line) => line.includes("CANONICAL-ID"))).toBe(true);
   });
 });

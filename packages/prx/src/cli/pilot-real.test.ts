@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { createActor, waitFor } from "xstate";
 
-import { ed25519Signer, ed25519Verifier, generateEd25519Keypair } from "@bounded-systems/anchored-chain";
+import {
+  ed25519Signer,
+  ed25519Verifier,
+  generateEd25519Keypair,
+} from "@bounded-systems/anchored-chain";
 
 import type { NonInteractiveAgentResult } from "../claude/agent_service.ts";
 import { createPilotMachine } from "../machine/machines/pilot.ts";
@@ -19,7 +23,12 @@ const okRun = (text: string): NonInteractiveAgentResult => ({
   kind: "success",
   text,
   stdout: text,
-  usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+  usage: {
+    input_tokens: 0,
+    output_tokens: 0,
+    cache_creation_input_tokens: 0,
+    cache_read_input_tokens: 0,
+  },
   elapsed_ms: 1,
 });
 
@@ -38,19 +47,28 @@ describe("real pilot wiring (openSession → headless agent → real signature)"
     const kp = generateEd25519Keypair();
     const saved: Array<{ unit: string; slot: string; content: string }> = [];
     const fakeOpen: OpenSessionFn = async ({ actor, workUnitId }) =>
-      ({ status: "opened", worktree_path: `/wt/${workUnitId}/${actor}`, profile: {} } as unknown as Awaited<
-        ReturnType<OpenSessionFn>
-      >);
+      ({
+        status: "opened",
+        worktree_path: `/wt/${workUnitId}/${actor}`,
+        profile: {},
+      }) as unknown as Awaited<ReturnType<OpenSessionFn>>;
     const runner = buildRealLegRunner({
       openSession: fakeOpen,
       runAgent: async (_p, opts) => okRun(`## Scope\n\nplan for ${opts.workUnitId}`),
       signer: ed25519Signer(kp.privateKey, kp.keyid),
       savePlan: (async (input: { unit: string; slot: string; content: string | Buffer }) => {
         saved.push({ unit: input.unit, slot: input.slot, content: String(input.content) });
-        return { ref: `${input.unit}:plan@${input.slot}`, sha: "sha256:x", validated_ok: true, diagnostics: [] };
+        return {
+          ref: `${input.unit}:plan@${input.slot}`,
+          sha: "sha256:x",
+          validated_ok: true,
+          diagnostics: [],
+        };
       }) as never,
     });
-    const actor = createActor(createPilotMachine(runner), { input: { workUnitId: "GH-325" } }).start();
+    const actor = createActor(createPilotMachine(runner), {
+      input: { workUnitId: "GH-325" },
+    }).start();
     await waitFor(actor, (s) => s.status === "done", { timeout: 3000 });
 
     // Exactly the planner leg persisted, to the draft slot, with its plan body.
@@ -67,9 +85,11 @@ describe("real pilot wiring (openSession → headless agent → real signature)"
 
     const fakeOpen: OpenSessionFn = async ({ actor, workUnitId }) => {
       openedActors.push(actor);
-      return { status: "opened", worktree_path: `/wt/${workUnitId}/${actor}`, profile: {} } as unknown as Awaited<
-        ReturnType<OpenSessionFn>
-      >;
+      return {
+        status: "opened",
+        worktree_path: `/wt/${workUnitId}/${actor}`,
+        profile: {},
+      } as unknown as Awaited<ReturnType<OpenSessionFn>>;
     };
     const fakeRun: RunAgentFn = async (_profile, opts) => {
       seenCwds.push(opts.cwd);
@@ -83,7 +103,9 @@ describe("real pilot wiring (openSession → headless agent → real signature)"
       savePlan: noopSavePlan,
     });
 
-    const actor = createActor(createPilotMachine(runner), { input: { workUnitId: "GH-9" } }).start();
+    const actor = createActor(createPilotMachine(runner), {
+      input: { workUnitId: "GH-9" },
+    }).start();
     const done = await waitFor(actor, (s) => s.status === "done", { timeout: 3000 });
 
     expect(done.value).toBe("merged");
@@ -102,7 +124,9 @@ describe("real pilot wiring (openSession → headless agent → real signature)"
   test("buildRealPilotDeps also signs the pilot summary with the real key (verifies)", async () => {
     const kp = generateEd25519Keypair();
     const fakeOpen: OpenSessionFn = async ({ workUnitId }) =>
-      ({ status: "opened", worktree_path: `/wt/${workUnitId}`, profile: {} }) as unknown as Awaited<ReturnType<OpenSessionFn>>;
+      ({ status: "opened", worktree_path: `/wt/${workUnitId}`, profile: {} }) as unknown as Awaited<
+        ReturnType<OpenSessionFn>
+      >;
     const fakeRun: RunAgentFn = async () => okRun("ok");
 
     const deps = buildRealPilotDeps({
@@ -129,9 +153,15 @@ describe("real pilot wiring (openSession → headless agent → real signature)"
     let execOpens = 0;
     const fakeOpen: OpenSessionFn = async ({ actor, workUnitId }) => {
       if (actor === "implement" && ++execOpens === 1) {
-        return { status: "error", worktree_path: "", profile: undefined } as unknown as Awaited<ReturnType<OpenSessionFn>>;
+        return { status: "error", worktree_path: "", profile: undefined } as unknown as Awaited<
+          ReturnType<OpenSessionFn>
+        >;
       }
-      return { status: "opened", worktree_path: `/wt/${workUnitId}`, profile: {} } as unknown as Awaited<ReturnType<OpenSessionFn>>;
+      return {
+        status: "opened",
+        worktree_path: `/wt/${workUnitId}`,
+        profile: {},
+      } as unknown as Awaited<ReturnType<OpenSessionFn>>;
     };
     const runner = buildRealLegRunner({
       openSession: fakeOpen,
@@ -139,7 +169,9 @@ describe("real pilot wiring (openSession → headless agent → real signature)"
       signer: ed25519Signer(kp.privateKey, kp.keyid),
       savePlan: noopSavePlan,
     });
-    const actor = createActor(createPilotMachine(runner), { input: { workUnitId: "GH-2", retreatBudget: 3 } }).start();
+    const actor = createActor(createPilotMachine(runner), {
+      input: { workUnitId: "GH-2", retreatBudget: 3 },
+    }).start();
     const done = await waitFor(actor, (s) => s.status === "done", { timeout: 3000 });
     expect(done.value).toBe("merged"); // recovered after the retreat
     expect(execOpens).toBeGreaterThanOrEqual(2);
@@ -166,17 +198,29 @@ describe("real pilot wiring (openSession → headless agent → real signature)"
   // (progress, not a bare ping) so a stall is visible + locatable.
   test("each leg arms the idle watchdog and heartbeats real progress", async () => {
     const kp = generateEd25519Keypair();
-    const beats: Array<{ role: string; turns: number; chars: number; last: string; elapsedMs: number; workUnitId: string }> = [];
+    const beats: Array<{
+      role: string;
+      turns: number;
+      chars: number;
+      last: string;
+      elapsedMs: number;
+      workUnitId: string;
+    }> = [];
     let sawTimeoutMs: number | undefined;
 
     const fakeOpen: OpenSessionFn = async ({ actor, workUnitId }) =>
-      ({ status: "opened", worktree_path: `/wt/${workUnitId}/${actor}`, profile: {} }) as unknown as Awaited<
-        ReturnType<OpenSessionFn>
-      >;
+      ({
+        status: "opened",
+        worktree_path: `/wt/${workUnitId}/${actor}`,
+        profile: {},
+      }) as unknown as Awaited<ReturnType<OpenSessionFn>>;
     const fakeRun: RunAgentFn = async (_profile, opts) => {
       sawTimeoutMs = opts.timeoutMs;
       // The leg streams a real assistant turn → the heartbeat must reflect it.
-      opts.onStreamEvent?.({ kind: "assistant_text", text: "Editing  packages/prx/src/pr-state/cli.ts now" });
+      opts.onStreamEvent?.({
+        kind: "assistant_text",
+        text: "Editing  packages/prx/src/pr-state/cli.ts now",
+      });
       return okRun("done");
     };
 
@@ -189,7 +233,9 @@ describe("real pilot wiring (openSession → headless agent → real signature)"
       onLegHeartbeat: (b) => beats.push(b),
     });
 
-    const actor = createActor(createPilotMachine(runner), { input: { workUnitId: "GH-9" } }).start();
+    const actor = createActor(createPilotMachine(runner), {
+      input: { workUnitId: "GH-9" },
+    }).start();
     await waitFor(actor, (s) => s.status === "done", { timeout: 3000 });
 
     // The idle watchdog was armed with our threshold (not left unbounded).

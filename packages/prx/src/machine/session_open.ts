@@ -62,7 +62,7 @@ function describeResolvedWorkUnit(resolved: ResolvedWorkUnit): string {
 export function prxSessionNoSourceConfiguredMessage(workUnitId: string): string {
   return [
     `${prxSessionCannotOpenPrefix(workUnitId)} no issue-authority resolver is configured for this canonical id.`,
-    "Register a [sources.<name>] block (kind = \"github\" | \"notion\" | \"beads\") in prx.toml, or use a GH-<n> id.",
+    'Register a [sources.<name>] block (kind = "github" | "notion" | "beads") in prx.toml, or use a GH-<n> id.',
   ].join(" ");
 }
 
@@ -87,7 +87,10 @@ export function prxSessionSourceNotFoundMessage(
  * Parallels the GH-closed wording in checkWorkUnitChain; reopen rather than
  * materialize, so we deliberately do NOT suggest `--create --from=<source>`.
  */
-export function prxSessionSourceClosedMessage(workUnitId: string, resolved: ResolvedWorkUnit): string {
+export function prxSessionSourceClosedMessage(
+  workUnitId: string,
+  resolved: ResolvedWorkUnit,
+): string {
   return [
     `${prxSessionCannotOpenPrefix(workUnitId)} ${resolved.source} page ${describeResolvedWorkUnit(resolved)} is closed, so issue authority is not active.`,
     `Reopen in ${resolved.source} or choose a different work unit.`,
@@ -222,9 +225,7 @@ export function prxSessionUnitCompleteMessage(
   if (context.ghIssueClosed) reasons.push("GitHub issue closed");
   if (context.beadsIssueClosed) reasons.push("Beads issue closed");
   const reasonClause = reasons.length > 0 ? ` (${reasons.join(", ")})` : "";
-  const worktreeClause = context.worktreePath
-    ? ` Worktree at ${context.worktreePath}.`
-    : "";
+  const worktreeClause = context.worktreePath ? ` Worktree at ${context.worktreePath}.` : "";
   return [
     `${prxSessionCannotOpenPrefix(workUnitId)} work unit is complete${reasonClause}.${worktreeClause}`,
     `Try: \`prx prune --ticket ${workUnitId}\` to tear down, or \`prx delegate next\` to pick the next ready unit.`,

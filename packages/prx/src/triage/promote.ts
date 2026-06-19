@@ -38,11 +38,7 @@ import { readFileSync as defaultReadFileSync } from "node:fs";
 
 import { z } from "zod";
 
-import {
-  appendAuditRow,
-  auditSinkPath,
-  type AuditSinkDeps,
-} from "../audit/sink.ts";
+import { appendAuditRow, auditSinkPath, type AuditSinkDeps } from "../audit/sink.ts";
 
 import {
   priorityLabelSchema,
@@ -51,11 +47,7 @@ import {
   type TypeLabel,
 } from "./label-vocab.ts";
 import { parseLabelName } from "./labels.ts";
-import {
-  loadAllBeads,
-  priorityToBdNumber,
-  type BeadsRecord,
-} from "./triage.ts";
+import { loadAllBeads, priorityToBdNumber, type BeadsRecord } from "./triage.ts";
 import { execBd as defaultExecBd } from "@bounded-systems/bd";
 import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import { execGh as defaultExecGh, type GhExecResult } from "@bounded-systems/gh";
@@ -83,10 +75,7 @@ export const triagePromoteOptionsSchema = z.object({
 
 export type TriagePromoteOptions = z.infer<typeof triagePromoteOptionsSchema>;
 
-import {
-  promoteDecisionSchema,
-  type PromoteDecision,
-} from "./schemas/decisions.ts";
+import { promoteDecisionSchema, type PromoteDecision } from "./schemas/decisions.ts";
 
 export { promoteDecisionSchema };
 export type { PromoteDecision };
@@ -162,7 +151,6 @@ export type PromoteAuditEntry = {
   stderr?: string;
 };
 
-
 function isExecutionReadyType(value: TypeLabel): value is ExecutionReadyType {
   return (EXECUTION_READY_TYPES as readonly string[]).includes(value);
 }
@@ -203,10 +191,7 @@ function lookupBead(issue: FallbackIssue, lookup: BeadsLookup): BeadsRecord | nu
   return lookupBeadShared({ number: issue.number, url: issue.url }, lookup);
 }
 
-export function selectDecision(
-  issue: FallbackIssue,
-  lookup: BeadsLookup,
-): PromotePlanRow {
+export function selectDecision(issue: FallbackIssue, lookup: BeadsLookup): PromotePlanRow {
   const axes = extractAxes(issue.labels ?? []);
   const base = {
     number: issue.number,
@@ -233,9 +218,7 @@ export function selectDecision(
       ...base,
       type: axes.type,
       decision: "skip:missing-labels",
-      reason: axes.hasMultiplePriority
-        ? "ambiguous priority::* labels"
-        : "no priority::* label",
+      reason: axes.hasMultiplePriority ? "ambiguous priority::* labels" : "no priority::* label",
     };
   }
 
@@ -319,11 +302,7 @@ function loadPlan(
   }
 }
 
-function runScanPhase(
-  opts: TriagePromoteOptions,
-  output: Output,
-  deps: TriagePromoteDeps,
-): number {
+function runScanPhase(opts: TriagePromoteOptions, output: Output, deps: TriagePromoteDeps): number {
   const listIssues = deps.listOpenIssues ?? defaultListOpenIssues;
   const resolveRepo = deps.repoNameWithOwner ?? defaultRepoNameWithOwner;
   const bdExec = deps.execBd ?? defaultExecBd;

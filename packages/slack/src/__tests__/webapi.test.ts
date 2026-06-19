@@ -89,11 +89,7 @@ describe("webApiSlackTransport", () => {
       baseUrl: "https://x/api",
     });
     // team_id → org; channel → channel; a thread (replies) read's ts → thread.
-    await t.call(
-      "thread",
-      { channel: "C1", ts: "169.1", team_id: "T1" } as never,
-      fakeKey(seen),
-    );
+    await t.call("thread", { channel: "C1", ts: "169.1", team_id: "T1" } as never, fakeKey(seen));
     expect(seen.target).toEqual({ op: "thread", org: "T1", channel: "C1", thread: "169.1" });
     // team_id is also forwarded to Slack on the wire.
     expect(cap.url).toContain("team_id=T1");

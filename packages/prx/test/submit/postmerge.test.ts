@@ -12,15 +12,16 @@ import type { GhPrViewResult } from "../../src/tools/gh_pr_view.ts";
 import type { BdIssueCloseResult } from "../../src/tools/bd_issue_close.ts";
 import type { BdShowResult } from "@bounded-systems/bd";
 import type { IdentityConfig } from "../../src/pr-state/github.ts";
-import type {
-  LocalRepo,
-  RepoInventory,
-  RepoInventoryConfig,
-} from "../../src/pr-state/repos.ts";
+import type { LocalRepo, RepoInventory, RepoInventoryConfig } from "../../src/pr-state/repos.ts";
 
 type PrViewTag = { kind: "pr-view"; number: number };
 type GhCall = { kind: "gh"; subcommand: string; args: string[] };
-type CloseCall = { kind: "close"; number: number; reason?: string | undefined; repo?: string | undefined };
+type CloseCall = {
+  kind: "close";
+  number: number;
+  reason?: string | undefined;
+  repo?: string | undefined;
+};
 type BdShowCall = { kind: "bd-show"; id: string };
 type BdCloseCall = { kind: "bd-close"; id: string };
 type CallTag = PrViewTag | GhCall | CloseCall | BdShowCall | BdCloseCall;
@@ -184,9 +185,7 @@ function makeDeps(opts: {
     // PostmergeDeps slots. Default to an empty inventory (no foreign repos)
     // so existing test cases keep their current behavior.
     loadRepoInventoryConfig: (() =>
-      inventoryConfigStub(
-        opts.inventory === undefined ? null : "/stub/index.json",
-      )) as never,
+      inventoryConfigStub(opts.inventory === undefined ? null : "/stub/index.json")) as never,
     loadRepoInventoryIndex: (() => opts.inventory ?? null) as never,
     localWorkspacePrefixForCwd: (() => opts.localPrefix ?? null) as never,
   };
@@ -271,9 +270,7 @@ describe("runPostmerge — idempotency", () => {
       }),
     );
     expect(exit).toBe(0);
-    const commentCalls = calls.filter(
-      (c) => c.kind === "gh" && c.subcommand === "comment",
-    );
+    const commentCalls = calls.filter((c) => c.kind === "gh" && c.subcommand === "comment");
     const closeCalls = calls.filter((c) => c.kind === "close");
     expect(commentCalls).toHaveLength(0);
     expect(closeCalls).toHaveLength(0);
@@ -485,9 +482,7 @@ describe("runPostmerge — bd-canonical close loop (GH-1773)", () => {
     expect(calls.filter((c) => c.kind === "bd-show")).toHaveLength(0);
     expect(calls.filter((c) => c.kind === "bd-close")).toHaveLength(0);
     const parsed = JSON.parse(logs[0]!);
-    const skip = parsed.targets.find(
-      (t: { kind: string }) => t.kind === "skip:bd-unrecognized",
-    );
+    const skip = parsed.targets.find((t: { kind: string }) => t.kind === "skip:bd-unrecognized");
     expect(skip).toBeDefined();
     expect(skip.raw).toBe("BD-semantic");
   });
@@ -557,9 +552,7 @@ describe("runPostmerge — bd-canonical close loop (GH-1773)", () => {
     );
     const parsed = JSON.parse(logs[0]!);
     expect(parsed.bdCandidates).toEqual(["BD-deadbeef"]);
-    const closedBd = parsed.targets.find(
-      (t: { kind: string }) => t.kind === "closed-bd",
-    );
+    const closedBd = parsed.targets.find((t: { kind: string }) => t.kind === "closed-bd");
     expect(closedBd).toBeDefined();
     expect(closedBd.id).toBe("BD-deadbeef");
   });
@@ -612,9 +605,7 @@ describe("runPostmerge — cross-workspace bd refs (GH-1806)", () => {
       makeDeps({
         calls,
         localPrefix: "alpha",
-        inventory: inventoryWith([
-          bareRepo("alpha-repo", "/bare/alpha.git", "alpha"),
-        ]),
+        inventory: inventoryWith([bareRepo("alpha-repo", "/bare/alpha.git", "alpha")]),
         prView: () =>
           prViewOk({
             number: 501,
@@ -643,9 +634,7 @@ describe("runPostmerge — cross-workspace bd refs (GH-1806)", () => {
       makeDeps({
         calls,
         localPrefix: "alpha",
-        inventory: inventoryWith([
-          bareRepo("alpha-repo", "/bare/alpha.git", "alpha"),
-        ]),
+        inventory: inventoryWith([bareRepo("alpha-repo", "/bare/alpha.git", "alpha")]),
         prView: () =>
           prViewOk({
             number: 502,

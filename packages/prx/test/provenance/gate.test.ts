@@ -16,11 +16,7 @@ import {
 } from "@bounded-systems/anchored-chain";
 
 import type { AttestDeps } from "../../src/provenance/attest.ts";
-import {
-  GATE_BUILD_TYPE,
-  gateVerdictEdge,
-  runGate,
-} from "../../src/provenance/gate.ts";
+import { GATE_BUILD_TYPE, gateVerdictEdge, runGate } from "../../src/provenance/gate.ts";
 import { verifySlsaDerivation } from "../../src/provenance/verify.ts";
 import { consumeArtifact } from "../../src/pipeline/edge.ts";
 

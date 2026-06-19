@@ -69,11 +69,7 @@ describe("materializeBareRepo — integration", () => {
 
     writeFileSync(
       join(prxDir, "config.json"),
-      JSON.stringify(
-        { bareRoot, roots: [bareRoot], everywhereRoots: [bareRoot] },
-        null,
-        2,
-      ),
+      JSON.stringify({ bareRoot, roots: [bareRoot], everywhereRoots: [bareRoot] }, null, 2),
     );
     writeFileSync(
       join(prxDir, "index.json"),
@@ -90,9 +86,7 @@ describe("materializeBareRepo — integration", () => {
               worktrees: [],
               localOnlyBranches: [],
               findings: [],
-              remotes: [
-                { name: "origin", url: remoteBare, githubRepo: "octo/demo" },
-              ],
+              remotes: [{ name: "origin", url: remoteBare, githubRepo: "octo/demo" }],
               primaryRemote: { name: "origin", url: remoteBare, githubRepo: "octo/demo" },
               upstreamRemote: null,
             },
@@ -224,18 +218,11 @@ describe("prx repo materialize CLI — end-to-end fixture", () => {
     // a long TTL via prx.toml keeps it in the noop arm.
     writeFileSync(join(targetBarePath, "FETCH_HEAD"), "");
 
-    writeFileSync(
-      join(repoRoot, "prx.toml"),
-      "[wt]\nmaterialize_ttl_seconds = 86400\n",
-    );
+    writeFileSync(join(repoRoot, "prx.toml"), "[wt]\nmaterialize_ttl_seconds = 86400\n");
 
     writeFileSync(
       join(prxDir, "config.json"),
-      JSON.stringify(
-        { bareRoot, roots: [bareRoot], everywhereRoots: [bareRoot, wtRoot] },
-        null,
-        2,
-      ),
+      JSON.stringify({ bareRoot, roots: [bareRoot], everywhereRoots: [bareRoot, wtRoot] }, null, 2),
     );
     writeFileSync(
       join(prxDir, "index.json"),
@@ -291,10 +278,10 @@ describe("prx repo materialize CLI — end-to-end fixture", () => {
       // XDG_STATE_HOME-derived base under the fixture root.
       delete process.env.WT_WORKTREE_PATH;
       process.chdir(repoRoot);
-      exitCode = runCli(
-        ["repo", "materialize", "demo", "--format", "json"],
-        { log: (line) => logs.push(line), error: (line) => errors.push(line) },
-      );
+      exitCode = runCli(["repo", "materialize", "demo", "--format", "json"], {
+        log: (line) => logs.push(line),
+        error: (line) => errors.push(line),
+      });
     } finally {
       process.chdir(previousCwd);
       if (previousXdg === undefined) {

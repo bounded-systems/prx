@@ -5,11 +5,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import {
-  fetchIssueLabels,
-  formatGhExecResult,
-  type GhExecResult,
-} from "@bounded-systems/gh";
+import { fetchIssueLabels, formatGhExecResult, type GhExecResult } from "@bounded-systems/gh";
 import type { CommandResult } from "@bounded-systems/proc";
 
 const ok = (body: unknown): CommandResult => ({
@@ -21,7 +17,12 @@ const ok = (body: unknown): CommandResult => ({
 describe("fetchIssueLabels", () => {
   test("short-circuits to an empty map for no issue numbers", () => {
     let called = false;
-    const out = fetchIssueLabels("o/n", [], { rawRunner: () => { called = true; return ok({}); } });
+    const out = fetchIssueLabels("o/n", [], {
+      rawRunner: () => {
+        called = true;
+        return ok({});
+      },
+    });
     expect(out.size).toBe(0);
     expect(called).toBe(false);
   });
@@ -32,7 +33,12 @@ describe("fetchIssueLabels", () => {
         ok({
           data: {
             repository: {
-              i1: { labels: { nodes: [{ name: "bug" }, { name: "p2" }], pageInfo: { hasNextPage: false } } },
+              i1: {
+                labels: {
+                  nodes: [{ name: "bug" }, { name: "p2" }],
+                  pageInfo: { hasNextPage: false },
+                },
+              },
               i2: { labels: { nodes: [], pageInfo: { hasNextPage: false } } },
             },
           },
@@ -46,7 +52,11 @@ describe("fetchIssueLabels", () => {
     const out = fetchIssueLabels("o/n", [7], {
       rawRunner: () =>
         ok({
-          data: { repository: { i7: { labels: { nodes: [{ name: "x" }], pageInfo: { hasNextPage: true } } } } },
+          data: {
+            repository: {
+              i7: { labels: { nodes: [{ name: "x" }], pageInfo: { hasNextPage: true } } },
+            },
+          },
         }),
     });
     // The hasNextPage warning path still returns the first-page names.
@@ -54,9 +64,9 @@ describe("fetchIssueLabels", () => {
   });
 
   test("throws when data.repository is absent", () => {
-    expect(() =>
-      fetchIssueLabels("o/n", [1], { rawRunner: () => ok({ data: {} }) }),
-    ).toThrow(/missing data\.repository/);
+    expect(() => fetchIssueLabels("o/n", [1], { rawRunner: () => ok({ data: {} }) })).toThrow(
+      /missing data\.repository/,
+    );
   });
 
   test("throws when an alias is missing labels.nodes", () => {
@@ -68,7 +78,9 @@ describe("fetchIssueLabels", () => {
   });
 
   test("rejects a malformed repo slug", () => {
-    expect(() => fetchIssueLabels("noslash", [1], { rawRunner: () => ok({}) })).toThrow(/invalid repo/);
+    expect(() => fetchIssueLabels("noslash", [1], { rawRunner: () => ok({}) })).toThrow(
+      /invalid repo/,
+    );
   });
 });
 

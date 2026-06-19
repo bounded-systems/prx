@@ -101,9 +101,7 @@ export type DashProps = {
 
 export type SessionPaneKind = "dash" | "agent";
 
-export type SessionPane =
-  | { kind: "dash"; cmd: "prx dash" }
-  | { kind: "agent"; cmd: string };
+export type SessionPane = { kind: "dash"; cmd: "prx dash" } | { kind: "agent"; cmd: string };
 
 export type SessionLayout = {
   sessionName: string;

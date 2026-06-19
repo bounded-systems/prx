@@ -72,9 +72,7 @@ const RUN_SHEET_ITEMS: ReadonlyArray<readonly [string, string]> = [
   ["No unrelated changes", "housekeeping isolated to its own branch"],
 ];
 
-export function renderAuthorBody(
-  opts: AuthorBodyTemplateOptions,
-): AuthorBodyRender {
+export function renderAuthorBody(opts: AuthorBodyTemplateOptions): AuthorBodyRender {
   let resolved;
   try {
     resolved = resolveIssueId(opts.unit, "prx author body-template");
@@ -85,9 +83,7 @@ export function renderAuthorBody(
     throw err;
   }
 
-  const runSheet = RUN_SHEET_ITEMS.map(
-    ([item, annotation]) => `- [ ] **${item}** — ${annotation}`,
-  );
+  const runSheet = RUN_SHEET_ITEMS.map(([item, annotation]) => `- [ ] **${item}** — ${annotation}`);
 
   const summaryPlaceholder = "## Summary\n\n<one-paragraph summary of the change and why>";
 
@@ -127,10 +123,7 @@ export function renderAuthorBody(
   };
 }
 
-export function formatAuthorBodyRender(
-  render: AuthorBodyRender,
-  format: "plain" | "json",
-): string {
+export function formatAuthorBodyRender(render: AuthorBodyRender, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(render, null, 2);
   }
@@ -149,10 +142,7 @@ export function formatAuthorBodyRender(
   return sections.join("\n\n");
 }
 
-export function runAuthorBodyTemplate(
-  opts: AuthorBodyTemplateOptions,
-  output: Output,
-): number {
+export function runAuthorBodyTemplate(opts: AuthorBodyTemplateOptions, output: Output): number {
   let render: AuthorBodyRender;
   try {
     render = renderAuthorBody(opts);

@@ -22,7 +22,10 @@ const noEnsure = async () => {};
 
 describe("resolveBeadsEndpoint", () => {
   test("defaults to a local socket", () => {
-    expect(resolveBeadsEndpoint(fakeEnv({}))).toEqual({ kind: "local", socket: DEFAULT_LOCAL_BEADS_SOCKET });
+    expect(resolveBeadsEndpoint(fakeEnv({}))).toEqual({
+      kind: "local",
+      socket: DEFAULT_LOCAL_BEADS_SOCKET,
+    });
   });
 
   test("PRX_BEADS_SOCKET overrides the local socket", () => {
@@ -41,7 +44,9 @@ describe("resolveBeadsEndpoint", () => {
   });
 
   test("PRX_BEADS_VM_SOCKET overrides the in-VM socket", () => {
-    expect(resolveBeadsEndpoint(fakeEnv({ PRX_BEADS_VM: "myvm", PRX_BEADS_VM_SOCKET: "/v/x.sock" }))).toEqual({
+    expect(
+      resolveBeadsEndpoint(fakeEnv({ PRX_BEADS_VM: "myvm", PRX_BEADS_VM_SOCKET: "/v/x.sock" })),
+    ).toEqual({
       kind: "lima",
       vm: "myvm",
       vmSocket: "/v/x.sock",
@@ -78,13 +83,19 @@ describe("resolveLocalBeadsCwd — which beads the local daemon serves (GH-296)"
 
   test("ignores an empty PRX_BEADS_CWD", () => {
     expect(
-      resolveLocalBeadsCwd({ env: fakeEnv({ PRX_BEADS_CWD: "", HOME: "/home/u" }), exists: neverExists, repoRoot }),
+      resolveLocalBeadsCwd({
+        env: fakeEnv({ PRX_BEADS_CWD: "", HOME: "/home/u" }),
+        exists: neverExists,
+        repoRoot,
+      }),
     ).toBe("/repo/clone");
   });
 
   test("defaultCanonicalBeadsCwd is null without HOME", () => {
     expect(defaultCanonicalBeadsCwd(fakeEnv({}))).toBeNull();
-    expect(defaultCanonicalBeadsCwd(fakeEnv({ HOME: "/home/u" }))).toBe("/home/u/.local/state/prx/beads");
+    expect(defaultCanonicalBeadsCwd(fakeEnv({ HOME: "/home/u" }))).toBe(
+      "/home/u/.local/state/prx/beads",
+    );
   });
 });
 
@@ -96,7 +107,11 @@ describe("withBeadsClient — local", () => {
         seen = true;
         return client.query({ kind: "ready" });
       },
-      { endpoint: { kind: "local", socket: "/x.sock" }, localTransport: () => okTransport, ensureUp: noEnsure },
+      {
+        endpoint: { kind: "local", socket: "/x.sock" },
+        localTransport: () => okTransport,
+        ensureUp: noEnsure,
+      },
     );
     expect(seen).toBe(true);
     expect(res.status).toBe("ok");

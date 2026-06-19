@@ -79,9 +79,7 @@ export class FetchWriteError extends Error {
     lastSuccessfulUpdatedAt: string | null,
     stderr: string,
   ) {
-    super(
-      `fetch page ${pageNumber} row ${rowIndex} bd update failed: ${stderr || "no stderr"}`,
-    );
+    super(`fetch page ${pageNumber} row ${rowIndex} bd update failed: ${stderr || "no stderr"}`);
     this.name = "FetchWriteError";
     this.pageNumber = pageNumber;
     this.rowIndex = rowIndex;
@@ -151,8 +149,7 @@ export function writePage(
           pageNumber,
           i,
           priorWatermark,
-          `bd create (intake mirror) failed for GH-${row.number} ` +
-            `(exit ${created.exitCode})`,
+          `bd create (intake mirror) failed for GH-${row.number} ` + `(exit ${created.exitCode})`,
         );
       }
     }
@@ -174,8 +171,7 @@ export function writePage(
       { check: false },
     );
     if (result.status !== 0) {
-      const stderr =
-        result.stderr.trim() || result.stdout.trim() || "prx beads update failed";
+      const stderr = result.stderr.trim() || result.stdout.trim() || "prx beads update failed";
       throw new FetchWriteError(pageNumber, i, priorWatermark, stderr);
     }
     lastUpdatedAt = row.updatedAt;

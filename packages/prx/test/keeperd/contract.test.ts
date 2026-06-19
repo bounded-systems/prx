@@ -32,20 +32,30 @@ describe("keeperd wire contract — request", () => {
   });
 
   test("rejects a non-40-hex commitSha", () => {
-    expect(KeeperRemoteRequestSchema.safeParse({ ...VALID_REQUEST, commitSha: "xyz" }).success).toBe(false);
+    expect(
+      KeeperRemoteRequestSchema.safeParse({ ...VALID_REQUEST, commitSha: "xyz" }).success,
+    ).toBe(false);
   });
 
   test("rejects the retired commit-and-push kind", () => {
-    expect(KeeperRemoteRequestSchema.safeParse({ ...VALID_REQUEST, kind: "commit-and-push" }).success).toBe(false);
+    expect(
+      KeeperRemoteRequestSchema.safeParse({ ...VALID_REQUEST, kind: "commit-and-push" }).success,
+    ).toBe(false);
   });
 
   test("rejects an empty bundle — no push over objects the daemon lacks", () => {
-    expect(KeeperRemoteRequestSchema.safeParse({ ...VALID_REQUEST, bundleBase64: "" }).success).toBe(false);
+    expect(
+      KeeperRemoteRequestSchema.safeParse({ ...VALID_REQUEST, bundleBase64: "" }).success,
+    ).toBe(false);
   });
 
   test("rejects an empty branch and an empty remote", () => {
-    expect(KeeperRemoteRequestSchema.safeParse({ ...VALID_REQUEST, branch: "" }).success).toBe(false);
-    expect(KeeperRemoteRequestSchema.safeParse({ ...VALID_REQUEST, remote: "" }).success).toBe(false);
+    expect(KeeperRemoteRequestSchema.safeParse({ ...VALID_REQUEST, branch: "" }).success).toBe(
+      false,
+    );
+    expect(KeeperRemoteRequestSchema.safeParse({ ...VALID_REQUEST, remote: "" }).success).toBe(
+      false,
+    );
   });
 });
 

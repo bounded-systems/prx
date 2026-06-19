@@ -8,7 +8,10 @@ import {
 
 const schema = z.object({ status: z.string(), prNumber: z.number().optional() });
 
-function recordingDeps(): { deps: PinTransitionDeps; calls: { blob: string[]; refs: Array<[string, string]> } } {
+function recordingDeps(): {
+  deps: PinTransitionDeps;
+  calls: { blob: string[]; refs: Array<[string, string]> };
+} {
   const calls = { blob: [] as string[], refs: [] as Array<[string, string]> };
   const deps: PinTransitionDeps = {
     writeBlob: async (content) => {
@@ -27,7 +30,12 @@ describe("pinTransitionArtifact (ai-home-wlw5l)", () => {
   test("validates the object then pins the canonical form, returns a domain handle", async () => {
     const { deps, calls } = recordingDeps();
     const res = await pinTransitionArtifact(
-      { raw: '{"status":"ready","prNumber":42,"extra":"x"}', schema, domain: "author", ref: "transition:author:GH-1" },
+      {
+        raw: '{"status":"ready","prNumber":42,"extra":"x"}',
+        schema,
+        domain: "author",
+        ref: "transition:author:GH-1",
+      },
       deps,
     );
     expect(res.ok).toBe(true);
@@ -41,7 +49,10 @@ describe("pinTransitionArtifact (ai-home-wlw5l)", () => {
 
   test("empty slot is rejected and never pinned", async () => {
     const { deps, calls } = recordingDeps();
-    const res = await pinTransitionArtifact({ raw: "  ", schema, domain: "author", ref: "r" }, deps);
+    const res = await pinTransitionArtifact(
+      { raw: "  ", schema, domain: "author", ref: "r" },
+      deps,
+    );
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.reason).toBe("empty");
     expect(calls.blob).toEqual([]);
@@ -49,7 +60,10 @@ describe("pinTransitionArtifact (ai-home-wlw5l)", () => {
 
   test("non-JSON slot is rejected and never pinned", async () => {
     const { deps, calls } = recordingDeps();
-    const res = await pinTransitionArtifact({ raw: "not json", schema, domain: "author", ref: "r" }, deps);
+    const res = await pinTransitionArtifact(
+      { raw: "not json", schema, domain: "author", ref: "r" },
+      deps,
+    );
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.reason).toBe("not_json");
     expect(calls.blob).toEqual([]);
@@ -59,7 +73,10 @@ describe("pinTransitionArtifact (ai-home-wlw5l)", () => {
     const { deps, calls } = recordingDeps();
     // Valid JSON, but `status` is the wrong type — the emitted object fails the
     // role schema even if the run was instructed to produce it.
-    const res = await pinTransitionArtifact({ raw: '{"status":123}', schema, domain: "author", ref: "r" }, deps);
+    const res = await pinTransitionArtifact(
+      { raw: '{"status":123}', schema, domain: "author", ref: "r" },
+      deps,
+    );
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.reason).toBe("schema_invalid");
     expect(calls.blob).toEqual([]);

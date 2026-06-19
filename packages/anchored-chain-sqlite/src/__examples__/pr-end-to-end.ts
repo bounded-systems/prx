@@ -14,15 +14,15 @@
  * `args.fetcher` so the module can be lifted into a separate package
  * without rewriting the example.
  */
-import { digestManifest, invalidateDescendants } from '@bounded-systems/anchored-chain';
+import { digestManifest, invalidateDescendants } from "@bounded-systems/anchored-chain";
 import type {
   AnchoredChainStore,
   Derivation,
   Digest,
   Fetcher,
   SurfaceRef,
-} from '@bounded-systems/anchored-chain';
-import { sha256Hex } from '@bounded-systems/cas';
+} from "@bounded-systems/anchored-chain";
+import { sha256Hex } from "@bounded-systems/cas";
 
 export interface RunPrEndToEndArgs {
   readonly store: AnchoredChainStore;
@@ -40,18 +40,16 @@ export interface RunPrEndToEndResult {
   readonly invalidated: readonly Digest[];
 }
 
-const DEFAULT_PRODUCER = 'fetcher:gh-pr';
+const DEFAULT_PRODUCER = "fetcher:gh-pr";
 
-export async function runPrEndToEnd(
-  args: RunPrEndToEndArgs,
-): Promise<RunPrEndToEndResult> {
+export async function runPrEndToEnd(args: RunPrEndToEndArgs): Promise<RunPrEndToEndResult> {
   const { store, fetcher, surface, now } = args;
   const producer = args.producer ?? DEFAULT_PRODUCER;
 
   const fetched = await fetcher.fetch(surface);
   const surfaceInputDigest = sha256Hex(surface.name);
 
-  const manifest: Derivation['manifest'] = {
+  const manifest: Derivation["manifest"] = {
     producer,
     inputs: { surface: surfaceInputDigest },
     outputs: { pr: fetched.digest },
@@ -85,9 +83,7 @@ export async function runPrEndToEnd(
   });
   await store.derivations.append({ derivationId, manifest, ts: now });
 
-  const invalidated = prior
-    ? await invalidateDescendants(store, prior.digest)
-    : [];
+  const invalidated = prior ? await invalidateDescendants(store, prior.digest) : [];
 
   return {
     appended: true,

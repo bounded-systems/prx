@@ -130,10 +130,7 @@ function compilePattern(pattern: string): RegExp {
   try {
     return new RegExp(pattern);
   } catch (err) {
-    throw new ScoutGrepError(
-      `invalid pattern: ${(err as Error).message}`,
-      "INVALID_PATTERN",
-    );
+    throw new ScoutGrepError(`invalid pattern: ${(err as Error).message}`, "INVALID_PATTERN");
   }
 }
 
@@ -200,18 +197,13 @@ function walkDir(ctx: WalkContext, dir: string): void {
   }
 }
 
-export async function runScoutGrep(
-  input: ScoutGrepInput,
-): Promise<ScoutGrepResult> {
+export async function runScoutGrep(input: ScoutGrepInput): Promise<ScoutGrepResult> {
   if (typeof input.pattern !== "string" || input.pattern.length === 0) {
     throw new ScoutGrepError("pattern must not be empty", "MISSING_PATTERN");
   }
   const requestedMax = input.maxResults ?? DEFAULT_MAX_RESULTS;
   if (requestedMax <= 0) {
-    throw new ScoutGrepError(
-      "maxResults must be positive",
-      "INVALID_MAX_RESULTS",
-    );
+    throw new ScoutGrepError("maxResults must be positive", "INVALID_MAX_RESULTS");
   }
   const maxResults = Math.min(requestedMax, HARD_MAX_RESULTS);
   const root = resolveSearchRoot(input);
@@ -222,10 +214,7 @@ export async function runScoutGrep(
     throw new ScoutGrepError(`search root not found: ${root}`, "ROOT_NOT_FOUND");
   }
   if (!stat.isDirectory()) {
-    throw new ScoutGrepError(
-      `search root is not a directory: ${root}`,
-      "ROOT_NOT_DIRECTORY",
-    );
+    throw new ScoutGrepError(`search root is not a directory: ${root}`, "ROOT_NOT_DIRECTORY");
   }
   const re = compilePattern(input.pattern);
   const ctx: WalkContext = {

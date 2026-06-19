@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  createServiceKeymaker,
-  CredentialExpiredError,
-} from "@bounded-systems/auth";
+import { createServiceKeymaker, CredentialExpiredError } from "@bounded-systems/auth";
 
 const ENV = { SLACK_BOT_TOKEN: "xoxb_root" } as NodeJS.ProcessEnv;
 

@@ -12,14 +12,8 @@ import { z } from "zod";
 
 import { defineVerb } from "@bounded-systems/verbspec";
 import { applySkillEvent, type SkillEventPayload } from "./event-verb.ts";
-import {
-  getAgentContract,
-  listAgentContracts,
-} from "../machine/contracts/instances.ts";
-import {
-  getArtifactContract,
-  listArtifactContracts,
-} from "../machine/contracts/artifacts.ts";
+import { getAgentContract, listAgentContracts } from "../machine/contracts/instances.ts";
+import { getArtifactContract, listArtifactContracts } from "../machine/contracts/artifacts.ts";
 import {
   getTransitionContract,
   listTransitionContracts,
@@ -38,11 +32,15 @@ const ContractOutputSchema = z
 
 export const contractVerb = defineVerb({
   id: "contract",
-  summary: "Read the contract trinity (--list / --kind / id), or apply the pr-contract skill event.",
+  summary:
+    "Read the contract trinity (--list / --kind / id), or apply the pr-contract skill event.",
   actor: "work",
   positionals: ["id"],
   input: z.object({
-    contract: z.string().default(".pr/local/pr.json").describe("path to the pr contract (apply path)"),
+    contract: z
+      .string()
+      .default(".pr/local/pr.json")
+      .describe("path to the pr contract (apply path)"),
     actor: z.string().default("codex").describe("actor recording the event (apply path)"),
     reason: z.string().optional().describe("reason recorded with the event (apply path)"),
     format: z.enum(["plain", "json"]).default("plain").describe("output format"),
@@ -56,7 +54,13 @@ export const contractVerb = defineVerb({
     // No trinity flags ⇒ the legacy pr.json skill-event apply (pr-contract).
     if (input.kind === undefined && !input.list) {
       const payload = applySkillEvent(
-        { contract: input.contract, skill: "pr-contract", actor: input.actor, reason: input.reason, log: "" },
+        {
+          contract: input.contract,
+          skill: "pr-contract",
+          actor: input.actor,
+          reason: input.reason,
+          log: "",
+        },
         { logTransition: false },
       );
       return { mode: "event", payload };
@@ -76,7 +80,8 @@ export const contractVerb = defineVerb({
         const entries = listAgentContracts();
         return { mode: "list-kind", entries, names: entries.map((e) => e.role) };
       }
-      if (!input.id) throw new Error("FAIL: prx contract show --kind=agent requires a role (e.g. executor)");
+      if (!input.id)
+        throw new Error("FAIL: prx contract show --kind=agent requires a role (e.g. executor)");
       const entry = getAgentContract(input.id);
       if (!entry) throw new Error(`FAIL: no agent contract registered for role ${input.id}`);
       return { mode: "entry", kind: "agent", id: input.id, entry };
@@ -87,7 +92,8 @@ export const contractVerb = defineVerb({
         const entries = listArtifactContracts();
         return { mode: "list-kind", entries, names: entries.map((e) => e.type) };
       }
-      if (!input.id) throw new Error("FAIL: prx contract show --kind=artifact requires a type (e.g. test_run)");
+      if (!input.id)
+        throw new Error("FAIL: prx contract show --kind=artifact requires a type (e.g. test_run)");
       const entry = getArtifactContract(input.id);
       if (!entry) throw new Error(`FAIL: no artifact contract registered for type ${input.id}`);
       return { mode: "entry", kind: "artifact", id: input.id, entry };
@@ -99,7 +105,9 @@ export const contractVerb = defineVerb({
       return { mode: "list-kind", entries, names: entries.map((e) => transitionKey(e)) };
     }
     if (!input.id) {
-      throw new Error("FAIL: prx contract show --kind=transition requires a key (e.g. role:testing->reviewing)");
+      throw new Error(
+        "FAIL: prx contract show --kind=transition requires a key (e.g. role:testing->reviewing)",
+      );
     }
     const entry = getTransitionContract(input.id);
     if (!entry) throw new Error(`FAIL: no transition contract registered for key ${input.id}`);
@@ -111,7 +119,11 @@ export const contractVerb = defineVerb({
     switch (o.mode) {
       case "list-all":
         return json
-          ? JSON.stringify({ agents: o.agents, artifacts: o.artifacts, transitions: o.transitions }, null, 2)
+          ? JSON.stringify(
+              { agents: o.agents, artifacts: o.artifacts, transitions: o.transitions },
+              null,
+              2,
+            )
           : [
               "agents:",
               ...o.agents.map((r) => `  - ${r}`),

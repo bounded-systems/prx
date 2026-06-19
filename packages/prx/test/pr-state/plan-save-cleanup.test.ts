@@ -64,7 +64,14 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
       output,
       {
         readPlanFile: () => Buffer.from(VALID_BODY),
-        runPlanSave: async () => ({ sha: FAKE_SHA, ref: "GH-1336:plan@draft", body_sha: FAKE_SHA, envelope_sha: FAKE_SHA, validated_ok: true, diagnostics: [] }),
+        runPlanSave: async () => ({
+          sha: FAKE_SHA,
+          ref: "GH-1336:plan@draft",
+          body_sha: FAKE_SHA,
+          envelope_sha: FAKE_SHA,
+          validated_ok: true,
+          diagnostics: [],
+        }),
         unlinkPlanFile: () => {
           unlinkCalls++;
         },
@@ -88,21 +95,20 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
     let counter = 0;
 
     const exit = await runPlanSaveCli(
-      [
-        "plan",
-        "save",
-        "--unit",
-        "GH-1336",
-        "--from-file",
-        stagingPath,
-        "--cleanup=delete",
-      ],
+      ["plan", "save", "--unit", "GH-1336", "--from-file", stagingPath, "--cleanup=delete"],
       output,
       {
         readPlanFile: () => Buffer.from(VALID_BODY),
         runPlanSave: async () => {
           saveOrder = ++counter;
-          return { sha: FAKE_SHA, ref: "GH-1336:plan@draft", body_sha: FAKE_SHA, envelope_sha: FAKE_SHA, validated_ok: true, diagnostics: [] };
+          return {
+            sha: FAKE_SHA,
+            ref: "GH-1336:plan@draft",
+            body_sha: FAKE_SHA,
+            envelope_sha: FAKE_SHA,
+            validated_ok: true,
+            diagnostics: [],
+          };
         },
         unlinkPlanFile: (path) => {
           unlinkOrder = ++counter;
@@ -138,7 +144,14 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
       output,
       {
         readPlanFile: () => Buffer.from(VALID_BODY),
-        runPlanSave: async () => ({ sha: FAKE_SHA, ref: "GH-1336:plan@draft", body_sha: FAKE_SHA, envelope_sha: FAKE_SHA, validated_ok: true, diagnostics: [] }),
+        runPlanSave: async () => ({
+          sha: FAKE_SHA,
+          ref: "GH-1336:plan@draft",
+          body_sha: FAKE_SHA,
+          envelope_sha: FAKE_SHA,
+          validated_ok: true,
+          diagnostics: [],
+        }),
         statPath: (path) => {
           stats.push(path);
           return { isDirectory: () => true };
@@ -151,9 +164,7 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
 
     expect(exit).toBe(0);
     expect(stats).toEqual([archive]);
-    expect(renames).toEqual([
-      { src: stagingPath, dest: `${archive}/GH-1336-test.md` },
-    ]);
+    expect(renames).toEqual([{ src: stagingPath, dest: `${archive}/GH-1336-test.md` }]);
   });
 
   test("--cleanup=move-to=<nonexistent> fails fast — runPlanSave never called", async () => {
@@ -178,7 +189,14 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
         readPlanFile: () => Buffer.from(VALID_BODY),
         runPlanSave: async () => {
           saveCalls++;
-          return { sha: FAKE_SHA, ref: "GH-1336:plan@draft", body_sha: FAKE_SHA, envelope_sha: FAKE_SHA, validated_ok: true, diagnostics: [] };
+          return {
+            sha: FAKE_SHA,
+            ref: "GH-1336:plan@draft",
+            body_sha: FAKE_SHA,
+            envelope_sha: FAKE_SHA,
+            validated_ok: true,
+            diagnostics: [],
+          };
         },
         statPath: () => {
           throw new Error("ENOENT: no such file or directory");
@@ -217,7 +235,14 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
         readPlanFile: () => Buffer.from(VALID_BODY),
         runPlanSave: async () => {
           saveCalls++;
-          return { sha: FAKE_SHA, ref: "GH-1336:plan@draft", body_sha: FAKE_SHA, envelope_sha: FAKE_SHA, validated_ok: true, diagnostics: [] };
+          return {
+            sha: FAKE_SHA,
+            ref: "GH-1336:plan@draft",
+            body_sha: FAKE_SHA,
+            envelope_sha: FAKE_SHA,
+            validated_ok: true,
+            diagnostics: [],
+          };
         },
         statPath: () => ({ isDirectory: () => false }),
       },
@@ -235,15 +260,7 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
     let renameCalls = 0;
 
     const exit = await runPlanSaveCli(
-      [
-        "plan",
-        "save",
-        "--unit",
-        "GH-1336",
-        "--from-file",
-        stagingPath,
-        "--cleanup=delete",
-      ],
+      ["plan", "save", "--unit", "GH-1336", "--from-file", stagingPath, "--cleanup=delete"],
       output,
       {
         readPlanFile: () => Buffer.from(VALID_BODY),
@@ -269,20 +286,20 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
     let saveCalls = 0;
 
     const exit = await runPlanSaveCli(
-      [
-        "plan",
-        "save",
-        "--unit",
-        "GH-1336",
-        "--from-stdin",
-        "--cleanup=delete",
-      ],
+      ["plan", "save", "--unit", "GH-1336", "--from-stdin", "--cleanup=delete"],
       output,
       {
         readStdinSync: () => Buffer.from(VALID_BODY),
         runPlanSave: async () => {
           saveCalls++;
-          return { sha: FAKE_SHA, ref: "GH-1336:plan@draft", body_sha: FAKE_SHA, envelope_sha: FAKE_SHA, validated_ok: true, diagnostics: [] };
+          return {
+            sha: FAKE_SHA,
+            ref: "GH-1336:plan@draft",
+            body_sha: FAKE_SHA,
+            envelope_sha: FAKE_SHA,
+            validated_ok: true,
+            diagnostics: [],
+          };
         },
       },
     );
@@ -312,7 +329,14 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
         readPlanFile: () => Buffer.from(VALID_BODY),
         runPlanSave: async () => {
           saveCalls++;
-          return { sha: FAKE_SHA, ref: "GH-1336:plan@draft", body_sha: FAKE_SHA, envelope_sha: FAKE_SHA, validated_ok: true, diagnostics: [] };
+          return {
+            sha: FAKE_SHA,
+            ref: "GH-1336:plan@draft",
+            body_sha: FAKE_SHA,
+            envelope_sha: FAKE_SHA,
+            validated_ok: true,
+            diagnostics: [],
+          };
         },
       },
     );
@@ -341,7 +365,14 @@ describe("prx plan save — staging-file cleanup (GH-1336)", () => {
         readPlanFile: () => Buffer.from(VALID_BODY),
         runPlanSave: async () => {
           saveCalls++;
-          return { sha: FAKE_SHA, ref: "GH-1336:plan@draft", body_sha: FAKE_SHA, envelope_sha: FAKE_SHA, validated_ok: true, diagnostics: [] };
+          return {
+            sha: FAKE_SHA,
+            ref: "GH-1336:plan@draft",
+            body_sha: FAKE_SHA,
+            envelope_sha: FAKE_SHA,
+            validated_ok: true,
+            diagnostics: [],
+          };
         },
       },
     );

@@ -56,7 +56,10 @@ export const dispatchFailureReasonSchema = z.enum(dispatchFailureReasons);
 // or its `type` mismatches the contract.
 export const dispatchInputArtifactRefSchema = z
   .object({
-    type: z.string().min(1).regex(/^[a-z][a-z0-9_]*$/),
+    type: z
+      .string()
+      .min(1)
+      .regex(/^[a-z][a-z0-9_]*$/),
     /** CAS handle (`<scheme>://sha256:<hex>`) when the payload lives in CAS. */
     casHandle: z
       .string()
@@ -65,9 +68,7 @@ export const dispatchInputArtifactRefSchema = z
   })
   .strict();
 
-export type DispatchInputArtifactRef = z.infer<
-  typeof dispatchInputArtifactRefSchema
->;
+export type DispatchInputArtifactRef = z.infer<typeof dispatchInputArtifactRefSchema>;
 
 export const dispatchRequestSchema = z.object({
   source: dispatchActorSchema,
@@ -89,9 +90,7 @@ export type DispatchRequest = z.infer<typeof dispatchRequestSchema>;
 
 export const PRX_TYPED_DISPATCH_FLAG = "PRX_TYPED_DISPATCH_REJECTION";
 
-export function readTypedDispatchFlag(
-  env: NodeJS.ProcessEnv = processEnv(),
-): boolean {
+export function readTypedDispatchFlag(env: NodeJS.ProcessEnv = processEnv()): boolean {
   const raw = env[PRX_TYPED_DISPATCH_FLAG];
   if (!raw) return false;
   const v = raw.toLowerCase();
@@ -107,9 +106,7 @@ export interface AssertTypedInputArtifactInput {
 
 export function assertTypedInputArtifact(
   input: AssertTypedInputArtifactInput,
-):
-  | { ok: true }
-  | { ok: false; reason: DispatchFailureReason; detail: string } {
+): { ok: true } | { ok: false; reason: DispatchFailureReason; detail: string } {
   const flag = input.rejectUntyped ?? false;
   if (!flag) return { ok: true };
   if (input.expectedInputType == null) return { ok: true };
@@ -167,9 +164,7 @@ export type DispatchFailure = z.infer<typeof dispatchFailureSchema>;
 // dispatch) when `defaultDispatchCapabilities` is materialized below, so the
 // map stays exhaustive over the full `ActorName`-parity set without hand-
 // listing ~30 terminal actors.
-const EXPLICIT_DISPATCH_CAPABILITIES: Partial<
-  Record<DispatchActor, readonly DispatchActor[]>
-> = {
+const EXPLICIT_DISPATCH_CAPABILITIES: Partial<Record<DispatchActor, readonly DispatchActor[]>> = {
   plan: ["scout"],
   triage: ["scout"],
   intake: ["scout"],

@@ -44,9 +44,7 @@ describe("recipientForDeniedVerb (GH-2348.3 keeper split)", () => {
  * makes the idempotency (duplicate) path real — a second enqueue of the same
  * envelope finds the row it just wrote.
  */
-function makeFakeBd(
-  rows: Map<string, string> = new Map(),
-): HandoffStoreDeps["execBd"] {
+function makeFakeBd(rows: Map<string, string> = new Map()): HandoffStoreDeps["execBd"] {
   return (opts: BdExecOptions): BdExecResult => {
     if (opts.subcommand === "remember") {
       const body = opts.args[0] as string;

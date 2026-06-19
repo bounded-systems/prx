@@ -35,7 +35,9 @@ describe("open-mode verb", () => {
   });
 
   test("json emits the derived info object", () => {
-    const parsed = JSON.parse(run({ contract: makeContractFile("drafting", false), format: "json" }));
+    const parsed = JSON.parse(
+      run({ contract: makeContractFile("drafting", false), format: "json" }),
+    );
     expect(parsed).toMatchObject({ mode: "draft", state: "drafting" });
   });
 

@@ -181,9 +181,7 @@ export const invariantSpecs = [
   "I-HQ5: drain failure on bd unprovisioned ⇒ fail closed (exit non-zero, surface the runtime_profiles.ts banner-string fallback). Never silently drop an intent",
 ] as const;
 
-const rfc3339UtcString = z
-  .string()
-  .datetime({ offset: true });
+const rfc3339UtcString = z.string().datetime({ offset: true });
 
 export const rawStateV1Schema = z
   .object({
@@ -312,22 +310,24 @@ export function derivePhase(rawInput: RawStateV1): WorkflowPhase {
   if (pr.state === "closed") return "closed";
   if (!worktree.exists) return "no_worktree";
   if (worktree.exists && !branch.existsLocal) return "worktree_created";
-  if (branch.existsLocal && !branch.existsRemote && branch.ahead === 0 && !pr.exists) return "branch_created";
-  if (branch.existsLocal && !pr.exists && (branch.ahead > 0 || !branch.existsRemote)) return "committing";
+  if (branch.existsLocal && !branch.existsRemote && branch.ahead === 0 && !pr.exists)
+    return "branch_created";
+  if (branch.existsLocal && !pr.exists && (branch.ahead > 0 || !branch.existsRemote))
+    return "committing";
   if (branch.existsRemote && !pr.exists) return "pushed";
   if (pr.state === "open" && pr.isDraft) return "draft";
-  if (pr.state === "open" && signals.review.decision === "changes_requested") return "changes_requested";
-  if (pr.state === "open" && (signals.ci.state === "queued" || signals.ci.state === "in_progress")) return "waiting_on_ci";
+  if (pr.state === "open" && signals.review.decision === "changes_requested")
+    return "changes_requested";
+  if (pr.state === "open" && (signals.ci.state === "queued" || signals.ci.state === "in_progress"))
+    return "waiting_on_ci";
   if (
     pr.state === "open" &&
-    (
-      signals.ci.state === "failed" ||
+    (signals.ci.state === "failed" ||
       signals.mergeability.state === "blocked" ||
       signals.mergeability.state === "conflicting" ||
       signals.mergeability.state === "behind" ||
       signals.mergeability.state === "draft" ||
-      signals.review.unresolvedThreads > 0
-    )
+      signals.review.unresolvedThreads > 0)
   ) {
     return "blocked";
   }
@@ -349,7 +349,8 @@ export function derivePhase(rawInput: RawStateV1): WorkflowPhase {
     }
     return "ready_to_merge";
   }
-  if (pr.state === "open" && !pr.isDraft && !signals.review.reviewersRequested) return "ready_for_review";
+  if (pr.state === "open" && !pr.isDraft && !signals.review.reviewersRequested)
+    return "ready_for_review";
   if (pr.state === "open") return "in_review";
   return "blocked";
 }
@@ -363,7 +364,9 @@ export function assertInvariants(rawInput: RawStateV1, phase: WorkflowPhase): In
 
   hard(
     "I01",
-    !raw.artifacts.pr.exists || raw.artifacts.branch.existsLocal || raw.artifacts.branch.existsRemote,
+    !raw.artifacts.pr.exists ||
+      raw.artifacts.branch.existsLocal ||
+      raw.artifacts.branch.existsRemote,
     "pr.exists => (branch.existsLocal || branch.existsRemote)",
   );
   hard(
@@ -374,34 +377,31 @@ export function assertInvariants(rawInput: RawStateV1, phase: WorkflowPhase): In
   hard(
     "I03",
     !raw.artifacts.worktree.exists ||
-      (raw.artifacts.branch.existsLocal && raw.artifacts.worktree.checkedOutBranch === raw.artifacts.branch.name),
+      (raw.artifacts.branch.existsLocal &&
+        raw.artifacts.worktree.checkedOutBranch === raw.artifacts.branch.name),
     "worktree.exists => (branch.existsLocal && worktree.checkedOutBranch == branch.name)",
   );
   hard(
     "I04",
     phase !== "ready_to_merge" ||
-      (
-        raw.signals.review.decision === "approved" &&
+      (raw.signals.review.decision === "approved" &&
         raw.signals.ci.state === "passed" &&
         raw.signals.mergeability.state === "mergeable" &&
         raw.sync.remoteFresh &&
         raw.signals.review.unresolvedThreads === 0 &&
-        raw.artifacts.pr.isDraft === false
-      ),
+        raw.artifacts.pr.isDraft === false),
     "phase=ready_to_merge requires approved + ci passed + mergeable + remoteFresh + no unresolved + !draft",
   );
   hard(
     "I09",
     phase !== "automerge_enabled" ||
-      (
-        raw.signals.review.decision === "approved" &&
+      (raw.signals.review.decision === "approved" &&
         raw.signals.ci.state === "passed" &&
         raw.signals.mergeability.state === "mergeable" &&
         raw.sync.remoteFresh &&
         raw.signals.review.unresolvedThreads === 0 &&
         raw.artifacts.pr.isDraft === false &&
-        raw.artifacts.pr.autoMergeRequest != null
-      ),
+        raw.artifacts.pr.autoMergeRequest != null),
     "phase=automerge_enabled requires I04 conditions + pr.autoMergeRequest != null",
   );
   hard(
@@ -416,12 +416,14 @@ export function assertInvariants(rawInput: RawStateV1, phase: WorkflowPhase): In
   );
   hard(
     "I07",
-    raw.signals.ci.state !== "passed" || raw.signals.ci.requiredPassed === raw.signals.ci.requiredTotal,
+    raw.signals.ci.state !== "passed" ||
+      raw.signals.ci.requiredPassed === raw.signals.ci.requiredTotal,
     "ci.state=passed => ci.requiredPassed == ci.requiredTotal",
   );
   hard(
     "I08",
-    !raw.sync.remoteFresh || raw.artifacts.branch.headShaLocal === raw.artifacts.branch.headShaRemote,
+    !raw.sync.remoteFresh ||
+      raw.artifacts.branch.headShaLocal === raw.artifacts.branch.headShaRemote,
     "sync.remoteFresh => branch.headShaLocal == branch.headShaRemote",
   );
 

@@ -71,7 +71,9 @@ export async function runHookVerb(
 ): Promise<number> {
   const [sub] = args;
   if (sub !== "policy-guard") {
-    output.error(`prx hook: unknown subcommand ${sub ? `"${sub}"` : "(none)"} — expected "policy-guard"`);
+    output.error(
+      `prx hook: unknown subcommand ${sub ? `"${sub}"` : "(none)"} — expected "policy-guard"`,
+    );
     return 1;
   }
 

@@ -58,8 +58,8 @@ describe("runMapShow", () => {
 
   test("propagates MapRecordNotFoundError when the map is missing", async () => {
     const repoRoot = mkRepoRoot();
-    await expect(
-      runMapShow({ name: "missing", repoRoot, format: "plain" }),
-    ).rejects.toThrow(MapRecordNotFoundError);
+    await expect(runMapShow({ name: "missing", repoRoot, format: "plain" })).rejects.toThrow(
+      MapRecordNotFoundError,
+    );
   });
 });

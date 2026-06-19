@@ -172,17 +172,13 @@ const baseOpts = {
 
 describe("selectCandidates", () => {
   test("includes priority::none rows", () => {
-    const c = selectCandidates([
-      issue({ number: 1, labels: [{ name: "priority::none" }] }),
-    ]);
+    const c = selectCandidates([issue({ number: 1, labels: [{ name: "priority::none" }] })]);
     expect(c).toHaveLength(1);
     expect(c[0]!.hasPriorityNone).toBe(true);
   });
 
   test("includes rows with no priority axis label at all", () => {
-    const c = selectCandidates([
-      issue({ number: 2, labels: [{ name: "type::feature" }] }),
-    ]);
+    const c = selectCandidates([issue({ number: 2, labels: [{ name: "type::feature" }] })]);
     expect(c).toHaveLength(1);
     expect(c[0]!.hasPriorityNone).toBe(false);
   });
@@ -204,7 +200,6 @@ describe("selectCandidates", () => {
     expect(c.map((x) => x.number)).toEqual([1, 5, 9]);
   });
 });
-
 
 describe("chunkIntoBatches", () => {
   test("65 candidates @ batchSize 30 → [30, 30, 5]", () => {
@@ -275,17 +270,9 @@ describe("runTriagePrioritizeBulk", () => {
       }));
     const { o, deps, claudeCalls, calls } = setup({
       issues,
-      scripted: [
-        decisionsBatch(1, 30),
-        decisionsBatch(31, 30),
-        decisionsBatch(61, 5),
-      ],
+      scripted: [decisionsBatch(1, 30), decisionsBatch(31, 30), decisionsBatch(61, 5)],
     });
-    const code = await runTriagePrioritizeBulk(
-      { ...baseOpts, batchSize: 30 },
-      o.output,
-      deps,
-    );
+    const code = await runTriagePrioritizeBulk({ ...baseOpts, batchSize: 30 }, o.output, deps);
     expect(code).toBe(0);
     const c = claudeCalls();
     expect(c.map((x) => x.batchSize)).toEqual([30, 30, 5]);
@@ -316,7 +303,9 @@ describe("runTriagePrioritizeBulk", () => {
     expect(calls[0]!.args).toContain("priority::high");
     expect(calls[0]!.args).toContain("--remove-label");
     // GH-1396: full-axis strip from canonical vocab, not just priority::none.
-    expect(calls[0]!.args).toContain("priority::critical,priority::medium,priority::low,priority::none");
+    expect(calls[0]!.args).toContain(
+      "priority::critical,priority::medium,priority::low,priority::none",
+    );
     expect(calls[0]!.args).toContain("--repo");
     expect(calls[0]!.args).toContain("bdelanghe/ai-home");
 
@@ -327,7 +316,9 @@ describe("runTriagePrioritizeBulk", () => {
     expect(calls[1]!.args).toContain("--add-label");
     expect(calls[1]!.args).toContain("priority::low");
     expect(calls[1]!.args).toContain("--remove-label");
-    expect(calls[1]!.args).toContain("priority::critical,priority::high,priority::medium,priority::none");
+    expect(calls[1]!.args).toContain(
+      "priority::critical,priority::high,priority::medium,priority::none",
+    );
   });
 
   test("dry-run: per-row decision printed, audit dryRun:true, no gh writes, no sync", async () => {
@@ -335,11 +326,7 @@ describe("runTriagePrioritizeBulk", () => {
       issues: [issue({ number: 5, labels: [{ name: "priority::none" }] })],
       scripted: [[{ number: 5, decision: "medium", confidence: "low" }]],
     });
-    const code = await runTriagePrioritizeBulk(
-      { ...baseOpts, dryRun: true },
-      o.output,
-      deps,
-    );
+    const code = await runTriagePrioritizeBulk({ ...baseOpts, dryRun: true }, o.output, deps);
     expect(code).toBe(0);
     expect(calls).toHaveLength(0);
     expect(syncCalls()).toBe(0);
@@ -470,9 +457,7 @@ describe("runTriagePrioritizeBulk", () => {
     const { o, deps, audit } = setup({
       issues: [issue({ number: 7, labels: [{ name: "priority::none" }] })],
       scripted: [[{ number: 7, decision: "critical", confidence: "high" }]],
-      execResults: [
-        { exitCode: 1, stdout: "", stderr: "rate limit exceeded", policy: null },
-      ],
+      execResults: [{ exitCode: 1, stdout: "", stderr: "rate limit exceeded", policy: null }],
     });
     const code = await runTriagePrioritizeBulk(baseOpts, o.output, deps);
     expect(code).toBe(1);
@@ -508,11 +493,7 @@ describe("runTriagePrioritizeBulk", () => {
       issues: [issue({ number: 1, labels: [{ name: "priority::none" }] })],
       scripted: [[{ number: 1, decision: "medium" }]],
     });
-    const code = await runTriagePrioritizeBulk(
-      { ...baseOpts, dryRun: true },
-      o.output,
-      deps,
-    );
+    const code = await runTriagePrioritizeBulk({ ...baseOpts, dryRun: true }, o.output, deps);
     expect(code).toBe(0);
     expect(syncCalls()).toBe(0);
     expect(o.log.join("\n")).toContain("sync=skipped");
@@ -556,11 +537,7 @@ describe("runTriagePrioritizeBulk", () => {
         ],
       ],
     });
-    const code = await runTriagePrioritizeBulk(
-      { ...baseOpts, limit: 2 },
-      o.output,
-      deps,
-    );
+    const code = await runTriagePrioritizeBulk({ ...baseOpts, limit: 2 }, o.output, deps);
     expect(code).toBe(0);
     expect(calls.map((c) => c.args[0]!)).toEqual(["1", "2"]);
   });
@@ -570,11 +547,7 @@ describe("runTriagePrioritizeBulk", () => {
       issues: [issue({ number: 1, labels: [{ name: "priority::none" }] })],
       scripted: [[{ number: 1, decision: "medium" }]],
     });
-    const code = await runTriagePrioritizeBulk(
-      { ...baseOpts, repo: "other/repo" },
-      o.output,
-      deps,
-    );
+    const code = await runTriagePrioritizeBulk({ ...baseOpts, repo: "other/repo" }, o.output, deps);
     expect(code).toBe(0);
     expect(calls[0]!.args).toContain("other/repo");
   });
@@ -584,11 +557,7 @@ describe("runTriagePrioritizeBulk", () => {
       issues: [issue({ number: 1, labels: [{ name: "priority::none" }] })],
       scripted: [[{ number: 1, decision: "medium" }]],
     });
-    const code = await runTriagePrioritizeBulk(
-      { ...baseOpts, repo: undefined },
-      o.output,
-      deps,
-    );
+    const code = await runTriagePrioritizeBulk({ ...baseOpts, repo: undefined }, o.output, deps);
     expect(code).toBe(0);
     expect(calls[0]!.args).toContain("bdelanghe/ai-home");
   });
@@ -622,7 +591,9 @@ describe("runTriagePrioritizeBulk", () => {
     expect(calls[0]!.args).toContain("--remove-label");
     // Full vocab minus target. PRIORITY enum order is critical/high/medium/low/none
     // ⇒ filtered minus `medium` ⇒ critical,high,low,none.
-    expect(calls[0]!.args).toContain("priority::critical,priority::high,priority::low,priority::none");
+    expect(calls[0]!.args).toContain(
+      "priority::critical,priority::high,priority::low,priority::none",
+    );
   });
 
   test("GH-1396 idempotent strip: candidate has only priority::none → strip set still spans full vocab minus target", async () => {
@@ -655,7 +626,9 @@ describe("runTriagePrioritizeBulk", () => {
     expect(calls[0]!.args).toContain("--remove-label");
     // gh issue edit --remove-label no-ops on absent labels, so emitting the
     // full strip set here is safe and locks in the new contract.
-    expect(calls[0]!.args).toContain("priority::critical,priority::high,priority::medium,priority::none");
+    expect(calls[0]!.args).toContain(
+      "priority::critical,priority::high,priority::medium,priority::none",
+    );
   });
 
   test("GH-1396 dry-run mirror: dry-run log line includes the full strip set, audit row stays dryRun:true", async () => {
@@ -663,11 +636,7 @@ describe("runTriagePrioritizeBulk", () => {
       issues: [issue({ number: 1396, labels: [{ name: "priority::none" }] })],
       scripted: [[{ number: 1396, decision: "medium", confidence: "high" }]],
     });
-    const code = await runTriagePrioritizeBulk(
-      { ...baseOpts, dryRun: true },
-      o.output,
-      deps,
-    );
+    const code = await runTriagePrioritizeBulk({ ...baseOpts, dryRun: true }, o.output, deps);
     expect(code).toBe(0);
     expect(calls).toHaveLength(0);
     const logLine = o.log.find((l) => l.startsWith("dry-run GH-1396"));

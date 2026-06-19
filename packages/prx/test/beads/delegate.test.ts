@@ -110,10 +110,7 @@ describe("selectDelegateCandidate", () => {
       ]),
       { filters: { all: true } },
     );
-    expect(projection.candidates.map((c) => c.bd_id)).toEqual([
-      "bd-p1",
-      "bd-p2",
-    ]);
+    expect(projection.candidates.map((c) => c.bd_id)).toEqual(["bd-p1", "bd-p2"]);
   });
 
   test("thread precedence breaks priority ties", () => {
@@ -228,9 +225,7 @@ describe("selectDelegateCandidate", () => {
       filters: { epic: "GH-974", all: true },
       enrichment: { epicChildBdIds: new Set(["bd-child-a"]) },
     });
-    expect(withEnrichment.candidates.map((c) => c.bd_id)).toEqual([
-      "bd-child-a",
-    ]);
+    expect(withEnrichment.candidates.map((c) => c.bd_id)).toEqual(["bd-child-a"]);
   });
 
   test("preserves thread's typed command when present", () => {
@@ -268,9 +263,7 @@ describe("selectDelegateCandidate", () => {
         },
       ]),
     );
-    expect(projection.candidates[0]!.suggested_command).toBe(
-      "prx plan session bd-r",
-    );
+    expect(projection.candidates[0]!.suggested_command).toBe("prx plan session bd-r");
   });
 
   test("formatDelegateNext renders the top-1 surface", () => {

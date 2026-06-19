@@ -17,11 +17,7 @@
 
 import { assign, emit, setup } from "xstate";
 
-import {
-  buildAndWriteSnapshotActor,
-  fetchSourceActor,
-  loadPrevAndDiffActor,
-} from "./actors.ts";
+import { buildAndWriteSnapshotActor, fetchSourceActor, loadPrevAndDiffActor } from "./actors.ts";
 import type { FetchResult, FetchSourceFn } from "./fetch.ts";
 import type { DepDelta, DepManifestEntry, DepSnapshot } from "./schemas.ts";
 
@@ -92,10 +88,7 @@ export const initialDepResearchContext = (
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
-export function blockedReasonFromError(
-  actor: string,
-  error: unknown,
-): DepResearchBlockedReason {
+export function blockedReasonFromError(actor: string, error: unknown): DepResearchBlockedReason {
   const message = error instanceof Error ? error.message : String(error);
   return { actor, message };
 }
@@ -124,8 +117,7 @@ export const depResearchMachine = setup({
     loadPrevAndDiffActor,
   },
   guards: {
-    classificationIsNone: ({ context }) =>
-      context.delta?.classification === "none",
+    classificationIsNone: ({ context }) => context.delta?.classification === "none",
   },
 }).createMachine({
   id: "dep_research",
@@ -156,8 +148,7 @@ export const depResearchMachine = setup({
         onError: {
           target: "failed",
           actions: assign({
-            blockedReason: ({ event }) =>
-              blockedReasonFromError("fetchSource", event.error),
+            blockedReason: ({ event }) => blockedReasonFromError("fetchSource", event.error),
           }),
         },
       },
@@ -202,9 +193,7 @@ export const depResearchMachine = setup({
           // by the state graph; XState does not narrow context across
           // transitions.
           if (!context.snapshot) {
-            throw new Error(
-              "depResearchMachine: invariant — snapshot is null on entry to diffing",
-            );
+            throw new Error("depResearchMachine: invariant — snapshot is null on entry to diffing");
           }
           return {
             baseDir: context.baseDir,
@@ -222,8 +211,7 @@ export const depResearchMachine = setup({
         onError: {
           target: "failed",
           actions: assign({
-            blockedReason: ({ event }) =>
-              blockedReasonFromError("loadPrevAndDiff", event.error),
+            blockedReason: ({ event }) => blockedReasonFromError("loadPrevAndDiff", event.error),
           }),
         },
       },
@@ -233,10 +221,7 @@ export const depResearchMachine = setup({
     // assigned by diffing.onDone.
     classifying: {
       entry: emit({ type: "DEP_DIFF_COMPUTED" }),
-      always: [
-        { target: "no_delta", guard: "classificationIsNone" },
-        { target: "reporting" },
-      ],
+      always: [{ target: "no_delta", guard: "classificationIsNone" }, { target: "reporting" }],
     },
     reporting: {
       type: "final",

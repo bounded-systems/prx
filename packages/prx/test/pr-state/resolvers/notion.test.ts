@@ -14,9 +14,10 @@ const config: NotionIdentityConfig = {
 
 type FetchCall = { url: string; body?: string | undefined; method?: string | undefined };
 
-function makeFetch(
-  handlers: Array<(call: FetchCall) => Response>,
-): { fetch: typeof fetch; calls: FetchCall[] } {
+function makeFetch(handlers: Array<(call: FetchCall) => Response>): {
+  fetch: typeof fetch;
+  calls: FetchCall[];
+} {
   const calls: FetchCall[] = [];
   let index = 0;
   const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -36,31 +37,36 @@ function makeFetch(
 }
 
 function jsonResponse(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 describe("NotionResolver", () => {
   test("fetch returns a ResolvedWorkUnit when the page is found", async () => {
     const { fetch, calls } = makeFetch([
-      (_call) => jsonResponse(200, {
-        results: [
-          {
-            id: "page-1",
-            url: "https://notion.so/page-1",
-            properties: {
-              Name: { title: [{ plain_text: "Build feature X" }] },
-              Status: { status: { name: "In progress" } },
+      (_call) =>
+        jsonResponse(200, {
+          results: [
+            {
+              id: "page-1",
+              url: "https://notion.so/page-1",
+              properties: {
+                Name: { title: [{ plain_text: "Build feature X" }] },
+                Status: { status: { name: "In progress" } },
+              },
             },
-          },
-        ],
-      }),
-      (_call) => jsonResponse(200, {
-        results: [
-          { type: "paragraph", paragraph: { rich_text: [{ plain_text: "First paragraph." }] } },
-          { type: "heading_2", heading_2: { rich_text: [{ plain_text: "Section" }] } },
-          { type: "paragraph", paragraph: { rich_text: [{ plain_text: "Second paragraph." }] } },
-        ],
-      }),
+          ],
+        }),
+      (_call) =>
+        jsonResponse(200, {
+          results: [
+            { type: "paragraph", paragraph: { rich_text: [{ plain_text: "First paragraph." }] } },
+            { type: "heading_2", heading_2: { rich_text: [{ plain_text: "Section" }] } },
+            { type: "paragraph", paragraph: { rich_text: [{ plain_text: "Second paragraph." }] } },
+          ],
+        }),
     ]);
     const resolver = new NotionResolver(config, { NOTION_TOKEN: "secret_xyz" }, fetch);
     const resolved = await resolver.fetch("PROJECT-6688");
@@ -78,19 +84,30 @@ describe("NotionResolver", () => {
 
   test("fetch paginates the block-children request until has_more is false", async () => {
     const { fetch, calls } = makeFetch([
-      (_call) => jsonResponse(200, {
-        results: [{ id: "p", properties: { Name: { title: [{ plain_text: "t" }] }, Status: { status: { name: "In progress" } } } }],
-      }),
-      (_call) => jsonResponse(200, {
-        results: [{ type: "paragraph", paragraph: { rich_text: [{ plain_text: "page 1" }] } }],
-        has_more: true,
-        next_cursor: "cursor-abc",
-      }),
-      (_call) => jsonResponse(200, {
-        results: [{ type: "paragraph", paragraph: { rich_text: [{ plain_text: "page 2" }] } }],
-        has_more: false,
-        next_cursor: null,
-      }),
+      (_call) =>
+        jsonResponse(200, {
+          results: [
+            {
+              id: "p",
+              properties: {
+                Name: { title: [{ plain_text: "t" }] },
+                Status: { status: { name: "In progress" } },
+              },
+            },
+          ],
+        }),
+      (_call) =>
+        jsonResponse(200, {
+          results: [{ type: "paragraph", paragraph: { rich_text: [{ plain_text: "page 1" }] } }],
+          has_more: true,
+          next_cursor: "cursor-abc",
+        }),
+      (_call) =>
+        jsonResponse(200, {
+          results: [{ type: "paragraph", paragraph: { rich_text: [{ plain_text: "page 2" }] } }],
+          has_more: false,
+          next_cursor: null,
+        }),
     ]);
     const resolver = new NotionResolver(config, { NOTION_TOKEN: "t" }, fetch);
     const resolved = await resolver.fetch("PROJECT-1");
@@ -100,18 +117,19 @@ describe("NotionResolver", () => {
 
   test("fetch maps 'Done' status to closed", async () => {
     const { fetch } = makeFetch([
-      (_call) => jsonResponse(200, {
-        results: [
-          {
-            id: "page-x",
-            url: null,
-            properties: {
-              Name: { title: [{ plain_text: "Done thing" }] },
-              Status: { status: { name: "Done" } },
+      (_call) =>
+        jsonResponse(200, {
+          results: [
+            {
+              id: "page-x",
+              url: null,
+              properties: {
+                Name: { title: [{ plain_text: "Done thing" }] },
+                Status: { status: { name: "Done" } },
+              },
             },
-          },
-        ],
-      }),
+          ],
+        }),
       (_call) => jsonResponse(200, { results: [] }),
     ]);
     const resolver = new NotionResolver(config, { NOTION_TOKEN: "t" }, fetch);
@@ -127,12 +145,13 @@ describe("NotionResolver", () => {
 
   test("fetch throws when multiple pages match", async () => {
     const { fetch } = makeFetch([
-      (_call) => jsonResponse(200, {
-        results: [
-          { id: "a", properties: { Name: { title: [] }, Status: { status: { name: "x" } } } },
-          { id: "b", properties: { Name: { title: [] }, Status: { status: { name: "x" } } } },
-        ],
-      }),
+      (_call) =>
+        jsonResponse(200, {
+          results: [
+            { id: "a", properties: { Name: { title: [] }, Status: { status: { name: "x" } } } },
+            { id: "b", properties: { Name: { title: [] }, Status: { status: { name: "x" } } } },
+          ],
+        }),
     ]);
     const resolver = new NotionResolver(config, { NOTION_TOKEN: "t" }, fetch);
     await expect(resolver.fetch("PROJECT-DUP")).rejects.toThrow(/ambiguous/);

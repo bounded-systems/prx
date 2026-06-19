@@ -33,9 +33,7 @@ function initTempGitRepo(prefix: string): { path: string; commonDir: string } {
   return { path, commonDir };
 }
 
-function makeInventoryForRepos(
-  entries: Array<{ name: string; commonDir: string }>,
-): RepoInventory {
+function makeInventoryForRepos(entries: Array<{ name: string; commonDir: string }>): RepoInventory {
   const repos: LocalRepo[] = entries.map((entry) => ({
     name: entry.name,
     kind: "standard",
@@ -92,9 +90,7 @@ describe("applyHooks", () => {
   test("is idempotent and reports unchanged state on repeat", () => {
     const repo = initTempGitRepo("prx-hooks-idempotent-");
     try {
-      const inventory = makeInventoryForRepos([
-        { name: "repo", commonDir: repo.commonDir },
-      ]);
+      const inventory = makeInventoryForRepos([{ name: "repo", commonDir: repo.commonDir }]);
       applyHooks(inventory, "/shared/hooks");
       const second = applyHooks(inventory, "/shared/hooks");
 
@@ -126,9 +122,7 @@ describe("applyHooks", () => {
   });
 
   test("retries on .git/config lock contention then succeeds", () => {
-    const inventory = makeInventoryForRepos([
-      { name: "racy", commonDir: "/fake/racy.git" },
-    ]);
+    const inventory = makeInventoryForRepos([{ name: "racy", commonDir: "/fake/racy.git" }]);
     const writeCalls: string[][] = [];
     const lockErr = "error: could not lock config file /fake/racy.git/config: File exists\n";
     const runner: RepoRunner = (cmd) => {
@@ -153,9 +147,7 @@ describe("applyHooks", () => {
   });
 
   test("gives up and records error after exhausting retry budget", () => {
-    const inventory = makeInventoryForRepos([
-      { name: "stuck", commonDir: "/fake/stuck.git" },
-    ]);
+    const inventory = makeInventoryForRepos([{ name: "stuck", commonDir: "/fake/stuck.git" }]);
     const writeCalls: string[][] = [];
     const lockErr = "error: could not lock config file /fake/stuck.git/config: File exists\n";
     const runner: RepoRunner = (cmd) => {
@@ -173,9 +165,7 @@ describe("applyHooks", () => {
   });
 
   test("non-lock errors fail immediately without retry", () => {
-    const inventory = makeInventoryForRepos([
-      { name: "broken", commonDir: "/fake/broken.git" },
-    ]);
+    const inventory = makeInventoryForRepos([{ name: "broken", commonDir: "/fake/broken.git" }]);
     const writeCalls: string[][] = [];
     const runner: RepoRunner = (cmd) => {
       if (cmd.includes("--get")) {
@@ -248,9 +238,7 @@ describe("hookStatus", () => {
         stdout: "pipe",
         stderr: "pipe",
       });
-      const inventory = makeInventoryForRepos([
-        { name: "repo", commonDir: repo.commonDir },
-      ]);
+      const inventory = makeInventoryForRepos([{ name: "repo", commonDir: repo.commonDir }]);
       const result = hookStatus(inventory, "/shared/hooks");
 
       expect(hookStatusHasDrift(result)).toBe(false);

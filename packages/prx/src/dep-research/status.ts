@@ -9,11 +9,7 @@ import { join } from "node:path";
 
 import { diffSnapshots } from "./diff.ts";
 import { loadDepManifest } from "./manifest.ts";
-import {
-  DepSnapshot,
-  type DepClassification,
-  type DepManifestEntry,
-} from "./schemas.ts";
+import { DepSnapshot, type DepClassification, type DepManifestEntry } from "./schemas.ts";
 
 export type DepStatusRunState = "ok" | "failed" | "never";
 
@@ -38,10 +34,7 @@ export function loadDepStatus(repoRoot: string): DepStatusRow[] {
   return entries.map((entry) => statusForEntry(entry, baseDir));
 }
 
-function statusForEntry(
-  entry: DepManifestEntry,
-  baseDir: string,
-): DepStatusRow {
+function statusForEntry(entry: DepManifestEntry, baseDir: string): DepStatusRow {
   const depDir = join(baseDir, entry.name);
   const runIds = listRunIds(depDir);
   if (runIds.length === 0) {

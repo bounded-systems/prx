@@ -199,7 +199,7 @@ describe("uow hydration", () => {
         activeAgentId: "GH-1001",
         activeState: "running",
         tickets: [],
-      })
+      }),
     ).toThrow(/branch must match canonical issue-backed work unit id GH-1001/);
   });
 });

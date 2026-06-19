@@ -14,7 +14,10 @@ describe("no agent launches without a signing key", () => {
 
   test("the CLI is an actor that inherits identity from the tty", () => {
     expect(cliActor({ isTTY: true })).toEqual({ actor: "human", interactive: true });
-    expect(cliActor({ isTTY: true, user: "bdelanghe" })).toEqual({ actor: "bdelanghe", interactive: true });
+    expect(cliActor({ isTTY: true, user: "bdelanghe" })).toEqual({
+      actor: "bdelanghe",
+      interactive: true,
+    });
     expect(cliActor({ isTTY: false })).toEqual({ actor: "noninteractive", interactive: false });
   });
 
@@ -22,6 +25,8 @@ describe("no agent launches without a signing key", () => {
     const got = requireCliSigner({ isTTY: true, user: "bob", resolve: () => signer });
     expect(got.actor).toEqual({ actor: "bob", interactive: true });
     expect(got.signer).toBe(signer);
-    expect(() => requireCliSigner({ isTTY: false, resolve: () => null })).toThrow("must hold a signing key");
+    expect(() => requireCliSigner({ isTTY: false, resolve: () => null })).toThrow(
+      "must hold a signing key",
+    );
   });
 });

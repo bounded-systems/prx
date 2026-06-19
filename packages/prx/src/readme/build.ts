@@ -9,20 +9,13 @@ import { resolve } from "node:path";
 
 import { getRepoRoot } from "../repo-root.ts";
 const REPO_ROOT = getRepoRoot();
-import {
-  CLI_PACKAGE,
-  buildGraph,
-  shortName,
-} from "../graph/build.ts";
+import { CLI_PACKAGE, buildGraph, shortName } from "../graph/build.ts";
 import { isPackageNode, isProjectNode, type PackageNode } from "../graph/model.ts";
 import { ReadmeModel } from "./model.ts";
 
 const GITHUB_PREFIX = "https://github.com/";
 
-const templatePath = resolve(
-  REPO_ROOT,
-  "packages/prx/community/templates/readme.md",
-);
+const templatePath = resolve(REPO_ROOT, "packages/prx/community/templates/readme.md");
 export const README_OUTPUT = resolve(REPO_ROOT, "README.md");
 
 /** Map a package graph node to a README Layout entry. */

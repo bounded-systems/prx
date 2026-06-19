@@ -58,9 +58,17 @@ export function computeHealthReport(io: HealthIo = defaultHealthIo): CodeHealthR
   let cycleSamples: string[] = [];
   try {
     const dc = JSON.parse(
-      io.run("bunx", ["depcruise", "packages/prx/src", "--config", ".dependency-cruiser.cjs", "--output-type", "json"]),
+      io.run("bunx", [
+        "depcruise",
+        "packages/prx/src",
+        "--config",
+        ".dependency-cruiser.cjs",
+        "--output-type",
+        "json",
+      ]),
     );
-    const violations: Array<{ rule?: { name?: string }; from?: string; to?: string }> = dc.summary?.violations ?? [];
+    const violations: Array<{ rule?: { name?: string }; from?: string; to?: string }> =
+      dc.summary?.violations ?? [];
     const circ = violations.filter((v) => v.rule?.name === "no-circular");
     circularChains = circ.length;
     cycleSamples = circ.slice(0, 12).map((v) => `${v.from} → ${v.to}`);
@@ -73,7 +81,10 @@ export function computeHealthReport(io: HealthIo = defaultHealthIo): CodeHealthR
   try {
     const k = JSON.parse(io.run("bunx", ["knip-bun", "--include", "files", "--reporter", "json"]));
     const issues: Array<{ file: string; files?: unknown[] }> = k.issues ?? [];
-    deadFiles = issues.filter((i) => (i.files?.length ?? 0) > 0).map((i) => i.file).sort();
+    deadFiles = issues
+      .filter((i) => (i.files?.length ?? 0) > 0)
+      .map((i) => i.file)
+      .sort();
   } catch {
     deadFiles = ["(knip unavailable — run `bun install`)"];
   }
@@ -83,7 +94,8 @@ export function computeHealthReport(io: HealthIo = defaultHealthIo): CodeHealthR
   for (const vp of VALUE_PROPS) {
     for (const ff of vp.forcing) {
       if ("exercises" in ff) {
-        for (const ref of ff.exercises) exercised.add(ref.split(":")[0]!.replace(/^packages\/prx\/src\//, ""));
+        for (const ref of ff.exercises)
+          exercised.add(ref.split(":")[0]!.replace(/^packages\/prx\/src\//, ""));
       }
     }
   }
@@ -104,7 +116,11 @@ export function computeHealthReport(io: HealthIo = defaultHealthIo): CodeHealthR
     sprawl: { totalLines, fileCount: sizes.length, largest: sizes.slice(0, 10) },
     coupling: { circularChains, samples: cycleSamples },
     deadCode: { count: deadFiles.length, files: deadFiles },
-    productMap: { valueProps: VALUE_PROPS.length, backed: backedCount, modulesExercised: exercised.size },
+    productMap: {
+      valueProps: VALUE_PROPS.length,
+      backed: backedCount,
+      modulesExercised: exercised.size,
+    },
     boundary: { zAnyHoles, rawJsonParse },
     verbspec: { verbs, withInput, withEvent },
   });
@@ -116,20 +132,32 @@ export function renderHealthMarkdown(report: CodeHealthReport): string {
   const pct = (n: number) => (verbspec.verbs === 0 ? 0 : Math.round((n / verbspec.verbs) * 100));
   const out: string[] = [];
   out.push(`# prx code health\n`);
-  out.push(`## 1. Sprawl — ${sprawl.fileCount} src files, ${sprawl.totalLines.toLocaleString()} lines`);
+  out.push(
+    `## 1. Sprawl — ${sprawl.fileCount} src files, ${sprawl.totalLines.toLocaleString()} lines`,
+  );
   for (const s of sprawl.largest) out.push(`  ${String(s.lines).padStart(6)}  ${s.file}`);
-  out.push(`\n## 2. Coupling — ${coupling.circularChains} circular import edges (dependency-cruiser)`);
+  out.push(
+    `\n## 2. Coupling — ${coupling.circularChains} circular import edges (dependency-cruiser)`,
+  );
   for (const c of coupling.samples) out.push(`  ${c}`);
   if (coupling.circularChains > coupling.samples.length) {
     out.push(`  … and ${coupling.circularChains - coupling.samples.length} more`);
   }
   out.push(`\n## 3. Dead code — ${deadCode.count} unused file(s) (knip)`);
   for (const f of deadCode.files) out.push(`  ${f}`);
-  out.push(`\n## 4. Product map — ${productMap.backed}/${productMap.valueProps} value props backed; ${productMap.modulesExercised} modules traced`);
+  out.push(
+    `\n## 4. Product map — ${productMap.backed}/${productMap.valueProps} value props backed; ${productMap.modulesExercised} modules traced`,
+  );
   out.push(`  (modules named by no forcing function are pruning candidates — see value_props.ts)`);
-  out.push(`\n## 5. Zod boundary — ${boundary.zAnyHoles} z.any()/z.unknown() holes; ${boundary.rawJsonParse} JSON.parse sites`);
+  out.push(
+    `\n## 5. Zod boundary — ${boundary.zAnyHoles} z.any()/z.unknown() holes; ${boundary.rawJsonParse} JSON.parse sites`,
+  );
   out.push(`  (lower is better — each is an IO boundary that should be schema-validated)`);
-  out.push(`\n## 6. VerbSpec — ${verbspec.withInput}/${verbspec.verbs} verbs with input schema (${pct(verbspec.withInput)}%); ${verbspec.withEvent}/${verbspec.verbs} with typed event (${pct(verbspec.withEvent)}%)`);
-  out.push(`  (higher is better — spec-driven-CLI readiness; target 100% as the VerbSpec migration lands)`);
+  out.push(
+    `\n## 6. VerbSpec — ${verbspec.withInput}/${verbspec.verbs} verbs with input schema (${pct(verbspec.withInput)}%); ${verbspec.withEvent}/${verbspec.verbs} with typed event (${pct(verbspec.withEvent)}%)`,
+  );
+  out.push(
+    `  (higher is better — spec-driven-CLI readiness; target 100% as the VerbSpec migration lands)`,
+  );
   return out.join("\n");
 }

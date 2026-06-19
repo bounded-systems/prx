@@ -95,7 +95,8 @@ export function resolveProvenanceMaster(
   read: (path: string) => string = (p) => readFileSync(p, "utf8"),
   exists: (path: string) => boolean = existsSync,
 ): Buffer {
-  const file = env(PROVENANCE_MASTER_FILE_ENV) ?? readProvenanceConfig(env, read, exists).masterFile;
+  const file =
+    env(PROVENANCE_MASTER_FILE_ENV) ?? readProvenanceConfig(env, read, exists).masterFile;
   if (file && exists(file)) {
     try {
       return Buffer.from(read(file).trim(), "base64");

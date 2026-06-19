@@ -9,10 +9,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { runCli } from "../../src/pr-state/cli.ts";
-import {
-  writeSubmitArtifact,
-  type SubmitArtifact,
-} from "../../src/submit/artifact.schema.ts";
+import { writeSubmitArtifact, type SubmitArtifact } from "../../src/submit/artifact.schema.ts";
 
 const ENV_KEYS = [
   "PRX_PLAN_STORE",
@@ -81,15 +78,7 @@ describe("prx submit publish e2e (GH-1900)", () => {
     };
 
     const exit = await runCli(
-      [
-        "submit",
-        "publish",
-        "--from-cas",
-        "GH-1900:submit@ready",
-        "--dry-run",
-        "--format",
-        "json",
-      ],
+      ["submit", "publish", "--from-cas", "GH-1900:submit@ready", "--dry-run", "--format", "json"],
       output,
       {},
     );

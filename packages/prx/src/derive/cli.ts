@@ -40,13 +40,14 @@ import {
 } from "./index.ts";
 import { factColumns, type FactRelation } from "./schemas/relations.ts";
 import { rawStateV1Schema } from "@bounded-systems/machine-schema";
+import { evaluate, factKey, type Constant, type Fact } from "./engine.ts";
 import {
-  evaluate,
-  factKey,
-  type Constant,
-  type Fact,
-} from "./engine.ts";
-import { projectFacts, type BeadsEntry, type ProjectInput, type SyntheticInputs, type TransitionEntryLite } from "./project.ts";
+  projectFacts,
+  type BeadsEntry,
+  type ProjectInput,
+  type SyntheticInputs,
+  type TransitionEntryLite,
+} from "./project.ts";
 import { formatDerivationTree } from "./rules/provenance.ts";
 import { buildDomainState as defaultBuildDomainState } from "../pr-state/domain_state.ts";
 import { readTransitionLog as defaultReadTransitionLog } from "../pr-state/transition_log.ts";
@@ -88,12 +89,8 @@ const fixtureSchema = z
         actorAllowedInPhase: z
           .array(z.object({ actor: z.string(), phase: z.string() }).strict())
           .default([]),
-        scopeOwns: z
-          .array(z.object({ scope: z.string(), tree: z.string() }).strict())
-          .default([]),
-        changedTree: z
-          .array(z.object({ sha: z.string(), tree: z.string() }).strict())
-          .default([]),
+        scopeOwns: z.array(z.object({ scope: z.string(), tree: z.string() }).strict()).default([]),
+        changedTree: z.array(z.object({ sha: z.string(), tree: z.string() }).strict()).default([]),
       })
       .partial()
       .optional(),
@@ -134,7 +131,11 @@ export type DeriveEmitEvent =
   | { type: "DERIVE_TRACE_EMITTED"; goal: string };
 
 export class DeriveCliError extends Error {
-  constructor(public code: string, message: string, public exitCode = 65) {
+  constructor(
+    public code: string,
+    message: string,
+    public exitCode = 65,
+  ) {
     super(message);
     this.name = "DeriveCliError";
   }
@@ -180,15 +181,14 @@ function loadLive(repoPath: string, deps: DeriveCliDeps): ProjectInput {
   const domain = buildDomainState(repoPath);
   const allBeads = loadAllBeads();
   const beads = beadsRecordsToEntries(allBeads);
-  const transitions = readTransitionLog(join(repoPath, TRANSITION_LOG_REL_PATH))
-    .map((t) => ({
-      id: t.id,
-      issueId: t.issue,
-      fromState: t.state_from,
-      toState: t.state_to,
-      actor: t.actor,
-      timestamp: t.timestamp,
-    }));
+  const transitions = readTransitionLog(join(repoPath, TRANSITION_LOG_REL_PATH)).map((t) => ({
+    id: t.id,
+    issueId: t.issue,
+    fromState: t.state_from,
+    toState: t.state_to,
+    actor: t.actor,
+    timestamp: t.timestamp,
+  }));
   return {
     rawStates: [domain.rawState],
     beads,
@@ -358,9 +358,7 @@ function handleDumpFacts(
       JSON.stringify(
         {
           edb: edb.length,
-          relations: Object.fromEntries(
-            Object.entries(grouped).map(([k, v]) => [k, v.length]),
-          ),
+          relations: Object.fromEntries(Object.entries(grouped).map(([k, v]) => [k, v.length])),
           facts: all,
         },
         null,

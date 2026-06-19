@@ -51,7 +51,10 @@ describe("prx as a Claude Code plugin (projection of the registry)", () => {
 
   test("the command set covers exactly the registry", () => {
     const files = toClaudePlugin(reg);
-    const commands = files.filter((f) => f.path.startsWith("commands/")).map((f) => f.path).sort();
+    const commands = files
+      .filter((f) => f.path.startsWith("commands/"))
+      .map((f) => f.path)
+      .sort();
     expect(commands).toEqual([
       "commands/prx-fleet.md",
       "commands/prx-pilot.md",
@@ -148,7 +151,11 @@ describe("prx as a Claude Code plugin (projection of the registry)", () => {
   });
 
   test("opts customize runtime command + plugin name", () => {
-    const files = toClaudePlugin(reg, { name: "prx-dev", mcpCommand: "/usr/local/bin/prx", mcpArgs: ["mcp"] });
+    const files = toClaudePlugin(reg, {
+      name: "prx-dev",
+      mcpCommand: "/usr/local/bin/prx",
+      mcpArgs: ["mcp"],
+    });
     const mcp = JSON.parse(find(files, ".mcp.json")!.content);
     expect(mcp.mcpServers["prx-dev"]).toEqual({ command: "/usr/local/bin/prx", args: ["mcp"] });
     expect(find(files, "commands/prx-pilot.md")!.content).toContain("mcp__prx-dev__pilot");

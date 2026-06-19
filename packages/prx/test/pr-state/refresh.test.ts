@@ -20,27 +20,75 @@ const mockPr = { number: 42, isDraft: false };
 
 describe("selectRefreshExecutionMode", () => {
   test("returns local when --local flag is set", () => {
-    expect(selectRefreshExecutionMode({ local: true, noPush: false, pr: mockPr, headSha: "abc", remoteSha: "abc" })).toBe("local");
+    expect(
+      selectRefreshExecutionMode({
+        local: true,
+        noPush: false,
+        pr: mockPr,
+        headSha: "abc",
+        remoteSha: "abc",
+      }),
+    ).toBe("local");
   });
 
   test("returns local when --no-push flag is set", () => {
-    expect(selectRefreshExecutionMode({ local: false, noPush: true, pr: mockPr, headSha: "abc", remoteSha: "abc" })).toBe("local");
+    expect(
+      selectRefreshExecutionMode({
+        local: false,
+        noPush: true,
+        pr: mockPr,
+        headSha: "abc",
+        remoteSha: "abc",
+      }),
+    ).toBe("local");
   });
 
   test("returns local when no PR found", () => {
-    expect(selectRefreshExecutionMode({ local: false, noPush: false, pr: null, headSha: null, remoteSha: null })).toBe("local");
+    expect(
+      selectRefreshExecutionMode({
+        local: false,
+        noPush: false,
+        pr: null,
+        headSha: null,
+        remoteSha: null,
+      }),
+    ).toBe("local");
   });
 
   test("returns local when HEAD differs from remote (local commits not yet pushed)", () => {
-    expect(selectRefreshExecutionMode({ local: false, noPush: false, pr: mockPr, headSha: "abc", remoteSha: "def" })).toBe("local");
+    expect(
+      selectRefreshExecutionMode({
+        local: false,
+        noPush: false,
+        pr: mockPr,
+        headSha: "abc",
+        remoteSha: "def",
+      }),
+    ).toBe("local");
   });
 
   test("returns local when remote SHA is null", () => {
-    expect(selectRefreshExecutionMode({ local: false, noPush: false, pr: mockPr, headSha: "abc", remoteSha: null })).toBe("local");
+    expect(
+      selectRefreshExecutionMode({
+        local: false,
+        noPush: false,
+        pr: mockPr,
+        headSha: "abc",
+        remoteSha: null,
+      }),
+    ).toBe("local");
   });
 
   test("returns server when PR exists and HEAD matches remote", () => {
-    expect(selectRefreshExecutionMode({ local: false, noPush: false, pr: mockPr, headSha: "abc123", remoteSha: "abc123" })).toBe("server");
+    expect(
+      selectRefreshExecutionMode({
+        local: false,
+        noPush: false,
+        pr: mockPr,
+        headSha: "abc123",
+        remoteSha: "abc123",
+      }),
+    ).toBe("server");
   });
 });
 

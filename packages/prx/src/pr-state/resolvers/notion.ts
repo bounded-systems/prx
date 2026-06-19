@@ -2,11 +2,7 @@ import { processEnv } from "@bounded-systems/env";
 import { authToken } from "@bounded-systems/auth";
 
 import type { NotionIdentityConfig } from "../github.ts";
-import type {
-  NotionPageLookup,
-  NotionPageResolver,
-  ResolvedWorkUnit,
-} from "./types.ts";
+import type { NotionPageLookup, NotionPageResolver, ResolvedWorkUnit } from "./types.ts";
 
 const NOTION_API_BASE = "https://api.notion.com/v1";
 const NOTION_VERSION = "2022-06-28";
@@ -95,13 +91,20 @@ function extractStatus(
     return "unknown";
   }
   const normalized = name.toLowerCase();
-  if (normalized === "done" || normalized === "closed" || normalized === "complete" || normalized === "completed") {
+  if (
+    normalized === "done" ||
+    normalized === "closed" ||
+    normalized === "complete" ||
+    normalized === "completed"
+  ) {
     return "closed";
   }
   return "open";
 }
 
-function extractBlockText(block: NonNullable<NotionBlockChildrenResponse["results"]>[number]): string | null {
+function extractBlockText(
+  block: NonNullable<NotionBlockChildrenResponse["results"]>[number],
+): string | null {
   const payload =
     block.paragraph ??
     block.heading_1 ??
@@ -131,13 +134,9 @@ export class NotionResolver implements NotionPageResolver {
   ) {}
 
   async fetch(canonicalId: string): Promise<ResolvedWorkUnit> {
-    if (
-      !this.config.databaseId ||
-      !this.config.idProperty ||
-      !this.config.titleProperty
-    ) {
+    if (!this.config.databaseId || !this.config.idProperty || !this.config.titleProperty) {
       throw new Error(
-        "NotionResolver requires database_id, id_property, and title_property (auth = \"rest\")",
+        'NotionResolver requires database_id, id_property, and title_property (auth = "rest")',
       );
     }
     const token = readToken(this.env);
@@ -161,7 +160,7 @@ export class NotionResolver implements NotionPageResolver {
     }
     if (!this.config.databaseId || !this.config.idProperty) {
       throw new Error(
-        "NotionResolver requires database_id and id_property to resolve Task-IDs (auth = \"rest\")",
+        'NotionResolver requires database_id and id_property to resolve Task-IDs (auth = "rest")',
       );
     }
     const token = readToken(this.env);
@@ -174,7 +173,7 @@ export class NotionResolver implements NotionPageResolver {
   async fetchByPageId(pageId: string): Promise<ResolvedWorkUnit> {
     if (!this.config.titleProperty) {
       throw new Error(
-        "NotionResolver requires title_property to render fetched pages (auth = \"rest\")",
+        'NotionResolver requires title_property to render fetched pages (auth = "rest")',
       );
     }
     const token = readToken(this.env);
@@ -209,9 +208,7 @@ export class NotionResolver implements NotionPageResolver {
     });
     const payload = (await res.json()) as NotionQueryResponse;
     if (!res.ok) {
-      throw new Error(
-        `Notion query failed (${res.status}): ${payload.message ?? res.statusText}`,
-      );
+      throw new Error(`Notion query failed (${res.status}): ${payload.message ?? res.statusText}`);
     }
     const results = payload.results ?? [];
     if (results.length === 0) {
@@ -268,7 +265,7 @@ export class NotionResolver implements NotionPageResolver {
           lines.push(text);
         }
       }
-      cursor = payload.has_more ? payload.next_cursor ?? null : null;
+      cursor = payload.has_more ? (payload.next_cursor ?? null) : null;
     } while (cursor);
     if (lines.length === 0) {
       return null;

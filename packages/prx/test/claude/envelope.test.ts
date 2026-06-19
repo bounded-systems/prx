@@ -92,14 +92,12 @@ describe("parseClaudeJsonEnvelope", () => {
   });
 
   test("non-JSON stdout throws with the operator-supplied prefix", () => {
-    expect(() =>
-      parseClaudeJsonEnvelope("not json at all", "claude MCP resolver"),
-    ).toThrow(/claude MCP resolver: could not parse/);
+    expect(() => parseClaudeJsonEnvelope("not json at all", "claude MCP resolver")).toThrow(
+      /claude MCP resolver: could not parse/,
+    );
   });
 
   test("default error prefix is `claude envelope`", () => {
-    expect(() => parseClaudeJsonEnvelope("garbage")).toThrow(
-      /claude envelope: could not parse/,
-    );
+    expect(() => parseClaudeJsonEnvelope("garbage")).toThrow(/claude envelope: could not parse/);
   });
 });

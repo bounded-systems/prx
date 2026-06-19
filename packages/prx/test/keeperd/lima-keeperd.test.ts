@@ -12,7 +12,9 @@ import {
 const ok = (stdout = ""): RunResult => ({ status: 0, stdout, stderr: "" });
 const fail = (stderr: string): RunResult => ({ status: 1, stdout: "", stderr });
 
-function recorder(answer: (cmd: string, args: string[]) => RunResult | undefined = () => undefined) {
+function recorder(
+  answer: (cmd: string, args: string[]) => RunResult | undefined = () => undefined,
+) {
   const calls: { cmd: string; args: string[] }[] = [];
   const run = (cmd: string, args: string[]): RunResult => {
     calls.push({ cmd, args });
@@ -30,7 +32,10 @@ describe("deployKeeperdBinary", () => {
     const { calls, run } = recorder();
     const vmBin = deployKeeperdBinary({ vm: "myvm", binaryPath: "dist/prx-linux-arm64" }, { run });
     expect(vmBin).toBe("/tmp/prx");
-    expect(calls[0]).toEqual({ cmd: "limactl", args: ["copy", "dist/prx-linux-arm64", "myvm:/tmp/prx"] });
+    expect(calls[0]).toEqual({
+      cmd: "limactl",
+      args: ["copy", "dist/prx-linux-arm64", "myvm:/tmp/prx"],
+    });
     expect(calls[1]).toEqual({
       cmd: "limactl",
       args: ["shell", "--workdir", "/", "myvm", "--", "chmod", "+x", "/tmp/prx"],
@@ -39,7 +44,9 @@ describe("deployKeeperdBinary", () => {
 
   test("throws if the copy fails", () => {
     const { run } = recorder((_cmd, args) => (args[0] === "copy" ? fail("no space") : undefined));
-    expect(() => deployKeeperdBinary({ vm: "myvm", binaryPath: "b" }, { run })).toThrow(/copy.*failed/);
+    expect(() => deployKeeperdBinary({ vm: "myvm", binaryPath: "b" }, { run })).toThrow(
+      /copy.*failed/,
+    );
   });
 });
 
@@ -61,7 +68,9 @@ describe("startKeeperd", () => {
     await handle.stop();
     const stopCall = calls.find((c) => script(c.args).includes("rm -f /tmp/keeperd.sock"))!;
     expect(script(stopCall.args)).toContain("cat /tmp/keeperd.pid");
-    expect(script(stopCall.args)).toContain("rm -f /tmp/keeperd.sock /tmp/keeperd.log /tmp/keeperd.pid");
+    expect(script(stopCall.args)).toContain(
+      "rm -f /tmp/keeperd.sock /tmp/keeperd.log /tmp/keeperd.pid",
+    );
     expect(script(stopCall.args)).not.toContain("pkill");
   });
 
@@ -73,7 +82,9 @@ describe("startKeeperd", () => {
     );
     const launch = script(calls.find((c) => script(c.args).includes("keeper serve"))!.args);
     // Env assignment from the file (kept out of argv), before setsid nohup.
-    expect(launch).toContain('PRX_PROVENANCE_KEY="$(cat /home/dev/.ssh/keeper_provenance)" setsid nohup');
+    expect(launch).toContain(
+      'PRX_PROVENANCE_KEY="$(cat /home/dev/.ssh/keeper_provenance)" setsid nohup',
+    );
   });
 
   test("no PRX_PROVENANCE_KEY in the launch when provenanceKeyFile absent (bare push)", async () => {
@@ -125,7 +136,10 @@ describe("provisionKeeperd", () => {
       { run, sleep: noSleep },
     );
     expect(handle.socket).toBe("/tmp/keeperd.sock");
-    expect(calls[0]).toEqual({ cmd: "limactl", args: ["copy", "dist/prx-linux-arm64", "myvm:/tmp/prx"] });
+    expect(calls[0]).toEqual({
+      cmd: "limactl",
+      args: ["copy", "dist/prx-linux-arm64", "myvm:/tmp/prx"],
+    });
     expect(calls.some((c) => script(c.args).includes("keeper serve"))).toBe(true);
   });
 });

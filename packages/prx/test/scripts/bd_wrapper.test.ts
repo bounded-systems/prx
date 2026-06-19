@@ -291,9 +291,7 @@ describe("bd-wrapper.sh — bd github auto-token injection", () => {
       ghMode: "success",
     });
     expect(r.exitCode).toBe(0);
-    expect(await readStubCallsAsync()).toEqual([
-      "github sync --pull-only --prefer-github",
-    ]);
+    expect(await readStubCallsAsync()).toEqual(["github sync --pull-only --prefer-github"]);
     expect(await readStubTokensAsync()).toEqual(["stub-token-value"]);
     expect(await readGhStubCallsAsync()).toEqual(["auth token"]);
   });

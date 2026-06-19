@@ -43,9 +43,7 @@ export function auditedWrites(tool: PolicyTool): string[] {
 
 /** Render a Gherkin Examples table with padded columns for readability. */
 function examplesTable(headers: string[], rows: string[][]): string[] {
-  const widths = headers.map((h, i) =>
-    Math.max(h.length, ...rows.map((r) => r[i]!.length)),
-  );
+  const widths = headers.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i]!.length)));
   const fmt = (cells: string[]) =>
     "      | " + cells.map((c, i) => c.padEnd(widths[i]!)).join(" | ") + " |";
   return [fmt(headers), ...rows.map(fmt)];
@@ -105,7 +103,7 @@ export function generateCapabilityFeature(): string {
     "    Scenario: the orchestrator cannot run a privileged tool",
     '      Given the "orchestrator" actor',
     '      When it runs "git push"',
-    '      Then the action is denied',
+    "      Then the action is denied",
     "",
   );
 

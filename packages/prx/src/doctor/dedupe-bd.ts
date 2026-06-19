@@ -38,10 +38,7 @@
 
 import { z } from "zod";
 
-import {
-  appendAuditRow,
-  type AuditSinkDeps,
-} from "../audit/sink.ts";
+import { appendAuditRow, type AuditSinkDeps } from "../audit/sink.ts";
 import { execBd as defaultExecBd } from "@bounded-systems/bd";
 import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import { buildClosedNotePrefixed } from "../triage/close.ts";
@@ -213,9 +210,10 @@ function projectPins(record: BeadsRecord): Array<{ domain: string; id: string }>
 
 // ─── Planner ─────────────────────────────────────────────────────────────────
 
-export function planDedupe(
-  beads: readonly BeadsRecord[],
-): { clusters: DedupeBdCluster[]; scanned: number } {
+export function planDedupe(beads: readonly BeadsRecord[]): {
+  clusters: DedupeBdCluster[];
+  scanned: number;
+} {
   const byPin = new Map<string, BeadsRecord[]>();
   for (const record of beads) {
     // ADR §6 explicitly excludes pin-zero records — bd-only dupes are
@@ -236,9 +234,7 @@ export function planDedupe(
     // I-DEDUPE-3 (GH-1863): records already closed-as-dup per ADR §6 are
     // resolved — they shouldn't keep the cluster alive in `planned`. Mirrors
     // the same suppression GH-1829 applied to `findDrift`.
-    const live = distinct.filter(
-      (r) => !(r.status === "closed" && isCanonicalDupClose(r.notes)),
-    );
+    const live = distinct.filter((r) => !(r.status === "closed" && isCanonicalDupClose(r.notes)));
     if (live.length < 2) continue;
 
     const sep = key.indexOf("::");
@@ -280,9 +276,7 @@ export type PinCollision = {
  * collision drains. The detector is pure and never mutates — true upstream
  * prevention of the recycling is GH-1479; this is detection + remediation.
  */
-export function findPinCollisions(
-  beads: readonly BeadsRecord[],
-): PinCollision[] {
+export function findPinCollisions(beads: readonly BeadsRecord[]): PinCollision[] {
   const byPin = new Map<string, BeadsRecord[]>();
   for (const record of beads) {
     if (record.status === "closed" && isCanonicalDupClose(record.notes)) continue;
@@ -324,11 +318,7 @@ function dedupeById(records: BeadsRecord[]): BeadsRecord[] {
   return out;
 }
 
-function buildCluster(
-  domain: string,
-  externalId: string,
-  members: BeadsRecord[],
-): DedupeBdCluster {
+function buildCluster(domain: string, externalId: string, members: BeadsRecord[]): DedupeBdCluster {
   const withExecution = members.filter(hasExecutionState);
   if (withExecution.length >= 2) {
     const ids = withExecution.map((m) => m.id).join(", ");
@@ -338,8 +328,7 @@ function buildCluster(
       canonicalId: null,
       duplicateIds: [],
       status: "conflict",
-      conflictReason:
-        `${withExecution.length} sibling records on (${domain}, ${externalId}) carry execution state (${ids}); reconcile manually per ADR §6`,
+      conflictReason: `${withExecution.length} sibling records on (${domain}, ${externalId}) carry execution state (${ids}); reconcile manually per ADR §6`,
       closeNote: "",
       closeArgv: [],
       edges: [],
@@ -391,8 +380,7 @@ function buildCluster(
   // written per duplicate lives in `closeArgv`; `applyCluster` audits the note
   // it actually sends.
   const closeNote =
-    closeNotes[0]
-    ?? buildClosedNotePrefixed("prx doctor dedupe-bd", "duplicate", standardReason);
+    closeNotes[0] ?? buildClosedNotePrefixed("prx doctor dedupe-bd", "duplicate", standardReason);
 
   return {
     domain,
@@ -474,10 +462,7 @@ export function annotateIncomingEdges(
       // record, but defensive-skip here keeps us idempotent if a future
       // bd surfaces both projections.
       const alreadyOutgoing = entry.cluster.edges.some(
-        (e) =>
-          e.direction === "outgoing"
-          && e.from === record.id
-          && e.to === edge.dependsOnId,
+        (e) => e.direction === "outgoing" && e.from === record.id && e.to === edge.dependsOnId,
       );
       if (alreadyOutgoing) continue;
       entry.cluster.edges.push(buildEdge("incoming", edge, edge.dependsOnId, entry.canonicalId));
@@ -531,8 +516,8 @@ function applyCluster(
         beadsId: cluster.canonicalId ?? edge.to,
         action: "dep-add",
         edgeType: edge.type,
-        edgeFrom: edge.direction === "outgoing" ? cluster.canonicalId ?? "" : edge.from,
-        edgeTo: edge.direction === "outgoing" ? edge.to : cluster.canonicalId ?? "",
+        edgeFrom: edge.direction === "outgoing" ? (cluster.canonicalId ?? "") : edge.from,
+        edgeTo: edge.direction === "outgoing" ? edge.to : (cluster.canonicalId ?? ""),
         actor: "claude-code",
         dryRun: true,
         exitCode: 0,
@@ -575,8 +560,8 @@ function applyCluster(
       beadsId: cluster.canonicalId ?? "",
       action: "dep-add",
       edgeType: edge.type,
-      edgeFrom: edge.direction === "outgoing" ? cluster.canonicalId ?? "" : edge.from,
-      edgeTo: edge.direction === "outgoing" ? edge.to : cluster.canonicalId ?? "",
+      edgeFrom: edge.direction === "outgoing" ? (cluster.canonicalId ?? "") : edge.from,
+      edgeTo: edge.direction === "outgoing" ? edge.to : (cluster.canonicalId ?? ""),
       actor: "claude-code",
       dryRun: false,
       exitCode: addResult.status,
@@ -601,9 +586,7 @@ function applyCluster(
     // short-id phantom case (GH-2254), which differs from `cluster.closeNote`.
     const notesIdx = argv.indexOf("--notes");
     const note =
-      notesIdx >= 0 && argv[notesIdx + 1] !== undefined
-        ? argv[notesIdx + 1]!
-        : cluster.closeNote;
+      notesIdx >= 0 && argv[notesIdx + 1] !== undefined ? argv[notesIdx + 1]! : cluster.closeNote;
     if (!opts.apply) {
       audit({
         ts: now.toISOString(),
@@ -708,10 +691,7 @@ export function runDedupeBd(
   if (scoped) {
     for (const value of opts.only) {
       const matches = clusters.filter(
-        (c) =>
-          c.externalId === value
-          || c.canonicalId === value
-          || c.duplicateIds.includes(value),
+        (c) => c.externalId === value || c.canonicalId === value || c.duplicateIds.includes(value),
       );
       if (matches.length === 0) {
         output.error(`prx doctor dedupe-bd: --only ${value} matched no cluster`);
@@ -762,9 +742,7 @@ export function runDedupeBd(
   // narrowed). `conflicts` is scoped to the selected set when `--only` is
   // active so an unselected conflict does not drive exit≠0.
   const planned = clusters.filter((c) => c.status === "plan").length;
-  const conflicts = clusters.filter(
-    (c) => c.status === "conflict" && isSelected(c),
-  ).length;
+  const conflicts = clusters.filter((c) => c.status === "conflict" && isSelected(c)).length;
   // Collisions are report-only and deliberately excluded from this rule —
   // a stale recycled-short-id phantom is detection signal, not an error.
   const exitCode = errors > 0 || conflicts > 0 ? 1 : 0;
@@ -792,10 +770,7 @@ export function runDedupeBd(
 
 // ─── Render ──────────────────────────────────────────────────────────────────
 
-export function formatRender(
-  render: DedupeBdRender,
-  format: "plain" | "json",
-): string {
+export function formatRender(render: DedupeBdRender, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(render, null, 2);
   }
@@ -811,7 +786,9 @@ export function formatRender(
   } else {
     for (const cluster of render.clusters) {
       if (cluster.status === "conflict") {
-        lines.push(`  CONFLICT (${cluster.domain}, ${cluster.externalId}): ${cluster.conflictReason ?? ""}`);
+        lines.push(
+          `  CONFLICT (${cluster.domain}, ${cluster.externalId}): ${cluster.conflictReason ?? ""}`,
+        );
         continue;
       }
       lines.push(

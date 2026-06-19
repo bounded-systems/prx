@@ -24,9 +24,7 @@ function nonEmpty(value: string | undefined): string | undefined {
 
 export function bakedGitSha(): string | undefined {
   const compiled =
-    typeof __PRX_BUILD_GIT_SHA__ !== "undefined"
-      ? nonEmpty(__PRX_BUILD_GIT_SHA__)
-      : undefined;
+    typeof __PRX_BUILD_GIT_SHA__ !== "undefined" ? nonEmpty(__PRX_BUILD_GIT_SHA__) : undefined;
   return compiled ?? nonEmpty(getEnv("BAKED_GIT_SHA"));
 }
 
@@ -39,9 +37,7 @@ export function bakedGitSha(): string | undefined {
  */
 export function bakedReleaseVersion(): string | undefined {
   const compiled =
-    typeof __PRX_BUILD_VERSION__ !== "undefined"
-      ? nonEmpty(__PRX_BUILD_VERSION__)
-      : undefined;
+    typeof __PRX_BUILD_VERSION__ !== "undefined" ? nonEmpty(__PRX_BUILD_VERSION__) : undefined;
   return compiled ?? nonEmpty(getEnv("BAKED_VERSION"));
 }
 

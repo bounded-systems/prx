@@ -20,9 +20,9 @@ function captureSink(): { rows: unknown[]; deps: AuditSinkDeps } {
 
 describe("recordEvent", () => {
   test("throws on unknown event names", () => {
-    expect(() =>
-      recordEvent("DEFINITELY_NOT_A_REAL_EVENT", { deps: captureSink().deps }),
-    ).toThrow(/unknown catalog event/);
+    expect(() => recordEvent("DEFINITELY_NOT_A_REAL_EVENT", { deps: captureSink().deps })).toThrow(
+      /unknown catalog event/,
+    );
   });
 
   test("looks up the owning actor from eventOwnerMap", () => {

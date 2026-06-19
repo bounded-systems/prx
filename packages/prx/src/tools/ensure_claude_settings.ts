@@ -12,12 +12,7 @@
  * The handler never touches `<repoRoot>/.claude/settings.local.json`, which is
  * a per-user Claude scratch surface.
  */
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 export type EnsureClaudeSettingsOptions = {

@@ -20,10 +20,7 @@ export const LAST_POINTS_KEY = "prx.fetch.gh-issues.last-points";
 
 export type SpawnResult = { stdout: string; stderr: string; status: number };
 
-export type SpawnRunner = (
-  cmd: string[],
-  options?: { cwd?: string },
-) => SpawnResult;
+export type SpawnRunner = (cmd: string[], options?: { cwd?: string }) => SpawnResult;
 
 // Routes the bd-config read through @bounded-systems/proc's sync capture primitive (no raw
 // spawn). Stays synchronous: watermark is internal infra read from sync seams
@@ -61,9 +58,7 @@ export type WatermarkDeps = {
  * Throws `WatermarkError` only when the spawn itself failed for some
  * other reason (e.g., bd binary missing).
  */
-export function getWatermark(
-  deps: WatermarkDeps,
-): { since: string | null } {
+export function getWatermark(deps: WatermarkDeps): { since: string | null } {
   const runner = deps.runner ?? defaultSpawnRunner;
   const result = runner(["bd", "config", "get", WATERMARK_KEY], {
     cwd: deps.cwd,
@@ -97,9 +92,7 @@ export function getWatermark(
  * `null`. Throws `WatermarkError` only when the spawn itself fails
  * for some other reason (e.g., bd binary missing).
  */
-export function getLastPoints(
-  deps: WatermarkDeps,
-): { points: number | null } {
+export function getLastPoints(deps: WatermarkDeps): { points: number | null } {
   const runner = deps.runner ?? defaultSpawnRunner;
   const result = runner(["bd", "config", "get", LAST_POINTS_KEY], {
     cwd: deps.cwd,
@@ -128,10 +121,7 @@ export function getLastPoints(
  * (cost projection drops to ~0 after watermark advance) can be re-run
  * from scratch and so the post-spike write ticket has the seam.
  */
-export function setWatermark(
-  deps: WatermarkDeps,
-  since: string,
-): void {
+export function setWatermark(deps: WatermarkDeps, since: string): void {
   const runner = deps.runner ?? defaultSpawnRunner;
   const result = runner(["bd", "config", "set", WATERMARK_KEY, since], {
     cwd: deps.cwd,

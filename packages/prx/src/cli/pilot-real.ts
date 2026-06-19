@@ -24,10 +24,7 @@ import {
 } from "../claude/agent_service.ts";
 import { openSession, type OpenSessionResult } from "../session/open.ts";
 import type { SessionActor } from "../session/schema.ts";
-import {
-  createSdkLegRunner,
-  type RunRoleAgent,
-} from "../machine/machines/pilot-runner.ts";
+import { createSdkLegRunner, type RunRoleAgent } from "../machine/machines/pilot-runner.ts";
 import {
   realRoleSigner,
   realStatementSigner,
@@ -184,7 +181,12 @@ async function signStageLink(
   predicate: string,
   outputHash: string,
 ): Promise<LegAttestation> {
-  const { signedBy, sig } = await sign({ role: stage as unknown as TaskRole, subject, predicate, outputHash });
+  const { signedBy, sig } = await sign({
+    role: stage as unknown as TaskRole,
+    subject,
+    predicate,
+    outputHash,
+  });
   return { stage, subject, predicate, signedBy, sig };
 }
 
@@ -199,7 +201,13 @@ function recordLegHeartbeat(info: LegHeartbeat): void {
   try {
     recordEvent("TELEMETRY_LEG_OBSERVED", {
       workUnitId: info.workUnitId,
-      details: { role: info.role, turns: info.turns, chars: info.chars, elapsedMs: info.elapsedMs, last: info.last },
+      details: {
+        role: info.role,
+        turns: info.turns,
+        chars: info.chars,
+        elapsedMs: info.elapsedMs,
+        last: info.last,
+      },
     });
   } catch {
     // observability is best-effort — never break a leg on a sink error.
@@ -215,8 +223,9 @@ export function buildRealLegRunner(deps: RealLegDeps = {}): LegRunner {
   // GH-261: resolve the per-leg IDLE threshold. Explicit dep wins; else env
   // override; else the default. ≤0 disables it (back to no watchdog).
   const envIdle = Number(getEnv("PRX_PILOT_LEG_IDLE_MS"));
-  const legIdleMs = deps.legIdleMs
-    ?? (Number.isFinite(envIdle) && envIdle > 0 ? envIdle : DEFAULT_PILOT_LEG_IDLE_MS);
+  const legIdleMs =
+    deps.legIdleMs ??
+    (Number.isFinite(envIdle) && envIdle > 0 ? envIdle : DEFAULT_PILOT_LEG_IDLE_MS);
   // GH-261: liveness heartbeat → the telemetry actor's TELEMETRY_LEG_OBSERVED
   // event. Lets an observer SEE a leg making progress (and pinpoint where it
   // goes silent) — feedback the bare watchdog can't give. Best-effort + throttled.
@@ -252,7 +261,14 @@ export function buildRealLegRunner(deps: RealLegDeps = {}): LegRunner {
         const t = Date.now();
         if (t - lastBeat >= LEG_HEARTBEAT_THROTTLE_MS) {
           lastBeat = t;
-          heartbeat({ workUnitId: input.workUnitId, role: input.role, turns, chars, elapsedMs: t - startedAt, last });
+          heartbeat({
+            workUnitId: input.workUnitId,
+            role: input.role,
+            turns,
+            chars,
+            elapsedMs: t - startedAt,
+            last,
+          });
         }
       },
     });
@@ -282,7 +298,8 @@ export function parseCiConclusion(stdout: string): CiConclusion {
     const j = JSON.parse(stdout) as { status?: string; conclusion?: string; state?: string };
     const v = (j.conclusion ?? j.status ?? j.state ?? "").toLowerCase();
     if (["success", "passed", "green", "neutral"].includes(v)) return "success";
-    if (["failure", "failed", "red", "error", "cancelled", "timed_out"].includes(v)) return "failure";
+    if (["failure", "failed", "red", "error", "cancelled", "timed_out"].includes(v))
+      return "failure";
     if (["pending", "queued", "in_progress", "running", "waiting"].includes(v)) return "pending";
     return "unknown";
   } catch {
@@ -357,7 +374,9 @@ export function buildRealChecks(deps: ChecksDeps): ChecksGate {
   return async ({ workUnitId }) => {
     const opened = await open({ actor: "implement", workUnitId, interaction: "headless" });
     if (opened.status !== "opened" || !opened.worktree_path) {
-      throw new Error(`openSession(checks/implement) for ${workUnitId} → status=${opened.status}, no worktree`);
+      throw new Error(
+        `openSession(checks/implement) for ${workUnitId} → status=${opened.status}, no worktree`,
+      );
     }
     const res = await deps.runPrx(["ci"], { cwd: opened.worktree_path, timeoutMs });
     const passed = res.ok;
@@ -386,7 +405,9 @@ export function buildRealIntake(deps: IntakeDeps): IntakeRunner {
   return async ({ workUnitId }) => {
     const res = await deps.runPrx(["intake", "source", workUnitId, "--format", "json"]);
     if (!res.ok) {
-      throw new Error(`intake source failed for ${workUnitId}: ${res.stderr.trim() || res.stdout.trim()}`);
+      throw new Error(
+        `intake source failed for ${workUnitId}: ${res.stderr.trim() || res.stdout.trim()}`,
+      );
     }
     const attestation = await signStageLink(
       sign,
@@ -407,7 +428,9 @@ export function buildRealMerge(deps: MergeDeps): MergeRunner {
   return async ({ workUnitId }) => {
     const res = await deps.runPrx(["publisher", "merge", workUnitId]);
     if (!res.ok) {
-      throw new Error(`publisher merge failed for ${workUnitId}: ${res.stderr.trim() || res.stdout.trim()}`);
+      throw new Error(
+        `publisher merge failed for ${workUnitId}: ${res.stderr.trim() || res.stdout.trim()}`,
+      );
     }
     const attestation = await signStageLink(
       sign,
@@ -452,7 +475,12 @@ function observeSeam<I extends { workUnitId: string }, R>(
     emit({ workUnitId: input.workUnitId, seam, phase: "start" });
     try {
       const r = await fn(input);
-      emit({ workUnitId: input.workUnitId, seam, phase: "done", elapsedMs: Date.now() - startedAt });
+      emit({
+        workUnitId: input.workUnitId,
+        seam,
+        phase: "done",
+        elapsedMs: Date.now() - startedAt,
+      });
       return r;
     } catch (e) {
       emit({
@@ -506,8 +534,11 @@ export function buildRealPilotDeps(deps: RealLegDeps = {}): PilotDeps {
   const signer = resolveSignerOrThrow(deps.signer);
   const runPrx = deps.runPrx ?? realRunPrx;
   const envChecksTimeout = Number(getEnv("PRX_PILOT_CHECKS_TIMEOUT_MS"));
-  const checksTimeoutMs = deps.checksTimeoutMs
-    ?? (Number.isFinite(envChecksTimeout) && envChecksTimeout > 0 ? envChecksTimeout : DEFAULT_PILOT_CHECKS_TIMEOUT_MS);
+  const checksTimeoutMs =
+    deps.checksTimeoutMs ??
+    (Number.isFinite(envChecksTimeout) && envChecksTimeout > 0
+      ? envChecksTimeout
+      : DEFAULT_PILOT_CHECKS_TIMEOUT_MS);
 
   // Tee BOTH telemetry streams into the anchor AND the user/default sink, so the
   // anchor sees every observation even when a caller injects its own sink.

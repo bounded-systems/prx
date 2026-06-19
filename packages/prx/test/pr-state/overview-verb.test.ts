@@ -63,9 +63,7 @@ const inventoryWithLima = {
 const configFixture = { indexPath: "/repo/.prx/repos/index.json" };
 
 /** A deps slice that fails loudly if the inventory path is touched. */
-function depsNoInventory(
-  overviewStatus: OverviewDeps["overviewStatus"],
-): OverviewDeps {
+function depsNoInventory(overviewStatus: OverviewDeps["overviewStatus"]): OverviewDeps {
   return {
     loadRepoInventoryConfig: () => {
       throw new Error("inventory must not be consulted without a slug");

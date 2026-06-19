@@ -23,9 +23,7 @@ describe("formatLocalReposResult", () => {
   };
 
   test("plain lists repos one per line", () => {
-    expect(formatLocalReposResult(sample, "plain", false)).toBe(
-      "/scan/a\n/scan/b/.git",
-    );
+    expect(formatLocalReposResult(sample, "plain", false)).toBe("/scan/a\n/scan/b/.git");
   });
 
   test("plain --count prints just the number", () => {

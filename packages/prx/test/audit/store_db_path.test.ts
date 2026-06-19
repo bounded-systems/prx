@@ -23,7 +23,9 @@ describe("resolveAuditDbPath", () => {
     expect(resolveAuditDbPath({ dbPath: "/x/db.sqlite" })).toBe("/x/db.sqlite");
   });
   test("stateDirOverride is used when present", () => {
-    expect(resolveAuditDbPath({ stateDirOverride: "/state" })).toBe("/state/prx/audit/metrics.sqlite");
+    expect(resolveAuditDbPath({ stateDirOverride: "/state" })).toBe(
+      "/state/prx/audit/metrics.sqlite",
+    );
   });
   test("falls back to XDG_STATE_HOME", () => {
     expect(resolveAuditDbPath({ env: { XDG_STATE_HOME: "/xdg" } as NodeJS.ProcessEnv })).toBe(
@@ -31,7 +33,11 @@ describe("resolveAuditDbPath", () => {
     );
   });
   test("falls back to ~/.local/state when nothing is set", () => {
-    expect(resolveAuditDbPath({ env: {} as NodeJS.ProcessEnv }).endsWith("/.local/state/prx/audit/metrics.sqlite")).toBe(true);
+    expect(
+      resolveAuditDbPath({ env: {} as NodeJS.ProcessEnv }).endsWith(
+        "/.local/state/prx/audit/metrics.sqlite",
+      ),
+    ).toBe(true);
   });
 });
 

@@ -23,9 +23,7 @@ describe("resolveWorktreePath", () => {
       HOME: "/home/test",
     });
     expect(result.source).toBe("XDG_STATE_HOME");
-    expect(result.template).toBe(
-      `/home/test/.local/state/${WT_SUBDIRECTORY}/${TEMPLATE_SUFFIX}`,
-    );
+    expect(result.template).toBe(`/home/test/.local/state/${WT_SUBDIRECTORY}/${TEMPLATE_SUFFIX}`);
     expect(result.base).toBe("/home/test/.local/state/wt/worktrees");
   });
 

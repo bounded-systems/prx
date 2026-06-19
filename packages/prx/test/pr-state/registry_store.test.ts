@@ -97,18 +97,12 @@ describe("openRegistry", () => {
 
 describe("Zod row schemas", () => {
   test("RepoRowSchema rejects non-URL remote_url + non-ISO adopted_at", () => {
-    expect(() =>
-      RepoRowSchema.parse(sampleRepo({ remote_url: "not-a-url" })),
-    ).toThrow();
-    expect(() =>
-      RepoRowSchema.parse(sampleRepo({ adopted_at: "yesterday" })),
-    ).toThrow();
+    expect(() => RepoRowSchema.parse(sampleRepo({ remote_url: "not-a-url" }))).toThrow();
+    expect(() => RepoRowSchema.parse(sampleRepo({ adopted_at: "yesterday" }))).toThrow();
   });
 
   test("BranchRowSchema rejects malformed head_sha", () => {
-    expect(() =>
-      BranchRowSchema.parse(sampleBranch({ head_sha: "deadbeef" })),
-    ).toThrow();
+    expect(() => BranchRowSchema.parse(sampleBranch({ head_sha: "deadbeef" }))).toThrow();
     expect(() =>
       BranchRowSchema.parse(sampleBranch({ head_sha: "0123456789ABCDEF0123456789ABCDEF01234567" })),
     ).toThrow();
@@ -163,9 +157,7 @@ describe("RepositoryStore.upsertRepo", () => {
       const db = openRegistry(join(dir, "registry.sqlite"));
       try {
         const store = new RepositoryStore(db);
-        expect(() =>
-          store.upsertRepo(sampleRepo({ remote_url: "not-a-url" })),
-        ).toThrow();
+        expect(() => store.upsertRepo(sampleRepo({ remote_url: "not-a-url" }))).toThrow();
         expect(store.count()).toBe(0);
       } finally {
         db.close();
@@ -281,8 +273,7 @@ describe("WorkspaceStore.upsertWorkspace", () => {
         workspaceStore.upsertWorkspace(sampleWorkspace());
         expect(workspaceStore.count()).toBe(1);
 
-        db.prepare("DELETE FROM repos WHERE repo_id = $id")
-          .run({ $id: sampleRepo().repo_id });
+        db.prepare("DELETE FROM repos WHERE repo_id = $id").run({ $id: sampleRepo().repo_id });
         expect(workspaceStore.count()).toBe(0);
       } finally {
         db.close();
@@ -305,8 +296,9 @@ describe("WorkspaceStore.upsertWorkspace", () => {
         workspaceStore.upsertWorkspace(sampleWorkspace());
         expect(workspaceStore.count()).toBe(1);
 
-        db.prepare("DELETE FROM branches WHERE branch_id = $id")
-          .run({ $id: sampleBranch().branch_id });
+        db.prepare("DELETE FROM branches WHERE branch_id = $id").run({
+          $id: sampleBranch().branch_id,
+        });
         expect(workspaceStore.count()).toBe(0);
       } finally {
         db.close();

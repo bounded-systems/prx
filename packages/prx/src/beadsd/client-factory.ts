@@ -35,7 +35,10 @@ export const DEFAULT_VM_BEADS_SOCKET = "/tmp/beadsd.sock";
 
 /** Thrown when beadsd isn't reachable — carries an actionable "start it" message. */
 export class BeadsUnavailableError extends Error {
-  constructor(message: string, readonly cause?: unknown) {
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+  ) {
     super(message);
     this.name = "BeadsUnavailableError";
   }
@@ -105,7 +108,9 @@ export function resolveLocalBeadsCwd(deps: ResolveLocalBeadsCwdDeps = {}): strin
 /** Heuristic: did this error come from a connect-time failure (no daemon listening)? */
 function isUnreachable(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
-  return /ECONNREFUSED|ENOENT|connect|did not appear|forward failed|closed the connection/i.test(msg);
+  return /ECONNREFUSED|ENOENT|connect|did not appear|forward failed|closed the connection/i.test(
+    msg,
+  );
 }
 
 // ── local beadsd auto-start (the "require beadsd up" prerequisite) ────────────
@@ -128,7 +133,9 @@ export interface EnsureLocalBeadsdDeps {
   /** Liveness probe (default: a `ready` query over the socket). */
   isUp?: ((socket: string) => Promise<boolean>) | undefined;
   /** Spawn the daemon detached (default {@link spawnDetached}). */
-  spawn?: ((cmd: string[], opts: { cwd?: string; logPath?: string }) => { pid: number }) | undefined;
+  spawn?:
+    | ((cmd: string[], opts: { cwd?: string; logPath?: string }) => { pid: number })
+    | undefined;
   /** Sleep between readiness polls. */
   sleep?: ((ms: number) => Promise<void>) | undefined;
 }
@@ -167,7 +174,17 @@ export async function ensureLocalBeadsd(
   const cwd = opts.cwd ?? getRepoRoot();
   const prxBin = opts.prxBin ?? "prx";
   const pidfile = opts.pidfile ?? `${opts.socket}.pid`;
-  const cmd = [prxBin, "beads", "serve", "--socket", opts.socket, "--cwd", cwd, "--pidfile", pidfile];
+  const cmd = [
+    prxBin,
+    "beads",
+    "serve",
+    "--socket",
+    opts.socket,
+    "--cwd",
+    cwd,
+    "--pidfile",
+    pidfile,
+  ];
   spawn(cmd, { cwd, ...(opts.logPath !== undefined ? { logPath: opts.logPath } : {}) });
 
   const timeout = opts.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS;
@@ -230,7 +247,8 @@ export async function withBeadsClient<T>(
   // connect. The daemon serves the resolved canonical beads (decoupled from the
   // current worktree), not whichever `.beads` is underfoot.
   const ensureUp =
-    deps.ensureUp ?? ((socket: string) => ensureLocalBeadsd({ socket, cwd: resolveLocalBeadsCwd() }));
+    deps.ensureUp ??
+    ((socket: string) => ensureLocalBeadsd({ socket, cwd: resolveLocalBeadsCwd() }));
   await ensureUp(endpoint.socket);
 
   const makeTransport = deps.localTransport ?? unixSocketTransport;

@@ -95,7 +95,12 @@ export type BuildSpawnArgs = {
  */
 function legIdentityDigest(args: BuildSpawnArgs): string {
   return sha256Hex(
-    JSON.stringify({ unit: args.unit, role: args.role, inputRef: args.input.ref, inputSha: args.input.sha }),
+    JSON.stringify({
+      unit: args.unit,
+      role: args.role,
+      inputRef: args.input.ref,
+      inputSha: args.input.sha,
+    }),
   );
 }
 
@@ -107,7 +112,9 @@ export function spawnStatementArgs(args: BuildSpawnArgs): {
 } {
   return {
     predicateType: SLSA_PROVENANCE_V1,
-    subject: [{ name: `${args.unit}:${args.role}@spawn`, digest: { sha256: legIdentityDigest(args) } }],
+    subject: [
+      { name: `${args.unit}:${args.role}@spawn`, digest: { sha256: legIdentityDigest(args) } },
+    ],
     predicate: {
       buildDefinition: {
         buildType: PRX_SPAWN_BUILD_TYPE,
@@ -123,7 +130,9 @@ export function spawnStatementArgs(args: BuildSpawnArgs): {
       },
       runDetails: {
         builder: { id: `prx-claude://${args.role}` },
-        metadata: { ...(args.invocationId !== undefined ? { invocationId: args.invocationId } : {}) },
+        metadata: {
+          ...(args.invocationId !== undefined ? { invocationId: args.invocationId } : {}),
+        },
       },
     },
   };
@@ -139,13 +148,20 @@ export async function mintSpawnAttestation(
   signer: StatementSigner,
 ): Promise<{ statement: SpawnStatement; emit: EmitResult }> {
   if (!args.input.sha || args.input.sha.length === 0) {
-    throw new Error(`mintSpawnAttestation(${args.unit}/${args.role}): no input material — cannot spawn`);
+    throw new Error(
+      `mintSpawnAttestation(${args.unit}/${args.role}): no input material — cannot spawn`,
+    );
   }
   const sArgs = spawnStatementArgs(args);
   const { signedBy, sig } = await signer(sArgs);
   // Parse to narrow the loosely-typed args onto the literal SpawnStatement type
   // (and validate the shape before it is persisted).
-  const statement = spawnStatementSchema.parse({ _type: IN_TOTO_STATEMENT_TYPE, ...sArgs, signedBy, sig });
+  const statement = spawnStatementSchema.parse({
+    _type: IN_TOTO_STATEMENT_TYPE,
+    ...sArgs,
+    signedBy,
+    sig,
+  });
   const emit = await emitArtifact(spawnEdge(args.role), args.unit, statement);
   return { statement, emit };
 }

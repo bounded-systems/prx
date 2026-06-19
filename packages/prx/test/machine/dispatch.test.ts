@@ -417,12 +417,10 @@ describe("dispatchMachine — capability deny", () => {
 describe("dispatchMachine — depth deny", () => {
   test("depth >= MAX → failed with depth_exceeded; invoke not called", async () => {
     let invokeCalls = 0;
-    const sentinel = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(
-      async () => {
-        invokeCalls += 1;
-        return { stdout: Buffer.alloc(0), exitCode: 0, durationMs: 0 };
-      },
-    );
+    const sentinel = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(async () => {
+      invokeCalls += 1;
+      return { stdout: Buffer.alloc(0), exitCode: 0, durationMs: 0 };
+    });
     const machine = createDispatchMachine({
       invokeTargetVerb: sentinel,
       writeCasBlob: okWriteCas(sampleSha, "n/a"),
@@ -512,12 +510,10 @@ describe("dispatchMachine — OCAP typed-input gate (GH-2418)", () => {
 
   test("revoked (gate on, no inputArtifact in closure): failed/capability_denied; invoke never runs", async () => {
     let invokeCalls = 0;
-    const sentinel = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(
-      async () => {
-        invokeCalls += 1;
-        return { stdout: Buffer.alloc(0), exitCode: 0, durationMs: 0 };
-      },
-    );
+    const sentinel = fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(async () => {
+      invokeCalls += 1;
+      return { stdout: Buffer.alloc(0), exitCode: 0, durationMs: 0 };
+    });
     const machine = createDispatchMachine({
       invokeTargetVerb: sentinel,
       writeCasBlob: okWriteCas(sampleSha, "n/a"),
@@ -611,9 +607,7 @@ describe("structured I/O per agent (GH-2418 claim 1)", () => {
 
 describe("dispatch capability — runtime profile mirror", () => {
   test("SESSION_PROFILES.allowedDispatchTargets matches default policy", async () => {
-    const { SESSION_PROFILES } = await import(
-      "../../src/machine/runtime_profiles.ts"
-    );
+    const { SESSION_PROFILES } = await import("../../src/machine/runtime_profiles.ts");
     for (const profile of ["plan", "intake", "triage", "implement"] as const) {
       expect(SESSION_PROFILES[profile].allowedDispatchTargets).toEqual([
         ...defaultDispatchCapabilities[profile],
@@ -622,9 +616,7 @@ describe("dispatch capability — runtime profile mirror", () => {
   });
 
   test("dispatch event vocabulary exposed on prx in eventOwnerMap", async () => {
-    const { eventOwnerMap, toolActorCatalog } = await import(
-      "../../src/machine/actors.ts"
-    );
+    const { eventOwnerMap, toolActorCatalog } = await import("../../src/machine/actors.ts");
     expect(eventOwnerMap.DISPATCH_REQUESTED).toBe("prx");
     expect(eventOwnerMap.DISPATCH_COMPLETED).toBe("prx");
     expect(eventOwnerMap.DISPATCH_FAILED).toBe("prx");
@@ -657,7 +649,6 @@ describe("dispatch actor taxonomy", () => {
     ] as const) {
       expect(dispatchActors as readonly string[]).toContain(legacy);
     }
-
   });
 
   test("casUriFor produces parseable handles for every dispatch actor", () => {

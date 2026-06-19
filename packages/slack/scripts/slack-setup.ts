@@ -76,10 +76,7 @@ async function opRead(field: string): Promise<string> {
 }
 
 async function cmdStore(): Promise<void> {
-  const cid = requireEnv(
-    "SLACK_CLIENT_ID",
-    "export SLACK_CLIENT_ID=<your app's Client ID>",
-  );
+  const cid = requireEnv("SLACK_CLIENT_ID", "export SLACK_CLIENT_ID=<your app's Client ID>");
   const secret = requireEnv(
     "SLACK_CLIENT_SECRET",
     "read -rs SLACK_CLIENT_SECRET && export SLACK_CLIENT_SECRET   # paste secret, hidden",
@@ -97,8 +94,18 @@ async function cmdStore(): Promise<void> {
   } else {
     await op(
       [
-        "item", "create", "--account", OP_ACCOUNT, "--vault", OP_VAULT,
-        "--category", "API Credential", "--title", OP_ITEM, idField, secretField,
+        "item",
+        "create",
+        "--account",
+        OP_ACCOUNT,
+        "--vault",
+        OP_VAULT,
+        "--category",
+        "API Credential",
+        "--title",
+        OP_ITEM,
+        idField,
+        secretField,
       ],
       "op item create",
     );
@@ -173,15 +180,23 @@ async function cmdProve(): Promise<void> {
     await fetch("https://slack.com/api/auth.test", { headers })
   ).json()) as Record<string, unknown>;
   console.log("== auth.test ==");
-  console.log(JSON.stringify({ ok: auth.ok, user: auth.user, team: auth.team, error: auth.error }, null, 2));
+  console.log(
+    JSON.stringify({ ok: auth.ok, user: auth.user, team: auth.team, error: auth.error }, null, 2),
+  );
 
   const conv = (await (
-    await fetch("https://slack.com/api/conversations.list?limit=5&types=public_channel", { headers })
+    await fetch("https://slack.com/api/conversations.list?limit=5&types=public_channel", {
+      headers,
+    })
   ).json()) as { ok?: boolean; error?: string; channels?: Array<{ id: string; name: string }> };
   console.log("== conversations.list ==");
   console.log(
     JSON.stringify(
-      { ok: conv.ok, error: conv.error, channels: (conv.channels ?? []).map((c) => ({ id: c.id, name: c.name })) },
+      {
+        ok: conv.ok,
+        error: conv.error,
+        channels: (conv.channels ?? []).map((c) => ({ id: c.id, name: c.name })),
+      },
       null,
       2,
     ),
@@ -211,7 +226,9 @@ try {
       await cmdProve();
       break;
     default:
-      console.log("usage: bun run packages/slack/scripts/slack-setup.ts {store|authorize|exchange <code>|token|prove}");
+      console.log(
+        "usage: bun run packages/slack/scripts/slack-setup.ts {store|authorize|exchange <code>|token|prove}",
+      );
       process.exit(1);
   }
 } catch (e) {

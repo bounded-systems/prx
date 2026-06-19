@@ -28,11 +28,7 @@ export function patchBeadsMetadataDoltMode(beadsDir: string): MetadataPatchResul
     const raw = readFileSync(metadataPath, "utf8");
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     parsed.dolt_mode = "server";
-    writeFileSync(
-      metadataPath,
-      `${JSON.stringify(parsed, null, 2)}\n`,
-      "utf8",
-    );
+    writeFileSync(metadataPath, `${JSON.stringify(parsed, null, 2)}\n`, "utf8");
     return { ok: true, metadataPath };
   } catch (err) {
     return {

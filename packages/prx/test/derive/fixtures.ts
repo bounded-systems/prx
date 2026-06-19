@@ -52,7 +52,9 @@ export function makeRawState(overrides: FixtureOverrides = {}): RawStateV1 {
         headSha: (overrides.worktreeHeadSha ?? null) as Sha | null,
       },
       branch: {
-        name: (overrides.branchName === undefined ? null : overrides.branchName) as BranchName | null,
+        name: (overrides.branchName === undefined
+          ? null
+          : overrides.branchName) as BranchName | null,
         existsLocal: overrides.branchExistsLocal ?? false,
         existsRemote: overrides.branchExistsRemote ?? false,
         ahead: overrides.branchAhead ?? 0,

@@ -13,7 +13,12 @@ import {
   type RepoStatusResult,
 } from "./github.ts";
 import { deriveInfo, loadContract, type StateMode } from "./contract.ts";
-import { isSystemMergeReady, lifecycleStates, type LifecycleState, type PrSystemContext } from "./machine.ts";
+import {
+  isSystemMergeReady,
+  lifecycleStates,
+  type LifecycleState,
+  type PrSystemContext,
+} from "./machine.ts";
 import {
   defaultTaskPath,
   deriveTaskStatus,
@@ -34,13 +39,15 @@ import {
 } from "./raw_state.ts";
 import { taskRoles, type TaskRole } from "../machine/machines/task.ts";
 
-const localCountsSchema = z.object({
-  staged: z.number().int().min(0),
-  unstaged: z.number().int().min(0),
-  untracked: z.number().int().min(0),
-  ignored: z.number().int().min(0),
-  conflicts: z.number().int().min(0),
-}).strict();
+const localCountsSchema = z
+  .object({
+    staged: z.number().int().min(0),
+    unstaged: z.number().int().min(0),
+    untracked: z.number().int().min(0),
+    ignored: z.number().int().min(0),
+    conflicts: z.number().int().min(0),
+  })
+  .strict();
 
 const boardColumns = [
   "no_worktree",
@@ -59,111 +66,139 @@ const boardColumns = [
   "cleaned",
 ] as const satisfies readonly BoardColumn[];
 
-const prStatusSchema = z.object({
-  exists: z.boolean(),
-  number: z.number().int().nullable(),
-  title: z.string().nullable(),
-  url: z.string().nullable(),
-  draft: z.boolean().nullable(),
-  checks: z.enum(["green", "red", "pending", "unknown"]).nullable(),
-  review: z.enum(["approved", "changes_requested", "review_required", "commented", "unknown"]).nullable(),
-  approvals: z.number().int().nullable(),
-  mergeable: z.enum(["mergeable", "conflicting", "unknown"]).nullable(),
-}).strict();
+const prStatusSchema = z
+  .object({
+    exists: z.boolean(),
+    number: z.number().int().nullable(),
+    title: z.string().nullable(),
+    url: z.string().nullable(),
+    draft: z.boolean().nullable(),
+    checks: z.enum(["green", "red", "pending", "unknown"]).nullable(),
+    review: z
+      .enum(["approved", "changes_requested", "review_required", "commented", "unknown"])
+      .nullable(),
+    approvals: z.number().int().nullable(),
+    mergeable: z.enum(["mergeable", "conflicting", "unknown"]).nullable(),
+  })
+  .strict();
 
-const currentUnitSchema = z.object({
-  ticket: z.string().nullable(),
-  beadId: z.string().nullable(),
-  branch: z.string(),
-  worktreePath: z.string().nullable(),
-  column: z.enum(boardColumns),
-  reasons: z.array(z.string()),
-}).strict();
+const currentUnitSchema = z
+  .object({
+    ticket: z.string().nullable(),
+    beadId: z.string().nullable(),
+    branch: z.string(),
+    worktreePath: z.string().nullable(),
+    column: z.enum(boardColumns),
+    reasons: z.array(z.string()),
+  })
+  .strict();
 
-const prSystemContextSchema = z.object({
-  lifecycle: z.enum(["drafting", "open", "merged", "closed"]),
-  review: z.enum(["none", "in_review", "approved", "changes_requested"]),
-  ci: z.enum(["pending", "running", "passed", "failed"]),
-  mergeability: z.enum(["unknown", "clean", "blocked", "dirty"]),
-}).strict();
+const prSystemContextSchema = z
+  .object({
+    lifecycle: z.enum(["drafting", "open", "merged", "closed"]),
+    review: z.enum(["none", "in_review", "approved", "changes_requested"]),
+    ci: z.enum(["pending", "running", "passed", "failed"]),
+    mergeability: z.enum(["unknown", "clean", "blocked", "dirty"]),
+  })
+  .strict();
 
-const prContractStateSchema = z.object({
-  exists: z.boolean(),
-  mode: z.enum(["draft", "ready"]).nullable(),
-  state: z.enum(lifecycleStates).nullable(),
-  title: z.string().nullable(),
-  reason: z.string().nullable(),
-}).strict();
+const prContractStateSchema = z
+  .object({
+    exists: z.boolean(),
+    mode: z.enum(["draft", "ready"]).nullable(),
+    state: z.enum(lifecycleStates).nullable(),
+    title: z.string().nullable(),
+    reason: z.string().nullable(),
+  })
+  .strict();
 
 const taskRoleSchema = z.enum(taskRoles);
 
-const workflowTaskStateSchema = z.object({
-  exists: z.boolean(),
-  currentRole: taskRoleSchema.nullable(),
-  machineState: z.string().nullable(),
-  handoffStatus: z.enum(["ready", "blocked", "waiting", "completed"]).nullable(),
-  blockers: z.array(z.string()),
-  nextRole: taskRoleSchema.nullable(),
-}).strict();
+const workflowTaskStateSchema = z
+  .object({
+    exists: z.boolean(),
+    currentRole: taskRoleSchema.nullable(),
+    machineState: z.string().nullable(),
+    handoffStatus: z.enum(["ready", "blocked", "waiting", "completed"]).nullable(),
+    blockers: z.array(z.string()),
+    nextRole: taskRoleSchema.nullable(),
+  })
+  .strict();
 
-const reviewStateSchema = z.object({
-  decision: z.enum(["none", "changes_requested", "approved"]),
-  reviewersRequested: z.boolean(),
-  unresolvedThreads: z.number().int().min(0),
-  approvals: z.number().int().nullable(),
-  agentReview: z.boolean().nullable(),
-  humanReview: z.boolean().nullable(),
-  commentsResolved: z.boolean().nullable(),
-}).strict();
+const reviewStateSchema = z
+  .object({
+    decision: z.enum(["none", "changes_requested", "approved"]),
+    reviewersRequested: z.boolean(),
+    unresolvedThreads: z.number().int().min(0),
+    approvals: z.number().int().nullable(),
+    agentReview: z.boolean().nullable(),
+    humanReview: z.boolean().nullable(),
+    commentsResolved: z.boolean().nullable(),
+  })
+  .strict();
 
-const invariantFindingSchema = z.object({
-  id: z.string(),
-  severity: z.literal("hard"),
-  message: z.string(),
-}).strict();
+const invariantFindingSchema = z
+  .object({
+    id: z.string(),
+    severity: z.literal("hard"),
+    message: z.string(),
+  })
+  .strict();
 
-const invariantReportSchema = z.object({
-  valid: z.boolean(),
-  findings: z.array(invariantFindingSchema),
-}).strict();
+const invariantReportSchema = z
+  .object({
+    valid: z.boolean(),
+    findings: z.array(invariantFindingSchema),
+  })
+  .strict();
 
 // GH-352: the local CI provenance projection — the merge-guard verdict plus a
 // freshness signal (does the recorded green still cover the current tree?).
-export const ciProvenanceStateSchema = z.object({
-  verdict: z.enum(["verified", "unsigned", "unchecked"]),
-  freshness: z.enum(["fresh", "stale", "unknown"]),
-}).strict();
+export const ciProvenanceStateSchema = z
+  .object({
+    verdict: z.enum(["verified", "unsigned", "unchecked"]),
+    freshness: z.enum(["fresh", "stale", "unknown"]),
+  })
+  .strict();
 
 const DEFAULT_CI_PROVENANCE = { verdict: "unchecked", freshness: "unknown" } as const;
 
-export const domainStateV1Schema = z.object({
-  kind: z.literal("DomainStateV1"),
-  taskContract: taskContractSchema.nullable(),
-  ci: ciProvenanceStateSchema,
-  prState: z.object({
-    pr: prStatusSchema,
-    system: prSystemContextSchema,
-    contract: prContractStateSchema,
-    mergeReady: z.boolean(),
-  }).strict(),
-  workflowState: z.object({
-    phase: z.enum(workflowPhases),
-    task: workflowTaskStateSchema,
-  }).strict(),
-  repoState: z.object({
-    repoRoot: z.string(),
-    branch: z.string().nullable(),
-    operation: z.enum(["none", "merge", "rebase", "cherry-pick"]),
-    remoteFreshness: z.enum(["fresh", "stale", "unknown"]),
-    local: localCountsSchema,
-    currentUnit: currentUnitSchema.nullable(),
-    artifacts: rawStateV1Schema.shape.artifacts,
-    sync: rawStateV1Schema.shape.sync,
-  }).strict(),
-  reviewState: reviewStateSchema,
-  rawState: rawStateV1Schema,
-  invariants: invariantReportSchema,
-}).strict();
+export const domainStateV1Schema = z
+  .object({
+    kind: z.literal("DomainStateV1"),
+    taskContract: taskContractSchema.nullable(),
+    ci: ciProvenanceStateSchema,
+    prState: z
+      .object({
+        pr: prStatusSchema,
+        system: prSystemContextSchema,
+        contract: prContractStateSchema,
+        mergeReady: z.boolean(),
+      })
+      .strict(),
+    workflowState: z
+      .object({
+        phase: z.enum(workflowPhases),
+        task: workflowTaskStateSchema,
+      })
+      .strict(),
+    repoState: z
+      .object({
+        repoRoot: z.string(),
+        branch: z.string().nullable(),
+        operation: z.enum(["none", "merge", "rebase", "cherry-pick"]),
+        remoteFreshness: z.enum(["fresh", "stale", "unknown"]),
+        local: localCountsSchema,
+        currentUnit: currentUnitSchema.nullable(),
+        artifacts: rawStateV1Schema.shape.artifacts,
+        sync: rawStateV1Schema.shape.sync,
+      })
+      .strict(),
+    reviewState: reviewStateSchema,
+    rawState: rawStateV1Schema,
+    invariants: invariantReportSchema,
+  })
+  .strict();
 
 export type DomainStateV1 = z.infer<typeof domainStateV1Schema>;
 
@@ -175,9 +210,7 @@ export function defaultDomainStatePath(cwd = process.cwd()): string {
   return join(cwd, ".pr", "local", "domain-state.json");
 }
 
-function mapReviewState(
-  review: RepoStatusResult["pr"]["review"],
-): PrSystemContext["review"] {
+function mapReviewState(review: RepoStatusResult["pr"]["review"]): PrSystemContext["review"] {
   if (review === "approved") return "approved";
   if (review === "changes_requested") return "changes_requested";
   if (review === "review_required" || review === "commented") return "in_review";
@@ -206,17 +239,20 @@ function mapMergeabilityState(
   return "unknown";
 }
 
-function mapMergeabilityRaw(mergeable: RepoStatusResult["pr"]["mergeable"]): RawStateV1["signals"]["mergeability"]["state"] {
+function mapMergeabilityRaw(
+  mergeable: RepoStatusResult["pr"]["mergeable"],
+): RawStateV1["signals"]["mergeability"]["state"] {
   if (mergeable === "mergeable") return "mergeable";
   if (mergeable === "conflicting") return "conflicting";
   return "unknown";
 }
 
 function deriveSystemState(repo: RepoStatusResult): PrSystemContext {
-  const lifecycle: PrSystemContext["lifecycle"] =
-    repo.pr.exists
-      ? (repo.pr.draft ? "drafting" : "open")
-      : "drafting";
+  const lifecycle: PrSystemContext["lifecycle"] = repo.pr.exists
+    ? repo.pr.draft
+      ? "drafting"
+      : "open"
+    : "drafting";
 
   return {
     lifecycle,
@@ -335,9 +371,7 @@ function summarizeCurrentUnit(
   };
 }
 
-function deriveContractState(
-  contractPath: string,
-): DomainStateV1["prState"]["contract"] {
+function deriveContractState(contractPath: string): DomainStateV1["prState"]["contract"] {
   if (!existsSync(contractPath)) {
     return {
       exists: false,
@@ -396,8 +430,8 @@ export function buildDomainState(
   const board = boardStatus(repoPath, runner);
   const branch = repo.local.branch.name;
   const currentUnit =
-    board.units.find((unit) => unit.worktree_path === repo.repo_root)
-    ?? (branch ? board.units.find((unit) => unit.branch === branch) ?? null : null);
+    board.units.find((unit) => unit.worktree_path === repo.repo_root) ??
+    (branch ? (board.units.find((unit) => unit.branch === branch) ?? null) : null);
   const unresolvedThreads =
     repo.pr.exists && repo.pr.number !== null
       ? fetchPrComments(repoPath, String(repo.pr.number), runner).unresolvedThreads

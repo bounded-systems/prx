@@ -4,7 +4,13 @@ import { canonicalWorkUnitIdSchema } from "./work_unit.ts";
 export const outcomeStatuses = ["on_track", "at_risk", "failed_target", "met_target"] as const;
 export type OutcomeStatus = (typeof outcomeStatuses)[number];
 
-export const sprintStatuses = ["planning", "executing", "blocked", "outcome_failed", "complete"] as const;
+export const sprintStatuses = [
+  "planning",
+  "executing",
+  "blocked",
+  "outcome_failed",
+  "complete",
+] as const;
 export type SprintStatus = (typeof sprintStatuses)[number];
 
 export type SprintPrSnapshot = {
@@ -16,55 +22,73 @@ export type SprintPrSnapshot = {
   mergeable: "mergeable" | "conflicting" | "unknown";
 };
 
-const sprintPrSnapshotSchema = z.object({
-  number: z.number().int().positive(),
-  state: z.enum(["open", "closed", "merged", "none"]),
-  draft: z.boolean(),
-  checks: z.enum(["green", "pending", "red", "unknown"]),
-  review: z.enum(["approved", "changes_requested", "review_required", "commented", "unknown"]),
-  mergeable: z.enum(["mergeable", "conflicting", "unknown"]),
-}).strict();
+const sprintPrSnapshotSchema = z
+  .object({
+    number: z.number().int().positive(),
+    state: z.enum(["open", "closed", "merged", "none"]),
+    draft: z.boolean(),
+    checks: z.enum(["green", "pending", "red", "unknown"]),
+    review: z.enum(["approved", "changes_requested", "review_required", "commented", "unknown"]),
+    mergeable: z.enum(["mergeable", "conflicting", "unknown"]),
+  })
+  .strict();
 
 const rfc3339UtcString = z.string().datetime({ offset: true });
 const ymdDateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
-export const sprintStateV1Schema = z.object({
-  sprintId: z.string().min(1),
-  week: z.object({
-    startDate: ymdDateString,
-    endDate: ymdDateString,
-  }).strict(),
-  goal: z.object({
-    summary: z.string().min(1),
-    metricName: z.string().min(1),
-    targetDelta: z.number(),
-  }).strict(),
-  metric: z.object({
-    baseline: z.number().nullable(),
-    current: z.number().nullable(),
-    status: z.enum(outcomeStatuses),
-  }).strict(),
-  bindings: z.object({
-    prNumbers: z.array(z.number().int().positive()),
-    ticketIds: z.array(canonicalWorkUnitIdSchema),
-    unitIds: z.array(canonicalWorkUnitIdSchema),
-  }).strict(),
-  derived: z.object({
-    executionProgress: z.object({
-      total: z.number().int().min(0),
-      merged: z.number().int().min(0),
-      ready: z.number().int().min(0),
-      blocked: z.number().int().min(0),
-      inProgress: z.number().int().min(0),
-      completion: z.number().min(0).max(1),
-    }).strict(),
-    outcomeStatus: z.enum(outcomeStatuses),
-    sprintStatus: z.enum(sprintStatuses),
-  }).strict(),
-  meta: z.object({
-    updatedAt: rfc3339UtcString,
-  }).strict(),
-}).strict();
+export const sprintStateV1Schema = z
+  .object({
+    sprintId: z.string().min(1),
+    week: z
+      .object({
+        startDate: ymdDateString,
+        endDate: ymdDateString,
+      })
+      .strict(),
+    goal: z
+      .object({
+        summary: z.string().min(1),
+        metricName: z.string().min(1),
+        targetDelta: z.number(),
+      })
+      .strict(),
+    metric: z
+      .object({
+        baseline: z.number().nullable(),
+        current: z.number().nullable(),
+        status: z.enum(outcomeStatuses),
+      })
+      .strict(),
+    bindings: z
+      .object({
+        prNumbers: z.array(z.number().int().positive()),
+        ticketIds: z.array(canonicalWorkUnitIdSchema),
+        unitIds: z.array(canonicalWorkUnitIdSchema),
+      })
+      .strict(),
+    derived: z
+      .object({
+        executionProgress: z
+          .object({
+            total: z.number().int().min(0),
+            merged: z.number().int().min(0),
+            ready: z.number().int().min(0),
+            blocked: z.number().int().min(0),
+            inProgress: z.number().int().min(0),
+            completion: z.number().min(0).max(1),
+          })
+          .strict(),
+        outcomeStatus: z.enum(outcomeStatuses),
+        sprintStatus: z.enum(sprintStatuses),
+      })
+      .strict(),
+    meta: z
+      .object({
+        updatedAt: rfc3339UtcString,
+      })
+      .strict(),
+  })
+  .strict();
 
 export type SprintStateV1 = z.infer<typeof sprintStateV1Schema>;
 
@@ -141,9 +165,10 @@ export function deriveOutcomeStatus(metric: {
   }
 
   const deltaPercent = ((metric.current - metric.baseline) / metric.baseline) * 100;
-  const meetsTarget = metric.targetDelta >= 0
-    ? deltaPercent >= metric.targetDelta
-    : deltaPercent <= metric.targetDelta;
+  const meetsTarget =
+    metric.targetDelta >= 0
+      ? deltaPercent >= metric.targetDelta
+      : deltaPercent <= metric.targetDelta;
   if (meetsTarget) {
     return "met_target";
   }
@@ -156,12 +181,15 @@ export function deriveOutcomeStatus(metric: {
   return "on_track";
 }
 
-export function deriveSprintStatus(progress: {
-  total: number;
-  merged: number;
-  blocked: number;
-  inProgress: number;
-}, outcome: OutcomeStatus): SprintStatus {
+export function deriveSprintStatus(
+  progress: {
+    total: number;
+    merged: number;
+    blocked: number;
+    inProgress: number;
+  },
+  outcome: OutcomeStatus,
+): SprintStatus {
   if (outcome === "failed_target") {
     return "outcome_failed";
   }

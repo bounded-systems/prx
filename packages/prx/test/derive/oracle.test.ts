@@ -7,17 +7,15 @@
 
 import { describe, expect, test } from "bun:test";
 
-import {
-  assertInvariants,
-  derivePhase,
-  type RawStateV1,
-} from "@bounded-systems/machine-schema";
+import { assertInvariants, derivePhase, type RawStateV1 } from "@bounded-systems/machine-schema";
 import { projectAndRun, queryDrift } from "../../src/derive/index.ts";
 import { makeRawState } from "./fixtures.ts";
 
 function findingsFor(raw: RawStateV1): string[] {
   const phase = derivePhase(raw);
-  return assertInvariants(raw, phase).findings.map((f) => f.id).sort();
+  return assertInvariants(raw, phase)
+    .findings.map((f) => f.id)
+    .sort();
 }
 
 function driftFor(raw: RawStateV1): string[] {

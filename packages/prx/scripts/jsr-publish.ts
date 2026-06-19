@@ -85,7 +85,8 @@ export function load(): Pkg[] {
     const jsr = readJson(join(dir, "jsr.json"));
     const pj = readJson(join(dir, "package.json"));
     const version = jsr.version as string | undefined;
-    if (!version) throw new Error(`${p.pkg}: jsr.json has no version (run \`bun run jsr:versions\`)`);
+    if (!version)
+      throw new Error(`${p.pkg}: jsr.json has no version (run \`bun run jsr:versions\`)`);
     const declared = {
       ...((pj.dependencies as Record<string, string>) ?? {}),
       ...((pj.peerDependencies as Record<string, string>) ?? {}),

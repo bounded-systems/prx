@@ -14,12 +14,7 @@
 
 import { z } from "zod";
 
-import {
-  type ActorName,
-  ActorSpec,
-  CommandSpec,
-  type SessionContext,
-} from "./registry.ts";
+import { type ActorName, ActorSpec, CommandSpec, type SessionContext } from "./registry.ts";
 // GH-2026/GH-2327: wire the gc actor's boundary-layer input schemas into
 // `CommandSpec.args` (GH-1242 substrate). schema.ts imports only zod, so this
 // is cycle-safe.
@@ -191,8 +186,7 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     deprecation: {
       alias_for: "plan session",
       removal_target: "#582 / #833",
-      stderr_hint:
-        "prx open is deprecated; use `prx plan session [GH-NNN]`.",
+      stderr_hint: "prx open is deprecated; use `prx plan session [GH-NNN]`.",
     },
     actor: "plan",
   },
@@ -204,8 +198,7 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     deprecation: {
       alias_for: "plan session",
       removal_target: "#582",
-      stderr_hint:
-        "prx work is deprecated; use `prx plan session [GH-NNN]`.",
+      stderr_hint: "prx work is deprecated; use `prx plan session [GH-NNN]`.",
     },
     actor: "plan",
   },
@@ -222,8 +215,7 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     deprecation: {
       alias_for: "implement agent",
       removal_target: "GH-1242 PR-5",
-      stderr_hint:
-        "prx implement session is deprecated; use `prx implement agent [GH-NNN]`.",
+      stderr_hint: "prx implement session is deprecated; use `prx implement agent [GH-NNN]`.",
     },
     actor: "work",
   },
@@ -567,7 +559,8 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
   {
     name: "triage status",
     parent: "triage",
-    description: "List untriaged issues, reverse orphans, drift, stale beads; closed-as-dup excluded (GH-1829)",
+    description:
+      "List untriaged issues, reverse orphans, drift, stale beads; closed-as-dup excluded (GH-1829)",
     domain: "work-units",
     binding: "mainx",
     actor: "triage",
@@ -1646,7 +1639,8 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
   {
     name: "repo overview",
     parent: "repo",
-    description: "Print repo overview snapshot (accepts optional <slug> positional; falls back to cwd)",
+    description:
+      "Print repo overview snapshot (accepts optional <slug> positional; falls back to cwd)",
     domain: "repo-plumbing",
     actor: "repo",
   },
@@ -1703,7 +1697,8 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     // GH-1710 / GH-2013: flip a per-repo axis on an existing inventory entry.
     name: "repo set",
     parent: "repo",
-    description: "Set a per-repo axis (canonical, stale-threshold-days, bd-workspace-prefix, dolt-remote)",
+    description:
+      "Set a per-repo axis (canonical, stale-threshold-days, bd-workspace-prefix, dolt-remote)",
     domain: "repo-plumbing",
     actor: "repo",
   },
@@ -1740,8 +1735,7 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     // issue on the next sync cadence. Sibling of `delegate next`.
     name: "delegate assign",
     parent: "delegate",
-    description:
-      "Assign a work unit to an agent (bd-canonical; mirror projects to GH)",
+    description: "Assign a work unit to an agent (bd-canonical; mirror projects to GH)",
     domain: "work-units",
     actor: "delegate",
   },
@@ -1752,8 +1746,7 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     // --apply writes via `bd assign`.
     name: "delegate repair-assignees",
     parent: "delegate",
-    description:
-      "List or rewrite bd records with non-GH-login assignees",
+    description: "List or rewrite bd records with non-GH-login assignees",
     domain: "work-units",
     actor: "delegate",
   },
@@ -2302,9 +2295,7 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
   },
 ];
 
-export const prxCommandRegistry: CommandSpec[] = z
-  .array(CommandSpec)
-  .parse(RAW_REGISTRY);
+export const prxCommandRegistry: CommandSpec[] = z.array(CommandSpec).parse(RAW_REGISTRY);
 
 /** Lookup by canonical name (e.g., "plan session", "session close"). */
 export function findCommand(name: string): CommandSpec | undefined {
@@ -2313,9 +2304,7 @@ export function findCommand(name: string): CommandSpec | undefined {
 
 /** Filter promoted commands for a session context (§6.2). */
 export function promotedFor(ctx: SessionContext): CommandSpec[] {
-  return prxCommandRegistry.filter(
-    (c) => c.promoted_in.includes(ctx) && !c.deprecation,
-  );
+  return prxCommandRegistry.filter((c) => c.promoted_in.includes(ctx) && !c.deprecation);
 }
 
 /** All entries owned by a given actor (GH-1242 PR-3+ dispatcher / help-actor ergonomics). */
@@ -2348,7 +2337,11 @@ export function commandsByActor(actor: ActorName): CommandSpec[] {
 const RAW_ACTOR_SPECS: z.input<typeof ActorSpec>[] = [
   // GH-1386: dispatch-only read substrate — every session profile reaches it
   // for file/grep/diff inventory that returns a `scout://sha256:<hex>` handle.
-  { name: "scout", dispatchable: true, allowedCallers: ["plan", "triage", "intake", "implement", "submit", "author"] },
+  {
+    name: "scout",
+    dispatchable: true,
+    allowedCallers: ["plan", "triage", "intake", "implement", "submit", "author"],
+  },
   // implement→plan exists today (defaultDispatchCapabilities.implement); submit
   // and author reach the saved plan slot under the intended ocap map.
   { name: "plan", dispatchable: true, allowedCallers: ["implement", "submit", "author"] },
@@ -2368,9 +2361,7 @@ const RAW_ACTOR_SPECS: z.input<typeof ActorSpec>[] = [
   { name: "intake", dispatchable: true, allowedCallers: ["triage"] },
 ];
 
-export const prxActorRegistry: ActorSpec[] = z
-  .array(ActorSpec)
-  .parse(RAW_ACTOR_SPECS);
+export const prxActorRegistry: ActorSpec[] = z.array(ActorSpec).parse(RAW_ACTOR_SPECS);
 
 const actorSpecByName: ReadonlyMap<ActorName, ActorSpec> = new Map(
   prxActorRegistry.map((spec) => [spec.name, spec]),

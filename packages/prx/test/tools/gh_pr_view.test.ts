@@ -29,7 +29,8 @@ afterEach(() => {
   __resetRateLimitCacheForTesting();
 });
 
-const spawnReturning = (r: Partial<GhPrViewSpawnResult>): GhPrViewSpawn =>
+const spawnReturning =
+  (r: Partial<GhPrViewSpawnResult>): GhPrViewSpawn =>
   () => ({ status: 0, stdout: "", stderr: "", ...r });
 
 const rateLimitBody = (remaining: number) =>
@@ -102,9 +103,7 @@ describe("parseGhPrViewJson", () => {
     expect(parseGhPrViewJson(JSON.stringify({ ...full, state: "DRAFT" }))).toBeNull();
   });
   test("tolerates null mergedAt / absent mergeCommit / missing arrays", () => {
-    const r = parseGhPrViewJson(
-      JSON.stringify({ number: 3, state: "OPEN", mergedAt: null }),
-    )!;
+    const r = parseGhPrViewJson(JSON.stringify({ number: 3, state: "OPEN", mergedAt: null }))!;
     expect(r.mergedAt).toBeNull();
     expect(r.mergeCommit).toBeNull();
     expect(r.closingIssuesReferences).toEqual([]);
@@ -123,11 +122,15 @@ describe("execGhPrView", () => {
   });
 
   test("coerces Buffer stdout and maps null status to exit 1", () => {
-    const r = execGhPrView({ number: 1, cwd: "/tmp" }, {}, spawnReturning({
-      status: null,
-      stdout: Buffer.from("body"),
-      stderr: Buffer.from("warn"),
-    }));
+    const r = execGhPrView(
+      { number: 1, cwd: "/tmp" },
+      {},
+      spawnReturning({
+        status: null,
+        stdout: Buffer.from("body"),
+        stderr: Buffer.from("warn"),
+      }),
+    );
     expect(r.stdout).toBe("body");
     expect(r.stderr).toBe("warn");
     expect(r.exitCode).toBe(1);
@@ -146,10 +149,14 @@ describe("execGhPrView", () => {
 
   test("post-call recorder exhaustion returns a budgetError", () => {
     configureRateLimit(budgetWith(5000));
-    const r = execGhPrView({ number: 1 }, {}, spawnReturning({
-      status: 1,
-      stderr: "API rate limit exceeded",
-    }));
+    const r = execGhPrView(
+      { number: 1 },
+      {},
+      spawnReturning({
+        status: 1,
+        stderr: "API rate limit exceeded",
+      }),
+    );
     expect(r.budgetError).toBeInstanceOf(BucketBudgetExhaustedError);
   });
 

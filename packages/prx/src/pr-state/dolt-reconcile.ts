@@ -39,11 +39,7 @@ export type DoltReconcileOptions = {
   mode?: DoltReconcileMode | undefined;
 };
 
-export type DoltReconcileStepName =
-  | "commit"
-  | "pull"
-  | "push"
-  | "resolve-schema";
+export type DoltReconcileStepName = "commit" | "pull" | "push" | "resolve-schema";
 
 export type DoltReconcileStepStatus = "ok" | "skipped" | "failed" | "preview";
 
@@ -55,11 +51,7 @@ export type DoltReconcileStep = {
   command: string;
 };
 
-export type DoltReconcileState =
-  | "reconciled"
-  | "stuck"
-  | "preview"
-  | "schemaConflictPending";
+export type DoltReconcileState = "reconciled" | "stuck" | "preview" | "schemaConflictPending";
 
 export type DoltReconcileConflict = {
   kind: "schema";
@@ -147,7 +139,9 @@ export function detectSchemaConflict(
 }
 
 function hintForSchemaConflict(table: string | undefined): string {
-  const subject = table ? `\`${table}\` (typically \`wisps\` / \`dolt_ignore\`)` : "`wisps` / `dolt_ignore`";
+  const subject = table
+    ? `\`${table}\` (typically \`wisps\` / \`dolt_ignore\`)`
+    : "`wisps` / `dolt_ignore`";
   return [
     `dolt schema-level merge conflict on ${subject}.`,
     "Same root cause as #742; `prx dolt reconcile` cannot auto-resolve schema conflicts.",
@@ -243,9 +237,7 @@ function buildResolutionScript(rows: SchemaConflictRow[]): string {
     stmts.push(`DELETE FROM dolt_schema_conflicts WHERE table_name = '${t}';`);
   }
   const tableList = rows.map((r) => r.table_name).join(", ");
-  stmts.push(
-    `CALL DOLT_COMMIT('-am', 'merge: prefer remote schema for ${tableList}');`,
-  );
+  stmts.push(`CALL DOLT_COMMIT('-am', 'merge: prefer remote schema for ${tableList}');`);
   return stmts.join("\n");
 }
 
@@ -333,8 +325,7 @@ function resolveSchemaPreferRemote(
 
   // 2. Enumerate live schema conflicts. The detected `conflict.table` is a
   //    fallback hint only — `dolt_schema_conflicts` is the authoritative source.
-  const queryCmd =
-    "dolt sql ... -q \"SELECT table_name, their_schema FROM dolt_schema_conflicts\"";
+  const queryCmd = 'dolt sql ... -q "SELECT table_name, their_schema FROM dolt_schema_conflicts"';
   const query = spawn(
     "dolt",
     [...sqlBaseArgs, "-q", "SELECT table_name, their_schema FROM dolt_schema_conflicts"],
@@ -356,12 +347,7 @@ function resolveSchemaPreferRemote(
   if (!rows || rows.length === 0) {
     return {
       ok: false,
-      step: resolveStep(
-        "failed",
-        queryCmd,
-        1,
-        "dolt_schema_conflicts returned no rows",
-      ),
+      step: resolveStep("failed", queryCmd, 1, "dolt_schema_conflicts returned no rows"),
       hint: hintForSchemaConflict(conflict.table),
     };
   }
@@ -400,7 +386,8 @@ export function runDoltReconcileWithResult(
   deps: DoltReconcileDeps = {},
 ): { exitCode: number; result: DoltReconcileResult } {
   const spawn: DoltReconcileSpawn =
-    deps.spawn ?? ((file, args, opts): DoltReconcileSpawnResult => {
+    deps.spawn ??
+    ((file, args, opts): DoltReconcileSpawnResult => {
       const r = spawnCapture([file, ...args], opts);
       return {
         status: r.status,
@@ -489,11 +476,7 @@ export function runDoltReconcileWithResult(
       const conflict =
         step === "commit" || step === "pull" ? detectSchemaConflict(spawnResult.stderr) : null;
 
-      if (
-        conflict &&
-        options.resolve === "schema-prefer-remote" &&
-        !resolveAttempted
-      ) {
+      if (conflict && options.resolve === "schema-prefer-remote" && !resolveAttempted) {
         resolveAttempted = true;
         const resolution = resolveSchemaPreferRemote(spawn, env, options, conflict);
         steps.push(resolution.step);

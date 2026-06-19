@@ -102,16 +102,12 @@ describe("SubmitArtifactSchema", () => {
   });
 
   test("rejects oversize summary", () => {
-    const result = SubmitArtifactSchema.safeParse(
-      validArtifact({ summary: "x".repeat(501) }),
-    );
+    const result = SubmitArtifactSchema.safeParse(validArtifact({ summary: "x".repeat(501) }));
     expect(result.success).toBe(false);
   });
 
   test("rejects non-datetime createdAt", () => {
-    const result = SubmitArtifactSchema.safeParse(
-      validArtifact({ createdAt: "yesterday" }),
-    );
+    const result = SubmitArtifactSchema.safeParse(validArtifact({ createdAt: "yesterday" }));
     expect(result.success).toBe(false);
   });
 });

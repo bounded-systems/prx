@@ -39,16 +39,22 @@ describe("execBd", () => {
 
   test("planner can create in planning state", () => {
     // This actually calls bd — policy should allow it
-    const result = execBd(
-      { subcommand: "create", args: ["--help"], state: "planning", role: "planner" },
-    );
+    const result = execBd({
+      subcommand: "create",
+      args: ["--help"],
+      state: "planning",
+      role: "planner",
+    });
     expect(result.policy?.allowed).toBe(true);
   });
 
   test("executor can list in any state", () => {
-    const result = execBd(
-      { subcommand: "list", args: ["--help"], state: "validating", role: "executor" },
-    );
+    const result = execBd({
+      subcommand: "list",
+      args: ["--help"],
+      state: "validating",
+      role: "executor",
+    });
     expect(result.policy?.allowed).toBe(true);
   });
 
@@ -430,9 +436,7 @@ describe("runBdGithubSyncPullOnly", () => {
     runBdGithubSyncPullOnly("/tmp", { dryRun: true }, runner);
 
     const bdCall = calls.find((c) => c[0] === "bd");
-    expect(bdCall).toEqual([
-      "bd", "github", "sync", "--pull-only", "--prefer-github", "--dry-run",
-    ]);
+    expect(bdCall).toEqual(["bd", "github", "sync", "--pull-only", "--prefer-github", "--dry-run"]);
   });
 });
 
@@ -536,20 +540,9 @@ describe("runBdUpdateClaim", () => {
       calls.push(cmd);
       return { stdout: "claimed\n", stderr: "", status: 0 };
     };
-    const result = runBdUpdateClaim(
-      "ai-home-1777747201085-737-407f177f",
-      "/tmp",
-      runner,
-    );
+    const result = runBdUpdateClaim("ai-home-1777747201085-737-407f177f", "/tmp", runner);
     expect(result.exitCode).toBe(0);
-    expect(calls).toEqual([
-      [
-        "bd",
-        "update",
-        "ai-home-1777747201085-737-407f177f",
-        "--claim",
-      ],
-    ]);
+    expect(calls).toEqual([["bd", "update", "ai-home-1777747201085-737-407f177f", "--claim"]]);
   });
 
   test("propagates non-zero exit codes (caller decides whether to fail)", () => {

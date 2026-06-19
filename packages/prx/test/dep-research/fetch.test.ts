@@ -3,10 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import {
-  defaultFetchSource,
-  fetchSources,
-} from "../../src/dep-research/fetch.ts";
+import { defaultFetchSource, fetchSources } from "../../src/dep-research/fetch.ts";
 import type { DepManifestEntry } from "../../src/dep-research/schemas.ts";
 import type { CommandRunner } from "../../src/pr-state/scope-inference.ts";
 
@@ -129,9 +126,7 @@ describe("defaultFetchSource — unimplemented kinds", () => {
   test("npm and flake-input report a clear per-path failure", async () => {
     const destDir = tmpDestDir();
     const runner: CommandRunner = () => {
-      throw new Error(
-        "runner should not be invoked for unimplemented kinds",
-      );
+      throw new Error("runner should not be invoked for unimplemented kinds");
     };
     const entry: DepManifestEntry = {
       name: "x",

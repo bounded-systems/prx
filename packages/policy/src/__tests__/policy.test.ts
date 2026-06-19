@@ -11,7 +11,17 @@ import type { PolicyRole, PolicyState } from "@bounded-systems/policy";
 
 describe("isBlocked", () => {
   test("git hard-blocks dangerous commands", () => {
-    for (const cmd of ["reset", "clean", "rebase", "cherry-pick", "config", "clone", "init", "remote", "gc"]) {
+    for (const cmd of [
+      "reset",
+      "clean",
+      "rebase",
+      "cherry-pick",
+      "config",
+      "clone",
+      "init",
+      "remote",
+      "gc",
+    ]) {
       expect(isBlocked("git", cmd)).toBe(true);
     }
   });
@@ -209,7 +219,16 @@ describe("slack read surface policy", () => {
   });
 
   test("write verbs are hard-blocked regardless of state/role", () => {
-    for (const verb of ["post", "send", "update", "delete", "invite", "kick", "archive", "create"]) {
+    for (const verb of [
+      "post",
+      "send",
+      "update",
+      "delete",
+      "invite",
+      "kick",
+      "archive",
+      "create",
+    ]) {
       expect(isBlocked("slack", verb)).toBe(true);
       // hard-block wins even for the most-privileged base role
       expect(checkPolicy("slack", verb, "validating", "planner").allowed).toBe(false);

@@ -186,7 +186,10 @@ export function ensureBranch(opts: EnsureBranchOptions): EnsureBranchResult {
   }
 
   const push = spawn
-    ? spawn("git", ["-C", cwd, "push", remote, `${base}:refs/heads/${branch}`], { cwd, encoding: "utf8" })
+    ? spawn("git", ["-C", cwd, "push", remote, `${base}:refs/heads/${branch}`], {
+        cwd,
+        encoding: "utf8",
+      })
     : spawnCapture(["git", "-C", cwd, "push", remote, `${base}:refs/heads/${branch}`]);
   if ((push.status ?? 1) !== 0) {
     return {
@@ -209,12 +212,17 @@ export function formatEnsureBranchResult(
   if (format === "json") return JSON.stringify(result, null, 2);
 
   const tag =
-    result.status === "created" ? "created" :
-    result.status === "exists-local" ? "ok (local)" :
-    result.status === "exists-remote" ? "ok (remote)" :
-    result.status === "skipped" ? "skipped" :
-    result.status === "base-unresolved" ? "base-unresolved" :
-    "error";
+    result.status === "created"
+      ? "created"
+      : result.status === "exists-local"
+        ? "ok (local)"
+        : result.status === "exists-remote"
+          ? "ok (remote)"
+          : result.status === "skipped"
+            ? "skipped"
+            : result.status === "base-unresolved"
+              ? "base-unresolved"
+              : "error";
 
   let line = `${tag}: ${result.branch}`;
   if (result.status === "created") line += ` from ${result.base}`;

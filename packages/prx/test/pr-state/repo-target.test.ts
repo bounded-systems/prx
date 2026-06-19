@@ -4,11 +4,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { resolveTargetRepoCwd } from "../../src/pr-state/repo-target.ts";
-import type {
-  LocalRepo,
-  RepoInventory,
-  RepoInventoryConfig,
-} from "../../src/pr-state/repos.ts";
+import type { LocalRepo, RepoInventory, RepoInventoryConfig } from "../../src/pr-state/repos.ts";
 import type { MaterializeResult } from "../../src/pr-state/materialize.ts";
 
 function bareRepo(
@@ -121,7 +117,9 @@ describe("resolveTargetRepoCwd (GH-1689)", () => {
             ]),
         },
       ),
-    ).toThrow(/Repo slug "dup" is ambiguous; candidates: org-a\/dup, org-b\/dup\. Pass the full owner\/name\./);
+    ).toThrow(
+      /Repo slug "dup" is ambiguous; candidates: org-a\/dup, org-b\/dup\. Pass the full owner\/name\./,
+    );
   });
 
   test("skipMaterialize: true does not invoke materializeBareRepo", () => {

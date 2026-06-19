@@ -51,10 +51,7 @@ import {
 import { axisLabelDiff } from "../triage/bd-axis-labels.ts";
 import { parseConditionalRead } from "../sync/conditional-read.ts";
 import { updateBeadViaDaemon } from "../beadsd/writes.ts";
-import {
-  loadAllBeads as defaultLoadAllBeads,
-  type BeadsRecord,
-} from "../triage/triage.ts";
+import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../triage/triage.ts";
 import {
   GH_SURFACE_ID_PATTERN,
   registerDomainAdapter,
@@ -69,8 +66,7 @@ import {
   type ResolvedWorkUnitPatch,
 } from "./domain-adapter.ts";
 
-const ISSUE_URL_RE =
-  /^https?:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/issues\/(\d+)(?:[/?#].*)?$/i;
+const ISSUE_URL_RE = /^https?:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/issues\/(\d+)(?:[/?#].*)?$/i;
 const SURFACE_ID_RE = /^GH-(\d+)$/i;
 
 // GH-1469 — `gh issue list` row cap for `enumerate()`. Issues are listed
@@ -183,11 +179,7 @@ export type GhDomainAdapterDeps = {
 //
 // Editing this list MUST be accompanied by an edit to
 // docs/spikes/GH-1500-authority.md §2 — the test suite asserts byte-equality.
-export const GH_OWNED_ON_PULL = [
-  "externalIssueNumber",
-  "milestone",
-  "status",
-] as const;
+export const GH_OWNED_ON_PULL = ["externalIssueNumber", "milestone", "status"] as const;
 
 export class GhDomainAdapter implements DomainAdapter {
   readonly config: DomainAdapterConfig;
@@ -264,9 +256,15 @@ export class GhDomainAdapter implements DomainAdapter {
     );
   }
 
-  private runGh(args: string[], opts?: AdapterIoOpts): { stdout: string; stderr: string; status: number } {
+  private runGh(
+    args: string[],
+    opts?: AdapterIoOpts,
+  ): { stdout: string; stderr: string; status: number } {
     const runner = opts?.runner ?? this.runner;
-    return runner(["gh", ...args], { cwd: opts?.cwd ?? (this.deps.cwd ?? (() => process.cwd()))(), check: false });
+    return runner(["gh", ...args], {
+      cwd: opts?.cwd ?? (this.deps.cwd ?? (() => process.cwd()))(),
+      check: false,
+    });
   }
 
   /**
@@ -347,9 +345,7 @@ export class GhDomainAdapter implements DomainAdapter {
     const { repo, number } = this.parseExternalId(externalId);
     // `gh api` fills `{owner}/{repo}` from the base repo when none is in the
     // path — covers a bare `#N`/`N` id; sync ids are issue URLs (repo set).
-    const path = repo
-      ? `repos/${repo}/issues/${number}`
-      : `repos/{owner}/{repo}/issues/${number}`;
+    const path = repo ? `repos/${repo}/issues/${number}` : `repos/{owner}/{repo}/issues/${number}`;
     const cached = cache.get(externalId);
 
     const decision = this.apiRead(path, cached?.etag, opts);
@@ -597,17 +593,14 @@ export class GhDomainAdapter implements DomainAdapter {
       if (removeLabels.length > 0) editOpts.removeLabels = removeLabels;
     }
     if (needAssignees) {
-      const desired = new Set(
-        fields.assignees!.map((a) => a.trim()).filter((a) => a.length > 0),
-      );
+      const desired = new Set(fields.assignees!.map((a) => a.trim()).filter((a) => a.length > 0));
       const add = [...desired].filter((a) => !liveAssignees.has(a));
       const remove = [...liveAssignees].filter((a) => !desired.has(a));
       if (add.length > 0) editOpts.addAssignees = add;
       if (remove.length > 0) editOpts.removeAssignees = remove;
     }
 
-    const wantsStatusChange =
-      needStatus && liveState !== "unknown" && liveState !== fields.status;
+    const wantsStatusChange = needStatus && liveState !== "unknown" && liveState !== fields.status;
     const wouldEdit = hasGhIssueEdit(editOpts) || wantsStatusChange;
     if (dryRun) {
       return { externalId: externalRef.trim(), edited: wouldEdit, addLabels, removeLabels };
@@ -633,8 +626,7 @@ export class GhDomainAdapter implements DomainAdapter {
       if (repo) statusArgs.push("-R", repo);
       const result = this.runGh(statusArgs, opts);
       if (result.status !== 0) {
-        const detail =
-          result.stderr.trim() || result.stdout.trim() || `gh issue ${verb} failed`;
+        const detail = result.stderr.trim() || result.stdout.trim() || `gh issue ${verb} failed`;
         throw new GhDomainAdapterError(`gh adapter push: ${detail}`, result.status || 1);
       }
       edited = true;
@@ -650,10 +642,7 @@ export class GhDomainAdapter implements DomainAdapter {
    * range in-process. Read-only: never writes bd/gh, never advances the
    * watermark/cursor (I-BF3).
    */
-  async enumerate(
-    range: EnumerateRange,
-    opts?: AdapterIoOpts,
-  ): Promise<ExternalRecordRef[]> {
+  async enumerate(range: EnumerateRange, opts?: AdapterIoOpts): Promise<ExternalRecordRef[]> {
     const from = Math.min(range.from, range.to);
     const to = Math.max(range.from, range.to);
     const repo = this.resolveRepo(undefined, opts?.cwd);
@@ -681,10 +670,14 @@ export class GhDomainAdapter implements DomainAdapter {
     try {
       parsed = JSON.parse(result.stdout);
     } catch {
-      throw new GhDomainAdapterError("gh adapter enumerate: gh issue list --json returned invalid JSON");
+      throw new GhDomainAdapterError(
+        "gh adapter enumerate: gh issue list --json returned invalid JSON",
+      );
     }
     if (!Array.isArray(parsed)) {
-      throw new GhDomainAdapterError("gh adapter enumerate: gh issue list --json returned non-array");
+      throw new GhDomainAdapterError(
+        "gh adapter enumerate: gh issue list --json returned non-array",
+      );
     }
     const refs: ExternalRecordRef[] = [];
     for (const entry of parsed) {
@@ -692,13 +685,19 @@ export class GhDomainAdapter implements DomainAdapter {
       const r = entry as Record<string, unknown>;
       const number = typeof r.number === "number" && Number.isFinite(r.number) ? r.number : null;
       if (number === null || number < from || number > to) continue;
-      const url = typeof r.url === "string" && r.url.length > 0
-        ? r.url
-        : `https://github.com/${repo}/issues/${number}`;
+      const url =
+        typeof r.url === "string" && r.url.length > 0
+          ? r.url
+          : `https://github.com/${repo}/issues/${number}`;
       const rawState = typeof r.state === "string" ? r.state.toUpperCase() : "";
       const state: "open" | "closed" | undefined =
         rawState === "OPEN" ? "open" : rawState === "CLOSED" ? "closed" : undefined;
-      refs.push({ externalId: url, surfaceId: `GH-${number}`, number, ...(state ? { state } : {}) });
+      refs.push({
+        externalId: url,
+        surfaceId: `GH-${number}`,
+        number,
+        ...(state ? { state } : {}),
+      });
     }
     refs.sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
     return refs;

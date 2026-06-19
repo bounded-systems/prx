@@ -4,10 +4,7 @@
 // the per-test diff small by exposing the same axes (pattern + optional
 // notion config) and producing the registry shape underneath.
 
-import type {
-  IdentityConfig,
-  NotionIdentityConfig,
-} from "../../src/pr-state/github.ts";
+import type { IdentityConfig, NotionIdentityConfig } from "../../src/pr-state/github.ts";
 
 export type LegacyIdentityShape = {
   canonicalIdPattern?: RegExp;

@@ -1,9 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
-import {
-  resetGhLoginCacheForTests,
-  resolveGhLogin,
-} from "../../src/identity/gh_login.ts";
+import { resetGhLoginCacheForTests, resolveGhLogin } from "../../src/identity/gh_login.ts";
 
 afterEach(() => {
   resetGhLoginCacheForTests();

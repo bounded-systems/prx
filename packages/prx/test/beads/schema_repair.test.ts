@@ -5,23 +5,24 @@
  */
 import { describe, expect, test } from "bun:test";
 
-import {
-  probeBdSchema,
-  repairBdSchema,
-  type BdRunner,
-} from "../../src/beads/schema_repair.ts";
+import { probeBdSchema, repairBdSchema, type BdRunner } from "../../src/beads/schema_repair.ts";
 
 const STARTED_AT_STDERR =
   "Error: failed to search issues: search issues:\n" +
   '  Error 1105 (HY000): column "started_at" could not be found in any table in scope\n';
 
 function constantRunner(result: { exitCode: number; stdout?: string; stderr?: string }): BdRunner {
-  return () => ({ exitCode: result.exitCode, stdout: result.stdout ?? "", stderr: result.stderr ?? "" });
+  return () => ({
+    exitCode: result.exitCode,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+  });
 }
 
-function sequenceRunner(
-  results: Array<{ exitCode: number; stdout?: string; stderr?: string }>,
-): { runner: BdRunner; calls: string[][] } {
+function sequenceRunner(results: Array<{ exitCode: number; stdout?: string; stderr?: string }>): {
+  runner: BdRunner;
+  calls: string[][];
+} {
   const calls: string[][] = [];
   let i = 0;
   const runner: BdRunner = (args) => {

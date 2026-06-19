@@ -96,20 +96,61 @@ describe("classifyBucket", () => {
   // sites. Each row pins one expected bucket so future drift is loud.
   const cases: Array<{ argv: string[]; bucket: "core" | "graphql" | "search"; note: string }> = [
     // graphql via `--json` flag
-    { argv: ["gh", "pr", "view", "--json", "number", "--jq", ".number"], bucket: "graphql", note: "pr view --json" },
-    { argv: ["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"], bucket: "graphql", note: "repo view --json" },
     {
-      argv: ["gh", "issue", "list", "--state", "open", "--limit", "50", "--json", "number,title,url,labels", "-R", "o/r"],
+      argv: ["gh", "pr", "view", "--json", "number", "--jq", ".number"],
+      bucket: "graphql",
+      note: "pr view --json",
+    },
+    {
+      argv: ["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
+      bucket: "graphql",
+      note: "repo view --json",
+    },
+    {
+      argv: [
+        "gh",
+        "issue",
+        "list",
+        "--state",
+        "open",
+        "--limit",
+        "50",
+        "--json",
+        "number,title,url,labels",
+        "-R",
+        "o/r",
+      ],
       bucket: "graphql",
       note: "issue list --json",
     },
     {
-      argv: ["gh", "issue", "list", "--state", "all", "--limit", "500", "--json", "number,title,url,state", "-R", "o/r"],
+      argv: [
+        "gh",
+        "issue",
+        "list",
+        "--state",
+        "all",
+        "--limit",
+        "500",
+        "--json",
+        "number,title,url,state",
+        "-R",
+        "o/r",
+      ],
       bucket: "graphql",
       note: "issue list --state all",
     },
     {
-      argv: ["gh", "issue", "view", "42", "--json", "number,title,state,body,url,labels", "-R", "o/r"],
+      argv: [
+        "gh",
+        "issue",
+        "view",
+        "42",
+        "--json",
+        "number,title,state,body,url,labels",
+        "-R",
+        "o/r",
+      ],
       bucket: "graphql",
       note: "issue view --json",
     },
@@ -126,14 +167,34 @@ describe("classifyBucket", () => {
 
     // graphql via `api graphql`
     { argv: ["gh", "api", "graphql"], bucket: "graphql", note: "api graphql bare" },
-    { argv: ["gh", "api", "graphql", "-f", "query=..."], bucket: "graphql", note: "api graphql with query" },
+    {
+      argv: ["gh", "api", "graphql", "-f", "query=..."],
+      bucket: "graphql",
+      note: "api graphql with query",
+    },
 
     // core via `api`
     { argv: ["gh", "api", "user", "--jq", ".login"], bucket: "core", note: "api user" },
-    { argv: ["gh", "api", "repos/owner/repo", "--jq", ".owner.type"], bucket: "core", note: "api repos/{repo}" },
-    { argv: ["gh", "api", "repos/o/r/branches/main/protection"], bucket: "core", note: "api branch protection" },
-    { argv: ["gh", "api", "repos/o/r/branches/main", "--jq", ".commit.sha"], bucket: "core", note: "api branch sha" },
-    { argv: ["gh", "api", "repos/o/r/commits/abc/check-runs", "--jq", ".check_runs[].name"], bucket: "core", note: "api check-runs" },
+    {
+      argv: ["gh", "api", "repos/owner/repo", "--jq", ".owner.type"],
+      bucket: "core",
+      note: "api repos/{repo}",
+    },
+    {
+      argv: ["gh", "api", "repos/o/r/branches/main/protection"],
+      bucket: "core",
+      note: "api branch protection",
+    },
+    {
+      argv: ["gh", "api", "repos/o/r/branches/main", "--jq", ".commit.sha"],
+      bucket: "core",
+      note: "api branch sha",
+    },
+    {
+      argv: ["gh", "api", "repos/o/r/commits/abc/check-runs", "--jq", ".check_runs[].name"],
+      bucket: "core",
+      note: "api check-runs",
+    },
     { argv: ["gh", "api", "rate_limit"], bucket: "core", note: "api rate_limit (probe)" },
 
     // search subcommand
@@ -144,11 +205,31 @@ describe("classifyBucket", () => {
     { argv: ["gh", "pr", "view"], bucket: "core", note: "pr view (no --json)" },
     { argv: ["gh", "pr", "ready", "123"], bucket: "core", note: "pr ready" },
     { argv: ["gh", "pr", "ready", "123", "--undo"], bucket: "core", note: "pr ready --undo" },
-    { argv: ["gh", "pr", "ready", "123", "--undo", "-R", "o/r"], bucket: "core", note: "pr ready --undo -R" },
-    { argv: ["gh", "pr", "edit", "123", "--title", "x", "--body-file", "/tmp/b"], bucket: "core", note: "pr edit" },
-    { argv: ["gh", "pr", "diff", "123", "--name-only", "-R", "o/r"], bucket: "core", note: "pr diff --name-only" },
-    { argv: ["gh", "pr", "diff", "123", "--color", "never", "-R", "o/r"], bucket: "core", note: "pr diff --color" },
-    { argv: ["gh", "run", "view", "abc", "--log-failed"], bucket: "core", note: "run view --log-failed" },
+    {
+      argv: ["gh", "pr", "ready", "123", "--undo", "-R", "o/r"],
+      bucket: "core",
+      note: "pr ready --undo -R",
+    },
+    {
+      argv: ["gh", "pr", "edit", "123", "--title", "x", "--body-file", "/tmp/b"],
+      bucket: "core",
+      note: "pr edit",
+    },
+    {
+      argv: ["gh", "pr", "diff", "123", "--name-only", "-R", "o/r"],
+      bucket: "core",
+      note: "pr diff --name-only",
+    },
+    {
+      argv: ["gh", "pr", "diff", "123", "--color", "never", "-R", "o/r"],
+      bucket: "core",
+      note: "pr diff --color",
+    },
+    {
+      argv: ["gh", "run", "view", "abc", "--log-failed"],
+      bucket: "core",
+      note: "run view --log-failed",
+    },
 
     // edge cases
     { argv: ["gh"], bucket: "core", note: "bare gh" },
@@ -198,9 +279,9 @@ describe("gateGhArgv", () => {
       ...audit,
     };
 
-    expect(() =>
-      gateGhArgv(["gh", "pr", "view", "--json", "number"], deps),
-    ).toThrow(GraphQLBudgetExhaustedError);
+    expect(() => gateGhArgv(["gh", "pr", "view", "--json", "number"], deps)).toThrow(
+      GraphQLBudgetExhaustedError,
+    );
 
     // Only the rate_limit refresh should have been called — never the gh call.
     expect(calls.length).toBe(1);
@@ -279,7 +360,9 @@ describe("gateGhArgv", () => {
       ...audit,
     };
     expect(() => gateGhArgv(["gh", "api", "user"], deps)).toThrow(RestBudgetExhaustedError);
-    expect(() => gateGhArgv(["gh", "pr", "view", "--json", "x"], deps)).toThrow(GraphQLBudgetExhaustedError);
+    expect(() => gateGhArgv(["gh", "pr", "view", "--json", "x"], deps)).toThrow(
+      GraphQLBudgetExhaustedError,
+    );
   });
 
   test("search bucket throws SearchBudgetExhaustedError", () => {
@@ -294,7 +377,9 @@ describe("gateGhArgv", () => {
       auditPath: () => "/tmp/audit.jsonl",
       ...audit,
     };
-    expect(() => gateGhArgv(["gh", "search", "issues", "is:open"], deps)).toThrow(SearchBudgetExhaustedError);
+    expect(() => gateGhArgv(["gh", "search", "issues", "is:open"], deps)).toThrow(
+      SearchBudgetExhaustedError,
+    );
   });
 });
 
@@ -472,24 +557,25 @@ describe("withBucketGate decorator", () => {
     const wrapped = withBucketGate(failing, deps);
     expect(() => wrapped(["gh", "api", "user"])).toThrow("boom");
     expect(audit.rows).toHaveLength(1);
-    expect(audit.rows[0]).toMatchObject({ exit_code: 1, threw: "RUNTIME_ERROR", operation: "user" });
+    expect(audit.rows[0]).toMatchObject({
+      exit_code: 1,
+      threw: "RUNTIME_ERROR",
+      operation: "user",
+    });
   });
 });
 
 describe("withBucketGate attribution fields on rate-limit.jsonl rows (GH-1533)", () => {
   test("classifies a --json call as graphql and extracts <noun>.<verb> operation", () => {
     const audit = makeAuditCapture();
-    const wrapped = withBucketGate(
-      constRunner({ stdout: "[]", stderr: "", status: 0 }),
-      {
-        rawRunner: makeRunner(HEALTHY_RESOURCES),
-        now: fixedNow(2_000_000),
-        auditPath: () => "/tmp/a.jsonl",
-        runtimeContext: () => ({ verb: "intake.search", actor: "claude-code", ghTruthReason: null }),
-        measureCost: () => false,
-        ...audit,
-      },
-    );
+    const wrapped = withBucketGate(constRunner({ stdout: "[]", stderr: "", status: 0 }), {
+      rawRunner: makeRunner(HEALTHY_RESOURCES),
+      now: fixedNow(2_000_000),
+      auditPath: () => "/tmp/a.jsonl",
+      runtimeContext: () => ({ verb: "intake.search", actor: "claude-code", ghTruthReason: null }),
+      measureCost: () => false,
+      ...audit,
+    });
     wrapped(["gh", "issue", "list", "--state", "open", "--json", "number", "-R", "o/r"]);
     expect(audit.rows).toHaveLength(1);
     expect(audit.rows[0]).toMatchObject({
@@ -508,19 +594,28 @@ describe("withBucketGate attribution fields on rate-limit.jsonl rows (GH-1533)",
   test("populates cost/remaining/limit/reset_at from a rateLimit block in a graphql body", () => {
     const audit = makeAuditCapture();
     const body = JSON.stringify({
-      data: { rateLimit: { cost: 3, remaining: 4997, limit: 5000, resetAt: "2026-05-12T17:00:00Z" } },
-    });
-    const wrapped = withBucketGate(
-      constRunner({ stdout: body, stderr: "", status: 0 }),
-      {
-        rawRunner: makeRunner(HEALTHY_RESOURCES),
-        now: fixedNow(3_000_000),
-        auditPath: () => "/tmp/a.jsonl",
-        runtimeContext: () => ({ verb: "doctor.inventory", actor: "claude-code", ghTruthReason: null }),
-        ...audit,
+      data: {
+        rateLimit: { cost: 3, remaining: 4997, limit: 5000, resetAt: "2026-05-12T17:00:00Z" },
       },
-    );
-    wrapped(["gh", "api", "graphql", "-f", "query=query Probe { rateLimit { cost remaining limit resetAt } }"]);
+    });
+    const wrapped = withBucketGate(constRunner({ stdout: body, stderr: "", status: 0 }), {
+      rawRunner: makeRunner(HEALTHY_RESOURCES),
+      now: fixedNow(3_000_000),
+      auditPath: () => "/tmp/a.jsonl",
+      runtimeContext: () => ({
+        verb: "doctor.inventory",
+        actor: "claude-code",
+        ghTruthReason: null,
+      }),
+      ...audit,
+    });
+    wrapped([
+      "gh",
+      "api",
+      "graphql",
+      "-f",
+      "query=query Probe { rateLimit { cost remaining limit resetAt } }",
+    ]);
     expect(audit.rows).toHaveLength(1);
     expect(audit.rows[0]).toMatchObject({
       api: "graphql",
@@ -554,16 +649,13 @@ describe("withBucketGate attribution fields on rate-limit.jsonl rows (GH-1533)",
       }
       return { stdout: "", stderr: "", status: 0 };
     };
-    const wrapped = withBucketGate(
-      constRunner({ stdout: "", stderr: "", status: 0 }),
-      {
-        rawRunner,
-        now: fixedNow(4_000_000),
-        auditPath: () => "/tmp/a.jsonl",
-        measureCost: () => true,
-        ...audit,
-      },
-    );
+    const wrapped = withBucketGate(constRunner({ stdout: "", stderr: "", status: 0 }), {
+      rawRunner,
+      now: fixedNow(4_000_000),
+      auditPath: () => "/tmp/a.jsonl",
+      measureCost: () => true,
+      ...audit,
+    });
     wrapped(["gh", "api", "repos/o/r/branches/main", "--jq", ".commit.sha"]);
     expect(audit.rows).toHaveLength(1);
     expect(audit.rows[0]).toMatchObject({
@@ -595,7 +687,9 @@ describe("withBucketGate attribution fields on rate-limit.jsonl rows (GH-1533)",
       runtimeContext: () => ({ verb: "plan.preflight", actor: "claude-code", ghTruthReason: null }),
       ...audit,
     });
-    expect(() => wrapped(["gh", "issue", "list", "--json", "number"])).toThrow(GraphQLBudgetExhaustedError);
+    expect(() => wrapped(["gh", "issue", "list", "--json", "number"])).toThrow(
+      GraphQLBudgetExhaustedError,
+    );
     // Gated out before spawn — inner never ran.
     expect(calls).toEqual([]);
     expect(audit.rows).toHaveLength(1);
@@ -620,13 +714,23 @@ describe("withBucketGate attribution fields on rate-limit.jsonl rows (GH-1533)",
         rawRunner: makeRunner(HEALTHY_RESOURCES),
         now: fixedNow(6_000_000),
         auditPath: () => "/tmp/a.jsonl",
-        runtimeContext: () => ({ verb: "intake.search", actor: "claude-code", ghTruthReason: null }),
+        runtimeContext: () => ({
+          verb: "intake.search",
+          actor: "claude-code",
+          ghTruthReason: null,
+        }),
         ...audit,
       },
     );
-    expect(() => wrapped(["gh", "issue", "list", "--json", "number"])).toThrow(BucketBudgetExhaustedError);
+    expect(() => wrapped(["gh", "issue", "list", "--json", "number"])).toThrow(
+      BucketBudgetExhaustedError,
+    );
     expect(audit.rows).toHaveLength(1);
-    expect(audit.rows[0]).toMatchObject({ threw: "BUDGET_EXHAUSTED", exit_code: 1, verb: "intake.search" });
+    expect(audit.rows[0]).toMatchObject({
+      threw: "BUDGET_EXHAUSTED",
+      exit_code: 1,
+      verb: "intake.search",
+    });
   });
 
   test("the gh api rate_limit probe itself never writes an audit row", () => {
@@ -643,15 +747,12 @@ describe("withBucketGate attribution fields on rate-limit.jsonl rows (GH-1533)",
 
   test("verb is null when no runtimeContext override is wired (ambient default)", () => {
     const audit = makeAuditCapture();
-    const wrapped = withBucketGate(
-      constRunner({ stdout: "", stderr: "", status: 0 }),
-      {
-        rawRunner: makeRunner(HEALTHY_RESOURCES),
-        now: fixedNow(8_000_000),
-        auditPath: () => "/tmp/a.jsonl",
-        ...audit,
-      },
-    );
+    const wrapped = withBucketGate(constRunner({ stdout: "", stderr: "", status: 0 }), {
+      rawRunner: makeRunner(HEALTHY_RESOURCES),
+      now: fixedNow(8_000_000),
+      auditPath: () => "/tmp/a.jsonl",
+      ...audit,
+    });
     wrapped(["gh", "api", "user"]);
     expect(audit.rows).toHaveLength(1);
     // Default ambient context: verb null, actor "claude-code".
@@ -667,21 +768,18 @@ describe("withBucketGate attribution fields on rate-limit.jsonl rows (GH-1533)",
 describe("withBucketGate gh_truth_reason on rate-limit.jsonl rows (GH-1602)", () => {
   test("stamps the runtime gh_truth_reason onto the row", () => {
     const audit = makeAuditCapture();
-    const wrapped = withBucketGate(
-      constRunner({ stdout: "[]", stderr: "", status: 0 }),
-      {
-        rawRunner: makeRunner(HEALTHY_RESOURCES),
-        now: fixedNow(9_000_000),
-        auditPath: () => "/tmp/a.jsonl",
-        runtimeContext: () => ({
-          verb: "triage.status",
-          actor: "claude-code",
-          ghTruthReason: "drift-comparator",
-        }),
-        measureCost: () => false,
-        ...audit,
-      },
-    );
+    const wrapped = withBucketGate(constRunner({ stdout: "[]", stderr: "", status: 0 }), {
+      rawRunner: makeRunner(HEALTHY_RESOURCES),
+      now: fixedNow(9_000_000),
+      auditPath: () => "/tmp/a.jsonl",
+      runtimeContext: () => ({
+        verb: "triage.status",
+        actor: "claude-code",
+        ghTruthReason: "drift-comparator",
+      }),
+      measureCost: () => false,
+      ...audit,
+    });
     wrapped(["gh", "issue", "list", "--state", "open", "--json", "number", "-R", "o/r"]);
     expect(audit.rows).toHaveLength(1);
     expect(audit.rows[0]!.gh_truth_reason).toBe("drift-comparator");
@@ -714,16 +812,13 @@ describe("withBucketGate gh_truth_reason on rate-limit.jsonl rows (GH-1602)", ()
 
   test("gh_truth_reason is null by default — the typical attribution case", () => {
     const audit = makeAuditCapture();
-    const wrapped = withBucketGate(
-      constRunner({ stdout: "", stderr: "", status: 0 }),
-      {
-        rawRunner: makeRunner(HEALTHY_RESOURCES),
-        now: fixedNow(11_000_000),
-        auditPath: () => "/tmp/a.jsonl",
-        // Ambient context, no override — defaults to ghTruthReason: null.
-        ...audit,
-      },
-    );
+    const wrapped = withBucketGate(constRunner({ stdout: "", stderr: "", status: 0 }), {
+      rawRunner: makeRunner(HEALTHY_RESOURCES),
+      now: fixedNow(11_000_000),
+      auditPath: () => "/tmp/a.jsonl",
+      // Ambient context, no override — defaults to ghTruthReason: null.
+      ...audit,
+    });
     wrapped(["gh", "api", "user"]);
     expect(audit.rows).toHaveLength(1);
     expect(audit.rows[0]!.gh_truth_reason).toBeNull();
@@ -733,26 +828,56 @@ describe("withBucketGate gh_truth_reason on rate-limit.jsonl rows (GH-1602)", ()
 describe("ghOperationName", () => {
   const cases: Array<{ argv: string[]; expected: string | null; note: string }> = [
     { argv: ["gh", "pr", "view", "--json", "number"], expected: "pr.view", note: "noun.verb" },
-    { argv: ["gh", "issue", "list", "-R", "o/r"], expected: "issue.list", note: "noun.verb with flags after" },
+    {
+      argv: ["gh", "issue", "list", "-R", "o/r"],
+      expected: "issue.list",
+      note: "noun.verb with flags after",
+    },
     { argv: ["gh", "auth", "status"], expected: "auth.status", note: "noun.verb no flags" },
-    { argv: ["gh", "api", "repos/o/r/branches/main"], expected: "repos/o/r/branches/main", note: "rest path" },
+    {
+      argv: ["gh", "api", "repos/o/r/branches/main"],
+      expected: "repos/o/r/branches/main",
+      note: "rest path",
+    },
     { argv: ["gh", "api", "rate_limit"], expected: "rate_limit", note: "rest path (probe)" },
     {
-      argv: ["gh", "api", "graphql", "-f", "query=query GetPullRequest($n:Int!) { repository { pullRequest(number:$n) { id } } }"],
+      argv: [
+        "gh",
+        "api",
+        "graphql",
+        "-f",
+        "query=query GetPullRequest($n:Int!) { repository { pullRequest(number:$n) { id } } }",
+      ],
       expected: "GetPullRequest",
       note: "named graphql query",
     },
     {
-      argv: ["gh", "api", "graphql", "-f", "query=mutation EnableAutomerge($id:ID!) { enablePullRequestAutoMerge(input:{pullRequestId:$id}) { clientMutationId } }"],
+      argv: [
+        "gh",
+        "api",
+        "graphql",
+        "-f",
+        "query=mutation EnableAutomerge($id:ID!) { enablePullRequestAutoMerge(input:{pullRequestId:$id}) { clientMutationId } }",
+      ],
       expected: "EnableAutomerge",
       note: "named graphql mutation",
     },
     {
-      argv: ["gh", "api", "graphql", "-f", "query=query($owner:String!,$repo:String!) { repository(owner:$owner,name:$repo) { id } }"],
+      argv: [
+        "gh",
+        "api",
+        "graphql",
+        "-f",
+        "query=query($owner:String!,$repo:String!) { repository(owner:$owner,name:$repo) { id } }",
+      ],
       expected: null,
       note: "anonymous graphql query",
     },
-    { argv: ["gh", "api", "graphql", "-F", "query=@query.graphql"], expected: null, note: "@file query — not read" },
+    {
+      argv: ["gh", "api", "graphql", "-F", "query=@query.graphql"],
+      expected: null,
+      note: "@file query — not read",
+    },
     { argv: ["gh", "api", "graphql"], expected: null, note: "bare api graphql" },
     { argv: [], expected: null, note: "empty argv" },
     { argv: ["gh"], expected: null, note: "bare gh" },
@@ -767,13 +892,24 @@ describe("ghOperationName", () => {
 describe("parseRateLimitBlock", () => {
   test("reads .data.rateLimit", () => {
     const block = parseRateLimitBlock(
-      JSON.stringify({ data: { rateLimit: { cost: 1, remaining: 4999, limit: 5000, resetAt: "2026-05-12T18:00:00Z" } } }),
+      JSON.stringify({
+        data: {
+          rateLimit: { cost: 1, remaining: 4999, limit: 5000, resetAt: "2026-05-12T18:00:00Z" },
+        },
+      }),
     );
-    expect(block).toEqual({ cost: 1, remaining: 4999, limit: 5000, resetAtMs: Date.parse("2026-05-12T18:00:00Z") });
+    expect(block).toEqual({
+      cost: 1,
+      remaining: 4999,
+      limit: 5000,
+      resetAtMs: Date.parse("2026-05-12T18:00:00Z"),
+    });
   });
 
   test("reads a top-level rateLimit", () => {
-    const block = parseRateLimitBlock(JSON.stringify({ rateLimit: { cost: 2, remaining: 10, limit: 5000, resetAt: "bogus" } }));
+    const block = parseRateLimitBlock(
+      JSON.stringify({ rateLimit: { cost: 2, remaining: 10, limit: 5000, resetAt: "bogus" } }),
+    );
     expect(block).toEqual({ cost: 2, remaining: 10, limit: 5000, resetAtMs: null });
   });
 
@@ -787,7 +923,13 @@ describe("parseRateLimitBlock", () => {
 
 describe("BucketBudgetExhaustedError shape", () => {
   test("typed errors expose bucket, remaining, resetAt, argv", () => {
-    const snap = { bucket: "graphql" as const, limit: 5000, remaining: 0, resetAt: 1234567000, fetchedAt: 1234560000 };
+    const snap = {
+      bucket: "graphql" as const,
+      limit: 5000,
+      remaining: 0,
+      resetAt: 1234567000,
+      fetchedAt: 1234560000,
+    };
     const err = new GraphQLBudgetExhaustedError(snap, ["gh", "issue", "list", "--json", "x"]);
     expect(err).toBeInstanceOf(BucketBudgetExhaustedError);
     expect(err.bucket).toBe("graphql");
@@ -958,11 +1100,7 @@ describe("estimateSweepCost", () => {
   });
 
   test("file with only zero/null deltas → still cold, fallback avg 2", () => {
-    writeRows([
-      { cost_delta: 0 },
-      { cost_delta: null },
-      { cost_delta: 0 },
-    ]);
+    writeRows([{ cost_delta: 0 }, { cost_delta: null }, { cost_delta: 0 }]);
     const deps: RateLimitDeps = { auditPath: () => auditFile };
     const est = estimateSweepCost(5, deps);
     expect(est.sample.calls).toBe(0);
@@ -1016,9 +1154,36 @@ describe("readRateLimitAuditRows (GH-1533)", () => {
   test("parses every well-formed row (with and without attribution fields), skipping garbage", () => {
     const lines = [
       // pre-GH-1533 row — no attribution fields
-      JSON.stringify({ ts: "2026-05-12T10:00:00.000Z", argv: ["gh", "api", "user"], bucket: "core", remaining_before: 4900, remaining_after: 4899, exit_code: 0, threw: null, cost_delta: 1 }),
+      JSON.stringify({
+        ts: "2026-05-12T10:00:00.000Z",
+        argv: ["gh", "api", "user"],
+        bucket: "core",
+        remaining_before: 4900,
+        remaining_after: 4899,
+        exit_code: 0,
+        threw: null,
+        cost_delta: 1,
+      }),
       // attributed row
-      JSON.stringify({ ts: "2026-05-12T11:00:00.000Z", argv: ["gh", "issue", "list", "--json", "number"], bucket: "graphql", remaining_before: 4899, remaining_after: 4896, exit_code: 0, threw: null, cost_delta: 3, api: "graphql", verb: "triage.status", actor: "claude-code", operation: "issue.list", cost: 3, remaining: 4896, limit: 5000, reset_at: "2026-05-12T12:00:00.000Z", duration_ms: 220 }),
+      JSON.stringify({
+        ts: "2026-05-12T11:00:00.000Z",
+        argv: ["gh", "issue", "list", "--json", "number"],
+        bucket: "graphql",
+        remaining_before: 4899,
+        remaining_after: 4896,
+        exit_code: 0,
+        threw: null,
+        cost_delta: 3,
+        api: "graphql",
+        verb: "triage.status",
+        actor: "claude-code",
+        operation: "issue.list",
+        cost: 3,
+        remaining: 4896,
+        limit: 5000,
+        reset_at: "2026-05-12T12:00:00.000Z",
+        duration_ms: 220,
+      }),
       "{ not json",
       JSON.stringify({ ts: "2026-05-12T11:30:00.000Z", argv: 42 }), // wrong shape
       "",
@@ -1028,7 +1193,12 @@ describe("readRateLimitAuditRows (GH-1533)", () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({ bucket: "core" });
     expect(rows[0]!.api).toBeUndefined();
-    expect(rows[1]).toMatchObject({ api: "graphql", verb: "triage.status", operation: "issue.list", cost: 3 });
+    expect(rows[1]).toMatchObject({
+      api: "graphql",
+      verb: "triage.status",
+      operation: "issue.list",
+      cost: 3,
+    });
   });
 });
 

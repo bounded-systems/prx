@@ -31,7 +31,9 @@ function sha256hex(input: string): string {
  */
 export function unitSalt(sourcePinnedDigest: string): string {
   if (sourcePinnedDigest.trim().length === 0) {
-    throw new Error("unitSalt: sourcePinnedDigest must be non-empty (mint at intake from source@pinned)");
+    throw new Error(
+      "unitSalt: sourcePinnedDigest must be non-empty (mint at intake from source@pinned)",
+    );
   }
   return sha256hex(`prx/unit-salt/${sourcePinnedDigest}`).slice(0, SALT_LENGTH);
 }

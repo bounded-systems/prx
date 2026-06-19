@@ -54,9 +54,7 @@ export const defaultFileSystem: FileSystem = {
 };
 
 /** Stat a path via {@link defaultFileSystem}; `null` when absent. */
-export const statPath = (path: string): FileStat | null =>
-  defaultFileSystem.statPath(path);
+export const statPath = (path: string): FileStat | null => defaultFileSystem.statPath(path);
 
 /** Force-remove a file via {@link defaultFileSystem}. */
-export const removeFile = (path: string): void =>
-  defaultFileSystem.removeFile(path);
+export const removeFile = (path: string): void => defaultFileSystem.removeFile(path);

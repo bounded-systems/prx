@@ -65,11 +65,7 @@ export interface GitReader {
   diff(from: string, to: string, cwd?: string): string;
 }
 
-function gitOrThrow(
-  subcommand: string,
-  args: string[],
-  cwd: string | undefined,
-): string {
+function gitOrThrow(subcommand: string, args: string[], cwd: string | undefined): string {
   const result = execGit({
     subcommand,
     args,
@@ -129,8 +125,7 @@ export async function runSubmitStage(
   deps: StageDeps = {},
 ): Promise<StageRender> {
   const git = deps.git ?? defaultGitReader;
-  const materializeTree =
-    deps.materializeTree ?? ((cwd) => runKeeperWriteTree(cwd));
+  const materializeTree = deps.materializeTree ?? ((cwd) => runKeeperWriteTree(cwd));
   const writePatch = deps.writeSubmitPatchBlob ?? writeSubmitPatchBlob;
   const writeArtifact = deps.writeSubmitArtifact ?? writeSubmitArtifact;
   const now = deps.now ?? (() => new Date());
@@ -193,9 +188,7 @@ export async function runSubmitStage(
     result = await writeArtifact({ artifact, slot: opts.slot });
   } catch (err) {
     if (err instanceof PlanStoreError) {
-      throw new StageError(
-        `prx submit stage: failed to write artifact: ${err.message}`,
-      );
+      throw new StageError(`prx submit stage: failed to write artifact: ${err.message}`);
     }
     throw err;
   }
@@ -209,10 +202,7 @@ export async function runSubmitStage(
   };
 }
 
-export function formatStageRender(
-  render: StageRender,
-  format: "plain" | "json",
-): string {
+export function formatStageRender(render: StageRender, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(render, null, 2);
   }

@@ -31,9 +31,7 @@ import { z } from "zod";
 function isFinalizedDb(dir: string): boolean {
   if (!existsSync(join(dir, "codeql-database.yml"))) return false;
   try {
-    return readdirSync(dir).some(
-      (e) => e.startsWith("db-") && existsSync(join(dir, e, "default")),
-    );
+    return readdirSync(dir).some((e) => e.startsWith("db-") && existsSync(join(dir, e, "default")));
   } catch {
     return false;
   }
@@ -95,8 +93,7 @@ async function main() {
     process.exit(127);
   }
 
-  const sourceRoot =
-    opts.source || (await $`git rev-parse --show-toplevel`.text()).trim();
+  const sourceRoot = opts.source || (await $`git rev-parse --show-toplevel`.text()).trim();
 
   // Database: reuse $CODEQL_DB if set, else a self-cleaning temp dir.
   let db = process.env.CODEQL_DB ?? "";
@@ -107,9 +104,7 @@ async function main() {
   }
   try {
     if (!isFinalizedDb(db)) {
-      console.error(
-        `>> Building CodeQL database (javascript-typescript) from ${sourceRoot} ...`,
-      );
+      console.error(`>> Building CodeQL database (javascript-typescript) from ${sourceRoot} ...`);
       await run([
         "codeql",
         "database",

@@ -68,7 +68,13 @@ export function parseConditionalRead(raw: RawConditionalRead): ConditionalReadRe
   }
   if (status === 304) return { kind: "not-modified" };
 
-  const body = blankAt >= 0 ? lines.slice(blankAt + 1).join("\n").trim() : "";
+  const body =
+    blankAt >= 0
+      ? lines
+          .slice(blankAt + 1)
+          .join("\n")
+          .trim()
+      : "";
   if (status >= 200 && status < 300) return { kind: "modified", etag, body };
 
   return { kind: "error", status, detail: body || `HTTP ${status}` };

@@ -22,7 +22,10 @@ afterEach(() => {
 describe("patchBeadsMetadataDoltMode", () => {
   test("flips dolt_mode to server and preserves other keys", () => {
     const dir = freshDir();
-    writeFileSync(join(dir, "metadata.json"), JSON.stringify({ dolt_mode: "per-project", prefix: "io_x" }));
+    writeFileSync(
+      join(dir, "metadata.json"),
+      JSON.stringify({ dolt_mode: "per-project", prefix: "io_x" }),
+    );
     const r = patchBeadsMetadataDoltMode(dir);
     expect(r.ok).toBe(true);
     expect(r.metadataPath).toBe(join(dir, "metadata.json"));

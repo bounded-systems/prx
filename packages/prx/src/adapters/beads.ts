@@ -37,10 +37,7 @@
  */
 
 import { localWorkspacePrefixForCwd } from "../pr-state/repos.ts";
-import {
-  loadAllBeads as defaultLoadAllBeads,
-  type BeadsRecord,
-} from "../triage/triage.ts";
+import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../triage/triage.ts";
 import {
   BD_LONG_ID_PATTERN,
   BD_SURFACE_ID_PATTERN,
@@ -154,9 +151,7 @@ export type BdDomainAdapterDeps = {
 export class BdDomainAdapter implements DomainAdapter {
   readonly config: DomainAdapterConfig;
 
-  private readonly deps: Required<
-    Pick<BdDomainAdapterDeps, "cwd" | "localWorkspacePrefix">
-  > &
+  private readonly deps: Required<Pick<BdDomainAdapterDeps, "cwd" | "localWorkspacePrefix">> &
     BdDomainAdapterDeps;
 
   constructor(deps: BdDomainAdapterDeps = {}) {
@@ -263,9 +258,7 @@ export class BdDomainAdapter implements DomainAdapter {
       }
     }
 
-    throw new BdDomainAdapterError(
-      `bd adapter: not a BD- surface id (short or long): ${id}`,
-    );
+    throw new BdDomainAdapterError(`bd adapter: not a BD- surface id (short or long): ${id}`);
   }
 
   async pull(_externalId: string, _opts?: AdapterIoOpts): Promise<ResolvedWorkUnitPatch> {
@@ -288,10 +281,7 @@ export class BdDomainAdapter implements DomainAdapter {
    * canonical store, so there is no external range to enumerate against it.
    * Throws a typed error so the interface stays total.
    */
-  async enumerate(
-    _range: EnumerateRange,
-    _opts?: AdapterIoOpts,
-  ): Promise<ExternalRecordRef[]> {
+  async enumerate(_range: EnumerateRange, _opts?: AdapterIoOpts): Promise<ExternalRecordRef[]> {
     throw new BdDomainAdapterError(
       "bd adapter: enumerate (prx sync backfill) is not implemented for the bd domain",
     );

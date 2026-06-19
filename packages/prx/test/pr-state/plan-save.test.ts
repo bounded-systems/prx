@@ -59,11 +59,7 @@ const BODY_SHA = `sha256:${"b".repeat(64)}`;
 
 // Build a RunPlanSaveResult from a body + the real shape verdict, mirroring the
 // producer's persist-on-failure contract (skipValidate forces validated_ok).
-function fakeSaveResult(
-  unit: string,
-  body: string,
-  skipValidate: boolean,
-): RunPlanSaveResult {
+function fakeSaveResult(unit: string, body: string, skipValidate: boolean): RunPlanSaveResult {
   const verdict = validatePlanShape(body, unit);
   return {
     sha: ENVELOPE_SHA,
@@ -184,21 +180,17 @@ describe("prx plan save — persist-on-failure (GH-2028)", () => {
     const consumeCapture = captureOutput();
     delete process.env.PRX_SESSION_OPEN;
     const verdict = validatePlanShape(planBody, "GH-1277");
-    const consumeExit = await runCli(
-      ["implement", "agent", "GH-1277"],
-      consumeCapture.output,
-      {
-        runPlanShow: async () => ({
-          unit: "GH-1277",
-          slot: "draft" as const,
-          sha: ENVELOPE_SHA as never,
-          size: planBody.length,
-          body: Buffer.from(planBody),
-          validated_ok: verdict.validated_ok,
-          diagnostics: verdict.diagnostics,
-        }),
-      },
-    );
+    const consumeExit = await runCli(["implement", "agent", "GH-1277"], consumeCapture.output, {
+      runPlanShow: async () => ({
+        unit: "GH-1277",
+        slot: "draft" as const,
+        sha: ENVELOPE_SHA as never,
+        size: planBody.length,
+        body: Buffer.from(planBody),
+        validated_ok: verdict.validated_ok,
+        diagnostics: verdict.diagnostics,
+      }),
+    });
     expect(consumeExit).toBe(2);
     const consumeRefusal = consumeCapture.errors.find((e) => e.includes("refused"));
     expect(consumeRefusal).toBeDefined();

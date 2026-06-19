@@ -97,9 +97,7 @@ export type IntakeBodyIssue = {
   message: string;
 };
 
-export type ValidateIntakeBodyResult =
-  | { ok: true }
-  | { ok: false; issues: IntakeBodyIssue[] };
+export type ValidateIntakeBodyResult = { ok: true } | { ok: false; issues: IntakeBodyIssue[] };
 
 /**
  * Validate the structured-field cluster of a `prx intake` invocation

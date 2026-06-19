@@ -26,12 +26,7 @@ import type {
 import { appendAuditRow as defaultAppendAuditRow } from "../audit/sink.ts";
 import { handoffMachine } from "../machine/machines/handoff.ts";
 import { checkPolicy as defaultCheckPolicy } from "@bounded-systems/policy";
-import {
-  claimHandoff,
-  listHandoffs,
-  writeEnvelope,
-  type HandoffStoreDeps,
-} from "./store.ts";
+import { claimHandoff, listHandoffs, writeEnvelope, type HandoffStoreDeps } from "./store.ts";
 
 // ── adapter contract ───────────────────────────────────────────────────────
 
@@ -65,16 +60,11 @@ export type RecipientAdapter = {
 
 const REGISTRY: Map<HandoffTargetActor, RecipientAdapter> = new Map();
 
-export function registerAdapter(
-  target: HandoffTargetActor,
-  adapter: RecipientAdapter,
-): void {
+export function registerAdapter(target: HandoffTargetActor, adapter: RecipientAdapter): void {
   REGISTRY.set(target, adapter);
 }
 
-export function getAdapter(
-  target: HandoffTargetActor,
-): RecipientAdapter | undefined {
+export function getAdapter(target: HandoffTargetActor): RecipientAdapter | undefined {
   return REGISTRY.get(target);
 }
 
@@ -89,7 +79,7 @@ export function clearRegistryForTests(): void {
  * day one; real recipients ship in their own tickets.
  */
 export const noopAdapter: RecipientAdapter = {
-  apply: async () => ({ ok: true } as const),
+  apply: async () => ({ ok: true }) as const,
 };
 
 function registerNoopAdapter(): void {
@@ -123,10 +113,7 @@ export type DrainResult = {
   }>;
 };
 
-export async function drain(
-  opts: DrainOptions,
-  deps: DrainDeps = {},
-): Promise<DrainResult> {
+export async function drain(opts: DrainOptions, deps: DrainDeps = {}): Promise<DrainResult> {
   const adapter = getAdapter(opts.target);
   const appendAuditRow = deps.appendAuditRow ?? defaultAppendAuditRow;
   const checkPolicy = deps.checkPolicy ?? defaultCheckPolicy;
@@ -142,9 +129,10 @@ export async function drain(
   }
 
   // Oldest-first pending pull.
-  const pending = (
-    await listHandoffs({ target: opts.target, status: "pending" }, deps)
-  ).slice(0, max);
+  const pending = (await listHandoffs({ target: opts.target, status: "pending" }, deps)).slice(
+    0,
+    max,
+  );
 
   for (const envelope of pending) {
     result.attempted += 1;
@@ -163,12 +151,7 @@ export async function drain(
     if (adapter.policyHint) {
       const hint = adapter.policyHint(claim.envelope);
       if (hint) {
-        const decision = checkPolicy(
-          hint.tool,
-          hint.subcommand,
-          hint.state,
-          hint.role,
-        );
+        const decision = checkPolicy(hint.tool, hint.subcommand, hint.state, hint.role);
         if (!decision.allowed) {
           // Mark failed and persist; don't even try the adapter.
           const failed: HandoffEnvelope = {

@@ -20,10 +20,12 @@ import { z } from "zod";
 // `z.string().url()` would reject them. Accept either a WHATWG URL or the
 // ssh shape — the same forms `parseRepoUrl` already canonicalizes.
 const GIT_SSH_URL = /^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+:[^\s]+\/[^\s]+$/;
-const remoteUrl = z.string().min(1).refine(
-  (value) => GIT_SSH_URL.test(value) || /^(https?|git):\/\//.test(value),
-  { message: "remote_url must be a git ssh URL (git@host:owner/name) or an http(s)/git URL" },
-);
+const remoteUrl = z
+  .string()
+  .min(1)
+  .refine((value) => GIT_SSH_URL.test(value) || /^(https?|git):\/\//.test(value), {
+    message: "remote_url must be a git ssh URL (git@host:owner/name) or an http(s)/git URL",
+  });
 
 export const RepoRowSchema = z.object({
   // `<host>/<owner>/<name>`, e.g. `github.com/example-owner/example-repo`.
@@ -331,7 +333,9 @@ export class WorkspaceStore {
   }
 
   count(): number {
-    const row = this.db.prepare("SELECT COUNT(*) AS n FROM workspaces").get() as { n: number } | null;
+    const row = this.db.prepare("SELECT COUNT(*) AS n FROM workspaces").get() as {
+      n: number;
+    } | null;
     return row?.n ?? 0;
   }
 }

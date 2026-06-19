@@ -18,14 +18,10 @@
 import { atom, c, not, rule, v, type Rule } from "../engine.ts";
 
 export const eligibilityRules: Rule[] = [
-  rule(
-    "eligible",
-    atom("eligible", v("Actor"), v("I")),
-    [
-      atom("phase", v("I"), v("P")),
-      atom("actorAllowedInPhase", v("Actor"), v("P")),
-      atom("issue", v("I"), c(true), v("_c")),
-      not(atom("has_open_blocker", v("I"))),
-    ],
-  ),
+  rule("eligible", atom("eligible", v("Actor"), v("I")), [
+    atom("phase", v("I"), v("P")),
+    atom("actorAllowedInPhase", v("Actor"), v("P")),
+    atom("issue", v("I"), c(true), v("_c")),
+    not(atom("has_open_blocker", v("I"))),
+  ]),
 ];

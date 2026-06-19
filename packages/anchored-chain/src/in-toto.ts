@@ -8,12 +8,11 @@
 // the core stays liftable into its own repo. Not re-exported from index.ts in
 // Phase 0 — the public surface is pinned by import-surface.test.ts.
 
-import type { Derivation, Digest } from './types.ts';
+import type { Derivation, Digest } from "./types.ts";
 
-export const STATEMENT_TYPE = 'https://in-toto.io/Statement/v1';
-export const DERIVATION_PREDICATE_TYPE =
-  'https://anchored-chain.dev/Derivation/v0.1';
-export const DSSE_PAYLOAD_TYPE = 'application/vnd.in-toto+json';
+export const STATEMENT_TYPE = "https://in-toto.io/Statement/v1";
+export const DERIVATION_PREDICATE_TYPE = "https://anchored-chain.dev/Derivation/v0.1";
+export const DSSE_PAYLOAD_TYPE = "application/vnd.in-toto+json";
 
 export interface InTotoDigestSet {
   readonly sha256: string;
@@ -58,7 +57,7 @@ export interface Verifier {
   verify(pae: Uint8Array, sig: DsseSignature): Promise<boolean>;
 }
 
-const DIGEST_PREFIX = 'sha256:';
+const DIGEST_PREFIX = "sha256:";
 
 function toHex(digest: Digest): string {
   return (digest as string).startsWith(DIGEST_PREFIX)
@@ -70,9 +69,7 @@ function toDigest(hex: string): Digest {
   return `${DIGEST_PREFIX}${hex}` as Digest;
 }
 
-function digestSetMap(
-  source: Readonly<Record<string, Digest>>,
-): Record<string, InTotoDigestSet> {
+function digestSetMap(source: Readonly<Record<string, Digest>>): Record<string, InTotoDigestSet> {
   const out: Record<string, InTotoDigestSet> = {};
   for (const [name, digest] of Object.entries(source)) {
     out[name] = { sha256: toHex(digest) };
@@ -82,12 +79,11 @@ function digestSetMap(
 
 /** Bespoke manifest → in-toto Statement v1. Outputs become subjects, inputs
  *  become predicate materials. Faithful and reversible. */
-export function manifestToStatement(
-  manifest: Derivation['manifest'],
-): InTotoStatement {
-  const subject: InTotoSubject[] = Object.entries(manifest.outputs).map(
-    ([name, digest]) => ({ name, digest: { sha256: toHex(digest) } }),
-  );
+export function manifestToStatement(manifest: Derivation["manifest"]): InTotoStatement {
+  const subject: InTotoSubject[] = Object.entries(manifest.outputs).map(([name, digest]) => ({
+    name,
+    digest: { sha256: toHex(digest) },
+  }));
   return {
     _type: STATEMENT_TYPE,
     subject,
@@ -102,9 +98,7 @@ export function manifestToStatement(
 }
 
 /** in-toto Statement v1 → bespoke manifest. Inverse of manifestToStatement. */
-export function statementToManifest(
-  statement: InTotoStatement,
-): Derivation['manifest'] {
+export function statementToManifest(statement: InTotoStatement): Derivation["manifest"] {
   const inputs: Record<string, Digest> = {};
   for (const [name, set] of Object.entries(statement.predicate.materials)) {
     inputs[name] = toDigest(set.sha256);
@@ -128,9 +122,7 @@ export function statementToManifest(
 export function dssePae(payloadType: string, payload: Uint8Array): Uint8Array {
   const enc = new TextEncoder();
   const typeBytes = enc.encode(payloadType);
-  const prefix = enc.encode(
-    `DSSEv1 ${typeBytes.length} ${payloadType} ${payload.length} `,
-  );
+  const prefix = enc.encode(`DSSEv1 ${typeBytes.length} ${payloadType} ${payload.length} `);
   const out = new Uint8Array(prefix.length + payload.length);
   out.set(prefix, 0);
   out.set(payload, prefix.length);
@@ -148,7 +140,7 @@ export function assembleEnvelope(statement: InTotoStatement): {
   return {
     envelope: {
       payloadType: DSSE_PAYLOAD_TYPE,
-      payload: Buffer.from(bytes).toString('base64'),
+      payload: Buffer.from(bytes).toString("base64"),
       signatures: [],
     },
     pae: dssePae(DSSE_PAYLOAD_TYPE, bytes),

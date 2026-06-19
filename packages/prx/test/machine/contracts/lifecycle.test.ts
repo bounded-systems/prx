@@ -23,18 +23,14 @@ import {
   getArtifactContract,
   listArtifactContracts,
 } from "../../../src/machine/contracts/artifacts.ts";
-import {
-  getAgentContract,
-} from "../../../src/machine/contracts/instances.ts";
+import { getAgentContract } from "../../../src/machine/contracts/instances.ts";
 import {
   blockerReportSchema,
   delegationRecordSchema,
   sprintPlanSchema,
   statusUpdateSchema,
 } from "../../../src/machine/contracts/lifecycle_artifacts.ts";
-import {
-  getTransitionContract,
-} from "../../../src/machine/contracts/transitions.ts";
+import { getTransitionContract } from "../../../src/machine/contracts/transitions.ts";
 import { runGuard } from "../../../src/machine/contracts/guards.ts";
 
 // ── Layer A: live Zod schemas (round-trip) ───────────────────────────────
@@ -53,9 +49,7 @@ describe("statusUpdate schema", () => {
   });
 
   test("rejects empty uow_refs (free-floating prose)", () => {
-    expect(() =>
-      statusUpdateSchema.parse({ ...valid, uow_refs: [] })
-    ).toThrow();
+    expect(() => statusUpdateSchema.parse({ ...valid, uow_refs: [] })).toThrow();
   });
 
   test("rejects missing uow_refs entirely", () => {
@@ -64,15 +58,11 @@ describe("statusUpdate schema", () => {
   });
 
   test("rejects unknown extra fields (strict)", () => {
-    expect(() =>
-      statusUpdateSchema.parse({ ...valid, mood: "festive" })
-    ).toThrow();
+    expect(() => statusUpdateSchema.parse({ ...valid, mood: "festive" })).toThrow();
   });
 
   test("rejects malformed ts", () => {
-    expect(() =>
-      statusUpdateSchema.parse({ ...valid, ts: "yesterday" })
-    ).toThrow();
+    expect(() => statusUpdateSchema.parse({ ...valid, ts: "yesterday" })).toThrow();
   });
 });
 
@@ -100,9 +90,7 @@ describe("blockerReport schema", () => {
   });
 
   test("rejects an out-of-vocabulary severity", () => {
-    expect(() =>
-      blockerReportSchema.parse({ ...valid, severity: "annoying" })
-    ).toThrow();
+    expect(() => blockerReportSchema.parse({ ...valid, severity: "annoying" })).toThrow();
   });
 });
 
@@ -116,9 +104,7 @@ describe("delegationRecord schema", () => {
   };
 
   test("accepts a well-formed delegationRecord (no deadline)", () => {
-    expect(delegationRecordSchema.parse(valid).expected_output_type).toBe(
-      "patch_proposal",
-    );
+    expect(delegationRecordSchema.parse(valid).expected_output_type).toBe("patch_proposal");
   });
 
   test("accepts an optional deadline", () => {
@@ -134,7 +120,7 @@ describe("delegationRecord schema", () => {
       delegationRecordSchema.parse({
         ...valid,
         expected_output_type: "wishful_thinking",
-      })
+      }),
     ).toThrow();
   });
 
@@ -157,15 +143,11 @@ describe("sprintPlan schema", () => {
   });
 
   test("accepts an optional capacity hint", () => {
-    expect(sprintPlanSchema.parse({ ...valid, capacity: 21 }).capacity).toBe(
-      21,
-    );
+    expect(sprintPlanSchema.parse({ ...valid, capacity: 21 }).capacity).toBe(21);
   });
 
   test("rejects empty selected_uow_ids (sprint with no work)", () => {
-    expect(() =>
-      sprintPlanSchema.parse({ ...valid, selected_uow_ids: [] })
-    ).toThrow();
+    expect(() => sprintPlanSchema.parse({ ...valid, selected_uow_ids: [] })).toThrow();
   });
 
   test("rejects start_date after end_date", () => {
@@ -174,7 +156,7 @@ describe("sprintPlan schema", () => {
         ...valid,
         start_date: "2026-05-26",
         end_date: "2026-05-12",
-      })
+      }),
     ).toThrow();
   });
 
@@ -183,7 +165,7 @@ describe("sprintPlan schema", () => {
       sprintPlanSchema.parse({
         ...valid,
         start_date: "2026-05-12T00:00:00Z",
-      })
+      }),
     ).toThrow();
   });
 });
@@ -307,7 +289,7 @@ describe("lifecycle-axis transitions", () => {
         requiredStatus: "present",
         forbiddenArtifacts: [],
         guardId: "mapToDelegate.requireWorkMap",
-      })
+      }),
     ).toThrow();
   });
 
@@ -361,37 +343,23 @@ describe("lifecycle-axis transitions", () => {
 
 describe("JSON-schema exports for lifecycle artifacts", () => {
   const here = resolve(import.meta.dir, "../../..");
-  const readJson = (path: string) =>
-    JSON.parse(readFileSync(resolve(here, path), "utf8"));
+  const readJson = (path: string) => JSON.parse(readFileSync(resolve(here, path), "utf8"));
 
   test("status-update.json mirrors required fields", () => {
     const schema = readJson("schemas/contracts/lifecycle/status-update.json");
     const def = schema.definitions.status_update;
-    expect(def.required).toEqual([
-      "unitId",
-      "uow_refs",
-      "body",
-      "author",
-      "ts",
-    ]);
+    expect(def.required).toEqual(["unitId", "uow_refs", "body", "author", "ts"]);
     expect(def.additionalProperties).toBe(false);
   });
 
   test("blocker-report.json carries severity enum", () => {
     const schema = readJson("schemas/contracts/lifecycle/blocker-report.json");
     const def = schema.definitions.blocker_report;
-    expect(def.properties.severity.enum).toEqual([
-      "low",
-      "med",
-      "high",
-      "critical",
-    ]);
+    expect(def.properties.severity.enum).toEqual(["low", "med", "high", "critical"]);
   });
 
   test("delegation-record.json pins expected_output_type to the audit vocabulary", () => {
-    const schema = readJson(
-      "schemas/contracts/lifecycle/delegation-record.json",
-    );
+    const schema = readJson("schemas/contracts/lifecycle/delegation-record.json");
     const def = schema.definitions.delegation_record;
     expect(def.properties.expected_output_type.enum).toContain("patch_proposal");
     expect(def.properties.expected_output_type.enum).toContain("test_run");

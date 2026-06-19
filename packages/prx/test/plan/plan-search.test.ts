@@ -104,9 +104,7 @@ describe("runPlanSearch — GH paths", async () => {
       { log: () => undefined, error: () => undefined },
       {
         execGh: (() =>
-          ghList([
-            { number: 1, title: "plan thing", state: "OPEN", url: "u/1" },
-          ])) as never,
+          ghList([{ number: 1, title: "plan thing", state: "OPEN", url: "u/1" }])) as never,
         loadBeads: (async () => {
           bdCalls++;
           return [];
@@ -205,9 +203,7 @@ describe("runPlanSearch — dedupe by external_ref", async () => {
       { log: (l) => logs.push(l), error: () => undefined },
       {
         execGh: (() => ghList([])) as never,
-        loadBeads: (async () => [
-          bead({ id: "ai-home-ccc", title: "alpha-only thing" }),
-        ]) as never,
+        loadBeads: (async () => [bead({ id: "ai-home-ccc", title: "alpha-only thing" })]) as never,
       },
     );
     const parsed = JSON.parse(logs[0]!) as {
@@ -225,12 +221,8 @@ describe("runPlanSearch — dedupe by external_ref", async () => {
       { log: (l) => logs.push(l), error: () => undefined },
       {
         execGh: (() =>
-          ghList([
-            { number: 99, title: "lonely gh", state: "OPEN", url: "u/99" },
-          ])) as never,
-        loadBeads: (async () => [
-          bead({ id: "ai-home-ddd", title: "unrelated" }),
-        ]) as never,
+          ghList([{ number: 99, title: "lonely gh", state: "OPEN", url: "u/99" }])) as never,
+        loadBeads: (async () => [bead({ id: "ai-home-ddd", title: "unrelated" })]) as never,
       },
     );
     const parsed = JSON.parse(logs[0]!) as {
@@ -250,10 +242,7 @@ describe("runPlanSearch — graceful degradation", async () => {
       makeOpts({ query: "plan" }),
       { log: (l) => logs.push(l), error: (l) => errors.push(l) },
       {
-        execGh: (() =>
-          ghList([
-            { number: 1, title: "plan", state: "OPEN", url: "u/1" },
-          ])) as never,
+        execGh: (() => ghList([{ number: 1, title: "plan", state: "OPEN", url: "u/1" }])) as never,
         loadBeads: (async () => {
           throw new Error("bd: database not found");
         }) as never,
@@ -340,15 +329,11 @@ describe("planSearchOptionsSchema", async () => {
   });
 
   test("rejects invalid state", async () => {
-    expect(() =>
-      planSearchOptionsSchema.parse({ query: "x", state: "bogus" }),
-    ).toThrow();
+    expect(() => planSearchOptionsSchema.parse({ query: "x", state: "bogus" })).toThrow();
   });
 
   test("rejects invalid source", async () => {
-    expect(() =>
-      planSearchOptionsSchema.parse({ query: "x", source: "notion" }),
-    ).toThrow();
+    expect(() => planSearchOptionsSchema.parse({ query: "x", source: "notion" })).toThrow();
   });
 });
 

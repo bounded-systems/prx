@@ -10,9 +10,10 @@ import {
 
 type Stub = { stdout?: string; stderr?: string; status?: number | null };
 
-function makeRunner(
-  responses: Record<string, Stub>,
-): { runner: CommandRunner; calls: { cmd: string; args: string[]; cwd: string }[] } {
+function makeRunner(responses: Record<string, Stub>): {
+  runner: CommandRunner;
+  calls: { cmd: string; args: string[]; cwd: string }[];
+} {
   const calls: { cmd: string; args: string[]; cwd: string }[] = [];
   const runner: CommandRunner = (cmd, args, opts) => {
     calls.push({ cmd, args: [...args], cwd: opts.cwd });
@@ -40,7 +41,9 @@ describe("inferOperatorScopeFromCwd", () => {
         stdout: "/Users/dev/.local/state/wt/worktrees/main/gh_876_vjg\n",
       },
     });
-    expect(inferOperatorScopeFromCwd("/repo", runner, { "example-owner/example-repo": "prx" })).toEqual({
+    expect(
+      inferOperatorScopeFromCwd("/repo", runner, { "example-owner/example-repo": "prx" }),
+    ).toEqual({
       scope: "prx",
       source: "git-remote",
       mapping: "example-owner/example-repo",
@@ -122,7 +125,9 @@ describe("inferOperatorScopeFromCwd", () => {
       },
       "git -C /repo rev-parse --show-toplevel": { status: 128 },
     });
-    expect(inferOperatorScopeFromCwd("/repo", runner, { "example-owner/example-repo": "prx" })).toEqual({
+    expect(
+      inferOperatorScopeFromCwd("/repo", runner, { "example-owner/example-repo": "prx" }),
+    ).toEqual({
       scope: "prx",
       source: "git-remote",
       mapping: "example-owner/example-repo",

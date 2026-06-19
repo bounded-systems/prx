@@ -52,7 +52,13 @@ function manifestFixture(
     parentBead: "ai-home-1290",
     generatedAt: "2026-05-02T00:00:00.000Z",
     bodies: [
-      { slot: "view", file: "01-view.md", type: "feature", title: "feat: view layer", scope: "prx" },
+      {
+        slot: "view",
+        file: "01-view.md",
+        type: "feature",
+        title: "feat: view layer",
+        scope: "prx",
+      },
       { slot: "comment", file: "02-comment.md", type: "feature", title: "feat: comment helper" },
     ],
     deps: [
@@ -93,10 +99,7 @@ function makeDeps(args: {
     fs.set(`${args.dir}/manifest.json`, JSON.stringify(args.manifest));
   }
   if (args.preFiled && args.preFiled.length > 0) {
-    fs.set(
-      `${args.dir}/.filed.json`,
-      JSON.stringify({ rows: args.preFiled }),
-    );
+    fs.set(`${args.dir}/.filed.json`, JSON.stringify({ rows: args.preFiled }));
   }
 
   const execBdImpl: TriagePromoteChildrenDeps["execBd"] =
@@ -131,7 +134,8 @@ function makeDeps(args: {
   // GH-296 / prx-82b: dep edges write via the daemon (`prx beads dep add …`).
   // The fake runner records the equivalent old `{subcommand:"dep", args}` shape
   // so the existing bdCalls assertions hold. `runImpl` overrides for failures.
-  const run = args.runImpl ??
+  const run =
+    args.runImpl ??
     ((cmd: string[]) => {
       bdCalls.push({ subcommand: cmd[2] ?? "", args: cmd.slice(3) });
       return { status: 0, stdout: "", stderr: "" };
@@ -299,10 +303,7 @@ describe("runTriagePromoteChildren — file + wire path", () => {
     // .filed.json now persisted with both slots
     const filed = JSON.parse(fs.get("/fixtures/staging/.filed.json")!);
     expect(filed.rows).toHaveLength(2);
-    expect(filed.rows.map((r: { slot: string }) => r.slot).sort()).toEqual([
-      "comment",
-      "view",
-    ]);
+    expect(filed.rows.map((r: { slot: string }) => r.slot).sort()).toEqual(["comment", "view"]);
     // Two body audit rows, two dep audit rows
     const entries = audit.map((l) => JSON.parse(l));
     const bodyRows = entries.filter((e) => e.kind === "body");
@@ -334,9 +335,21 @@ describe("runTriagePromoteChildren — idempotency", () => {
         { slot: "comment", number: 2002, url: "https://github.com/bdelanghe/ai-home/issues/2002" },
       ],
       beads: [
-        bead({ id: "ai-home-2001-x", externalRef: "https://github.com/bdelanghe/ai-home/issues/2001", externalIssueNumber: 2001 }),
-        bead({ id: "ai-home-2002-x", externalRef: "https://github.com/bdelanghe/ai-home/issues/2002", externalIssueNumber: 2002 }),
-        bead({ id: "ai-home-1290-x", externalRef: "https://github.com/bdelanghe/ai-home/issues/1290", externalIssueNumber: 1290 }),
+        bead({
+          id: "ai-home-2001-x",
+          externalRef: "https://github.com/bdelanghe/ai-home/issues/2001",
+          externalIssueNumber: 2001,
+        }),
+        bead({
+          id: "ai-home-2002-x",
+          externalRef: "https://github.com/bdelanghe/ai-home/issues/2002",
+          externalIssueNumber: 2002,
+        }),
+        bead({
+          id: "ai-home-1290-x",
+          externalRef: "https://github.com/bdelanghe/ai-home/issues/1290",
+          externalIssueNumber: 1290,
+        }),
       ],
     });
     let intakeCount = 0;
@@ -352,9 +365,7 @@ describe("runTriagePromoteChildren — idempotency", () => {
     );
     expect(code).toBe(0);
     expect(intakeCount).toBe(0);
-    const bodyRows = audit
-      .map((l) => JSON.parse(l))
-      .filter((e) => e.kind === "body");
+    const bodyRows = audit.map((l) => JSON.parse(l)).filter((e) => e.kind === "body");
     expect(bodyRows).toHaveLength(2);
     expect(bodyRows.every((r) => r.action === "skip")).toBe(true);
   });
@@ -389,8 +400,16 @@ describe("runTriagePromoteChildren — IntakeTitleMismatchError row-level contin
         return 0;
       },
       beads: [
-        bead({ id: "ai-home-2042-x", externalRef: "https://github.com/bdelanghe/ai-home/issues/2042", externalIssueNumber: 2042 }),
-        bead({ id: "ai-home-1290-x", externalRef: "https://github.com/bdelanghe/ai-home/issues/1290", externalIssueNumber: 1290 }),
+        bead({
+          id: "ai-home-2042-x",
+          externalRef: "https://github.com/bdelanghe/ai-home/issues/2042",
+          externalIssueNumber: 2042,
+        }),
+        bead({
+          id: "ai-home-1290-x",
+          externalRef: "https://github.com/bdelanghe/ai-home/issues/1290",
+          externalIssueNumber: 1290,
+        }),
       ],
     });
     const o = makeOutput();
@@ -421,9 +440,7 @@ describe("runTriagePromoteChildren — dep ref forms", () => {
     const { deps, audit, bdCalls } = makeDeps({
       dir: "/fixtures/staging",
       manifest: manifestFixture({
-        bodies: [
-          { slot: "view", file: "01-view.md", type: "feature", title: "feat: view" },
-        ],
+        bodies: [{ slot: "view", file: "01-view.md", type: "feature", title: "feat: view" }],
         deps: [
           // Literal long-form bd id should pass straight through.
           { type: "blocks", from: "view", to: "ai-home-1777747197453-642-b5d5d951" },
@@ -479,9 +496,7 @@ describe("runTriagePromoteChildren — dep ref forms", () => {
     const { deps, audit, bdCalls } = makeDeps({
       dir: "/fixtures/staging",
       manifest: manifestFixture({
-        bodies: [
-          { slot: "view", file: "01-view.md", type: "feature", title: "feat: view" },
-        ],
+        bodies: [{ slot: "view", file: "01-view.md", type: "feature", title: "feat: view" }],
         deps: [{ type: "parent-child", from: "view", to: "GH-9999" }],
       }),
       beads: [
@@ -534,8 +549,16 @@ describe("runTriagePromoteChildren — --only filter", () => {
       dir: "/fixtures/staging",
       manifest: manifestFixture(),
       beads: [
-        bead({ id: "ai-home-2001-x", externalRef: "https://github.com/bdelanghe/ai-home/issues/2001", externalIssueNumber: 2001 }),
-        bead({ id: "ai-home-1290-x", externalRef: "https://github.com/bdelanghe/ai-home/issues/1290", externalIssueNumber: 1290 }),
+        bead({
+          id: "ai-home-2001-x",
+          externalRef: "https://github.com/bdelanghe/ai-home/issues/2001",
+          externalIssueNumber: 2001,
+        }),
+        bead({
+          id: "ai-home-1290-x",
+          externalRef: "https://github.com/bdelanghe/ai-home/issues/1290",
+          externalIssueNumber: 1290,
+        }),
       ],
       intakeImpl: (opts, output) => {
         // Only `view` slot reaches intake; mock returns GH-2001
@@ -670,9 +693,7 @@ describe("runPromoteChildrenActor", () => {
     const { deps } = makeDeps({
       dir: "/fixtures/staging",
       manifest: manifestFixture({
-        bodies: [
-          { slot: "view", file: "01-view.md", type: "feature", title: "feat: view" },
-        ],
+        bodies: [{ slot: "view", file: "01-view.md", type: "feature", title: "feat: view" }],
         deps: [],
       }),
       beads: [

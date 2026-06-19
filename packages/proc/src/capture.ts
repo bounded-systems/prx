@@ -108,10 +108,7 @@ export function isCaptureFailure(r: SpawnCaptureResult): boolean {
 
 /** Human-readable detail for the `*-safe:` stderr prefix. */
 export function captureFailureDetail(r: SpawnCaptureResult): string {
-  return (
-    r.error?.message ??
-    (r.signal ? `killed by ${r.signal}` : (r.stderr || "").trim())
-  );
+  return r.error?.message ?? (r.signal ? `killed by ${r.signal}` : (r.stderr || "").trim());
 }
 
 export type StreamCaptureOptions = SpawnCaptureOptions & {
@@ -147,11 +144,7 @@ export function streamCapture(
     const fd = fs.openSync(outPath, "w");
     let stderrBuf = "";
     let settled = false;
-    const finish = (
-      status: number | null,
-      signal: NodeJS.Signals | null,
-      error?: Error,
-    ): void => {
+    const finish = (status: number | null, signal: NodeJS.Signals | null, error?: Error): void => {
       if (settled) return;
       settled = true;
       try {

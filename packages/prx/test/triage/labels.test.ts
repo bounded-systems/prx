@@ -62,10 +62,13 @@ describe("parseLabelName", () => {
   test("round-trips with labelName for every axis", () => {
     for (const axis of LABEL_AXES) {
       const enumOpts =
-        axis === "type" ? TYPE.options
-        : axis === "priority" ? PRIORITY.options
-        : axis === "area" ? AREA.options
-        : EFFORT.options;
+        axis === "type"
+          ? TYPE.options
+          : axis === "priority"
+            ? PRIORITY.options
+            : axis === "area"
+              ? AREA.options
+              : EFFORT.options;
       for (const value of enumOpts) {
         const name = labelName(axis, value);
         const parsed = parseLabelName(name);
@@ -78,14 +81,18 @@ describe("parseLabelName", () => {
 describe("Label schema", () => {
   test("requires type and priority; area and effort are optional", () => {
     expect(() => labelSchema.parse({ type: "feature", priority: "high" })).not.toThrow();
-    expect(() => labelSchema.parse({ type: "feature", priority: "high", area: "prx" })).not.toThrow();
+    expect(() =>
+      labelSchema.parse({ type: "feature", priority: "high", area: "prx" }),
+    ).not.toThrow();
     expect(() => labelSchema.parse({ type: "feature" })).toThrow();
     expect(() => labelSchema.parse({ priority: "high" })).toThrow();
   });
 
   test("rejects unknown enum values on each axis", () => {
     expect(() => labelSchema.parse({ type: "saga", priority: "high" })).toThrow();
-    expect(() => labelSchema.parse({ type: "feature", priority: "high", area: "missing" })).toThrow();
+    expect(() =>
+      labelSchema.parse({ type: "feature", priority: "high", area: "missing" }),
+    ).toThrow();
     expect(() => labelSchema.parse({ type: "feature", priority: "high", effort: "xxl" })).toThrow();
   });
 
@@ -188,7 +195,8 @@ describe("hasEpicLabel (GH-935)", () => {
 describe("defaultLabelDefinitions", () => {
   test("emits one definition per axis value with non-empty color and description", () => {
     const defs = defaultLabelDefinitions();
-    const expected = TYPE.options.length + PRIORITY.options.length + AREA.options.length + EFFORT.options.length;
+    const expected =
+      TYPE.options.length + PRIORITY.options.length + AREA.options.length + EFFORT.options.length;
     expect(defs).toHaveLength(expected);
     for (const def of defs) {
       expect(def.name).toMatch(/^(type|priority|area|effort)::/);
@@ -201,10 +209,13 @@ describe("defaultLabelDefinitions", () => {
     const names = schemaLabelNames();
     for (const axis of LABEL_AXES) {
       const enumOpts =
-        axis === "type" ? TYPE.options
-        : axis === "priority" ? PRIORITY.options
-        : axis === "area" ? AREA.options
-        : EFFORT.options;
+        axis === "type"
+          ? TYPE.options
+          : axis === "priority"
+            ? PRIORITY.options
+            : axis === "area"
+              ? AREA.options
+              : EFFORT.options;
       for (const value of enumOpts) {
         expect(names.has(labelName(axis, value))).toBe(true);
       }

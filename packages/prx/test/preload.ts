@@ -52,7 +52,16 @@ delete process.env.PRX_SESSION_OPEN;
 const hermeticGitConfig = join(tempRoot, "hermetic.gitconfig");
 writeFileSync(
   hermeticGitConfig,
-  ["[user]", "\tname = prx-test", "\temail = prx-test@example.com", "[commit]", "\tgpgsign = false", "[tag]", "\tgpgsign = false", ""].join("\n"),
+  [
+    "[user]",
+    "\tname = prx-test",
+    "\temail = prx-test@example.com",
+    "[commit]",
+    "\tgpgsign = false",
+    "[tag]",
+    "\tgpgsign = false",
+    "",
+  ].join("\n"),
 );
 process.env.GIT_CONFIG_GLOBAL = hermeticGitConfig;
 process.env.GIT_CONFIG_SYSTEM = "/dev/null";

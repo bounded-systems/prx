@@ -21,35 +21,48 @@ import { describe, expect, test } from "bun:test";
 const TIMEOUT_MS = 90_000;
 
 describe("intake↔triage cycle (GH-1687)", () => {
-  test("no circular import involves src/intake/intake.ts", () => {
-    const result = spawnSync(
-      "bunx",
-      [
-        "depcruise",
-        "packages/prx/src",
-        "--config",
-        ".dependency-cruiser.cjs",
-        "--output-type",
-        "json",
-      ],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: TIMEOUT_MS - 5_000, maxBuffer: 64 * 1024 * 1024 },
-    );
-    const parsed = JSON.parse(result.stdout || "{}");
-    const violations: Array<{ rule?: { name?: string }; from?: string; to?: string; cycle?: Array<string | { name?: string }> }> =
-      parsed.summary?.violations ?? [];
+  test(
+    "no circular import involves src/intake/intake.ts",
+    () => {
+      const result = spawnSync(
+        "bunx",
+        [
+          "depcruise",
+          "packages/prx/src",
+          "--config",
+          ".dependency-cruiser.cjs",
+          "--output-type",
+          "json",
+        ],
+        {
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+          timeout: TIMEOUT_MS - 5_000,
+          maxBuffer: 64 * 1024 * 1024,
+        },
+      );
+      const parsed = JSON.parse(result.stdout || "{}");
+      const violations: Array<{
+        rule?: { name?: string };
+        from?: string;
+        to?: string;
+        cycle?: Array<string | { name?: string }>;
+      }> = parsed.summary?.violations ?? [];
 
-    const touchesIntake = (s?: string) => !!s && /intake\/intake\.ts/i.test(s);
-    const offending = violations
-      .filter((v) => v.rule?.name === "no-circular")
-      .filter((v) => {
-        if (touchesIntake(v.from) || touchesIntake(v.to)) return true;
-        return (v.cycle ?? []).some((c) => touchesIntake(typeof c === "string" ? c : c.name));
-      })
-      .map((v) => `${v.from} → ${v.to}`);
+      const touchesIntake = (s?: string) => !!s && /intake\/intake\.ts/i.test(s);
+      const offending = violations
+        .filter((v) => v.rule?.name === "no-circular")
+        .filter((v) => {
+          if (touchesIntake(v.from) || touchesIntake(v.to)) return true;
+          return (v.cycle ?? []).some((c) => touchesIntake(typeof c === "string" ? c : c.name));
+        })
+        .map((v) => `${v.from} → ${v.to}`);
 
-    expect(
-      offending,
-      `expected no cycle to involve src/intake/intake.ts; saw:\n${offending.join("\n")}`,
-    ).toEqual([]);
-  }, TIMEOUT_MS);
+      expect(
+        offending,
+        `expected no cycle to involve src/intake/intake.ts; saw:\n${offending.join("\n")}`,
+      ).toEqual([]);
+    },
+    TIMEOUT_MS,
+  );
 });

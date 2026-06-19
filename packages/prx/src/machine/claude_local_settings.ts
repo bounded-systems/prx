@@ -32,11 +32,7 @@ export const CLAUDE_LOCAL_SETTINGS_RELATIVE_PATH = ".claude/settings.local.json"
 export const WORKTREE_CREATE_HOOK_COMMAND = "prx workspace worktree-create";
 export const WORKTREE_REMOVE_HOOK_COMMAND = "prx workspace worktree-remove";
 
-export type EnsureClaudeAllowlistStatus =
-  | "created"
-  | "updated"
-  | "unchanged"
-  | "skipped-malformed";
+export type EnsureClaudeAllowlistStatus = "created" | "updated" | "unchanged" | "skipped-malformed";
 
 export type EnsureClaudeAllowlistResult = {
   status: EnsureClaudeAllowlistStatus;

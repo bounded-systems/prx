@@ -57,7 +57,10 @@ export function writeMapRecord(repoRoot: string, record: MapRecord): string {
 }
 
 export class MapRecordNotFoundError extends Error {
-  constructor(public readonly name: string, public readonly path: string) {
+  constructor(
+    public readonly name: string,
+    public readonly path: string,
+  ) {
     super(`map record '${name}' not found at ${path}`);
     this.name = "MapRecordNotFoundError";
   }

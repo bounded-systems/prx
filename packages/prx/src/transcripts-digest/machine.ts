@@ -27,11 +27,7 @@ import {
   type StageWriteActorResult,
 } from "./actors.ts";
 import type { ClaudePrintRunner } from "./extractor.ts";
-import type {
-  MemoryCandidate,
-  TranscriptSession,
-  TranscriptSourceConfig,
-} from "./schemas.ts";
+import type { MemoryCandidate, TranscriptSession, TranscriptSourceConfig } from "./schemas.ts";
 
 export type TranscriptsDigestMode = "dry-run" | "stage" | "commit";
 
@@ -66,9 +62,7 @@ export type TranscriptsDigestContext = {
   blockedReason: TranscriptsDigestBlockedReason | null;
 };
 
-const initialContext = (
-  input: TranscriptsDigestMachineInput,
-): TranscriptsDigestContext => ({
+const initialContext = (input: TranscriptsDigestMachineInput): TranscriptsDigestContext => ({
   config: input.config,
   mode: input.mode,
   memoryDir: input.memoryDir,
@@ -83,10 +77,7 @@ const initialContext = (
   blockedReason: null,
 });
 
-function blockedReasonFromError(
-  actor: string,
-  error: unknown,
-): TranscriptsDigestBlockedReason {
+function blockedReasonFromError(actor: string, error: unknown): TranscriptsDigestBlockedReason {
   const message = error instanceof Error ? error.message : String(error);
   return { actor, message };
 }
@@ -141,8 +132,7 @@ export const transcriptsDigestMachine = setup({
         onError: {
           target: "failed_resolve",
           actions: assign({
-            blockedReason: ({ event }) =>
-              blockedReasonFromError("resolveSource", event.error),
+            blockedReason: ({ event }) => blockedReasonFromError("resolveSource", event.error),
           }),
         },
       },
@@ -159,15 +149,13 @@ export const transcriptsDigestMachine = setup({
         onDone: {
           target: "parsing",
           actions: assign({
-            sessions: ({ event }) =>
-              (event.output as LoadActorResult).sessions,
+            sessions: ({ event }) => (event.output as LoadActorResult).sessions,
           }),
         },
         onError: {
           target: "failed_load",
           actions: assign({
-            blockedReason: ({ event }) =>
-              blockedReasonFromError("load", event.error),
+            blockedReason: ({ event }) => blockedReasonFromError("load", event.error),
           }),
         },
       },
@@ -181,15 +169,13 @@ export const transcriptsDigestMachine = setup({
         onDone: {
           target: "extracting",
           actions: assign({
-            sessions: ({ event }) =>
-              (event.output as ParseActorResult).sessions,
+            sessions: ({ event }) => (event.output as ParseActorResult).sessions,
           }),
         },
         onError: {
           target: "failed_parse",
           actions: assign({
-            blockedReason: ({ event }) =>
-              blockedReasonFromError("parse", event.error),
+            blockedReason: ({ event }) => blockedReasonFromError("parse", event.error),
           }),
         },
       },
@@ -207,17 +193,14 @@ export const transcriptsDigestMachine = setup({
         onDone: {
           target: "post_extract",
           actions: assign({
-            candidates: ({ event }) =>
-              (event.output as ExtractActorResult).candidates,
-            failedSessionIds: ({ event }) =>
-              (event.output as ExtractActorResult).failedSessions,
+            candidates: ({ event }) => (event.output as ExtractActorResult).candidates,
+            failedSessionIds: ({ event }) => (event.output as ExtractActorResult).failedSessions,
           }),
         },
         onError: {
           target: "failed_extract",
           actions: assign({
-            blockedReason: ({ event }) =>
-              blockedReasonFromError("extract", event.error),
+            blockedReason: ({ event }) => blockedReasonFromError("extract", event.error),
           }),
         },
       },
@@ -245,15 +228,13 @@ export const transcriptsDigestMachine = setup({
         onDone: {
           target: "staged",
           actions: assign({
-            stageResult: ({ event }) =>
-              event.output as StageWriteActorResult,
+            stageResult: ({ event }) => event.output as StageWriteActorResult,
           }),
         },
         onError: {
           target: "failed_write",
           actions: assign({
-            blockedReason: ({ event }) =>
-              blockedReasonFromError("stageWrite", event.error),
+            blockedReason: ({ event }) => blockedReasonFromError("stageWrite", event.error),
           }),
         },
       },
@@ -269,15 +250,13 @@ export const transcriptsDigestMachine = setup({
         onDone: {
           target: "committed",
           actions: assign({
-            commitResult: ({ event }) =>
-              event.output as CommitWriteActorResult,
+            commitResult: ({ event }) => event.output as CommitWriteActorResult,
           }),
         },
         onError: {
           target: "failed_write",
           actions: assign({
-            blockedReason: ({ event }) =>
-              blockedReasonFromError("commitWrite", event.error),
+            blockedReason: ({ event }) => blockedReasonFromError("commitWrite", event.error),
           }),
         },
       },

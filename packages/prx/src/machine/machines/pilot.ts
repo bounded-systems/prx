@@ -38,7 +38,11 @@ export const roleProfile: Record<
   { agent: string; tools: readonly string[]; signs: string }
 > = {
   planner: { agent: "planner", tools: ["Read", "Grep", "Glob"], signs: "plan@draft" },
-  executor: { agent: "executor", tools: ["Read", "Edit", "Write", "Bash"], signs: "implement@latest" },
+  executor: {
+    agent: "executor",
+    tools: ["Read", "Edit", "Write", "Bash"],
+    signs: "implement@latest",
+  },
   tester: { agent: "tester", tools: ["Read", "Bash"], signs: "review@validated" },
   reviewer: { agent: "reviewer", tools: ["Read", "Grep"], signs: "submit@ready" },
 };
@@ -265,17 +269,19 @@ export function createPilotMachine(deps: PilotDeps | LegRunner) {
     },
     actors: {
       runLeg: fromPromise<LegResult, LegInput>(({ input }) => runLeg(input)),
-      runIntake: fromPromise<{ attestation: LegAttestation }, { workUnitId: string }>(
-        ({ input }) => intakeRunner(input),
+      runIntake: fromPromise<{ attestation: LegAttestation }, { workUnitId: string }>(({ input }) =>
+        intakeRunner(input),
       ),
-      runChecks: fromPromise<{ passed: boolean; attestation: LegAttestation }, { workUnitId: string }>(
-        ({ input }) => checksGate(input),
-      ),
-      runCiGate: fromPromise<{ passed: boolean; attestation: LegAttestation }, { workUnitId: string }>(
-        ({ input }) => ciGate(input),
-      ),
-      runMerge: fromPromise<{ attestation: LegAttestation }, { workUnitId: string }>(
-        ({ input }) => mergeRunner(input),
+      runChecks: fromPromise<
+        { passed: boolean; attestation: LegAttestation },
+        { workUnitId: string }
+      >(({ input }) => checksGate(input)),
+      runCiGate: fromPromise<
+        { passed: boolean; attestation: LegAttestation },
+        { workUnitId: string }
+      >(({ input }) => ciGate(input)),
+      runMerge: fromPromise<{ attestation: LegAttestation }, { workUnitId: string }>(({ input }) =>
+        mergeRunner(input),
       ),
       // Mints the pilot's own in-toto artifact over the whole signed chain.
       sealSummary: fromPromise<Statement, { workUnitId: string; chain: LegAttestation[] }>(
@@ -308,7 +314,10 @@ export function createPilotMachine(deps: PilotDeps | LegRunner) {
       canRetreat: ({ context }: { context: PilotContext }) => context.retreatBudget > 0,
     },
     actions: {
-      pushLink: ({ context }: { context: PilotContext }, params: { attestation: LegAttestation }) => {
+      pushLink: (
+        { context }: { context: PilotContext },
+        params: { attestation: LegAttestation },
+      ) => {
         context.chain.push(params.attestation);
       },
       spendRetreat: ({ context }: { context: PilotContext }) => {

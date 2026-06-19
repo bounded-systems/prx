@@ -13,10 +13,7 @@ import {
   type ClaudeAgentQuery,
 } from "../../src/claude/agent_service.ts";
 import type { RuntimeProfileProjection } from "../../src/machine/runtime_profiles.ts";
-import {
-  renderPlanArtifact,
-  type PlanArtifact,
-} from "../../src/plan-store/plan-artifact.ts";
+import { renderPlanArtifact, type PlanArtifact } from "../../src/plan-store/plan-artifact.ts";
 
 function makeSdkProfile(): RuntimeProfileProjection {
   return {
@@ -134,10 +131,7 @@ const failureResult = (errors: string[], subtype: string): FakeMessage => ({
 
 describe("runClaudeAgentNonInteractive", () => {
   test("success path returns the assistant text and usage telemetry", async () => {
-    const query = makeFakeQuery([
-      assistantMessage("hello plan"),
-      successResult("hello plan"),
-    ]);
+    const query = makeFakeQuery([assistantMessage("hello plan"), successResult("hello plan")]);
     const result = await runClaudeAgentNonInteractive(
       makeSdkProfile(),
       { cwd: "/tmp", disableAudit: true },
@@ -160,9 +154,7 @@ describe("runClaudeAgentNonInteractive", () => {
   test("watchdog cancellation captures partial stdout into a draft slot", async () => {
     // Never yields the terminal result message — the abort timer fires and
     // we should see the accumulated text persist via the draftSink.
-    const messages: FakeMessage[] = [
-      assistantMessage("partial body so far"),
-    ];
+    const messages: FakeMessage[] = [assistantMessage("partial body so far")];
     // Make the generator hang after the first message so the watchdog has
     // something to interrupt.
     const query: ClaudeAgentQuery = (params) => {
@@ -176,7 +168,10 @@ describe("runClaudeAgentNonInteractive", () => {
         });
       }
       const iter = gen();
-      return Object.assign(iter, { interrupt: async () => {}, close: () => {} }) as ReturnType<ClaudeAgentQuery>;
+      return Object.assign(iter, {
+        interrupt: async () => {},
+        close: () => {},
+      }) as ReturnType<ClaudeAgentQuery>;
     };
 
     const captured: { value: string | null } = { value: null };
@@ -219,7 +214,10 @@ describe("runClaudeAgentNonInteractive", () => {
         yield successResult("done");
       }
       const iter = gen();
-      return Object.assign(iter, { interrupt: async () => {}, close: () => {} }) as ReturnType<ClaudeAgentQuery>;
+      return Object.assign(iter, {
+        interrupt: async () => {},
+        close: () => {},
+      }) as ReturnType<ClaudeAgentQuery>;
     };
     const result = await runClaudeAgentNonInteractive(
       makeSdkProfile(),
@@ -239,7 +237,10 @@ describe("runClaudeAgentNonInteractive", () => {
         });
       }
       const iter = gen();
-      return Object.assign(iter, { interrupt: async () => {}, close: () => {} }) as ReturnType<ClaudeAgentQuery>;
+      return Object.assign(iter, {
+        interrupt: async () => {},
+        close: () => {},
+      }) as ReturnType<ClaudeAgentQuery>;
     };
     const result = await runClaudeAgentNonInteractive(
       makeSdkProfile(),
@@ -261,7 +262,10 @@ describe("runClaudeAgentNonInteractive", () => {
         });
       }
       const iter = gen();
-      return Object.assign(iter, { interrupt: async () => {}, close: () => {} }) as ReturnType<ClaudeAgentQuery>;
+      return Object.assign(iter, {
+        interrupt: async () => {},
+        close: () => {},
+      }) as ReturnType<ClaudeAgentQuery>;
     };
     // Schedule the abort after the iterator starts.
     setTimeout(() => controller.abort(), 20);
@@ -309,9 +313,7 @@ describe("runClaudeAgentNonInteractive", () => {
   });
 
   test("model error envelope (max_budget_usd) maps to errorKind='model'", async () => {
-    const query = makeFakeQuery([
-      failureResult(["budget exceeded"], "error_max_budget_usd"),
-    ]);
+    const query = makeFakeQuery([failureResult(["budget exceeded"], "error_max_budget_usd")]);
     const result = await runClaudeAgentNonInteractive(
       makeSdkProfile(),
       { cwd: "/tmp", disableAudit: true },
@@ -342,7 +344,11 @@ describe("runClaudeAgentNonInteractive", () => {
       sdkSpec: undefined,
     };
     await expect(
-      runClaudeAgentNonInteractive(subprocessProfile, { cwd: "/tmp", disableAudit: true }, { query: makeFakeQuery([]) }),
+      runClaudeAgentNonInteractive(
+        subprocessProfile,
+        { cwd: "/tmp", disableAudit: true },
+        { query: makeFakeQuery([]) },
+      ),
     ).rejects.toThrow(/not SDK-routed/);
   });
 
@@ -356,7 +362,10 @@ describe("runClaudeAgentNonInteractive", () => {
         yield successResult("ok");
       }
       const iter = gen();
-      return Object.assign(iter, { interrupt: async () => {}, close: () => {} }) as ReturnType<ClaudeAgentQuery>;
+      return Object.assign(iter, {
+        interrupt: async () => {},
+        close: () => {},
+      }) as ReturnType<ClaudeAgentQuery>;
     };
     const profile: RuntimeProfileProjection = {
       ...makeSdkProfile(),
@@ -366,11 +375,7 @@ describe("runClaudeAgentNonInteractive", () => {
         systemPromptDynamic: ["dynamic suffix"],
       },
     };
-    await runClaudeAgentNonInteractive(
-      profile,
-      { cwd: "/tmp", disableAudit: true },
-      { query },
-    );
+    await runClaudeAgentNonInteractive(profile, { cwd: "/tmp", disableAudit: true }, { query });
     expect(Array.isArray(capturedSystemPrompt)).toBe(true);
     const arr = capturedSystemPrompt as string[];
     // Stable comes first, then boundary marker, then dynamic.
@@ -389,7 +394,10 @@ describe("runClaudeAgentNonInteractive", () => {
         yield successResult("ok");
       }
       const iter = gen();
-      return Object.assign(iter, { interrupt: async () => {}, close: () => {} }) as ReturnType<ClaudeAgentQuery>;
+      return Object.assign(iter, {
+        interrupt: async () => {},
+        close: () => {},
+      }) as ReturnType<ClaudeAgentQuery>;
     };
     const profile: RuntimeProfileProjection = {
       ...makeSdkProfile(),
@@ -420,10 +428,7 @@ describe("runClaudeAgentNonInteractive", () => {
         captured.push(JSON.parse(line.trim()) as Record<string, unknown>);
       },
     };
-    const query = makeFakeQuery([
-      assistantMessage("ok"),
-      successResult("ok"),
-    ]);
+    const query = makeFakeQuery([assistantMessage("ok"), successResult("ok")]);
     const profile: RuntimeProfileProjection = {
       ...makeSdkProfile(),
       sdkSpec: {
@@ -454,10 +459,7 @@ describe("runClaudeAgentNonInteractive", () => {
         captured.push(JSON.parse(line.trim()) as Record<string, unknown>);
       },
     };
-    const query = makeFakeQuery([
-      assistantMessage("ok"),
-      successResult("ok"),
-    ]);
+    const query = makeFakeQuery([assistantMessage("ok"), successResult("ok")]);
     await runClaudeAgentNonInteractive(
       makeSdkProfile(),
       {
@@ -480,7 +482,10 @@ describe("runClaudeAgentNonInteractive", () => {
         yield successResult("ok");
       }
       const iter = gen();
-      return Object.assign(iter, { interrupt: async () => {}, close: () => {} }) as ReturnType<ClaudeAgentQuery>;
+      return Object.assign(iter, {
+        interrupt: async () => {},
+        close: () => {},
+      }) as ReturnType<ClaudeAgentQuery>;
     };
     await runClaudeAgentNonInteractive(
       makeSdkProfile(),
@@ -528,16 +533,17 @@ describe("submit_plan plan-artifact capture (GH-2337)", () => {
 
   test("a submit_plan call captures the artifact as the rendered success body", async () => {
     const query: ClaudeAgentQuery = (params) => {
-      const servers = params.options?.mcpServers as
-        | Record<string, CaptureEntry>
-        | undefined;
+      const servers = params.options?.mcpServers as Record<string, CaptureEntry> | undefined;
       async function* gen(): AsyncGenerator<FakeMessage, void> {
         const entry = servers?.["prx-plan"];
         if (entry?.handler) await entry.handler(validArtifact, {});
         yield successResult("free-text chat summary the model emitted");
       }
       const iter = gen();
-      return Object.assign(iter, { interrupt: async () => {}, close: () => {} }) as ReturnType<ClaudeAgentQuery>;
+      return Object.assign(iter, {
+        interrupt: async () => {},
+        close: () => {},
+      }) as ReturnType<ClaudeAgentQuery>;
     };
     const result = await runClaudeAgentNonInteractive(
       makeCapturingProfile(),
@@ -578,7 +584,10 @@ describe("submit_plan plan-artifact capture (GH-2337)", () => {
         yield successResult("ok");
       }
       const iter = gen();
-      return Object.assign(iter, { interrupt: async () => {}, close: () => {} }) as ReturnType<ClaudeAgentQuery>;
+      return Object.assign(iter, {
+        interrupt: async () => {},
+        close: () => {},
+      }) as ReturnType<ClaudeAgentQuery>;
     };
     await runClaudeAgentNonInteractive(
       makeCapturingProfile({ allowedTools: ["Read", "Grep"] }),
@@ -604,7 +613,10 @@ describe("submit_plan plan-artifact capture (GH-2337)", () => {
         yield successResult("plain model reply");
       }
       const iter = gen();
-      return Object.assign(iter, { interrupt: async () => {}, close: () => {} }) as ReturnType<ClaudeAgentQuery>;
+      return Object.assign(iter, {
+        interrupt: async () => {},
+        close: () => {},
+      }) as ReturnType<ClaudeAgentQuery>;
     };
     const result = await runClaudeAgentNonInteractive(
       makeSdkProfile(),
@@ -636,7 +648,10 @@ describe("buildSdkOptions — pathToClaudeCodeExecutable (GH-2137)", () => {
         yield successResult("ok");
       }
       const iter = gen();
-      return Object.assign(iter, { interrupt: async () => {}, close: () => {} }) as ReturnType<ClaudeAgentQuery>;
+      return Object.assign(iter, {
+        interrupt: async () => {},
+        close: () => {},
+      }) as ReturnType<ClaudeAgentQuery>;
     };
     return { query, get: () => captured };
   }
@@ -650,7 +665,10 @@ describe("buildSdkOptions — pathToClaudeCodeExecutable (GH-2137)", () => {
       prx: process.env.PRX_CLAUDE_CODE_PATH,
       baked: process.env.BAKED_CLAUDE_CODE_PATH,
     };
-    const apply = (key: "PRX_CLAUDE_CODE_PATH" | "BAKED_CLAUDE_CODE_PATH", v: string | undefined) => {
+    const apply = (
+      key: "PRX_CLAUDE_CODE_PATH" | "BAKED_CLAUDE_CODE_PATH",
+      v: string | undefined,
+    ) => {
       if (v === undefined) delete process.env[key];
       else process.env[key] = v;
     };

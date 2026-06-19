@@ -63,9 +63,7 @@ function stubResolver(opts: {
     fetch: async () => {
       throw new Error("stubResolver.fetch should not be called by runScoutNotion");
     },
-    findPageId:
-      opts.findPageId ??
-      (async (id) => ({ pageId: id, pageUrl: null })),
+    findPageId: opts.findPageId ?? (async (id) => ({ pageId: id, pageUrl: null })),
     fetchByPageId:
       opts.fetchByPageId ??
       (async (pageId) => ({
@@ -79,7 +77,9 @@ function stubResolver(opts: {
   };
 }
 
-function stubGh(hits: Array<{ number: number; title?: string }>): typeof import("@bounded-systems/gh").execGh {
+function stubGh(
+  hits: Array<{ number: number; title?: string }>,
+): typeof import("@bounded-systems/gh").execGh {
   const json = JSON.stringify(
     hits.map((h) => ({
       number: h.number,
@@ -106,7 +106,9 @@ function ghError(): typeof import("@bounded-systems/gh").execGh {
   })) as unknown as typeof import("@bounded-systems/gh").execGh;
 }
 
-function stubBd(records: Array<{ id: string; externalRef: string | null }>): typeof import("@bounded-systems/bd").execBd {
+function stubBd(
+  records: Array<{ id: string; externalRef: string | null }>,
+): typeof import("@bounded-systems/bd").execBd {
   const json = JSON.stringify(
     records.map((r) => ({
       id: r.id,
@@ -216,9 +218,7 @@ describe("runScoutNotion", () => {
         }),
       resolverFactory: factoryFor(resolver),
       ghExec: stubGh([{ number: 1234, title: "ref " + UUID }]),
-      bdExec: stubBd([
-        { id: "ai-home-abc", externalRef: "https://github.com/x/y/issues/1234" },
-      ]),
+      bdExec: stubBd([{ id: "ai-home-abc", externalRef: "https://github.com/x/y/issues/1234" }]),
     });
     expect(result.uuid).toBe(UUID);
     expect(result.task_id).toBeNull();

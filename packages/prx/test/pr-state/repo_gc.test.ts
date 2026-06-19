@@ -1,10 +1,4 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, test } from "bun:test";
@@ -15,11 +9,7 @@ import {
   runRepoGc,
   type RepoGcReport,
 } from "../../src/pr-state/repo_gc.ts";
-import type {
-  LocalRepo,
-  RepoInventory,
-  RepoInventoryConfig,
-} from "../../src/pr-state/repos.ts";
+import type { LocalRepo, RepoInventory, RepoInventoryConfig } from "../../src/pr-state/repos.ts";
 import { writeRepoInventoryIndex } from "../../src/pr-state/repos.ts";
 
 type EntryOverrides = Partial<LocalRepo>;
@@ -97,12 +87,7 @@ function withFixture(repos: LocalRepo[]): Fixture {
     return ws;
   };
   const seedOrphan = (slug: string, dbName: string, bytes = 1024): string => {
-    const orphan = join(
-      workspacePath(slug),
-      ".beads",
-      "embeddeddolt",
-      dbName,
-    );
+    const orphan = join(workspacePath(slug), ".beads", "embeddeddolt", dbName);
     mkdirSync(orphan, { recursive: true });
     writeFileSync(join(orphan, "data.bin"), Buffer.alloc(bytes, 0xab));
     return orphan;
@@ -162,10 +147,7 @@ describe("runRepoGc", () => {
     expect(report.entries[0]!.orphanBytes).toBeGreaterThan(0);
     expect(rmCalls).toBe(0);
     expect(existsSync(orphan)).toBe(true);
-    expect(auditRows.map((r) => r.kind)).toEqual([
-      "repo-gc-entry",
-      "repo-gc-run",
-    ]);
+    expect(auditRows.map((r) => r.kind)).toEqual(["repo-gc-entry", "repo-gc-run"]);
   });
 
   test("happy path, apply + yes: rmSync called, swept entry, cleanedBytes>0", () => {
@@ -331,10 +313,7 @@ describe("runRepoGc", () => {
   });
 
   test("slug narrowing: only the named slug is processed; unknown slug throws RepoGcError('no_such_slug')", () => {
-    const fx = withFixture([
-      makeEntry("alpha", "/bare/alpha"),
-      makeEntry("beta", "/bare/beta"),
-    ]);
+    const fx = withFixture([makeEntry("alpha", "/bare/alpha"), makeEntry("beta", "/bare/beta")]);
     fx.setupSharedServer("alpha", "alpha");
     fx.setupSharedServer("beta", "beta");
     fx.seedOrphan("alpha", "alpha", 1024);

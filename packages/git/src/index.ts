@@ -8,11 +8,7 @@
  */
 
 import { processEnv } from "@bounded-systems/env";
-import {
-  captureFailureDetail,
-  isCaptureFailure,
-  spawnCapture,
-} from "@bounded-systems/proc";
+import { captureFailureDetail, isCaptureFailure, spawnCapture } from "@bounded-systems/proc";
 import {
   checkPolicy,
   isBlocked,
@@ -59,10 +55,25 @@ export type GitExecEnv = {
 };
 
 const ALLOWED_SUBCOMMANDS = [
-  "status", "diff", "log", "show", "rev-parse", "branch", "worktree",
-  "fetch", "add", "commit", "restore", "switch", "checkout", "merge", "pull", "push",
+  "status",
+  "diff",
+  "log",
+  "show",
+  "rev-parse",
+  "branch",
+  "worktree",
+  "fetch",
+  "add",
+  "commit",
+  "restore",
+  "switch",
+  "checkout",
+  "merge",
+  "pull",
+  "push",
   // GH-2381: object-graph materializers — gated to role=keeper by POLICY_TABLE.
-  "write-tree", "commit-tree",
+  "write-tree",
+  "commit-tree",
   // GH-201: local object export for the isolated keeper (keeperd). `bundle`
   // packs a commit range into a file so the host can ship objects to the in-VM
   // keeper, which imports them via `fetch` (already allowed) and does the signed

@@ -21,7 +21,9 @@ describe("value props (prx-8mx)", () => {
     for (const vp of VALUE_PROPS) {
       for (const f of vp.forcing) {
         if ("check" in f) {
-          expect(f.check(), `forcing function "${f.name}" is marked live but evaluates false`).toBe(true);
+          expect(f.check(), `forcing function "${f.name}" is marked live but evaluates false`).toBe(
+            true,
+          );
         }
       }
     }
@@ -67,7 +69,10 @@ describe("value props (prx-8mx)", () => {
         if (backingOf(f) === "learning-goal") {
           expect(exercisedBy(f)).toHaveLength(0);
         } else {
-          expect(exercisedBy(f).length, `"${f.name}" is backed but traces to no code`).toBeGreaterThan(0);
+          expect(
+            exercisedBy(f).length,
+            `"${f.name}" is backed but traces to no code`,
+          ).toBeGreaterThan(0);
         }
       }
     }

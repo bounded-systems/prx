@@ -67,14 +67,17 @@ describe("lima session-host lifecycle (offline, fake Run)", () => {
       { run },
     );
     const script = calls[0]!.args.join(" ");
-    expect(script).toContain('cat /tmp/s.pid');
+    expect(script).toContain("cat /tmp/s.pid");
     expect(script).not.toContain("pkill");
     expect(script).toContain("rm -f /tmp/s.sock");
   });
 
   test("the start handle's stop() tears the daemon down", async () => {
     const { run, calls } = fakeRun({ socketReadyAfter: 0 });
-    const handle = await startSessionHost({ vm: "vm0", pidfile: "/tmp/p.pid" }, { run, sleep: noSleep });
+    const handle = await startSessionHost(
+      { vm: "vm0", pidfile: "/tmp/p.pid" },
+      { run, sleep: noSleep },
+    );
     await handle.stop();
     expect(calls.some((c) => c.args.join(" ").includes("cat /tmp/p.pid"))).toBe(true);
   });

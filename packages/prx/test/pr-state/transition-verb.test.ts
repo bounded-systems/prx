@@ -45,7 +45,14 @@ describe("transition verb", () => {
   test("applies the transition, writes the contract, and appends a log entry", () => {
     const { contract, log } = setup("drafting", false);
     const out = transitionVerb.run(
-      { ...baseInput, contract, to: "validating", reason: "Checklist complete", log, id: "fixed-id" } as never,
+      {
+        ...baseInput,
+        contract,
+        to: "validating",
+        reason: "Checklist complete",
+        log,
+        id: "fixed-id",
+      } as never,
       fixedDeps,
     ) as TransitionOutput;
 
@@ -75,7 +82,14 @@ describe("transition verb", () => {
 
   test("json render emits the structured transition result", () => {
     const { contract, log } = setup("drafting", false);
-    const input = { ...baseInput, contract, to: "validating", reason: "done", log, format: "json" as const };
+    const input = {
+      ...baseInput,
+      contract,
+      to: "validating",
+      reason: "done",
+      log,
+      format: "json" as const,
+    };
     const out = transitionVerb.run(input as never, fixedDeps) as TransitionOutput;
     const rendered = transitionVerb.render!(out, input as never);
     expect(JSON.parse(rendered)).toMatchObject({

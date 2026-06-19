@@ -6,11 +6,7 @@ import { GithubResolver } from "../../../src/pr-state/resolvers/github.ts";
 import { NotionResolver } from "../../../src/pr-state/resolvers/notion.ts";
 import { NotionClaudeMcpResolver } from "../../../src/pr-state/resolvers/notion_claude_mcp.ts";
 import { NotionCliResolver } from "../../../src/pr-state/resolvers/notion_cli.ts";
-import type {
-  IdentityConfig,
-  NotionAuthMode,
-  SourceConfig,
-} from "../../../src/pr-state/github.ts";
+import type { IdentityConfig, NotionAuthMode, SourceConfig } from "../../../src/pr-state/github.ts";
 
 function notionSource(name: string, pattern: RegExp, auth: NotionAuthMode): SourceConfig {
   return {
@@ -90,17 +86,17 @@ describe("resolverForCanonicalId", () => {
     expect(resolver).toBeInstanceOf(GithubResolver);
   });
 
-  test("returns a NotionClaudeMcpResolver when auth = \"claude-mcp\"", () => {
+  test('returns a NotionClaudeMcpResolver when auth = "claude-mcp"', () => {
     const resolver = resolverForCanonicalId("PROJECT-6688", claudeMcpConfig, "/tmp/repo");
     expect(resolver).toBeInstanceOf(NotionClaudeMcpResolver);
   });
 
-  test("returns a NotionResolver (not claude-mcp) when auth = \"rest\"", () => {
+  test('returns a NotionResolver (not claude-mcp) when auth = "rest"', () => {
     const resolver = resolverForCanonicalId("PROJECT-6688", notionConfig, "/tmp/repo");
     expect(resolver).toBeInstanceOf(NotionResolver);
   });
 
-  test("returns a NotionCliResolver when auth = \"notion-cli\"", () => {
+  test('returns a NotionCliResolver when auth = "notion-cli"', () => {
     const resolver = resolverForCanonicalId("PROJ-5743", notionCliConfig, "/tmp/repo");
     expect(resolver).toBeInstanceOf(NotionCliResolver);
   });
@@ -119,32 +115,23 @@ describe("resolverForCanonicalId", () => {
 
   // GH-1421: --source=<name> explicit dispatch
   test("explicit --source=<name> routes to that registry entry", () => {
-    const resolver = resolverForCanonicalId(
-      "PROJECT-6688",
-      notionConfig,
-      "/tmp/repo",
-      { source: "notion" },
-    );
+    const resolver = resolverForCanonicalId("PROJECT-6688", notionConfig, "/tmp/repo", {
+      source: "notion",
+    });
     expect(resolver).toBeInstanceOf(NotionResolver);
   });
 
   test("explicit --source=<name> with a pattern mismatch returns null", () => {
-    const resolver = resolverForCanonicalId(
-      "GH-1",
-      notionConfig,
-      "/tmp/repo",
-      { source: "notion" },
-    );
+    const resolver = resolverForCanonicalId("GH-1", notionConfig, "/tmp/repo", {
+      source: "notion",
+    });
     expect(resolver).toBeNull();
   });
 
   test("explicit --source=<unknown> returns null", () => {
-    const resolver = resolverForCanonicalId(
-      "PROJECT-6688",
-      notionConfig,
-      "/tmp/repo",
-      { source: "foo" },
-    );
+    const resolver = resolverForCanonicalId("PROJECT-6688", notionConfig, "/tmp/repo", {
+      source: "foo",
+    });
     expect(resolver).toBeNull();
   });
 

@@ -29,11 +29,7 @@
  */
 import { z } from "zod";
 
-import {
-  type ArtifactEdge,
-  defineEdge,
-  emitArtifact,
-} from "../pipeline/edge.ts";
+import { type ArtifactEdge, defineEdge, emitArtifact } from "../pipeline/edge.ts";
 import { type AttestDeps, persistAttestation } from "./attest.ts";
 
 /** The single in-toto predicate type every gate verdict is attested under. */
@@ -112,10 +108,7 @@ export interface GateResult {
  * decides `pass`/`violations` belongs to the concrete gate; this is the shared
  * sign-and-emit every gate funnels through.
  */
-export async function runGate(
-  input: RunGateInput,
-  deps: AttestDeps,
-): Promise<GateResult> {
+export async function runGate(input: RunGateInput, deps: AttestDeps): Promise<GateResult> {
   const verdict = input.pass ? "pass" : "fail";
   const derivation = await persistAttestation(deps, {
     buildType: GATE_BUILD_TYPE,

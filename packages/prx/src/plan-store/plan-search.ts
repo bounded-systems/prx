@@ -15,12 +15,7 @@
 import { z } from "zod";
 
 import { mergeIssueHits, formatIssueSearchTable } from "../issues/merge.ts";
-import {
-  IssueSearchError,
-  searchBd,
-  searchGh,
-  type IssueSearchHit,
-} from "../issues/search.ts";
+import { IssueSearchError, searchBd, searchGh, type IssueSearchHit } from "../issues/search.ts";
 import { execGh } from "@bounded-systems/gh";
 import type { BeadsRecord } from "../triage/triage.ts";
 // GH-296: search is a scout-shaped aggregate read — route it through the daemon.
@@ -92,9 +87,7 @@ export async function runPlanSearch(
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       const fallback =
-        opts.source === "both"
-          ? "continuing with GH-only results"
-          : "no results returned";
+        opts.source === "both" ? "continuing with GH-only results" : "no results returned";
       output.error(`${VERB}: bd unreachable: ${detail}; ${fallback}`);
       bdRecords = null;
     }
@@ -119,10 +112,7 @@ export async function runPlanSearch(
   return 0;
 }
 
-export function formatPlanSearchRender(
-  render: PlanSearchRender,
-  format: "plain" | "json",
-): string {
+export function formatPlanSearchRender(render: PlanSearchRender, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(render, null, 2);
   }

@@ -13,10 +13,7 @@
  * and `list` are both in `ALLOWED_SUBCOMMANDS`, planner role).
  */
 
-import {
-  execBd as defaultExecBd,
-  type BdExecResult,
-} from "@bounded-systems/bd";
+import { execBd as defaultExecBd, type BdExecResult } from "@bounded-systems/bd";
 import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 
 export type RepairAssigneesInput = {
@@ -58,8 +55,7 @@ function parseBdList(stdout: string): BdListRow[] | null {
     const id = typeof obj.id === "string" ? obj.id : null;
     if (id === null) continue;
     const title = typeof obj.title === "string" ? obj.title : "";
-    const assignee =
-      typeof obj.assignee === "string" ? obj.assignee : null;
+    const assignee = typeof obj.assignee === "string" ? obj.assignee : null;
     rows.push({ id, title, assignee });
   }
   return rows;
@@ -94,10 +90,7 @@ export function runRepairAssignees(
     role: "planner",
   });
   if (listResult.exitCode !== 0) {
-    const detail =
-      listResult.stderr.trim() ||
-      listResult.stdout.trim() ||
-      "bd list failed";
+    const detail = listResult.stderr.trim() || listResult.stdout.trim() || "bd list failed";
     return {
       exitCode: listResult.exitCode || 1,
       message: `prx delegate repair-assignees: ${detail}`,
@@ -108,8 +101,7 @@ export function runRepairAssignees(
   if (rows === null) {
     return {
       exitCode: 1,
-      message:
-        "prx delegate repair-assignees: bd list returned invalid JSON",
+      message: "prx delegate repair-assignees: bd list returned invalid JSON",
     };
   }
   // `bd list --assignee` is the canonical filter, but be defensive: a future

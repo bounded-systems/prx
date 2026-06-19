@@ -15,7 +15,11 @@ import {
   domainSyncRunAuditSchema,
   domainSyncPairAuditSchema,
 } from "../../src/triage/schemas/audit.ts";
-import { runBeadsSync, type RunBeadsSyncDeps, type RunBeadsSyncOptions } from "../../src/sync/run.ts";
+import {
+  runBeadsSync,
+  type RunBeadsSyncDeps,
+  type RunBeadsSyncOptions,
+} from "../../src/sync/run.ts";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
 
 // ── fixtures ───────────────────────────────────────────────────────────────
@@ -90,9 +94,16 @@ function baseDeps(over: Partial<RunBeadsSyncDeps> = {}): {
   const deps: RunBeadsSyncDeps = {
     cwd: () => "/repo",
     repoNameWithOwner: () => "bdelanghe/ai-home",
-    refreshBudget: () => [{ bucket: "graphql", limit: 5000, remaining: 4000, resetAt: 0, fetchedAt: 0 }],
+    refreshBudget: () => [
+      { bucket: "graphql", limit: 5000, remaining: 4000, resetAt: 0, fetchedAt: 0 },
+    ],
     appendAuditRow: (row) => rows.push(row),
-    getAuditRuntimeContext: () => ({ verb: "beads.sync", actor: "test-actor", ghTruthReason: null, source: null }),
+    getAuditRuntimeContext: () => ({
+      verb: "beads.sync",
+      actor: "test-actor",
+      ghTruthReason: null,
+      source: null,
+    }),
     now: () => FIXED_NOW,
     adapter: fakeAdapter(),
     bulkClose: () => ({ exitCode: 0, stdout: "", stderr: "" }),
@@ -113,8 +124,12 @@ function opts(over: Partial<RunBeadsSyncOptions> = {}): RunBeadsSyncOptions {
 }
 
 function summaryRow(rows: unknown[]): Record<string, unknown> {
-  const row = rows.find((r): r is Record<string, unknown> =>
-    typeof r === "object" && r !== null && (r as Record<string, unknown>).kind === "domain-sync-run");
+  const row = rows.find(
+    (r): r is Record<string, unknown> =>
+      typeof r === "object" &&
+      r !== null &&
+      (r as Record<string, unknown>).kind === "domain-sync-run",
+  );
   expect(row).toBeDefined();
   return row as Record<string, unknown>;
 }
@@ -232,7 +247,9 @@ describe("runBeadsSync — budget gate", () => {
   test("GraphQL remaining below threshold ⇒ budgetPaused, zero pairs, exit 0", async () => {
     let pullCalls = 0;
     const { deps, rows, output } = baseDeps({
-      refreshBudget: () => [{ bucket: "graphql", limit: 5000, remaining: 5, resetAt: 0, fetchedAt: 0 }],
+      refreshBudget: () => [
+        { bucket: "graphql", limit: 5000, remaining: 5, resetAt: 0, fetchedAt: 0 },
+      ],
       loadAllBeads: () => [pinned("bd-1", 101), pinned("bd-2", 102)],
       adapter: fakeAdapter({
         pull: async () => {
@@ -256,7 +273,15 @@ describe("runBeadsSync — budget gate", () => {
       // call 0 (entry) = healthy; call 1 (before pair index 1) = exhausted.
       refreshBudget: () => {
         n += 1;
-        return [{ bucket: "graphql", limit: 5000, remaining: n <= 1 ? 4000 : 5, resetAt: 0, fetchedAt: 0 }];
+        return [
+          {
+            bucket: "graphql",
+            limit: 5000,
+            remaining: n <= 1 ? 4000 : 5,
+            resetAt: 0,
+            fetchedAt: 0,
+          },
+        ];
       },
       loadAllBeads: () => [pinned("bd-1", 101), pinned("bd-2", 102), pinned("bd-3", 103)],
     });
@@ -401,8 +426,12 @@ describe("runBeadsSync — pull leg closes stale beads (I-DS2)", () => {
     expect(row.closedByPull).toBe(1);
     expect(row.pushed).toBe(2);
     // one per-pair row for the pair that changed (closed+pushed) — schema-clean.
-    const pairRow = rows.find((r): r is Record<string, unknown> =>
-      typeof r === "object" && r !== null && (r as Record<string, unknown>).kind === "domain-sync-pair");
+    const pairRow = rows.find(
+      (r): r is Record<string, unknown> =>
+        typeof r === "object" &&
+        r !== null &&
+        (r as Record<string, unknown>).kind === "domain-sync-pair",
+    );
     expect(pairRow).toBeDefined();
     expect(domainSyncPairAuditSchema.parse(pairRow)).toBeTruthy();
   });

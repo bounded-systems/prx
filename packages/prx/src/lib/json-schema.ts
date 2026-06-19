@@ -10,14 +10,8 @@ import { z } from "zod";
  * schema body; it is lifted to the wrapper's top level so the artifact keeps
  * the historical `{ $ref, definitions, $schema }` layout. prx-mt9.
  */
-export function toJsonSchemaArtifact(
-  schema: z.ZodType,
-  name: string,
-): Record<string, unknown> {
-  const body = z.toJSONSchema(schema, { target: "draft-7" }) as Record<
-    string,
-    unknown
-  >;
+export function toJsonSchemaArtifact(schema: z.ZodType, name: string): Record<string, unknown> {
+  const body = z.toJSONSchema(schema, { target: "draft-7" }) as Record<string, unknown>;
   const $schema = body.$schema;
   delete body.$schema;
   return {

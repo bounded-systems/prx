@@ -37,7 +37,8 @@ const spawnReturning = (r: {
 }): BdSpawnFn =>
   (() => ({ status: 0, signal: null, stdout: "", stderr: "", ...r })) as unknown as BdSpawnFn;
 
-const runnerReturning = (r: Partial<BdGithubRunResult>): BdGithubRunner =>
+const runnerReturning =
+  (r: Partial<BdGithubRunResult>): BdGithubRunner =>
   () => ({ stdout: "", stderr: "", status: 0, ...r });
 
 // ── execBd ──────────────────────────────────────────────────────────────────
@@ -69,11 +70,13 @@ describe("execBd", () => {
     // `BLOCKED.bd` is authoritative and enforced via isBlocked. This pins both
     // the set and the behavior, so a future divergence trips here.
     const blocked = blockedSubcommands("bd");
-    expect([...blocked].sort()).toEqual(
-      ["archive", "close", "delete", "export", "import"],
-    );
+    expect([...blocked].sort()).toEqual(["archive", "close", "delete", "export", "import"]);
     for (const sub of blocked) {
-      const r = execBd({ subcommand: sub, args: [] }, {}, spawnReturning({ status: 0, stdout: "should-not-run" }));
+      const r = execBd(
+        { subcommand: sub, args: [] },
+        {},
+        spawnReturning({ status: 0, stdout: "should-not-run" }),
+      );
       expect(r.exitCode).toBe(1);
       expect(r.stderr).toMatch(/blocked subcommand/);
       expect(r.stdout).toBe("");
@@ -86,11 +89,7 @@ describe("execBd", () => {
       seen.push(cmd);
       return { status: 0, signal: null, stdout: "[]", stderr: "" };
     }) as unknown as BdSpawnFn;
-    execBd(
-      { subcommand: "sql", args: ["SELECT 1"], state: "planning", role: "planner" },
-      {},
-      spy,
-    );
+    execBd({ subcommand: "sql", args: ["SELECT 1"], state: "planning", role: "planner" }, {}, spy);
     expect(seen[0]).toEqual(["bd", "sql", "--readonly", "SELECT 1"]);
   });
 });
@@ -163,12 +162,12 @@ describe("execBd door mode (prx-asr / prx-634)", () => {
   test("door mode does not bypass the policy/block gates", () => {
     // A hard-blocked subcommand fails as blocked even in door mode — the door
     // branch sits after the gates, so behavior is identical across profiles.
-    const r = execBd(
-      { subcommand: "delete", args: ["x"] },
-      doorEnv,
-      forbiddenSpawn,
-      () => ({ exitCode: 0, stdout: "should-not-reach-door", stderr: "", policy: null }),
-    );
+    const r = execBd({ subcommand: "delete", args: ["x"] }, doorEnv, forbiddenSpawn, () => ({
+      exitCode: 0,
+      stdout: "should-not-reach-door",
+      stderr: "",
+      policy: null,
+    }));
     expect(r.exitCode).toBe(1);
     expect(r.stderr).toMatch(/blocked subcommand/);
   });
@@ -182,7 +181,11 @@ describe("execBd door mode (prx-asr / prx-634)", () => {
     // Register a dialer to prove it is ignored off-profile.
     registerBdDoorDialer(() => ({ exitCode: 0, stdout: "via-door", stderr: "", policy: null }));
     try {
-      const r = execBd({ subcommand: "list", args: [], state: "planning", role: "planner" }, {}, spy);
+      const r = execBd(
+        { subcommand: "list", args: [], state: "planning", role: "planner" },
+        {},
+        spy,
+      );
       expect(spawned).toBe(true);
       expect(r.stdout).toBe("host-bd");
     } finally {
@@ -302,7 +305,11 @@ describe("defaultBdGithubRunner", () => {
 
 describe("runBdShow", () => {
   test("ok on a well-formed single-record array", () => {
-    const r = runBdShow("GH-1", "/tmp", runnerReturning({ stdout: JSON.stringify([{ id: "GH-1", title: "t" }]) }));
+    const r = runBdShow(
+      "GH-1",
+      "/tmp",
+      runnerReturning({ stdout: JSON.stringify([{ id: "GH-1", title: "t" }]) }),
+    );
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.record.id).toBe("GH-1");
   });
@@ -367,11 +374,17 @@ describe("runBdDuplicatesDryRun", () => {
     expect(r.clusters).toHaveLength(1);
   });
   test("accepts a { clusters } envelope", () => {
-    const r = runBdDuplicatesDryRun("/tmp", runnerReturning({ stdout: JSON.stringify({ clusters: [cluster] }) }));
+    const r = runBdDuplicatesDryRun(
+      "/tmp",
+      runnerReturning({ stdout: JSON.stringify({ clusters: [cluster] }) }),
+    );
     expect(r.clusters[0]!.target.beadsId).toBe("a");
   });
   test("schema mismatch fails closed", () => {
-    const r = runBdDuplicatesDryRun("/tmp", runnerReturning({ stdout: JSON.stringify({ clusters: [{ target: {} }] }) }));
+    const r = runBdDuplicatesDryRun(
+      "/tmp",
+      runnerReturning({ stdout: JSON.stringify({ clusters: [{ target: {} }] }) }),
+    );
     expect(r.exitCode).toBe(1);
     expect(r.stderr).toMatch(/schema mismatch/);
   });
@@ -393,7 +406,10 @@ describe("runBdDoctor", () => {
     expect(r.stderr).toMatch(/schema mismatch/);
   });
   test("doctor json: a well-formed report parses", () => {
-    const r = runBdDoctorJson("/tmp", runnerReturning({ stdout: JSON.stringify({ total: 2, fixable: 1, issues: [] }) }));
+    const r = runBdDoctorJson(
+      "/tmp",
+      runnerReturning({ stdout: JSON.stringify({ total: 2, fixable: 1, issues: [] }) }),
+    );
     expect(r.exitCode).toBe(0);
     expect(r.report.total).toBe(2);
   });
@@ -412,7 +428,11 @@ describe("runBdMerge", () => {
     expect(r.stderr).toMatch(/empty sources/);
   });
   test("non-zero exit returns the fallback payload", () => {
-    const r = runBdMerge("/tmp", { target: "t", sources: ["s"] }, runnerReturning({ status: 4, stderr: "x" }));
+    const r = runBdMerge(
+      "/tmp",
+      { target: "t", sources: ["s"] },
+      runnerReturning({ status: 4, stderr: "x" }),
+    );
     expect(r.exitCode).toBe(4);
     expect(r.result.applied).toBe(false);
   });
@@ -426,13 +446,21 @@ describe("runBdMerge", () => {
     expect(r.result.applied).toBe(true);
   });
   test("falls back to caller intent when stdout is empty (dry-run)", () => {
-    const r = runBdMerge("/tmp", { target: "t", sources: ["s"], dryRun: true }, runnerReturning({ stdout: "" }));
+    const r = runBdMerge(
+      "/tmp",
+      { target: "t", sources: ["s"], dryRun: true },
+      runnerReturning({ stdout: "" }),
+    );
     expect(r.exitCode).toBe(0);
     // dryRun → applied defaults to false in the fallback.
     expect(r.result.applied).toBe(false);
   });
   test("keeps the fallback when success stdout is non-JSON", () => {
-    const r = runBdMerge("/tmp", { target: "t", sources: ["s"] }, runnerReturning({ stdout: "Merged 1 issue." }));
+    const r = runBdMerge(
+      "/tmp",
+      { target: "t", sources: ["s"] },
+      runnerReturning({ stdout: "Merged 1 issue." }),
+    );
     expect(r.exitCode).toBe(0);
     // non-dry-run fallback → applied true.
     expect(r.result.applied).toBe(true);

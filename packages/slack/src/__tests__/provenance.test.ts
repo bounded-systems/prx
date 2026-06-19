@@ -3,7 +3,11 @@ import { describe, expect, test } from "bun:test";
 import { digestManifest, openAnchoredChain } from "@bounded-systems/anchored-chain-sqlite";
 import { sha256Hex } from "@bounded-systems/cas";
 
-import { canonicalJson, formatSlackReadEnvelope, type SlackReadEnvelope } from "@bounded-systems/slack";
+import {
+  canonicalJson,
+  formatSlackReadEnvelope,
+  type SlackReadEnvelope,
+} from "@bounded-systems/slack";
 import {
   formatSlackReadProvenanceJson,
   recordSlackReadDerivation,
@@ -120,9 +124,7 @@ describe("slackReadProvenance — SLSA projection", () => {
     const d = slackReadDerivation(env, { now: 1000 });
     expect(stmt.subject[0]!.name).toBe("envelope");
     const envelopeDigest = d.manifest.outputs.envelope!;
-    expect(stmt.subject[0]!.digest.sha256).toBe(
-      (envelopeDigest as string).replace("sha256:", ""),
-    );
+    expect(stmt.subject[0]!.digest.sha256).toBe((envelopeDigest as string).replace("sha256:", ""));
     expect(stmt.predicate.buildDefinition.resolvedDependencies[0]!.name).toBe("query");
     expect(stmt.predicate.buildDefinition.externalParameters).toMatchObject({
       keyId: "slack-k1-1000",

@@ -37,10 +37,7 @@ import { appendAuditRow as defaultAppendAuditRow } from "../audit/sink.ts";
 import { getAuditRuntimeContext as defaultGetAuditRuntimeContext } from "@bounded-systems/audit-context";
 import { refreshBudget as defaultRefreshBudget } from "@bounded-systems/github-budget";
 import { repoNameWithOwner as defaultRepoNameWithOwner } from "../pr-state/github.ts";
-import {
-  loadAllBeads as defaultLoadAllBeads,
-  type BeadsRecord,
-} from "../triage/triage.ts";
+import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../triage/triage.ts";
 import {
   runIntakeMirror as defaultRunIntakeMirror,
   type IntakeMirrorRender,
@@ -122,9 +119,7 @@ export async function runBackfill(
   let repo: string;
   try {
     repo =
-      opts.repo && opts.repo.trim().length > 0
-        ? opts.repo.trim()
-        : repoNameWithOwner(cwd).trim();
+      opts.repo && opts.repo.trim().length > 0 ? opts.repo.trim() : repoNameWithOwner(cwd).trim();
   } catch (err) {
     output.error(
       `sync backfill: could not resolve OWNER/REPO: ${err instanceof Error ? err.message : String(err)}`,
@@ -175,7 +170,7 @@ export async function runBackfill(
           loadAllBeads: cachedLoader,
           invalidateBeadsCache: deps.invalidateBeadsCache,
         })
-      : adapterForDomain(domain) ?? undefined);
+      : (adapterForDomain(domain) ?? undefined));
   if (!adapter) {
     output.error(`sync backfill: no adapter for domain '${domain}'`);
     return makeFailure(domain, from, to, elapsedMs());
@@ -221,7 +216,9 @@ export async function runBackfill(
         bdId: resolved,
       };
       records.push(detail);
-      appendAuditRow(makeRecordRow(detail, repo, domain, opts.dryRun, auditActor, nowFn().toISOString()));
+      appendAuditRow(
+        makeRecordRow(detail, repo, domain, opts.dryRun, auditActor, nowFn().toISOString()),
+      );
       continue;
     }
 
@@ -247,7 +244,9 @@ export async function runBackfill(
         message,
       };
       records.push(detail);
-      appendAuditRow(makeRecordRow(detail, repo, domain, opts.dryRun, auditActor, nowFn().toISOString()));
+      appendAuditRow(
+        makeRecordRow(detail, repo, domain, opts.dryRun, auditActor, nowFn().toISOString()),
+      );
       continue;
     }
 
@@ -264,7 +263,9 @@ export async function runBackfill(
         bdId: render.existingBdId,
       };
       records.push(detail);
-      appendAuditRow(makeRecordRow(detail, repo, domain, opts.dryRun, auditActor, nowFn().toISOString()));
+      appendAuditRow(
+        makeRecordRow(detail, repo, domain, opts.dryRun, auditActor, nowFn().toISOString()),
+      );
       continue;
     }
 
@@ -276,7 +277,9 @@ export async function runBackfill(
       ...(render?.createdBdId ? { bdId: render.createdBdId } : {}),
     };
     records.push(detail);
-    appendAuditRow(makeRecordRow(detail, repo, domain, opts.dryRun, auditActor, nowFn().toISOString()));
+    appendAuditRow(
+      makeRecordRow(detail, repo, domain, opts.dryRun, auditActor, nowFn().toISOString()),
+    );
   }
 
   const summary = makeSummary(repo, domain, from, to, opts.dryRun, elapsedMs(), {
@@ -335,7 +338,12 @@ function makeSummary(
   to: number,
   dryRun: boolean,
   durationMs: number,
-  over: Partial<Pick<BackfillSummary, "scanned" | "mirrored" | "skipped" | "failed" | "deferred" | "budgetPaused">> = {},
+  over: Partial<
+    Pick<
+      BackfillSummary,
+      "scanned" | "mirrored" | "skipped" | "failed" | "deferred" | "budgetPaused"
+    >
+  > = {},
 ): BackfillSummary {
   return {
     repo,
@@ -353,12 +361,7 @@ function makeSummary(
   };
 }
 
-function makeFailure(
-  domain: string,
-  from: number,
-  to: number,
-  durationMs: number,
-): BackfillResult {
+function makeFailure(domain: string, from: number, to: number, durationMs: number): BackfillResult {
   const summary = makeSummary("", domain, from, to, false, durationMs);
   return { exitCode: 1, summary, records: [] };
 }
@@ -418,7 +421,9 @@ function renderSummary(
     return JSON.stringify({ ...s, records, ...extra }, null, 2);
   }
   const lines: string[] = [];
-  lines.push(`sync backfill — ${s.repo} (${s.domain}) #${s.from}..#${s.to}${s.dryRun ? " [dry-run]" : ""}`);
+  lines.push(
+    `sync backfill — ${s.repo} (${s.domain}) #${s.from}..#${s.to}${s.dryRun ? " [dry-run]" : ""}`,
+  );
   if (s.budgetPaused) {
     lines.push(`  ${extra.thresholdNote ?? "paused: GraphQL budget below threshold"}`);
     return lines.join("\n");

@@ -37,10 +37,7 @@ import {
   type AttestDeps,
 } from "../../src/provenance/attest.ts";
 import { resolveMergeGuardProvenanceAxis } from "../../src/pr-state/cli.ts";
-import {
-  resolveCanonicalChainLedger,
-  runReserve,
-} from "../../src/workspace/actor.ts";
+import { resolveCanonicalChainLedger, runReserve } from "../../src/workspace/actor.ts";
 
 const REQUIRE_SIGNED = "PRX_REQUIRE_SIGNED_DERIVATIONS";
 // Verifier resolution reads these; clear them so a seeded derivation is
@@ -63,13 +60,20 @@ function makeFixtureRepo(): { repoDir: string; head: string; cleanup: () => void
   writeFileSync(join(repoDir, "README"), "hello\n");
   sh(repoDir, "git", ["add", "README"]);
   sh(repoDir, "git", ["commit", "-m", "init"]);
-  const head = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoDir, encoding: "utf8" }).stdout.trim();
+  const head = spawnSync("git", ["rev-parse", "HEAD"], {
+    cwd: repoDir,
+    encoding: "utf8",
+  }).stdout.trim();
   return { repoDir, head, cleanup: () => rmSync(repoDir, { recursive: true, force: true }) };
 }
 
 const ok: ProcResult = { status: 0, stdout: "", stderr: "", signal: null };
 function inner(): ProcExecutor {
-  return { async exec() { return ok; } };
+  return {
+    async exec() {
+      return ok;
+    },
+  };
 }
 
 /** Emit one signed push/v1 derivation whose subject is `gitCommit:<oid>`. */

@@ -9,10 +9,18 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { provenanceSigner, provenanceVerifier, realStatementSigner } from "../../src/machine/machines/pilot-signing.ts";
+import {
+  provenanceSigner,
+  provenanceVerifier,
+  realStatementSigner,
+} from "../../src/machine/machines/pilot-signing.ts";
 import type { StatementSigner } from "../../src/machine/machines/provenance.ts";
 import type { Verifier } from "../../src/machine/machines/pilot-signing.ts";
-import { ed25519Signer, ed25519Verifier, generateEd25519Keypair } from "@bounded-systems/anchored-chain";
+import {
+  ed25519Signer,
+  ed25519Verifier,
+  generateEd25519Keypair,
+} from "@bounded-systems/anchored-chain";
 import {
   PRX_SPAWN_BUILD_TYPE,
   SLSA_PROVENANCE_V1,
@@ -81,7 +89,9 @@ describe("spawn attestation (GH-293)", () => {
 
   test("verifySpawn: material mismatch ⇒ not ok", async () => {
     await mintSpawnAttestation(args({ unit: "GH-drift" }), signer);
-    const r = await verifySpawn("GH-drift", "plan", verifier, { expectedInputSha: "sha256:DIFFERENT" });
+    const r = await verifySpawn("GH-drift", "plan", verifier, {
+      expectedInputSha: "sha256:DIFFERENT",
+    });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("material-mismatch");
   });

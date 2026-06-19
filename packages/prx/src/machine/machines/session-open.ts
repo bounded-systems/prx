@@ -38,12 +38,7 @@ import type {
 import type { SessionActor } from "../../session/schema.ts";
 import type { RuntimeProfileProjection } from "../runtime_profiles.ts";
 
-export type SessionOpenStage =
-  | "naming"
-  | "reserve"
-  | "materialize"
-  | "prepare"
-  | "dispatch";
+export type SessionOpenStage = "naming" | "reserve" | "materialize" | "prepare" | "dispatch";
 
 export type SessionOpenContext = {
   actor?: SessionActor | undefined;
@@ -101,8 +96,7 @@ export const sessionOpenMachine = setup({
     events: {} as SessionOpenEvent,
   },
   guards: {
-    failedAtNaming: ({ event }) =>
-      event.type === "SESSION_OPEN_FAILED" && event.stage === "naming",
+    failedAtNaming: ({ event }) => event.type === "SESSION_OPEN_FAILED" && event.stage === "naming",
     failedAtReserve: ({ event }) =>
       event.type === "SESSION_OPEN_FAILED" && event.stage === "reserve",
     failedAtMaterialize: ({ event }) =>

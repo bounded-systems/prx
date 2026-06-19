@@ -77,8 +77,7 @@ export const defaultRunner: CommandRunner = (cmd, options = {}) => {
   if (!file) {
     throw new Error("defaultRunner: empty command");
   }
-  const customStdio =
-    options.stdio && options.stdio !== "pipe" ? options.stdio : undefined;
+  const customStdio = options.stdio && options.stdio !== "pipe" ? options.stdio : undefined;
   const result = spawnSync(file, args, {
     cwd: options.cwd,
     encoding: "utf8",
@@ -101,9 +100,7 @@ export const defaultRunner: CommandRunner = (cmd, options = {}) => {
   };
 
   if (options.check !== false && commandResult.status !== 0) {
-    const error = new Error(
-      commandResult.stderr.trim() || commandResult.stdout.trim(),
-    );
+    const error = new Error(commandResult.stderr.trim() || commandResult.stdout.trim());
     Object.assign(error, { result: commandResult });
     throw error;
   }
@@ -135,9 +132,7 @@ export const runCaptured: CommandRunner = (cmd, options = {}) => {
   };
 
   if (options.check !== false && commandResult.status !== 0) {
-    const error = new Error(
-      commandResult.stderr.trim() || commandResult.stdout.trim(),
-    );
+    const error = new Error(commandResult.stderr.trim() || commandResult.stdout.trim());
     Object.assign(error, { result: commandResult });
     throw error;
   }

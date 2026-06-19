@@ -27,20 +27,34 @@ describe("human-actor contract — request envelope", () => {
   });
 
   test("accepts approval and secret-op asks", () => {
-    expect(HumanRequestSchema.safeParse({ kind: "approval", action: "force-push main" }).success).toBe(true);
-    expect(HumanRequestSchema.safeParse({ kind: "secret-op", op: "rotate keeper key" }).success).toBe(true);
+    expect(
+      HumanRequestSchema.safeParse({ kind: "approval", action: "force-push main" }).success,
+    ).toBe(true);
+    expect(
+      HumanRequestSchema.safeParse({ kind: "secret-op", op: "rotate keeper key" }).success,
+    ).toBe(true);
   });
 
   test("rejects an off-envelope request kind", () => {
-    expect(HumanRequestSchema.safeParse({ kind: "run-shell", command: "rm -rf /" }).success).toBe(false);
+    expect(HumanRequestSchema.safeParse({ kind: "run-shell", command: "rm -rf /" }).success).toBe(
+      false,
+    );
   });
 });
 
 describe("human-actor contract — response", () => {
   test("accepts a kind-matched decision/approval/secret-op reply", () => {
     expect(HumanResponseSchema.safeParse({ kind: "decision", choice: "merge" }).success).toBe(true);
-    expect(HumanResponseSchema.safeParse({ kind: "approval", approved: false, reason: "scope too broad" }).success).toBe(true);
-    expect(HumanResponseSchema.safeParse({ kind: "secret-op", done: true, note: "rotated" }).success).toBe(true);
+    expect(
+      HumanResponseSchema.safeParse({
+        kind: "approval",
+        approved: false,
+        reason: "scope too broad",
+      }).success,
+    ).toBe(true);
+    expect(
+      HumanResponseSchema.safeParse({ kind: "secret-op", done: true, note: "rotated" }).success,
+    ).toBe(true);
   });
 
   test("rejects an approval reply missing the boolean verdict", () => {
@@ -48,6 +62,8 @@ describe("human-actor contract — response", () => {
   });
 
   test("rejects an unknown response kind", () => {
-    expect(HumanResponseSchema.safeParse({ kind: "granted-ambient-authority" }).success).toBe(false);
+    expect(HumanResponseSchema.safeParse({ kind: "granted-ambient-authority" }).success).toBe(
+      false,
+    );
   });
 });

@@ -20,7 +20,8 @@ type PlanPreflightOutput = { result: PreflightResult };
 
 export const planPreflightVerb = defineVerb({
   id: "plan-preflight",
-  summary: "Deterministic pre-draft preflight (already-done / infeasible-action / blocked-by-open-deps).",
+  summary:
+    "Deterministic pre-draft preflight (already-done / infeasible-action / blocked-by-open-deps).",
   actor: "plan",
   positionals: ["unit"],
   input: z.object({
@@ -29,9 +30,14 @@ export const planPreflightVerb = defineVerb({
   }),
   output: z.object({ result: z.unknown() }).loose(),
   deps: realPlanPreflightDeps,
-  run: async (input, deps: PlanPreflightDeps = realPlanPreflightDeps()): Promise<PlanPreflightOutput> => {
+  run: async (
+    input,
+    deps: PlanPreflightDeps = realPlanPreflightDeps(),
+  ): Promise<PlanPreflightOutput> => {
     if (!input.unit) {
-      throw new CliError("plan preflight requires a work-unit id (e.g., `prx plan preflight GH-1239`)");
+      throw new CliError(
+        "plan preflight requires a work-unit id (e.g., `prx plan preflight GH-1239`)",
+      );
     }
     const unit = parseCanonicalWorkUnitId(input.unit, "plan preflight");
     try {

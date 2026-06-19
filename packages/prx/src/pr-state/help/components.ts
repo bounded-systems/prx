@@ -9,11 +9,7 @@
 //   §7     four domain clusters in help-all
 //   §8     deprecation aliases in a dedicated help-all section
 
-import type {
-  CommandSpec,
-  SessionContext,
-  SessionRole,
-} from "../../cli/registry.ts";
+import type { CommandSpec, SessionContext, SessionRole } from "../../cli/registry.ts";
 
 const INDENT = "  ";
 const COL_GAP = "  ";

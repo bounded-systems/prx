@@ -4,7 +4,15 @@ import { DOLT_DATABASE_NAME_PATTERN } from "../dolt/schema.ts";
 import { createHash } from "node:crypto";
 import { runCaptured } from "@bounded-systems/proc";
 import { resolveRepoRoot } from "@bounded-systems/repo-root";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homeDir, tmpDir } from "@bounded-systems/host";
@@ -132,10 +140,16 @@ export type OpenPr = {
   reviewDecision?: string | null;
   statusCheckRollup?:
     | Array<{ status?: string | null; conclusion?: string | null }>
-    | { state?: string | null; contexts?: Array<{ status?: string | null; conclusion?: string | null }> | null }
+    | {
+        state?: string | null;
+        contexts?: Array<{ status?: string | null; conclusion?: string | null }> | null;
+      }
     | null;
   mergeable?: string | null;
-  reviews?: Array<{ state?: string | null }> | { nodes?: Array<{ state?: string | null }> | null } | null;
+  reviews?:
+    | Array<{ state?: string | null }>
+    | { nodes?: Array<{ state?: string | null }> | null }
+    | null;
 };
 
 export type CommandResult = {
@@ -257,12 +271,9 @@ export function withTrace(runner: CommandRunner): CommandRunner {
 // withTrace is the INNERMOST wrap (exec-only ms); withBucketGate gates around
 // it (its gate-wait is not traced). The rate_limit probe (`rawRunner`) calls
 // rawDefaultRunner directly, so the probe itself stays untraced.
-export const defaultRunner: CommandRunner = withBucketGate(
-  withTrace(rawDefaultRunner),
-  {
-    rawRunner: (cmd) => rawDefaultRunner(cmd, { check: false }),
-  },
-);
+export const defaultRunner: CommandRunner = withBucketGate(withTrace(rawDefaultRunner), {
+  rawRunner: (cmd) => rawDefaultRunner(cmd, { check: false }),
+});
 
 function commandBinaryName(cmd: string[]): string {
   const file = cmd[0] ?? "";
@@ -309,7 +320,13 @@ function shellQuote(value: string): string {
 }
 
 const repoRootPath = fileURLToPath(new URL("../../../../", import.meta.url));
-const renderScriptPath = join(repoRootPath, "skills", "pr-contract", "scripts", "render_pr_body.ts");
+const renderScriptPath = join(
+  repoRootPath,
+  "skills",
+  "pr-contract",
+  "scripts",
+  "render_pr_body.ts",
+);
 
 export const defaultRenderRunner: RenderRunner = (contractPath, outputPath) => {
   defaultRunner([
@@ -360,86 +377,129 @@ export const defaultReviewConfig: ReviewConfig = {
   requireAutoMergeEnabled: false,
 };
 
-const reviewNodeSchema = z.object({
-  state: z.string().nullable().optional(),
-  author: z.object({
-    login: z.string().nullable().optional(),
-  }).nullable().optional(),
-}).passthrough();
+const reviewNodeSchema = z
+  .object({
+    state: z.string().nullable().optional(),
+    author: z
+      .object({
+        login: z.string().nullable().optional(),
+      })
+      .nullable()
+      .optional(),
+  })
+  .passthrough();
 
 // GH-885: doctor actor reads enabledBy + mergeMethod off the autoMergeRequest
 // payload so it can render which method is armed and credit the operator who
 // armed it. Both fields can be missing on older payloads (gh, GHES) or null
 // when GitHub hasn't populated them yet.
-const prAutoMergeRequestSchema = z.object({
-  enabledBy: z.object({
-    login: z.string().nullable().optional(),
-  }).nullable().optional(),
-  mergeMethod: z.enum(["MERGE", "SQUASH", "REBASE"]).nullable().optional(),
-}).passthrough();
+const prAutoMergeRequestSchema = z
+  .object({
+    enabledBy: z
+      .object({
+        login: z.string().nullable().optional(),
+      })
+      .nullable()
+      .optional(),
+    mergeMethod: z.enum(["MERGE", "SQUASH", "REBASE"]).nullable().optional(),
+  })
+  .passthrough();
 
-const prCommentsSummarySchema = z.object({
-  number: z.number().int(),
-  title: z.string(),
-  url: z.string(),
-  isDraft: z.boolean(),
-  baseRefName: z.string(),
-  reviewDecision: z.string().nullable().optional(),
-  mergeStateStatus: z.string().nullable().optional(),
-  mergeable: z.string().nullable().optional(),
-  autoMergeRequest: prAutoMergeRequestSchema.nullable().optional(),
-  reviews: z.union([
-    z.array(reviewNodeSchema),
-    z.object({
-      nodes: z.array(reviewNodeSchema).nullable().optional(),
-    }).strict(),
-    z.null(),
-  ]).optional(),
-}).strict();
+const prCommentsSummarySchema = z
+  .object({
+    number: z.number().int(),
+    title: z.string(),
+    url: z.string(),
+    isDraft: z.boolean(),
+    baseRefName: z.string(),
+    reviewDecision: z.string().nullable().optional(),
+    mergeStateStatus: z.string().nullable().optional(),
+    mergeable: z.string().nullable().optional(),
+    autoMergeRequest: prAutoMergeRequestSchema.nullable().optional(),
+    reviews: z
+      .union([
+        z.array(reviewNodeSchema),
+        z
+          .object({
+            nodes: z.array(reviewNodeSchema).nullable().optional(),
+          })
+          .strict(),
+        z.null(),
+      ])
+      .optional(),
+  })
+  .strict();
 
-const prReviewCommentNodeSchema = z.object({
-  author: z.object({
-    login: z.string().nullable().optional(),
-  }).nullable().optional(),
-  body: z.string(),
-  state: z.string().nullable().optional(),
-  path: z.string().nullable().optional(),
-  createdAt: z.string(),
-  url: z.string(),
-  outdated: z.boolean().optional(),
-}).strict();
+const prReviewCommentNodeSchema = z
+  .object({
+    author: z
+      .object({
+        login: z.string().nullable().optional(),
+      })
+      .nullable()
+      .optional(),
+    body: z.string(),
+    state: z.string().nullable().optional(),
+    path: z.string().nullable().optional(),
+    createdAt: z.string(),
+    url: z.string(),
+    outdated: z.boolean().optional(),
+  })
+  .strict();
 
-const prReviewThreadNodeSchema = z.object({
-  id: z.string(),
-  isResolved: z.boolean(),
-  isOutdated: z.boolean(),
-  path: z.string().nullable().optional(),
-  comments: z.object({
-    nodes: z.array(prReviewCommentNodeSchema),
-  }).strict(),
-}).strict();
+const prReviewThreadNodeSchema = z
+  .object({
+    id: z.string(),
+    isResolved: z.boolean(),
+    isOutdated: z.boolean(),
+    path: z.string().nullable().optional(),
+    comments: z
+      .object({
+        nodes: z.array(prReviewCommentNodeSchema),
+      })
+      .strict(),
+  })
+  .strict();
 
-const prReviewThreadsResponseSchema = z.object({
-  data: z.object({
-    repository: z.object({
-      pullRequest: z.object({
-        reviewThreads: z.object({
-          nodes: z.array(prReviewThreadNodeSchema),
-        }).strict(),
-      }).nullable(),
-    }).strict(),
-  }).strict(),
-}).strict();
+const prReviewThreadsResponseSchema = z
+  .object({
+    data: z
+      .object({
+        repository: z
+          .object({
+            pullRequest: z
+              .object({
+                reviewThreads: z
+                  .object({
+                    nodes: z.array(prReviewThreadNodeSchema),
+                  })
+                  .strict(),
+              })
+              .nullable(),
+          })
+          .strict(),
+      })
+      .strict(),
+  })
+  .strict();
 
-const resolveReviewThreadResponseSchema = z.object({
-  data: z.object({
-    resolveReviewThread: z.object({
-      thread: z.object({
-        isResolved: z.boolean(),
-      }).strict(),
-    }).nullable(),
-  }).strict(),
-}).strict();
+const resolveReviewThreadResponseSchema = z
+  .object({
+    data: z
+      .object({
+        resolveReviewThread: z
+          .object({
+            thread: z
+              .object({
+                isResolved: z.boolean(),
+              })
+              .strict(),
+          })
+          .nullable(),
+      })
+      .strict(),
+  })
+  .strict();
 
 function normalizeReviewNodes(
   reviewsRaw: z.infer<typeof prCommentsSummarySchema>["reviews"],
@@ -447,7 +507,12 @@ function normalizeReviewNodes(
   if (Array.isArray(reviewsRaw)) {
     return reviewsRaw;
   }
-  if (reviewsRaw && typeof reviewsRaw === "object" && "nodes" in reviewsRaw && Array.isArray(reviewsRaw.nodes)) {
+  if (
+    reviewsRaw &&
+    typeof reviewsRaw === "object" &&
+    "nodes" in reviewsRaw &&
+    Array.isArray(reviewsRaw.nodes)
+  ) {
     return reviewsRaw.nodes;
   }
   return [];
@@ -461,7 +526,10 @@ function splitRepoNameWithOwner(nameWithOwner: string): { owner: string; repo: s
   return { owner, repo };
 }
 
-export function loadReviewConfig(repoPath: string, runner: CommandRunner = defaultRunner): ReviewConfig {
+export function loadReviewConfig(
+  repoPath: string,
+  runner: CommandRunner = defaultRunner,
+): ReviewConfig {
   const configPath = join(repoPath, "prx.toml");
   if (!existsSync(configPath)) {
     return defaultReviewConfig;
@@ -632,7 +700,11 @@ export function resolvePrReviewThreads(
   threadIds: string[],
   runner: CommandRunner = defaultRunner,
 ): PrReviewThreadResolution[] {
-  const uniqueThreadIds = [...new Set(threadIds.map((threadId) => threadId.trim()).filter((threadId) => threadId.length > 0))];
+  const uniqueThreadIds = [
+    ...new Set(
+      threadIds.map((threadId) => threadId.trim()).filter((threadId) => threadId.length > 0),
+    ),
+  ];
   if (uniqueThreadIds.length === 0) {
     return [];
   }
@@ -666,63 +738,106 @@ export function resolvePrReviewThreads(
 // The executor profile blocks `Bash(gh pr merge:*)` at the flag layer; these
 // helpers go through `gh api graphql` (allowed) to call the same mutations.
 
-const resolvePrNodeIdResponseSchema = z.object({
-  data: z.object({
-    repository: z.object({
-      pullRequest: z.object({
-        id: z.string(),
-      }).nullable(),
-    }).strict(),
-  }).strict(),
-}).strict();
+const resolvePrNodeIdResponseSchema = z
+  .object({
+    data: z
+      .object({
+        repository: z
+          .object({
+            pullRequest: z
+              .object({
+                id: z.string(),
+              })
+              .nullable(),
+          })
+          .strict(),
+      })
+      .strict(),
+  })
+  .strict();
 
-const enableAutoMergeResponseSchema = z.object({
-  data: z.object({
-    enablePullRequestAutoMerge: z.object({
-      pullRequest: z.object({
-        id: z.string(),
-        autoMergeRequest: z.object({
-          enabledAt: z.string().nullable().optional(),
-          mergeMethod: z.enum(["MERGE", "SQUASH", "REBASE"]).nullable().optional(),
-        }).nullable().optional(),
-      }).nullable(),
-    }).nullable(),
-  }).strict(),
-}).strict();
+const enableAutoMergeResponseSchema = z
+  .object({
+    data: z
+      .object({
+        enablePullRequestAutoMerge: z
+          .object({
+            pullRequest: z
+              .object({
+                id: z.string(),
+                autoMergeRequest: z
+                  .object({
+                    enabledAt: z.string().nullable().optional(),
+                    mergeMethod: z.enum(["MERGE", "SQUASH", "REBASE"]).nullable().optional(),
+                  })
+                  .nullable()
+                  .optional(),
+              })
+              .nullable(),
+          })
+          .nullable(),
+      })
+      .strict(),
+  })
+  .strict();
 
-const markPrReadyForReviewResponseSchema = z.object({
-  data: z.object({
-    markPullRequestReadyForReview: z.object({
-      pullRequest: z.object({
-        id: z.string(),
-        isDraft: z.boolean(),
-      }).nullable(),
-    }).nullable(),
-  }).strict(),
-}).strict();
+const markPrReadyForReviewResponseSchema = z
+  .object({
+    data: z
+      .object({
+        markPullRequestReadyForReview: z
+          .object({
+            pullRequest: z
+              .object({
+                id: z.string(),
+                isDraft: z.boolean(),
+              })
+              .nullable(),
+          })
+          .nullable(),
+      })
+      .strict(),
+  })
+  .strict();
 
-const convertPrToDraftResponseSchema = z.object({
-  data: z.object({
-    convertPullRequestToDraft: z.object({
-      pullRequest: z.object({
-        id: z.string(),
-        isDraft: z.boolean(),
-      }).nullable(),
-    }).nullable(),
-  }).strict(),
-}).strict();
+const convertPrToDraftResponseSchema = z
+  .object({
+    data: z
+      .object({
+        convertPullRequestToDraft: z
+          .object({
+            pullRequest: z
+              .object({
+                id: z.string(),
+                isDraft: z.boolean(),
+              })
+              .nullable(),
+          })
+          .nullable(),
+      })
+      .strict(),
+  })
+  .strict();
 
-const mergePullRequestResponseSchema = z.object({
-  data: z.object({
-    mergePullRequest: z.object({
-      pullRequest: z.object({
-        id: z.string(),
-        merged: z.boolean(),
-        state: z.string(),
-      }).nullable(),
-    }).nullable(),
-  }).strict(),
-}).strict();
+const mergePullRequestResponseSchema = z
+  .object({
+    data: z
+      .object({
+        mergePullRequest: z
+          .object({
+            pullRequest: z
+              .object({
+                id: z.string(),
+                merged: z.boolean(),
+                state: z.string(),
+              })
+              .nullable(),
+          })
+          .nullable(),
+      })
+      .strict(),
+  })
+  .strict();
 
 export function resolvePrNodeId(
   repoPath: string,
@@ -895,11 +1010,13 @@ export function convertPrToDraft(
   return { prNodeId: pullRequest.id, isDraft: pullRequest.isDraft };
 }
 
-export function resolveCurrentPrRef(repoPath: string, runner: CommandRunner = defaultRunner): string {
-  const result = runner(
-    ["gh", "pr", "view", "--json", "number", "--jq", ".number"],
-    { cwd: repoPath },
-  );
+export function resolveCurrentPrRef(
+  repoPath: string,
+  runner: CommandRunner = defaultRunner,
+): string {
+  const result = runner(["gh", "pr", "view", "--json", "number", "--jq", ".number"], {
+    cwd: repoPath,
+  });
   const num = result.stdout.trim();
   if (!num) {
     throw new Error("No PR found for the current branch");
@@ -918,15 +1035,16 @@ export function repoNameWithOwner(path: string, runner: CommandRunner = defaultR
   // Fallback: no origin / non-github host / fork-of-fork / gist remote. `gh`'s
   // own resolution handles those and errors the same way the old code did on a
   // repo with no usable remote (preserves the AC: same error / no origin).
-  return runner(
-    ["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
-    { cwd: path },
-  ).stdout.trim();
+  return runner(["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"], {
+    cwd: path,
+  }).stdout.trim();
 }
 
 function readOriginUrl(path: string, runner: CommandRunner): string | null {
   try {
-    const out = runner(["git", "-C", path, "remote", "get-url", "origin"], { check: false }).stdout.trim();
+    const out = runner(["git", "-C", path, "remote", "get-url", "origin"], {
+      check: false,
+    }).stdout.trim();
     return out.length > 0 ? out : null;
   } catch {
     return null;
@@ -1169,63 +1287,67 @@ function desiredBranchProtectionPayload(
   basePayload?: z.infer<typeof branchProtectionPayloadSchema>,
 ): z.infer<typeof branchProtectionPayloadSchema> {
   const isOrganizationRepo = ownerType === "Organization";
-  const base = basePayload ?? branchProtectionPayloadSchema.parse({
-    required_status_checks: null,
-    enforce_admins: null,
-    required_pull_request_reviews: {
-      ...(isOrganizationRepo
-        ? {
-            dismissal_restrictions: {
-              users: [],
-              teams: [],
-              apps: [],
-            },
-          }
-        : {}),
-      dismiss_stale_reviews: true,
-      require_code_owner_reviews: false,
-      required_approving_review_count: 1,
-      require_last_push_approval: false,
-      ...(isOrganizationRepo
-        ? {
-            bypass_pull_request_allowances: {
-              users: [],
-              teams: [],
-              apps: [],
-            },
-          }
-        : {}),
-    },
-    restrictions: null,
-    required_linear_history: false,
-    allow_force_pushes: false,
-    allow_deletions: false,
-    block_creations: false,
-    required_conversation_resolution: false,
-    lock_branch: false,
-    allow_fork_syncing: false,
-  });
+  const base =
+    basePayload ??
+    branchProtectionPayloadSchema.parse({
+      required_status_checks: null,
+      enforce_admins: null,
+      required_pull_request_reviews: {
+        ...(isOrganizationRepo
+          ? {
+              dismissal_restrictions: {
+                users: [],
+                teams: [],
+                apps: [],
+              },
+            }
+          : {}),
+        dismiss_stale_reviews: true,
+        require_code_owner_reviews: false,
+        required_approving_review_count: 1,
+        require_last_push_approval: false,
+        ...(isOrganizationRepo
+          ? {
+              bypass_pull_request_allowances: {
+                users: [],
+                teams: [],
+                apps: [],
+              },
+            }
+          : {}),
+      },
+      restrictions: null,
+      required_linear_history: false,
+      allow_force_pushes: false,
+      allow_deletions: false,
+      block_creations: false,
+      required_conversation_resolution: false,
+      lock_branch: false,
+      allow_fork_syncing: false,
+    });
   const enforceAdmins = options.enforceAdmins ?? base.enforce_admins === true;
-  const requireConversationResolution = options.requireConversationResolution ?? base.required_conversation_resolution;
+  const requireConversationResolution =
+    options.requireConversationResolution ?? base.required_conversation_resolution;
   const requireLastPushApproval =
-    options.requireLastPushApproval ?? base.required_pull_request_reviews.require_last_push_approval;
+    options.requireLastPushApproval ??
+    base.required_pull_request_reviews.require_last_push_approval;
   const requireLinearHistory = options.requireLinearHistory ?? base.required_linear_history;
   const requiredStatusChecks = Array.from(
     new Set(
-      (options.requiredStatusChecks ??
-        (base.required_status_checks?.contexts ?? []))
+      (options.requiredStatusChecks ?? base.required_status_checks?.contexts ?? [])
         .map((check) => check.trim())
         .filter(Boolean),
     ),
   );
 
   return branchProtectionPayloadSchema.parse({
-    required_status_checks: requiredStatusChecks.length > 0
-      ? {
-          strict: true,
-          contexts: requiredStatusChecks,
-        }
-      : null,
+    required_status_checks:
+      requiredStatusChecks.length > 0
+        ? {
+            strict: true,
+            contexts: requiredStatusChecks,
+          }
+        : null,
     enforce_admins: enforceAdmins ? true : null,
     required_pull_request_reviews: {
       ...(isOrganizationRepo
@@ -1239,7 +1361,8 @@ function desiredBranchProtectionPayload(
         : {}),
       dismiss_stale_reviews: true,
       require_code_owner_reviews: base.required_pull_request_reviews.require_code_owner_reviews,
-      required_approving_review_count: base.required_pull_request_reviews.required_approving_review_count,
+      required_approving_review_count:
+        base.required_pull_request_reviews.required_approving_review_count,
       require_last_push_approval: requireLastPushApproval,
       ...(isOrganizationRepo
         ? {
@@ -1267,18 +1390,16 @@ function approvalContributorCount(
   runner: CommandRunner = defaultRunner,
 ): number | null {
   try {
-    const raw = runner([
-      "gh",
-      "api",
-      `repos/${repo}/collaborators?per_page=100`,
-    ]).stdout;
+    const raw = runner(["gh", "api", `repos/${repo}/collaborators?per_page=100`]).stdout;
     const parsed = JSON.parse(raw) as Array<{ permissions?: Record<string, unknown> }>;
     if (!Array.isArray(parsed)) {
       return null;
     }
     return parsed.filter((collaborator) => {
       const permissions = collaborator.permissions ?? {};
-      return permissions.admin === true || permissions.maintain === true || permissions.push === true;
+      return (
+        permissions.admin === true || permissions.maintain === true || permissions.push === true
+      );
     }).length;
   } catch {
     return null;
@@ -1325,23 +1446,28 @@ function desiredProtectionPayload(
       })
     : basePayload;
   const requireLastPushApprovalSuppressed =
-    payload.required_pull_request_reviews.require_last_push_approval && contributorCount !== null && contributorCount < 2;
+    payload.required_pull_request_reviews.require_last_push_approval &&
+    contributorCount !== null &&
+    contributorCount < 2;
   const requiredApprovingReviewCountSuppressed =
-    payload.required_pull_request_reviews.required_approving_review_count > 0 && contributorCount !== null && contributorCount < 2;
-  const effectivePayload = requireLastPushApprovalSuppressed || requiredApprovingReviewCountSuppressed
-    ? branchProtectionPayloadSchema.parse({
-        ...payload,
-        required_pull_request_reviews: {
-          ...payload.required_pull_request_reviews,
-          require_last_push_approval: requireLastPushApprovalSuppressed
-            ? false
-            : payload.required_pull_request_reviews.require_last_push_approval,
-          required_approving_review_count: requiredApprovingReviewCountSuppressed
-            ? 0
-            : payload.required_pull_request_reviews.required_approving_review_count,
-        },
-      })
-    : payload;
+    payload.required_pull_request_reviews.required_approving_review_count > 0 &&
+    contributorCount !== null &&
+    contributorCount < 2;
+  const effectivePayload =
+    requireLastPushApprovalSuppressed || requiredApprovingReviewCountSuppressed
+      ? branchProtectionPayloadSchema.parse({
+          ...payload,
+          required_pull_request_reviews: {
+            ...payload.required_pull_request_reviews,
+            require_last_push_approval: requireLastPushApprovalSuppressed
+              ? false
+              : payload.required_pull_request_reviews.require_last_push_approval,
+            required_approving_review_count: requiredApprovingReviewCountSuppressed
+              ? 0
+              : payload.required_pull_request_reviews.required_approving_review_count,
+          },
+        })
+      : payload;
 
   return {
     contributorCount,
@@ -1361,8 +1487,10 @@ function desiredRepositoryRuleset(
       parameters: {
         dismiss_stale_reviews_on_push: payload.required_pull_request_reviews.dismiss_stale_reviews,
         require_code_owner_review: payload.required_pull_request_reviews.require_code_owner_reviews,
-        require_last_push_approval: payload.required_pull_request_reviews.require_last_push_approval,
-        required_approving_review_count: payload.required_pull_request_reviews.required_approving_review_count,
+        require_last_push_approval:
+          payload.required_pull_request_reviews.require_last_push_approval,
+        required_approving_review_count:
+          payload.required_pull_request_reviews.required_approving_review_count,
         required_review_thread_resolution: payload.required_conversation_resolution,
       },
     },
@@ -1379,7 +1507,9 @@ function desiredRepositoryRuleset(
       type: "required_status_checks",
       parameters: {
         strict_required_status_checks_policy: payload.required_status_checks.strict,
-        required_status_checks: payload.required_status_checks.contexts.map((context) => ({ context })),
+        required_status_checks: payload.required_status_checks.contexts.map((context) => ({
+          context,
+        })),
       },
     });
   }
@@ -1454,30 +1584,41 @@ function normalizeLiveRulesetToBranchProtection(
   ruleset: z.infer<typeof repositoryRulesetSchema>,
 ): z.infer<typeof branchProtectionPayloadSchema> {
   const pullRequestRule = ruleset.rules.find((rule) => rule.type === "pull_request");
-  const requiredStatusChecksRule = ruleset.rules.find((rule) => rule.type === "required_status_checks");
-  const requiredLinearHistory = ruleset.rules.some((rule) => rule.type === "required_linear_history");
+  const requiredStatusChecksRule = ruleset.rules.find(
+    (rule) => rule.type === "required_status_checks",
+  );
+  const requiredLinearHistory = ruleset.rules.some(
+    (rule) => rule.type === "required_linear_history",
+  );
   const blockDeletion = ruleset.rules.some((rule) => rule.type === "deletion");
   const blockForcePushes = ruleset.rules.some((rule) => rule.type === "non_fast_forward");
   const pullRequestParameters = (pullRequestRule?.parameters ?? {}) as Record<string, unknown>;
-  const statusCheckParameters = (requiredStatusChecksRule?.parameters ?? {}) as Record<string, unknown>;
+  const statusCheckParameters = (requiredStatusChecksRule?.parameters ?? {}) as Record<
+    string,
+    unknown
+  >;
   const statusChecks = Array.isArray(statusCheckParameters.required_status_checks)
     ? statusCheckParameters.required_status_checks
     : [];
   const contexts = statusChecks
     .map((statusCheck) =>
-      statusCheck && typeof statusCheck === "object" && "context" in statusCheck && typeof statusCheck.context === "string"
+      statusCheck &&
+      typeof statusCheck === "object" &&
+      "context" in statusCheck &&
+      typeof statusCheck.context === "string"
         ? statusCheck.context
-        : null
+        : null,
     )
     .filter((context): context is string => Boolean(context));
 
   return branchProtectionPayloadSchema.parse({
-    required_status_checks: contexts.length > 0
-      ? {
-          strict: Boolean(statusCheckParameters.strict_required_status_checks_policy),
-          contexts,
-        }
-      : null,
+    required_status_checks:
+      contexts.length > 0
+        ? {
+            strict: Boolean(statusCheckParameters.strict_required_status_checks_policy),
+            contexts,
+          }
+        : null,
     enforce_admins: ruleset.bypass_actors.length === 0 ? true : null,
     required_pull_request_reviews: {
       dismiss_stale_reviews: Boolean(pullRequestParameters.dismiss_stale_reviews_on_push),
@@ -1493,7 +1634,9 @@ function normalizeLiveRulesetToBranchProtection(
     allow_force_pushes: !blockForcePushes,
     allow_deletions: !blockDeletion,
     block_creations: false,
-    required_conversation_resolution: Boolean(pullRequestParameters.required_review_thread_resolution),
+    required_conversation_resolution: Boolean(
+      pullRequestParameters.required_review_thread_resolution,
+    ),
     lock_branch: false,
     allow_fork_syncing: false,
   });
@@ -1505,27 +1648,38 @@ function normalizeLiveBranchProtection(
 ): z.infer<typeof branchProtectionPayloadSchema> {
   const isOrganizationRepo = ownerType === "Organization";
   const reviews = (value.required_pull_request_reviews ?? {}) as Record<string, unknown>;
-  const statusChecksNode = value.required_status_checks as Record<string, unknown> | null | undefined;
+  const statusChecksNode = value.required_status_checks as
+    | Record<string, unknown>
+    | null
+    | undefined;
   const rawContexts = Array.isArray(statusChecksNode?.contexts) ? statusChecksNode?.contexts : [];
   const contexts = rawContexts
     .map((context) => {
       if (typeof context === "string") return context;
-      if (context && typeof context === "object" && "context" in context && typeof context.context === "string") {
+      if (
+        context &&
+        typeof context === "object" &&
+        "context" in context &&
+        typeof context.context === "string"
+      ) {
         return context.context;
       }
       return null;
     })
     .filter((context): context is string => Boolean(context));
-  const normalizedStatusChecks = contexts.length > 0
-    ? {
-        strict: Boolean(statusChecksNode?.strict),
-        contexts,
-      }
-    : null;
+  const normalizedStatusChecks =
+    contexts.length > 0
+      ? {
+          strict: Boolean(statusChecksNode?.strict),
+          contexts,
+        }
+      : null;
 
   return branchProtectionPayloadSchema.parse({
     required_status_checks: normalizedStatusChecks,
-    enforce_admins: (value.enforce_admins as { enabled?: boolean } | null | undefined)?.enabled ? true : null,
+    enforce_admins: (value.enforce_admins as { enabled?: boolean } | null | undefined)?.enabled
+      ? true
+      : null,
     required_pull_request_reviews: {
       ...(isOrganizationRepo
         ? {
@@ -1539,7 +1693,9 @@ function normalizeLiveBranchProtection(
       dismiss_stale_reviews: Boolean(reviews.dismiss_stale_reviews),
       require_code_owner_reviews: Boolean(reviews.require_code_owner_reviews),
       required_approving_review_count:
-        typeof reviews.required_approving_review_count === "number" ? reviews.required_approving_review_count : 0,
+        typeof reviews.required_approving_review_count === "number"
+          ? reviews.required_approving_review_count
+          : 0,
       require_last_push_approval: Boolean(reviews.require_last_push_approval),
       ...(isOrganizationRepo
         ? {
@@ -1552,15 +1708,25 @@ function normalizeLiveBranchProtection(
         : {}),
     },
     restrictions: null,
-    required_linear_history: Boolean((value.required_linear_history as { enabled?: boolean } | null | undefined)?.enabled),
-    allow_force_pushes: Boolean((value.allow_force_pushes as { enabled?: boolean } | null | undefined)?.enabled),
-    allow_deletions: Boolean((value.allow_deletions as { enabled?: boolean } | null | undefined)?.enabled),
-    block_creations: Boolean((value.block_creations as { enabled?: boolean } | null | undefined)?.enabled),
+    required_linear_history: Boolean(
+      (value.required_linear_history as { enabled?: boolean } | null | undefined)?.enabled,
+    ),
+    allow_force_pushes: Boolean(
+      (value.allow_force_pushes as { enabled?: boolean } | null | undefined)?.enabled,
+    ),
+    allow_deletions: Boolean(
+      (value.allow_deletions as { enabled?: boolean } | null | undefined)?.enabled,
+    ),
+    block_creations: Boolean(
+      (value.block_creations as { enabled?: boolean } | null | undefined)?.enabled,
+    ),
     required_conversation_resolution: Boolean(
       (value.required_conversation_resolution as { enabled?: boolean } | null | undefined)?.enabled,
     ),
     lock_branch: Boolean((value.lock_branch as { enabled?: boolean } | null | undefined)?.enabled),
-    allow_fork_syncing: Boolean((value.allow_fork_syncing as { enabled?: boolean } | null | undefined)?.enabled),
+    allow_fork_syncing: Boolean(
+      (value.allow_fork_syncing as { enabled?: boolean } | null | undefined)?.enabled,
+    ),
   });
 }
 
@@ -1583,16 +1749,27 @@ function comparableBranchProtection(
       ...payload.required_pull_request_reviews,
       dismissal_restrictions: payload.required_pull_request_reviews.dismissal_restrictions
         ? {
-            users: sortedStrings(payload.required_pull_request_reviews.dismissal_restrictions.users),
-            teams: sortedStrings(payload.required_pull_request_reviews.dismissal_restrictions.teams),
+            users: sortedStrings(
+              payload.required_pull_request_reviews.dismissal_restrictions.users,
+            ),
+            teams: sortedStrings(
+              payload.required_pull_request_reviews.dismissal_restrictions.teams,
+            ),
             apps: sortedStrings(payload.required_pull_request_reviews.dismissal_restrictions.apps),
           }
         : undefined,
-      bypass_pull_request_allowances: payload.required_pull_request_reviews.bypass_pull_request_allowances
+      bypass_pull_request_allowances: payload.required_pull_request_reviews
+        .bypass_pull_request_allowances
         ? {
-            users: sortedStrings(payload.required_pull_request_reviews.bypass_pull_request_allowances.users),
-            teams: sortedStrings(payload.required_pull_request_reviews.bypass_pull_request_allowances.teams),
-            apps: sortedStrings(payload.required_pull_request_reviews.bypass_pull_request_allowances.apps),
+            users: sortedStrings(
+              payload.required_pull_request_reviews.bypass_pull_request_allowances.users,
+            ),
+            teams: sortedStrings(
+              payload.required_pull_request_reviews.bypass_pull_request_allowances.teams,
+            ),
+            apps: sortedStrings(
+              payload.required_pull_request_reviews.bypass_pull_request_allowances.apps,
+            ),
           }
         : undefined,
     },
@@ -1603,7 +1780,10 @@ function branchProtectionMatches(
   desired: z.infer<typeof branchProtectionPayloadSchema>,
   live: z.infer<typeof branchProtectionPayloadSchema>,
 ): boolean {
-  return JSON.stringify(comparableBranchProtection(desired)) === JSON.stringify(comparableBranchProtection(live));
+  return (
+    JSON.stringify(comparableBranchProtection(desired)) ===
+    JSON.stringify(comparableBranchProtection(live))
+  );
 }
 
 export function protectMainBranch(
@@ -1631,23 +1811,33 @@ export function protectMainBranch(
   const backend = options.backend ?? "branch-protection";
 
   if (viewer !== owner) {
-    throw new Error(`protect-main requires repo ownership: viewer=${viewer} owner=${owner} repo=${repo}`);
+    throw new Error(
+      `protect-main requires repo ownership: viewer=${viewer} owner=${owner} repo=${repo}`,
+    );
   }
 
-  const desired = desiredProtectionPayload(repoPath, repo, ownerType, branch, {
-    solo: options.solo,
-    enforceAdmins: options.enforceAdmins,
-    requireConversationResolution: options.requireConversationResolution,
-    requireLastPushApproval: options.requireLastPushApproval,
-    requireLinearHistory: options.requireLinearHistory,
-    requiredStatusChecks: options.requiredStatusChecks,
-  }, runner);
-  const effectivePayload = backend === "ruleset"
-    ? branchProtectionPayloadSchema.parse({
-        ...desired.payload,
-        enforce_admins: true,
-      })
-    : desired.payload;
+  const desired = desiredProtectionPayload(
+    repoPath,
+    repo,
+    ownerType,
+    branch,
+    {
+      solo: options.solo,
+      enforceAdmins: options.enforceAdmins,
+      requireConversationResolution: options.requireConversationResolution,
+      requireLastPushApproval: options.requireLastPushApproval,
+      requireLinearHistory: options.requireLinearHistory,
+      requiredStatusChecks: options.requiredStatusChecks,
+    },
+    runner,
+  );
+  const effectivePayload =
+    backend === "ruleset"
+      ? branchProtectionPayloadSchema.parse({
+          ...desired.payload,
+          enforce_admins: true,
+        })
+      : desired.payload;
   let command: string[];
   let rulesetId: number | null = null;
   let rulesetName: string | null = null;
@@ -1686,7 +1876,9 @@ export function protectMainBranch(
             "Accept: application/vnd.github+json",
             "-H",
             "X-GitHub-Api-Version: 2022-11-28",
-            existingRuleset ? `repos/${repo}/rulesets/${existingRuleset.id}` : `repos/${repo}/rulesets`,
+            existingRuleset
+              ? `repos/${repo}/rulesets/${existingRuleset.id}`
+              : `repos/${repo}/rulesets`,
             "--input",
             payloadPath,
           ],
@@ -1755,8 +1947,10 @@ export function protectMainBranch(
     applied: apply,
     enforceAdmins: effectivePayload.enforce_admins === true,
     requireConversationResolution: effectivePayload.required_conversation_resolution,
-    requireLastPushApproval: effectivePayload.required_pull_request_reviews.require_last_push_approval,
-    requiredApprovingReviewCount: effectivePayload.required_pull_request_reviews.required_approving_review_count,
+    requireLastPushApproval:
+      effectivePayload.required_pull_request_reviews.require_last_push_approval,
+    requiredApprovingReviewCount:
+      effectivePayload.required_pull_request_reviews.required_approving_review_count,
     requireLinearHistory: effectivePayload.required_linear_history,
     requiredStatusChecks: effectivePayload.required_status_checks?.contexts ?? [],
     payload: effectivePayload,
@@ -1786,12 +1980,13 @@ export function checkMainBranchProtection(
   const branch = options.branch ?? "main";
   const backend = options.backend ?? "branch-protection";
   const desired = desiredProtectionPayload(repoPath, repo, ownerType, branch, options, runner);
-  const effectiveDesired = backend === "ruleset"
-    ? branchProtectionPayloadSchema.parse({
-        ...desired.payload,
-        enforce_admins: true,
-      })
-    : desired.payload;
+  const effectiveDesired =
+    backend === "ruleset"
+      ? branchProtectionPayloadSchema.parse({
+          ...desired.payload,
+          enforce_admins: true,
+        })
+      : desired.payload;
   let live: z.infer<typeof branchProtectionPayloadSchema>;
   let rulesetId: number | null = null;
   let rulesetName: string | null = null;
@@ -1822,10 +2017,8 @@ export function checkMainBranchProtection(
         });
   } else {
     const liveRaw = JSON.parse(
-      runner(
-        ["gh", "api", `repos/${repo}/branches/${branch}/protection`],
-        { cwd: repoPath },
-      ).stdout,
+      runner(["gh", "api", `repos/${repo}/branches/${branch}/protection`], { cwd: repoPath })
+        .stdout,
     ) as Record<string, unknown>;
     live = normalizeLiveBranchProtection(liveRaw, ownerType);
   }
@@ -1845,8 +2038,10 @@ export function checkMainBranchProtection(
     requiredApprovingReviewCountSuppressed: desired.requiredApprovingReviewCountSuppressed,
     enforceAdmins: effectiveDesired.enforce_admins === true,
     requireConversationResolution: effectiveDesired.required_conversation_resolution,
-    requireLastPushApproval: effectiveDesired.required_pull_request_reviews.require_last_push_approval,
-    requiredApprovingReviewCount: effectiveDesired.required_pull_request_reviews.required_approving_review_count,
+    requireLastPushApproval:
+      effectiveDesired.required_pull_request_reviews.require_last_push_approval,
+    requiredApprovingReviewCount:
+      effectiveDesired.required_pull_request_reviews.required_approving_review_count,
     requireLinearHistory: effectiveDesired.required_linear_history,
     requiredStatusChecks: effectiveDesired.required_status_checks?.contexts ?? [],
     desired: effectiveDesired,
@@ -1876,15 +2071,19 @@ export function fetchBranchProtection(
   runner: CommandRunner = defaultRunner,
 ): LiveBranchProtection | null {
   const repo = repoNameWithOwner(repoPath, runner);
-  const result = runner(
-    ["gh", "api", `repos/${repo}/branches/${branch}/protection`],
-    { cwd: repoPath, check: false },
-  );
+  const result = runner(["gh", "api", `repos/${repo}/branches/${branch}/protection`], {
+    cwd: repoPath,
+    check: false,
+  });
   if (result.status !== 0) {
     if (/HTTP 404/i.test(result.stderr) || /Branch not protected/i.test(result.stderr)) {
       return null;
     }
-    throw new Error(result.stderr.trim() || result.stdout.trim() || `gh api branch protection failed (status=${result.status})`);
+    throw new Error(
+      result.stderr.trim() ||
+        result.stdout.trim() ||
+        `gh api branch protection failed (status=${result.status})`,
+    );
   }
   const ownerType = repoOwnerType(repo, runner);
   const live = normalizeLiveBranchProtection(
@@ -1892,7 +2091,8 @@ export function fetchBranchProtection(
     ownerType,
   );
   return {
-    requiredApprovingReviewCount: live.required_pull_request_reviews.required_approving_review_count,
+    requiredApprovingReviewCount:
+      live.required_pull_request_reviews.required_approving_review_count,
     requireCodeOwnerReviews: live.required_pull_request_reviews.require_code_owner_reviews,
   };
 }
@@ -1907,10 +2107,9 @@ export function repoCheckNames(
 ): RepoCheckNamesResult {
   const repo = options.repo ?? repoNameWithOwner(repoPath, runner);
   const branch = options.branch ?? "main";
-  const sha = runner(
-    ["gh", "api", `repos/${repo}/branches/${branch}`, "--jq", ".commit.sha"],
-    { cwd: repoPath },
-  ).stdout.trim();
+  const sha = runner(["gh", "api", `repos/${repo}/branches/${branch}`, "--jq", ".commit.sha"], {
+    cwd: repoPath,
+  }).stdout.trim();
   const result = runner(
     ["gh", "api", `repos/${repo}/commits/${sha}/check-runs`, "--jq", ".check_runs[].name"],
     { cwd: repoPath },
@@ -1972,7 +2171,19 @@ export function listOpenIssues(
   runner: CommandRunner = defaultRunner,
 ): FallbackIssue[] {
   const result = runner(
-    ["gh", "issue", "list", "--state", "open", "--limit", String(limit), "--json", "number,title,url,labels", "-R", repo],
+    [
+      "gh",
+      "issue",
+      "list",
+      "--state",
+      "open",
+      "--limit",
+      String(limit),
+      "--json",
+      "number,title,url,labels",
+      "-R",
+      repo,
+    ],
     { check: false },
   );
   if (result.status !== 0) return [];
@@ -1995,7 +2206,19 @@ export function listIssuesByState(
   runner: CommandRunner = defaultRunner,
 ): FallbackIssue[] {
   const result = runner(
-    ["gh", "issue", "list", "--state", state, "--limit", String(limit), "--json", "number,title,url,labels", "-R", repo],
+    [
+      "gh",
+      "issue",
+      "list",
+      "--state",
+      state,
+      "--limit",
+      String(limit),
+      "--json",
+      "number,title,url,labels",
+      "-R",
+      repo,
+    ],
     { check: false },
   );
   if (result.status !== 0) return [];
@@ -2023,7 +2246,16 @@ export function validateGitHubIssue(
   runner: CommandRunner = defaultRunner,
 ): GitHubIssue {
   const result = runner(
-    ["gh", "issue", "view", String(issueNumber), "--json", "number,title,state,body,url,labels", "-R", repo],
+    [
+      "gh",
+      "issue",
+      "view",
+      String(issueNumber),
+      "--json",
+      "number,title,state,body,url,labels",
+      "-R",
+      repo,
+    ],
     { check: false },
   );
   if (result.status !== 0) {
@@ -2050,7 +2282,10 @@ export function validateBeadsIssue(
   return issue;
 }
 
-export function worktreeMap(repoPath: string, runner: CommandRunner = defaultRunner): Record<string, string> {
+export function worktreeMap(
+  repoPath: string,
+  runner: CommandRunner = defaultRunner,
+): Record<string, string> {
   const mapping: Record<string, string> = {};
   for (const entry of listWorktrees(repoPath, runner)) {
     if (entry.branch) {
@@ -2060,7 +2295,10 @@ export function worktreeMap(repoPath: string, runner: CommandRunner = defaultRun
   return mapping;
 }
 
-export function listWorktrees(repoPath: string, runner: CommandRunner = defaultRunner): ListedWorktree[] {
+export function listWorktrees(
+  repoPath: string,
+  runner: CommandRunner = defaultRunner,
+): ListedWorktree[] {
   const result = runner(["git", "-C", repoPath, "worktree", "list", "--porcelain"]);
   const entries: ListedWorktree[] = [];
   let currentPath: string | undefined;
@@ -2154,7 +2392,8 @@ export function removeWorktree(
   const directEntry = worktrees.find((entry) => entry.branch === target) ?? null;
   const entryByPath = worktrees.find((entry) => entry.path === target) ?? null;
   const resolvedTarget = resolve(repoPath, target);
-  const entryByResolvedPath = worktrees.find((entry) => resolve(repoPath, entry.path) === resolvedTarget) ?? null;
+  const entryByResolvedPath =
+    worktrees.find((entry) => resolve(repoPath, entry.path) === resolvedTarget) ?? null;
   // GH-756: orphan-cleanup callers (today: the `orphan_cleanup` thread of
   // `prx next` / `prx delegate next`) emit `GH-<n>` tokens as the
   // suggested-command target (e.g. `prx worktree-remove GH-674
@@ -2164,7 +2403,7 @@ export function removeWorktree(
   // ticket form by matching the on-disk basename prefix.
   const ticketMatch = target.match(/^GH-(\d+)$/i);
   const entryByTicket = ticketMatch
-    ? worktrees.find((entry) => basename(entry.path).startsWith(`gh_${ticketMatch[1]}_`)) ?? null
+    ? (worktrees.find((entry) => basename(entry.path).startsWith(`gh_${ticketMatch[1]}_`)) ?? null)
     : null;
   const matchedEntry = directEntry ?? entryByPath ?? entryByResolvedPath ?? entryByTicket;
 
@@ -2200,13 +2439,7 @@ export function removeWorktree(
   // GH-755) and `--delete-branch` would then discard unresolved merge
   // conflicts or in-flight edits. --force is the documented escape hatch.
   if (matchedEntry && !force) {
-    const statusResult = runner([
-      "git",
-      "-C",
-      matchedEntry.path,
-      "status",
-      "--porcelain=v1",
-    ]);
+    const statusResult = runner(["git", "-C", matchedEntry.path, "status", "--porcelain=v1"]);
     if (statusResult.status === 0 && statusResult.stdout.trim().length > 0) {
       throw new Error(
         `Worktree '${matchedEntry.path}' has uncommitted changes. Commit or stash them, or pass --force to discard.`,
@@ -2265,9 +2498,10 @@ export function removeWorktree(
   };
 }
 
-export function loadContractForBranch(
-  worktreePath: string,
-): { contract: Contract | null; contractPath: string } {
+export function loadContractForBranch(worktreePath: string): {
+  contract: Contract | null;
+  contractPath: string;
+} {
   const contractPath = join(worktreePath, ".pr", "local", "pr.json");
   if (!existsSync(contractPath)) {
     return { contract: null, contractPath };
@@ -2291,10 +2525,16 @@ export type PrView = {
   reviewDecision?: string | null;
   statusCheckRollup?:
     | Array<{ status?: string | null; conclusion?: string | null }>
-    | { state?: string | null; contexts?: Array<{ status?: string | null; conclusion?: string | null }> | null }
+    | {
+        state?: string | null;
+        contexts?: Array<{ status?: string | null; conclusion?: string | null }> | null;
+      }
     | null;
   mergeable?: string | null;
-  reviews?: Array<{ state?: string | null }> | { nodes?: Array<{ state?: string | null }> | null } | null;
+  reviews?:
+    | Array<{ state?: string | null }>
+    | { nodes?: Array<{ state?: string | null }> | null }
+    | null;
 };
 
 export type GithubCheckRow = {
@@ -2334,7 +2574,13 @@ export type RemoteCiCheckResult = {
   failingChecks: RemoteCiCheckFailure[];
 };
 
-const failedCheckStates = new Set(["FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED"]);
+const failedCheckStates = new Set([
+  "FAILURE",
+  "ERROR",
+  "TIMED_OUT",
+  "CANCELLED",
+  "ACTION_REQUIRED",
+]);
 
 export function parseCodeBuildIdFromLink(link: string): string | null {
   const direct = link.match(/\/builds\/([^/]+)\/view\/new/i);
@@ -2359,10 +2605,9 @@ export function listFailingPrChecks(
   prRef: string,
   runner: CommandRunner = defaultRunner,
 ): GithubCheckRow[] {
-  const result = runner(
-    ["gh", "pr", "checks", prRef, "--json", "name,state,link,description"],
-    { cwd: repoPath },
-  );
+  const result = runner(["gh", "pr", "checks", prRef, "--json", "name,state,link,description"], {
+    cwd: repoPath,
+  });
   const checks = JSON.parse(result.stdout) as GithubCheckRow[];
   return checks.filter((check) => isFailingCheckState(check.state));
 }
@@ -2387,7 +2632,8 @@ export function codeBuildFailuresForBuildId(
   );
 
   if (reportLookup.status !== 0) {
-    const message = reportLookup.stderr.trim() || reportLookup.stdout.trim() || "failed to fetch report ARN";
+    const message =
+      reportLookup.stderr.trim() || reportLookup.stdout.trim() || "failed to fetch report ARN";
     return { buildId, reportArn: null, failures: [], error: message };
   }
 
@@ -2417,7 +2663,8 @@ export function codeBuildFailuresForBuildId(
   );
 
   if (casesLookup.status !== 0) {
-    const message = casesLookup.stderr.trim() || casesLookup.stdout.trim() || "failed to fetch test cases";
+    const message =
+      casesLookup.stderr.trim() || casesLookup.stdout.trim() || "failed to fetch test cases";
     return { buildId, reportArn, failures: [], error: message };
   }
 
@@ -2437,10 +2684,9 @@ export function remoteCiCheck(
   const failingChecks = listFailingPrChecks(repoPath, prRef, runner).map((check) => {
     const link = check.link ?? null;
     const buildId = link ? parseCodeBuildIdFromLink(link) : null;
-    const isCodeBuild = Boolean(buildId) || /codebuild/i.test(check.name ?? "") || /codebuild/i.test(link ?? "");
-    const codebuild = isCodeBuild && buildId
-      ? codeBuildFailuresForBuildId(buildId, runner)
-      : null;
+    const isCodeBuild =
+      Boolean(buildId) || /codebuild/i.test(check.name ?? "") || /codebuild/i.test(link ?? "");
+    const codebuild = isCodeBuild && buildId ? codeBuildFailuresForBuildId(buildId, runner) : null;
 
     return {
       name: check.name,
@@ -2504,16 +2750,14 @@ export function scoutLogs(
     }
 
     try {
-      const result = runner(
-        ["gh", "run", "view", runId, "--log-failed"],
-        { cwd: repoPath },
-      );
+      const result = runner(["gh", "run", "view", runId, "--log-failed"], { cwd: repoPath });
       const fullLog = result.stdout;
       // Truncate to last N lines if too long
       const lines = fullLog.split("\n");
-      const logs = lines.length > maxLines
-        ? `... (truncated, showing last ${maxLines} of ${lines.length} lines)\n${lines.slice(-maxLines).join("\n")}`
-        : fullLog;
+      const logs =
+        lines.length > maxLines
+          ? `... (truncated, showing last ${maxLines} of ${lines.length} lines)\n${lines.slice(-maxLines).join("\n")}`
+          : fullLog;
 
       return { name: check.name, state: check.state, link, runId, logs, error: null };
     } catch (e) {
@@ -2615,7 +2859,13 @@ export const gitStatusCodeLegend = {
   "!": "ignored",
 } as const;
 
-export type WorktreeSync = "up_to_date" | "ahead" | "behind" | "diverged" | "no_upstream" | "unknown";
+export type WorktreeSync =
+  | "up_to_date"
+  | "ahead"
+  | "behind"
+  | "diverged"
+  | "no_upstream"
+  | "unknown";
 
 export type WorktreeStatus = {
   branch: {
@@ -2740,7 +2990,14 @@ function isConflictCode(x: string, y: string): boolean {
   if (x === "U" || y === "U") {
     return true;
   }
-  return pair === "AA" || pair === "DD" || pair === "AU" || pair === "UA" || pair === "DU" || pair === "UD";
+  return (
+    pair === "AA" ||
+    pair === "DD" ||
+    pair === "AU" ||
+    pair === "UA" ||
+    pair === "DU" ||
+    pair === "UD"
+  );
 }
 
 export function parseWorktreeStatus(porcelain: string): WorktreeStatus {
@@ -2800,7 +3057,11 @@ export function parseWorktreeStatus(porcelain: string): WorktreeStatus {
       conflicts,
     },
     counts,
-    clean: counts.staged === 0 && counts.unstaged === 0 && counts.untracked === 0 && counts.conflicts === 0,
+    clean:
+      counts.staged === 0 &&
+      counts.unstaged === 0 &&
+      counts.untracked === 0 &&
+      counts.conflicts === 0,
     codes: gitStatusCodeLegend,
   };
 }
@@ -2961,25 +3222,27 @@ export type BoardUnit = {
     untracked: number | null;
     conflicts: number | null;
   };
-  status?: {
-    remote: {
-      gh_issue: string;
-      beads_issue: string;
-      project_item: string;
-      branch: string;
-      buffer_branch?: string | undefined;
-      pr: string;
-      merge_state: string;
-      ci: string;
-      problem: string;
-    };
-    local: {
-      branch: string;
-      worktree: string;
-      dir: string;
-      problem: string;
-    };
-  } | undefined;
+  status?:
+    | {
+        remote: {
+          gh_issue: string;
+          beads_issue: string;
+          project_item: string;
+          branch: string;
+          buffer_branch?: string | undefined;
+          pr: string;
+          merge_state: string;
+          ci: string;
+          problem: string;
+        };
+        local: {
+          branch: string;
+          worktree: string;
+          dir: string;
+          problem: string;
+        };
+      }
+    | undefined;
   /**
    * GH-914: HEAD authorship of `origin/<branch>`, populated on any unit
    * whose branch exists on origin regardless of which pass produced it.
@@ -2991,11 +3254,13 @@ export type BoardUnit = {
    * fetch remote authorship, or when no remote branch entry exists for
    * the unit.
    */
-  remote_branch_author?: {
-    name: string;
-    email: string;
-    isOperator: boolean | null;
-  } | undefined;
+  remote_branch_author?:
+    | {
+        name: string;
+        email: string;
+        isOperator: boolean | null;
+      }
+    | undefined;
   column: BoardColumn;
   reasons: string[];
 };
@@ -3232,7 +3497,7 @@ function parseTomlStringValue(raw: string): string | null {
   if (value.length === 0) {
     return null;
   }
-  if (value.startsWith("\"")) {
+  if (value.startsWith('"')) {
     let escaped = false;
     for (let index = 1; index < value.length; index += 1) {
       const char = value[index];
@@ -3244,7 +3509,7 @@ function parseTomlStringValue(raw: string): string | null {
         escaped = true;
         continue;
       }
-      if (char === "\"") {
+      if (char === '"') {
         const remainder = value.slice(index + 1).trim();
         if (remainder.length > 0 && !remainder.startsWith("#")) {
           return null;
@@ -3348,7 +3613,11 @@ export function loadPrefixRoutingConfig(
     }
     const prefix = (keyMatch[1] ?? "").toUpperCase();
     const value = parseTomlStringValue(keyMatch[2] ?? "");
-    if (!prefix || !value || !issueAuthorityFeatures.includes(value as SurfaceSyncAuthorityFeature)) {
+    if (
+      !prefix ||
+      !value ||
+      !issueAuthorityFeatures.includes(value as SurfaceSyncAuthorityFeature)
+    ) {
       continue;
     }
     parsed.features[prefix] = value as SurfaceSyncAuthorityFeature;
@@ -3509,10 +3778,7 @@ function mergeIdentityTomlFields(
 // per-repo prx config for external repos we don't own
 // without touching those repos. Uses the same reverse-DNS layout as
 // `~/.local/share/git/bare/io.github/<owner>/<repo>.git/`.
-function resolveOperatorOverlayPath(
-  repoPath: string,
-  runner: CommandRunner,
-): string | null {
+function resolveOperatorOverlayPath(repoPath: string, runner: CommandRunner): string | null {
   const overlayRoot = operatorConfigRoot();
   if (!overlayRoot || overlayRoot.length === 0) {
     return null;
@@ -3637,10 +3903,7 @@ function parseClosedStatuses(raw: string | undefined): string[] {
     .filter((s) => s.length > 0);
 }
 
-function buildSourceConfig(
-  name: string,
-  raw: SourceTomlFields,
-): SourceConfig {
+function buildSourceConfig(name: string, raw: SourceTomlFields): SourceConfig {
   const label = `prx.toml [sources.${name}]`;
   const provenance = `at ${raw.source}`;
   const rawKind = raw.keys["kind"];
@@ -3661,9 +3924,7 @@ function buildSourceConfig(
 
   const rawPattern = raw.keys["canonical_id_pattern"];
   if (!rawPattern || rawPattern.value.length === 0) {
-    throw new Error(
-      `${label} canonical_id_pattern is required (${provenance})`,
-    );
+    throw new Error(`${label} canonical_id_pattern is required (${provenance})`);
   }
   let canonicalIdPattern: RegExp;
   try {
@@ -3719,9 +3980,7 @@ function buildSourceConfig(
     for (const required of ["database_id", "id_property", "title_property"] as const) {
       const value = raw.keys[required];
       if (!value || value.value.length === 0) {
-        throw new Error(
-          `${label} ${required} is required when auth = "rest" (${provenance})`,
-        );
+        throw new Error(`${label} ${required} is required when auth = "rest" (${provenance})`);
       }
     }
     return {
@@ -3913,10 +4172,7 @@ export function persistWorkspaceTrack(repoRoot: string, track: boolean): void {
 // non-GH prefixes from prx.toml [routing] continue to resolve during the
 // migration to GH-canonical identity. Canonical validation (GH-only) lives
 // in canonicalWorkUnitIdFromBranchName and is kept independent.
-function listRemoteBranches(
-  repoPath: string,
-  runner: CommandRunner = defaultRunner,
-): string[] {
+function listRemoteBranches(repoPath: string, runner: CommandRunner = defaultRunner): string[] {
   const result = runner(["git", "-C", repoPath, "branch", "--list", "-r"], { check: false });
   if (result.status !== 0) {
     return [];
@@ -3930,10 +4186,7 @@ function listRemoteBranches(
     .filter((line) => line.length > 0);
 }
 
-function listLocalBranches(
-  repoPath: string,
-  runner: CommandRunner = defaultRunner,
-): string[] {
+function listLocalBranches(repoPath: string, runner: CommandRunner = defaultRunner): string[] {
   const result = runner(["git", "-C", repoPath, "branch", "--format=%(refname:short)"], {
     check: false,
   });
@@ -3947,10 +4200,7 @@ function listLocalBranches(
     .filter((line) => line.length > 0);
 }
 
-function safeRun(
-  runner: CommandRunner,
-  cmd: string[],
-): CommandResult | null {
+function safeRun(runner: CommandRunner, cmd: string[]): CommandResult | null {
   try {
     return runner(cmd, { check: false });
   } catch {
@@ -4122,10 +4372,9 @@ function fetchIssueLive(
   if (!ticket || !match) {
     return null;
   }
-  const result = runner(
-    ["gh", "issue", "view", match[1]!, "--json", "number,state", "-R", repo],
-    { check: false },
-  );
+  const result = runner(["gh", "issue", "view", match[1]!, "--json", "number,state", "-R", repo], {
+    check: false,
+  });
   if (result.status !== 0) {
     return null;
   }
@@ -4187,7 +4436,10 @@ type BeadsSnapshot = { view: BeadsIssueView | null };
  * shells out. Raises {@link ProjectionMiss} when not hydrated (call
  * {@link hydrateBeads} first). Null return = "no bead", distinct from a miss.
  */
-export function maybeViewBeadsIssue(repoPath: string, beadId: string | null): BeadsIssueView | null {
+export function maybeViewBeadsIssue(
+  repoPath: string,
+  beadId: string | null,
+): BeadsIssueView | null {
   if (!beadId) {
     return null;
   }
@@ -4287,7 +4539,11 @@ function maybeViewProjectItems(
 
   try {
     const parsed = JSON.parse(result.stdout) as {
-      data?: { repository?: { issue?: { projectItems?: { nodes?: Array<{ id?: string | null }> | null } | null } | null } | null };
+      data?: {
+        repository?: {
+          issue?: { projectItems?: { nodes?: Array<{ id?: string | null }> | null } | null } | null;
+        } | null;
+      };
     };
     const count = parsed.data?.repository?.issue?.projectItems?.nodes?.length ?? 0;
     return { count };
@@ -4473,15 +4729,21 @@ function remoteStatusForUnit(
   // runner (fresh-or-fetch); the read seams are pure.
   if (issueParityFeatureEnabled(config, "gh_issue")) hydrateIssue(repo, ticket, runner);
   if (issueParityFeatureEnabled(config, "beads_issue")) hydrateBeads(repoPath, beadId, runner);
-  const ghIssue = issueParityFeatureEnabled(config, "gh_issue") ? maybeViewIssue(repo, ticket) : null;
-  const beadsIssue = issueParityFeatureEnabled(config, "beads_issue") ? maybeViewBeadsIssue(repoPath, beadId) : null;
-  const projectItem = issueParityFeatureEnabled(config, "project_item") ? maybeViewProjectItems(repo, ticket, runner) : null;
+  const ghIssue = issueParityFeatureEnabled(config, "gh_issue")
+    ? maybeViewIssue(repo, ticket)
+    : null;
+  const beadsIssue = issueParityFeatureEnabled(config, "beads_issue")
+    ? maybeViewBeadsIssue(repoPath, beadId)
+    : null;
+  const projectItem = issueParityFeatureEnabled(config, "project_item")
+    ? maybeViewProjectItems(repo, ticket, runner)
+    : null;
   const latestPr = explicitPr.exists
-    ? {
+    ? ({
         number: explicitPr.number!,
         state: "OPEN",
         isDraft: explicitPr.draft ?? false,
-      } as PrView
+      } as PrView)
     : latestPrForBranch(repo, branch, runner);
   const ghIssueStatus = issueParityFeatureEnabled(config, "gh_issue")
     ? issueLifecycleLabel(ghIssue, ticket)
@@ -4499,14 +4761,14 @@ function remoteStatusForUnit(
     ? prMergeStateLabel(latestPr)
     : "disabled";
   const ciStatus = issueParityFeatureEnabled(config, "ci")
-    ? (explicitPr.exists
+    ? explicitPr.exists
       ? ciLifecycleLabel(explicitPr.checks)
-      : ciLifecycleLabel(latestPr ? summarizeChecks(latestPr.statusCheckRollup) : null))
+      : ciLifecycleLabel(latestPr ? summarizeChecks(latestPr.statusCheckRollup) : null)
     : "disabled";
   const completedLifecycle =
-    (issueParityFeatureEnabled(config, "gh_issue") && ghIssueStatus === "completed")
-    || (issueParityFeatureEnabled(config, "beads_issue") && beadsIssueStatus === "completed")
-    || prStatus === "completed";
+    (issueParityFeatureEnabled(config, "gh_issue") && ghIssueStatus === "completed") ||
+    (issueParityFeatureEnabled(config, "beads_issue") && beadsIssueStatus === "completed") ||
+    prStatus === "completed";
 
   return {
     gh_issue: ghIssueStatus,
@@ -4529,9 +4791,13 @@ function localStatusForUnit(
   runner: CommandRunner = defaultRunner,
 ): NonNullable<BoardUnit["status"]>["local"] {
   const branchExists = localBranchExists(repoPath, branch, runner);
-  const localBranchStatus = branchExists ? refStatusAgainstMain(repoPath, `refs/heads/${branch}`, runner) : "clean";
+  const localBranchStatus = branchExists
+    ? refStatusAgainstMain(repoPath, `refs/heads/${branch}`, runner)
+    : "clean";
   const worktreeStatus = unit.worktree_path
-    ? (localBranchStatus === "dirty" || unit.local.clean === false ? "dirty" : "clean")
+    ? localBranchStatus === "dirty" || unit.local.clean === false
+      ? "dirty"
+      : "clean"
     : "clean";
   const localDirStatus = worktreeMismatch
     ? "wrong worktree"
@@ -4540,9 +4806,10 @@ function localStatusForUnit(
       : branchExists
         ? "no worktree"
         : "missing";
-  const localProblem = localBranchStatus === "dirty"
-    || worktreeStatus === "dirty"
-    || localDirStatus === "wrong worktree";
+  const localProblem =
+    localBranchStatus === "dirty" ||
+    worktreeStatus === "dirty" ||
+    localDirStatus === "wrong worktree";
 
   return {
     branch: localBranchStatus,
@@ -4606,7 +4873,12 @@ export function commandForSurfaceSyncAction(
     case "delete_local_branch":
       return shellCommand("git", "branch", "-D", action.branch);
     case "delete_worktree":
-      return shellCommand("prx", "worktree-remove", action.ticket ?? action.branch, "--delete-branch");
+      return shellCommand(
+        "prx",
+        "worktree-remove",
+        action.ticket ?? action.branch,
+        "--delete-branch",
+      );
     case "create_local_branch":
       return shellCommand("git", "branch", action.branch, "origin/main");
     case "create_worktree":
@@ -4614,7 +4886,16 @@ export function commandForSurfaceSyncAction(
     case "push_remote_branch":
       return shellCommand("git", "push", "-u", "origin", action.branch);
     case "open_pr":
-      return shellCommand("gh", "pr", "create", "--head", action.branch, "--base", "main", "--draft");
+      return shellCommand(
+        "gh",
+        "pr",
+        "create",
+        "--head",
+        action.branch,
+        "--base",
+        "main",
+        "--draft",
+      );
     case "close_issue": {
       const prRef = action.pr !== null ? `#${action.pr}` : null;
       return shellCommand(
@@ -4639,7 +4920,6 @@ export type FallbackIssue = {
   url: string;
   labels?: FallbackIssueLabel[] | undefined;
 };
-
 
 export type SyncGitHubIssuesToBeadsResult = {
   exitCode: number;
@@ -4719,7 +4999,9 @@ function loadBeadsIssuesForGitHubIdentity(
     throw new Error("Failed to parse beads issue list");
   }
   return parsed
-    .filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object")
+    .filter(
+      (entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object",
+    )
     .map((entry) => ({
       id: typeof entry.id === "string" ? entry.id : "",
       title: typeof entry.title === "string" ? entry.title : "",
@@ -4736,7 +5018,19 @@ function loadGitHubIssuesForIdentity(
   runner: CommandRunner,
 ): GitHubIdentityGhIssue[] {
   const result = runner(
-    ["gh", "issue", "list", "-R", repo, "--state", "all", "--limit", "500", "--json", "number,title,url,state"],
+    [
+      "gh",
+      "issue",
+      "list",
+      "-R",
+      repo,
+      "--state",
+      "all",
+      "--limit",
+      "500",
+      "--json",
+      "number,title,url,state",
+    ],
     { cwd: root, check: false },
   );
   if (result.status !== 0) {
@@ -4747,7 +5041,9 @@ function loadGitHubIssuesForIdentity(
     throw new Error("Failed to parse GitHub issue list");
   }
   return parsed
-    .filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object")
+    .filter(
+      (entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object",
+    )
     .map((entry) => ({
       number: typeof entry.number === "number" ? entry.number : -1,
       title: typeof entry.title === "string" ? entry.title : "",
@@ -4812,7 +5108,10 @@ function enforceGitHubIssueIdentity(
     }
 
     if (apply) {
-      const renameResult = runner(["bd", "rename", issue.id, canonicalId], { cwd: root, check: false });
+      const renameResult = runner(["bd", "rename", issue.id, canonicalId], {
+        cwd: root,
+        check: false,
+      });
       if (renameResult.status !== 0) {
         exitCode = 1;
         lines.push(
@@ -4843,9 +5142,8 @@ function enforceGitHubIssueIdentity(
 }
 
 function normalizeWtState(state: WtState): NormalizedWtState {
-  const branch = typeof state.branch === "string" && state.branch.trim().length > 0
-    ? state.branch
-    : "MAIN";
+  const branch =
+    typeof state.branch === "string" && state.branch.trim().length > 0 ? state.branch : "MAIN";
   const working = state.working_tree ?? {};
   const dirtyFlags = [
     working.staged ? "staged" : null,
@@ -4890,7 +5188,9 @@ function normalizeWtState(state: WtState): NormalizedWtState {
       states,
     },
     symbols,
-    symbol_meanings: symbols.map((symbol) => wtSymbolLegend[symbol as keyof typeof wtSymbolLegend]).filter(Boolean),
+    symbol_meanings: symbols
+      .map((symbol) => wtSymbolLegend[symbol as keyof typeof wtSymbolLegend])
+      .filter(Boolean),
     commit: {
       sha: state.commit?.sha ?? null,
       message: state.commit?.message ?? null,
@@ -5153,10 +5453,7 @@ function tryPath(cmd: string[], runner: CommandRunner): string | null {
   return result.stdout.trim() || null;
 }
 
-function remoteStatus(
-  repoPath: string,
-  runner: CommandRunner = defaultRunner,
-): RemoteStatus {
+function remoteStatus(repoPath: string, runner: CommandRunner = defaultRunner): RemoteStatus {
   if (wtCacheDisabled()) {
     return computeRemoteStatus(repoPath, runner);
   }
@@ -5173,10 +5470,7 @@ function remoteStatus(
   return status;
 }
 
-function computeRemoteStatus(
-  repoPath: string,
-  runner: CommandRunner,
-): RemoteStatus {
+function computeRemoteStatus(repoPath: string, runner: CommandRunner): RemoteStatus {
   const result = runner(["git", "-C", repoPath, "fetch", "--dry-run", "origin"], { check: false });
   const combined = `${result.stdout}\n${result.stderr}`
     .split(/\r?\n/)
@@ -5267,7 +5561,11 @@ function deriveBoardColumn(
   }
 
   if (!unit.pr.exists) {
-    if ((unit.local.staged ?? 0) > 0 || (unit.local.unstaged ?? 0) > 0 || (unit.local.untracked ?? 0) > 0) {
+    if (
+      (unit.local.staged ?? 0) > 0 ||
+      (unit.local.unstaged ?? 0) > 0 ||
+      (unit.local.untracked ?? 0) > 0
+    ) {
       reasons.push("local changes before push");
       return { column: "committing", reasons };
     }
@@ -5310,7 +5608,11 @@ function deriveBoardColumn(
 }
 
 export function boardStatus(repoPath: string, runner?: CommandRunner): BoardStatusResult;
-export function boardStatus(repoPath: string, options: BoardStatusOptions, runner?: CommandRunner): BoardStatusResult;
+export function boardStatus(
+  repoPath: string,
+  options: BoardStatusOptions,
+  runner?: CommandRunner,
+): BoardStatusResult;
 export function boardStatus(
   repoPath: string,
   optionsOrRunner: BoardStatusOptions | CommandRunner = {},
@@ -5325,8 +5627,8 @@ export function boardStatus(
   // a target, every unit is eligible — the existing full-board behavior.
   const targetBranch = options.targetBranch;
   const matchesTarget = (branch: string): boolean =>
-    targetBranch === undefined
-    || normalizeCanonicalWorkUnitId(branch) === normalizeCanonicalWorkUnitId(targetBranch);
+    targetBranch === undefined ||
+    normalizeCanonicalWorkUnitId(branch) === normalizeCanonicalWorkUnitId(targetBranch);
   const root = repoRoot(repoPath, effectiveRunner);
   const parityConfig = loadSurfaceSyncConfig(root, effectiveRunner);
   const repo = repoNameWithOwner(root, effectiveRunner);
@@ -5387,12 +5689,28 @@ export function boardStatus(
         const derived = deriveBoardColumn(base, remote.freshness);
         return {
           ...base,
-          status: options.remote && matchesTarget(wt.branch)
-            ? {
-                remote: remoteStatusForUnit(root, repo, wt.branch, base.ticket, base.beadId ?? null, base.pr, parityConfig, effectiveRunner),
-                local: localStatusForUnit(root, wt.branch, base, wt.structural.mismatch, effectiveRunner),
-              }
-            : undefined,
+          status:
+            options.remote && matchesTarget(wt.branch)
+              ? {
+                  remote: remoteStatusForUnit(
+                    root,
+                    repo,
+                    wt.branch,
+                    base.ticket,
+                    base.beadId ?? null,
+                    base.pr,
+                    parityConfig,
+                    effectiveRunner,
+                  ),
+                  local: localStatusForUnit(
+                    root,
+                    wt.branch,
+                    base,
+                    wt.structural.mismatch,
+                    effectiveRunner,
+                  ),
+                }
+              : undefined,
           column: derived.column,
           reasons: derived.reasons,
         };
@@ -5442,7 +5760,16 @@ export function boardStatus(
         ...base,
         status: matchesTarget(pr.headRefName)
           ? {
-              remote: remoteStatusForUnit(root, repo, pr.headRefName, base.ticket, base.beadId ?? null, base.pr, parityConfig, effectiveRunner),
+              remote: remoteStatusForUnit(
+                root,
+                repo,
+                pr.headRefName,
+                base.ticket,
+                base.beadId ?? null,
+                base.pr,
+                parityConfig,
+                effectiveRunner,
+              ),
               local: localStatusForUnit(root, pr.headRefName, base, false, effectiveRunner),
             }
           : undefined,
@@ -5453,10 +5780,10 @@ export function boardStatus(
 
     for (const remoteBranch of remoteBranches) {
       if (
-        localBranches.has(remoteBranch)
-        || prByBranch.has(remoteBranch)
-        || remoteBranch === "main"
-        || remoteBranch.length === 0
+        localBranches.has(remoteBranch) ||
+        prByBranch.has(remoteBranch) ||
+        remoteBranch === "main" ||
+        remoteBranch.length === 0
       ) {
         continue;
       }
@@ -5496,7 +5823,16 @@ export function boardStatus(
         ...base,
         status: matchesTarget(remoteBranch)
           ? {
-              remote: remoteStatusForUnit(root, repo, remoteBranch, base.ticket, base.beadId ?? null, base.pr, parityConfig, effectiveRunner),
+              remote: remoteStatusForUnit(
+                root,
+                repo,
+                remoteBranch,
+                base.ticket,
+                base.beadId ?? null,
+                base.pr,
+                parityConfig,
+                effectiveRunner,
+              ),
               local: localStatusForUnit(root, remoteBranch, base, false, effectiveRunner),
             }
           : undefined,
@@ -5511,11 +5847,7 @@ export function boardStatus(
     const allLocalBranches = listLocalBranches(root, effectiveRunner);
     const remoteBranchSet = remoteBranches;
     for (const localBranch of allLocalBranches) {
-      if (
-        coveredBranches.has(localBranch)
-        || localBranch === "main"
-        || localBranch.length === 0
-      ) {
+      if (coveredBranches.has(localBranch) || localBranch === "main" || localBranch.length === 0) {
         continue;
       }
 
@@ -5555,7 +5887,16 @@ export function boardStatus(
       // this only affects non-target rows the lone scoped caller never reads.
       const hydrate = matchesTarget(localBranch);
       const remoteStatus = hydrate
-        ? remoteStatusForUnit(root, repo, localBranch, base.ticket, base.beadId ?? null, base.pr, parityConfig, effectiveRunner)
+        ? remoteStatusForUnit(
+            root,
+            repo,
+            localBranch,
+            base.ticket,
+            base.beadId ?? null,
+            base.pr,
+            parityConfig,
+            effectiveRunner,
+          )
         : null;
       const localStatus = hydrate
         ? localStatusForUnit(root, localBranch, base, false, effectiveRunner)
@@ -5563,19 +5904,22 @@ export function boardStatus(
       // Use PR lifecycle from remote status to derive column for orphaned branches
       const completedLifecycle = remoteStatus?.pr === "completed";
       const column: BoardColumn = completedLifecycle
-        ? (remoteBranchSet.has(localBranch) ? "merged" : "cleaned")
+        ? remoteBranchSet.has(localBranch)
+          ? "merged"
+          : "cleaned"
         : "no_worktree";
       const reasons: string[] = completedLifecycle
         ? ["orphaned local branch from completed PR lifecycle"]
         : ["local-only branch without worktree"];
       units.push({
         ...base,
-        status: remoteStatus && localStatus
-          ? {
-              remote: remoteStatus,
-              local: localStatus,
-            }
-          : undefined,
+        status:
+          remoteStatus && localStatus
+            ? {
+                remote: remoteStatus,
+                local: localStatus,
+              }
+            : undefined,
         column,
         reasons,
       });
@@ -5642,7 +5986,9 @@ function dispositionForUnit(
   let issueStatus: "clean" | "dirty" | "completed" | "disabled";
   if (parityConfig && routingConfig) {
     const issueFeature = issueFeatureForUnit(unit.branch, routingConfig);
-    issueFeatureEnabled = issueFeature ? issueParityFeatureEnabled(parityConfig, issueFeature) : false;
+    issueFeatureEnabled = issueFeature
+      ? issueParityFeatureEnabled(parityConfig, issueFeature)
+      : false;
     const raw = issueFeatureStatus(status, issueFeature);
     issueStatus = normalizeIssueStatus(raw, issueFeatureEnabled);
   } else {
@@ -5682,7 +6028,9 @@ export function chainStatusFromBoard(
       local: unit.local,
       status: unit.status,
       state: unit.column,
-      ...(unit.status ? { disposition: dispositionForUnit(unit, parityConfig, routingConfig) } : {}),
+      ...(unit.status
+        ? { disposition: dispositionForUnit(unit, parityConfig, routingConfig) }
+        : {}),
       reasons: unit.reasons,
     } satisfies ChainStatusRow;
   });
@@ -5709,16 +6057,21 @@ export function chainStatusFromBoard(
 }
 
 export function chainStatus(repoPath: string, runner?: CommandRunner): ChainStatusResult;
-export function chainStatus(repoPath: string, options: BoardStatusOptions, runner?: CommandRunner): ChainStatusResult;
+export function chainStatus(
+  repoPath: string,
+  options: BoardStatusOptions,
+  runner?: CommandRunner,
+): ChainStatusResult;
 export function chainStatus(
   repoPath: string,
   optionsOrRunner: BoardStatusOptions | CommandRunner = {},
   runner: CommandRunner = defaultRunner,
 ): ChainStatusResult {
   const effectiveRunner = typeof optionsOrRunner === "function" ? optionsOrRunner : runner;
-  const board = typeof optionsOrRunner === "function"
-    ? boardStatus(repoPath, optionsOrRunner)
-    : boardStatus(repoPath, optionsOrRunner, runner);
+  const board =
+    typeof optionsOrRunner === "function"
+      ? boardStatus(repoPath, optionsOrRunner)
+      : boardStatus(repoPath, optionsOrRunner, runner);
   return chainStatusFromBoard(board, { repoPath, runner: effectiveRunner });
 }
 
@@ -5851,7 +6204,6 @@ export function buildSurfaceSyncFromBoard(
   });
 }
 
-
 export function buildParityChain(
   repoPath: string,
   options: {
@@ -5873,21 +6225,21 @@ function diffStatsForPr(
   prNumber: number,
   runner: CommandRunner,
 ): { files: number; additions: number; deletions: number } {
-  const namesResult = runner(
-    ["gh", "pr", "diff", String(prNumber), "--name-only", "-R", repo],
-    { check: false },
-  );
+  const namesResult = runner(["gh", "pr", "diff", String(prNumber), "--name-only", "-R", repo], {
+    check: false,
+  });
   const diffResult = runner(
     ["gh", "pr", "diff", String(prNumber), "--color", "never", "-R", repo],
     { check: false },
   );
 
-  const files = namesResult.status === 0
-    ? namesResult.stdout
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean).length
-    : 0;
+  const files =
+    namesResult.status === 0
+      ? namesResult.stdout
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean).length
+      : 0;
 
   let additions = 0;
   let deletions = 0;
@@ -5911,7 +6263,10 @@ function diffStatsForPr(
 function summarizeChecks(
   rollup:
     | Array<{ status?: string | null; conclusion?: string | null }>
-    | { state?: string | null; contexts?: Array<{ status?: string | null; conclusion?: string | null }> | null }
+    | {
+        state?: string | null;
+        contexts?: Array<{ status?: string | null; conclusion?: string | null }> | null;
+      }
     | null
     | undefined,
 ): "green" | "pending" | "red" | "unknown" {
@@ -5945,10 +6300,21 @@ function summarizeChecks(
 
     if (status === "COMPLETED") {
       sawCompleted = true;
-      if (conclusion === "FAILURE" || conclusion === "TIMED_OUT" || conclusion === "CANCELLED" || conclusion === "STARTUP_FAILURE" || conclusion === "ACTION_REQUIRED") {
+      if (
+        conclusion === "FAILURE" ||
+        conclusion === "TIMED_OUT" ||
+        conclusion === "CANCELLED" ||
+        conclusion === "STARTUP_FAILURE" ||
+        conclusion === "ACTION_REQUIRED"
+      ) {
         return "red";
       }
-      if (conclusion === "" || conclusion === "NEUTRAL" || conclusion === "SKIPPED" || conclusion === "STALE") {
+      if (
+        conclusion === "" ||
+        conclusion === "NEUTRAL" ||
+        conclusion === "SKIPPED" ||
+        conclusion === "STALE"
+      ) {
         continue;
       }
     }
@@ -5963,9 +6329,7 @@ function summarizeChecks(
   return "unknown";
 }
 
-function summarizeMergeable(
-  mergeable: string | null | undefined,
-): OverviewRow["mergeable"] {
+function summarizeMergeable(mergeable: string | null | undefined): OverviewRow["mergeable"] {
   const normalized = (mergeable ?? "").toUpperCase();
   if (normalized === "MERGEABLE") {
     return "mergeable";
@@ -5983,7 +6347,7 @@ function countApprovals(
     | null
     | undefined,
 ): number {
-  const list = Array.isArray(reviews) ? reviews : reviews?.nodes ?? [];
+  const list = Array.isArray(reviews) ? reviews : (reviews?.nodes ?? []);
   return list.filter((review) => (review.state ?? "").toUpperCase() === "APPROVED").length;
 }
 
@@ -6014,10 +6378,16 @@ function enrichOverviewRow(
     reviewDecision?: string | null;
     statusCheckRollup?:
       | Array<{ status?: string | null; conclusion?: string | null }>
-      | { state?: string | null; contexts?: Array<{ status?: string | null; conclusion?: string | null }> | null }
+      | {
+          state?: string | null;
+          contexts?: Array<{ status?: string | null; conclusion?: string | null }> | null;
+        }
       | null;
     mergeable?: string | null;
-    reviews?: Array<{ state?: string | null }> | { nodes?: Array<{ state?: string | null }> | null } | null;
+    reviews?:
+      | Array<{ state?: string | null }>
+      | { nodes?: Array<{ state?: string | null }> | null }
+      | null;
   },
   branchToWorktree: Record<string, string>,
   repo: string,
@@ -6132,7 +6502,16 @@ export function updatePrFromContract(
   lines.push(`UPDATED ${outputPath} from ${contractPath}`);
 
   runner(
-    ["gh", "pr", "edit", resolvedPrRef, "--title", prContract.title ?? "", "--body-file", outputPath],
+    [
+      "gh",
+      "pr",
+      "edit",
+      resolvedPrRef,
+      "--title",
+      prContract.title ?? "",
+      "--body-file",
+      outputPath,
+    ],
     { cwd: repoPath },
   );
   lines.push(`UPDATED PR #${resolvedPrRef} title/body from contract`);
@@ -6144,7 +6523,9 @@ export function updatePrFromContract(
     runner(["gh", "pr", "ready", resolvedPrRef, "--undo"], { cwd: repoPath });
     lines.push(`UPDATED PR #${resolvedPrRef} ready -> draft`);
   } else {
-    lines.push(`OK PR #${resolvedPrRef}: current=${currentPr.isDraft ? "draft" : "ready"} desired=${info.mode}`);
+    lines.push(
+      `OK PR #${resolvedPrRef}: current=${currentPr.isDraft ? "draft" : "ready"} desired=${info.mode}`,
+    );
   }
 
   return { exitCode: 0, lines };
@@ -6191,8 +6572,7 @@ export function syncStatus(
           runner(["gh", "pr", "ready", String(pr.number), "--undo", "-R", repo]);
           lines.push(`UPDATED #${pr.number} ${branch}: ready -> draft`);
         } catch (error) {
-          const message =
-            error instanceof Error && error.message ? error.message : "Unknown error";
+          const message = error instanceof Error && error.message ? error.message : "Unknown error";
           lines.push(`FAIL #${pr.number} ${branch}: ${message}`);
           exitCode = 1;
         }
@@ -6221,19 +6601,20 @@ export async function syncGitHubIssuesToBeads(
   const repo = repoNameWithOwner(root, runner);
   const lines: string[] = [];
 
-  const configuredRepo = parseBeadsConfigValue(runner(
-    ["bd", "config", "get", "github.repository"],
-    { cwd: root, check: false },
-  ).stdout);
+  const configuredRepo = parseBeadsConfigValue(
+    runner(["bd", "config", "get", "github.repository"], { cwd: root, check: false }).stdout,
+  );
 
   if (configuredRepo !== repo) {
     if (apply) {
-      const configResult = runner(
-        ["bd", "config", "set", "github.repository", repo],
-        { cwd: root, check: false },
-      );
+      const configResult = runner(["bd", "config", "set", "github.repository", repo], {
+        cwd: root,
+        check: false,
+      });
       if (configResult.status !== 0) {
-        const message = (configResult.stderr || configResult.stdout).trim() || "Failed to configure beads GitHub repository";
+        const message =
+          (configResult.stderr || configResult.stdout).trim() ||
+          "Failed to configure beads GitHub repository";
         lines.push(`FAIL beads github.repository -> ${repo}: ${message}`);
         return { exitCode: 1, lines };
       }
@@ -6305,4 +6686,3 @@ function parseBeadsConfigValue(stdout: string): string {
 
   return trimmed;
 }
-

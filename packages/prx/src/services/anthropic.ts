@@ -83,9 +83,7 @@ export function projectAnthropicUsage(
         )
         .all(since)
     : db
-        .query<EventRow, []>(
-          `SELECT raw_json FROM events WHERE action = 'non-interactive-agent'`,
-        )
+        .query<EventRow, []>(`SELECT raw_json FROM events WHERE action = 'non-interactive-agent'`)
         .all();
 
   const groups = new Map<string, AnthropicUsageBucket>();
@@ -132,7 +130,10 @@ export function projectAnthropicUsage(
  * ISO floor relative to `now`. Returns `undefined` when no window is
  * specified, so callers project across the full audit store.
  */
-export function resolveWindowFloor(window: string | undefined, now: Date = new Date()): string | undefined {
+export function resolveWindowFloor(
+  window: string | undefined,
+  now: Date = new Date(),
+): string | undefined {
   if (!window) return undefined;
   const trimmed = window.trim();
   if (trimmed.length === 0) return undefined;
@@ -142,13 +143,17 @@ export function resolveWindowFloor(window: string | undefined, now: Date = new D
 
   const match = trimmed.match(/^(\d+)([dhm])$/);
   if (!match) {
-    throw new Error(`anthropic: invalid --window value '${window}' (expected Nd / Nh / Nm or ISO timestamp)`);
+    throw new Error(
+      `anthropic: invalid --window value '${window}' (expected Nd / Nh / Nm or ISO timestamp)`,
+    );
   }
   const amount = Number(match[1]);
   const unit = match[2];
   const ms =
-    unit === "d" ? amount * 86_400_000 :
-    unit === "h" ? amount * 3_600_000 :
-    /* m */        amount * 60_000;
+    unit === "d"
+      ? amount * 86_400_000
+      : unit === "h"
+        ? amount * 3_600_000
+        : /* m */ amount * 60_000;
   return new Date(now.getTime() - ms).toISOString();
 }

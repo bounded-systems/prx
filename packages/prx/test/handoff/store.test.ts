@@ -107,9 +107,7 @@ describe("handoffMemoryKey", () => {
 
   test("handoffMemoryKeyPrefix scopes to target + work", () => {
     expect(handoffMemoryKeyPrefix("publisher")).toBe("handoff/publisher/");
-    expect(handoffMemoryKeyPrefix("publisher", "GH-9")).toBe(
-      "handoff/publisher/GH-9/",
-    );
+    expect(handoffMemoryKeyPrefix("publisher", "GH-9")).toBe("handoff/publisher/GH-9/");
   });
 });
 
@@ -274,10 +272,7 @@ describe("listHandoffs", () => {
     });
     const all = await listHandoffs({}, { execBd: exec });
     expect(all.length).toBe(1);
-    const done = await listHandoffs(
-      { status: "done" },
-      { execBd: exec },
-    );
+    const done = await listHandoffs({ status: "done" }, { execBd: exec });
     expect(done.length).toBe(0);
   });
 });

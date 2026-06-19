@@ -13,11 +13,7 @@
 import { resolve } from "node:path";
 import { CliError } from "./cli-error.ts";
 import { defaultRepoRunner, type RepoRunner } from "./repos.ts";
-import {
-  BranchStore,
-  RepositoryStore,
-  type BranchRow,
-} from "./registry_store.ts";
+import { BranchStore, RepositoryStore, type BranchRow } from "./registry_store.ts";
 import { inferRepoFromWorktree } from "./repo_adopt.ts";
 
 // Mirrors repos.ts SAFE_SEGMENT, but branch names allow `/` as a separator
@@ -48,10 +44,10 @@ export function inferBranchFromWorktree(
     throw new CliError(`Unexpected HEAD output for ${absWorktree}: '${head_sha}'`);
   }
 
-  const symref = runner(
-    ["git", "symbolic-ref", "--short", "HEAD"],
-    { cwd: absWorktree, check: false },
-  );
+  const symref = runner(["git", "symbolic-ref", "--short", "HEAD"], {
+    cwd: absWorktree,
+    check: false,
+  });
   if (symref.status !== 0) {
     return { name: null, head_sha };
   }
@@ -113,9 +109,10 @@ export function adoptBranch({
   const branch_id = `${repoRow.repo_id}:${name}`;
   const prior = branchStore.getById(branch_id);
   if (prior) {
-    const sameIdentity = prior.repo_id === repoRow.repo_id
-      && prior.name === name
-      && prior.head_sha === branchInferred.head_sha;
+    const sameIdentity =
+      prior.repo_id === repoRow.repo_id &&
+      prior.name === name &&
+      prior.head_sha === branchInferred.head_sha;
     if (sameIdentity) {
       return { kind: "already-adopted", row: prior };
     }

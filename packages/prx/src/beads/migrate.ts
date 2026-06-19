@@ -27,30 +27,15 @@
 // The transition shape is a Zod discriminated union so a future
 // `per-project → shared-server` arm can land as v2 without reshape.
 
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { cpSync, existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { homeDir } from "@bounded-systems/host";
 import { join } from "node:path";
 import { z } from "zod";
 
-import {
-  classifyBeadsWorkspace,
-  type BeadsWorkspaceMode,
-} from "./workspace_mode.ts";
-import {
-  defaultBdMigrateRunner,
-  type BdMigrateRunner,
-} from "./migrate_runner.ts";
+import { classifyBeadsWorkspace, type BeadsWorkspaceMode } from "./workspace_mode.ts";
+import { defaultBdMigrateRunner, type BdMigrateRunner } from "./migrate_runner.ts";
 import { patchBeadsMetadataDoltMode } from "./metadata_patch.ts";
-import {
-  isCaptureFailure,
-  type SpawnCaptureResult,
-} from "@bounded-systems/proc";
+import { isCaptureFailure, type SpawnCaptureResult } from "@bounded-systems/proc";
 import { recordEvent as defaultRecordEvent } from "../machine/record_event.ts";
 import {
   loadRepoInventoryConfig,
@@ -155,10 +140,7 @@ export type MigrateDeps = {
 
 // ---- runner ----------------------------------------------------------------
 
-export function runBeadsMigrate(
-  rawOpts: MigrateOptions,
-  deps: MigrateDeps = {},
-): MigrateResult {
+export function runBeadsMigrate(rawOpts: MigrateOptions, deps: MigrateDeps = {}): MigrateResult {
   const opts = migrateOptionsSchema.parse(rawOpts);
   const cwd = deps.cwd ?? process.cwd();
   const home = deps.homeDir ?? homeDir();
@@ -219,9 +201,7 @@ export function runBeadsMigrate(
       detail: `${jsonlPath} is empty; nothing to migrate`,
     };
   }
-  const ageSeconds = Math.floor(
-    (now().getTime() - jsonlStat.mtimeMs) / 1000,
-  );
+  const ageSeconds = Math.floor((now().getTime() - jsonlStat.mtimeMs) / 1000);
   if (ageSeconds > opts.staleThresholdSeconds) {
     return {
       kind: "refused",
@@ -273,9 +253,7 @@ export function runBeadsMigrate(
       `cp -R ${beadsDir} ${join(backupDir, "beads-full")}`,
       reinitArgs.join(" "),
       ...(opts.patchMetadata
-        ? [
-            `patch-metadata: set ${join(beadsDir, "metadata.json")} dolt_mode=server`,
-          ]
+        ? [`patch-metadata: set ${join(beadsDir, "metadata.json")} dolt_mode=server`]
         : []),
       verifyShowCmd.join(" "),
       verifyListCmd.join(" "),
@@ -406,10 +384,7 @@ export function runBeadsMigrate(
 
 // ---- helpers ---------------------------------------------------------------
 
-function defaultResolveRepo(
-  slug: string | undefined,
-  cwd: string,
-): LocalRepo | null {
+function defaultResolveRepo(slug: string | undefined, cwd: string): LocalRepo | null {
   if (!slug) {
     return localRepoForCwd(cwd);
   }
@@ -488,5 +463,8 @@ function failedResult(args: {
 
 function isoTimestampForPath(d: Date): string {
   // Filesystem-safe ISO: drop ms + colons so the dir name is portable.
-  return d.toISOString().replace(/\.\d{3}Z$/, "Z").replace(/:/g, "-");
+  return d
+    .toISOString()
+    .replace(/\.\d{3}Z$/, "Z")
+    .replace(/:/g, "-");
 }

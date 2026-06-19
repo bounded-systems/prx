@@ -38,11 +38,11 @@ describe("scout source — the source FETCH (GH-232)", () => {
 
   test("runScoutSource json output carries the resolved fields (fetch only, no pin)", async () => {
     const { out, lines } = sink();
-    const code = await runScoutSource(
-      { id: "GH-232", format: "json" },
-      out,
-      { loadIdentity: (() => ({})) as never, buildResolver: (() => fakeResolver(unit())) as never, repoPath: "/repo" },
-    );
+    const code = await runScoutSource({ id: "GH-232", format: "json" }, out, {
+      loadIdentity: (() => ({})) as never,
+      buildResolver: (() => fakeResolver(unit())) as never,
+      repoPath: "/repo",
+    });
     expect(code).toBe(0);
     const payload = JSON.parse(lines[0]!);
     expect(payload.unit).toBe("GH-232");

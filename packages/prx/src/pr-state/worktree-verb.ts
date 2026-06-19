@@ -43,7 +43,10 @@ export const worktreesVerb = defineVerb({
   input: z.object({
     "repo-path": z.string().default(".").describe("repo worktree path"),
     format: z.enum(["plain", "json"]).default("plain").describe("output format"),
-    "include-git-details": z.coerce.boolean().default(true).describe("include per-worktree git detail"),
+    "include-git-details": z.coerce
+      .boolean()
+      .default(true)
+      .describe("include per-worktree git detail"),
   }),
   output: RenderedOutput,
   deps: realWorktreesDeps,

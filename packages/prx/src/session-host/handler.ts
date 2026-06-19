@@ -18,11 +18,7 @@
  * sessions exist; liveness is the source of truth for *whether* they run.
  */
 
-import {
-  type SessionRecord,
-  type SessionRequest,
-  type SessionResponse,
-} from "./contract.ts";
+import { type SessionRecord, type SessionRequest, type SessionResponse } from "./contract.ts";
 
 /** What {@link SessionHostDeps.startProcess} is asked to spawn. */
 export interface StartSpec {

@@ -25,11 +25,7 @@ import {
 } from "@bounded-systems/anchored-chain";
 import { execGit } from "@bounded-systems/git";
 
-import {
-  GIT_COMMIT_BUILD_TYPE,
-  attestingGit,
-  type AttestDeps,
-} from "../attest.ts";
+import { GIT_COMMIT_BUILD_TYPE, attestingGit, type AttestDeps } from "../attest.ts";
 import { slsaProvenanceStatement, verifySlsaEnvelope } from "../slsa.ts";
 
 const BUILDER_ID = "prx://claude-code/submit";
@@ -82,7 +78,10 @@ describe("attestingGit — real git commit (end-to-end)", () => {
       now: () => NOW,
     };
 
-    const result = await attestingGit(execGit, deps)({
+    const result = await attestingGit(
+      execGit,
+      deps,
+    )({
       subcommand: "commit",
       args: ["-m", "first"],
       cwd: repo,
@@ -106,8 +105,6 @@ describe("attestingGit — real git commit (end-to-end)", () => {
       invocationId: d.derivationId as string,
       startedOn: new Date(NOW).toISOString(),
     });
-    expect(
-      await verifySlsaEnvelope(stmt, d.envelope!, ed25519Verifier(kp.publicKey)),
-    ).toBe(true);
+    expect(await verifySlsaEnvelope(stmt, d.envelope!, ed25519Verifier(kp.publicKey))).toBe(true);
   });
 });

@@ -20,10 +20,7 @@
 // stamps it onto the row so the audit log can distinguish a justified gh
 // comparator from an accidental gh fallback that the triage refactor missed.
 
-export type GhTruthReason =
-  | "forward-orphan-detection"
-  | "drift-comparator"
-  | "stale-comparator";
+export type GhTruthReason = "forward-orphan-detection" | "drift-comparator" | "stale-comparator";
 
 let currentVerb: string | null = null;
 let currentActor = "claude-code";

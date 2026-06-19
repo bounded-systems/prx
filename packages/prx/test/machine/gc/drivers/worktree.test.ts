@@ -7,10 +7,7 @@
  */
 import { describe, expect, test } from "bun:test";
 
-import type {
-  SurfaceSyncAction,
-  SurfaceSyncResult,
-} from "@bounded-systems/surface-sync";
+import type { SurfaceSyncAction, SurfaceSyncResult } from "@bounded-systems/surface-sync";
 
 import { markFindings } from "../../../../src/machine/gc/capability.ts";
 import { createWorktreeDriver } from "../../../../src/machine/gc/drivers/worktree.ts";
@@ -59,7 +56,8 @@ function wtDeps(opts: {
               command: `noop-${action.type}`,
               status: (opts.applyStatuses ?? [])[i] ?? 0,
               stdout: "",
-              stderr: action.type === "delete_worktree" && (opts.applyStatuses ?? [])[i] ? "locked" : "",
+              stderr:
+                action.type === "delete_worktree" && (opts.applyStatuses ?? [])[i] ? "locked" : "",
             }));
           },
         }),

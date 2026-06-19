@@ -17,10 +17,7 @@
 // watermark reader with the fetch orchestrator.
 
 import { getWatermark } from "./watermark.ts";
-import {
-  runFetchGhIssues as defaultRunFetchGhIssues,
-  FetchGhIssuesError,
-} from "./gh-issues.ts";
+import { runFetchGhIssues as defaultRunFetchGhIssues, FetchGhIssuesError } from "./gh-issues.ts";
 
 export type Staleness = "fresh" | "warn" | "stale" | "unknown";
 
@@ -29,9 +26,7 @@ export type Staleness = "fresh" | "warn" | "stale" | "unknown";
  * a `reason` so the caller can pass the staleness through to the verb
  * summary rather than escalating into a hard error.
  */
-export type SubstrateRefreshOutcome =
-  | { ok: true }
-  | { ok: false; reason: string };
+export type SubstrateRefreshOutcome = { ok: true } | { ok: false; reason: string };
 
 export type SubstrateRefresher = (args: {
   repo: string | undefined;
@@ -83,7 +78,8 @@ export function parseStalenessDurationMs(raw: string): number | null {
   const n = Number.parseFloat(m[1]!);
   if (!Number.isFinite(n) || n < 0) return null;
   const unit = (m[2] ?? "m").toLowerCase();
-  const scale = unit === "s" ? 1_000 : unit === "m" ? 60_000 : unit === "h" ? 3_600_000 : 86_400_000;
+  const scale =
+    unit === "s" ? 1_000 : unit === "m" ? 60_000 : unit === "h" ? 3_600_000 : 86_400_000;
   return Math.round(n * scale);
 }
 

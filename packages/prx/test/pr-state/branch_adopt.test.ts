@@ -3,15 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
 
-import {
-  BranchStore,
-  RepositoryStore,
-  openRegistry,
-} from "../../src/pr-state/registry_store.ts";
-import {
-  adoptBranch,
-  inferBranchFromWorktree,
-} from "../../src/pr-state/branch_adopt.ts";
+import { BranchStore, RepositoryStore, openRegistry } from "../../src/pr-state/registry_store.ts";
+import { adoptBranch, inferBranchFromWorktree } from "../../src/pr-state/branch_adopt.ts";
 import { CliError } from "../../src/pr-state/cli-error.ts";
 import type { RepoRunner } from "../../src/pr-state/repos.ts";
 
@@ -33,14 +26,8 @@ const HEAD_SHA = "0123456789abcdef0123456789abcdef01234567";
 
 function repoInferenceResponses(): Map<string, RunnerResponse> {
   return new Map<string, RunnerResponse>([
-    [
-      `git rev-parse --git-common-dir|${WORKTREE}`,
-      { stdout: `${BARE}\n`, stderr: "", status: 0 },
-    ],
-    [
-      `git remote get-url origin|${WORKTREE}`,
-      { stdout: `${ORIGIN}\n`, stderr: "", status: 0 },
-    ],
+    [`git rev-parse --git-common-dir|${WORKTREE}`, { stdout: `${BARE}\n`, stderr: "", status: 0 }],
+    [`git remote get-url origin|${WORKTREE}`, { stdout: `${ORIGIN}\n`, stderr: "", status: 0 }],
     [
       `git symbolic-ref --short refs/remotes/origin/HEAD|${WORKTREE}`,
       { stdout: "origin/main\n", stderr: "", status: 0 },
@@ -202,9 +189,9 @@ describe("adoptBranch", () => {
   test("adopting a branch before the owning repo is in the registry refuses", () => {
     withRegistry((repoStore, branchStore) => {
       const runner = makeRunner(attachedHeadResponses("GH-1761"));
-      expect(() =>
-        adoptBranch({ worktreePath: WORKTREE, repoStore, branchStore, runner }),
-      ).toThrow(/repo .* is not in the registry yet/);
+      expect(() => adoptBranch({ worktreePath: WORKTREE, repoStore, branchStore, runner })).toThrow(
+        /repo .* is not in the registry yet/,
+      );
     });
   });
 });

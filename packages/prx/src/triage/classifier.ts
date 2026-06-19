@@ -41,14 +41,8 @@ import {
 // from the per-repo inventory entry.
 import { join } from "node:path";
 import { execBd as defaultExecBd } from "@bounded-systems/bd";
-import {
-  bdPriorityToLabel,
-  loadTriageScopedBeads,
-} from "./triage.ts";
-import {
-  localRepoForCwd as defaultLocalRepoForCwd,
-  repoCanonical,
-} from "../pr-state/repos.ts";
+import { bdPriorityToLabel, loadTriageScopedBeads } from "./triage.ts";
+import { localRepoForCwd as defaultLocalRepoForCwd, repoCanonical } from "../pr-state/repos.ts";
 
 export const triageClassifyOptionsSchema = z.object({
   repo: z.string().trim().min(1).optional(),
@@ -193,8 +187,9 @@ export function classifyTitle(title: string): {
 }
 
 export function classifyIssueRow(issue: FallbackIssue): LabelPlanRow {
-  const { type, typeConfidence, priority, priorityConfidence, area, effort, spike } =
-    classifyTitle(issue.title);
+  const { type, typeConfidence, priority, priorityConfidence, area, effort, spike } = classifyTitle(
+    issue.title,
+  );
   const currentLabels = (issue.labels ?? [])
     .map((label) => label?.name)
     .filter((name): name is string => typeof name === "string");
@@ -242,8 +237,9 @@ export type BdRecordForClassify = {
 };
 
 export function classifyBdRecord(record: BdRecordForClassify): BdLabelPlanRow {
-  const { type, typeConfidence, priority, priorityConfidence, area, effort } =
-    classifyTitle(record.title);
+  const { type, typeConfidence, priority, priorityConfidence, area, effort } = classifyTitle(
+    record.title,
+  );
   const hasPriority = record.priority !== null;
   const hasType = record.issueType.length > 0;
   const row: BdLabelPlanRow = {
@@ -285,16 +281,18 @@ export function formatBdLabelPlan(plan: BdLabelPlan, format: "json" | "tsv"): st
   lines.push(["#repo", plan.repo].join("\t"));
   lines.push(["#canonical", plan.canonical].join("\t"));
   lines.push(["#generatedAt", plan.generatedAt].join("\t"));
-  lines.push([
-    "bdId",
-    "type",
-    "priority",
-    "area",
-    "effort",
-    "current_priority",
-    "current_type",
-    "title",
-  ].join("\t"));
+  lines.push(
+    [
+      "bdId",
+      "type",
+      "priority",
+      "area",
+      "effort",
+      "current_priority",
+      "current_type",
+      "title",
+    ].join("\t"),
+  );
   for (const row of plan.rows) {
     lines.push(
       [
@@ -403,10 +401,8 @@ export function runTriageClassify(
     if (opts.limit > 0 && bdRecords.length > opts.limit) {
       bdRecords = bdRecords.slice(0, opts.limit);
     }
-    const repo = opts.repo
-      ?? localRepo.primaryRemote?.githubRepo
-      ?? localRepo.name
-      ?? "<bd-canonical>";
+    const repo =
+      opts.repo ?? localRepo.primaryRemote?.githubRepo ?? localRepo.name ?? "<bd-canonical>";
     const plan = classifyBdQueue(
       bdRecords.map((b) => ({
         id: b.id,
@@ -485,9 +481,7 @@ export function runTriageClassify(
         }));
         repo =
           opts.repo ??
-          (typeof obj.repo === "string" && obj.repo.length > 0
-            ? obj.repo
-            : resolveRepo(cwd));
+          (typeof obj.repo === "string" && obj.repo.length > 0 ? obj.repo : resolveRepo(cwd));
       } else {
         output.error(`triage classify: --from file has no 'issues' array`);
         return 1;
@@ -511,11 +505,7 @@ export function runTriageClassify(
   return 0;
 }
 
-function formatBudgetGateError(
-  snapshot: BudgetSnapshot,
-  required: number,
-  now: Date,
-): string {
+function formatBudgetGateError(snapshot: BudgetSnapshot, required: number, now: Date): string {
   const reset = formatBudgetResetTime(snapshot.resetAt);
   const deltaMs = Math.max(0, snapshot.resetAt - now.getTime());
   const totalSeconds = Math.ceil(deltaMs / 1000);

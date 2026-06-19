@@ -102,9 +102,7 @@ function loadParentChildDeps(
     runner,
   );
   if (result.status !== 0) {
-    throw new Error(
-      (result.stderr || result.stdout).trim() || `bd dep list ${epicBeadId} failed`,
-    );
+    throw new Error((result.stderr || result.stdout).trim() || `bd dep list ${epicBeadId} failed`);
   }
   const stdout = result.stdout.trim();
   if (stdout.length === 0) return [];
@@ -162,9 +160,7 @@ export function findEpicChildren(
   runner: CommandRunner = defaultRunner,
 ): EpicChild[] {
   const snapshot = loadBeadsSnapshot(repoPath, runner);
-  const epic = snapshot.find(
-    (row) => ghNumberFromExternalRef(row.external_ref) === ghIssueNumber,
-  );
+  const epic = snapshot.find((row) => ghNumberFromExternalRef(row.external_ref) === ghIssueNumber);
   if (!epic) return [];
 
   const edges = loadParentChildDeps(repoPath, epic.id, runner);

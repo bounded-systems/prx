@@ -6,11 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, test } from "bun:test";
 
-import {
-  formatScoutGrepJsonLines,
-  runScoutGrep,
-  ScoutGrepError,
-} from "../grep.ts";
+import { formatScoutGrepJsonLines, runScoutGrep, ScoutGrepError } from "../grep.ts";
 
 describe("runScoutGrep — bounded JS-side grep", () => {
   let root: string;
@@ -25,14 +21,8 @@ describe("runScoutGrep — bounded JS-side grep", () => {
       join(root, "src", "a.ts"),
       "import { x } from 'y';\nconst v = mkdtempSync('foo');\n",
     );
-    writeFileSync(
-      join(root, "src", "b.md"),
-      "# heading\nuse mkdtemp here too\n\nanother line\n",
-    );
-    writeFileSync(
-      join(root, "src", "c.png"),
-      Buffer.from([0x89, 0x50, 0x4e, 0x47]),
-    );
+    writeFileSync(join(root, "src", "b.md"), "# heading\nuse mkdtemp here too\n\nanother line\n");
+    writeFileSync(join(root, "src", "c.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
     writeFileSync(
       join(root, "node_modules", "ignored", "d.ts"),
       "// mkdtemp in skip-dir — must not appear\n",
@@ -105,9 +95,7 @@ describe("runScoutGrep — bounded JS-side grep", () => {
       caught = err;
     }
     expect(caught).toBeInstanceOf(ScoutGrepError);
-    expect((caught as ScoutGrepError).code).toBe(
-      "WORKUNIT_RESOLUTION_NOT_IMPLEMENTED",
-    );
+    expect((caught as ScoutGrepError).code).toBe("WORKUNIT_RESOLUTION_NOT_IMPLEMENTED");
   });
 
   test("maxResults bounds matches and sets truncated", async () => {

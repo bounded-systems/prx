@@ -1,13 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -74,83 +67,74 @@ afterEach(() => {
 // which is local-materialized state (gitignored — see public-repo hygiene). When
 // the override isn't present (CI / fresh clones), skip; re-homing this scan as a
 // prx built-in hook is tracked separately so the public repo keeps secret-scanning.
-describe.skipIf(!existsSync(HOOK_SCRIPT))("ai-home per-repo pre-commit secret scan (GH-1124)", () => {
-  test("blocks staged gho_* token in .beads/config.yaml", () => {
-    stageBeadsConfig(
-      fx.work,
-      "github:\n  token: gho_FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE\n",
-    );
-    const result = runHook(fx.work, fx.hook);
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("op://");
-    expect(result.stderr).toContain(".beads/config.yaml");
-    expect(result.stderr).toContain("gho_***");
-    // The full token must NOT be echoed back (avoid leaking into terminal
-    // scrollback / CI logs).
-    expect(result.stderr).not.toContain("FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE");
-  });
+describe.skipIf(!existsSync(HOOK_SCRIPT))(
+  "ai-home per-repo pre-commit secret scan (GH-1124)",
+  () => {
+    test("blocks staged gho_* token in .beads/config.yaml", () => {
+      stageBeadsConfig(fx.work, "github:\n  token: gho_FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE\n");
+      const result = runHook(fx.work, fx.hook);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("op://");
+      expect(result.stderr).toContain(".beads/config.yaml");
+      expect(result.stderr).toContain("gho_***");
+      // The full token must NOT be echoed back (avoid leaking into terminal
+      // scrollback / CI logs).
+      expect(result.stderr).not.toContain("FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE");
+    });
 
-  test("blocks staged ghp_* token in .beads/config.yaml", () => {
-    stageBeadsConfig(
-      fx.work,
-      "github:\n  token: ghp_FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE\n",
-    );
-    const result = runHook(fx.work, fx.hook);
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("ghp_***");
-    expect(result.stderr).toContain("op://");
-  });
+    test("blocks staged ghp_* token in .beads/config.yaml", () => {
+      stageBeadsConfig(fx.work, "github:\n  token: ghp_FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE\n");
+      const result = runHook(fx.work, fx.hook);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("ghp_***");
+      expect(result.stderr).toContain("op://");
+    });
 
-  test("blocks staged github_pat_* token in .beads/config.yaml", () => {
-    stageBeadsConfig(
-      fx.work,
-      "github:\n  token: github_pat_11ABCDE_FAKEFAKEFAKEFAKEFAKEFAKE\n",
-    );
-    const result = runHook(fx.work, fx.hook);
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("github_pat_***");
-    expect(result.stderr).toContain("op://");
-  });
+    test("blocks staged github_pat_* token in .beads/config.yaml", () => {
+      stageBeadsConfig(fx.work, "github:\n  token: github_pat_11ABCDE_FAKEFAKEFAKEFAKEFAKEFAKE\n");
+      const result = runHook(fx.work, fx.hook);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("github_pat_***");
+      expect(result.stderr).toContain("op://");
+    });
 
-  test("blocks even when working tree is reverted but index still holds the token", () => {
-    // The 2026-04-30 case: file looks clean on disk, but the index entry
-    // is what gets committed. `git show :path` reads the index, not HEAD.
-    stageBeadsConfig(
-      fx.work,
-      "github:\n  token: gho_FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE\n",
-    );
-    // Wipe the working-tree copy so only the index has the secret.
-    writeFileSync(join(fx.work, ".beads", "config.yaml"), "github:\n  token: ''\n");
+    test("blocks even when working tree is reverted but index still holds the token", () => {
+      // The 2026-04-30 case: file looks clean on disk, but the index entry
+      // is what gets committed. `git show :path` reads the index, not HEAD.
+      stageBeadsConfig(fx.work, "github:\n  token: gho_FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE\n");
+      // Wipe the working-tree copy so only the index has the secret.
+      writeFileSync(join(fx.work, ".beads", "config.yaml"), "github:\n  token: ''\n");
 
-    const result = runHook(fx.work, fx.hook);
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("gho_***");
-  });
+      const result = runHook(fx.work, fx.hook);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("gho_***");
+    });
 
-  test("allows benign .beads/config.yaml (no token-shaped value)", () => {
-    stageBeadsConfig(fx.work, "issue-prefix: ai-home\nno-db: false\n");
-    const result = runHook(fx.work, fx.hook);
-    expect(result.status).toBe(0);
-    expect(result.stderr).toBe("");
-  });
+    test("allows benign .beads/config.yaml (no token-shaped value)", () => {
+      stageBeadsConfig(fx.work, "issue-prefix: ai-home\nno-db: false\n");
+      const result = runHook(fx.work, fx.hook);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+    });
 
-  test("allows token-shaped string outside .beads/ (out of scope by design)", () => {
-    // Broader secret scanning is GH-1117 territory. This hook is a targeted
-    // defensive guard for the bd v1.0.3 footgun, not a full gitleaks.
-    writeFileSync(
-      join(fx.work, "README.md"),
-      "Example token shape: gho_FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE\n",
-    );
-    spawnSync("git", ["-C", fx.work, "add", "README.md"]);
-    const result = runHook(fx.work, fx.hook);
-    expect(result.status).toBe(0);
-  });
+    test("allows token-shaped string outside .beads/ (out of scope by design)", () => {
+      // Broader secret scanning is GH-1117 territory. This hook is a targeted
+      // defensive guard for the bd v1.0.3 footgun, not a full gitleaks.
+      writeFileSync(
+        join(fx.work, "README.md"),
+        "Example token shape: gho_FAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKEFAKE\n",
+      );
+      spawnSync("git", ["-C", fx.work, "add", "README.md"]);
+      const result = runHook(fx.work, fx.hook);
+      expect(result.status).toBe(0);
+    });
 
-  test("no staged .beads/ files → exits 0 silently", () => {
-    writeFileSync(join(fx.work, "README.md"), "hello\n");
-    spawnSync("git", ["-C", fx.work, "add", "README.md"]);
-    const result = runHook(fx.work, fx.hook);
-    expect(result.status).toBe(0);
-    expect(result.stderr).toBe("");
-  });
-});
+    test("no staged .beads/ files → exits 0 silently", () => {
+      writeFileSync(join(fx.work, "README.md"), "hello\n");
+      spawnSync("git", ["-C", fx.work, "add", "README.md"]);
+      const result = runHook(fx.work, fx.hook);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe("");
+    });
+  },
+);

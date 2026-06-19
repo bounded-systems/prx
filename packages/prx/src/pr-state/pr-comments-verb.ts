@@ -44,24 +44,35 @@ export type PrCommentsOutput = z.infer<typeof PrCommentsOutput>;
 
 export const prCommentsVerb = defineVerb({
   id: "pr-comments",
-  summary: "Show a PR's review-comment threads, or resolve them; exits 1 while any stay unresolved.",
+  summary:
+    "Show a PR's review-comment threads, or resolve them; exits 1 while any stay unresolved.",
   actor: "work",
   positionals: ["thread"],
   input: z.object({
-    action: z.enum(["show", "resolve"]).default("show").describe("show the threads or resolve them"),
+    action: z
+      .enum(["show", "resolve"])
+      .default("show")
+      .describe("show the threads or resolve them"),
     "repo-path": z.string().default(".").describe("repo worktree path"),
     pr: z.string().optional().describe("PR ref; defaults to the current branch"),
     format: z.enum(["plain", "json"]).default("plain").describe("output format"),
     output: z.string().optional().describe("explicit JSON snapshot path"),
-    write: z.coerce.boolean().default(false).describe("write the JSON snapshot to the default path"),
-    thread: z.array(z.string()).default([]).describe("thread ids to resolve (variadic positionals + repeatable --thread)"),
+    write: z.coerce
+      .boolean()
+      .default(false)
+      .describe("write the JSON snapshot to the default path"),
+    thread: z
+      .array(z.string())
+      .default([])
+      .describe("thread ids to resolve (variadic positionals + repeatable --thread)"),
     "all-unresolved": z.coerce.boolean().default(false).describe("resolve every unresolved thread"),
   }),
   output: PrCommentsOutput,
   deps: realPrCommentsDeps,
   run: (input, deps: PrCommentsDeps = realPrCommentsDeps()): PrCommentsOutput => {
     const repoPath = input["repo-path"];
-    const outputPath = input.output ?? (input.write ? defaultPrCommentsOutputPath(repoPath) : undefined);
+    const outputPath =
+      input.output ?? (input.write ? defaultPrCommentsOutputPath(repoPath) : undefined);
     const persist = (summary: PrCommentsResult) => {
       if (outputPath) {
         mkdirSync(dirname(outputPath), { recursive: true });
@@ -72,7 +83,9 @@ export const prCommentsVerb = defineVerb({
     if (input.action === "resolve") {
       const threadIds = input.thread.map((t) => t.trim()).filter((t) => t.length > 0);
       if (threadIds.length === 0 && !input["all-unresolved"]) {
-        throw new CliError("pr-comments resolve requires at least one thread id or --all-unresolved");
+        throw new CliError(
+          "pr-comments resolve requires at least one thread id or --all-unresolved",
+        );
       }
       const before = deps.fetchPrComments(repoPath, input.pr);
       const ids = input["all-unresolved"]

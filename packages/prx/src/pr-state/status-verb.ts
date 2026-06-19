@@ -15,7 +15,8 @@ export type StatusOutput = z.infer<typeof StatusOutput>;
 
 export const statusVerb = defineVerb({
   id: "status",
-  summary: "Show the PR contract's derived status (state/mode/reason) as a line, bare mode, or JSON.",
+  summary:
+    "Show the PR contract's derived status (state/mode/reason) as a line, bare mode, or JSON.",
   actor: "work",
   input: z.object({
     contract: z.string().default(".pr/local/pr.json").describe("path to the pr contract"),

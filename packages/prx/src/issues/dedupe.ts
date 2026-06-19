@@ -9,9 +9,7 @@ import type { BeadsRecord } from "../triage/triage.ts";
 
 const ISSUE_REF_RE = /\/issues\/(\d+)(?:[/?#].*)?$/;
 
-export function extractIssueNumber(
-  externalRef: string | null | undefined,
-): number | null {
+export function extractIssueNumber(externalRef: string | null | undefined): number | null {
   if (!externalRef) return null;
   const match = externalRef.match(ISSUE_REF_RE);
   if (!match) return null;

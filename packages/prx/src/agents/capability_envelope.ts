@@ -34,10 +34,30 @@ export const APPROVAL_SEVERITY: Record<Approval, number> = {
 // scope (rows) × reversibility (cols) → approval. Monotonic: severity never
 // decreases as either axis increases. Tunable — this matrix IS the policy.
 const APPROVAL_MATRIX: Record<EnvelopeScope, Record<EnvelopeReversibility, Approval>> = {
-  local: { reversible: "none", recoverable: "none", destructive: "notify", irreversible: "explicit" },
-  repo: { reversible: "none", recoverable: "notify", destructive: "explicit", irreversible: "explicit" },
-  org: { reversible: "notify", recoverable: "explicit", destructive: "explicit", irreversible: "explicit" },
-  external: { reversible: "explicit", recoverable: "explicit", destructive: "explicit", irreversible: "explicit" },
+  local: {
+    reversible: "none",
+    recoverable: "none",
+    destructive: "notify",
+    irreversible: "explicit",
+  },
+  repo: {
+    reversible: "none",
+    recoverable: "notify",
+    destructive: "explicit",
+    irreversible: "explicit",
+  },
+  org: {
+    reversible: "notify",
+    recoverable: "explicit",
+    destructive: "explicit",
+    irreversible: "explicit",
+  },
+  external: {
+    reversible: "explicit",
+    recoverable: "explicit",
+    destructive: "explicit",
+    irreversible: "explicit",
+  },
 };
 
 export interface EnvelopeVerdict {
@@ -60,7 +80,10 @@ export function evaluateEnvelope(
  * session, so the table is grounded, not abstract. Extend as effects are
  * classified; an unmapped effect has no envelope verdict yet (a learning goal).
  */
-export const EFFECT_ENVELOPE: Record<string, { scope: EnvelopeScope; reversibility: EnvelopeReversibility }> = {
+export const EFFECT_ENVELOPE: Record<
+  string,
+  { scope: EnvelopeScope; reversibility: EnvelopeReversibility }
+> = {
   "git commit": { scope: "local", reversibility: "recoverable" },
   "git push": { scope: "repo", reversibility: "recoverable" },
   "git push --force": { scope: "repo", reversibility: "destructive" },
@@ -97,7 +120,7 @@ export function generateEnvelopeFeature(): string {
     '      And reversibility "<reversibility>"',
     "      When the capability envelope is evaluated",
     '      Then approval_required is "<approval>"',
-    '      And it is journaled: <journal>',
+    "      And it is journaled: <journal>",
     "",
     "      Examples:",
   ];
@@ -113,7 +136,7 @@ export function generateEnvelopeFeature(): string {
   lines.push(
     "  Rule: known effects carry an envelope",
     "",
-    "    Scenario Outline: the \"<effect>\" effect needs <approval>",
+    '    Scenario Outline: the "<effect>" effect needs <approval>',
     '      Given the "<effect>" effect',
     "      When the capability envelope is evaluated",
     '      Then approval_required is "<approval>"',

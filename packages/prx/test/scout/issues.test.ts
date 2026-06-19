@@ -118,17 +118,13 @@ describe("runScoutIssues — kind/scope parse", () => {
   });
 
   test("prefix-only title (no scope)", async () => {
-    const result = await runWith([
-      { id: "ai-home-bbbb", title: "fix: handle null watermark" },
-    ]);
+    const result = await runWith([{ id: "ai-home-bbbb", title: "fix: handle null watermark" }]);
     expect(result.rows[0]?.kind).toBe("fix");
     expect(result.rows[0]?.scope).toBe(null);
   });
 
   test("no conventional prefix", async () => {
-    const result = await runWith([
-      { id: "ai-home-cccc", title: "the cli sometimes hangs" },
-    ]);
+    const result = await runWith([{ id: "ai-home-cccc", title: "the cli sometimes hangs" }]);
     // The word `the` matches \w+ but the regex also requires a trailing `:`,
     // which a free-form title doesn't have — kind/scope must both be null.
     expect(result.rows[0]?.kind).toBe(null);
@@ -195,9 +191,7 @@ describe("runScoutIssues — repo filter", () => {
   });
 
   test("bd-only rows (no external_ref) are included under matching cwd", async () => {
-    const result = await runWith([
-      { id: "a", title: "feat: bd-only", external_ref: null },
-    ]);
+    const result = await runWith([{ id: "a", title: "feat: bd-only", external_ref: null }]);
     expect(result.rows[0]?.id).toBe("a");
     expect(result.rows[0]?.ghNumber).toBe(null);
   });
@@ -435,15 +429,13 @@ describe("runScoutIssues — staleness report (scout never fetches)", () => {
 
 describe("extractOwnerRepoFromRef (GH-1257)", () => {
   test("parses an issue URL into owner/repo", () => {
-    expect(
-      extractOwnerRepoFromRef("https://github.com/bdelanghe/ai-home/issues/1193"),
-    ).toBe("bdelanghe/ai-home");
+    expect(extractOwnerRepoFromRef("https://github.com/bdelanghe/ai-home/issues/1193")).toBe(
+      "bdelanghe/ai-home",
+    );
   });
 
   test("returns null for non-GH refs", () => {
-    expect(
-      extractOwnerRepoFromRef("https://www.notion.so/Some-Page-abc123"),
-    ).toBe(null);
+    expect(extractOwnerRepoFromRef("https://www.notion.so/Some-Page-abc123")).toBe(null);
   });
 
   test("returns null for malformed input", () => {
@@ -453,9 +445,7 @@ describe("extractOwnerRepoFromRef (GH-1257)", () => {
 
   test("preserves owner/repo when extra path segments follow", () => {
     expect(
-      extractOwnerRepoFromRef(
-        "https://github.com/bdelanghe/ai-home/issues/1193/comments",
-      ),
+      extractOwnerRepoFromRef("https://github.com/bdelanghe/ai-home/issues/1193/comments"),
     ).toBe("bdelanghe/ai-home");
   });
 });

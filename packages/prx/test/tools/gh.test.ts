@@ -3,10 +3,7 @@ import { execGh, fetchIssueLabels, formatGhExecResult } from "@bounded-systems/g
 
 describe("execGh", () => {
   test("blocks groups outside the allowed set", () => {
-    const result = execGh(
-      { group: "release", subcommand: "list", args: [] },
-      { HOME: "/tmp" },
-    );
+    const result = execGh({ group: "release", subcommand: "list", args: [] }, { HOME: "/tmp" });
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("only pr/issue groups are allowed");
   });
@@ -23,10 +20,7 @@ describe("execGh", () => {
   });
 
   test("issue group rejects unknown subcommands", () => {
-    const result = execGh(
-      { group: "issue", subcommand: "delete", args: ["1"] },
-      { HOME: "/tmp" },
-    );
+    const result = execGh({ group: "issue", subcommand: "delete", args: ["1"] }, { HOME: "/tmp" });
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("unknown or disallowed issue subcommand");
   });
@@ -40,19 +34,13 @@ describe("execGh", () => {
   });
 
   test("blocks hard-blocked subcommands", () => {
-    const result = execGh(
-      { group: "pr", subcommand: "close", args: [] },
-      { HOME: "/tmp" },
-    );
+    const result = execGh({ group: "pr", subcommand: "close", args: [] }, { HOME: "/tmp" });
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("blocked pr subcommand 'close'");
   });
 
   test("blocks unknown subcommands", () => {
-    const result = execGh(
-      { group: "pr", subcommand: "unknown", args: [] },
-      { HOME: "/tmp" },
-    );
+    const result = execGh({ group: "pr", subcommand: "unknown", args: [] }, { HOME: "/tmp" });
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("unknown or disallowed");
   });
@@ -69,9 +57,13 @@ describe("execGh", () => {
 
   test("allows pr status for any state/role", () => {
     // This actually calls gh — policy should allow it regardless of execution result
-    const result = execGh(
-      { group: "pr", subcommand: "status", args: [], state: "planning", role: "planner" },
-    );
+    const result = execGh({
+      group: "pr",
+      subcommand: "status",
+      args: [],
+      state: "planning",
+      role: "planner",
+    });
     expect(result.policy?.allowed).toBe(true);
   });
 
@@ -88,10 +80,7 @@ describe("execGh", () => {
 
 describe("formatGhExecResult", () => {
   test("json format is valid JSON", () => {
-    const result = execGh(
-      { group: "pr", subcommand: "close", args: [] },
-      { HOME: "/tmp" },
-    );
+    const result = execGh({ group: "pr", subcommand: "close", args: [] }, { HOME: "/tmp" });
     const json = JSON.parse(formatGhExecResult(result, "json"));
     expect(json.exitCode).toBe(1);
     expect(json.stderr).toContain("blocked");

@@ -18,10 +18,7 @@ import {
 } from "./index.ts";
 
 export function buildIntakeJsonSchema(type: IntakeBodySchemaType): unknown {
-  const json = toJsonSchemaArtifact(
-    INTAKE_BODY_SCHEMAS[type],
-    `intake_${type}_body`,
-  );
+  const json = toJsonSchemaArtifact(INTAKE_BODY_SCHEMAS[type], `intake_${type}_body`);
   return decorateWithFieldsMeta(json, type);
 }
 

@@ -34,9 +34,7 @@ export function parseWorktreeEnvelope(stdin: string): WorktreeEnvelope {
   if (typeof stdin !== "string" || stdin.trim().length === 0) return {};
   try {
     const parsed: unknown = JSON.parse(stdin);
-    return typeof parsed === "object" && parsed !== null
-      ? (parsed as WorktreeEnvelope)
-      : {};
+    return typeof parsed === "object" && parsed !== null ? (parsed as WorktreeEnvelope) : {};
   } catch {
     return {};
   }

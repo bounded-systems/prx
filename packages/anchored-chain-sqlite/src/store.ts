@@ -1,12 +1,12 @@
-import { Database } from 'bun:sqlite';
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { Database } from "bun:sqlite";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { and, asc, desc, eq, lte } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/bun-sqlite';
-import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
+import { and, asc, desc, eq, lte } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/bun-sqlite";
+import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 
 // GH-245: embed the migrations so a `bun build --compile` binary (where the
 // on-disk ./migrations folder is absent) can still initialize the schema. The
@@ -14,8 +14,8 @@ import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
 // these. EMBEDDED_MIGRATION_SQL is generated from the .sql files (`bun run
 // acs:migrations`) — JSR rejects `with { type: "text" }` imports, so the SQL is
 // embedded as a string constant rather than imported from the .sql files.
-import journal from './migrations/meta/_journal.json' with { type: 'json' };
-import { EMBEDDED_MIGRATION_SQL } from './migrations.generated.ts';
+import journal from "./migrations/meta/_journal.json" with { type: "json" };
+import { EMBEDDED_MIGRATION_SQL } from "./migrations.generated.ts";
 
 import type {
   AnchoredChainStore,
@@ -27,8 +27,8 @@ import type {
   Digest,
   Ref,
   RefLogEntry,
-} from '@bounded-systems/anchored-chain';
-import { RefMismatchError } from '@bounded-systems/anchored-chain';
+} from "@bounded-systems/anchored-chain";
+import { RefMismatchError } from "@bounded-systems/anchored-chain";
 import {
   derivationInputs,
   derivationOutputs,
@@ -36,28 +36,26 @@ import {
   refLog,
   refs,
   schema,
-} from './schema.ts';
+} from "./schema.ts";
 
-export function openAnchoredChain(path: string = ':memory:'): AnchoredChainStore {
+export function openAnchoredChain(path: string = ":memory:"): AnchoredChainStore {
   const sqlite = new Database(path, { create: true });
-  sqlite.exec('PRAGMA journal_mode = WAL');
-  sqlite.exec('PRAGMA foreign_keys = ON');
+  sqlite.exec("PRAGMA journal_mode = WAL");
+  sqlite.exec("PRAGMA foreign_keys = ON");
 
   const db = drizzle(sqlite, { schema });
   migrate(db, { migrationsFolder: resolveMigrationsFolder() });
 
   const casUpdate = sqlite.prepare(
-    'UPDATE refs SET digest = ?, updated_at = ? WHERE name = ? AND digest = ?',
+    "UPDATE refs SET digest = ?, updated_at = ? WHERE name = ? AND digest = ?",
   );
   const casInsert = sqlite.prepare(
-    'INSERT INTO refs (name, digest, updated_at) VALUES (?, ?, ?) ON CONFLICT(name) DO NOTHING',
+    "INSERT INTO refs (name, digest, updated_at) VALUES (?, ?, ?) ON CONFLICT(name) DO NOTHING",
   );
   const refLogInsert = sqlite.prepare(
-    'INSERT INTO ref_log (name, prev_digest, new_digest, reason, ts) VALUES (?, ?, ?, ?, ?)',
+    "INSERT INTO ref_log (name, prev_digest, new_digest, reason, ts) VALUES (?, ?, ?, ?, ?)",
   );
-  const selectRefRow = sqlite.prepare(
-    'SELECT name, digest, updated_at FROM refs WHERE name = ?',
-  );
+  const selectRefRow = sqlite.prepare("SELECT name, digest, updated_at FROM refs WHERE name = ?");
 
   type CasArgs = {
     name: string;
@@ -71,9 +69,7 @@ export function openAnchoredChain(path: string = ':memory:'): AnchoredChainStore
     if (args.prevDigest === null) {
       const result = casInsert.run(args.name, args.newDigest, args.ts);
       if (result.changes === 0) {
-        const row = selectRefRow.get(args.name) as
-          | { digest: string }
-          | null;
+        const row = selectRefRow.get(args.name) as { digest: string } | null;
         throw new RefMismatchError({
           refName: args.name,
           expectedPrev: null,
@@ -81,16 +77,9 @@ export function openAnchoredChain(path: string = ':memory:'): AnchoredChainStore
         });
       }
     } else {
-      const result = casUpdate.run(
-        args.newDigest,
-        args.ts,
-        args.name,
-        args.prevDigest,
-      );
+      const result = casUpdate.run(args.newDigest, args.ts, args.name, args.prevDigest);
       if (result.changes === 0) {
-        const row = selectRefRow.get(args.name) as
-          | { digest: string }
-          | null;
+        const row = selectRefRow.get(args.name) as { digest: string } | null;
         throw new RefMismatchError({
           refName: args.name,
           expectedPrev: args.prevDigest,
@@ -98,24 +87,13 @@ export function openAnchoredChain(path: string = ':memory:'): AnchoredChainStore
         });
       }
     }
-    refLogInsert.run(
-      args.name,
-      args.prevDigest,
-      args.newDigest,
-      args.reason,
-      args.ts,
-    );
+    refLogInsert.run(args.name, args.prevDigest, args.newDigest, args.reason, args.ts);
     return { name: args.name, digest: args.newDigest, ts: args.ts };
   });
 
   const refStore: RefStore = {
     async get(name) {
-      const row = await db
-        .select()
-        .from(refs)
-        .where(eq(refs.name, name))
-        .limit(1)
-        .all();
+      const row = await db.select().from(refs).where(eq(refs.name, name)).limit(1).all();
       const first = row[0];
       if (!first) return null;
       return {
@@ -154,9 +132,7 @@ export function openAnchoredChain(path: string = ':memory:'): AnchoredChainStore
     async append(derivation) {
       const manifestJson = JSON.stringify(derivation.manifest);
       const envelopeJson =
-        derivation.envelope === undefined
-          ? null
-          : JSON.stringify(derivation.envelope);
+        derivation.envelope === undefined ? null : JSON.stringify(derivation.envelope);
       db.transaction((tx) => {
         tx.insert(derivations)
           .values({
@@ -167,9 +143,7 @@ export function openAnchoredChain(path: string = ':memory:'): AnchoredChainStore
             ts: derivation.ts,
           })
           .run();
-        for (const [inputName, inputDigest] of Object.entries(
-          derivation.manifest.inputs,
-        )) {
+        for (const [inputName, inputDigest] of Object.entries(derivation.manifest.inputs)) {
           tx.insert(derivationInputs)
             .values({
               derivationId: derivation.derivationId,
@@ -178,9 +152,7 @@ export function openAnchoredChain(path: string = ':memory:'): AnchoredChainStore
             })
             .run();
         }
-        for (const [outputName, outputDigest] of Object.entries(
-          derivation.manifest.outputs,
-        )) {
+        for (const [outputName, outputDigest] of Object.entries(derivation.manifest.outputs)) {
           tx.insert(derivationOutputs)
             .values({
               derivationId: derivation.derivationId,
@@ -200,11 +172,11 @@ export function openAnchoredChain(path: string = ':memory:'): AnchoredChainStore
         .all();
       const first = row[0];
       if (!first) return null;
-      const manifest = JSON.parse(first.manifestJson) as Derivation['manifest'];
+      const manifest = JSON.parse(first.manifestJson) as Derivation["manifest"];
       const envelope =
         first.envelopeJson === null
           ? undefined
-          : (JSON.parse(first.envelopeJson) as Derivation['envelope']);
+          : (JSON.parse(first.envelopeJson) as Derivation["envelope"]);
       return {
         derivationId: first.derivationId as Digest,
         manifest,
@@ -362,11 +334,11 @@ export function openAnchoredChain(path: string = ':memory:'): AnchoredChainStore
  * drizzle's expected layout (meta/_journal.json + <tag>.sql) and use that. GH-245.
  */
 function resolveMigrationsFolder(): string {
-  const onDisk = fileURLToPath(new URL('./migrations', import.meta.url));
-  if (existsSync(join(onDisk, 'meta', '_journal.json'))) return onDisk;
-  const dir = mkdtempSync(join(tmpdir(), 'acs-migrations-'));
-  mkdirSync(join(dir, 'meta'), { recursive: true });
-  writeFileSync(join(dir, 'meta', '_journal.json'), JSON.stringify(journal));
+  const onDisk = fileURLToPath(new URL("./migrations", import.meta.url));
+  if (existsSync(join(onDisk, "meta", "_journal.json"))) return onDisk;
+  const dir = mkdtempSync(join(tmpdir(), "acs-migrations-"));
+  mkdirSync(join(dir, "meta"), { recursive: true });
+  writeFileSync(join(dir, "meta", "_journal.json"), JSON.stringify(journal));
   for (const entry of journal.entries) {
     const sql = EMBEDDED_MIGRATION_SQL[entry.tag];
     if (sql === undefined) {

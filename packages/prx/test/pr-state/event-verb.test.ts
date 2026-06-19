@@ -37,7 +37,10 @@ const fixedDeps: SkillEventDeps = {
 };
 
 const run = (contract: string, format: "plain" | "json", log: string): EventOutput =>
-  eventVerb.run({ contract, skill: "pr-validate", actor: "prx", format, log } as never, fixedDeps) as EventOutput;
+  eventVerb.run(
+    { contract, skill: "pr-validate", actor: "prx", format, log } as never,
+    fixedDeps,
+  ) as EventOutput;
 
 describe("event verb", () => {
   test("applies a transition skill, advances the state, and logs it", () => {
@@ -74,11 +77,15 @@ describe("event verb", () => {
     const { contract, log } = setup("drafting", false);
     const input = { contract, skill: "pr-validate", actor: "prx", format: "plain" as const, log };
     const out = eventVerb.run(input as never, fixedDeps) as EventOutput;
-    expect(eventVerb.render!(out, input as never)).toBe("validating (draft) - SKILL_VALIDATE via pr-validate");
-    expect(JSON.parse(eventVerb.render!(out, { ...input, format: "json" } as never))).toMatchObject({
-      skill: "pr-validate",
-      state: "validating",
-    });
+    expect(eventVerb.render!(out, input as never)).toBe(
+      "validating (draft) - SKILL_VALIDATE via pr-validate",
+    );
+    expect(JSON.parse(eventVerb.render!(out, { ...input, format: "json" } as never))).toMatchObject(
+      {
+        skill: "pr-validate",
+        state: "validating",
+      },
+    );
   });
 
   test("applySkillEvent with logTransition:false does not write a log (the contract path)", () => {

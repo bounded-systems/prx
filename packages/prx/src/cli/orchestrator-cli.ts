@@ -19,7 +19,11 @@ import { verbRegistry } from "./verb-registry.ts";
 export async function runSpecVerb(
   verb: string,
   args: readonly string[],
-  output: { log: (line: string) => void; error: (line: string) => void; writeRaw?: (buf: Buffer) => void },
+  output: {
+    log: (line: string) => void;
+    error: (line: string) => void;
+    writeRaw?: (buf: Buffer) => void;
+  },
 ): Promise<number> {
   try {
     const res = await dispatch(verbRegistry, [verb, ...args]);

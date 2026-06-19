@@ -13,7 +13,8 @@ import {
 } from "../../src/tools/worktree_layout.ts";
 
 // A spawn that answers each git invocation by matching on argv.
-const spawnBy = (handler: (args: string[]) => Partial<WorktreeSpawnResult>): WorktreeSpawn =>
+const spawnBy =
+  (handler: (args: string[]) => Partial<WorktreeSpawnResult>): WorktreeSpawn =>
   (_file, args) => ({ status: 0, stdout: "", stderr: "", ...handler(args) });
 
 describe("expectedWorktreePath", () => {
@@ -27,7 +28,10 @@ describe("expectedWorktreePath", () => {
 
 describe("isRegisteredWorktree", () => {
   test("true when the porcelain list contains the target", () => {
-    const spawn = spawnBy(() => ({ status: 0, stdout: "worktree /repos/prx\nworktree /repos/GH-1\n" }));
+    const spawn = spawnBy(() => ({
+      status: 0,
+      stdout: "worktree /repos/prx\nworktree /repos/GH-1\n",
+    }));
     expect(isRegisteredWorktree("/repos/prx", "/repos/GH-1", spawn)).toBe(true);
   });
   test("false when the target is absent", () => {
@@ -35,7 +39,13 @@ describe("isRegisteredWorktree", () => {
     expect(isRegisteredWorktree("/repos/prx", "/repos/GH-9", spawn)).toBe(false);
   });
   test("false on a non-zero git exit", () => {
-    expect(isRegisteredWorktree("/repos/prx", "/x", spawnBy(() => ({ status: 1 })))).toBe(false);
+    expect(
+      isRegisteredWorktree(
+        "/repos/prx",
+        "/x",
+        spawnBy(() => ({ status: 1 })),
+      ),
+    ).toBe(false);
   });
   test("rethrows a raw spawn error", () => {
     const spawn = spawnBy(() => ({ error: new Error("git missing") }));
@@ -64,15 +74,20 @@ describe("addWorktreeForBranch", () => {
     };
     addWorktreeForBranch("/repos/prx", "GH-2", "/repos/GH-2", spawn);
     expect(calls[1]).toEqual([
-      "-C", "/repos/prx", "worktree", "add", "-b", "GH-2", "/repos/GH-2", "origin/main",
+      "-C",
+      "/repos/prx",
+      "worktree",
+      "add",
+      "-b",
+      "GH-2",
+      "/repos/GH-2",
+      "origin/main",
     ]);
   });
 
   test("throws WorktreeAddError on a non-zero add exit", () => {
     const spawn: WorktreeSpawn = (_f, args) =>
-      args.includes("show-ref")
-        ? { status: 0 }
-        : { status: 128, stderr: "fatal: already exists" };
+      args.includes("show-ref") ? { status: 0 } : { status: 128, stderr: "fatal: already exists" };
     expect(() => addWorktreeForBranch("/repos/prx", "GH-1", "/t", spawn)).toThrow(WorktreeAddError);
   });
 

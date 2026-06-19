@@ -113,7 +113,11 @@ describe("attestingChecks — verify step as a signed checks/v1 attestation (prx
 describe("runAttestedChecks — in-flow verify, signed per step (prx-ub4 slice 4c)", () => {
   /** Records each request and returns the queued statuses in order. */
   function recordingExec(statuses: number[]): {
-    exec: { exec(req: ProcRequest): Promise<{ status: number; stdout: string; stderr: string; signal: null }> };
+    exec: {
+      exec(
+        req: ProcRequest,
+      ): Promise<{ status: number; stdout: string; stderr: string; signal: null }>;
+    };
     seen: ProcRequest[];
   } {
     const seen: ProcRequest[] = [];

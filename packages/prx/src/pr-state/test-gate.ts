@@ -22,10 +22,7 @@
  */
 import type { ProcExecutor } from "@bounded-systems/proc";
 
-import {
-  type ImplementArtifact,
-  implementArtifactEdge,
-} from "../pipeline/implement-artifact.ts";
+import { type ImplementArtifact, implementArtifactEdge } from "../pipeline/implement-artifact.ts";
 import { consumeArtifact } from "../pipeline/edge.ts";
 import type { AttestDeps } from "../provenance/attest.ts";
 import { type GateResult, runGate } from "../provenance/gate.ts";
@@ -49,9 +46,7 @@ export const DEFAULT_TEST_GATE_STEPS: readonly TestGateStep[] = [
 export class TestGateInputError extends Error {
   readonly code = "TEST_GATE_NO_IMPLEMENT";
   constructor(readonly unit: string) {
-    super(
-      `test-gate: no implement artifact for ${unit} (run implement before gating its checks)`,
-    );
+    super(`test-gate: no implement artifact for ${unit} (run implement before gating its checks)`);
     this.name = "TestGateInputError";
   }
 }

@@ -18,7 +18,10 @@ describe("spec-driven CLI: author once, project everywhere", () => {
     expect(parsed).toEqual({ workUnitId: "GH-5", retreatBudget: 2 }); // coerced to number
 
     // Comma-split for array fields lives in the parser, not the schema.
-    expect(parseArgs(fleetVerb, ["a,b,c", "--wip", "2"])).toEqual({ units: ["a", "b", "c"], wip: 2 });
+    expect(parseArgs(fleetVerb, ["a,b,c", "--wip", "2"])).toEqual({
+      units: ["a", "b", "c"],
+      wip: 2,
+    });
 
     // Validation is the Zod schema — a missing required positional throws.
     expect(() => parseArgs(pilotVerb, [])).toThrow();
@@ -28,7 +31,7 @@ describe("spec-driven CLI: author once, project everywhere", () => {
     const tool = toMcpTool(pilotVerb);
     expect(tool.name).toBe("pilot");
     expect(tool.description).toContain("ONE work unit");
-    const props = (tool.inputSchema as { properties: Record<string, unknown>; required: string[] });
+    const props = tool.inputSchema as { properties: Record<string, unknown>; required: string[] };
     expect(Object.keys(props.properties)).toEqual(["workUnitId", "retreatBudget"]);
     expect(props.required).toContain("workUnitId");
   });
@@ -37,11 +40,18 @@ describe("spec-driven CLI: author once, project everywhere", () => {
     const anthropic = toAnthropicTool(pilotVerb);
     expect(anthropic.input_schema).toEqual(toMcpTool(pilotVerb).inputSchema);
 
-    const paths = toOpenApiPaths(orchestratorRegistry) as Record<string, { post: { operationId: string } }>;
+    const paths = toOpenApiPaths(orchestratorRegistry) as Record<
+      string,
+      { post: { operationId: string } }
+    >;
     expect(paths["/pilot"]!.post.operationId).toBe("pilot");
     expect(paths["/fleet"]!.post.operationId).toBe("fleet");
     // The toolset projects every verb.
-    expect(toMcpToolset(orchestratorRegistry).map((t) => t.name).sort()).toEqual(["fleet", "observe", "pilot"]);
+    expect(
+      toMcpToolset(orchestratorRegistry)
+        .map((t) => t.name)
+        .sort(),
+    ).toEqual(["fleet", "observe", "pilot"]);
   });
 
   test("help renders usage + flags from the schema", () => {

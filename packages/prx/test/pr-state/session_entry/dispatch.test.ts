@@ -6,7 +6,10 @@ import { afterEach, describe, expect, test } from "bun:test";
 
 import { dispatchSessionEntryEvent } from "../../../src/pr-state/session-entry/dispatch.ts";
 import { PRX_SESSION_CONTEXT_ENV } from "../../../src/pr-state/session-entry/get-current-session-context.ts";
-import { resetSessionEntryStderr, setSessionEntryStderrSink } from "../../../src/machine/machines/session-entry.ts";
+import {
+  resetSessionEntryStderr,
+  setSessionEntryStderrSink,
+} from "../../../src/machine/machines/session-entry.ts";
 
 afterEach(() => {
   resetSessionEntryStderr();

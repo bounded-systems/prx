@@ -24,16 +24,9 @@
 // backticked `prx <verb>` token in the document is checked unless it falls
 // inside an `<!-- assert:none -->` fence.
 
-import type {
-  AliasSupply,
-  VerbSupply,
-  WorktreeGestures,
-} from "../schemas/inputs.ts";
+import type { AliasSupply, VerbSupply, WorktreeGestures } from "../schemas/inputs.ts";
 
-export type AssertionRule =
-  | "verb-exists"
-  | "alias-exists"
-  | "worktree-gesture-resolves";
+export type AssertionRule = "verb-exists" | "alias-exists" | "worktree-gesture-resolves";
 
 export type AssertionFailure = {
   rule: AssertionRule;
@@ -73,16 +66,12 @@ function scanFences(markdown: string): Fence[] {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
     const oneIndexed = i + 1;
-    const openMatch = line.match(
-      /<!--\s*assert:(alias|worktree-gesture|none)\s*-->/,
-    );
+    const openMatch = line.match(/<!--\s*assert:(alias|worktree-gesture|none)\s*-->/);
     if (openMatch) {
       open.push({ kind: openMatch[1] as OpenKind, startLine: oneIndexed });
       continue;
     }
-    const closeMatch = line.match(
-      /<!--\s*\/assert:(alias|worktree-gesture|none)\s*-->/,
-    );
+    const closeMatch = line.match(/<!--\s*\/assert:(alias|worktree-gesture|none)\s*-->/);
     if (closeMatch) {
       const kind = closeMatch[1] as OpenKind;
       for (let j = open.length - 1; j >= 0; j--) {
@@ -119,16 +108,9 @@ const BACKTICK_TOKEN_RE = /`([^`\n]+)`/g;
  * `<!-- assert:none -->` fences are skipped — that fence is the renderer's
  * escape hatch for example/illustrative prose.
  */
-export function verbExists(
-  markdown: string,
-  file: string,
-  supply: VerbSupply,
-): AssertionFailure[] {
+export function verbExists(markdown: string, file: string, supply: VerbSupply): AssertionFailure[] {
   const fences = scanFences(markdown);
-  const allowed = new Set<string>([
-    ...supply.map((v) => v.name),
-    ...NON_PRX_VERB_ALLOWLIST,
-  ]);
+  const allowed = new Set<string>([...supply.map((v) => v.name), ...NON_PRX_VERB_ALLOWLIST]);
 
   const failures: AssertionFailure[] = [];
   const lines = markdown.split("\n");
@@ -225,9 +207,7 @@ export function worktreeGestureResolves(
   file: string,
   gestures: WorktreeGestures,
 ): AssertionFailure[] {
-  const fences = scanFences(markdown).filter(
-    (f) => f.kind === "worktree-gesture",
-  );
+  const fences = scanFences(markdown).filter((f) => f.kind === "worktree-gesture");
   if (fences.length === 0) return [];
   const known = new Set<string>(gestures.map((g) => g.name));
 

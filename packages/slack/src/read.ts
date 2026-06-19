@@ -81,7 +81,8 @@ function targetOf(
 ): { org?: string; channel?: string; thread?: string } {
   const org = strField(params, "team_id");
   const channel = strField(params, "channel");
-  const thread = strField(params, "thread_ts") ?? (op === "thread" ? strField(params, "ts") : undefined);
+  const thread =
+    strField(params, "thread_ts") ?? (op === "thread" ? strField(params, "ts") : undefined);
   const target: { org?: string; channel?: string; thread?: string } = {};
   if (org !== undefined) target.org = org;
   if (channel !== undefined) target.channel = channel;

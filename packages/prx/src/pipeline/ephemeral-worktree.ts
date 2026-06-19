@@ -23,7 +23,10 @@ import {
 export const EPHEMERAL_WORKTREE_DIR = ".wt";
 
 export class EphemeralWorktreeError extends Error {
-  constructor(message: string, readonly exitCode?: number) {
+  constructor(
+    message: string,
+    readonly exitCode?: number,
+  ) {
     super(message);
     this.name = "EphemeralWorktreeError";
   }
@@ -102,7 +105,12 @@ export function destroyEphemeralActorWorktree(
   const exists = deps.exists ?? existsSync;
   const remove = deps.remove ?? ((p: string) => rmSync(p, { recursive: true, force: true }));
 
-  git({ subcommand: "worktree", args: ["remove", "--force", handle.path], cwd: handle.repoRoot, role: "keeper" });
+  git({
+    subcommand: "worktree",
+    args: ["remove", "--force", handle.path],
+    cwd: handle.repoRoot,
+    role: "keeper",
+  });
   if (exists(handle.path)) remove(handle.path);
   // Delete the ephemeral branch — nothing durable escapes the agent.
   git({ subcommand: "branch", args: ["-D", handle.branch], cwd: handle.repoRoot, role: "keeper" });
@@ -142,7 +150,12 @@ export function sweepOrphanedActorWorktrees(
   const wtPrefix = join(root, EPHEMERAL_WORKTREE_DIR) + "/";
   const isOrphan = deps.isOrphan ?? (() => true);
 
-  const list = git({ subcommand: "worktree", args: ["list", "--porcelain"], cwd: root, role: "keeper" });
+  const list = git({
+    subcommand: "worktree",
+    args: ["list", "--porcelain"],
+    cwd: root,
+    role: "keeper",
+  });
   const paths: string[] = [];
   for (const line of (list.stdout ?? "").split("\n")) {
     if (line.startsWith("worktree ")) {
@@ -152,9 +165,15 @@ export function sweepOrphanedActorWorktrees(
   }
   const removed: string[] = [];
   for (const p of paths) {
-    const r = git({ subcommand: "worktree", args: ["remove", "--force", p], cwd: root, role: "keeper" });
+    const r = git({
+      subcommand: "worktree",
+      args: ["remove", "--force", p],
+      cwd: root,
+      role: "keeper",
+    });
     if (r.exitCode === 0) removed.push(p);
   }
-  if (removed.length > 0) git({ subcommand: "worktree", args: ["prune"], cwd: root, role: "keeper" });
+  if (removed.length > 0)
+    git({ subcommand: "worktree", args: ["prune"], cwd: root, role: "keeper" });
   return removed;
 }

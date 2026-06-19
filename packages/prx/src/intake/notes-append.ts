@@ -21,10 +21,7 @@ export type NotesAppendVerb = "prx-intake-comment" | "prx-intake-merge";
  * while keeping the marker compact. Same body → same marker → idempotent
  * re-run on `notesAlreadyContains`.
  */
-export function buildNotesAppendMarker(
-  verb: NotesAppendVerb,
-  body: string,
-): string {
+export function buildNotesAppendMarker(verb: NotesAppendVerb, body: string): string {
   const digest = createHash("sha256").update(body, "utf8").digest("hex");
   return `[${verb} sha256-prefix=${digest.slice(0, 8)}]`;
 }

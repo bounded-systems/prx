@@ -9,10 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
 
-import {
-  beadsModeHint,
-  classifyBeadsWorkspace,
-} from "../../src/beads/workspace_mode.ts";
+import { beadsModeHint, classifyBeadsWorkspace } from "../../src/beads/workspace_mode.ts";
 
 function makeTmpCwd(): string {
   return mkdtempSync(join(tmpdir(), "prx-workspace-mode-"));
@@ -120,15 +117,11 @@ describe("classifyBeadsWorkspace (GH-1684)", () => {
 
 describe("beadsModeHint (GH-1684)", () => {
   test("per_project returns null (ready to dispatch)", () => {
-    expect(
-      beadsModeHint({ kind: "per_project", doltDir: "/x" }, "foo"),
-    ).toBeNull();
+    expect(beadsModeHint({ kind: "per_project", doltDir: "/x" }, "foo")).toBeNull();
   });
 
   test("shared_server returns null (ready to dispatch) (GH-1701)", () => {
-    expect(
-      beadsModeHint({ kind: "shared_server", sharedDir: "/x" }, "foo"),
-    ).toBeNull();
+    expect(beadsModeHint({ kind: "shared_server", sharedDir: "/x" }, "foo")).toBeNull();
   });
 
   test("none returns the GH-493 bootstrap hint with the slug interpolated", () => {
@@ -139,10 +132,7 @@ describe("beadsModeHint (GH-1684)", () => {
   });
 
   test("embedded returns the GH-1471 migration hint and references bd-safe / GH-1061", () => {
-    const hint = beadsModeHint(
-      { kind: "embedded", doltDir: "/x" },
-      "demo-repo",
-    );
+    const hint = beadsModeHint({ kind: "embedded", doltDir: "/x" }, "demo-repo");
     expect(hint).not.toBeNull();
     expect(hint).toContain("demo-repo");
     expect(hint).toContain("embedded mode");
@@ -151,10 +141,7 @@ describe("beadsModeHint (GH-1684)", () => {
   });
 
   test("ambiguous suggests `prx repo refresh <slug>`", () => {
-    const hint = beadsModeHint(
-      { kind: "ambiguous", details: "x" },
-      "foo",
-    );
+    const hint = beadsModeHint({ kind: "ambiguous", details: "x" }, "foo");
     expect(hint).not.toBeNull();
     expect(hint).toContain("prx repo refresh foo");
   });

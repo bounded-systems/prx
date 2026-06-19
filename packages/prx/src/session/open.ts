@@ -40,21 +40,10 @@ import { createActor } from "xstate";
 
 import { getEnv } from "@bounded-systems/env";
 import { recordEvent } from "../machine/record_event.ts";
-import {
-  dispatchSessionEntryEvent,
-} from "../pr-state/session-entry/dispatch.ts";
-import type {
-  SessionEntryEvent,
-} from "../machine/machines/session-entry.ts";
-import {
-  sessionOpenMachine,
-  type SessionOpenStage,
-} from "../machine/machines/session-open.ts";
-import {
-  runMaterialize,
-  runPrepare,
-  runReserve,
-} from "../workspace/actor.ts";
+import { dispatchSessionEntryEvent } from "../pr-state/session-entry/dispatch.ts";
+import type { SessionEntryEvent } from "../machine/machines/session-entry.ts";
+import { sessionOpenMachine, type SessionOpenStage } from "../machine/machines/session-open.ts";
+import { runMaterialize, runPrepare, runReserve } from "../workspace/actor.ts";
 import { isMainxPath } from "../pr-state/scope-inference.ts";
 import {
   type Lifecycle,
@@ -65,11 +54,7 @@ import {
 
 import type { RuntimeProfileProjection } from "../machine/runtime_profiles.ts";
 
-import {
-  SessionOpenInput,
-  type SessionActor,
-  type SessionOpenOutput,
-} from "./schema.ts";
+import { SessionOpenInput, type SessionActor, type SessionOpenOutput } from "./schema.ts";
 import { resolveLegInput } from "./leg-input.ts";
 import { mintSpawnAttestation } from "../pipeline/spawn-attestation.ts";
 import { provenanceSigner, realStatementSigner } from "../machine/machines/pilot-signing.ts";
@@ -152,9 +137,7 @@ export function deriveSessionBranch(input: DeriveSessionBranchInput): string {
     return `${actor}/${stamp}-${short}`;
   }
   if (!input.workUnitId) {
-    throw new Error(
-      `deriveSessionBranch: workUnitId required for actor=${actor}`,
-    );
+    throw new Error(`deriveSessionBranch: workUnitId required for actor=${actor}`);
   }
   return input.workUnitId;
 }
@@ -327,13 +310,9 @@ export async function openSession(
       now: input.now,
     });
   } catch (err) {
-    return failAt(
-      machine,
-      emit,
-      "naming",
-      err instanceof Error ? err.message : String(err),
-      { workUnitId: input.workUnitId },
-    );
+    return failAt(machine, emit, "naming", err instanceof Error ? err.message : String(err), {
+      workUnitId: input.workUnitId,
+    });
   }
   machine.send({
     type: "SESSION_OPEN_NAME_DERIVED",
@@ -363,13 +342,10 @@ export async function openSession(
       cwdImpl(),
     );
   } catch (err) {
-    return failAt(
-      machine,
-      emit,
-      "reserve",
-      err instanceof Error ? err.message : String(err),
-      { workUnitId: input.workUnitId, branch },
-    );
+    return failAt(machine, emit, "reserve", err instanceof Error ? err.message : String(err), {
+      workUnitId: input.workUnitId,
+      branch,
+    });
   }
   if (reserveResult.status === "error" || reserveResult.status === "base-unresolved") {
     return failAt(
@@ -412,35 +388,20 @@ export async function openSession(
   // -------------------------------------------------------------------------
   let materializeResult: MaterializeOutput;
   try {
-    materializeResult = materializeImpl(
-      { workspace_id: reserveResult.workspace_id },
-      cwdImpl(),
-    );
+    materializeResult = materializeImpl({ workspace_id: reserveResult.workspace_id }, cwdImpl());
   } catch (err) {
-    return failAt(
-      machine,
-      emit,
-      "materialize",
-      err instanceof Error ? err.message : String(err),
-      {
-        workUnitId: input.workUnitId,
-        workspace_id: reserveResult.workspace_id,
-        branch,
-      },
-    );
+    return failAt(machine, emit, "materialize", err instanceof Error ? err.message : String(err), {
+      workUnitId: input.workUnitId,
+      workspace_id: reserveResult.workspace_id,
+      branch,
+    });
   }
   if (materializeResult.status === "error") {
-    return failAt(
-      machine,
-      emit,
-      "materialize",
-      materializeResult.error ?? "materialize error",
-      {
-        workUnitId: input.workUnitId,
-        workspace_id: reserveResult.workspace_id,
-        branch,
-      },
-    );
+    return failAt(machine, emit, "materialize", materializeResult.error ?? "materialize error", {
+      workUnitId: input.workUnitId,
+      workspace_id: reserveResult.workspace_id,
+      branch,
+    });
   }
   const worktreePath = materializeResult.worktree_path;
   // I-WS5: fail closed before chdir/prepare/dispatch if the materialized
@@ -487,31 +448,19 @@ export async function openSession(
       cwdImpl(),
     );
   } catch (err) {
-    return failAt(
-      machine,
-      emit,
-      "prepare",
-      err instanceof Error ? err.message : String(err),
-      {
-        workUnitId: input.workUnitId,
-        workspace_id: reserveResult.workspace_id,
-        branch,
-      },
-    );
+    return failAt(machine, emit, "prepare", err instanceof Error ? err.message : String(err), {
+      workUnitId: input.workUnitId,
+      workspace_id: reserveResult.workspace_id,
+      branch,
+    });
   }
   if (prepareResult.status === "error") {
-    return failAt(
-      machine,
-      emit,
-      "prepare",
-      prepareResult.error ?? "prepare error",
-      {
-        workUnitId: input.workUnitId,
-        workspace_id: reserveResult.workspace_id,
-        branch,
-        prepared_status: prepareResult.status,
-      },
-    );
+    return failAt(machine, emit, "prepare", prepareResult.error ?? "prepare error", {
+      workUnitId: input.workUnitId,
+      workspace_id: reserveResult.workspace_id,
+      branch,
+      prepared_status: prepareResult.status,
+    });
   }
   machine.send({
     type: "SESSION_OPEN_PREPARED",
@@ -605,7 +554,12 @@ export async function openSession(
           // GH-294: observability — the signed spawn (the ocap) is on the record.
           emit("SPAWN_ATTESTED", {
             workUnitId: input.workUnitId,
-            details: { role: input.actor, ref: minted.emit.ref, material: legInput.ref, materialSha: legInput.sha },
+            details: {
+              role: input.actor,
+              ref: minted.emit.ref,
+              material: legInput.ref,
+              materialSha: legInput.sha,
+            },
           });
         } catch (err) {
           return failAt(
@@ -640,17 +594,11 @@ export async function openSession(
       }),
     );
   } catch (err) {
-    return failAt(
-      machine,
-      emit,
-      "dispatch",
-      err instanceof Error ? err.message : String(err),
-      {
-        workUnitId: input.workUnitId,
-        workspace_id: reserveResult.workspace_id,
-        branch,
-      },
-    );
+    return failAt(machine, emit, "dispatch", err instanceof Error ? err.message : String(err), {
+      workUnitId: input.workUnitId,
+      workspace_id: reserveResult.workspace_id,
+      branch,
+    });
   }
   machine.send({
     type: "SESSION_OPEN_DISPATCHED",

@@ -9,14 +9,8 @@
 // SESSION_PROFILES so a contract can be projected back to a profile entry
 // without loss (round-trip parity is enforced by the contracts test).
 
-import {
-  agentContractSchema,
-  type AgentContract,
-} from "../contracts.ts";
-import {
-  defaultDispatchCapabilities,
-  type DispatchActor,
-} from "../dispatch.ts";
+import { agentContractSchema, type AgentContract } from "../contracts.ts";
+import { defaultDispatchCapabilities, type DispatchActor } from "../dispatch.ts";
 import {
   SESSION_PROFILES,
   type SessionProfileName,
@@ -119,10 +113,7 @@ const taskRoleContracts: Record<TaskAgentRole, AgentContract> = {
 // SessionProfileConfig (allowedTools / disallowedTools) so round-trip parity
 // holds — see `projectSessionProfile` below for the inverse direction.
 
-const sessionProfileIo: Record<
-  SessionProfileName,
-  { input: string; output: string }
-> = {
+const sessionProfileIo: Record<SessionProfileName, { input: string; output: string }> = {
   plan: { input: "uow", output: "plan" },
   intake: { input: "external_signal", output: "uow" },
   triage: { input: "uow_queue", output: "triaged_queue" },
@@ -164,8 +155,9 @@ const allEntries: AgentContract[] = [
   ...sessionProfileNames.map((name) => sessionProfileContracts[name]),
 ];
 
-export const agentRegistry: Readonly<Record<string, AgentContract>> = Object
-  .freeze(Object.fromEntries(allEntries.map((entry) => [entry.role, entry])));
+export const agentRegistry: Readonly<Record<string, AgentContract>> = Object.freeze(
+  Object.fromEntries(allEntries.map((entry) => [entry.role, entry])),
+);
 
 export function listAgentContracts(): readonly AgentContract[] {
   return allEntries;
@@ -195,14 +187,10 @@ export type SessionProfileProjection = {
   allowedDispatchTargets: DispatchActor[];
 };
 
-export function projectSessionProfile(
-  contract: AgentContract,
-): SessionProfileProjection {
+export function projectSessionProfile(contract: AgentContract): SessionProfileProjection {
   const name = contract.role as SessionProfileName;
   if (!(sessionProfileNames as readonly string[]).includes(name)) {
-    throw new Error(
-      `not a session-profile contract: ${contract.role} (use projectTaskRole)`,
-    );
+    throw new Error(`not a session-profile contract: ${contract.role} (use projectTaskRole)`);
   }
   return {
     allowedTools: [...contract.capabilities],
@@ -222,9 +210,7 @@ export type TaskRoleProjection = {
 export function projectTaskRole(contract: AgentContract): TaskRoleProjection {
   const role = contract.role as TaskAgentRole;
   if (!(taskAgentRoles as readonly string[]).includes(role)) {
-    throw new Error(
-      `not a task-role contract: ${contract.role} (use projectSessionProfile)`,
-    );
+    throw new Error(`not a task-role contract: ${contract.role} (use projectSessionProfile)`);
   }
   return {
     role,

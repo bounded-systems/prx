@@ -93,11 +93,12 @@ export function adoptWorkspace({
   const prior = workspaceStore.getById(workspace_id);
 
   if (prior) {
-    const sameIdentity = prior.path === inferred.path
-      && prior.repo_id === repo.row.repo_id
-      && prior.branch_id === branch.row.branch_id
-      && prior.mode === mode
-      && prior.backend === "git-worktree";
+    const sameIdentity =
+      prior.path === inferred.path &&
+      prior.repo_id === repo.row.repo_id &&
+      prior.branch_id === branch.row.branch_id &&
+      prior.mode === mode &&
+      prior.backend === "git-worktree";
     if (!sameIdentity) {
       throw new CliError(
         `workspace adopt: registered entry for ${workspace_id} disagrees with ${worktreePath}. ` +

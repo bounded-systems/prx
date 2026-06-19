@@ -5,10 +5,7 @@ import { describe, expect, test } from "bun:test";
 
 import { sha256Hex, type Digest } from "@bounded-systems/cas";
 
-import {
-  runFetchSlackSync,
-  FetchSlackError,
-} from "../../src/fetch/slack-sync.ts";
+import { runFetchSlackSync, FetchSlackError } from "../../src/fetch/slack-sync.ts";
 import type { SlackMessage } from "../../src/fetch/slack.ts";
 import type { SpawnResult } from "../../src/fetch/watermark.ts";
 
@@ -31,7 +28,11 @@ function memStore() {
 
 function reader(messages: SlackMessage[]) {
   const seen: { oldest?: string | undefined; limit?: number | undefined } = {};
-  const readHistory = async (args: { channel: string; oldest?: string | undefined; limit: number }) => {
+  const readHistory = async (args: {
+    channel: string;
+    oldest?: string | undefined;
+    limit: number;
+  }) => {
     seen.oldest = args.oldest;
     seen.limit = args.limit;
     return { messages };
@@ -122,7 +123,10 @@ describe("runFetchSlackSync — watermark wiring", () => {
     const runner = (): SpawnResult => ({ stdout: "", stderr: "permission denied", status: 1 });
 
     await expect(
-      runFetchSlackSync({ channel: "C1" }, { cwd: "/repo", readHistory, store, watermarkRunner: runner }),
+      runFetchSlackSync(
+        { channel: "C1" },
+        { cwd: "/repo", readHistory, store, watermarkRunner: runner },
+      ),
     ).rejects.toBeInstanceOf(FetchSlackError);
   });
 

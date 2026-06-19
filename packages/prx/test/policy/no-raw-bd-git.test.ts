@@ -62,9 +62,7 @@ describe("GH-1990 / GH-2011 — no raw bd github sync --pull-only --prefer-githu
         }
       });
       if (hits.length > 0) {
-        const formatted = hits
-          .map(({ line, text }) => `  ${relPath}:${line}  ${text}`)
-          .join("\n");
+        const formatted = hits.map(({ line, text }) => `  ${relPath}:${line}  ${text}`).join("\n");
         throw new Error(
           `Found raw \`${FORBIDDEN_PHRASE}\` instruction(s) in ${relPath}.\n` +
             `Use the canonical \`prx sync issues --from gh --to bd\` instead.\n` +

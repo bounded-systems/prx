@@ -15,7 +15,15 @@
  * stubbed.
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+  existsSync,
+} from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -39,9 +47,7 @@ type ExecGit = typeof execGit;
 function sh(cwd: string, file: string, args: string[]): void {
   const r = spawnSync(file, args, { cwd, encoding: "utf8" });
   if ((r.status ?? 1) !== 0) {
-    throw new Error(
-      `${file} ${args.join(" ")} (cwd=${cwd}) exit=${r.status}\n${r.stderr ?? ""}`,
-    );
+    throw new Error(`${file} ${args.join(" ")} (cwd=${cwd}) exit=${r.status}\n${r.stderr ?? ""}`);
   }
 }
 
@@ -175,10 +181,7 @@ describe("resolveCanonicalChainLedger (GH-2338)", () => {
     // never the cwd HEAD sha. In detached HEAD the branch is the literal "HEAD",
     // so no reserved ledger matches and the resolver fails closed to null rather
     // than fabricating a path from the commit oid.
-    runReserve(
-      { branch: "main", base: "origin/main", local_only: false },
-      fixture.repoDir,
-    );
+    runReserve({ branch: "main", base: "origin/main", local_only: false }, fixture.repoDir);
     sh(fixture.repoDir, "git", ["checkout", "--detach"]);
     expect(resolveCanonicalChainLedger(fixture.repoDir)).toBeNull();
   });
@@ -186,10 +189,7 @@ describe("resolveCanonicalChainLedger (GH-2338)", () => {
   test("I-WS5: refuses (null) on the read-only mainx replica", () => {
     const mainx = makeMainxFixtureRepo();
     try {
-      runReserve(
-        { branch: "main", base: "origin/main", local_only: false },
-        mainx.repoDir,
-      );
+      runReserve({ branch: "main", base: "origin/main", local_only: false }, mainx.repoDir);
       // Reserve succeeds (the ledger points at the mainx worktree), but the
       // canonical-ledger resolver must refuse so neither side writes a
       // provenance DB into the replica.
@@ -220,20 +220,14 @@ describe("workspace actor lifecycle", () => {
 
   test("I-WS1: sync before reserve fails closed", () => {
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
-    const out = runSync(
-      { workspace_id: ctx.workspaceId },
-      fixture.repoDir,
-    );
+    const out = runSync({ workspace_id: ctx.workspaceId }, fixture.repoDir);
     expect(out.status).toBe("error");
     expect(out.error).toMatch(/no prior reserve/);
   });
 
   test("I-WS1: teardown before reserve fails closed (without --force)", () => {
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
-    const out = runTeardown(
-      { workspace_id: ctx.workspaceId, force: false },
-      fixture.repoDir,
-    );
+    const out = runTeardown({ workspace_id: ctx.workspaceId, force: false }, fixture.repoDir);
     expect(out.status).toBe("error");
   });
 
@@ -248,10 +242,7 @@ describe("workspace actor lifecycle", () => {
 
   test("teardown with --force on no-ledger is a no-op (skipped)", () => {
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
-    const out = runTeardown(
-      { workspace_id: ctx.workspaceId, force: true },
-      fixture.repoDir,
-    );
+    const out = runTeardown({ workspace_id: ctx.workspaceId, force: true }, fixture.repoDir);
     expect(out.status).toBe("skipped");
   });
 
@@ -262,9 +253,7 @@ describe("workspace actor lifecycle", () => {
       { branch: "main", base: "origin/main", local_only: false },
       fixture.repoDir,
     );
-    expect(["exists-local", "exists-remote", "skipped", "created"]).toContain(
-      reserveOut.status,
-    );
+    expect(["exists-local", "exists-remote", "skipped", "created"]).toContain(reserveOut.status);
     expect(reserveOut.workspace_id).toMatch(/^[a-f0-9]{12}$/);
 
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
@@ -278,10 +267,7 @@ describe("workspace actor lifecycle", () => {
     expect(prepareOut.status).toBe("ok");
     expect(prepareOut.workspace_id).toBe(ctx.workspaceId);
 
-    const syncOut = runSync(
-      { workspace_id: ctx.workspaceId },
-      fixture.repoDir,
-    );
+    const syncOut = runSync({ workspace_id: ctx.workspaceId }, fixture.repoDir);
     expect(["ok", "noop"]).toContain(syncOut.status);
 
     const teardownOut = runTeardown(
@@ -332,10 +318,7 @@ describe("workspace actor lifecycle", () => {
   });
 
   test("prx-jkb: materialized (triage/intake) prepare writes a beads redirect and never hydrates", () => {
-    runReserve(
-      { branch: "main", base: "origin/main", local_only: false },
-      fixture.repoDir,
-    );
+    runReserve({ branch: "main", base: "origin/main", local_only: false }, fixture.repoDir);
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
 
     // A launchCwd DISTINCT from cwd — openSession chdir's into the worktree
@@ -368,16 +351,11 @@ describe("workspace actor lifecycle", () => {
     // source is the launching workspace (launchCwd), NOT cwd (the worktree).
     expect(redirectArgs!.src).toBe(launchDir);
     expect(redirectArgs!.src).not.toBe(fixture.repoDir);
-    expect(prepareOut.files_written).toContain(
-      join(redirectArgs!.dest, ".beads", "redirect"),
-    );
+    expect(prepareOut.files_written).toContain(join(redirectArgs!.dest, ".beads", "redirect"));
   });
 
   test("prx-jkb: attached lifecycle hydrates and does NOT write a redirect", () => {
-    runReserve(
-      { branch: "main", base: "origin/main", local_only: false },
-      fixture.repoDir,
-    );
+    runReserve({ branch: "main", base: "origin/main", local_only: false }, fixture.repoDir);
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
 
     let redirectCalled = false;
@@ -403,10 +381,7 @@ describe("workspace actor lifecycle", () => {
   });
 
   test("I-WS3: service start --auto with no compose profile is no-op", () => {
-    runReserve(
-      { branch: "main", base: "origin/main", local_only: false },
-      fixture.repoDir,
-    );
+    runReserve({ branch: "main", base: "origin/main", local_only: false }, fixture.repoDir);
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
     const out = runService(
       { workspace_id: ctx.workspaceId, action: "start", auto: true },
@@ -417,10 +392,7 @@ describe("workspace actor lifecycle", () => {
   });
 
   test("I-WS3: service start without --auto and no profile is `skipped`", () => {
-    runReserve(
-      { branch: "main", base: "origin/main", local_only: false },
-      fixture.repoDir,
-    );
+    runReserve({ branch: "main", base: "origin/main", local_only: false }, fixture.repoDir);
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
     const out = runService(
       { workspace_id: ctx.workspaceId, action: "start", auto: false },
@@ -430,10 +402,7 @@ describe("workspace actor lifecycle", () => {
   });
 
   test("I-WS2: ledger writes are atomic (no .tmp-* file remains)", () => {
-    runReserve(
-      { branch: "main", base: "origin/main", local_only: false },
-      fixture.repoDir,
-    );
+    runReserve({ branch: "main", base: "origin/main", local_only: false }, fixture.repoDir);
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
     const ledgerDir = ctx.ledgerPath.replace(/\/[^/]+$/, "");
     const entries = readdirSync(ledgerDir);
@@ -464,10 +433,7 @@ describe("workspace actor lifecycle", () => {
     );
     expect(serviceOut.workspace_id).toBe(wid);
 
-    const teardownOut = runTeardown(
-      { workspace_id: wid, force: false },
-      fixture.repoDir,
-    );
+    const teardownOut = runTeardown({ workspace_id: wid, force: false }, fixture.repoDir);
     expect(teardownOut.workspace_id).toBe(wid);
   });
 });
@@ -503,7 +469,11 @@ describe("workspace.materialize (GH-2271 / ai-home-rkg1w.1)", () => {
         } as ReturnType<ExecGit>;
       }
       if (subcommand === "rev-parse") {
-        return { exitCode: opts.branchExists === false ? 1 : 0, stdout: "", stderr: "" } as ReturnType<ExecGit>;
+        return {
+          exitCode: opts.branchExists === false ? 1 : 0,
+          stdout: "",
+          stderr: "",
+        } as ReturnType<ExecGit>;
       }
       if (subcommand === "worktree" && args[0] === "add") {
         return {
@@ -521,10 +491,7 @@ describe("workspace.materialize (GH-2271 / ai-home-rkg1w.1)", () => {
 
   test("I-WS1: materialize before reserve fails closed", () => {
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
-    const out = runMaterialize(
-      { workspace_id: ctx.workspaceId },
-      fixture.repoDir,
-    );
+    const out = runMaterialize({ workspace_id: ctx.workspaceId }, fixture.repoDir);
     expect(out.status).toBe("error");
     expect(out.error).toMatch(/no prior reserve/);
   });
@@ -535,11 +502,11 @@ describe("workspace.materialize (GH-2271 / ai-home-rkg1w.1)", () => {
       fixture.repoDir,
     );
     const { git, exists, calls } = fakeKeeper({ branchExists: true });
-    const out = runMaterialize(
-      { workspace_id: reserveOut.workspace_id },
-      fixture.repoDir,
-      { git, exists, repoToplevel: () => "/repo-parent/repo" },
-    );
+    const out = runMaterialize({ workspace_id: reserveOut.workspace_id }, fixture.repoDir, {
+      git,
+      exists,
+      repoToplevel: () => "/repo-parent/repo",
+    });
     expect(out.status).toBe("created");
     expect(out.worktree_path).toBe("/repo-parent/main");
     expect(out.branch).toBe("main");
@@ -563,11 +530,11 @@ describe("workspace.materialize (GH-2271 / ai-home-rkg1w.1)", () => {
     );
     // registered AND healthy (`.git` present) → keeper returns exists.
     const { git, exists, calls } = fakeKeeper({ registered: true, worktreeHealthy: true });
-    const out = runMaterialize(
-      { workspace_id: reserveOut.workspace_id },
-      fixture.repoDir,
-      { git, exists, repoToplevel: () => "/repo-parent/repo" },
-    );
+    const out = runMaterialize({ workspace_id: reserveOut.workspace_id }, fixture.repoDir, {
+      git,
+      exists,
+      repoToplevel: () => "/repo-parent/repo",
+    });
     expect(out.status).toBe("exists");
     // No `git worktree add` on the idempotent path.
     expect(calls.some((c: string[]) => c.join(" ").includes("worktree add"))).toBe(false);
@@ -579,11 +546,11 @@ describe("workspace.materialize (GH-2271 / ai-home-rkg1w.1)", () => {
       fixture.repoDir,
     );
     const { git, exists } = fakeKeeper({ branchExists: true, addExit: 1 });
-    const out = runMaterialize(
-      { workspace_id: reserveOut.workspace_id },
-      fixture.repoDir,
-      { git, exists, repoToplevel: () => "/repo-parent/repo" },
-    );
+    const out = runMaterialize({ workspace_id: reserveOut.workspace_id }, fixture.repoDir, {
+      git,
+      exists,
+      repoToplevel: () => "/repo-parent/repo",
+    });
     expect(out.status).toBe("error");
     expect(out.error).toMatch(/workspace\.materialize/);
   });
@@ -599,10 +566,7 @@ describe("workspace.service compose dispatch", () => {
   test("starts compose when both yml files exist (injected runner)", () => {
     writeFileSync(join(fixture.repoDir, "docker-compose.yml"), "services: {}\n");
     writeFileSync(join(fixture.repoDir, "compose.worktree.yml"), "services: {}\n");
-    runReserve(
-      { branch: "main", base: "origin/main", local_only: false },
-      fixture.repoDir,
-    );
+    runReserve({ branch: "main", base: "origin/main", local_only: false }, fixture.repoDir);
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
     const calls: Array<{ files: string[]; action: string }> = [];
     const out = runService(
@@ -625,10 +589,7 @@ describe("workspace.service compose dispatch", () => {
   test("stops compose with action=stop", () => {
     writeFileSync(join(fixture.repoDir, "docker-compose.yml"), "services: {}\n");
     writeFileSync(join(fixture.repoDir, "compose.worktree.yml"), "services: {}\n");
-    runReserve(
-      { branch: "main", base: "origin/main", local_only: false },
-      fixture.repoDir,
-    );
+    runReserve({ branch: "main", base: "origin/main", local_only: false }, fixture.repoDir);
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
     const calls: Array<{ files: string[]; action: string }> = [];
     const out = runService(
@@ -659,9 +620,7 @@ describe("I-WS5: fail-closed mainx guard", () => {
       { branch: "main", base: "origin/main", local_only: false },
       fixture.repoDir,
     );
-    expect(["exists-local", "exists-remote", "skipped", "created"]).toContain(
-      reserveOut.status,
-    );
+    expect(["exists-local", "exists-remote", "skipped", "created"]).toContain(reserveOut.status);
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
     // confirm the ledger really points at a mainx-named worktree
     const ledger = JSON.parse(readFileSync(ctx.ledgerPath, "utf8")) as {
@@ -711,10 +670,7 @@ describe("I-WS5: fail-closed mainx guard", () => {
 
   test("teardown against a mainx-resolved ledger fails closed", () => {
     const { workspaceId, ledgerPath } = reserveOnMainx();
-    const out = runTeardown(
-      { workspace_id: workspaceId, force: false },
-      fixture.repoDir,
-    );
+    const out = runTeardown({ workspace_id: workspaceId, force: false }, fixture.repoDir);
     expect(out.status).toBe("error");
     expect(out.error).toMatch(/read-only mainx replica/);
     expect(ledgerState(ledgerPath)).toBe("reserved");
@@ -722,10 +678,7 @@ describe("I-WS5: fail-closed mainx guard", () => {
 
   test("teardown --force on a mainx-resolved ledger: the guard wins over --force (error, not skipped)", () => {
     const { workspaceId, ledgerPath } = reserveOnMainx();
-    const out = runTeardown(
-      { workspace_id: workspaceId, force: true },
-      fixture.repoDir,
-    );
+    const out = runTeardown({ workspace_id: workspaceId, force: true }, fixture.repoDir);
     expect(out.status).toBe("error");
     expect(out.error).toMatch(/read-only mainx replica/);
     expect(ledgerState(ledgerPath)).toBe("reserved");
@@ -740,10 +693,7 @@ describe("workspace lifecycle ledger", () => {
   afterEach(() => fixture.cleanup());
 
   test("reserve creates the ledger file at git common-dir", () => {
-    runReserve(
-      { branch: "main", base: "origin/main", local_only: false },
-      fixture.repoDir,
-    );
+    runReserve({ branch: "main", base: "origin/main", local_only: false }, fixture.repoDir);
     const ctx = resolveWorkspaceContext({ cwd: fixture.repoDir })!;
     expect(existsSync(ctx.ledgerPath)).toBe(true);
   });

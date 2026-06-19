@@ -5,7 +5,12 @@ import { describe, expect, test } from "bun:test";
 
 import { overviewVerb, type OverviewDeps } from "../../src/pr-state/overview-verb.ts";
 
-const baseInput = { slug: "some-slug", "repo-path": ".", format: "plain" as const, "include-diff-stats": true };
+const baseInput = {
+  slug: "some-slug",
+  "repo-path": ".",
+  format: "plain" as const,
+  "include-diff-stats": true,
+};
 const run = (deps: OverviewDeps) => overviewVerb.run(baseInput as never, deps);
 
 describe("overviewVerb — slug resolution errors", () => {

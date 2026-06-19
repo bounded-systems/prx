@@ -44,7 +44,7 @@ function baseSnapshot(): ActionSnapshot {
     mergeReady: true,
     phase: "ready_to_merge",
     currentUnit: null,
-    rawState: ({
+    rawState: {
       unitId: "GH-1001",
       artifacts: {
         ticket: {
@@ -108,7 +108,7 @@ function baseSnapshot(): ActionSnapshot {
           ticketSystem: "2026-03-19T00:00:00Z",
         },
       },
-    }) as unknown as RawStateV1,
+    } as unknown as RawStateV1,
     invariants: {
       valid: true,
       findings: [],

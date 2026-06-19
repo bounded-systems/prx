@@ -12,7 +12,12 @@ import { describe, expect, test } from "bun:test";
 import { GhDomainAdapter } from "../../src/adapters/github.ts";
 import type { AdapterCommandRunner } from "../../src/adapters/domain-adapter.ts";
 import { parseCommand, runCli } from "../../src/pr-state/cli.ts";
-import { runBackfill, type RunBackfillDeps, type RunBackfillOptions, type BackfillResult } from "../../src/sync/backfill.ts";
+import {
+  runBackfill,
+  type RunBackfillDeps,
+  type RunBackfillOptions,
+  type BackfillResult,
+} from "../../src/sync/backfill.ts";
 import type { BudgetSnapshot } from "@bounded-systems/github-budget";
 import type { IntakeMirrorOptions } from "../../src/intake/intake-mirror.ts";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
@@ -57,7 +62,9 @@ function unpinnedLongId(id: string): BeadsRecord {
   };
 }
 
-function listRunner(issues: Array<{ number: number; url: string; state: string }>): AdapterCommandRunner {
+function listRunner(
+  issues: Array<{ number: number; url: string; state: string }>,
+): AdapterCommandRunner {
   return (cmd) => {
     if (cmd[1] === "issue" && cmd[2] === "list") {
       return { stdout: JSON.stringify(issues), stderr: "", status: 0 };
@@ -67,7 +74,11 @@ function listRunner(issues: Array<{ number: number; url: string; state: string }
 }
 
 function ghAdapter(issues: Array<{ number: number; url: string; state: string }>): GhDomainAdapter {
-  return new GhDomainAdapter({ runner: listRunner(issues), repoNameWithOwner: () => "o/r", cwd: () => "/repo" });
+  return new GhDomainAdapter({
+    runner: listRunner(issues),
+    repoNameWithOwner: () => "o/r",
+    cwd: () => "/repo",
+  });
 }
 
 function snapshot(remaining: number): BudgetSnapshot[] {
@@ -76,7 +87,9 @@ function snapshot(remaining: number): BudgetSnapshot[] {
 
 type Captured = { log: string[]; error: string[] };
 
-function captureOutput(): { output: { log: (l: string) => void; error: (l: string) => void } } & Captured {
+function captureOutput(): {
+  output: { log: (l: string) => void; error: (l: string) => void };
+} & Captured {
   const log: string[] = [];
   const error: string[] = [];
   return { log, error, output: { log: (l) => log.push(l), error: (l) => error.push(l) } };
@@ -84,9 +97,11 @@ function captureOutput(): { output: { log: (l: string) => void; error: (l: strin
 
 type MirrorCall = IntakeMirrorOptions;
 
-function baseDeps(
-  over: Partial<RunBackfillDeps> = {},
-): { deps: RunBackfillDeps; auditRows: Array<Record<string, unknown>>; mirrorCalls: MirrorCall[] } {
+function baseDeps(over: Partial<RunBackfillDeps> = {}): {
+  deps: RunBackfillDeps;
+  auditRows: Array<Record<string, unknown>>;
+  mirrorCalls: MirrorCall[];
+} {
   const auditRows: Array<Record<string, unknown>> = [];
   const mirrorCalls: MirrorCall[] = [];
   const deps: RunBackfillDeps = {
@@ -96,7 +111,12 @@ function baseDeps(
     appendAuditRow: (row) => {
       auditRows.push(row as unknown as Record<string, unknown>);
     },
-    getAuditRuntimeContext: () => ({ verb: "sync backfill", actor: "test-actor", ghTruthReason: null, source: null }),
+    getAuditRuntimeContext: () => ({
+      verb: "sync backfill",
+      actor: "test-actor",
+      ghTruthReason: null,
+      source: null,
+    }),
     // Default mirror: a clean create that logs the JSON render backfill parses.
     runIntakeMirror: (opts, output) => {
       mirrorCalls.push(opts);
@@ -220,7 +240,9 @@ describe("runBackfill — I-BF4 dry-run no-writes", () => {
 
 describe("runBackfill — I-BF5 budget gate", () => {
   test("entry budget below threshold pauses with zero scans", async () => {
-    const adapter = ghAdapter([{ number: 1, url: "https://github.com/o/r/issues/1", state: "OPEN" }]);
+    const adapter = ghAdapter([
+      { number: 1, url: "https://github.com/o/r/issues/1", state: "OPEN" },
+    ]);
     const { deps, mirrorCalls } = baseDeps({
       adapter,
       loadAllBeads: () => [],
@@ -279,10 +301,14 @@ describe("runBackfill — I-BF6 audit uow_id", () => {
     await runBackfill(opts({ to: 1403 }), captureOutput().output, deps);
 
     expect(auditRows.length).toBeGreaterThan(0);
-    expect(auditRows.every((r) => typeof r.uow_id === "string" && (r.uow_id as string).length > 0)).toBe(true);
+    expect(
+      auditRows.every((r) => typeof r.uow_id === "string" && (r.uow_id as string).length > 0),
+    ).toBe(true);
     const runRow = auditRows.find((r) => r.kind === "domain-sync-backfill-run");
     expect(runRow?.uow_id).toBe("backfill:gh:1259-1403");
-    const recordRow = auditRows.find((r) => r.kind === "domain-sync-backfill-record" && r.surfaceId === "GH-1403");
+    const recordRow = auditRows.find(
+      (r) => r.kind === "domain-sync-backfill-record" && r.surfaceId === "GH-1403",
+    );
     expect(recordRow?.uow_id).toBe("GH-1403");
   });
 });
@@ -292,8 +318,17 @@ describe("runBackfill — I-BF6 audit uow_id", () => {
 describe("prx sync backfill — CLI wiring", () => {
   test("parses --domain/--from/--to/--budget/--dry-run/--format", () => {
     const parsed = parseCommand([
-      "sync", "backfill", "--from", "1259", "--to", "1466",
-      "--budget", "250", "--dry-run", "--format", "json",
+      "sync",
+      "backfill",
+      "--from",
+      "1259",
+      "--to",
+      "1466",
+      "--budget",
+      "250",
+      "--dry-run",
+      "--format",
+      "json",
     ]);
     expect(parsed).toMatchObject({
       command: "sync-backfill",
@@ -311,7 +346,9 @@ describe("prx sync backfill — CLI wiring", () => {
   });
 
   test("rejects --from > --to", () => {
-    expect(() => parseCommand(["sync", "backfill", "--from", "10", "--to", "1"])).toThrow(/must be <=/);
+    expect(() => parseCommand(["sync", "backfill", "--from", "10", "--to", "1"])).toThrow(
+      /must be <=/,
+    );
   });
 
   test("dispatches to the injected backfill runtime with the parsed opts", async () => {
@@ -321,9 +358,18 @@ describe("prx sync backfill — CLI wiring", () => {
       return Promise.resolve({
         exitCode: 0,
         summary: {
-          repo: "o/r", domain: "gh", from: 1259, to: 1466,
-          scanned: 0, mirrored: 0, skipped: 0, failed: 0, deferred: 0,
-          budgetPaused: false, dryRun: true, durationMs: 0,
+          repo: "o/r",
+          domain: "gh",
+          from: 1259,
+          to: 1466,
+          scanned: 0,
+          mirrored: 0,
+          skipped: 0,
+          failed: 0,
+          deferred: 0,
+          budgetPaused: false,
+          dryRun: true,
+          durationMs: 0,
         },
         records: [],
       });
@@ -344,7 +390,10 @@ describe("runBackfill — I-BF3 no cursor advance", () => {
   test("the runtime never imports or writes the fetch watermark", () => {
     // Structural guard: backfill heals records the watermark already passed
     // and must never touch it. The runtime has no watermark dependency.
-    const src = readFileSync(join(import.meta.dir, "..", "..", "src", "sync", "backfill.ts"), "utf8");
+    const src = readFileSync(
+      join(import.meta.dir, "..", "..", "src", "sync", "backfill.ts"),
+      "utf8",
+    );
     expect(src).not.toContain("fetch/watermark");
     expect(src).not.toContain("setWatermark");
     expect(src).not.toContain("WATERMARK_KEY");

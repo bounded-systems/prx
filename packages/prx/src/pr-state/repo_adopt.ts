@@ -11,12 +11,7 @@
 
 import { isAbsolute, resolve } from "node:path";
 import { CliError } from "./cli-error.ts";
-import {
-  defaultRepoRunner,
-  parseRepoUrl,
-  type RepoRunner,
-  type ParsedRepoUrl,
-} from "./repos.ts";
+import { defaultRepoRunner, parseRepoUrl, type RepoRunner, type ParsedRepoUrl } from "./repos.ts";
 import { RepositoryStore, type RepoRow } from "./registry_store.ts";
 
 export type RepoInference = {
@@ -32,12 +27,7 @@ function normalizeCommonDir(raw: string, cwd: string): string {
   return resolve(cwd, raw);
 }
 
-function runOrThrow(
-  runner: RepoRunner,
-  cmd: string[],
-  cwd: string,
-  errorMessage: string,
-): string {
+function runOrThrow(runner: RepoRunner, cmd: string[], cwd: string, errorMessage: string): string {
   const result = runner(cmd, { cwd, check: false });
   if (result.status !== 0) {
     const detail = (result.stderr || result.stdout).trim();
@@ -51,10 +41,10 @@ function runOrThrow(
 }
 
 function inferDefaultBranch(worktreePath: string, runner: RepoRunner): string {
-  const symref = runner(
-    ["git", "symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
-    { cwd: worktreePath, check: false },
-  );
+  const symref = runner(["git", "symbolic-ref", "--short", "refs/remotes/origin/HEAD"], {
+    cwd: worktreePath,
+    check: false,
+  });
   if (symref.status === 0) {
     const value = symref.stdout.trim();
     if (value.startsWith("origin/")) {
@@ -62,10 +52,10 @@ function inferDefaultBranch(worktreePath: string, runner: RepoRunner): string {
       if (stripped.length > 0) return stripped;
     }
   }
-  const lsRemote = runner(
-    ["git", "ls-remote", "--symref", "origin", "HEAD"],
-    { cwd: worktreePath, check: false },
-  );
+  const lsRemote = runner(["git", "ls-remote", "--symref", "origin", "HEAD"], {
+    cwd: worktreePath,
+    check: false,
+  });
   if (lsRemote.status === 0) {
     for (const line of lsRemote.stdout.split("\n")) {
       const match = line.match(/^ref:\s+refs\/heads\/(\S+)\s+HEAD$/);

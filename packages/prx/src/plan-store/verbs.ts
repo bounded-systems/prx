@@ -57,9 +57,7 @@ export interface RunPlanSaveResult {
 // moves to the consumer (`prx implement agent`). Input-channel guards
 // (empty-stdin, GH-1237) live at the CLI/producer boundary and are unaffected —
 // they protect the channel, not the content.
-export async function runPlanSave(
-  input: RunPlanSaveInput,
-): Promise<RunPlanSaveResult> {
+export async function runPlanSave(input: RunPlanSaveInput): Promise<RunPlanSaveResult> {
   // prx-bs4: validate through the unified, format-dispatching contract — a JSON
   // PlanArtifact body is checked against PlanArtifactSchema, a (legacy) markdown
   // body against the `## Scope` gate. The `## Scope` check is now ONE branch of
@@ -143,9 +141,7 @@ export class PlanRefNotFound extends Error {
   }
 }
 
-export async function runPlanLoad(
-  input: RunPlanLoadInput,
-): Promise<RunPlanLoadResult> {
+export async function runPlanLoad(input: RunPlanLoadInput): Promise<RunPlanLoadResult> {
   const primary = await getRef(refName(input.unit, input.slot));
   if (primary !== null) {
     const resolved = await resolveBody(primary);
@@ -196,9 +192,7 @@ export interface RunPlanShowResult {
 // `show` resolves approved first, then draft when slot is unspecified.
 // An explicit slot disables fallback so operators can introspect a specific
 // ref. Same not-found semantics as load.
-export async function runPlanShow(
-  input: RunPlanShowInput,
-): Promise<RunPlanShowResult> {
+export async function runPlanShow(input: RunPlanShowInput): Promise<RunPlanShowResult> {
   const slots = input.slot ? [input.slot] : (["approved", "draft"] as const);
   for (const slot of slots) {
     const sha = await getRef(refName(input.unit, slot));

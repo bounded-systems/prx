@@ -21,11 +21,7 @@
 import { processEnv } from "@bounded-systems/env";
 import { z } from "zod";
 
-import {
-  IssueResolveError,
-  resolveIssueId,
-  type IssueResolvedId,
-} from "../issues/resolver.ts";
+import { IssueResolveError, resolveIssueId, type IssueResolvedId } from "../issues/resolver.ts";
 import { execBd } from "@bounded-systems/bd";
 import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import { execGh, type GhExecResult } from "@bounded-systems/gh";
@@ -201,9 +197,7 @@ function runGhComment(
   );
   if (commentResult.exitCode !== 0) {
     const detail =
-      commentResult.stderr.trim() ||
-      commentResult.stdout.trim() ||
-      "gh issue comment failed";
+      commentResult.stderr.trim() || commentResult.stdout.trim() || "gh issue comment failed";
     output.error(`${VERB}: ${detail}`);
     return commentResult.exitCode || 1;
   }
@@ -268,9 +262,7 @@ function runBdComment(
   }
 
   if (alreadyPresent) {
-    output.log(
-      `${VERB}: marker already present on '${bdId}' — idempotent no-op`,
-    );
+    output.log(`${VERB}: marker already present on '${bdId}' — idempotent no-op`);
     const render: IntakeCommentRender = {
       backend: "bd",
       bdId,
@@ -289,9 +281,7 @@ function runBdComment(
   const updateResult = run(["prx", "beads", "update", bdId, "--notes", newNotes], { check: false });
   if (updateResult.status !== 0) {
     const detail =
-      updateResult.stderr.trim() ||
-      updateResult.stdout.trim() ||
-      "prx beads update failed";
+      updateResult.stderr.trim() || updateResult.stdout.trim() || "prx beads update failed";
     output.error(`${VERB}: ${detail}`);
     return updateResult.status || 1;
   }
@@ -323,12 +313,8 @@ export function formatIntakeCommentRender(
   return formatGhRender(render);
 }
 
-function formatGhRender(
-  render: Extract<IntakeCommentRender, { backend: "gh" }>,
-): string {
-  const header = render.dryRun
-    ? "prx intake comment (dry-run)"
-    : "prx intake comment";
+function formatGhRender(render: Extract<IntakeCommentRender, { backend: "gh" }>): string {
+  const header = render.dryRun ? "prx intake comment (dry-run)" : "prx intake comment";
   const lines: string[] = [
     header,
     `  canonical:  GH-${render.canonicalNumber}`,
@@ -353,12 +339,8 @@ function formatGhRender(
   return lines.join("\n");
 }
 
-function formatBdRender(
-  render: Extract<IntakeCommentRender, { backend: "bd" }>,
-): string {
-  const header = render.dryRun
-    ? "prx intake comment (dry-run)"
-    : "prx intake comment";
+function formatBdRender(render: Extract<IntakeCommentRender, { backend: "bd" }>): string {
+  const header = render.dryRun ? "prx intake comment (dry-run)" : "prx intake comment";
   const lines: string[] = [
     header,
     `  canonical:  ${render.bdId}`,

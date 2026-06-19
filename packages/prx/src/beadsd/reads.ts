@@ -47,7 +47,9 @@ export async function showBeadViaDaemon(
  * (sync/backfill reconcile, dedupe, drift, scout dep-graph). For a single-id
  * lookup use {@link showBeadViaDaemon} instead.
  */
-export async function loadAllBeadsViaDaemon(deps: WithBeadsClientDeps = {}): Promise<BeadsRecord[]> {
+export async function loadAllBeadsViaDaemon(
+  deps: WithBeadsClientDeps = {},
+): Promise<BeadsRecord[]> {
   return withBeadsClient(async (client) => {
     const reply = await client.query({ kind: "list", all: true, limit: 0 });
     if (reply.status === "error") {

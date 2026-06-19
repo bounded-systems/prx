@@ -82,10 +82,7 @@ export function assertArtifactLineage(slots: readonly ArtifactSlot[]): Invariant
     const meta = artifactTypeMeta[slot.type];
     if (meta.owning_uow_required && slot.uow_id.length === 0) {
       findings.push(
-        hard(
-          "I-AUD2",
-          `artifact ${slot.type} (ref=${slot.ref ?? "<no-ref>"}) has no uow_id`,
-        ),
+        hard("I-AUD2", `artifact ${slot.type} (ref=${slot.ref ?? "<no-ref>"}) has no uow_id`),
       );
     }
     if (meta.lineage_required && slot.input_refs.length === 0) {
@@ -104,9 +101,7 @@ export function assertArtifactLineage(slots: readonly ArtifactSlot[]): Invariant
 // TransitionContract (GH-1821). For each transition, the required-for-phase
 // set of the *destination* phase must be a subset of the artifact types
 // whose status was `present` (or stronger) at the transition moment.
-export function assertGuardedTransition(
-  transition: GuardedTransition,
-): InvariantFinding[] {
+export function assertGuardedTransition(transition: GuardedTransition): InvariantFinding[] {
   const required = requiredArtifactTypesForPhase(
     transition.state_to as Parameters<typeof requiredArtifactTypesForPhase>[0],
   );

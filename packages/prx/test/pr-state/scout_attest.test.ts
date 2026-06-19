@@ -44,7 +44,11 @@ beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "scout-attest-"));
   chain = openAnchoredChain(join(dir, "ledger.sqlite"));
   const kp = generateEd25519Keypair();
-  deps = { signer: ed25519Signer(kp.privateKey, kp.keyid), store: chain.derivations, now: () => 1000 };
+  deps = {
+    signer: ed25519Signer(kp.privateKey, kp.keyid),
+    store: chain.derivations,
+    now: () => 1000,
+  };
   verifier = ed25519Verifier(kp.publicKey);
 });
 

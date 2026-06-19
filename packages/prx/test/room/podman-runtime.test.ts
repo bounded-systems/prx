@@ -26,13 +26,27 @@ function pod(rooms: RoomInput[]): PodSpec {
 const beadsdRoom: RoomInput = {
   name: "beadsd-room",
   image: "beadsd-box",
-  doors: [{ name: "beadsd", direction: "expose", capability: "beads:read", socket: "/run/prx/doors/beadsd.sock" }],
+  doors: [
+    {
+      name: "beadsd",
+      direction: "expose",
+      capability: "beads:read",
+      socket: "/run/prx/doors/beadsd.sock",
+    },
+  ],
 };
 
 const keeperdRoom: RoomInput = {
   name: "keeperd-room",
   image: "keeperd-box",
-  doors: [{ name: "keeperd", direction: "expose", capability: "git:write", socket: "/run/prx/doors/keeperd.sock" }],
+  doors: [
+    {
+      name: "keeperd",
+      direction: "expose",
+      capability: "git:write",
+      socket: "/run/prx/doors/keeperd.sock",
+    },
+  ],
   secrets: [{ name: "prx-keeper-key", target: "/run/secrets/keeper-key" }],
 };
 
@@ -106,7 +120,11 @@ describe("playPod", () => {
   test("fails fast when door-fabric provisioning fails (no podman invocations follow)", () => {
     const p = pod([beadsdRoom]);
     const { run, calls } = recorder(ok);
-    const { provision } = provisionRecorder({ status: 1, stdout: "", stderr: "mkdir: Permission denied" });
+    const { provision } = provisionRecorder({
+      status: 1,
+      stdout: "",
+      stderr: "mkdir: Permission denied",
+    });
     expect(() => playPod(p, run, provision)).toThrow(PodmanRuntimeError);
     try {
       playPod(p, run, provision);

@@ -48,11 +48,7 @@ export type IntakeBdDeps = {
 // canonical surface for unknown statuses.
 export const intakeBdLsOptionsSchema = z.object({
   status: z.string().trim().min(1).optional(),
-  limit: z
-    .number()
-    .int()
-    .min(0, "--limit must be a non-negative integer")
-    .default(20),
+  limit: z.number().int().min(0, "--limit must be a non-negative integer").default(20),
   format: z.enum(["plain", "json"]).default("plain"),
 });
 

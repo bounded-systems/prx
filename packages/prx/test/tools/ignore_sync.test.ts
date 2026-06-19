@@ -90,5 +90,4 @@ describe("ensurePrxExcludes", () => {
     expect(text.match(/^\.pr\/$/gm)?.length ?? 0).toBe(1);
     expect(text.match(/^\.prx\/$/gm)?.length ?? 0).toBe(1);
   });
-
 });

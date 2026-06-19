@@ -151,7 +151,11 @@ describe("sessionEntryMachine", () => {
       const actor = createActor(sessionEntryMachine).start();
       // GH-2380: the flag-layer argv fence is the interactive profile; the
       // default is now headless SDK (covered separately below).
-      actor.send({ type: "OPEN_SUBMIT_SESSION", workUnitId: "GH-1900", interaction: "interactive" });
+      actor.send({
+        type: "OPEN_SUBMIT_SESSION",
+        workUnitId: "GH-1900",
+        interaction: "interactive",
+      });
       const snap = actor.getSnapshot();
       expect(snap.value).toBe("submit");
       expect(snap.status).toBe("done");
@@ -201,7 +205,11 @@ describe("sessionEntryMachine", () => {
       const actor = createActor(sessionEntryMachine).start();
       // GH-2380: the flag-layer argv fence is the interactive profile; the
       // default is now headless SDK (covered separately below).
-      actor.send({ type: "OPEN_AUTHOR_SESSION", workUnitId: "GH-1206", interaction: "interactive" });
+      actor.send({
+        type: "OPEN_AUTHOR_SESSION",
+        workUnitId: "GH-1206",
+        interaction: "interactive",
+      });
       const snap = actor.getSnapshot();
       expect(snap.value).toBe("author");
       expect(snap.status).toBe("done");
@@ -473,10 +481,26 @@ describe("sessionEntryMachine", () => {
   // builds the legacy subprocess/tmux profile. The SDK profile carries the
   // SESSION_PROFILES allowlist/denylist verbatim into `sdkSpec`.
   const headlessCases = [
-    { event: { type: "OPEN_INTAKE_SESSION" as const }, profileName: "intake" as const, role: "intake" },
-    { event: { type: "OPEN_TRIAGE_SESSION" as const }, profileName: "triage" as const, role: "triage" },
-    { event: { type: "OPEN_SUBMIT_SESSION" as const, workUnitId: "GH-1900" }, profileName: "submit" as const, role: "submit" },
-    { event: { type: "OPEN_AUTHOR_SESSION" as const, workUnitId: "GH-1206" }, profileName: "author" as const, role: "author" },
+    {
+      event: { type: "OPEN_INTAKE_SESSION" as const },
+      profileName: "intake" as const,
+      role: "intake",
+    },
+    {
+      event: { type: "OPEN_TRIAGE_SESSION" as const },
+      profileName: "triage" as const,
+      role: "triage",
+    },
+    {
+      event: { type: "OPEN_SUBMIT_SESSION" as const, workUnitId: "GH-1900" },
+      profileName: "submit" as const,
+      role: "submit",
+    },
+    {
+      event: { type: "OPEN_AUTHOR_SESSION" as const, workUnitId: "GH-1206" },
+      profileName: "author" as const,
+      role: "author",
+    },
   ];
 
   for (const { event, profileName, role } of headlessCases) {
@@ -492,7 +516,9 @@ describe("sessionEntryMachine", () => {
         expect(profile?.env?.PRX_AGENT_ROLE).toBe(role);
         // sdkSpec carries the declared toolset verbatim (authority = spec).
         expect(profile?.sdkSpec?.allowedTools).toEqual(SESSION_PROFILES[profileName].allowedTools);
-        expect(profile?.sdkSpec?.disallowedTools).toEqual(SESSION_PROFILES[profileName].disallowedTools);
+        expect(profile?.sdkSpec?.disallowedTools).toEqual(
+          SESSION_PROFILES[profileName].disallowedTools,
+        );
         expect(profile?.sdkSpec?.permissionMode).toBe("acceptEdits"); // prx-hz1: headless never uses plan mode
       } finally {
         restore();

@@ -32,13 +32,7 @@ const BdPriority = z.number().int().min(0).max(10);
 // `bd ready --explain` surfaces blocked siblings whose status is open + has
 // open blockers; closed/in_progress show up via `bd list`. Open enum for
 // forward compatibility.
-const BdStatus = z.enum([
-  "open",
-  "in_progress",
-  "blocked",
-  "deferred",
-  "closed",
-]);
+const BdStatus = z.enum(["open", "in_progress", "blocked", "deferred", "closed"]);
 
 export type BdStatus = z.infer<typeof BdStatus>;
 
@@ -47,14 +41,7 @@ export type BdStatus = z.infer<typeof BdStatus>;
 // presently emits: blocks, parent-child, relates_to, duplicates, supersedes,
 // replies_to. Unknown kinds passthrough as the raw string.
 const BdDepKind = z.union([
-  z.enum([
-    "blocks",
-    "parent-child",
-    "relates_to",
-    "duplicates",
-    "supersedes",
-    "replies_to",
-  ]),
+  z.enum(["blocks", "parent-child", "relates_to", "duplicates", "supersedes", "replies_to"]),
   z.string().min(1),
 ]);
 
@@ -102,10 +89,7 @@ export const BdReadyCandidateSchema = z
     // `bd ready --explain` surfaces these on ready rows for the human-facing
     // "why is this ready" reason. Preserved verbatim.
     reason: z.string().optional(),
-    resolved_blockers: z
-      .array(z.unknown())
-      .nullable()
-      .optional(),
+    resolved_blockers: z.array(z.unknown()).nullable().optional(),
   })
   .passthrough();
 export type BdReadyCandidate = z.infer<typeof BdReadyCandidateSchema>;
@@ -196,7 +180,11 @@ export type NextWorkResult = z.infer<typeof NextWorkResultSchema>;
 
 // A runner of `bd` subcommands. Mirrors the `BdGithubRunner` injection
 // pattern in `src/tools/bd.ts` so tests don't need a real `bd` binary.
-export type BdRunner = (opts: BdExecOptions) => { exitCode: number; stdout: string; stderr: string };
+export type BdRunner = (opts: BdExecOptions) => {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+};
 
 export const defaultBdRunner: BdRunner = (opts) => {
   const result = execBd(opts);
@@ -231,7 +219,9 @@ export function queryBdReady(opts: QueryBdReadyOptions): QueryBdReadyResult {
   });
 
   if (result.exitCode !== 0) {
-    throw new Error(`bd ready --explain --json failed (exit ${result.exitCode}): ${result.stderr.trim()}`);
+    throw new Error(
+      `bd ready --explain --json failed (exit ${result.exitCode}): ${result.stderr.trim()}`,
+    );
   }
 
   const trimmed = result.stdout.trim();
@@ -284,7 +274,9 @@ export function queryBdGraph(opts: QueryBdGraphOptions): BdDepEdge[] {
       cwd: opts.cwd,
     });
     if (result.exitCode !== 0) {
-      throw new Error(`bd dep list ${id} --json failed (exit ${result.exitCode}): ${result.stderr.trim()}`);
+      throw new Error(
+        `bd dep list ${id} --json failed (exit ${result.exitCode}): ${result.stderr.trim()}`,
+      );
     }
     const trimmed = result.stdout.trim();
     if (trimmed.length === 0) continue;

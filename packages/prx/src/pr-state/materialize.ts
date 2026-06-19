@@ -158,10 +158,7 @@ export function materializeBareRepo(opts: MaterializeOptions): MaterializeResult
   }
   const remoteUrl = repo.primaryRemote.url;
 
-  const ttlSeconds = resolveTtlSeconds(
-    opts.ttlSeconds,
-    inventoryConfig.repoRoot,
-  );
+  const ttlSeconds = resolveTtlSeconds(opts.ttlSeconds, inventoryConfig.repoRoot);
 
   const action = decideAction(barePath, ttlSeconds, now());
 
@@ -205,11 +202,7 @@ export function materializeBareRepo(opts: MaterializeOptions): MaterializeResult
   };
 }
 
-function decideAction(
-  barePath: string,
-  ttlSeconds: number,
-  nowMs: number,
-): MaterializeAction {
+function decideAction(barePath: string, ttlSeconds: number, nowMs: number): MaterializeAction {
   if (!existsSync(barePath)) {
     return "cloned";
   }
@@ -273,10 +266,7 @@ function readFetchHeadMtime(barePath: string): number | null {
   return statSync(fetchHeadPath).mtimeMs;
 }
 
-function resolveTtlSeconds(
-  explicit: number | undefined,
-  repoRoot: string | null,
-): number {
+function resolveTtlSeconds(explicit: number | undefined, repoRoot: string | null): number {
   if (typeof explicit === "number" && Number.isFinite(explicit) && explicit > 0) {
     return explicit;
   }

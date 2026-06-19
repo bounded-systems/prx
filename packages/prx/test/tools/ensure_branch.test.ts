@@ -20,9 +20,7 @@ type Fixture = {
 function git(cwd: string, ...args: string[]): void {
   const r = spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" });
   if (r.status !== 0) {
-    throw new Error(
-      `git ${args.join(" ")} failed in ${cwd}: ${r.stderr || r.stdout}`,
-    );
+    throw new Error(`git ${args.join(" ")} failed in ${cwd}: ${r.stderr || r.stdout}`);
   }
 }
 
@@ -219,21 +217,39 @@ describe("formatEnsureBranchResult", () => {
 
     expect(
       formatEnsureBranchResult(
-        { status: "exists-local", branch: "main", base: "origin/main", remote: "origin", created: false },
+        {
+          status: "exists-local",
+          branch: "main",
+          base: "origin/main",
+          remote: "origin",
+          created: false,
+        },
         "plain",
       ),
     ).toBe("ok (local): main");
 
     expect(
       formatEnsureBranchResult(
-        { status: "exists-remote", branch: "main", base: "origin/main", remote: "origin", created: false },
+        {
+          status: "exists-remote",
+          branch: "main",
+          base: "origin/main",
+          remote: "origin",
+          created: false,
+        },
         "plain",
       ),
     ).toBe("ok (remote): main");
 
     expect(
       formatEnsureBranchResult(
-        { status: "skipped", branch: "main", base: "origin/main", remote: "origin", created: false },
+        {
+          status: "skipped",
+          branch: "main",
+          base: "origin/main",
+          remote: "origin",
+          created: false,
+        },
         "plain",
       ),
     ).toBe("skipped: main");

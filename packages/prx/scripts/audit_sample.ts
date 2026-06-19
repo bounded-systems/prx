@@ -131,7 +131,9 @@ function formatSample(sample: BeadsIssue[]): string {
   lines.push("");
   lines.push(`N = ${sample.length}. Instrument: \`docs/audit-instrument-v0.md\`.`);
   lines.push("");
-  lines.push("Score each issue into exactly one bucket. Write a one-line reason — enough to settle a tie with yourself at the next audit.");
+  lines.push(
+    "Score each issue into exactly one bucket. Write a one-line reason — enough to settle a tie with yourself at the next audit.",
+  );
   lines.push("");
 
   if (sample.length === 0) {

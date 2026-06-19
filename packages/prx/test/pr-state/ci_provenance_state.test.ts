@@ -30,7 +30,11 @@ beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "ci-prov-state-"));
   chain = openAnchoredChain(join(dir, "ledger.sqlite"));
   kp = generateEd25519Keypair();
-  attest = { signer: ed25519Signer(kp.privateKey, kp.keyid), store: chain.derivations, now: () => 1000 };
+  attest = {
+    signer: ed25519Signer(kp.privateKey, kp.keyid),
+    store: chain.derivations,
+    now: () => 1000,
+  };
 });
 
 afterEach(() => {
@@ -52,7 +56,11 @@ describe("resolveCiProvenanceState — verdict + freshness (GH-352)", () => {
 
   test("stale once the current tree no longer matches what CI validated", async () => {
     await attestCiPhases(attest, INPUTS, COMMIT, ["test"]);
-    const movedTree = resolveCiInputs({ treeOid: "def456", lock: "lock-bytes", toolchain: "bun 1.3.11" });
+    const movedTree = resolveCiInputs({
+      treeOid: "def456",
+      lock: "lock-bytes",
+      toolchain: "bun 1.3.11",
+    });
     const state = await resolveCiProvenanceState({
       store: chain,
       commit: COMMIT,

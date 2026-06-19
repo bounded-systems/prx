@@ -51,7 +51,10 @@ describe("transition_log", () => {
     const logPath = makeTmpLogPath();
 
     appendTransitionLog(logPath, makeEntry({ id: "id-1", state_to: "validating" }));
-    appendTransitionLog(logPath, makeEntry({ id: "id-2", state_from: "validating", state_to: "ready_for_review" }));
+    appendTransitionLog(
+      logPath,
+      makeEntry({ id: "id-2", state_from: "validating", state_to: "ready_for_review" }),
+    );
 
     const entries = readTransitionLog(logPath);
     expect(entries).toHaveLength(2);

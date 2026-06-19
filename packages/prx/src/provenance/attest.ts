@@ -83,10 +83,7 @@ export interface ProcAttestSubject {
  * from the underlying capability. The git result is returned unchanged; the
  * attestation is a pure side effect on success.
  */
-export type AttestingGit = (
-  opts: GitExecOptions,
-  env?: GitExecEnv,
-) => Promise<GitExecResult>;
+export type AttestingGit = (opts: GitExecOptions, env?: GitExecEnv) => Promise<GitExecResult>;
 
 /** Which git subcommands produce an attestable artifact (a new commit/ref). */
 export function gitAttestable(opts: GitExecOptions): boolean {
@@ -104,18 +101,12 @@ function gitBuildType(subcommand: string): string {
  * cannot be resolved the call still succeeds; it simply produces no link rather
  * than a malformed one.
  */
-export function attestingGit(
-  inner: typeof execGit,
-  deps: AttestDeps,
-): AttestingGit {
+export function attestingGit(inner: typeof execGit, deps: AttestDeps): AttestingGit {
   return async (opts, env) => {
     const result = inner(opts, env);
     if (result.exitCode !== 0 || !gitAttestable(opts)) return result;
 
-    const head = inner(
-      { subcommand: "rev-parse", args: ["HEAD"], cwd: opts.cwd },
-      env,
-    );
+    const head = inner({ subcommand: "rev-parse", args: ["HEAD"], cwd: opts.cwd }, env);
     const oid = head.stdout.trim();
     if (head.exitCode !== 0 || oid.length === 0) return result;
 

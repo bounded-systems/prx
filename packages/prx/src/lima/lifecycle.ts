@@ -89,7 +89,11 @@ function daemonPaths(name: string): { socket: string; logPath: string; pidfile: 
 }
 
 /** True iff a daemon's unix socket exists in the VM — a liveness probe (`test -S`). */
-export function isDaemonSocketUp(vm: string, socket: string, deps: DaemonLifecycleDeps = {}): boolean {
+export function isDaemonSocketUp(
+  vm: string,
+  socket: string,
+  deps: DaemonLifecycleDeps = {},
+): boolean {
   const run = deps.run ?? spawnRun;
   return run("limactl", ["shell", "--workdir", "/", vm, "--", "test", "-S", socket]).status === 0;
 }
@@ -106,7 +110,10 @@ function requireOk(res: RunResult, what: string): void {
 }
 
 /** Copy a (Linux) prx binary into the VM and make it executable. Returns its VM path. */
-export function deployDaemonBinary(opts: DeployDaemonOptions, deps: DaemonLifecycleDeps = {}): string {
+export function deployDaemonBinary(
+  opts: DeployDaemonOptions,
+  deps: DaemonLifecycleDeps = {},
+): string {
   const run = deps.run ?? spawnRun;
   const vmBinPath = opts.vmBinPath ?? DEFAULT_VM_BIN;
   requireOk(
@@ -201,7 +208,10 @@ export async function stopDaemon(
 export async function provisionDaemon(
   spec: DaemonSpec,
   opts: DeployDaemonOptions &
-    Pick<StartDaemonOptions, "cwd" | "socket" | "logPath" | "pidfile" | "envPrefix" | "readyTimeoutMs">,
+    Pick<
+      StartDaemonOptions,
+      "cwd" | "socket" | "logPath" | "pidfile" | "envPrefix" | "readyTimeoutMs"
+    >,
   deps: DaemonLifecycleDeps = {},
 ): Promise<DaemonHandle> {
   const vmBinPath = deployDaemonBinary(opts, deps);

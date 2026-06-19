@@ -70,22 +70,24 @@ describe("resolveIntakeViewId", () => {
   });
 
   test("GitHub URL captures owner/repo + number", () => {
-    expect(
-      resolveIntakeViewId("https://github.com/bdelanghe/ai-home/issues/1000"),
-    ).toEqual({ kind: "gh", number: 1000, repo: "bdelanghe/ai-home" });
+    expect(resolveIntakeViewId("https://github.com/bdelanghe/ai-home/issues/1000")).toEqual({
+      kind: "gh",
+      number: 1000,
+      repo: "bdelanghe/ai-home",
+    });
   });
 
   test("GitHub URL with trailing slash and query string", () => {
-    expect(
-      resolveIntakeViewId("https://github.com/o/r/issues/7/?foo=bar"),
-    ).toEqual({ kind: "gh", number: 7, repo: "o/r" });
+    expect(resolveIntakeViewId("https://github.com/o/r/issues/7/?foo=bar")).toEqual({
+      kind: "gh",
+      number: 7,
+      repo: "o/r",
+    });
   });
 
   test("GitHub URL with multi-param query string (& not rejected; GH-1186 review)", () => {
     expect(
-      resolveIntakeViewId(
-        "https://github.com/bdelanghe/ai-home/issues/1186?foo=1&bar=2",
-      ),
+      resolveIntakeViewId("https://github.com/bdelanghe/ai-home/issues/1186?foo=1&bar=2"),
     ).toEqual({ kind: "gh", number: 1186, repo: "bdelanghe/ai-home" });
   });
 
@@ -184,8 +186,7 @@ describe("runIntakeView — GH paths", () => {
       makeOpts({ id: "GH-7", format: "json" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
-        execGh: (() =>
-          ghOk({ title: "x", url: "https://github.com/o/r/issues/7" })) as never,
+        execGh: (() => ghOk({ title: "x", url: "https://github.com/o/r/issues/7" })) as never,
       },
     );
     const parsed = JSON.parse(logs[0]!) as { source: string; payload: { url: string } };

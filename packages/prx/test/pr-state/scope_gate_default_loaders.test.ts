@@ -17,9 +17,16 @@ import {
 } from "@bounded-systems/anchored-chain";
 
 import { emitArtifact } from "../../src/pipeline/edge.ts";
-import { implementArtifactEdge, type ImplementArtifact } from "../../src/pipeline/implement-artifact.ts";
+import {
+  implementArtifactEdge,
+  type ImplementArtifact,
+} from "../../src/pipeline/implement-artifact.ts";
 import { runPlanSave } from "../../src/plan-store/verbs.ts";
-import { runScopeGate, ScopeGateInputError, type ScopeGateDeps } from "../../src/pr-state/scope-gate.ts";
+import {
+  runScopeGate,
+  ScopeGateInputError,
+  type ScopeGateDeps,
+} from "../../src/pr-state/scope-gate.ts";
 
 const COMMIT = "abcabcabcabcabcabcabcabcabcabcabcabcabca";
 
@@ -40,15 +47,28 @@ function deps(): ScopeGateDeps {
   const kp = generateEd25519Keypair();
   const map = new Map<string, Derivation>();
   const store: Pick<DerivationStore, "append" | "get"> = {
-    async append(d) { map.set(d.derivationId as string, d); },
-    async get(id) { return map.get(id as string) ?? null; },
+    async append(d) {
+      map.set(d.derivationId as string, d);
+    },
+    async get(id) {
+      return map.get(id as string) ?? null;
+    },
   };
   // No loadPlanPaths / loadImplement → the production CAS defaults run.
-  return { signer: ed25519Signer(kp.privateKey, kp.keyid), store: store as DerivationStore, now: () => 1000 };
+  return {
+    signer: ed25519Signer(kp.privateKey, kp.keyid),
+    store: store as DerivationStore,
+    now: () => 1000,
+  };
 }
 
 const seedImplement = (unit: string, files: string[]) =>
-  emitArtifact(implementArtifactEdge, unit, { unit, commit: COMMIT, summary: "s", files_changed: files } as ImplementArtifact);
+  emitArtifact(implementArtifactEdge, unit, {
+    unit,
+    commit: COMMIT,
+    summary: "s",
+    files_changed: files,
+  } as ImplementArtifact);
 const seedPlan = (unit: string, body: string) =>
   runPlanSave({ unit, slot: "approved", content: body, skipValidate: true });
 

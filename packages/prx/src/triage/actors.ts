@@ -17,21 +17,13 @@
 
 import { fromPromise } from "xstate";
 
-import {
-  runStatusActor,
-  type TriageStatusActorResult,
-  type TriageStatusDeps,
-} from "./triage.ts";
+import { runStatusActor, type TriageStatusActorResult, type TriageStatusDeps } from "./triage.ts";
 import {
   runClassifyActor,
   type TriageClassifyActorResult,
   type TriageClassifyDeps,
 } from "./classifier.ts";
-import {
-  runApplyActor,
-  type TriageApplyActorResult,
-  type TriageApplyDeps,
-} from "./apply.ts";
+import { runApplyActor, type TriageApplyActorResult, type TriageApplyDeps } from "./apply.ts";
 import {
   runPrioritizeActor,
   type TriagePrioritizeActorResult,
@@ -94,7 +86,9 @@ export type ApplyActorInput = TriageApplyOptions & { deps?: TriageApplyDeps };
 export type PrioritizeActorInput = TriagePrioritizeOptions & { deps?: TriagePrioritizeDeps };
 export type PromoteActorInput = TriagePromoteOptions & { deps?: TriagePromoteDeps };
 export type TypePassActorInput = TriageTypePassOptions & { deps?: TriageTypePassDeps };
-export type PrioritizeBulkActorInput = TriagePrioritizeBulkOptions & { deps?: TriagePrioritizeBulkDeps };
+export type PrioritizeBulkActorInput = TriagePrioritizeBulkOptions & {
+  deps?: TriagePrioritizeBulkDeps;
+};
 export type PruneMergedActorInput = TriagePruneMergedOptions & { deps?: TriagePruneMergedDeps };
 export type DriftFixActorInput = TriageDriftFixOptions & { deps?: TriageDriftFixDeps };
 
@@ -152,13 +146,14 @@ export const pruneMergedActor = fromPromise<TriagePruneMergedActorResult, PruneM
   },
 );
 
-export const prioritizeBulkActor = fromPromise<TriagePrioritizeBulkActorResult, PrioritizeBulkActorInput>(
-  async ({ input }) => {
-    const { deps, ...data } = input;
-    const opts = triagePrioritizeBulkOptionsSchema.parse(data);
-    return runPrioritizeBulkActor(opts, deps);
-  },
-);
+export const prioritizeBulkActor = fromPromise<
+  TriagePrioritizeBulkActorResult,
+  PrioritizeBulkActorInput
+>(async ({ input }) => {
+  const { deps, ...data } = input;
+  const opts = triagePrioritizeBulkOptionsSchema.parse(data);
+  return runPrioritizeBulkActor(opts, deps);
+});
 
 // GH-1021 — typePassActor is now wired to the real verb. The stub `throw new
 // TriageStubError("type-pass", "GH-1021")` was removed when the verb landed.

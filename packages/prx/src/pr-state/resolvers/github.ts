@@ -13,10 +13,7 @@ export class GithubResolver implements WorkUnitResolver {
 
   constructor(private readonly repoPath: string) {}
 
-  async fetch(
-    canonicalId: string,
-    opts?: { runner?: CommandRunner },
-  ): Promise<ResolvedWorkUnit> {
+  async fetch(canonicalId: string, opts?: { runner?: CommandRunner }): Promise<ResolvedWorkUnit> {
     const match = canonicalId.match(GH_ID_PATTERN);
     if (!match) {
       throw new Error(`GithubResolver requires a GH-<n> canonical id, got: ${canonicalId}`);

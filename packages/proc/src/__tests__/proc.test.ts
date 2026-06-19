@@ -19,7 +19,7 @@ describe("@bounded-systems/proc defaultRunner", () => {
   });
 
   test("env override is passed through to the child", () => {
-    const r = defaultRunner(["sh", "-c", "printf %s \"$PRX_PROC_X\""], {
+    const r = defaultRunner(["sh", "-c", 'printf %s "$PRX_PROC_X"'], {
       env: { PRX_PROC_X: "yes" },
     });
     expect(r.stdout).toBe("yes");
@@ -42,10 +42,10 @@ describe("@bounded-systems/proc defaultRunner", () => {
   });
 
   test("array stdio is passed through; un-piped streams come back empty", () => {
-    const r = defaultRunner(
-      ["sh", "-c", "echo out; echo err >&2; exit 3"],
-      { stdio: ["ignore", "pipe", "pipe"], check: false },
-    );
+    const r = defaultRunner(["sh", "-c", "echo out; echo err >&2; exit 3"], {
+      stdio: ["ignore", "pipe", "pipe"],
+      check: false,
+    });
     expect(r.status).toBe(3);
     expect(r.stdout).toBe("out\n");
     expect(r.stderr).toBe("err\n");

@@ -202,13 +202,7 @@ describe("annotateIncomingEdges — fixture (a): Y → dup re-anchor", () => {
     expect(incoming).toHaveLength(1);
     const edge = incoming[0]!;
     expect(edge.removeArgv).toEqual(["remove", "ai-home-sib", manual.id]);
-    expect(edge.addArgv).toEqual([
-      "add",
-      "--type",
-      "parent-child",
-      "ai-home-sib",
-      auto.id,
-    ]);
+    expect(edge.addArgv).toEqual(["add", "--type", "parent-child", "ai-home-sib", auto.id]);
   });
 });
 
@@ -280,8 +274,7 @@ describe("planDedupe — fixture (c): conflict-abort", () => {
 describe("planDedupe — closed-as-dup clusters are suppressed (GH-1863)", () => {
   // §6 close-note shape (matches buildClosedNotePrefixed output and
   // isCanonicalDupClose's regex anchors: `duplicate of … ADR §6`).
-  const dupNote =
-    "[prx doctor dedupe-bd] duplicate: duplicate of ai-home-canonical per ADR §6";
+  const dupNote = "[prx doctor dedupe-bd] duplicate: duplicate of ai-home-canonical per ADR §6";
 
   test("auto canonical + closed-§6 manual is not surfaced", () => {
     const auto = bead({
@@ -388,19 +381,15 @@ describe("planDedupe — closed-as-dup clusters are suppressed (GH-1863)", () =>
     const { run, calls } = makeRun();
     const { output, log, error } = makeOutput();
     const audit: string[] = [];
-    const exitCode = runDedupeBd(
-      { apply: false, only: [], format: "plain" },
-      output,
-      {
-        run,
-        loadAllBeads: () => [auto, manual],
-        auditSink: {
-          stateDirOverride: "/tmp/state",
-          appendFn: (_p: string, line: string) => audit.push(line),
-          ensureDir: () => {},
-        },
+    const exitCode = runDedupeBd({ apply: false, only: [], format: "plain" }, output, {
+      run,
+      loadAllBeads: () => [auto, manual],
+      auditSink: {
+        stateDirOverride: "/tmp/state",
+        appendFn: (_p: string, line: string) => audit.push(line),
+        ensureDir: () => {},
       },
-    );
+    });
     expect(exitCode).toBe(0);
     expect(calls).toHaveLength(0);
     expect(error).toEqual([]);
@@ -471,8 +460,8 @@ describe("planDedupe — recycled-short-id phantom quarantine (GH-2254)", () => 
     const stamped = bead({
       ...phantom,
       notes:
-        "[prx doctor dedupe-bd] duplicate: duplicate of "
-        + `${auto.id} per ADR §6 (recycled short-id phantom — GH-2254)`,
+        "[prx doctor dedupe-bd] duplicate: duplicate of " +
+        `${auto.id} per ADR §6 (recycled short-id phantom — GH-2254)`,
     });
     expect(isCanonicalDupClose(stamped.notes)).toBe(true);
     expect(planDedupe([auto, stamped]).clusters).toEqual([]);
@@ -514,8 +503,8 @@ describe("findPinCollisions", () => {
       externalRefs: { gh: GH_PIN },
       status: "closed",
       notes:
-        "[prx doctor dedupe-bd] duplicate: duplicate of "
-        + `${auto.id} per ADR §6 (recycled short-id phantom — GH-2254)`,
+        "[prx doctor dedupe-bd] duplicate: duplicate of " +
+        `${auto.id} per ADR §6 (recycled short-id phantom — GH-2254)`,
     });
     expect(findPinCollisions([auto, stamped])).toEqual([]);
   });
@@ -571,19 +560,15 @@ describe("runDedupeBd — dry-run is read-only", () => {
     const { run, calls } = makeRun();
     const { output, log, error } = makeOutput();
     const audit: string[] = [];
-    const exitCode = runDedupeBd(
-      { apply: false, only: [], format: "json" },
-      output,
-      {
-        run,
-        loadAllBeads: () => [auto, manual],
-        auditSink: {
-          stateDirOverride: "/tmp/state",
-          appendFn: (_p: string, line: string) => audit.push(line),
-          ensureDir: () => {},
-        },
+    const exitCode = runDedupeBd({ apply: false, only: [], format: "json" }, output, {
+      run,
+      loadAllBeads: () => [auto, manual],
+      auditSink: {
+        stateDirOverride: "/tmp/state",
+        appendFn: (_p: string, line: string) => audit.push(line),
+        ensureDir: () => {},
       },
-    );
+    });
     expect(exitCode).toBe(0);
     expect(calls).toHaveLength(0);
     expect(error).toEqual([]);
@@ -625,19 +610,15 @@ describe("runDedupeBd — --apply writes bd update + dep argv", () => {
     const { run, calls } = makeRun();
     const { output } = makeOutput();
     const audit: string[] = [];
-    const exitCode = runDedupeBd(
-      { apply: true, only: [], format: "plain" },
-      output,
-      {
-        run,
-        loadAllBeads: () => [auto, manual],
-        auditSink: {
-          stateDirOverride: "/tmp/state",
-          appendFn: (_p: string, line: string) => audit.push(line),
-          ensureDir: () => {},
-        },
+    const exitCode = runDedupeBd({ apply: true, only: [], format: "plain" }, output, {
+      run,
+      loadAllBeads: () => [auto, manual],
+      auditSink: {
+        stateDirOverride: "/tmp/state",
+        appendFn: (_p: string, line: string) => audit.push(line),
+        ensureDir: () => {},
       },
-    );
+    });
     expect(exitCode).toBe(0);
     expect(calls).toHaveLength(3);
 
@@ -681,19 +662,15 @@ describe("runDedupeBd — conflict cluster exits non-zero", () => {
     const { run, calls } = makeRun();
     const { output, log } = makeOutput();
     const audit: string[] = [];
-    const exitCode = runDedupeBd(
-      { apply: false, only: [], format: "json" },
-      output,
-      {
-        run,
-        loadAllBeads: () => [a, b],
-        auditSink: {
-          stateDirOverride: "/tmp/state",
-          appendFn: (_p: string, line: string) => audit.push(line),
-          ensureDir: () => {},
-        },
+    const exitCode = runDedupeBd({ apply: false, only: [], format: "json" }, output, {
+      run,
+      loadAllBeads: () => [a, b],
+      auditSink: {
+        stateDirOverride: "/tmp/state",
+        appendFn: (_p: string, line: string) => audit.push(line),
+        ensureDir: () => {},
       },
-    );
+    });
     expect(exitCode).toBe(1);
     expect(calls).toHaveLength(0);
     const render = JSON.parse(log[0]!);
@@ -731,19 +708,15 @@ describe("runDedupeBd — surfaces pin collisions (GH-2254)", () => {
     const { run, calls } = makeRun();
     const { output, log, error } = makeOutput();
     const audit: string[] = [];
-    const exitCode = runDedupeBd(
-      { apply: false, only: [], format: "json" },
-      output,
-      {
-        run,
-        loadAllBeads: () => [auto, phantom],
-        auditSink: {
-          stateDirOverride: "/tmp/state",
-          appendFn: (_p: string, line: string) => audit.push(line),
-          ensureDir: () => {},
-        },
+    const exitCode = runDedupeBd({ apply: false, only: [], format: "json" }, output, {
+      run,
+      loadAllBeads: () => [auto, phantom],
+      auditSink: {
+        stateDirOverride: "/tmp/state",
+        appendFn: (_p: string, line: string) => audit.push(line),
+        ensureDir: () => {},
       },
-    );
+    });
     expect(exitCode).toBe(0);
     expect(calls).toHaveLength(0);
     expect(error).toEqual([]);
@@ -762,19 +735,15 @@ describe("runDedupeBd — surfaces pin collisions (GH-2254)", () => {
     const { run, calls } = makeRun();
     const { output, log } = makeOutput();
     const audit: string[] = [];
-    const exitCode = runDedupeBd(
-      { apply: true, only: [], format: "json" },
-      output,
-      {
-        run,
-        loadAllBeads: () => [auto, phantom],
-        auditSink: {
-          stateDirOverride: "/tmp/state",
-          appendFn: (_p: string, line: string) => audit.push(line),
-          ensureDir: () => {},
-        },
+    const exitCode = runDedupeBd({ apply: true, only: [], format: "json" }, output, {
+      run,
+      loadAllBeads: () => [auto, phantom],
+      auditSink: {
+        stateDirOverride: "/tmp/state",
+        appendFn: (_p: string, line: string) => audit.push(line),
+        ensureDir: () => {},
       },
-    );
+    });
     expect(exitCode).toBe(0);
     // Exactly one write: the §6 close of the phantom. No edges → no dep calls.
     expect(calls).toHaveLength(1);
@@ -808,19 +777,15 @@ describe("runDedupeBd — surfaces pin collisions (GH-2254)", () => {
     const { run, calls } = makeRun();
     const { output, log } = makeOutput();
     const audit: string[] = [];
-    const exitCode = runDedupeBd(
-      { apply: true, only: [], format: "json" },
-      output,
-      {
-        run,
-        loadAllBeads: () => [inflightA, inflightB],
-        auditSink: {
-          stateDirOverride: "/tmp/state",
-          appendFn: (_p: string, line: string) => audit.push(line),
-          ensureDir: () => {},
-        },
+    const exitCode = runDedupeBd({ apply: true, only: [], format: "json" }, output, {
+      run,
+      loadAllBeads: () => [inflightA, inflightB],
+      auditSink: {
+        stateDirOverride: "/tmp/state",
+        appendFn: (_p: string, line: string) => audit.push(line),
+        ensureDir: () => {},
       },
-    );
+    });
     // exit=1 comes from the conflict, NOT the collision.
     expect(exitCode).toBe(1);
     expect(calls).toHaveLength(0);
@@ -842,7 +807,15 @@ describe("formatRender", () => {
       dryRun: true,
       clusters: [],
       collisions: [],
-      summary: { scanned: 0, planned: 0, applied: 0, conflicts: 0, collisions: 0, errors: 0, skipped: 0 },
+      summary: {
+        scanned: 0,
+        planned: 0,
+        applied: 0,
+        conflicts: 0,
+        collisions: 0,
+        errors: 0,
+        skipped: 0,
+      },
       exitCode: 0,
     };
     const out = formatRender(render, "plain");
@@ -869,7 +842,15 @@ describe("formatRender", () => {
         },
       ],
       collisions: [],
-      summary: { scanned: 1, planned: 0, applied: 0, conflicts: 1, collisions: 0, errors: 0, skipped: 0 },
+      summary: {
+        scanned: 1,
+        planned: 0,
+        applied: 0,
+        conflicts: 1,
+        collisions: 0,
+        errors: 0,
+        skipped: 0,
+      },
       exitCode: 1,
     };
     const out = formatRender(render, "plain");
@@ -885,7 +866,15 @@ describe("formatRender", () => {
       collisions: [
         { domain: "gh", externalId: GH_PIN, beadIds: ["ai-home-canonical", "ai-home-phantom"] },
       ],
-      summary: { scanned: 0, planned: 0, applied: 0, conflicts: 0, collisions: 1, errors: 0, skipped: 0 },
+      summary: {
+        scanned: 0,
+        planned: 0,
+        applied: 0,
+        conflicts: 0,
+        collisions: 1,
+        errors: 0,
+        skipped: 0,
+      },
       exitCode: 0,
     };
     const out = formatRender(render, "plain");
@@ -961,21 +950,20 @@ describe("runDedupeBd — --only selector scopes the apply set", () => {
     const { run, calls } = makeRun();
     const { output, log, error } = makeOutput();
     const audit: string[] = [];
-    const exitCode = runDedupeBd(
-      { apply: true, only: [PIN1], format: "json" },
-      output,
-      {
-        run,
-        loadAllBeads: () => [auto1, manual1, auto2, manual2, auto3, manual3],
-        auditSink: makeSink(audit),
-      },
-    );
+    const exitCode = runDedupeBd({ apply: true, only: [PIN1], format: "json" }, output, {
+      run,
+      loadAllBeads: () => [auto1, manual1, auto2, manual2, auto3, manual3],
+      auditSink: makeSink(audit),
+    });
     expect(exitCode).toBe(0);
     expect(error).toEqual([]);
 
     // Exactly cluster 1's three writes fire, in re-anchor-before-close order.
     expect(calls).toHaveLength(3);
-    expect(calls[0]).toEqual({ subcommand: "dep", args: ["remove", manual1.id, "ai-home-target1"] });
+    expect(calls[0]).toEqual({
+      subcommand: "dep",
+      args: ["remove", manual1.id, "ai-home-target1"],
+    });
     expect(calls[1]).toEqual({
       subcommand: "dep",
       args: ["add", "--type", "blocks", auto1.id, "ai-home-target1"],
@@ -1001,15 +989,11 @@ describe("runDedupeBd — --only selector scopes the apply set", () => {
     const { run, calls } = makeRun();
     const { output, log } = makeOutput();
     const audit: string[] = [];
-    const exitCode = runDedupeBd(
-      { apply: true, only: [auto1.id], format: "json" },
-      output,
-      {
-        run,
-        loadAllBeads: () => [auto1, manual1, auto2, manual2, auto3, manual3],
-        auditSink: makeSink(audit),
-      },
-    );
+    const exitCode = runDedupeBd({ apply: true, only: [auto1.id], format: "json" }, output, {
+      run,
+      loadAllBeads: () => [auto1, manual1, auto2, manual2, auto3, manual3],
+      auditSink: makeSink(audit),
+    });
     expect(exitCode).toBe(0);
     expect(calls).toHaveLength(3);
     expect(calls[2]!.args[0]).toBe(manual1.id);
@@ -1021,15 +1005,11 @@ describe("runDedupeBd — --only selector scopes the apply set", () => {
     const { run, calls } = makeRun();
     const { output, log } = makeOutput();
     const audit: string[] = [];
-    const exitCode = runDedupeBd(
-      { apply: true, only: [manual1.id], format: "json" },
-      output,
-      {
-        run,
-        loadAllBeads: () => [auto1, manual1, auto2, manual2, auto3, manual3],
-        auditSink: makeSink(audit),
-      },
-    );
+    const exitCode = runDedupeBd({ apply: true, only: [manual1.id], format: "json" }, output, {
+      run,
+      loadAllBeads: () => [auto1, manual1, auto2, manual2, auto3, manual3],
+      auditSink: makeSink(audit),
+    });
     expect(exitCode).toBe(0);
     expect(calls).toHaveLength(3);
     expect(calls[2]!.args[0]).toBe(manual1.id);
@@ -1041,15 +1021,11 @@ describe("runDedupeBd — --only selector scopes the apply set", () => {
     const { run, calls } = makeRun();
     const { output, log } = makeOutput();
     const audit: string[] = [];
-    const exitCode = runDedupeBd(
-      { apply: true, only: [PIN1, PIN2], format: "json" },
-      output,
-      {
-        run,
-        loadAllBeads: () => [auto1, manual1, auto2, manual2, auto3, manual3],
-        auditSink: makeSink(audit),
-      },
-    );
+    const exitCode = runDedupeBd({ apply: true, only: [PIN1, PIN2], format: "json" }, output, {
+      run,
+      loadAllBeads: () => [auto1, manual1, auto2, manual2, auto3, manual3],
+      auditSink: makeSink(audit),
+    });
     expect(exitCode).toBe(0);
     // cluster1: remove+add+close (3); cluster2: close-only (1) = 4 writes.
     expect(calls).toHaveLength(4);
@@ -1087,15 +1063,11 @@ describe("runDedupeBd — --only selector scopes the apply set", () => {
     const { run, calls } = makeRun();
     const { output, error } = makeOutput();
     const audit: string[] = [];
-    const exitCode = runDedupeBd(
-      { apply: false, only: [PIN1], format: "json" },
-      output,
-      {
-        run,
-        loadAllBeads: () => [auto1, manual1],
-        auditSink: makeSink(audit),
-      },
-    );
+    const exitCode = runDedupeBd({ apply: false, only: [PIN1], format: "json" }, output, {
+      run,
+      loadAllBeads: () => [auto1, manual1],
+      auditSink: makeSink(audit),
+    });
     expect(exitCode).toBe(1);
     expect(error.some((l) => l.includes("--only requires --apply"))).toBe(true);
     expect(calls).toHaveLength(0);
@@ -1106,15 +1078,11 @@ describe("runDedupeBd — --only selector scopes the apply set", () => {
     const { run, calls } = makeRun();
     const { output, log } = makeOutput();
     const audit: string[] = [];
-    const exitCode = runDedupeBd(
-      { apply: true, only: [], format: "json" },
-      output,
-      {
-        run,
-        loadAllBeads: () => [auto1, manual1, auto2, manual2, auto3, manual3],
-        auditSink: makeSink(audit),
-      },
-    );
+    const exitCode = runDedupeBd({ apply: true, only: [], format: "json" }, output, {
+      run,
+      loadAllBeads: () => [auto1, manual1, auto2, manual2, auto3, manual3],
+      auditSink: makeSink(audit),
+    });
     expect(exitCode).toBe(0);
     // cluster1: 3 writes; clusters 2 & 3: 1 close each = 5 total.
     expect(calls).toHaveLength(5);

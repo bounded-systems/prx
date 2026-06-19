@@ -46,19 +46,12 @@ import { createActor } from "xstate";
 // admits the domain.
 import "../adapters/index.ts";
 import { GhDomainAdapter } from "../adapters/index.ts";
-import {
-  adapterForDomain,
-  registeredDomains,
-  type DomainAdapter,
-} from "../adapters/index.ts";
+import { adapterForDomain, registeredDomains, type DomainAdapter } from "../adapters/index.ts";
 import { appendAuditRow as defaultAppendAuditRow } from "../audit/sink.ts";
 import { getAuditRuntimeContext as defaultGetAuditRuntimeContext } from "@bounded-systems/audit-context";
 import { refreshBudget as defaultRefreshBudget } from "@bounded-systems/github-budget";
 import { repoNameWithOwner as defaultRepoNameWithOwner } from "../pr-state/github.ts";
-import {
-  loadAllBeads as defaultLoadAllBeads,
-  type BeadsRecord,
-} from "../triage/triage.ts";
+import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../triage/triage.ts";
 import { domainSyncMachine } from "./machine.ts";
 import type { DomainSyncPairContext, DomainSyncPairInput } from "./machine.ts";
 import type { DomainSyncPullResult } from "./schemas.ts";
@@ -104,7 +97,9 @@ export type RunBeadsSyncDeps = {
    * (`I-DS2`) injects this directly. Production code paths should add a
    * `bulkClose` method to the domain adapter instead.
    */
-  bulkClose?: ((cwd: string, dryRun: boolean) => { exitCode: number; stdout: string; stderr: string }) | undefined;
+  bulkClose?:
+    | ((cwd: string, dryRun: boolean) => { exitCode: number; stdout: string; stderr: string })
+    | undefined;
   /**
    * Override the per-pair adapter (test seam). When unset, the per-pair actors
    * resolve `adapterForDomain(domain)` themselves.
@@ -242,7 +237,9 @@ export function looksLikeBudgetExhaustion(message: string | undefined): boolean 
   return typeof message === "string" && /\bbudget exhausted\b/i.test(message);
 }
 
-export function graphqlRemaining(snapshots: ReturnType<typeof defaultRefreshBudget>): number | null {
+export function graphqlRemaining(
+  snapshots: ReturnType<typeof defaultRefreshBudget>,
+): number | null {
   if (!snapshots) return null;
   const gql = snapshots.find((s) => s.bucket === "graphql");
   return gql ? gql.remaining : null;
@@ -296,11 +293,12 @@ export async function runBeadsSync(
 
   let repo: string;
   try {
-    repo = (opts.repo && opts.repo.trim().length > 0
-      ? opts.repo.trim()
-      : repoNameWithOwner(cwd).trim());
+    repo =
+      opts.repo && opts.repo.trim().length > 0 ? opts.repo.trim() : repoNameWithOwner(cwd).trim();
   } catch (err) {
-    output.error(`beads sync: could not resolve OWNER/REPO: ${err instanceof Error ? err.message : String(err)}`);
+    output.error(
+      `beads sync: could not resolve OWNER/REPO: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return makeFailure(domain, elapsedMs());
   }
   if (!repo) {
@@ -309,7 +307,8 @@ export async function runBeadsSync(
   }
 
   const threshold = resolveThreshold(opts.budget);
-  const limit = Number.isFinite(opts.limit) && opts.limit > 0 ? Math.floor(opts.limit) : DEFAULT_SYNC_LIMIT;
+  const limit =
+    Number.isFinite(opts.limit) && opts.limit > 0 ? Math.floor(opts.limit) : DEFAULT_SYNC_LIMIT;
 
   // GH-296 / prx-lzw — push-leg short-circuit. The bead-store etag (dolt HEAD)
   // vs the last successfully-pushed watermark for this (repo, domain): when
@@ -330,16 +329,29 @@ export async function runBeadsSync(
   const remainingAtEntry = graphqlRemaining(refreshBudget());
   if (remainingAtEntry !== null && remainingAtEntry < threshold) {
     const summary: BeadsSyncSummary = {
-      repo, domain,
-      scanned: 0, pinned: 0, skipped: 0,
-      pulled: 0, pushed: 0, closedByPull: 0,
-      failed: 0, pullFailed: 0,
-      pullDeferred: 0, pushDeferred: 0, deferred: 0,
-      budgetPaused: true, dryRun: opts.dryRun,
+      repo,
+      domain,
+      scanned: 0,
+      pinned: 0,
+      skipped: 0,
+      pulled: 0,
+      pushed: 0,
+      closedByPull: 0,
+      failed: 0,
+      pullFailed: 0,
+      pullDeferred: 0,
+      pushDeferred: 0,
+      deferred: 0,
+      budgetPaused: true,
+      dryRun: opts.dryRun,
       durationMs: elapsedMs(),
     };
     appendAuditRow(makeSummaryRow(summary, auditActor, nowFn().toISOString()));
-    output.log(renderSummary(summary, [], opts.format, { thresholdNote: `paused: GraphQL budget ${remainingAtEntry} < threshold ${threshold}` }));
+    output.log(
+      renderSummary(summary, [], opts.format, {
+        thresholdNote: `paused: GraphQL budget ${remainingAtEntry} < threshold ${threshold}`,
+      }),
+    );
     return { exitCode: 0, summary, pairs: [] };
   }
 
@@ -363,14 +375,15 @@ export async function runBeadsSync(
   // already-warmed read instead of dragging the multi-MB `bd list --all
   // --json` over the wire again per pair. When `deps.adapter` is injected
   // (test seam) or no cache is wired, fall back to the registered singleton.
-  const adapter = deps.adapter
-    ?? (domain === "gh" && deps.loadAllBeads
+  const adapter =
+    deps.adapter ??
+    (domain === "gh" && deps.loadAllBeads
       ? new GhDomainAdapter({
           loadAllBeads: deps.loadAllBeads,
           invalidateBeadsCache: deps.invalidateBeadsCache,
           conditionalRead: pullEtagStore,
         })
-      : adapterForDomain(domain) ?? undefined);
+      : (adapterForDomain(domain) ?? undefined));
 
   const pairs: BeadsSyncPairDetail[] = [];
   let pullFailed = 0;
@@ -457,9 +470,7 @@ export async function runBeadsSync(
   //      (GH-2011) loops `execBdIssueClose` per id; Notion loops
   //      `bd update <id> --status closed` per id.
   // Skipped on `--dry-run` and when no pair needed closing.
-  const beadIdsToClose = pulledPairs
-    .filter((p) => p.pullResult.needsClose)
-    .map((p) => p.bead.id);
+  const beadIdsToClose = pulledPairs.filter((p) => p.pullResult.needsClose).map((p) => p.bead.id);
   let bulkCloseExitCode: number | null = null;
   if (beadIdsToClose.length > 0 && !opts.dryRun) {
     const result = deps.bulkClose
@@ -590,12 +601,21 @@ export async function runBeadsSync(
   const deferred = pullDeferred + pushDeferred;
 
   const summary: BeadsSyncSummary = {
-    repo, domain,
-    scanned, pinned: pinnedBeads.length, skipped,
-    pulled, pushed, closedByPull,
-    failed, pullFailed,
-    pullDeferred, pushDeferred, deferred,
-    budgetPaused: false, dryRun: opts.dryRun,
+    repo,
+    domain,
+    scanned,
+    pinned: pinnedBeads.length,
+    skipped,
+    pulled,
+    pushed,
+    closedByPull,
+    failed,
+    pullFailed,
+    pullDeferred,
+    pushDeferred,
+    deferred,
+    budgetPaused: false,
+    dryRun: opts.dryRun,
     durationMs: elapsedMs(),
   };
 
@@ -608,7 +628,9 @@ export async function runBeadsSync(
 
   output.log(
     renderSummary(summary, pairs, opts.format, {
-      budgetCutoffNote: budgetCutoff ? "stopped early: GraphQL budget fell below threshold" : undefined,
+      budgetCutoffNote: budgetCutoff
+        ? "stopped early: GraphQL budget fell below threshold"
+        : undefined,
       bulkCloseExitCode,
     }),
   );
@@ -624,12 +646,8 @@ export async function runBeadsSync(
     output.error(
       `beads sync: WARN ${total} pinned pair${total === 1 ? "" : "s"} were not fully reconciled this tick`,
     );
-    output.error(
-      `  pull-deferred: ${pullDeferred}  push-deferred: ${pushDeferred}`,
-    );
-    output.error(
-      `  re-run, or pass --limit=${pinnedBeads.length} to drain in one tick`,
-    );
+    output.error(`  pull-deferred: ${pullDeferred}  push-deferred: ${pushDeferred}`);
+    output.error(`  re-run, or pass --limit=${pinnedBeads.length} to drain in one tick`);
     exitCode = 2;
   }
 
@@ -662,7 +680,14 @@ function makeSummaryRow(s: BeadsSyncSummary, actor: string, ts: string) {
   };
 }
 
-function makePairRow(p: BeadsSyncPairDetail, repo: string, domain: string, actor: string, dryRun: boolean, ts: string) {
+function makePairRow(
+  p: BeadsSyncPairDetail,
+  repo: string,
+  domain: string,
+  actor: string,
+  dryRun: boolean,
+  ts: string,
+) {
   return {
     ts,
     kind: "domain-sync-pair" as const,
@@ -686,7 +711,11 @@ function renderSummary(
   s: BeadsSyncSummary,
   pairs: BeadsSyncPairDetail[],
   format: "plain" | "json",
-  extra: { thresholdNote?: string | undefined; budgetCutoffNote?: string | undefined; bulkCloseExitCode?: number | null | undefined } = {},
+  extra: {
+    thresholdNote?: string | undefined;
+    budgetCutoffNote?: string | undefined;
+    bulkCloseExitCode?: number | null | undefined;
+  } = {},
 ): string {
   if (format === "json") {
     return JSON.stringify({ ...s, pairs, ...extra }, null, 2);
@@ -698,7 +727,9 @@ function renderSummary(
     return lines.join("\n");
   }
   lines.push(`  scanned ${s.scanned}  pinned ${s.pinned}  skipped ${s.skipped}`);
-  lines.push(`  pulled ${s.pulled}  pushed ${s.pushed}  closedByPull ${s.closedByPull}  failed ${s.failed}  deferred ${s.deferred}`);
+  lines.push(
+    `  pulled ${s.pulled}  pushed ${s.pushed}  closedByPull ${s.closedByPull}  failed ${s.failed}  deferred ${s.deferred}`,
+  );
   lines.push(`  pullDeferred ${s.pullDeferred}  pushDeferred ${s.pushDeferred}`);
   if (extra.budgetCutoffNote) lines.push(`  ${extra.budgetCutoffNote}`);
   if (typeof extra.bulkCloseExitCode === "number") {
@@ -714,12 +745,21 @@ function renderSummary(
 
 function makeFailure(domain: string, durationMs: number): BeadsSyncResult {
   const summary: BeadsSyncSummary = {
-    repo: "", domain,
-    scanned: 0, pinned: 0, skipped: 0,
-    pulled: 0, pushed: 0, closedByPull: 0,
-    failed: 0, pullFailed: 0,
-    pullDeferred: 0, pushDeferred: 0, deferred: 0,
-    budgetPaused: false, dryRun: false,
+    repo: "",
+    domain,
+    scanned: 0,
+    pinned: 0,
+    skipped: 0,
+    pulled: 0,
+    pushed: 0,
+    closedByPull: 0,
+    failed: 0,
+    pullFailed: 0,
+    pullDeferred: 0,
+    pushDeferred: 0,
+    deferred: 0,
+    budgetPaused: false,
+    dryRun: false,
     durationMs,
   };
   return { exitCode: 1, summary, pairs: [] };

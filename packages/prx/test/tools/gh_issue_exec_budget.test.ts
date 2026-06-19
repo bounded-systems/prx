@@ -11,14 +11,8 @@ import {
   formatGhIssueEditResult,
   type GhIssueEditSpawn,
 } from "../../src/tools/gh_issue_edit.ts";
-import {
-  execGhIssueCreate,
-  formatGhIssueCreateResult,
-} from "../../src/tools/gh_issue_create.ts";
-import {
-  execGhIssueClose,
-  formatGhIssueCloseResult,
-} from "../../src/tools/gh_issue_close.ts";
+import { execGhIssueCreate, formatGhIssueCreateResult } from "../../src/tools/gh_issue_create.ts";
+import { execGhIssueClose, formatGhIssueCloseResult } from "../../src/tools/gh_issue_close.ts";
 import {
   BucketBudgetExhaustedError,
   configureRateLimit,
@@ -36,7 +30,12 @@ afterEach(() => {
 });
 
 type Spawn = GhIssueEditSpawn; // edit/create/close spawn types are identical
-type ExecResult = { exitCode: number; stdout: string; stderr: string; budgetError?: BucketBudgetExhaustedError };
+type ExecResult = {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  budgetError?: BucketBudgetExhaustedError;
+};
 
 const spawnReturning = (r: { status?: number | null; stdout?: string; stderr?: string }): Spawn =>
   (() => ({ status: 0, stdout: "", stderr: "", ...r })) as Spawn;
@@ -80,7 +79,10 @@ const tools = [
     run: (env: Record<string, string | undefined>, spawn?: Spawn) =>
       (spawn
         ? execGhIssueEdit({ number: 1, title: "t" }, env, spawn)
-        : execGhIssueEdit({ number: 1, title: "t", repo: "prx-nonexistent-xyz/nope" }, env)) as ExecResult,
+        : execGhIssueEdit(
+            { number: 1, title: "t", repo: "prx-nonexistent-xyz/nope" },
+            env,
+          )) as ExecResult,
     format: formatGhIssueEditResult as (r: ExecResult, f: "plain" | "json") => string,
   },
   {

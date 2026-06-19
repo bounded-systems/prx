@@ -9,10 +9,7 @@ import {
   markFindings,
   sweepableFromMark,
 } from "../../../src/machine/gc/capability.ts";
-import {
-  GC_DESTRUCTIVE_COMPONENTS,
-  type GcFinding,
-} from "../../../src/machine/gc/schema.ts";
+import { GC_DESTRUCTIVE_COMPONENTS, type GcFinding } from "../../../src/machine/gc/schema.ts";
 
 describe("gc capability gate (GH-2326)", () => {
   test("isDestructiveComponent tracks GC_DESTRUCTIVE_COMPONENTS", () => {
@@ -82,9 +79,9 @@ describe("gc capability gate (GH-2326)", () => {
   });
 
   test("run --all with the delete token is allowed", () => {
-    expect(
-      assertGcCapability({ apply: true, capability: GC_DELETE_CAPABILITY }),
-    ).toEqual({ outcome: "allowed" });
+    expect(assertGcCapability({ apply: true, capability: GC_DELETE_CAPABILITY })).toEqual({
+      outcome: "allowed",
+    });
   });
 
   test("run --all dry-run is allowed", () => {

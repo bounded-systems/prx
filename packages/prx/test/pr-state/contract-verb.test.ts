@@ -8,16 +8,9 @@
 import { describe, expect, test } from "bun:test";
 
 import { contractVerb } from "../../src/pr-state/contract-verb.ts";
-import {
-  listAgentContracts,
-} from "../../src/machine/contracts/instances.ts";
-import {
-  listArtifactContracts,
-} from "../../src/machine/contracts/artifacts.ts";
-import {
-  listTransitionContracts,
-  transitionKey,
-} from "../../src/machine/contracts/transitions.ts";
+import { listAgentContracts } from "../../src/machine/contracts/instances.ts";
+import { listArtifactContracts } from "../../src/machine/contracts/artifacts.ts";
+import { listTransitionContracts, transitionKey } from "../../src/machine/contracts/transitions.ts";
 
 type ContractInput = Parameters<typeof contractVerb.run>[0];
 

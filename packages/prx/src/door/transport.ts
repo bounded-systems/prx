@@ -127,7 +127,5 @@ export function parseDoorEndpoint(endpoint: string): DoorEndpoint {
  */
 export function resolveFramedTransport(endpoint: string): FramedTransport {
   const ep = parseDoorEndpoint(endpoint);
-  return ep.kind === "tcp"
-    ? tcpSocketTransport(ep.host, ep.port)
-    : unixSocketTransport(ep.path);
+  return ep.kind === "tcp" ? tcpSocketTransport(ep.host, ep.port) : unixSocketTransport(ep.path);
 }

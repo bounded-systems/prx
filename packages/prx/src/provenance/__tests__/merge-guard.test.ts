@@ -56,7 +56,11 @@ function mkAttest(store: FakeStore): { deps: AttestDeps; verifier: Verifier } {
 
 const ok: ProcResult = { status: 0, stdout: "", stderr: "", signal: null };
 function inner(): ProcExecutor {
-  return { async exec() { return ok; } };
+  return {
+    async exec() {
+      return ok;
+    },
+  };
 }
 
 /** Emit a signed push/v1 derivation whose subject is `gitCommit:<oid>`. */
@@ -72,18 +76,14 @@ describe("projectProvenanceAxis", () => {
   test("enforcement off ⇒ unchecked (even with no derivation)", async () => {
     const store = fakeStore();
     const { verifier } = mkAttest(store);
-    expect(await projectProvenanceAxis(OID, { store, verifier, enforce: false })).toBe(
-      "unchecked",
-    );
+    expect(await projectProvenanceAxis(OID, { store, verifier, enforce: false })).toBe("unchecked");
   });
 
   test("a signed derivation under the matching verifier ⇒ verified", async () => {
     const store = fakeStore();
     const { deps, verifier } = mkAttest(store);
     await emitPush(deps, OID);
-    expect(await projectProvenanceAxis(OID, { store, verifier, enforce: true })).toBe(
-      "verified",
-    );
+    expect(await projectProvenanceAxis(OID, { store, verifier, enforce: true })).toBe("verified");
   });
 
   // GH-352: the uniform freshness check. When isStale + currentRefs are wired, a
@@ -123,26 +123,24 @@ describe("projectProvenanceAxis", () => {
     const { deps } = mkAttest(store);
     const { verifier: wrong } = mkAttest(fakeStore()); // independent keypair
     await emitPush(deps, OID);
-    expect(
-      await projectProvenanceAxis(OID, { store, verifier: wrong, enforce: true }),
-    ).toBe("unsigned");
+    expect(await projectProvenanceAxis(OID, { store, verifier: wrong, enforce: true })).toBe(
+      "unsigned",
+    );
   });
 
   test("no derivation present ⇒ unchecked (gate not tightened to presence)", async () => {
     const store = fakeStore();
     const { verifier } = mkAttest(store);
-    expect(await projectProvenanceAxis(OID, { store, verifier, enforce: true })).toBe(
-      "unchecked",
-    );
+    expect(await projectProvenanceAxis(OID, { store, verifier, enforce: true })).toBe("unchecked");
   });
 
   test("a present derivation with no verifier configured ⇒ unsigned (fail closed)", async () => {
     const store = fakeStore();
     const { deps } = mkAttest(store);
     await emitPush(deps, OID);
-    expect(
-      await projectProvenanceAxis(OID, { store, verifier: null, enforce: true }),
-    ).toBe("unsigned");
+    expect(await projectProvenanceAxis(OID, { store, verifier: null, enforce: true })).toBe(
+      "unsigned",
+    );
   });
 
   test("only the requested commit's derivations are checked", async () => {
@@ -151,9 +149,9 @@ describe("projectProvenanceAxis", () => {
     await emitPush(deps, OID);
     const other = "ffffffffffffffffffffffffffffffffffffffff";
     // A different commit has no attestation → unchecked, independent of OID.
-    expect(
-      await projectProvenanceAxis(other, { store, verifier, enforce: true }),
-    ).toBe("unchecked");
+    expect(await projectProvenanceAxis(other, { store, verifier, enforce: true })).toBe(
+      "unchecked",
+    );
   });
 });
 

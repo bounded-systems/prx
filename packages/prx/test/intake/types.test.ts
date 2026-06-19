@@ -19,14 +19,7 @@ describe("src/intake/types.ts (GH-1687)", () => {
   });
 
   test("INTAKE_INTENTS adds spike + decision on top of INTAKE_TYPES", () => {
-    expect(INTAKE_INTENTS).toEqual([
-      "bug",
-      "task",
-      "feature",
-      "chore",
-      "spike",
-      "decision",
-    ]);
+    expect(INTAKE_INTENTS).toEqual(["bug", "task", "feature", "chore", "spike", "decision"]);
   });
 
   test("INTENT_TO_SPEC maps spike/decision → bd-type task + GH-only marker", () => {

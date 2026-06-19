@@ -52,11 +52,7 @@ import {
 } from "../tools/gh_issue_create.ts";
 import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import { execGh as defaultExecGh, type GhExecResult } from "@bounded-systems/gh";
-import {
-  extractIssueNumber,
-  normalizeTitle,
-  type BeadsRecord,
-} from "../triage/triage.ts";
+import { extractIssueNumber, normalizeTitle, type BeadsRecord } from "../triage/triage.ts";
 import { loadAllBeadsViaCli } from "../triage/beads-daemon-loader.ts";
 import { issueLabelsFor } from "../triage/bd-axis-labels.ts";
 import {
@@ -188,8 +184,7 @@ export type BeadsPublishUnitResult = {
 // regex (`feedback_gh_to_bd_resolve_via_external_ref`). A non-GH pin (Notion,
 // GitLab, …) can't share the legacy single `external_ref` slot, so publishing
 // onto it is refused until the {domain → external_id} map lands (GH-1538).
-const GITHUB_ISSUE_URL_RE =
-  /^https?:\/\/github\.com\/[^/\s]+\/[^/\s]+\/issues\/\d+(?:[/?#].*)?$/;
+const GITHUB_ISSUE_URL_RE = /^https?:\/\/github\.com\/[^/\s]+\/[^/\s]+\/issues\/\d+(?:[/?#].*)?$/;
 
 function isGithubIssueUrl(ref: string): boolean {
   return GITHUB_ISSUE_URL_RE.test(ref);
@@ -218,12 +213,7 @@ export type PublishCoreResult = {
   render: BeadsPublishRender;
 };
 
-function errorResult(
-  bdId: string,
-  repo: string,
-  message: string,
-  exitCode = 1,
-): PublishCoreResult {
+function errorResult(bdId: string, repo: string, message: string, exitCode = 1): PublishCoreResult {
   return {
     exitCode,
     outcome: "error",
@@ -262,7 +252,9 @@ function linkExistingResult(
     };
   }
   // GH-296 / prx-82b: link via the daemon (single writer).
-  const updateResult = run(["prx", "beads", "update", bdId, "--external-ref", url], { check: false });
+  const updateResult = run(["prx", "beads", "update", bdId, "--external-ref", url], {
+    check: false,
+  });
   if (updateResult.status !== 0) {
     const detail =
       updateResult.stderr.trim() || updateResult.stdout.trim() || "prx beads update failed";
@@ -307,7 +299,13 @@ export function publishOne(opts: BeadsPublishOptions, deps: BeadsPublishDeps): P
   const pushAdapter = deps.pushAdapter ?? new GhDomainAdapter();
 
   const result = publishOneInner(opts, {
-    ghCreate, run, ghExec, loadBeads, resolveRepo, listIssues, getCwd,
+    ghCreate,
+    run,
+    ghExec,
+    loadBeads,
+    resolveRepo,
+    listIssues,
+    getCwd,
     invalidateBeadsCache: deps.invalidateBeadsCache,
     pushAdapter,
   });
@@ -447,9 +445,7 @@ function publishOneInner(opts: BeadsPublishOptions, deps: PublishInnerDeps): Pub
     // I-PROJ1): the live read never writes back to bd. Status and assignees
     // stay owned by the periodic sync / merge-close paths, so publish projects
     // only the fields it has always owned (title / body / type / priority).
-    const desiredLabels = Array.from(
-      new Set([...issueLabelsFor(target), ...opts.extraLabels]),
-    );
+    const desiredLabels = Array.from(new Set([...issueLabelsFor(target), ...opts.extraLabels]));
     const reconcileFields: DomainPushFields = {
       title: target.title,
       body: target.description,
@@ -583,7 +579,9 @@ function publishOneInner(opts: BeadsPublishOptions, deps: PublishInnerDeps): Pub
   // stranded — but a re-run picks it up via the bd-side / GH-side title dedupe
   // (steps 7–8), so report partial-error and exit 1 rather than losing it.
   // GH-296 / prx-82b: write-back via the daemon (single writer).
-  const updateResult = run(["prx", "beads", "update", bdId, "--external-ref", ghUrl], { check: false });
+  const updateResult = run(["prx", "beads", "update", bdId, "--external-ref", ghUrl], {
+    check: false,
+  });
   if (updateResult.status !== 0) {
     const detail =
       updateResult.stderr.trim() || updateResult.stdout.trim() || "prx beads update failed";

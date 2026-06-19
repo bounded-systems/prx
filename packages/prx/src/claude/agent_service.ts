@@ -28,19 +28,13 @@ import {
   type SDKResultMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 
-import {
-  appendAuditRow,
-  type AuditSinkDeps,
-} from "../audit/sink.ts";
+import { appendAuditRow, type AuditSinkDeps } from "../audit/sink.ts";
 import {
   PlanArtifactShape,
   renderPlanArtifact,
   type PlanArtifact,
 } from "../plan-store/plan-artifact.ts";
-import type {
-  RuntimeAgentSdkSpec,
-  RuntimeProfileProjection,
-} from "../machine/runtime_profiles.ts";
+import type { RuntimeAgentSdkSpec, RuntimeProfileProjection } from "../machine/runtime_profiles.ts";
 
 // ── public contract ────────────────────────────────────────────────────────
 
@@ -162,10 +156,7 @@ export type RunClaudeAgentNonInteractiveOpts = {
  * adapter that emits synthetic SDKMessages. The real implementation maps to
  * `@anthropic-ai/claude-agent-sdk`'s `query()` 1:1.
  */
-export type ClaudeAgentQuery = (params: {
-  prompt: string;
-  options?: Options;
-}) => Query;
+export type ClaudeAgentQuery = (params: { prompt: string; options?: Options }) => Query;
 
 export type ClaudeAgentServiceDeps = {
   query?: ClaudeAgentQuery;
@@ -204,7 +195,10 @@ type PlanCaptureServerEntry = NonNullable<Options["mcpServers"]>[string];
  * without driving a live MCP transport.
  */
 type PlanCaptureMcpServer = PlanCaptureServerEntry & {
-  handler: (args: PlanArtifact, extra: unknown) => Promise<{
+  handler: (
+    args: PlanArtifact,
+    extra: unknown,
+  ) => Promise<{
     content: Array<{ type: "text"; text: string }>;
   }>;
 };
@@ -265,9 +259,7 @@ export function resolveClaudeExecutablePath(
   ],
   exists: (path: string) => boolean = existsSync,
 ): string | undefined {
-  return candidates.find(
-    (p): p is string => typeof p === "string" && p.length > 0 && exists(p),
-  );
+  return candidates.find((p): p is string => typeof p === "string" && p.length > 0 && exists(p));
 }
 
 /**
@@ -350,17 +342,13 @@ function buildSdkOptions(
   const dynamic = spec.systemPromptDynamic ?? [];
   if (stable.length > 0 || dynamic.length > 0) {
     const stableWithNonce = opts.noCache
-      // The SDK does not expose a cache-bypass switch, so we invalidate the
-      // prefix by prepending a per-run UUID. The downstream stable content
-      // still appears after the nonce so the prompt's semantics are
-      // unchanged — only its cache key is.
-      ? [`cache-nonce: ${randomUUID()}`, ...stable]
+      ? // The SDK does not expose a cache-bypass switch, so we invalidate the
+        // prefix by prepending a per-run UUID. The downstream stable content
+        // still appears after the nonce so the prompt's semantics are
+        // unchanged — only its cache key is.
+        [`cache-nonce: ${randomUUID()}`, ...stable]
       : stable;
-    options.systemPrompt = [
-      ...stableWithNonce,
-      SYSTEM_PROMPT_DYNAMIC_BOUNDARY,
-      ...dynamic,
-    ];
+    options.systemPrompt = [...stableWithNonce, SYSTEM_PROMPT_DYNAMIC_BOUNDARY, ...dynamic];
   }
 
   // prx-pe1 (slice 3): the SDK's tool subprocesses inherit `options.env`
@@ -427,7 +415,12 @@ function classifyAssistantError(
   if (error === "rate_limit") return "rate_limit";
   if (error === "server_error" || error === "unknown") return "network";
   if (error === "billing_error" || error === "max_output_tokens") return "model";
-  if (error === "authentication_failed" || error === "oauth_org_not_allowed" || error === "invalid_request") return "model";
+  if (
+    error === "authentication_failed" ||
+    error === "oauth_org_not_allowed" ||
+    error === "invalid_request"
+  )
+    return "model";
   const text = message.toLowerCase();
   if (/\b429\b|rate.?limit/.test(text)) return "rate_limit";
   if (/\bnetwork|econn|enotfound|timed? ?out|dns|tls/.test(text)) return "network";
@@ -644,7 +637,8 @@ export async function runClaudeAgentNonInteractive(
 
   if (resultMessage.subtype !== "success") {
     const errors = (resultMessage as { errors?: string[] }).errors ?? [];
-    const message = errors.length > 0 ? errors.join("; ") : `SDK result subtype=${resultMessage.subtype}`;
+    const message =
+      errors.length > 0 ? errors.join("; ") : `SDK result subtype=${resultMessage.subtype}`;
     const failure: NonInteractiveFailed = {
       kind: "failed",
       errorKind: classifyAssistantError(undefined, message),

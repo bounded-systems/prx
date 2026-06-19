@@ -11,7 +11,12 @@ import type { GhIssueCloseResult } from "../../src/tools/gh_issue_close.ts";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
 
 type GhCallTag = { kind: "gh"; subcommand: string; args: string[] };
-type CloseCallTag = { kind: "close"; number: number; reason?: string | undefined; repo?: string | undefined };
+type CloseCallTag = {
+  kind: "close";
+  number: number;
+  reason?: string | undefined;
+  repo?: string | undefined;
+};
 type BdCallTag = {
   kind: "bd";
   subcommand: string;
@@ -36,7 +41,13 @@ function bdCloseFail(stderr: string, code = 1): BdIssueCloseResult {
 const bdRunOk = () => ({ status: 0, stdout: "", stderr: "" });
 function recordingRun(calls: CallTag[]) {
   return ((cmd: string[]) => {
-    calls.push({ kind: "bd", subcommand: cmd[2] ?? "", args: cmd.slice(3), state: "planning", role: "planner" });
+    calls.push({
+      kind: "bd",
+      subcommand: cmd[2] ?? "",
+      args: cmd.slice(3),
+      state: "planning",
+      role: "planner",
+    });
     return bdRunOk();
   }) as never;
 }
@@ -79,9 +90,7 @@ function makeExecGh(
   }) as never;
 }
 
-function makeOpts(
-  overrides: Partial<IntakeMergeOptions> = {},
-): IntakeMergeOptions {
+function makeOpts(overrides: Partial<IntakeMergeOptions> = {}): IntakeMergeOptions {
   return intakeMergeOptionsSchema.parse({
     dupId: "GH-100",
     canonicalId: "GH-200",
@@ -137,7 +146,11 @@ describe("runIntakeMerge — happy path", () => {
   });
 
   test("comment uses planning/executor policy slot", () => {
-    const policyCalls: Array<{ state?: string | undefined; role?: string | undefined; subcommand?: string | undefined }> = [];
+    const policyCalls: Array<{
+      state?: string | undefined;
+      role?: string | undefined;
+      subcommand?: string | undefined;
+    }> = [];
     runIntakeMerge(
       makeOpts(),
       { log: () => undefined, error: () => undefined },
@@ -590,10 +603,9 @@ describe("runIntakeMerge — bd↔bd arm", () => {
         loadAllBeads: (() => [bdRecord({ id: "ai-home-dup", notes: null })]) as never,
       },
     );
-    const seededNotes =
-      (firstRunCalls[0] as BdCallTag).args[
-        (firstRunCalls[0] as BdCallTag).args.indexOf("--notes") + 1
-      ]!;
+    const seededNotes = (firstRunCalls[0] as BdCallTag).args[
+      (firstRunCalls[0] as BdCallTag).args.indexOf("--notes") + 1
+    ]!;
 
     const calls: CallTag[] = [];
     runIntakeMerge(
@@ -770,9 +782,7 @@ describe("runIntakeMerge — flag passthrough", () => {
     expect(commentArgs).toContain("--repo");
     expect(commentArgs[commentArgs.indexOf("--repo") + 1]).toBe("o/r");
     expect(closeRepo).toBe("o/r");
-    const editCall = calls.find(
-      (c) => c.kind === "gh" && c.subcommand === "edit",
-    ) as GhCallTag;
+    const editCall = calls.find((c) => c.kind === "gh" && c.subcommand === "edit") as GhCallTag;
     const editArgs = editCall.args;
     expect(editArgs).toContain("--repo");
     expect(editArgs[editArgs.indexOf("--repo") + 1]).toBe("o/r");

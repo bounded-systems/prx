@@ -2,10 +2,7 @@ import { basename } from "node:path";
 import type { WorkUnitId } from "@bounded-systems/machine-schema";
 import { z } from "zod";
 
-import {
-  adapterForCanonicalId,
-  combinedCanonicalIdPattern,
-} from "../adapters/domain-adapter.ts";
+import { adapterForCanonicalId, combinedCanonicalIdPattern } from "../adapters/domain-adapter.ts";
 import type { BeadsRecord } from "../triage/triage.ts";
 
 /**
@@ -74,11 +71,15 @@ export function requireCanonicalWorkUnitId(value: string, label = "work unit id"
   return normalized;
 }
 
-export function canonicalWorkUnitIdFromBranchName(branch: string | null | undefined): WorkUnitId | null {
+export function canonicalWorkUnitIdFromBranchName(
+  branch: string | null | undefined,
+): WorkUnitId | null {
   return parseCanonicalWorkUnitId(branch);
 }
 
-export function canonicalWorkUnitIdFromDirectory(path: string | null | undefined): WorkUnitId | null {
+export function canonicalWorkUnitIdFromDirectory(
+  path: string | null | undefined,
+): WorkUnitId | null {
   if (typeof path !== "string" || path.trim().length === 0) {
     return null;
   }

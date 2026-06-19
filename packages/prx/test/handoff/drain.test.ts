@@ -13,15 +13,8 @@ import { beforeEach, describe, expect, test } from "bun:test";
 
 import type { WorkUnitId } from "@bounded-systems/machine-schema";
 
-import {
-  clearRegistryForTests,
-  drain,
-  registerAdapter,
-} from "../../src/handoff/drain.ts";
-import {
-  enqueueHandoff,
-  type HandoffStoreDeps,
-} from "../../src/handoff/store.ts";
+import { clearRegistryForTests, drain, registerAdapter } from "../../src/handoff/drain.ts";
+import { enqueueHandoff, type HandoffStoreDeps } from "../../src/handoff/store.ts";
 import type { BdExecOptions, BdExecResult } from "@bounded-systems/bd";
 
 type Capture = {
@@ -29,10 +22,7 @@ type Capture = {
   auditRows: unknown[];
 };
 
-function makeFakeBd(
-  inMemoryRows: Map<string, string>,
-  cap: Capture,
-): HandoffStoreDeps["execBd"] {
+function makeFakeBd(inMemoryRows: Map<string, string>, cap: Capture): HandoffStoreDeps["execBd"] {
   return (opts: BdExecOptions): BdExecResult => {
     if (opts.subcommand === "remember") {
       const body = opts.args[0] as string;
@@ -104,9 +94,7 @@ describe("drain — happy path", () => {
     expect(persisted.status).toBe("done");
 
     // HANDOFF_CLAIMED + HANDOFF_DRAINED both fired.
-    const events = cap.auditRows
-      .map((r) => (r as { event?: string }).event)
-      .filter(Boolean);
+    const events = cap.auditRows.map((r) => (r as { event?: string }).event).filter(Boolean);
     expect(events).toContain("HANDOFF_CLAIMED");
     expect(events).toContain("HANDOFF_DRAINED");
   });
@@ -118,10 +106,7 @@ describe("drain — happy path", () => {
     const created = await enqueueHandoff(baseEnqueueInput(), { execBd: exec });
     if (created.kind !== "created") throw new Error("expected created");
 
-    await drain(
-      { target: "noop" },
-      { execBd: exec, appendAuditRow: appendAuditRowFake(cap) },
-    );
+    await drain({ target: "noop" }, { execBd: exec, appendAuditRow: appendAuditRowFake(cap) });
 
     const handoffEvents = cap.auditRows.filter(
       (r) => (r as { kind?: string }).kind === "catalog-event",
@@ -178,27 +163,16 @@ describe("drain — failure paths", () => {
     if (created.kind !== "created") throw new Error("expected created");
 
     // Drain three times — max attempts is 3 (default).
-    await drain(
-      { target: "noop" },
-      { execBd: exec, appendAuditRow: appendAuditRowFake(cap) },
-    );
-    await drain(
-      { target: "noop" },
-      { execBd: exec, appendAuditRow: appendAuditRowFake(cap) },
-    );
-    await drain(
-      { target: "noop" },
-      { execBd: exec, appendAuditRow: appendAuditRowFake(cap) },
-    );
+    await drain({ target: "noop" }, { execBd: exec, appendAuditRow: appendAuditRowFake(cap) });
+    await drain({ target: "noop" }, { execBd: exec, appendAuditRow: appendAuditRowFake(cap) });
+    await drain({ target: "noop" }, { execBd: exec, appendAuditRow: appendAuditRowFake(cap) });
 
     const persisted = JSON.parse(cap.remembers.at(-1)!.body) as {
       status: string;
       attempts: number;
     };
     expect(persisted.status).toBe("abandoned");
-    const events = cap.auditRows
-      .map((r) => (r as { event?: string }).event)
-      .filter(Boolean);
+    const events = cap.auditRows.map((r) => (r as { event?: string }).event).filter(Boolean);
     expect(events).toContain("HANDOFF_ABANDONED");
   });
 

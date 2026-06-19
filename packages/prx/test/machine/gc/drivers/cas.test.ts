@@ -47,7 +47,13 @@ const submitArtifactJson = (patchSha: CasSha): string =>
     createdAt: "2026-05-29T00:00:00.000Z",
   });
 
-type StubBlob = { sha: CasSha; content?: string; bytes?: number; mtimeMs?: number; throwOnRead?: boolean };
+type StubBlob = {
+  sha: CasSha;
+  content?: string;
+  bytes?: number;
+  mtimeMs?: number;
+  throwOnRead?: boolean;
+};
 type Ref = { name: string; sha: CasSha };
 
 /** Domain-aware stub: serves its fixture only for `domain` (default "plans"),
@@ -68,7 +74,11 @@ function casStub(init: { refs?: Ref[]; blobs?: StubBlob[]; graceMs?: number; dom
     },
     listBlobs: async (opts?: { domain?: string }) =>
       here(opts)
-        ? state.blobs.map((b) => ({ sha: b.sha, bytes: b.bytes ?? (b.content?.length ?? 0), mtimeMs: b.mtimeMs ?? 0 }))
+        ? state.blobs.map((b) => ({
+            sha: b.sha,
+            bytes: b.bytes ?? b.content?.length ?? 0,
+            mtimeMs: b.mtimeMs ?? 0,
+          }))
         : [],
     deleteBlob: async (s: CasSha, opts?: { domain?: string }) => {
       if (!here(opts)) return;
@@ -92,7 +102,12 @@ describe("createCasDriver — plans rooting (GH-2028 data-loss guards)", () => {
   test("an unreferenced blob is swept (finding is a domain-qualified CAS URI)", async () => {
     const { cas, state } = casStub({ blobs: [{ sha: sha("a"), bytes: 42, mtimeMs: 0 }] });
     const { findings, out } = await markThenSweep(cas);
-    expect(findings[0]).toMatchObject({ component: "cas", class: "orphan", ref: uri("plans", sha("a")), reclaim_bytes: 42 });
+    expect(findings[0]).toMatchObject({
+      component: "cas",
+      class: "orphan",
+      ref: uri("plans", sha("a")),
+      reclaim_bytes: 42,
+    });
     expect(out.reclaimed).toHaveLength(1);
     expect(state.deleted).toEqual([sha("a")]); // sweep deletes the bare sha in the right domain
   });
@@ -103,7 +118,11 @@ describe("createCasDriver — plans rooting (GH-2028 data-loss guards)", () => {
     const orphan = sha("o");
     const { cas, state } = casStub({
       refs: [{ name: "GH-1:plan@approved", sha: env }],
-      blobs: [{ sha: env, content: envelopeJson(body) }, { sha: body, content: "the plan body" }, { sha: orphan, content: "junk" }],
+      blobs: [
+        { sha: env, content: envelopeJson(body) },
+        { sha: body, content: "the plan body" },
+        { sha: orphan, content: "junk" },
+      ],
     });
     const { out } = await markThenSweep(cas);
     expect(out.reclaimed.map((f) => f.ref)).toEqual([uri("plans", orphan)]);
@@ -115,7 +134,10 @@ describe("createCasDriver — plans rooting (GH-2028 data-loss guards)", () => {
     const orphan = sha("o");
     const { cas, state } = casStub({
       refs: [{ name: "GH-1:plan@draft", sha: body }],
-      blobs: [{ sha: body, content: "raw legacy plan body" }, { sha: orphan, content: "junk" }],
+      blobs: [
+        { sha: body, content: "raw legacy plan body" },
+        { sha: orphan, content: "junk" },
+      ],
     });
     await markThenSweep(cas);
     expect(state.deleted).toEqual([orphan]);
@@ -126,7 +148,10 @@ describe("createCasDriver — plans rooting (GH-2028 data-loss guards)", () => {
     const orphan = sha("o");
     const { cas } = casStub({
       refs: [{ name: "GH-1:plan@approved", sha: env }],
-      blobs: [{ sha: env, content: envelopeJson(sha("b")) }, { sha: orphan, content: "junk" }],
+      blobs: [
+        { sha: env, content: envelopeJson(sha("b")) },
+        { sha: orphan, content: "junk" },
+      ],
     });
     expect((await driverFor(cas).mark()).map((f) => f.ref)).toEqual([uri("plans", orphan)]);
   });
@@ -136,7 +161,10 @@ describe("createCasDriver — plans rooting (GH-2028 data-loss guards)", () => {
     const orphan = sha("o");
     const { cas, state } = casStub({
       refs: [{ name: "GH-1:plan@approved", sha: bad }],
-      blobs: [{ sha: bad, throwOnRead: true }, { sha: orphan, content: "junk" }],
+      blobs: [
+        { sha: bad, throwOnRead: true },
+        { sha: orphan, content: "junk" },
+      ],
     });
     await markThenSweep(cas);
     expect(state.deleted).toEqual([orphan]); // bad ref rooted, not swept
@@ -151,7 +179,11 @@ describe("createCasDriver — submit rooting (GH-2317 data-loss guards)", () => 
     const { cas, state } = casStub({
       domain: "submit",
       refs: [{ name: "GH-1:submit@ready", sha: meta }],
-      blobs: [{ sha: meta, content: submitArtifactJson(patch) }, { sha: patch, content: "the diff" }, { sha: orphan, content: "junk" }],
+      blobs: [
+        { sha: meta, content: submitArtifactJson(patch) },
+        { sha: patch, content: "the diff" },
+        { sha: orphan, content: "junk" },
+      ],
     });
     const { out } = await markThenSweep(cas);
     expect(out.reclaimed.map((f) => f.ref)).toEqual([uri("submit", orphan)]); // submit-qualified
@@ -164,7 +196,10 @@ describe("createCasDriver — submit rooting (GH-2317 data-loss guards)", () => 
     const { cas, state } = casStub({
       domain: "submit",
       refs: [{ name: "GH-1:submit@draft", sha: badMeta }],
-      blobs: [{ sha: badMeta, content: "not-a-submit-artifact" }, { sha: orphan, content: "junk" }],
+      blobs: [
+        { sha: badMeta, content: "not-a-submit-artifact" },
+        { sha: orphan, content: "junk" },
+      ],
     });
     await markThenSweep(cas);
     expect(state.deleted).toEqual([orphan]); // badMeta rooted (parse miss → fail-safe)
@@ -186,7 +221,10 @@ describe("createCasDriver — TOCTOU + grace + capability", () => {
 
   test("grace guard: a recent orphan is skipped; with graceMs=0 it is swept", async () => {
     const tenMinAgo = Date.now() - 10 * 60 * 1000;
-    const guarded = casStub({ blobs: [{ sha: sha("a"), mtimeMs: tenMinAgo }], graceMs: 60 * 60 * 1000 });
+    const guarded = casStub({
+      blobs: [{ sha: sha("a"), mtimeMs: tenMinAgo }],
+      graceMs: 60 * 60 * 1000,
+    });
     expect(await driverFor(guarded.cas).mark()).toEqual([]);
     const eager = casStub({ blobs: [{ sha: sha("a"), mtimeMs: tenMinAgo }], graceMs: 0 });
     expect(await driverFor(eager.cas).mark()).toHaveLength(1);
@@ -200,7 +238,16 @@ describe("createCasDriver — TOCTOU + grace + capability", () => {
 });
 
 describe("createCasDriver — real temp CAS e2e (data-loss guard against a real store)", () => {
-  const ENV = ["PRX_CAS_ROOT", "PRX_PLAN_STORE", "PRX_AI_HOME_ROOT", "BAKED_AI_HOME_ROOT", "PRX_OPERATOR_CONFIG_ROOT", "BAKED_OPERATOR_CONFIG_ROOT", "XDG_STATE_HOME", "HOME"] as const;
+  const ENV = [
+    "PRX_CAS_ROOT",
+    "PRX_PLAN_STORE",
+    "PRX_AI_HOME_ROOT",
+    "BAKED_AI_HOME_ROOT",
+    "PRX_OPERATOR_CONFIG_ROOT",
+    "BAKED_OPERATOR_CONFIG_ROOT",
+    "XDG_STATE_HOME",
+    "HOME",
+  ] as const;
   let snap: Record<string, string | undefined>;
   beforeEach(() => {
     snap = {};
@@ -228,7 +275,9 @@ describe("createCasDriver — real temp CAS e2e (data-loss guard against a real 
     const { sha: orphanSha } = await writeBlob("orphan", { domain: "plans" });
     const { out } = await markThenSweep(realCas);
     expect(out.reclaimed.map((f) => f.ref)).toContain(uri("plans", orphanSha));
-    await expect(readBlob(orphanSha, { domain: "plans" })).rejects.toMatchObject({ code: "BLOB_NOT_FOUND" });
+    await expect(readBlob(orphanSha, { domain: "plans" })).rejects.toMatchObject({
+      code: "BLOB_NOT_FOUND",
+    });
     expect((await readBlob(bodySha, { domain: "plans" })).toString()).toBe("the real plan body");
   });
 
@@ -239,7 +288,9 @@ describe("createCasDriver — real temp CAS e2e (data-loss guard against a real 
     const { sha: orphanSha } = await writeBlob("orphan", { domain: "submit" });
     const { out } = await markThenSweep(realCas);
     expect(out.reclaimed.map((f) => f.ref)).toContain(uri("submit", orphanSha));
-    await expect(readBlob(orphanSha, { domain: "submit" })).rejects.toMatchObject({ code: "BLOB_NOT_FOUND" });
+    await expect(readBlob(orphanSha, { domain: "submit" })).rejects.toMatchObject({
+      code: "BLOB_NOT_FOUND",
+    });
     expect((await readBlob(patchSha, { domain: "submit" })).toString()).toBe("the real patch diff");
   });
 });

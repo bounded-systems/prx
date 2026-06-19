@@ -48,7 +48,12 @@ function parseLcov(lcov: string): FileCov[] {
       // BRDA:<line>,<block>,<branch>,<taken>  (taken is '-' or a hit count)
       const [num, , , taken] = line.slice(5).split(",");
       const n = Number(num);
-      const entry = current.lines.get(n) ?? { number: n, hits: 0, branchTotal: 0, branchCovered: 0 };
+      const entry = current.lines.get(n) ?? {
+        number: n,
+        hits: 0,
+        branchTotal: 0,
+        branchCovered: 0,
+      };
       entry.branchTotal += 1;
       if (taken !== "-" && Number(taken) > 0) entry.branchCovered += 1;
       current.lines.set(n, entry);

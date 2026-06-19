@@ -56,10 +56,7 @@ function writeIndexWithBdPrefix(root: string, bdWorkspacePrefix: string): void {
       },
     ],
   };
-  writeFileSync(
-    join(root, ".prx", "repos", "index.json"),
-    JSON.stringify(inventory, null, 2),
-  );
+  writeFileSync(join(root, ".prx", "repos", "index.json"), JSON.stringify(inventory, null, 2));
 }
 
 describe("CLI canonical-id gate adapter fall-through (GH-2015)", () => {
@@ -101,12 +98,9 @@ describe("CLI canonical-id gate adapter fall-through (GH-2015)", () => {
     writeIndexWithBdPrefix(root, "demo-repo");
     writeFileSync(
       join(root, "prx.toml"),
-      [
-        "[sources.github]",
-        'kind = "github"',
-        'canonical_id_pattern = "^GH-\\\\d+$"',
-        "",
-      ].join("\n"),
+      ["[sources.github]", 'kind = "github"', 'canonical_id_pattern = "^GH-\\\\d+$"', ""].join(
+        "\n",
+      ),
     );
     const result = runCli(["audit", "uow", "demo-repo-aqg"], root);
     const stderr = new TextDecoder().decode(result.stderr);

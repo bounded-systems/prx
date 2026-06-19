@@ -4,15 +4,26 @@ import { bakedGitSha, bakedReleaseVersion } from "../build-info.ts";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join, resolve } from "node:path";
-import { appendFileSync, chmodSync, closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  chmodSync,
+  closeSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpDir } from "@bounded-systems/host";
 import { createHash } from "node:crypto";
 
-import {
-  deriveInfo,
-  loadContract,
-  type StateMode,
-} from "./contract.ts";
+import { deriveInfo, loadContract, type StateMode } from "./contract.ts";
 import {
   syncGitHubIssuesToBeads,
   syncStatus,
@@ -108,10 +119,7 @@ import { resolverForCanonicalId } from "./resolvers/dispatch.ts";
 import { BeadsResolver } from "./resolvers/beads.ts";
 import type { ResolvedWorkUnit, WorkUnitSource } from "./resolvers/types.ts";
 import { workUnitSources } from "./resolvers/types.ts";
-import {
-  normalizeToBdSurfaceShort,
-  recognizeBareWorkspaceLongId,
-} from "../issues/resolver.ts";
+import { normalizeToBdSurfaceShort, recognizeBareWorkspaceLongId } from "../issues/resolver.ts";
 import { adapterForCanonicalId } from "../adapters/domain-adapter.ts";
 import { nextAction, type ActionPlan, type ResolvedAction } from "./actions.ts";
 import { nextWork } from "./next_work.ts";
@@ -154,11 +162,7 @@ import {
   type RepoRefreshResult,
   type SetRepoAxisDelta,
 } from "./repos.ts";
-import {
-  auditRegisteredRepos,
-  formatRepoAudit,
-  type RepoAuditDeps,
-} from "./repo_audit.ts";
+import { auditRegisteredRepos, formatRepoAudit, type RepoAuditDeps } from "./repo_audit.ts";
 import {
   // GH-1760: registry-store DI + types shared by adopt verbs and the
   // `prx repo audit` count line.
@@ -170,42 +174,14 @@ import {
 } from "./registry_store.ts";
 import { adoptRepo, type AdoptRepoResult } from "./repo_adopt.ts";
 import { adoptBranch, type AdoptBranchResult } from "./branch_adopt.ts";
-import {
-  adoptWorkspace,
-  type AdoptWorkspaceResult,
-} from "./workspace_adopt.ts";
-import {
-  formatRepoBackfill,
-  RepoBackfillError,
-  runRepoBackfill,
-} from "./repo_backfill.ts";
-import {
-  formatRepoGcReport,
-  RepoGcError,
-  runRepoGc,
-} from "./repo_gc.ts";
-import {
-  AddDolthubError,
-  formatRepoAddDolthub,
-  runRepoAddDolthub,
-} from "./repo_add_dolthub.ts";
-import {
-  formatRepoBootstrap,
-  RepoBootstrapError,
-  runRepoBootstrap,
-} from "./repo_bootstrap.ts";
-import {
-  materializeBareRepo,
-  MaterializeError,
-  type MaterializeResult,
-} from "./materialize.ts";
-import {
-  resolveTargetRepoCwd,
-} from "./repo-target.ts";
-import {
-  beadsModeHint,
-  classifyBeadsWorkspace,
-} from "../beads/workspace_mode.ts";
+import { adoptWorkspace, type AdoptWorkspaceResult } from "./workspace_adopt.ts";
+import { formatRepoBackfill, RepoBackfillError, runRepoBackfill } from "./repo_backfill.ts";
+import { formatRepoGcReport, RepoGcError, runRepoGc } from "./repo_gc.ts";
+import { AddDolthubError, formatRepoAddDolthub, runRepoAddDolthub } from "./repo_add_dolthub.ts";
+import { formatRepoBootstrap, RepoBootstrapError, runRepoBootstrap } from "./repo_bootstrap.ts";
+import { materializeBareRepo, MaterializeError, type MaterializeResult } from "./materialize.ts";
+import { resolveTargetRepoCwd } from "./repo-target.ts";
+import { beadsModeHint, classifyBeadsWorkspace } from "../beads/workspace_mode.ts";
 import {
   applyHooks,
   formatHookApply,
@@ -362,11 +338,7 @@ import type { GateResult } from "../provenance/gate.ts";
 // GH-1508: doctor substrate-tier dedupe verb (ADR §6).
 import { runDedupeBd as doctorRunDedupeBd } from "../doctor/dedupe-bd.ts";
 // GH-1823: audit actor — read-only adherence metrics over the artifact graph.
-import {
-  runAuditIngest,
-  runAuditUow,
-  runAuditSystem,
-} from "../audit/cli.ts";
+import { runAuditIngest, runAuditUow, runAuditSystem } from "../audit/cli.ts";
 // GH-1407: services actor — Anthropic prompt-cache hit-rate projector.
 import { runServicesStatus } from "../services/cli.ts";
 import { taskRoleMachine, taskRoles, type TaskRole } from "../machine/machines/task.ts";
@@ -396,31 +368,17 @@ import {
 } from "@bounded-systems/bd";
 import { prxBeadsDoorDialer } from "../beadsd/bd-door-dialer.ts";
 import { execBdIssueClose } from "../tools/bd_issue_close.ts";
+import { resolveAndCloseLinkedBeads, type PlanCloseBdRecordOutcome } from "./plan-close-bd.ts";
+import { runClaudePreflight, formatClaudePreflight } from "../tools/preflight_claude.ts";
+import { probeCapabilities, formatCapabilities } from "../tools/capabilities.ts";
+import { runNotionMcpPreflight, formatNotionMcpPreflight } from "../tools/preflight_notion_mcp.ts";
+import { discoverLocalGitRepos, formatLocalReposResult } from "../tools/repos_local.ts";
+import { ensurePrxExcludes, type EnsurePrxExcludesResult } from "../tools/ignore_sync.ts";
 import {
-  resolveAndCloseLinkedBeads,
-  type PlanCloseBdRecordOutcome,
-} from "./plan-close-bd.ts";
-import {
-  runClaudePreflight,
-  formatClaudePreflight,
-} from "../tools/preflight_claude.ts";
-import {
-  probeCapabilities,
-  formatCapabilities,
-} from "../tools/capabilities.ts";
-import {
-  runNotionMcpPreflight,
-  formatNotionMcpPreflight,
-} from "../tools/preflight_notion_mcp.ts";
-import {
-  discoverLocalGitRepos,
-  formatLocalReposResult,
-} from "../tools/repos_local.ts";
-import {
-  ensurePrxExcludes,
-  type EnsurePrxExcludesResult,
-} from "../tools/ignore_sync.ts";
-import { hydrate as hydrateBeads, formatHydrateResult, type HydrateStatus } from "../beads/hydrate.ts";
+  hydrate as hydrateBeads,
+  formatHydrateResult,
+  type HydrateStatus,
+} from "../beads/hydrate.ts";
 import {
   parseWorkspaceArgs,
   runWorkspaceCli,
@@ -431,12 +389,7 @@ import {
 // GH-2026/GH-2327: `prx gc <verb>` unified housekeeping actor. Verb parser +
 // dispatch live in `src/machine/gc/cli.ts`; this surface only routes argv and
 // injects the prune-teardown deps the `gc teardown` path reuses.
-import {
-  parseGcArgs,
-  runGcCli,
-  GcCliError,
-  PRX_PRUNE_GC_ALIAS_HINT,
-} from "../machine/gc/cli.ts";
+import { parseGcArgs, runGcCli, GcCliError, PRX_PRUNE_GC_ALIAS_HINT } from "../machine/gc/cli.ts";
 import {
   resolveCanonicalChainLedger,
   resolveWorkspaceContext,
@@ -460,26 +413,14 @@ import {
 // CLI dispatch passes parsed flags straight through and formats the
 // discriminated-union result.
 import { runBeadsMigrate } from "../beads/migrate.ts";
-import {
-  runHomeUpdate,
-  type HomeUpdateOptions,
-  type HomeUpdateDeps,
-} from "./home-update.ts";
-import {
-  runHomeSync,
-  type HomeSyncOptions,
-  type HomeSyncDeps,
-} from "./home-sync.ts";
+import { runHomeUpdate, type HomeUpdateOptions, type HomeUpdateDeps } from "./home-update.ts";
+import { runHomeSync, type HomeSyncOptions, type HomeSyncDeps } from "./home-sync.ts";
 import {
   runDoltReconcile,
   type DoltReconcileOptions,
   type DoltReconcileDeps,
 } from "./dolt-reconcile.ts";
-import {
-  runDoltStatus,
-  type DoltStatusOptions,
-  type DoltStatusDeps,
-} from "../dolt/status.ts";
+import { runDoltStatus, type DoltStatusOptions, type DoltStatusDeps } from "../dolt/status.ts";
 import { runDoltStartCli } from "../dolt/start.ts";
 import { runSpecVerb } from "../cli/orchestrator-cli.ts";
 import { runPluginVerb } from "../cli/plugin-emit.ts";
@@ -502,10 +443,7 @@ import {
   type IntakeOptions,
   type IntakeDeps,
 } from "../intake/intake.ts";
-import {
-  INTAKE_INTENTS,
-  type IntakeIntent,
-} from "../intake/types.ts";
+import { INTAKE_INTENTS, type IntakeIntent } from "../intake/types.ts";
 import {
   runIntakeView,
   intakeViewOptionsSchema,
@@ -603,10 +541,7 @@ import {
 } from "../provenance/status.ts";
 import type { ProvenanceAxis } from "../machine/machines/workflow.ts";
 // GH-2282: persisted dev provenance identity — `prx provenance dev-pubkey`.
-import {
-  loadOrCreateDevKeypair,
-  resolveDevKeyPathForDisplay,
-} from "../provenance/dev-key.ts";
+import { loadOrCreateDevKeypair, resolveDevKeyPathForDisplay } from "../provenance/dev-key.ts";
 // GH-2262: submit stage — producer that writes the CAS-backed artifact the
 // `publish` consumer reads.
 import {
@@ -638,10 +573,7 @@ import {
   type TriageStatusDeps,
   type TriageStatusResult,
 } from "../triage/triage.ts";
-import {
-  createBeadsCache,
-  type BeadsCache,
-} from "../triage/beads_cache.ts";
+import { createBeadsCache, type BeadsCache } from "../triage/beads_cache.ts";
 import {
   runTriageClassify,
   triageClassifyOptionsSchema,
@@ -719,10 +651,7 @@ import {
   type TriagePrioritizeBulkOptions,
   type TriagePrimeOptions,
 } from "../triage/schemas/index.ts";
-import {
-  runTriagePrime,
-  type TriagePrimeDeps,
-} from "../triage/prime.ts";
+import { runTriagePrime, type TriagePrimeDeps } from "../triage/prime.ts";
 import {
   runCiPhases,
   ciOptionsSchema,
@@ -742,17 +671,9 @@ import {
 } from "./ci-attest.ts";
 import { resolveCiProvenanceState } from "./ci-provenance-state.ts";
 import { readCiProvenanceState, writeCiProvenanceCache } from "./ci-provenance-cache.ts";
-import {
-  inferOperatorScopeFromCwd,
-  isMainxPath,
-  type InferredScope,
-} from "./scope-inference.ts";
+import { inferOperatorScopeFromCwd, isMainxPath, type InferredScope } from "./scope-inference.ts";
 import { dispatchFromArgv, dispatchSessionEntryEvent } from "./session-entry/dispatch.ts";
-import {
-  deriveSessionBranch,
-  openSession,
-  type OpenSessionResult,
-} from "../session/open.ts";
+import { deriveSessionBranch, openSession, type OpenSessionResult } from "../session/open.ts";
 import type { SessionActor } from "../session/schema.ts";
 import { runStep } from "./session-progress.ts";
 import { findCommand, prxCommandRegistry } from "../cli/registry.data.ts";
@@ -769,17 +690,10 @@ import {
   runPlanShow,
   formatPreflightPlain,
 } from "../plan-store/verbs.ts";
-import {
-  PlanStoreError,
-  getRef,
-} from "../plan-store/cas.ts";
+import { PlanStoreError, getRef } from "../plan-store/cas.ts";
 // prx-lrw: submit-ref reading for the check-issue artifact-graph projection
 // fallback (a CAS submit ref proves the unit when the issue authority can't).
-import {
-  SUBMIT_DOMAIN,
-  SUBMIT_SLOTS,
-  submitRefFor,
-} from "../submit/artifact.schema.ts";
+import { SUBMIT_DOMAIN, SUBMIT_SLOTS, submitRefFor } from "../submit/artifact.schema.ts";
 import {
   runPlanView,
   planViewOptionsSchema,
@@ -795,10 +709,7 @@ import {
 import { resolvePlanSessionUnit } from "../plan-store/session-context.ts";
 import type { DispatchActor } from "../machine/dispatch.ts";
 import { readDispatchSource } from "../machine/dispatch.ts";
-import {
-  DispatchParseError,
-  parseDispatchCommand as parseDispatchArgv,
-} from "./dispatch/parse.ts";
+import { DispatchParseError, parseDispatchCommand as parseDispatchArgv } from "./dispatch/parse.ts";
 import { renderDispatchOutcome, runDispatch } from "./dispatch/handler.ts";
 import { rewriteFileAtomic } from "../tools/atomic_file.ts";
 import {
@@ -814,34 +725,14 @@ import {
   scoutReadProvenance,
 } from "@bounded-systems/scout";
 import { attestScoutRead, SCOUT_SIGNING_REQUIRED_MESSAGE } from "./scout-attest.ts";
-import {
-  SlackReadError,
-  SLACK_READ_OPS,
-  type SlackReadOp,
-} from "@bounded-systems/slack";
+import { SlackReadError, SLACK_READ_OPS, type SlackReadOp } from "@bounded-systems/slack";
 import { execSlackScoutRead } from "../slack/scout-cli.ts";
 import { openAnchoredChain } from "@bounded-systems/anchored-chain-sqlite";
-import {
-  runMapCreate,
-  mapCreateOptionsSchema,
-  type MapCreateOptions,
-} from "../map/create.ts";
-import {
-  runMapShow,
-  mapShowOptionsSchema,
-  type MapShowOptions,
-} from "../map/show.ts";
+import { runMapCreate, mapCreateOptionsSchema, type MapCreateOptions } from "../map/create.ts";
+import { runMapShow, mapShowOptionsSchema, type MapShowOptions } from "../map/show.ts";
 import { MapRecordNotFoundError } from "../map/record-io.ts";
-import {
-  formatScoutIssuesJsonLines,
-  runScoutIssues,
-  ScoutIssuesError,
-} from "../scout/issues.ts";
-import {
-  formatScoutNotionJson,
-  runScoutNotion,
-  ScoutNotionError,
-} from "../scout/notion.ts";
+import { formatScoutIssuesJsonLines, runScoutIssues, ScoutIssuesError } from "../scout/issues.ts";
+import { formatScoutNotionJson, runScoutNotion, ScoutNotionError } from "../scout/notion.ts";
 import {
   runScoutSource,
   scoutSourceOptionsSchema,
@@ -857,11 +748,7 @@ import {
   formatFetchGhIssuesJson,
   runFetchGhIssues,
 } from "../fetch/gh-issues.ts";
-import {
-  FetchSlackError,
-  formatFetchSlackJson,
-  runFetchSlackSync,
-} from "../fetch/slack-sync.ts";
+import { FetchSlackError, formatFetchSlackJson, runFetchSlackSync } from "../fetch/slack-sync.ts";
 import { BucketBudgetExhaustedError } from "@bounded-systems/github-budget";
 import {
   DepManifestError,
@@ -871,11 +758,7 @@ import {
 } from "../dep-research/manifest.ts";
 import { defaultFetchSource, fetchSources } from "../dep-research/fetch.ts";
 import type { FetchSourceFn } from "../dep-research/fetch.ts";
-import {
-  buildSnapshot,
-  formatRunId,
-  writeSnapshot,
-} from "../dep-research/snapshot.ts";
+import { buildSnapshot, formatRunId, writeSnapshot } from "../dep-research/snapshot.ts";
 import {
   formatDepStatusJson,
   formatDepStatusPlain,
@@ -884,19 +767,13 @@ import {
 import { depResearchMachine } from "../dep-research/machine.ts";
 import { domainSyncMachine } from "../sync/machine.ts";
 import { fetchMachine } from "../machine/machines/fetch.ts";
-import {
-  runBeadsSync,
-  type RunBeadsSyncOptions,
-} from "../sync/run.ts";
+import { runBeadsSync, type RunBeadsSyncOptions } from "../sync/run.ts";
 import { DEFAULT_SYNC_LIMIT } from "../sync/limits.ts";
 import {
   runBeadsSyncAcrossRepos,
   type RunBeadsSyncAcrossReposOptions,
 } from "../sync/run-cross-repo.ts";
-import {
-  runBackfill,
-  type RunBackfillOptions,
-} from "../sync/backfill.ts";
+import { runBackfill, type RunBackfillOptions } from "../sync/backfill.ts";
 import {
   runDoltReconcileAcrossRepos,
   type RunDoltReconcileAcrossReposOptions,
@@ -913,30 +790,105 @@ import {
   runTranscriptsStatus,
   runTranscriptsListSources,
 } from "../transcripts-digest/cli.ts";
-import {
-  formatScaffoldResult,
-  scaffoldRepo,
-  ScaffoldError,
-} from "../init/scaffold.ts";
+import { formatScaffoldResult, scaffoldRepo, ScaffoldError } from "../init/scaffold.ts";
 import { setAuditRuntimeContext } from "@bounded-systems/audit-context";
 import { recordEvent as recordCatalogEvent } from "../machine/record_event.ts";
-import {
-  readRateLimitAuditRows,
-  type RateLimitAuditEntry,
-} from "@bounded-systems/github-budget";
+import { readRateLimitAuditRows, type RateLimitAuditEntry } from "@bounded-systems/github-budget";
 import { CliError } from "./cli-error.ts";
-import { type ExecutionWorkAgent, POLICY, buildWorkAutomationProfile, ensureExecutionWorkflowAgent, interactiveTimeoutMs, parseWorkAgentImplementation, validateWorkIoFormat } from "./work-agent.ts";
+import {
+  type ExecutionWorkAgent,
+  POLICY,
+  buildWorkAutomationProfile,
+  ensureExecutionWorkflowAgent,
+  interactiveTimeoutMs,
+  parseWorkAgentImplementation,
+  validateWorkIoFormat,
+} from "./work-agent.ts";
 import { findSavedClaudeSession, resolveCodexSessionProfile } from "./session-finder.ts";
-import { type BeadsGithubIssueMatch, type BeadsInitSetupResult, type CloseSessionResult, type Output, type ParityChainApplyResult, type RepairBdEntry, type SessionOpenCheckReport, VERB_HELP_SEE_ALSO, type WorkUnitChainCheckResult, type WorkUnitIssueCheckResult, type WorkUnitSessionCheckResult } from "./cli-types.ts";
+import {
+  type BeadsGithubIssueMatch,
+  type BeadsInitSetupResult,
+  type CloseSessionResult,
+  type Output,
+  type ParityChainApplyResult,
+  type RepairBdEntry,
+  type SessionOpenCheckReport,
+  VERB_HELP_SEE_ALSO,
+  type WorkUnitChainCheckResult,
+  type WorkUnitIssueCheckResult,
+  type WorkUnitSessionCheckResult,
+} from "./cli-types.ts";
 import { refreshTaskSignals } from "./status-report.ts";
-import { formatActionExecutionResult, formatActionPlan, formatArtifactProjectedWorkUnitCheck, formatBeadsIssueMatches, formatBinaryUpdateWarning, formatChainsStatus, formatCloseSession, formatFullCommandCatalogHelp, formatGateResult, formatGhBudgetWindow, formatHelp, formatInitResult, formatIntakeNamespaceHelp, formatMaterialize, formatNextWork, formatParityChainApplyResults, formatPhase, formatPlanNamespaceHelp, formatRepairBdResults, formatRepoAdd, formatRepoNormalization, formatRepoRefresh, formatRepoSet, formatRepoStatus, formatRepos, formatResolvedWorkUnitCheck, formatRuntimeProfile, formatSessionHelp, formatSessionOpenCheck, formatSnapshot, formatSprintState, formatSprintSyncResult, formatStatusLine, formatTaskGraph, formatTaskStatus, formatUnknownError, formatUpdateResult, formatVerbHelp, formatWorkUnitChainCheck, formatWorkUnitIssueCheck, formatWorkUnitSessionCheck, formatWorktreeRemove } from "./cli-format.ts";
-import { type CommandRunnerResult, type SpawnLike, type SpawnLikeResult, detectBranchNameFromCwd, findWorktreeByDirectoryPrefix, listResolvedWorktrees, procSpawnLike, resolveRepoRootWithSpawn, runCommand, runInheritStatus, tryCommand } from "./cli-spawn.ts";
+import {
+  formatActionExecutionResult,
+  formatActionPlan,
+  formatArtifactProjectedWorkUnitCheck,
+  formatBeadsIssueMatches,
+  formatBinaryUpdateWarning,
+  formatChainsStatus,
+  formatCloseSession,
+  formatFullCommandCatalogHelp,
+  formatGateResult,
+  formatGhBudgetWindow,
+  formatHelp,
+  formatInitResult,
+  formatIntakeNamespaceHelp,
+  formatMaterialize,
+  formatNextWork,
+  formatParityChainApplyResults,
+  formatPhase,
+  formatPlanNamespaceHelp,
+  formatRepairBdResults,
+  formatRepoAdd,
+  formatRepoNormalization,
+  formatRepoRefresh,
+  formatRepoSet,
+  formatRepoStatus,
+  formatRepos,
+  formatResolvedWorkUnitCheck,
+  formatRuntimeProfile,
+  formatSessionHelp,
+  formatSessionOpenCheck,
+  formatSnapshot,
+  formatSprintState,
+  formatSprintSyncResult,
+  formatStatusLine,
+  formatTaskGraph,
+  formatTaskStatus,
+  formatUnknownError,
+  formatUpdateResult,
+  formatVerbHelp,
+  formatWorkUnitChainCheck,
+  formatWorkUnitIssueCheck,
+  formatWorkUnitSessionCheck,
+  formatWorktreeRemove,
+} from "./cli-format.ts";
+import {
+  type CommandRunnerResult,
+  type SpawnLike,
+  type SpawnLikeResult,
+  detectBranchNameFromCwd,
+  findWorktreeByDirectoryPrefix,
+  listResolvedWorktrees,
+  procSpawnLike,
+  resolveRepoRootWithSpawn,
+  runCommand,
+  runInheritStatus,
+  tryCommand,
+} from "./cli-spawn.ts";
 // GH-519/GH-520: parity-chain side-effect primitives moved to their own leaf
 // module so non-CLI consumers (the triage pruneMergedActor) no longer drag the
 // whole CLI — and its triage machine cycle — into their import graph. Re-export
 // keeps cli.ts's existing callers (machine/gc drivers, tests) working.
 import { applyParityChainActions, pruneStaleRemoteRefs } from "./parity-chain.ts";
-import { canonicalFormatExample, detectWorkCommandTarget, ensureCanonicalHelpers, ensureIdentityConfig, parseCanonicalWorkUnitId, resetCanonicalHelpers } from "./cli-id.ts";
+import {
+  canonicalFormatExample,
+  detectWorkCommandTarget,
+  ensureCanonicalHelpers,
+  ensureIdentityConfig,
+  parseCanonicalWorkUnitId,
+  resetCanonicalHelpers,
+} from "./cli-id.ts";
 
 export { applyParityChainActions, pruneStaleRemoteRefs } from "./parity-chain.ts";
 
@@ -2576,7 +2528,11 @@ type CliDeps = {
   viewPr?: typeof viewPr;
   initContract?: typeof initContract;
   execRuntime?: RuntimeExecutor;
-  execOpen?: (command: string, args: string[], cwd?: string) => {
+  execOpen?: (
+    command: string,
+    args: string[],
+    cwd?: string,
+  ) => {
     status: number;
     stdout: string;
     stderr: string;
@@ -2639,48 +2595,23 @@ type CliDeps = {
     launchCwd: string,
     expectedBranch: string,
   ) => DetachedHeadRefusal | null;
-  homeUpdate?: (
-    options: HomeUpdateOptions,
-    output: Output,
-    deps?: HomeUpdateDeps,
-  ) => number;
-  homeSync?: (
-    options: HomeSyncOptions,
-    output: Output,
-    deps?: HomeSyncDeps,
-  ) => number;
+  homeUpdate?: (options: HomeUpdateOptions, output: Output, deps?: HomeUpdateDeps) => number;
+  homeSync?: (options: HomeSyncOptions, output: Output, deps?: HomeSyncDeps) => number;
   runDoltReconcile?: (
     options: DoltReconcileOptions,
     output: Output,
     deps?: DoltReconcileDeps,
   ) => number;
-  runDoltStatus?: (
-    options: DoltStatusOptions,
-    output: Output,
-    deps?: DoltStatusDeps,
-  ) => number;
-  runIntake?: (
-    options: IntakeOptions,
-    output: Output,
-    deps?: IntakeDeps,
-  ) => number;
+  runDoltStatus?: (options: DoltStatusOptions, output: Output, deps?: DoltStatusDeps) => number;
+  runIntake?: (options: IntakeOptions, output: Output, deps?: IntakeDeps) => number;
   runIntakeView?: (
     options: IntakeViewOptions,
     output: Output,
     deps?: IntakeViewDeps,
   ) => number | Promise<number>;
-  runIntakeSource?: (
-    options: IntakeSourceOptions,
-    output: Output,
-  ) => number | Promise<number>;
-  runScoutSource?: (
-    options: ScoutSourceOptions,
-    output: Output,
-  ) => number | Promise<number>;
-  runSpawnVerify?: (
-    options: SpawnVerifyOptions,
-    output: Output,
-  ) => number | Promise<number>;
+  runIntakeSource?: (options: IntakeSourceOptions, output: Output) => number | Promise<number>;
+  runScoutSource?: (options: ScoutSourceOptions, output: Output) => number | Promise<number>;
+  runSpawnVerify?: (options: SpawnVerifyOptions, output: Output) => number | Promise<number>;
   runIntakeSearch?: (
     options: IntakeSearchOptions,
     output: Output,
@@ -2691,11 +2622,7 @@ type CliDeps = {
     output: Output,
     deps?: IntakeStatusDeps,
   ) => number;
-  runIntakeMerge?: (
-    options: IntakeMergeOptions,
-    output: Output,
-    deps?: IntakeMergeDeps,
-  ) => number;
+  runIntakeMerge?: (options: IntakeMergeOptions, output: Output, deps?: IntakeMergeDeps) => number;
   runIntakeComment?: (
     options: IntakeCommentOptions,
     output: Output,
@@ -2707,15 +2634,8 @@ type CliDeps = {
     deps?: IntakeMirrorDeps,
   ) => number;
   // GH-1318: submit actor handler seams.
-  runBodyTemplate?: (
-    options: BodyTemplateOptions,
-    output: Output,
-  ) => number;
-  runPostmerge?: (
-    options: PostmergeOptions,
-    output: Output,
-    deps?: PostmergeDeps,
-  ) => number;
+  runBodyTemplate?: (options: BodyTemplateOptions, output: Output) => number;
+  runPostmerge?: (options: PostmergeOptions, output: Output, deps?: PostmergeDeps) => number;
   runBeadsPublish?: (
     options: BeadsPublishOptions,
     output: Output,
@@ -2736,11 +2656,7 @@ type CliDeps = {
   runPublisherPrEdit?: typeof publisherRunPrEdit;
   // GH-1508: ADR §6 dedupe verb. No work-unit target — substrate-wide scan.
   runDoctorDedupeBd?: typeof doctorRunDedupeBd;
-  runIntakeBdLs?: (
-    options: IntakeBdLsOptions,
-    output: Output,
-    deps?: IntakeBdDeps,
-  ) => number;
+  runIntakeBdLs?: (options: IntakeBdLsOptions, output: Output, deps?: IntakeBdDeps) => number;
   runIntakeBdMemoryLs?: (
     options: IntakeBdMemoryLsOptions,
     output: Output,
@@ -2766,11 +2682,7 @@ type CliDeps = {
     output: Output,
     deps?: TriageClassifyDeps,
   ) => number;
-  runTriageApply?: (
-    options: TriageApplyOptions,
-    output: Output,
-    deps?: TriageApplyDeps,
-  ) => number;
+  runTriageApply?: (options: TriageApplyOptions, output: Output, deps?: TriageApplyDeps) => number;
   runTriagePromote?: (
     options: TriagePromoteOptions,
     output: Output,
@@ -2821,10 +2733,7 @@ type CliDeps = {
     output: Output,
     deps?: TriagePrimeDeps,
   ) => Promise<number>;
-  runCiPhases?: (
-    options: CiOptions,
-    output: Output,
-  ) => { code: number; results: PhaseResult[] };
+  runCiPhases?: (options: CiOptions, output: Output) => { code: number; results: PhaseResult[] };
   inferOperatorScopeFromCwd?: (cwd: string) => InferredScope;
   isMainxWorktree?: (cwd: string) => boolean;
   // GH-2258: route `prx triage|intake session` onto the dedicated triage
@@ -3068,28 +2977,30 @@ function describeInactiveIssueAuthority(
   }
 
   const issueNumber = githubIssueNumberForWorkUnit(workUnitId);
-  const reason = remote.gh_issue === "completed"
-    ? (issueNumber !== null
-      ? `GitHub issue #${issueNumber} is closed, so issue authority is not active`
-      : "the linked GitHub issue is closed, so issue authority is not active")
-    : remote.beads_issue === "completed"
-    ? "the linked beads issue is closed, so issue authority is not active"
-    : remote.gh_issue === "unknown" || remote.beads_issue === "unknown"
-    ? (() => {
-      const unknowns: string[] = [];
-      if (remote.gh_issue === "unknown") unknowns.push("gh_issue=unknown");
-      if (remote.beads_issue === "unknown") unknowns.push("beads_issue=unknown");
-      return `issue authority is unreachable (${unknowns.join(", ")})`;
-    })()
-    : remote.gh_issue === "disabled" && remote.beads_issue === "disabled"
-    ? "all issue-authority features are disabled"
-    : `no open issue is linked to this work unit (gh_issue=${remote.gh_issue}, beads_issue=${remote.beads_issue})`;
+  const reason =
+    remote.gh_issue === "completed"
+      ? issueNumber !== null
+        ? `GitHub issue #${issueNumber} is closed, so issue authority is not active`
+        : "the linked GitHub issue is closed, so issue authority is not active"
+      : remote.beads_issue === "completed"
+        ? "the linked beads issue is closed, so issue authority is not active"
+        : remote.gh_issue === "unknown" || remote.beads_issue === "unknown"
+          ? (() => {
+              const unknowns: string[] = [];
+              if (remote.gh_issue === "unknown") unknowns.push("gh_issue=unknown");
+              if (remote.beads_issue === "unknown") unknowns.push("beads_issue=unknown");
+              return `issue authority is unreachable (${unknowns.join(", ")})`;
+            })()
+          : remote.gh_issue === "disabled" && remote.beads_issue === "disabled"
+            ? "all issue-authority features are disabled"
+            : `no open issue is linked to this work unit (gh_issue=${remote.gh_issue}, beads_issue=${remote.beads_issue})`;
 
-  const remedy = local?.dir === "present"
-    ? `Run \`prx worktree-remove ${workUnitId} --delete-branch\` to clear the orphaned worktree`
-    : local?.dir === "no worktree"
-    ? "Run `prx chain prune --authority issue --scope all` to drop the orphaned branch"
-    : "Run `prx chain prune --authority issue --scope all` to clean orphaned units, or reopen the backing issue to restore authority";
+  const remedy =
+    local?.dir === "present"
+      ? `Run \`prx worktree-remove ${workUnitId} --delete-branch\` to clear the orphaned worktree`
+      : local?.dir === "no worktree"
+        ? "Run `prx chain prune --authority issue --scope all` to drop the orphaned branch"
+        : "Run `prx chain prune --authority issue --scope all` to clean orphaned units, or reopen the backing issue to restore authority";
 
   return `${prefix} ${reason}. ${remedy}.`;
 }
@@ -3181,7 +3092,8 @@ export function checkWorkUnitSession(
     log?: (line: string) => void;
   } = {},
 ): WorkUnitSessionCheckResult {
-  const entry = readWorktrees(repoPath).find((candidate) => candidate.branch === workUnitId) ?? null;
+  const entry =
+    readWorktrees(repoPath).find((candidate) => candidate.branch === workUnitId) ?? null;
   if (entry?.locked) {
     const pid = parseSessionLockPid(entry.lockReason);
     const probe = deps.isPidAlive ?? defaultPidAliveProbe;
@@ -3336,7 +3248,9 @@ export async function checkWorkUnitChain(
     const details = error instanceof Error ? error.message : String(error);
     throw new CliError(prxSessionBoardReadFailureMessage(workUnitId, details));
   }
-  const unit = board.units.find((candidate) => normalizeCanonicalWorkUnitId(candidate.branch) === workUnitId);
+  const unit = board.units.find(
+    (candidate) => normalizeCanonicalWorkUnitId(candidate.branch) === workUnitId,
+  );
 
   // GH-935: when no parity unit exists yet, this verb is about to either
   // materialize a fresh worktree (`create=true`) or refuse with a hint. In
@@ -3389,7 +3303,12 @@ export async function checkWorkUnitChain(
             `--from=notion is not valid for GitHub work unit IDs (${workUnitId}). Use a Notion canonical ID or omit --from=notion.`,
           );
         }
-        createResolvedSource = await probeNonGhResolver(workUnitId, repoPath, loadIdentity, buildResolver);
+        createResolvedSource = await probeNonGhResolver(
+          workUnitId,
+          repoPath,
+          loadIdentity,
+          buildResolver,
+        );
         if (createResolvedSource === null) {
           throw new CliError(prxSessionNoSourceConfiguredMessage(workUnitId));
         }
@@ -3413,7 +3332,12 @@ export async function checkWorkUnitChain(
             `--from=beads is not valid for GitHub work unit IDs (${workUnitId}). Use a BD canonical ID or omit --from=beads.`,
           );
         }
-        createResolvedSource = await probeNonGhResolver(workUnitId, repoPath, loadIdentity, buildResolver);
+        createResolvedSource = await probeNonGhResolver(
+          workUnitId,
+          repoPath,
+          loadIdentity,
+          buildResolver,
+        );
         if (createResolvedSource === null) {
           throw new CliError(prxSessionNoSourceConfiguredMessage(workUnitId));
         }
@@ -3427,13 +3351,15 @@ export async function checkWorkUnitChain(
       try {
         const ghIssueNumber = githubIssueNumberForWorkUnit(workUnitId);
         if (ghIssueNumber !== null) {
-          const issue = cachedGhIssue && cachedGhIssue.number === ghIssueNumber
-            ? cachedGhIssue
-            : readGitHubIssue(board.repo, ghIssueNumber);
+          const issue =
+            cachedGhIssue && cachedGhIssue.number === ghIssueNumber
+              ? cachedGhIssue
+              : readGitHubIssue(board.repo, ghIssueNumber);
           await pinGitHubWorkUnitSourceBestEffort(workUnitId, issue);
         } else {
-          const src = createResolvedSource
-            ?? (await probeNonGhResolver(workUnitId, repoPath, loadIdentity, buildResolver));
+          const src =
+            createResolvedSource ??
+            (await probeNonGhResolver(workUnitId, repoPath, loadIdentity, buildResolver));
           if (src) await pinWorkUnitSourceBestEffort(workUnitId, src);
         }
       } catch {
@@ -3457,9 +3383,10 @@ export async function checkWorkUnitChain(
       // available; otherwise fetch fresh (the canonical id was non-GH at the
       // earlier check point, which can't happen here, but keep the fallback
       // to avoid a hard dependency between the two branches).
-      const issue = cachedGhIssue && cachedGhIssue.number === issueNumber
-        ? cachedGhIssue
-        : readGitHubIssue(board.repo, issueNumber);
+      const issue =
+        cachedGhIssue && cachedGhIssue.number === issueNumber
+          ? cachedGhIssue
+          : readGitHubIssue(board.repo, issueNumber);
       const state = (issue.state ?? "").toUpperCase();
       if (state !== "OPEN") {
         throw new CliError(
@@ -3574,29 +3501,31 @@ export async function checkWorkUnitChain(
     }
   }
 
-  const parity = readParityChain === buildParityChain
-    ? buildSurfaceSyncFromBoard(repoPath, board, {
-      mode: "full",
-      authority: "issue",
-      scope: "all",
-      apply: false,
-    })
-    : readParityChain(repoPath, {
-      mode: "full",
-      authority: "issue",
-      scope: "all",
-      apply: false,
-    });
-  const parityUnit = parity.units.find((candidate) => normalizeCanonicalWorkUnitId(candidate.branch) === workUnitId);
+  const parity =
+    readParityChain === buildParityChain
+      ? buildSurfaceSyncFromBoard(repoPath, board, {
+          mode: "full",
+          authority: "issue",
+          scope: "all",
+          apply: false,
+        })
+      : readParityChain(repoPath, {
+          mode: "full",
+          authority: "issue",
+          scope: "all",
+          apply: false,
+        });
+  const parityUnit = parity.units.find(
+    (candidate) => normalizeCanonicalWorkUnitId(candidate.branch) === workUnitId,
+  );
   const actions = parityUnit?.actions ?? [];
 
-  const pruneActionRecords = actions
-    .filter(
-      (action) =>
-        action.type === "delete_local_branch"
-        || action.type === "delete_remote_branch"
-        || action.type === "delete_worktree",
-    );
+  const pruneActionRecords = actions.filter(
+    (action) =>
+      action.type === "delete_local_branch" ||
+      action.type === "delete_remote_branch" ||
+      action.type === "delete_worktree",
+  );
   const pruneActions = pruneActionRecords.map((action) => action.type);
   if (pruneActions.length > 0) {
     // GH-914: the action enumerator already drops `delete_remote_branch`
@@ -3634,11 +3563,12 @@ export async function checkWorkUnitChain(
     }
   }
   const driftDetected = bdSchemaProbe?.status === "drift_detected";
-  const reason: WorkUnitChainCheckResult["reason"] = backfillActions.length > 0
-    ? "backfill_allowed"
-    : driftDetected
-      ? "bd_schema_drift_detected"
-      : "ok";
+  const reason: WorkUnitChainCheckResult["reason"] =
+    backfillActions.length > 0
+      ? "backfill_allowed"
+      : driftDetected
+        ? "bd_schema_drift_detected"
+        : "ok";
 
   return {
     workUnitId,
@@ -3680,11 +3610,17 @@ async function validateWorkSessionEntry(
   // fetch when it is stale — is the deferred validate-work-session IO work (udqx2.1) and
   // is intentionally out of scope here. The in-body arms in checkWorkUnitChain are
   // retained as defense-in-depth for standalone callers.
-  if (create && (from === "notion" || from === "beads") && githubIssueNumberForWorkUnit(workUnitId) !== null) {
+  if (
+    create &&
+    (from === "notion" || from === "beads") &&
+    githubIssueNumberForWorkUnit(workUnitId) !== null
+  ) {
     const localView = readWtStatus(repoPath, false);
     const hasLocalParityUnit =
       localView.wt_available &&
-      localView.worktrees.some((candidate) => normalizeCanonicalWorkUnitId(candidate.branch) === workUnitId);
+      localView.worktrees.some(
+        (candidate) => normalizeCanonicalWorkUnitId(candidate.branch) === workUnitId,
+      );
     if (!hasLocalParityUnit) {
       throw new CliError(
         `--from=${from} is not valid for GitHub work unit IDs (${workUnitId}). ` +
@@ -3736,8 +3672,8 @@ export function inspectSessionOpenState(
 
   const entries = listResolvedWorktrees(repoRoot, runner);
   const worktreeEntry =
-    entries.find((entry) => entry.branch === workUnitId)
-    ?? findWorktreeByDirectoryPrefix(entries, workUnitId);
+    entries.find((entry) => entry.branch === workUnitId) ??
+    findWorktreeByDirectoryPrefix(entries, workUnitId);
 
   if (!worktreeEntry) {
     return {
@@ -3998,9 +3934,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   // raw argv tail. `prune`→`gc` rename stays out of scope (sibling 2l4ua).
   if (c0 === "gc") {
     if (!c1 || c1.startsWith("-")) {
-      throw new CliError(
-        "gc requires a subcommand: inventory | run | teardown",
-      );
+      throw new CliError("gc requires a subcommand: inventory | run | teardown");
     }
     if (c1 === "inventory" || c1 === "run" || c1 === "teardown") {
       return ["gc", c1, ...tail];
@@ -4086,9 +4020,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   // registry entries.
   if (c0 === "derive") {
     if (!c1 || c1.startsWith("-")) {
-      throw new CliError(
-        "derive requires a subcommand: ready, drift, eligible, why, dump-facts",
-      );
+      throw new CliError("derive requires a subcommand: ready, drift, eligible, why, dump-facts");
     }
     if (
       c1 === "ready" ||
@@ -4109,16 +4041,12 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   // are typed stubs. Verbs mirror the registry entries.
   if (c0 === "rules") {
     if (!c1 || c1.startsWith("-")) {
-      throw new CliError(
-        "rules requires a subcommand: render | validate | inputs",
-      );
+      throw new CliError("rules requires a subcommand: render | validate | inputs");
     }
     if (c1 === "render" || c1 === "validate" || c1 === "inputs") {
       return [`rules-${c1}`, ...tail];
     }
-    throw new CliError(
-      `Unknown rules subcommand: ${c1}. Available: render | validate | inputs`,
-    );
+    throw new CliError(`Unknown rules subcommand: ${c1}. Available: render | validate | inputs`);
   }
 
   // GH-1245: fetch actor spike — external→substrate refresh chokepoint.
@@ -4127,9 +4055,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   // plugin-envelope cut at source #2.
   if (c0 === "fetch") {
     if (!c1 || c1.startsWith("-")) {
-      throw new CliError(
-        "fetch requires a subcommand: gh-issues | slack",
-      );
+      throw new CliError("fetch requires a subcommand: gh-issues | slack");
     }
     if (c1 === "gh-issues") {
       return ["fetch-gh-issues", ...tail];
@@ -4140,9 +4066,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     if (c1 === "slack") {
       return ["fetch-slack", ...tail];
     }
-    throw new CliError(
-      `Unknown fetch subcommand: ${c1}. Available: gh-issues | slack`,
-    );
+    throw new CliError(`Unknown fetch subcommand: ${c1}. Available: gh-issues | slack`);
   }
 
   // GH-1261: dep-research routine. PR-1 ships `dep manifest`, PR-2 ships
@@ -4162,16 +4086,12 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     if (c1 === "status") {
       return ["dep-status", ...tail];
     }
-    throw new CliError(
-      `Unknown dep subcommand: ${c1}. Available: manifest | research | status`,
-    );
+    throw new CliError(`Unknown dep subcommand: ${c1}. Available: manifest | research | status`);
   }
 
   if (c0 === "delegate") {
     if (!c1 || c1.startsWith("-")) {
-      throw new CliError(
-        "delegate requires a subcommand: next | assign | repair-assignees",
-      );
+      throw new CliError("delegate requires a subcommand: next | assign | repair-assignees");
     }
     if (c1 === "next") {
       return ["delegate-next", ...tail];
@@ -4357,9 +4277,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   // GH-1397: `prx handoff <verb>` — structured handoff queue.
   if (c0 === "handoff") {
     if (!c1 || c1.startsWith("-")) {
-      throw new CliError(
-        "handoff requires a subcommand: enqueue | status | drain | replay",
-      );
+      throw new CliError("handoff requires a subcommand: enqueue | status | drain | replay");
     }
     if (c1 === "enqueue") return ["handoff-enqueue", ...tail];
     if (c1 === "status") return ["handoff-status", ...tail];
@@ -4371,9 +4289,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   // GH-1495: `prx transcripts <verb>` — temporal→durable memory digest.
   if (c0 === "transcripts") {
     if (!c1 || c1.startsWith("-")) {
-      throw new CliError(
-        "transcripts requires a subcommand: digest | status | list-sources",
-      );
+      throw new CliError("transcripts requires a subcommand: digest | status | list-sources");
     }
     if (c1 === "digest") {
       return ["transcripts-digest", ...tail];
@@ -4607,9 +4523,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     }
     const entry = DOLT_VERB_DISPATCH[c1 as DoltVerb];
     if (!entry) {
-      throw new CliError(
-        `Unknown dolt subcommand: ${c1} (available: ${verbs.join(", ")})`,
-      );
+      throw new CliError(`Unknown dolt subcommand: ${c1} (available: ${verbs.join(", ")})`);
     }
     if (entry.route === "dolt-stub") {
       return ["dolt-stub", c1, ...tail];
@@ -4628,9 +4542,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     }
     const entry = MEDIATOR_VERB_DISPATCH[c1 as MediatorVerb];
     if (!entry) {
-      throw new CliError(
-        `Unknown mediator subcommand: ${c1} (available: ${verbs.join(", ")})`,
-      );
+      throw new CliError(`Unknown mediator subcommand: ${c1} (available: ${verbs.join(", ")})`);
     }
     if (entry.route === "mediator-stub") {
       return ["mediator-stub", c1, ...tail];
@@ -4732,7 +4644,7 @@ function parseSessionOpenCommand(
       prompt: { type: "string" },
       "dry-run": { type: "boolean", default: false },
       check: { type: "boolean", default: false },
-      "create": { type: "boolean", default: false },
+      create: { type: "boolean", default: false },
       from: { type: "string" },
       "no-verify": { type: "boolean", default: false },
       plan: { type: "string" },
@@ -4761,14 +4673,18 @@ function parseSessionOpenCommand(
     allowPositionals: true,
   });
 
-  const from = values.from === undefined
-    ? undefined
-    : ensureChoice(values.from, workUnitSources, "--from");
+  const from =
+    values.from === undefined ? undefined : ensureChoice(values.from, workUnitSources, "--from");
   if (from !== undefined && !values["create"]) {
-    throw new CliError("--from requires --create (the source selector only applies when materializing a new work unit).");
+    throw new CliError(
+      "--from requires --create (the source selector only applies when materializing a new work unit).",
+    );
   }
 
-  const agent = ensureExecutionWorkflowAgent(parseWorkAgentImplementation(values.agent, "--agent"), "--agent");
+  const agent = ensureExecutionWorkflowAgent(
+    parseWorkAgentImplementation(values.agent, "--agent"),
+    "--agent",
+  );
   const ioFormat = validateWorkIoFormat(
     agent,
     ensureChoice(values["io-format"], runtimeIoFormats, "--io-format"),
@@ -4776,12 +4692,7 @@ function parseSessionOpenCommand(
   const workUnitArg = positionals[0];
   const detectedTarget = workUnitArg ? null : detectWorkCommandTarget();
   if (!workUnitArg && detectedTarget?.launchFromCurrentWorkspace) {
-    throw new CliError(
-      [
-        PRX_SESSION_OPEN_REQUIRES_TARGET,
-        PRX_SESSION_OPEN_DEFINITION,
-      ].join(" "),
-    );
+    throw new CliError([PRX_SESSION_OPEN_REQUIRES_TARGET, PRX_SESSION_OPEN_DEFINITION].join(" "));
   }
 
   const workUnitId = workUnitArg
@@ -4882,7 +4793,7 @@ function parsePlanPrimeCommand(rest: string[]): ParsedCommand {
       agent: { type: "string", default: "claude" },
       format: { type: "string", default: "plain" },
       prompt: { type: "string" },
-      "create": { type: "boolean", default: false },
+      create: { type: "boolean", default: false },
       from: { type: "string" },
       "no-verify": { type: "boolean", default: false },
     },
@@ -4890,20 +4801,22 @@ function parsePlanPrimeCommand(rest: string[]): ParsedCommand {
     allowPositionals: true,
   });
 
-  const from = values.from === undefined
-    ? undefined
-    : ensureChoice(values.from, workUnitSources, "--from");
+  const from =
+    values.from === undefined ? undefined : ensureChoice(values.from, workUnitSources, "--from");
   if (from !== undefined && !values["create"]) {
-    throw new CliError("--from requires --create (the source selector only applies when materializing a new work unit).");
+    throw new CliError(
+      "--from requires --create (the source selector only applies when materializing a new work unit).",
+    );
   }
 
-  const agent = ensureExecutionWorkflowAgent(parseWorkAgentImplementation(values.agent, "--agent"), "--agent");
+  const agent = ensureExecutionWorkflowAgent(
+    parseWorkAgentImplementation(values.agent, "--agent"),
+    "--agent",
+  );
   const workUnitArg = positionals[0];
   const detectedTarget = workUnitArg ? null : detectWorkCommandTarget();
   if (!workUnitArg && (!detectedTarget || detectedTarget.launchFromCurrentWorkspace)) {
-    throw new CliError(
-      "prx plan prime requires a work-unit id (e.g. GH-456).",
-    );
+    throw new CliError("prx plan prime requires a work-unit id (e.g. GH-456).");
   }
   if (positionals.length > 1) {
     throw new CliError("prx plan prime accepts a single work-unit id; pass options as flags");
@@ -4954,14 +4867,10 @@ function parseSessionOpenClaudeCommand(rest: string[]): ParsedCommand {
   const workUnitArg = positionals[0];
   const detectedTarget = workUnitArg ? null : detectWorkCommandTarget();
   if (!workUnitArg && !detectedTarget) {
-    throw new CliError(
-      "prx claude requires a work-unit id (e.g. GH-456).",
-    );
+    throw new CliError("prx claude requires a work-unit id (e.g. GH-456).");
   }
   if (!workUnitArg && detectedTarget?.launchFromCurrentWorkspace) {
-    throw new CliError(
-      [PRX_SESSION_OPEN_REQUIRES_TARGET, PRX_SESSION_OPEN_DEFINITION].join(" "),
-    );
+    throw new CliError([PRX_SESSION_OPEN_REQUIRES_TARGET, PRX_SESSION_OPEN_DEFINITION].join(" "));
   }
   if (positionals.length > 1) {
     throw new CliError("prx claude accepts a single work-unit id; pass options as flags");
@@ -5033,9 +4942,7 @@ function parseImplementCommand(rest: string[]): ParsedCommand {
     invokedViaDeprecatedImplementSession = true;
     normalized = rest.slice(1);
   } else {
-    throw new CliError(
-      "prx implement: removed; use prx implement agent [GH-N]",
-    );
+    throw new CliError("prx implement: removed; use prx implement agent [GH-N]");
   }
   const { values, positionals } = parseArgs({
     args: normalized,
@@ -5050,9 +4957,7 @@ function parseImplementCommand(rest: string[]): ParsedCommand {
 
   const workUnitArg = positionals[0];
   if (!workUnitArg) {
-    throw new CliError(
-      "prx implement agent requires a work-unit id (e.g. GH-456).",
-    );
+    throw new CliError("prx implement agent requires a work-unit id (e.g. GH-456).");
   }
   if (positionals.length > 1) {
     throw new CliError("prx implement agent accepts a single work-unit id; pass options as flags");
@@ -5128,15 +5033,16 @@ function parseDurationMs(raw: string, flag: string): number {
   }
   const n = Number.parseFloat(m[1]!);
   const unit = (m[2] ?? "m").toLowerCase();
-  const scale = unit === "ms"
-    ? 1
-    : unit === "s"
-      ? 1_000
-      : unit === "m"
-        ? 60_000
-        : unit === "h"
-          ? 3_600_000
-          : 86_400_000;
+  const scale =
+    unit === "ms"
+      ? 1
+      : unit === "s"
+        ? 1_000
+        : unit === "m"
+          ? 60_000
+          : unit === "h"
+            ? 3_600_000
+            : 86_400_000;
   return Math.round(n * scale);
 }
 
@@ -5163,9 +5069,10 @@ function parseDoctorGhBudgetCommand(subRest: string[]): ParsedCommand {
   }
   return {
     command: "doctor-gh-budget",
-    sinceMs: values.since !== undefined
-      ? parseDurationMs(values.since, "--since")
-      : DOCTOR_GH_BUDGET_DEFAULT_SINCE_MS,
+    sinceMs:
+      values.since !== undefined
+        ? parseDurationMs(values.since, "--since")
+        : DOCTOR_GH_BUDGET_DEFAULT_SINCE_MS,
     format: ensureChoice(values.format, ["plain", "json"], "--format"),
   };
 }
@@ -5186,9 +5093,7 @@ function parseDoctorDedupeBdCommand(subRest: string[]): ParsedCommand {
     allowPositionals: true,
   });
   if (positionals.length > 0) {
-    throw new CliError(
-      "prx doctor dedupe-bd takes no positional arguments; pass options as flags",
-    );
+    throw new CliError("prx doctor dedupe-bd takes no positional arguments; pass options as flags");
   }
   const only = values.only ?? [];
   // GH-2379: `--only` is only meaningful at apply time — reject it standalone
@@ -5240,9 +5145,7 @@ function parseDoctorCommand(rest: string[]): ParsedCommand {
 
   const workUnitArg = positionals[0];
   if (positionals.length > 1) {
-    throw new CliError(
-      `prx doctor ${verb} accepts a single work-unit id; pass options as flags`,
-    );
+    throw new CliError(`prx doctor ${verb} accepts a single work-unit id; pass options as flags`);
   }
   const detectedTarget = workUnitArg ? null : detectWorkCommandTarget();
   if (!workUnitArg && !detectedTarget) {
@@ -5263,15 +5166,11 @@ function parseDoctorCommand(rest: string[]): ParsedCommand {
     throw new CliError(`prx doctor ${verb}: --method is only valid for the merge verb`);
   }
   if (values["no-update-branch"] && verb !== "merge") {
-    throw new CliError(
-      `prx doctor ${verb}: --no-update-branch is only valid for the merge verb`,
-    );
+    throw new CliError(`prx doctor ${verb}: --no-update-branch is only valid for the merge verb`);
   }
   // --ledger only gates the ready/merge transitions (I-PROV1).
   if (values.ledger !== undefined && verb !== "merge" && verb !== "ready") {
-    throw new CliError(
-      `prx doctor ${verb}: --ledger is only valid for the merge and ready verbs`,
-    );
+    throw new CliError(`prx doctor ${verb}: --ledger is only valid for the merge and ready verbs`);
   }
 
   let method: "MERGE" | "SQUASH" | "REBASE" | undefined;
@@ -5324,8 +5223,7 @@ export async function resolveMergeGuardProvenanceAxis(
   if (!requireSignedDerivations()) return undefined;
   // AC-2/AC-3: explicit --ledger wins; otherwise fall back to the canonical
   // per-UoW ledger. No resolvable ledger ⇒ fail closed (block, never pass).
-  const effectiveLedger =
-    ledgerPath ?? resolveCanonicalChainLedger(repoPath)?.ledgerPath;
+  const effectiveLedger = ledgerPath ?? resolveCanonicalChainLedger(repoPath)?.ledgerPath;
   if (effectiveLedger === undefined) {
     process.stderr.write(
       "provenance: no canonical ledger for UoW; refusing under PRX_REQUIRE_SIGNED_DERIVATIONS\n",
@@ -5398,9 +5296,9 @@ function printPublisherHelpAndExit(): never {
       "  prx publisher merge GH-885 --method squash",
       "  prx publisher ready GH-885",
       "  prx publisher draft",
-      "  prx publisher pr open GH-885 --title \"feat(x): thing\"",
-      "  prx publisher pr update GH-885 --title \"feat(x): renamed\"",
-      "  prx publisher pr comment GH-885 --body \"rebased onto main\"",
+      '  prx publisher pr open GH-885 --title "feat(x): thing"',
+      '  prx publisher pr update GH-885 --title "feat(x): renamed"',
+      '  prx publisher pr comment GH-885 --body "rebased onto main"',
       "  prx publisher pr edit GH-885 --body-file /tmp/pr-body.md",
       "",
       "Read-only diagnosis lives on the sibling `prx doctor inventory`.",
@@ -5415,12 +5313,7 @@ function printPublisherHelpAndExit(): never {
 // merge/ready/draft transition verbs).
 function parsePublisherPrCommand(rest: string[]): ParsedCommand {
   const verbArg = rest[0];
-  if (
-    verbArg !== "open" &&
-    verbArg !== "update" &&
-    verbArg !== "comment" &&
-    verbArg !== "edit"
-  ) {
+  if (verbArg !== "open" && verbArg !== "update" && verbArg !== "comment" && verbArg !== "edit") {
     throw new CliError(
       `prx publisher pr: unknown verb '${verbArg ?? ""}'. Valid verbs: open, update, comment, edit.`,
     );
@@ -5991,13 +5884,7 @@ function normalizeAuditFormat(raw: unknown): "plain" | "json" {
 // `session` from mainx-bound to work-unit-bound.
 // GH-2380: `session` hard-renamed to `agent` (headless-first). The bare
 // `session` token is rejected with a removal hint in `parseSubmitCommand`.
-const SUBMIT_VERBS = [
-  "body-template",
-  "postmerge",
-  "agent",
-  "stage",
-  "publish",
-] as const;
+const SUBMIT_VERBS = ["body-template", "postmerge", "agent", "stage", "publish"] as const;
 type SubmitVerb = (typeof SUBMIT_VERBS)[number];
 
 function printSubmitHelp(): string {
@@ -6093,9 +5980,7 @@ function parseSubmitSessionCommand(rest: string[]): ParsedCommand {
   if (check) {
     return {
       command: "submit-session",
-      workUnitId: positionals[0]
-        ? parseCanonicalWorkUnitId(positionals[0], "submit agent")
-        : "",
+      workUnitId: positionals[0] ? parseCanonicalWorkUnitId(positionals[0], "submit agent") : "",
       dryRun,
       check: true,
       format,
@@ -6109,9 +5994,7 @@ function parseSubmitSessionCommand(rest: string[]): ParsedCommand {
     );
   }
   if (positionals.length > 1) {
-    throw new CliError(
-      "prx submit agent: accepts a single work-unit id; pass options as flags",
-    );
+    throw new CliError("prx submit agent: accepts a single work-unit id; pass options as flags");
   }
   const workUnitId = parseCanonicalWorkUnitId(positionals[0]!, "submit agent");
   return {
@@ -6233,9 +6116,7 @@ function parseSubmitStageCommand(rest: string[]): ParsedCommand {
     );
   }
   if (positionals.length > 1) {
-    throw new CliError(
-      "prx submit stage: accepts a single work-unit id; pass options as flags",
-    );
+    throw new CliError("prx submit stage: accepts a single work-unit id; pass options as flags");
   }
   const workUnitId = parseCanonicalWorkUnitId(positionals[0]!, "submit stage");
   const summary = values.summary;
@@ -6243,10 +6124,7 @@ function parseSubmitStageCommand(rest: string[]): ParsedCommand {
     command: "submit-stage",
     workUnitId,
     slot: ensureChoice(values.slot, ["draft", "ready"], "--slot"),
-    baseRef:
-      typeof values.base === "string" && values.base.length > 0
-        ? values.base
-        : "main",
+    baseRef: typeof values.base === "string" && values.base.length > 0 ? values.base : "main",
     ...(typeof summary === "string" ? { summary } : {}),
     dryRun: values["dry-run"] ?? false,
     format: ensureChoice(values.format, ["plain", "json"], "--format"),
@@ -6278,9 +6156,7 @@ function parseSubmitBodyTemplateCommand(rest: string[]): ParsedCommand {
       "prx submit body-template: at least one --closes <id> is required (e.g. --closes GH-885)",
     );
   }
-  const format = values.json
-    ? "json"
-    : ensureChoice(values.format, ["plain", "json"], "--format");
+  const format = values.json ? "json" : ensureChoice(values.format, ["plain", "json"], "--format");
   return {
     command: "submit-body-template",
     closes,
@@ -6305,9 +6181,7 @@ function parseSubmitPostmergeCommand(rest: string[]): ParsedCommand {
     allowPositionals: true,
   });
   if (positionals.length < 1) {
-    throw new CliError(
-      "prx submit postmerge requires a <pr-number> positional",
-    );
+    throw new CliError("prx submit postmerge requires a <pr-number> positional");
   }
   if (positionals.length > 1) {
     throw new CliError(
@@ -6321,9 +6195,7 @@ function parseSubmitPostmergeCommand(rest: string[]): ParsedCommand {
       `prx submit postmerge: <pr-number> must be a positive integer, got '${prRaw}'`,
     );
   }
-  const format = values.json
-    ? "json"
-    : ensureChoice(values.format, ["plain", "json"], "--format");
+  const format = values.json ? "json" : ensureChoice(values.format, ["plain", "json"], "--format");
   return {
     command: "submit-postmerge",
     prNumber,
@@ -6419,9 +6291,7 @@ function parseAuthorSessionCommand(rest: string[]): ParsedCommand {
   if (check) {
     return {
       command: "author-session",
-      workUnitId: positionals[0]
-        ? parseCanonicalWorkUnitId(positionals[0], "author agent")
-        : "",
+      workUnitId: positionals[0] ? parseCanonicalWorkUnitId(positionals[0], "author agent") : "",
       dryRun,
       check: true,
       format,
@@ -6430,14 +6300,10 @@ function parseAuthorSessionCommand(rest: string[]): ParsedCommand {
   }
 
   if (positionals.length === 0) {
-    throw new CliError(
-      "prx author agent requires a work-unit id (e.g. GH-1206).",
-    );
+    throw new CliError("prx author agent requires a work-unit id (e.g. GH-1206).");
   }
   if (positionals.length > 1) {
-    throw new CliError(
-      "prx author agent accepts a single work-unit id; pass options as flags",
-    );
+    throw new CliError("prx author agent accepts a single work-unit id; pass options as flags");
   }
   const workUnitId = parseCanonicalWorkUnitId(positionals[0]!, "author agent");
   return {
@@ -6463,9 +6329,7 @@ function parseAuthorBodyTemplateCommand(rest: string[]): ParsedCommand {
   });
   const unitRaw = values.unit ?? positionals[0];
   if (typeof unitRaw !== "string" || unitRaw.trim().length === 0) {
-    throw new CliError(
-      "prx author body-template: --unit <id> is required (e.g. --unit GH-1206)",
-    );
+    throw new CliError("prx author body-template: --unit <id> is required (e.g. --unit GH-1206)");
   }
   if (positionals.length > 1) {
     throw new CliError(
@@ -6527,7 +6391,7 @@ function parseSessionPlanCommand(
       format: { type: "string", default: "plain" },
       "dry-run": { type: "boolean", default: false },
       check: { type: "boolean", default: false },
-      "create": { type: "boolean", default: false },
+      create: { type: "boolean", default: false },
       "no-verify": { type: "boolean", default: false },
       interactive: { type: "boolean", default: false },
       "emit-file": { type: "string" },
@@ -6555,10 +6419,9 @@ function parseSessionPlanCommand(
   const workUnitArg = positionals[0];
   if (!workUnitArg) {
     throw new CliError(
-      [
-        `prx ${idLabel} requires a work-unit id (e.g. GH-456).`,
-        PRX_SESSION_PLAN_DEFINITION,
-      ].join(" "),
+      [`prx ${idLabel} requires a work-unit id (e.g. GH-456).`, PRX_SESSION_PLAN_DEFINITION].join(
+        " ",
+      ),
     );
   }
   if (positionals.length > 1) {
@@ -6568,7 +6431,9 @@ function parseSessionPlanCommand(
   const interactive = values.interactive;
   const emitFile = values["emit-file"];
   if (interactive && emitFile !== undefined) {
-    throw new CliError(`prx ${idLabel}: --emit-file is only valid for the non-interactive default; drop --interactive or remove --emit-file`);
+    throw new CliError(
+      `prx ${idLabel}: --emit-file is only valid for the non-interactive default; drop --interactive or remove --emit-file`,
+    );
   }
   const noCache = values["no-cache"] === true;
   if (interactive && noCache) {
@@ -6576,9 +6441,8 @@ function parseSessionPlanCommand(
       `prx ${idLabel}: --no-cache only applies to the non-interactive SDK call site; drop --interactive or remove --no-cache`,
     );
   }
-  const timeoutMs = values.timeout === undefined
-    ? undefined
-    : parseDurationMs(values.timeout, "--timeout");
+  const timeoutMs =
+    values.timeout === undefined ? undefined : parseDurationMs(values.timeout, "--timeout");
   if (interactive && timeoutMs !== undefined) {
     throw new CliError(
       `prx ${idLabel}: --timeout only applies to the non-interactive SDK call site; drop --interactive or remove --timeout`,
@@ -6591,11 +6455,12 @@ function parseSessionPlanCommand(
     );
   }
 
-  const from = values.from === undefined
-    ? undefined
-    : ensureChoice(values.from, workUnitSources, "--from");
+  const from =
+    values.from === undefined ? undefined : ensureChoice(values.from, workUnitSources, "--from");
   if (from !== undefined && !values["create"]) {
-    throw new CliError("--from requires --create (the source selector only applies when materializing a new work unit).");
+    throw new CliError(
+      "--from requires --create (the source selector only applies when materializing a new work unit).",
+    );
   }
 
   const repoSlug = values.repo === undefined ? undefined : values.repo;
@@ -6666,9 +6531,7 @@ function parseIntakeResultCommand(rest: string[]): ParsedCommand {
     allowPositionals: false,
   });
   if (typeof values.disposition !== "string") {
-    throw new CliError(
-      "intake result requires --disposition <filed|merged|duplicate|no_action>",
-    );
+    throw new CliError("intake result requires --disposition <filed|merged|duplicate|no_action>");
   }
   const disposition = ensureChoice(
     values.disposition,
@@ -6727,9 +6590,7 @@ function parseIntakeViewCommand(rest: string[]): ParsedCommand {
 
   const id = positionals[0]?.trim();
   if (!id) {
-    throw new CliError(
-      "intake view requires an id positional (GH-N, #N, N, GitHub URL, or bd id)",
-    );
+    throw new CliError("intake view requires an id positional (GH-N, #N, N, GitHub URL, or bd id)");
   }
   if (positionals.length > 1) {
     throw new CliError(
@@ -6801,9 +6662,7 @@ function parseIntakeSearchCommand(rest: string[]): ParsedCommand {
     );
   }
 
-  const format = values.json
-    ? "json"
-    : ensureChoice(values.format, ["plain", "json"], "--format");
+  const format = values.json ? "json" : ensureChoice(values.format, ["plain", "json"], "--format");
 
   return {
     command: "intake-search",
@@ -6886,20 +6745,14 @@ function parseIntakeMergeCommand(rest: string[]): ParsedCommand {
     throw new CliError("intake merge: canonical id must not be empty");
   }
 
-  const format = values.json
-    ? "json"
-    : ensureChoice(values.format, ["plain", "json"], "--format");
+  const format = values.json ? "json" : ensureChoice(values.format, ["plain", "json"], "--format");
 
   return {
     command: "intake-merge",
     dupId,
     canonicalId,
     template: values.template,
-    reason: ensureChoice(
-      values.reason,
-      ["completed", "not planned", "duplicate"],
-      "--reason",
-    ),
+    reason: ensureChoice(values.reason, ["completed", "not planned", "duplicate"], "--reason"),
     label: values.label,
     repo: values.repo,
     dryRun: values["dry-run"] ?? false,
@@ -6963,19 +6816,15 @@ function parseIntakeCommentCommand(rest: string[]): ParsedCommand {
     bodyValue.includes("/")
   ) {
     if (bodyFile !== undefined) {
-      throw new CliError(
-        "intake comment: --body @file and --body-file are mutually exclusive",
-      );
+      throw new CliError("intake comment: --body @file and --body-file are mutually exclusive");
     }
     bodyFile = bodyValue.slice(1);
     bodyValue = undefined;
   }
 
-  const bodySources = [
-    bodyValue !== undefined,
-    bodyFile !== undefined,
-    bodyStdin,
-  ].filter(Boolean).length;
+  const bodySources = [bodyValue !== undefined, bodyFile !== undefined, bodyStdin].filter(
+    Boolean,
+  ).length;
   if (bodySources > 1) {
     throw new CliError(
       "intake comment: --body, --body-file, and --body-stdin are mutually exclusive",
@@ -6987,9 +6836,7 @@ function parseIntakeCommentCommand(rest: string[]): ParsedCommand {
     );
   }
 
-  const format = values.json
-    ? "json"
-    : ensureChoice(values.format, ["plain", "json"], "--format");
+  const format = values.json ? "json" : ensureChoice(values.format, ["plain", "json"], "--format");
 
   return {
     command: "intake-comment",
@@ -7034,9 +6881,7 @@ function parseIntakeMirrorCommand(rest: string[]): ParsedCommand {
     throw new CliError("intake mirror: gh-id must not be empty");
   }
 
-  const format = values.json
-    ? "json"
-    : ensureChoice(values.format, ["plain", "json"], "--format");
+  const format = values.json ? "json" : ensureChoice(values.format, ["plain", "json"], "--format");
 
   return {
     command: "intake-mirror",
@@ -7053,9 +6898,7 @@ function parseIntakeMirrorCommand(rest: string[]): ParsedCommand {
 function parseIntakeBdCommand(rest: string[]): ParsedCommand {
   const sub = rest[0];
   if (!sub) {
-    throw new CliError(
-      "intake bd requires a subcommand: ls | memory <ls|get|set>",
-    );
+    throw new CliError("intake bd requires a subcommand: ls | memory <ls|get|set>");
   }
   if (sub === "ls") {
     return parseIntakeBdLsCommand(rest.slice(1));
@@ -7063,9 +6906,7 @@ function parseIntakeBdCommand(rest: string[]): ParsedCommand {
   if (sub === "memory") {
     return parseIntakeBdMemoryCommand(rest.slice(1));
   }
-  throw new CliError(
-    `intake bd: unknown subcommand '${sub}'. Available: ls | memory <ls|get|set>`,
-  );
+  throw new CliError(`intake bd: unknown subcommand '${sub}'. Available: ls | memory <ls|get|set>`);
 }
 
 function parseIntakeBdLsCommand(rest: string[]): ParsedCommand {
@@ -7082,9 +6923,7 @@ function parseIntakeBdLsCommand(rest: string[]): ParsedCommand {
   });
 
   if (positionals.length > 0) {
-    throw new CliError(
-      `intake bd ls: unexpected positionals: ${positionals.join(" ")}`,
-    );
+    throw new CliError(`intake bd ls: unexpected positionals: ${positionals.join(" ")}`);
   }
 
   // Reject the whole token (parseInt silently truncates "1.5" → 1; we want
@@ -7097,9 +6936,7 @@ function parseIntakeBdLsCommand(rest: string[]): ParsedCommand {
   }
   const limitNum = Number.parseInt(limitRaw, 10);
 
-  const format = values.json
-    ? "json"
-    : ensureChoice(values.format, ["plain", "json"], "--format");
+  const format = values.json ? "json" : ensureChoice(values.format, ["plain", "json"], "--format");
 
   return {
     command: "intake-bd-ls",
@@ -7123,9 +6960,7 @@ function parseIntakeBdMemoryCommand(rest: string[]): ParsedCommand {
   if (sub === "set") {
     return parseIntakeBdMemorySetCommand(rest.slice(1));
   }
-  throw new CliError(
-    `intake bd memory: unknown subcommand '${sub}'. Available: ls | get | set`,
-  );
+  throw new CliError(`intake bd memory: unknown subcommand '${sub}'. Available: ls | get | set`);
 }
 
 function parseIntakeBdMemoryLsCommand(rest: string[]): ParsedCommand {
@@ -7145,9 +6980,7 @@ function parseIntakeBdMemoryLsCommand(rest: string[]): ParsedCommand {
     );
   }
 
-  const format = values.json
-    ? "json"
-    : ensureChoice(values.format, ["plain", "json"], "--format");
+  const format = values.json ? "json" : ensureChoice(values.format, ["plain", "json"], "--format");
 
   return {
     command: "intake-bd-memory-ls",
@@ -7181,9 +7014,7 @@ function parseIntakeBdMemoryGetCommand(rest: string[]): ParsedCommand {
     throw new CliError("intake bd memory get: key must not be empty");
   }
 
-  const format = values.json
-    ? "json"
-    : ensureChoice(values.format, ["plain", "json"], "--format");
+  const format = values.json ? "json" : ensureChoice(values.format, ["plain", "json"], "--format");
 
   return {
     command: "intake-bd-memory-get",
@@ -7219,12 +7050,10 @@ function parseIntakeBdMemorySetCommand(rest: string[]): ParsedCommand {
   }
   const body = values.body;
   if (body === undefined || body.length === 0) {
-    throw new CliError("intake bd memory set requires --body \"<text>\"");
+    throw new CliError('intake bd memory set requires --body "<text>"');
   }
 
-  const format = values.json
-    ? "json"
-    : ensureChoice(values.format, ["plain", "json"], "--format");
+  const format = values.json ? "json" : ensureChoice(values.format, ["plain", "json"], "--format");
 
   return {
     command: "intake-bd-memory-set",
@@ -7292,9 +7121,7 @@ function parseSessionNamespace(rest: string[]): ParsedCommand {
 
   if (head && Object.prototype.hasOwnProperty.call(RETIRED_SESSION_VERB_REDIRECTS, head)) {
     const target = RETIRED_SESSION_VERB_REDIRECTS[head];
-    throw new CliError(
-      `prx session ${head} is retired (GH-1166). Use \`${target}\` instead.`,
-    );
+    throw new CliError(`prx session ${head} is retired (GH-1166). Use \`${target}\` instead.`);
   }
 
   // The bare `prx session <id>` shorthand is retired too → plan session.
@@ -7315,16 +7142,12 @@ function parseSessionNamespace(rest: string[]): ParsedCommand {
 // form. Pure formatting — no parser semantics shift.
 function tooManyWorkUnitIdsError(verb: string, positionals: string[]): CliError {
   const tokens = positionals.join(", ");
-  let msg =
-    `${verb} accepts at most one work-unit id ` +
-    `(got ${positionals.length}: ${tokens})`;
+  let msg = `${verb} accepts at most one work-unit id ` + `(got ${positionals.length}: ${tokens})`;
   const flagLike = positionals.find((p) => p.startsWith("--"));
   if (flagLike) {
     const flagIdx = positionals.indexOf(flagLike);
     const valueGuess = positionals[flagIdx + 1];
-    const idGuess = positionals.find(
-      (p) => !p.startsWith("--") && p !== valueGuess,
-    );
+    const idGuess = positionals.find((p) => !p.startsWith("--") && p !== valueGuess);
     if (idGuess && valueGuess && !valueGuess.startsWith("--")) {
       msg +=
         `\nhint: flags must come before the positional — try ` +
@@ -7406,7 +7229,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     return parsePlanPrimeCommand(rest);
   }
 
-
   if (command === "implement") {
     return parseImplementCommand(rest);
   }
@@ -7440,7 +7262,17 @@ export function parseCommand(argv: string[]): ParsedCommand {
   if (command === "keeper") {
     const { prxArgs, passthrough } = splitPassthroughArgv(
       rest,
-      new Set(["format", "cwd", "message", "ledger", "socket", "pidfile", "vm", "binary", "provenance-key-file"]),
+      new Set([
+        "format",
+        "cwd",
+        "message",
+        "ledger",
+        "socket",
+        "pidfile",
+        "vm",
+        "binary",
+        "provenance-key-file",
+      ]),
       new Set(),
     );
     const { values, positionals } = parseArgs({
@@ -7487,7 +7319,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
     // is a positional (`prx keeper up <vm>`) or `--vm <name>`.
     const vm = values.vm ?? positionals[1];
     if ((verb === "up" || verb === "down") && (typeof vm !== "string" || vm.length === 0)) {
-      throw new CliError(`prx keeper ${verb} requires a VM: \`prx keeper ${verb} <vm>\` (or --vm <name>)`);
+      throw new CliError(
+        `prx keeper ${verb} requires a VM: \`prx keeper ${verb} <vm>\` (or --vm <name>)`,
+      );
     }
     if (verb === "up") {
       if (typeof values.binary !== "string" || values.binary.length === 0) {
@@ -7510,9 +7344,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
       if (mi >= 0 && mi + 1 < passthrough.length) message = passthrough[mi + 1];
     }
     if (verb === "commit" && (typeof message !== "string" || message.length === 0)) {
-      throw new CliError(
-        'prx keeper commit requires a message: -m "<msg>" (or --message "<msg>")',
-      );
+      throw new CliError('prx keeper commit requires a message: -m "<msg>" (or --message "<msg>")');
     }
     return {
       command: "keeper",
@@ -7547,7 +7379,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
       allowPositionals: false,
     });
     if (typeof values.socket !== "string" || values.socket.length === 0) {
-      throw new CliError("prx beads serve requires a socket: --socket <path> (the beadsd listen path)");
+      throw new CliError(
+        "prx beads serve requires a socket: --socket <path> (the beadsd listen path)",
+      );
     }
     return {
       command: "beads-serve",
@@ -7642,7 +7476,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
       kind !== "recall" &&
       kind !== "memories"
     ) {
-      throw new CliError("prx beads read requires a kind: ready | list | show | children | recall | memories");
+      throw new CliError(
+        "prx beads read requires a kind: ready | list | show | children | recall | memories",
+      );
     }
     const vm = values.vm ?? getEnv("PRX_BEADS_VM");
     const id = positionals[1];
@@ -7763,7 +7599,11 @@ export function parseCommand(argv: string[]): ParsedCommand {
       if (typeof id !== "string" || id.length === 0) {
         throw new CliError("prx beads close requires an id: `prx beads close <id> [--reason r]`");
       }
-      request = { kind: "close", id, ...(values.reason !== undefined ? { reason: values.reason } : {}) };
+      request = {
+        kind: "close",
+        id,
+        ...(values.reason !== undefined ? { reason: values.reason } : {}),
+      };
     } else if (kind === "reopen") {
       const id = positionals[1];
       if (typeof id !== "string" || id.length === 0) {
@@ -7776,9 +7616,16 @@ export function parseCommand(argv: string[]): ParsedCommand {
       const from = positionals[2];
       const to = positionals[3];
       if (action !== "add" && action !== "remove") {
-        throw new CliError("prx beads dep requires an action: `prx beads dep add|remove <from> <to>`");
+        throw new CliError(
+          "prx beads dep requires an action: `prx beads dep add|remove <from> <to>`",
+        );
       }
-      if (typeof from !== "string" || from.length === 0 || typeof to !== "string" || to.length === 0) {
+      if (
+        typeof from !== "string" ||
+        from.length === 0 ||
+        typeof to !== "string" ||
+        to.length === 0
+      ) {
         throw new CliError(`prx beads dep ${action} requires <from> <to>`);
       }
       request = {
@@ -7792,14 +7639,20 @@ export function parseCommand(argv: string[]): ParsedCommand {
       // `prx beads remember <body> --key <key>` — upsert a bd memory row.
       const body = positionals[1];
       if (typeof values.key !== "string" || values.key.length === 0) {
-        throw new CliError("prx beads remember requires --key <key>: `prx beads remember <body> --key <key>`");
+        throw new CliError(
+          "prx beads remember requires --key <key>: `prx beads remember <body> --key <key>`",
+        );
       }
       if (typeof body !== "string") {
-        throw new CliError("prx beads remember requires a body: `prx beads remember <body> --key <key>`");
+        throw new CliError(
+          "prx beads remember requires a body: `prx beads remember <body> --key <key>`",
+        );
       }
       request = { kind: "remember", key: values.key, body };
     } else {
-      throw new CliError("prx beads write requires a kind: create | update | close | reopen | dep | remember");
+      throw new CliError(
+        "prx beads write requires a kind: create | update | close | reopen | dep | remember",
+      );
     }
 
     // Validate against the wire contract for a clear error before dispatch.
@@ -7836,11 +7689,15 @@ export function parseCommand(argv: string[]): ParsedCommand {
     });
     const origin = values.origin;
     if (typeof origin !== "string" || origin.length === 0) {
-      throw new CliError("prx beads provision requires --origin <owner/repo> (the canonical beads remote)");
+      throw new CliError(
+        "prx beads provision requires --origin <owner/repo> (the canonical beads remote)",
+      );
     }
     const cwd = values.cwd ?? defaultCanonicalBeadsCwd(getEnv) ?? undefined;
     if (typeof cwd !== "string" || cwd.length === 0) {
-      throw new CliError("prx beads provision: cannot resolve a default cwd (HOME unset) — pass --cwd <path>");
+      throw new CliError(
+        "prx beads provision: cannot resolve a default cwd (HOME unset) — pass --cwd <path>",
+      );
     }
     return {
       command: "beads-provision",
@@ -7899,9 +7756,14 @@ export function parseCommand(argv: string[]): ParsedCommand {
     // up/down/status/provision-beads are VM-scoped (positional <vm> or --vm); daemons is local.
     const vm = values.vm ?? positionals[1];
     if (verb !== "daemons" && (typeof vm !== "string" || vm.length === 0)) {
-      throw new CliError(`prx lima ${verb} requires a VM: \`prx lima ${verb} <vm>\` (or --vm <name>)`);
+      throw new CliError(
+        `prx lima ${verb} requires a VM: \`prx lima ${verb} <vm>\` (or --vm <name>)`,
+      );
     }
-    if (verb === "provision-beads" && (typeof values.origin !== "string" || values.origin.length === 0)) {
+    if (
+      verb === "provision-beads" &&
+      (typeof values.origin !== "string" || values.origin.length === 0)
+    ) {
       throw new CliError(
         "prx lima provision-beads requires --origin <owner/repo> (the repo whose beads to clone into the VM)",
       );
@@ -7925,7 +7787,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
     }
     // A per-daemon --socket only makes sense for a single daemon.
     if (values.socket !== undefined && (values.daemon === undefined || values.daemon === "all")) {
-      throw new CliError("prx lima --socket requires a single --daemon (it is the listen path for one daemon)");
+      throw new CliError(
+        "prx lima --socket requires a single --daemon (it is the listen path for one daemon)",
+      );
     }
     return {
       command: "lima",
@@ -8093,9 +7957,10 @@ export function parseCommand(argv: string[]): ParsedCommand {
     const mode = ensureChoice(values.mode, runtimeModes, "--mode");
     const ioFormat = ensureChoice(values["io-format"], runtimeIoFormats, "--io-format");
 
-    const normalizedWorkUnitId = values["work-unit-id"] === "<work-unit-id>"
-      ? values["work-unit-id"]
-      : parseCanonicalWorkUnitId(values["work-unit-id"], "--work-unit-id");
+    const normalizedWorkUnitId =
+      values["work-unit-id"] === "<work-unit-id>"
+        ? values["work-unit-id"]
+        : parseCanonicalWorkUnitId(values["work-unit-id"], "--work-unit-id");
     const normalizedAgent = values.agent
       ? parseCanonicalWorkUnitId(values.agent, "--agent")
       : undefined;
@@ -8137,7 +8002,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
         mode: { type: "string", default: "full" },
         "io-format": { type: "string", default: "json" },
         format: { type: "string", default: "plain" },
-        "create": { type: "boolean", default: false },
+        create: { type: "boolean", default: false },
         "no-verify": { type: "boolean", default: false },
       },
       strict: true,
@@ -8377,14 +8242,10 @@ export function parseCommand(argv: string[]): ParsedCommand {
       allowPositionals: true,
     });
     if (positionals.length === 0) {
-      throw new CliError(
-        "scout grep requires a pattern (e.g., `prx scout grep mkdtemp`)",
-      );
+      throw new CliError("scout grep requires a pattern (e.g., `prx scout grep mkdtemp`)");
     }
     if (positionals.length > 1) {
-      throw new CliError(
-        "scout grep accepts a single pattern positional; pass options as flags",
-      );
+      throw new CliError("scout grep accepts a single pattern positional; pass options as flags");
     }
     const maxResultsRaw = values["max-results"];
     let maxResults = 200;
@@ -8422,9 +8283,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
       );
     }
     if (positionals.length > 1) {
-      throw new CliError(
-        "scout files accepts a single glob positional; pass options as flags",
-      );
+      throw new CliError("scout files accepts a single glob positional; pass options as flags");
     }
     const maxResultsRaw = values["max-results"];
     let maxResults = 200;
@@ -8458,14 +8317,10 @@ export function parseCommand(argv: string[]): ParsedCommand {
       allowPositionals: true,
     });
     if (positionals.length === 0) {
-      throw new CliError(
-        "scout read requires a path (e.g., `prx scout read flake.nix`)",
-      );
+      throw new CliError("scout read requires a path (e.g., `prx scout read flake.nix`)");
     }
     if (positionals.length > 1) {
-      throw new CliError(
-        "scout read accepts a single path positional; pass options as flags",
-      );
+      throw new CliError("scout read accepts a single path positional; pass options as flags");
     }
     const maxBytesRaw = values["max-bytes"];
     let maxBytes = 2 * 1024 * 1024;
@@ -8547,10 +8402,14 @@ export function parseCommand(argv: string[]): ParsedCommand {
     });
     const id = positionals[0]?.trim();
     if (!id) {
-      throw new CliError("scout source requires a work-unit id positional (e.g. `prx scout source GH-224`)");
+      throw new CliError(
+        "scout source requires a work-unit id positional (e.g. `prx scout source GH-224`)",
+      );
     }
     if (positionals.length > 1) {
-      throw new CliError(`scout source: unexpected extra positionals: ${positionals.slice(1).join(" ")}`);
+      throw new CliError(
+        `scout source: unexpected extra positionals: ${positionals.slice(1).join(" ")}`,
+      );
     }
     return {
       command: "scout-source",
@@ -8575,7 +8434,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
       );
     }
     if (positionals.length > 2) {
-      throw new CliError(`spawn verify: unexpected extra positionals: ${positionals.slice(2).join(" ")}`);
+      throw new CliError(
+        `spawn verify: unexpected extra positionals: ${positionals.slice(2).join(" ")}`,
+      );
     }
     return {
       command: "spawn-verify",
@@ -8599,9 +8460,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
       allowPositionals: true,
     });
     if (positionals.length > 1) {
-      throw new CliError(
-        "scout issues accepts a single query positional; pass options as flags",
-      );
+      throw new CliError("scout issues accepts a single query positional; pass options as flags");
     }
     const maxRaw = values.max;
     let max: number | undefined;
@@ -8616,8 +8475,14 @@ export function parseCommand(argv: string[]): ParsedCommand {
       max = parsedNum;
     }
     const repo = values.repo;
-    if (repo !== undefined && !/^[A-Za-z0-9][A-Za-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(repo)) {
-      throw new CliError(`scout issues INVALID_REPO: --repo must be in owner/repo form (got: ${repo})`, 64);
+    if (
+      repo !== undefined &&
+      !/^[A-Za-z0-9][A-Za-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(repo)
+    ) {
+      throw new CliError(
+        `scout issues INVALID_REPO: --repo must be in owner/repo form (got: ${repo})`,
+        64,
+      );
     }
     return {
       command,
@@ -8646,9 +8511,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
       );
     }
     if (positionals.length > 1) {
-      throw new CliError(
-        "scout notion accepts a single id positional; pass options as flags",
-      );
+      throw new CliError("scout notion accepts a single id positional; pass options as flags");
     }
     return {
       command,
@@ -8675,9 +8538,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
       allowPositionals: false,
     });
     if (positionals.length > 0) {
-      throw new CliError(
-        "fetch gh-issues takes no positionals; pass options as flags",
-      );
+      throw new CliError("fetch gh-issues takes no positionals; pass options as flags");
     }
     let budgetVal: number | undefined;
     if (values.budget !== undefined) {
@@ -8849,15 +8710,11 @@ export function parseCommand(argv: string[]): ParsedCommand {
     if (staleRaw !== undefined) {
       const parsedNum = Number.parseInt(staleRaw, 10);
       if (!Number.isFinite(parsedNum) || parsedNum <= 0) {
-        throw new CliError(
-          "beads migrate: --stale-threshold must be a positive integer (seconds)",
-        );
+        throw new CliError("beads migrate: --stale-threshold must be a positive integer (seconds)");
       }
       staleThresholdSeconds = parsedNum;
     }
-    const patchMetadata = values["no-patch-metadata"]
-      ? false
-      : values["patch-metadata"];
+    const patchMetadata = values["no-patch-metadata"] ? false : values["patch-metadata"];
     return {
       command,
       slug: positionals[0] as string | undefined,
@@ -9124,7 +8981,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
       throw new CliError("repo add requires a <git-url> positional argument");
     }
     if (positionals.length > 1) {
-      throw new CliError(`repo add takes a single <git-url>; got ${positionals.length}: ${positionals.join(", ")}`);
+      throw new CliError(
+        `repo add takes a single <git-url>; got ${positionals.length}: ${positionals.join(", ")}`,
+      );
     }
 
     const repair = values.repair === true;
@@ -9419,9 +9278,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
       );
     }
     if (values["ship-metadata"] === true && values.stealth === true) {
-      throw new CliError(
-        "repo bootstrap: --ship-metadata and --stealth are mutually exclusive.",
-      );
+      throw new CliError("repo bootstrap: --ship-metadata and --stealth are mutually exclusive.");
     }
     const prefixRaw = values.prefix;
     return {
@@ -9868,7 +9725,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
 
     const issueRef = positionals[0]?.trim();
     if (!issueRef) {
-      throw new CliError("beads issue requires a GitHub issue reference (for example: 204 or GH-204)");
+      throw new CliError(
+        "beads issue requires a GitHub issue reference (for example: 204 or GH-204)",
+      );
     }
     const issueNumber = parseGithubIssueNumber(issueRef);
     if (issueNumber === null) {
@@ -9947,8 +9806,14 @@ export function parseCommand(argv: string[]): ParsedCommand {
     return {
       command,
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      repo: typeof values.repo === "string" && values.repo.trim().length > 0 ? values.repo.trim() : undefined,
-      domain: typeof values.domain === "string" && values.domain.trim().length > 0 ? values.domain.trim() : "gh",
+      repo:
+        typeof values.repo === "string" && values.repo.trim().length > 0
+          ? values.repo.trim()
+          : undefined,
+      domain:
+        typeof values.domain === "string" && values.domain.trim().length > 0
+          ? values.domain.trim()
+          : "gh",
       dryRun: values["dry-run"] ?? false,
       budget: parseNonNegInt(values.budget, "--budget"),
       limit: parseNonNegInt(values.limit, "--limit") ?? 0,
@@ -10066,7 +9931,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
     if (typeof values.budget === "string" && values.budget.trim().length > 0) {
       const b = Number.parseInt(values.budget.trim(), 10);
       if (!Number.isFinite(b) || b < 0) {
-        throw new CliError(`sync backfill: --budget must be a non-negative integer, got "${values.budget}"`);
+        throw new CliError(
+          `sync backfill: --budget must be a non-negative integer, got "${values.budget}"`,
+        );
       }
       budget = b;
     }
@@ -10112,7 +9979,10 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
     const parseList = (raw: string | undefined): string[] => {
       if (typeof raw !== "string" || raw.trim().length === 0) return [];
-      return raw.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+      return raw
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
     };
     if (values.apply === true && values["dry-run"] === true) {
       throw new CliError("memory compact: --apply and --dry-run are mutually exclusive");
@@ -10121,7 +9991,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
       command,
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
       repo:
-        typeof values.repo === "string" && values.repo.trim().length > 0 ? values.repo.trim() : undefined,
+        typeof values.repo === "string" && values.repo.trim().length > 0
+          ? values.repo.trim()
+          : undefined,
       apply: values.apply ?? false,
       horizonDays: parseNonNegInt(values["horizon-days"], "--horizon-days") ?? 90,
       messageHorizonDays:
@@ -10162,13 +10034,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
       ...(typeof values["work-unit"] === "string" && values["work-unit"].length > 0
         ? { workUnitId: values["work-unit"] }
         : {}),
-      ...(typeof values["args-file"] === "string"
-        ? { argsFile: values["args-file"] }
-        : {}),
+      ...(typeof values["args-file"] === "string" ? { argsFile: values["args-file"] } : {}),
       ...(typeof values.args === "string" ? { argsLiteral: values.args } : {}),
-      ...(typeof values["dedup-key"] === "string"
-        ? { dedupKey: values["dedup-key"] }
-        : {}),
+      ...(typeof values["dedup-key"] === "string" ? { dedupKey: values["dedup-key"] } : {}),
       ...(typeof values["source-actor"] === "string"
         ? { sourceActor: values["source-actor"] }
         : {}),
@@ -10292,16 +10160,10 @@ export function parseCommand(argv: string[]): ParsedCommand {
       values.commit === true,
     ].filter((v) => v).length;
     if (modeFlags > 1) {
-      throw new CliError(
-        "transcripts digest: --dry-run, --stage, --commit are mutually exclusive",
-      );
+      throw new CliError("transcripts digest: --dry-run, --stage, --commit are mutually exclusive");
     }
     const mode: "dry-run" | "stage" | "commit" =
-      values["dry-run"] === true
-        ? "dry-run"
-        : values.commit === true
-          ? "commit"
-          : "stage";
+      values["dry-run"] === true ? "dry-run" : values.commit === true ? "commit" : "stage";
     const source = ensureChoice(
       values.source,
       ["claude-code-jsonl", "claude-web-export"],
@@ -10311,7 +10173,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
     if (typeof values.limit === "string" && values.limit.length > 0) {
       const n = Number.parseInt(values.limit, 10);
       if (!Number.isFinite(n) || n <= 0) {
-        throw new CliError(`transcripts digest: --limit must be a positive integer, got "${values.limit}"`);
+        throw new CliError(
+          `transcripts digest: --limit must be a positive integer, got "${values.limit}"`,
+        );
       }
       limit = n;
     }
@@ -10389,7 +10253,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
   }
 
   if (command === "prune") {
-
     if (rest.includes("--apply")) {
       throw new CliError(
         "`prx prune` no longer accepts --apply; the verb is active by default. Use `prx prune --dry-run` (or `prx reconcile --mode prune` without --apply) to preview.",
@@ -10430,8 +10293,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
           "The 'beads' layer is not yet wired into `prx prune` (see #804); for now use:\n  bd close <id>",
         worktree:
           "The 'worktree' layer is already covered by `prx prune` itself — drop the positional and re-run.",
-        refs:
-          "The 'refs' layer is already covered by `prx prune` itself — drop the positional and re-run.",
+        refs: "The 'refs' layer is already covered by `prx prune` itself — drop the positional and re-run.",
       };
       const suggestion = layerSuggestions[unknownPositional];
       const header = `unknown positional '${unknownPositional}' — \`prx prune\` takes flags only.`;
@@ -10461,13 +10323,23 @@ export function parseCommand(argv: string[]): ParsedCommand {
     });
 
     if (values.mode !== undefined) {
-      throw new CliError("--mode is not supported with `prune`; use `prx reconcile --mode prune` instead.");
+      throw new CliError(
+        "--mode is not supported with `prune`; use `prx reconcile --mode prune` instead.",
+      );
     }
 
     const ticket = parseTicketFlag(values.ticket);
     const mergedOnly = values["merged-only"] === true;
-    const authority = ensureChoice(values.authority, ["issue", "pr", "local"], "--authority") as SurfaceSyncAuthority;
-    const scope = ensureChoice(values.scope, ["local", "remote", "all"], "--scope") as SurfaceSyncScope;
+    const authority = ensureChoice(
+      values.authority,
+      ["issue", "pr", "local"],
+      "--authority",
+    ) as SurfaceSyncAuthority;
+    const scope = ensureChoice(
+      values.scope,
+      ["local", "remote", "all"],
+      "--scope",
+    ) as SurfaceSyncScope;
     const dryRun = values["dry-run"] === true;
     const format = ensureChoice(values.format, ["plain", "json"], "--format");
 
@@ -10521,8 +10393,16 @@ export function parseCommand(argv: string[]): ParsedCommand {
     });
 
     const repoPath = values["repo-path"];
-    const authority = ensureChoice(values.authority, ["issue", "pr", "local"], "--authority") as SurfaceSyncAuthority;
-    const scope = ensureChoice(values.scope, ["local", "remote", "all"], "--scope") as SurfaceSyncScope;
+    const authority = ensureChoice(
+      values.authority,
+      ["issue", "pr", "local"],
+      "--authority",
+    ) as SurfaceSyncAuthority;
+    const scope = ensureChoice(
+      values.scope,
+      ["local", "remote", "all"],
+      "--scope",
+    ) as SurfaceSyncScope;
     const apply = values.apply;
     const format = ensureChoice(values.format, ["plain", "json"], "--format");
     const ticket = parseTicketFlag(values.ticket);
@@ -10531,7 +10411,11 @@ export function parseCommand(argv: string[]): ParsedCommand {
       return {
         command: "reconcile",
         repoPath,
-        mode: ensureChoice(values.mode ?? "full", ["prune", "backfill", "full"], "--mode") as SurfaceSyncMode,
+        mode: ensureChoice(
+          values.mode ?? "full",
+          ["prune", "backfill", "full"],
+          "--mode",
+        ) as SurfaceSyncMode,
         authority,
         scope,
         apply,
@@ -10541,7 +10425,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
     }
 
     if (values.mode !== undefined) {
-      throw new CliError(`--mode is not supported with \`${command}\`; use \`prx reconcile --mode ${command}\` instead.`);
+      throw new CliError(
+        `--mode is not supported with \`${command}\`; use \`prx reconcile --mode ${command}\` instead.`,
+      );
     }
 
     return {
@@ -10616,9 +10502,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
     if (values.priority !== undefined) {
       const parsed = Number.parseInt(values.priority, 10);
       if (!Number.isFinite(parsed) || parsed < 0 || parsed > 10) {
-        throw new CliError(
-          `--priority must be an integer 0-10 (got '${values.priority}')`,
-        );
+        throw new CliError(`--priority must be an integer 0-10 (got '${values.priority}')`);
       }
       priorityNum = parsed;
     }
@@ -10626,9 +10510,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
     let epic: string | undefined;
     if (values.epic !== undefined) {
       if (!/^GH-\d+$/.test(values.epic)) {
-        throw new CliError(
-          `--epic must be a GH-NNN issue id (got '${values.epic}')`,
-        );
+        throw new CliError(`--epic must be a GH-NNN issue id (got '${values.epic}')`);
       }
       epic = values.epic;
     }
@@ -10665,9 +10547,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
     });
 
     if (positionals.length < 1) {
-      throw new CliError(
-        "prx delegate assign: missing <id> positional (expected GH-NNN)",
-      );
+      throw new CliError("prx delegate assign: missing <id> positional (expected GH-NNN)");
     }
     if (positionals.length > 2) {
       throw new CliError(
@@ -10705,14 +10585,10 @@ export function parseCommand(argv: string[]): ParsedCommand {
     });
 
     if (typeof values.from !== "string" || values.from.length === 0) {
-      throw new CliError(
-        "prx delegate repair-assignees: missing required --from <name>",
-      );
+      throw new CliError("prx delegate repair-assignees: missing required --from <name>");
     }
     if (typeof values.to !== "string" || values.to.length === 0) {
-      throw new CliError(
-        "prx delegate repair-assignees: missing required --to <login>",
-      );
+      throw new CliError("prx delegate repair-assignees: missing required --to <login>");
     }
 
     return {
@@ -10766,11 +10642,11 @@ export function parseCommand(argv: string[]): ParsedCommand {
       allowPositionals: false,
     });
 
-      return {
-        command,
-        repoPath: values["repo-path"],
-        format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      };
+    return {
+      command,
+      repoPath: values["repo-path"],
+      format: ensureChoice(values.format, ["plain", "json"], "--format"),
+    };
   }
 
   if (command === "do") {
@@ -10793,7 +10669,8 @@ export function parseCommand(argv: string[]): ParsedCommand {
         targetIndex + 1 < normalizedSprintArgs.length &&
         normalizedSprintArgs[targetIndex + 1]!.startsWith("-")
       ) {
-        normalizedSprintArgs[targetIndex] = `--target-delta=${normalizedSprintArgs[targetIndex + 1]}`;
+        normalizedSprintArgs[targetIndex] =
+          `--target-delta=${normalizedSprintArgs[targetIndex + 1]}`;
         normalizedSprintArgs.splice(targetIndex + 1, 1);
       }
       const { values } = parseArgs({
@@ -10856,9 +10733,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
       const ticket = values.ticket
         ? parseCanonicalWorkUnitId(values.ticket, "--ticket")
         : undefined;
-      const unit = values.unit
-        ? parseCanonicalWorkUnitId(values.unit, "--unit")
-        : undefined;
+      const unit = values.unit ? parseCanonicalWorkUnitId(values.unit, "--unit") : undefined;
       if (!ticket && !unit) {
         throw new CliError("--ticket or --unit is required");
       }
@@ -10891,10 +10766,13 @@ export function parseCommand(argv: string[]): ParsedCommand {
         strict: true,
         allowPositionals: false,
       });
-      const baseline = values.baseline !== undefined ? Number.parseFloat(values.baseline) : undefined;
+      const baseline =
+        values.baseline !== undefined ? Number.parseFloat(values.baseline) : undefined;
       const current = values.current !== undefined ? Number.parseFloat(values.current) : undefined;
-      if (baseline !== undefined && !Number.isFinite(baseline)) throw new CliError("--baseline must be numeric");
-      if (current !== undefined && !Number.isFinite(current)) throw new CliError("--current must be numeric");
+      if (baseline !== undefined && !Number.isFinite(baseline))
+        throw new CliError("--baseline must be numeric");
+      if (current !== undefined && !Number.isFinite(current))
+        throw new CliError("--current must be numeric");
       return {
         command: "sprint",
         action: "metric",
@@ -11134,9 +11012,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
     const titlePositional = positionals[1];
     if (titlePositional) {
       if (title) {
-        throw new CliError(
-          "intake: title given via both --title and positional; use one",
-        );
+        throw new CliError("intake: title given via both --title and positional; use one");
       }
       title = titlePositional;
     }
@@ -11144,9 +11020,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
       throw new CliError("intake requires a title (--title TEXT or positional)");
     }
     if (positionals.length > 2) {
-      throw new CliError(
-        `intake: unexpected extra positionals: ${positionals.slice(2).join(" ")}`,
-      );
+      throw new CliError(`intake: unexpected extra positionals: ${positionals.slice(2).join(" ")}`);
     }
 
     // --body-stdin and --body / @file are mutually exclusive.
@@ -11164,9 +11038,8 @@ export function parseCommand(argv: string[]): ParsedCommand {
       bodyValue = undefined;
     }
 
-    const to = values.to === undefined
-      ? undefined
-      : ensureChoice(values.to, ["gh"] as const, "--to");
+    const to =
+      values.to === undefined ? undefined : ensureChoice(values.to, ["gh"] as const, "--to");
 
     return {
       command: "intake",
@@ -11213,7 +11086,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
 
     const limitNum = Number.parseInt(values.limit ?? "0", 10);
     if (!Number.isFinite(limitNum) || limitNum < 0) {
-      throw new CliError(`triage status: --limit must be a non-negative integer (got ${values.limit})`);
+      throw new CliError(
+        `triage status: --limit must be a non-negative integer (got ${values.limit})`,
+      );
     }
 
     return {
@@ -11384,9 +11259,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
       allowPositionals: true,
     });
     if (positionals.length === 0) {
-      throw new CliError(
-        "triage promote-children requires a staging-dir positional argument",
-      );
+      throw new CliError("triage promote-children requires a staging-dir positional argument");
     }
     if (positionals.length > 1) {
       throw new CliError(
@@ -11515,7 +11388,10 @@ export function parseCommand(argv: string[]): ParsedCommand {
     }
     let axes: DriftFixAxis[] = ["type", "priority", "status"];
     if (values.axes !== undefined) {
-      const parts = values.axes.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+      const parts = values.axes
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
       const valid = new Set<DriftFixAxis>(["type", "priority", "status"]);
       for (const part of parts) {
         if (!valid.has(part as DriftFixAxis)) {
@@ -11778,9 +11654,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
     }
     const rationale = values.rationale;
     if (!rationale) {
-      throw new CliError(
-        "map create: --rationale <text> is required (or use --from-file <path>)",
-      );
+      throw new CliError("map create: --rationale <text> is required (or use --from-file <path>)");
     }
     const parents = (values.parents ?? "")
       .split(",")
@@ -11903,14 +11777,26 @@ export function ensureBeadsInitSetup(
   const repoName = githubRepo.split("/")[1] ?? "";
   const forceInitialize = (): BeadsInitSetupResult => {
     const forcedInitResult = runner(
-      ["bd", "init", "--prefix", repoName, "--database", database, "--force", "--destroy-token", `DESTROY-${repoName}`],
+      [
+        "bd",
+        "init",
+        "--prefix",
+        repoName,
+        "--database",
+        database,
+        "--force",
+        "--destroy-token",
+        `DESTROY-${repoName}`,
+      ],
       cwd,
     );
     if (forcedInitResult.error) {
       throw forcedInitResult.error;
     }
     if (forcedInitResult.status !== 0) {
-      const message = (forcedInitResult.stderr || forcedInitResult.stdout).trim() || "Failed to force beads initialization";
+      const message =
+        (forcedInitResult.stderr || forcedInitResult.stdout).trim() ||
+        "Failed to force beads initialization";
       throw new Error(message);
     }
     configureGithubRepository();
@@ -11927,7 +11813,11 @@ export function ensureBeadsInitSetup(
 
   const configureGithubRepository = (): void => {
     const configured = runner(["bd", "config", "get", "github.repository"], cwd);
-    if (!configured.error && configured.status === 0 && parseBeadsConfigValue(configured.stdout) === githubRepo) {
+    if (
+      !configured.error &&
+      configured.status === 0 &&
+      parseBeadsConfigValue(configured.stdout) === githubRepo
+    ) {
       return;
     }
 
@@ -11936,7 +11826,9 @@ export function ensureBeadsInitSetup(
       throw configResult.error;
     }
     if (configResult.status !== 0) {
-      const message = (configResult.stderr || configResult.stdout).trim() || "Failed to configure beads GitHub repository";
+      const message =
+        (configResult.stderr || configResult.stdout).trim() ||
+        "Failed to configure beads GitHub repository";
       throw new Error(message);
     }
   };
@@ -12068,9 +11960,7 @@ type InitialContractOptions = {
 // All other Python args (why_problem, why_needed_for, ticket, notion, fixes,
 // parent_ticket, entrypoint, risk_level, stack_position, ready_reason) keep
 // their Python defaults — the current cli.ts call-site never passed them.
-export function buildInitialPrContract(
-  options: InitialContractOptions,
-): Record<string, unknown> {
+export function buildInitialPrContract(options: InitialContractOptions): Record<string, unknown> {
   const invalid = options.changeType.filter(
     (t) => !(VALID_CHANGE_TYPES as readonly string[]).includes(t),
   );
@@ -12079,9 +11969,7 @@ export function buildInitialPrContract(
       `Invalid change type(s): ${invalid.join(", ")}. Must be one of: ${VALID_CHANGE_TYPES.join(", ")}`,
     );
   }
-  const changeType: ChangeType[] = [
-    ...new Set(options.changeType as ChangeType[]),
-  ];
+  const changeType: ChangeType[] = [...new Set(options.changeType as ChangeType[])];
   const nowIso = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
   const ready = options.ready;
   return {
@@ -12120,11 +12008,7 @@ export function buildInitialPrContract(
     author_assertions: {
       scope: {
         in_scope: [],
-        non_goals: [
-          "No formatting changes",
-          "No unrelated refactors",
-          "No dependency updates",
-        ],
+        non_goals: ["No formatting changes", "No unrelated refactors", "No dependency updates"],
       },
       behavior: {
         entrypoint: "TODO.entrypoint",
@@ -12250,7 +12134,12 @@ export async function initContract(
 
   const excludeResult: EnsurePrxExcludesResult = repoRoot
     ? ensurePrxExcludes({ repoRoot, workspaceTrack })
-    : { excludePath: null, excludeRules: workspaceTrack ? [".pr/"] : [".pr/", ".prx/"], excludeUpdatedRules: [], excludeRemovedRules: [] };
+    : {
+        excludePath: null,
+        excludeRules: workspaceTrack ? [".pr/"] : [".pr/", ".prx/"],
+        excludeUpdatedRules: [],
+        excludeRemovedRules: [],
+      };
   const excludePath = excludeResult.excludePath;
   const excludeRules = excludeResult.excludeRules;
   const excludeUpdatedRules = excludeResult.excludeUpdatedRules;
@@ -12276,11 +12165,7 @@ export async function initContract(
       "!repos/.gitignore",
       "!repos/config.json",
     ].join("\n");
-    const desiredPrxReposGitignore = [
-      "*",
-      "!.gitignore",
-      "!config.json",
-    ].join("\n");
+    const desiredPrxReposGitignore = ["*", "!.gitignore", "!config.json"].join("\n");
 
     // Read once (empty on missing) instead of existsSync-then-read, so the
     // writeFileSync isn't racing an existence check (CodeQL js/file-system-race).
@@ -12346,7 +12231,11 @@ function missingExecutorConfirmations(task: TaskContract): string[] {
   return missing;
 }
 
-function loadOrCreateTaskContract(taskPath: string, workUnitId: string, beadId?: string): TaskContract {
+function loadOrCreateTaskContract(
+  taskPath: string,
+  workUnitId: string,
+  beadId?: string,
+): TaskContract {
   if (taskContractExists(taskPath)) {
     return loadTaskContract(taskPath);
   }
@@ -12385,7 +12274,10 @@ function detectVersion(cwd = repoRootPath): string {
 function latestReleaseTag(cwd: string): string | null {
   const out = tryCommand(["git", "tag", "--list", "v*", "--sort=-v:refname"], cwd);
   if (!out) return null;
-  const newest = out.split("\n").map((l) => l.trim()).find((l) => /^v\d/.test(l));
+  const newest = out
+    .split("\n")
+    .map((l) => l.trim())
+    .find((l) => /^v\d/.test(l));
   return newest ?? null;
 }
 
@@ -12446,12 +12338,12 @@ export function checkPrxBinaryUpstream(
   // Only warn when `latest` is strictly newer than the binary's release. The tag
   // list is semver-sorted descending, so `latest` is the max; if it sorts at or
   // below the binary's version, the binary is current-or-ahead → stay silent.
-  const ordered = tryCommand(
-    ["git", "tag", "--list", "v*", "--sort=-v:refname"],
-    cwd,
-  );
+  const ordered = tryCommand(["git", "tag", "--list", "v*", "--sort=-v:refname"], cwd);
   if (ordered) {
-    const tags = ordered.split("\n").map((l) => l.trim()).filter((l) => /^v\d/.test(l));
+    const tags = ordered
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => /^v\d/.test(l));
     const latestIdx = tags.indexOf(latest);
     const binaryIdx = tags.indexOf(bakedVersion);
     // binaryIdx === -1 ⇒ the binary's tag isn't local (can't compare) → silent.
@@ -12487,7 +12379,10 @@ function appendExecutionLog(cwd: string, entry: Record<string, unknown>): void {
 function createRunRecord(input: Omit<RunRecord, "id">): RunRecord {
   return {
     ...input,
-    id: sha256(`${input.agent}:${input.timestamp}:${input.input_hash}:${input.output_hash}`).slice(0, 16),
+    id: sha256(`${input.agent}:${input.timestamp}:${input.input_hash}:${input.output_hash}`).slice(
+      0,
+      16,
+    ),
   };
 }
 
@@ -12512,11 +12407,7 @@ function stripPrintOnlyArgs(args: string[]): string[] {
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === undefined) continue;
-    if (
-      arg === "--json-schema" ||
-      arg === "--output-format" ||
-      arg === "--input-format"
-    ) {
+    if (arg === "--json-schema" || arg === "--output-format" || arg === "--input-format") {
       index += 1;
       continue;
     }
@@ -12651,9 +12542,10 @@ export function ensureOpsRuntimeMcp(
   mkdirSync(runtimeDir, { recursive: true });
 
   const mcpServers: Record<string, McpServerConfig> = {};
-  const notionIdentity = deps.notionIdentity !== undefined
-    ? deps.notionIdentity
-    : findFirstSourceOfKind(ensureIdentityConfig(), "notion")?.notion ?? null;
+  const notionIdentity =
+    deps.notionIdentity !== undefined
+      ? deps.notionIdentity
+      : (findFirstSourceOfKind(ensureIdentityConfig(), "notion")?.notion ?? null);
   if (notionIdentity?.auth === "notion-cli" || notionIdentity?.auth === "claude-mcp") {
     mcpServers.notion = { type: "http", url: "https://mcp.notion.com/mcp" };
   }
@@ -12747,9 +12639,7 @@ function materializeWorkUnitBranchWithGit(
       { spawn },
     );
     if (materialized.status === "error") {
-      throw new CliError(
-        materialized.error ?? `workspace materialize failed for ${workUnitId}`,
-      );
+      throw new CliError(materialized.error ?? `workspace materialize failed for ${workUnitId}`);
     }
     return;
   }
@@ -12776,8 +12666,9 @@ function fetchOriginOrThrow(repoRoot: string, spawn: SpawnLike): void {
     throw fetchResult.error;
   }
   if ((fetchResult.status ?? 1) !== 0) {
-    const detail = (fetchResult.stderr ?? fetchResult.stdout ?? "").trim()
-      || `git fetch exited with status ${fetchResult.status}`;
+    const detail =
+      (fetchResult.stderr ?? fetchResult.stdout ?? "").trim() ||
+      `git fetch exited with status ${fetchResult.status}`;
     throw new CliError(`git fetch origin failed: ${detail}`);
   }
 }
@@ -12794,9 +12685,7 @@ export function prepareMainxWorktree(
   const spawn: SpawnLike = withGitLockRecovery(rawSpawn, {
     onRecover: (recovery) => {
       if (recovery.recovered && recovery.removed) {
-        process.stderr.write(
-          `prx: removed stale git lock ${recovery.path}, retrying\n`,
-        );
+        process.stderr.write(`prx: removed stale git lock ${recovery.path}, retrying\n`);
       }
     },
   });
@@ -12816,8 +12705,9 @@ export function prepareMainxWorktree(
     throw listResult.error;
   }
   if ((listResult.status ?? 1) !== 0) {
-    const detail = (listResult.stderr ?? listResult.stdout ?? "").trim()
-      || `git worktree list exited with status ${listResult.status}`;
+    const detail =
+      (listResult.stderr ?? listResult.stdout ?? "").trim() ||
+      `git worktree list exited with status ${listResult.status}`;
     throw new CliError(`mainx: ${detail}`);
   }
   const worktreeExists = (listResult.stdout ?? "")
@@ -12859,11 +12749,10 @@ export function prepareMainxWorktree(
   }
 
   // Checkout detached origin/main
-  const checkoutResult = spawn(
-    "git",
-    ["-C", worktreePath, "checkout", "--detach", "origin/main"],
-    { cwd: worktreePath, encoding: "utf8" },
-  );
+  const checkoutResult = spawn("git", ["-C", worktreePath, "checkout", "--detach", "origin/main"], {
+    cwd: worktreePath,
+    encoding: "utf8",
+  });
   if (checkoutResult.error) {
     throw checkoutResult.error;
   }
@@ -12972,8 +12861,7 @@ export function closeSession(
   // `git ls-remote --exit-code` returns 0 for present, 2 for absent;
   // any other non-zero code (commonly 128) is a transport/auth failure
   // and must not be conflated with "branch gone".
-  const remoteBranchPresent =
-    lsRemote.status === 0 ? true : lsRemote.status === 2 ? false : null;
+  const remoteBranchPresent = lsRemote.status === 0 ? true : lsRemote.status === 2 ? false : null;
 
   let mainxReset: CloseSessionResult["mainxReset"] = "skipped";
   if (options.mainxReset) {
@@ -12989,9 +12877,7 @@ export function closeSession(
     }
   }
 
-  const handoff: string[] = [
-    `prx worktree-remove ${options.workUnitId} --delete-branch --force`,
-  ];
+  const handoff: string[] = [`prx worktree-remove ${options.workUnitId} --delete-branch --force`];
   if (options.emitNext) {
     handoff.push("prx delegate next");
   }
@@ -13086,7 +12972,9 @@ export function runBeadsInit(
     if (status !== 0) {
       const cmdLine = [cmd, ...args].join(" ");
       const details = [stderr, stdout].filter(Boolean).join("\n");
-      throw new CliError(`Command failed with exit code ${status}: ${cmdLine}${details ? `\n${details}` : ""}`);
+      throw new CliError(
+        `Command failed with exit code ${status}: ${cmdLine}${details ? `\n${details}` : ""}`,
+      );
     }
     return { status, stdout, stderr };
   };
@@ -13103,14 +12991,18 @@ export function runBeadsInit(
   };
 
   const bootstrapRuntimeRepair = (): void => {
-    output.log("repair: canonical metadata matches, but database is unavailable; running beads bootstrap");
+    output.log(
+      "repair: canonical metadata matches, but database is unavailable; running beads bootstrap",
+    );
     run("bd", dryRun ? ["bootstrap", "--dry-run"] : ["bootstrap", "--yes"]);
   };
 
   // Patch metadata if needed. Rewrite through one descriptor (rewriteFileAtomic)
   // rather than existsSync-then-read-then-write (CodeQL js/file-system-race).
   if (metadataDatabase !== database) {
-    output.log(`repair: rewriting ${metadataPath} dolt_database ${metadataDatabase ?? "unset"} -> ${database}`);
+    output.log(
+      `repair: rewriting ${metadataPath} dolt_database ${metadataDatabase ?? "unset"} -> ${database}`,
+    );
     if (!dryRun) {
       let invalidJson = false;
       rewriteFileAtomic(metadataPath, (current) => {
@@ -13165,7 +13057,16 @@ export function runBeadsInit(
     const beadsDir = join(repoRoot, ".beads");
     if (existsSync(beadsDir)) {
       output.log("repair: running forced canonical Beads init");
-      run("bd", ["init", "--prefix", repo, "--database", database, "--force", "--destroy-token", `DESTROY-${repo}`]);
+      run("bd", [
+        "init",
+        "--prefix",
+        repo,
+        "--database",
+        database,
+        "--force",
+        "--destroy-token",
+        `DESTROY-${repo}`,
+      ]);
     } else {
       output.log("repair: running canonical Beads init");
       run("bd", ["init", "--prefix", repo, "--database", database]);
@@ -13335,7 +13236,11 @@ export function resolveWorkUnitLaunchCwd(
 }
 
 /** Uses default spawn, pathExists, and gh runner; only `noVerify` is non-default vs `resolveWorkUnitLaunchCwd` defaults. */
-function resolveWorkUnitLaunchCwdUsingDefaults(workUnitId: string, cwd: string, noVerify: boolean): string {
+function resolveWorkUnitLaunchCwdUsingDefaults(
+  workUnitId: string,
+  cwd: string,
+  noVerify: boolean,
+): string {
   return resolveWorkUnitLaunchCwd(workUnitId, cwd, undefined, undefined, undefined, noVerify);
 }
 
@@ -13445,10 +13350,9 @@ function repoAuditInspectionCwd(repo: LocalRepo): string {
 function readRepoOriginUrl(repo: LocalRepo): string | null {
   let result;
   try {
-    result = procRunner(
-      ["git", `--git-dir=${repo.commonDir}`, "remote", "get-url", "origin"],
-      { check: false },
-    );
+    result = procRunner(["git", `--git-dir=${repo.commonDir}`, "remote", "get-url", "origin"], {
+      check: false,
+    });
   } catch {
     return null;
   }
@@ -13475,10 +13379,7 @@ function countRepoBeadsIssues(repo: LocalRepo): number | null {
   }
 }
 
-function formatRepoAdoptResult(
-  result: AdoptRepoResult,
-  format: "plain" | "json",
-): string {
+function formatRepoAdoptResult(result: AdoptRepoResult, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(result, null, 2);
   }
@@ -13493,10 +13394,7 @@ function formatRepoAdoptResult(
   return lines.join("\n");
 }
 
-function formatBranchAdoptResult(
-  result: AdoptBranchResult,
-  format: "plain" | "json",
-): string {
+function formatBranchAdoptResult(result: AdoptBranchResult, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(result, null, 2);
   }
@@ -13551,9 +13449,7 @@ export function listFeatureWorktreesForRepair(repoPath: string): string[] {
   } catch {
     return [repoPath];
   }
-  return entries
-    .map((entry) => entry.path)
-    .filter((path) => existsSync(join(path, ".beads")));
+  return entries.map((entry) => entry.path).filter((path) => existsSync(join(path, ".beads")));
 }
 
 // GH-983: bd enrichment for `prx delegate next` filters that need facts
@@ -13697,9 +13593,15 @@ export type RefreshResult = {
 };
 
 function parseDivergence(repoPath: string): { ahead: number; behind: number } {
-  const result = tryCommand(
-    ["git", "-C", repoPath, "rev-list", "--left-right", "--count", "HEAD...origin/main"],
-  );
+  const result = tryCommand([
+    "git",
+    "-C",
+    repoPath,
+    "rev-list",
+    "--left-right",
+    "--count",
+    "HEAD...origin/main",
+  ]);
   if (!result) return { ahead: 0, behind: 0 };
   const [aheadStr, behindStr] = result.split(/\s+/);
   return {
@@ -13742,7 +13644,14 @@ export function autoRebaseOnSessionOpen(
   }
   const rebaseHead = tryCommand(["git", "-C", repoPath, "rev-parse", "--verify", "REBASE_HEAD"]);
   const mergeHead = tryCommand(["git", "-C", repoPath, "rev-parse", "--verify", "MERGE_HEAD"]);
-  const cherryPickHead = tryCommand(["git", "-C", repoPath, "rev-parse", "--verify", "CHERRY_PICK_HEAD"]);
+  const cherryPickHead = tryCommand([
+    "git",
+    "-C",
+    repoPath,
+    "rev-parse",
+    "--verify",
+    "CHERRY_PICK_HEAD",
+  ]);
   if (rebaseHead || mergeHead || cherryPickHead) {
     const op = rebaseHead ? "rebase" : mergeHead ? "merge" : "cherry-pick";
     return { status: "skipped", reason: `${op} already in progress` };
@@ -13773,13 +13682,22 @@ export function autoRebaseOnSessionOpen(
     // Other non-zero exits (missing upstream, hook failures, config errors)
     // report the trimmed stderr so the conflict-resolution guidance isn't
     // rendered on non-conflict failures.
-    const conflictOutput = tryCommand(["git", "-C", repoPath, "diff", "--name-only", "--diff-filter=U"]);
+    const conflictOutput = tryCommand([
+      "git",
+      "-C",
+      repoPath,
+      "diff",
+      "--name-only",
+      "--diff-filter=U",
+    ]);
     const conflicts = conflictOutput ? conflictOutput.split("\n").filter(Boolean) : [];
     if (conflicts.length > 0) {
       return { status: "conflict", conflicts };
     }
     const stderr = (rebaseResult.stderr ?? "").trim();
-    const detail = stderr ? stderr.split("\n")[0] : `git rebase exited with status ${rebaseResult.status}`;
+    const detail = stderr
+      ? stderr.split("\n")[0]
+      : `git rebase exited with status ${rebaseResult.status}`;
     return { status: "skipped", reason: `git rebase failed: ${detail}` };
   }
   return { status: "rebased", behind };
@@ -13947,8 +13865,8 @@ async function primePlanSession(
     // the three accepted input shapes; semantic-id workspaces (no hex8 tail)
     // pass through with the bare id form, matching the parity-chain row id
     // the chain builder emits for non-GH-prefixed branches.
-    const normalised = normalizeToBdSurfaceShort(input.workUnitId)
-      ?? normalizeToBdSurfaceShort(longId);
+    const normalised =
+      normalizeToBdSurfaceShort(input.workUnitId) ?? normalizeToBdSurfaceShort(longId);
     if (normalised) {
       effectiveWorkUnitId = normalised;
     } else {
@@ -14009,7 +13927,13 @@ async function primePlanSession(
         if (deps.materializeWorktree) {
           deps.materializeWorktree(effectiveWorkUnitId, targetRepoCwd, input.noVerify);
         } else {
-          materializeWorkUnitBranch(effectiveWorkUnitId, targetRepoCwd, undefined, undefined, input.noVerify);
+          materializeWorkUnitBranch(
+            effectiveWorkUnitId,
+            targetRepoCwd,
+            undefined,
+            undefined,
+            input.noVerify,
+          );
         }
       },
       progressOpts,
@@ -14018,11 +13942,12 @@ async function primePlanSession(
   // GH-1643: --repo overrides launchFromCurrentWorkspace — the operator
   // explicitly asked for a different repo, so the launchCwd must point
   // at the target's worktree.
-  const launchCwd = input.launchFromCurrentWorkspace && !input.repoSlug
-    ? assertLaunchCwdNotMainx(process.cwd(), effectiveWorkUnitId)
-    : deps.resolveWorkUnitCwd
-      ? deps.resolveWorkUnitCwd(effectiveWorkUnitId, targetRepoCwd, input.noVerify)
-      : resolveWorkUnitLaunchCwdUsingDefaults(effectiveWorkUnitId, targetRepoCwd, input.noVerify);
+  const launchCwd =
+    input.launchFromCurrentWorkspace && !input.repoSlug
+      ? assertLaunchCwdNotMainx(process.cwd(), effectiveWorkUnitId)
+      : deps.resolveWorkUnitCwd
+        ? deps.resolveWorkUnitCwd(effectiveWorkUnitId, targetRepoCwd, input.noVerify)
+        : resolveWorkUnitLaunchCwdUsingDefaults(effectiveWorkUnitId, targetRepoCwd, input.noVerify);
 
   // GH-1983: a detached HEAD here would anchor the plan against an unnamed
   // ref and silently skip auto-rebase. Refuse before any rebase / hydrate
@@ -14046,24 +13971,33 @@ async function primePlanSession(
 
   const rebase = await runStep(
     "auto-rebase",
-    async () => (deps.autoRebaseOnSessionOpen ?? autoRebaseOnSessionOpen)(launchCwd, { skipFetch: true }),
+    async () =>
+      (deps.autoRebaseOnSessionOpen ?? autoRebaseOnSessionOpen)(launchCwd, { skipFetch: true }),
     progressOpts,
   );
   if (rebase.status === "rebased") {
     // Gate on format: stdout in --format=json mode would corrupt the
     // machine-readable payload emitted later by the calling handler.
     if (input.format === "json") {
-      output.error(`rebased ${rebase.behind} commit${rebase.behind === 1 ? "" : "s"} onto origin/main`);
+      output.error(
+        `rebased ${rebase.behind} commit${rebase.behind === 1 ? "" : "s"} onto origin/main`,
+      );
     } else {
-      output.log(`rebased ${rebase.behind} commit${rebase.behind === 1 ? "" : "s"} onto origin/main`);
+      output.log(
+        `rebased ${rebase.behind} commit${rebase.behind === 1 ? "" : "s"} onto origin/main`,
+      );
     }
   } else if (rebase.status === "conflict") {
-    output.error("rebase onto origin/main hit conflicts — session will continue; resolve before you commit");
+    output.error(
+      "rebase onto origin/main hit conflicts — session will continue; resolve before you commit",
+    );
     output.error("conflicted files:");
     for (const f of rebase.conflicts) {
       output.error(`  ${f}`);
     }
-    output.error("resolve with: git status, edit files, git add <files>, git rebase --continue  (or git rebase --abort to escape)");
+    output.error(
+      "resolve with: git status, edit files, git add <files>, git rebase --continue  (or git rebase --abort to escape)",
+    );
   } else if (rebase.status === "skipped") {
     output.error(`warning: auto-rebase skipped (${rebase.reason})`);
   }
@@ -14088,10 +14022,7 @@ async function primePlanSession(
   const runtimeArtifacts = await runStep(
     "runtime-artifacts",
     async () =>
-      (deps.ensureRuntimeArtifacts ?? ensureLocalRuntimeArtifacts)(
-        effectiveWorkUnitId,
-        launchCwd,
-      ),
+      (deps.ensureRuntimeArtifacts ?? ensureLocalRuntimeArtifacts)(effectiveWorkUnitId, launchCwd),
     progressOpts,
   );
 
@@ -14196,7 +14127,14 @@ function executeRefresh(
   // Check for in-progress git operation
   const rebaseHead = tryCommand(["git", "-C", repoPath, "rev-parse", "--verify", "REBASE_HEAD"]);
   const mergeHead = tryCommand(["git", "-C", repoPath, "rev-parse", "--verify", "MERGE_HEAD"]);
-  const cherryPickHead = tryCommand(["git", "-C", repoPath, "rev-parse", "--verify", "CHERRY_PICK_HEAD"]);
+  const cherryPickHead = tryCommand([
+    "git",
+    "-C",
+    repoPath,
+    "rev-parse",
+    "--verify",
+    "CHERRY_PICK_HEAD",
+  ]);
   if (rebaseHead || mergeHead || cherryPickHead) {
     const op = rebaseHead ? "rebase" : mergeHead ? "merge" : "cherry-pick";
     const result: RefreshResult = {
@@ -14258,8 +14196,16 @@ function executeRefresh(
 
   const pr = parsed.local || parsed.noPush ? null : maybeViewCurrentPr(repoPath);
   const headSha = pr ? tryCommand(["git", "-C", repoPath, "rev-parse", "HEAD"]) : null;
-  const remoteSha = pr ? tryCommand(["git", "-C", repoPath, "rev-parse", `origin/${branch}`]) : null;
-  const mode = selectRefreshExecutionMode({ local: parsed.local, noPush: parsed.noPush, pr, headSha, remoteSha });
+  const remoteSha = pr
+    ? tryCommand(["git", "-C", repoPath, "rev-parse", `origin/${branch}`])
+    : null;
+  const mode = selectRefreshExecutionMode({
+    local: parsed.local,
+    noPush: parsed.noPush,
+    pr,
+    headSha,
+    remoteSha,
+  });
   if (mode === "local" || !pr) {
     return runLocalRefresh(parsed, output, branch, behindBefore);
   }
@@ -14275,7 +14221,8 @@ export function selectRefreshExecutionMode(options: {
 }): "local" | "server" {
   if (options.local || options.noPush) return "local";
   if (!options.pr) return "local";
-  if (!options.headSha || !options.remoteSha || options.headSha !== options.remoteSha) return "local";
+  if (!options.headSha || !options.remoteSha || options.headSha !== options.remoteSha)
+    return "local";
   return "server";
 }
 
@@ -14301,7 +14248,14 @@ function runLocalRefresh(
   );
   if (rebaseResult.status !== 0) {
     // Capture conflicted files before aborting
-    const conflictOutput = tryCommand(["git", "-C", repoPath, "diff", "--name-only", "--diff-filter=U"]);
+    const conflictOutput = tryCommand([
+      "git",
+      "-C",
+      repoPath,
+      "diff",
+      "--name-only",
+      "--diff-filter=U",
+    ]);
     const conflicts = conflictOutput ? conflictOutput.split("\n").filter(Boolean) : [];
     runCommand(["git", "-C", repoPath, "rebase", "--abort"]);
     const result: RefreshResult = {
@@ -14323,7 +14277,9 @@ function runLocalRefresh(
           output.error(`  ${f}`);
         }
       }
-      output.error("resolve manually: git rebase origin/main, fix conflicts, git rebase --continue");
+      output.error(
+        "resolve manually: git rebase origin/main, fix conflicts, git rebase --continue",
+      );
     }
     return 1;
   }
@@ -14344,7 +14300,15 @@ function runLocalRefresh(
   // Push unless --no-push
   let pushed = false;
   if (!parsed.noPush) {
-    const pushResult = runCommand(["git", "-C", repoPath, "push", "--force-with-lease", "origin", branch]);
+    const pushResult = runCommand([
+      "git",
+      "-C",
+      repoPath,
+      "push",
+      "--force-with-lease",
+      "origin",
+      branch,
+    ]);
     pushed = pushResult.status === 0;
     if (!pushed) {
       const result: RefreshResult = {
@@ -14377,22 +14341,39 @@ function runLocalRefresh(
   if (format === "json") {
     output.log(JSON.stringify(result, null, 2));
   } else {
-    output.log(`refreshed: rebased ${behindBefore} commit${behindBefore === 1 ? "" : "s"} from origin/main`);
+    output.log(
+      `refreshed: rebased ${behindBefore} commit${behindBefore === 1 ? "" : "s"} from origin/main`,
+    );
     if (pushed) {
       output.log(`pushed ${branch} to origin (force-with-lease)`);
     }
     if (pushed && staleReviewWarning) {
-      output.error("warning: existing PR reviews may be dismissed depending on branch protection settings (e.g., dismiss_stale_reviews)");
+      output.error(
+        "warning: existing PR reviews may be dismissed depending on branch protection settings (e.g., dismiss_stale_reviews)",
+      );
     }
   }
   return 0;
 }
 
 function makeBlockedRefreshResult(branch: string, behindBefore: number): RefreshResult {
-  return { status: "blocked", branch, behindBefore, behindAfter: behindBefore, pushed: false, conflicts: [], staleReviewWarning: false };
+  return {
+    status: "blocked",
+    branch,
+    behindBefore,
+    behindAfter: behindBefore,
+    pushed: false,
+    conflicts: [],
+    staleReviewWarning: false,
+  };
 }
 
-function emitRefreshFailure(result: RefreshResult, format: string, output: Output, errors: string[]): number {
+function emitRefreshFailure(
+  result: RefreshResult,
+  format: string,
+  output: Output,
+  errors: string[],
+): number {
   if (format === "json") {
     output.log(JSON.stringify(result, null, 2));
   } else {
@@ -14411,15 +14392,20 @@ function runServerRefresh(
   const repoPath = parsed.repoPath;
   const format = parsed.format;
 
-  const ub = runCommand(
-    ["gh", "pr", "update-branch", String(pr.number), "--rebase"],
-    repoPath,
-  );
+  const ub = runCommand(["gh", "pr", "update-branch", String(pr.number), "--rebase"], repoPath);
   if (ub.status !== 0) {
     const stderr = (ub.stderr || ub.stdout || "").trim();
     const isConflict = /conflict/i.test(stderr);
     const result: RefreshResult = isConflict
-      ? { status: "conflict", branch, behindBefore, behindAfter: behindBefore, pushed: false, conflicts: [], staleReviewWarning: false }
+      ? {
+          status: "conflict",
+          branch,
+          behindBefore,
+          behindAfter: behindBefore,
+          pushed: false,
+          conflicts: [],
+          staleReviewWarning: false,
+        }
       : makeBlockedRefreshResult(branch, behindBefore);
     return emitRefreshFailure(result, format, output, [
       "error: server-side rebase via `gh pr update-branch` failed",
@@ -14470,10 +14456,14 @@ function runServerRefresh(
   if (format === "json") {
     output.log(JSON.stringify(result, null, 2));
   } else {
-    output.log(`refreshed (server-side): rebased ${behindBefore} commit${behindBefore === 1 ? "" : "s"} from origin/main via \`gh pr update-branch\``);
+    output.log(
+      `refreshed (server-side): rebased ${behindBefore} commit${behindBefore === 1 ? "" : "s"} from origin/main via \`gh pr update-branch\``,
+    );
     output.log(`pushed ${branch} to origin (server-side)`);
     if (staleReviewWarning) {
-      output.error("warning: existing PR reviews may be dismissed depending on branch protection settings (e.g., dismiss_stale_reviews)");
+      output.error(
+        "warning: existing PR reviews may be dismissed depending on branch protection settings (e.g., dismiss_stale_reviews)",
+      );
     }
   }
   return 0;
@@ -14531,7 +14521,8 @@ function mapPrChecks(pr: PrView): SprintPrSnapshot["checks"] {
   if (rollup && !Array.isArray(rollup) && typeof rollup === "object" && "state" in rollup) {
     const state = (rollup.state ?? "").toUpperCase();
     if (state === "SUCCESS") return "green";
-    if (state === "FAILURE" || state === "ERROR" || state === "TIMED_OUT" || state === "CANCELLED") return "red";
+    if (state === "FAILURE" || state === "ERROR" || state === "TIMED_OUT" || state === "CANCELLED")
+      return "red";
     if (state === "PENDING" || state === "IN_PROGRESS" || state === "QUEUED") return "pending";
   }
   return "unknown";
@@ -14653,9 +14644,7 @@ async function runDepResearch(
   const entry = entries.find((e) => e.name === parsed.dep);
   if (!entry) {
     const available = entries.map((e) => e.name).join(", ");
-    output.error(
-      `dep research: unknown dep '${parsed.dep}'. Available: ${available}`,
-    );
+    output.error(`dep research: unknown dep '${parsed.dep}'. Available: ${available}`);
     return 66;
   }
 
@@ -14717,7 +14706,9 @@ function handleRunCliError(error: unknown, output: Output): number {
     nodeError.path.endsWith(".pr/local/pr.json")
   ) {
     output.error(`Missing PR contract at ${nodeError.path}`);
-    output.error("Run `prx contract init` to create one, pass --contract, or use `prx overview` for a GitHub-only view.");
+    output.error(
+      "Run `prx contract init` to create one, pass --contract, or use `prx overview` for a GitHub-only view.",
+    );
     return 1;
   }
   // Most work-unit verbs (`prx next`, `prx do`, `prx status`, …) resolve a repo
@@ -14873,7 +14864,9 @@ function runDoctorGhBudget(
   } else {
     const verbWidth = Math.max(4, "total".length, ...graphqlRows.map((r) => r.verb.length));
     const sep = `  ${"─".repeat(verbWidth)}  ${"─".repeat(6)}  ${"─".repeat(8)}  ─────────`;
-    output.log(`  ${"verb".padEnd(verbWidth)}  ${"calls".padStart(6)}  ${"cost".padStart(8)}  exhausted`);
+    output.log(
+      `  ${"verb".padEnd(verbWidth)}  ${"calls".padStart(6)}  ${"cost".padStart(8)}  exhausted`,
+    );
     output.log(sep);
     for (const r of graphqlRows) {
       const cost = r.costRowsMissing > 0 ? `${r.cost}+` : `${r.cost}`;
@@ -14934,7 +14927,11 @@ function resolveTriageRepoCwd(
   return { cwdFn: () => targetCwd };
 }
 
-export function runCli(argv: string[], output: Output = console, deps: CliDeps = {}): number | Promise<number> {
+export function runCli(
+  argv: string[],
+  output: Output = console,
+  deps: CliDeps = {},
+): number | Promise<number> {
   // Wire the beadsd door dialer (idempotent, process-wide). In the box profile
   // (PRX_BEADS_DOOR set) this is how `execBd` reaches the canonical store
   // instead of spawning a local `bd`; off-profile it is never consulted
@@ -14971,7 +14968,8 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       if (sub === "actors") return runSpecVerb("actors", orchestratorRest.slice(1), output);
       if (sub === "stately") return runSpecVerb("stately", orchestratorRest.slice(1), output);
       if (sub === "show") return runSpecVerb("model", orchestratorRest.slice(1), output);
-      if (sub === undefined || sub.startsWith("-")) return runSpecVerb("model", orchestratorRest, output);
+      if (sub === undefined || sub.startsWith("-"))
+        return runSpecVerb("model", orchestratorRest, output);
     }
     if (orchestratorVerb === "actors") {
       return runSpecVerb("actors", orchestratorRest, output);
@@ -14997,7 +14995,8 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       const sub = orchestratorRest[0];
       if (sub === "list") return runSpecVerb("worktrees", orchestratorRest.slice(1), output);
       if (sub === "status") return runSpecVerb("worktree", orchestratorRest.slice(1), output);
-      if (sub === undefined || sub.startsWith("-")) return runSpecVerb("worktree", orchestratorRest, output);
+      if (sub === undefined || sub.startsWith("-"))
+        return runSpecVerb("worktree", orchestratorRest, output);
     }
     // `plan close <unit>` → the plan-close verb; the rest of the `plan`
     // namespace stays on the legacy handlers.
@@ -15049,7 +15048,8 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // (trinity), and flag-led forms (`contract --kind/--list/--contract …`).
       // `contract init` and unknown subcommands fall through to legacy.
       if (sub === "show") return runSpecVerb("contract", orchestratorRest.slice(1), output);
-      if (sub === undefined || sub.startsWith("-")) return runSpecVerb("contract", orchestratorRest, output);
+      if (sub === undefined || sub.startsWith("-"))
+        return runSpecVerb("contract", orchestratorRest, output);
     }
     // `remote-ci-check` (a.k.a. `repo ci` / `scout ci`) and `scout-logs`
     // (`scout logs`) — the rest of those namespaces stays on legacy.
@@ -15191,7 +15191,10 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     if (parsed.command === "check-issue") {
       const start = performance.now();
       if (/^GH-\d+$/.test(parsed.workUnitId)) {
-        const result = (deps.checkWorkUnitIssue ?? checkWorkUnitIssue)(parsed.workUnitId, process.cwd());
+        const result = (deps.checkWorkUnitIssue ?? checkWorkUnitIssue)(
+          parsed.workUnitId,
+          process.cwd(),
+        );
         const elapsed = performance.now() - start;
         output.log(formatWorkUnitIssueCheck(result, parsed.format));
         process.stderr.write(`check-issue: ${elapsed.toFixed(0)}ms\n`);
@@ -15309,8 +15312,6 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     // GH-1173: CAS plan-store verbs.
-
-
 
     // GH-1186: planner-side read primitives. Mirror intake-view / intake-search
     // dispatch — pure reads that route through the shared `src/issues/` core.
@@ -15439,7 +15440,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               }
             } catch (err) {
               const msg = err instanceof Error ? err.message : String(err);
-              output.error(`scout read: scout/read/v1 attestation skipped (read result is unaffected): ${msg}`);
+              output.error(
+                `scout read: scout/read/v1 attestation skipped (read result is unaffected): ${msg}`,
+              );
             }
           }
           output.log(
@@ -15451,10 +15454,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         } catch (err) {
           if (err instanceof ScoutReadError) {
             output.error(`scout read ${err.code}: ${err.message}`);
-            const usageCodes = new Set([
-              "MISSING_PATH",
-              "INVALID_MAX_BYTES",
-            ]);
+            const usageCodes = new Set(["MISSING_PATH", "INVALID_MAX_BYTES"]);
             return usageCodes.has(err.code) ? 64 : 65;
           }
           return handleRunCliError(err, output);
@@ -15593,8 +15593,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           return runRulesCli(
             {
               verb: verbMap[parsed.command],
-              validatePath:
-                parsed.command === "rules-validate" ? parsed.path : undefined,
+              validatePath: parsed.command === "rules-validate" ? parsed.path : undefined,
               format: parsed.format,
             },
             {
@@ -15696,11 +15695,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         } catch (err) {
           if (err instanceof ScoutIssuesError) {
             output.error(`scout issues ${err.code}: ${err.message}`);
-            const usageCodes = new Set([
-              "BD_NOT_FOUND",
-              "INVALID_MAX",
-              "INVALID_REPO",
-            ]);
+            const usageCodes = new Set(["BD_NOT_FOUND", "INVALID_MAX", "INVALID_REPO"]);
             return usageCodes.has(err.code) ? 64 : 65;
           }
           return handleRunCliError(err, output);
@@ -15883,17 +15878,19 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "runtime-profile") {
-      const profile = parsed.profile === "user"
-        ? buildUserClaudeRuntimeProfile()
-        : buildWorkUnitClaudeRuntimeProfile({
-          agentId: parsed.agent ?? parsed.workUnitId,
-          workUnitId: parsed.workUnitId,
-          ioFormat: parsed.ioFormat,
-          mode: parsed.mode,
-        });
-      const renderedProfile = parsed.interactive && parsed.profile === "work-unit"
-        ? buildExecutedWorkProfile(profile, {})
-        : profile;
+      const profile =
+        parsed.profile === "user"
+          ? buildUserClaudeRuntimeProfile()
+          : buildWorkUnitClaudeRuntimeProfile({
+              agentId: parsed.agent ?? parsed.workUnitId,
+              workUnitId: parsed.workUnitId,
+              ioFormat: parsed.ioFormat,
+              mode: parsed.mode,
+            });
+      const renderedProfile =
+        parsed.interactive && parsed.profile === "work-unit"
+          ? buildExecutedWorkProfile(profile, {})
+          : profile;
       output.log(formatRuntimeProfile(renderedProfile, parsed.format));
       return 0;
     }
@@ -15901,184 +15898,182 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     if (parsed.command === "session") {
       return (async (): Promise<number> => {
         try {
-      if (parsed.invokedViaDeprecatedWorkAlias) {
-        output.error(PRX_SESSION_DEPRECATION_WORK);
-      }
-      if (parsed.invokedViaDeprecatedSessionShorthand) {
-        output.error("Prefer `prx plan session <id>` over `prx session <id>`.");
-      }
-      if (parsed.invokedViaDeprecatedRootOpen) {
-        output.error("Prefer `prx plan session <id>` over `prx open`.");
-      }
-      // GH-950: when invoked via `prx plan session`, emit the plan-session
-      // banner so the operator sees which shape they entered. GH-977: the
-      // alias-deprecation hint for `prx session open` is now emitted from
-      // the session-entry machine action, not from a one-off if-shim here.
-      if (parsed.invokedViaPlanSession) {
-        output.error(SESSION_PROFILES.plan.banner);
-      }
+          if (parsed.invokedViaDeprecatedWorkAlias) {
+            output.error(PRX_SESSION_DEPRECATION_WORK);
+          }
+          if (parsed.invokedViaDeprecatedSessionShorthand) {
+            output.error("Prefer `prx plan session <id>` over `prx session <id>`.");
+          }
+          if (parsed.invokedViaDeprecatedRootOpen) {
+            output.error("Prefer `prx plan session <id>` over `prx open`.");
+          }
+          // GH-950: when invoked via `prx plan session`, emit the plan-session
+          // banner so the operator sees which shape they entered. GH-977: the
+          // alias-deprecation hint for `prx session open` is now emitted from
+          // the session-entry machine action, not from a one-off if-shim here.
+          if (parsed.invokedViaPlanSession) {
+            output.error(SESSION_PROFILES.plan.banner);
+          }
 
-      // GH-1239: auto-step preflight for `prx plan session`. Refuses session
-      // entry when the planner would draft against an already-done artifact,
-      // an infeasible action shape, or a still-open blocker. `--check` /
-      // `--dry-run` skip the gate (read-only inspections; preflight itself
-      // is a separate verb the operator can run for the same audit). The
-      // exit-2 path mirrors the tmux + plan-mode refusal precedent — the
-      // error stream carries the structured reason.
-      if (
-        parsed.invokedViaPlanSession &&
-        !parsed.check &&
-        !parsed.dryRun &&
-        !parsed.skipPreflight
-      ) {
-        const refusal = await runPreflightAutoStepRefusal(
-          parsed.workUnitId,
-          deps,
-          output,
-        );
-        if (refusal !== null) return refusal;
-      } else if (parsed.invokedViaPlanSession && parsed.skipPreflight) {
-        output.error(
-          `note: --skip-preflight bypasses the GH-1239 pre-draft check for ${parsed.workUnitId}`,
-        );
-      }
+          // GH-1239: auto-step preflight for `prx plan session`. Refuses session
+          // entry when the planner would draft against an already-done artifact,
+          // an infeasible action shape, or a still-open blocker. `--check` /
+          // `--dry-run` skip the gate (read-only inspections; preflight itself
+          // is a separate verb the operator can run for the same audit). The
+          // exit-2 path mirrors the tmux + plan-mode refusal precedent — the
+          // error stream carries the structured reason.
+          if (
+            parsed.invokedViaPlanSession &&
+            !parsed.check &&
+            !parsed.dryRun &&
+            !parsed.skipPreflight
+          ) {
+            const refusal = await runPreflightAutoStepRefusal(parsed.workUnitId, deps, output);
+            if (refusal !== null) return refusal;
+          } else if (parsed.invokedViaPlanSession && parsed.skipPreflight) {
+            output.error(
+              `note: --skip-preflight bypasses the GH-1239 pre-draft check for ${parsed.workUnitId}`,
+            );
+          }
 
-      // GH-549: `--check` is a read-only inspection. It never spawns hooks or
-      // mutates local state, so the re-entrancy guard below (which protects
-      // the materialization path) does not apply. Short circuit here — after
-      // the chain pre-check, before any worktree lookup or `wt switch` — so
-      // the command stays a pure inspection on all four branch states
-      // (absent / local-only / remote-only / worktree-exists).
-      if (parsed.check) {
-        // Read-only: skip pruneStaleRemoteRefs (network I/O + mutates refs)
-        await validateWorkSessionEntry(
-          parsed.workUnitId,
-          process.cwd(),
-          parsed.create,
-          deps.boardStatus ?? boardStatus,
-          deps.buildParityChain ?? buildParityChain,
-          deps.validateGitHubIssue ?? validateGitHubIssue,
-          () => {},
-          parsed.from,
-          deps.findEpicChildren ?? findEpicChildren,
-          deps.wtStatus ?? wtStatus,
-        );
-        const report = (deps.inspectSessionOpenState ?? inspectSessionOpenState)(
-          parsed.workUnitId,
-          process.cwd(),
-        );
-        output.log(formatSessionOpenCheck(report, parsed.format));
-        return 0;
-      }
+          // GH-549: `--check` is a read-only inspection. It never spawns hooks or
+          // mutates local state, so the re-entrancy guard below (which protects
+          // the materialization path) does not apply. Short circuit here — after
+          // the chain pre-check, before any worktree lookup or `wt switch` — so
+          // the command stays a pure inspection on all four branch states
+          // (absent / local-only / remote-only / worktree-exists).
+          if (parsed.check) {
+            // Read-only: skip pruneStaleRemoteRefs (network I/O + mutates refs)
+            await validateWorkSessionEntry(
+              parsed.workUnitId,
+              process.cwd(),
+              parsed.create,
+              deps.boardStatus ?? boardStatus,
+              deps.buildParityChain ?? buildParityChain,
+              deps.validateGitHubIssue ?? validateGitHubIssue,
+              () => {},
+              parsed.from,
+              deps.findEpicChildren ?? findEpicChildren,
+              deps.wtStatus ?? wtStatus,
+            );
+            const report = (deps.inspectSessionOpenState ?? inspectSessionOpenState)(
+              parsed.workUnitId,
+              process.cwd(),
+            );
+            output.log(formatSessionOpenCheck(report, parsed.format));
+            return 0;
+          }
 
-      // Re-entrancy guard: prevent prx session open → wt switch → hooks → prx session open loops.
-      // The env var is inherited by child processes (wt switch hooks), detecting when prx session
-      // open is called from within itself.
-      const PRX_SESSION_OPEN_ENV = "PRX_SESSION_OPEN";
-      if (getEnv(PRX_SESSION_OPEN_ENV)) {
-        throw new CliError(
-          `Re-entrant prx session open detected for ${parsed.workUnitId} — aborting to prevent loop. ` +
-          `(${PRX_SESSION_OPEN_ENV} is already set in the environment.)`,
-        );
-      }
-      setEnv(PRX_SESSION_OPEN_ENV, "1");
-      try {
-
-      // GH-528: warn if the installed prx binary is behind origin/main.
-      // Non-fatal — we still run the session, but surface the staleness so
-      // users can choose to rebuild before they hit recently-fixed bugs.
-      {
-        const update = (deps.checkPrxBinaryUpstream ?? checkPrxBinaryUpstream)();
-        if (update) {
-          output.error(
-            formatBinaryUpdateWarning(update),
-          );
-        }
-      }
-      const policy = POLICY;
-      const isInteractiveClaude = parsed.agent === "claude" && parsed.prompt === undefined;
-      // GH-1056: pre-tmux setup is shared with `prx plan prime` and
-      // `prx session open-claude`; primePlanSession() emits the same warnings
-      // (rebase, hydrate, mcp, allowlist) inline so the session handler
-      // experience is unchanged.
-      const primed = await primePlanSession(
-        {
-          workUnitId: parsed.workUnitId,
-          launchFromCurrentWorkspace: parsed.launchFromCurrentWorkspace,
-          create: parsed.create,
-          noVerify: parsed.noVerify,
-          from: parsed.from,
-          agent: parsed.agent,
-          isInteractiveClaude,
-          format: parsed.format,
-          repoSlug: parsed.repoSlug,
-        },
-        output,
-        deps,
-      );
-      const launchCwd = primed.launchCwd;
-      const runtimeArtifacts = primed.runtimeArtifacts;
-      const hasPriorClaudeSession = primed.hasPriorClaudeSession;
-      // GH-977: route the interactive-claude profile through the
-      // session-entry XState machine so the alias hint
-      // (`prx session open` → `prx plan session`) and PRX_SESSION_CONTEXT
-      // env injection are consolidated into one transition action.
-      const sessionProfile: RuntimeProfileProjection = isInteractiveClaude
-        ? dispatchSessionEntryEvent({
-            type: "OPEN_PLAN_SESSION",
-            workUnitId: parsed.workUnitId,
-            viaAlias: parsed.invokedViaSessionOpen === true,
-            hasPriorSession: hasPriorClaudeSession,
-          })
-        : buildExecutedWorkProfile(
-            buildWorkAutomationProfile(parsed.agent, parsed.workUnitId, parsed.ioFormat, parsed.mode),
-            { prompt: parsed.prompt },
-          );
-      const codexResolved = parsed.agent === "codex" && !parsed.prompt
-        ? resolveCodexSessionProfile(sessionProfile, parsed.workUnitId, launchCwd)
-        : { profile: sessionProfile, message: null };
-      if (codexResolved.message) {
-        output.error(codexResolved.message);
-      }
-      if (parsed.dryRun) {
-        output.log(formatRuntimeProfile(codexResolved.profile, parsed.format));
-        return 0;
-      }
-      // slice 3 (headless-only): JSON mode emits the resolved profile metadata
-      // without a tmux session payload.
-      if (parsed.format === "json") {
-        output.log(
-          JSON.stringify(
+          // Re-entrancy guard: prevent prx session open → wt switch → hooks → prx session open loops.
+          // The env var is inherited by child processes (wt switch hooks), detecting when prx session
+          // open is called from within itself.
+          const PRX_SESSION_OPEN_ENV = "PRX_SESSION_OPEN";
+          if (getEnv(PRX_SESSION_OPEN_ENV)) {
+            throw new CliError(
+              `Re-entrant prx session open detected for ${parsed.workUnitId} — aborting to prevent loop. ` +
+                `(${PRX_SESSION_OPEN_ENV} is already set in the environment.)`,
+            );
+          }
+          setEnv(PRX_SESSION_OPEN_ENV, "1");
+          try {
+            // GH-528: warn if the installed prx binary is behind origin/main.
+            // Non-fatal — we still run the session, but surface the staleness so
+            // users can choose to rebuild before they hit recently-fixed bugs.
             {
-              profile: codexResolved.profile,
-              cwd: launchCwd,
-              runtimeArtifacts,
-              policy,
-              status: 0,
-            },
-            null,
-            2,
-          ),
-        );
-        return 0;
-      }
+              const update = (deps.checkPrxBinaryUpstream ?? checkPrxBinaryUpstream)();
+              if (update) {
+                output.error(formatBinaryUpdateWarning(update));
+              }
+            }
+            const policy = POLICY;
+            const isInteractiveClaude = parsed.agent === "claude" && parsed.prompt === undefined;
+            // GH-1056: pre-tmux setup is shared with `prx plan prime` and
+            // `prx session open-claude`; primePlanSession() emits the same warnings
+            // (rebase, hydrate, mcp, allowlist) inline so the session handler
+            // experience is unchanged.
+            const primed = await primePlanSession(
+              {
+                workUnitId: parsed.workUnitId,
+                launchFromCurrentWorkspace: parsed.launchFromCurrentWorkspace,
+                create: parsed.create,
+                noVerify: parsed.noVerify,
+                from: parsed.from,
+                agent: parsed.agent,
+                isInteractiveClaude,
+                format: parsed.format,
+                repoSlug: parsed.repoSlug,
+              },
+              output,
+              deps,
+            );
+            const launchCwd = primed.launchCwd;
+            const runtimeArtifacts = primed.runtimeArtifacts;
+            const hasPriorClaudeSession = primed.hasPriorClaudeSession;
+            // GH-977: route the interactive-claude profile through the
+            // session-entry XState machine so the alias hint
+            // (`prx session open` → `prx plan session`) and PRX_SESSION_CONTEXT
+            // env injection are consolidated into one transition action.
+            const sessionProfile: RuntimeProfileProjection = isInteractiveClaude
+              ? dispatchSessionEntryEvent({
+                  type: "OPEN_PLAN_SESSION",
+                  workUnitId: parsed.workUnitId,
+                  viaAlias: parsed.invokedViaSessionOpen === true,
+                  hasPriorSession: hasPriorClaudeSession,
+                })
+              : buildExecutedWorkProfile(
+                  buildWorkAutomationProfile(
+                    parsed.agent,
+                    parsed.workUnitId,
+                    parsed.ioFormat,
+                    parsed.mode,
+                  ),
+                  { prompt: parsed.prompt },
+                );
+            const codexResolved =
+              parsed.agent === "codex" && !parsed.prompt
+                ? resolveCodexSessionProfile(sessionProfile, parsed.workUnitId, launchCwd)
+                : { profile: sessionProfile, message: null };
+            if (codexResolved.message) {
+              output.error(codexResolved.message);
+            }
+            if (parsed.dryRun) {
+              output.log(formatRuntimeProfile(codexResolved.profile, parsed.format));
+              return 0;
+            }
+            // slice 3 (headless-only): JSON mode emits the resolved profile metadata
+            // without a tmux session payload.
+            if (parsed.format === "json") {
+              output.log(
+                JSON.stringify(
+                  {
+                    profile: codexResolved.profile,
+                    cwd: launchCwd,
+                    runtimeArtifacts,
+                    policy,
+                    status: 0,
+                  },
+                  null,
+                  2,
+                ),
+              );
+              return 0;
+            }
 
-      // slice 3: run the session profile directly in the foreground terminal
-      // (stdio-inherit) instead of spawning + attaching a tmux pane. The
-      // former durable-tmux behaviour (survive terminal close / reboot via
-      // tmux-resurrect) is gone with tmux; the agent now runs as a child of
-      // this process.
-      const result = (deps.execRuntime ?? localRuntimeExecutor)(
-        codexResolved.profile,
-        "plain",
-        launchCwd,
-        interactiveTimeoutMs("plain", POLICY.timeout_ms),
-      );
-      return result.status;
-
-      } finally {
-        deleteEnv(PRX_SESSION_OPEN_ENV);
-      }
+            // slice 3: run the session profile directly in the foreground terminal
+            // (stdio-inherit) instead of spawning + attaching a tmux pane. The
+            // former durable-tmux behaviour (survive terminal close / reboot via
+            // tmux-resurrect) is gone with tmux; the agent now runs as a child of
+            // this process.
+            const result = (deps.execRuntime ?? localRuntimeExecutor)(
+              codexResolved.profile,
+              "plain",
+              launchCwd,
+              interactiveTimeoutMs("plain", POLICY.timeout_ms),
+            );
+            return result.status;
+          } finally {
+            deleteEnv(PRX_SESSION_OPEN_ENV);
+          }
         } catch (error) {
           return handleRunCliError(error, output);
         }
@@ -16088,134 +16083,124 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     if (parsed.command === "session-open-claude") {
       return (async (): Promise<number> => {
         try {
-      if (parsed.invokedViaDeprecatedWorkAlias) {
-        output.error(PRX_SESSION_DEPRECATION_WORK);
-      }
-      // GH-950: plan-session banner (see the mirror block in the `session`
-      // handler). GH-977: alias-deprecation hint for `prx session open` is
-      // emitted from the session-entry machine action.
-      if (parsed.invokedViaPlanSession) {
-        output.error(SESSION_PROFILES.plan.banner);
-      }
-      // GH-1239: auto-step preflight on the canonical interactive-claude
-      // dispatch. Mirrors the gate in the legacy `session` handler so both
-      // entry shapes refuse identically. `--dry-run` skips so the operator
-      // can still inspect the resolved profile without preflight network
-      // calls; `prx implement` (which routes here without
-      // `invokedViaPlanSession`) is unaffected.
-      if (
-        parsed.invokedViaPlanSession &&
-        !parsed.dryRun &&
-        !parsed.skipPreflight
-      ) {
-        const refusal = await runPreflightAutoStepRefusal(
-          parsed.workUnitId,
-          deps,
-          output,
-        );
-        if (refusal !== null) return refusal;
-      } else if (parsed.invokedViaPlanSession && parsed.skipPreflight) {
-        output.error(
-          `note: --skip-preflight bypasses the GH-1239 pre-draft check for ${parsed.workUnitId}`,
-        );
-      }
-      // GH-819: launch claude as tmux pane PID 1 — no shell parent, no
-      // `send-keys` replay, no bootstrap.sh indirection on the hot path.
-      // Reuses `buildWorkUnitClaudeInteractiveRuntimeProfile` so argv is
-      // the single source of truth shared with `prx session open`.
-      // GH-1044: `prx implement` shares this dispatch (and re-entrancy
-      // guard) with `prx session open` and `prx session open-claude` —
-      // they all parse to `command: "session-open-claude"`.
-      const PRX_SESSION_OPEN_ENV = "PRX_SESSION_OPEN";
-      if (getEnv(PRX_SESSION_OPEN_ENV)) {
-        throw new CliError(
-          `Re-entrant prx session open-claude detected for ${parsed.workUnitId} — aborting to prevent loop. ` +
-          `(${PRX_SESSION_OPEN_ENV} is already set in the environment.)`,
-        );
-      }
-      setEnv(PRX_SESSION_OPEN_ENV, "1");
-      try {
-        {
-          const update = (deps.checkPrxBinaryUpstream ?? checkPrxBinaryUpstream)();
-          if (update) {
+          if (parsed.invokedViaDeprecatedWorkAlias) {
+            output.error(PRX_SESSION_DEPRECATION_WORK);
+          }
+          // GH-950: plan-session banner (see the mirror block in the `session`
+          // handler). GH-977: alias-deprecation hint for `prx session open` is
+          // emitted from the session-entry machine action.
+          if (parsed.invokedViaPlanSession) {
+            output.error(SESSION_PROFILES.plan.banner);
+          }
+          // GH-1239: auto-step preflight on the canonical interactive-claude
+          // dispatch. Mirrors the gate in the legacy `session` handler so both
+          // entry shapes refuse identically. `--dry-run` skips so the operator
+          // can still inspect the resolved profile without preflight network
+          // calls; `prx implement` (which routes here without
+          // `invokedViaPlanSession`) is unaffected.
+          if (parsed.invokedViaPlanSession && !parsed.dryRun && !parsed.skipPreflight) {
+            const refusal = await runPreflightAutoStepRefusal(parsed.workUnitId, deps, output);
+            if (refusal !== null) return refusal;
+          } else if (parsed.invokedViaPlanSession && parsed.skipPreflight) {
             output.error(
-              formatBinaryUpdateWarning(update),
+              `note: --skip-preflight bypasses the GH-1239 pre-draft check for ${parsed.workUnitId}`,
             );
           }
-        }
-        const policy = POLICY;
-        // GH-1056: shared pre-tmux setup with `prx session open` and
-        // `prx plan prime`. session-open-claude is always interactive claude
-        // (no --create, no --no-verify, no --from), so the input is fixed.
-        const primed = await primePlanSession(
-          {
-            workUnitId: parsed.workUnitId,
-            launchFromCurrentWorkspace: parsed.launchFromCurrentWorkspace,
-            create: false,
-            noVerify: false,
-            agent: "claude",
-            isInteractiveClaude: true,
-            format: parsed.format,
-            repoSlug: parsed.repoSlug,
-          },
-          output,
-          deps,
-        );
-        const launchCwd = primed.launchCwd;
-        const runtimeArtifacts = primed.runtimeArtifacts;
-        const hasPriorClaudeSession = primed.hasPriorClaudeSession;
-        // GH-977: same session-entry machine path as the `session` handler;
-        // viaAlias is true when the user typed `prx session open` (the
-        // alias) rather than `prx plan session` (canonical).
-        // GH-2014: thread the --background flag through the event payload so
-        // the projection carries `attachMode` for the post-spawn gate below.
-        const sessionProfile: RuntimeProfileProjection = dispatchSessionEntryEvent({
-          type: "OPEN_PLAN_SESSION",
-          workUnitId: parsed.workUnitId,
-          viaAlias: parsed.invokedViaSessionOpen === true,
-          hasPriorSession: hasPriorClaudeSession,
-          planPath: parsed.planPath,
-          attachMode: parsed.attachMode,
-        });
-        if (parsed.dryRun) {
-          output.log(formatRuntimeProfile(sessionProfile, parsed.format));
-          return 0;
-        }
-        if (parsed.format === "json") {
-          output.log(
-            JSON.stringify(
+          // GH-819: launch claude as tmux pane PID 1 — no shell parent, no
+          // `send-keys` replay, no bootstrap.sh indirection on the hot path.
+          // Reuses `buildWorkUnitClaudeInteractiveRuntimeProfile` so argv is
+          // the single source of truth shared with `prx session open`.
+          // GH-1044: `prx implement` shares this dispatch (and re-entrancy
+          // guard) with `prx session open` and `prx session open-claude` —
+          // they all parse to `command: "session-open-claude"`.
+          const PRX_SESSION_OPEN_ENV = "PRX_SESSION_OPEN";
+          if (getEnv(PRX_SESSION_OPEN_ENV)) {
+            throw new CliError(
+              `Re-entrant prx session open-claude detected for ${parsed.workUnitId} — aborting to prevent loop. ` +
+                `(${PRX_SESSION_OPEN_ENV} is already set in the environment.)`,
+            );
+          }
+          setEnv(PRX_SESSION_OPEN_ENV, "1");
+          try {
+            {
+              const update = (deps.checkPrxBinaryUpstream ?? checkPrxBinaryUpstream)();
+              if (update) {
+                output.error(formatBinaryUpdateWarning(update));
+              }
+            }
+            const policy = POLICY;
+            // GH-1056: shared pre-tmux setup with `prx session open` and
+            // `prx plan prime`. session-open-claude is always interactive claude
+            // (no --create, no --no-verify, no --from), so the input is fixed.
+            const primed = await primePlanSession(
               {
-                profile: sessionProfile,
-                cwd: launchCwd,
-                runtimeArtifacts,
-                policy,
-                status: 0,
+                workUnitId: parsed.workUnitId,
+                launchFromCurrentWorkspace: parsed.launchFromCurrentWorkspace,
+                create: false,
+                noVerify: false,
+                agent: "claude",
+                isInteractiveClaude: true,
+                format: parsed.format,
+                repoSlug: parsed.repoSlug,
               },
-              null,
-              2,
-            ),
-          );
-          return 0;
-        }
-        // slice 3 (headless-only): --no-attach / --background no longer have a
-        // tmux session to attach to. Both boot-only flags collapse to "build
-        // the profile, don't run" — print the resolved profile and return.
-        if (parsed.noAttach || sessionProfile.attachMode === "background") {
-          output.log(formatRuntimeProfile(sessionProfile, parsed.format));
-          return 0;
-        }
-        // slice 3: run the plan session profile directly in the foreground
-        // terminal (stdio-inherit) instead of spawning + attaching a tmux pane.
-        const result = (deps.execRuntime ?? localRuntimeExecutor)(
-          sessionProfile,
-          "plain",
-          launchCwd,
-          interactiveTimeoutMs("plain", POLICY.timeout_ms),
-        );
-        return result.status;
-      } finally {
-        deleteEnv(PRX_SESSION_OPEN_ENV);
-      }
+              output,
+              deps,
+            );
+            const launchCwd = primed.launchCwd;
+            const runtimeArtifacts = primed.runtimeArtifacts;
+            const hasPriorClaudeSession = primed.hasPriorClaudeSession;
+            // GH-977: same session-entry machine path as the `session` handler;
+            // viaAlias is true when the user typed `prx session open` (the
+            // alias) rather than `prx plan session` (canonical).
+            // GH-2014: thread the --background flag through the event payload so
+            // the projection carries `attachMode` for the post-spawn gate below.
+            const sessionProfile: RuntimeProfileProjection = dispatchSessionEntryEvent({
+              type: "OPEN_PLAN_SESSION",
+              workUnitId: parsed.workUnitId,
+              viaAlias: parsed.invokedViaSessionOpen === true,
+              hasPriorSession: hasPriorClaudeSession,
+              planPath: parsed.planPath,
+              attachMode: parsed.attachMode,
+            });
+            if (parsed.dryRun) {
+              output.log(formatRuntimeProfile(sessionProfile, parsed.format));
+              return 0;
+            }
+            if (parsed.format === "json") {
+              output.log(
+                JSON.stringify(
+                  {
+                    profile: sessionProfile,
+                    cwd: launchCwd,
+                    runtimeArtifacts,
+                    policy,
+                    status: 0,
+                  },
+                  null,
+                  2,
+                ),
+              );
+              return 0;
+            }
+            // slice 3 (headless-only): --no-attach / --background no longer have a
+            // tmux session to attach to. Both boot-only flags collapse to "build
+            // the profile, don't run" — print the resolved profile and return.
+            if (parsed.noAttach || sessionProfile.attachMode === "background") {
+              output.log(formatRuntimeProfile(sessionProfile, parsed.format));
+              return 0;
+            }
+            // slice 3: run the plan session profile directly in the foreground
+            // terminal (stdio-inherit) instead of spawning + attaching a tmux pane.
+            const result = (deps.execRuntime ?? localRuntimeExecutor)(
+              sessionProfile,
+              "plain",
+              launchCwd,
+              interactiveTimeoutMs("plain", POLICY.timeout_ms),
+            );
+            return result.status;
+          } finally {
+            deleteEnv(PRX_SESSION_OPEN_ENV);
+          }
         } catch (error) {
           return handleRunCliError(error, output);
         }
@@ -16303,7 +16288,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           if (getEnv(PRX_SESSION_OPEN_ENV)) {
             throw new CliError(
               `Re-entrant prx implement agent detected for ${parsed.workUnitId} — aborting to prevent loop. ` +
-              `(${PRX_SESSION_OPEN_ENV} is already set in the environment.)`,
+                `(${PRX_SESSION_OPEN_ENV} is already set in the environment.)`,
             );
           }
           setEnv(PRX_SESSION_OPEN_ENV, "1");
@@ -16311,9 +16296,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             {
               const update = (deps.checkPrxBinaryUpstream ?? checkPrxBinaryUpstream)();
               if (update) {
-                output.error(
-                  formatBinaryUpdateWarning(update),
-                );
+                output.error(formatBinaryUpdateWarning(update));
               }
             }
             const primed = await primePlanSession(
@@ -16361,15 +16344,16 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
                 launchCwd,
                 `prx implement agent runtime active for ${parsed.workUnitId} (pid ${process.pid})`,
                 deps,
-                () => executeAgentProfile(headlessProfile, {
-                  cwd: launchCwd,
-                  format: "json",
-                  // prx-who: implement does real, multi-file refactors — default
-                  // to the longer anti-hang ceiling so a legitimate run isn't cut
-                  // off mid-work at the 15-min blanket default (which it was).
-                  timeoutMs: DEFAULT_IMPLEMENT_WATCHDOG_MS,
-                  ...(deps.execRuntime ? { subprocessExecutor: deps.execRuntime } : {}),
-                }),
+                () =>
+                  executeAgentProfile(headlessProfile, {
+                    cwd: launchCwd,
+                    format: "json",
+                    // prx-who: implement does real, multi-file refactors — default
+                    // to the longer anti-hang ceiling so a legitimate run isn't cut
+                    // off mid-work at the 15-min blanket default (which it was).
+                    timeoutMs: DEFAULT_IMPLEMENT_WATCHDOG_MS,
+                    ...(deps.execRuntime ? { subprocessExecutor: deps.execRuntime } : {}),
+                  }),
               );
               const result = agentProfileExecutionAsRuntimeResult(dispatched);
               if (result.stdout) output.log(result.stdout);
@@ -16388,23 +16372,24 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
                   // default path (no PRX_PROVENANCE_KEY) is unchanged.
                   const signer = resolveProvenanceSigner();
                   const canonicalLedger = resolveCanonicalChainLedger(launchCwd)?.ledgerPath;
-                  const attestChecks = signer !== null && canonicalLedger !== undefined
-                    ? async (cwd: string, commit: string): Promise<boolean> => {
-                        mkdirSync(dirname(canonicalLedger), { recursive: true });
-                        const store = openAnchoredChain(canonicalLedger);
-                        try {
-                          return await runAttestedChecks(
-                            localProcExecutor(),
-                            { signer, store: store.derivations },
-                            commit,
-                            cwd,
-                            IMPLEMENT_CHECK_STEPS,
-                          );
-                        } finally {
-                          store.close();
+                  const attestChecks =
+                    signer !== null && canonicalLedger !== undefined
+                      ? async (cwd: string, commit: string): Promise<boolean> => {
+                          mkdirSync(dirname(canonicalLedger), { recursive: true });
+                          const store = openAnchoredChain(canonicalLedger);
+                          try {
+                            return await runAttestedChecks(
+                              localProcExecutor(),
+                              { signer, store: store.derivations },
+                              commit,
+                              cwd,
+                              IMPLEMENT_CHECK_STEPS,
+                            );
+                          } finally {
+                            store.close();
+                          }
                         }
-                      }
-                    : undefined;
+                      : undefined;
                   const fin = await finalizeImplementRun(
                     {
                       unit: parsed.workUnitId,
@@ -16419,10 +16404,19 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
                       },
                       listChangedFiles: (cwd, commit) => {
                         const r = runCommand([
-                          "git", "-C", cwd, "show", "--name-only", "--pretty=format:", commit,
+                          "git",
+                          "-C",
+                          cwd,
+                          "show",
+                          "--name-only",
+                          "--pretty=format:",
+                          commit,
                         ]);
                         return r.status === 0
-                          ? r.stdout.split("\n").map((s) => s.trim()).filter(Boolean)
+                          ? r.stdout
+                              .split("\n")
+                              .map((s) => s.trim())
+                              .filter(Boolean)
                           : [];
                       },
                       ...(attestChecks ? { attestChecks } : {}),
@@ -16448,7 +16442,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
                   // capture is best-effort — the commit is already safe — but the
                   // reason is surfaced so a missing implement@latest is diagnosable.
                   const msg = err instanceof Error ? err.message : String(err);
-                  output.error(`warning: implement artifact capture failed for ${parsed.workUnitId} (commit is safe): ${msg}`);
+                  output.error(
+                    `warning: implement artifact capture failed for ${parsed.workUnitId} (commit is safe): ${msg}`,
+                  );
                 }
               }
               return result.status;
@@ -16473,7 +16469,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           if (getEnv(PRX_SESSION_OPEN_ENV)) {
             throw new CliError(
               `Re-entrant prx plan prime detected for ${parsed.workUnitId} — aborting to prevent loop. ` +
-              `(${PRX_SESSION_OPEN_ENV} is already set in the environment.)`,
+                `(${PRX_SESSION_OPEN_ENV} is already set in the environment.)`,
             );
           }
           setEnv(PRX_SESSION_OPEN_ENV, "1");
@@ -16481,9 +16477,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             {
               const update = (deps.checkPrxBinaryUpstream ?? checkPrxBinaryUpstream)();
               if (update) {
-                output.error(
-                  formatBinaryUpdateWarning(update),
-                );
+                output.error(formatBinaryUpdateWarning(update));
               }
             }
             const primed = await primePlanSession(
@@ -16540,430 +16534,462 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     if (parsed.command === "session-plan") {
       return (async (): Promise<number> => {
         try {
-      // GH-1982: alias-deprecation hint when the operator typed
-      // `prx session plan` instead of the canonical `prx plan session`.
-      // Emitted exactly once at the start of dispatch, before any banner.
-      if (parsed.viaAlias) {
-        output.error(PRX_SESSION_PLAN_ALIAS_HINT);
-      }
-      // GH-1164: banner prefix swaps with invocation namespace so user-facing
-      // lines match the verb the operator typed. GH-1982: the alias path now
-      // sets `invokedViaPlanSession: true` too (for the auto-save chain), so
-      // we also check `viaAlias` to keep the banner reading "session plan".
-      const bannerPrefix = parsed.viaAlias
-        ? "prx session plan"
-        : parsed.invokedViaPlanSession
-          ? "prx plan session"
-          : "prx session plan";
-      if (parsed.check) {
-        // GH-2113 / GH-2120: forward `parsed.from` (+ findEpicChildren / wtStatus)
-        // so the GH-2140 entry guard — which rejects `--from=notion|beads` against
-        // a GH-keyed id before any `gh` round-trip — actually fires on the
-        // operator-facing `prx plan session ... --check` path. This mirrors the
-        // sibling `command: "session"` dispatch above; omitting `from` here left
-        // the guard dead through `session-plan`, so the operator hit a confusing
-        // upstream `gh` not-found instead of the precise rejection (GH-2112).
-        await validateWorkSessionEntry(
-          parsed.workUnitId,
-          process.cwd(),
-          parsed.create,
-          deps.boardStatus ?? boardStatus,
-          deps.buildParityChain ?? buildParityChain,
-          deps.validateGitHubIssue ?? validateGitHubIssue,
-          () => {},
-          parsed.from,
-          deps.findEpicChildren ?? findEpicChildren,
-          deps.wtStatus ?? wtStatus,
-        );
-        const report = (deps.inspectSessionOpenState ?? inspectSessionOpenState)(
-          parsed.workUnitId,
-          process.cwd(),
-        );
-        output.log(formatSessionOpenCheck(report, parsed.format));
-        return 0;
-      }
+          // GH-1982: alias-deprecation hint when the operator typed
+          // `prx session plan` instead of the canonical `prx plan session`.
+          // Emitted exactly once at the start of dispatch, before any banner.
+          if (parsed.viaAlias) {
+            output.error(PRX_SESSION_PLAN_ALIAS_HINT);
+          }
+          // GH-1164: banner prefix swaps with invocation namespace so user-facing
+          // lines match the verb the operator typed. GH-1982: the alias path now
+          // sets `invokedViaPlanSession: true` too (for the auto-save chain), so
+          // we also check `viaAlias` to keep the banner reading "session plan".
+          const bannerPrefix = parsed.viaAlias
+            ? "prx session plan"
+            : parsed.invokedViaPlanSession
+              ? "prx plan session"
+              : "prx session plan";
+          if (parsed.check) {
+            // GH-2113 / GH-2120: forward `parsed.from` (+ findEpicChildren / wtStatus)
+            // so the GH-2140 entry guard — which rejects `--from=notion|beads` against
+            // a GH-keyed id before any `gh` round-trip — actually fires on the
+            // operator-facing `prx plan session ... --check` path. This mirrors the
+            // sibling `command: "session"` dispatch above; omitting `from` here left
+            // the guard dead through `session-plan`, so the operator hit a confusing
+            // upstream `gh` not-found instead of the precise rejection (GH-2112).
+            await validateWorkSessionEntry(
+              parsed.workUnitId,
+              process.cwd(),
+              parsed.create,
+              deps.boardStatus ?? boardStatus,
+              deps.buildParityChain ?? buildParityChain,
+              deps.validateGitHubIssue ?? validateGitHubIssue,
+              () => {},
+              parsed.from,
+              deps.findEpicChildren ?? findEpicChildren,
+              deps.wtStatus ?? wtStatus,
+            );
+            const report = (deps.inspectSessionOpenState ?? inspectSessionOpenState)(
+              parsed.workUnitId,
+              process.cwd(),
+            );
+            output.log(formatSessionOpenCheck(report, parsed.format));
+            return 0;
+          }
 
-      const PRX_SESSION_OPEN_ENV = "PRX_SESSION_OPEN";
-      if (getEnv(PRX_SESSION_OPEN_ENV)) {
-        throw new CliError(
-          `Re-entrant ${bannerPrefix} detected for ${parsed.workUnitId} — aborting to prevent loop. ` +
-          `(${PRX_SESSION_OPEN_ENV} is already set in the environment.)`,
-        );
-      }
-      setEnv(PRX_SESSION_OPEN_ENV, "1");
-      try {
-        {
-          const update = (deps.checkPrxBinaryUpstream ?? checkPrxBinaryUpstream)();
-          if (update) {
-            output.error(
-              formatBinaryUpdateWarning(update),
+          const PRX_SESSION_OPEN_ENV = "PRX_SESSION_OPEN";
+          if (getEnv(PRX_SESSION_OPEN_ENV)) {
+            throw new CliError(
+              `Re-entrant ${bannerPrefix} detected for ${parsed.workUnitId} — aborting to prevent loop. ` +
+                `(${PRX_SESSION_OPEN_ENV} is already set in the environment.)`,
             );
           }
-        }
-        const policy = POLICY;
-        // GH-1164: when reached via the canonical `prx plan session` entry,
-        // route the pre-runtime setup through primePlanSession so --repo
-        // (GH-1643), bd canonical hydration (GH-1766), and auto-rebase all
-        // work on the print path. GH-1982: the alias path also sets
-        // `invokedViaPlanSession: true`, so this primePlanSession branch now
-        // covers both entries; the inline back-compat branch below is dead
-        // pending the alias's hard removal in the next cycle.
-        let launchCwd: string;
-        let runtimeArtifacts: RuntimeArtifactStatus;
-        let hasPriorSession: boolean;
-        let effectiveWorkUnitId: string;
-        if (parsed.invokedViaPlanSession) {
-          const primed = await primePlanSession(
+          setEnv(PRX_SESSION_OPEN_ENV, "1");
+          try {
             {
-              workUnitId: parsed.workUnitId,
-              create: parsed.create,
-              noVerify: parsed.noVerify,
-              from: parsed.from,
-              agent: "claude",
-              isInteractiveClaude: parsed.interactive,
-              format: parsed.format,
-              repoSlug: parsed.repoSlug,
-            },
-            output,
-            deps,
-          );
-          launchCwd = primed.launchCwd;
-          runtimeArtifacts = primed.runtimeArtifacts;
-          hasPriorSession = primed.hasPriorClaudeSession;
-          effectiveWorkUnitId = primed.workUnitId;
-        } else {
-          await validateWorkSessionEntry(
-            parsed.workUnitId,
-            process.cwd(),
-            parsed.create,
-            deps.boardStatus ?? boardStatus,
-            deps.buildParityChain ?? buildParityChain,
-            deps.validateGitHubIssue ?? validateGitHubIssue,
-            deps.pruneStaleRemoteRefs ?? pruneStaleRemoteRefs,
-          );
-          if (parsed.create) {
-            if (deps.materializeWorktree) {
-              deps.materializeWorktree(parsed.workUnitId, process.cwd(), parsed.noVerify);
-            } else {
-              materializeWorkUnitBranch(parsed.workUnitId, process.cwd(), undefined, undefined, parsed.noVerify);
+              const update = (deps.checkPrxBinaryUpstream ?? checkPrxBinaryUpstream)();
+              if (update) {
+                output.error(formatBinaryUpdateWarning(update));
+              }
             }
-          }
-          launchCwd = deps.resolveWorkUnitCwd
-            ? deps.resolveWorkUnitCwd(parsed.workUnitId, process.cwd(), parsed.noVerify)
-            : resolveWorkUnitLaunchCwdUsingDefaults(parsed.workUnitId, process.cwd(), parsed.noVerify);
-          {
-            const { behind } = parseDivergence(launchCwd);
-            if (behind > 0) {
-              output.error(`warning: branch is ${behind} commit${behind === 1 ? "" : "s"} behind origin/main — run \`prx worktree refresh\` to rebase`);
-            }
-          }
-          try {
-            const hydrateResult = (deps.hydrateBeads ?? hydrateBeads)({ cwd: launchCwd });
-            if (hydrateResult.status === "hydrated" || hydrateResult.status === "clone-failed") {
-              output.error(hydrateResult.message);
-            }
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            output.error(`warning: beads hydration failed unexpectedly: ${message}`);
-          }
-          runtimeArtifacts = (deps.ensureRuntimeArtifacts ?? ensureLocalRuntimeArtifacts)(
-            parsed.workUnitId,
-            launchCwd,
-          );
-          if (parsed.interactive) {
-            const allowlist = (deps.ensureClaudeAllowlist ?? ensureClaudeInteractiveAllowlist)(launchCwd);
-            if (allowlist.status === "skipped-malformed") {
-              output.error(buildMalformedAllowlistWarning(allowlist.path));
-            }
-          }
-          hasPriorSession = parsed.interactive
-            ? (deps.findSavedClaudeSession ?? findSavedClaudeSession)(launchCwd)
-            : false;
-          effectiveWorkUnitId = parsed.workUnitId;
-        }
-        // GH-1825: when --resume-from-draft is set, read the prior partial
-        // capture from `<UoW>:plan@draft` and thread it into the planner
-        // prompt as continuation context. Empty/missing slot raises a typed
-        // refusal pointing the operator at the fresh-draft verb.
-        let resumePartialPlan: string | undefined;
-        if (parsed.resumeFromDraft) {
-          if (parsed.interactive) {
-            throw new CliError(
-              `${bannerPrefix}: --resume-from-draft only applies to the non-interactive SDK call site; drop --interactive or remove --resume-from-draft`,
-            );
-          }
-          try {
-            const loaded = await (deps.runPlanLoad ?? runPlanLoad)({
-              unit: effectiveWorkUnitId,
-              slot: "draft",
-            });
-            const text = loaded.content.toString("utf8");
-            if (text.trim().length === 0) {
-              throw new CliError(
-                `${bannerPrefix}: draft slot ${refName(effectiveWorkUnitId, "draft")} is empty — run \`${bannerPrefix} ${effectiveWorkUnitId}\` first to draft a plan`,
-              );
-            }
-            resumePartialPlan = text;
-          } catch (err) {
-            if (err instanceof PlanRefNotFound) {
-              throw new CliError(
-                `${bannerPrefix}: no draft slot for ${effectiveWorkUnitId} — run \`${bannerPrefix} ${effectiveWorkUnitId}\` first to draft a plan`,
-              );
-            }
-            throw err;
-          }
-        }
-        // prx-pl2: embed the unit's source authority by CONSUMING the pinned
-        // `<unit>:source@pinned` derivation (the gate captured the one impure
-        // read there). Pure + scoped to exactly this unit — no bead loading, no
-        // GH-261: consume the pinned `<unit>:source@pinned` to hand the issue in
-        // as INPUT. The planner is sandboxed off bd/prx/gh, so it must never
-        // hydrate — the source is always embedded.
-        let planSourceBody: string | undefined;
-        if (!parsed.interactive && resumePartialPlan === undefined) {
-          try {
-            const src = await consumeArtifact(workUnitSourceEdge, effectiveWorkUnitId);
-            if (!src.missing && src.value) {
-              const body = src.value.body;
-              planSourceBody = body && body.trim().length > 0
-                ? `${src.value.title}\n\n${body}`
-                : src.value.title;
-            }
-          } catch {
-            // unreadable pin → treated as absent; the hard-fail below fires.
-          }
-          // GH-261: NO hydrate path. A headless planner with no handed-in source
-          // would flail/fabricate (GH-230) — fail closed instead. Intake must pin
-          // the source first. (`--dry-run` still previews the profile; resume and
-          // interactive carry their own context.)
-          if (!parsed.dryRun && planSourceBody === undefined) {
-            throw new CliError(
-              `prx plan agent: no \`${effectiveWorkUnitId}:source@pinned\` — the planner receives the issue as input and must not hydrate. Pin it first: \`prx intake source ${effectiveWorkUnitId}\` (GH-232).`,
-            );
-          }
-        }
-        const profile = parsed.interactive
-          ? buildWorkUnitClaudeInteractiveRuntimeProfile({
-              workUnitId: effectiveWorkUnitId,
-              role: "planner",
-              hasPriorSession,
-            })
-          : buildWorkUnitClaudePlanPrintRuntimeProfile({
-              workUnitId: effectiveWorkUnitId,
-              ...(resumePartialPlan !== undefined ? { resumePartialPlan } : {}),
-              ...(planSourceBody !== undefined ? { sourceBody: planSourceBody } : {}),
-            });
-        if (parsed.dryRun) {
-          output.log(formatRuntimeProfile(profile, parsed.format));
-          return 0;
-        }
-        // Interactive claude needs a TTY (stdio inherit via "plain"). Non-interactive
-        // --print streams to stdout too; we switch to "json" (stdio pipe) when
-        // the caller needs captured stdout for --emit-file, the post-exec JSON
-        // envelope, or the GH-1164 runPlanSave chain into the draft slot.
-        const needsCapture = !parsed.interactive && (
-          parsed.emitFile !== undefined ||
-          parsed.format === "json" ||
-          parsed.invokedViaPlanSession === true
-        );
-        const planExecutionFormat = needsCapture ? ("json" as const) : ("plain" as const);
-        const startedAt = Date.now();
-        // GH-1828: non-interactive plan-print routes through the Anthropic
-        // Agent SDK; interactive runs stay on `localRuntimeExecutor` (TTY
-        // inherit). When `deps.execRuntime` is injected by tests, the
-        // subprocess path runs regardless of `profile.agentRuntime` so the
-        // pre-1828 test seam keeps working.
-        const draftSinkForSdk = !parsed.interactive && profile.agentRuntime === "sdk" && !deps.execRuntime
-          ? makeWorkUnitDraftSink(effectiveWorkUnitId, { runPlanSave: deps.runPlanSave ?? runPlanSave })
-          : undefined;
-        // GH-1407 — fold draftSink + noCache into a single sdkOpts object.
-        // noCache is plan-print-only; the interactive flow rejects it at the parser.
-        const sdkOptsForCall: Partial<RunClaudeAgentNonInteractiveOpts> = {
-          ...(draftSinkForSdk ? { draftSink: draftSinkForSdk } : {}),
-          ...(parsed.noCache ? { noCache: true } : {}),
-        };
-        // GH-1825: opt-in watchdog. Interactive runs keep their existing
-        // posture (interactiveTimeoutMs gates the policy default by format).
-        // Print runs no longer carry an implicit policy.timeout_ms default —
-        // `undefined` means "no watchdog", matching spike §3.2 §6 item 4.
-        // The operator opts in via `--timeout=<duration>`; the subprocess
-        // fallback (--interactive or test-injected execRuntime) honors the
-        // same value when present.
-        const effectiveTimeoutMs = parsed.interactive
-          ? interactiveTimeoutMs(planExecutionFormat, policy.timeout_ms)
-          : parsed.timeoutMs;
-        const dispatched = await maybeWithWorktreeRuntimeLock(
-          true,
-          launchCwd,
-          `${bannerPrefix} runtime active for ${effectiveWorkUnitId} (pid ${process.pid})`,
-          deps,
-          () => executeAgentProfile(profile, {
-            cwd: launchCwd,
-            format: planExecutionFormat,
-            ...(effectiveTimeoutMs !== undefined ? { timeoutMs: effectiveTimeoutMs } : {}),
-            ...(deps.execRuntime ? { subprocessExecutor: deps.execRuntime } : {}),
-            ...(Object.keys(sdkOptsForCall).length > 0 ? { sdkOpts: sdkOptsForCall } : {}),
-          }),
-        );
-        // SDK cancellation surface (spike §6.3): typed line names the
-        // configured timeout, elapsed time, draft-slot ref, and resume verb.
-        // GH-1825: when a draft was captured, point the operator at
-        // `--resume-from-draft` (continues drafting) rather than
-        // `prx plan view --slot draft` (read-only inspection).
-        if (dispatched.kind === "sdk" && dispatched.result.kind === "cancelled") {
-          const c = dispatched.result;
-          const timeoutClause = c.configured_timeout_ms !== null
-            ? ` (configured --timeout=${c.configured_timeout_ms}ms)`
-            : "";
-          const draftClause = c.draftRef
-            ? `; partial plan saved to draft slot ${c.draftRef} — resume with \`${bannerPrefix} ${effectiveWorkUnitId} --resume-from-draft\``
-            : "; no partial content captured";
-          output.error(
-            `${bannerPrefix}: cancelled after ${c.elapsed_ms}ms${timeoutClause} (reason=${c.reason})${draftClause}.`,
-          );
-        }
-        // SDK typed failure surface: distinguishes rate_limit / network /
-        // model / cancelled (today's collapse-to-status-1 disappears).
-        if (dispatched.kind === "sdk" && dispatched.result.kind === "failed") {
-          const f = dispatched.result;
-          output.error(
-            `${bannerPrefix}: [${f.errorKind}] ${f.message}${f.retryAfter !== undefined ? ` (retry after ${f.retryAfter}ms)` : ""}`,
-          );
-        }
-        // Collapse the dispatched result back into the legacy
-        // `RuntimeExecutionResult` shape so the existing telemetry +
-        // emit-file + runPlanSave wiring below stays uniform. Plan-print
-        // wants the raw assistant text (not the JSON envelope), so we
-        // prefer `success.text` for the SDK success branch.
-        const result = (() => {
-          if (dispatched.kind === "subprocess") return dispatched.execution;
-          const sdk = dispatched.result;
-          if (sdk.kind === "success") {
-            return { status: 0, stdout: sdk.text, stderr: "" };
-          }
-          if (sdk.kind === "cancelled") {
-            return { status: 124, stdout: sdk.partialStdout, stderr: `cancelled (${sdk.reason})` };
-          }
-          return { status: 1, stdout: "", stderr: `[${sdk.errorKind}] ${sdk.message}` };
-        })();
-        if (result.status !== 0 && !(dispatched.kind === "sdk" && (dispatched.result.kind === "cancelled" || dispatched.result.kind === "failed"))) {
-          const stderrTail = (result.stderr ?? "").trim().split("\n").slice(-1)[0]?.slice(0, 200) ?? "";
-          const modeLabel = parsed.interactive ? `resume=${hasPriorSession ? "yes" : "no"}` : "mode=print";
-          output.error(
-            `${bannerPrefix}: claude exited ${result.status} (${modeLabel})${stderrTail ? ` — ${stderrTail}` : ""}`,
-          );
-        }
-        if (result.status === 0 && parsed.emitFile !== undefined) {
-          const writeFileFn = deps.writeFile ?? ((p: string, c: string) => writeFileSync(p, c));
-          const emitPath = resolve(launchCwd, parsed.emitFile);
-          mkdirSync(dirname(emitPath), { recursive: true });
-          writeFileFn(emitPath, result.stdout);
-          output.error(`${bannerPrefix}: wrote plan to ${emitPath}`);
-        }
-        // GH-1164: chain captured stdout into `prx plan save --slot draft` so
-        // the print-mode planner-handoff artifact lands in the CAS slot that
-        // `prx implement` (GH-1238) consumes. Gated on non-interactive
-        // success with non-empty stdout, fired whenever the dispatch was
-        // reached via `prx plan session` — GH-1982 promoted the alias
-        // `prx session plan` to set the same flag, so both entries now
-        // populate the draft slot identically.
-        if (
-          parsed.invokedViaPlanSession &&
-          !parsed.interactive &&
-          result.status === 0
-        ) {
-          const stdoutContent = result.stdout ?? "";
-          if (stdoutContent.trim().length === 0) {
-            output.error(
-              `${bannerPrefix}: claude produced no plan content; nothing saved to draft slot`,
-            );
-          } else {
-            // GH-2028: the save always persists now (persist-on-failure), so
-            // narrate real state instead of the GH-1473 misleading
-            // "(not saved…)" branch. When the body failed the shape gate the
-            // slot still lands; flag validated_ok=false so the operator knows
-            // `prx implement` will refuse until it is refined.
-            const saved = await (deps.runPlanSave ?? runPlanSave)({
-              unit: effectiveWorkUnitId,
-              slot: "draft",
-              content: stdoutContent,
-            });
-            // prx-j4a: surface the result through the shared printer, framed as
-            // input-artifact (the UoW) → output-artifact (the plan draft ref),
-            // instead of a prose "saved draft slot" line.
-            emit(
-              output,
-              {
-                schema: planAgentResultSchema,
-                data: {
-                  actor: "plan" as const,
-                  unit: effectiveWorkUnitId,
-                  ...(planSourceLabel(effectiveWorkUnitId)
-                    ? { source: planSourceLabel(effectiveWorkUnitId)! }
-                    : {}),
-                  ref: saved.ref,
-                  validated: saved.validated_ok,
-                  diagnostics: saved.diagnostics.length,
-                  ...(saved.validated_ok
-                    ? {}
-                    : { view: `prx plan show ${effectiveWorkUnitId} --slot draft` }),
+            const policy = POLICY;
+            // GH-1164: when reached via the canonical `prx plan session` entry,
+            // route the pre-runtime setup through primePlanSession so --repo
+            // (GH-1643), bd canonical hydration (GH-1766), and auto-rebase all
+            // work on the print path. GH-1982: the alias path also sets
+            // `invokedViaPlanSession: true`, so this primePlanSession branch now
+            // covers both entries; the inline back-compat branch below is dead
+            // pending the alias's hard removal in the next cycle.
+            let launchCwd: string;
+            let runtimeArtifacts: RuntimeArtifactStatus;
+            let hasPriorSession: boolean;
+            let effectiveWorkUnitId: string;
+            if (parsed.invokedViaPlanSession) {
+              const primed = await primePlanSession(
+                {
+                  workUnitId: parsed.workUnitId,
+                  create: parsed.create,
+                  noVerify: parsed.noVerify,
+                  from: parsed.from,
+                  agent: "claude",
+                  isInteractiveClaude: parsed.interactive,
+                  format: parsed.format,
+                  repoSlug: parsed.repoSlug,
                 },
-                pretty: renderPlanAgentResult,
-              },
-              parsed.format,
-            );
-          }
-        }
-        const telemetry = {
-          agent: "claude",
-          status: result.status === 0 ? "success" : "error",
-          input_hash: sha256(JSON.stringify({
-            command: profile.command,
-            args: profile.args,
-            cwd: launchCwd,
-            policy,
-          })),
-          output_hash: sha256(`${result.stdout}\n${result.stderr}`),
-          latency_ms: Date.now() - startedAt,
-        };
-        appendExecutionLog(
-          launchCwd,
-          createRunRecord({
-            agent: "claude",
-            input_hash: telemetry.input_hash,
-            output_hash: telemetry.output_hash,
-            status: telemetry.status,
-            latency_ms: telemetry.latency_ms,
-            timestamp: Date.now(),
-          }),
-        );
-        if (parsed.format === "json") {
-          output.log(
-            JSON.stringify(
+                output,
+                deps,
+              );
+              launchCwd = primed.launchCwd;
+              runtimeArtifacts = primed.runtimeArtifacts;
+              hasPriorSession = primed.hasPriorClaudeSession;
+              effectiveWorkUnitId = primed.workUnitId;
+            } else {
+              await validateWorkSessionEntry(
+                parsed.workUnitId,
+                process.cwd(),
+                parsed.create,
+                deps.boardStatus ?? boardStatus,
+                deps.buildParityChain ?? buildParityChain,
+                deps.validateGitHubIssue ?? validateGitHubIssue,
+                deps.pruneStaleRemoteRefs ?? pruneStaleRemoteRefs,
+              );
+              if (parsed.create) {
+                if (deps.materializeWorktree) {
+                  deps.materializeWorktree(parsed.workUnitId, process.cwd(), parsed.noVerify);
+                } else {
+                  materializeWorkUnitBranch(
+                    parsed.workUnitId,
+                    process.cwd(),
+                    undefined,
+                    undefined,
+                    parsed.noVerify,
+                  );
+                }
+              }
+              launchCwd = deps.resolveWorkUnitCwd
+                ? deps.resolveWorkUnitCwd(parsed.workUnitId, process.cwd(), parsed.noVerify)
+                : resolveWorkUnitLaunchCwdUsingDefaults(
+                    parsed.workUnitId,
+                    process.cwd(),
+                    parsed.noVerify,
+                  );
               {
-                profile,
-                cwd: launchCwd,
-                runtimeArtifacts,
-                policy,
-                telemetry,
-                status: result.status,
-                stdout: result.stdout,
-                stderr: result.stderr,
-              },
-              null,
-              2,
-            ),
-          );
-        }
-        // prx-j4a: the plan body is no longer dumped to stdout — the agent's
-        // output is the structured input→output result (emitted above), and the
-        // full plan is the output artifact in the CAS draft slot, reachable via
-        // the `view:` command in that result. (Was: GH-1164 relayed result.stdout
-        // for format=plain; that play-by-play is what prx-j4a quiets.)
-        return result.status;
-      } finally {
-        deleteEnv(PRX_SESSION_OPEN_ENV);
-      }
+                const { behind } = parseDivergence(launchCwd);
+                if (behind > 0) {
+                  output.error(
+                    `warning: branch is ${behind} commit${behind === 1 ? "" : "s"} behind origin/main — run \`prx worktree refresh\` to rebase`,
+                  );
+                }
+              }
+              try {
+                const hydrateResult = (deps.hydrateBeads ?? hydrateBeads)({ cwd: launchCwd });
+                if (
+                  hydrateResult.status === "hydrated" ||
+                  hydrateResult.status === "clone-failed"
+                ) {
+                  output.error(hydrateResult.message);
+                }
+              } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                output.error(`warning: beads hydration failed unexpectedly: ${message}`);
+              }
+              runtimeArtifacts = (deps.ensureRuntimeArtifacts ?? ensureLocalRuntimeArtifacts)(
+                parsed.workUnitId,
+                launchCwd,
+              );
+              if (parsed.interactive) {
+                const allowlist = (deps.ensureClaudeAllowlist ?? ensureClaudeInteractiveAllowlist)(
+                  launchCwd,
+                );
+                if (allowlist.status === "skipped-malformed") {
+                  output.error(buildMalformedAllowlistWarning(allowlist.path));
+                }
+              }
+              hasPriorSession = parsed.interactive
+                ? (deps.findSavedClaudeSession ?? findSavedClaudeSession)(launchCwd)
+                : false;
+              effectiveWorkUnitId = parsed.workUnitId;
+            }
+            // GH-1825: when --resume-from-draft is set, read the prior partial
+            // capture from `<UoW>:plan@draft` and thread it into the planner
+            // prompt as continuation context. Empty/missing slot raises a typed
+            // refusal pointing the operator at the fresh-draft verb.
+            let resumePartialPlan: string | undefined;
+            if (parsed.resumeFromDraft) {
+              if (parsed.interactive) {
+                throw new CliError(
+                  `${bannerPrefix}: --resume-from-draft only applies to the non-interactive SDK call site; drop --interactive or remove --resume-from-draft`,
+                );
+              }
+              try {
+                const loaded = await (deps.runPlanLoad ?? runPlanLoad)({
+                  unit: effectiveWorkUnitId,
+                  slot: "draft",
+                });
+                const text = loaded.content.toString("utf8");
+                if (text.trim().length === 0) {
+                  throw new CliError(
+                    `${bannerPrefix}: draft slot ${refName(effectiveWorkUnitId, "draft")} is empty — run \`${bannerPrefix} ${effectiveWorkUnitId}\` first to draft a plan`,
+                  );
+                }
+                resumePartialPlan = text;
+              } catch (err) {
+                if (err instanceof PlanRefNotFound) {
+                  throw new CliError(
+                    `${bannerPrefix}: no draft slot for ${effectiveWorkUnitId} — run \`${bannerPrefix} ${effectiveWorkUnitId}\` first to draft a plan`,
+                  );
+                }
+                throw err;
+              }
+            }
+            // prx-pl2: embed the unit's source authority by CONSUMING the pinned
+            // `<unit>:source@pinned` derivation (the gate captured the one impure
+            // read there). Pure + scoped to exactly this unit — no bead loading, no
+            // GH-261: consume the pinned `<unit>:source@pinned` to hand the issue in
+            // as INPUT. The planner is sandboxed off bd/prx/gh, so it must never
+            // hydrate — the source is always embedded.
+            let planSourceBody: string | undefined;
+            if (!parsed.interactive && resumePartialPlan === undefined) {
+              try {
+                const src = await consumeArtifact(workUnitSourceEdge, effectiveWorkUnitId);
+                if (!src.missing && src.value) {
+                  const body = src.value.body;
+                  planSourceBody =
+                    body && body.trim().length > 0
+                      ? `${src.value.title}\n\n${body}`
+                      : src.value.title;
+                }
+              } catch {
+                // unreadable pin → treated as absent; the hard-fail below fires.
+              }
+              // GH-261: NO hydrate path. A headless planner with no handed-in source
+              // would flail/fabricate (GH-230) — fail closed instead. Intake must pin
+              // the source first. (`--dry-run` still previews the profile; resume and
+              // interactive carry their own context.)
+              if (!parsed.dryRun && planSourceBody === undefined) {
+                throw new CliError(
+                  `prx plan agent: no \`${effectiveWorkUnitId}:source@pinned\` — the planner receives the issue as input and must not hydrate. Pin it first: \`prx intake source ${effectiveWorkUnitId}\` (GH-232).`,
+                );
+              }
+            }
+            const profile = parsed.interactive
+              ? buildWorkUnitClaudeInteractiveRuntimeProfile({
+                  workUnitId: effectiveWorkUnitId,
+                  role: "planner",
+                  hasPriorSession,
+                })
+              : buildWorkUnitClaudePlanPrintRuntimeProfile({
+                  workUnitId: effectiveWorkUnitId,
+                  ...(resumePartialPlan !== undefined ? { resumePartialPlan } : {}),
+                  ...(planSourceBody !== undefined ? { sourceBody: planSourceBody } : {}),
+                });
+            if (parsed.dryRun) {
+              output.log(formatRuntimeProfile(profile, parsed.format));
+              return 0;
+            }
+            // Interactive claude needs a TTY (stdio inherit via "plain"). Non-interactive
+            // --print streams to stdout too; we switch to "json" (stdio pipe) when
+            // the caller needs captured stdout for --emit-file, the post-exec JSON
+            // envelope, or the GH-1164 runPlanSave chain into the draft slot.
+            const needsCapture =
+              !parsed.interactive &&
+              (parsed.emitFile !== undefined ||
+                parsed.format === "json" ||
+                parsed.invokedViaPlanSession === true);
+            const planExecutionFormat = needsCapture ? ("json" as const) : ("plain" as const);
+            const startedAt = Date.now();
+            // GH-1828: non-interactive plan-print routes through the Anthropic
+            // Agent SDK; interactive runs stay on `localRuntimeExecutor` (TTY
+            // inherit). When `deps.execRuntime` is injected by tests, the
+            // subprocess path runs regardless of `profile.agentRuntime` so the
+            // pre-1828 test seam keeps working.
+            const draftSinkForSdk =
+              !parsed.interactive && profile.agentRuntime === "sdk" && !deps.execRuntime
+                ? makeWorkUnitDraftSink(effectiveWorkUnitId, {
+                    runPlanSave: deps.runPlanSave ?? runPlanSave,
+                  })
+                : undefined;
+            // GH-1407 — fold draftSink + noCache into a single sdkOpts object.
+            // noCache is plan-print-only; the interactive flow rejects it at the parser.
+            const sdkOptsForCall: Partial<RunClaudeAgentNonInteractiveOpts> = {
+              ...(draftSinkForSdk ? { draftSink: draftSinkForSdk } : {}),
+              ...(parsed.noCache ? { noCache: true } : {}),
+            };
+            // GH-1825: opt-in watchdog. Interactive runs keep their existing
+            // posture (interactiveTimeoutMs gates the policy default by format).
+            // Print runs no longer carry an implicit policy.timeout_ms default —
+            // `undefined` means "no watchdog", matching spike §3.2 §6 item 4.
+            // The operator opts in via `--timeout=<duration>`; the subprocess
+            // fallback (--interactive or test-injected execRuntime) honors the
+            // same value when present.
+            const effectiveTimeoutMs = parsed.interactive
+              ? interactiveTimeoutMs(planExecutionFormat, policy.timeout_ms)
+              : parsed.timeoutMs;
+            const dispatched = await maybeWithWorktreeRuntimeLock(
+              true,
+              launchCwd,
+              `${bannerPrefix} runtime active for ${effectiveWorkUnitId} (pid ${process.pid})`,
+              deps,
+              () =>
+                executeAgentProfile(profile, {
+                  cwd: launchCwd,
+                  format: planExecutionFormat,
+                  ...(effectiveTimeoutMs !== undefined ? { timeoutMs: effectiveTimeoutMs } : {}),
+                  ...(deps.execRuntime ? { subprocessExecutor: deps.execRuntime } : {}),
+                  ...(Object.keys(sdkOptsForCall).length > 0 ? { sdkOpts: sdkOptsForCall } : {}),
+                }),
+            );
+            // SDK cancellation surface (spike §6.3): typed line names the
+            // configured timeout, elapsed time, draft-slot ref, and resume verb.
+            // GH-1825: when a draft was captured, point the operator at
+            // `--resume-from-draft` (continues drafting) rather than
+            // `prx plan view --slot draft` (read-only inspection).
+            if (dispatched.kind === "sdk" && dispatched.result.kind === "cancelled") {
+              const c = dispatched.result;
+              const timeoutClause =
+                c.configured_timeout_ms !== null
+                  ? ` (configured --timeout=${c.configured_timeout_ms}ms)`
+                  : "";
+              const draftClause = c.draftRef
+                ? `; partial plan saved to draft slot ${c.draftRef} — resume with \`${bannerPrefix} ${effectiveWorkUnitId} --resume-from-draft\``
+                : "; no partial content captured";
+              output.error(
+                `${bannerPrefix}: cancelled after ${c.elapsed_ms}ms${timeoutClause} (reason=${c.reason})${draftClause}.`,
+              );
+            }
+            // SDK typed failure surface: distinguishes rate_limit / network /
+            // model / cancelled (today's collapse-to-status-1 disappears).
+            if (dispatched.kind === "sdk" && dispatched.result.kind === "failed") {
+              const f = dispatched.result;
+              output.error(
+                `${bannerPrefix}: [${f.errorKind}] ${f.message}${f.retryAfter !== undefined ? ` (retry after ${f.retryAfter}ms)` : ""}`,
+              );
+            }
+            // Collapse the dispatched result back into the legacy
+            // `RuntimeExecutionResult` shape so the existing telemetry +
+            // emit-file + runPlanSave wiring below stays uniform. Plan-print
+            // wants the raw assistant text (not the JSON envelope), so we
+            // prefer `success.text` for the SDK success branch.
+            const result = (() => {
+              if (dispatched.kind === "subprocess") return dispatched.execution;
+              const sdk = dispatched.result;
+              if (sdk.kind === "success") {
+                return { status: 0, stdout: sdk.text, stderr: "" };
+              }
+              if (sdk.kind === "cancelled") {
+                return {
+                  status: 124,
+                  stdout: sdk.partialStdout,
+                  stderr: `cancelled (${sdk.reason})`,
+                };
+              }
+              return { status: 1, stdout: "", stderr: `[${sdk.errorKind}] ${sdk.message}` };
+            })();
+            if (
+              result.status !== 0 &&
+              !(
+                dispatched.kind === "sdk" &&
+                (dispatched.result.kind === "cancelled" || dispatched.result.kind === "failed")
+              )
+            ) {
+              const stderrTail =
+                (result.stderr ?? "").trim().split("\n").slice(-1)[0]?.slice(0, 200) ?? "";
+              const modeLabel = parsed.interactive
+                ? `resume=${hasPriorSession ? "yes" : "no"}`
+                : "mode=print";
+              output.error(
+                `${bannerPrefix}: claude exited ${result.status} (${modeLabel})${stderrTail ? ` — ${stderrTail}` : ""}`,
+              );
+            }
+            if (result.status === 0 && parsed.emitFile !== undefined) {
+              const writeFileFn = deps.writeFile ?? ((p: string, c: string) => writeFileSync(p, c));
+              const emitPath = resolve(launchCwd, parsed.emitFile);
+              mkdirSync(dirname(emitPath), { recursive: true });
+              writeFileFn(emitPath, result.stdout);
+              output.error(`${bannerPrefix}: wrote plan to ${emitPath}`);
+            }
+            // GH-1164: chain captured stdout into `prx plan save --slot draft` so
+            // the print-mode planner-handoff artifact lands in the CAS slot that
+            // `prx implement` (GH-1238) consumes. Gated on non-interactive
+            // success with non-empty stdout, fired whenever the dispatch was
+            // reached via `prx plan session` — GH-1982 promoted the alias
+            // `prx session plan` to set the same flag, so both entries now
+            // populate the draft slot identically.
+            if (parsed.invokedViaPlanSession && !parsed.interactive && result.status === 0) {
+              const stdoutContent = result.stdout ?? "";
+              if (stdoutContent.trim().length === 0) {
+                output.error(
+                  `${bannerPrefix}: claude produced no plan content; nothing saved to draft slot`,
+                );
+              } else {
+                // GH-2028: the save always persists now (persist-on-failure), so
+                // narrate real state instead of the GH-1473 misleading
+                // "(not saved…)" branch. When the body failed the shape gate the
+                // slot still lands; flag validated_ok=false so the operator knows
+                // `prx implement` will refuse until it is refined.
+                const saved = await (deps.runPlanSave ?? runPlanSave)({
+                  unit: effectiveWorkUnitId,
+                  slot: "draft",
+                  content: stdoutContent,
+                });
+                // prx-j4a: surface the result through the shared printer, framed as
+                // input-artifact (the UoW) → output-artifact (the plan draft ref),
+                // instead of a prose "saved draft slot" line.
+                emit(
+                  output,
+                  {
+                    schema: planAgentResultSchema,
+                    data: {
+                      actor: "plan" as const,
+                      unit: effectiveWorkUnitId,
+                      ...(planSourceLabel(effectiveWorkUnitId)
+                        ? { source: planSourceLabel(effectiveWorkUnitId)! }
+                        : {}),
+                      ref: saved.ref,
+                      validated: saved.validated_ok,
+                      diagnostics: saved.diagnostics.length,
+                      ...(saved.validated_ok
+                        ? {}
+                        : { view: `prx plan show ${effectiveWorkUnitId} --slot draft` }),
+                    },
+                    pretty: renderPlanAgentResult,
+                  },
+                  parsed.format,
+                );
+              }
+            }
+            const telemetry = {
+              agent: "claude",
+              status: result.status === 0 ? "success" : "error",
+              input_hash: sha256(
+                JSON.stringify({
+                  command: profile.command,
+                  args: profile.args,
+                  cwd: launchCwd,
+                  policy,
+                }),
+              ),
+              output_hash: sha256(`${result.stdout}\n${result.stderr}`),
+              latency_ms: Date.now() - startedAt,
+            };
+            appendExecutionLog(
+              launchCwd,
+              createRunRecord({
+                agent: "claude",
+                input_hash: telemetry.input_hash,
+                output_hash: telemetry.output_hash,
+                status: telemetry.status,
+                latency_ms: telemetry.latency_ms,
+                timestamp: Date.now(),
+              }),
+            );
+            if (parsed.format === "json") {
+              output.log(
+                JSON.stringify(
+                  {
+                    profile,
+                    cwd: launchCwd,
+                    runtimeArtifacts,
+                    policy,
+                    telemetry,
+                    status: result.status,
+                    stdout: result.stdout,
+                    stderr: result.stderr,
+                  },
+                  null,
+                  2,
+                ),
+              );
+            }
+            // prx-j4a: the plan body is no longer dumped to stdout — the agent's
+            // output is the structured input→output result (emitted above), and the
+            // full plan is the output artifact in the CAS draft slot, reachable via
+            // the `view:` command in that result. (Was: GH-1164 relayed result.stdout
+            // for format=plain; that play-by-play is what prx-j4a quiets.)
+            return result.status;
+          } finally {
+            deleteEnv(PRX_SESSION_OPEN_ENV);
+          }
         } catch (error) {
           // GH-2067: structured stderr envelope for `--format json`. When the
           // throw carries `details` (set on the not-yet-materialized branch),
@@ -16979,11 +17005,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             error.details !== undefined
           ) {
             output.error(
-              JSON.stringify(
-                { error: error.details, exitCode: error.exitCode },
-                null,
-                2,
-              ),
+              JSON.stringify({ error: error.details, exitCode: error.exitCode }, null, 2),
             );
             return error.exitCode;
           }
@@ -16995,169 +17017,210 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     if (parsed.command === "agent-smoke") {
       return (async (): Promise<number> => {
         try {
-      const policy = POLICY;
-      await validateWorkSessionEntry(
-        parsed.workUnitId,
-        process.cwd(),
-        parsed.create,
-        deps.boardStatus ?? boardStatus,
-        deps.buildParityChain ?? buildParityChain,
-        deps.validateGitHubIssue ?? validateGitHubIssue,
-        deps.pruneStaleRemoteRefs ?? pruneStaleRemoteRefs,
-      );
-      if (parsed.create) {
-        if (deps.materializeWorktree) {
-          deps.materializeWorktree(parsed.workUnitId, process.cwd(), parsed.noVerify);
-        } else {
-          materializeWorkUnitBranch(parsed.workUnitId, process.cwd(), undefined, undefined, parsed.noVerify);
-        }
-      }
-      const launchCwd = parsed.launchFromCurrentWorkspace
-        ? assertLaunchCwdNotMainx(process.cwd(), parsed.workUnitId)
-        : deps.resolveWorkUnitCwd
-          ? deps.resolveWorkUnitCwd(parsed.workUnitId, process.cwd(), parsed.noVerify)
-          : resolveWorkUnitLaunchCwdUsingDefaults(parsed.workUnitId, process.cwd(), parsed.noVerify);
-      // Side effect only: writes .pr/local/runtime/{agents,mcp,output.schema}.json
-      // so the launched claude can boot with --mcp-config (GH-1587: no beads
-      // MCP server is provisioned — the status object is no longer surfaced).
-      (deps.ensureRuntimeArtifacts ?? ensureLocalRuntimeArtifacts)(
-        parsed.workUnitId,
-        launchCwd,
-      );
-      const smokeChecks = [
-        {
-          name: "liveness" as const,
-          prompt: "echo:hello",
-        },
-        {
-          name: "contract" as const,
-          prompt: "Return EXACT JSON:\n{\"status\":\"success\",\"data\":{\"echo\":\"hello\"},\"meta\":{\"latency_ms\":0}}",
-        },
-        {
-          name: "timeout" as const,
-          prompt: "wait 60 seconds then respond",
-        },
-      ];
-      const results = maybeWithWorktreeRuntimeLock(
-        !parsed.launchFromCurrentWorkspace,
-        launchCwd,
-        `prx agent-smoke runtime active for ${parsed.workUnitId} (pid ${process.pid})`,
-        deps,
-        () => policy.allowed_agents.map((agent) => {
-          const runRaw = (prompt: string) => {
-            const profile = buildExecutedWorkProfile(
-              buildWorkAutomationProfile(agent, parsed.workUnitId, validateWorkIoFormat(agent, parsed.ioFormat), parsed.mode),
-              { prompt: buildPrompt(prompt) },
-            );
-            const startedAt = Date.now();
-            const execution = deps.execRuntime
-              ? deps.execRuntime(profile, "json", launchCwd)
-              : localRuntimeExecutor(profile, "json", launchCwd, policy.timeout_ms);
-            return {
-              profile,
-              execution,
-              latencyMs: Date.now() - startedAt,
-            };
-          };
-          const livenessRun = runRaw(smokeChecks[0]!.prompt);
-          const contractRun = executeValidatedAgentWithRetry(
-            buildExecutedWorkProfile(
-              buildWorkAutomationProfile(agent, parsed.workUnitId, validateWorkIoFormat(agent, parsed.ioFormat), parsed.mode),
-              { prompt: buildPrompt(smokeChecks[1]!.prompt) },
-            ),
-            launchCwd,
-            (profile, format, cwd) => deps.execRuntime
-              ? deps.execRuntime(profile, format, cwd)
-              : localRuntimeExecutor(profile, format, cwd ?? launchCwd, policy.timeout_ms),
-            policy.max_retries + 1,
+          const policy = POLICY;
+          await validateWorkSessionEntry(
+            parsed.workUnitId,
+            process.cwd(),
+            parsed.create,
+            deps.boardStatus ?? boardStatus,
+            deps.buildParityChain ?? buildParityChain,
+            deps.validateGitHubIssue ?? validateGitHubIssue,
+            deps.pruneStaleRemoteRefs ?? pruneStaleRemoteRefs,
           );
-          const timeoutRun = runRaw(smokeChecks[2]!.prompt);
-          const timeoutLike = timeoutRun.execution.status !== 0 &&
-            (/timed out|timeout/i.test(timeoutRun.execution.stderr) || /timed out|timeout/i.test(timeoutRun.execution.stdout));
-          const checks = [
+          if (parsed.create) {
+            if (deps.materializeWorktree) {
+              deps.materializeWorktree(parsed.workUnitId, process.cwd(), parsed.noVerify);
+            } else {
+              materializeWorkUnitBranch(
+                parsed.workUnitId,
+                process.cwd(),
+                undefined,
+                undefined,
+                parsed.noVerify,
+              );
+            }
+          }
+          const launchCwd = parsed.launchFromCurrentWorkspace
+            ? assertLaunchCwdNotMainx(process.cwd(), parsed.workUnitId)
+            : deps.resolveWorkUnitCwd
+              ? deps.resolveWorkUnitCwd(parsed.workUnitId, process.cwd(), parsed.noVerify)
+              : resolveWorkUnitLaunchCwdUsingDefaults(
+                  parsed.workUnitId,
+                  process.cwd(),
+                  parsed.noVerify,
+                );
+          // Side effect only: writes .pr/local/runtime/{agents,mcp,output.schema}.json
+          // so the launched claude can boot with --mcp-config (GH-1587: no beads
+          // MCP server is provisioned — the status object is no longer surfaced).
+          (deps.ensureRuntimeArtifacts ?? ensureLocalRuntimeArtifacts)(
+            parsed.workUnitId,
+            launchCwd,
+          );
+          const smokeChecks = [
             {
-              name: smokeChecks[0]!.name,
-              compliant: livenessRun.execution.status === 0 && livenessRun.latencyMs <= policy.timeout_ms,
-              status: livenessRun.execution.status,
-              latency_ms: livenessRun.latencyMs,
-              error: livenessRun.execution.status === 0 ? undefined : (livenessRun.execution.stderr || livenessRun.execution.stdout),
+              name: "liveness" as const,
+              prompt: "echo:hello",
             },
             {
-              name: smokeChecks[1]!.name,
-              compliant: contractRun.result.status === "success",
-              status: contractRun.result.status,
-              latency_ms: contractRun.result.meta.latency_ms,
-              attempts: contractRun.attempts,
-              error: contractRun.result.error?.message,
+              name: "contract" as const,
+              prompt:
+                'Return EXACT JSON:\n{"status":"success","data":{"echo":"hello"},"meta":{"latency_ms":0}}',
             },
             {
-              name: smokeChecks[2]!.name,
-              compliant: timeoutLike,
-              status: timeoutRun.execution.status,
-              latency_ms: timeoutRun.latencyMs,
-              error: timeoutRun.execution.stderr || timeoutRun.execution.stdout,
+              name: "timeout" as const,
+              prompt: "wait 60 seconds then respond",
             },
           ];
-          const compliant = checks.every((check) => check.compliant);
-          const inputHash = sha256(JSON.stringify({
-            checks: smokeChecks.map((check) => check.prompt),
-            command: livenessRun.profile.command,
-            args: livenessRun.profile.args,
-            policy,
-          }));
-          const outputHash = sha256(JSON.stringify(checks));
-          appendExecutionLog(
+          const results = maybeWithWorktreeRuntimeLock(
+            !parsed.launchFromCurrentWorkspace,
             launchCwd,
-            createRunRecord({
-              agent,
-              input_hash: inputHash,
-              output_hash: outputHash,
-              status: compliant ? "success" : "error",
-              latency_ms: checks.reduce((sum, check) => sum + check.latency_ms, 0),
-              timestamp: Date.now(),
-            }),
+            `prx agent-smoke runtime active for ${parsed.workUnitId} (pid ${process.pid})`,
+            deps,
+            () =>
+              policy.allowed_agents.map((agent) => {
+                const runRaw = (prompt: string) => {
+                  const profile = buildExecutedWorkProfile(
+                    buildWorkAutomationProfile(
+                      agent,
+                      parsed.workUnitId,
+                      validateWorkIoFormat(agent, parsed.ioFormat),
+                      parsed.mode,
+                    ),
+                    { prompt: buildPrompt(prompt) },
+                  );
+                  const startedAt = Date.now();
+                  const execution = deps.execRuntime
+                    ? deps.execRuntime(profile, "json", launchCwd)
+                    : localRuntimeExecutor(profile, "json", launchCwd, policy.timeout_ms);
+                  return {
+                    profile,
+                    execution,
+                    latencyMs: Date.now() - startedAt,
+                  };
+                };
+                const livenessRun = runRaw(smokeChecks[0]!.prompt);
+                const contractRun = executeValidatedAgentWithRetry(
+                  buildExecutedWorkProfile(
+                    buildWorkAutomationProfile(
+                      agent,
+                      parsed.workUnitId,
+                      validateWorkIoFormat(agent, parsed.ioFormat),
+                      parsed.mode,
+                    ),
+                    { prompt: buildPrompt(smokeChecks[1]!.prompt) },
+                  ),
+                  launchCwd,
+                  (profile, format, cwd) =>
+                    deps.execRuntime
+                      ? deps.execRuntime(profile, format, cwd)
+                      : localRuntimeExecutor(profile, format, cwd ?? launchCwd, policy.timeout_ms),
+                  policy.max_retries + 1,
+                );
+                const timeoutRun = runRaw(smokeChecks[2]!.prompt);
+                const timeoutLike =
+                  timeoutRun.execution.status !== 0 &&
+                  (/timed out|timeout/i.test(timeoutRun.execution.stderr) ||
+                    /timed out|timeout/i.test(timeoutRun.execution.stdout));
+                const checks = [
+                  {
+                    name: smokeChecks[0]!.name,
+                    compliant:
+                      livenessRun.execution.status === 0 &&
+                      livenessRun.latencyMs <= policy.timeout_ms,
+                    status: livenessRun.execution.status,
+                    latency_ms: livenessRun.latencyMs,
+                    error:
+                      livenessRun.execution.status === 0
+                        ? undefined
+                        : livenessRun.execution.stderr || livenessRun.execution.stdout,
+                  },
+                  {
+                    name: smokeChecks[1]!.name,
+                    compliant: contractRun.result.status === "success",
+                    status: contractRun.result.status,
+                    latency_ms: contractRun.result.meta.latency_ms,
+                    attempts: contractRun.attempts,
+                    error: contractRun.result.error?.message,
+                  },
+                  {
+                    name: smokeChecks[2]!.name,
+                    compliant: timeoutLike,
+                    status: timeoutRun.execution.status,
+                    latency_ms: timeoutRun.latencyMs,
+                    error: timeoutRun.execution.stderr || timeoutRun.execution.stdout,
+                  },
+                ];
+                const compliant = checks.every((check) => check.compliant);
+                const inputHash = sha256(
+                  JSON.stringify({
+                    checks: smokeChecks.map((check) => check.prompt),
+                    command: livenessRun.profile.command,
+                    args: livenessRun.profile.args,
+                    policy,
+                  }),
+                );
+                const outputHash = sha256(JSON.stringify(checks));
+                appendExecutionLog(
+                  launchCwd,
+                  createRunRecord({
+                    agent,
+                    input_hash: inputHash,
+                    output_hash: outputHash,
+                    status: compliant ? "success" : "error",
+                    latency_ms: checks.reduce((sum, check) => sum + check.latency_ms, 0),
+                    timestamp: Date.now(),
+                  }),
+                );
+                return {
+                  agent,
+                  compliant,
+                  latency_ms: checks.reduce((sum, check) => sum + check.latency_ms, 0),
+                  input_hash: inputHash,
+                  output_hash: outputHash,
+                  checks,
+                };
+              }),
           );
-          return {
-            agent,
-            compliant,
-            latency_ms: checks.reduce((sum, check) => sum + check.latency_ms, 0),
-            input_hash: inputHash,
-            output_hash: outputHash,
-            checks,
-          };
-        }),
-      );
-      const failed = results.filter((entry) => !entry.compliant);
-      if (parsed.format === "json") {
-        output.log(
-          JSON.stringify(
-            {
-              workUnitId: parsed.workUnitId,
-              mode: parsed.mode,
-              ioFormat: parsed.ioFormat,
-              policy,
-              results,
-            },
-            null,
-            2,
-          ),
-        );
-      } else {
-        output.log(`agent-smoke ${parsed.workUnitId} io-format=${parsed.ioFormat} timeout-ms=${policy.timeout_ms}`);
-        for (const entry of results) {
-          output.log(`  ${entry.agent}: ${entry.compliant ? "compliant" : "non-compliant"} (latency ${entry.latency_ms}ms)`);
-          for (const check of entry.checks) {
-            output.log(`    ${check.name}: ${check.compliant ? "pass" : "fail"} (${check.status})`);
-            if (check.error) {
-              const firstLine = check.error.split("\n").map((line) => line.trim()).find((line) => line.length > 0);
-              if (firstLine) {
-                output.log(`      ${firstLine}`);
+          const failed = results.filter((entry) => !entry.compliant);
+          if (parsed.format === "json") {
+            output.log(
+              JSON.stringify(
+                {
+                  workUnitId: parsed.workUnitId,
+                  mode: parsed.mode,
+                  ioFormat: parsed.ioFormat,
+                  policy,
+                  results,
+                },
+                null,
+                2,
+              ),
+            );
+          } else {
+            output.log(
+              `agent-smoke ${parsed.workUnitId} io-format=${parsed.ioFormat} timeout-ms=${policy.timeout_ms}`,
+            );
+            for (const entry of results) {
+              output.log(
+                `  ${entry.agent}: ${entry.compliant ? "compliant" : "non-compliant"} (latency ${entry.latency_ms}ms)`,
+              );
+              for (const check of entry.checks) {
+                output.log(
+                  `    ${check.name}: ${check.compliant ? "pass" : "fail"} (${check.status})`,
+                );
+                if (check.error) {
+                  const firstLine = check.error
+                    .split("\n")
+                    .map((line) => line.trim())
+                    .find((line) => line.length > 0);
+                  if (firstLine) {
+                    output.log(`      ${firstLine}`);
+                  }
+                }
               }
             }
           }
-        }
-      }
-      return failed.length > 0 ? 1 : 0;
+          return failed.length > 0 ? 1 : 0;
         } catch (error) {
           return handleRunCliError(error, output);
         }
@@ -17167,10 +17230,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     if (parsed.command === "desktop") {
       const launchCwd = parsed.launchFromCurrentWorkspace
         ? assertLaunchCwdNotMainx(process.cwd(), parsed.workUnitId)
-        : (deps.resolveWorkUnitCwd ?? resolveWorkUnitLaunchCwd)(
-          parsed.workUnitId,
-          process.cwd(),
-        );
+        : (deps.resolveWorkUnitCwd ?? resolveWorkUnitLaunchCwd)(parsed.workUnitId, process.cwd());
       const openCommand = "codex";
       const openArgs = ["app", launchCwd];
       if (parsed.dryRun) {
@@ -17242,9 +17302,11 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       }
 
       const validated = taskContractSchema.parse(task);
-      output.log(parsed.format === "json"
-        ? JSON.stringify({ valid: true, task: validated }, null, 2)
-        : `task spec valid for ${validated.identity.workUnitId}`);
+      output.log(
+        parsed.format === "json"
+          ? JSON.stringify({ valid: true, task: validated }, null, 2)
+          : `task spec valid for ${validated.identity.workUnitId}`,
+      );
       return 0;
     }
 
@@ -17289,54 +17351,65 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         writeTaskContract(parsed.taskPath, started);
       }
 
-      const runtimeProfile = implementation === "codex"
-        ? buildTaskRoleCodexRuntimeProfile({
-          workUnitId: parsed.workUnitId,
-          role: roleToRun,
-          ioFormat: "json",
-          mode: "full",
-        })
-        : implementation === "copilot"
-          ? buildTaskRoleCopilotRuntimeProfile({
-            workUnitId: parsed.workUnitId,
-            role: roleToRun,
-            ioFormat: "json",
-            mode: "full",
-          })
-          : implementation === "gemini"
-            ? buildTaskRoleGeminiRuntimeProfile({
+      const runtimeProfile =
+        implementation === "codex"
+          ? buildTaskRoleCodexRuntimeProfile({
               workUnitId: parsed.workUnitId,
               role: roleToRun,
               ioFormat: "json",
               mode: "full",
             })
-            : implementation === "cursor"
-              ? buildTaskRoleCursorRuntimeProfile({
+          : implementation === "copilot"
+            ? buildTaskRoleCopilotRuntimeProfile({
                 workUnitId: parsed.workUnitId,
                 role: roleToRun,
                 ioFormat: "json",
                 mode: "full",
               })
-          : buildTaskRoleClaudeRuntimeProfile({
-            workUnitId: parsed.workUnitId,
-            role: roleToRun,
-            ioFormat: "json",
-            mode: "full",
-          });
+            : implementation === "gemini"
+              ? buildTaskRoleGeminiRuntimeProfile({
+                  workUnitId: parsed.workUnitId,
+                  role: roleToRun,
+                  ioFormat: "json",
+                  mode: "full",
+                })
+              : implementation === "cursor"
+                ? buildTaskRoleCursorRuntimeProfile({
+                    workUnitId: parsed.workUnitId,
+                    role: roleToRun,
+                    ioFormat: "json",
+                    mode: "full",
+                  })
+                : buildTaskRoleClaudeRuntimeProfile({
+                    workUnitId: parsed.workUnitId,
+                    role: roleToRun,
+                    ioFormat: "json",
+                    mode: "full",
+                  });
       const executedProfile = buildExecutedWorkProfile(runtimeProfile, {});
       if (parsed.dryRun) {
         output.log(formatRuntimeProfile(executedProfile, parsed.format));
         return 0;
       }
-      const result = (deps.execRuntime ?? localRuntimeExecutor)(executedProfile, parsed.format, started.identity.worktree);
+      const result = (deps.execRuntime ?? localRuntimeExecutor)(
+        executedProfile,
+        parsed.format,
+        started.identity.worktree,
+      );
       if (parsed.format === "json") {
-        output.log(JSON.stringify({
-          task: started,
-          profile: executedProfile,
-          status: result.status,
-          stdout: result.stdout,
-          stderr: result.stderr,
-        }, null, 2));
+        output.log(
+          JSON.stringify(
+            {
+              task: started,
+              profile: executedProfile,
+              status: result.status,
+              stdout: result.stdout,
+              stderr: result.stderr,
+            },
+            null,
+            2,
+          ),
+        );
       }
       return result.status;
     }
@@ -17359,61 +17432,73 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         if (!parsed.dryRun) {
           writeTaskContract(parsed.taskPath, task);
         }
-        const runtimeProfile = implementation === "codex"
-          ? buildTaskRoleCodexRuntimeProfile({
-            workUnitId: parsed.workUnitId,
-            role: parsed.role,
-            ioFormat: "json",
-            mode: "full",
-          })
-          : implementation === "copilot"
-            ? buildTaskRoleCopilotRuntimeProfile({
-              workUnitId: parsed.workUnitId,
-              role: parsed.role,
-              ioFormat: "json",
-              mode: "full",
-            })
-            : implementation === "gemini"
-              ? buildTaskRoleGeminiRuntimeProfile({
+        const runtimeProfile =
+          implementation === "codex"
+            ? buildTaskRoleCodexRuntimeProfile({
                 workUnitId: parsed.workUnitId,
                 role: parsed.role,
                 ioFormat: "json",
                 mode: "full",
               })
-              : implementation === "cursor"
-                ? buildTaskRoleCursorRuntimeProfile({
+            : implementation === "copilot"
+              ? buildTaskRoleCopilotRuntimeProfile({
                   workUnitId: parsed.workUnitId,
                   role: parsed.role,
                   ioFormat: "json",
                   mode: "full",
                 })
-            : buildTaskRoleClaudeRuntimeProfile({
-              workUnitId: parsed.workUnitId,
-              role: parsed.role,
-              ioFormat: "json",
-              mode: "full",
-            });
+              : implementation === "gemini"
+                ? buildTaskRoleGeminiRuntimeProfile({
+                    workUnitId: parsed.workUnitId,
+                    role: parsed.role,
+                    ioFormat: "json",
+                    mode: "full",
+                  })
+                : implementation === "cursor"
+                  ? buildTaskRoleCursorRuntimeProfile({
+                      workUnitId: parsed.workUnitId,
+                      role: parsed.role,
+                      ioFormat: "json",
+                      mode: "full",
+                    })
+                  : buildTaskRoleClaudeRuntimeProfile({
+                      workUnitId: parsed.workUnitId,
+                      role: parsed.role,
+                      ioFormat: "json",
+                      mode: "full",
+                    });
         const executedProfile = buildExecutedWorkProfile(runtimeProfile, {});
         if (parsed.dryRun) {
           output.log(formatRuntimeProfile(executedProfile, parsed.format));
           return 0;
         }
-        const result = (deps.execRuntime ?? localRuntimeExecutor)(executedProfile, parsed.format, task.identity.worktree);
+        const result = (deps.execRuntime ?? localRuntimeExecutor)(
+          executedProfile,
+          parsed.format,
+          task.identity.worktree,
+        );
         if (parsed.format === "json") {
-          output.log(JSON.stringify({
-            task,
-            profile: executedProfile,
-            status: result.status,
-            stdout: result.stdout,
-            stderr: result.stderr,
-          }, null, 2));
+          output.log(
+            JSON.stringify(
+              {
+                task,
+                profile: executedProfile,
+                status: result.status,
+                stdout: result.stdout,
+                stderr: result.stderr,
+              },
+              null,
+              2,
+            ),
+          );
         }
         return result.status;
       }
 
-      task = parsed.action === "complete"
-        ? completeTaskRole(task, parsed.role, parsed.reason)
-        : failTaskRole(task, parsed.role, parsed.reason);
+      task =
+        parsed.action === "complete"
+          ? completeTaskRole(task, parsed.role, parsed.reason)
+          : failTaskRole(task, parsed.role, parsed.reason);
       if (!parsed.dryRun) {
         writeTaskContract(parsed.taskPath, task);
       }
@@ -17422,14 +17507,21 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "repos") {
-      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(process.cwd());
-      const configuredBareRoot = repoInventoryConfig.bareRoot ? resolve(repoInventoryConfig.bareRoot) : null;
-      const requestedRoots = parsed.roots.length > 0
-        ? parsed.roots.map((root) => resolve(root))
-        : (parsed.everywhere ? repoInventoryConfig.everywhereRoots : repoInventoryConfig.roots);
+      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(
+        process.cwd(),
+      );
+      const configuredBareRoot = repoInventoryConfig.bareRoot
+        ? resolve(repoInventoryConfig.bareRoot)
+        : null;
+      const requestedRoots =
+        parsed.roots.length > 0
+          ? parsed.roots.map((root) => resolve(root))
+          : parsed.everywhere
+            ? repoInventoryConfig.everywhereRoots
+            : repoInventoryConfig.roots;
       if (!parsed.everywhere && configuredBareRoot) {
-        const outsideRoots = requestedRoots.filter((root) =>
-          root !== configuredBareRoot && !root.startsWith(`${configuredBareRoot}/`)
+        const outsideRoots = requestedRoots.filter(
+          (root) => root !== configuredBareRoot && !root.startsWith(`${configuredBareRoot}/`),
         );
         if (outsideRoots.length > 0) {
           throw new CliError(
@@ -17452,7 +17544,10 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         : null;
       const inventory = preservePerRepoAxes(priorIndex, derived);
       if (repoInventoryConfig.indexPath) {
-        (deps.writeRepoInventoryIndex ?? writeRepoInventoryIndex)(repoInventoryConfig.indexPath, inventory);
+        (deps.writeRepoInventoryIndex ?? writeRepoInventoryIndex)(
+          repoInventoryConfig.indexPath,
+          inventory,
+        );
       }
       if (parsed.action === "normalize") {
         const normalization = (deps.normalizeLocalRepos ?? normalizeLocalRepos)(inventory, {
@@ -17464,9 +17559,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       }
       const filteredInventory = parsed.local
         ? {
-          ...inventory,
-          repos: inventory.repos.filter((repo) => repo.findings.length > 0),
-        }
+            ...inventory,
+            repos: inventory.repos.filter((repo) => repo.findings.length > 0),
+          }
         : inventory;
       output.log(formatRepos(filteredInventory, parsed.format, parsed.local));
       if (parsed.local) {
@@ -17479,10 +17574,14 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // GH-1701: fleet-wide beads-state inventory. Read-only by construction
       // (I-RA1): no `writeRepoInventoryIndex`, no `.beads/` mutation, no
       // `bd sql` (I-RA2 — issue counts go through `bd list --all --json`).
-      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(process.cwd());
+      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(
+        process.cwd(),
+      );
       let inventory: RepoInventory | null = null;
       if (repoInventoryConfig.indexPath) {
-        inventory = (deps.loadRepoInventoryIndex ?? loadRepoInventoryIndex)(repoInventoryConfig.indexPath);
+        inventory = (deps.loadRepoInventoryIndex ?? loadRepoInventoryIndex)(
+          repoInventoryConfig.indexPath,
+        );
       }
       if (!inventory) {
         throw new CliError(
@@ -17518,14 +17617,14 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         adoptedCounts = undefined;
       }
 
-      output.log(
-        formatRepoAudit(rows, parsed.format, new Date().toISOString(), adoptedCounts),
-      );
+      output.log(formatRepoAudit(rows, parsed.format, new Date().toISOString(), adoptedCounts));
       return 0;
     }
 
     if (parsed.command === "repos-add") {
-      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(process.cwd());
+      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(
+        process.cwd(),
+      );
       if (!repoInventoryConfig.bareRoot) {
         throw new CliError(
           "No configured bare root. Configure prx via ~/.config/prx/config.json or .prx/repos/config.json before running `prx repo add`.",
@@ -17550,20 +17649,18 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           const priorIndexForRepair = repoInventoryConfig.indexPath
             ? (deps.loadRepoInventoryIndex ?? loadRepoInventoryIndex)(repoInventoryConfig.indexPath)
             : null;
-          const registered = priorIndexForRepair?.repos.find(
-            (repo) => repo.commonDir === repairBarePath,
-          ) ?? null;
+          const registered =
+            priorIndexForRepair?.repos.find((repo) => repo.commonDir === repairBarePath) ?? null;
           if (!registered) {
-            throw new CliError(
-              `Bare path already exists: ${repairBarePath}. Refusing to clobber.`,
-            );
+            throw new CliError(`Bare path already exists: ${repairBarePath}. Refusing to clobber.`);
           }
           const registeredUrl = registered.primaryRemote?.url;
           const registeredParsed = registeredUrl ? parseRepoUrl(registeredUrl) : null;
-          const sameTriple = !!registeredParsed
-            && registeredParsed.host === parsedUrl.host
-            && registeredParsed.owner === parsedUrl.owner
-            && registeredParsed.name === parsedUrl.name;
+          const sameTriple =
+            !!registeredParsed &&
+            registeredParsed.host === parsedUrl.host &&
+            registeredParsed.owner === parsedUrl.owner &&
+            registeredParsed.name === parsedUrl.name;
           if (!sameTriple) {
             throw new CliError(
               `URL mismatch under --repair: registered=${registeredUrl ?? "<none>"}, requested=${parsed.url}. ` +
@@ -17618,7 +17715,10 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         if (priorIndex) {
           const newRepoKey = `${addResult.parsed.host}/${addResult.parsed.owner}/${addResult.parsed.name}`;
           for (const repo of priorIndex.repos) {
-            if (!repo.bd_workspace_prefix || repo.bd_workspace_prefix !== addResult.bdWorkspacePrefix) {
+            if (
+              !repo.bd_workspace_prefix ||
+              repo.bd_workspace_prefix !== addResult.bdWorkspacePrefix
+            ) {
               continue;
             }
             // GH-1682: direct disk-identity self-skip. Complements the
@@ -17673,15 +17773,18 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             repos: preserved.repos.map((repo: LocalRepo) =>
               repo.commonDir === addResult.barePath
                 ? {
-                  ...repo,
-                  bd_workspace_prefix: addResult.bdWorkspacePrefix,
-                  canonical: addResult.canonical,
-                }
-                : repo
+                    ...repo,
+                    bd_workspace_prefix: addResult.bdWorkspacePrefix,
+                    canonical: addResult.canonical,
+                  }
+                : repo,
             ),
           };
 
-          (deps.writeRepoInventoryIndex ?? writeRepoInventoryIndex)(repoInventoryConfig.indexPath, merged);
+          (deps.writeRepoInventoryIndex ?? writeRepoInventoryIndex)(
+            repoInventoryConfig.indexPath,
+            merged,
+          );
         }
         return 0;
       } catch (err) {
@@ -17758,7 +17861,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "repos-set") {
-      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(process.cwd());
+      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(
+        process.cwd(),
+      );
       if (!repoInventoryConfig.indexPath) {
         throw new CliError(
           "No `.prx/repos/index.json` resolved from this cwd. Run `prx repo set` from a prx-managed checkout.",
@@ -17815,7 +17920,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "repos-backfill") {
-      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(process.cwd());
+      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(
+        process.cwd(),
+      );
       const wtRoot = resolveWorktreePath().base;
       try {
         const report = runRepoBackfill({
@@ -17840,13 +17947,17 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // the registered mainx. Exit code mirrors `beadsHydrate.exitCode`
       // (0 on every success/skip, 1 on `clone-failed`) so a still-broken
       // hydrate fails loud per GH-657's convention.
-      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(process.cwd());
+      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(
+        process.cwd(),
+      );
       if (!repoInventoryConfig.indexPath) {
         throw new CliError(
           "No `.prx/repos/index.json` resolved from this cwd. Run `prx repo refresh` from a prx-managed checkout.",
         );
       }
-      const inventory = (deps.loadRepoInventoryIndex ?? loadRepoInventoryIndex)(repoInventoryConfig.indexPath);
+      const inventory = (deps.loadRepoInventoryIndex ?? loadRepoInventoryIndex)(
+        repoInventoryConfig.indexPath,
+      );
       if (!inventory) {
         throw new CliError(
           `No repo inventory index at ${repoInventoryConfig.indexPath}. Run \`prx repo add\` first to create one.`,
@@ -17913,7 +18024,10 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             if (typeof stale === "number") next = { ...next, stale_threshold_days: stale };
             return next;
           });
-          (deps.writeRepoInventoryIndex ?? writeRepoInventoryIndex)(repoInventoryConfig.indexPath, refreshed);
+          (deps.writeRepoInventoryIndex ?? writeRepoInventoryIndex)(
+            repoInventoryConfig.indexPath,
+            refreshed,
+          );
         }
 
         return result.beadsHydrate.exitCode;
@@ -17926,7 +18040,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "repos-gc") {
-      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(process.cwd());
+      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(
+        process.cwd(),
+      );
       const wtRoot = resolveWorktreePath().base;
       try {
         const report = runRepoGc({
@@ -17947,7 +18063,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "repos-add-dolthub") {
-      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(process.cwd());
+      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(
+        process.cwd(),
+      );
       try {
         const result = runRepoAddDolthub({
           config: repoInventoryConfig,
@@ -17969,7 +18087,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "repos-bootstrap") {
-      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(process.cwd());
+      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(
+        process.cwd(),
+      );
       try {
         const result = runRepoBootstrap(
           {
@@ -17980,8 +18100,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             cwd: process.cwd(),
           },
           {
-            dolthubOwnerDefault:
-              getEnv("BEADS_DOLTHUB_OWNER")?.trim() || null,
+            dolthubOwnerDefault: getEnv("BEADS_DOLTHUB_OWNER")?.trim() || null,
           },
         );
         output.log(formatRepoBootstrap(result, parsed.format));
@@ -18003,7 +18122,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // this CLI layer. Mirrors the `prx repo add --repair` delegation
       // pattern (GH-1682) so the two operator entry points share one
       // downstream rather than open-coding three compositions.
-      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(process.cwd());
+      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(
+        process.cwd(),
+      );
       const wtRoot = resolveWorktreePath().base;
       try {
         const bareResult = (deps.materializeBareRepo ?? materializeBareRepo)({
@@ -18105,7 +18226,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "hooks-apply" || parsed.command === "hooks-status") {
-      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(process.cwd());
+      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(
+        process.cwd(),
+      );
       const requestedRoots = parsed.everywhere
         ? repoInventoryConfig.everywhereRoots
         : repoInventoryConfig.roots;
@@ -18168,10 +18291,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
 
     if (parsed.command === "dolt-status") {
       const handler = deps.runDoltStatus ?? runDoltStatus;
-      return handler(
-        { repoPath: parsed.repoPath, format: parsed.format },
-        output,
-      );
+      return handler({ repoPath: parsed.repoPath, format: parsed.format }, output);
     }
 
     if (parsed.command === "dolt-start") {
@@ -18456,9 +18576,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       const { path, source } = resolveDevKeyPathForDisplay();
       const kp = loadOrCreateDevKeypair();
       if (parsed.format === "json") {
-        output.log(
-          JSON.stringify({ point: kp.point, keyid: kp.keyid, path, source }),
-        );
+        output.log(JSON.stringify({ point: kp.point, keyid: kp.keyid, path, source }));
       } else {
         output.log(`point:  ${kp.point}`);
         output.log(`keyid:  ${kp.keyid}`);
@@ -18542,7 +18660,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         if (parsed.format === "json") {
           output.log(JSON.stringify({ registered: r.trust, changed: r.changed }));
         } else {
-          output.log(`keymaker register: ${Object.keys(r.trust).length} actors → ${provenanceConfigPath()}`);
+          output.log(
+            `keymaker register: ${Object.keys(r.trust).length} actors → ${provenanceConfigPath()}`,
+          );
           if (r.changed.length > 0) output.log(`  changed: ${r.changed.join(", ")}`);
           else output.log("  (no changes — trust map already current)");
         }
@@ -18641,12 +18761,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // ai-home-2ow2v: forge comment/edit verbs (gh pr comment / gh pr edit).
       if (parsed.verb === "comment") {
         const comment = deps.runPublisherPrComment ?? publisherRunPrComment;
-        return comment(
-          target,
-          { body: parsed.body ?? "" },
-          parsed.format,
-          publisherOutput,
-        );
+        return comment(target, { body: parsed.body ?? "" }, parsed.format, publisherOutput);
       }
       if (parsed.verb === "edit") {
         const edit = deps.runPublisherPrEdit ?? publisherRunPrEdit;
@@ -18691,10 +18806,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       );
     }
     if (parsed.command === "audit-uow") {
-      return runAuditUow(
-        { workUnitId: parsed.workUnitId, format: parsed.format },
-        output,
-      );
+      return runAuditUow({ workUnitId: parsed.workUnitId, format: parsed.format }, output);
     }
     if (parsed.command === "audit-system") {
       return runAuditSystem(
@@ -18934,15 +19046,13 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "triage-promote-children") {
-      const handler =
-        deps.runTriagePromoteChildren ?? runTriagePromoteChildren;
-      const validated: TriagePromoteChildrenOptions =
-        triagePromoteChildrenOptionsSchema.parse({
-          dir: parsed.dir,
-          dryRun: parsed.dryRun,
-          limit: parsed.limit,
-          only: parsed.only,
-        });
+      const handler = deps.runTriagePromoteChildren ?? runTriagePromoteChildren;
+      const validated: TriagePromoteChildrenOptions = triagePromoteChildrenOptionsSchema.parse({
+        dir: parsed.dir,
+        dryRun: parsed.dryRun,
+        limit: parsed.limit,
+        only: parsed.only,
+      });
       return handler(validated, output);
     }
 
@@ -19079,9 +19189,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               },
         );
         const result = await runMapCreate(opts);
-        output.log(
-          `wrote ${result.path} — ${result.record.sequence.length} ticket(s)`,
-        );
+        output.log(`wrote ${result.path} — ${result.record.sequence.length} ticket(s)`);
         return 0;
       })();
     }
@@ -19143,9 +19251,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // phase's derivation ≡ that phase not verified). Gated on a resolved
       // signer + canonical ledger (no PRX_PROVENANCE_KEY ⇒ unchanged).
       // Best-effort: never alters the CI exit code.
-      const passedPhases: CiPhase[] = results
-        .filter((r) => r.status === 0)
-        .map((r) => r.phase);
+      const passedPhases: CiPhase[] = results.filter((r) => r.status === 0).map((r) => r.phase);
       if (passedPhases.length === 0) return code;
       return (async () => {
         try {
@@ -19193,7 +19299,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               passedPhases,
             );
             const partial =
-              code === 0 ? "" : ` (partial — ${passedPhases.length}/${results.length} phases passed)`;
+              code === 0
+                ? ""
+                : ` (partial — ${passedPhases.length}/${results.length} phases passed)`;
             output.error(
               `prx ci: signed ci/phase/v1 for ${recorded.length} phase(s) at ${commit.slice(0, 7)} (tree-bound)${partial} → ledger`,
             );
@@ -19265,7 +19373,11 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             check: false,
           });
         } catch (error) {
-          gitToplevel = { status: 1, stdout: "", stderr: error instanceof Error ? error.message : String(error) };
+          gitToplevel = {
+            status: 1,
+            stdout: "",
+            stderr: error instanceof Error ? error.message : String(error),
+          };
         }
         if (gitToplevel.status !== 0) {
           const detail = gitToplevel.stderr.trim();
@@ -19277,7 +19389,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         }
         queueCwd = gitToplevel.stdout.trim();
         if (invocationCwd !== queueCwd) {
-          output.error(`triage-session: using git toplevel '${queueCwd}' instead of invocation cwd '${invocationCwd}'`);
+          output.error(
+            `triage-session: using git toplevel '${queueCwd}' instead of invocation cwd '${invocationCwd}'`,
+          );
         }
       }
 
@@ -19366,122 +19480,127 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // advances it to the reserved worktree before `prepare`/`dispatch` run,
       // matching `openSession`'s default process.cwd()/process.chdir() flow.
       return (async (): Promise<number> => {
-      let liveCwd = queueCwd;
-      const opened = await (deps.openSession ?? openSession)(
-        {
-          actor: "triage",
-          // GH-2380: default headless; --interactive opts into tmux/PTY.
-          ...(parsed.interactive ? { interaction: "interactive" } : {}),
-          // prx-383: a positional work-unit id seeds triage at one item.
-          ...(parsed.message ? { message: parsed.message } : {}),
-        },
-        {
-          cwd: () => liveCwd,
-          chdir: (p: string) => {
-            liveCwd = p;
-            process.chdir(p);
+        let liveCwd = queueCwd;
+        const opened = await (deps.openSession ?? openSession)(
+          {
+            actor: "triage",
+            // GH-2380: default headless; --interactive opts into tmux/PTY.
+            ...(parsed.interactive ? { interaction: "interactive" } : {}),
+            // prx-383: a positional work-unit id seeds triage at one item.
+            ...(parsed.message ? { message: parsed.message } : {}),
           },
-        },
-      );
-      if (opened.status === "prepared") {
-        output.log(
-          `prx triage agent: prepared ${opened.worktree_path} (no-launch; PRX_SESSION_NO_LAUNCH set)`,
+          {
+            cwd: () => liveCwd,
+            chdir: (p: string) => {
+              liveCwd = p;
+              process.chdir(p);
+            },
+          },
         );
-        return 0;
-      }
-      if (opened.status === "error" || !opened.profile) {
-        output.error(
-          `prx triage agent: session-open failed at ${opened.stage ?? "dispatch"}: ${opened.error ?? "no profile built"}`,
-        );
-        return 1;
-      }
-      const profile = opened.profile;
-      const spawnCwd = opened.worktree_path;
-
-      // GH-1545: pre-approve the triage operator's own Bash(…) verbs into
-      // .claude/settings.local.json so they skip the auto-mode permission
-      // classifier once the operator ratchets out of plan mode — mirrors the
-      // work-unit session-open precedent (`ensureClaudeInteractiveAllowlist`).
-      // Pointed at the reserved ephemeral worktree (not the invocation cwd).
-      const triageSessionAllowlist =
-        (deps.ensureClaudeSessionAllowlist ?? ensureClaudeSessionProfileAllowlist)(spawnCwd, "triage");
-      if (triageSessionAllowlist.status === "skipped-malformed") {
-        output.error(buildMalformedAllowlistWarning(triageSessionAllowlist.path));
-      }
-
-      // prx-9p9: ensure the runtime MCP config exists (side effect); the triage
-      // banner that surfaced its status is gone — the structured result speaks.
-      (deps.ensureOpsRuntimeMcp ?? ensureOpsRuntimeMcp)(spawnCwd);
-
-      const policy = POLICY;
-      const startedAt = Date.now();
-      // prx-9p9: snapshot beads to report the UoW(s) this triage run touched.
-      const beadsBefore = snapshotBeadIds(queueCwd);
-      // GH-2380: backend is derived — headless SDK by default,
-      // subprocess/PTY under --interactive (or when tests inject execRuntime).
-      const result = resolveAgentBackend(profile) === "sdk"
-        ? agentProfileExecutionAsRuntimeResult(
-            await executeAgentProfile(profile, {
-              cwd: spawnCwd,
-              format: "json",
-              ...(deps.execRuntime ? { subprocessExecutor: deps.execRuntime } : {}),
-            }),
-          )
-        : (deps.execRuntime ?? localRuntimeExecutor)(
-            profile,
-            "plain",
-            spawnCwd,
-            interactiveTimeoutMs("plain", policy.timeout_ms),
+        if (opened.status === "prepared") {
+          output.log(
+            `prx triage agent: prepared ${opened.worktree_path} (no-launch; PRX_SESSION_NO_LAUNCH set)`,
           );
-      if (result.status !== 0) {
-        const stderrTail = (result.stderr ?? "").trim().split("\n").slice(-1)[0]?.slice(0, 200) ?? "";
-        output.error(
-          `prx triage agent: claude exited ${result.status}${stderrTail ? ` — ${stderrTail}` : ""}`,
-        );
-      }
-      const telemetry = {
-        agent: "claude",
-        status: result.status === 0 ? "success" : "error",
-        input_hash: sha256(JSON.stringify({
-          command: profile.command,
-          args: profile.args,
-          cwd: spawnCwd,
-          policy,
-        })),
-        output_hash: sha256(`${result.stdout}\n${result.stderr}`),
-        latency_ms: Date.now() - startedAt,
-      };
-      appendExecutionLog(
-        spawnCwd,
-        createRunRecord({
+          return 0;
+        }
+        if (opened.status === "error" || !opened.profile) {
+          output.error(
+            `prx triage agent: session-open failed at ${opened.stage ?? "dispatch"}: ${opened.error ?? "no profile built"}`,
+          );
+          return 1;
+        }
+        const profile = opened.profile;
+        const spawnCwd = opened.worktree_path;
+
+        // GH-1545: pre-approve the triage operator's own Bash(…) verbs into
+        // .claude/settings.local.json so they skip the auto-mode permission
+        // classifier once the operator ratchets out of plan mode — mirrors the
+        // work-unit session-open precedent (`ensureClaudeInteractiveAllowlist`).
+        // Pointed at the reserved ephemeral worktree (not the invocation cwd).
+        const triageSessionAllowlist = (
+          deps.ensureClaudeSessionAllowlist ?? ensureClaudeSessionProfileAllowlist
+        )(spawnCwd, "triage");
+        if (triageSessionAllowlist.status === "skipped-malformed") {
+          output.error(buildMalformedAllowlistWarning(triageSessionAllowlist.path));
+        }
+
+        // prx-9p9: ensure the runtime MCP config exists (side effect); the triage
+        // banner that surfaced its status is gone — the structured result speaks.
+        (deps.ensureOpsRuntimeMcp ?? ensureOpsRuntimeMcp)(spawnCwd);
+
+        const policy = POLICY;
+        const startedAt = Date.now();
+        // prx-9p9: snapshot beads to report the UoW(s) this triage run touched.
+        const beadsBefore = snapshotBeadIds(queueCwd);
+        // GH-2380: backend is derived — headless SDK by default,
+        // subprocess/PTY under --interactive (or when tests inject execRuntime).
+        const result =
+          resolveAgentBackend(profile) === "sdk"
+            ? agentProfileExecutionAsRuntimeResult(
+                await executeAgentProfile(profile, {
+                  cwd: spawnCwd,
+                  format: "json",
+                  ...(deps.execRuntime ? { subprocessExecutor: deps.execRuntime } : {}),
+                }),
+              )
+            : (deps.execRuntime ?? localRuntimeExecutor)(
+                profile,
+                "plain",
+                spawnCwd,
+                interactiveTimeoutMs("plain", policy.timeout_ms),
+              );
+        if (result.status !== 0) {
+          const stderrTail =
+            (result.stderr ?? "").trim().split("\n").slice(-1)[0]?.slice(0, 200) ?? "";
+          output.error(
+            `prx triage agent: claude exited ${result.status}${stderrTail ? ` — ${stderrTail}` : ""}`,
+          );
+        }
+        const telemetry = {
           agent: "claude",
-          input_hash: telemetry.input_hash,
-          output_hash: telemetry.output_hash,
-          status: telemetry.status,
-          latency_ms: telemetry.latency_ms,
-          timestamp: Date.now(),
-        }),
-      );
-      // prx-9p9: surface the result — read what the agent reported via
-      // `prx triage result`, capture + pin to CAS, emit the schema-backed result.
-      const beadsAfter = snapshotBeadIds(queueCwd);
-      const reported = readReportedResult(spawnCwd);
-      const { result: agentResult, diagnostics: triageDiagnostics } = await captureAgentResult({
-        actor: "triage",
-        workspaceId: opened.workspace_id,
-        status: result.status,
-        stdout: result.stdout ?? "",
-        before: beadsBefore,
-        after: beadsAfter,
-        reported,
-      });
-      warnAgentContractDiagnostics(output, "triage", triageDiagnostics);
-      emit(
-        output,
-        { schema: agentResultSchema, data: agentResult, pretty: renderAgentResult },
-        parsed.format,
-      );
-      return result.status;
+          status: result.status === 0 ? "success" : "error",
+          input_hash: sha256(
+            JSON.stringify({
+              command: profile.command,
+              args: profile.args,
+              cwd: spawnCwd,
+              policy,
+            }),
+          ),
+          output_hash: sha256(`${result.stdout}\n${result.stderr}`),
+          latency_ms: Date.now() - startedAt,
+        };
+        appendExecutionLog(
+          spawnCwd,
+          createRunRecord({
+            agent: "claude",
+            input_hash: telemetry.input_hash,
+            output_hash: telemetry.output_hash,
+            status: telemetry.status,
+            latency_ms: telemetry.latency_ms,
+            timestamp: Date.now(),
+          }),
+        );
+        // prx-9p9: surface the result — read what the agent reported via
+        // `prx triage result`, capture + pin to CAS, emit the schema-backed result.
+        const beadsAfter = snapshotBeadIds(queueCwd);
+        const reported = readReportedResult(spawnCwd);
+        const { result: agentResult, diagnostics: triageDiagnostics } = await captureAgentResult({
+          actor: "triage",
+          workspaceId: opened.workspace_id,
+          status: result.status,
+          stdout: result.stdout ?? "",
+          before: beadsBefore,
+          after: beadsAfter,
+          reported,
+        });
+        warnAgentContractDiagnostics(output, "triage", triageDiagnostics);
+        emit(
+          output,
+          { schema: agentResultSchema, data: agentResult, pretty: renderAgentResult },
+          parsed.format,
+        );
+        return result.status;
       })();
     }
 
@@ -19533,7 +19652,11 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           check: false,
         });
       } catch (error) {
-        gitToplevel = { status: 1, stdout: "", stderr: error instanceof Error ? error.message : String(error) };
+        gitToplevel = {
+          status: 1,
+          stdout: "",
+          stderr: error instanceof Error ? error.message : String(error),
+        };
       }
       if (gitToplevel.status !== 0) {
         const detail = gitToplevel.stderr.trim();
@@ -19545,7 +19668,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       }
       const queueCwd = gitToplevel.stdout.trim();
       if (invocationCwd !== queueCwd) {
-        output.error(`intake-session: using git toplevel '${queueCwd}' instead of invocation cwd '${invocationCwd}'`);
+        output.error(
+          `intake-session: using git toplevel '${queueCwd}' instead of invocation cwd '${invocationCwd}'`,
+        );
       }
 
       if (parsed.check) {
@@ -19589,111 +19714,119 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // `liveCwd` (reserve base → reserved worktree via the injected chdir)
       // mirrors `openSession`'s default process.cwd()/process.chdir() flow.
       return (async (): Promise<number> => {
-      let liveCwd = queueCwd;
-      const opened = await (deps.openSession ?? openSession)(
-        {
-          actor: "intake",
-          // GH-2380: default headless; --interactive opts into tmux/PTY.
-          ...(parsed.interactive ? { interaction: "interactive" } : {}),
-          // prx-28w: free-text seed aims intake at one item.
-          ...(parsed.message ? { message: parsed.message } : {}),
-        },
-        {
-          cwd: () => liveCwd,
-          chdir: (p: string) => {
-            liveCwd = p;
-            process.chdir(p);
+        let liveCwd = queueCwd;
+        const opened = await (deps.openSession ?? openSession)(
+          {
+            actor: "intake",
+            // GH-2380: default headless; --interactive opts into tmux/PTY.
+            ...(parsed.interactive ? { interaction: "interactive" } : {}),
+            // prx-28w: free-text seed aims intake at one item.
+            ...(parsed.message ? { message: parsed.message } : {}),
           },
-        },
-      );
-      if (opened.status === "prepared") {
-        output.log(
-          `prx intake agent: prepared ${opened.worktree_path} (no-launch; PRX_SESSION_NO_LAUNCH set)`,
+          {
+            cwd: () => liveCwd,
+            chdir: (p: string) => {
+              liveCwd = p;
+              process.chdir(p);
+            },
+          },
         );
-        return 0;
-      }
-      if (opened.status === "error" || !opened.profile) {
-        output.error(
-          `prx intake agent: session-open failed at ${opened.stage ?? "dispatch"}: ${opened.error ?? "no profile built"}`,
-        );
-        return 1;
-      }
-      const profile = opened.profile;
-      const spawnCwd = opened.worktree_path;
-
-      // GH-1545: pre-approve the intake operator's own Bash(…) verbs into
-      // .claude/settings.local.json so `prx intake …` skips the auto-mode
-      // permission classifier once the operator ratchets out of plan mode —
-      // mirrors the work-unit session-open precedent. Pointed at the reserved
-      // ephemeral worktree (not the invocation cwd).
-      const intakeSessionAllowlist =
-        (deps.ensureClaudeSessionAllowlist ?? ensureClaudeSessionProfileAllowlist)(spawnCwd, "intake");
-      if (intakeSessionAllowlist.status === "skipped-malformed") {
-        output.error(buildMalformedAllowlistWarning(intakeSessionAllowlist.path));
-      }
-
-      // Provision the ops-runtime MCP (side effect); the status is no longer
-      // surfaced now that the run emits the schema-backed AgentResult.
-      (deps.ensureOpsRuntimeMcp ?? ensureOpsRuntimeMcp)(spawnCwd);
-
-      const policy = POLICY;
-      const startedAt = Date.now();
-      // prx-lfv: snapshot the bead set so we can report the UoW(s) this run
-      // produces — the difference after/before is what intake created.
-      const beadsBefore = snapshotBeadIds(queueCwd);
-      // GH-2380: backend is derived — headless SDK by default,
-      // subprocess/PTY under --interactive (or when tests inject execRuntime).
-      const result = resolveAgentBackend(profile) === "sdk"
-        ? agentProfileExecutionAsRuntimeResult(
-            await executeAgentProfile(profile, {
-              cwd: spawnCwd,
-              format: "json",
-              ...(deps.execRuntime ? { subprocessExecutor: deps.execRuntime } : {}),
-            }),
-          )
-        : (deps.execRuntime ?? localRuntimeExecutor)(
-            profile,
-            "plain",
-            spawnCwd,
-            interactiveTimeoutMs("plain", policy.timeout_ms),
+        if (opened.status === "prepared") {
+          output.log(
+            `prx intake agent: prepared ${opened.worktree_path} (no-launch; PRX_SESSION_NO_LAUNCH set)`,
           );
-      if (result.status !== 0) {
-        const stderrTail = (result.stderr ?? "").trim().split("\n").slice(-1)[0]?.slice(0, 200) ?? "";
-        output.error(
-          `prx intake agent: claude exited ${result.status}${stderrTail ? ` — ${stderrTail}` : ""}`,
-        );
-      }
-      const telemetry = {
-        agent: "claude",
-        status: result.status === 0 ? "success" : "error",
-        input_hash: sha256(JSON.stringify({
-          command: profile.command,
-          args: profile.args,
-          cwd: spawnCwd,
-          policy,
-        })),
-        output_hash: sha256(`${result.stdout}\n${result.stderr}`),
-        latency_ms: Date.now() - startedAt,
-      };
-      appendExecutionLog(
-        spawnCwd,
-        createRunRecord({
+          return 0;
+        }
+        if (opened.status === "error" || !opened.profile) {
+          output.error(
+            `prx intake agent: session-open failed at ${opened.stage ?? "dispatch"}: ${opened.error ?? "no profile built"}`,
+          );
+          return 1;
+        }
+        const profile = opened.profile;
+        const spawnCwd = opened.worktree_path;
+
+        // GH-1545: pre-approve the intake operator's own Bash(…) verbs into
+        // .claude/settings.local.json so `prx intake …` skips the auto-mode
+        // permission classifier once the operator ratchets out of plan mode —
+        // mirrors the work-unit session-open precedent. Pointed at the reserved
+        // ephemeral worktree (not the invocation cwd).
+        const intakeSessionAllowlist = (
+          deps.ensureClaudeSessionAllowlist ?? ensureClaudeSessionProfileAllowlist
+        )(spawnCwd, "intake");
+        if (intakeSessionAllowlist.status === "skipped-malformed") {
+          output.error(buildMalformedAllowlistWarning(intakeSessionAllowlist.path));
+        }
+
+        // Provision the ops-runtime MCP (side effect); the status is no longer
+        // surfaced now that the run emits the schema-backed AgentResult.
+        (deps.ensureOpsRuntimeMcp ?? ensureOpsRuntimeMcp)(spawnCwd);
+
+        const policy = POLICY;
+        const startedAt = Date.now();
+        // prx-lfv: snapshot the bead set so we can report the UoW(s) this run
+        // produces — the difference after/before is what intake created.
+        const beadsBefore = snapshotBeadIds(queueCwd);
+        // GH-2380: backend is derived — headless SDK by default,
+        // subprocess/PTY under --interactive (or when tests inject execRuntime).
+        const result =
+          resolveAgentBackend(profile) === "sdk"
+            ? agentProfileExecutionAsRuntimeResult(
+                await executeAgentProfile(profile, {
+                  cwd: spawnCwd,
+                  format: "json",
+                  ...(deps.execRuntime ? { subprocessExecutor: deps.execRuntime } : {}),
+                }),
+              )
+            : (deps.execRuntime ?? localRuntimeExecutor)(
+                profile,
+                "plain",
+                spawnCwd,
+                interactiveTimeoutMs("plain", policy.timeout_ms),
+              );
+        if (result.status !== 0) {
+          const stderrTail =
+            (result.stderr ?? "").trim().split("\n").slice(-1)[0]?.slice(0, 200) ?? "";
+          output.error(
+            `prx intake agent: claude exited ${result.status}${stderrTail ? ` — ${stderrTail}` : ""}`,
+          );
+        }
+        const telemetry = {
           agent: "claude",
-          input_hash: telemetry.input_hash,
-          output_hash: telemetry.output_hash,
-          status: telemetry.status,
-          latency_ms: telemetry.latency_ms,
-          timestamp: Date.now(),
-        }),
-      );
-      // prx-lfv: surface the run's result + pin it to the CAS (the uniform
-      // return channel) — never a silent success. Prefer the disposition the
-      // agent reported via `prx intake result` (existing-issue / reason);
-      // fall back to the bead diff.
-      const beadsAfter = snapshotBeadIds(queueCwd);
-      const reported = readReportedResult(spawnCwd);
-      const { ref: resultRef, result: agentResult, diagnostics: intakeDiagnostics } =
-        await captureAgentResult({
+          status: result.status === 0 ? "success" : "error",
+          input_hash: sha256(
+            JSON.stringify({
+              command: profile.command,
+              args: profile.args,
+              cwd: spawnCwd,
+              policy,
+            }),
+          ),
+          output_hash: sha256(`${result.stdout}\n${result.stderr}`),
+          latency_ms: Date.now() - startedAt,
+        };
+        appendExecutionLog(
+          spawnCwd,
+          createRunRecord({
+            agent: "claude",
+            input_hash: telemetry.input_hash,
+            output_hash: telemetry.output_hash,
+            status: telemetry.status,
+            latency_ms: telemetry.latency_ms,
+            timestamp: Date.now(),
+          }),
+        );
+        // prx-lfv: surface the run's result + pin it to the CAS (the uniform
+        // return channel) — never a silent success. Prefer the disposition the
+        // agent reported via `prx intake result` (existing-issue / reason);
+        // fall back to the bead diff.
+        const beadsAfter = snapshotBeadIds(queueCwd);
+        const reported = readReportedResult(spawnCwd);
+        const {
+          ref: resultRef,
+          result: agentResult,
+          diagnostics: intakeDiagnostics,
+        } = await captureAgentResult({
           actor: "intake",
           workspaceId: opened.workspace_id,
           status: result.status,
@@ -19702,22 +19835,22 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           after: beadsAfter,
           reported,
         });
-      // prx-bs4: surface an artifact-contract violation (intake misreported its
-      // disposition) instead of silently dropping the CAS pin.
-      warnAgentContractDiagnostics(output, "intake", intakeDiagnostics);
-      // prx-9kd: one schema-backed structured value, one printer. The `--json`
-      // surface is the validated AgentResult contract; plain is its render.
-      void resultRef; // pinned to CAS for the return channel; not in the surface.
-      emit(
-        output,
-        {
-          schema: agentResultSchema,
-          data: agentResult,
-          pretty: renderAgentResult,
-        },
-        parsed.format,
-      );
-      return result.status;
+        // prx-bs4: surface an artifact-contract violation (intake misreported its
+        // disposition) instead of silently dropping the CAS pin.
+        warnAgentContractDiagnostics(output, "intake", intakeDiagnostics);
+        // prx-9kd: one schema-backed structured value, one printer. The `--json`
+        // surface is the validated AgentResult contract; plain is its render.
+        void resultRef; // pinned to CAS for the return channel; not in the surface.
+        emit(
+          output,
+          {
+            schema: agentResultSchema,
+            data: agentResult,
+            pretty: renderAgentResult,
+          },
+          parsed.format,
+        );
+        return result.status;
       })();
     }
 
@@ -19735,7 +19868,11 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           check: false,
         });
       } catch (error) {
-        gitToplevel = { status: 1, stdout: "", stderr: error instanceof Error ? error.message : String(error) };
+        gitToplevel = {
+          status: 1,
+          stdout: "",
+          stderr: error instanceof Error ? error.message : String(error),
+        };
       }
       if (gitToplevel.status !== 0) {
         const detail = gitToplevel.stderr.trim();
@@ -19747,7 +19884,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       }
       const cwd = gitToplevel.stdout.trim();
       if (invocationCwd !== cwd) {
-        output.error(`submit-session: using git toplevel '${cwd}' instead of invocation cwd '${invocationCwd}'`);
+        output.error(
+          `submit-session: using git toplevel '${cwd}' instead of invocation cwd '${invocationCwd}'`,
+        );
       }
 
       if (parsed.check) {
@@ -19781,9 +19920,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // `session_open` actor — direct `dispatchSessionEntryEvent` here ran the
       // session in the operator's cwd (the mainx-leak GH-2027 exists to kill).
       if (!parsed.workUnitId) {
-        throw new CliError(
-          "prx submit session: requires a work-unit id",
-        );
+        throw new CliError("prx submit session: requires a work-unit id");
       }
 
       // GH-2280 (I-SO1): reserve a `<workUnitId>` worktree off origin/main,
@@ -19795,114 +19932,119 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // advances it to the reserved worktree, matching `openSession`'s default
       // process.cwd()/process.chdir() flow.
       return (async (): Promise<number> => {
-      let liveCwd = cwd;
-      const opened = await (deps.openSession ?? openSession)(
-        {
-          actor: "submit",
-          workUnitId: parsed.workUnitId,
-          // GH-2380: default headless; --interactive opts into tmux/PTY.
-          ...(parsed.interactive ? { interaction: "interactive" } : {}),
-        },
-        {
-          cwd: () => liveCwd,
-          chdir: (p: string) => {
-            liveCwd = p;
-            process.chdir(p);
+        let liveCwd = cwd;
+        const opened = await (deps.openSession ?? openSession)(
+          {
+            actor: "submit",
+            workUnitId: parsed.workUnitId,
+            // GH-2380: default headless; --interactive opts into tmux/PTY.
+            ...(parsed.interactive ? { interaction: "interactive" } : {}),
           },
-        },
-      );
-      if (opened.status === "prepared") {
-        output.log(
-          `prx submit session: prepared ${opened.worktree_path} (no-launch; PRX_SESSION_NO_LAUNCH set)`,
-        );
-        return 0;
-      }
-      if (opened.status === "error" || !opened.profile) {
-        output.error(
-          `prx submit session: session-open failed at ${opened.stage ?? "dispatch"}: ${opened.error ?? "no profile built"}`,
-        );
-        return 1;
-      }
-      const profile = opened.profile;
-      const spawnCwd = opened.worktree_path;
-
-      const submitSessionAllowlist =
-        (deps.ensureClaudeSessionAllowlist ?? ensureClaudeSessionProfileAllowlist)(spawnCwd, "submit");
-      if (submitSessionAllowlist.status === "skipped-malformed") {
-        output.error(buildMalformedAllowlistWarning(submitSessionAllowlist.path));
-      }
-
-      const mcpStatus = (deps.ensureOpsRuntimeMcp ?? ensureOpsRuntimeMcp)(spawnCwd);
-
-      const policy = POLICY;
-      const startedAt = Date.now();
-      // GH-2380: backend is derived — headless SDK by default,
-      // subprocess/PTY under --interactive (or when tests inject execRuntime).
-      // GH-2280: every execution targets the reserved worktree (spawnCwd).
-      const result = resolveAgentBackend(profile) === "sdk"
-        ? agentProfileExecutionAsRuntimeResult(
-            await executeAgentProfile(profile, {
-              cwd: spawnCwd,
-              format: "json",
-              ...(deps.execRuntime ? { subprocessExecutor: deps.execRuntime } : {}),
-            }),
-          )
-        : (deps.execRuntime ?? localRuntimeExecutor)(
-            profile,
-            "plain",
-            spawnCwd,
-            interactiveTimeoutMs("plain", policy.timeout_ms),
-          );
-      if (result.status !== 0) {
-        const stderrTail = (result.stderr ?? "").trim().split("\n").slice(-1)[0]?.slice(0, 200) ?? "";
-        output.error(
-          `prx submit agent: claude exited ${result.status}${stderrTail ? ` — ${stderrTail}` : ""}`,
-        );
-      }
-      const telemetry = {
-        agent: "claude",
-        status: result.status === 0 ? "success" : "error",
-        input_hash: sha256(JSON.stringify({
-          command: profile.command,
-          args: profile.args,
-          cwd: spawnCwd,
-          policy,
-        })),
-        output_hash: sha256(`${result.stdout}\n${result.stderr}`),
-        latency_ms: Date.now() - startedAt,
-      };
-      appendExecutionLog(
-        spawnCwd,
-        createRunRecord({
-          agent: "claude",
-          input_hash: telemetry.input_hash,
-          output_hash: telemetry.output_hash,
-          status: telemetry.status,
-          latency_ms: telemetry.latency_ms,
-          timestamp: Date.now(),
-        }),
-      );
-      if (parsed.format === "json") {
-        output.log(
-          JSON.stringify(
-            {
-              profile,
-              cwd: spawnCwd,
-              workspace_id: opened.workspace_id,
-              branch_ref: opened.branch_ref,
-              mcpStatus,
-              policy,
-              telemetry,
-              status: result.status,
-              stdout: result.stdout,
-              stderr: result.stderr,
+          {
+            cwd: () => liveCwd,
+            chdir: (p: string) => {
+              liveCwd = p;
+              process.chdir(p);
             },
-            null,
-            2,
-          ),
+          },
         );
-      }
-      return result.status;
+        if (opened.status === "prepared") {
+          output.log(
+            `prx submit session: prepared ${opened.worktree_path} (no-launch; PRX_SESSION_NO_LAUNCH set)`,
+          );
+          return 0;
+        }
+        if (opened.status === "error" || !opened.profile) {
+          output.error(
+            `prx submit session: session-open failed at ${opened.stage ?? "dispatch"}: ${opened.error ?? "no profile built"}`,
+          );
+          return 1;
+        }
+        const profile = opened.profile;
+        const spawnCwd = opened.worktree_path;
+
+        const submitSessionAllowlist = (
+          deps.ensureClaudeSessionAllowlist ?? ensureClaudeSessionProfileAllowlist
+        )(spawnCwd, "submit");
+        if (submitSessionAllowlist.status === "skipped-malformed") {
+          output.error(buildMalformedAllowlistWarning(submitSessionAllowlist.path));
+        }
+
+        const mcpStatus = (deps.ensureOpsRuntimeMcp ?? ensureOpsRuntimeMcp)(spawnCwd);
+
+        const policy = POLICY;
+        const startedAt = Date.now();
+        // GH-2380: backend is derived — headless SDK by default,
+        // subprocess/PTY under --interactive (or when tests inject execRuntime).
+        // GH-2280: every execution targets the reserved worktree (spawnCwd).
+        const result =
+          resolveAgentBackend(profile) === "sdk"
+            ? agentProfileExecutionAsRuntimeResult(
+                await executeAgentProfile(profile, {
+                  cwd: spawnCwd,
+                  format: "json",
+                  ...(deps.execRuntime ? { subprocessExecutor: deps.execRuntime } : {}),
+                }),
+              )
+            : (deps.execRuntime ?? localRuntimeExecutor)(
+                profile,
+                "plain",
+                spawnCwd,
+                interactiveTimeoutMs("plain", policy.timeout_ms),
+              );
+        if (result.status !== 0) {
+          const stderrTail =
+            (result.stderr ?? "").trim().split("\n").slice(-1)[0]?.slice(0, 200) ?? "";
+          output.error(
+            `prx submit agent: claude exited ${result.status}${stderrTail ? ` — ${stderrTail}` : ""}`,
+          );
+        }
+        const telemetry = {
+          agent: "claude",
+          status: result.status === 0 ? "success" : "error",
+          input_hash: sha256(
+            JSON.stringify({
+              command: profile.command,
+              args: profile.args,
+              cwd: spawnCwd,
+              policy,
+            }),
+          ),
+          output_hash: sha256(`${result.stdout}\n${result.stderr}`),
+          latency_ms: Date.now() - startedAt,
+        };
+        appendExecutionLog(
+          spawnCwd,
+          createRunRecord({
+            agent: "claude",
+            input_hash: telemetry.input_hash,
+            output_hash: telemetry.output_hash,
+            status: telemetry.status,
+            latency_ms: telemetry.latency_ms,
+            timestamp: Date.now(),
+          }),
+        );
+        if (parsed.format === "json") {
+          output.log(
+            JSON.stringify(
+              {
+                profile,
+                cwd: spawnCwd,
+                workspace_id: opened.workspace_id,
+                branch_ref: opened.branch_ref,
+                mcpStatus,
+                policy,
+                telemetry,
+                status: result.status,
+                stdout: result.stdout,
+                stderr: result.stderr,
+              },
+              null,
+              2,
+            ),
+          );
+        }
+        return result.status;
       })();
     }
 
@@ -19933,7 +20075,11 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           check: false,
         });
       } catch (error) {
-        gitToplevel = { status: 1, stdout: "", stderr: error instanceof Error ? error.message : String(error) };
+        gitToplevel = {
+          status: 1,
+          stdout: "",
+          stderr: error instanceof Error ? error.message : String(error),
+        };
       }
       if (gitToplevel.status !== 0) {
         const detail = gitToplevel.stderr.trim();
@@ -19945,7 +20091,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       }
       const cwd = gitToplevel.stdout.trim();
       if (invocationCwd !== cwd) {
-        output.error(`author-session: using git toplevel '${cwd}' instead of invocation cwd '${invocationCwd}'`);
+        output.error(
+          `author-session: using git toplevel '${cwd}' instead of invocation cwd '${invocationCwd}'`,
+        );
       }
 
       if (parsed.check) {
@@ -19977,9 +20125,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // `session_open` actor — direct `dispatchSessionEntryEvent` here ran the
       // session in the operator's cwd (the mainx-leak GH-2027 exists to kill).
       if (!parsed.workUnitId) {
-        throw new CliError(
-          "prx author session: requires a work-unit id",
-        );
+        throw new CliError("prx author session: requires a work-unit id");
       }
 
       // GH-2280 (I-SO1): reserve a `<workUnitId>` worktree off origin/main,
@@ -19991,114 +20137,119 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // advances it to the reserved worktree, matching `openSession`'s default
       // process.cwd()/process.chdir() flow.
       return (async (): Promise<number> => {
-      let liveCwd = cwd;
-      const opened = await (deps.openSession ?? openSession)(
-        {
-          actor: "author",
-          workUnitId: parsed.workUnitId,
-          // GH-2380: default headless; --interactive opts into tmux/PTY.
-          ...(parsed.interactive ? { interaction: "interactive" } : {}),
-        },
-        {
-          cwd: () => liveCwd,
-          chdir: (p: string) => {
-            liveCwd = p;
-            process.chdir(p);
+        let liveCwd = cwd;
+        const opened = await (deps.openSession ?? openSession)(
+          {
+            actor: "author",
+            workUnitId: parsed.workUnitId,
+            // GH-2380: default headless; --interactive opts into tmux/PTY.
+            ...(parsed.interactive ? { interaction: "interactive" } : {}),
           },
-        },
-      );
-      if (opened.status === "prepared") {
-        output.log(
-          `prx author session: prepared ${opened.worktree_path} (no-launch; PRX_SESSION_NO_LAUNCH set)`,
-        );
-        return 0;
-      }
-      if (opened.status === "error" || !opened.profile) {
-        output.error(
-          `prx author session: session-open failed at ${opened.stage ?? "dispatch"}: ${opened.error ?? "no profile built"}`,
-        );
-        return 1;
-      }
-      const profile = opened.profile;
-      const spawnCwd = opened.worktree_path;
-
-      const authorSessionAllowlist =
-        (deps.ensureClaudeSessionAllowlist ?? ensureClaudeSessionProfileAllowlist)(spawnCwd, "author");
-      if (authorSessionAllowlist.status === "skipped-malformed") {
-        output.error(buildMalformedAllowlistWarning(authorSessionAllowlist.path));
-      }
-
-      const mcpStatus = (deps.ensureOpsRuntimeMcp ?? ensureOpsRuntimeMcp)(spawnCwd);
-
-      const policy = POLICY;
-      const startedAt = Date.now();
-      // GH-2380: backend is derived — headless SDK by default,
-      // subprocess/PTY under --interactive (or when tests inject execRuntime).
-      // GH-2280: every execution targets the reserved worktree (spawnCwd).
-      const result = resolveAgentBackend(profile) === "sdk"
-        ? agentProfileExecutionAsRuntimeResult(
-            await executeAgentProfile(profile, {
-              cwd: spawnCwd,
-              format: "json",
-              ...(deps.execRuntime ? { subprocessExecutor: deps.execRuntime } : {}),
-            }),
-          )
-        : (deps.execRuntime ?? localRuntimeExecutor)(
-            profile,
-            "plain",
-            spawnCwd,
-            interactiveTimeoutMs("plain", policy.timeout_ms),
-          );
-      if (result.status !== 0) {
-        const stderrTail = (result.stderr ?? "").trim().split("\n").slice(-1)[0]?.slice(0, 200) ?? "";
-        output.error(
-          `prx author agent: claude exited ${result.status}${stderrTail ? ` — ${stderrTail}` : ""}`,
-        );
-      }
-      const telemetry = {
-        agent: "claude",
-        status: result.status === 0 ? "success" : "error",
-        input_hash: sha256(JSON.stringify({
-          command: profile.command,
-          args: profile.args,
-          cwd: spawnCwd,
-          policy,
-        })),
-        output_hash: sha256(`${result.stdout}\n${result.stderr}`),
-        latency_ms: Date.now() - startedAt,
-      };
-      appendExecutionLog(
-        spawnCwd,
-        createRunRecord({
-          agent: "claude",
-          input_hash: telemetry.input_hash,
-          output_hash: telemetry.output_hash,
-          status: telemetry.status,
-          latency_ms: telemetry.latency_ms,
-          timestamp: Date.now(),
-        }),
-      );
-      if (parsed.format === "json") {
-        output.log(
-          JSON.stringify(
-            {
-              profile,
-              cwd: spawnCwd,
-              workspace_id: opened.workspace_id,
-              branch_ref: opened.branch_ref,
-              mcpStatus,
-              policy,
-              telemetry,
-              status: result.status,
-              stdout: result.stdout,
-              stderr: result.stderr,
+          {
+            cwd: () => liveCwd,
+            chdir: (p: string) => {
+              liveCwd = p;
+              process.chdir(p);
             },
-            null,
-            2,
-          ),
+          },
         );
-      }
-      return result.status;
+        if (opened.status === "prepared") {
+          output.log(
+            `prx author session: prepared ${opened.worktree_path} (no-launch; PRX_SESSION_NO_LAUNCH set)`,
+          );
+          return 0;
+        }
+        if (opened.status === "error" || !opened.profile) {
+          output.error(
+            `prx author session: session-open failed at ${opened.stage ?? "dispatch"}: ${opened.error ?? "no profile built"}`,
+          );
+          return 1;
+        }
+        const profile = opened.profile;
+        const spawnCwd = opened.worktree_path;
+
+        const authorSessionAllowlist = (
+          deps.ensureClaudeSessionAllowlist ?? ensureClaudeSessionProfileAllowlist
+        )(spawnCwd, "author");
+        if (authorSessionAllowlist.status === "skipped-malformed") {
+          output.error(buildMalformedAllowlistWarning(authorSessionAllowlist.path));
+        }
+
+        const mcpStatus = (deps.ensureOpsRuntimeMcp ?? ensureOpsRuntimeMcp)(spawnCwd);
+
+        const policy = POLICY;
+        const startedAt = Date.now();
+        // GH-2380: backend is derived — headless SDK by default,
+        // subprocess/PTY under --interactive (or when tests inject execRuntime).
+        // GH-2280: every execution targets the reserved worktree (spawnCwd).
+        const result =
+          resolveAgentBackend(profile) === "sdk"
+            ? agentProfileExecutionAsRuntimeResult(
+                await executeAgentProfile(profile, {
+                  cwd: spawnCwd,
+                  format: "json",
+                  ...(deps.execRuntime ? { subprocessExecutor: deps.execRuntime } : {}),
+                }),
+              )
+            : (deps.execRuntime ?? localRuntimeExecutor)(
+                profile,
+                "plain",
+                spawnCwd,
+                interactiveTimeoutMs("plain", policy.timeout_ms),
+              );
+        if (result.status !== 0) {
+          const stderrTail =
+            (result.stderr ?? "").trim().split("\n").slice(-1)[0]?.slice(0, 200) ?? "";
+          output.error(
+            `prx author agent: claude exited ${result.status}${stderrTail ? ` — ${stderrTail}` : ""}`,
+          );
+        }
+        const telemetry = {
+          agent: "claude",
+          status: result.status === 0 ? "success" : "error",
+          input_hash: sha256(
+            JSON.stringify({
+              command: profile.command,
+              args: profile.args,
+              cwd: spawnCwd,
+              policy,
+            }),
+          ),
+          output_hash: sha256(`${result.stdout}\n${result.stderr}`),
+          latency_ms: Date.now() - startedAt,
+        };
+        appendExecutionLog(
+          spawnCwd,
+          createRunRecord({
+            agent: "claude",
+            input_hash: telemetry.input_hash,
+            output_hash: telemetry.output_hash,
+            status: telemetry.status,
+            latency_ms: telemetry.latency_ms,
+            timestamp: Date.now(),
+          }),
+        );
+        if (parsed.format === "json") {
+          output.log(
+            JSON.stringify(
+              {
+                profile,
+                cwd: spawnCwd,
+                workspace_id: opened.workspace_id,
+                branch_ref: opened.branch_ref,
+                mcpStatus,
+                policy,
+                telemetry,
+                status: result.status,
+                stdout: result.stdout,
+                stderr: result.stderr,
+              },
+              null,
+              2,
+            ),
+          );
+        }
+        return result.status;
       })();
     }
 
@@ -20120,7 +20271,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
 
       if (parsed.check) {
         if (parsed.format === "json") {
-          output.log(JSON.stringify({ profile: "scratch", binding: "mainx", cwd, unsafe: parsed.unsafe }));
+          output.log(
+            JSON.stringify({ profile: "scratch", binding: "mainx", cwd, unsafe: parsed.unsafe }),
+          );
         } else {
           output.log(`scratch session: ready on ${cwd}${parsed.unsafe ? " (unsafe)" : " (safe)"}`);
         }
@@ -20149,7 +20302,8 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         interactiveTimeoutMs("plain", policy.timeout_ms),
       );
       if (result.status !== 0) {
-        const stderrTail = (result.stderr ?? "").trim().split("\n").slice(-1)[0]?.slice(0, 200) ?? "";
+        const stderrTail =
+          (result.stderr ?? "").trim().split("\n").slice(-1)[0]?.slice(0, 200) ?? "";
         output.error(
           `prx scratch: claude exited ${result.status}${stderrTail ? ` — ${stderrTail}` : ""}`,
         );
@@ -20157,12 +20311,14 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       const telemetry = {
         agent: "claude",
         status: result.status === 0 ? "success" : "error",
-        input_hash: sha256(JSON.stringify({
-          command: profile.command,
-          args: profile.args,
-          cwd,
-          policy,
-        })),
+        input_hash: sha256(
+          JSON.stringify({
+            command: profile.command,
+            args: profile.args,
+            cwd,
+            policy,
+          }),
+        ),
         output_hash: sha256(`${result.stdout}\n${result.stderr}`),
         latency_ms: Date.now() - startedAt,
       };
@@ -20310,8 +20466,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           const args = parseGcArgs(parsed.argv);
           const result = await runGcCli(args, {
             buildParityChain: deps.buildParityChain ?? buildParityChain,
-            applyParityChainActions:
-              deps.applyParityChainActions ?? applyParityChainActions,
+            applyParityChainActions: deps.applyParityChainActions ?? applyParityChainActions,
             // GH-2331: the `hooks` reshape driver. Built here (where the repo
             // discovery + `defaultHooksPath` live) so the gc modules never
             // statically import this file. Resolver is lazy — only the `hooks`
@@ -20565,7 +20720,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         } else if (diag.healthy) {
           output.log(`beads: healthy (prefix=${diag.prefix})`);
         } else {
-          output.log("beads: UNHEALTHY — issue_prefix not set; run `prx beads doctor --fix` to re-bootstrap");
+          output.log(
+            "beads: UNHEALTHY — issue_prefix not set; run `prx beads doctor --fix` to re-bootstrap",
+          );
         }
         return diag.healthy ? 0 : 1;
       }
@@ -20577,7 +20734,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       } else if (res.repaired) {
         output.log(`beads: re-bootstrapped — now healthy (prefix=${res.after.prefix})`);
       } else {
-        output.error("beads: re-bootstrap did not restore a prefix — see `bd doctor` / `bd help init-safety`");
+        output.error(
+          "beads: re-bootstrap did not restore a prefix — see `bd doctor` / `bd help init-safety`",
+        );
       }
       return res.repaired || res.action === "none" ? 0 : 1;
     }
@@ -20626,7 +20785,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         ];
         if (reachError) {
           lines.push(`beads daemon not reachable: ${reachError}`);
-          lines.push("Start it: `prx beads serve --socket <path> --cwd <clone>` (or set PRX_BEADS_VM).");
+          lines.push(
+            "Start it: `prx beads serve --socket <path> --cwd <clone>` (or set PRX_BEADS_VM).",
+          );
         } else {
           lines.push(`## Ready work (${ready.length})`);
           if (ready.length === 0) {
@@ -20659,7 +20820,10 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
               : parsed.kind === "recall"
                 ? { kind: "recall", key: parsed.key! }
                 : parsed.kind === "memories"
-                  ? { kind: "memories", ...(parsed.prefix !== undefined ? { prefix: parsed.prefix } : {}) }
+                  ? {
+                      kind: "memories",
+                      ...(parsed.prefix !== undefined ? { prefix: parsed.prefix } : {}),
+                    }
                   : parsed.kind === "list"
                     ? {
                         kind: "list",
@@ -20719,7 +20883,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           output.log(JSON.stringify(reply.result, null, 2));
           return 0;
         } catch (err) {
-          output.error(`beads ${request.kind}: ${err instanceof Error ? err.message : String(err)}`);
+          output.error(
+            `beads ${request.kind}: ${err instanceof Error ? err.message : String(err)}`,
+          );
           return 1;
         }
       })();
@@ -20834,7 +21000,10 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
         }
         // down
         for (const d of daemons) {
-          await d.stop({ vm: parsed.vm!, ...(parsed.socket !== undefined ? { socket: parsed.socket } : {}) });
+          await d.stop({
+            vm: parsed.vm!,
+            ...(parsed.socket !== undefined ? { socket: parsed.socket } : {}),
+          });
           output.error(`lima down on ${parsed.vm}: ${d.name} stopped`);
         }
         return 0;
@@ -20865,14 +21034,14 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
 
     if (parsed.command === "preflight-claude") {
       return (async () => {
-      const result = await runClaudePreflight();
-      const out = formatClaudePreflight(result, parsed.format);
-      if (result.ok) {
-        output.log(out);
-      } else {
-        output.error(out);
-      }
-      return result.ok ? 0 : 1;
+        const result = await runClaudePreflight();
+        const out = formatClaudePreflight(result, parsed.format);
+        if (result.ok) {
+          output.log(out);
+        } else {
+          output.error(out);
+        }
+        return result.ok ? 0 : 1;
       })();
     }
 
@@ -20893,12 +21062,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
 
     if (parsed.command === "repos-local") {
       return (async () => {
-      const result = await discoverLocalGitRepos({
-        scanHome: parsed.scanHome,
-        strict: parsed.strict,
-      });
-      output.log(formatLocalReposResult(result, parsed.format, parsed.countOnly));
-      return 0;
+        const result = await discoverLocalGitRepos({
+          scanHome: parsed.scanHome,
+          strict: parsed.strict,
+        });
+        output.log(formatLocalReposResult(result, parsed.format, parsed.countOnly));
+        return 0;
       })();
     }
 
@@ -20960,8 +21129,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           limit: parsed.limit,
           format: parsed.format,
         };
-        return (deps.beadsSyncAcrossRepos ?? runBeadsSyncAcrossRepos)(acrossOpts, output)
-          .then((result) => result.exitCode);
+        return (deps.beadsSyncAcrossRepos ?? runBeadsSyncAcrossRepos)(acrossOpts, output).then(
+          (result) => result.exitCode,
+        );
       }
       const syncOpts: RunBeadsSyncOptions = {
         repo: parsed.repo,
@@ -21143,10 +21313,7 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "handoff-replay") {
-      return runHandoffReplay(
-        { id: parsed.id, format: parsed.format },
-        output,
-      );
+      return runHandoffReplay({ id: parsed.id, format: parsed.format }, output);
     }
 
     if (parsed.command === "transcripts-digest") {
@@ -21176,18 +21343,18 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
     }
 
     if (parsed.command === "repo-status") {
-      const summary = (deps.repoStatus ?? repoStatus)(
-        parsed.repoPath,
-        { includeGitDetails: parsed.includeGitDetails, fetch: parsed.fetch },
-      );
+      const summary = (deps.repoStatus ?? repoStatus)(parsed.repoPath, {
+        includeGitDetails: parsed.includeGitDetails,
+        fetch: parsed.fetch,
+      });
       output.log(formatRepoStatus(summary, parsed.format));
       return 0;
     }
 
     if (
-      parsed.command === "reconcile"
-      || parsed.command === "prune"
-      || parsed.command === "backfill"
+      parsed.command === "reconcile" ||
+      parsed.command === "prune" ||
+      parsed.command === "backfill"
     ) {
       // 2l4ua: bare/scope/authority/merged-only `prx prune` has no faithful gc
       // equivalent yet — keep behavior, emit the deprecation hint (reconcile +
@@ -21216,7 +21383,10 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       // each action's shell command now. Continue-on-error, exit non-zero
       // if any action fails so callers/CI can detect partial failures.
       if (parsed.apply && result.actions.length > 0) {
-        const applyResults = (deps.applyParityChainActions ?? applyParityChainActions)(result, parsed.repoPath);
+        const applyResults = (deps.applyParityChainActions ?? applyParityChainActions)(
+          result,
+          parsed.repoPath,
+        );
         const applyOutput = formatParityChainApplyResults(applyResults, parsed.format);
         if (applyOutput) {
           output.log(applyOutput);
@@ -21363,7 +21533,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
       if (!action.enabled) {
         const reason = action.disabledReason ?? "action is not currently enabled";
         if (parsed.format === "json") {
-          output.log(formatActionExecutionResult(action, parsed.format, { status: "blocked", message: reason }));
+          output.log(
+            formatActionExecutionResult(action, parsed.format, {
+              status: "blocked",
+              message: reason,
+            }),
+          );
         } else {
           output.error(`Action \`${action.id}\` is disabled: ${reason}`);
         }
@@ -21372,20 +21547,14 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
 
       if (action.id === "contract.init") {
         return withRepoPath(parsed.repoPath, () =>
-          runCli(
-            ["init", "--output", parsed.contract, "--format", parsed.format],
-            output,
-            deps,
-          ));
+          runCli(["init", "--output", parsed.contract, "--format", parsed.format], output, deps),
+        );
       }
 
       if (action.id === "survey.overview") {
         return withRepoPath(parsed.repoPath, () =>
-          runCli(
-            ["overview", "--format", parsed.format],
-            output,
-            deps,
-          ));
+          runCli(["overview", "--format", parsed.format], output, deps),
+        );
       }
 
       const skill = skillForActionId(action.id);
@@ -21411,12 +21580,18 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
             ],
             output,
             deps,
-          ));
+          ),
+        );
       }
 
       const unsupportedMessage = `Action \`${action.id}\` is enabled but not dispatchable via \`prx do\` yet. Run manually: ${action.command}`;
       if (parsed.format === "json") {
-        output.log(formatActionExecutionResult(action, parsed.format, { status: "unsupported", message: unsupportedMessage }));
+        output.log(
+          formatActionExecutionResult(action, parsed.format, {
+            status: "unsupported",
+            message: unsupportedMessage,
+          }),
+        );
       } else {
         output.error(unsupportedMessage);
       }
@@ -21493,7 +21668,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           if (parsed.format === "json") {
             output.log(JSON.stringify({ state: refreshed, invariants: invariantReport }, null, 2));
           } else {
-            output.error(`Sprint invariant violations: ${invariantReport.findings.map((f) => f.id).join(", ")}`);
+            output.error(
+              `Sprint invariant violations: ${invariantReport.findings.map((f) => f.id).join(", ")}`,
+            );
           }
           return 1;
         }
@@ -21523,7 +21700,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           if (parsed.format === "json") {
             output.log(JSON.stringify({ state: refreshed, invariants: invariantReport }, null, 2));
           } else {
-            output.error(`Sprint invariant violations: ${invariantReport.findings.map((f) => f.id).join(", ")}`);
+            output.error(
+              `Sprint invariant violations: ${invariantReport.findings.map((f) => f.id).join(", ")}`,
+            );
           }
           return 1;
         }
@@ -21544,7 +21723,9 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
           if (parsed.format === "json") {
             output.log(JSON.stringify({ state: refreshed, invariants: invariantReport }, null, 2));
           } else {
-            output.error(`Sprint invariant violations: ${invariantReport.findings.map((f) => f.id).join(", ")}`);
+            output.error(
+              `Sprint invariant violations: ${invariantReport.findings.map((f) => f.id).join(", ")}`,
+            );
           }
           return 1;
         }
@@ -21596,13 +21777,12 @@ export function runCli(argv: string[], output: Output = console, deps: CliDeps =
 
     if (parsed.command === "sync-issues") {
       if (parsed.apply) {
-        (deps.ensureBeadsInitSetup ?? ensureBeadsInitSetup)(parsed.repoPath, runCommand, { force: true });
+        (deps.ensureBeadsInitSetup ?? ensureBeadsInitSetup)(parsed.repoPath, runCommand, {
+          force: true,
+        });
       }
       return Promise.resolve(
-        (deps.syncGitHubIssuesToBeads ?? syncGitHubIssuesToBeads)(
-          parsed.repoPath,
-          parsed.apply,
-        ),
+        (deps.syncGitHubIssuesToBeads ?? syncGitHubIssuesToBeads)(parsed.repoPath, parsed.apply),
       ).then((result: SyncGitHubIssuesToBeadsResult) => {
         output.log(formatUpdateResult(result, parsed.format));
         return result.exitCode;

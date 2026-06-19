@@ -68,12 +68,7 @@ const BASELINE_SURFACE_ID_PATTERNS: readonly RegExp[] = [
  *   - `key-n`       — Jira-style `PROJ-123` key
  *   - `bd-long-id`  — bd workspace-prefixed long id (`<prefix>-<ts>-<seq>-<hex>`)
  */
-export const externalIdShapes = [
-  "issue-url",
-  "page-uuid",
-  "key-n",
-  "bd-long-id",
-] as const;
+export const externalIdShapes = ["issue-url", "page-uuid", "key-n", "bd-long-id"] as const;
 export type ExternalIdShape = (typeof externalIdShapes)[number];
 
 const regexFromStringOrRegExp = z
@@ -95,9 +90,7 @@ const regexFromStringOrRegExp = z
 
 export const domainAdapterConfigSchema = z.object({
   /** Lowercase domain prefix, e.g. `"gh"` / `"notion"` / `"jira"`. */
-  domain: z
-    .string()
-    .regex(/^[a-z][a-z0-9-]*$/, "domain must be a lowercase prefix (e.g. \"gh\")"),
+  domain: z.string().regex(/^[a-z][a-z0-9-]*$/, 'domain must be a lowercase prefix (e.g. "gh")'),
   /** Anchored regex that recognises this domain's canonical surface ids. */
   surfaceIdPattern: regexFromStringOrRegExp,
   /** Shape of the external id `pull`/`push`/`resolve` exchange. */

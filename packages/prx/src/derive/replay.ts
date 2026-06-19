@@ -33,7 +33,10 @@ export type ReplayReport = {
 function summarize(input: ProjectInput, step: number): ReplayStepSummary {
   const { view } = projectAndRun(input, { rules: allRules });
   const facts = view.facts.all().map(factKey).sort();
-  const ready = view.facts.get("ready").map((f) => String(f.args[0])).sort();
+  const ready = view.facts
+    .get("ready")
+    .map((f) => String(f.args[0]))
+    .sort();
   const drift = view.facts
     .get("drift")
     .map((f) => `${String(f.args[0])}/${String(f.args[1])}`)

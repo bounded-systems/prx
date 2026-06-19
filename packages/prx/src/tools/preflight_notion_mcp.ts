@@ -13,10 +13,7 @@ import { processEnv } from "@bounded-systems/env";
 import { type CommandRunner, defaultRunner } from "../pr-state/github.ts";
 import { detectHeadlessOAuthRequired } from "../pr-state/resolvers/notion_claude_mcp.ts";
 import { buildNotionPreflightProbeRuntimeProfile } from "../machine/runtime_profiles.ts";
-import {
-  agentProfileExecutionAsRuntimeResult,
-  executeAgentProfile,
-} from "../pr-state/executor.ts";
+import { agentProfileExecutionAsRuntimeResult, executeAgentProfile } from "../pr-state/executor.ts";
 
 export const NOTION_MCP_SERVER_NAME = "notion";
 export const NOTION_MCP_URL = "https://mcp.notion.com/mcp";
@@ -46,7 +43,7 @@ export type NotionMcpPreflightResult = {
 };
 
 const HEADLESS_OAUTH_REMEDIATION =
-  'claude --print cannot complete Notion OAuth (no token reuse, malformed redirect_uri, no callback listener). ' +
+  "claude --print cannot complete Notion OAuth (no token reuse, malformed redirect_uri, no callback listener). " +
   'Provision a Notion integration token and switch the overlay to `auth = "rest"`, or restrict resolution to GH-* IDs. Tracking: GH-847.';
 
 function hasNotionEntry(stdout: string): boolean {
@@ -107,8 +104,7 @@ async function probeHeadlessOAuth(
     };
   }
   const oauth =
-    detectHeadlessOAuthRequired(result.stderr) ??
-    detectHeadlessOAuthRequired(result.stdout);
+    detectHeadlessOAuthRequired(result.stderr) ?? detectHeadlessOAuthRequired(result.stdout);
   if (oauth) {
     return {
       ok: false,
@@ -198,10 +194,7 @@ export function formatNotionMcpPreflight(
   if (result.ok) {
     return `notion-mcp preflight: OK (\`${NOTION_MCP_SERVER_NAME}\` server registered with claude and reachable in --print mode)`;
   }
-  const lines = [
-    "notion-mcp preflight: FAILED",
-    `  status: ${result.status}`,
-  ];
+  const lines = ["notion-mcp preflight: FAILED", `  status: ${result.status}`];
   if (result.detail) lines.push(`  detail: ${result.detail}`);
   if (result.remediation) lines.push(`  remediation: ${result.remediation}`);
   return lines.join("\n");

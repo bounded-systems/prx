@@ -5,7 +5,11 @@
 import { describe, expect, test } from "bun:test";
 
 import { CodeHealthReport } from "../../src/health/model.ts";
-import { computeHealthReport, renderHealthMarkdown, type HealthIo } from "../../src/health/report.ts";
+import {
+  computeHealthReport,
+  renderHealthMarkdown,
+  type HealthIo,
+} from "../../src/health/report.ts";
 import { healthVerb } from "../../src/health/verb.ts";
 import { dispatch } from "@bounded-systems/verbspec";
 import { verbRegistry } from "../../src/cli/verb-registry.ts";
@@ -36,7 +40,15 @@ describe("computeHealthReport", () => {
 describe("renderHealthMarkdown", () => {
   test("projects every lens section from the structured report", () => {
     const md = renderHealthMarkdown(computeHealthReport(stubIo));
-    for (const h of ["# prx code health", "## 1. Sprawl", "## 2. Coupling", "## 3. Dead code", "## 4. Product map", "## 5. Zod boundary", "## 6. VerbSpec"]) {
+    for (const h of [
+      "# prx code health",
+      "## 1. Sprawl",
+      "## 2. Coupling",
+      "## 3. Dead code",
+      "## 4. Product map",
+      "## 5. Zod boundary",
+      "## 6. VerbSpec",
+    ]) {
       expect(md).toContain(h);
     }
   });

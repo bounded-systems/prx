@@ -71,11 +71,16 @@ export type TreeDispatchResult =
   | { kind: "ok"; id: string; output: unknown };
 
 /** The namespaced router — resolve (multi-token) → parse → run, or group help. */
-export async function dispatchTree(reg: Registry, argv: readonly string[]): Promise<TreeDispatchResult> {
+export async function dispatchTree(
+  reg: Registry,
+  argv: readonly string[],
+): Promise<TreeDispatchResult> {
   const r = resolveVerb(reg, argv);
   if (r.kind === "unknown") throw new Error(`unknown verb: ${r.token || "(none)"}`);
-  if (r.kind === "namespace") return { kind: "namespace", text: renderNamespace(r.path, r.children) };
-  if (r.rest.includes("--help") || r.rest.includes("-h")) return { kind: "help", text: toHelp(r.verb) };
+  if (r.kind === "namespace")
+    return { kind: "namespace", text: renderNamespace(r.path, r.children) };
+  if (r.rest.includes("--help") || r.rest.includes("-h"))
+    return { kind: "help", text: toHelp(r.verb) };
   const input = parseArgs(r.verb, r.rest);
   const output = await r.verb.run(input);
   return { kind: "ok", id: r.verb.id, output };

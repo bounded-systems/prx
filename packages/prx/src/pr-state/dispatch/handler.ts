@@ -57,9 +57,7 @@ const DEFAULT_PRX_BINARY = "prx";
  * authority (the caller-side outbound gate was retired). A non-dispatchable
  * target resolves to an empty list (admits no caller).
  */
-function resolveAllowedCallers(
-  target: DispatchActor,
-): readonly DispatchActor[] {
+function resolveAllowedCallers(target: DispatchActor): readonly DispatchActor[] {
   return actorSpecFor(target).allowedCallers;
 }
 
@@ -71,10 +69,7 @@ function resolveAllowedCallers(
  * `PRX_TYPED_DISPATCH_REJECTION` env flag (default off), preserving
  * backwards-compatibility for plan/triage/intake/etc.
  */
-function resolveRejectUntyped(
-  source: DispatchActor,
-  env: NodeJS.ProcessEnv,
-): boolean {
+function resolveRejectUntyped(source: DispatchActor, env: NodeJS.ProcessEnv): boolean {
   if (
     source === "plan" ||
     source === "intake" ||
@@ -117,46 +112,44 @@ function buildInvokeActor(opts: {
   parentDispatchId: string;
   source: DispatchActor;
 }) {
-  return fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(
-    async ({ input }) => {
-      const start = Date.now();
-      const childEnv = dispatchChildEnv(opts.parentEnv, {
-        childDepth: input.childDepth,
-        parentDispatchId: opts.parentDispatchId,
-        source: opts.source,
-      });
-      // The dispatched verb is invoked as a top-level prx command. The argv
-      // shape is the target's namespaced verb (e.g. `prx scout grep …`); we
-      // pass the action through verbatim to preserve the target's existing
-      // argv parser. `args` is the argv tail.
-      const argv: string[] = [
-        input.target,
-        input.action,
-        ...((input.args.argv as string[] | undefined) ?? []),
-      ];
-      // streamCapture wires stdin=ignore, stdout/stderr=pipe (matching the
-      // prior stdio) and temp-file-backs stdout so large target output has no
-      // in-memory ceiling. It reports a spawn failure via result.error rather
-      // than rejecting, so re-throw it to keep this actor's reject contract.
-      const result = await streamCapture([opts.prxBinary, ...argv], {
-        env: childEnv,
-      });
-      if (result.error) {
-        throw result.error;
-      }
-      const exitCode = result.status ?? 1;
-      if (exitCode !== 0) {
-        throw new Error(
-          `dispatch target ${input.target} ${input.action} exited ${exitCode}: ${result.stderr.trim()}`,
-        );
-      }
-      return {
-        stdout: Buffer.from(result.stdout, "utf8"),
-        exitCode,
-        durationMs: Date.now() - start,
-      };
-    },
-  );
+  return fromPromise<InvokeTargetVerbOutput, InvokeTargetVerbInput>(async ({ input }) => {
+    const start = Date.now();
+    const childEnv = dispatchChildEnv(opts.parentEnv, {
+      childDepth: input.childDepth,
+      parentDispatchId: opts.parentDispatchId,
+      source: opts.source,
+    });
+    // The dispatched verb is invoked as a top-level prx command. The argv
+    // shape is the target's namespaced verb (e.g. `prx scout grep …`); we
+    // pass the action through verbatim to preserve the target's existing
+    // argv parser. `args` is the argv tail.
+    const argv: string[] = [
+      input.target,
+      input.action,
+      ...((input.args.argv as string[] | undefined) ?? []),
+    ];
+    // streamCapture wires stdin=ignore, stdout/stderr=pipe (matching the
+    // prior stdio) and temp-file-backs stdout so large target output has no
+    // in-memory ceiling. It reports a spawn failure via result.error rather
+    // than rejecting, so re-throw it to keep this actor's reject contract.
+    const result = await streamCapture([opts.prxBinary, ...argv], {
+      env: childEnv,
+    });
+    if (result.error) {
+      throw result.error;
+    }
+    const exitCode = result.status ?? 1;
+    if (exitCode !== 0) {
+      throw new Error(
+        `dispatch target ${input.target} ${input.action} exited ${exitCode}: ${result.stderr.trim()}`,
+      );
+    }
+    return {
+      stdout: Buffer.from(result.stdout, "utf8"),
+      exitCode,
+      durationMs: Date.now() - start,
+    };
+  });
 }
 
 /**
@@ -196,9 +189,7 @@ export interface RunDispatchResult {
   state: string;
 }
 
-export async function runDispatch(
-  opts: RunDispatchOptions,
-): Promise<RunDispatchResult> {
+export async function runDispatch(opts: RunDispatchOptions): Promise<RunDispatchResult> {
   const env = opts.env ?? processEnv();
   const dispatchId = makeDispatchId();
   const prxBinary = opts.prxBinary ?? DEFAULT_PRX_BINARY;
@@ -212,8 +203,7 @@ export async function runDispatch(
       parentDispatchId: env[DISPATCH_PARENT_ENV] ?? dispatchId,
       source: opts.parsed.source,
     });
-  const writeCasBlob =
-    opts.actors?.writeCasBlob ?? buildWriteCasActor({ dispatchId });
+  const writeCasBlob = opts.actors?.writeCasBlob ?? buildWriteCasActor({ dispatchId });
 
   const machine = createDispatchMachine({
     invokeTargetVerb,
@@ -224,8 +214,7 @@ export async function runDispatch(
   // contract-declared input artifact (null when the target has no contract);
   // `rejectUntyped` is the per-profile/env flip; `inputArtifact` is the typed
   // capability the caller presented on the argv.
-  const expectedInputType =
-    getAgentContract(opts.parsed.target)?.inputArtifact ?? null;
+  const expectedInputType = getAgentContract(opts.parsed.target)?.inputArtifact ?? null;
   const rejectUntyped = resolveRejectUntyped(opts.parsed.source, env);
 
   const input: DispatchMachineInput = {
@@ -270,9 +259,11 @@ export async function runDispatch(
  * Success emits `<casHandle>\n` to stdout. Failure emits the reason+detail
  * to stderr and uses a fixed exit code per failure class.
  */
-export function renderDispatchOutcome(
-  outcome: DispatchResult | DispatchFailure,
-): { stdout: string; stderr: string; exitCode: number } {
+export function renderDispatchOutcome(outcome: DispatchResult | DispatchFailure): {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+} {
   if (isDispatchSuccess(outcome)) {
     return { stdout: `${outcome.casHandle}\n`, stderr: "", exitCode: 0 };
   }
@@ -280,7 +271,9 @@ export function renderDispatchOutcome(
   // EX_USAGE), 65 = data error (depth/execution), 70 = software error
   // (unknown). These are stable enough for shell scripting around dispatch.
   const exitCode =
-    outcome.reason === "capability_denied" || outcome.reason === "actor_unknown" || outcome.reason === "verb_unknown"
+    outcome.reason === "capability_denied" ||
+    outcome.reason === "actor_unknown" ||
+    outcome.reason === "verb_unknown"
       ? 64
       : outcome.reason === "depth_exceeded" || outcome.reason === "execution_failed"
         ? 65

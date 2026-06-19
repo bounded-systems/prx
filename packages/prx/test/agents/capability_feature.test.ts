@@ -71,6 +71,8 @@ describe("capability-ownership .feature (prx-g88.7 / 7a)", () => {
 
   test("the orchestrator scenario reflects the runtime guard (denied)", () => {
     expect(generateCapabilityFeature()).toContain("the orchestrator cannot run a privileged tool");
-    expect(decideAgentToolCall({ agentType: "orchestrator", command: "git push" }).allow).toBe(false);
+    expect(decideAgentToolCall({ agentType: "orchestrator", command: "git push" }).allow).toBe(
+      false,
+    );
   });
 });

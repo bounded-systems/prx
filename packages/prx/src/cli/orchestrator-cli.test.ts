@@ -4,7 +4,10 @@ import { runSpecVerb } from "./orchestrator-cli.ts";
 
 const sink = () => {
   const lines: string[] = [];
-  return { out: { log: (s: string) => lines.push(s), error: (s: string) => lines.push(`ERR:${s}`) }, lines };
+  return {
+    out: { log: (s: string) => lines.push(s), error: (s: string) => lines.push(`ERR:${s}`) },
+    lines,
+  };
 };
 
 describe("runSpecVerb — the `prx pilot`/`prx fleet` bridge", () => {

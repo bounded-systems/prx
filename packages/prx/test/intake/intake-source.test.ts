@@ -61,15 +61,11 @@ describe("prx intake source (GH-232)", () => {
   test("resolves the unit and pins <unit>:source@pinned (consumable by the planner)", async () => {
     const { out } = sink();
     const unit = resolved({ id: "GH-232" });
-    const code = await runIntakeSource(
-      { id: "GH-232", format: "plain" },
-      out,
-      {
-        loadIdentity: (() => ({})) as never,
-        buildResolver: (() => fakeResolver(unit)) as never,
-        repoPath: "/repo",
-      },
-    );
+    const code = await runIntakeSource({ id: "GH-232", format: "plain" }, out, {
+      loadIdentity: (() => ({})) as never,
+      buildResolver: (() => fakeResolver(unit)) as never,
+      repoPath: "/repo",
+    });
     expect(code).toBe(0);
 
     const pinned = await consumeArtifact(workUnitSourceEdge, "GH-232");
@@ -89,15 +85,11 @@ describe("prx intake source (GH-232)", () => {
     delete process.env.PRX_PROVENANCE_KEY;
     try {
       await expect(
-        runIntakeSource(
-          { id: "GH-577", format: "plain" },
-          out,
-          {
-            loadIdentity: (() => ({})) as never,
-            buildResolver: (() => fakeResolver(unit)) as never,
-            repoPath: "/repo",
-          },
-        ),
+        runIntakeSource({ id: "GH-577", format: "plain" }, out, {
+          loadIdentity: (() => ({})) as never,
+          buildResolver: (() => fakeResolver(unit)) as never,
+          repoPath: "/repo",
+        }),
       ).rejects.toThrow(/signing key/i);
     } finally {
       process.env.PRX_PROVENANCE_KEY = saved;
@@ -107,15 +99,11 @@ describe("prx intake source (GH-232)", () => {
   test("json format reports the pinned ref + resolved source", async () => {
     const { out, lines } = sink();
     const unit = resolved({ id: "GH-901", source: "beads", title: "bd unit", url: "bd://GH-901" });
-    const code = await runIntakeSource(
-      { id: "GH-901", format: "json" },
-      out,
-      {
-        loadIdentity: (() => ({})) as never,
-        buildResolver: (() => fakeResolver(unit)) as never,
-        repoPath: "/repo",
-      },
-    );
+    const code = await runIntakeSource({ id: "GH-901", format: "json" }, out, {
+      loadIdentity: (() => ({})) as never,
+      buildResolver: (() => fakeResolver(unit)) as never,
+      repoPath: "/repo",
+    });
     expect(code).toBe(0);
     const payload = JSON.parse(lines[0]!);
     expect(payload.unit).toBe("GH-901");
@@ -127,15 +115,11 @@ describe("prx intake source (GH-232)", () => {
   test("throws when no resolver is configured for the id", async () => {
     const { out } = sink();
     await expect(
-      runIntakeSource(
-        { id: "GH-999", format: "plain" },
-        out,
-        {
-          loadIdentity: (() => ({})) as never,
-          buildResolver: (() => null) as never,
-          repoPath: "/repo",
-        },
-      ),
+      runIntakeSource({ id: "GH-999", format: "plain" }, out, {
+        loadIdentity: (() => ({})) as never,
+        buildResolver: (() => null) as never,
+        repoPath: "/repo",
+      }),
     ).rejects.toBeInstanceOf(IntakeSourceError);
   });
 });

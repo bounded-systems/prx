@@ -151,9 +151,7 @@ export function makeAuditInspector(
         state: prevState,
         actor: "claude-code",
         ...(opts.workUnitId ? { workUnitId: opts.workUnitId } : {}),
-        ...(entryAt !== undefined
-          ? { durationMs: Math.max(0, now.getTime() - entryAt) }
-          : {}),
+        ...(entryAt !== undefined ? { durationMs: Math.max(0, now.getTime() - entryAt) } : {}),
       };
       try {
         appendAuditRow(exitRow, opts.deps);

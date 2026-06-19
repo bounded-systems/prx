@@ -135,9 +135,7 @@ export async function runFetchSlack(
       byTs.set(m.ts, m);
     }
   }
-  const fresh = [...byTs.values()].sort((a, b) =>
-    a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0,
-  );
+  const fresh = [...byTs.values()].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0));
 
   const digests: Digest[] = [];
   let deduped = 0;

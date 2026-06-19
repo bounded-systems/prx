@@ -37,7 +37,10 @@ export const statelyVerb = defineVerb({
   actor: "work",
   input: z.object({
     url: z.string().default("https://stately.ai/registry/editor/").describe("Stately editor URL"),
-    "no-wait": z.coerce.boolean().default(false).describe("skip the Enter prompt and open immediately"),
+    "no-wait": z.coerce
+      .boolean()
+      .default(false)
+      .describe("skip the Enter prompt and open immediately"),
     // Parsed for back-compat with the legacy command; the emitted machine is
     // always xstate-ts (matching the prior handler, which ignored --model).
     model: z.enum(["lifecycle", "system"]).default("lifecycle").describe("(reserved)"),

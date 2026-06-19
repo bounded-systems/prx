@@ -46,7 +46,9 @@ for (let i = 0; i < argv.length; i++) {
   }
 }
 if (!outfile) {
-  console.error("prx-compile: outfile required (usage: bun scripts/prx-compile.ts <outfile> [--target <t>])");
+  console.error(
+    "prx-compile: outfile required (usage: bun scripts/prx-compile.ts <outfile> [--target <t>])",
+  );
   process.exit(2);
 }
 if (target !== undefined && target.length === 0) {
@@ -71,7 +73,12 @@ function gitTagOnHead(): string {
     encoding: "utf8",
   });
   if (res.status !== 0) return "";
-  return res.stdout.split("\n").map((l) => l.trim()).find((l) => /^v\d/.test(l)) ?? "";
+  return (
+    res.stdout
+      .split("\n")
+      .map((l) => l.trim())
+      .find((l) => /^v\d/.test(l)) ?? ""
+  );
 }
 
 const sha = process.env.PRX_COMPILE_GIT_SHA ?? gitShaShort();
@@ -82,9 +89,12 @@ const claudePath = process.env.PRX_COMPILE_CLAUDE_PATH ?? join(homedir(), ".loca
 // characters in the replacement text, not shell quoting (spawnSync passes argv
 // verbatim, no shell parsing).
 const defines = [
-  "--define", `__PRX_BUILD_GIT_SHA__="${sha}"`,
-  "--define", `__PRX_BUILD_VERSION__="${version}"`,
-  "--define", `__PRX_BUILD_CLAUDE_CODE_PATH__="${claudePath}"`,
+  "--define",
+  `__PRX_BUILD_GIT_SHA__="${sha}"`,
+  "--define",
+  `__PRX_BUILD_VERSION__="${version}"`,
+  "--define",
+  `__PRX_BUILD_CLAUDE_CODE_PATH__="${claudePath}"`,
 ];
 
 // GH-411: bake the operator-config root. (Slice 5 removed the deprecated
@@ -98,7 +108,15 @@ const bun = process.env.BUN ?? "bun";
 const targetArgs = target ? [`--target=${target}`] : [];
 const result = spawnSync(
   bun,
-  ["build", "--compile", ...defines, ...targetArgs, "packages/prx/scripts/pr_state.ts", "--outfile", outfile],
+  [
+    "build",
+    "--compile",
+    ...defines,
+    ...targetArgs,
+    "packages/prx/scripts/pr_state.ts",
+    "--outfile",
+    outfile,
+  ],
   { stdio: "inherit" },
 );
 

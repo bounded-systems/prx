@@ -35,8 +35,7 @@ import {
  * narrowed per-repo identity overlay must not be able to hide a
  * foreign-prefix long-id from the cross-workspace skip diagnostic.
  */
-export const BD_SURFACE_LONG_ID_RE =
-  /^BD-([a-z][a-z0-9-]*)-(\d{13,}-\d+-[0-9a-f]{8})$/;
+export const BD_SURFACE_LONG_ID_RE = /^BD-([a-z][a-z0-9-]*)-(\d{13,}-\d+-[0-9a-f]{8})$/;
 
 export type RouteDecision =
   | { kind: "unrecognized" }
@@ -195,8 +194,7 @@ export function runRepoRouter(
 ): RunRepoRouterResult {
   const loadConfig = deps.loadRepoInventoryConfig ?? defaultLoadRepoInventoryConfig;
   const loadIndex = deps.loadRepoInventoryIndex ?? defaultLoadRepoInventoryIndex;
-  const localPrefixFor =
-    deps.localWorkspacePrefixForCwd ?? defaultLocalWorkspacePrefixForCwd;
+  const localPrefixFor = deps.localWorkspacePrefixForCwd ?? defaultLocalWorkspacePrefixForCwd;
   const recordEvent = deps.recordEvent ?? defaultRecordEvent;
 
   // I-RR2: read inventory once, pin for the lifetime of the tick.
@@ -220,15 +218,10 @@ export function runRepoRouter(
     if (args.repoOverride !== undefined) {
       const localRepoName =
         inventory && localPrefix
-          ? inventory.repos.find((r) => r.bd_workspace_prefix === localPrefix)
-              ?.name ?? null
+          ? (inventory.repos.find((r) => r.bd_workspace_prefix === localPrefix)?.name ?? null)
           : null;
       if (localRepoName !== null && args.repoOverride !== localRepoName) {
-        const hint = conflictHint(
-          args.repoOverride,
-          decision.prefix,
-          localRepoName,
-        );
+        const hint = conflictHint(args.repoOverride, decision.prefix, localRepoName);
         const actor = createActor(repoRouterMachine);
         actor.start();
         recordEvent("BD_PREFIX_DETECTED", {
@@ -304,10 +297,7 @@ export function runRepoRouter(
   // GH-1661: foreign-arm conflict check. If --repo X disagrees with the
   // embedded prefix's pinned repo Y, refuse at the gate before
   // materializing anything.
-  if (
-    args.repoOverride !== undefined &&
-    args.repoOverride !== repoName
-  ) {
+  if (args.repoOverride !== undefined && args.repoOverride !== repoName) {
     const hint = conflictHint(args.repoOverride, decision.prefix, repoName);
     recordEvent("ROUTE_REFUSED_CONFLICT", {
       details: {

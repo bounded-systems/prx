@@ -16,12 +16,7 @@ import {
 import type { execGit, GitExecOptions, GitExecResult } from "@bounded-systems/git";
 import type { ProcExecutor, ProcRequest, ProcResult } from "@bounded-systems/proc";
 
-import {
-  GIT_COMMIT_BUILD_TYPE,
-  attestingGit,
-  attestingProc,
-  type AttestDeps,
-} from "../attest.ts";
+import { GIT_COMMIT_BUILD_TYPE, attestingGit, attestingProc, type AttestDeps } from "../attest.ts";
 import { slsaProvenanceStatement, verifySlsaEnvelope } from "../slsa.ts";
 
 const BUILDER_ID = "prx://claude-code/submit";
@@ -88,7 +83,10 @@ describe("attestingGit — emit on a successful commit", () => {
     const store = fakeStore();
     const { deps, publicKey } = mkDeps(store);
     const git = fakeGit();
-    const result = await attestingGit(git, deps)({
+    const result = await attestingGit(
+      git,
+      deps,
+    )({
       subcommand: "commit",
       args: ["-m", "first"],
       cwd: "/repo",
@@ -113,9 +111,7 @@ describe("attestingGit — emit on a successful commit", () => {
       invocationId: d.derivationId as string,
       startedOn: new Date(NOW).toISOString(),
     });
-    expect(
-      await verifySlsaEnvelope(stmt, d.envelope!, ed25519Verifier(publicKey)),
-    ).toBe(true);
+    expect(await verifySlsaEnvelope(stmt, d.envelope!, ed25519Verifier(publicKey))).toBe(true);
   });
 
   test("a failed commit emits no derivation and does not resolve HEAD", async () => {
@@ -123,7 +119,10 @@ describe("attestingGit — emit on a successful commit", () => {
     const git = fakeGit({
       commit: { exitCode: 1, stdout: "", stderr: "nothing to commit", policy: null },
     });
-    const result = await attestingGit(git, mkDeps(store).deps)({
+    const result = await attestingGit(
+      git,
+      mkDeps(store).deps,
+    )({
       subcommand: "commit",
       args: ["-m", "empty"],
       cwd: "/repo",
@@ -136,7 +135,10 @@ describe("attestingGit — emit on a successful commit", () => {
   test("a non-attestable subcommand (status) emits no derivation", async () => {
     const store = fakeStore();
     const git = fakeGit();
-    await attestingGit(git, mkDeps(store).deps)({
+    await attestingGit(
+      git,
+      mkDeps(store).deps,
+    )({
       subcommand: "status",
       args: ["--porcelain"],
       cwd: "/repo",
@@ -150,7 +152,10 @@ describe("attestingGit — emit on a successful commit", () => {
     const git = fakeGit({
       "rev-parse": { exitCode: 128, stdout: "", stderr: "no HEAD", policy: null },
     });
-    const result = await attestingGit(git, mkDeps(store).deps)({
+    const result = await attestingGit(
+      git,
+      mkDeps(store).deps,
+    )({
       subcommand: "commit",
       args: ["-m", "first"],
       cwd: "/repo",
@@ -162,7 +167,11 @@ describe("attestingGit — emit on a successful commit", () => {
 
 describe("attestingProc — opt-in, caller-declared subject", () => {
   function inner(result: ProcResult): ProcExecutor {
-    return { async exec() { return result; } };
+    return {
+      async exec() {
+        return result;
+      },
+    };
   }
   const ok: ProcResult = { status: 0, stdout: "", stderr: "", signal: null };
 
@@ -178,9 +187,7 @@ describe("attestingProc — opt-in, caller-declared subject", () => {
     const exec = attestingProc(inner(ok), mkDeps(store).deps, () => declareArtifact());
     await exec.exec({ command: "make", args: ["dist"] } as ProcRequest);
     expect(store.appended).toHaveLength(1);
-    expect(store.appended[0]!.manifest.outputs.artifact).toBe(
-      `sha256:${"a".repeat(64)}` as Digest,
-    );
+    expect(store.appended[0]!.manifest.outputs.artifact).toBe(`sha256:${"a".repeat(64)}` as Digest);
   });
 
   test("is idempotent: an identical declared run appends once", async () => {

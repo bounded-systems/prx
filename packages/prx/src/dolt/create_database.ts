@@ -78,9 +78,7 @@ function showDatabasesHasRow(stdout: string): boolean | null {
 
 /** Build spawn options, omitting `env` entirely when unset (exactOptionalPropertyTypes). */
 function spawnOptions(conn: CreateDatabaseConn): { cwd: string; env?: NodeJS.ProcessEnv } {
-  return conn.env !== undefined
-    ? { cwd: conn.cwd, env: conn.env }
-    : { cwd: conn.cwd };
+  return conn.env !== undefined ? { cwd: conn.cwd, env: conn.env } : { cwd: conn.cwd };
 }
 
 function sqlArgs(conn: CreateDatabaseConn, query: string): string[] {

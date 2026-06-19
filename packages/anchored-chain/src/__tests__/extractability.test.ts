@@ -1,26 +1,23 @@
-import { describe, expect, test } from 'bun:test';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { describe, expect, test } from "bun:test";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const MODULE_ROOT = resolve(HERE, '..');
+const MODULE_ROOT = resolve(HERE, "..");
 
 // The pure core: no database. drizzle-orm + bun:sqlite now live in
 // @bounded-systems/anchored-chain-sqlite; the core depends only on node:crypto (signing)
 // and the @bounded-systems/cas substrate it builds its provenance graph on.
-const PROD_ALLOWLIST = new Set([
-  'node:crypto',
-  '@bounded-systems/cas',
-]);
+const PROD_ALLOWLIST = new Set(["node:crypto", "@bounded-systems/cas"]);
 
 const TEST_ALLOWLIST = new Set([
   ...PROD_ALLOWLIST,
-  'bun:test',
-  'node:fs',
-  'node:path',
-  'node:url',
-  '@bounded-systems/anchored-chain',
+  "bun:test",
+  "node:fs",
+  "node:path",
+  "node:url",
+  "@bounded-systems/anchored-chain",
 ]);
 
 const IMPORT_RE =
@@ -32,7 +29,7 @@ function listTsFiles(dir: string): string[] {
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) {
       out.push(...listTsFiles(full));
-    } else if (entry.endsWith('.ts')) {
+    } else if (entry.endsWith(".ts")) {
       out.push(full);
     }
   }
@@ -40,16 +37,16 @@ function listTsFiles(dir: string): string[] {
 }
 
 function isInModuleImport(spec: string): boolean {
-  return spec.startsWith('.') || spec.startsWith('./') || spec.startsWith('../');
+  return spec.startsWith(".") || spec.startsWith("./") || spec.startsWith("../");
 }
 
-describe('anchored-chain extractability', () => {
-  test('no outbound imports outside the allowlist', () => {
+describe("anchored-chain extractability", () => {
+  test("no outbound imports outside the allowlist", () => {
     const violations: Array<{ file: string; spec: string }> = [];
     for (const file of listTsFiles(MODULE_ROOT)) {
-      const isTest = file.includes('/__tests__/');
+      const isTest = file.includes("/__tests__/");
       const allowlist = isTest ? TEST_ALLOWLIST : PROD_ALLOWLIST;
-      const source = readFileSync(file, 'utf8');
+      const source = readFileSync(file, "utf8");
       for (const match of source.matchAll(IMPORT_RE)) {
         const spec = match[1]!;
         if (isInModuleImport(spec)) continue;

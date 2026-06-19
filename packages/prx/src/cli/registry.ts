@@ -25,15 +25,19 @@ import { z } from "zod";
 import { actorNames } from "../machine/actor_names.ts";
 import { sessionProfileNames } from "../machine/runtime_profiles.ts";
 
-export const SessionContext = z.enum(["mainx", "plan", "intake", "triage", "implement", "submit", "author", "scratch"]);
+export const SessionContext = z.enum([
+  "mainx",
+  "plan",
+  "intake",
+  "triage",
+  "implement",
+  "submit",
+  "author",
+  "scratch",
+]);
 export type SessionContext = z.infer<typeof SessionContext>;
 
-export const CommandDomain = z.enum([
-  "state",
-  "work-units",
-  "repo-plumbing",
-  "system",
-]);
+export const CommandDomain = z.enum(["state", "work-units", "repo-plumbing", "system"]);
 export type CommandDomain = z.infer<typeof CommandDomain>;
 
 export const Deprecation = z.object({
@@ -59,18 +63,19 @@ export const SessionRole = z.enum(["lifecycle", "toolset", "preflight"]);
 export type SessionRole = z.infer<typeof SessionRole>;
 
 const wordCount4to12 = (value: string): boolean => {
-  const n = value.trim().split(/\s+/).filter((w) => w.length > 0).length;
+  const n = value
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w.length > 0).length;
   return n >= 4 && n <= 12;
 };
 
 export const CommandSpec = z.object({
   name: z.string().min(1),
   parent: z.string().min(1).optional(),
-  description: z
-    .string()
-    .refine(wordCount4to12, {
-      message: "description must be 4-12 words (help-surface §6.4)",
-    }),
+  description: z.string().refine(wordCount4to12, {
+    message: "description must be 4-12 words (help-surface §6.4)",
+  }),
   domain: CommandDomain,
   promoted_in: z.array(SessionContext).default([]),
   binding: z.enum(["work-unit", "mainx", "none"]).default("none"),

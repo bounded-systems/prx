@@ -6,11 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, test } from "bun:test";
 
-import {
-  formatScoutFilesJsonLines,
-  runScoutFiles,
-  ScoutFilesError,
-} from "../files.ts";
+import { formatScoutFilesJsonLines, runScoutFiles, ScoutFilesError } from "../files.ts";
 
 describe("runScoutFiles — bounded glob walk", () => {
   let root: string;
@@ -23,10 +19,7 @@ describe("runScoutFiles — bounded glob walk", () => {
     writeFileSync(join(root, "src", "a.ts"), "export const a = 1;\n");
     writeFileSync(join(root, "src", "b.nix"), "{}\n");
     writeFileSync(join(root, "src", "nested", "c.nix"), "{}\n");
-    writeFileSync(
-      join(root, "node_modules", "ignored", "d.nix"),
-      "must not appear\n",
-    );
+    writeFileSync(join(root, "node_modules", "ignored", "d.nix"), "must not appear\n");
   });
 
   test("matches `**/*.nix` across nested dirs and the root", async () => {
@@ -81,9 +74,7 @@ describe("runScoutFiles — bounded glob walk", () => {
       caught = err;
     }
     expect(caught).toBeInstanceOf(ScoutFilesError);
-    expect((caught as ScoutFilesError).code).toBe(
-      "WORKUNIT_RESOLUTION_NOT_IMPLEMENTED",
-    );
+    expect((caught as ScoutFilesError).code).toBe("WORKUNIT_RESOLUTION_NOT_IMPLEMENTED");
   });
 
   test("maxResults bounds matches and sets truncated", async () => {

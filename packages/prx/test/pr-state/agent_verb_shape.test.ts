@@ -17,18 +17,10 @@
 
 import { describe, expect, test } from "bun:test";
 
-import {
-  prxCommandRegistry,
-} from "../../src/cli/registry.data.ts";
+import { prxCommandRegistry } from "../../src/cli/registry.data.ts";
 import { ActorName } from "../../src/cli/registry.ts";
-import {
-  defaultDispatchCapabilities,
-  dispatchActors,
-} from "../../src/machine/dispatch.ts";
-import {
-  sessionProfileNames,
-  taskAgentRoles,
-} from "../../src/machine/runtime_profiles.ts";
+import { defaultDispatchCapabilities, dispatchActors } from "../../src/machine/dispatch.ts";
+import { sessionProfileNames, taskAgentRoles } from "../../src/machine/runtime_profiles.ts";
 
 // The three sibling profile-binding spikes whose actor names are
 // already in `ActorName`. The fourth spike (GH-1947, review actor)
@@ -68,9 +60,7 @@ describe("GH-1943 — agent verb-shape ADR substrate", () => {
     // muscle memory keeps working for one cycle. The alias points at
     // the canonical `implement agent` verb and carries a stderr hint
     // (mirrors the GH-1166 retired-shorthand playbook).
-    const alias = prxCommandRegistry.find(
-      (c) => c.name === "implement session",
-    );
+    const alias = prxCommandRegistry.find((c) => c.name === "implement session");
     expect(alias, "`implement session` deprecation alias must exist").toBeDefined();
     expect(alias?.deprecation?.alias_for).toBe("implement agent");
     expect(alias?.session_profile).toBeUndefined();
@@ -153,9 +143,12 @@ describe("GH-1943 — agent verb-shape ADR substrate", () => {
     "../../../../docs/spikes/GH-1943-actor-agent-verb-shape.md",
     import.meta.url,
   );
-  test.skipIf(Bun.file(adrPath).size === 0)("ADR document is checked in at the conventional path", () => {
-    expect(Bun.file(adrPath).size > 0).toBe(true);
-  });
+  test.skipIf(Bun.file(adrPath).size === 0)(
+    "ADR document is checked in at the conventional path",
+    () => {
+      expect(Bun.file(adrPath).size > 0).toBe(true);
+    },
+  );
 });
 
 describe("GH-1943 — post-rename gates (ADR §7 step 2; tracked separately)", () => {

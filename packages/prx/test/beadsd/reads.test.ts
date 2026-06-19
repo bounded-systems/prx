@@ -48,7 +48,10 @@ describe("daemon readers parse raw bd --json into BeadsRecord (GH-296)", () => {
 
   test("showBeadViaDaemon issues a TARGETED `show <id>` and parses the one record", async () => {
     let seen: BeadsRequest | undefined;
-    const rec = await showBeadViaDaemon("prx-abb", fakeDeps({ status: "ok", result: [RAW] }, (r) => (seen = r)));
+    const rec = await showBeadViaDaemon(
+      "prx-abb",
+      fakeDeps({ status: "ok", result: [RAW] }, (r) => (seen = r)),
+    );
     expect(seen).toEqual({ kind: "show", id: "prx-abb" });
     expect(rec?.id).toBe("prx-abb");
     expect(rec?.externalIssueNumber).toBe(123);

@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  formatIssueSearchTable,
-  mergeIssueHits,
-} from "../../src/issues/merge.ts";
+import { formatIssueSearchTable, mergeIssueHits } from "../../src/issues/merge.ts";
 import type { IssueSearchHit } from "../../src/issues/search.ts";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
 
@@ -135,11 +132,7 @@ describe("mergeIssueHits", () => {
   });
 
   test("empty bdRecords skips dedupe and just concatenates", () => {
-    const merged = mergeIssueHits(
-      [gh({ id: "GH-1" })],
-      [bd({ id: "ai-home-aaa" })],
-      [],
-    );
+    const merged = mergeIssueHits([gh({ id: "GH-1" })], [bd({ id: "ai-home-aaa" })], []);
     expect(merged).toHaveLength(2);
     expect(merged[0]!.source).toBe("gh");
     expect(merged[1]!.source).toBe("bd");

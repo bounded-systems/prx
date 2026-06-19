@@ -5,7 +5,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type { execGit, GitExecOptions, GitExecResult } from "@bounded-systems/git";
-import { ed25519Signer, generateEd25519Keypair, type DerivationStore } from "@bounded-systems/anchored-chain";
+import {
+  ed25519Signer,
+  generateEd25519Keypair,
+  type DerivationStore,
+} from "@bounded-systems/anchored-chain";
 
 import { FrameDecoder, encodeFrame } from "../../src/door/framing.ts";
 import {
@@ -25,7 +29,12 @@ const REQUEST: KeeperRemoteRequest = {
   remote: "origin",
 };
 
-const okResult = (stdout = ""): GitExecResult => ({ exitCode: 0, stdout, stderr: "", policy: null });
+const okResult = (stdout = ""): GitExecResult => ({
+  exitCode: 0,
+  stdout,
+  stderr: "",
+  policy: null,
+});
 
 /**
  * A fake `execGit` that records calls and answers the model-A import+push flow:
@@ -75,7 +84,9 @@ describe("handleKeeperRequest", () => {
   });
 
   test("maps a non-zero push to a typed git-write error with the exit code", async () => {
-    const { git } = fakeGit({ push: { exitCode: 128, stdout: "", stderr: "rejected", policy: null } });
+    const { git } = fakeGit({
+      push: { exitCode: 128, stdout: "", stderr: "rejected", policy: null },
+    });
     const res = await handleKeeperRequest(REQUEST, { git });
     expect(res.status).toBe("error");
     if (res.status === "error") {
@@ -132,7 +143,12 @@ describe("handleKeeperRequest", () => {
       signer,
       openLedger: (ledgerRef) => {
         openedRef = ledgerRef;
-        return { store, close: () => { closed = true; } };
+        return {
+          store,
+          close: () => {
+            closed = true;
+          },
+        };
       },
     };
     const res = await handleKeeperRequest({ ...REQUEST, ledgerRef: "refs/prx/ledger" }, deps);
@@ -257,7 +273,10 @@ describe("runKeeperServe (unix socket, end-to-end)", () => {
     const path = await start({
       git,
       signer: ed25519Signer(kp.privateKey, kp.keyid),
-      openLedger: () => ({ store: { append: async () => {}, get: async () => null }, close: () => {} }),
+      openLedger: () => ({
+        store: { append: async () => {}, get: async () => null },
+        close: () => {},
+      }),
     });
     const res = (await sendFrame(path, { ...REQUEST, ledgerRef: "refs/prx/ledger" })) as {
       status: string;

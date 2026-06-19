@@ -16,10 +16,7 @@ export interface AnchoredChainStore {
   readonly lineage: {
     ancestors(derivationId: Digest): Promise<Digest[]>;
     descendants(derivationId: Digest): Promise<Digest[]>;
-    isStale(
-      derivationId: Digest,
-      currentRefs: Readonly<Record<string, Digest>>,
-    ): Promise<boolean>;
+    isStale(derivationId: Digest, currentRefs: Readonly<Record<string, Digest>>): Promise<boolean>;
   };
   close(): void;
 }

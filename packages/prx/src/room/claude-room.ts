@@ -33,11 +33,29 @@ export const claudeRoom: RoomSpec = {
   tier: "sandbox",
   doors: [
     // Privileged egress: the only way out is through these daemon doors.
-    { name: "beadsd", direction: "consume", capability: "beads:read", socket: `${DOORS}/beadsd.sock`, state: "open" },
-    { name: "keeperd", direction: "consume", capability: "git:write", socket: `${DOORS}/keeperd.sock`, state: "open" },
+    {
+      name: "beadsd",
+      direction: "consume",
+      capability: "beads:read",
+      socket: `${DOORS}/beadsd.sock`,
+      state: "open",
+    },
+    {
+      name: "keeperd",
+      direction: "consume",
+      capability: "git:write",
+      socket: `${DOORS}/keeperd.sock`,
+      state: "open",
+    },
     // Declared but SEALED: the remote-control / drive-the-session seam. Opened
     // by prx-9s14 (authd-brokered); closed today.
-    { name: "control", direction: "expose", capability: "session:control", socket: `${DOORS}/control.sock`, state: "closed" },
+    {
+      name: "control",
+      direction: "expose",
+      capability: "session:control",
+      socket: `${DOORS}/control.sock`,
+      state: "closed",
+    },
   ],
   // The occupant's own boundary is whatever the open consumed doors carry
   // (beads:read, git:write) — no standalone tool authority baked in.

@@ -24,7 +24,8 @@ const SRC_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../src");
 
 const ENV_RE = /\bprocess\.env\b|\bBun\.env\b/;
 const OS_RE = /\bfrom\s+["']node:os["']/;
-const SPAWN_RE = /\bchild_process\b|\bspawnSync\b|\bBun\.spawn\b|\bexecSync\b|\bexecFileSync\b|\bDeno\.Command\b/;
+const SPAWN_RE =
+  /\bchild_process\b|\bspawnSync\b|\bBun\.spawn\b|\bexecSync\b|\bexecFileSync\b|\bDeno\.Command\b/;
 
 // Files in src/ that still spawn subprocesses directly. The @bounded-systems/proc
 // migration is complete, so this is empty: every src/ spawn now routes through

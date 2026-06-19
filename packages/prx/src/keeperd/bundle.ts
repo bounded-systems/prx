@@ -74,7 +74,9 @@ export function importBundleIntoRepo(
   deps: BundleDeps = {},
 ): void {
   if (!SHA1_RE.test(input.commitSha)) {
-    throw new KeeperGitError(`keeper import: expected a 40-hex commitSha, got '${input.commitSha}'`);
+    throw new KeeperGitError(
+      `keeper import: expected a 40-hex commitSha, got '${input.commitSha}'`,
+    );
   }
   const git = deps.git ?? execGit;
   const dir = mkdtempSync(join(tmpDir(), "keeper-import-"));

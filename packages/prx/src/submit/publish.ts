@@ -12,12 +12,7 @@
 import type { Derivation, Verifier } from "@bounded-systems/anchored-chain";
 import { spawnCapture } from "@bounded-systems/proc";
 
-import {
-  getRef,
-  PlanStoreError,
-  setRef,
-  type CasSha,
-} from "../plan-store/cas.ts";
+import { getRef, PlanStoreError, setRef, type CasSha } from "../plan-store/cas.ts";
 import { type AttestDeps } from "../provenance/attest.ts";
 import { verifySlsaDerivation } from "../provenance/verify.ts";
 // GH-2348.2: submit-publish is now an orchestrator — it delegates the push to
@@ -51,12 +46,7 @@ export interface PublishOptions {
 export interface PublishStep {
   // GH-2348.2: push/PR are now delegated (keeper push, publisher pr open)
   // rather than inline git/gh argv steps.
-  kind:
-    | "keeper-commit"
-    | "keeper-push"
-    | "publisher-pr-open"
-    | "set-ref"
-    | "preflight";
+  kind: "keeper-commit" | "keeper-push" | "publisher-pr-open" | "set-ref" | "preflight";
   argv?: string[];
   ref?: string;
   sha?: CasSha;
@@ -177,9 +167,7 @@ async function resolveFromCas(
   const { workUnitId: _wu, slot: _slot } = parseSubmitRef(fromCas);
   const sha = await deps.getRef(fromCas, { domain: SUBMIT_DOMAIN });
   if (sha === null) {
-    throw new PublishError(
-      `prx submit publish: ref '${fromCas}' not found in submit CAS domain`,
-    );
+    throw new PublishError(`prx submit publish: ref '${fromCas}' not found in submit CAS domain`);
   }
   return { sha, viaRef: fromCas };
 }
@@ -199,19 +187,12 @@ export async function runSubmitPublish(
     artifact = await readArtifact({ sha });
   } catch (err) {
     if (err instanceof PlanStoreError) {
-      throw new PublishError(
-        `prx submit publish: failed to read artifact ${sha}: ${err.message}`,
-      );
+      throw new PublishError(`prx submit publish: failed to read artifact ${sha}: ${err.message}`);
     }
     throw err;
   }
 
-  const preflightArgv = [
-    "prx",
-    "chain",
-    "check-issue",
-    artifact.workUnitId,
-  ];
+  const preflightArgv = ["prx", "chain", "check-issue", artifact.workUnitId];
   const branch = derivedBranch(artifact.workUnitId);
   const pushArgs = ["origin", branch];
   // For the dry-run plan only; runPrOpen builds the real `(GH-N)` title itself.
@@ -328,11 +309,7 @@ export async function runSubmitPublish(
     signed = (resp.signedDerivation as Derivation | undefined) ?? null;
   } else {
     const keeperPush = deps.keeperPush ?? runKeeperPush;
-    const push = await keeperPush(
-      pushArgs,
-      undefined,
-      pushAttest ? { attest: pushAttest } : {},
-    );
+    const push = await keeperPush(pushArgs, undefined, pushAttest ? { attest: pushAttest } : {});
     if (push.exitCode !== 0) {
       const tail = (push.stderr ?? "").trim().split("\n").slice(-1)[0] ?? "";
       throw new PublishError(
@@ -419,17 +396,12 @@ export async function runSubmitPublish(
   };
 }
 
-export function formatPublishRender(
-  render: PublishRender,
-  format: "plain" | "json",
-): string {
+export function formatPublishRender(render: PublishRender, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(render, null, 2);
   }
   const lines: string[] = [];
-  lines.push(
-    `prx submit publish: ${render.dryRun ? "DRY RUN " : ""}${render.artifact.workUnitId}`,
-  );
+  lines.push(`prx submit publish: ${render.dryRun ? "DRY RUN " : ""}${render.artifact.workUnitId}`);
   lines.push(`  from-cas: ${render.fromCas}`);
   lines.push(`  sha: ${render.resolvedSha}`);
   lines.push(`  base: ${render.artifact.baseRef}@${render.artifact.baseSha}`);

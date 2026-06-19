@@ -56,7 +56,14 @@ export type BdExecEnv = {
 };
 
 const ALLOWED_SUBCOMMANDS = [
-  "ready", "list", "show", "view", "create", "update", "claim", "reopen",
+  "ready",
+  "list",
+  "show",
+  "view",
+  "create",
+  "update",
+  "claim",
+  "reopen",
   // GH-1874: `assign` is the bd-canonical write for the assignee column —
   // shorthand for `bd update <id> --assignee <name>` (empty string clears).
   // Trust class matches `update`/`create`/`claim`: planner-only at the
@@ -65,7 +72,9 @@ const ALLOWED_SUBCOMMANDS = [
   "assign",
   // GH-1003: memory surface — recall (read by key), remember (upsert),
   // memories (list/search). `forget` (destructive) is intentionally absent.
-  "recall", "remember", "memories",
+  "recall",
+  "remember",
+  "memories",
   // GH-1351: typed dep edges (parent-child / blocks). Required by
   // `prx triage promote-children` to wire manifest-declared edges. The
   // bd `dep` group itself contains read+write subcommands; per-arg policy
@@ -776,10 +785,7 @@ export type BdDoctorResult = {
   stderr: string;
 };
 
-function parseBdDoctorReport(
-  result: BdGithubRunResult,
-  verb: string,
-): BdDoctorResult {
+function parseBdDoctorReport(result: BdGithubRunResult, verb: string): BdDoctorResult {
   if (result.status !== 0) {
     return {
       exitCode: result.status,

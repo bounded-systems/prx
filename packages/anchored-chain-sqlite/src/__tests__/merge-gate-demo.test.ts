@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import {
   digestManifest,
@@ -10,7 +10,7 @@ import {
   type Digest,
   type AnchoredChainStore,
   type VerdictResult,
-} from '@bounded-systems/anchored-chain-sqlite';
+} from "@bounded-systems/anchored-chain-sqlite";
 
 // Demonstrative proof for the anchored-chain claim
 // "artifacts license transitions; the merge gate is a verifier".
@@ -29,14 +29,14 @@ import {
 let store: AnchoredChainStore;
 
 beforeEach(() => {
-  store = openAnchoredChain(':memory:');
+  store = openAnchoredChain(":memory:");
 });
 
 afterEach(() => {
   store.close();
 });
 
-const D = (s: string) => `sha256:${s.padEnd(64, '0')}` as Digest;
+const D = (s: string) => `sha256:${s.padEnd(64, "0")}` as Digest;
 const C = (s: string) => s as ContractId;
 
 function mkDer(producer: string, inputs: Record<string, Digest>): Derivation {
@@ -45,10 +45,10 @@ function mkDer(producer: string, inputs: Record<string, Digest>): Derivation {
     inputs,
     outputs: { out: D(`${producer}-out`) },
     contracts:
-      producer === 'agent:reviewer'
-        ? (['anchored/review-approved'] as const)
-        : producer === 'gate:merge'
-          ? (['anchored/merge-requires-review'] as const)
+      producer === "agent:reviewer"
+        ? (["anchored/review-approved"] as const)
+        : producer === "gate:merge"
+          ? (["anchored/merge-requires-review"] as const)
           : ([] as const),
     params: {},
   } as const;
@@ -70,24 +70,21 @@ function mkGateRegistry(args: {
   const validators: Record<string, (id: Digest) => VerdictResult> = {
     // Licenses the merge transition iff a review_evidence artifact is among
     // the merge_decision's declared inputs. Absence = unlicensed transition.
-    'anchored/merge-requires-review': (id) => {
+    "anchored/merge-requires-review": (id) => {
       const der = byId.get(id);
-      if (!der) return { ok: false, reason: 'merge_decision derivation missing' };
-      const hasReview = Object.values(der.manifest.inputs).some((d) =>
-        reviewNodes.has(d),
-      );
+      if (!der) return { ok: false, reason: "merge_decision derivation missing" };
+      const hasReview = Object.values(der.manifest.inputs).some((d) => reviewNodes.has(d));
       return hasReview
         ? { ok: true }
         : {
             ok: false,
-            reason:
-              'merge gate: no review_evidence among inputs — transition unlicensed',
+            reason: "merge gate: no review_evidence among inputs — transition unlicensed",
           };
     },
     // The review_evidence artifact itself only validates when approved.
-    'anchored/review-approved': (id) => {
-      const status = reviewStatus.get(id) ?? '<absent>';
-      return status === 'approved'
+    "anchored/review-approved": (id) => {
+      const status = reviewStatus.get(id) ?? "<absent>";
+      return status === "approved"
         ? { ok: true }
         : { ok: false, reason: `review status=${status} (need approved)` };
     },
@@ -115,10 +112,10 @@ async function buildCodingChain(opts: {
   includeReview: boolean;
   reviewStatus?: string;
 }): Promise<BuiltChain> {
-  const issue = mkDer('source:issue', {});
-  const plan = mkDer('agent:planner', { issue: issue.derivationId });
-  const patch = mkDer('agent:executor', { plan: plan.derivationId });
-  const testRun = mkDer('runner:tests', { patch: patch.derivationId });
+  const issue = mkDer("source:issue", {});
+  const plan = mkDer("agent:planner", { issue: issue.derivationId });
+  const patch = mkDer("agent:executor", { plan: plan.derivationId });
+  const testRun = mkDer("runner:tests", { patch: patch.derivationId });
 
   const byId = new Map<Digest, Derivation>();
   const reviewNodes = new Set<Digest>();
@@ -130,12 +127,12 @@ async function buildCodingChain(opts: {
     test_run: testRun.derivationId,
   };
   if (opts.includeReview) {
-    review = mkDer('agent:reviewer', { patch: patch.derivationId });
+    review = mkDer("agent:reviewer", { patch: patch.derivationId });
     mergeInputs.review = review.derivationId;
     reviewNodes.add(review.derivationId);
-    reviewStatus.set(review.derivationId, opts.reviewStatus ?? 'approved');
+    reviewStatus.set(review.derivationId, opts.reviewStatus ?? "approved");
   }
-  const merge = mkDer('gate:merge', mergeInputs);
+  const merge = mkDer("gate:merge", mergeInputs);
 
   for (const d of [issue, plan, patch, testRun, review, merge]) {
     if (d === null) continue;
@@ -146,36 +143,28 @@ async function buildCodingChain(opts: {
   return { merge, review, byId, reviewNodes, reviewStatus };
 }
 
-describe('merge gate is a verifier (anchored-chain claim #2)', () => {
-  test('REFUSES merge when no review_evidence exists in the graph', async () => {
+describe("merge gate is a verifier (anchored-chain claim #2)", () => {
+  test("REFUSES merge when no review_evidence exists in the graph", async () => {
     const chain = await buildCodingChain({ includeReview: false });
     const registry = mkGateRegistry(chain);
 
-    const verdict = await validateDerivation(
-      chain.merge.derivationId,
-      store.derivations,
-      registry,
-    );
+    const verdict = await validateDerivation(chain.merge.derivationId, store.derivations, registry);
 
     expect(verdict.ok).toBe(false);
     if (verdict.ok) return;
     expect(verdict.failedAt).toBe(chain.merge.derivationId);
-    expect(verdict.contract).toBe(C('anchored/merge-requires-review'));
+    expect(verdict.contract).toBe(C("anchored/merge-requires-review"));
     expect(verdict.reason).toMatch(/unlicensed/);
   });
 
-  test('REFUSES merge when review_evidence exists but is not approved', async () => {
+  test("REFUSES merge when review_evidence exists but is not approved", async () => {
     const chain = await buildCodingChain({
       includeReview: true,
-      reviewStatus: 'changes_requested',
+      reviewStatus: "changes_requested",
     });
     const registry = mkGateRegistry(chain);
 
-    const verdict = await validateDerivation(
-      chain.merge.derivationId,
-      store.derivations,
-      registry,
-    );
+    const verdict = await validateDerivation(chain.merge.derivationId, store.derivations, registry);
 
     expect(verdict.ok).toBe(false);
     if (verdict.ok) return;
@@ -183,22 +172,18 @@ describe('merge gate is a verifier (anchored-chain claim #2)', () => {
     // admitted the transition's shape, the review artifact failed its own
     // contract during the DAG walk.
     expect(verdict.failedAt).toBe(chain.review!.derivationId);
-    expect(verdict.contract).toBe(C('anchored/review-approved'));
+    expect(verdict.contract).toBe(C("anchored/review-approved"));
     expect(verdict.reason).toMatch(/changes_requested/);
   });
 
-  test('LICENSES merge once an approved review_evidence exists', async () => {
+  test("LICENSES merge once an approved review_evidence exists", async () => {
     const chain = await buildCodingChain({
       includeReview: true,
-      reviewStatus: 'approved',
+      reviewStatus: "approved",
     });
     const registry = mkGateRegistry(chain);
 
-    const verdict = await validateDerivation(
-      chain.merge.derivationId,
-      store.derivations,
-      registry,
-    );
+    const verdict = await validateDerivation(chain.merge.derivationId, store.derivations, registry);
 
     expect(verdict).toEqual({ ok: true });
   });

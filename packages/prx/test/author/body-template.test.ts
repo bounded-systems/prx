@@ -11,9 +11,7 @@ import {
   type AuthorBodyTemplateOptions,
 } from "../../src/author/body-template.ts";
 
-function opts(
-  overrides: Partial<AuthorBodyTemplateOptions> = {},
-): AuthorBodyTemplateOptions {
+function opts(overrides: Partial<AuthorBodyTemplateOptions> = {}): AuthorBodyTemplateOptions {
   return authorBodyTemplateOptionsSchema.parse({
     unit: "GH-1206",
     ...overrides,
@@ -29,16 +27,10 @@ describe("renderAuthorBody — GH-numbered units", () => {
   });
 
   test("accepts #N, bare N, and GitHub URL forms", () => {
-    expect(renderAuthorBody(opts({ unit: "#42" })).closesLines).toEqual([
-      "Closes #42",
-    ]);
-    expect(renderAuthorBody(opts({ unit: "42" })).closesLines).toEqual([
-      "Closes #42",
-    ]);
+    expect(renderAuthorBody(opts({ unit: "#42" })).closesLines).toEqual(["Closes #42"]);
+    expect(renderAuthorBody(opts({ unit: "42" })).closesLines).toEqual(["Closes #42"]);
     expect(
-      renderAuthorBody(
-        opts({ unit: "https://github.com/owner/repo/issues/100" }),
-      ).closesLines,
+      renderAuthorBody(opts({ unit: "https://github.com/owner/repo/issues/100" })).closesLines,
     ).toEqual(["Closes #100"]);
   });
 
@@ -85,9 +77,7 @@ describe("renderAuthorBody — Post-merge handoff (#1773)", () => {
     const plain = formatAuthorBodyRender(r, "plain");
     expect(plain).toContain("## Post-merge handoff");
     expect(plain).toContain("bd close bd-deadbeef");
-    expect(plain.indexOf("Refs bd-deadbeef")).toBeLessThan(
-      plain.indexOf("## Post-merge handoff"),
-    );
+    expect(plain.indexOf("Refs bd-deadbeef")).toBeLessThan(plain.indexOf("## Post-merge handoff"));
   });
 
   test("plain output omits the handoff block for GH-numbered units", () => {
@@ -133,10 +123,10 @@ describe("runAuthorBodyTemplate — exit codes + output", () => {
   test("happy path logs the formatted body and returns 0", () => {
     const logs: string[] = [];
     const errors: string[] = [];
-    const code = runAuthorBodyTemplate(
-      opts({ unit: "GH-1206", format: "plain" }),
-      { log: (s) => logs.push(s), error: (s) => errors.push(s) },
-    );
+    const code = runAuthorBodyTemplate(opts({ unit: "GH-1206", format: "plain" }), {
+      log: (s) => logs.push(s),
+      error: (s) => errors.push(s),
+    });
     expect(code).toBe(0);
     expect(errors).toEqual([]);
     expect(logs).toHaveLength(1);

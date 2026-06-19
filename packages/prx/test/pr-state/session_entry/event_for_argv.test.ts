@@ -116,10 +116,7 @@ describe("eventForArgv", () => {
     const aliased = eventForArgv(["session", "open", "GH-9"]);
     expect(canonical?.type).toBe("OPEN_PLAN_SESSION");
     expect(aliased?.type).toBe("OPEN_PLAN_SESSION");
-    if (
-      canonical?.type === "OPEN_PLAN_SESSION" &&
-      aliased?.type === "OPEN_PLAN_SESSION"
-    ) {
+    if (canonical?.type === "OPEN_PLAN_SESSION" && aliased?.type === "OPEN_PLAN_SESSION") {
       expect(canonical.workUnitId).toBe(aliased.workUnitId);
       expect(canonical.viaAlias).toBeUndefined();
       expect(aliased.viaAlias).toBe(true);
@@ -237,7 +234,9 @@ describe("eventForArgv", () => {
   });
 
   test("plan session GH-X --repo foo --source notion → both repoCtx and sourceCtx", () => {
-    expect(eventForArgv(["plan", "session", "GH-X", "--repo", "foo", "--source", "notion"])).toEqual({
+    expect(
+      eventForArgv(["plan", "session", "GH-X", "--repo", "foo", "--source", "notion"]),
+    ).toEqual({
       type: "OPEN_PLAN_SESSION",
       workUnitId: "GH-X",
       repoCtx: { repo: "foo" },

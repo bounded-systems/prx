@@ -110,9 +110,7 @@ describe("slackScopedKeymaker", () => {
     const km = slackScopedKeymaker(fakeBase(clock), { now: () => clock.t });
     const key = km.mint({ scope, ttlMs: 1_000 });
     // same org → allowed (and any channel within it, since channels is undefined)
-    expect(() =>
-      key.authorize({ op: "history", org: "T1", channel: "C-any" }, {}),
-    ).not.toThrow();
+    expect(() => key.authorize({ op: "history", org: "T1", channel: "C-any" }, {})).not.toThrow();
     // different org → denied
     try {
       key.authorize({ op: "history", org: "T2", channel: "C-any" }, {});
@@ -136,9 +134,7 @@ describe("slackScopedKeymaker", () => {
     const scope: SlackKeyScope = { ops: ["thread"], channels: ["C1"], threads: ["169.1"] };
     const km = slackScopedKeymaker(fakeBase(clock), { now: () => clock.t });
     const key = km.mint({ scope, ttlMs: 1_000 });
-    expect(() =>
-      key.authorize({ op: "thread", channel: "C1", thread: "169.1" }, {}),
-    ).not.toThrow();
+    expect(() => key.authorize({ op: "thread", channel: "C1", thread: "169.1" }, {})).not.toThrow();
     try {
       key.authorize({ op: "thread", channel: "C1", thread: "999.9" }, {});
       throw new Error("expected throw");

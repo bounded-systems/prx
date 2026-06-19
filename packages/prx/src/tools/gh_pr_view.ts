@@ -176,9 +176,7 @@ export function parseGhPrViewJson(stdout: string): GhPrViewJson | null {
   const number = typeof obj.number === "number" ? obj.number : null;
   const stateRaw = typeof obj.state === "string" ? obj.state : null;
   const state: GhPrViewState | null =
-    stateRaw === "OPEN" || stateRaw === "CLOSED" || stateRaw === "MERGED"
-      ? stateRaw
-      : null;
+    stateRaw === "OPEN" || stateRaw === "CLOSED" || stateRaw === "MERGED" ? stateRaw : null;
   const mergedAt =
     typeof obj.mergedAt === "string"
       ? obj.mergedAt

@@ -12,20 +12,20 @@ import { runMapShow, type MapShowActorResult, type MapShowOptions } from "./show
 import { runMapNext, type MapNextActorResult, type MapNextOptions } from "./next.ts";
 import { runMapSync, type MapSyncActorResult, type MapSyncOptions } from "./sync.ts";
 
-export const createActor = fromPromise<MapCreateActorResult, MapCreateOptions>(
-  async ({ input }) => runMapCreate(input),
+export const createActor = fromPromise<MapCreateActorResult, MapCreateOptions>(async ({ input }) =>
+  runMapCreate(input),
 );
 
-export const showActor = fromPromise<MapShowActorResult, MapShowOptions>(
-  async ({ input }) => runMapShow(input),
+export const showActor = fromPromise<MapShowActorResult, MapShowOptions>(async ({ input }) =>
+  runMapShow(input),
 );
 
-export const nextActor = fromPromise<MapNextActorResult, MapNextOptions>(
-  async ({ input }) => runMapNext(input),
+export const nextActor = fromPromise<MapNextActorResult, MapNextOptions>(async ({ input }) =>
+  runMapNext(input),
 );
 
-export const syncActor = fromPromise<MapSyncActorResult, MapSyncOptions>(
-  async ({ input }) => runMapSync(input),
+export const syncActor = fromPromise<MapSyncActorResult, MapSyncOptions>(async ({ input }) =>
+  runMapSync(input),
 );
 
 export { MapStubError } from "./sync.ts";

@@ -2,10 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import type { execGit, GitExecOptions, GitExecResult } from "@bounded-systems/git";
 
-import {
-  IsolatedKeeperClient,
-  type KeeperTransport,
-} from "../../src/keeperd/client.ts";
+import { IsolatedKeeperClient, type KeeperTransport } from "../../src/keeperd/client.ts";
 import type { KeeperRemoteRequest } from "../../src/keeperd/contract.ts";
 import {
   runKeeperDoorPush,
@@ -17,7 +14,12 @@ const TREE = "a".repeat(40);
 const COMMIT = "b".repeat(40);
 const BUNDLE = "QlVORExF"; // base64, opaque to this layer
 
-const okResult = (stdout = ""): GitExecResult => ({ exitCode: 0, stdout, stderr: "", policy: null });
+const okResult = (stdout = ""): GitExecResult => ({
+  exitCode: 0,
+  stdout,
+  stderr: "",
+  policy: null,
+});
 
 /** A fake `execGit` answering the host-side stage → commit-tree flow offline. */
 function fakeGit(overrides: Partial<Record<string, GitExecResult>> = {}): {
@@ -113,7 +115,13 @@ describe("runKeeperDoorPush (door push of an already-materialized commit)", () =
     let sent: KeeperRemoteRequest | undefined;
     let bundledFor: { cwd: string; parentSha: string; branch: string } | undefined;
     const res = await runKeeperDoorPush(
-      { cwd: "/work/repo", parentSha: "c".repeat(40), commitSha: COMMIT, branch: "GH-456", remote: "origin" },
+      {
+        cwd: "/work/repo",
+        parentSha: "c".repeat(40),
+        commitSha: COMMIT,
+        branch: "GH-456",
+        remote: "origin",
+      },
       {
         bundle: (i) => {
           bundledFor = i;

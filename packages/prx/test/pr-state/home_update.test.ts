@@ -36,11 +36,7 @@ function makeFixture(params: {
   const defaultExisting = new Set(
     params.existingPaths
       ? Array.from(params.existingPaths)
-      : [
-          "/fake/flake",
-          "/fake/flake/flake.nix",
-          "/fake/flake/flake.lock",
-        ],
+      : ["/fake/flake", "/fake/flake/flake.nix", "/fake/flake/flake.lock"],
   );
 
   const readFile = (_path: string) => {
@@ -115,16 +111,15 @@ describe("resolveInputNames", () => {
     ).toEqual(["custom"]);
     // env wins over config
     expect(
-      resolveInputNames(
-        { dryRun: false, format: "plain" },
-        { PRX_HOME_FLAKE_INPUT: "env-input" },
-        ["cfg"],
-      ),
+      resolveInputNames({ dryRun: false, format: "plain" }, { PRX_HOME_FLAKE_INPUT: "env-input" }, [
+        "cfg",
+      ]),
     ).toEqual(["env-input"]);
     // config wins over the standalone default
-    expect(
-      resolveInputNames({ dryRun: false, format: "plain" }, {}, ["prx", "ai-home"]),
-    ).toEqual(["prx", "ai-home"]);
+    expect(resolveInputNames({ dryRun: false, format: "plain" }, {}, ["prx", "ai-home"])).toEqual([
+      "prx",
+      "ai-home",
+    ]);
     // nothing requested or configured → standalone default ['prx']
     expect(resolveInputNames({ dryRun: false, format: "plain" }, {})).toEqual(["prx"]);
     expect(resolveInputNames({ dryRun: false, format: "plain" }, {}, [])).toEqual(["prx"]);
@@ -132,22 +127,17 @@ describe("resolveInputNames", () => {
   });
 
   test("prx-9lc: splits a comma-separated list, trims, drops empties", () => {
+    expect(resolveInputNames({ input: "prx,ai-home", dryRun: false, format: "plain" }, {})).toEqual(
+      ["prx", "ai-home"],
+    );
     expect(
-      resolveInputNames({ input: "prx,ai-home", dryRun: false, format: "plain" }, {}),
-    ).toEqual(["prx", "ai-home"]);
-    expect(
-      resolveInputNames(
-        { input: " prx , , ai-home ", dryRun: false, format: "plain" },
-        {},
-      ),
+      resolveInputNames({ input: " prx , , ai-home ", dryRun: false, format: "plain" }, {}),
     ).toEqual(["prx", "ai-home"]);
     // An all-empty list falls back to config, then the standalone default.
     expect(
       resolveInputNames({ input: ",,", dryRun: false, format: "plain" }, {}, ["prx", "ai-home"]),
     ).toEqual(["prx", "ai-home"]);
-    expect(
-      resolveInputNames({ input: ",,", dryRun: false, format: "plain" }, {}),
-    ).toEqual(["prx"]);
+    expect(resolveInputNames({ input: ",,", dryRun: false, format: "plain" }, {})).toEqual(["prx"]);
   });
 });
 
@@ -260,9 +250,7 @@ describe("runHomeUpdate", () => {
       "/fake/flake",
     ]);
     // Commit message names both moved inputs with their rev transitions.
-    const commit = fx.spawnCalls.find(
-      (c) => c.file === "git" && c.args.includes("commit"),
-    )!;
+    const commit = fx.spawnCalls.find((c) => c.file === "git" && c.args.includes("commit"))!;
     const msg = commit.args[commit.args.length - 1]!;
     expect(msg).toContain("prx prx1111→prx2222");
     expect(msg).toContain("ai-home aih1111→aih2222");
@@ -287,9 +275,7 @@ describe("runHomeUpdate", () => {
     );
 
     expect(exit).toBe(0);
-    const commit = fx.spawnCalls.find(
-      (c) => c.file === "git" && c.args.includes("commit"),
-    )!;
+    const commit = fx.spawnCalls.find((c) => c.file === "git" && c.args.includes("commit"))!;
     const msg = commit.args[commit.args.length - 1]!;
     expect(msg).toContain("ai-home aih1111→aih2222");
     // prx (unchanged) is absent from the commit message.
@@ -317,13 +303,7 @@ describe("runHomeUpdate", () => {
     expect(err).toContain('input "ai-home" not found');
     expect(err).toContain("skipping");
     // nix flake update names only the present input.
-    expect(fx.spawnCalls[0]!.args).toEqual([
-      "flake",
-      "update",
-      "prx",
-      "--flake",
-      "/fake/flake",
-    ]);
+    expect(fx.spawnCalls[0]!.args).toEqual(["flake", "update", "prx", "--flake", "/fake/flake"]);
     expect(fx.logs.join("\n")).toContain("prx: prx1111 → prx2222");
   });
 
@@ -556,12 +536,7 @@ describe("runHomeUpdate", () => {
       "-m",
       "chore(flake): update ai-home",
     ]);
-    expect(parsed.commands[2]).toEqual([
-      "home-manager",
-      "switch",
-      "--flake",
-      "/fake/flake",
-    ]);
+    expect(parsed.commands[2]).toEqual(["home-manager", "switch", "--flake", "/fake/flake"]);
   });
 
   test("prx-9lc: dry-run previews a nix flake update listing both inputs", () => {
@@ -802,10 +777,7 @@ describe("runHomeUpdate", () => {
 
   test("runCli rejects unknown `home` subcommand with non-zero exit and error message", () => {
     const errs: string[] = [];
-    const exit = runCli(
-      ["home", "bogus"],
-      { log: () => {}, error: (e) => errs.push(e) },
-    );
+    const exit = runCli(["home", "bogus"], { log: () => {}, error: (e) => errs.push(e) });
     expect(exit).not.toBe(0);
     expect(errs.join("\n")).toContain("Unknown home subcommand: bogus");
   });

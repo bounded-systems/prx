@@ -91,13 +91,9 @@ describe("parseStructuredBody — hand-written bodies", () => {
   });
 
   test("pre-H2 prose goes to unparsed, not silently dropped", () => {
-    const body = [
-      "_Surfaced from GH-1234_",
-      "",
-      "## Description",
-      "",
-      "real description",
-    ].join("\n");
+    const body = ["_Surfaced from GH-1234_", "", "## Description", "", "real description"].join(
+      "\n",
+    );
     const parsed = parseStructuredBody(body, "task");
     expect(parsed.fields.description).toBe("real description");
     expect(parsed.unparsed).toContain("_Surfaced from GH-1234_");

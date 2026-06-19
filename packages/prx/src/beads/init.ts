@@ -16,14 +16,8 @@
 // the discovery fix.
 
 import { processEnv } from "@bounded-systems/env";
-import {
-  defaultBdInitRunner,
-  type BdInitRunner,
-} from "./init_runner.ts";
-import {
-  isCaptureFailure,
-  type SpawnCaptureResult,
-} from "@bounded-systems/proc";
+import { defaultBdInitRunner, type BdInitRunner } from "./init_runner.ts";
+import { isCaptureFailure, type SpawnCaptureResult } from "@bounded-systems/proc";
 
 export type BdInitOptions = {
   /** Workspace prefix; must already be validated against WORKSPACE_PREFIX_PATTERN. */
@@ -55,12 +49,7 @@ export function runBdInit(
   opts: BdInitOptions,
   runner: BdInitRunner = defaultBdInitRunner,
 ): BdInitResult {
-  const args = [
-    "bd",
-    "init",
-    "--non-interactive",
-    `--prefix=${opts.prefix}`,
-  ];
+  const args = ["bd", "init", "--non-interactive", `--prefix=${opts.prefix}`];
   if (opts.stealth) {
     args.push("--stealth");
   }
@@ -74,7 +63,7 @@ export function runBdInit(
       ok: false,
       status: result.status ?? 1,
       stdout: result.stdout ?? "",
-      stderr: result.stderr ?? (result.error?.message ?? ""),
+      stderr: result.stderr ?? result.error?.message ?? "",
     };
   }
   return { ok: true, stdout: result.stdout, stderr: result.stderr };

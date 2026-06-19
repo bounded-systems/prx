@@ -7,11 +7,7 @@ import {
   type ClaudeRunner,
 } from "../../src/pr-state/tui.ts";
 
-function makeRunStub(options: {
-  stdout?: string;
-  stderr?: string;
-  status?: number;
-}): ClaudeRunner {
+function makeRunStub(options: { stdout?: string; stderr?: string; status?: number }): ClaudeRunner {
   return async () => ({
     status: options.status ?? 0,
     signal: null,

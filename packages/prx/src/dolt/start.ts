@@ -56,7 +56,10 @@ export type DoltStartDeps = {
   probe: (cwd: string) => StartProbe;
   spawnServer: (argv: string[], cwd: string) => { pid: number };
   readLedger: (ledgerPath: string) => DoltLedger | null;
-  writeLedger: (ledgerPath: string, ledger: DoltLedger & { pid: number; port: number; dsn: string }) => void;
+  writeLedger: (
+    ledgerPath: string,
+    ledger: DoltLedger & { pid: number; port: number; dsn: string },
+  ) => void;
   sleep: (ms: number) => Promise<void>;
   host: string;
   port: number;
@@ -78,11 +81,16 @@ const buildDsn = (host: string, port: number, database: string): string =>
  * reachable-but-unowned server (→ `prx dolt adopt`), or a spawned server that
  * never becomes healthy.
  */
-export async function runDoltStart(inputRaw: StartInput, deps: DoltStartDeps): Promise<StartOutput> {
+export async function runDoltStart(
+  inputRaw: StartInput,
+  deps: DoltStartDeps,
+): Promise<StartOutput> {
   const input = StartInput.parse(inputRaw);
   const ctx = deps.resolveContext(input.repo_path);
   if (!ctx) {
-    throw new Error("dolt start: cannot resolve repo context (not a git repo, or no `origin` remote)");
+    throw new Error(
+      "dolt start: cannot resolve repo context (not a git repo, or no `origin` remote)",
+    );
   }
 
   const database = deps.deriveDatabase(ctx.hostRepoSlug);
@@ -111,7 +119,10 @@ export async function runDoltStart(inputRaw: StartInput, deps: DoltStartDeps): P
     );
   }
 
-  const { pid } = deps.spawnServer(buildServerArgv(doltDataDir, deps.host, deps.port), ctx.repoRoot);
+  const { pid } = deps.spawnServer(
+    buildServerArgv(doltDataDir, deps.host, deps.port),
+    ctx.repoRoot,
+  );
 
   for (let i = 0; i < deps.maxProbes; i++) {
     await deps.sleep(deps.probeMs);
@@ -155,7 +166,11 @@ export function defaultProbe(cwd: string, spawn: typeof spawnCapture = spawnCapt
   const r = spawn(["bd", "dolt", "show", "--format=json"], { cwd, env: processEnv() });
   if (r.error || (r.status ?? 1) !== 0) return { reachable: false, port: null, database: null };
   try {
-    const j = JSON.parse(readBuffer(r.stdout)) as { connection_ok?: boolean; port?: number; database?: string };
+    const j = JSON.parse(readBuffer(r.stdout)) as {
+      connection_ok?: boolean;
+      port?: number;
+      database?: string;
+    };
     if (j.connection_ok && typeof j.port === "number" && j.port > 0 && j.database) {
       return { reachable: true, port: j.port, database: j.database };
     }
@@ -253,7 +268,9 @@ export async function runDoltStartCli(
     if (opts.format === "json") {
       output.log(JSON.stringify(out, null, 2));
     } else {
-      output.log(`dolt ${out.status}: ${out.dolt_server_id} pid=${out.pid} port=${out.port} (${out.dsn})`);
+      output.log(
+        `dolt ${out.status}: ${out.dolt_server_id} pid=${out.pid} port=${out.port} (${out.dsn})`,
+      );
     }
     return out.status === "error" ? 1 : 0;
   } catch (e) {

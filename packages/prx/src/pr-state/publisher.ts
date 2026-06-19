@@ -54,10 +54,7 @@ import {
 } from "./github.ts";
 // GH-1560: `pr open` renders its body (Closes #N / Refs) with the same template
 // `prx submit body-template` / `gh pr create --body-file` consumers use.
-import {
-  formatBodyTemplateRender,
-  renderBodyTemplate,
-} from "../submit/body-template.ts";
+import { formatBodyTemplateRender, renderBodyTemplate } from "../submit/body-template.ts";
 
 import type { DoctorInventory } from "./doctor.ts";
 
@@ -103,9 +100,7 @@ function emitBlockers(
 ): void {
   const { hard, waiting } = partitionBlockers(gate.blockers);
   if (hard.length > 0) {
-    output.error(
-      `prx publisher ${verb}: ${hard.length} blocker(s) on ${inventory.prUrl}:`,
-    );
+    output.error(`prx publisher ${verb}: ${hard.length} blocker(s) on ${inventory.prUrl}:`);
     for (const blocker of hard) {
       output.error(`  - ${blocker.predicate}`);
       output.error(`    ${blocker.fixHint}`);
@@ -156,7 +151,9 @@ export function runMerge(
 
   // Behind-main retry: run `gh pr update-branch` once and reload inventory.
   if (inventory.behindBy > 0 && !options.noUpdateBranch) {
-    output.log(`prx publisher merge: PR #${inventory.prNumber} is behind base; running gh pr update-branch...`);
+    output.log(
+      `prx publisher merge: PR #${inventory.prNumber} is behind base; running gh pr update-branch...`,
+    );
     try {
       runUpdateBranch(target, inventory.prNumber, runner);
     } catch (err) {
@@ -186,7 +183,12 @@ export function runMerge(
     if (format === "json") {
       output.log(
         JSON.stringify(
-          { target: target.workUnitId, inventory, alreadyEnabled: true, method: inventory.autoMergeMethod },
+          {
+            target: target.workUnitId,
+            inventory,
+            alreadyEnabled: true,
+            method: inventory.autoMergeMethod,
+          },
           null,
           2,
         ),
@@ -222,7 +224,9 @@ export function runMerge(
       // wait on it returns "Pull request is in clean status". Fall through
       // to a direct merge with the same method.
       if (format === "plain") {
-        output.log(`prx publisher merge: PR is already mergeable; falling through to direct merge.`);
+        output.log(
+          `prx publisher merge: PR is already mergeable; falling through to direct merge.`,
+        );
       }
       try {
         const directResult = merge(target.repoPath, prNodeId, method, runner);
@@ -270,7 +274,9 @@ export function runMerge(
     return 0;
   }
   if (path === "direct") {
-    output.log(`prx publisher merge: merged ${inventory.prUrl} (method=${resultMethod.toLowerCase()})`);
+    output.log(
+      `prx publisher merge: merged ${inventory.prUrl} (method=${resultMethod.toLowerCase()})`,
+    );
   } else if (waitingCategories.length > 0) {
     output.log(
       `prx publisher merge: automerge enabled on ${inventory.prUrl} (method=${resultMethod.toLowerCase()}; waiting on: ${waitingCategories.join(", ")})`,
@@ -279,7 +285,9 @@ export function runMerge(
       output.log(`  - ${w.predicate}`);
     }
   } else {
-    output.log(`prx publisher merge: automerge enabled on ${inventory.prUrl} (method=${resultMethod.toLowerCase()})`);
+    output.log(
+      `prx publisher merge: automerge enabled on ${inventory.prUrl} (method=${resultMethod.toLowerCase()})`,
+    );
   }
   return 0;
 }
@@ -304,7 +312,9 @@ export function runReady(
 
   if (!inventory.isDraft) {
     if (format === "json") {
-      output.log(JSON.stringify({ target: target.workUnitId, inventory, alreadyReady: true }, null, 2));
+      output.log(
+        JSON.stringify({ target: target.workUnitId, inventory, alreadyReady: true }, null, 2),
+      );
       return 0;
     }
     output.log(`prx publisher ready: PR ${inventory.prUrl} is already out of draft`);
@@ -329,7 +339,9 @@ export function runReady(
   try {
     result = mark(target.repoPath, prNodeId, runner);
   } catch (err) {
-    output.error(`prx publisher ready: markPullRequestReadyForReview failed: ${(err as Error).message}`);
+    output.error(
+      `prx publisher ready: markPullRequestReadyForReview failed: ${(err as Error).message}`,
+    );
     return 1;
   }
 
@@ -342,7 +354,12 @@ export function runReady(
   if (format === "json") {
     output.log(
       JSON.stringify(
-        { target: target.workUnitId, prUrl: inventory.prUrl, prNodeId: result.prNodeId, isDraft: result.isDraft },
+        {
+          target: target.workUnitId,
+          prUrl: inventory.prUrl,
+          prNodeId: result.prNodeId,
+          isDraft: result.isDraft,
+        },
         null,
         2,
       ),
@@ -373,7 +390,9 @@ export function runDraft(
 
   if (inventory.isDraft) {
     if (format === "json") {
-      output.log(JSON.stringify({ target: target.workUnitId, inventory, alreadyDraft: true }, null, 2));
+      output.log(
+        JSON.stringify({ target: target.workUnitId, inventory, alreadyDraft: true }, null, 2),
+      );
       return 0;
     }
     output.log(`prx publisher draft: PR ${inventory.prUrl} is already a draft`);
@@ -392,7 +411,9 @@ export function runDraft(
   try {
     result = convert(target.repoPath, prNodeId, runner);
   } catch (err) {
-    output.error(`prx publisher draft: convertPullRequestToDraft failed: ${(err as Error).message}`);
+    output.error(
+      `prx publisher draft: convertPullRequestToDraft failed: ${(err as Error).message}`,
+    );
     return 1;
   }
 
@@ -405,7 +426,12 @@ export function runDraft(
   if (format === "json") {
     output.log(
       JSON.stringify(
-        { target: target.workUnitId, prUrl: inventory.prUrl, prNodeId: result.prNodeId, isDraft: result.isDraft },
+        {
+          target: target.workUnitId,
+          prUrl: inventory.prUrl,
+          prNodeId: result.prNodeId,
+          isDraft: result.isDraft,
+        },
         null,
         2,
       ),
@@ -524,10 +550,9 @@ export function runPrUpdate(
   const retitled = options.title !== undefined && options.title.length > 0;
   if (retitled) {
     const newTitle = `${options.title} (${target.workUnitId})`.slice(0, 200);
-    runner(
-      ["gh", "pr", "edit", String(inventory.prNumber), "--title", newTitle],
-      { cwd: target.repoPath },
-    );
+    runner(["gh", "pr", "edit", String(inventory.prNumber), "--title", newTitle], {
+      cwd: target.repoPath,
+    });
   }
 
   recordEvent("PR_UPDATE_REQUESTED", {
@@ -545,9 +570,7 @@ export function runPrUpdate(
     );
     return 0;
   }
-  output.log(
-    `prx publisher pr update: updated ${inventory.prUrl}${retitled ? " (retitled)" : ""}`,
-  );
+  output.log(`prx publisher pr update: updated ${inventory.prUrl}${retitled ? " (retitled)" : ""}`);
   return 0;
 }
 
@@ -594,7 +617,11 @@ export function runPrComment(
 
   if (format === "json") {
     output.log(
-      JSON.stringify({ target: target.workUnitId, prUrl: inventory.prUrl, commented: true }, null, 2),
+      JSON.stringify(
+        { target: target.workUnitId, prUrl: inventory.prUrl, commented: true },
+        null,
+        2,
+      ),
     );
     return 0;
   }
@@ -717,10 +744,14 @@ export function runIssueUpdate(
 
   if (!hasGhIssueEdit(editOpts)) {
     if (format === "json") {
-      output.log(JSON.stringify({ target: workUnitId, number: options.number, edited: false }, null, 2));
+      output.log(
+        JSON.stringify({ target: workUnitId, number: options.number, edited: false }, null, 2),
+      );
       return 0;
     }
-    output.log(`prx publisher issue update: GH-${options.number} already in sync (no fields to edit)`);
+    output.log(
+      `prx publisher issue update: GH-${options.number} already in sync (no fields to edit)`,
+    );
     return 0;
   }
 
@@ -739,7 +770,9 @@ export function runIssueUpdate(
   });
 
   if (format === "json") {
-    output.log(JSON.stringify({ target: workUnitId, number: options.number, edited: true }, null, 2));
+    output.log(
+      JSON.stringify({ target: workUnitId, number: options.number, edited: true }, null, 2),
+    );
     return 0;
   }
   output.log(`prx publisher issue update: edited GH-${options.number}`);

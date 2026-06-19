@@ -101,17 +101,13 @@ describe("prx plan preflight (standalone verb)", () => {
   test("exit 0 on pass; plain output renders the safe-to-draft summary", async () => {
     const { logs, errors, output } = captureOutput();
     let called = false;
-    const exit = await runPlanPreflightCli(
-      ["plan", "preflight", "GH-1239"],
-      output,
-      {
-        runPlanPreflight: async (input) => {
-          called = true;
-          expect(input.unit).toBe("GH-1239");
-          return PASS_RESULT;
-        },
+    const exit = await runPlanPreflightCli(["plan", "preflight", "GH-1239"], output, {
+      runPlanPreflight: async (input) => {
+        called = true;
+        expect(input.unit).toBe("GH-1239");
+        return PASS_RESULT;
       },
-    );
+    });
     expect(exit).toBe(0);
     expect(called).toBe(true);
     expect(errors).toEqual([]);
@@ -122,13 +118,9 @@ describe("prx plan preflight (standalone verb)", () => {
 
   test("exit 1 on non-pass; plain output names the offending action shape", async () => {
     const { logs, errors, output } = captureOutput();
-    const exit = await runPlanPreflightCli(
-      ["plan", "preflight", "GH-1199"],
-      output,
-      {
-        runPlanPreflight: async () => REFUSAL_RESULT,
-      },
-    );
+    const exit = await runPlanPreflightCli(["plan", "preflight", "GH-1199"], output, {
+      runPlanPreflight: async () => REFUSAL_RESULT,
+    });
     expect(exit).toBe(1);
     expect(errors).toEqual([]);
     const stdout = logs.join("\n");
@@ -138,15 +130,11 @@ describe("prx plan preflight (standalone verb)", () => {
 
   test("exit 2 when the preflight throws (network/parse error)", async () => {
     const { logs, errors, output } = captureOutput();
-    const exit = await runPlanPreflightCli(
-      ["plan", "preflight", "GH-1239"],
-      output,
-      {
-        runPlanPreflight: async () => {
-          throw new Error("gh issue view failed: 503");
-        },
+    const exit = await runPlanPreflightCli(["plan", "preflight", "GH-1239"], output, {
+      runPlanPreflight: async () => {
+        throw new Error("gh issue view failed: 503");
       },
-    );
+    });
     expect(exit).toBe(2);
     expect(logs).toEqual([]);
     expect(errors.join("\n")).toContain("gh issue view failed: 503");
@@ -170,8 +158,6 @@ describe("prx plan preflight (standalone verb)", () => {
     const { errors, output } = captureOutput();
     const exit = await runPlanPreflightCli(["plan", "preflight"], output, {});
     expect(exit).not.toBe(0);
-    expect(errors.join("\n")).toContain(
-      "plan preflight requires a work-unit id",
-    );
+    expect(errors.join("\n")).toContain("plan preflight requires a work-unit id");
   });
 });

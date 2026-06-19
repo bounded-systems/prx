@@ -3,14 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
 
-import {
-  RepositoryStore,
-  openRegistry,
-} from "../../src/pr-state/registry_store.ts";
-import {
-  adoptRepo,
-  inferRepoFromWorktree,
-} from "../../src/pr-state/repo_adopt.ts";
+import { RepositoryStore, openRegistry } from "../../src/pr-state/registry_store.ts";
+import { adoptRepo, inferRepoFromWorktree } from "../../src/pr-state/repo_adopt.ts";
 import { CliError } from "../../src/pr-state/cli-error.ts";
 import type { RepoRunner } from "../../src/pr-state/repos.ts";
 
@@ -33,14 +27,8 @@ const ORIGIN = "https://github.com/bdelanghe/ai-home.git";
 
 function happyPathResponses(): Map<string, RunnerResponse> {
   return new Map([
-    [
-      `git rev-parse --git-common-dir|${WORKTREE}`,
-      { stdout: `${BARE}\n`, stderr: "", status: 0 },
-    ],
-    [
-      `git remote get-url origin|${WORKTREE}`,
-      { stdout: `${ORIGIN}\n`, stderr: "", status: 0 },
-    ],
+    [`git rev-parse --git-common-dir|${WORKTREE}`, { stdout: `${BARE}\n`, stderr: "", status: 0 }],
+    [`git remote get-url origin|${WORKTREE}`, { stdout: `${ORIGIN}\n`, stderr: "", status: 0 }],
     [
       `git symbolic-ref --short refs/remotes/origin/HEAD|${WORKTREE}`,
       { stdout: "origin/main\n", stderr: "", status: 0 },
@@ -66,18 +54,16 @@ describe("inferRepoFromWorktree", () => {
 
   test("falls back to ls-remote when symbolic-ref refs/remotes/origin/HEAD is unset", () => {
     const responses = happyPathResponses();
-    responses.set(
-      `git symbolic-ref --short refs/remotes/origin/HEAD|${WORKTREE}`,
-      { stdout: "", stderr: "fatal: ref ...", status: 1 },
-    );
-    responses.set(
-      `git ls-remote --symref origin HEAD|${WORKTREE}`,
-      {
-        stdout: "ref: refs/heads/develop\tHEAD\n0123456789abcdef0123456789abcdef01234567\tHEAD\n",
-        stderr: "",
-        status: 0,
-      },
-    );
+    responses.set(`git symbolic-ref --short refs/remotes/origin/HEAD|${WORKTREE}`, {
+      stdout: "",
+      stderr: "fatal: ref ...",
+      status: 1,
+    });
+    responses.set(`git ls-remote --symref origin HEAD|${WORKTREE}`, {
+      stdout: "ref: refs/heads/develop\tHEAD\n0123456789abcdef0123456789abcdef01234567\tHEAD\n",
+      stderr: "",
+      status: 0,
+    });
     const runner = makeRunner(responses);
     const result = inferRepoFromWorktree(WORKTREE, runner);
     expect(result.default_branch).toBe("develop");
@@ -85,34 +71,38 @@ describe("inferRepoFromWorktree", () => {
 
   test("refuses when origin remote is missing", () => {
     const responses = happyPathResponses();
-    responses.set(
-      `git remote get-url origin|${WORKTREE}`,
-      { stdout: "", stderr: "fatal: No such remote: origin", status: 2 },
-    );
+    responses.set(`git remote get-url origin|${WORKTREE}`, {
+      stdout: "",
+      stderr: "fatal: No such remote: origin",
+      status: 2,
+    });
     const runner = makeRunner(responses);
     expect(() => inferRepoFromWorktree(WORKTREE, runner)).toThrow(/No `origin` remote/);
   });
 
   test("refuses when origin URL cannot be parsed", () => {
     const responses = happyPathResponses();
-    responses.set(
-      `git remote get-url origin|${WORKTREE}`,
-      { stdout: "ftp://nope.example.com/x/y\n", stderr: "", status: 0 },
-    );
+    responses.set(`git remote get-url origin|${WORKTREE}`, {
+      stdout: "ftp://nope.example.com/x/y\n",
+      stderr: "",
+      status: 0,
+    });
     const runner = makeRunner(responses);
     expect(() => inferRepoFromWorktree(WORKTREE, runner)).toThrow(/Could not parse origin URL/);
   });
 
   test("refuses when origin/HEAD is unresolvable via both symref and ls-remote", () => {
     const responses = happyPathResponses();
-    responses.set(
-      `git symbolic-ref --short refs/remotes/origin/HEAD|${WORKTREE}`,
-      { stdout: "", stderr: "fatal: ref ...", status: 1 },
-    );
-    responses.set(
-      `git ls-remote --symref origin HEAD|${WORKTREE}`,
-      { stdout: "0123456789abcdef0123456789abcdef01234567\tHEAD\n", stderr: "", status: 0 },
-    );
+    responses.set(`git symbolic-ref --short refs/remotes/origin/HEAD|${WORKTREE}`, {
+      stdout: "",
+      stderr: "fatal: ref ...",
+      status: 1,
+    });
+    responses.set(`git ls-remote --symref origin HEAD|${WORKTREE}`, {
+      stdout: "0123456789abcdef0123456789abcdef01234567\tHEAD\n",
+      stderr: "",
+      status: 0,
+    });
     const runner = makeRunner(responses);
     expect(() => inferRepoFromWorktree(WORKTREE, runner)).toThrow(/origin\/HEAD/);
   });

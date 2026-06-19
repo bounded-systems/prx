@@ -5,7 +5,10 @@
 import { describe, expect, test } from "bun:test";
 
 import type { CommandRunner } from "../../src/pr-state/github.ts";
-import { runNotionMcpPreflight, type NotionProbeRunner } from "../../src/tools/preflight_notion_mcp.ts";
+import {
+  runNotionMcpPreflight,
+  type NotionProbeRunner,
+} from "../../src/tools/preflight_notion_mcp.ts";
 
 describe("runNotionMcpPreflight — failure arms", () => {
   test("a missing claude binary (ENOENT) → claude-missing", async () => {
@@ -29,7 +32,11 @@ describe("runNotionMcpPreflight — failure arms", () => {
   });
 
   test("a probe that throws (after a healthy mcp list) → claude-print-failed", async () => {
-    const runner = (() => ({ status: 0, stdout: "notion: https://mcp.notion.com/mcp", stderr: "" })) as CommandRunner;
+    const runner = (() => ({
+      status: 0,
+      stdout: "notion: https://mcp.notion.com/mcp",
+      stderr: "",
+    })) as CommandRunner;
     const probe: NotionProbeRunner = async () => {
       throw new Error("probe blew up");
     };

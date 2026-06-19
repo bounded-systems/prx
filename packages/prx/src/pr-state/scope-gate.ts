@@ -17,15 +17,9 @@
  * from `git show --name-only`, not self-reported), so the gate needs no git of
  * its own. All other side effects (plan read, signer, ledger) are injectable.
  */
-import {
-  type ImplementArtifact,
-  implementArtifactEdge,
-} from "../pipeline/implement-artifact.ts";
+import { type ImplementArtifact, implementArtifactEdge } from "../pipeline/implement-artifact.ts";
 import { consumeArtifact } from "../pipeline/edge.ts";
-import {
-  detectPlanBodyFormat,
-  PlanArtifactSchema,
-} from "../plan-store/plan-artifact.ts";
+import { detectPlanBodyFormat, PlanArtifactSchema } from "../plan-store/plan-artifact.ts";
 import { runPlanLoad } from "../plan-store/verbs.ts";
 import type { AttestDeps } from "../provenance/attest.ts";
 import { type GateResult, runGate } from "../provenance/gate.ts";
@@ -37,9 +31,7 @@ export const SCOPE_GATE_NAME = "scope";
 export class ScopeGateInputError extends Error {
   readonly code = "SCOPE_GATE_NO_IMPLEMENT";
   constructor(readonly unit: string) {
-    super(
-      `scope-gate: no implement artifact for ${unit} (run implement before gating its scope)`,
-    );
+    super(`scope-gate: no implement artifact for ${unit} (run implement before gating its scope)`);
     this.name = "ScopeGateInputError";
   }
 }
@@ -87,10 +79,7 @@ async function defaultLoadImplement(unit: string): Promise<ImplementArtifact | n
  * against the plan's declared `paths` and emit a signed `gate@scope` verdict.
  * Throws {@link ScopeGateInputError} when there is no implement artifact to gate.
  */
-export async function runScopeGate(
-  unit: string,
-  deps: ScopeGateDeps,
-): Promise<GateResult> {
+export async function runScopeGate(unit: string, deps: ScopeGateDeps): Promise<GateResult> {
   const loadPaths = deps.loadPlanPaths ?? defaultLoadPlanPaths;
   const loadImpl = deps.loadImplement ?? defaultLoadImplement;
 

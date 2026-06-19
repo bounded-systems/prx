@@ -15,16 +15,8 @@ import {
 
 describe("lifecycle machine", () => {
   test("exposes allowed transitions from the xstate machine", () => {
-    expect(allowedTransitions("drafting")).toEqual([
-      "drafting",
-      "ready_for_review",
-      "validating",
-    ]);
-    expect(allowedTransitions("merge_ready")).toEqual([
-      "changes_requested",
-      "drafting",
-      "merged",
-    ]);
+    expect(allowedTransitions("drafting")).toEqual(["drafting", "ready_for_review", "validating"]);
+    expect(allowedTransitions("merge_ready")).toEqual(["changes_requested", "drafting", "merged"]);
   });
 
   test("permits valid transitions", () => {
@@ -51,7 +43,9 @@ describe("lifecycle machine", () => {
       const mapped = eventForSkill(skill);
       expect(mapped.event.length).toBeGreaterThan(0);
       if (mapped.kind === "transition") {
-        expect(allowedTransitions("drafting").includes(mapped.to) || mapped.to !== "drafting").toBeTrue();
+        expect(
+          allowedTransitions("drafting").includes(mapped.to) || mapped.to !== "drafting",
+        ).toBeTrue();
       }
     }
   });
@@ -113,10 +107,7 @@ describe("lifecycle machine", () => {
   // doctor-arming path. ready_to_merge gains an AUTOMERGE_ENABLED transition,
   // and the new automerge_enabled state accepts MERGE/AUTOMERGE_DISABLED.
   test("ready_to_merge transitions to automerge_enabled on AUTOMERGE_ENABLED", () => {
-    const states = workflowMachine.config.states as Record<
-      string,
-      { on?: Record<string, string> }
-    >;
+    const states = workflowMachine.config.states as Record<string, { on?: Record<string, string> }>;
     expect(states.ready_to_merge?.on?.AUTOMERGE_ENABLED).toBe("automerge_enabled");
     expect(states.automerge_enabled?.on?.PR_MERGED).toBe("merged");
     expect(states.automerge_enabled?.on?.MERGE).toBe("merged");

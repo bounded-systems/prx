@@ -28,21 +28,13 @@ describe("renderBodyTemplate — happy paths", () => {
 
   test("multiple --closes args preserve order", () => {
     const r = renderBodyTemplate(opts({ closes: ["GH-885", "GH-882", "GH-1318"] }));
-    expect(r.closesLines).toEqual([
-      "Closes #885",
-      "Closes #882",
-      "Closes #1318",
-    ]);
+    expect(r.closesLines).toEqual(["Closes #885", "Closes #882", "Closes #1318"]);
   });
 
   test("accepts #N, bare N, and GitHub URL forms", () => {
     const r = renderBodyTemplate(
       opts({
-        closes: [
-          "#7",
-          "42",
-          "https://github.com/owner/repo/issues/100",
-        ],
+        closes: ["#7", "42", "https://github.com/owner/repo/issues/100"],
       }),
     );
     expect(r.numbers).toEqual([7, 42, 100]);
@@ -83,9 +75,7 @@ describe("renderBodyTemplate — bd / notion auto-Refs (GH-1805)", () => {
   });
 
   test("mixed GH + bd args populate both blocks independently", () => {
-    const r = renderBodyTemplate(
-      opts({ closes: ["GH-1", "BD-cafe", "GH-2"] }),
-    );
+    const r = renderBodyTemplate(opts({ closes: ["GH-1", "BD-cafe", "GH-2"] }));
     expect(r.closesLines).toEqual(["Closes #1", "Closes #2"]);
     expect(r.refsLines).toEqual(["Refs BD-cafe"]);
     expect(r.numbers).toEqual([1, 2]);
@@ -93,25 +83,19 @@ describe("renderBodyTemplate — bd / notion auto-Refs (GH-1805)", () => {
   });
 
   test("GH and bd dedupe independently in mixed input", () => {
-    const r = renderBodyTemplate(
-      opts({ closes: ["GH-1", "BD-cafe", "GH-1", "BD-cafe", "GH-2"] }),
-    );
+    const r = renderBodyTemplate(opts({ closes: ["GH-1", "BD-cafe", "GH-1", "BD-cafe", "GH-2"] }));
     expect(r.closesLines).toEqual(["Closes #1", "Closes #2"]);
     expect(r.refsLines).toEqual(["Refs BD-cafe"]);
   });
 
   test("order-stability: closes block always renders before refs block", () => {
-    const r = renderBodyTemplate(
-      opts({ closes: ["BD-a", "GH-1", "BD-b", "GH-2"] }),
-    );
+    const r = renderBodyTemplate(opts({ closes: ["BD-a", "GH-1", "BD-b", "GH-2"] }));
     expect(r.closesLines).toEqual(["Closes #1", "Closes #2"]);
     expect(r.refsLines).toEqual(["Refs BD-a", "Refs BD-b"]);
   });
 
   test("input with shell metacharacters is still rejected", () => {
-    expect(() => renderBodyTemplate(opts({ closes: ["bad id"] }))).toThrow(
-      /invalid characters/,
-    );
+    expect(() => renderBodyTemplate(opts({ closes: ["bad id"] }))).toThrow(/invalid characters/);
   });
 });
 
@@ -129,9 +113,7 @@ describe("formatBodyTemplateRender", () => {
   });
 
   test("plain emits closes block then refs block separated by blank line", () => {
-    const r = renderBodyTemplate(
-      opts({ closes: ["GH-1", "GH-2", "BD-cafe"] }),
-    );
+    const r = renderBodyTemplate(opts({ closes: ["GH-1", "GH-2", "BD-cafe"] }));
     const out = formatBodyTemplateRender(r, "plain");
     expect(out).toBe("Closes #1\nCloses #2\n\nRefs BD-cafe");
   });
@@ -155,9 +137,7 @@ describe("formatBodyTemplateRender", () => {
   });
 
   test("json round-trips all fields including refsLines/refs", () => {
-    const r = renderBodyTemplate(
-      opts({ closes: ["GH-9", "BD-cafe"], prefix: "## P" }),
-    );
+    const r = renderBodyTemplate(opts({ closes: ["GH-9", "BD-cafe"], prefix: "## P" }));
     const parsed = JSON.parse(formatBodyTemplateRender(r, "json"));
     expect(parsed.closesLines).toEqual(["Closes #9"]);
     expect(parsed.numbers).toEqual([9]);
@@ -182,10 +162,10 @@ describe("runBodyTemplate — exit codes", () => {
 
   test("exit 1 when --closes is empty", () => {
     const errs: string[] = [];
-    const exit = runBodyTemplate(
-      bodyTemplateOptionsSchema.parse({}),
-      { log: () => undefined, error: (l) => errs.push(l) },
-    );
+    const exit = runBodyTemplate(bodyTemplateOptionsSchema.parse({}), {
+      log: () => undefined,
+      error: (l) => errs.push(l),
+    });
     expect(exit).toBe(1);
     expect(errs[0]).toMatch(/at least one --closes/);
   });

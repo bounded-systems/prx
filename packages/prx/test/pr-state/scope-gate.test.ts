@@ -76,10 +76,7 @@ describe("runScopeGate (prx-tth)", () => {
     const deps = mkDeps(
       store,
       ["packages/prx/src/pr-state/home-update.ts", "packages/prx/src/pr-state/cli.ts"],
-      impl([
-        "packages/prx/src/pr-state/home-update.ts",
-        "packages/prx/src/pr-state/cli.ts",
-      ]),
+      impl(["packages/prx/src/pr-state/home-update.ts", "packages/prx/src/pr-state/cli.ts"]),
     );
 
     const result = await runScopeGate("u", deps);
@@ -96,10 +93,7 @@ describe("runScopeGate (prx-tth)", () => {
     const deps = mkDeps(
       store,
       ["packages/prx/src/pr-state/cli.ts"],
-      impl([
-        "packages/prx/src/pr-state/cli.ts",
-        "packages/prx/src/sneaky/unrelated.ts",
-      ]),
+      impl(["packages/prx/src/pr-state/cli.ts", "packages/prx/src/sneaky/unrelated.ts"]),
     );
 
     const result = await runScopeGate("u", deps);

@@ -41,7 +41,10 @@ export const graphVerb = defineVerb({
   input: z.object({
     format: z.enum(GRAPH_FORMATS).default("plain").describe("graph format"),
     output: z.string().optional().describe("write the graph to this path instead of stdout"),
-    validate: z.coerce.boolean().default(false).describe("JSON-validate the graph (JSON formats only)"),
+    validate: z.coerce
+      .boolean()
+      .default(false)
+      .describe("JSON-validate the graph (JSON formats only)"),
     open: z.coerce.boolean().default(false).describe("open the Stately editor after emitting"),
     url: z.string().default("https://stately.ai/registry/editor/"),
   }),
@@ -70,6 +73,8 @@ export const graphVerb = defineVerb({
   },
   render: (out, input) =>
     out.wrotePath
-      ? [`Wrote graph output to ${out.wrotePath}`, ...(input.validate ? ["json-ok"] : [])].join(" | ")
+      ? [`Wrote graph output to ${out.wrotePath}`, ...(input.validate ? ["json-ok"] : [])].join(
+          " | ",
+        )
       : out.graph,
 });

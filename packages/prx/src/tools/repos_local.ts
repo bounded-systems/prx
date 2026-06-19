@@ -50,9 +50,15 @@ function buildFindArgs(opts: LocalReposOptions): string[] {
   }
   args.push(
     "(",
-    "-type", "d", "-name", ".git",
+    "-type",
+    "d",
+    "-name",
+    ".git",
     "-o",
-    "-type", "f", "-name", ".git",
+    "-type",
+    "f",
+    "-name",
+    ".git",
     ")",
     "-print0",
   );

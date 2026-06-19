@@ -12,11 +12,7 @@
 // the channel-scoped wrappers are new. The gh-issues watermark functions are
 // untouched.
 
-import {
-  defaultSpawnRunner,
-  WatermarkError,
-  type WatermarkDeps,
-} from "./watermark.ts";
+import { defaultSpawnRunner, WatermarkError, type WatermarkDeps } from "./watermark.ts";
 
 // Channel ids are Slack's `C…`/`G…`/`D…` opaque ids (uppercase alphanumerics).
 // Constrain the segment that lands in the bd-config dotted key so a malformed
@@ -42,10 +38,7 @@ export function slackWatermarkKey(channel: string): string {
  * stderr), exactly as `getWatermark` does. Throws `WatermarkError` only when
  * the spawn fails for another reason (e.g. bd binary missing).
  */
-export function getSlackWatermark(
-  channel: string,
-  deps: WatermarkDeps,
-): { ts: string | null } {
+export function getSlackWatermark(channel: string, deps: WatermarkDeps): { ts: string | null } {
   const key = slackWatermarkKey(channel);
   const runner = deps.runner ?? defaultSpawnRunner;
   const result = runner(["bd", "config", "get", key], { cwd: deps.cwd });
@@ -69,11 +62,7 @@ export function getSlackWatermark(
  * Write `prx.fetch.slack.<channel>.watermark` to `bd config`. Called after a
  * successful fetch advances the channel's watermark to `max(ts)`.
  */
-export function setSlackWatermark(
-  channel: string,
-  ts: string,
-  deps: WatermarkDeps,
-): void {
+export function setSlackWatermark(channel: string, ts: string, deps: WatermarkDeps): void {
   const key = slackWatermarkKey(channel);
   const runner = deps.runner ?? defaultSpawnRunner;
   const result = runner(["bd", "config", "set", key, ts], { cwd: deps.cwd });

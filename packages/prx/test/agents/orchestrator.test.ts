@@ -42,6 +42,8 @@ describe("capability-poor orchestrator (prx-g88.3)", () => {
   test("a non-policed command is not the guard's concern (delegation/echo passes)", () => {
     // The orchestrator's real constraint is tool-level (no Bash at all); the
     // guard only speaks to policed tools, so a bare echo isn't denied by policy.
-    expect(decideAgentToolCall({ agentType: "orchestrator", command: "echo delegating" }).allow).toBe(true);
+    expect(
+      decideAgentToolCall({ agentType: "orchestrator", command: "echo delegating" }).allow,
+    ).toBe(true);
   });
 });

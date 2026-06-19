@@ -84,101 +84,169 @@ function expectPhase(name: string, mutate: (raw: RawStateV1) => void, phase: Wor
 }
 
 describe("raw_state derivePhase fixtures", () => {
-  expectPhase("T01 no worktree -> no_worktree", (raw) => {
-    raw.artifacts.pr.exists = false;
-    raw.artifacts.pr.state = "none";
-    raw.artifacts.worktree.exists = false;
-    raw.artifacts.worktree.path = null;
-  }, "no_worktree");
+  expectPhase(
+    "T01 no worktree -> no_worktree",
+    (raw) => {
+      raw.artifacts.pr.exists = false;
+      raw.artifacts.pr.state = "none";
+      raw.artifacts.worktree.exists = false;
+      raw.artifacts.worktree.path = null;
+    },
+    "no_worktree",
+  );
 
-  expectPhase("T02 worktree exists, no local branch -> worktree_created", (raw) => {
-    raw.artifacts.pr.exists = false;
-    raw.artifacts.pr.state = "none";
-    raw.artifacts.branch.existsLocal = false;
-    raw.artifacts.branch.name = null;
-    raw.artifacts.worktree.exists = true;
-    raw.artifacts.worktree.checkedOutBranch = "feature-x" as BranchName;
-  }, "worktree_created");
+  expectPhase(
+    "T02 worktree exists, no local branch -> worktree_created",
+    (raw) => {
+      raw.artifacts.pr.exists = false;
+      raw.artifacts.pr.state = "none";
+      raw.artifacts.branch.existsLocal = false;
+      raw.artifacts.branch.name = null;
+      raw.artifacts.worktree.exists = true;
+      raw.artifacts.worktree.checkedOutBranch = "feature-x" as BranchName;
+    },
+    "worktree_created",
+  );
 
-  expectPhase("T03 local branch only, zero ahead, no PR -> branch_created", (raw) => {
-    raw.artifacts.pr.exists = false;
-    raw.artifacts.pr.state = "none";
-    raw.artifacts.branch.existsRemote = false;
-    raw.artifacts.branch.ahead = 0;
-  }, "branch_created");
+  expectPhase(
+    "T03 local branch only, zero ahead, no PR -> branch_created",
+    (raw) => {
+      raw.artifacts.pr.exists = false;
+      raw.artifacts.pr.state = "none";
+      raw.artifacts.branch.existsRemote = false;
+      raw.artifacts.branch.ahead = 0;
+    },
+    "branch_created",
+  );
 
-  expectPhase("T04 local branch with unpushed commits, no PR -> committing", (raw) => {
-    raw.artifacts.pr.exists = false;
-    raw.artifacts.pr.state = "none";
-    raw.artifacts.branch.existsRemote = false;
-    raw.artifacts.branch.ahead = 2;
-  }, "committing");
+  expectPhase(
+    "T04 local branch with unpushed commits, no PR -> committing",
+    (raw) => {
+      raw.artifacts.pr.exists = false;
+      raw.artifacts.pr.state = "none";
+      raw.artifacts.branch.existsRemote = false;
+      raw.artifacts.branch.ahead = 2;
+    },
+    "committing",
+  );
 
-  expectPhase("T05 remote branch exists, no PR -> pushed", (raw) => {
-    raw.artifacts.pr.exists = false;
-    raw.artifacts.pr.state = "none";
-    raw.artifacts.branch.existsRemote = true;
-  }, "pushed");
+  expectPhase(
+    "T05 remote branch exists, no PR -> pushed",
+    (raw) => {
+      raw.artifacts.pr.exists = false;
+      raw.artifacts.pr.state = "none";
+      raw.artifacts.branch.existsRemote = true;
+    },
+    "pushed",
+  );
 
-  expectPhase("T06 open draft PR -> draft", (raw) => {
-    raw.artifacts.pr.isDraft = true;
-    raw.signals.mergeability.state = "draft";
-  }, "draft");
+  expectPhase(
+    "T06 open draft PR -> draft",
+    (raw) => {
+      raw.artifacts.pr.isDraft = true;
+      raw.signals.mergeability.state = "draft";
+    },
+    "draft",
+  );
 
-  expectPhase("T07 open PR, changes requested -> changes_requested", (raw) => {
-    raw.signals.review.decision = "changes_requested";
-  }, "changes_requested");
+  expectPhase(
+    "T07 open PR, changes requested -> changes_requested",
+    (raw) => {
+      raw.signals.review.decision = "changes_requested";
+    },
+    "changes_requested",
+  );
 
-  expectPhase("T08 open PR, CI running -> waiting_on_ci", (raw) => {
-    raw.signals.ci.state = "in_progress";
-  }, "waiting_on_ci");
+  expectPhase(
+    "T08 open PR, CI running -> waiting_on_ci",
+    (raw) => {
+      raw.signals.ci.state = "in_progress";
+    },
+    "waiting_on_ci",
+  );
 
-  expectPhase("T09 open PR, CI failed -> blocked", (raw) => {
-    raw.signals.ci.state = "failed";
-  }, "blocked");
+  expectPhase(
+    "T09 open PR, CI failed -> blocked",
+    (raw) => {
+      raw.signals.ci.state = "failed";
+    },
+    "blocked",
+  );
 
-  expectPhase("T10 open PR, merge conflict -> blocked", (raw) => {
-    raw.signals.mergeability.state = "conflicting";
-  }, "blocked");
+  expectPhase(
+    "T10 open PR, merge conflict -> blocked",
+    (raw) => {
+      raw.signals.mergeability.state = "conflicting";
+    },
+    "blocked",
+  );
 
-  expectPhase("T11 open PR, approved+passed+mergeable+fresh -> ready_to_merge", () => {}, "ready_to_merge");
+  expectPhase(
+    "T11 open PR, approved+passed+mergeable+fresh -> ready_to_merge",
+    () => {},
+    "ready_to_merge",
+  );
 
-  expectPhase("T12 open PR, no reviewers requested -> ready_for_review", (raw) => {
-    raw.signals.review.decision = "none";
-    raw.signals.review.reviewersRequested = false;
-  }, "ready_for_review");
+  expectPhase(
+    "T12 open PR, no reviewers requested -> ready_for_review",
+    (raw) => {
+      raw.signals.review.decision = "none";
+      raw.signals.review.reviewersRequested = false;
+    },
+    "ready_for_review",
+  );
 
-  expectPhase("T13 open PR, reviewers requested -> in_review", (raw) => {
-    raw.signals.review.decision = "none";
-    raw.signals.review.reviewersRequested = true;
-  }, "in_review");
+  expectPhase(
+    "T13 open PR, reviewers requested -> in_review",
+    (raw) => {
+      raw.signals.review.decision = "none";
+      raw.signals.review.reviewersRequested = true;
+    },
+    "in_review",
+  );
 
-  expectPhase("T14 merged PR with worktree present -> merged", (raw) => {
-    raw.artifacts.pr.state = "merged";
-    raw.artifacts.worktree.exists = true;
-    raw.artifacts.branch.existsLocal = true;
-  }, "merged");
+  expectPhase(
+    "T14 merged PR with worktree present -> merged",
+    (raw) => {
+      raw.artifacts.pr.state = "merged";
+      raw.artifacts.worktree.exists = true;
+      raw.artifacts.branch.existsLocal = true;
+    },
+    "merged",
+  );
 
-  expectPhase("T15 merged PR + no worktree + no local branch -> cleaned", (raw) => {
-    raw.artifacts.pr.state = "merged";
-    raw.artifacts.worktree.exists = false;
-    raw.artifacts.worktree.path = null;
-    raw.artifacts.branch.existsLocal = false;
-  }, "cleaned");
+  expectPhase(
+    "T15 merged PR + no worktree + no local branch -> cleaned",
+    (raw) => {
+      raw.artifacts.pr.state = "merged";
+      raw.artifacts.worktree.exists = false;
+      raw.artifacts.worktree.path = null;
+      raw.artifacts.branch.existsLocal = false;
+    },
+    "cleaned",
+  );
 
-  expectPhase("T16 closed unmerged PR -> closed", (raw) => {
-    raw.artifacts.pr.state = "closed";
-  }, "closed");
+  expectPhase(
+    "T16 closed unmerged PR -> closed",
+    (raw) => {
+      raw.artifacts.pr.state = "closed";
+    },
+    "closed",
+  );
 
   // GH-885: when GitHub holds a registered automerge request, the PR moves
   // from `ready_to_merge` (passive — operator must click) into
   // `automerge_enabled` (active — GitHub will merge when the gate clears).
-  expectPhase("T17 ready-to-merge with autoMergeRequest -> automerge_enabled", (raw) => {
-    raw.artifacts.pr.autoMergeRequest = {
-      enabledBy: "operator",
-      mergeMethod: "SQUASH",
-    };
-  }, "automerge_enabled");
+  expectPhase(
+    "T17 ready-to-merge with autoMergeRequest -> automerge_enabled",
+    (raw) => {
+      raw.artifacts.pr.autoMergeRequest = {
+        enabledBy: "operator",
+        mergeMethod: "SQUASH",
+      };
+    },
+    "automerge_enabled",
+  );
 });
 
 describe("raw_state invariant matrix", () => {
@@ -278,4 +346,3 @@ describe("raw_state invariant matrix", () => {
     expect(report.findings.some((f) => f.id === "I09")).toBeTrue();
   });
 });
-

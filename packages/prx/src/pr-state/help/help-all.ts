@@ -5,12 +5,7 @@
 // `internal: true` entries.
 
 import type { CommandDomain, CommandSpec } from "../../cli/registry.ts";
-import {
-  DeprecationSection,
-  DomainSection,
-  FooterPointers,
-  Identity,
-} from "./components.ts";
+import { DeprecationSection, DomainSection, FooterPointers, Identity } from "./components.ts";
 
 const DOMAIN_ORDER: ReadonlyArray<readonly [CommandDomain, string]> = [
   ["state", "State"],

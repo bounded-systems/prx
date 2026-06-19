@@ -1,11 +1,4 @@
-import {
-  chmodSync,
-  existsSync,
-  mkdtempSync,
-  readdirSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
@@ -181,16 +174,7 @@ describe("plan-store/cas", () => {
 
   test("11. setRef rejects path-unsafe ref names with INVALID_REF_NAME", async () => {
     const { sha } = await writeBlob("body");
-    const bad: string[] = [
-      "",
-      "..",
-      "a/b",
-      "a\\b",
-      "a\0b",
-      "ab",
-      ".hidden",
-      "x".repeat(257),
-    ];
+    const bad: string[] = ["", "..", "a/b", "a\\b", "a\0b", "ab", ".hidden", "x".repeat(257)];
     for (const name of bad) {
       let caught: unknown = null;
       try {
@@ -410,8 +394,7 @@ describe("plan-store/cas — PRX_AI_HOME_ROOT is NOT a CAS surface (prx-z27)", (
   });
 
   test("a read-only /nix/store PRX_AI_HOME_ROOT is harmless — CAS still uses XDG", async () => {
-    process.env.PRX_AI_HOME_ROOT =
-      "/nix/store/zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz-ai-home-source";
+    process.env.PRX_AI_HOME_ROOT = "/nix/store/zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz-ai-home-source";
     const { sha } = await writeBlob("store-root-ignored-body");
     const hex = sha.slice("sha256:".length);
     expect(
@@ -535,9 +518,9 @@ describe("plan-store/cas XDG default fallback (GH-1226)", () => {
     process.env.HOME = home;
     const { sha } = await writeBlob("cas-wins-body");
     const hex = sha.slice("sha256:".length);
-    expect(
-      statSync(join(cas, "plans", "objects", hex.slice(0, 2), hex.slice(2))).isFile(),
-    ).toBe(true);
+    expect(statSync(join(cas, "plans", "objects", hex.slice(0, 2), hex.slice(2))).isFile()).toBe(
+      true,
+    );
     expect(existsSync(join(xdgState, "prx", "cas", "plans"))).toBe(false);
   });
 
@@ -548,9 +531,7 @@ describe("plan-store/cas XDG default fallback (GH-1226)", () => {
     process.env.HOME = home;
     const { sha } = await writeBlob("plan-store-wins-body");
     const hex = sha.slice("sha256:".length);
-    expect(
-      statSync(join(legacy, "objects", hex.slice(0, 2), hex.slice(2))).isFile(),
-    ).toBe(true);
+    expect(statSync(join(legacy, "objects", hex.slice(0, 2), hex.slice(2))).isFile()).toBe(true);
     expect(existsSync(join(xdgState, "prx", "cas", "plans"))).toBe(false);
   });
 

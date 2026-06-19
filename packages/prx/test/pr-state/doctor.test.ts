@@ -54,7 +54,11 @@ const codeOwnersOnlyProtection = () => ({
   requireCodeOwnerReviews: true,
 });
 
-function recordingOutput(): { lines: string[]; errors: string[]; output: { log: (l: string) => void; error: (l: string) => void } } {
+function recordingOutput(): {
+  lines: string[];
+  errors: string[];
+  output: { log: (l: string) => void; error: (l: string) => void };
+} {
   const lines: string[] = [];
   const errors: string[] = [];
   return {
@@ -189,10 +193,7 @@ describe("gateTransition", () => {
   });
 
   test("merge skips review.decision when no protection rule exists", () => {
-    const result = gateTransition(
-      "merge",
-      inv({ reviewDecision: null, protection: null }),
-    );
+    const result = gateTransition("merge", inv({ reviewDecision: null, protection: null }));
     expect(result.ok).toBeTrue();
     expect(result.blockers.some((b) => b.predicate.includes("review.decision="))).toBeFalse();
   });
@@ -228,9 +229,7 @@ describe("gateTransition", () => {
     test(`${verb} blocks when provenance is unsigned`, () => {
       const result = gateTransition(verb, inv({ provenance: "unsigned" }));
       expect(result.ok).toBeFalse();
-      expect(
-        result.blockers.some((b) => b.predicate === "provenance.signed=unsigned"),
-      ).toBeTrue();
+      expect(result.blockers.some((b) => b.predicate === "provenance.signed=unsigned")).toBeTrue();
     });
 
     test(`${verb} passes when provenance is verified`, () => {
@@ -356,9 +355,21 @@ describe("runInventory", () => {
     const parsed = JSON.parse(rec.lines[0]!);
     expect(Array.isArray(parsed.gates.merge.blockers)).toBeTrue();
     expect(Array.isArray(parsed.gates.merge.waiting)).toBeTrue();
-    expect(parsed.gates.merge.blockers.some((b: { predicate: string }) => b.predicate === "pr.isDraft=true")).toBeTrue();
-    expect(parsed.gates.merge.waiting.some((b: { predicate: string }) => b.predicate.includes("review.decision="))).toBeTrue();
-    expect(parsed.gates.merge.waiting.some((b: { predicate: string }) => b.predicate.includes("ci.state="))).toBeTrue();
+    expect(
+      parsed.gates.merge.blockers.some(
+        (b: { predicate: string }) => b.predicate === "pr.isDraft=true",
+      ),
+    ).toBeTrue();
+    expect(
+      parsed.gates.merge.waiting.some((b: { predicate: string }) =>
+        b.predicate.includes("review.decision="),
+      ),
+    ).toBeTrue();
+    expect(
+      parsed.gates.merge.waiting.some((b: { predicate: string }) =>
+        b.predicate.includes("ci.state="),
+      ),
+    ).toBeTrue();
     expect(parsed.gates.merge.ok).toBeFalse();
   });
 });

@@ -26,10 +26,7 @@ import {
 } from "@bounded-systems/github-budget";
 import type { BdExecResult } from "@bounded-systems/bd";
 import type { CommandResult } from "../../src/pr-state/github.ts";
-import type {
-  FetchBudget,
-  FetchGhIssuesInput,
-} from "../../src/fetch/types.ts";
+import type { FetchBudget, FetchGhIssuesInput } from "../../src/fetch/types.ts";
 
 const DRY_RUN_INPUT: FetchGhIssuesInput = {
   source: "gh-issues",
@@ -286,9 +283,7 @@ function setupMocks(opts: MockOpts): MockedDeps {
   };
 
   // `bd update` mock — counts spawns + lets tests inject per-row failures.
-  const execBd = (
-    cmdOpts: { subcommand: string; args: string[] },
-  ): BdExecResult => {
+  const execBd = (cmdOpts: { subcommand: string; args: string[] }): BdExecResult => {
     bdSpawnCalls.push({ subcommand: cmdOpts.subcommand, args: cmdOpts.args });
     if (cmdOpts.subcommand === "update") {
       const rowIdx = bdSpawnCalls.filter((c) => c.subcommand === "update").length - 1;

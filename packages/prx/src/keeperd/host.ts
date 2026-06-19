@@ -78,7 +78,10 @@ export async function runKeeperRemote(
     input.cwd,
     { git },
   );
-  const bundleBase64 = bundle({ cwd: input.cwd, parentSha: input.parentSha, branch: input.branch }, { git });
+  const bundleBase64 = bundle(
+    { cwd: input.cwd, parentSha: input.parentSha, branch: input.branch },
+    { git },
+  );
 
   const request: KeeperRemoteRequest = {
     kind: "import-and-push",

@@ -20,10 +20,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homeDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
-import {
-  isCaptureFailure,
-  type SpawnCaptureFn,
-} from "@bounded-systems/proc";
+import { isCaptureFailure, type SpawnCaptureFn } from "@bounded-systems/proc";
 
 import { bdSpawnCapture } from "../beadsd/bd-command-runner.ts";
 
@@ -49,13 +46,7 @@ export function classifyBeadsWorkspace(
   const metadata = readBeadsMetadata(beadsDir);
   if (metadata.dolt_mode === "server" && metadata.dolt_database) {
     const home = opts.homeDir ?? homeDir();
-    const sharedDir = join(
-      home,
-      ".beads",
-      "shared-server",
-      "dolt",
-      metadata.dolt_database,
-    );
+    const sharedDir = join(home, ".beads", "shared-server", "dolt", metadata.dolt_database);
     if (existsSync(sharedDir) && isDirectory(sharedDir)) {
       return { kind: "shared_server", sharedDir };
     }
@@ -87,10 +78,7 @@ export function classifyBeadsWorkspace(
   };
 }
 
-export function beadsModeHint(
-  mode: BeadsWorkspaceMode,
-  slug: string,
-): string | null {
+export function beadsModeHint(mode: BeadsWorkspaceMode, slug: string): string | null {
   switch (mode.kind) {
     case "per_project":
     case "shared_server":
@@ -121,10 +109,7 @@ export function readBeadsMetadata(beadsDir: string): BeadsMetadata {
       dolt_database?: unknown;
     };
     return {
-      dolt_mode:
-        typeof parsed.dolt_mode === "string" && parsed.dolt_mode
-          ? parsed.dolt_mode
-          : null,
+      dolt_mode: typeof parsed.dolt_mode === "string" && parsed.dolt_mode ? parsed.dolt_mode : null,
       dolt_database:
         typeof parsed.dolt_database === "string" && parsed.dolt_database
           ? parsed.dolt_database

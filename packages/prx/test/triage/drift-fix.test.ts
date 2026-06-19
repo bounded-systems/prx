@@ -321,7 +321,11 @@ describe("buildDriftFixPlan", () => {
         }),
         drift({ issueNumber: 4, beadsId: "bd-4", fields: { priority: { gh: "low", bd: "high" } } }),
         drift({ issueNumber: 5, beadsId: "bd-5", fields: { title: { gh: "x", bd: "y" } } }),
-        drift({ issueNumber: 6, beadsId: "bd-6", fields: { status: { gh: "open", bd: "closed" } } }),
+        drift({
+          issueNumber: 6,
+          beadsId: "bd-6",
+          fields: { status: { gh: "open", bd: "closed" } },
+        }),
       ],
       "bdelanghe/ai-home",
       "2026-04-29T00:00:00Z",
@@ -530,7 +534,14 @@ describe("runTriageDriftFix — scan phase", () => {
   test("emits a JSON plan to stdout when --from and --apply are omitted", async () => {
     const o = makeOutput();
     const code = await runTriageDriftFix(
-      { apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       {
         ...STD_DEPS_BASE,
@@ -567,7 +578,14 @@ describe("runTriageDriftFix — scan phase", () => {
   test("scan picks up bd=closed/gh=open as status drift when --axes status is in scope", async () => {
     const o = makeOutput();
     const code = await runTriageDriftFix(
-      { apply: false, dryRun: false, limit: 0, axes: ["status"], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: ["status"],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       {
         ...STD_DEPS_BASE,
@@ -603,7 +621,14 @@ describe("runTriageDriftFix — scan phase", () => {
   test("clean queue → empty plan rows, exit 0", async () => {
     const o = makeOutput();
     const code = await runTriageDriftFix(
-      { apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       {
         ...STD_DEPS_BASE,
@@ -620,11 +645,14 @@ describe("runTriageDriftFix — scan phase", () => {
 });
 
 describe("runTriageDriftFix — apply phase (--from)", () => {
-  function setup(rows: DriftFixPlanRow[], options: {
-    bdResults?: BdExecResult[];
-    beadsAtApply?: BeadsRecord[];
-    syncResult?: { exitCode: number; stdout: string; stderr: string };
-  } = {}) {
+  function setup(
+    rows: DriftFixPlanRow[],
+    options: {
+      bdResults?: BdExecResult[];
+      beadsAtApply?: BeadsRecord[];
+      syncResult?: { exitCode: number; stdout: string; stderr: string };
+    } = {},
+  ) {
     const audit: string[] = [];
     // GH-296 / prx-ebo: writes now go through the daemon helpers (updateBead /
     // reopenBead), not execBd. The fakes record the SAME {subcommand, args}
@@ -741,7 +769,15 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
   test("dry-run writes audit entries and skips bd update", async () => {
     const { audit, o, deps, bdCalls, syncCalls } = setup([fixTypeRow()]);
     const code = await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: true, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: true,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       deps,
     );
@@ -775,7 +811,15 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
     const o = makeOutput();
     const fixture = JSON.stringify(planFixture(skipRows));
     const code = await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       {
         ...STD_DEPS_BASE,
@@ -810,7 +854,15 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
     };
     const { audit, o, deps, bdCalls, syncCalls } = setup([noPairRow]);
     const code = await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       deps,
     );
@@ -828,7 +880,15 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
   test("fix-type row calls bd update with --type and chains sync", async () => {
     const { audit, o, deps, bdCalls, syncCalls } = setup([fixTypeRow()]);
     const code = await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       deps,
     );
@@ -858,11 +918,17 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
       ["low", "3"],
     ];
     for (const [label, expected] of cases) {
-      const { o, deps, bdCalls } = setup([
-        fixPriorityRow({ priority: { gh: label, bd: "low" } }),
-      ]);
+      const { o, deps, bdCalls } = setup([fixPriorityRow({ priority: { gh: label, bd: "low" } })]);
       await runTriageDriftFix(
-        { from: "/tmp/p.json", apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: false, ...DRIFT_FIX_DEFAULTS },
+        {
+          from: "/tmp/p.json",
+          apply: false,
+          dryRun: false,
+          limit: 0,
+          axes: [...ALL_AXES],
+          sync: false,
+          ...DRIFT_FIX_DEFAULTS,
+        },
         o.output,
         deps,
       );
@@ -874,7 +940,15 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
   test("type+priority row passes --type and -p in one bd update call", async () => {
     const { o, deps, bdCalls } = setup([fixBothRow()]);
     await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: false, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: false,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       deps,
     );
@@ -886,7 +960,15 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
   test("status-only row calls bd reopen exactly once, no bd update", async () => {
     const { audit, o, deps, bdCalls, syncCalls } = setup([fixStatusRow()]);
     const code = await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       deps,
     );
@@ -913,7 +995,15 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
     };
     const { audit, o, deps, bdCalls } = setup([row]);
     const code = await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: false, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: false,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       deps,
     );
@@ -949,7 +1039,15 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
       ],
     });
     const code = await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       deps,
     );
@@ -967,7 +1065,15 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
       bdResults: [{ exitCode: 1, stdout: "", stderr: "issue not found", policy: null }],
     });
     const code = await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       deps,
     );
@@ -990,7 +1096,15 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
     };
     const { audit, o, deps, bdCalls } = setup([row]);
     const code = await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       deps,
     );
@@ -1008,7 +1122,15 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
       },
     );
     const code = await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       deps,
     );
@@ -1020,14 +1142,19 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
   });
 
   test("idempotency: bd already at status=open → status row skipped", async () => {
-    const { audit, o, deps, bdCalls } = setup(
-      [fixStatusRow({ beadsId: "bd-45" })],
-      {
-        beadsAtApply: [bead({ id: "bd-45", status: "open" })],
-      },
-    );
+    const { audit, o, deps, bdCalls } = setup([fixStatusRow({ beadsId: "bd-45" })], {
+      beadsAtApply: [bead({ id: "bd-45", status: "open" })],
+    });
     const code = await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       deps,
     );
@@ -1043,7 +1170,15 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
       fixTypeRow({ issueNumber: 3, beadsId: "bd-3" }),
     ]);
     await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: true, limit: 2, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: true,
+        limit: 2,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       deps,
     );
@@ -1054,7 +1189,15 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
   test("--no-sync skips chained sync even when writes occur", async () => {
     const { o, deps, syncCalls } = setup([fixTypeRow()]);
     await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: false, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: false,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       deps,
     );
@@ -1066,7 +1209,15 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
       syncResult: { exitCode: 1, stdout: "", stderr: "boom" },
     });
     const code = await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       deps,
     );
@@ -1078,7 +1229,15 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
       bdResults: [{ exitCode: 2, stdout: "", stderr: "bd-safe: nope", policy: null }],
     });
     const code = await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       deps,
     );
@@ -1095,7 +1254,15 @@ describe("runTriageDriftFix — apply phase (--from)", () => {
   test("empty plan → no writes, no sync, exit 0", async () => {
     const { audit, o, deps, bdCalls, syncCalls } = setup([]);
     const code = await runTriageDriftFix(
-      { from: "/tmp/p.json", apply: false, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        from: "/tmp/p.json",
+        apply: false,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       deps,
     );
@@ -1113,7 +1280,14 @@ describe("runTriageDriftFix — one-shot apply (--apply)", () => {
     let syncCalls = 0;
     const o = makeOutput();
     const code = await runTriageDriftFix(
-      { apply: true, dryRun: false, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        apply: true,
+        dryRun: false,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       {
         ...STD_DEPS_BASE,
@@ -1174,7 +1348,14 @@ describe("runTriageDriftFix — one-shot apply (--apply)", () => {
     let syncCalls = 0;
     const o = makeOutput();
     const code = await runTriageDriftFix(
-      { apply: true, dryRun: true, limit: 0, axes: [...ALL_AXES], sync: true, ...DRIFT_FIX_DEFAULTS },
+      {
+        apply: true,
+        dryRun: true,
+        limit: 0,
+        axes: [...ALL_AXES],
+        sync: true,
+        ...DRIFT_FIX_DEFAULTS,
+      },
       o.output,
       {
         ...STD_DEPS_BASE,
@@ -1358,30 +1539,21 @@ describe("runTriageDriftFix — GH-1255 dupe + doctor surfaces", () => {
   function dupeCluster(target: string, source: string): BdDuplicatesCluster {
     return {
       target: { beadsId: target, title: "stub", status: "open", priority: 2 },
-      sources: [
-        { beadsId: source, title: "stub", status: "open", priority: 2 },
-      ],
+      sources: [{ beadsId: source, title: "stub", status: "open", priority: 2 }],
     };
   }
 
-  function fakeDupeRunner(
-    clusters: BdDuplicatesCluster[],
-  ): () => BdDuplicatesDryRunResult {
+  function fakeDupeRunner(clusters: BdDuplicatesCluster[]): () => BdDuplicatesDryRunResult {
     return () => ({ exitCode: 0, clusters, stdout: "", stderr: "" });
   }
 
-  function fakeDoctorRunner(
-    total: number,
-    fixable: number,
-  ): () => BdDoctorResult {
+  function fakeDoctorRunner(total: number, fixable: number): () => BdDoctorResult {
     return () => ({
       exitCode: 0,
       report: {
         total,
         fixable,
-        issues: total > 0
-          ? [{ category: "orphans", count: total, fixable: fixable > 0 }]
-          : [],
+        issues: total > 0 ? [{ category: "orphans", count: total, fixable: fixable > 0 }] : [],
       },
       stdout: "",
       stderr: "",
@@ -1744,8 +1916,18 @@ describe("runTriageDriftFix — GH-1255 dupe + doctor surfaces", () => {
       {
         ...STD_DEPS_BASE,
         listOpenIssues: () => [
-          { number: 600, title: "twin", url: "https://github.com/bdelanghe/ai-home/issues/600", labels: [{ name: "area::prx" }] },
-          { number: 601, title: "twin", url: "https://github.com/bdelanghe/ai-home/issues/601", labels: [{ name: "area::prx" }] },
+          {
+            number: 600,
+            title: "twin",
+            url: "https://github.com/bdelanghe/ai-home/issues/600",
+            labels: [{ name: "area::prx" }],
+          },
+          {
+            number: 601,
+            title: "twin",
+            url: "https://github.com/bdelanghe/ai-home/issues/601",
+            labels: [{ name: "area::prx" }],
+          },
         ],
         repoNameWithOwner: () => "bdelanghe/ai-home",
         loadAllBeads: () => [
@@ -1758,7 +1940,12 @@ describe("runTriageDriftFix — GH-1255 dupe + doctor surfaces", () => {
         runBdDoctorJson: fakeDoctorRunner(0, 0),
         runBdMerge: () => {
           mergeCalls += 1;
-          return { exitCode: 0, result: { target: "x", sources: ["y"], applied: true }, stdout: "", stderr: "" };
+          return {
+            exitCode: 0,
+            result: { target: "x", sources: ["y"], applied: true },
+            stdout: "",
+            stderr: "",
+          };
         },
         auditSink: {
           stateDirOverride: "/tmp/state",
@@ -1794,8 +1981,18 @@ describe("runTriageDriftFix — GH-1255 dupe + doctor surfaces", () => {
       {
         ...STD_DEPS_BASE,
         listOpenIssues: () => [
-          { number: 700, title: "twin", url: "https://github.com/bdelanghe/ai-home/issues/700", labels: [{ name: "area::prx" }] },
-          { number: 701, title: "twin", url: "https://github.com/bdelanghe/ai-home/issues/701", labels: [{ name: "area::prx" }] },
+          {
+            number: 700,
+            title: "twin",
+            url: "https://github.com/bdelanghe/ai-home/issues/700",
+            labels: [{ name: "area::prx" }],
+          },
+          {
+            number: 701,
+            title: "twin",
+            url: "https://github.com/bdelanghe/ai-home/issues/701",
+            labels: [{ name: "area::prx" }],
+          },
         ],
         repoNameWithOwner: () => "bdelanghe/ai-home",
         loadAllBeads: () => [
@@ -1806,7 +2003,12 @@ describe("runTriageDriftFix — GH-1255 dupe + doctor surfaces", () => {
         execBd: () => ({ exitCode: 0, stdout: "", stderr: "", policy: null }),
         runBdDuplicatesDryRun: fakeDupeRunner([dupeCluster("bd-700", "bd-701")]),
         runBdDoctorJson: fakeDoctorRunner(0, 0),
-        runBdMerge: () => ({ exitCode: 2, result: { target: "bd-700", sources: [], applied: false }, stdout: "", stderr: "merge conflict" }),
+        runBdMerge: () => ({
+          exitCode: 2,
+          result: { target: "bd-700", sources: [], applied: false },
+          stdout: "",
+          stderr: "merge conflict",
+        }),
         auditSink: {
           stateDirOverride: "/tmp/state",
           ensureDir: () => {},
@@ -1850,7 +2052,12 @@ describe("runTriageDriftFix — GH-1255 dupe + doctor surfaces", () => {
         execBd: () => ({ exitCode: 0, stdout: "", stderr: "", policy: null }),
         runBdDuplicatesDryRun: fakeDupeRunner([]),
         runBdDoctorJson: fakeDoctorRunner(3, 2),
-        runBdDoctorFix: () => ({ exitCode: 1, report: { total: 0, fixable: 0, issues: [] }, stdout: "", stderr: "doctor --fix blew up" }),
+        runBdDoctorFix: () => ({
+          exitCode: 1,
+          report: { total: 0, fixable: 0, issues: [] },
+          stdout: "",
+          stderr: "doctor --fix blew up",
+        }),
         auditSink: {
           stateDirOverride: "/tmp/state",
           ensureDir: () => {},

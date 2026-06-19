@@ -25,10 +25,7 @@ import {
   type BdShowResult,
   type BdGithubRunner,
 } from "@bounded-systems/bd";
-import {
-  loadAllBeads as defaultLoadAllBeads,
-  type BeadsRecord,
-} from "../triage/triage.ts";
+import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../triage/triage.ts";
 import { buildBeadsLookup } from "../issues/dedupe.ts";
 // `prx plan close` driver deps (moved with planClose from cli.ts).
 import {
@@ -306,9 +303,7 @@ export async function planClose(
     issueClosed: false,
     bdRecord: null,
     bdSyncExitCode: null,
-    handoff: [
-      `prx worktree-remove ${options.workUnitId} --delete-branch --force`,
-    ],
+    handoff: [`prx worktree-remove ${options.workUnitId} --delete-branch --force`],
     refusalReason: null,
     dryRun: options.dryRun,
   };
@@ -343,19 +338,9 @@ export async function planClose(
   let upstreamCommentPosted = false;
   if (options.upstream) {
     const body =
-      `Closing in favor of upstream: ${options.upstream}\n\n` +
-      `Reason: ${options.reason}`;
+      `Closing in favor of upstream: ${options.upstream}\n\n` + `Reason: ${options.reason}`;
     const commentResult = runner(
-      [
-        "gh",
-        "issue",
-        "comment",
-        String(issueNumber),
-        "--repo",
-        repoSlug,
-        "--body",
-        body,
-      ],
+      ["gh", "issue", "comment", String(issueNumber), "--repo", repoSlug, "--body", body],
       { check: false },
     );
     if (commentResult.status !== 0) {

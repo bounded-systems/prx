@@ -113,9 +113,7 @@ const baseOpts = triageTypePassOptionsSchema.parse({
 
 describe("selectCandidates", () => {
   test("includes rows with no type::* axis label", () => {
-    const c = selectCandidates([
-      issue({ number: 1, labels: [{ name: "priority::high" }] }),
-    ]);
+    const c = selectCandidates([issue({ number: 1, labels: [{ name: "priority::high" }] })]);
     expect(c).toHaveLength(1);
     expect(c[0]!.number).toBe(1);
   });
@@ -137,11 +135,7 @@ describe("selectCandidates", () => {
   });
 
   test("sorts by issue number ascending for stable batch ordering", () => {
-    const c = selectCandidates([
-      issue({ number: 7 }),
-      issue({ number: 3 }),
-      issue({ number: 5 }),
-    ]);
+    const c = selectCandidates([issue({ number: 7 }), issue({ number: 3 }), issue({ number: 5 })]);
     expect(c.map((x) => x.number)).toEqual([3, 5, 7]);
   });
 });
@@ -163,7 +157,7 @@ describe("TYPE_PASS_SYSTEM_PROMPT", () => {
 
   test("GH-988: prompt instructs spike-bit emission alongside the bd-axis type", () => {
     expect(TYPE_PASS_SYSTEM_PROMPT).toContain("Spike bit");
-    expect(TYPE_PASS_SYSTEM_PROMPT).toContain('spike: true');
+    expect(TYPE_PASS_SYSTEM_PROMPT).toContain("spike: true");
   });
 
   test("forbids prose / fence wrapping in output", () => {
@@ -185,21 +179,15 @@ describe("haikuBatchResponseSchema", () => {
 
   test("rejects out-of-vocab type values (round-trip violation)", () => {
     expect(() =>
-      haikuBatchResponseSchema.parse([
-        { number: 1, type: "decision", confidence: "high" },
-      ]),
+      haikuBatchResponseSchema.parse([{ number: 1, type: "decision", confidence: "high" }]),
     ).toThrow();
     expect(() =>
-      haikuBatchResponseSchema.parse([
-        { number: 1, type: "spike", confidence: "high" },
-      ]),
+      haikuBatchResponseSchema.parse([{ number: 1, type: "spike", confidence: "high" }]),
     ).toThrow();
   });
 
   test("rejects rows missing confidence", () => {
-    expect(() =>
-      haikuBatchResponseSchema.parse([{ number: 1, type: "bug" }]),
-    ).toThrow();
+    expect(() => haikuBatchResponseSchema.parse([{ number: 1, type: "bug" }])).toThrow();
   });
 });
 
@@ -207,10 +195,7 @@ describe("haikuBatchResponseSchema", () => {
 
 describe("parseHaikuEnvelope", () => {
   test("extracts rows + cost from a clean envelope", () => {
-    const stdout = envelope(
-      [{ number: 1, type: "bug", confidence: "high" }],
-      0.07,
-    );
+    const stdout = envelope([{ number: 1, type: "bug", confidence: "high" }], 0.07);
     const { rows, cost } = parseHaikuEnvelope(stdout);
     expect(rows).toEqual([{ number: 1, type: "bug", confidence: "high" }]);
     expect(cost).toBe(0.07);
@@ -234,14 +219,9 @@ describe("parseHaikuEnvelope", () => {
   });
 
   test("decodes the CLI ≥ 2.1 stream-array shape (GH-1095)", () => {
-    const stdout = arrayEnvelope(
-      [{ number: 42, type: "feature", confidence: "medium" }],
-      0.11,
-    );
+    const stdout = arrayEnvelope([{ number: 42, type: "feature", confidence: "medium" }], 0.11);
     const { rows, cost } = parseHaikuEnvelope(stdout);
-    expect(rows).toEqual([
-      { number: 42, type: "feature", confidence: "medium" },
-    ]);
+    expect(rows).toEqual([{ number: 42, type: "feature", confidence: "medium" }]);
     expect(cost).toBe(0.11);
   });
 });
@@ -325,18 +305,12 @@ describe("runTriageTypePass", () => {
     };
     const { deps, captured } = makeDeps(issues, [haiku], []);
     const out = makeOutput();
-    const exit = await runTriageTypePass(
-      { ...baseOpts, dryRun: true },
-      out.output,
-      deps,
-    );
+    const exit = await runTriageTypePass({ ...baseOpts, dryRun: true }, out.output, deps);
     expect(exit).toBe(0);
     expect(captured.haikuCalls).toHaveLength(1);
     expect(captured.ghCalls).toEqual([]);
     expect(captured.syncCalls).toBe(0);
-    const rows = captured.audit.filter(
-      (e): e is TypePassAuditRowEntry => !("action" in e),
-    );
+    const rows = captured.audit.filter((e): e is TypePassAuditRowEntry => !("action" in e));
     expect(rows).toHaveLength(2);
     for (const row of rows) {
       expect(row.dryRun).toBe(true);
@@ -406,10 +380,7 @@ describe("runTriageTypePass", () => {
   });
 
   test("haiku batch failure records one error row per candidate, no gh call", async () => {
-    const issues = [
-      issue({ number: 40, labels: [] }),
-      issue({ number: 41, labels: [] }),
-    ];
+    const issues = [issue({ number: 40, labels: [] }), issue({ number: 41, labels: [] })];
     const haiku: SpawnHaikuResult = {
       status: 1,
       stdout: "",
@@ -421,9 +392,7 @@ describe("runTriageTypePass", () => {
     expect(exit).toBe(1);
     expect(captured.ghCalls).toEqual([]);
     expect(captured.syncCalls).toBe(0);
-    const errs = captured.audit.filter(
-      (e): e is TypePassAuditRowEntry => !("action" in e),
-    );
+    const errs = captured.audit.filter((e): e is TypePassAuditRowEntry => !("action" in e));
     expect(errs).toHaveLength(2);
     for (const e of errs) {
       expect(e.exitCode).toBe(1);
@@ -519,26 +488,19 @@ describe("runTriageTypePass", () => {
       subcommand: "edit",
       args: ["71", "--add-label", "type::bug", "--repo", "bdelanghe/ai-home"],
     });
-    const rows = captured.audit.filter(
-      (e): e is TypePassAuditRowEntry => !("action" in e),
-    );
+    const rows = captured.audit.filter((e): e is TypePassAuditRowEntry => !("action" in e));
     expect(rows.find((r) => r.issue === 70)?.decisionSpike).toBe(true);
     expect(rows.find((r) => r.issue === 71)?.decisionSpike).toBe(false);
   });
 
-test("haiku omits a row → audit row marks omission as error, others apply", async () => {
-    const issues = [
-      issue({ number: 60, labels: [] }),
-      issue({ number: 61, labels: [] }),
-    ];
+  test("haiku omits a row → audit row marks omission as error, others apply", async () => {
+    const issues = [issue({ number: 60, labels: [] }), issue({ number: 61, labels: [] })];
     const haiku: SpawnHaikuResult = {
       status: 0,
       stdout: envelope([{ number: 60, type: "bug", confidence: "high" }]),
       stderr: "",
     };
-    const ghResults: GhExecResult[] = [
-      { exitCode: 0, stdout: "", stderr: "", policy: null },
-    ];
+    const ghResults: GhExecResult[] = [{ exitCode: 0, stdout: "", stderr: "", policy: null }];
     const { deps, captured } = makeDeps(issues, [haiku], ghResults);
     const out = makeOutput();
     const exit = await runTriageTypePass(baseOpts, out.output, deps);
@@ -546,8 +508,7 @@ test("haiku omits a row → audit row marks omission as error, others apply", as
     expect(captured.ghCalls).toHaveLength(1);
     expect(captured.ghCalls[0]!.args[0]!).toBe("60");
     const omitted = captured.audit.find(
-      (e): e is TypePassAuditRowEntry =>
-        !("action" in e) && e.issue === 61 && e.exitCode !== 0,
+      (e): e is TypePassAuditRowEntry => !("action" in e) && e.issue === 61 && e.exitCode !== 0,
     );
     expect(omitted?.stderr).toContain("haiku omitted");
     expect(captured.syncCalls).toBe(1);

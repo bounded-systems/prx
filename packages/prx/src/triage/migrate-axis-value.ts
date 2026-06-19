@@ -36,24 +36,12 @@
 import { processEnv } from "@bounded-systems/env";
 import { z } from "zod";
 
-import {
-  appendAuditRow,
-  auditSinkPath,
-  type AuditSinkDeps,
-} from "../audit/sink.ts";
+import { appendAuditRow, auditSinkPath, type AuditSinkDeps } from "../audit/sink.ts";
 
 import { LABEL_AXES, labelName, type LabelAxis } from "./labels.ts";
-import {
-  AREA,
-  EFFORT,
-  PRIORITY,
-  TYPE,
-} from "./labels.ts";
+import { AREA, EFFORT, PRIORITY, TYPE } from "./labels.ts";
 import { execGh as defaultExecGh, type GhExecResult } from "@bounded-systems/gh";
-import {
-  runBeadsSync as defaultRunBeadsSync,
-  type BeadsSyncResult,
-} from "../sync/run.ts";
+import { runBeadsSync as defaultRunBeadsSync, type BeadsSyncResult } from "../sync/run.ts";
 import { DEFAULT_SYNC_LIMIT } from "../sync/limits.ts";
 import {
   repoNameWithOwner as defaultRepoNameWithOwner,
@@ -104,9 +92,7 @@ export const triageMigrateAxisValueOptionsSchema = z
     }
   });
 
-export type TriageMigrateAxisValueOptions = z.infer<
-  typeof triageMigrateAxisValueOptionsSchema
->;
+export type TriageMigrateAxisValueOptions = z.infer<typeof triageMigrateAxisValueOptionsSchema>;
 
 export const migrateDecisionSchema = z.enum(["migrate"]);
 export type MigrateDecision = z.infer<typeof migrateDecisionSchema>;
@@ -187,7 +173,6 @@ export type MigrateAuditEntry = MigrateAuditRowEntry | MigrateAuditSyncEntry;
 
 export type MigrateSyncOutcome = "ok" | "failed" | "skipped";
 
-
 function issueLabelNames(issue: FallbackIssue): string[] {
   return (issue.labels ?? [])
     .map((label) => label?.name)
@@ -257,8 +242,7 @@ export async function runTriageMigrateAxisValue(
     ...(deps.auditSink ?? {}),
     now: deps.auditSink?.now ?? (() => now),
   };
-  const append = (entry: MigrateAuditEntry): void =>
-    appendAuditRow(entry, auditSink);
+  const append = (entry: MigrateAuditEntry): void => appendAuditRow(entry, auditSink);
 
   const repo = opts.repo ?? resolveRepo(cwd);
 
@@ -335,7 +319,9 @@ export async function runTriageMigrateAxisValue(
         stderr: editResult.stderr.trim() || "gh issue edit failed",
       };
       append(entry);
-      output.error(`error GH-${row.number} gh issue edit exit=${editResult.exitCode}: ${entry.stderr}`);
+      output.error(
+        `error GH-${row.number} gh issue edit exit=${editResult.exitCode}: ${entry.stderr}`,
+      );
       errors += 1;
       continue;
     }
@@ -359,7 +345,9 @@ export async function runTriageMigrateAxisValue(
         stderr: commentResult.stderr.trim() || "gh issue comment failed",
       };
       append(entry);
-      output.error(`partial GH-${row.number}: label swap ok but gh comment failed: ${entry.stderr}`);
+      output.error(
+        `partial GH-${row.number}: label swap ok but gh comment failed: ${entry.stderr}`,
+      );
       // The label edit succeeded — count it as a touch so the post-loop sync
       // still reconciles bd's issue_type column for this issue.
       touchedIssues.push(row.number);

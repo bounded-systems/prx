@@ -12,16 +12,16 @@ import {
 
 describe("buildBdIssueCloseArgs", () => {
   test("emits close/<id> with no reason by default", () => {
-    expect(buildBdIssueCloseArgs({ id: "BD-deadbeef" })).toEqual([
-      "close",
-      "BD-deadbeef",
-    ]);
+    expect(buildBdIssueCloseArgs({ id: "BD-deadbeef" })).toEqual(["close", "BD-deadbeef"]);
   });
 
   test("forwards explicit --reason", () => {
-    expect(
-      buildBdIssueCloseArgs({ id: "BD-deadbeef", reason: "completed" }),
-    ).toEqual(["close", "BD-deadbeef", "--reason", "completed"]);
+    expect(buildBdIssueCloseArgs({ id: "BD-deadbeef", reason: "completed" })).toEqual([
+      "close",
+      "BD-deadbeef",
+      "--reason",
+      "completed",
+    ]);
   });
 });
 
@@ -39,11 +39,7 @@ describe("execBdIssueClose", () => {
         stderr: "",
       };
     };
-    const result = execBdIssueClose(
-      { id: "BD-deadbeef" },
-      { HOME: "/tmp" },
-      spawn,
-    );
+    const result = execBdIssueClose({ id: "BD-deadbeef" }, { HOME: "/tmp" }, spawn);
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toBe("closed BD-deadbeef\n");
     expect(result.stderr).toBe("");
@@ -55,11 +51,7 @@ describe("execBdIssueClose", () => {
       stdout: "",
       stderr: "bd: not found\n",
     });
-    const result = execBdIssueClose(
-      { id: "BD-deadbeef" },
-      { HOME: "/tmp" },
-      spawn,
-    );
+    const result = execBdIssueClose({ id: "BD-deadbeef" }, { HOME: "/tmp" }, spawn);
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toBe("bd: not found\n");
   });
@@ -71,11 +63,7 @@ describe("execBdIssueClose", () => {
       stderr: "",
       error: new Error("ENOENT"),
     });
-    const result = execBdIssueClose(
-      { id: "BD-deadbeef" },
-      { HOME: "/tmp" },
-      spawn,
-    );
+    const result = execBdIssueClose({ id: "BD-deadbeef" }, { HOME: "/tmp" }, spawn);
     expect(result.exitCode).toBe(1);
   });
 
@@ -106,20 +94,14 @@ describe("formatBdIssueCloseResult", () => {
   });
 
   test("plain failure returns stderr", () => {
-    expect(
-      formatBdIssueCloseResult(
-        { exitCode: 1, stdout: "", stderr: "boom\n" },
-        "plain",
-      ),
-    ).toBe("boom");
+    expect(formatBdIssueCloseResult({ exitCode: 1, stdout: "", stderr: "boom\n" }, "plain")).toBe(
+      "boom",
+    );
   });
 
   test("json format is valid JSON", () => {
     const json = JSON.parse(
-      formatBdIssueCloseResult(
-        { exitCode: 0, stdout: "ok", stderr: "" },
-        "json",
-      ),
+      formatBdIssueCloseResult({ exitCode: 0, stdout: "ok", stderr: "" }, "json"),
     ) as { exitCode: number; stdout: string };
     expect(json.exitCode).toBe(0);
     expect(json.stdout).toBe("ok");

@@ -32,9 +32,14 @@ const SAMPLE_ID = "abcdef012345";
 
 describe("workspace contract", () => {
   test("WORKSPACE_VERBS lists every verb exactly once", () => {
-    expect([...WORKSPACE_VERBS].sort()).toEqual(
-      ["materialize", "prepare", "reserve", "service", "sync", "teardown"],
-    );
+    expect([...WORKSPACE_VERBS].sort()).toEqual([
+      "materialize",
+      "prepare",
+      "reserve",
+      "service",
+      "sync",
+      "teardown",
+    ]);
   });
 
   test("WORKSPACE_*_SCHEMAS has a schema for every verb", () => {
@@ -77,9 +82,7 @@ describe("workspace.reserve", () => {
 
   test("ReserveInput defaults local_only=false (GH-2271)", () => {
     expect(ReserveInput.parse({ branch: "GH-1978" }).local_only).toBe(false);
-    expect(
-      ReserveInput.parse({ branch: "intake/x", local_only: true }).local_only,
-    ).toBe(true);
+    expect(ReserveInput.parse({ branch: "intake/x", local_only: true }).local_only).toBe(true);
   });
 
   test("ReserveOutput accepts every documented status", () => {
@@ -119,9 +122,7 @@ describe("workspace.materialize (GH-2271)", () => {
   });
 
   test("MaterializeInput rejects a bad workspace_id", () => {
-    expect(MaterializeInput.safeParse({ workspace_id: "nope" }).success).toBe(
-      false,
-    );
+    expect(MaterializeInput.safeParse({ workspace_id: "nope" }).success).toBe(false);
   });
 
   test("MaterializeOutput status surface created|exists|error", () => {
@@ -150,9 +151,10 @@ describe("workspace.materialize (GH-2271)", () => {
 
 describe("workspace.prepare", () => {
   test("PrepareInput requires workspace_id + lifecycle", () => {
-    expect(
-      PrepareInput.parse({ workspace_id: SAMPLE_ID, lifecycle: "attached" }),
-    ).toEqual({ workspace_id: SAMPLE_ID, lifecycle: "attached" });
+    expect(PrepareInput.parse({ workspace_id: SAMPLE_ID, lifecycle: "attached" })).toEqual({
+      workspace_id: SAMPLE_ID,
+      lifecycle: "attached",
+    });
   });
 
   test("PrepareOutput round-trips with files_written empty", () => {
@@ -196,19 +198,13 @@ describe("workspace.service", () => {
   });
 
   test("ServiceInput action must be start|stop", () => {
-    expect(
-      ServiceInput.safeParse({ workspace_id: SAMPLE_ID, action: "restart" }).success,
-    ).toBe(false);
+    expect(ServiceInput.safeParse({ workspace_id: SAMPLE_ID, action: "restart" }).success).toBe(
+      false,
+    );
   });
 
   test("ServiceOutput accepts the documented status surface", () => {
-    for (const status of [
-      "started",
-      "stopped",
-      "skipped",
-      "no-profile",
-      "error",
-    ] as const) {
+    for (const status of ["started", "stopped", "skipped", "no-profile", "error"] as const) {
       const out = ServiceOutput.parse({
         workspace_id: SAMPLE_ID,
         status,

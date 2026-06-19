@@ -44,14 +44,8 @@ import {
   type BoardUnit,
   type CommandRunner,
 } from "./github.ts";
-import {
-  readTransitionLog,
-  type TransitionEntry,
-} from "./transition_log.ts";
-import {
-  runStatusActor,
-  type TriageStatusResult,
-} from "../triage/triage.ts";
+import { readTransitionLog, type TransitionEntry } from "./transition_log.ts";
+import { runStatusActor, type TriageStatusResult } from "../triage/triage.ts";
 
 export const DEFAULT_THREAD_ORDER: readonly NextWorkThreadKind[] = [
   "orphan_cleanup",
@@ -114,18 +108,12 @@ export type NextWorkOptions = {
 // log entry whose `actor` is one of these is a planning-tier marker for the
 // I-NW2 predicate. "agent.planner" is the EXTRA_KNOWN_ACTORS alias the cli
 // transition log validator accepts; both shapes have appeared in the wild.
-const PLANNER_ROLE_ACTORS: ReadonlySet<string> = new Set([
-  "planner_agent",
-  "agent.planner",
-]);
+const PLANNER_ROLE_ACTORS: ReadonlySet<string> = new Set(["planner_agent", "agent.planner"]);
 
 // GH-1617: executor-role actors. A later entry with one of these `actor`
 // values short-circuits the paused-plan predicate — the unit is past
 // planning and lives in the executor surface.
-const EXECUTOR_ROLE_ACTORS: ReadonlySet<string> = new Set([
-  "executor_agent",
-  "agent.executor",
-]);
+const EXECUTOR_ROLE_ACTORS: ReadonlySet<string> = new Set(["executor_agent", "agent.executor"]);
 
 const DEFAULT_PLAN_PAUSED_TTL_SECONDS = 24 * 60 * 60;
 
@@ -211,7 +199,10 @@ function recommendForColumn(unit: BoardUnit): string {
   }
 }
 
-function threadHeadline(kind: NextWorkThreadKind, count: number): { recommended: string; reason: string; cost: NextWorkThread["cost_of_context_switch"] } {
+function threadHeadline(
+  kind: NextWorkThreadKind,
+  count: number,
+): { recommended: string; reason: string; cost: NextWorkThread["cost_of_context_switch"] } {
   switch (kind) {
     case "orphan_cleanup":
       return {
@@ -598,10 +589,7 @@ function loadThreadOrder(repoPath: string): NextWorkThreadKind[] {
  * the configured order. Output is Zod-validated against
  * `NextWorkResultSchema`.
  */
-export function nextWork(
-  repoPath: string,
-  opts: NextWorkOptions = {},
-): NextWorkResult {
+export function nextWork(repoPath: string, opts: NextWorkOptions = {}): NextWorkResult {
   const runner = opts.runner ?? defaultRunner;
   const ttlSeconds = opts.ttlSeconds ?? loadReadyTtlSeconds(repoPath);
   const threadOrder = opts.threadOrder ?? loadThreadOrder(repoPath);
@@ -679,15 +667,34 @@ export function nextWork(
     const unit = findUnit(bd);
     if (unit) {
       if (unit.column === "cleanup_pending") {
-        push("orphan_cleanup", makeCandidate(bd, unit, "Issue closed or PR merged — orphan artifacts remain", recommendForColumn(unit)));
+        push(
+          "orphan_cleanup",
+          makeCandidate(
+            bd,
+            unit,
+            "Issue closed or PR merged — orphan artifacts remain",
+            recommendForColumn(unit),
+          ),
+        );
         continue;
       }
       if (unit.column === "ci_running") {
-        push("pr_awaiting_ci", makeCandidate(bd, unit, "CI in flight on open PR", recommendForColumn(unit)));
+        push(
+          "pr_awaiting_ci",
+          makeCandidate(bd, unit, "CI in flight on open PR", recommendForColumn(unit)),
+        );
         continue;
       }
       if (EXECUTOR_IN_FLIGHT_COLUMNS.has(unit.column)) {
-        push("executor_in_flight", makeCandidate(bd, unit, `Advance ${unit.column.replace("_", " ")}`, recommendForColumn(unit)));
+        push(
+          "executor_in_flight",
+          makeCandidate(
+            bd,
+            unit,
+            `Advance ${unit.column.replace("_", " ")}`,
+            recommendForColumn(unit),
+          ),
+        );
         continue;
       }
       // Unit exists but no work in flight (no_worktree/branch_created/etc.)
@@ -701,9 +708,10 @@ export function nextWork(
     // No board unit for this bd row — it's pure ready_to_start (no
     // worktree yet). Recommend opening a session.
     const ticketGuess = extractGhIssueNumber(bd.external_ref);
-    const command = ticketGuess !== null
-      ? `prx plan agent GH-${ticketGuess} --create`
-      : `prx plan agent ${bd.id} --create`;
+    const command =
+      ticketGuess !== null
+        ? `prx plan agent GH-${ticketGuess} --create`
+        : `prx plan agent ${bd.id} --create`;
     push("ready_to_start", makeCandidate(bd, null, "bd ready; no worktree yet", command));
   }
 
@@ -762,8 +770,7 @@ export function nextWork(
     projectTriageBacklog(triageSnapshot, buckets, suppressedKeys);
   }
 
-  const transitionEntries =
-    opts.transitionLog ?? loadTransitionLogForRepo(repoPath);
+  const transitionEntries = opts.transitionLog ?? loadTransitionLogForRepo(repoPath);
   const pausedTtl = opts.plannedPausedTtlSeconds ?? loadPausedPlanTtl(repoPath);
   const paused = derivePausedPlans(transitionEntries, opts.now ?? new Date(), pausedTtl);
   projectPlanPaused(paused, cache.cache.ready, buckets, suppressedKeys);

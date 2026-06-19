@@ -121,12 +121,7 @@ describe("selectMigrateDecision", () => {
   });
 
   test("returns null when issue has no labels", () => {
-    const row = selectMigrateDecision(
-      issue({ labels: [] }),
-      "type",
-      "refactor",
-      "chore",
-    );
+    const row = selectMigrateDecision(issue({ labels: [] }), "type", "refactor", "chore");
     expect(row).toBeNull();
   });
 
@@ -279,7 +274,9 @@ describe("runTriageMigrateAxisValue — apply path", () => {
     ]);
     expect(calls[1]!.subcommand).toBe("comment");
     expect(calls[1]!.args[0]!).toBe("7");
-    expect(calls[1]!.args[2]!).toMatch(/Migrated label `type::refactor` → `type::chore` \(GH-1059\)\./);
+    expect(calls[1]!.args[2]!).toMatch(
+      /Migrated label `type::refactor` → `type::chore` \(GH-1059\)\./,
+    );
     expect(syncCalls()).toBe(1);
     // 1 row entry + 1 sync entry.
     expect(audit).toHaveLength(2);
@@ -309,9 +306,7 @@ describe("runTriageMigrateAxisValue — apply path", () => {
   test("gh edit failure → action: error, no comment posted, exit 1", async () => {
     const { audit, o, deps, ghCalls, syncCalls } = setup({
       issues: [issue({ number: 9, labels: [ghLabel("type::refactor")] })],
-      ghResults: [
-        { exitCode: 1, stdout: "", stderr: "boom", policy: null },
-      ],
+      ghResults: [{ exitCode: 1, stdout: "", stderr: "boom", policy: null }],
     });
     const code = await runTriageMigrateAxisValue(
       { axis: "type", from: "refactor", to: "chore", apply: true, limit: 0, sync: true },

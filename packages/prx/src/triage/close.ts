@@ -150,9 +150,7 @@ export async function runTriageClose(
   const noteBody = buildCloseNote(opts.reason, opts.note);
 
   if (opts.dryRun) {
-    output.log(
-      `dry-run ${opts.bdId} close (reason=${opts.reason}) note="${noteBody}"`,
-    );
+    output.log(`dry-run ${opts.bdId} close (reason=${opts.reason}) note="${noteBody}"`);
     return {
       bdId: opts.bdId,
       reason: opts.reason,

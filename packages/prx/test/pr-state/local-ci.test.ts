@@ -18,7 +18,11 @@ import {
   type PhaseResult,
 } from "../../src/pr-state/local-ci.ts";
 
-const result = (status: number, stdout = "", stderr = ""): CommandResult => ({ status, stdout, stderr });
+const result = (status: number, stdout = "", stderr = ""): CommandResult => ({
+  status,
+  stdout,
+  stderr,
+});
 
 /** A capturing fake runner that records every argv it was handed. */
 function recordingRunner(res: CommandResult): { fn: CommandRunner; calls: string[][] } {
@@ -30,7 +34,11 @@ function recordingRunner(res: CommandResult): { fn: CommandRunner; calls: string
   return { fn, calls };
 }
 
-function sink(): { out: string[]; err: string[]; output: { log: (l: string) => void; error: (l: string) => void } } {
+function sink(): {
+  out: string[];
+  err: string[];
+  output: { log: (l: string) => void; error: (l: string) => void };
+} {
   const out: string[] = [];
   const err: string[] = [];
   return { out, err, output: { log: (l) => out.push(l), error: (l) => err.push(l) } };
@@ -105,7 +113,8 @@ describe("runPhase", () => {
 });
 
 describe("runCiPhases", () => {
-  const fakePhase = (statuses: Partial<Record<CiPhase, number>>) =>
+  const fakePhase =
+    (statuses: Partial<Record<CiPhase, number>>) =>
     (phase: CiPhase): PhaseResult => ({ phase, status: statuses[phase] ?? 0, durationMs: 1 });
 
   test("runs the full pipeline and reports a passing plain summary", () => {

@@ -1,11 +1,7 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from "bun:test";
 
-import {
-  ancestors,
-  isStale,
-  lineageDescendants,
-} from '@bounded-systems/anchored-chain';
-import type { Digest, LineageCapable } from '@bounded-systems/anchored-chain';
+import { ancestors, isStale, lineageDescendants } from "@bounded-systems/anchored-chain";
+import type { Digest, LineageCapable } from "@bounded-systems/anchored-chain";
 
 // The lineage helpers are thin facade functions that forward to the store's
 // `lineage` port. These cover that the (store, args) → store.lineage.*(args)
@@ -25,45 +21,41 @@ function spyStore(): LineageCapable & {
     calls,
     lineage: {
       ancestors(derivationId) {
-        calls.push({ method: 'ancestors', args: [derivationId] });
-        return Promise.resolve([d('anc-1'), d('anc-2')]);
+        calls.push({ method: "ancestors", args: [derivationId] });
+        return Promise.resolve([d("anc-1"), d("anc-2")]);
       },
       descendants(derivationId) {
-        calls.push({ method: 'descendants', args: [derivationId] });
-        return Promise.resolve([d('desc-1')]);
+        calls.push({ method: "descendants", args: [derivationId] });
+        return Promise.resolve([d("desc-1")]);
       },
       isStale(derivationId, currentRefs) {
-        calls.push({ method: 'isStale', args: [derivationId, currentRefs] });
+        calls.push({ method: "isStale", args: [derivationId, currentRefs] });
         return Promise.resolve(true);
       },
     },
   };
 }
 
-describe('lineage facade', () => {
-  test('ancestors forwards the derivationId and returns the port result', async () => {
+describe("lineage facade", () => {
+  test("ancestors forwards the derivationId and returns the port result", async () => {
     const store = spyStore();
-    const result = await ancestors(store, d('node-a'));
-    expect(result).toEqual([d('anc-1'), d('anc-2')]);
-    expect(store.calls).toEqual([{ method: 'ancestors', args: [d('node-a')] }]);
+    const result = await ancestors(store, d("node-a"));
+    expect(result).toEqual([d("anc-1"), d("anc-2")]);
+    expect(store.calls).toEqual([{ method: "ancestors", args: [d("node-a")] }]);
   });
 
-  test('descendants forwards the derivationId and returns the port result', async () => {
+  test("descendants forwards the derivationId and returns the port result", async () => {
     const store = spyStore();
-    const result = await lineageDescendants(store, d('node-b'));
-    expect(result).toEqual([d('desc-1')]);
-    expect(store.calls).toEqual([
-      { method: 'descendants', args: [d('node-b')] },
-    ]);
+    const result = await lineageDescendants(store, d("node-b"));
+    expect(result).toEqual([d("desc-1")]);
+    expect(store.calls).toEqual([{ method: "descendants", args: [d("node-b")] }]);
   });
 
-  test('isStale forwards derivationId + currentRefs and returns the verdict', async () => {
+  test("isStale forwards derivationId + currentRefs and returns the verdict", async () => {
     const store = spyStore();
-    const refs = { 'src@pinned': d('ref-1') };
-    const result = await isStale(store, d('node-c'), refs);
+    const refs = { "src@pinned": d("ref-1") };
+    const result = await isStale(store, d("node-c"), refs);
     expect(result).toBe(true);
-    expect(store.calls).toEqual([
-      { method: 'isStale', args: [d('node-c'), refs] },
-    ]);
+    expect(store.calls).toEqual([{ method: "isStale", args: [d("node-c"), refs] }]);
   });
 });

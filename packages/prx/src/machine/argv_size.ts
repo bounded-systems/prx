@@ -33,7 +33,9 @@ export function estimateArgvBytes(args: readonly string[]): number {
  * Pick the component with the largest UTF-8 size. Used to name the offender
  * in the overflow error message.
  */
-export function findLargestComponent(components: readonly ArgComponent[]): ArgComponent | undefined {
+export function findLargestComponent(
+  components: readonly ArgComponent[],
+): ArgComponent | undefined {
   let largest: ArgComponent | undefined;
   for (const c of components) {
     if (!largest || c.bytes > largest.bytes) largest = c;

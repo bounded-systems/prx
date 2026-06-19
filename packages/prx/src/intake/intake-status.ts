@@ -178,10 +178,7 @@ function truncate(value: string, max: number): string {
   return value.slice(0, max - 1) + "…";
 }
 
-export function formatIntakeStatus(
-  result: IntakeStatusResult,
-  format: "plain" | "json",
-): string {
+export function formatIntakeStatus(result: IntakeStatusResult, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(result, null, 2);
   }
@@ -189,10 +186,7 @@ export function formatIntakeStatus(
   // prx-3f1: reverse-orphans are NOT part of the remediation gate — bd-native
   // records (no external_ref) are the expected beads-first state, so they no
   // longer block the all-clear nor appear in the remediation headline.
-  if (
-    result.totalUntriaged === 0
-    && result.totalDrift === 0
-  ) {
+  if (result.totalUntriaged === 0 && result.totalDrift === 0) {
     const head = `All ${result.totalOpen} open issues in ${result.repo} have a beads row with no pair drift.`;
     return appendRateLimitBlock(head, result.rateLimit);
   }
@@ -219,7 +213,9 @@ export function formatIntakeStatus(
   // counted in the headline and need no GH backfill.
   if (result.reverseOrphans.length > 0) {
     lines.push("");
-    lines.push(`Bead-native, no GH mirror (${result.reverseOrphans.length}) — expected under beads-first, informational only:`);
+    lines.push(
+      `Bead-native, no GH mirror (${result.reverseOrphans.length}) — expected under beads-first, informational only:`,
+    );
     const idCol = Math.max(...result.reverseOrphans.map((row) => row.beadsId.length), 8);
     const titleCol = 60;
     for (const row of result.reverseOrphans) {
@@ -248,10 +244,7 @@ export function formatIntakeStatus(
   return appendRateLimitBlock(lines.join("\n"), result.rateLimit);
 }
 
-function appendRateLimitBlock(
-  body: string,
-  rateLimit: IntakeStatusResult["rateLimit"],
-): string {
+function appendRateLimitBlock(body: string, rateLimit: IntakeStatusResult["rateLimit"]): string {
   if (!rateLimit) return body;
   const block = formatBudgetBlock(rateLimit.snapshots, rateLimit.estimate);
   return body.length > 0 ? `${body}\n\n${block}` : block;

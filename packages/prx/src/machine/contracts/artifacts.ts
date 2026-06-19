@@ -234,21 +234,9 @@ const externalSignal = deferred(
   "cas",
 );
 
-const uowQueue = deferred(
-  "uow_queue",
-  "prx.uow_queue.v1",
-  "GH-1824",
-  ["units"],
-  "cas",
-);
+const uowQueue = deferred("uow_queue", "prx.uow_queue.v1", "GH-1824", ["units"], "cas");
 
-const triagedQueue = deferred(
-  "triaged_queue",
-  "prx.triaged_queue.v1",
-  "GH-1824",
-  ["units"],
-  "cas",
-);
+const triagedQueue = deferred("triaged_queue", "prx.triaged_queue.v1", "GH-1824", ["units"], "cas");
 
 const prSubmission = deferred(
   "pr_submission",
@@ -258,13 +246,7 @@ const prSubmission = deferred(
   "cas",
 );
 
-const prBody = deferred(
-  "pr_body",
-  "prx.pr_body.v1",
-  "GH-1824",
-  ["unitId", "title", "body"],
-  "cas",
-);
+const prBody = deferred("pr_body", "prx.pr_body.v1", "GH-1824", ["unitId", "title", "body"], "cas");
 
 // GH-2326: gc (unified housekeeping) output artifact. `gc_report` is the
 // reclaim/teardown result the gc role produces from a `uow` input. Registry
@@ -292,13 +274,7 @@ const scratchSession = deferred(
   "cas",
 );
 
-const query = deferred(
-  "query",
-  "prx.query.v1",
-  "GH-1824",
-  ["kind", "args"],
-  "cas",
-);
+const query = deferred("query", "prx.query.v1", "GH-1824", ["kind", "args"], "cas");
 
 const scoutResult = deferred(
   "scout_result",
@@ -328,13 +304,7 @@ const delegationRecord = live(
   "delegation_record",
   "prx.delegation_record.v1",
   "schema:src/machine/contracts/lifecycle_artifacts.ts#delegationRecordSchema",
-  [
-    "unitId",
-    "assigned_to",
-    "expected_output_type",
-    "capabilities",
-    "delegated_by",
-  ],
+  ["unitId", "assigned_to", "expected_output_type", "capabilities", "delegated_by"],
   "cas",
 );
 
@@ -548,10 +518,9 @@ const entries: ArtifactContract[] = [
   reviewerMinusPlan,
 ];
 
-export const artifactRegistry: Readonly<Record<string, ArtifactContract>> =
-  Object.freeze(
-    Object.fromEntries(entries.map((entry) => [entry.type, entry])),
-  );
+export const artifactRegistry: Readonly<Record<string, ArtifactContract>> = Object.freeze(
+  Object.fromEntries(entries.map((entry) => [entry.type, entry])),
+);
 
 export function listArtifactContracts(): readonly ArtifactContract[] {
   return entries;
@@ -566,29 +535,23 @@ export function getArtifactContract(type: string): ArtifactContract | undefined 
  * component to bind, returns the registered artifact whose `composedOf` is
  * the original list minus that component.
  */
-export function residualArtifactType(
-  composite: string,
-  dropped: string,
-): string {
+export function residualArtifactType(composite: string, dropped: string): string {
   const entry = artifactRegistry[composite];
   if (!entry) {
     throw new Error(`unknown composite artifact: ${composite}`);
   }
   if (!entry.composedOf || !entry.composedOf.includes(dropped)) {
     throw new Error(
-      `artifact ${composite} is not composed of ${dropped}; composedOf=${
-        JSON.stringify(entry.composedOf ?? null)
-      }`,
+      `artifact ${composite} is not composed of ${dropped}; composedOf=${JSON.stringify(
+        entry.composedOf ?? null,
+      )}`,
     );
   }
   const remaining = entry.composedOf.filter((c) => c !== dropped).sort();
   for (const candidate of entries) {
     if (!candidate.composedOf) continue;
     const sorted = [...candidate.composedOf].sort();
-    if (
-      sorted.length === remaining.length &&
-      sorted.every((c, i) => c === remaining[i])
-    ) {
+    if (sorted.length === remaining.length && sorted.every((c, i) => c === remaining[i])) {
       return candidate.type;
     }
   }

@@ -13,9 +13,7 @@ const MODULE_ROOT = resolve(HERE, "..");
 // surface-sync receives state via the BoardSnapshot contract and never reaches
 // into the reader. (The work-unit-id normalization it once imported is now a
 // trivial inlined helper, so that edge is gone.)
-const PROD_CROSS_MODULE_ALLOWLIST = new Set<string>([
-  "@bounded-systems/disposition",
-]);
+const PROD_CROSS_MODULE_ALLOWLIST = new Set<string>(["@bounded-systems/disposition"]);
 
 const TEST_ALLOWLIST = new Set<string>([
   "bun:test",

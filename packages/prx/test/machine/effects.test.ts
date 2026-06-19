@@ -45,8 +45,9 @@ describe("VerbEffects — Rule 4 (one write surface per verb)", () => {
   });
 
   test("touchedSurfaces unions reads + the single write, de-duplicated", () => {
-    expect(touchedSurfaces(VerbEffects.parse({ reads: ["cas", "github"], writes: "github" })).sort())
-      .toEqual(["cas", "github"]);
+    expect(
+      touchedSurfaces(VerbEffects.parse({ reads: ["cas", "github"], writes: "github" })).sort(),
+    ).toEqual(["cas", "github"]);
     expect(touchedSurfaces(VerbEffects.parse({ reads: ["beads"] }))).toEqual(["beads"]);
   });
 });

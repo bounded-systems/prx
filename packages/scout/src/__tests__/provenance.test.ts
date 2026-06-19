@@ -34,9 +34,7 @@ describe("scoutReadDerivation", () => {
     const d = scoutReadDerivation(fixture(), { now: 1000 });
     expect(d.derivationId).toBe(digestManifest(d.manifest));
     // Same input + clock → identical id.
-    expect(scoutReadDerivation(fixture(), { now: 1000 }).derivationId).toBe(
-      d.derivationId,
-    );
+    expect(scoutReadDerivation(fixture(), { now: 1000 }).derivationId).toBe(d.derivationId);
   });
 
   test("inputs carry the file content digest; outputs carry the envelope digest", () => {
@@ -44,9 +42,7 @@ describe("scoutReadDerivation", () => {
     const d = scoutReadDerivation(result, { now: 1000 });
     expect(d.manifest.producer).toBe(SCOUT_READ_PRODUCER);
     expect(String(d.manifest.inputs.source)).toBe(`sha256:${result.sha256}`);
-    expect(d.manifest.outputs.envelope).toBe(
-      sha256Hex(formatScoutReadJson(result)),
-    );
+    expect(d.manifest.outputs.envelope).toBe(sha256Hex(formatScoutReadJson(result)));
     expect(d.manifest.contracts).toEqual([SCOUT_READ_CONTRACT]);
     expect(d.manifest.params).toEqual({
       path: result.path,
@@ -115,12 +111,8 @@ describe("scoutReadProvenance — SLSA Provenance v1 export", () => {
     expect(stmt.predicateType).toBe(SLSA_PROVENANCE_PREDICATE_TYPE);
 
     // Subject = the produced envelope; its digest equals the ledger output.
-    const envelopeHex = (derivation.manifest.outputs.envelope as string).slice(
-      "sha256:".length,
-    );
-    expect(stmt.subject).toEqual([
-      { name: "envelope", digest: { sha256: envelopeHex } },
-    ]);
+    const envelopeHex = (derivation.manifest.outputs.envelope as string).slice("sha256:".length);
+    expect(stmt.subject).toEqual([{ name: "envelope", digest: { sha256: envelopeHex } }]);
 
     // Resolved dependency = the source file content the read consumed.
     expect(stmt.predicate.buildDefinition.buildType).toBe(SCOUT_READ_BUILD_TYPE);
@@ -135,12 +127,8 @@ describe("scoutReadProvenance — SLSA Provenance v1 export", () => {
     });
 
     expect(stmt.predicate.runDetails.builder.id).toBe(SCOUT_READ_BUILDER_ID);
-    expect(stmt.predicate.runDetails.metadata.invocationId).toBe(
-      derivation.derivationId as string,
-    );
-    expect(stmt.predicate.runDetails.metadata.startedOn).toBe(
-      new Date(1000).toISOString(),
-    );
+    expect(stmt.predicate.runDetails.metadata.invocationId).toBe(derivation.derivationId as string);
+    expect(stmt.predicate.runDetails.metadata.startedOn).toBe(new Date(1000).toISOString());
   });
 
   test("formatScoutReadProvenanceJson emits a single JSON object + newline", () => {

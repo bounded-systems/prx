@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  buildCanonicalIdScanner,
-  extractCanonicalRefs,
-} from "../../src/submit/extract-refs.ts";
+import { buildCanonicalIdScanner, extractCanonicalRefs } from "../../src/submit/extract-refs.ts";
 import { canonicalWorkUnitIdPattern } from "../../src/machine/work_unit.ts";
 import type { IdentityConfig } from "../../src/pr-state/github.ts";
 
@@ -44,11 +41,7 @@ describe("extractCanonicalRefs — default identity", () => {
 
   test("extracts GH-N references in source order", () => {
     const blob = "fix(submit): close (GH-1318) sweeps GH-885 and GH-882";
-    expect(extractCanonicalRefs(blob, defaultIdentity)).toEqual([
-      "GH-1318",
-      "GH-885",
-      "GH-882",
-    ]);
+    expect(extractCanonicalRefs(blob, defaultIdentity)).toEqual(["GH-1318", "GH-885", "GH-882"]);
   });
 
   test("dedupes case-insensitively, preserves first-seen casing", () => {
@@ -57,8 +50,7 @@ describe("extractCanonicalRefs — default identity", () => {
   });
 
   test("extracts mixed canonical surfaces (GH/NOTION/BD-8hex)", () => {
-    const blob =
-      "linked: GH-456 NOTION-1234567890abcdef1234567890abcdef BD-DEADBEEF";
+    const blob = "linked: GH-456 NOTION-1234567890abcdef1234567890abcdef BD-DEADBEEF";
     const out = extractCanonicalRefs(blob, defaultIdentity);
     expect(out).toContain("GH-456");
     expect(out).toContain("NOTION-1234567890abcdef1234567890abcdef");

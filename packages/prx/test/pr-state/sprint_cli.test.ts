@@ -61,7 +61,18 @@ describe("prx sprint cli", () => {
 
     const bindLogs: string[] = [];
     const bindExit = runCliDirect(
-      ["sprint", "bind", "--state", statePath, "--pr", "16230", "--ticket", "GH-5431", "--format", "json"],
+      [
+        "sprint",
+        "bind",
+        "--state",
+        statePath,
+        "--pr",
+        "16230",
+        "--ticket",
+        "GH-5431",
+        "--format",
+        "json",
+      ],
       { log: (line) => bindLogs.push(line), error: () => {} },
       {
         viewPr: () => ({
@@ -79,7 +90,18 @@ describe("prx sprint cli", () => {
 
     const metricLogs: string[] = [];
     const metricExit = runCliDirect(
-      ["sprint", "metric", "--state", statePath, "--baseline", "100", "--current", "85", "--format", "json"],
+      [
+        "sprint",
+        "metric",
+        "--state",
+        statePath,
+        "--baseline",
+        "100",
+        "--current",
+        "85",
+        "--format",
+        "json",
+      ],
       { log: (line) => metricLogs.push(line), error: () => {} },
       {
         viewPr: () => ({
@@ -170,7 +192,18 @@ describe("prx sprint cli", () => {
 
     const logs: string[] = [];
     const exitCode = runCliDirect(
-      ["sprint", "bind", "--state", statePath, "--pr", "16230", "--ticket", "gh-5431", "--format", "json"],
+      [
+        "sprint",
+        "bind",
+        "--state",
+        statePath,
+        "--pr",
+        "16230",
+        "--ticket",
+        "gh-5431",
+        "--format",
+        "json",
+      ],
       { log: (line) => logs.push(line), error: () => {} },
       {
         viewPr: () => ({
@@ -210,18 +243,18 @@ describe("prx sprint cli", () => {
     );
 
     const plainLogs: string[] = [];
-    const plainExit = runCliDirect(
-      ["sprint", "status", "--state", statePath],
-      { log: (line) => plainLogs.push(line), error: () => {} },
-    );
+    const plainExit = runCliDirect(["sprint", "status", "--state", statePath], {
+      log: (line) => plainLogs.push(line),
+      error: () => {},
+    });
     expect(plainExit).toBe(0);
     expect(plainLogs[0]).toContain("sprint=sprint_2026_w11");
 
     const jsonLogs: string[] = [];
-    const jsonExit = runCliDirect(
-      ["sprint", "status", "--state", statePath, "--format", "json"],
-      { log: (line) => jsonLogs.push(line), error: () => {} },
-    );
+    const jsonExit = runCliDirect(["sprint", "status", "--state", statePath, "--format", "json"], {
+      log: (line) => jsonLogs.push(line),
+      error: () => {},
+    });
     expect(jsonExit).toBe(0);
     expect(JSON.parse(jsonLogs[0]!).sprintId).toBe("sprint_2026_w11");
   });
@@ -248,10 +281,10 @@ describe("prx sprint cli", () => {
     );
 
     const dryLogs: string[] = [];
-    const dryExit = runCliDirect(
-      ["sprint", "sync-notion", "--state", statePath],
-      { log: (line) => dryLogs.push(line), error: () => {} },
-    );
+    const dryExit = runCliDirect(["sprint", "sync-notion", "--state", statePath], {
+      log: (line) => dryLogs.push(line),
+      error: () => {},
+    });
     expect(dryExit).toBe(0);
     expect(dryLogs[0]).toContain("WOULD SYNC");
 

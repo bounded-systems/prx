@@ -109,11 +109,7 @@ export async function runPluginVerb(
   }
 
   output.log(
-    JSON.stringify(
-      { dir, files: files.length, paths: files.map((f) => f.path).sort() },
-      null,
-      2,
-    ),
+    JSON.stringify({ dir, files: files.length, paths: files.map((f) => f.path).sort() }, null, 2),
   );
   return 0;
 }

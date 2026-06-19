@@ -50,7 +50,11 @@ describe("execSlackRead", () => {
   test("an allowed read returns the result + a content address + the allow decision", async () => {
     const { km } = recordingKeymaker();
     const { transport } = recordingTransport();
-    const env = await execSlackRead("history", { channel: "C1", limit: 10 }, { keymaker: km, transport });
+    const env = await execSlackRead(
+      "history",
+      { channel: "C1", limit: 10 },
+      { keymaker: km, transport },
+    );
     expect(env.result.ok).toBe(true);
     expect(env.result.data).toEqual({ echoed: "history" });
     expect(env.policy.allowed).toBe(true);
@@ -60,9 +64,21 @@ describe("execSlackRead", () => {
   test("the content address is stable across calls and varies with params", async () => {
     const { km } = recordingKeymaker();
     const { transport } = recordingTransport();
-    const a = await execSlackRead("history", { channel: "C1", limit: 10 }, { keymaker: km, transport });
-    const b = await execSlackRead("history", { channel: "C1", limit: 10 }, { keymaker: km, transport });
-    const c = await execSlackRead("history", { channel: "C2", limit: 10 }, { keymaker: km, transport });
+    const a = await execSlackRead(
+      "history",
+      { channel: "C1", limit: 10 },
+      { keymaker: km, transport },
+    );
+    const b = await execSlackRead(
+      "history",
+      { channel: "C1", limit: 10 },
+      { keymaker: km, transport },
+    );
+    const c = await execSlackRead(
+      "history",
+      { channel: "C2", limit: 10 },
+      { keymaker: km, transport },
+    );
     expect(a.sha256).toBe(b.sha256);
     expect(a.sha256).not.toBe(c.sha256);
   });
@@ -88,11 +104,10 @@ describe("execSlackRead", () => {
     const { km, minted } = recordingKeymaker();
     const { transport } = recordingTransport();
     // team_id → orgs, channel → channels, the replies parent ts → threads.
-    await execSlackRead(
-      "thread",
-      { channel: "C1", ts: "169.1", team_id: "T1" } as never,
-      { keymaker: km, transport },
-    );
+    await execSlackRead("thread", { channel: "C1", ts: "169.1", team_id: "T1" } as never, {
+      keymaker: km,
+      transport,
+    });
     expect(minted[0]!.scope).toEqual({
       ops: ["thread"],
       orgs: ["T1"],

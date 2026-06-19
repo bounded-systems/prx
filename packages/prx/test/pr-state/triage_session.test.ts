@@ -9,10 +9,7 @@ import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
 
 import { runCli } from "../../src/pr-state/cli.ts";
-import type {
-  RuntimeExecutionResult,
-  RuntimeExecutor,
-} from "../../src/pr-state/executor.ts";
+import type { RuntimeExecutionResult, RuntimeExecutor } from "../../src/pr-state/executor.ts";
 import type { TriageStatusResult } from "../../src/triage/triage.ts";
 import type { BeadsWorkspaceMode } from "../../src/beads/workspace_mode.ts";
 import type { ResolveTargetRepoResult } from "../../src/pr-state/repo-target.ts";
@@ -104,10 +101,7 @@ function fakeQueueResult(): TriageStatusResult {
 }
 
 function fakeRunTriageStatus(result: TriageStatusResult) {
-  return (
-    _opts: unknown,
-    output: Output,
-  ): number => {
+  return (_opts: unknown, output: Output): number => {
     output.log(JSON.stringify(result));
     return 0;
   };
@@ -126,28 +120,24 @@ describe("prx triage session (GH-893)", () => {
       return { status: 0, stdout: "", stderr: "" };
     };
 
-    const exit = await runCli(
-      ["triage", "agent"],
-      output,
-      {
-        // The mainx guard is gone — a false detector must NOT reject anymore.
-        isMainxWorktree: () => false,
-        runTriageStatus: fakeRunTriageStatus(fakeQueueResult()),
-        openSession: fakeOpenSession({
-          worktreePath,
-          record: (input, cwd) => {
-            routedActor = input.actor;
-            reserveBaseCwd = cwd;
-          },
-        }),
-        ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-        ensureClaudeSessionAllowlist: (cwd) => {
-          allowlistCwd = cwd;
-          return { status: "created", path: `${cwd}/.claude/settings.local.json` };
+    const exit = await runCli(["triage", "agent"], output, {
+      // The mainx guard is gone — a false detector must NOT reject anymore.
+      isMainxWorktree: () => false,
+      runTriageStatus: fakeRunTriageStatus(fakeQueueResult()),
+      openSession: fakeOpenSession({
+        worktreePath,
+        record: (input, cwd) => {
+          routedActor = input.actor;
+          reserveBaseCwd = cwd;
         },
-        execRuntime: fakeExec,
+      }),
+      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
+      ensureClaudeSessionAllowlist: (cwd) => {
+        allowlistCwd = cwd;
+        return { status: "created", path: `${cwd}/.claude/settings.local.json` };
       },
-    );
+      execRuntime: fakeExec,
+    });
 
     expect(exit).toBe(0);
     // I-SO1: routed through session_open with actor "triage".
@@ -169,27 +159,23 @@ describe("prx triage session (GH-893)", () => {
       return { status: 0, stdout: "", stderr: "" };
     };
 
-    const exit = await runCli(
-      ["triage", "agent"],
-      output,
-      {
-        runTriageStatus: fakeRunTriageStatus(fakeQueueResult()),
-        openSession: async () => ({
-          workspace_id: "000000000000",
-          worktree_path: "",
-          branch_ref: "triage/20260526-abc123",
-          lifecycle: "materialized",
-          reserved_status: "error",
-          prepared_status: "error",
-          profile_built: false,
-          status: "error",
-          stage: "reserve",
-          error: "ensureBranch returned error",
-        }),
-        ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-        execRuntime: fakeExec,
-      },
-    );
+    const exit = await runCli(["triage", "agent"], output, {
+      runTriageStatus: fakeRunTriageStatus(fakeQueueResult()),
+      openSession: async () => ({
+        workspace_id: "000000000000",
+        worktree_path: "",
+        branch_ref: "triage/20260526-abc123",
+        lifecycle: "materialized",
+        reserved_status: "error",
+        prepared_status: "error",
+        profile_built: false,
+        status: "error",
+        stage: "reserve",
+        error: "ensureBranch returned error",
+      }),
+      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
+      execRuntime: fakeExec,
+    });
 
     expect(exit).not.toBe(0);
     expect(executorCalled).toBe(false);
@@ -206,23 +192,19 @@ describe("prx triage session (GH-893)", () => {
       return { status: 0, stdout: "", stderr: "" };
     };
 
-    const exit = await runCli(
-      ["triage", "agent", "--check"],
-      output,
-      {
-        runTriageStatus: fakeRunTriageStatus(fakeQueueResult()),
-        openSession: async () => {
-          openSessionCalled = true;
-          throw new Error("--check must not reserve a worktree");
-        },
-        ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-        ensureClaudeSessionAllowlist: () => {
-          allowlistCalled = true;
-          return { status: "unchanged", path: "/tmp/.claude/settings.local.json" };
-        },
-        execRuntime: fakeExec,
+    const exit = await runCli(["triage", "agent", "--check"], output, {
+      runTriageStatus: fakeRunTriageStatus(fakeQueueResult()),
+      openSession: async () => {
+        openSessionCalled = true;
+        throw new Error("--check must not reserve a worktree");
       },
-    );
+      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
+      ensureClaudeSessionAllowlist: () => {
+        allowlistCalled = true;
+        return { status: "unchanged", path: "/tmp/.claude/settings.local.json" };
+      },
+      execRuntime: fakeExec,
+    });
 
     expect(exit).toBe(0);
     expect(executorCalled).toBe(false);
@@ -230,24 +212,22 @@ describe("prx triage session (GH-893)", () => {
     expect(openSessionCalled).toBe(false);
     // GH-1545: --check is a readiness probe — it must not touch settings.
     expect(allowlistCalled).toBe(false);
-    expect(logs.some((line) =>
-      line.includes("triage queue: 12 untriaged of 47 open issues in bdelanghe/ai-home")
-    )).toBe(true);
+    expect(
+      logs.some((line) =>
+        line.includes("triage queue: 12 untriaged of 47 open issues in bdelanghe/ai-home"),
+      ),
+    ).toBe(true);
   });
 
   test("--check --format json from mainx emits the raw triage JSON", async () => {
     const { logs, output } = captureOutput();
     const queue = fakeQueueResult();
 
-    const exit = await runCli(
-      ["triage", "agent", "--check", "--format", "json"],
-      output,
-      {
-        isMainxWorktree: () => true,
-        runTriageStatus: fakeRunTriageStatus(queue),
-        ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-      },
-    );
+    const exit = await runCli(["triage", "agent", "--check", "--format", "json"], output, {
+      isMainxWorktree: () => true,
+      runTriageStatus: fakeRunTriageStatus(queue),
+      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
+    });
 
     expect(exit).toBe(0);
     expect(logs.length).toBe(1);
@@ -266,26 +246,22 @@ describe("prx triage session (GH-893)", () => {
       return { status: 0, stdout: "", stderr: "" };
     };
 
-    const exit = await runCli(
-      ["triage", "agent", "--dry-run", "--format", "json"],
-      output,
-      {
-        runTriageStatus: fakeRunTriageStatus(fakeQueueResult()),
-        openSession: async () => {
-          openSessionCalled = true;
-          throw new Error("--dry-run must not reserve a worktree");
-        },
-        ensureOpsRuntimeMcp: () => {
-          mcpProvisionCalled = true;
-          return { mcpServers: [] };
-        },
-        ensureClaudeSessionAllowlist: () => {
-          allowlistCalled = true;
-          return { status: "unchanged", path: "/tmp/.claude/settings.local.json" };
-        },
-        execRuntime: fakeExec,
+    const exit = await runCli(["triage", "agent", "--dry-run", "--format", "json"], output, {
+      runTriageStatus: fakeRunTriageStatus(fakeQueueResult()),
+      openSession: async () => {
+        openSessionCalled = true;
+        throw new Error("--dry-run must not reserve a worktree");
       },
-    );
+      ensureOpsRuntimeMcp: () => {
+        mcpProvisionCalled = true;
+        return { mcpServers: [] };
+      },
+      ensureClaudeSessionAllowlist: () => {
+        allowlistCalled = true;
+        return { status: "unchanged", path: "/tmp/.claude/settings.local.json" };
+      },
+      execRuntime: fakeExec,
+    });
 
     expect(exit).toBe(0);
     expect(executorCalled).toBe(false);
@@ -348,24 +324,24 @@ describe("prx triage session (GH-893)", () => {
     let captured: { command?: string; args?: string[]; interaction?: string | undefined } = {};
     const allowlistCalls: Array<[string, string]> = [];
     const fakeExec: RuntimeExecutor = (profile): RuntimeExecutionResult => {
-      captured = { command: profile.command, args: [...profile.args], interaction: profile.interaction };
+      captured = {
+        command: profile.command,
+        args: [...profile.args],
+        interaction: profile.interaction,
+      };
       return { status: 0, stdout: "", stderr: "" };
     };
 
-    const exit = await runCli(
-      ["triage", "agent"],
-      output,
-      {
-        runTriageStatus: fakeRunTriageStatus(fakeQueueResult()),
-        openSession: fakeOpenSession({ worktreePath: tmpWorktree() }),
-        ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-        ensureClaudeSessionAllowlist: (cwd, profile) => {
-          allowlistCalls.push([cwd, profile]);
-          return { status: "created", path: `${cwd}/.claude/settings.local.json` };
-        },
-        execRuntime: fakeExec,
+    const exit = await runCli(["triage", "agent"], output, {
+      runTriageStatus: fakeRunTriageStatus(fakeQueueResult()),
+      openSession: fakeOpenSession({ worktreePath: tmpWorktree() }),
+      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
+      ensureClaudeSessionAllowlist: (cwd, profile) => {
+        allowlistCalls.push([cwd, profile]);
+        return { status: "created", path: `${cwd}/.claude/settings.local.json` };
       },
-    );
+      execRuntime: fakeExec,
+    });
 
     expect(exit).toBe(0);
     expect(captured.command).toBe("claude");
@@ -392,20 +368,16 @@ describe("prx triage session (GH-893)", () => {
       return { status: 0, stdout: "", stderr: "" };
     };
 
-    const exit = await runCli(
-      ["triage", "agent"],
-      output,
-      {
-        runTriageStatus: fakeRunTriageStatus(fakeQueueResult()),
-        openSession: fakeOpenSession({ worktreePath: tmpWorktree() }),
-        ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-        ensureClaudeSessionAllowlist: () => ({
-          status: "unchanged",
-          path: "/tmp/.claude/settings.local.json",
-        }),
-        execRuntime: fakeExec,
-      },
-    );
+    const exit = await runCli(["triage", "agent"], output, {
+      runTriageStatus: fakeRunTriageStatus(fakeQueueResult()),
+      openSession: fakeOpenSession({ worktreePath: tmpWorktree() }),
+      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
+      ensureClaudeSessionAllowlist: () => ({
+        status: "unchanged",
+        path: "/tmp/.claude/settings.local.json",
+      }),
+      execRuntime: fakeExec,
+    });
 
     expect(exit).toBe(0);
     expect(executorCalled).toBe(true);
@@ -425,7 +397,11 @@ describe("prx triage session (GH-893)", () => {
       localOnlyBranches: [],
       findings: [],
       remotes: [],
-      primaryRemote: { name: "origin", url: "git@github.com:owner/foo.git", githubRepo: "owner/foo" },
+      primaryRemote: {
+        name: "origin",
+        url: "git@github.com:owner/foo.git",
+        githubRepo: "owner/foo",
+      },
       upstreamRemote: null,
     };
     let executorCwd: string | undefined;
@@ -437,37 +413,33 @@ describe("prx triage session (GH-893)", () => {
       return { status: 0, stdout: "", stderr: "" };
     };
 
-    const exit = await runCli(
-      ["triage", "agent", "--repo", "foo"],
-      output,
-      {
-        resolveTargetRepoCwd: (input): ResolveTargetRepoResult => {
-          expect(input.slug).toBe("foo");
-          return { targetCwd, repo: fakeRepo, materialize: null };
-        },
-        classifyBeadsWorkspace: (cwd): BeadsWorkspaceMode => {
-          expect(cwd).toBe(targetCwd);
-          return { kind: "per_project", doltDir: `${cwd}/.beads/dolt` };
-        },
-        runTriageStatus: (_opts, out, statusDeps) => {
-          triageStatusCwd = statusDeps?.cwd?.();
-          out.log(JSON.stringify(fakeQueueResult()));
-          return 0;
-        },
-        openSession: fakeOpenSession({
-          worktreePath,
-          record: (_input, cwd) => {
-            reserveBaseCwd = cwd;
-          },
-        }),
-        ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-        ensureClaudeSessionAllowlist: (cwd) => {
-          allowlistCwd = cwd;
-          return { status: "created", path: `${cwd}/.claude/settings.local.json` };
-        },
-        execRuntime: fakeExec,
+    const exit = await runCli(["triage", "agent", "--repo", "foo"], output, {
+      resolveTargetRepoCwd: (input): ResolveTargetRepoResult => {
+        expect(input.slug).toBe("foo");
+        return { targetCwd, repo: fakeRepo, materialize: null };
       },
-    );
+      classifyBeadsWorkspace: (cwd): BeadsWorkspaceMode => {
+        expect(cwd).toBe(targetCwd);
+        return { kind: "per_project", doltDir: `${cwd}/.beads/dolt` };
+      },
+      runTriageStatus: (_opts, out, statusDeps) => {
+        triageStatusCwd = statusDeps?.cwd?.();
+        out.log(JSON.stringify(fakeQueueResult()));
+        return 0;
+      },
+      openSession: fakeOpenSession({
+        worktreePath,
+        record: (_input, cwd) => {
+          reserveBaseCwd = cwd;
+        },
+      }),
+      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
+      ensureClaudeSessionAllowlist: (cwd) => {
+        allowlistCwd = cwd;
+        return { status: "created", path: `${cwd}/.claude/settings.local.json` };
+      },
+      execRuntime: fakeExec,
+    });
 
     expect(exit).toBe(0);
     // The queue read and the reserve base both target the resolved repo cwd.
@@ -495,20 +467,16 @@ describe("prx triage session (GH-893)", () => {
     };
     let executorCalled = false;
 
-    const exit = await runCli(
-      ["triage", "agent", "--repo", "demo-repo", "--dry-run"],
-      output,
-      {
-        resolveTargetRepoCwd: () => ({ targetCwd, repo: fakeRepo, materialize: null }),
-        classifyBeadsWorkspace: () => ({ kind: "none" }),
-        runTriageStatus: () => 0,
-        ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-        execRuntime: () => {
-          executorCalled = true;
-          return { status: 0, stdout: "", stderr: "" };
-        },
+    const exit = await runCli(["triage", "agent", "--repo", "demo-repo", "--dry-run"], output, {
+      resolveTargetRepoCwd: () => ({ targetCwd, repo: fakeRepo, materialize: null }),
+      classifyBeadsWorkspace: () => ({ kind: "none" }),
+      runTriageStatus: () => 0,
+      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
+      execRuntime: () => {
+        executorCalled = true;
+        return { status: 0, stdout: "", stderr: "" };
       },
-    );
+    });
 
     expect(exit).not.toBe(0);
     expect(executorCalled).toBe(false);
@@ -532,19 +500,15 @@ describe("prx triage session (GH-893)", () => {
       upstreamRemote: null,
     };
 
-    const exit = await runCli(
-      ["triage", "agent", "--repo", "demo-repo"],
-      output,
-      {
-        resolveTargetRepoCwd: () => ({ targetCwd, repo: fakeRepo, materialize: null }),
-        classifyBeadsWorkspace: () => ({
-          kind: "embedded",
-          doltDir: `${targetCwd}/.beads/embeddeddolt/ws/.dolt`,
-        }),
-        runTriageStatus: () => 0,
-        ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-      },
-    );
+    const exit = await runCli(["triage", "agent", "--repo", "demo-repo"], output, {
+      resolveTargetRepoCwd: () => ({ targetCwd, repo: fakeRepo, materialize: null }),
+      classifyBeadsWorkspace: () => ({
+        kind: "embedded",
+        doltDir: `${targetCwd}/.beads/embeddeddolt/ws/.dolt`,
+      }),
+      runTriageStatus: () => 0,
+      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
+    });
 
     expect(exit).not.toBe(0);
     expect(errors.some((line) => line.includes("embedded mode"))).toBe(true);
@@ -588,20 +552,16 @@ describe("prx triage session (GH-893)", () => {
       return { status: 0, stdout: "", stderr: "" };
     };
 
-    const exit = await runCli(
-      ["triage", "agent"],
-      output,
-      {
-        runTriageStatus: fakeRunTriageStatus(fakeQueueResult()),
-        openSession: fakeOpenSession({ worktreePath: tmpWorktree() }),
-        ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-        ensureClaudeSessionAllowlist: () => ({
-          status: "skipped-malformed",
-          path: "/repo/.claude/settings.local.json",
-        }),
-        execRuntime: fakeExec,
-      },
-    );
+    const exit = await runCli(["triage", "agent"], output, {
+      runTriageStatus: fakeRunTriageStatus(fakeQueueResult()),
+      openSession: fakeOpenSession({ worktreePath: tmpWorktree() }),
+      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
+      ensureClaudeSessionAllowlist: () => ({
+        status: "skipped-malformed",
+        path: "/repo/.claude/settings.local.json",
+      }),
+      execRuntime: fakeExec,
+    });
 
     expect(exit).toBe(0);
     expect(executorCalled).toBe(true);

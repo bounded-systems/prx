@@ -6,10 +6,7 @@
 // the same registry the dispatcher reads at runtime.
 
 import { prxCommandRegistry } from "../../cli/registry.data.ts";
-import {
-  type VerbSupply,
-  verbSupplySchema,
-} from "../schemas/inputs.ts";
+import { type VerbSupply, verbSupplySchema } from "../schemas/inputs.ts";
 
 export function loadVerbSupply(): VerbSupply {
   const entries = prxCommandRegistry.map((spec) => ({

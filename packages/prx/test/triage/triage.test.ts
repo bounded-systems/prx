@@ -206,11 +206,7 @@ describe("classifyIssue", () => {
   });
 
   test("GH-1449: multiple known priority labels no longer collapse into missing.priority; surfaced via findAxisConflicts instead", () => {
-    const labels = [
-      { name: "priority::high" },
-      { name: "priority::low" },
-      { name: "type::task" },
-    ];
+    const labels = [{ name: "priority::high" }, { name: "priority::low" }, { name: "type::task" }];
     const row = classifyIssue(
       issue({ number: 4, labels }),
       new Map([[4, bead({ id: "ai-home-amb" })]]),
@@ -274,11 +270,7 @@ describe("classifyIssue", () => {
     const row = classifyIssue(
       issue({
         number: 8,
-        labels: [
-          { name: "priority::medium" },
-          { name: "type::feature" },
-          { name: "area::prx" },
-        ],
+        labels: [{ name: "priority::medium" }, { name: "type::feature" }, { name: "area::prx" }],
       }),
       new Map([[8, bead({ id: "ai-home-only-area" })]]),
     );
@@ -303,7 +295,13 @@ describe("findReverseOrphans", () => {
   test("flags open beads that have no external_ref at all", () => {
     const rows = findReverseOrphans(
       [
-        bead({ id: "ai-home-1", externalRef: null, status: "open", priority: 2, issueType: "task" }),
+        bead({
+          id: "ai-home-1",
+          externalRef: null,
+          status: "open",
+          priority: 2,
+          issueType: "task",
+        }),
       ],
       false,
     );
@@ -426,8 +424,16 @@ describe("findStaleBeads", () => {
   test("includes in_progress / blocked beads and emits multiple rows", () => {
     const rows = findStaleBeads(
       [
-        bead({ id: "ai-home-1", externalRef: "https://github.com/o/r/issues/1", status: "in_progress" }),
-        bead({ id: "ai-home-2", externalRef: "https://github.com/o/r/issues/2", status: "blocked" }),
+        bead({
+          id: "ai-home-1",
+          externalRef: "https://github.com/o/r/issues/1",
+          status: "in_progress",
+        }),
+        bead({
+          id: "ai-home-2",
+          externalRef: "https://github.com/o/r/issues/2",
+          status: "blocked",
+        }),
         bead({ id: "ai-home-3", externalRef: "https://github.com/o/r/issues/3", status: "open" }),
       ],
       new Set([1, 2]),
@@ -475,11 +481,7 @@ describe("findAxisConflicts (GH-1449)", () => {
     const rows = findAxisConflicts([
       issue({
         number: 4,
-        labels: [
-          { name: "type::task" },
-          { name: "type::feature" },
-          { name: "type::spike" },
-        ],
+        labels: [{ name: "type::task" }, { name: "type::feature" }, { name: "type::spike" }],
       }),
     ]);
     expect(rows).toHaveLength(1);
@@ -489,11 +491,7 @@ describe("findAxisConflicts (GH-1449)", () => {
   });
 
   test("priority::high + priority::low + type::task → conflict on priority axis (and classifier no longer marks missing.priority)", () => {
-    const labels = [
-      { name: "priority::high" },
-      { name: "priority::low" },
-      { name: "type::task" },
-    ];
+    const labels = [{ name: "priority::high" }, { name: "priority::low" }, { name: "type::task" }];
     const conflicts = findAxisConflicts([issue({ number: 5, labels })]);
     expect(conflicts).toHaveLength(1);
     expect(conflicts[0]!.conflicts.map((c) => c.axis)).toEqual(["priority"]);
@@ -563,11 +561,7 @@ describe("findAxisConflicts (GH-1449)", () => {
     const rows = findAxisConflicts([
       issue({
         number: 10,
-        labels: [
-          { name: "type::task" },
-          { name: "agent::architect" },
-          { name: "agent::executor" },
-        ],
+        labels: [{ name: "type::task" }, { name: "agent::architect" }, { name: "agent::executor" }],
       }),
     ]);
     expect(rows).toEqual([]);
@@ -759,8 +753,7 @@ describe("findDrift", () => {
   // mirrors GH state — flagging the dup would be non-actionable.
   describe("GH-1829: §6 canonical-wins suppression", () => {
     const ref = "https://github.com/o/r/issues/1829";
-    const sectionSixNotes =
-      "duplicate of ai-home-canonical (auto-synced from GH-1829); ADR §6";
+    const sectionSixNotes = "duplicate of ai-home-canonical (auto-synced from GH-1829); ADR §6";
 
     test("closed-as-dup with §6 marker AND open canonical sibling → no drift", () => {
       const dup = bead({
@@ -944,12 +937,10 @@ describe("findDrift", () => {
 });
 
 describe("isCanonicalDupClose", () => {
-  const realSection =
-    "duplicate of ai-home-canonical (auto-synced from GH-1829); ADR §6";
+  const realSection = "duplicate of ai-home-canonical (auto-synced from GH-1829); ADR §6";
   // GH-2378: the ASCII-escaped artifact — the literal 6-char `§` that an
   // ensure_ascii JSON round-trip leaves behind in place of a real `§`.
-  const escapedSection =
-    "duplicate of ai-home-canonical (auto-synced from GH-1829); ADR \\u00a76";
+  const escapedSection = "duplicate of ai-home-canonical (auto-synced from GH-1829); ADR \\u00a76";
 
   test("matches the canonical real-`§` close note", () => {
     expect(isCanonicalDupClose(realSection)).toBe(true);
@@ -960,17 +951,11 @@ describe("isCanonicalDupClose", () => {
   });
 
   test("GH-2378: matches the upper-case escaped `\\u00A7` close note", () => {
-    expect(
-      isCanonicalDupClose(
-        "duplicate of ai-home-canonical; ADR \\u00A76",
-      ),
-    ).toBe(true);
+    expect(isCanonicalDupClose("duplicate of ai-home-canonical; ADR \\u00A76")).toBe(true);
   });
 
   test("rejects an unrelated non-dup close note", () => {
-    expect(
-      isCanonicalDupClose("closed because the team decided to drop this scope"),
-    ).toBe(false);
+    expect(isCanonicalDupClose("closed because the team decided to drop this scope")).toBe(false);
   });
 
   test("rejects null/empty notes", () => {
@@ -1007,7 +992,7 @@ describe("loadAllBeads", () => {
         ]),
         stderr: "",
         policy: null,
-      } as BdExecResult)) as never;
+      }) as BdExecResult) as never;
     const records = loadAllBeads(exec);
     expect(records).toHaveLength(2);
     expect(records[0]!.externalIssueNumber).toBe(10);
@@ -1015,12 +1000,13 @@ describe("loadAllBeads", () => {
   });
 
   test("throws on non-zero exit", () => {
-    const exec = (() => ({
-      exitCode: 1,
-      stdout: "",
-      stderr: "bd: oops\n",
-      policy: null,
-    } as BdExecResult)) as never;
+    const exec = (() =>
+      ({
+        exitCode: 1,
+        stdout: "",
+        stderr: "bd: oops\n",
+        policy: null,
+      }) as BdExecResult) as never;
     expect(() => loadAllBeads(exec)).toThrow(/bd: oops/);
   });
 
@@ -1054,7 +1040,7 @@ describe("loadAllBeads", () => {
         ]),
         stderr: "dolt: push rejected (non-fast-forward)\n",
         policy: null,
-      } as BdExecResult)) as never;
+      }) as BdExecResult) as never;
     const warnings: string[] = [];
     const records = loadAllBeads(exec, (line) => warnings.push(line));
     expect(records).toHaveLength(2);
@@ -1065,38 +1051,44 @@ describe("loadAllBeads", () => {
   });
 
   test("non-zero exit with unparseable stdout still throws", () => {
-    const exec = (() => ({
-      exitCode: 1,
-      stdout: "not json",
-      stderr: "bd: oops\n",
-      policy: null,
-    } as BdExecResult)) as never;
+    const exec = (() =>
+      ({
+        exitCode: 1,
+        stdout: "not json",
+        stderr: "bd: oops\n",
+        policy: null,
+      }) as BdExecResult) as never;
     expect(() => loadAllBeads(exec)).toThrow(/bd: oops/);
   });
 
   // GH-1538: derive `externalRefs` from the post-amendment shape +
   // back-compat from the legacy `external_ref` single-pin.
-  function execWith(records: Array<Record<string, unknown>>): typeof import("@bounded-systems/bd").execBd {
-    return (() => ({
-      exitCode: 0,
-      stdout: JSON.stringify(records),
-      stderr: "",
-      policy: null,
-    } as BdExecResult)) as never;
+  function execWith(
+    records: Array<Record<string, unknown>>,
+  ): typeof import("@bounded-systems/bd").execBd {
+    return (() =>
+      ({
+        exitCode: 0,
+        stdout: JSON.stringify(records),
+        stderr: "",
+        policy: null,
+      }) as BdExecResult) as never;
   }
 
   test("a record with only legacy `external_ref` (GH-shaped) → `externalRefs.gh === external_ref`", () => {
-    const records = loadAllBeads(execWith([
-      {
-        id: "ai-home-1",
-        title: "legacy",
-        status: "open",
-        priority: 1,
-        issue_type: "task",
-        external_ref: "https://github.com/o/r/issues/10",
-        metadata: null,
-      },
-    ]));
+    const records = loadAllBeads(
+      execWith([
+        {
+          id: "ai-home-1",
+          title: "legacy",
+          status: "open",
+          priority: 1,
+          issue_type: "task",
+          external_ref: "https://github.com/o/r/issues/10",
+          metadata: null,
+        },
+      ]),
+    );
     expect(records[0]!.externalRefs).toEqual({
       gh: "https://github.com/o/r/issues/10",
     });
@@ -1104,19 +1096,21 @@ describe("loadAllBeads", () => {
   });
 
   test("a record with only `metadata.external_refs.notion` → `externalRefs.notion` set; `externalRefs.gh` unset", () => {
-    const records = loadAllBeads(execWith([
-      {
-        id: "ai-home-2",
-        title: "notion-pinned",
-        status: "open",
-        priority: 1,
-        issue_type: "task",
-        external_ref: null,
-        metadata: {
-          external_refs: { notion: "https://www.notion.so/abc-page" },
+    const records = loadAllBeads(
+      execWith([
+        {
+          id: "ai-home-2",
+          title: "notion-pinned",
+          status: "open",
+          priority: 1,
+          issue_type: "task",
+          external_ref: null,
+          metadata: {
+            external_refs: { notion: "https://www.notion.so/abc-page" },
+          },
         },
-      },
-    ]));
+      ]),
+    );
     expect(records[0]!.externalRefs).toEqual({
       notion: "https://www.notion.so/abc-page",
     });
@@ -1126,17 +1120,19 @@ describe("loadAllBeads", () => {
   test("a record with both legacy `external_ref` (GH) AND `metadata.external_refs.notion` → both keys present", () => {
     const ghUrl = "https://github.com/o/r/issues/1538";
     const notionUrl = "https://www.notion.so/page-1538";
-    const records = loadAllBeads(execWith([
-      {
-        id: "ai-home-3",
-        title: "multi-domain",
-        status: "open",
-        priority: 1,
-        issue_type: "task",
-        external_ref: ghUrl,
-        metadata: { external_refs: { notion: notionUrl } },
-      },
-    ]));
+    const records = loadAllBeads(
+      execWith([
+        {
+          id: "ai-home-3",
+          title: "multi-domain",
+          status: "open",
+          priority: 1,
+          issue_type: "task",
+          external_ref: ghUrl,
+          metadata: { external_refs: { notion: notionUrl } },
+        },
+      ]),
+    );
     expect(records[0]!.externalRefs).toEqual({ gh: ghUrl, notion: notionUrl });
   });
 
@@ -1147,60 +1143,67 @@ describe("loadAllBeads", () => {
     // so a future code edit can't silently flip it.
     const legacyUrl = "https://github.com/o/r/issues/123";
     const metaUrl = "https://github.com/o/r/issues/456";
-    const records = loadAllBeads(execWith([
-      {
-        id: "ai-home-conflict",
-        title: "conflict",
-        status: "open",
-        priority: 1,
-        issue_type: "task",
-        external_ref: legacyUrl,
-        metadata: { external_refs: { gh: metaUrl } },
-      },
-    ]));
+    const records = loadAllBeads(
+      execWith([
+        {
+          id: "ai-home-conflict",
+          title: "conflict",
+          status: "open",
+          priority: 1,
+          issue_type: "task",
+          external_ref: legacyUrl,
+          metadata: { external_refs: { gh: metaUrl } },
+        },
+      ]),
+    );
     expect(records[0]!.externalRefs.gh).toBe(legacyUrl);
   });
 
   test("malformed `metadata.external_refs` shape (non-string values) is silently skipped", () => {
     // The contract is soft (bd-CLI does not validate it). `loadAllBeads`
     // degrades to "no pin in that domain" rather than throwing.
-    const records = loadAllBeads(execWith([
-      {
-        id: "ai-home-malformed",
-        title: "malformed",
-        status: "open",
-        priority: 1,
-        issue_type: "task",
-        external_ref: null,
-        metadata: {
-          external_refs: { gh: 42, notion: "", jira: "  " },
+    const records = loadAllBeads(
+      execWith([
+        {
+          id: "ai-home-malformed",
+          title: "malformed",
+          status: "open",
+          priority: 1,
+          issue_type: "task",
+          external_ref: null,
+          metadata: {
+            external_refs: { gh: 42, notion: "", jira: "  " },
+          },
         },
-      },
-    ]));
+      ]),
+    );
     expect(records[0]!.externalRefs).toEqual({});
   });
 
   test("a non-GH-shaped legacy `external_ref` (e.g. Notion URL) does NOT promote into `externalRefs.gh`", () => {
     // Preserves the existing `findReverseOrphans` contract — a non-GH
     // `external_ref` means the bead is intentionally linked elsewhere.
-    const records = loadAllBeads(execWith([
-      {
-        id: "ai-home-notion-only",
-        title: "notion-as-legacy",
-        status: "open",
-        priority: 1,
-        issue_type: "task",
-        external_ref: "https://www.notion.so/page-abc",
-        metadata: null,
-      },
-    ]));
+    const records = loadAllBeads(
+      execWith([
+        {
+          id: "ai-home-notion-only",
+          title: "notion-as-legacy",
+          status: "open",
+          priority: 1,
+          issue_type: "task",
+          external_ref: "https://www.notion.so/page-abc",
+          metadata: null,
+        },
+      ]),
+    );
     expect(records[0]!.externalRefs).toEqual({});
   });
 });
 
 describe("loadJoinRelevantBeads (GH-1573)", () => {
   test("invokes bd sql with --json and the scoped SELECT (planning/planner)", () => {
-    let captured: { subcommand: string; args: string[]; state?: string; role?: string } | null = null;
+    let captured: { subcommand: string; args: string[]; state?: string; role?: string } | null =
+      null;
     const exec = ((opts: { subcommand: string; args: string[]; state?: string; role?: string }) => {
       captured = opts;
       return { exitCode: 0, stdout: "[]", stderr: "", policy: null } as BdExecResult;
@@ -1245,12 +1248,12 @@ describe("loadJoinRelevantBeads (GH-1573)", () => {
             priority: 2,
             issue_type: "task",
             external_ref: null,
-            metadata: "{\"bd_only\":true}",
+            metadata: '{"bd_only":true}',
           },
         ]),
         stderr: "",
         policy: null,
-      } as BdExecResult)) as never;
+      }) as BdExecResult) as never;
     const records = loadJoinRelevantBeads(exec);
     expect(records).toHaveLength(2);
     expect(records[0]!.id).toBe("ai-home-1");
@@ -1261,32 +1264,35 @@ describe("loadJoinRelevantBeads (GH-1573)", () => {
   });
 
   test("throws on non-zero exit", () => {
-    const exec = (() => ({
-      exitCode: 1,
-      stdout: "",
-      stderr: "bd sql: syntax error\n",
-      policy: null,
-    } as BdExecResult)) as never;
+    const exec = (() =>
+      ({
+        exitCode: 1,
+        stdout: "",
+        stderr: "bd sql: syntax error\n",
+        policy: null,
+      }) as BdExecResult) as never;
     expect(() => loadJoinRelevantBeads(exec)).toThrow(/bd sql: syntax error/);
   });
 
   test("throws on malformed JSON stdout", () => {
-    const exec = (() => ({
-      exitCode: 0,
-      stdout: "not json",
-      stderr: "",
-      policy: null,
-    } as BdExecResult)) as never;
+    const exec = (() =>
+      ({
+        exitCode: 0,
+        stdout: "not json",
+        stderr: "",
+        policy: null,
+      }) as BdExecResult) as never;
     expect(() => loadJoinRelevantBeads(exec)).toThrow(/returned invalid JSON/);
   });
 
   test("throws on row shape drift (missing id)", () => {
-    const exec = (() => ({
-      exitCode: 0,
-      stdout: JSON.stringify([{ title: "no id here" }]),
-      stderr: "",
-      policy: null,
-    } as BdExecResult)) as never;
+    const exec = (() =>
+      ({
+        exitCode: 0,
+        stdout: JSON.stringify([{ title: "no id here" }]),
+        stderr: "",
+        policy: null,
+      }) as BdExecResult) as never;
     expect(() => loadJoinRelevantBeads(exec)).toThrow(/row shape drift/);
   });
 });
@@ -1396,7 +1402,18 @@ describe("formatTriageStatus", () => {
     const result = emptyResult({
       totalOpen: 1,
       totalUntriaged: 1,
-      issues: [{ number: 1, title: "t", url: "u", labels: [], beadsId: null, missing: ["priority"], unknownLabels: [], weakSignals: [] }],
+      issues: [
+        {
+          number: 1,
+          title: "t",
+          url: "u",
+          labels: [],
+          beadsId: null,
+          missing: ["priority"],
+          unknownLabels: [],
+          weakSignals: [],
+        },
+      ],
     });
     expect(JSON.parse(formatTriageStatus(result, "json"))).toEqual(result);
   });
@@ -1422,9 +1439,7 @@ describe("formatTriageStatus", () => {
       ],
     });
     const text = formatTriageStatus(result, "plain");
-    expect(text).toContain(
-      "0 untriaged · 0 drift · 0 stale · 1 axis-conflict in o/r (4 open)",
-    );
+    expect(text).toContain("0 untriaged · 0 drift · 0 stale · 1 axis-conflict in o/r (4 open)");
     expect(text).toContain("Axis Conflicts (1):");
     expect(text).toContain("GH-1449");
     expect(text).toContain("type: task, feature");
@@ -1442,7 +1457,16 @@ describe("formatTriageStatus", () => {
 
   test("plain output renders four sections with the count header", () => {
     const issues: TriageIssueRow[] = [
-      { number: 7, title: "thing", url: "u", labels: [], beadsId: null, missing: ["priority", "type"], unknownLabels: [], weakSignals: [] },
+      {
+        number: 7,
+        title: "thing",
+        url: "u",
+        labels: [],
+        beadsId: null,
+        missing: ["priority", "type"],
+        unknownLabels: [],
+        weakSignals: [],
+      },
     ];
     const reverseOrphans: ReverseOrphanRow[] = [
       {
@@ -1484,11 +1508,11 @@ describe("formatTriageStatus", () => {
       stale,
     });
     const text = formatTriageStatus(result, "plain");
-    expect(text).toContain(
-      "1 untriaged · 1 drift · 1 stale · 0 axis-conflict in o/r (5 open)",
-    );
+    expect(text).toContain("1 untriaged · 1 drift · 1 stale · 0 axis-conflict in o/r (5 open)");
     expect(text).toContain("Untriaged (1):");
-    expect(text).toContain("Bead-native, no GH mirror (1) — expected under beads-first, informational only:");
+    expect(text).toContain(
+      "Bead-native, no GH mirror (1) — expected under beads-first, informational only:",
+    );
     expect(text).toContain("Drift (1):");
     expect(text).toContain("Stale (1):");
     expect(text).toContain("ai-home-rev");
@@ -1503,13 +1527,20 @@ describe("formatTriageStatus", () => {
       totalOpen: 3,
       totalUntriaged: 1,
       issues: [
-        { number: 1, title: "t", url: "u", labels: [], beadsId: null, missing: ["priority"], unknownLabels: [], weakSignals: [] },
+        {
+          number: 1,
+          title: "t",
+          url: "u",
+          labels: [],
+          beadsId: null,
+          missing: ["priority"],
+          unknownLabels: [],
+          weakSignals: [],
+        },
       ],
     });
     const text = formatTriageStatus(result, "plain");
-    expect(text).toContain(
-      "1 untriaged · 0 drift · 0 stale · 0 axis-conflict in o/r (3 open)",
-    );
+    expect(text).toContain("1 untriaged · 0 drift · 0 stale · 0 axis-conflict in o/r (3 open)");
     expect(text).not.toContain("Stale (");
     expect(text).not.toContain("Axis Conflicts (");
   });
@@ -1570,14 +1601,20 @@ describe("runTriageStatus", () => {
         listOpenIssues: ((repo: string) => {
           expect(repo).toBe("o/r");
           return [
-            { number: 10, title: "needs priority", url: "https://github.com/o/r/issues/10", labels: [{ name: "type::task" }] },
+            {
+              number: 10,
+              title: "needs priority",
+              url: "https://github.com/o/r/issues/10",
+              labels: [{ name: "type::task" }],
+            },
           ] as FallbackIssue[];
         }) as never,
         repoNameWithOwner: (() => {
           resolveCalls++;
           return "wrong/repo";
         }) as never,
-        execBd: (() => ({ exitCode: 0, stdout: "[]", stderr: "", policy: null } as BdExecResult)) as never,
+        execBd: (() =>
+          ({ exitCode: 0, stdout: "[]", stderr: "", policy: null }) as BdExecResult) as never,
       },
     );
     expect(exitCode).toBe(0);
@@ -1599,7 +1636,8 @@ describe("runTriageStatus", () => {
           expect(cwd).toBe("/repo");
           return "owner/inferred";
         }) as never,
-        execBd: (() => ({ exitCode: 0, stdout: "[]", stderr: "", policy: null } as BdExecResult)) as never,
+        execBd: (() =>
+          ({ exitCode: 0, stdout: "[]", stderr: "", policy: null }) as BdExecResult) as never,
         cwd: () => "/repo",
       },
     );
@@ -1608,7 +1646,8 @@ describe("runTriageStatus", () => {
   });
 
   test("calls bd sql with the planning/planner policy override and a scoped SELECT (GH-1573)", () => {
-    const bdCalls: Array<{ subcommand: string; args: string[]; state?: string; role?: string }> = [];
+    const bdCalls: Array<{ subcommand: string; args: string[]; state?: string; role?: string }> =
+      [];
     runTriageStatus(
       makeOptions({ repo: "o/r" }),
       { log: () => undefined, error: () => undefined },
@@ -1662,15 +1701,30 @@ describe("runTriageStatus", () => {
             labels: [{ name: "priority::none" }, { name: "type::task" }],
           },
         ]) as never,
-        execBd: (() => ({
-          exitCode: 0,
-          stdout: JSON.stringify([
-            { id: "ai-home-1", title: "good", status: "open", priority: 2, issue_type: "task", external_ref: "https://github.com/o/r/issues/1" },
-            { id: "ai-home-2", title: "bad", status: "open", priority: 2, issue_type: "task", external_ref: "https://github.com/o/r/issues/2" },
-          ]),
-          stderr: "",
-          policy: null,
-        } as BdExecResult)) as never,
+        execBd: (() =>
+          ({
+            exitCode: 0,
+            stdout: JSON.stringify([
+              {
+                id: "ai-home-1",
+                title: "good",
+                status: "open",
+                priority: 2,
+                issue_type: "task",
+                external_ref: "https://github.com/o/r/issues/1",
+              },
+              {
+                id: "ai-home-2",
+                title: "bad",
+                status: "open",
+                priority: 2,
+                issue_type: "task",
+                external_ref: "https://github.com/o/r/issues/2",
+              },
+            ]),
+            stderr: "",
+            policy: null,
+          }) as BdExecResult) as never,
       },
     );
     const result = JSON.parse(logs[0]!) as TriageStatusResult;
@@ -1695,17 +1749,32 @@ describe("runTriageStatus", () => {
             labels: [{ name: "priority::medium" }, { name: "type::task" }],
           },
         ]) as never,
-        execBd: (() => ({
-          exitCode: 0,
-          stdout: JSON.stringify([
-            // paired but title drift
-            { id: "ai-home-100", title: "Bar", status: "open", priority: 2, issue_type: "task", external_ref: "https://github.com/o/r/issues/100" },
-            // reverse orphan
-            { id: "ai-home-rev", title: "lonely", status: "open", priority: 2, issue_type: "task", external_ref: null },
-          ]),
-          stderr: "",
-          policy: null,
-        } as BdExecResult)) as never,
+        execBd: (() =>
+          ({
+            exitCode: 0,
+            stdout: JSON.stringify([
+              // paired but title drift
+              {
+                id: "ai-home-100",
+                title: "Bar",
+                status: "open",
+                priority: 2,
+                issue_type: "task",
+                external_ref: "https://github.com/o/r/issues/100",
+              },
+              // reverse orphan
+              {
+                id: "ai-home-rev",
+                title: "lonely",
+                status: "open",
+                priority: 2,
+                issue_type: "task",
+                external_ref: null,
+              },
+            ]),
+            stderr: "",
+            policy: null,
+          }) as BdExecResult) as never,
       },
     );
     const result = JSON.parse(logs[0]!) as TriageStatusResult;
@@ -1728,16 +1797,26 @@ describe("runTriageStatus", () => {
           closedCalls += 1;
           expect(repo).toBe("o/r");
           expect(state).toBe("closed");
-          return [{ number: 999, title: "merged", url: "https://github.com/o/r/issues/999", labels: [] }] as FallbackIssue[];
+          return [
+            { number: 999, title: "merged", url: "https://github.com/o/r/issues/999", labels: [] },
+          ] as FallbackIssue[];
         }) as never,
-        execBd: (() => ({
-          exitCode: 0,
-          stdout: JSON.stringify([
-            { id: "ai-home-999", title: "merged", status: "open", priority: 1, issue_type: "feature", external_ref: "https://github.com/o/r/issues/999" },
-          ]),
-          stderr: "",
-          policy: null,
-        } as BdExecResult)) as never,
+        execBd: (() =>
+          ({
+            exitCode: 0,
+            stdout: JSON.stringify([
+              {
+                id: "ai-home-999",
+                title: "merged",
+                status: "open",
+                priority: 1,
+                issue_type: "feature",
+                external_ref: "https://github.com/o/r/issues/999",
+              },
+            ]),
+            stderr: "",
+            policy: null,
+          }) as BdExecResult) as never,
       },
     );
     const result = JSON.parse(logs[0]!) as TriageStatusResult;
@@ -1756,14 +1835,22 @@ describe("runTriageStatus", () => {
       {
         listOpenIssues: (() => []) as never,
         listIssuesByState: (() => [] as FallbackIssue[]) as never,
-        execBd: (() => ({
-          exitCode: 0,
-          stdout: JSON.stringify([
-            { id: "ai-home-999", title: "merged", status: "open", priority: 1, issue_type: "feature", external_ref: "https://github.com/o/r/issues/999" },
-          ]),
-          stderr: "",
-          policy: null,
-        } as BdExecResult)) as never,
+        execBd: (() =>
+          ({
+            exitCode: 0,
+            stdout: JSON.stringify([
+              {
+                id: "ai-home-999",
+                title: "merged",
+                status: "open",
+                priority: 1,
+                issue_type: "feature",
+                external_ref: "https://github.com/o/r/issues/999",
+              },
+            ]),
+            stderr: "",
+            policy: null,
+          }) as BdExecResult) as never,
       },
     );
     const result = JSON.parse(logs[0]!) as TriageStatusResult;
@@ -1779,20 +1866,33 @@ describe("runTriageStatus", () => {
       { log: (l) => logs.push(l), error: () => undefined },
       {
         listOpenIssues: (() => [
-          { number: 100, title: "Foo", url: "https://github.com/o/r/issues/100", labels: [{ name: "priority::medium" }, { name: "type::task" }] },
+          {
+            number: 100,
+            title: "Foo",
+            url: "https://github.com/o/r/issues/100",
+            labels: [{ name: "priority::medium" }, { name: "type::task" }],
+          },
         ]) as never,
         listIssuesByState: (() => {
           closedCalls += 1;
           return [] as FallbackIssue[];
         }) as never,
-        execBd: (() => ({
-          exitCode: 0,
-          stdout: JSON.stringify([
-            { id: "ai-home-100", title: "Foo", status: "open", priority: 2, issue_type: "task", external_ref: "https://github.com/o/r/issues/100" },
-          ]),
-          stderr: "",
-          policy: null,
-        } as BdExecResult)) as never,
+        execBd: (() =>
+          ({
+            exitCode: 0,
+            stdout: JSON.stringify([
+              {
+                id: "ai-home-100",
+                title: "Foo",
+                status: "open",
+                priority: 2,
+                issue_type: "task",
+                external_ref: "https://github.com/o/r/issues/100",
+              },
+            ]),
+            stderr: "",
+            policy: null,
+          }) as BdExecResult) as never,
       },
     );
     const result = JSON.parse(logs[0]!) as TriageStatusResult;
@@ -1811,28 +1911,25 @@ describe("runTriageStatus", () => {
             number: 1449,
             title: "dual priority",
             url: "https://github.com/o/r/issues/1449",
-            labels: [
-              { name: "priority::high" },
-              { name: "priority::low" },
-              { name: "type::task" },
-            ],
+            labels: [{ name: "priority::high" }, { name: "priority::low" }, { name: "type::task" }],
           },
         ]) as never,
-        execBd: (() => ({
-          exitCode: 0,
-          stdout: JSON.stringify([
-            {
-              id: "ai-home-1449",
-              title: "dual priority",
-              status: "open",
-              priority: 1,
-              issue_type: "task",
-              external_ref: "https://github.com/o/r/issues/1449",
-            },
-          ]),
-          stderr: "",
-          policy: null,
-        } as BdExecResult)) as never,
+        execBd: (() =>
+          ({
+            exitCode: 0,
+            stdout: JSON.stringify([
+              {
+                id: "ai-home-1449",
+                title: "dual priority",
+                status: "open",
+                priority: 1,
+                issue_type: "task",
+                external_ref: "https://github.com/o/r/issues/1449",
+              },
+            ]),
+            stderr: "",
+            policy: null,
+          }) as BdExecResult) as never,
       },
     );
     const result = JSON.parse(logs[0]!) as TriageStatusResult;
@@ -1853,10 +1950,18 @@ describe("runTriageStatus", () => {
     // string (the raw DB form), not the parsed object that `bd list --json`
     // hands back. `loadJoinRelevantBeads` parses it inline.
     const stdout = JSON.stringify([
-      { id: "ai-home-spike", title: "spike", status: "open", priority: 2, issue_type: "task", external_ref: null, metadata: "{\"bd_only\":true}" },
+      {
+        id: "ai-home-spike",
+        title: "spike",
+        status: "open",
+        priority: 2,
+        issue_type: "task",
+        external_ref: null,
+        metadata: '{"bd_only":true}',
+      },
     ]);
     const exec = (() =>
-      ({ exitCode: 0, stdout, stderr: "", policy: null } as BdExecResult)) as never;
+      ({ exitCode: 0, stdout, stderr: "", policy: null }) as BdExecResult) as never;
 
     const logsDefault: string[] = [];
     runTriageStatus(
@@ -1882,7 +1987,13 @@ describe("runTriageStatus", () => {
         { log: () => undefined, error: () => undefined },
         {
           listOpenIssues: (() => []) as never,
-          execBd: (() => ({ exitCode: 1, stdout: "", stderr: "bd: oops\n", policy: null } as BdExecResult)) as never,
+          execBd: (() =>
+            ({
+              exitCode: 1,
+              stdout: "",
+              stderr: "bd: oops\n",
+              policy: null,
+            }) as BdExecResult) as never,
         },
       ),
     ).toThrow(/bd: oops/);
@@ -1899,15 +2010,16 @@ describe("runTriageStatus + --rate-limit", () => {
       { log: (l) => logs.push(l), error: () => undefined },
       {
         listOpenIssues: (() => []) as never,
-        execBd: (() => ({ exitCode: 0, stdout: "[]", stderr: "", policy: null } as BdExecResult)) as never,
-        refreshBudget: ((() => {
+        execBd: (() =>
+          ({ exitCode: 0, stdout: "[]", stderr: "", policy: null }) as BdExecResult) as never,
+        refreshBudget: (() => {
           refreshCalls += 1;
           return null;
-        }) as never),
-        estimateSweepCost: ((() => {
+        }) as never,
+        estimateSweepCost: (() => {
           estimateCalls += 1;
           return { perBucket: { core: 0, graphql: 0, search: 0 }, sample: { calls: 0, avg: 2 } };
-        }) as never),
+        }) as never,
       },
     );
     const result = JSON.parse(logs[0]!) as TriageStatusResult;
@@ -1918,8 +2030,20 @@ describe("runTriageStatus + --rate-limit", () => {
 
   test("flag set → snapshots + estimate populated; queueSize excludes reverse-orphans (prx-3f1)", () => {
     const snapshots = [
-      { bucket: "core" as const, limit: 5000, remaining: 4994, resetAt: 1700000000000, fetchedAt: 0 },
-      { bucket: "graphql" as const, limit: 5000, remaining: 4823, resetAt: 1700000000000, fetchedAt: 0 },
+      {
+        bucket: "core" as const,
+        limit: 5000,
+        remaining: 4994,
+        resetAt: 1700000000000,
+        fetchedAt: 0,
+      },
+      {
+        bucket: "graphql" as const,
+        limit: 5000,
+        remaining: 4823,
+        resetAt: 1700000000000,
+        fetchedAt: 0,
+      },
       { bucket: "search" as const, limit: 30, remaining: 29, resetAt: 1700000000000, fetchedAt: 0 },
     ];
     let receivedQueue = -1;
@@ -1933,15 +2057,23 @@ describe("runTriageStatus + --rate-limit", () => {
           { number: 1, title: "x", url: "u", labels: [] },
           { number: 2, title: "y", url: "u", labels: [] },
         ]) as never,
-        execBd: (() => ({
-          exitCode: 0,
-          stdout: JSON.stringify([
-            // 1 reverse orphan
-            { id: "ai-home-rev", title: "lonely", status: "open", priority: 2, issue_type: "task", external_ref: null },
-          ]),
-          stderr: "",
-          policy: null,
-        } as BdExecResult)) as never,
+        execBd: (() =>
+          ({
+            exitCode: 0,
+            stdout: JSON.stringify([
+              // 1 reverse orphan
+              {
+                id: "ai-home-rev",
+                title: "lonely",
+                status: "open",
+                priority: 2,
+                issue_type: "task",
+                external_ref: null,
+              },
+            ]),
+            stderr: "",
+            policy: null,
+          }) as BdExecResult) as never,
         refreshBudget: (() => snapshots) as never,
         estimateSweepCost: ((queueSize: number) => {
           receivedQueue = queueSize;
@@ -1968,13 +2100,13 @@ describe("runTriageStatus + --rate-limit", () => {
       { log: (l) => logs.push(l), error: () => undefined },
       {
         listOpenIssues: (() => []) as never,
-        execBd: (() => ({ exitCode: 0, stdout: "[]", stderr: "", policy: null } as BdExecResult)) as never,
-        refreshBudget: (() =>
-          [
-            { bucket: "core", limit: 5000, remaining: 4994, resetAt: 1700000000000, fetchedAt: 0 },
-            { bucket: "graphql", limit: 5000, remaining: 4823, resetAt: 1700000000000, fetchedAt: 0 },
-            { bucket: "search", limit: 30, remaining: 29, resetAt: 1700000000000, fetchedAt: 0 },
-          ]) as never,
+        execBd: (() =>
+          ({ exitCode: 0, stdout: "[]", stderr: "", policy: null }) as BdExecResult) as never,
+        refreshBudget: (() => [
+          { bucket: "core", limit: 5000, remaining: 4994, resetAt: 1700000000000, fetchedAt: 0 },
+          { bucket: "graphql", limit: 5000, remaining: 4823, resetAt: 1700000000000, fetchedAt: 0 },
+          { bucket: "search", limit: 30, remaining: 29, resetAt: 1700000000000, fetchedAt: 0 },
+        ]) as never,
         estimateSweepCost: (() => ({
           perBucket: { core: 0, graphql: 0, search: 0 },
           sample: { calls: 0, avg: 2 },
@@ -1984,7 +2116,9 @@ describe("runTriageStatus + --rate-limit", () => {
     const text = logs.join("\n");
     expect(text).toContain("GitHub budget:");
     expect(text).toContain("graphql:  4823/5000");
-    expect(text).toMatch(/Estimated sweep cost: ~0 GraphQL points \(cold sample, fallback avg 2\.0 pts\/issue\)/);
+    expect(text).toMatch(
+      /Estimated sweep cost: ~0 GraphQL points \(cold sample, fallback avg 2\.0 pts\/issue\)/,
+    );
   });
 });
 
@@ -2055,7 +2189,7 @@ describe("runStatusActor — withGhTruthReason on residual gh comparators (GH-16
           ]),
           stderr: "",
           policy: null,
-        } as BdExecResult)) as never,
+        }) as BdExecResult) as never,
     });
     expect(observedReason).toBe("stale-comparator");
     expect(getAuditRuntimeContext().ghTruthReason).toBeNull();
@@ -2074,28 +2208,25 @@ describe("runStatusActor — axis-conflicts plumbing (GH-1449)", () => {
           number: 1449,
           title: "dual axis",
           url: "https://github.com/o/r/issues/1449",
-          labels: [
-            { name: "type::task" },
-            { name: "type::feature" },
-            { name: "priority::medium" },
-          ],
+          labels: [{ name: "type::task" }, { name: "type::feature" }, { name: "priority::medium" }],
         },
       ]) as never,
-      execBd: (() => ({
-        exitCode: 0,
-        stdout: JSON.stringify([
-          {
-            id: "ai-home-1449",
-            title: "dual axis",
-            status: "open",
-            priority: 2,
-            issue_type: "task",
-            external_ref: "https://github.com/o/r/issues/1449",
-          },
-        ]),
-        stderr: "",
-        policy: null,
-      } as BdExecResult)) as never,
+      execBd: (() =>
+        ({
+          exitCode: 0,
+          stdout: JSON.stringify([
+            {
+              id: "ai-home-1449",
+              title: "dual axis",
+              status: "open",
+              priority: 2,
+              issue_type: "task",
+              external_ref: "https://github.com/o/r/issues/1449",
+            },
+          ]),
+          stderr: "",
+          policy: null,
+        }) as BdExecResult) as never,
     });
     expect(result.snapshot.totalAxisConflicts).toBe(1);
     expect(result.snapshot.axisConflicts).toHaveLength(1);
@@ -2309,9 +2440,7 @@ describe("canonical=bd triage status (GH-1710)", () => {
   });
 
   test("canonical=bd: runStatusActor and findAxisConflicts emit no axis-conflict rows (substrate has no labels)", () => {
-    const records = [
-      bdBead({ id: "spd-1", priority: 1, issueType: "feature" }),
-    ];
+    const records = [bdBead({ id: "spd-1", priority: 1, issueType: "feature" })];
     const result = runStatusActor(makeOptions({ format: "json" }), {
       cwd: () => "/some/cwd",
       localRepoForCwd: () => bdCanonicalRepo(),
@@ -2364,21 +2493,22 @@ describe("findStaleProjection", () => {
             { number: 999, title: "merged", url: "https://github.com/o/r/issues/999", labels: [] },
           ] as FallbackIssue[];
         }) as never,
-        execBd: (() => ({
-          exitCode: 0,
-          stdout: JSON.stringify([
-            {
-              id: "ai-home-999",
-              title: "merged",
-              status: "open",
-              priority: 1,
-              issue_type: "feature",
-              external_ref: "https://github.com/o/r/issues/999",
-            },
-          ]),
-          stderr: "",
-          policy: null,
-        } as BdExecResult)) as never,
+        execBd: (() =>
+          ({
+            exitCode: 0,
+            stdout: JSON.stringify([
+              {
+                id: "ai-home-999",
+                title: "merged",
+                status: "open",
+                priority: 1,
+                issue_type: "feature",
+                external_ref: "https://github.com/o/r/issues/999",
+              },
+            ]),
+            stderr: "",
+            policy: null,
+          }) as BdExecResult) as never,
       },
     );
     expect(result.canonical).toBe("gh");
@@ -2503,7 +2633,8 @@ describe("runTriageStatus — read-time freshness gate (GH-1786)", () => {
   const STALE = new Date(NOW.getTime() - 25 * 60 * 60 * 1_000).toISOString();
 
   function bdEmpty() {
-    return (() => ({ exitCode: 0, stdout: "[]", stderr: "", policy: null } as BdExecResult)) as never;
+    return (() =>
+      ({ exitCode: 0, stdout: "[]", stderr: "", policy: null }) as BdExecResult) as never;
   }
 
   test("cache-hit (fresh): refresher is NOT called", () => {
@@ -2605,19 +2736,16 @@ describe("runTriageStatus — read-time freshness gate (GH-1786)", () => {
 
   test("runStatusActor mirrors the gate (parity with the CLI entry)", () => {
     const refreshCalls: Array<{ repo: string | undefined }> = [];
-    runStatusActor(
-      makeOptions({ repo: "o/r", noRefresh: false, maxStaleness: "24h" }),
-      {
-        listOpenIssues: (() => []) as never,
-        execBd: bdEmpty(),
-        readSubstrateWatermark: () => STALE,
-        refreshSubstrate: (args) => {
-          refreshCalls.push(args);
-          return { ok: true };
-        },
-        now: () => NOW,
+    runStatusActor(makeOptions({ repo: "o/r", noRefresh: false, maxStaleness: "24h" }), {
+      listOpenIssues: (() => []) as never,
+      execBd: bdEmpty(),
+      readSubstrateWatermark: () => STALE,
+      refreshSubstrate: (args) => {
+        refreshCalls.push(args);
+        return { ok: true };
       },
-    );
+      now: () => NOW,
+    });
     expect(refreshCalls).toHaveLength(1);
   });
 });

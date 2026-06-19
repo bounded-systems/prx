@@ -15,7 +15,14 @@ import { fileURLToPath } from "node:url";
 
 import { load, READY, topo } from "./jsr-publish.ts";
 
-const DOC = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "docs", "jsr-publishing.md");
+const DOC = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "..",
+  "docs",
+  "jsr-publishing.md",
+);
 
 /** The static handoff prose. The package table below it is generated. */
 const PROSE = `# JSR publishing — status & handoff

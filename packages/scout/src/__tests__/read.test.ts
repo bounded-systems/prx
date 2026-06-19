@@ -6,11 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, test } from "bun:test";
 
-import {
-  formatScoutReadJson,
-  runScoutRead,
-  ScoutReadError,
-} from "../read.ts";
+import { formatScoutReadJson, runScoutRead, ScoutReadError } from "../read.ts";
 
 describe("runScoutRead — bounded text-only single-file read", () => {
   let root: string;
@@ -18,7 +14,7 @@ describe("runScoutRead — bounded text-only single-file read", () => {
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), "prx-scout-read-"));
     mkdirSync(join(root, "src"), { recursive: true });
-    writeFileSync(join(root, "flake.nix"), "{ description = \"x\"; }\n");
+    writeFileSync(join(root, "flake.nix"), '{ description = "x"; }\n');
     writeFileSync(join(root, "src", "a.ts"), "export const a = 1;\n");
     writeFileSync(join(root, "src", "binary.png"), Buffer.from([0x00, 0xff]));
     writeFileSync(
@@ -107,9 +103,7 @@ describe("runScoutRead — bounded text-only single-file read", () => {
       caught = err;
     }
     expect(caught).toBeInstanceOf(ScoutReadError);
-    expect((caught as ScoutReadError).code).toBe(
-      "WORKUNIT_RESOLUTION_NOT_IMPLEMENTED",
-    );
+    expect((caught as ScoutReadError).code).toBe("WORKUNIT_RESOLUTION_NOT_IMPLEMENTED");
   });
 
   test("formatScoutReadJson emits a single JSON line", async () => {

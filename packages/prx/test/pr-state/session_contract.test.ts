@@ -17,9 +17,30 @@ const rawStateFixture = {
   unitId: "GH-100" as WorkUnitId,
   artifacts: {
     ticket: { exists: false, id: null, system: "other" as const, url: null },
-    worktree: { exists: true, path: "/tmp/test", checkedOutBranch: "GH-100" as BranchName, headSha: null },
-    branch: { name: "GH-100" as BranchName, existsLocal: true, existsRemote: true, ahead: 0, behind: 0, headShaLocal: null, headShaRemote: null },
-    pr: { exists: true, number: 100, state: "open" as const, isDraft: false, headRef: "GH-100" as BranchName, baseRef: null, url: "https://github.com/test/test/pull/100" },
+    worktree: {
+      exists: true,
+      path: "/tmp/test",
+      checkedOutBranch: "GH-100" as BranchName,
+      headSha: null,
+    },
+    branch: {
+      name: "GH-100" as BranchName,
+      existsLocal: true,
+      existsRemote: true,
+      ahead: 0,
+      behind: 0,
+      headShaLocal: null,
+      headShaRemote: null,
+    },
+    pr: {
+      exists: true,
+      number: 100,
+      state: "open" as const,
+      isDraft: false,
+      headRef: "GH-100" as BranchName,
+      baseRef: null,
+      url: "https://github.com/test/test/pull/100",
+    },
   },
   signals: {
     review: { decision: "none" as const, reviewersRequested: false, unresolvedThreads: 0 },
@@ -27,7 +48,10 @@ const rawStateFixture = {
     mergeability: { state: "unknown" as const, blockedReasons: [] },
   },
   sync: { remoteFresh: true, ticketLinkedToPR: false },
-  meta: { observedAt: "2026-01-01T00:00:00Z", sources: { git: "2026-01-01T00:00:00Z", gh: "2026-01-01T00:00:00Z", ticketSystem: null } },
+  meta: {
+    observedAt: "2026-01-01T00:00:00Z",
+    sources: { git: "2026-01-01T00:00:00Z", gh: "2026-01-01T00:00:00Z", ticketSystem: null },
+  },
 };
 
 const snapshotFixture: ActionSnapshot = {
@@ -37,7 +61,17 @@ const snapshotFixture: ActionSnapshot = {
   operation: "none",
   remoteFreshness: "fresh",
   local: { staged: 0, unstaged: 0, untracked: 0, ignored: 0, conflicts: 0 },
-  pr: { exists: true, number: 100, title: "Test PR", url: "https://github.com/test/test/pull/100", draft: false, checks: "green", review: "approved", approvals: 1, mergeable: "mergeable" },
+  pr: {
+    exists: true,
+    number: 100,
+    title: "Test PR",
+    url: "https://github.com/test/test/pull/100",
+    draft: false,
+    checks: "green",
+    review: "approved",
+    approvals: 1,
+    mergeable: "mergeable",
+  },
   system: { lifecycle: "open", review: "approved", ci: "passed", mergeability: "clean" },
   mergeReady: true,
   phase: "ready_to_merge",
@@ -75,7 +109,14 @@ const domainStateFixture: DomainStateV1 = {
   },
   workflowState: {
     phase: "ready_to_merge",
-    task: { exists: false, currentRole: null, machineState: null, handoffStatus: null, blockers: [], nextRole: null },
+    task: {
+      exists: false,
+      currentRole: null,
+      machineState: null,
+      handoffStatus: null,
+      blockers: [],
+      nextRole: null,
+    },
   },
   repoState: {
     repoRoot: "/tmp/test",
@@ -238,7 +279,9 @@ describe("session contract (injected context)", () => {
 
     test("exit code 1 when no actions available", () => {
       const emptyPlan: ActionPlan = { ...actionPlanFixture, actions: [], next: null };
-      const { exitCode } = capture(["next-action", "--format", "json"], { nextAction: () => emptyPlan });
+      const { exitCode } = capture(["next-action", "--format", "json"], {
+        nextAction: () => emptyPlan,
+      });
       expect(exitCode).toBe(1);
     });
   });

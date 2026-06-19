@@ -46,11 +46,9 @@ describe("aliasExists — fence gating", () => {
   });
 
   test("known aliases inside the fence do not fail", () => {
-    const md = [
-      "<!-- assert:alias -->",
-      "Use `za` for switching.",
-      "<!-- /assert:alias -->",
-    ].join("\n");
+    const md = ["<!-- assert:alias -->", "Use `za` for switching.", "<!-- /assert:alias -->"].join(
+      "\n",
+    );
     const failures = aliasExists(md, "core.md", [
       { name: "za", target: "wt switch a", source: "nix" },
     ]);
@@ -105,46 +103,49 @@ describe("verbExists — unfenced", () => {
 });
 
 // Reads ai-home's claude/rules/core.md, which is absent in the prx repo — skip there.
-describe.skipIf(!existsSync("claude/rules/core.md"))("spike thesis — claude/rules/core.md:95 drift case", () => {
-  test("aliasExists raises a typed failure for the za/zb/zc line", () => {
-    const corePath = "claude/rules/core.md";
-    const fullMarkdown = readFileSync(corePath, "utf8");
-    const lines = fullMarkdown.split("\n");
-    // GH-2011: line shifted from 96 to 95 when the retired `bd github sync`
-    // session-close protocol block was stripped.
-    const targetLine = lines[94] ?? "";
+describe.skipIf(!existsSync("claude/rules/core.md"))(
+  "spike thesis — claude/rules/core.md:95 drift case",
+  () => {
+    test("aliasExists raises a typed failure for the za/zb/zc line", () => {
+      const corePath = "claude/rules/core.md";
+      const fullMarkdown = readFileSync(corePath, "utf8");
+      const lines = fullMarkdown.split("\n");
+      // GH-2011: line shifted from 96 to 95 when the retired `bd github sync`
+      // session-close protocol block was stripped.
+      const targetLine = lines[94] ?? "";
 
-    // Confirm the drift line is the one the design doc cites.
-    expect(targetLine).toContain("`za`");
-    expect(targetLine).toContain("`zb`");
-    expect(targetLine).toContain("`zc`");
+      // Confirm the drift line is the one the design doc cites.
+      expect(targetLine).toContain("`za`");
+      expect(targetLine).toContain("`zb`");
+      expect(targetLine).toContain("`zc`");
 
-    // Synthesize the markdown a future renderer will produce: wrap the
-    // exact drift line in an alias fence. Pad with empty lines so the
-    // failure's `line` matches the citation in the design doc (95).
-    const synthesized: string[] = [];
-    for (let i = 0; i < 93; i++) synthesized.push("");
-    synthesized.push("<!-- assert:alias -->");
-    synthesized.push(targetLine);
-    synthesized.push("<!-- /assert:alias -->");
-    const md = synthesized.join("\n");
+      // Synthesize the markdown a future renderer will produce: wrap the
+      // exact drift line in an alias fence. Pad with empty lines so the
+      // failure's `line` matches the citation in the design doc (95).
+      const synthesized: string[] = [];
+      for (let i = 0; i < 93; i++) synthesized.push("");
+      synthesized.push("<!-- assert:alias -->");
+      synthesized.push(targetLine);
+      synthesized.push("<!-- /assert:alias -->");
+      const md = synthesized.join("\n");
 
-    const failures = aliasExists(md, corePath, []);
-    // The line carries three alias tokens; each should fail.
-    expect(failures.length).toBeGreaterThanOrEqual(3);
+      const failures = aliasExists(md, corePath, []);
+      // The line carries three alias tokens; each should fail.
+      expect(failures.length).toBeGreaterThanOrEqual(3);
 
-    const lineNumbers = new Set(failures.map((f) => f.line));
-    expect(lineNumbers.has(95)).toBe(true);
+      const lineNumbers = new Set(failures.map((f) => f.line));
+      expect(lineNumbers.has(95)).toBe(true);
 
-    const onTargetLine = failures.filter((f) => f.line === 95);
-    expect(onTargetLine.length).toBeGreaterThanOrEqual(3);
-    for (const f of onTargetLine) {
-      expect(f.rule).toBe("alias-exists");
-      expect(f.file).toBe(corePath);
-    }
-    const subjects = new Set(onTargetLine.map((f) => f.subject));
-    expect(subjects.has("za")).toBe(true);
-    expect(subjects.has("zb")).toBe(true);
-    expect(subjects.has("zc")).toBe(true);
-  });
-});
+      const onTargetLine = failures.filter((f) => f.line === 95);
+      expect(onTargetLine.length).toBeGreaterThanOrEqual(3);
+      for (const f of onTargetLine) {
+        expect(f.rule).toBe("alias-exists");
+        expect(f.file).toBe(corePath);
+      }
+      const subjects = new Set(onTargetLine.map((f) => f.subject));
+      expect(subjects.has("za")).toBe(true);
+      expect(subjects.has("zb")).toBe(true);
+      expect(subjects.has("zc")).toBe(true);
+    });
+  },
+);

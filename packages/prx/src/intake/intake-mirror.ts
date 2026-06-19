@@ -30,10 +30,7 @@ import { execBd } from "@bounded-systems/bd";
 import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import { execGh, type GhExecResult } from "@bounded-systems/gh";
 import { repoNameWithOwner as defaultRepoNameWithOwner } from "../pr-state/github.ts";
-import {
-  loadAllBeads as defaultLoadAllBeads,
-  type BeadsRecord,
-} from "../triage/triage.ts";
+import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../triage/triage.ts";
 import { IntakeViewError, resolveIntakeViewId } from "./intake-id.ts";
 
 export const intakeMirrorOptionsSchema = z.object({
@@ -81,8 +78,7 @@ export class IntakeMirrorError extends Error {
   }
 }
 
-const ISSUE_URL_PREFIX_RE =
-  /^https?:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/issues\/\d+/;
+const ISSUE_URL_PREFIX_RE = /^https?:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/issues\/\d+/;
 
 function extractRepoFromUrl(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -139,42 +135,28 @@ function fetchGhTitle(
     processEnv(),
   );
   if (result.exitCode !== 0) {
-    const detail =
-      result.stderr.trim() || result.stdout.trim() || "gh issue view failed";
-    throw new IntakeMirrorError(
-      `prx intake mirror: ${detail}`,
-      result.exitCode || 1,
-    );
+    const detail = result.stderr.trim() || result.stdout.trim() || "gh issue view failed";
+    throw new IntakeMirrorError(`prx intake mirror: ${detail}`, result.exitCode || 1);
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(result.stdout);
   } catch {
-    throw new IntakeMirrorError(
-      "prx intake mirror: gh issue view --json returned invalid JSON",
-    );
+    throw new IntakeMirrorError("prx intake mirror: gh issue view --json returned invalid JSON");
   }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new IntakeMirrorError(
-      "prx intake mirror: gh issue view --json returned non-object",
-    );
+    throw new IntakeMirrorError("prx intake mirror: gh issue view --json returned non-object");
   }
   const r = parsed as Record<string, unknown>;
   const title = typeof r.title === "string" ? r.title : "";
   const url = typeof r.url === "string" ? r.url : "";
   if (!title) {
-    throw new IntakeMirrorError(
-      "prx intake mirror: gh issue view --json missing title",
-    );
+    throw new IntakeMirrorError("prx intake mirror: gh issue view --json missing title");
   }
   return { title, url };
 }
 
-function findExisting(
-  records: BeadsRecord[],
-  ghNumber: number,
-  repo: string,
-): BeadsRecord | null {
+function findExisting(records: BeadsRecord[], ghNumber: number, repo: string): BeadsRecord | null {
   // GH-2254: an issue number can carry more than one bd record when bd's
   // short-id recycling has left a closed phantom colliding on the live
   // canonical's pin. The idempotent no-op must bind to the *open* canonical,
@@ -229,9 +211,7 @@ export function runIntakeMirror(
       return err.exitCode;
     }
     if (err instanceof IntakeViewError) {
-      output.error(
-        err.message.replace(/^prx intake view:/, "prx intake mirror:"),
-      );
+      output.error(err.message.replace(/^prx intake view:/, "prx intake mirror:"));
       return err.exitCode;
     }
     throw err;
@@ -258,9 +238,7 @@ export function runIntakeMirror(
   try {
     records = loader(bdExec);
   } catch (err) {
-    output.error(
-      `prx intake mirror: ${(err as Error).message.replace(/^triage status: /, "")}`,
-    );
+    output.error(`prx intake mirror: ${(err as Error).message.replace(/^triage status: /, "")}`);
     return 1;
   }
   const existing = findExisting(records, ghNumber, repo);
@@ -313,9 +291,7 @@ export function runIntakeMirror(
   const createResult = run(["prx", "beads", "create", ...createArgs], { check: false });
   if (createResult.status !== 0) {
     const detail =
-      createResult.stderr.trim() ||
-      createResult.stdout.trim() ||
-      "prx beads create failed";
+      createResult.stderr.trim() || createResult.stdout.trim() || "prx beads create failed";
     output.error(`prx intake mirror: ${detail}`);
     return createResult.status || 1;
   }

@@ -9,12 +9,18 @@ const ok = (text: string): NonInteractiveAgentResult => ({
   kind: "success",
   text,
   stdout: text,
-  usage: { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+  usage: {
+    input_tokens: 0,
+    output_tokens: 0,
+    cache_creation_input_tokens: 0,
+    cache_read_input_tokens: 0,
+  },
   elapsed_ms: 1,
 });
 
 // A signer that records what it signed and returns a deterministic signature.
-const recordingSigner = (signed: Array<{ role: string; outputHash: string }>): RoleSigner =>
+const recordingSigner =
+  (signed: Array<{ role: string; outputHash: string }>): RoleSigner =>
   async ({ role, subject, outputHash }) => {
     signed.push({ role, outputHash });
     return { signedBy: `${role}@key`, sig: `sig(${subject}#${outputHash.slice(0, 8)})` };

@@ -26,7 +26,14 @@ function pod(rooms: RoomInput[], over: Partial<z.input<typeof PodSpecSchema>> = 
 const consumer = (doors: RoomInput["doors"]): RoomInput => ({ name: "consumer", doors });
 const beadsdProvider: RoomInput = {
   name: "beadsd-room",
-  doors: [{ name: "beadsd", direction: "expose", capability: "beads:read", socket: "/run/prx/doors/beadsd.sock" }],
+  doors: [
+    {
+      name: "beadsd",
+      direction: "expose",
+      capability: "beads:read",
+      socket: "/run/prx/doors/beadsd.sock",
+    },
+  ],
 };
 
 describe("PodSpecSchema", () => {
@@ -57,12 +64,23 @@ describe("resolvePodDoors", () => {
 
   test("a sealed (closed) consume is skipped, not wired", () => {
     const c = consumer([
-      { name: "beadsd", direction: "consume", capability: "beads:read", socket: "/x", state: "closed" },
+      {
+        name: "beadsd",
+        direction: "consume",
+        capability: "beads:read",
+        socket: "/x",
+        state: "closed",
+      },
     ]);
     const { resolved, diagnostics } = resolvePodDoors(pod([c, beadsdProvider]));
     expect(resolved).toEqual([]);
     expect(diagnostics).toEqual([
-      { code: "closed", room: "consumer", capability: "beads:read", message: expect.stringContaining("sealed") },
+      {
+        code: "closed",
+        room: "consumer",
+        capability: "beads:read",
+        message: expect.stringContaining("sealed"),
+      },
     ]);
   });
 
@@ -78,9 +96,19 @@ describe("resolvePodDoors", () => {
   test("a CLOSED exposed door does not provide (the seam is sealed)", () => {
     const sealedProvider: RoomInput = {
       name: "p2",
-      doors: [{ name: "beadsd", direction: "expose", capability: "beads:read", socket: "/s", state: "closed" }],
+      doors: [
+        {
+          name: "beadsd",
+          direction: "expose",
+          capability: "beads:read",
+          socket: "/s",
+          state: "closed",
+        },
+      ],
     };
-    const c = consumer([{ name: "beadsd", direction: "consume", capability: "beads:read", socket: "/x" }]);
+    const c = consumer([
+      { name: "beadsd", direction: "consume", capability: "beads:read", socket: "/x" },
+    ]);
     const { resolved, diagnostics } = resolvePodDoors(pod([c, sealedProvider]));
     expect(resolved).toEqual([]);
     expect(diagnostics[0]?.code).toBe("unresolved");
@@ -105,7 +133,12 @@ describe("podRoomEnv — the keystone", () => {
     const keeperdProvider: RoomInput = {
       name: "keeperd-room",
       doors: [
-        { name: "keeperd", direction: "expose", capability: "git:write", socket: "/run/prx/doors/keeperd.sock" },
+        {
+          name: "keeperd",
+          direction: "expose",
+          capability: "git:write",
+          socket: "/run/prx/doors/keeperd.sock",
+        },
       ],
     };
     expect(podRoomEnv(pod([c, keeperdProvider]), "consumer")).toEqual({
@@ -134,7 +167,10 @@ describe("perRepoPod", () => {
 
   test("wires claude-room's beadsd + keeperd consumes; control stays sealed", () => {
     const { resolved, diagnostics } = resolvePodDoors(perRepoPod);
-    const caps = resolved.filter((r) => r.consumer === "claude-room").map((r) => r.capability).sort();
+    const caps = resolved
+      .filter((r) => r.consumer === "claude-room")
+      .map((r) => r.capability)
+      .sort();
     expect(caps).toEqual(["beads:read", "git:write"]);
     // The session:control door is EXPOSED+closed on claude-room → not a consume,
     // so it never appears as resolved or as a diagnostic.

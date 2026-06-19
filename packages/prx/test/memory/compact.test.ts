@@ -55,7 +55,11 @@ function makeDeps(
   beads: BeadsRecord[],
   pinnedIds: Set<string> = new Set(),
   over: Partial<RunMemoryCompactDeps> = {},
-): { deps: RunMemoryCompactDeps; cap: Captured; output: { log: (l: string) => void; error: (l: string) => void } } {
+): {
+  deps: RunMemoryCompactDeps;
+  cap: Captured;
+  output: { log: (l: string) => void; error: (l: string) => void };
+} {
   const cap: Captured = { rows: [], compactCalls: [], depCalls: 0, logs: [], errs: [] };
   const deps: RunMemoryCompactDeps = {
     cwd: () => "/repo",
@@ -67,7 +71,12 @@ function makeDeps(
         const rows = Array.from(pinnedIds).map((id) => ({ id }));
         return { exitCode: 0, stdout: JSON.stringify(rows), stderr: "", policy: null };
       }
-      return { exitCode: 1, stdout: "", stderr: `unexpected execBd subcommand: ${opts.subcommand}`, policy: null };
+      return {
+        exitCode: 1,
+        stdout: "",
+        stderr: `unexpected execBd subcommand: ${opts.subcommand}`,
+        policy: null,
+      };
     },
     runBdAdminCompact: (cwd, opts): BdAdminCompactResult => {
       cap.compactCalls.push({ cwd, opts });
@@ -77,7 +86,12 @@ function makeDeps(
       };
     },
     appendAuditRow: (row) => cap.rows.push(row),
-    getAuditRuntimeContext: () => ({ verb: "memory.compact", actor: "test-actor", ghTruthReason: null, source: null }),
+    getAuditRuntimeContext: () => ({
+      verb: "memory.compact",
+      actor: "test-actor",
+      ghTruthReason: null,
+      source: null,
+    }),
     now: () => FIXED_NOW,
     ...over,
   };
@@ -95,7 +109,9 @@ function defaultOpts(over: Partial<RunMemoryCompactOptions> = {}): RunMemoryComp
 function summaryRow(rows: unknown[]): Record<string, unknown> {
   const row = rows.find(
     (r): r is Record<string, unknown> =>
-      typeof r === "object" && r !== null && (r as Record<string, unknown>).kind === "memory-compact-run",
+      typeof r === "object" &&
+      r !== null &&
+      (r as Record<string, unknown>).kind === "memory-compact-run",
   );
   expect(row).toBeDefined();
   return row as Record<string, unknown>;
@@ -104,7 +120,9 @@ function summaryRow(rows: unknown[]): Record<string, unknown> {
 function recordRows(rows: unknown[]): Record<string, unknown>[] {
   return rows.filter(
     (r): r is Record<string, unknown> =>
-      typeof r === "object" && r !== null && (r as Record<string, unknown>).kind === "memory-compact-record",
+      typeof r === "object" &&
+      r !== null &&
+      (r as Record<string, unknown>).kind === "memory-compact-record",
   );
 }
 
@@ -256,11 +274,7 @@ describe("runMemoryCompact — fixture work-graph", () => {
       bead({ id: "bd-adr-2", issueType: "adr", updatedAt: isoDaysAgo(120) }),
     ];
     const { deps, cap, output } = makeDeps(beads, new Set());
-    runMemoryCompact(
-      defaultOpts({ horizonDays: 90, preservedTypes: ["adr"] }),
-      output,
-      deps,
-    );
+    runMemoryCompact(defaultOpts({ horizonDays: 90, preservedTypes: ["adr"] }), output, deps);
     const summary = summaryRow(cap.rows);
     expect(summary.preservedByType).toBe(2);
     expect(summary.eligible).toBe(1);
@@ -276,11 +290,7 @@ describe("runMemoryCompact — fixture work-graph", () => {
       bead({ id: "bd-d", updatedAt: isoDaysAgo(120) }),
     ];
     const { deps, cap, output } = makeDeps(beads, new Set());
-    runMemoryCompact(
-      defaultOpts({ horizonDays: 90, limit: 2 }),
-      output,
-      deps,
-    );
+    runMemoryCompact(defaultOpts({ horizonDays: 90, limit: 2 }), output, deps);
     const summary = summaryRow(cap.rows);
     expect(summary.eligible).toBe(4);
     expect(summary.compacted).toBe(2);

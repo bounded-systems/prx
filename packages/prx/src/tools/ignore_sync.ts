@@ -91,9 +91,7 @@ export function ensurePrxExcludes(opts: EnsurePrxExcludesOptions): EnsurePrxExcl
     }
   }
 
-  const missingRules = excludeRules.filter(
-    (rule) => !lines.some((line) => line.trim() === rule),
-  );
+  const missingRules = excludeRules.filter((rule) => !lines.some((line) => line.trim() === rule));
 
   if (missingRules.length > 0 || excludeRemovedRules.length > 0) {
     const body = lines.filter((line) => line.length > 0);

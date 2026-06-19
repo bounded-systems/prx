@@ -41,7 +41,9 @@ function validate(data: Json, schema: Json): void {
   const ajv = new Ajv({ allErrors: true, strict: false });
   addFormats(ajv);
   if (!ajv.validate(schema, data)) {
-    const detail = (ajv.errors ?? []).map((e) => `  ${e.instancePath || "/"} ${e.message ?? ""}`).join("\n");
+    const detail = (ajv.errors ?? [])
+      .map((e) => `  ${e.instancePath || "/"} ${e.message ?? ""}`)
+      .join("\n");
     throw new Error(`community.json failed schema validation:\n${detail}`);
   }
 }
@@ -54,7 +56,11 @@ function flatten(obj: Json, prefix = ""): Map<string, string> {
     const path = prefix ? `${prefix}.${key}` : key;
     if (value !== null && typeof value === "object" && !Array.isArray(value)) {
       for (const [k, v] of flatten(value as Json, path)) out.set(k, v);
-    } else if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    } else if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
       out.set(path, String(value));
     }
   }

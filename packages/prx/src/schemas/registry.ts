@@ -51,7 +51,10 @@ export function schemaArtifacts(): SchemaArtifact[] {
   // The committed artifacts live under the PACKAGE root (packages/prx/schemas/),
   // not the git root — matching the export-* scripts' `resolve(here, "..")`.
   const pkgRoot = resolve(getRepoRoot(), "packages/prx");
-  const at = (rel: string, content: string): SchemaArtifact => ({ path: resolve(pkgRoot, rel), content });
+  const at = (rel: string, content: string): SchemaArtifact => ({
+    path: resolve(pkgRoot, rel),
+    content,
+  });
   const out: SchemaArtifact[] = [];
 
   // audit — src/audit/artifact-types.ts
@@ -60,7 +63,12 @@ export function schemaArtifacts(): SchemaArtifact[] {
     { name: "artifact-status", schema: artifactStatusSchema },
     { name: "artifact-slot", schema: artifactSlotSchema },
   ] as const) {
-    out.push(at(`schemas/audit/${name}.json`, ser(toJsonSchemaArtifact(schema, `audit_${name.replace(/-/g, "_")}`))));
+    out.push(
+      at(
+        `schemas/audit/${name}.json`,
+        ser(toJsonSchemaArtifact(schema, `audit_${name.replace(/-/g, "_")}`)),
+      ),
+    );
   }
 
   // contracts — the trinity + the lifecycle axis
@@ -77,18 +85,40 @@ export function schemaArtifacts(): SchemaArtifact[] {
     { file: "delegation-record", schema: delegationRecordSchema, name: "delegation_record" },
     { file: "sprint-plan", schema: sprintPlanSchema, name: "sprint_plan" },
   ] as const) {
-    out.push(at(`schemas/contracts/lifecycle/${file}.json`, ser(toJsonSchemaArtifact(schema, name))));
+    out.push(
+      at(`schemas/contracts/lifecycle/${file}.json`, ser(toJsonSchemaArtifact(schema, name))),
+    );
   }
 
   // derive — one per fact relation
   for (const name of factRelations) {
-    out.push(at(`schemas/derive/${name}.json`, ser(toJsonSchemaArtifact(factSchemas[name], `derive_${name}`))));
+    out.push(
+      at(
+        `schemas/derive/${name}.json`,
+        ser(toJsonSchemaArtifact(factSchemas[name], `derive_${name}`)),
+      ),
+    );
   }
 
   // graph / health / readme — single schemas
-  out.push(at("schemas/graph/project-graph.schema.json", ser(toJsonSchemaArtifact(ProjectGraph, PROJECT_GRAPH_SCHEMA_NAME))));
-  out.push(at("schemas/health/health.schema.json", ser(toJsonSchemaArtifact(CodeHealthReport, CODE_HEALTH_SCHEMA_NAME))));
-  out.push(at("schemas/readme/readme.schema.json", ser(toJsonSchemaArtifact(ReadmeModel, README_MODEL_SCHEMA_NAME))));
+  out.push(
+    at(
+      "schemas/graph/project-graph.schema.json",
+      ser(toJsonSchemaArtifact(ProjectGraph, PROJECT_GRAPH_SCHEMA_NAME)),
+    ),
+  );
+  out.push(
+    at(
+      "schemas/health/health.schema.json",
+      ser(toJsonSchemaArtifact(CodeHealthReport, CODE_HEALTH_SCHEMA_NAME)),
+    ),
+  );
+  out.push(
+    at(
+      "schemas/readme/readme.schema.json",
+      ser(toJsonSchemaArtifact(ReadmeModel, README_MODEL_SCHEMA_NAME)),
+    ),
+  );
 
   // intake — one per body type (its own JSON-Schema builder, not toJsonSchemaArtifact)
   for (const type of INTAKE_BODY_SCHEMA_TYPES) {
@@ -96,12 +126,27 @@ export function schemaArtifacts(): SchemaArtifact[] {
   }
 
   // scout
-  out.push(at("schemas/scout/notion.json", ser(toJsonSchemaArtifact(scoutNotionResultSchema, "scout_notion_result"))));
+  out.push(
+    at(
+      "schemas/scout/notion.json",
+      ser(toJsonSchemaArtifact(scoutNotionResultSchema, "scout_notion_result")),
+    ),
+  );
 
   // workspace — input + output per verb
   for (const verb of WORKSPACE_VERBS) {
-    out.push(at(`schemas/workspace/${verb}.input.json`, ser(toJsonSchemaArtifact(WORKSPACE_INPUT_SCHEMAS[verb], `workspace_${verb}_input`))));
-    out.push(at(`schemas/workspace/${verb}.output.json`, ser(toJsonSchemaArtifact(WORKSPACE_OUTPUT_SCHEMAS[verb], `workspace_${verb}_output`))));
+    out.push(
+      at(
+        `schemas/workspace/${verb}.input.json`,
+        ser(toJsonSchemaArtifact(WORKSPACE_INPUT_SCHEMAS[verb], `workspace_${verb}_input`)),
+      ),
+    );
+    out.push(
+      at(
+        `schemas/workspace/${verb}.output.json`,
+        ser(toJsonSchemaArtifact(WORKSPACE_OUTPUT_SCHEMAS[verb], `workspace_${verb}_output`)),
+      ),
+    );
   }
 
   return out;

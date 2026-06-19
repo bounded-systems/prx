@@ -3,11 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import {
-  buildSnapshot,
-  formatRunId,
-  writeSnapshot,
-} from "../../src/dep-research/snapshot.ts";
+import { buildSnapshot, formatRunId, writeSnapshot } from "../../src/dep-research/snapshot.ts";
 import { DepSnapshot } from "../../src/dep-research/schemas.ts";
 
 describe("buildSnapshot", () => {
@@ -90,9 +86,7 @@ describe("writeSnapshot", () => {
     const finalDir = writeSnapshot(snapshot, baseDir);
 
     expect(finalDir).toBe(join(baseDir, "xstate", "20260505T120000Z"));
-    const onDisk = JSON.parse(
-      readFileSync(join(finalDir, "snapshot.json"), "utf8"),
-    );
+    const onDisk = JSON.parse(readFileSync(join(finalDir, "snapshot.json"), "utf8"));
     expect(DepSnapshot.parse(onDisk)).toEqual(snapshot);
   });
 
@@ -140,14 +134,10 @@ describe("writeSnapshot", () => {
 
 describe("formatRunId", () => {
   test("renders UTC YYYYMMDDTHHMMSSZ", () => {
-    expect(formatRunId(new Date("2026-05-05T12:34:56.000Z"))).toBe(
-      "20260505T123456Z",
-    );
+    expect(formatRunId(new Date("2026-05-05T12:34:56.000Z"))).toBe("20260505T123456Z");
   });
 
   test("zero-pads single-digit fields", () => {
-    expect(formatRunId(new Date("2026-01-02T03:04:05.000Z"))).toBe(
-      "20260102T030405Z",
-    );
+    expect(formatRunId(new Date("2026-01-02T03:04:05.000Z"))).toBe("20260102T030405Z");
   });
 });

@@ -8,10 +8,7 @@
 import { describe, expect, test } from "bun:test";
 import { createActor } from "xstate";
 
-import {
-  fetchMachine,
-  type FetchRunContext,
-} from "../../../src/machine/machines/fetch.ts";
+import { fetchMachine, type FetchRunContext } from "../../../src/machine/machines/fetch.ts";
 
 function startMachine() {
   const actor = createActor(fetchMachine);
@@ -19,9 +16,10 @@ function startMachine() {
   return actor;
 }
 
-function snapshot(
-  actor: ReturnType<typeof startMachine>,
-): { value: unknown; context: FetchRunContext } {
+function snapshot(actor: ReturnType<typeof startMachine>): {
+  value: unknown;
+  context: FetchRunContext;
+} {
   const snap = actor.getSnapshot();
   return { value: snap.value, context: snap.context };
 }
@@ -65,9 +63,7 @@ describe("fetchMachine — success path", () => {
     expect(snapshot(actor).value).toBe("advancing");
     expect(snapshot(actor).context.pagesCommitted).toBe(1);
     expect(snapshot(actor).context.rowsWrittenTotal).toBe(2);
-    expect(snapshot(actor).context.lastSuccessfulUpdatedAt).toBe(
-      "2026-05-13T11:00:00Z",
-    );
+    expect(snapshot(actor).context.lastSuccessfulUpdatedAt).toBe("2026-05-13T11:00:00Z");
 
     actor.send({
       type: "FETCH_WATERMARK_ADVANCED",
@@ -97,9 +93,7 @@ describe("fetchMachine — success path", () => {
       hasMorePages: true,
     });
     expect(snapshot(actor).value).toBe("fetching");
-    expect(snapshot(actor).context.lastSuccessfulUpdatedAt).toBe(
-      "2026-05-13T10:00:00Z",
-    );
+    expect(snapshot(actor).context.lastSuccessfulUpdatedAt).toBe("2026-05-13T10:00:00Z");
   });
 });
 
@@ -151,9 +145,7 @@ describe("fetchMachine — failure paths", () => {
       lastSuccessfulUpdatedAt: "2026-05-13T10:00:00Z",
     });
     expect(snapshot(actor).value).toBe("failed_mid_fetch");
-    expect(snapshot(actor).context.lastSuccessfulUpdatedAt).toBe(
-      "2026-05-13T10:00:00Z",
-    );
+    expect(snapshot(actor).context.lastSuccessfulUpdatedAt).toBe("2026-05-13T10:00:00Z");
     expect(snapshot(actor).context.pagesCommitted).toBe(1);
   });
 

@@ -20,10 +20,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { ArtifactSlot, ArtifactType } from "../artifact-types.ts";
-import {
-  artifactStatusValues,
-  artifactTypeNames,
-} from "../artifact-types.ts";
+import { artifactStatusValues, artifactTypeNames } from "../artifact-types.ts";
 import {
   type AuditEvent,
   type GuardedTransition,
@@ -162,9 +159,7 @@ function upsertEvent(db: Database, source: string, row: RawAuditRow): boolean {
   const artifact_ref = rowArtifactRef(row);
   const raw_json = JSON.stringify(row);
 
-  const existing = db
-    .query("SELECT 1 FROM events WHERE event_id = ?")
-    .get(event_id);
+  const existing = db.query("SELECT 1 FROM events WHERE event_id = ?").get(event_id);
   if (existing) return false;
 
   db.run(
@@ -198,9 +193,12 @@ function parseTransition(raw: RawAuditRow): TransitionRow | null {
     state_to: raw.state_to,
     actor: typeof raw.actor === "string" ? raw.actor : "unknown",
     artifact: typeof raw.artifact === "string" ? raw.artifact : null,
-    ts: typeof raw.timestamp === "string"
-      ? raw.timestamp
-      : (typeof raw.ts === "string" ? raw.ts : new Date(0).toISOString()),
+    ts:
+      typeof raw.timestamp === "string"
+        ? raw.timestamp
+        : typeof raw.ts === "string"
+          ? raw.ts
+          : new Date(0).toISOString(),
     proof_commit: typeof proof?.commit === "string" ? proof.commit : null,
     proof_checks_json: Array.isArray(proof?.checks) ? JSON.stringify(proof.checks) : null,
   };
@@ -212,7 +210,17 @@ function upsertTransition(db: Database, t: TransitionRow): boolean {
   db.run(
     `INSERT INTO transitions (id, issue, state_from, state_to, actor, artifact, ts, proof_commit, proof_checks_json)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [t.id, t.issue, t.state_from, t.state_to, t.actor, t.artifact, t.ts, t.proof_commit, t.proof_checks_json],
+    [
+      t.id,
+      t.issue,
+      t.state_from,
+      t.state_to,
+      t.actor,
+      t.artifact,
+      t.ts,
+      t.proof_commit,
+      t.proof_checks_json,
+    ],
   );
   return true;
 }
@@ -298,14 +306,7 @@ function writeSlots(db: Database, slots: ArtifactSlot[]): void {
        last_seen_ts = excluded.last_seen_ts`,
   );
   for (const s of slots) {
-    upsert.run(
-      s.uow_id,
-      s.type,
-      s.status,
-      s.ref,
-      JSON.stringify(s.input_refs),
-      s.last_seen_ts,
-    );
+    upsert.run(s.uow_id, s.type, s.status, s.ref, JSON.stringify(s.input_refs), s.last_seen_ts);
   }
 }
 
@@ -314,7 +315,12 @@ function writeSlots(db: Database, slots: ArtifactSlot[]): void {
 function writeFindings(
   db: Database,
   ts: string,
-  findings: ReadonlyArray<{ id: string; severity: string; message: string; uow_id?: string | null }>,
+  findings: ReadonlyArray<{
+    id: string;
+    severity: string;
+    message: string;
+    uow_id?: string | null;
+  }>,
 ): number {
   if (findings.length === 0) return 0;
   const insert = db.prepare(
@@ -322,13 +328,7 @@ function writeFindings(
      VALUES (?, ?, ?, ?, ?)`,
   );
   for (const f of findings) {
-    insert.run(
-      f.uow_id ?? null,
-      f.id,
-      f.severity,
-      JSON.stringify({ message: f.message }),
-      ts,
-    );
+    insert.run(f.uow_id ?? null, f.id, f.severity, JSON.stringify({ message: f.message }), ts);
   }
   return findings.length;
 }
@@ -336,11 +336,15 @@ function writeFindings(
 function selectEventsForInvariants(db: Database): AuditEvent[] {
   return db
     .query<
-      { ts: string; uow_id: string | null; actor: string; action: string; artifact_type: string | null },
+      {
+        ts: string;
+        uow_id: string | null;
+        actor: string;
+        action: string;
+        artifact_type: string | null;
+      },
       []
-    >(
-      `SELECT ts, uow_id, actor, action, artifact_type FROM events`,
-    )
+    >(`SELECT ts, uow_id, actor, action, artifact_type FROM events`)
     .all()
     .map((r) => ({
       ts: r.ts,
@@ -353,10 +357,7 @@ function selectEventsForInvariants(db: Database): AuditEvent[] {
 
 function selectTransitionsForGuards(db: Database): GuardedTransition[] {
   const rows = db
-    .query<
-      { issue: string | null; state_from: string; state_to: string; ts: string },
-      []
-    >(
+    .query<{ issue: string | null; state_from: string; state_to: string; ts: string }, []>(
       `SELECT issue, state_from, state_to, ts FROM transitions ORDER BY ts ASC`,
     )
     .all();

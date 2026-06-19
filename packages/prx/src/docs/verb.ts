@@ -48,10 +48,20 @@ async function collectTargets(root: string): Promise<DocTarget[]> {
   return [
     { name: "jsonld", path: graph.GRAPH_OUTPUT, content: graph.renderGraph(), gated: true },
     { name: "readme", path: readme.README_OUTPUT, content: readme.renderReadme(), gated: true },
-    { name: "claude-context", path: ctx.CONTEXT_OUTPUT, content: ctx.renderContextDoc(), gated: true },
+    {
+      name: "claude-context",
+      path: ctx.CONTEXT_OUTPUT,
+      content: ctx.renderContextDoc(),
+      gated: true,
+    },
     // cli.md is rendered but NOT drift-gated: the command set grows on main faster
     // than a branch can track (mirrors docs:check, which omits cli:check).
-    { name: "cli", path: resolve(root, "docs/cli.md"), content: cliDocs.generateCliDoc() + "\n", gated: false },
+    {
+      name: "cli",
+      path: resolve(root, "docs/cli.md"),
+      content: cliDocs.generateCliDoc() + "\n",
+      gated: false,
+    },
     ...community.renderCommunityTargets().map((c) => ({
       name: `community:${c.output}`,
       path: resolve(root, c.output),
@@ -63,11 +73,15 @@ async function collectTargets(root: string): Promise<DocTarget[]> {
 
 export const docsVerb = defineVerb({
   id: "docs",
-  summary: "Render (or --check) the generated docs: jsonld, readme, community, cli, claude-context.",
+  summary:
+    "Render (or --check) the generated docs: jsonld, readme, community, cli, claude-context.",
   actor: "work",
   input: z.object({
     check: z.boolean().optional().describe("validate drift instead of writing files"),
-    only: z.string().optional().describe("restrict to one target: jsonld|readme|community|cli|claude-context"),
+    only: z
+      .string()
+      .optional()
+      .describe("restrict to one target: jsonld|readme|community|cli|claude-context"),
   }),
   output: DocsReport,
   run: async ({ check = false, only }): Promise<DocsReport> => {
@@ -75,9 +89,13 @@ export const docsVerb = defineVerb({
     const all = await collectTargets(root);
     // `--only X` selects target X (and community:* for `--only community`); an
     // explicit selection is always checked, even cli (which the aggregate skips).
-    const targets = only ? all.filter((t) => t.name === only || t.name.startsWith(`${only}:`)) : all;
+    const targets = only
+      ? all.filter((t) => t.name === only || t.name.startsWith(`${only}:`))
+      : all;
     if (only && targets.length === 0) {
-      throw new Error(`unknown docs target: ${only} (expected jsonld|readme|community|cli|claude-context)`);
+      throw new Error(
+        `unknown docs target: ${only} (expected jsonld|readme|community|cli|claude-context)`,
+      );
     }
     const results: DocsReport["targets"] = [];
     let driftCount = 0;

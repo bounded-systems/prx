@@ -190,12 +190,12 @@ export function formatProjectionReport(
     skipped: report.rows.filter((r) => r.action === "skipped").length,
     unchanged: report.rows.filter((r) => r.action === "unchanged").length,
   };
-  lines.push(`rows: ${counts.updated} updated, ${counts.skipped} skipped, ${counts.unchanged} unchanged`);
+  lines.push(
+    `rows: ${counts.updated} updated, ${counts.skipped} skipped, ${counts.unchanged} unchanged`,
+  );
   for (const row of report.rows.slice(0, 20)) {
     const ghPart = row.gh_issue !== null ? ` (GH-${row.gh_issue})` : "";
-    const diffs = row.diffs
-      .map((d) => `${d.field}=${d.after ?? "—"}`)
-      .join(", ");
+    const diffs = row.diffs.map((d) => `${d.field}=${d.after ?? "—"}`).join(", ");
     lines.push(`  ${row.action.padEnd(9)} ${row.bd_id}${ghPart} [${row.thread}] → ${diffs}`);
   }
   if (report.rows.length > 20) {

@@ -106,12 +106,15 @@ export function runPhase(
   const start = Date.now();
   output.error(`LOCAL_CI_STARTED phase=${phase}`);
   spec.prepare?.();
-  const r = format === "plain"
-    ? (deps.run ?? defaultRunner)(spec.argv, { stdio: "inherit", check: false })
-    : (deps.capture ?? runCaptured)(spec.argv, { check: false });
+  const r =
+    format === "plain"
+      ? (deps.run ?? defaultRunner)(spec.argv, { stdio: "inherit", check: false })
+      : (deps.capture ?? runCaptured)(spec.argv, { check: false });
   const status = r.status;
   const durationMs = Date.now() - start;
-  output.error(`${status === 0 ? "LOCAL_CI_PASSED" : "LOCAL_CI_FAILED"} phase=${phase} duration_ms=${durationMs}`);
+  output.error(
+    `${status === 0 ? "LOCAL_CI_PASSED" : "LOCAL_CI_FAILED"} phase=${phase} duration_ms=${durationMs}`,
+  );
   if (format === "json") {
     return {
       phase,
@@ -126,11 +129,7 @@ export function runPhase(
 
 /** The phase executor, injectable so the partial-pass result surfacing is
  *  testable without running the real (heavy) phases. */
-export type RunPhaseFn = (
-  phase: CiPhase,
-  format: "plain" | "json",
-  output: Output,
-) => PhaseResult;
+export type RunPhaseFn = (phase: CiPhase, format: "plain" | "json", output: Output) => PhaseResult;
 
 export function runCiPhases(
   opts: CiOptions,
@@ -150,7 +149,9 @@ export function runCiPhases(
     const passed = results.filter((r) => r.status === 0).length;
     const failed = results.find((r) => r.status !== 0);
     if (failed) {
-      output.error(`prx ci: failed at phase=${failed.phase} (passed ${passed} of ${phases.length})`);
+      output.error(
+        `prx ci: failed at phase=${failed.phase} (passed ${passed} of ${phases.length})`,
+      );
     } else {
       output.error(`prx ci: passed ${passed} of ${phases.length} phases`);
     }

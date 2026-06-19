@@ -39,11 +39,7 @@ export type HomeSyncDeps = {
   runner?: CommandRunner;
   worktreeStatus?: (path: string, runner?: CommandRunner) => WorktreeStatus;
   prepareMainx?: (toplevel: string) => string;
-  runHomeUpdate?: (
-    options: HomeUpdateOptions,
-    output: Output,
-    deps?: HomeUpdateDeps,
-  ) => number;
+  runHomeUpdate?: (options: HomeUpdateOptions, output: Output, deps?: HomeUpdateDeps) => number;
   /** Forwarded to runHomeUpdate. Tests typically stub runHomeUpdate entirely; in prod this is omitted so runHomeUpdate falls back to its real defaults. */
   homeUpdateDeps?: HomeUpdateDeps;
 };
@@ -54,7 +50,8 @@ function resolveToplevel(spawn: HomeSyncSpawn, cwd: string): string | null {
   const result = spawn("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8" });
   if (result.error) return null;
   if ((result.status ?? 1) !== 0) return null;
-  const stdout = typeof result.stdout === "string" ? result.stdout : (result.stdout?.toString() ?? "");
+  const stdout =
+    typeof result.stdout === "string" ? result.stdout : (result.stdout?.toString() ?? "");
   const trimmed = stdout.trim();
   return trimmed.length > 0 ? trimmed : null;
 }

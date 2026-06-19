@@ -36,9 +36,7 @@ function toFinding(entry: RepoGcEntry): GcFinding {
 
 /** The reclaimable orphans of a report: `would-sweep` entries with a real path. */
 function reclaimable(report: RepoGcReport): GcFinding[] {
-  return report.entries
-    .filter((e) => e.action === "would-sweep" && e.orphanPath)
-    .map(toFinding);
+  return report.entries.filter((e) => e.action === "would-sweep" && e.orphanPath).map(toFinding);
 }
 
 export function createRepoDriver(deps: GcDriverDeps): GcDriver {
@@ -76,9 +74,7 @@ export function createRepoDriver(deps: GcDriverDeps): GcDriver {
           failures.push(`${ref}: refused (${e.refusalReason ?? "precondition"})`);
         }
       }
-      return failures.length > 0
-        ? { reclaimed, failed: failures.join("; ") }
-        : { reclaimed };
+      return failures.length > 0 ? { reclaimed, failed: failures.join("; ") } : { reclaimed };
     },
   };
 }

@@ -14,7 +14,9 @@ const fail = (stderr: string): RunResult => ({ status: 1, stdout: "", stderr });
 const OPTS = { vm: "myvm", vmSocket: "/vm/daemon.sock", hostSocket: "/tmp/daemon-host.sock" };
 
 /** A run recorder that answers show-ssh + ssh by default; overridable per-cmd. */
-function recorder(answer: (cmd: string, args: string[]) => RunResult | undefined = () => undefined) {
+function recorder(
+  answer: (cmd: string, args: string[]) => RunResult | undefined = () => undefined,
+) {
   const calls: { cmd: string; args: string[] }[] = [];
   const run = (cmd: string, args: string[]): RunResult => {
     calls.push({ cmd, args });
@@ -50,7 +52,9 @@ describe("openLimaChannel", () => {
     expect(ch.transport).toBe(fakeTransport);
 
     await ch.close();
-    const exit = calls.find((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit"));
+    const exit = calls.find(
+      (c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit"),
+    );
     expect(exit).toBeDefined();
     // close() is idempotent — a second call issues no further exit.
     const before = calls.length;
@@ -72,13 +76,18 @@ describe("openLimaChannel", () => {
     await expect(
       openLimaChannel(OPTS, { run, exists: () => false, sleep: async () => {} }),
     ).rejects.toThrow(/forward failed/);
-    expect(calls.some((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit"))).toBe(true);
+    expect(
+      calls.some((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit")),
+    ).toBe(true);
   });
 
   test("throws if the forwarded socket never appears", async () => {
     const { run } = recorder();
     await expect(
-      openLimaChannel({ ...OPTS, readyTimeoutMs: 100 }, { run, exists: () => false, sleep: async () => {} }),
+      openLimaChannel(
+        { ...OPTS, readyTimeoutMs: 100 },
+        { run, exists: () => false, sleep: async () => {} },
+      ),
     ).rejects.toThrow(/did not appear/);
   });
 });
@@ -86,7 +95,12 @@ describe("openLimaChannel", () => {
 describe("withLimaChannel", () => {
   test("runs fn with the transport over the channel, then closes the forward", async () => {
     const { calls, run } = recorder();
-    const deps: LimaChannelDeps = { run, exists: () => true, sleep: async () => {}, makeTransport: () => fakeTransport };
+    const deps: LimaChannelDeps = {
+      run,
+      exists: () => true,
+      sleep: async () => {},
+      makeTransport: () => fakeTransport,
+    };
     let seen: FramedTransport | undefined;
     const result = await withLimaChannel(
       OPTS,
@@ -98,17 +112,30 @@ describe("withLimaChannel", () => {
     );
     expect(result).toBe("done");
     expect(seen).toBe(fakeTransport);
-    expect(calls.some((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit"))).toBe(true);
+    expect(
+      calls.some((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit")),
+    ).toBe(true);
   });
 
   test("closes the forward even when fn throws", async () => {
     const { calls, run } = recorder();
-    const deps: LimaChannelDeps = { run, exists: () => true, sleep: async () => {}, makeTransport: () => fakeTransport };
+    const deps: LimaChannelDeps = {
+      run,
+      exists: () => true,
+      sleep: async () => {},
+      makeTransport: () => fakeTransport,
+    };
     await expect(
-      withLimaChannel(OPTS, async () => {
-        throw new Error("boom");
-      }, deps),
+      withLimaChannel(
+        OPTS,
+        async () => {
+          throw new Error("boom");
+        },
+        deps,
+      ),
     ).rejects.toThrow("boom");
-    expect(calls.some((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit"))).toBe(true);
+    expect(
+      calls.some((c) => c.cmd === "ssh" && c.args.includes("-O") && c.args.includes("exit")),
+    ).toBe(true);
   });
 });

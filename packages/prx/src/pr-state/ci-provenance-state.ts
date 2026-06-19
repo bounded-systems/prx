@@ -7,7 +7,12 @@
 // specific commit, which pins the tree), the *local* projection is exactly where
 // staleness is meaningful: HEAD may have advanced, or the worktree changed, since
 // CI ran — so the surfaced green could be stale.
-import type { Derivation, DerivationStore, Digest, Verifier } from "@bounded-systems/anchored-chain";
+import type {
+  Derivation,
+  DerivationStore,
+  Digest,
+  Verifier,
+} from "@bounded-systems/anchored-chain";
 
 import { projectProvenanceAxis } from "../provenance/merge-guard.ts";
 

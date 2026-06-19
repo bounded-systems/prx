@@ -44,7 +44,16 @@ import { PRX_SESSION_OPEN_ALIAS_HINT } from "../session_open.ts";
  * pure-ish and free of subprocess-spawning side-effects.
  */
 
-export const SESSION_CONTEXTS = ["mainx", "plan", "intake", "triage", "implement", "submit", "author", "scratch"] as const;
+export const SESSION_CONTEXTS = [
+  "mainx",
+  "plan",
+  "intake",
+  "triage",
+  "implement",
+  "submit",
+  "author",
+  "scratch",
+] as const;
 export type SessionContext = (typeof SESSION_CONTEXTS)[number];
 
 export type SessionEntryEvent =

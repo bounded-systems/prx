@@ -144,10 +144,9 @@ describe("runWorkspaceCli — lifecycle (unsigned fixture)", () => {
     expect(sync.exitCode).toBe(0);
     expect(sync.output).toContain("workspace.sync:");
 
-    const teardown = runWorkspaceCli(
-      parseWorkspaceArgs(["teardown", "--format", "json"]),
-      { cwd: fixture.repoDir },
-    );
+    const teardown = runWorkspaceCli(parseWorkspaceArgs(["teardown", "--format", "json"]), {
+      cwd: fixture.repoDir,
+    });
     expect(teardown.exitCode).toBe(0);
     expect((teardown.payload as { status: string }).status).toBe("torn-down");
   });
@@ -180,7 +179,11 @@ describe("runWorkspaceCli — lifecycle (unsigned fixture)", () => {
       { cwd: fixture.repoDir },
     );
     expect(materialize.exitCode).toBe(0);
-    const mat = materialize.payload as { workspace_id: string; worktree_path: string; status: string };
+    const mat = materialize.payload as {
+      workspace_id: string;
+      worktree_path: string;
+      status: string;
+    };
     cleanupPaths.push(mat.worktree_path);
     expect(mat.workspace_id).toBe(reservedId);
     expect(["created", "exists"]).toContain(mat.status);
@@ -196,10 +199,9 @@ describe("runWorkspaceCli — lifecycle (unsigned fixture)", () => {
     const reservedId = (reserve.payload as { workspace_id: string }).workspace_id;
 
     // Plain materialize → formatPlain renders the worktree_path line.
-    const mat = runWorkspaceCli(
-      parseWorkspaceArgs(["materialize", "--workspace-id", reservedId]),
-      { cwd: fixture.repoDir },
-    );
+    const mat = runWorkspaceCli(parseWorkspaceArgs(["materialize", "--workspace-id", reservedId]), {
+      cwd: fixture.repoDir,
+    });
     const matPayload = mat.payload as { worktree_path: string };
     cleanupPaths.push(matPayload.worktree_path);
     expect(mat.output).toContain("worktree_path=");

@@ -99,8 +99,7 @@ describe("openSession — real-git on-disk shape (intake)", () => {
       { actor: "intake", shortId: "abc123", now: "2026-05-26T00:00:00Z" },
       {
         // Real reserve/materialize/prepare; only dispatch + audit sink stubbed.
-        dispatchSessionEntry: () =>
-          ({ profile: "intake" }) as unknown as RuntimeProfileProjection,
+        dispatchSessionEntry: () => ({ profile: "intake" }) as unknown as RuntimeProfileProjection,
         recordEvent: ((event: string) => {
           events.push(event);
         }) as never,
@@ -132,9 +131,11 @@ describe("openSession — real-git on-disk shape (intake)", () => {
     const wsDir = join(mainx, ".git", "info", "workspace");
     const ledgerFiles = readdirSync(wsDir).filter((f) => f.endsWith(".json"));
     expect(ledgerFiles.length).toBe(1);
-    const ledger = JSON.parse(
-      readFileSync(join(wsDir, ledgerFiles[0]!), "utf8"),
-    ) as { state: string; worktree_path: string; branch: string };
+    const ledger = JSON.parse(readFileSync(join(wsDir, ledgerFiles[0]!), "utf8")) as {
+      state: string;
+      worktree_path: string;
+      branch: string;
+    };
     expect(ledger.state).toBe("prepared");
     expect(ledger.worktree_path).toBe(expectedPath);
     expect(ledger.branch).toBe(branch);
@@ -143,11 +144,7 @@ describe("openSession — real-git on-disk shape (intake)", () => {
     expect(events).toContain("SESSION_OPEN_MATERIALIZED");
 
     // 6. NO branch was pushed to the origin remote (§3.5).
-    const originRefs = git(originBare, [
-      "for-each-ref",
-      "--format=%(refname)",
-      "refs/heads",
-    ]);
+    const originRefs = git(originBare, ["for-each-ref", "--format=%(refname)", "refs/heads"]);
     expect(originRefs).not.toContain("intake/");
   });
 });

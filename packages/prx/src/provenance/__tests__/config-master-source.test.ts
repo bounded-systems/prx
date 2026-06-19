@@ -9,7 +9,8 @@ const noRead = (): string => {
 
 describe("resolveMasterSource", () => {
   test("PRX_PROVENANCE_MASTER_FILE that exists ⇒ operator-file (env wins)", () => {
-    const env = (k: string) => (k === "PRX_PROVENANCE_MASTER_FILE" ? "/run/secret/master" : undefined);
+    const env = (k: string) =>
+      k === "PRX_PROVENANCE_MASTER_FILE" ? "/run/secret/master" : undefined;
     expect(resolveMasterSource(env, noRead, (p) => p === "/run/secret/master")).toEqual({
       source: "operator-file",
       path: "/run/secret/master",
@@ -23,13 +24,22 @@ describe("resolveMasterSource", () => {
         ? JSON.stringify({ provenance: { masterFile: "/cfg/master" } })
         : noRead();
     const exists = (p: string) => p === "/home/u/.config/prx/config.json" || p === "/cfg/master";
-    expect(resolveMasterSource(env, read, exists)).toEqual({ source: "config-file", path: "/cfg/master" });
+    expect(resolveMasterSource(env, read, exists)).toEqual({
+      source: "config-file",
+      path: "/cfg/master",
+    });
   });
 
   test("env file configured but missing ⇒ falls through (here to dev-bootstrap)", () => {
     const env = (k: string) =>
       k === "PRX_PROVENANCE_MASTER_FILE" ? "/gone" : k === "HOME" ? "/home/u" : undefined;
-    expect(resolveMasterSource(env, () => "{}", () => false)).toEqual({
+    expect(
+      resolveMasterSource(
+        env,
+        () => "{}",
+        () => false,
+      ),
+    ).toEqual({
       source: "dev-bootstrap",
       path: null,
     });
@@ -37,7 +47,13 @@ describe("resolveMasterSource", () => {
 
   test("nothing configured ⇒ dev-bootstrap", () => {
     const env = (k: string) => (k === "HOME" ? "/home/u" : undefined);
-    expect(resolveMasterSource(env, () => "{}", () => false)).toEqual({
+    expect(
+      resolveMasterSource(
+        env,
+        () => "{}",
+        () => false,
+      ),
+    ).toEqual({
       source: "dev-bootstrap",
       path: null,
     });

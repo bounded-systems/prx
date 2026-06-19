@@ -12,16 +12,29 @@ import {
   type IntakeOptions,
 } from "../../src/intake/intake.ts";
 import type { BdExecResult } from "@bounded-systems/bd";
-import type { PublishCoreResult, BeadsPublishOptions, BeadsPublishDeps } from "../../src/beads/publish.ts";
+import type {
+  PublishCoreResult,
+  BeadsPublishOptions,
+  BeadsPublishDeps,
+} from "../../src/beads/publish.ts";
 
 // Helper: stub bd create that returns a fixed bd id so runIntake can
 // proceed past the bd-create step. Returns a fresh stub per test.
 function makeBdCreateStub(bdId = "ai-home-001"): {
   invocations: Array<{ subcommand: string; args: string[]; state?: string; role?: string }>;
-  exec: (opts: { subcommand: string; args: string[]; state?: string; role?: string }) => BdExecResult;
-  run: (cmd: string[], o?: { check?: boolean }) => { status: number; stdout: string; stderr: string };
+  exec: (opts: {
+    subcommand: string;
+    args: string[];
+    state?: string;
+    role?: string;
+  }) => BdExecResult;
+  run: (
+    cmd: string[],
+    o?: { check?: boolean },
+  ) => { status: number; stdout: string; stderr: string };
 } {
-  const invocations: Array<{ subcommand: string; args: string[]; state?: string; role?: string }> = [];
+  const invocations: Array<{ subcommand: string; args: string[]; state?: string; role?: string }> =
+    [];
   return {
     invocations,
     exec: (opts) => {
@@ -35,7 +48,12 @@ function makeBdCreateStub(bdId = "ai-home-001"): {
     // daemon (a sync runner) which echoes the record as JSON. Records the
     // equivalent invocation shape so the existing assertions hold.
     run: (cmd: string[]) => {
-      invocations.push({ subcommand: cmd[2] ?? "", args: cmd.slice(3), state: "planning", role: "planner" });
+      invocations.push({
+        subcommand: cmd[2] ?? "",
+        args: cmd.slice(3),
+        state: "planning",
+        role: "planner",
+      });
       return { status: 0, stdout: JSON.stringify({ id: bdId }), stderr: "" };
     },
   };
@@ -87,7 +105,9 @@ describe("composeTitle — prefix-aware idempotence (GH-1304)", () => {
     expect(composeTitle("feature", "feature(aws): rollout")).toBe("feature(aws): rollout");
     expect(composeTitle("chore", "chore(bd): consolidate")).toBe("chore(bd): consolidate");
     expect(composeTitle("spike", "spike(ci): explore")).toBe("spike(ci): explore");
-    expect(composeTitle("decision", "decision(prx): pick approach")).toBe("decision(prx): pick approach");
+    expect(composeTitle("decision", "decision(prx): pick approach")).toBe(
+      "decision(prx): pick approach",
+    );
   });
 
   test("matching bare prefix (no inner scope) is idempotent", () => {
@@ -107,18 +127,12 @@ describe("composeTitle — prefix-aware idempotence (GH-1304)", () => {
   });
 
   test("explicit --scope overrides the inner scope from the title", () => {
-    expect(composeTitle("bug", "bug(old): broken thing", "new")).toBe(
-      "bug(new): broken thing",
-    );
-    expect(composeTitle("feature", "feat(old): bar", "new")).toBe(
-      "feature(new): bar",
-    );
+    expect(composeTitle("bug", "bug(old): broken thing", "new")).toBe("bug(new): broken thing");
+    expect(composeTitle("feature", "feat(old): bar", "new")).toBe("feature(new): bar");
   });
 
   test("explicit --scope is added when title prefix has no inner scope", () => {
-    expect(composeTitle("bug", "bug: broken thing", "intake")).toBe(
-      "bug(intake): broken thing",
-    );
+    expect(composeTitle("bug", "bug: broken thing", "intake")).toBe("bug(intake): broken thing");
   });
 
   test("plain title (no prefix) keeps the existing behavior", () => {
@@ -132,21 +146,15 @@ describe("composeTitle — prefix mismatch (GH-1304)", () => {
     expect(() => composeTitle("bug", "chore(bd): consolidate stuff")).toThrow(
       IntakeTitleMismatchError,
     );
-    expect(() => composeTitle("task", "feature(prx): new verb")).toThrow(
-      IntakeTitleMismatchError,
-    );
-    expect(() => composeTitle("decision", "spike(prx): explore")).toThrow(
-      IntakeTitleMismatchError,
-    );
+    expect(() => composeTitle("task", "feature(prx): new verb")).toThrow(IntakeTitleMismatchError);
+    expect(() => composeTitle("decision", "spike(prx): explore")).toThrow(IntakeTitleMismatchError);
     expect(() => composeTitle("task", "decision(prx): pick approach")).toThrow(
       IntakeTitleMismatchError,
     );
   });
 
   test("conv-commit prefix without intake-type mapping (docs/refactor/test) throws", () => {
-    expect(() => composeTitle("task", "docs(README): update")).toThrow(
-      IntakeTitleMismatchError,
-    );
+    expect(() => composeTitle("task", "docs(README): update")).toThrow(IntakeTitleMismatchError);
     expect(() => composeTitle("bug", "refactor(core): split module")).toThrow(
       IntakeTitleMismatchError,
     );
@@ -183,9 +191,7 @@ describe("composeTitle — prefix mismatch (GH-1304)", () => {
   });
 
   test("alias mismatch: feat → feature, but flag says bug", () => {
-    expect(() => composeTitle("bug", "feat(prx): new verb")).toThrow(
-      IntakeTitleMismatchError,
-    );
+    expect(() => composeTitle("bug", "feat(prx): new verb")).toThrow(IntakeTitleMismatchError);
   });
 });
 
@@ -195,21 +201,19 @@ describe("composeBody", () => {
   });
 
   test("prepends surfaced-from banner with blank-line separator", () => {
-    expect(
-      composeBody({ surfacedFrom: "GH-666", userBody: "user body content" }),
-    ).toBe("_Surfaced from GH-666_\n\nuser body content");
-  });
-
-  test("emits banner alone when user body is empty", () => {
-    expect(composeBody({ surfacedFrom: "GH-1", userBody: "" })).toBe(
-      "_Surfaced from GH-1_",
+    expect(composeBody({ surfacedFrom: "GH-666", userBody: "user body content" })).toBe(
+      "_Surfaced from GH-666_\n\nuser body content",
     );
   });
 
+  test("emits banner alone when user body is empty", () => {
+    expect(composeBody({ surfacedFrom: "GH-1", userBody: "" })).toBe("_Surfaced from GH-1_");
+  });
+
   test("trims trailing whitespace from user body", () => {
-    expect(
-      composeBody({ surfacedFrom: "GH-1", userBody: "body\n\n\n" }),
-    ).toBe("_Surfaced from GH-1_\n\nbody");
+    expect(composeBody({ surfacedFrom: "GH-1", userBody: "body\n\n\n" })).toBe(
+      "_Surfaced from GH-1_\n\nbody",
+    );
   });
 });
 
@@ -231,10 +235,7 @@ describe("resolveSurfacedFrom", () => {
 describe("resolveBody", () => {
   test("--body-stdin reads from stdin", () => {
     expect(
-      resolveBody(
-        { bodyStdin: true },
-        { readStdin: () => "from stdin", readFile: () => "no" },
-      ),
+      resolveBody({ bodyStdin: true }, { readStdin: () => "from stdin", readFile: () => "no" }),
     ).toBe("from stdin");
   });
 
@@ -266,12 +267,9 @@ describe("resolveBody", () => {
   });
 
   test("returns empty string when no source provided", () => {
-    expect(
-      resolveBody(
-        { bodyStdin: false },
-        { readStdin: () => "no", readFile: () => "no" },
-      ),
-    ).toBe("");
+    expect(resolveBody({ bodyStdin: false }, { readStdin: () => "no", readFile: () => "no" })).toBe(
+      "",
+    );
   });
 });
 
@@ -467,7 +465,15 @@ describe("runIntake — --to gh projection (GH-1607)", () => {
             outcome: "created",
             bdId: opts.bdId,
             externalRef: "https://x/y/issues/1",
-            render: { bdId: opts.bdId, repo: "", title: "", outcome: "created", externalRef: "https://x/y/issues/1", dryRun: false, exitCode: 0 },
+            render: {
+              bdId: opts.bdId,
+              repo: "",
+              title: "",
+              outcome: "created",
+              externalRef: "https://x/y/issues/1",
+              dryRun: false,
+              exitCode: 0,
+            },
           } as PublishCoreResult;
         }) as never,
         detectBranchName: () => "main",
@@ -494,7 +500,15 @@ describe("runIntake — --to gh projection (GH-1607)", () => {
             outcome: "created",
             bdId: opts.bdId,
             externalRef: "https://x/y/issues/1",
-            render: { bdId: opts.bdId, repo: "", title: "", outcome: "created", externalRef: "https://x/y/issues/1", dryRun: false, exitCode: 0 },
+            render: {
+              bdId: opts.bdId,
+              repo: "",
+              title: "",
+              outcome: "created",
+              externalRef: "https://x/y/issues/1",
+              dryRun: false,
+              exitCode: 0,
+            },
           } as PublishCoreResult;
         }) as never,
         detectBranchName: () => "main",
@@ -549,7 +563,12 @@ describe("runIntake — --to gh projection (GH-1607)", () => {
         run: (() => ({ status: 1, stdout: "", stderr: "bd: out of space\n" })) as never,
         publishOne: (() => {
           publishCallCount++;
-          return { exitCode: 0, outcome: "noop", bdId: "x", render: { bdId: "x", repo: "", title: "", outcome: "noop", dryRun: false, exitCode: 0 } } as PublishCoreResult;
+          return {
+            exitCode: 0,
+            outcome: "noop",
+            bdId: "x",
+            render: { bdId: "x", repo: "", title: "", outcome: "noop", dryRun: false, exitCode: 0 },
+          } as PublishCoreResult;
         }) as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
@@ -593,15 +612,11 @@ describe("runIntake — --to gh projection (GH-1607)", () => {
 
 describe("composeStructuredBody", () => {
   test("description-only emits a single section", () => {
-    expect(composeStructuredBody({ description: "what" })).toBe(
-      "## Description\n\nwhat",
-    );
+    expect(composeStructuredBody({ description: "what" })).toBe("## Description\n\nwhat");
   });
 
   test("design-only emits a single section", () => {
-    expect(composeStructuredBody({ design: "how" })).toBe(
-      "## Design\n\nhow",
-    );
+    expect(composeStructuredBody({ design: "how" })).toBe("## Design\n\nhow");
   });
 
   test("acceptance-only emits Acceptance Criteria heading", () => {
@@ -611,9 +626,7 @@ describe("composeStructuredBody", () => {
   });
 
   test("notes-only emits a single section", () => {
-    expect(composeStructuredBody({ notes: "see Y" })).toBe(
-      "## Notes\n\nsee Y",
-    );
+    expect(composeStructuredBody({ notes: "see Y" })).toBe("## Notes\n\nsee Y");
   });
 
   test("all four fields render in fixed order with blank-line separators", () => {
@@ -1142,8 +1155,7 @@ describe("intakeOptionsSchema — per-type required-field validation (GH-1258)",
     if (!result.success) {
       const paths = result.error.issues.map((i) => i.path.join("."));
       expect(paths).toContain("acceptance");
-      const msg = result.error.issues.find((i) => i.path[0] === "acceptance")!
-        .message;
+      const msg = result.error.issues.find((i) => i.path[0] === "acceptance")!.message;
       expect(msg).toBe("acceptance: required");
     }
   });
@@ -1244,7 +1256,15 @@ function capturePublishLabels(
           outcome: "created",
           bdId: opts.bdId,
           externalRef: "https://x/y/issues/1",
-          render: { bdId: opts.bdId, repo: "", title: "", outcome: "created", externalRef: "https://x/y/issues/1", dryRun: false, exitCode: 0 },
+          render: {
+            bdId: opts.bdId,
+            repo: "",
+            title: "",
+            outcome: "created",
+            externalRef: "https://x/y/issues/1",
+            dryRun: false,
+            exitCode: 0,
+          },
         } as PublishCoreResult;
       }) as never,
       detectBranchName: () => "main",
@@ -1257,29 +1277,33 @@ function capturePublishLabels(
 
 describe("runIntake — type-label stamping (GH-1489)", () => {
   test("task intent projects type::task through publishOne extraLabels", () => {
-    const labels = capturePublishLabels(makeOptions({ type: "task", title: "wire up X", to: "gh" }));
+    const labels = capturePublishLabels(
+      makeOptions({ type: "task", title: "wire up X", to: "gh" }),
+    );
     expect(labels).toContain("type::task");
     // Bd-axis type only; no spike marker for plain task intent.
     expect(labels).not.toContain("type::spike");
   });
 
   test("spike intent projects both type::task and type::spike (bd-axis + GH-only)", () => {
-    const labels = capturePublishLabels(makeOptions({ type: "spike", title: "explore caching", to: "gh" }));
+    const labels = capturePublishLabels(
+      makeOptions({ type: "spike", title: "explore caching", to: "gh" }),
+    );
     expect(labels).toContain("type::task");
     expect(labels).toContain("type::spike");
   });
 
   test("spike intent + scope folds in area::<scope> alongside both type labels", () => {
-    const labels = capturePublishLabels(makeOptions({ type: "spike", title: "explore caching", scope: "prx", to: "gh" }));
+    const labels = capturePublishLabels(
+      makeOptions({ type: "spike", title: "explore caching", scope: "prx", to: "gh" }),
+    );
     expect(labels).toContain("type::task");
     expect(labels).toContain("type::spike");
     expect(labels).toContain("area::prx");
   });
 
   test("composeTitle('spike', 'task(prx): X') is a prefix mismatch", () => {
-    expect(() => composeTitle("spike", "task(prx): explore")).toThrow(
-      IntakeTitleMismatchError,
-    );
+    expect(() => composeTitle("spike", "task(prx): explore")).toThrow(IntakeTitleMismatchError);
     try {
       composeTitle("spike", "task(prx): explore");
       throw new Error("expected throw");
@@ -1295,7 +1319,9 @@ describe("runIntake — type-label stamping (GH-1489)", () => {
 
 describe("runIntake — area-label folding (GH-1305)", () => {
   test("auto-applies area::<scope> when scope is set and no other labels", () => {
-    const labels = capturePublishLabels(makeOptions({ type: "bug", title: "x", scope: "beads", to: "gh" }));
+    const labels = capturePublishLabels(
+      makeOptions({ type: "bug", title: "x", scope: "beads", to: "gh" }),
+    );
     expect(labels).toContain("area::beads");
     // GH-1489: bd-axis type label is also stamped at creation.
     expect(labels).toContain("type::bug");

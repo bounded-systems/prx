@@ -127,7 +127,12 @@ export function ensureWorkUnitBranchAndUpstream(
     };
   }
 
-  const originRef = runGit(spawn, "rev-parse", ["--verify", "--quiet", `refs/remotes/origin/${id}`], cwd);
+  const originRef = runGit(
+    spawn,
+    "rev-parse",
+    ["--verify", "--quiet", `refs/remotes/origin/${id}`],
+    cwd,
+  );
   if (originRef.exitCode !== 0) {
     return {
       status: "error",
@@ -153,8 +158,8 @@ export function ensureWorkUnitBranchAndUpstream(
         localCreated: false,
         upstreamChanged: false,
         message:
-          create.stderr.trim()
-            || `git branch --track ${id} origin/${id} failed (exit ${create.exitCode})`,
+          create.stderr.trim() ||
+          `git branch --track ${id} origin/${id} failed (exit ${create.exitCode})`,
       };
     }
     return {
@@ -203,8 +208,8 @@ export function ensureWorkUnitBranchAndUpstream(
       localCreated: false,
       upstreamChanged: false,
       message:
-        setUpstream.stderr.trim()
-          || `git branch --set-upstream-to=origin/${id} ${id} failed (exit ${setUpstream.exitCode})`,
+        setUpstream.stderr.trim() ||
+        `git branch --set-upstream-to=origin/${id} ${id} failed (exit ${setUpstream.exitCode})`,
     };
   }
   return {
@@ -224,12 +229,17 @@ export function formatEnsureWorkUnitBranchResult(
   if (format === "json") return JSON.stringify(result, null, 2);
 
   const tag =
-    result.status === "ok" ? "ok"
-    : result.status === "skipped" ? "skipped"
-    : result.status === "created-tracking" ? "created-tracking"
-    : result.status === "upstream-fixed" ? "upstream-fixed"
-    : result.status === "upstream-mismatch" ? "upstream-mismatch"
-    : "error";
+    result.status === "ok"
+      ? "ok"
+      : result.status === "skipped"
+        ? "skipped"
+        : result.status === "created-tracking"
+          ? "created-tracking"
+          : result.status === "upstream-fixed"
+            ? "upstream-fixed"
+            : result.status === "upstream-mismatch"
+              ? "upstream-mismatch"
+              : "error";
 
   let line = `${tag}: ${result.id} -> ${result.upstream}`;
   if (result.message) line += ` — ${result.message}`;

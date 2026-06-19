@@ -28,9 +28,7 @@ export function resolveAuditDbPath(opts: OpenAuditDbOptions = {}): string {
   if (opts.dbPath) return opts.dbPath;
   const env = opts.env ?? processEnv();
   const stateDir =
-    opts.stateDirOverride
-    ?? env.XDG_STATE_HOME
-    ?? join(homeDir(), ".local", "state");
+    opts.stateDirOverride ?? env.XDG_STATE_HOME ?? join(homeDir(), ".local", "state");
   return join(stateDir, "prx", "audit", "metrics.sqlite");
 }
 

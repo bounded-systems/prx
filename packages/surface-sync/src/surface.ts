@@ -7,12 +7,7 @@
  * no runtime values live here).
  */
 
-export type SurfaceSyncFeature =
-  | "gh_issue"
-  | "beads_issue"
-  | "project_item"
-  | "merge_state"
-  | "ci";
+export type SurfaceSyncFeature = "gh_issue" | "beads_issue" | "project_item" | "merge_state" | "ci";
 
 // GH-2092: direction of bd↔gh issue-parity reconciliation. Names the
 // side(s) read authoritatively. Additive; not yet consumed at runtime.

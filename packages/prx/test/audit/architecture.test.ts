@@ -26,9 +26,10 @@ import { ingestAuditSources } from "../../src/audit/store/ingest.ts";
 
 type NdjsonRow = Record<string, unknown>;
 
-function seedFixtures(
-  rows: { audit: NdjsonRow[]; transitions: NdjsonRow[] },
-): { auditDir: string; transitionDir: string } {
+function seedFixtures(rows: { audit: NdjsonRow[]; transitions: NdjsonRow[] }): {
+  auditDir: string;
+  transitionDir: string;
+} {
   const root = mkdtempSync(join(tmpdir(), "audit-arch-test-"));
   const auditDir = join(root, "audit");
   const transitionDir = join(root, "transitions");
@@ -152,10 +153,9 @@ describe("architectural acceptance — I-AUD1..I-AUD5", () => {
     const db = openAuditDb({ dbPath: ":memory:" });
     ingestAuditSources(db, { auditDir, transitionDir });
     const m = db
-      .query<
-        { numerator: number; met: number },
-        []
-      >("SELECT numerator, met FROM v_ambient_git_violations")
+      .query<{ numerator: number; met: number }, []>(
+        "SELECT numerator, met FROM v_ambient_git_violations",
+      )
       .get();
     expect(m!.numerator).toBe(1);
     expect(m!.met).toBe(0);
@@ -178,10 +178,9 @@ describe("architectural acceptance — I-AUD1..I-AUD5", () => {
     const db = openAuditDb({ dbPath: ":memory:" });
     ingestAuditSources(db, { auditDir, transitionDir });
     const m = db
-      .query<
-        { numerator: number; denominator: number; rate: number },
-        []
-      >("SELECT numerator, denominator, rate FROM v_uow_attachment_rate")
+      .query<{ numerator: number; denominator: number; rate: number }, []>(
+        "SELECT numerator, denominator, rate FROM v_uow_attachment_rate",
+      )
       .get();
     expect(m!.denominator).toBe(1);
     expect(m!.numerator).toBe(0);

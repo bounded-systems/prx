@@ -39,7 +39,10 @@ export const defaultActorPolicies: ActorPolicies = {
 };
 
 /** The verb's tool policy, from its actor (READ_ONLY fallback). */
-export function verbToolPolicy(v: VerbSpec, policies: ActorPolicies = defaultActorPolicies): ToolPolicy {
+export function verbToolPolicy(
+  v: VerbSpec,
+  policies: ActorPolicies = defaultActorPolicies,
+): ToolPolicy {
   return policies[v.actor] ?? READ_ONLY;
 }
 

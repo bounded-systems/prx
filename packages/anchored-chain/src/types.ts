@@ -1,12 +1,12 @@
-import type { DsseEnvelope } from './in-toto.ts';
+import type { DsseEnvelope } from "./in-toto.ts";
 
 // The content address is owned by the CAS substrate; anchored-chain builds its
 // derivation/ref graph on top of it and re-exposes the type as part of its own
 // public surface (a Ref/Derivation is made of Digests).
-import type { Digest } from '@bounded-systems/cas';
+import type { Digest } from "@bounded-systems/cas";
 export type { Digest };
 
-export type ContractId = string & { readonly __brand: 'ContractId' };
+export type ContractId = string & { readonly __brand: "ContractId" };
 
 export interface Ref {
   readonly name: string;

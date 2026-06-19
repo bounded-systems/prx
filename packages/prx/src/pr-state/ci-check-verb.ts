@@ -38,7 +38,10 @@ export const remoteCiCheckVerb = defineVerb({
   actor: "work",
   input: z.object({
     "repo-path": z.string().default(".").describe("repo worktree path"),
-    pr: z.string().optional().describe("PR ref (number/url/branch); defaults to the current branch"),
+    pr: z
+      .string()
+      .optional()
+      .describe("PR ref (number/url/branch); defaults to the current branch"),
     format: z.enum(["plain", "json"]).default("plain").describe("output format"),
   }),
   output: RemoteCiCheckOutput,
@@ -72,7 +75,10 @@ export const scoutLogsVerb = defineVerb({
   actor: "work",
   input: z.object({
     "repo-path": z.string().default(".").describe("repo worktree path"),
-    pr: z.string().optional().describe("PR ref (number/url/branch); defaults to the current branch"),
+    pr: z
+      .string()
+      .optional()
+      .describe("PR ref (number/url/branch); defaults to the current branch"),
     "max-lines": z.coerce.number().default(200).describe("max log lines per failing check"),
     format: z.enum(["plain", "json"]).default("plain").describe("output format"),
   }),

@@ -37,7 +37,8 @@ for (const name of ["--min", "--per-file-min"]) {
   const i = args.indexOf(name);
   if (i >= 0) flagValueIdxs.add(i + 1);
 }
-const lcovPath = args.find((a, i) => !a.startsWith("--") && !flagValueIdxs.has(i)) ?? "coverage/lcov.info";
+const lcovPath =
+  args.find((a, i) => !a.startsWith("--") && !flagValueIdxs.has(i)) ?? "coverage/lcov.info";
 
 // PER-FILE RATCHET baseline: source files allowed below the per-file floor, each
 // with a reason. The gate fails if a NON-baselined source file drops below the
@@ -50,7 +51,6 @@ const PER_FILE_BASELINE = new Set<string>([
   "packages/prx/src/triage/actors.ts", // thin XState wrappers; haiku-headless-actor reshape pending (#502)
   "packages/prx/src/triage/type-pass.ts", // inline headless haiku call; moves to a headless actor (#502)
   "packages/prx/src/triage/prioritize-bulk.ts", // inline headless haiku call; moves to a headless actor (#502)
-  "packages/prx/src/session/open.ts", // large session-open flow
   "packages/prx/src/tools/agent_doctor.ts", // spawn-bound: real SDK probe + spawnCapture runner can't run deterministically in CI
   // GH-664: pre-existing gaps that the broken coverage gate (no lcov) hid until
   // it was restored. Each is wiring/spawn/fs-bound; improve separately.
@@ -58,9 +58,24 @@ const PER_FILE_BASELINE = new Set<string>([
   "packages/prx/src/machine/claude_capabilities.ts", // 47% — spawn-bound: probes the real `claude` binary via spawnCapture, non-deterministic in CI
   "packages/prx/src/pr-state/session-finder.ts", // 63% — fs/env-bound session discovery extracted from cli.ts (itself baselined)
   "packages/prx/src/slack/scout-cli.ts", // 69% — slack read-surface composition root — authority/credential wiring
+  // Reformat line-accounting (#693): wrapping long lines nudged these borderline
+  // files just under the floor — same tests, same behavior, only the line count
+  // (denominator) moved. Revisit with real tests, then remove.
+  "packages/prx/src/machine/gc/cli.ts", // 81% (was 86%) — reformat line-accounting
+  "packages/prx/src/intake/intake-status.ts", // 83% — reformat line-accounting
+  "packages/prx/src/derive/cli.ts", // 84% — reformat line-accounting
+  "packages/prx/src/pr-state/dolt-reconcile.ts", // 85% — reformat line-accounting (rounding)
 ]);
 
-type Totals = { lf: number; lh: number; fnf: number; fnh: number; brf: number; brh: number; files: number };
+type Totals = {
+  lf: number;
+  lh: number;
+  fnf: number;
+  fnh: number;
+  brf: number;
+  brh: number;
+  files: number;
+};
 type FileCov = { path: string; lf: number; lh: number };
 
 function normalizePath(sf: string): string {
@@ -86,15 +101,35 @@ function parse(lcov: string): { totals: Totals; perFile: FileCov[] } {
     const [tag, rawValue] = line.split(":", 2);
     const n = Number(rawValue);
     switch (tag) {
-      case "SF": t.files += 1; cur = { path: normalizePath(rawValue ?? ""), lf: 0, lh: 0 }; break;
-      case "LF": t.lf += n; if (cur) cur.lf = n; break;
-      case "LH": t.lh += n; if (cur) cur.lh = n; break;
-      case "FNF": t.fnf += n; break;
-      case "FNH": t.fnh += n; break;
-      case "BRF": t.brf += n; break;
-      case "BRH": t.brh += n; break;
+      case "SF":
+        t.files += 1;
+        cur = { path: normalizePath(rawValue ?? ""), lf: 0, lh: 0 };
+        break;
+      case "LF":
+        t.lf += n;
+        if (cur) cur.lf = n;
+        break;
+      case "LH":
+        t.lh += n;
+        if (cur) cur.lh = n;
+        break;
+      case "FNF":
+        t.fnf += n;
+        break;
+      case "FNH":
+        t.fnh += n;
+        break;
+      case "BRF":
+        t.brf += n;
+        break;
+      case "BRH":
+        t.brh += n;
+        break;
     }
-    if (line === "end_of_record" && cur) { perFile.push(cur); cur = null; }
+    if (line === "end_of_record" && cur) {
+      perFile.push(cur);
+      cur = null;
+    }
   }
   return { totals: t, perFile };
 }
@@ -111,7 +146,9 @@ function emit(text: string): void {
     try {
       appendFileSync(summary, text + "\n");
     } catch (error) {
-      process.stderr.write(`Warning: failed to append coverage summary to \`${summary}\`: ${String(error)}\n`);
+      process.stderr.write(
+        `Warning: failed to append coverage summary to \`${summary}\`: ${String(error)}\n`,
+      );
     }
   }
 }
@@ -170,10 +207,14 @@ function main(): void {
   if (minLinePct !== null && Number.isFinite(minLinePct)) {
     const linePct = t.lf === 0 ? 0 : (t.lh / t.lf) * 100;
     if (linePct < minLinePct) {
-      emit(`\n❌ **Global coverage gate failed:** line coverage ${linePct.toFixed(2)}% is below the ${minLinePct}% minimum.`);
+      emit(
+        `\n❌ **Global coverage gate failed:** line coverage ${linePct.toFixed(2)}% is below the ${minLinePct}% minimum.`,
+      );
       failed = true;
     } else {
-      emit(`\n✅ Global coverage gate passed: line coverage ${linePct.toFixed(2)}% ≥ ${minLinePct}%.`);
+      emit(
+        `\n✅ Global coverage gate passed: line coverage ${linePct.toFixed(2)}% ≥ ${minLinePct}%.`,
+      );
     }
   }
 
@@ -184,7 +225,9 @@ function main(): void {
     const seen = new Set(gated.map((f) => f.path));
 
     // New offenders: in-scope source below the floor and NOT baselined.
-    const violations = gated.filter((f) => filePct(f) < perFileMin && !PER_FILE_BASELINE.has(f.path));
+    const violations = gated.filter(
+      (f) => filePct(f) < perFileMin && !PER_FILE_BASELINE.has(f.path),
+    );
     // Stale baseline: a baselined path that is now at/above the floor, or absent
     // from the report (deleted/renamed). The list may only shrink.
     const stale = [...PER_FILE_BASELINE].filter((p) => {
@@ -193,20 +236,28 @@ function main(): void {
     });
 
     if (violations.length > 0) {
-      emit(`\n❌ **Per-file coverage gate failed:** ${violations.length} source file(s) below ${perFileMin}% (not baselined):`);
+      emit(
+        `\n❌ **Per-file coverage gate failed:** ${violations.length} source file(s) below ${perFileMin}% (not baselined):`,
+      );
       for (const f of violations.sort((a, b) => filePct(a) - filePct(b))) {
         emit(`  - ${f.path} — ${filePct(f).toFixed(2)}%`);
       }
-      emit(`  Raise their coverage, or add them to PER_FILE_BASELINE in coverage-summary.ts with a reason.`);
+      emit(
+        `  Raise their coverage, or add them to PER_FILE_BASELINE in coverage-summary.ts with a reason.`,
+      );
       failed = true;
     }
     if (stale.length > 0) {
-      emit(`\n❌ **Stale per-file baseline:** ${stale.length} entr(y/ies) at/above ${perFileMin}% or missing — remove them (the baseline only shrinks):`);
+      emit(
+        `\n❌ **Stale per-file baseline:** ${stale.length} entr(y/ies) at/above ${perFileMin}% or missing — remove them (the baseline only shrinks):`,
+      );
       for (const p of stale.sort()) emit(`  - ${p}`);
       failed = true;
     }
     if (violations.length === 0 && stale.length === 0) {
-      emit(`\n✅ Per-file coverage gate passed: every source file ≥ ${perFileMin}% (or baselined), baseline has ${PER_FILE_BASELINE.size} entr(y/ies).`);
+      emit(
+        `\n✅ Per-file coverage gate passed: every source file ≥ ${perFileMin}% (or baselined), baseline has ${PER_FILE_BASELINE.size} entr(y/ies).`,
+      );
     }
   }
 

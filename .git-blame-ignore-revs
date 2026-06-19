@@ -1,0 +1,7 @@
+# Revisions to ignore in `git blame` — bulk mechanical reformats with no
+# semantic change, so blame skips past them to the real author of each line.
+# GitHub applies this file automatically; locally, enable it once with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: apply Biome formatter across the tree
+e390fa6373b62024ce24aafd220f790e016e7463

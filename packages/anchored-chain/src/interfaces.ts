@@ -5,7 +5,7 @@ import type {
   Digest,
   SurfaceRef,
   VerdictResult,
-} from './types.ts';
+} from "./types.ts";
 
 export interface Fetcher {
   fetch(ref: SurfaceRef): Promise<{
@@ -21,7 +21,5 @@ export interface Applier {
 }
 
 export interface ContractRegistry {
-  getValidator(
-    artifactType: ContractId,
-  ): (digest: Digest, bytes?: Uint8Array) => VerdictResult;
+  getValidator(artifactType: ContractId): (digest: Digest, bytes?: Uint8Array) => VerdictResult;
 }

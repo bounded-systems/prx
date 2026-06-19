@@ -24,10 +24,7 @@
 
 import { assign, setup } from "xstate";
 
-import type {
-  HandoffEnvelope,
-  HandoffStatus,
-} from "@bounded-systems/machine-schema";
+import type { HandoffEnvelope, HandoffStatus } from "@bounded-systems/machine-schema";
 
 // ── machine context ────────────────────────────────────────────────────────
 
@@ -37,9 +34,7 @@ export type HandoffMachineContext = {
   pendingError: string | null;
 };
 
-export const makeInitialHandoffContext = (
-  envelope: HandoffEnvelope,
-): HandoffMachineContext => ({
+export const makeInitialHandoffContext = (envelope: HandoffEnvelope): HandoffMachineContext => ({
   envelope,
   pendingError: null,
 });
@@ -76,8 +71,7 @@ export const handoffMachine = setup({
     notAlreadyClaimed: ({ context }) => context.envelope.claimedBy === undefined,
     withinMaxAttempts: ({ context }) =>
       context.envelope.attempts + 1 < context.envelope.maxAttempts,
-    atMaxAttempts: ({ context }) =>
-      context.envelope.attempts + 1 >= context.envelope.maxAttempts,
+    atMaxAttempts: ({ context }) => context.envelope.attempts + 1 >= context.envelope.maxAttempts,
   },
   actions: {
     recordClaim: assign(({ context, event }) => {

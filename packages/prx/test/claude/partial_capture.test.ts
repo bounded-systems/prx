@@ -21,7 +21,10 @@ describe("makeWorkUnitDraftSink", () => {
   test("returns null without saving when the partial stdout is blank", async () => {
     let called = false;
     const sink = makeWorkUnitDraftSink("GH-1", {
-      runPlanSave: (async () => { called = true; return {} as never; }) as never,
+      runPlanSave: (async () => {
+        called = true;
+        return {} as never;
+      }) as never,
     });
     expect(await sink("   \n  ")).toBeNull();
     expect(called).toBe(false);
@@ -41,7 +44,9 @@ describe("makeWorkUnitDraftSink", () => {
 
   test("swallows a save failure and returns null (soft-fail on cancel)", async () => {
     const sink = makeWorkUnitDraftSink("GH-7", {
-      runPlanSave: (async () => { throw new Error("CAS down"); }) as never,
+      runPlanSave: (async () => {
+        throw new Error("CAS down");
+      }) as never,
     });
     expect(await sink("some output")).toBeNull();
   });

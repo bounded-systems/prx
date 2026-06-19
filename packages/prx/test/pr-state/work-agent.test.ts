@@ -24,7 +24,9 @@ describe("parseWorkAgentImplementation", () => {
     expect(parseWorkAgentImplementation("codex", "--agent")).toBe("codex");
   });
   test("throws on an unknown agent with the valid list", () => {
-    expect(() => parseWorkAgentImplementation("bogus", "--agent")).toThrow(/Invalid value for --agent/);
+    expect(() => parseWorkAgentImplementation("bogus", "--agent")).toThrow(
+      /Invalid value for --agent/,
+    );
   });
 });
 

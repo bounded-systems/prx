@@ -7,10 +7,7 @@
  */
 import { describe, expect, test } from "bun:test";
 
-import type {
-  SurfaceSyncAction,
-  SurfaceSyncResult,
-} from "@bounded-systems/surface-sync";
+import type { SurfaceSyncAction, SurfaceSyncResult } from "@bounded-systems/surface-sync";
 
 import { runInventory, runRun, type GcSweepDeps } from "../../../src/machine/gc/actor.ts";
 import type { CasGcOps } from "../../../src/machine/gc/drivers/registry.ts";
@@ -126,7 +123,9 @@ describe("runRun — fan-out + capability gate", () => {
       listRefs: async () => [], // no refs → the plans blob is orphan
       readBlob: async () => Buffer.from(""),
       listBlobs: async (opts?: { domain?: string }) =>
-        opts?.domain === "plans" ? [{ sha: `sha256:${"a".repeat(64)}`, bytes: 12, mtimeMs: 0 }] : [],
+        opts?.domain === "plans"
+          ? [{ sha: `sha256:${"a".repeat(64)}`, bytes: 12, mtimeMs: 0 }]
+          : [],
       deleteBlob: async (sha: string) => {
         deleted.push(sha);
       },

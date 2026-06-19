@@ -3,10 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import {
-  parseRepoFlag,
-  resolveWorktreeRepoAnchor,
-} from "../../src/pr-state/cli.ts";
+import { parseRepoFlag, resolveWorktreeRepoAnchor } from "../../src/pr-state/cli.ts";
 import type { LocalRepo } from "../../src/pr-state/repos.ts";
 
 // prx-hot: `prx workspace worktree-create|worktree-remove --repo <dir|slug>` —

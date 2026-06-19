@@ -82,14 +82,17 @@ describe("fetchSourceActor", () => {
 describe("buildAndWriteSnapshotActor", () => {
   test("builds the snapshot and writes it under baseDir", async () => {
     const baseDir = tmp("dra-snap-");
-    const result = await runActor<{ snapshot: { dep: string }; path: string }>(buildAndWriteSnapshotActor, {
-      dep: "xstate",
-      runId: "20260505T120000Z",
-      fetchedAt: "2026-05-05T12:00:00.000Z",
-      fetched: { "a.ts": Buffer.from("hello", "utf8") },
-      failures: {},
-      baseDir,
-    });
+    const result = await runActor<{ snapshot: { dep: string }; path: string }>(
+      buildAndWriteSnapshotActor,
+      {
+        dep: "xstate",
+        runId: "20260505T120000Z",
+        fetchedAt: "2026-05-05T12:00:00.000Z",
+        fetched: { "a.ts": Buffer.from("hello", "utf8") },
+        failures: {},
+        baseDir,
+      },
+    );
     expect(result.snapshot.dep).toBe("xstate");
     expect(result.path).toContain(join("xstate", "20260505T120000Z"));
   });

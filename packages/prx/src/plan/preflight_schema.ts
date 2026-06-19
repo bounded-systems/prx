@@ -22,14 +22,7 @@ export const PreflightDeliverableShape = z.enum([
 ]);
 export type PreflightDeliverableShape = z.infer<typeof PreflightDeliverableShape>;
 
-export const PreflightActionShape = z.enum([
-  "edit",
-  "write",
-  "git",
-  "gh-issue",
-  "gh-pr",
-  "bd",
-]);
+export const PreflightActionShape = z.enum(["edit", "write", "git", "gh-issue", "gh-pr", "bd"]);
 export type PreflightActionShape = z.infer<typeof PreflightActionShape>;
 
 // GH-1516: verb-context classification for file deliverables. A path inside
@@ -39,12 +32,7 @@ export type PreflightActionShape = z.infer<typeof PreflightActionShape>;
 // (`checkAlreadyDone`) can suppress the false-positive that breaks GH-1514 /
 // GH-1515 / GH-1548 — only `create` and `unknown` deliverables count as
 // "should this artifact exist yet?".
-export const DeliverableContext = z.enum([
-  "create",
-  "modify",
-  "reference",
-  "unknown",
-]);
+export const DeliverableContext = z.enum(["create", "modify", "reference", "unknown"]);
 export type DeliverableContext = z.infer<typeof DeliverableContext>;
 
 // GH-1516: section-derived perspective for planned actions. An action verb
@@ -89,12 +77,7 @@ export const PreflightInfeasibleActionFinding = z.object({
   axis: z.literal("infeasible-action"),
   shape: PreflightActionShape,
   subcommand: z.string().min(1),
-  reason: z.enum([
-    "blocked",
-    "not-allowlisted-for-role",
-    "disallowed-by-profile",
-    "unknown-tool",
-  ]),
+  reason: z.enum(["blocked", "not-allowlisted-for-role", "disallowed-by-profile", "unknown-tool"]),
   detail: z.string().optional(),
   perspective: ActionPerspective.optional(),
 });
@@ -118,9 +101,7 @@ export const PreflightActionDeferredFinding = z.object({
   suggestedUnblock: z.string().optional(),
   perspective: ActionPerspective.optional(),
 });
-export type PreflightActionDeferredFinding = z.infer<
-  typeof PreflightActionDeferredFinding
->;
+export type PreflightActionDeferredFinding = z.infer<typeof PreflightActionDeferredFinding>;
 
 // GH-1516: action mention whose section-derived perspective ("the executor
 // will run this later") is incompatible with the current role evaluating the

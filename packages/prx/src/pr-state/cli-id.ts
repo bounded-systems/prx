@@ -1,8 +1,17 @@
 import { basename } from "node:path";
-import { loadIdentityConfig, defaultRunner, effectiveCanonicalIdPattern, type CommandRunner as GithubCommandRunner, type IdentityConfig } from "./github.ts";
+import {
+  loadIdentityConfig,
+  defaultRunner,
+  effectiveCanonicalIdPattern,
+  type CommandRunner as GithubCommandRunner,
+  type IdentityConfig,
+} from "./github.ts";
 import { adapterForCanonicalId } from "../adapters/domain-adapter.ts";
 import { localRepoForCwd } from "./repos.ts";
-import { buildCanonicalWorkUnitIdHelpers, type CanonicalWorkUnitIdHelpers } from "../machine/work_unit.ts";
+import {
+  buildCanonicalWorkUnitIdHelpers,
+  type CanonicalWorkUnitIdHelpers,
+} from "../machine/work_unit.ts";
 import { CliError } from "./cli-error.ts";
 import { detectBranchNameFromCwd } from "./cli-spawn.ts";
 
@@ -29,9 +38,7 @@ export function resetCanonicalHelpers(): void {
   activeIdentityConfig = null;
 }
 
-export function ensureIdentityConfig(
-  runner: GithubCommandRunner = defaultRunner,
-): IdentityConfig {
+export function ensureIdentityConfig(runner: GithubCommandRunner = defaultRunner): IdentityConfig {
   if (activeIdentityConfig) {
     return activeIdentityConfig;
   }
@@ -46,9 +53,7 @@ export function ensureCanonicalHelpers(
     return activeCanonicalHelpers;
   }
   const config = ensureIdentityConfig(runner);
-  activeCanonicalHelpers = buildCanonicalWorkUnitIdHelpers(
-    effectiveCanonicalIdPattern(config),
-  );
+  activeCanonicalHelpers = buildCanonicalWorkUnitIdHelpers(effectiveCanonicalIdPattern(config));
   activeCanonicalIsDefault = config.isDefault;
   return activeCanonicalHelpers;
 }
@@ -117,9 +122,10 @@ function looksLikeBeadsShortId(value: string): boolean {
   return prefix !== "gh" && prefix !== "notion" && prefix !== "bd";
 }
 
-export function detectWorkCommandTarget(
-  cwd = process.cwd(),
-): { workUnitId: string; launchFromCurrentWorkspace: boolean } {
+export function detectWorkCommandTarget(cwd = process.cwd()): {
+  workUnitId: string;
+  launchFromCurrentWorkspace: boolean;
+} {
   const helpers = ensureCanonicalHelpers();
   const cwdCandidate = helpers.normalize(basename(cwd));
   if (helpers.isCanonical(cwdCandidate)) {
@@ -137,5 +143,3 @@ export function detectWorkCommandTarget(
     launchFromCurrentWorkspace: true,
   };
 }
-
-

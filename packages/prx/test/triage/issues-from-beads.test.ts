@@ -177,16 +177,33 @@ describe("listOpenIssuesFromBeads", () => {
   });
 
   test("rejects bd-list returning non-array JSON", () => {
-    const exec = (() => ({ exitCode: 0, stdout: '{"oops": true}', stderr: "", policy: null })) as never;
-    expect(() => listOpenIssuesFromBeads("o/r", 0, exec)).toThrow(/expected bd list --json to return an array/);
+    const exec = (() => ({
+      exitCode: 0,
+      stdout: '{"oops": true}',
+      stderr: "",
+      policy: null,
+    })) as never;
+    expect(() => listOpenIssuesFromBeads("o/r", 0, exec)).toThrow(
+      /expected bd list --json to return an array/,
+    );
   });
 });
 
 describe("listIssuesByStateFromBeads", () => {
   test("state=open returns non-closed rows (mirrors --state open)", () => {
     const exec = fakeBdList([
-      { id: "a", title: "open one", status: "open", external_ref: "https://github.com/o/r/issues/1" },
-      { id: "b", title: "closed one", status: "closed", external_ref: "https://github.com/o/r/issues/2" },
+      {
+        id: "a",
+        title: "open one",
+        status: "open",
+        external_ref: "https://github.com/o/r/issues/1",
+      },
+      {
+        id: "b",
+        title: "closed one",
+        status: "closed",
+        external_ref: "https://github.com/o/r/issues/2",
+      },
     ]);
     const result = listIssuesByStateFromBeads("o/r", "open", 0, exec as never);
     expect(result.map((r) => r.number)).toEqual([1]);
@@ -194,8 +211,18 @@ describe("listIssuesByStateFromBeads", () => {
 
   test("state=closed returns only closed rows", () => {
     const exec = fakeBdList([
-      { id: "a", title: "open one", status: "open", external_ref: "https://github.com/o/r/issues/1" },
-      { id: "b", title: "closed one", status: "closed", external_ref: "https://github.com/o/r/issues/2" },
+      {
+        id: "a",
+        title: "open one",
+        status: "open",
+        external_ref: "https://github.com/o/r/issues/1",
+      },
+      {
+        id: "b",
+        title: "closed one",
+        status: "closed",
+        external_ref: "https://github.com/o/r/issues/2",
+      },
     ]);
     const result = listIssuesByStateFromBeads("o/r", "closed", 0, exec as never);
     expect(result.map((r) => r.number)).toEqual([2]);
@@ -203,8 +230,18 @@ describe("listIssuesByStateFromBeads", () => {
 
   test("state=all returns both open and closed rows", () => {
     const exec = fakeBdList([
-      { id: "a", title: "open one", status: "open", external_ref: "https://github.com/o/r/issues/1" },
-      { id: "b", title: "closed one", status: "closed", external_ref: "https://github.com/o/r/issues/2" },
+      {
+        id: "a",
+        title: "open one",
+        status: "open",
+        external_ref: "https://github.com/o/r/issues/1",
+      },
+      {
+        id: "b",
+        title: "closed one",
+        status: "closed",
+        external_ref: "https://github.com/o/r/issues/2",
+      },
     ]);
     const result = listIssuesByStateFromBeads("o/r", "all", 0, exec as never);
     expect(result.map((r) => r.number)).toEqual([1, 2]);

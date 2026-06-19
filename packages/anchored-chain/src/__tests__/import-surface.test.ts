@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from "bun:test";
 import {
   assembleEnvelope,
   dssePae,
@@ -15,7 +15,7 @@ import {
   DERIVATION_PREDICATE_TYPE,
   DSSE_PAYLOAD_TYPE,
   STATEMENT_TYPE,
-} from '@bounded-systems/anchored-chain';
+} from "@bounded-systems/anchored-chain";
 import type {
   ActionPlan,
   Applier,
@@ -45,10 +45,10 @@ import type {
   VerdictResult,
   Verifier,
   VerifyOptions,
-} from '@bounded-systems/anchored-chain';
+} from "@bounded-systems/anchored-chain";
 
-describe('anchored-chain public surface', () => {
-  test('all public types are importable via @bounded-systems/anchored-chain', () => {
+describe("anchored-chain public surface", () => {
+  test("all public types are importable via @bounded-systems/anchored-chain", () => {
     const _typeWitness: Record<string, true> = {
       Digest: true,
       Ref: true,
@@ -96,10 +96,10 @@ describe('anchored-chain public surface', () => {
       ed25519Keyid: true,
     };
     expect(Object.keys(_typeWitness)).toHaveLength(43);
-    expect(typeof validateRef).toBe('function');
-    expect(typeof validateDerivation).toBe('function');
-    expect(typeof projectRef).toBe('function');
-    expect(typeof projectMany).toBe('function');
+    expect(typeof validateRef).toBe("function");
+    expect(typeof validateDerivation).toBe("function");
+    expect(typeof projectRef).toBe("function");
+    expect(typeof projectMany).toBe("function");
     // Phase 1 runtime exports are callable / present.
     for (const fn of [
       manifestToStatement,
@@ -111,11 +111,11 @@ describe('anchored-chain public surface', () => {
       ed25519Verifier,
       ed25519Keyid,
     ]) {
-      expect(typeof fn).toBe('function');
+      expect(typeof fn).toBe("function");
     }
-    expect(STATEMENT_TYPE).toContain('in-toto.io');
-    expect(DSSE_PAYLOAD_TYPE).toContain('in-toto');
-    expect(DERIVATION_PREDICATE_TYPE).toContain('anchored-chain');
+    expect(STATEMENT_TYPE).toContain("in-toto.io");
+    expect(DSSE_PAYLOAD_TYPE).toContain("in-toto");
+    expect(DERIVATION_PREDICATE_TYPE).toContain("anchored-chain");
     const _verifyOptsWitness: VerifyOptions | null = null;
     const _stmtWitness: InTotoStatement | null = null;
     const _subjWitness: InTotoSubject | null = null;
@@ -148,22 +148,22 @@ describe('anchored-chain public surface', () => {
     expect(_viewWitness).toBeNull();
   });
 
-  test('branded types compose with interfaces at the type level', () => {
-    const digest = 'abc123' as Digest;
-    const contractId = 'contract/v1' as ContractId;
+  test("branded types compose with interfaces at the type level", () => {
+    const digest = "abc123" as Digest;
+    const contractId = "contract/v1" as ContractId;
 
-    const ref: Ref = { name: 'main', digest, ts: 0 };
+    const ref: Ref = { name: "main", digest, ts: 0 };
     const logEntry: RefLogEntry = {
-      name: 'main',
+      name: "main",
       prevDigest: null,
       newDigest: digest,
-      reason: 'init',
+      reason: "init",
       ts: 0,
     };
     const derivation: Derivation = {
       derivationId: digest,
       manifest: {
-        producer: 'noop',
+        producer: "noop",
         inputs: {},
         outputs: {},
         contracts: [],
@@ -171,13 +171,13 @@ describe('anchored-chain public surface', () => {
       },
       ts: 0,
     };
-    const surface: SurfaceRef = { name: 'main' };
-    const plan: ActionPlan = { producer: 'noop' };
+    const surface: SurfaceRef = { name: "main" };
+    const plan: ActionPlan = { producer: "noop" };
     const applyResult: ApplyResult = { ok: true };
     const verdict: VerdictResult = { ok: true };
 
     const fetcher: Fetcher = {
-      fetch: async () => ({ digest, bytes: new Uint8Array(), freshnessSignal: '' }),
+      fetch: async () => ({ digest, bytes: new Uint8Array(), freshnessSignal: "" }),
       isFresh: async () => true,
     };
     const blobStore: BlobStore = {
@@ -193,14 +193,14 @@ describe('anchored-chain public surface', () => {
     expect(ref.digest).toBe(digest);
     expect(logEntry.newDigest).toBe(digest);
     expect(derivation.derivationId).toBe(digest);
-    expect(surface.name).toBe('main');
-    expect(plan.producer).toBe('noop');
+    expect(surface.name).toBe("main");
+    expect(plan.producer).toBe("noop");
     expect(applyResult.ok).toBe(true);
     expect(verdict.ok).toBe(true);
-    expect(typeof fetcher.fetch).toBe('function');
-    expect(typeof blobStore.put).toBe('function');
-    expect(typeof applier.apply).toBe('function');
-    expect(typeof registry.getValidator).toBe('function');
-    expect(contractId as string).toBe('contract/v1');
+    expect(typeof fetcher.fetch).toBe("function");
+    expect(typeof blobStore.put).toBe("function");
+    expect(typeof applier.apply).toBe("function");
+    expect(typeof registry.getValidator).toBe("function");
+    expect(contractId as string).toBe("contract/v1");
   });
 });

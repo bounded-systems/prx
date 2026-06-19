@@ -34,11 +34,7 @@ export type ArtifactKind =
   | "spawn";
 
 /** Canonical ref for an artifact slot: `<unit>:<kind>@<slot>`. */
-export function artifactRef(
-  unit: string,
-  kind: ArtifactKind,
-  slot: string,
-): string {
+export function artifactRef(unit: string, kind: ArtifactKind, slot: string): string {
   return `${unit}:${kind}@${slot}`;
 }
 

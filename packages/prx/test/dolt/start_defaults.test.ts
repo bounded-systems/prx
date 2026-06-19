@@ -37,7 +37,10 @@ afterEach(() => {
 
 describe("defaultProbe", () => {
   test("reachable when bd reports connection_ok + port + database", () => {
-    const r = defaultProbe("/c", sp({ stdout: JSON.stringify({ connection_ok: true, port: 3307, database: "db" }) }));
+    const r = defaultProbe(
+      "/c",
+      sp({ stdout: JSON.stringify({ connection_ok: true, port: 3307, database: "db" }) }),
+    );
     expect(r).toEqual({ reachable: true, port: 3307, database: "db" });
   });
   test("down on a spawn error / non-zero exit", () => {
@@ -45,7 +48,9 @@ describe("defaultProbe", () => {
     expect(defaultProbe("/c", sp({ status: 1 })).reachable).toBe(false);
   });
   test("down on an incomplete or malformed payload", () => {
-    expect(defaultProbe("/c", sp({ stdout: JSON.stringify({ connection_ok: false }) })).reachable).toBe(false);
+    expect(
+      defaultProbe("/c", sp({ stdout: JSON.stringify({ connection_ok: false }) })).reachable,
+    ).toBe(false);
     expect(defaultProbe("/c", sp({ stdout: "{not json" })).reachable).toBe(false);
   });
 });
@@ -54,16 +59,22 @@ describe("defaultProbe", () => {
 
 describe("bdDelegatingSpawn", () => {
   test("parses the PID out of bd's start output", () => {
-    expect(bdDelegatingSpawn([], "/c", sp({ stdout: "Dolt server started (PID 4242, port 3307)" }))).toEqual({ pid: 4242 });
+    expect(
+      bdDelegatingSpawn([], "/c", sp({ stdout: "Dolt server started (PID 4242, port 3307)" })),
+    ).toEqual({ pid: 4242 });
   });
   test("an 'already running' non-zero exit is tolerated (pid 0)", () => {
-    expect(bdDelegatingSpawn([], "/c", sp({ status: 1, stdout: "already running" }))).toEqual({ pid: 0 });
+    expect(bdDelegatingSpawn([], "/c", sp({ status: 1, stdout: "already running" }))).toEqual({
+      pid: 0,
+    });
   });
   test("no PID in clean output → pid 0", () => {
     expect(bdDelegatingSpawn([], "/c", sp({ status: 0, stdout: "started" }))).toEqual({ pid: 0 });
   });
   test("a real failure throws", () => {
-    expect(() => bdDelegatingSpawn([], "/c", sp({ status: 1, stderr: "boom" }))).toThrow(/bd dolt start` failed/);
+    expect(() => bdDelegatingSpawn([], "/c", sp({ status: 1, stderr: "boom" }))).toThrow(
+      /bd dolt start` failed/,
+    );
   });
 });
 
@@ -71,7 +82,9 @@ describe("bdDelegatingSpawn", () => {
 
 describe("dolt ledger I/O", () => {
   const ledger = { dolt_server_id: "id", pid: 9, port: 3307, dsn: "mysql://x" } as DoltLedger & {
-    pid: number; port: number; dsn: string;
+    pid: number;
+    port: number;
+    dsn: string;
   };
   test("read: missing → null, valid → ledger, malformed → null", () => {
     const dir = fresh();
@@ -121,11 +134,15 @@ describe("runDoltStartCli", () => {
     // formats the error and returns 1, in both plain and json.
     const dir = fresh();
     const plain: string[] = [];
-    expect(await runDoltStartCli({ repoPath: dir, format: "plain" }, { log: (l) => plain.push(l) })).toBe(1);
+    expect(
+      await runDoltStartCli({ repoPath: dir, format: "plain" }, { log: (l) => plain.push(l) }),
+    ).toBe(1);
     expect(plain[0]!.length).toBeGreaterThan(0);
 
     const j: string[] = [];
-    expect(await runDoltStartCli({ repoPath: dir, format: "json" }, { log: (l) => j.push(l) })).toBe(1);
+    expect(
+      await runDoltStartCli({ repoPath: dir, format: "json" }, { log: (l) => j.push(l) }),
+    ).toBe(1);
     expect(JSON.parse(j[0]!).status).toBe("error");
   });
 });

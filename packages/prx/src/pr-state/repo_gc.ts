@@ -76,16 +76,9 @@ export type RunRepoGcDeps = {
 
 // ── report shape ───────────────────────────────────────────────────────────
 
-export type RepoGcAction =
-  | "swept"
-  | "would-sweep"
-  | "refused"
-  | "nothing-to-clean";
+export type RepoGcAction = "swept" | "would-sweep" | "refused" | "nothing-to-clean";
 
-export type RepoGcRefusalReason =
-  | "not-migrated"
-  | "server-unreachable"
-  | "db-empty";
+export type RepoGcRefusalReason = "not-migrated" | "server-unreachable" | "db-empty";
 
 export type RepoGcEntry = {
   slug: string;
@@ -112,7 +105,10 @@ export type RepoGcReport = {
 // ── error class ────────────────────────────────────────────────────────────
 
 export class RepoGcError extends Error {
-  constructor(message: string, readonly code: string) {
+  constructor(
+    message: string,
+    readonly code: string,
+  ) {
     super(message);
     this.name = "RepoGcError";
   }
@@ -126,10 +122,7 @@ function isFileOnlyRemote(repo: LocalRepo): boolean {
   return !repo.primaryRemote?.githubRepo;
 }
 
-function resolveWorkspacePath(
-  repo: LocalRepo,
-  wtRoot: string,
-): string | null {
+function resolveWorkspacePath(repo: LocalRepo, wtRoot: string): string | null {
   // The hydrated `.beads/` lives in the materialized mainx worktree, not in
   // the bare commonDir — mirror `repo_backfill.ts`'s derivation.
   const url = repo.primaryRemote?.url;
@@ -173,10 +166,7 @@ function dirSizeBytes(
 
 // ── handler ────────────────────────────────────────────────────────────────
 
-export function runRepoGc(
-  opts: RunRepoGcOptions,
-  deps: RunRepoGcDeps = {},
-): RepoGcReport {
+export function runRepoGc(opts: RunRepoGcOptions, deps: RunRepoGcDeps = {}): RepoGcReport {
   const loadIndex = deps.loadRepoInventoryIndex ?? defaultLoadRepoInventoryIndex;
   const classify = deps.classifyBeadsWorkspace ?? defaultClassifyBeadsWorkspace;
   const readMetadata = deps.readBeadsMetadata ?? defaultReadBeadsMetadata;
@@ -274,9 +264,7 @@ export function runRepoGc(
     // GC-I5: nothing on disk → idempotent no-op.
     const metadata = readMetadata(join(workspacePath, ".beads"));
     const dbName = metadata.dolt_database;
-    const orphanPath = dbName
-      ? join(workspacePath, ".beads", "embeddeddolt", dbName)
-      : null;
+    const orphanPath = dbName ? join(workspacePath, ".beads", "embeddeddolt", dbName) : null;
     const hasOrphan = orphanPath !== null && exists(orphanPath);
 
     if (!hasOrphan) {
@@ -361,9 +349,7 @@ export function runRepoGc(
     // GC-I4: interactive confirmation gates `--apply` unless `--yes`.
     if (!opts.yes) {
       const sizeMb = (orphanBytes / 1024 / 1024).toFixed(1);
-      const ok = promptConfirm(
-        `repo gc: remove ${orphanPath} (~${sizeMb} MB)? [y/N] `,
-      );
+      const ok = promptConfirm(`repo gc: remove ${orphanPath} (~${sizeMb} MB)? [y/N] `);
       if (!ok) {
         emitEntry({
           slug: repo.name,
@@ -426,19 +412,13 @@ function defaultPromptConfirm(message: string): boolean {
 
 // ── report formatter ───────────────────────────────────────────────────────
 
-export function formatRepoGcReport(
-  report: RepoGcReport,
-  format: "plain" | "json",
-): string {
+export function formatRepoGcReport(report: RepoGcReport, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(report, null, 2);
   }
 
   const dryTag = report.apply ? "" : " (dry-run)";
-  const lines: string[] = [
-    `repo gc${dryTag}`,
-    "================",
-  ];
+  const lines: string[] = [`repo gc${dryTag}`, "================"];
 
   if (report.entries.length === 0) {
     lines.push("(empty inventory)");
@@ -447,23 +427,17 @@ export function formatRepoGcReport(
   for (const entry of report.entries) {
     const slugCol = entry.slug.padEnd(28);
     const sizeTag =
-      entry.orphanBytes !== null
-        ? `${(entry.orphanBytes / 1024 / 1024).toFixed(1)}MB`
-        : "?MB";
+      entry.orphanBytes !== null ? `${(entry.orphanBytes / 1024 / 1024).toFixed(1)}MB` : "?MB";
     if (entry.action === "swept") {
       lines.push(`- ${slugCol} swept ${entry.orphanPath ?? ""}  [${sizeTag}]`);
     } else if (entry.action === "would-sweep") {
-      lines.push(
-        `~ ${slugCol} would-sweep ${entry.orphanPath ?? ""}  [${sizeTag}]`,
-      );
+      lines.push(`~ ${slugCol} would-sweep ${entry.orphanPath ?? ""}  [${sizeTag}]`);
     } else if (entry.action === "refused") {
       lines.push(
         `! ${slugCol} refused (${entry.refusalReason ?? "unknown"}) ${entry.orphanPath ?? ""}`,
       );
       if (entry.refusalReason === "not-migrated") {
-        lines.push(
-          `    hint: run \`prx beads migrate ${entry.slug}\` first (GH-1706)`,
-        );
+        lines.push(`    hint: run \`prx beads migrate ${entry.slug}\` first (GH-1706)`);
       } else if (entry.refusalReason === "server-unreachable") {
         lines.push(
           `    hint: shared-server dolt root missing — investigate \`~/.beads/shared-server/dolt/\``,

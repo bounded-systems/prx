@@ -134,7 +134,15 @@ export const toolActorCatalog: Record<ToolActor, ToolActorSpec> = {
     // GH-2381: `write-tree`/`commit-tree` are object-graph writes; `git` owns
     // their effect facts (TREE_WRITTEN, COMMIT_MATERIALIZED) — keeper owns the
     // intents, preserving the existing intent ⟂ effect split.
-    emits: ["BRANCH_CREATED", "REMOTE_BRANCH_PUBLISHED", "PUSH_COMMIT", "BRANCH_DELETED", "BRANCH_REFRESHED", "TREE_WRITTEN", "COMMIT_MATERIALIZED"],
+    emits: [
+      "BRANCH_CREATED",
+      "REMOTE_BRANCH_PUBLISHED",
+      "PUSH_COMMIT",
+      "BRANCH_DELETED",
+      "BRANCH_REFRESHED",
+      "TREE_WRITTEN",
+      "COMMIT_MATERIALIZED",
+    ],
     accepts: ["commit", "push", "rebase", "fetch", "add", "write-tree", "commit-tree"],
   },
   wt: {
@@ -142,7 +150,13 @@ export const toolActorCatalog: Record<ToolActor, ToolActorSpec> = {
     tier: "execution",
     kind: "cli",
     domain: "workspace",
-    emits: ["WORKTREE_CREATED", "WORKTREE_REMOVED", "WORKTREE_PRUNED", "WORKTREE_DIRTY", "BARE_MATERIALIZED"],
+    emits: [
+      "WORKTREE_CREATED",
+      "WORKTREE_REMOVED",
+      "WORKTREE_PRUNED",
+      "WORKTREE_DIRTY",
+      "BARE_MATERIALIZED",
+    ],
     accepts: ["add", "switch", "prune", "list", "materialize"],
   },
   gh: {
@@ -172,9 +186,7 @@ export const toolActorCatalog: Record<ToolActor, ToolActorSpec> = {
     tier: "verification_publication",
     kind: "cli",
     domain: "pull_request_readiness",
-    emits: [
-      "PR_INVENTORY_READ",
-    ],
+    emits: ["PR_INVENTORY_READ"],
     accepts: ["pr.inventory", "pr.ready", "pr.draft", "pr.merge"],
   },
   // GH-1558, narrowed by GH-2348.3: `publisher` is the FORGE role — PR
@@ -415,7 +427,12 @@ export const toolActorCatalog: Record<ToolActor, ToolActorSpec> = {
     // GH-1828: SDK-backed non-interactive planner runs (plan-print) via
     // `claude_sdk`; interactive plan-session resumes via `claude_code`.
     implementations: ["claude_code", "claude_sdk", "codex", "gemini_cli"],
-    emits: ["ROLE_PLANNER_STARTED", "ROLE_PLANNER_COMPLETED", "ROLE_PLANNER_FAILED", "TASK_SCOPE_CONFIRMED"],
+    emits: [
+      "ROLE_PLANNER_STARTED",
+      "ROLE_PLANNER_COMPLETED",
+      "ROLE_PLANNER_FAILED",
+      "TASK_SCOPE_CONFIRMED",
+    ],
     accepts: ["plan", "scope", "confirm_success_criteria"],
   },
   executor_agent: {
@@ -424,7 +441,12 @@ export const toolActorCatalog: Record<ToolActor, ToolActorSpec> = {
     kind: "agent",
     domain: "bounded_code_change",
     implementations: ["claude_code", "codex", "gemini_cli"],
-    emits: ["ROLE_EXECUTOR_STARTED", "ROLE_EXECUTOR_COMPLETED", "ROLE_EXECUTOR_FAILED", "PATCH_PROPOSED"],
+    emits: [
+      "ROLE_EXECUTOR_STARTED",
+      "ROLE_EXECUTOR_COMPLETED",
+      "ROLE_EXECUTOR_FAILED",
+      "PATCH_PROPOSED",
+    ],
     accepts: ["implement", "revise"],
   },
   tester_agent: {
@@ -550,11 +572,7 @@ export const toolActorCatalog: Record<ToolActor, ToolActorSpec> = {
     tier: "planning",
     kind: "cli",
     domain: "derived_truth",
-    emits: [
-      "DERIVE_FACTS_PROJECTED",
-      "DERIVE_QUERY_RUN",
-      "DERIVE_TRACE_EMITTED",
-    ],
+    emits: ["DERIVE_FACTS_PROJECTED", "DERIVE_QUERY_RUN", "DERIVE_TRACE_EMITTED"],
     accepts: [],
   },
   // GH-1978: workspace lifecycle actor. Lifecycle states
@@ -748,7 +766,18 @@ export const toolActorCatalog: Record<ToolActor, ToolActorSpec> = {
 };
 
 export const actorScopes: Record<ActorScope, ToolActor[]> = {
-  pr: ["git", "wt", "gh", "doctor", "keeper", "publisher", "prx", "local_ci", "remote_ci", "mediator"],
+  pr: [
+    "git",
+    "wt",
+    "gh",
+    "doctor",
+    "keeper",
+    "publisher",
+    "prx",
+    "local_ci",
+    "remote_ci",
+    "mediator",
+  ],
   workflow: [
     "notion_mcp",
     "beads",

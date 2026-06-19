@@ -90,10 +90,7 @@ function loadedBytes(memoryDir: string): number {
   return total;
 }
 
-function sessionAlreadyCommitted(
-  memoryDir: string,
-  originSessionId: string,
-): boolean {
+function sessionAlreadyCommitted(memoryDir: string, originSessionId: string): boolean {
   let entries: string[];
   try {
     entries = readdirSync(memoryDir);

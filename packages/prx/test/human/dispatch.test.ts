@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
 import type { HumanRequest } from "../../src/human/contract.ts";
-import { dispatchToHuman, HumanProtocolError, type HumanResponder } from "../../src/human/dispatch.ts";
+import {
+  dispatchToHuman,
+  HumanProtocolError,
+  type HumanResponder,
+} from "../../src/human/dispatch.ts";
 
 const APPROVAL: HumanRequest = { kind: "approval", action: "force-push main" };
 
@@ -57,10 +61,10 @@ describe("dispatchToHuman", () => {
 
   test("surfaces the offending field in the protocol error", async () => {
     await expect(
-      dispatchToHuman(
-        { kind: "decision", question: "?", options: ["a", "b"] },
-        async () => ({ kind: "decision", choice: "" }),
-      ),
+      dispatchToHuman({ kind: "decision", question: "?", options: ["a", "b"] }, async () => ({
+        kind: "decision",
+        choice: "",
+      })),
     ).rejects.toThrow(/choice/);
   });
 });

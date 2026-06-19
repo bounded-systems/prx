@@ -79,9 +79,9 @@ export function webApiSlackTransport(deps: WebApiTransportDeps = {}): SlackReadT
         op,
         ...(str("team_id") !== undefined ? { org: str("team_id") } : {}),
         ...(channel !== undefined ? { channel } : {}),
-        ...(str("thread_ts") ?? (op === "thread" ? str("ts") : undefined)) !== undefined
+        ...((str("thread_ts") ?? (op === "thread" ? str("ts") : undefined)) !== undefined
           ? { thread: str("thread_ts") ?? str("ts") }
-          : {},
+          : {}),
       };
       const authed = key.authorize(target, { url, headers: {} });
 

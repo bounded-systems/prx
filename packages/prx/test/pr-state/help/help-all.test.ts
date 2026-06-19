@@ -20,8 +20,17 @@ const spec = (over: Partial<CommandSpec>): CommandSpec => ({
 describe("HelpAll", () => {
   test("hides internal:true entries from domain sections", () => {
     const fixture: CommandSpec[] = [
-      spec({ name: "visible-cmd", description: "Visible to the operator surface", domain: "system" }),
-      spec({ name: "hidden-cmd", description: "Hidden internal scaffolding only", domain: "system", internal: true }),
+      spec({
+        name: "visible-cmd",
+        description: "Visible to the operator surface",
+        domain: "system",
+      }),
+      spec({
+        name: "hidden-cmd",
+        description: "Hidden internal scaffolding only",
+        domain: "system",
+        internal: true,
+      }),
     ];
     const out = HelpAll(fixture);
     expect(out).toContain("prx visible-cmd");
@@ -68,9 +77,7 @@ describe("HelpAll", () => {
 
   test("real registry renders every non-internal, non-deprecated entry once", () => {
     const out = HelpAll(prxCommandRegistry);
-    const expectedVisible = prxCommandRegistry.filter(
-      (c) => !c.internal && !c.deprecation,
-    );
+    const expectedVisible = prxCommandRegistry.filter((c) => !c.internal && !c.deprecation);
     for (const c of expectedVisible) {
       expect(
         out.includes(`prx ${c.name}`),

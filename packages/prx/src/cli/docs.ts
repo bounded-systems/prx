@@ -4,10 +4,7 @@
 // `docs/cli.md`, so the documented surface cannot drift from the registry. The
 // same registry can project a Claude-plugin surface (see `toClaudePlugin`).
 
-import {
-  type CommandDomain,
-  type CommandSpec,
-} from "./registry.ts";
+import { type CommandDomain, type CommandSpec } from "./registry.ts";
 import { prxActorRegistry, prxCommandRegistry } from "./registry.data.ts";
 
 export const CLI_DOCS_BANNER =
@@ -62,9 +59,7 @@ export function generateCliDoc(): string {
   ];
 
   for (const domain of DOMAIN_ORDER) {
-    const cmds = prxCommandRegistry
-      .filter((c) => c.domain === domain)
-      .sort(byName);
+    const cmds = prxCommandRegistry.filter((c) => c.domain === domain).sort(byName);
     if (cmds.length === 0) continue;
     lines.push(
       `## ${DOMAIN_TITLE[domain]}`,

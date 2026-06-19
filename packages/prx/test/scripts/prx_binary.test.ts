@@ -30,11 +30,23 @@ function hasBinary(): boolean {
 function createSandbox(): string {
   const tmp = mkdtempSync(join(tmpdir(), "prx-sandbox-"));
   Bun.spawnSync({ cmd: ["git", "init", tmp], stdout: "pipe", stderr: "pipe" });
-  Bun.spawnSync({ cmd: ["git", "-C", tmp, "config", "user.name", "test"], stdout: "pipe", stderr: "pipe" });
-  Bun.spawnSync({ cmd: ["git", "-C", tmp, "config", "user.email", "test@test"], stdout: "pipe", stderr: "pipe" });
+  Bun.spawnSync({
+    cmd: ["git", "-C", tmp, "config", "user.name", "test"],
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  Bun.spawnSync({
+    cmd: ["git", "-C", tmp, "config", "user.email", "test@test"],
+    stdout: "pipe",
+    stderr: "pipe",
+  });
   writeFileSync(join(tmp, "prx.toml"), '[worktree]\nmanager = "worktrunk"\n');
   Bun.spawnSync({ cmd: ["git", "-C", tmp, "add", "."], stdout: "pipe", stderr: "pipe" });
-  Bun.spawnSync({ cmd: ["git", "-C", tmp, "commit", "-m", "init"], stdout: "pipe", stderr: "pipe" });
+  Bun.spawnSync({
+    cmd: ["git", "-C", tmp, "commit", "-m", "init"],
+    stdout: "pipe",
+    stderr: "pipe",
+  });
   return tmp;
 }
 
@@ -61,7 +73,9 @@ describe("prx compiled binary", () => {
 
   beforeAll(() => {
     if (!hasBinary()) {
-      console.warn(`Skipping binary tests: ${binaryPath} not found. Run 'bun run prx:build' first.`);
+      console.warn(
+        `Skipping binary tests: ${binaryPath} not found. Run 'bun run prx:build' first.`,
+      );
       return;
     }
     sandbox = createSandbox();

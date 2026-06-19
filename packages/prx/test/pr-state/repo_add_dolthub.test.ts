@@ -107,17 +107,19 @@ function makeDeps(
   const recorded: Recorded = { remoteAdd: [], push: [] };
   const deps: AddDolthubDeps = {
     classify: overrides.classify ?? (() => classify ?? { kind: "per_project", doltDir: "/x/dolt" }),
-    getGitOrigin:
-      overrides.getGitOrigin
-      ?? ((repo) => `git@github.com:bdelanghe/${repo.name}.git`),
-    bdDoltRemoteAdd: overrides.bdDoltRemoteAdd ?? ((cwd, url) => {
-      recorded.remoteAdd.push({ cwd, url });
-      return { stdout: "", stderr: "", status: 0 };
-    }),
-    bdDoltPush: overrides.bdDoltPush ?? ((cwd, branch) => {
-      recorded.push.push({ cwd, branch });
-      return { stdout: "", stderr: "", status: 0 };
-    }),
+    getGitOrigin: overrides.getGitOrigin ?? ((repo) => `git@github.com:bdelanghe/${repo.name}.git`),
+    bdDoltRemoteAdd:
+      overrides.bdDoltRemoteAdd ??
+      ((cwd, url) => {
+        recorded.remoteAdd.push({ cwd, url });
+        return { stdout: "", stderr: "", status: 0 };
+      }),
+    bdDoltPush:
+      overrides.bdDoltPush ??
+      ((cwd, branch) => {
+        recorded.push.push({ cwd, branch });
+        return { stdout: "", stderr: "", status: 0 };
+      }),
   };
   return { deps, recorded };
 }
@@ -173,7 +175,9 @@ describe("runRepoAddDolthub: refused arms", () => {
     const { deps } = makeDeps();
     const result = runRepoAddDolthub(baseOptions(config, { slug: "no-such-repo" }), deps);
     expect(result.kind).toBe("refused");
-    expect((result as Extract<AddDolthubResult, { kind: "refused" }>).reason).toBe("slug-not-found");
+    expect((result as Extract<AddDolthubResult, { kind: "refused" }>).reason).toBe(
+      "slug-not-found",
+    );
   });
 
   test("refuses when beads workspace is in 'none' mode", () => {
@@ -181,7 +185,9 @@ describe("runRepoAddDolthub: refused arms", () => {
     const { deps } = makeDeps({}, { kind: "none" });
     const result = runRepoAddDolthub(baseOptions(config), deps);
     expect(result.kind).toBe("refused");
-    expect((result as Extract<AddDolthubResult, { kind: "refused" }>).reason).toBe("beads-state-none");
+    expect((result as Extract<AddDolthubResult, { kind: "refused" }>).reason).toBe(
+      "beads-state-none",
+    );
   });
 
   test("refuses when beads workspace is in 'embedded' mode", () => {
@@ -189,7 +195,9 @@ describe("runRepoAddDolthub: refused arms", () => {
     const { deps } = makeDeps({}, { kind: "embedded", doltDir: "/x/.dolt" });
     const result = runRepoAddDolthub(baseOptions(config), deps);
     expect(result.kind).toBe("refused");
-    expect((result as Extract<AddDolthubResult, { kind: "refused" }>).reason).toBe("beads-state-embedded");
+    expect((result as Extract<AddDolthubResult, { kind: "refused" }>).reason).toBe(
+      "beads-state-embedded",
+    );
   });
 
   test("refuses when origin is unset", () => {
@@ -233,7 +241,9 @@ describe("runRepoAddDolthub: refused arms", () => {
     const { deps, recorded } = makeDeps();
     const result = runRepoAddDolthub(baseOptions(config), deps);
     expect(result.kind).toBe("refused");
-    expect((result as Extract<AddDolthubResult, { kind: "refused" }>).reason).toBe("name-collision");
+    expect((result as Extract<AddDolthubResult, { kind: "refused" }>).reason).toBe(
+      "name-collision",
+    );
     // No bd subprocess invoked on collision.
     expect(recorded.remoteAdd).toEqual([]);
     expect(recorded.push).toEqual([]);

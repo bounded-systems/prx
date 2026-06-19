@@ -9,10 +9,7 @@ import { createActor, fromPromise } from "xstate";
 
 import { domainSyncMachine, type DomainSyncPairInput } from "../../src/sync/machine.ts";
 import type { PullActorInput, PushActorInput } from "../../src/sync/actors.ts";
-import type {
-  DomainSyncPullResult,
-  DomainSyncPushResult,
-} from "../../src/sync/schemas.ts";
+import type { DomainSyncPullResult, DomainSyncPushResult } from "../../src/sync/schemas.ts";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
 
 function bead(overrides: Partial<BeadsRecord> = {}): BeadsRecord {
@@ -97,7 +94,9 @@ describe("domainSyncMachine — happy path", () => {
     expect(emits).toContain("DOMAIN_SYNC_PAIR_DONE");
     expect(emits).not.toContain("DOMAIN_SYNC_PAIR_FAILED");
     expect(emits.indexOf("DOMAIN_SYNC_PULLED")).toBeLessThan(emits.indexOf("DOMAIN_SYNC_PUSHED"));
-    expect(emits.indexOf("DOMAIN_SYNC_PUSHED")).toBeLessThan(emits.indexOf("DOMAIN_SYNC_PAIR_DONE"));
+    expect(emits.indexOf("DOMAIN_SYNC_PUSHED")).toBeLessThan(
+      emits.indexOf("DOMAIN_SYNC_PAIR_DONE"),
+    );
   });
 
   test("dry-run carries through to the push actor input", async () => {

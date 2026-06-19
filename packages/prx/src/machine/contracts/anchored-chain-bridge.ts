@@ -27,10 +27,7 @@ import type {
 import type { AgentContract } from "../contracts.ts";
 import { dispatchRequestSchema, dispatchResultSchema } from "../dispatch.ts";
 import { rawStateV1Schema } from "@bounded-systems/machine-schema";
-import {
-  deriveTransitionSchema,
-  runtimeOutputSchema,
-} from "./derived_artifact_schemas.ts";
+import { deriveTransitionSchema, runtimeOutputSchema } from "./derived_artifact_schemas.ts";
 import {
   blockerReportSchema,
   delegationRecordSchema,
@@ -56,9 +53,7 @@ export function anchoredChainBridge(args: AnchoredChainBridgeArgs): ContractRegi
   const inScope = new Set<string>([agent.inputArtifact, agent.outputArtifact]);
 
   return {
-    getValidator(
-      artifactType: ContractId,
-    ): (digest: Digest, bytes?: Uint8Array) => VerdictResult {
+    getValidator(artifactType: ContractId): (digest: Digest, bytes?: Uint8Array) => VerdictResult {
       const typeId = artifactType as unknown as string;
 
       if (!inScope.has(typeId)) {

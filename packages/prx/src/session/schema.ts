@@ -26,12 +26,7 @@
 
 import { z } from "zod";
 
-import {
-  Lifecycle,
-  PrepareOutput,
-  ReserveOutput,
-  WorkspaceId,
-} from "../workspace/schema.ts";
+import { Lifecycle, PrepareOutput, ReserveOutput, WorkspaceId } from "../workspace/schema.ts";
 
 /**
  * The session-open verbs. Source of truth for the per-actor
@@ -84,10 +79,7 @@ export const SessionOpenInput = z
   })
   .refine(
     (v) =>
-      v.actor === "intake" ||
-      v.actor === "triage" ||
-      v.actor === "scratch" ||
-      v.workUnitId != null,
+      v.actor === "intake" || v.actor === "triage" || v.actor === "scratch" || v.workUnitId != null,
     {
       message: "workUnitId required for plan/implement/submit/author",
       path: ["workUnitId"],
@@ -113,9 +105,7 @@ export const SessionOpenOutput = z.object({
   // dispatched/launched. Used by the release smoke harness to assert the
   // materialize→redirect path with no claude/PTY/SDK.
   status: z.enum(["opened", "error", "prepared"]),
-  stage: z
-    .enum(["naming", "reserve", "materialize", "prepare", "dispatch"])
-    .optional(),
+  stage: z.enum(["naming", "reserve", "materialize", "prepare", "dispatch"]).optional(),
   error: z.string().optional(),
 });
 export type SessionOpenOutput = z.infer<typeof SessionOpenOutput>;

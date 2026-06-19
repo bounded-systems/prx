@@ -16,12 +16,7 @@
 import { z } from "zod";
 
 import { mergeIssueHits, formatIssueSearchTable } from "../issues/merge.ts";
-import {
-  IssueSearchError,
-  searchBd,
-  searchGh,
-  type IssueSearchHit,
-} from "../issues/search.ts";
+import { IssueSearchError, searchBd, searchGh, type IssueSearchHit } from "../issues/search.ts";
 import { execGh } from "@bounded-systems/gh";
 import type { BeadsRecord } from "../triage/triage.ts";
 // GH-296: search is a scout-shaped aggregate read — route it through the daemon.
@@ -92,9 +87,7 @@ export async function runIntakeSearch(
     bdHits = searchBd(opts.query, bdRecords, opts.state);
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
-    output.error(
-      `${VERB}: bd unreachable: ${detail}; continuing with GH-only results`,
-    );
+    output.error(`${VERB}: bd unreachable: ${detail}; continuing with GH-only results`);
     bdRecords = null;
   }
 

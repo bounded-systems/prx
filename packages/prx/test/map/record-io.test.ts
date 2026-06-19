@@ -63,9 +63,7 @@ describe("writeMapRecord + readMapRecord", () => {
     const entries = readdirSync(join(repoRoot, ".prx", "maps"));
     expect(entries).toEqual(["delegate-unblock.json"]);
 
-    const onDisk = JSON.parse(
-      readFileSync(mapFilePath(repoRoot, "delegate-unblock"), "utf8"),
-    );
+    const onDisk = JSON.parse(readFileSync(mapFilePath(repoRoot, "delegate-unblock"), "utf8"));
     expect(onDisk.rationale).toBe("updated rationale");
   });
 

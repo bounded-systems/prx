@@ -21,14 +21,20 @@ const resolver = (impl: () => Promise<ResolvedWorkUnit>): WorkUnitResolver =>
 
 function rec() {
   const lines: string[] = [];
-  return { lines, output: { log: (l: string) => lines.push(l), error: (l: string) => lines.push(l) } };
+  return {
+    lines,
+    output: { log: (l: string) => lines.push(l), error: (l: string) => lines.push(l) },
+  };
 }
 
 describe("resolveWorkUnitSource — fetch failure", () => {
   test("wraps a resolver fetch error in a ScoutSourceError naming the resolver", async () => {
     await expect(
       resolveWorkUnitSource("GH-9", {
-        buildResolver: (() => resolver(async () => { throw new Error("boom"); })) as never,
+        buildResolver: (() =>
+          resolver(async () => {
+            throw new Error("boom");
+          })) as never,
       }),
     ).rejects.toThrow(ScoutSourceError);
   });
@@ -37,11 +43,11 @@ describe("resolveWorkUnitSource — fetch failure", () => {
 describe("runScoutSource — plain output", () => {
   test("prints `source: title [state]` and the url line", async () => {
     const r = rec();
-    const code = await runScoutSource(
-      { id: "GH-1", format: "plain" } as never,
-      r.output,
-      { loadIdentity: (() => ({})) as never, buildResolver: (() => resolver(async () => unit())) as never, repoPath: "/repo" } as never,
-    );
+    const code = await runScoutSource({ id: "GH-1", format: "plain" } as never, r.output, {
+      loadIdentity: (() => ({})) as never,
+      buildResolver: (() => resolver(async () => unit())) as never,
+      repoPath: "/repo",
+    } as never);
     expect(code).toBe(0);
     const text = r.lines.join("\n");
     expect(text).toContain("github: A unit [open]");
@@ -50,11 +56,11 @@ describe("runScoutSource — plain output", () => {
 
   test("omits the url line when the resolved unit has none", async () => {
     const r = rec();
-    await runScoutSource(
-      { id: "GH-2", format: "plain" } as never,
-      r.output,
-      { loadIdentity: (() => ({})) as never, buildResolver: (() => resolver(async () => unit({ url: null }))) as never, repoPath: "/repo" } as never,
-    );
+    await runScoutSource({ id: "GH-2", format: "plain" } as never, r.output, {
+      loadIdentity: (() => ({})) as never,
+      buildResolver: (() => resolver(async () => unit({ url: null }))) as never,
+      repoPath: "/repo",
+    } as never);
     expect(r.lines.join("\n")).not.toContain("http");
   });
 });

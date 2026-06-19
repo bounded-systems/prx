@@ -23,13 +23,7 @@
  * server with no spawn.
  */
 
-import {
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 
 /**
@@ -40,10 +34,7 @@ import { isAbsolute, join, resolve } from "node:path";
  * Returns the path written (or [] when there is nothing to point at, or the
  * source is the destination).
  */
-export function writeBeadsRedirect(
-  srcWorktree: string,
-  destWorktree: string,
-): string[] {
+export function writeBeadsRedirect(srcWorktree: string, destWorktree: string): string[] {
   const srcBeads = join(srcWorktree, ".beads");
   if (!existsSync(srcBeads) || resolve(srcWorktree) === resolve(destWorktree)) {
     return [];

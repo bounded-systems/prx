@@ -11,9 +11,10 @@ import {
 
 type Reply = { stdout: string; stderr?: string; status?: number };
 
-function makeRunner(
-  handlers: Array<(cmd: string[]) => Reply>,
-): { runner: CommandRunner; calls: string[][] } {
+function makeRunner(handlers: Array<(cmd: string[]) => Reply>): {
+  runner: CommandRunner;
+  calls: string[][];
+} {
   const calls: string[][] = [];
   let index = 0;
   const runner: CommandRunner = (cmd) => {
@@ -31,9 +32,10 @@ function makeRunner(
 // GH-1828: probe replies now come back via the typed `NotionProbeRunner`
 // seam (SDK-backed in production). The fake here mirrors the SDK collapse
 // shape (`{exitCode, stdout, stderr}`).
-function makeProbe(
-  reply: NotionProbeRunResult,
-): { probe: NotionProbeRunner; calls: Array<{ model: string; prompt: string }> } {
+function makeProbe(reply: NotionProbeRunResult): {
+  probe: NotionProbeRunner;
+  calls: Array<{ model: string; prompt: string }>;
+} {
   const calls: Array<{ model: string; prompt: string }> = [];
   const probe: NotionProbeRunner = async ({ model, prompt }) => {
     calls.push({ model, prompt });
@@ -95,18 +97,14 @@ describe("runNotionMcpPreflight", () => {
   });
 
   test("headless-oauth-required also detected on probe stderr", async () => {
-    const { runner } = makeRunner([
-      () => ({ stdout: "notion: connected\n" }),
-    ]);
+    const { runner } = makeRunner([() => ({ stdout: "notion: connected\n" })]);
     const { probe } = makeProbe({ exitCode: 1, stdout: "", stderr: OAUTH_PROBE_OUTPUT });
     const result = await runNotionMcpPreflight(runner, process.env, probe);
     expect(result.status).toBe("headless-oauth-required");
   });
 
   test("fails with notion-mcp-missing when no notion entry; probe is not run", async () => {
-    const { runner, calls } = makeRunner([
-      () => ({ stdout: "beads: connected\n" }),
-    ]);
+    const { runner, calls } = makeRunner([() => ({ stdout: "beads: connected\n" })]);
     const { probe, calls: probeCalls } = makeProbe(probeOk());
     const result = await runNotionMcpPreflight(runner, process.env, probe);
     expect(result.ok).toBe(false);
@@ -147,9 +145,7 @@ describe("runNotionMcpPreflight", () => {
   });
 
   test("probe non-zero exit without OAuth signature → claude-print-failed", async () => {
-    const { runner } = makeRunner([
-      () => ({ stdout: "notion: connected\n" }),
-    ]);
+    const { runner } = makeRunner([() => ({ stdout: "notion: connected\n" })]);
     const { probe } = makeProbe({ exitCode: 139, stdout: "", stderr: "segfault" });
     const result = await runNotionMcpPreflight(runner, process.env, probe);
     expect(result.ok).toBe(false);
@@ -158,9 +154,7 @@ describe("runNotionMcpPreflight", () => {
   });
 
   test("probe exits 0 but stdout is not a JSON envelope → claude-print-failed", async () => {
-    const { runner } = makeRunner([
-      () => ({ stdout: "notion: connected\n" }),
-    ]);
+    const { runner } = makeRunner([() => ({ stdout: "notion: connected\n" })]);
     const { probe } = makeProbe({ exitCode: 0, stdout: "not json at all", stderr: "" });
     const result = await runNotionMcpPreflight(runner, process.env, probe);
     expect(result.ok).toBe(false);
@@ -169,15 +163,9 @@ describe("runNotionMcpPreflight", () => {
   });
 
   test("probe respects PRX_NOTION_MCP_MODEL env override", async () => {
-    const { runner } = makeRunner([
-      () => ({ stdout: "notion: connected\n" }),
-    ]);
+    const { runner } = makeRunner([() => ({ stdout: "notion: connected\n" })]);
     const { probe, calls: probeCalls } = makeProbe(probeOk());
-    await runNotionMcpPreflight(
-      runner,
-      { PRX_NOTION_MCP_MODEL: "claude-haiku-4-5" },
-      probe,
-    );
+    await runNotionMcpPreflight(runner, { PRX_NOTION_MCP_MODEL: "claude-haiku-4-5" }, probe);
     expect(probeCalls.length).toBe(1);
     expect(probeCalls[0]!.model).toBe("claude-haiku-4-5");
   });

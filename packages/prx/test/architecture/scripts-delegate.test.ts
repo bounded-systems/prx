@@ -64,9 +64,10 @@ describe("scripts delegate to prx (scripts → verbs forcing function)", () => {
 
   test("SCRIPT_BASELINE has no stale entries — remove a script once it delegates to ../src/", () => {
     const present = new Set(scriptFiles());
-    const stale = [...SCRIPT_BASELINE]
-      .filter((f) => !present.has(f) || delegatesToSrc(f))
-      .sort();
-    expect(stale, "remove these from SCRIPT_BASELINE — they now delegate (or no longer exist)").toEqual([]);
+    const stale = [...SCRIPT_BASELINE].filter((f) => !present.has(f) || delegatesToSrc(f)).sort();
+    expect(
+      stale,
+      "remove these from SCRIPT_BASELINE — they now delegate (or no longer exist)",
+    ).toEqual([]);
   });
 });

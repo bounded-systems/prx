@@ -97,8 +97,7 @@ export function createServiceKeymaker(
     mint(grant: CredentialGrant): ScopedCredential {
       const mintedAt = now();
       const expiresAt = mintedAt + grant.ttlMs;
-      const keyId =
-        grant.keyId ?? opts.genKeyId?.(mintedAt) ?? `${service}-k${++seq}-${mintedAt}`;
+      const keyId = grant.keyId ?? opts.genKeyId?.(mintedAt) ?? `${service}-k${++seq}-${mintedAt}`;
       return {
         keyId,
         expiresAt,

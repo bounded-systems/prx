@@ -64,14 +64,7 @@ describe("parsePlanScope (GH-1238)", () => {
   });
 
   test("captures scope body to end of file when no later heading exists", () => {
-    const body = [
-      "# Plan",
-      "",
-      "## Scope",
-      "",
-      "Final paragraph.",
-      "",
-    ].join("\n");
+    const body = ["# Plan", "", "## Scope", "", "Final paragraph.", ""].join("\n");
     const result = parsePlanScope(body);
     expect(result.hasScope).toBe(true);
     expect(result.isEmpty).toBe(false);
@@ -107,13 +100,7 @@ describe("parsePlanScope (GH-1238)", () => {
   });
 
   test("only the first matching Scope heading is used", () => {
-    const body = [
-      "## Scope",
-      "first.",
-      "## Other",
-      "## Scope",
-      "second.",
-    ].join("\n");
+    const body = ["## Scope", "first.", "## Other", "## Scope", "second."].join("\n");
     const result = parsePlanScope(body);
     expect(result.hasScope).toBe(true);
     // The capture stops at `## Other` (same depth), so only "first." is kept.

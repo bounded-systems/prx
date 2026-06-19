@@ -50,97 +50,85 @@ describe("PRX_TRACE JSONL tracer", () => {
     else setEnv("PRX_TRACE", savedTrace);
   });
 
-  test(
-    "formatTraceEvent serializes one JSONL line in locked {ts,kind,target,ms,cache} key order",
-    () => {
-      const event: TraceEvent = {
-        ts: "2026-05-19T17:23:01.310Z",
-        kind: "gh-issue-view",
-        target: "GH-1960",
-        ms: 612,
+  test("formatTraceEvent serializes one JSONL line in locked {ts,kind,target,ms,cache} key order", () => {
+    const event: TraceEvent = {
+      ts: "2026-05-19T17:23:01.310Z",
+      kind: "gh-issue-view",
+      target: "GH-1960",
+      ms: 612,
+      cache: "miss",
+    };
+    expect(formatTraceEvent(event)).toBe(
+      '{"ts":"2026-05-19T17:23:01.310Z","kind":"gh-issue-view","target":"GH-1960","ms":612,"cache":"miss"}\n',
+    );
+  });
+
+  test("traceMs (enabled) emits exactly one JSONL record with measured elapsed ms", async () => {
+    const clock = makeClock(0);
+    const writes: string[] = [];
+    const result = await traceMs(
+      "gh-issue-view",
+      "GH-1960",
+      async () => {
+        clock.tick(612);
+        return "ok";
+      },
+      {
+        enabled: true,
         cache: "miss",
-      };
-      expect(formatTraceEvent(event)).toBe(
-        '{"ts":"2026-05-19T17:23:01.310Z","kind":"gh-issue-view","target":"GH-1960","ms":612,"cache":"miss"}\n',
-      );
-    },
-  );
+        now: clock.now,
+        write: (line) => writes.push(line),
+      },
+    );
 
-  test(
-    "traceMs (enabled) emits exactly one JSONL record with measured elapsed ms",
-    async () => {
-      const clock = makeClock(0);
-      const writes: string[] = [];
-      const result = await traceMs(
-        "gh-issue-view",
-        "GH-1960",
-        async () => {
-          clock.tick(612);
-          return "ok";
-        },
-        {
-          enabled: true,
-          cache: "miss",
-          now: clock.now,
-          write: (line) => writes.push(line),
-        },
-      );
+    // Observation-only: the wrapped fn's result passes through untouched.
+    expect(result).toBe("ok");
 
-      // Observation-only: the wrapped fn's result passes through untouched.
-      expect(result).toBe("ok");
+    expect(writes.length).toBe(1);
+    const line = writes[0] ?? "";
+    expect(line.endsWith("\n")).toBe(true);
+    const record = JSON.parse(line) as TraceEvent;
+    expect(record).toEqual({
+      ts: "1970-01-01T00:00:00.000Z",
+      kind: "gh-issue-view",
+      target: "GH-1960",
+      ms: 612,
+      cache: "miss",
+    });
+  });
 
-      expect(writes.length).toBe(1);
-      const line = writes[0] ?? "";
-      expect(line.endsWith("\n")).toBe(true);
-      const record = JSON.parse(line) as TraceEvent;
-      expect(record).toEqual({
-        ts: "1970-01-01T00:00:00.000Z",
-        kind: "gh-issue-view",
-        target: "GH-1960",
-        ms: 612,
-        cache: "miss",
-      });
-    },
-  );
+  test("traceMs defaults cache to 'n/a' when the caller omits it", async () => {
+    const clock = makeClock(0);
+    const writes: string[] = [];
+    await traceMs(
+      "git-ls-remote",
+      "origin/GH-2078",
+      async () => {
+        clock.tick(7);
+        return undefined;
+      },
+      { enabled: true, now: clock.now, write: (line) => writes.push(line) },
+    );
+    const record = JSON.parse(writes[0] ?? "{}") as TraceEvent;
+    expect(record.cache).toBe("n/a");
+    expect(record.ms).toBe(7);
+  });
 
-  test(
-    "traceMs defaults cache to 'n/a' when the caller omits it",
-    async () => {
-      const clock = makeClock(0);
-      const writes: string[] = [];
-      await traceMs(
-        "git-ls-remote",
-        "origin/GH-2078",
-        async () => {
-          clock.tick(7);
-          return undefined;
-        },
-        { enabled: true, now: clock.now, write: (line) => writes.push(line) },
-      );
-      const record = JSON.parse(writes[0] ?? "{}") as TraceEvent;
-      expect(record.cache).toBe("n/a");
-      expect(record.ms).toBe(7);
-    },
-  );
-
-  test(
-    "traceMs honors PRX_TRACE=1 from the environment when `enabled` is not passed",
-    async () => {
-      setEnv("PRX_TRACE", "1");
-      const clock = makeClock(0);
-      const writes: string[] = [];
-      await traceMs(
-        "bd-show",
-        "ai-home-udqx2.4",
-        async () => {
-          clock.tick(3);
-          return 0;
-        },
-        { now: clock.now, write: (line) => writes.push(line) },
-      );
-      expect(writes.length).toBe(1);
-    },
-  );
+  test("traceMs honors PRX_TRACE=1 from the environment when `enabled` is not passed", async () => {
+    setEnv("PRX_TRACE", "1");
+    const clock = makeClock(0);
+    const writes: string[] = [];
+    await traceMs(
+      "bd-show",
+      "ai-home-udqx2.4",
+      async () => {
+        clock.tick(3);
+        return 0;
+      },
+      { now: clock.now, write: (line) => writes.push(line) },
+    );
+    expect(writes.length).toBe(1);
+  });
 
   test("traceMs is silent by default (PRX_TRACE unset, no `enabled`) and still returns fn's result", async () => {
     const clock = makeClock(0);
@@ -158,78 +146,72 @@ describe("PRX_TRACE JSONL tracer", () => {
     expect(writes).toEqual([]);
   });
 
-  test(
-    "traceMs (enabled) writes to stderr, never stdout, so --format=json payloads stay clean",
-    async () => {
-      const origOut = process.stdout.write.bind(process.stdout);
-      const origErr = process.stderr.write.bind(process.stderr);
-      const outChunks: string[] = [];
-      const errChunks: string[] = [];
-      process.stdout.write = ((chunk: unknown) => {
-        outChunks.push(String(chunk));
-        return true;
-      }) as typeof process.stdout.write;
-      process.stderr.write = ((chunk: unknown) => {
-        errChunks.push(String(chunk));
-        return true;
-      }) as typeof process.stderr.write;
-      try {
-        const clock = makeClock(0);
-        // No `write` override → exercises the default stderr sink.
-        await traceMs(
-          "gh-api-project",
-          "GH-1960",
-          async () => {
-            clock.tick(120);
-            return null;
-          },
-          { enabled: true, cache: "n/a", now: clock.now },
-        );
-      } finally {
-        process.stdout.write = origOut;
-        process.stderr.write = origErr;
-      }
-      expect(outChunks.join("")).toBe("");
-      const stderr = errChunks.join("");
-      expect(stderr).toContain('"target":"GH-1960"');
-      expect(stderr.endsWith("\n")).toBe(true);
-    },
-  );
+  test("traceMs (enabled) writes to stderr, never stdout, so --format=json payloads stay clean", async () => {
+    const origOut = process.stdout.write.bind(process.stdout);
+    const origErr = process.stderr.write.bind(process.stderr);
+    const outChunks: string[] = [];
+    const errChunks: string[] = [];
+    process.stdout.write = ((chunk: unknown) => {
+      outChunks.push(String(chunk));
+      return true;
+    }) as typeof process.stdout.write;
+    process.stderr.write = ((chunk: unknown) => {
+      errChunks.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+    try {
+      const clock = makeClock(0);
+      // No `write` override → exercises the default stderr sink.
+      await traceMs(
+        "gh-api-project",
+        "GH-1960",
+        async () => {
+          clock.tick(120);
+          return null;
+        },
+        { enabled: true, cache: "n/a", now: clock.now },
+      );
+    } finally {
+      process.stdout.write = origOut;
+      process.stderr.write = origErr;
+    }
+    expect(outChunks.join("")).toBe("");
+    const stderr = errChunks.join("");
+    expect(stderr).toContain('"target":"GH-1960"');
+    expect(stderr.endsWith("\n")).toBe(true);
+  });
 
-  test(
-    "formatTraceSummary renders one JSONL summary line aggregating traced calls",
-    () => {
-      const events: TraceEvent[] = [
-        {
-          ts: "2026-05-19T17:23:01.310Z",
-          kind: "gh-issue-view",
-          target: "GH-1960",
-          ms: 612,
-          cache: "miss",
-        },
-        {
-          ts: "2026-05-19T17:23:01.930Z",
-          kind: "bd-show",
-          target: "ai-home-udqx2.4",
-          ms: 88,
-          cache: "hit",
-        },
-      ];
-      const line = formatTraceSummary(events);
-      expect(line.endsWith("\n")).toBe(true);
-      expect(line.split("\n").filter(Boolean).length).toBe(1);
-      const summary = JSON.parse(line) as {
-        ts: string;
-        kind: string;
-        calls: number;
-        ms: number;
-      };
-      expect(summary.kind).toBe("summary");
-      expect(summary.calls).toBe(2);
-      expect(summary.ms).toBe(700);
-      expect(Number.isNaN(Date.parse(summary.ts))).toBe(false);
-    },
-  );
+  test("formatTraceSummary renders one JSONL summary line aggregating traced calls", () => {
+    const events: TraceEvent[] = [
+      {
+        ts: "2026-05-19T17:23:01.310Z",
+        kind: "gh-issue-view",
+        target: "GH-1960",
+        ms: 612,
+        cache: "miss",
+      },
+      {
+        ts: "2026-05-19T17:23:01.930Z",
+        kind: "bd-show",
+        target: "ai-home-udqx2.4",
+        ms: 88,
+        cache: "hit",
+      },
+    ];
+    const line = formatTraceSummary(events);
+    expect(line.endsWith("\n")).toBe(true);
+    expect(line.split("\n").filter(Boolean).length).toBe(1);
+    const summary = JSON.parse(line) as {
+      ts: string;
+      kind: string;
+      calls: number;
+      ms: number;
+    };
+    expect(summary.kind).toBe("summary");
+    expect(summary.calls).toBe(2);
+    expect(summary.ms).toBe(700);
+    expect(Number.isNaN(Date.parse(summary.ts))).toBe(false);
+  });
 });
 
 describe("traceSync (synchronous CommandRunner seam)", () => {
@@ -270,18 +252,13 @@ describe("traceSync (synchronous CommandRunner seam)", () => {
   test("disabled by default: zero emission, no clock read, passes result through", () => {
     let nowCalls = 0;
     const writes: string[] = [];
-    const result = traceSync(
-      "bd-show",
-      "ai-home-udqx2.4",
-      () => 7,
-      {
-        now: () => {
-          nowCalls += 1;
-          return 0;
-        },
-        write: (line) => writes.push(line),
+    const result = traceSync("bd-show", "ai-home-udqx2.4", () => 7, {
+      now: () => {
+        nowCalls += 1;
+        return 0;
       },
-    );
+      write: (line) => writes.push(line),
+    });
     expect(result).toBe(7);
     expect(writes).toEqual([]);
     // Early-return path must not even read the clock (hot-path invariant).
@@ -313,8 +290,16 @@ describe("classifyTraceCmd (argv → {kind, target})", () => {
     [["gh", "pr", "list", "--head", "GH-2078", "--state", "all"], "gh-pr-list", "GH-2078"],
     [["gh", "api", "graphql", "-f", "query=…"], "gh-api", "graphql"],
     [["bd", "show", "ai-home-udqx2.4", "--json"], "bd-show", "ai-home-udqx2.4"],
-    [["git", "-C", "/repo", "rev-list", "--count", "origin/main...x"], "git-rev-list", "origin/main...x"],
-    [["git", "-C", "/repo", "for-each-ref", "refs/remotes/origin/"], "git-for-each-ref", "refs/remotes/origin/"],
+    [
+      ["git", "-C", "/repo", "rev-list", "--count", "origin/main...x"],
+      "git-rev-list",
+      "origin/main...x",
+    ],
+    [
+      ["git", "-C", "/repo", "for-each-ref", "refs/remotes/origin/"],
+      "git-for-each-ref",
+      "refs/remotes/origin/",
+    ],
   ] as const)("classifies %j", (cmd, kind, target) => {
     expect(classifyTraceCmd([...cmd])).toEqual({ kind, target });
   });
@@ -344,10 +329,15 @@ describe("trace span placement vs a gate (GH-2355 fidelity fix)", () => {
     const gate = gateWith(100, clock); // 100ms gate-wait
     // defaultRunner = withBucketGate(withTrace(raw)): trace wraps only the exec.
     gate(() =>
-      traceSync("gh-api", "graphql", () => {
-        clock.tick(5); // 5ms exec
-        return "ok";
-      }, { enabled: true, now: clock.now, write: (l) => writes.push(l) }),
+      traceSync(
+        "gh-api",
+        "graphql",
+        () => {
+          clock.tick(5); // 5ms exec
+          return "ok";
+        },
+        { enabled: true, now: clock.now, write: (l) => writes.push(l) },
+      ),
     );
     expect(JSON.parse(writes[0] ?? "{}").ms).toBe(5);
   });
@@ -357,10 +347,16 @@ describe("trace span placement vs a gate (GH-2355 fidelity fix)", () => {
     const writes: string[] = [];
     const gate = gateWith(100, clock);
     // PR-1 order withTrace(withBucketGate(raw)): trace wraps the whole gate call.
-    traceSync("gh-api", "graphql", () => gate(() => {
-      clock.tick(5);
-      return "ok";
-    }), { enabled: true, now: clock.now, write: (l) => writes.push(l) });
+    traceSync(
+      "gh-api",
+      "graphql",
+      () =>
+        gate(() => {
+          clock.tick(5);
+          return "ok";
+        }),
+      { enabled: true, now: clock.now, write: (l) => writes.push(l) },
+    );
     expect(JSON.parse(writes[0] ?? "{}").ms).toBe(105); // 100 wait + 5 exec
   });
 });

@@ -32,15 +32,11 @@ describe("prx implement agent auto-prime + refusal contract (GH-1238)", () => {
     const { errors, output } = captureOutput();
     delete process.env.PRX_SESSION_OPEN;
 
-    const exit = await runCli(
-      ["implement", "agent", "GH-1238"],
-      output,
-      {
-        runPlanShow: async () => {
-          throw new PlanRefNotFound("GH-1238", "approved");
-        },
+    const exit = await runCli(["implement", "agent", "GH-1238"], output, {
+      runPlanShow: async () => {
+        throw new PlanRefNotFound("GH-1238", "approved");
       },
-    );
+    });
 
     expect(exit).toBe(2);
     const blob = errors.join("\n");
@@ -60,21 +56,17 @@ describe("prx implement agent auto-prime + refusal contract (GH-1238)", () => {
     const planBody = "# Plan\n\n## Goals\n\nDo a thing.\n";
     const verdict = validatePlanShape(planBody, "GH-1238");
 
-    const exit = await runCli(
-      ["implement", "agent", "GH-1238"],
-      output,
-      {
-        runPlanShow: async () => ({
-          unit: "GH-1238",
-          slot: "draft" as const,
-          sha: "fakesha" as never,
-          size: planBody.length,
-          body: Buffer.from(planBody),
-          validated_ok: verdict.validated_ok,
-          diagnostics: verdict.diagnostics,
-        }),
-      },
-    );
+    const exit = await runCli(["implement", "agent", "GH-1238"], output, {
+      runPlanShow: async () => ({
+        unit: "GH-1238",
+        slot: "draft" as const,
+        sha: "fakesha" as never,
+        size: planBody.length,
+        body: Buffer.from(planBody),
+        validated_ok: verdict.validated_ok,
+        diagnostics: verdict.diagnostics,
+      }),
+    });
 
     expect(exit).toBe(2);
     const blob = errors.join("\n");
@@ -94,21 +86,17 @@ describe("prx implement agent auto-prime + refusal contract (GH-1238)", () => {
     const planBody = "## Scope\n\n<!-- TODO: fill me in -->\n\n## Acceptance\n";
     const verdict = validatePlanShape(planBody, "GH-1238");
 
-    const exit = await runCli(
-      ["implement", "agent", "GH-1238"],
-      output,
-      {
-        runPlanShow: async () => ({
-          unit: "GH-1238",
-          slot: "draft" as const,
-          sha: "fakesha" as never,
-          size: planBody.length,
-          body: Buffer.from(planBody),
-          validated_ok: verdict.validated_ok,
-          diagnostics: verdict.diagnostics,
-        }),
-      },
-    );
+    const exit = await runCli(["implement", "agent", "GH-1238"], output, {
+      runPlanShow: async () => ({
+        unit: "GH-1238",
+        slot: "draft" as const,
+        sha: "fakesha" as never,
+        size: planBody.length,
+        body: Buffer.from(planBody),
+        validated_ok: verdict.validated_ok,
+        diagnostics: verdict.diagnostics,
+      }),
+    });
 
     expect(exit).toBe(2);
     const blob = errors.join("\n");
@@ -155,19 +143,15 @@ describe("prx implement agent auto-prime + refusal contract (GH-1238)", () => {
     // refusal fires — the assertion on `errors` then fails loudly.
     const malformedDraftBody = "## Scope\n\n<!-- not filled in -->\n";
 
-    await runCli(
-      ["implement", "agent", "GH-1284"],
-      output,
-      {
-        runPlanShow: makeResolverStub({
-          approved: approvedBody,
-          draft: malformedDraftBody,
-        }),
-        boardStatus: () => {
-          throw new Error("expected: stop here so the test stays hermetic");
-        },
+    await runCli(["implement", "agent", "GH-1284"], output, {
+      runPlanShow: makeResolverStub({
+        approved: approvedBody,
+        draft: malformedDraftBody,
+      }),
+      boardStatus: () => {
+        throw new Error("expected: stop here so the test stays hermetic");
       },
-    );
+    });
 
     // Approved was preferred ⇒ no refusal. If draft had been preferred, the
     // empty-Scope refusal would have fired before boardStatus was reached.
@@ -179,19 +163,15 @@ describe("prx implement agent auto-prime + refusal contract (GH-1238)", () => {
     delete process.env.PRX_SESSION_OPEN;
     const draftBody = "## Scope\n\n- ship the draft plan\n";
 
-    await runCli(
-      ["implement", "agent", "GH-1284"],
-      output,
-      {
-        // Approved missing entirely. If the implementation regresses to
-        // pinning `slot: "approved"`, the stub throws PlanRefNotFound and the
-        // "no plan slot" refusal fires.
-        runPlanShow: makeResolverStub({ draft: draftBody }),
-        boardStatus: () => {
-          throw new Error("expected: stop here so the test stays hermetic");
-        },
+    await runCli(["implement", "agent", "GH-1284"], output, {
+      // Approved missing entirely. If the implementation regresses to
+      // pinning `slot: "approved"`, the stub throws PlanRefNotFound and the
+      // "no plan slot" refusal fires.
+      runPlanShow: makeResolverStub({ draft: draftBody }),
+      boardStatus: () => {
+        throw new Error("expected: stop here so the test stays hermetic");
       },
-    );
+    });
 
     expect(errors.join("\n")).not.toContain("refused");
   });
@@ -205,23 +185,19 @@ describe("prx implement agent auto-prime + refusal contract (GH-1238)", () => {
     // check via an unrelated downstream throw that bubbles through the
     // existing handleRunCliError path. The point of this test is to assert
     // that `runPlanShow` is NEVER consulted when --plan is provided.
-    await runCli(
-      ["implement", "agent", "GH-1238", "--plan", "plan.md", "--dry-run"],
-      output,
-      {
-        runPlanShow: async () => {
-          slotLookupCalled = true;
-          throw new PlanRefNotFound("GH-1238", "draft");
-        },
-        // Force an early exit by stubbing one of the priming seams. Any
-        // throw downstream of the refusal-block but inside the try wrapper
-        // is fine — we only care that we got past the refusal block without
-        // calling runPlanShow.
-        boardStatus: () => {
-          throw new Error("expected: stop here so the test stays hermetic");
-        },
+    await runCli(["implement", "agent", "GH-1238", "--plan", "plan.md", "--dry-run"], output, {
+      runPlanShow: async () => {
+        slotLookupCalled = true;
+        throw new PlanRefNotFound("GH-1238", "draft");
       },
-    );
+      // Force an early exit by stubbing one of the priming seams. Any
+      // throw downstream of the refusal-block but inside the try wrapper
+      // is fine — we only care that we got past the refusal block without
+      // calling runPlanShow.
+      boardStatus: () => {
+        throw new Error("expected: stop here so the test stays hermetic");
+      },
+    });
 
     expect(slotLookupCalled).toBe(false);
   });

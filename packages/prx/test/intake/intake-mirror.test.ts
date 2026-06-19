@@ -12,9 +12,7 @@ type GhCallTag = { kind: "gh"; group?: string | undefined; subcommand: string; a
 type BdCallTag = { kind: "bd"; subcommand: string; args: string[] };
 type CallTag = GhCallTag | BdCallTag;
 
-function makeOpts(
-  overrides: Partial<IntakeMirrorOptions> = {},
-): IntakeMirrorOptions {
+function makeOpts(overrides: Partial<IntakeMirrorOptions> = {}): IntakeMirrorOptions {
   return intakeMirrorOptionsSchema.parse({
     ghId: "GH-100",
     ...overrides,
@@ -43,9 +41,7 @@ function recordingRun(calls: CallTag[], stdout = "", status = 0) {
 const runOk = (stdout = ""): RunResult => ({ status: 0, stdout, stderr: "" });
 const runFail = (stderr: string, status = 1): RunResult => ({ status, stdout: "", stderr });
 
-function makeBead(
-  overrides: Partial<BeadsRecord> = {},
-): BeadsRecord {
+function makeBead(overrides: Partial<BeadsRecord> = {}): BeadsRecord {
   return {
     id: "ai-home-abc123",
     title: "Existing bead",
@@ -80,7 +76,12 @@ describe("runIntakeMirror — happy path (creates new bd)", () => {
         repoNameWithOwner: (() => REPO) as never,
         cwd: () => "/tmp/cwd",
         execGh: ((opts: { group?: string; subcommand: string; args: string[] }) => {
-          calls.push({ kind: "gh", group: opts.group, subcommand: opts.subcommand, args: opts.args });
+          calls.push({
+            kind: "gh",
+            group: opts.group,
+            subcommand: opts.subcommand,
+            args: opts.args,
+          });
           return ghOk(
             ghTitleStdout("Hello world", "https://github.com/bdelanghe/ai-home/issues/100"),
           );
@@ -276,10 +277,10 @@ describe("runIntakeMirror — URL form supplies repo", () => {
       { log: () => undefined, error: () => undefined },
       {
         loadAllBeads: (() => []) as never,
-        repoNameWithOwner: ((() => {
+        repoNameWithOwner: (() => {
           resolveCalls += 1;
           return "should/not-be-used";
-        })) as never,
+        }) as never,
         cwd: () => "/tmp/cwd",
         execGh: ((opts: { subcommand: string; args: string[] }) => {
           calls.push({ kind: "gh", subcommand: opts.subcommand, args: opts.args });
@@ -367,9 +368,7 @@ describe("runIntakeMirror — --format json", () => {
         repoNameWithOwner: (() => REPO) as never,
         cwd: () => "/tmp/cwd",
         execGh: (() =>
-          ghOk(
-            ghTitleStdout("title", "https://github.com/bdelanghe/ai-home/issues/100"),
-          )) as never,
+          ghOk(ghTitleStdout("title", "https://github.com/bdelanghe/ai-home/issues/100"))) as never,
         run: (() => runOk(createdJson("ai-home-new"))) as never,
       },
     );
@@ -439,9 +438,7 @@ describe("runIntakeMirror — failures", () => {
         repoNameWithOwner: (() => REPO) as never,
         cwd: () => "/tmp/cwd",
         execGh: (() =>
-          ghOk(
-            ghTitleStdout("title", "https://github.com/bdelanghe/ai-home/issues/100"),
-          )) as never,
+          ghOk(ghTitleStdout("title", "https://github.com/bdelanghe/ai-home/issues/100"))) as never,
         run: (() => runFail("dolt offline", 7)) as never,
       },
     );
@@ -476,9 +473,7 @@ describe("runIntakeMirror — failures", () => {
         repoNameWithOwner: (() => REPO) as never,
         cwd: () => "/tmp/cwd",
         execGh: (() =>
-          ghOk(
-            ghTitleStdout("t", "https://github.com/bdelanghe/ai-home/issues/100"),
-          )) as never,
+          ghOk(ghTitleStdout("t", "https://github.com/bdelanghe/ai-home/issues/100"))) as never,
         run: (() => runOk()) as never,
       },
     );

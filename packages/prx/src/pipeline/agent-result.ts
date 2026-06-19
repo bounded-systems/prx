@@ -42,15 +42,7 @@ export const agentResultSchema = z.object({
    * Absent when the agent did not report (older agents / it skipped the tool).
    */
   disposition: z
-    .enum([
-      "filed",
-      "merged",
-      "duplicate",
-      "classified",
-      "promoted",
-      "deferred",
-      "no_action",
-    ])
+    .enum(["filed", "merged", "duplicate", "classified", "promoted", "deferred", "no_action"])
     .optional(),
   /** The UoW the disposition refers to — new OR the existing one matched. */
   uow: z.string().optional(),
@@ -134,9 +126,7 @@ const defaultBeadIdReader: BeadIdReader = (cwd) => {
     const r = bdCommandRunner(["bd", "list", "--json"], { cwd, check: false });
     if (r.status !== 0) return [];
     const rows = JSON.parse(r.stdout) as Array<{ id?: unknown }>;
-    return rows
-      .map((x) => x?.id)
-      .filter((x): x is string => typeof x === "string" && x.length > 0);
+    return rows.map((x) => x?.id).filter((x): x is string => typeof x === "string" && x.length > 0);
   } catch {
     return [];
   }
@@ -272,9 +262,7 @@ export function renderPlanAgentResult(r: PlanAgentResult): string {
   const src = r.source ? ` (${r.source})` : "";
   const lines = [`plan: ${r.unit}${src} → ${r.ref}`];
   const diag =
-    r.diagnostics > 0
-      ? ` (${r.diagnostics} diagnostic${r.diagnostics === 1 ? "" : "s"})`
-      : "";
+    r.diagnostics > 0 ? ` (${r.diagnostics} diagnostic${r.diagnostics === 1 ? "" : "s"})` : "";
   lines.push(`  validated=${r.validated}${diag}`);
   if (!r.validated && r.view) {
     lines.push(`  view: ${r.view}`);

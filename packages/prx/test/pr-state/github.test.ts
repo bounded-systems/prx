@@ -64,11 +64,7 @@ import { RepoSlug } from "../../src/dolt/schema.ts";
 // the retired `bd github sync --pull-only --prefer-github` shell-out). Mirror
 // the real result shape so `syncGitHubIssuesToBeads` reads back ok.
 function makeBeadsSyncStub(
-  options: {
-    exitCode?: number;
-    stdoutLine?: string;
-    stderrLine?: string;
-  } = {},
+  options: { exitCode?: number; stdoutLine?: string; stderrLine?: string } = {},
 ) {
   let calls = 0;
   const stub = async (
@@ -175,14 +171,24 @@ describe("sync-status", () => {
       if (cmd[0] === "gh" && cmd[1] === "pr" && cmd[2] === "list") {
         return {
           stdout: JSON.stringify([
-            { number: 12, headRefName: "feature-branch", title: "Test", isDraft: false, url: "https://example.com" },
+            {
+              number: 12,
+              headRefName: "feature-branch",
+              title: "Test",
+              isDraft: false,
+              url: "https://example.com",
+            },
           ]),
           stderr: "",
           status: 0,
         };
       }
       if (cmd[0] === "git" && cmd.includes("worktree")) {
-        return { stdout: "worktree /repo\nbranch refs/heads/other-branch\n\n", stderr: "", status: 0 };
+        return {
+          stdout: "worktree /repo\nbranch refs/heads/other-branch\n\n",
+          stderr: "",
+          status: 0,
+        };
       }
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
     };
@@ -205,7 +211,13 @@ describe("sync-status", () => {
       if (cmd[0] === "gh" && cmd[1] === "pr" && cmd[2] === "list") {
         return {
           stdout: JSON.stringify([
-            { number: 14, headRefName: "feature-branch", title: "Test", isDraft: false, url: "https://example.com" },
+            {
+              number: 14,
+              headRefName: "feature-branch",
+              title: "Test",
+              isDraft: false,
+              url: "https://example.com",
+            },
           ]),
           stderr: "",
           status: 0,
@@ -250,7 +262,13 @@ describe("sync-status", () => {
       if (cmd[0] === "gh" && cmd[1] === "pr" && cmd[2] === "list") {
         return {
           stdout: JSON.stringify([
-            { number: 18, headRefName: "feature-branch", title: "Test", isDraft: false, url: "https://example.com" },
+            {
+              number: 18,
+              headRefName: "feature-branch",
+              title: "Test",
+              isDraft: false,
+              url: "https://example.com",
+            },
           ]),
           stderr: "",
           status: 0,
@@ -289,7 +307,13 @@ describe("sync-status", () => {
       if (cmd[0] === "gh" && cmd[1] === "pr" && cmd[2] === "list") {
         return {
           stdout: JSON.stringify([
-            { number: 22, headRefName: "feature-branch", title: "Test", isDraft: false, url: "https://example.com" },
+            {
+              number: 22,
+              headRefName: "feature-branch",
+              title: "Test",
+              isDraft: false,
+              url: "https://example.com",
+            },
           ]),
           stderr: "",
           status: 0,
@@ -329,7 +353,13 @@ describe("sync-status", () => {
       if (cmd[0] === "gh" && cmd[1] === "pr" && cmd[2] === "list") {
         return {
           stdout: JSON.stringify([
-            { number: 31, headRefName: "feature-branch", title: "Test", isDraft: false, url: "https://example.com" },
+            {
+              number: 31,
+              headRefName: "feature-branch",
+              title: "Test",
+              isDraft: false,
+              url: "https://example.com",
+            },
           ]),
           stderr: "",
           status: 0,
@@ -429,13 +459,28 @@ describe("sync-github-issues-to-beads", () => {
       if (cmd.join(" ") === "bd config set github.repository owner/repo") {
         return { stdout: "", stderr: "", status: 0 };
       }
-      if (cmd.join(" ") === "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state") {
+      if (
+        cmd.join(" ") ===
+        "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state"
+      ) {
         return { stdout: "[]", stderr: "", status: 0 };
       }
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
     };
-    const execCalls: Array<{ subcommand: string; args: string[]; cwd?: string | undefined; state?: string | undefined; role?: string | undefined }> = [];
-    const execBdStub = (opts: { subcommand: string; args: string[]; cwd?: string | undefined; state?: string | undefined; role?: string | undefined }) => {
+    const execCalls: Array<{
+      subcommand: string;
+      args: string[];
+      cwd?: string | undefined;
+      state?: string | undefined;
+      role?: string | undefined;
+    }> = [];
+    const execBdStub = (opts: {
+      subcommand: string;
+      args: string[];
+      cwd?: string | undefined;
+      state?: string | undefined;
+      role?: string | undefined;
+    }) => {
       execCalls.push(opts);
       return { exitCode: 0, stdout: "[]", stderr: "", policy: null };
     };
@@ -458,7 +503,13 @@ describe("sync-github-issues-to-beads", () => {
       "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state|/repo",
     ]);
     expect(execCalls).toEqual([
-      { subcommand: "list", args: ["--all", "--json", "--limit", "0"], cwd: "/repo", state: "planning", role: "planner" },
+      {
+        subcommand: "list",
+        args: ["--all", "--json", "--limit", "0"],
+        cwd: "/repo",
+        state: "planning",
+        role: "planner",
+      },
     ]);
   });
 
@@ -473,9 +524,16 @@ describe("sync-github-issues-to-beads", () => {
         return { stdout: "https://github.com/owner/repo.git\n", stderr: "", status: 0 };
       }
       if (cmd.join(" ") === "bd config get github.repository") {
-        return { stdout: JSON.stringify({ key: "github.repository", value: "owner/repo" }), stderr: "", status: 0 };
+        return {
+          stdout: JSON.stringify({ key: "github.repository", value: "owner/repo" }),
+          stderr: "",
+          status: 0,
+        };
       }
-      if (cmd.join(" ") === "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state") {
+      if (
+        cmd.join(" ") ===
+        "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state"
+      ) {
         return { stdout: "[]", stderr: "", status: 0 };
       }
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
@@ -519,7 +577,10 @@ describe("sync-github-issues-to-beads", () => {
       if (cmd.join(" ") === "bd config get github.repository") {
         return { stdout: "owner/repo\n", stderr: "", status: 0 };
       }
-      if (cmd.join(" ") === "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state") {
+      if (
+        cmd.join(" ") ===
+        "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state"
+      ) {
         return { stdout: "[]", stderr: "", status: 0 };
       }
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
@@ -555,9 +616,19 @@ describe("sync-github-issues-to-beads", () => {
       if (cmd.join(" ") === "bd config get github.repository") {
         return { stdout: "owner/repo\n", stderr: "", status: 0 };
       }
-      if (cmd.join(" ") === "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state") {
+      if (
+        cmd.join(" ") ===
+        "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state"
+      ) {
         return {
-          stdout: JSON.stringify([{ number: 204, title: "Legacy issue", url: "https://github.com/owner/repo/issues/204", state: "OPEN" }]),
+          stdout: JSON.stringify([
+            {
+              number: 204,
+              title: "Legacy issue",
+              url: "https://github.com/owner/repo/issues/204",
+              state: "OPEN",
+            },
+          ]),
           stderr: "",
           status: 0,
         };
@@ -602,9 +673,19 @@ describe("sync-github-issues-to-beads", () => {
       if (cmd.join(" ") === "bd config get github.repository") {
         return { stdout: "owner/repo\n", stderr: "", status: 0 };
       }
-      if (cmd.join(" ") === "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state") {
+      if (
+        cmd.join(" ") ===
+        "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state"
+      ) {
         return {
-          stdout: JSON.stringify([{ number: 204, title: "Legacy issue", url: "https://github.com/owner/repo/issues/204", state: "OPEN" }]),
+          stdout: JSON.stringify([
+            {
+              number: 204,
+              title: "Legacy issue",
+              url: "https://github.com/owner/repo/issues/204",
+              state: "OPEN",
+            },
+          ]),
           stderr: "",
           status: 0,
         };
@@ -662,10 +743,18 @@ describe("sync-github-issues-to-beads", () => {
       if (cmd.join(" ") === "bd config get github.repository") {
         return { stdout: "owner/repo\n", stderr: "", status: 0 };
       }
-      if (cmd.join(" ") === "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state") {
+      if (
+        cmd.join(" ") ===
+        "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state"
+      ) {
         return {
           stdout: JSON.stringify([
-            { number: 204, title: "Live issue", url: "https://github.com/owner/repo/issues/204", state: "OPEN" },
+            {
+              number: 204,
+              title: "Live issue",
+              url: "https://github.com/owner/repo/issues/204",
+              state: "OPEN",
+            },
           ]),
           stderr: "",
           status: 0,
@@ -673,8 +762,20 @@ describe("sync-github-issues-to-beads", () => {
       }
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
     };
-    const execCalls: Array<{ subcommand: string; args: string[]; cwd?: string | undefined; state?: string | undefined; role?: string | undefined }> = [];
-    const execBdStub = (opts: { subcommand: string; args: string[]; cwd?: string | undefined; state?: string | undefined; role?: string | undefined }) => {
+    const execCalls: Array<{
+      subcommand: string;
+      args: string[];
+      cwd?: string | undefined;
+      state?: string | undefined;
+      role?: string | undefined;
+    }> = [];
+    const execBdStub = (opts: {
+      subcommand: string;
+      args: string[];
+      cwd?: string | undefined;
+      state?: string | undefined;
+      role?: string | undefined;
+    }) => {
       execCalls.push(opts);
       return {
         exitCode: 0,
@@ -710,7 +811,13 @@ describe("sync-github-issues-to-beads", () => {
       ],
     });
     expect(execCalls).toEqual([
-      { subcommand: "list", args: ["--all", "--json", "--limit", "0"], cwd: "/repo", state: "planning", role: "planner" },
+      {
+        subcommand: "list",
+        args: ["--all", "--json", "--limit", "0"],
+        cwd: "/repo",
+        state: "planning",
+        role: "planner",
+      },
     ]);
   });
 });
@@ -729,7 +836,12 @@ describe("protect-main", () => {
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home") {
         return { stdout: "User\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "git" && cmd[1] === "-C" && cmd[3] === "rev-parse" && cmd[4] === "--show-toplevel") {
+      if (
+        cmd[0] === "git" &&
+        cmd[1] === "-C" &&
+        cmd[3] === "rev-parse" &&
+        cmd[4] === "--show-toplevel"
+      ) {
         return { stdout: "/repo\n", stderr: "", status: 0 };
       }
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
@@ -777,7 +889,12 @@ describe("protect-main", () => {
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home") {
         return { stdout: "User\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "git" && cmd[1] === "-C" && cmd[3] === "rev-parse" && cmd[4] === "--show-toplevel") {
+      if (
+        cmd[0] === "git" &&
+        cmd[1] === "-C" &&
+        cmd[3] === "rev-parse" &&
+        cmd[4] === "--show-toplevel"
+      ) {
         return { stdout: "/repo\n", stderr: "", status: 0 };
       }
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "--method") {
@@ -786,14 +903,18 @@ describe("protect-main", () => {
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
     };
 
-    const result = protectMainBranch("/repo", {
-      apply: true,
-      enforceAdmins: true,
-      requireConversationResolution: true,
-      requireLastPushApproval: true,
-      requireLinearHistory: true,
-      requiredStatusChecks: ["ci / test", "lint"],
-    }, runner);
+    const result = protectMainBranch(
+      "/repo",
+      {
+        apply: true,
+        enforceAdmins: true,
+        requireConversationResolution: true,
+        requireLastPushApproval: true,
+        requireLinearHistory: true,
+        requiredStatusChecks: ["ci / test", "lint"],
+      },
+      runner,
+    );
 
     expect(result.applied).toBe(true);
     expect(result.enforceAdmins).toBe(true);
@@ -819,7 +940,12 @@ describe("protect-main", () => {
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home") {
         return { stdout: "User\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "git" && cmd[1] === "-C" && cmd[3] === "rev-parse" && cmd[4] === "--show-toplevel") {
+      if (
+        cmd[0] === "git" &&
+        cmd[1] === "-C" &&
+        cmd[3] === "rev-parse" &&
+        cmd[4] === "--show-toplevel"
+      ) {
         return { stdout: "/repo\n", stderr: "", status: 0 };
       }
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
@@ -852,10 +978,20 @@ describe("protect-main", () => {
 
     expect(payload.required_pull_request_reviews.required_approving_review_count).toBe(1);
     expect(branchProtectionPayloadJsonSchema.required).toContain("required_pull_request_reviews");
-    expect(branchProtectionPayloadJsonSchema.properties.required_pull_request_reviews.type).toBe("object");
-    expect(branchProtectionPayloadJsonSchema.properties.enforce_admins.type).toEqual(["boolean", "null"]);
-    expect(branchProtectionPayloadJsonSchema.properties.required_status_checks.anyOf).toHaveLength(2);
-    expect(branchProtectionPayloadJsonSchema.properties.required_status_checks.anyOf[1].properties.contexts).toEqual({
+    expect(branchProtectionPayloadJsonSchema.properties.required_pull_request_reviews.type).toBe(
+      "object",
+    );
+    expect(branchProtectionPayloadJsonSchema.properties.enforce_admins.type).toEqual([
+      "boolean",
+      "null",
+    ]);
+    expect(branchProtectionPayloadJsonSchema.properties.required_status_checks.anyOf).toHaveLength(
+      2,
+    );
+    expect(
+      branchProtectionPayloadJsonSchema.properties.required_status_checks.anyOf[1].properties
+        .contexts,
+    ).toEqual({
       type: "array",
       items: { type: "string" },
     });
@@ -875,7 +1011,12 @@ describe("protect-main", () => {
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home") {
         return { stdout: "User\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "git" && cmd[1] === "-C" && cmd[3] === "rev-parse" && cmd[4] === "--show-toplevel") {
+      if (
+        cmd[0] === "git" &&
+        cmd[1] === "-C" &&
+        cmd[3] === "rev-parse" &&
+        cmd[4] === "--show-toplevel"
+      ) {
         return { stdout: "/repo\n", stderr: "", status: 0 };
       }
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "--method") {
@@ -891,9 +1032,15 @@ describe("protect-main", () => {
 
     expect(result.ownerType).toBe("User");
     expect(appliedPayload).not.toBeNull();
-    expect((payload.required_pull_request_reviews as Record<string, unknown>).dismissal_restrictions).toBeUndefined();
-    expect((payload.required_pull_request_reviews as Record<string, unknown>).bypass_pull_request_allowances).toBeUndefined();
-    expect(payload.enforce_admins).toBeNull();  });
+    expect(
+      (payload.required_pull_request_reviews as Record<string, unknown>).dismissal_restrictions,
+    ).toBeUndefined();
+    expect(
+      (payload.required_pull_request_reviews as Record<string, unknown>)
+        .bypass_pull_request_allowances,
+    ).toBeUndefined();
+    expect(payload.enforce_admins).toBeNull();
+  });
 
   test("includes status checks and conversation resolution when requested", () => {
     let appliedPayload: BranchProtectionPayload | null = null;
@@ -909,7 +1056,12 @@ describe("protect-main", () => {
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home") {
         return { stdout: "User\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "git" && cmd[1] === "-C" && cmd[3] === "rev-parse" && cmd[4] === "--show-toplevel") {
+      if (
+        cmd[0] === "git" &&
+        cmd[1] === "-C" &&
+        cmd[3] === "rev-parse" &&
+        cmd[4] === "--show-toplevel"
+      ) {
         return { stdout: "/repo\n", stderr: "", status: 0 };
       }
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "--method") {
@@ -920,21 +1072,26 @@ describe("protect-main", () => {
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
     };
 
-    protectMainBranch("/repo", {
-      apply: true,
-      requireConversationResolution: true,
-      requireLastPushApproval: true,
-      requireLinearHistory: true,
-      requiredStatusChecks: ["ci / test", "lint"],
-    }, runner);
+    protectMainBranch(
+      "/repo",
+      {
+        apply: true,
+        requireConversationResolution: true,
+        requireLastPushApproval: true,
+        requireLinearHistory: true,
+        requiredStatusChecks: ["ci / test", "lint"],
+      },
+      runner,
+    );
     const payload = appliedPayload as unknown as Record<string, unknown>;
 
     expect(payload.required_conversation_resolution).toBe(true);
-    expect((payload.required_pull_request_reviews as Record<string, unknown>).require_last_push_approval).toBe(
-      true,
-    );
+    expect(
+      (payload.required_pull_request_reviews as Record<string, unknown>).require_last_push_approval,
+    ).toBe(true);
     expect(payload.required_linear_history).toBe(true);
-    expect(payload.required_status_checks).toEqual({      strict: true,
+    expect(payload.required_status_checks).toEqual({
+      strict: true,
       contexts: ["ci / test", "lint"],
     });
   });
@@ -977,7 +1134,12 @@ describe("protect-main", () => {
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home") {
         return { stdout: "User\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "git" && cmd[1] === "-C" && cmd[3] === "rev-parse" && cmd[4] === "--show-toplevel") {
+      if (
+        cmd[0] === "git" &&
+        cmd[1] === "-C" &&
+        cmd[3] === "rev-parse" &&
+        cmd[4] === "--show-toplevel"
+      ) {
         return { stdout: `${root}\n`, stderr: "", status: 0 };
       }
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "--method") {
@@ -996,7 +1158,8 @@ describe("protect-main", () => {
     expect(result.requireLastPushApproval).toBe(true);
     expect(result.requireLinearHistory).toBe(true);
     expect(result.requiredStatusChecks).toEqual(["ci"]);
-    expect(payload.required_status_checks).toEqual({ strict: true, contexts: ["ci"] });  });
+    expect(payload.required_status_checks).toEqual({ strict: true, contexts: ["ci"] });
+  });
 
   test("suppresses last-push approval when fewer than two approval-capable contributors exist", () => {
     let appliedPayload: BranchProtectionPayload | null = null;
@@ -1010,14 +1173,23 @@ describe("protect-main", () => {
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home") {
         return { stdout: "User\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home/collaborators?per_page=100") {
+      if (
+        cmd[0] === "gh" &&
+        cmd[1] === "api" &&
+        cmd[2] === "repos/bdelanghe/ai-home/collaborators?per_page=100"
+      ) {
         return {
           stdout: JSON.stringify([{ permissions: { admin: true, push: true } }]),
           stderr: "",
           status: 0,
         };
       }
-      if (cmd[0] === "git" && cmd[1] === "-C" && cmd[3] === "rev-parse" && cmd[4] === "--show-toplevel") {
+      if (
+        cmd[0] === "git" &&
+        cmd[1] === "-C" &&
+        cmd[3] === "rev-parse" &&
+        cmd[4] === "--show-toplevel"
+      ) {
         return { stdout: "/repo\n", stderr: "", status: 0 };
       }
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "--method") {
@@ -1028,10 +1200,14 @@ describe("protect-main", () => {
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
     };
 
-    const result = protectMainBranch("/repo", {
-      apply: true,
-      requireLastPushApproval: true,
-    }, runner);
+    const result = protectMainBranch(
+      "/repo",
+      {
+        apply: true,
+        requireLastPushApproval: true,
+      },
+      runner,
+    );
     const payload = appliedPayload as unknown as Record<string, unknown>;
 
     expect(result.approvalContributorCount).toBe(1);
@@ -1039,11 +1215,13 @@ describe("protect-main", () => {
     expect(result.requiredApprovingReviewCountSuppressed).toBe(true);
     expect(result.requireLastPushApproval).toBe(false);
     expect(result.requiredApprovingReviewCount).toBe(0);
-    expect((payload.required_pull_request_reviews as Record<string, unknown>).require_last_push_approval).toBe(
-      false,
-    );
-    expect((payload.required_pull_request_reviews as Record<string, unknown>).required_approving_review_count).toBe(      0,
-    );
+    expect(
+      (payload.required_pull_request_reviews as Record<string, unknown>).require_last_push_approval,
+    ).toBe(false);
+    expect(
+      (payload.required_pull_request_reviews as Record<string, unknown>)
+        .required_approving_review_count,
+    ).toBe(0);
   });
 
   test("solo mode disables approval gates even when contributor count is unknown", () => {
@@ -1058,10 +1236,19 @@ describe("protect-main", () => {
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home") {
         return { stdout: "User\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home/collaborators?per_page=100") {
+      if (
+        cmd[0] === "gh" &&
+        cmd[1] === "api" &&
+        cmd[2] === "repos/bdelanghe/ai-home/collaborators?per_page=100"
+      ) {
         throw new Error("network unavailable");
       }
-      if (cmd[0] === "git" && cmd[1] === "-C" && cmd[3] === "rev-parse" && cmd[4] === "--show-toplevel") {
+      if (
+        cmd[0] === "git" &&
+        cmd[1] === "-C" &&
+        cmd[3] === "rev-parse" &&
+        cmd[4] === "--show-toplevel"
+      ) {
         return { stdout: "/repo\n", stderr: "", status: 0 };
       }
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "--method") {
@@ -1072,11 +1259,15 @@ describe("protect-main", () => {
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
     };
 
-    const result = protectMainBranch("/repo", {
-      apply: true,
-      solo: true,
-      requireLastPushApproval: true,
-    }, runner);
+    const result = protectMainBranch(
+      "/repo",
+      {
+        apply: true,
+        solo: true,
+        requireLastPushApproval: true,
+      },
+      runner,
+    );
     const payload = appliedPayload as unknown as Record<string, unknown>;
 
     expect(result.solo).toBe(true);
@@ -1086,14 +1277,18 @@ describe("protect-main", () => {
     expect(result.requireConversationResolution).toBe(false);
     expect(result.requireLastPushApproval).toBe(false);
     expect(result.requiredApprovingReviewCount).toBe(0);
-    expect((payload.required_pull_request_reviews as Record<string, unknown>).dismiss_stale_reviews).toBe(false);
-    expect((payload.required_pull_request_reviews as Record<string, unknown>).require_last_push_approval).toBe(
-      false,
-    );
-    expect((payload.required_pull_request_reviews as Record<string, unknown>).required_approving_review_count).toBe(
-      0,
-    );
-    expect(payload.required_conversation_resolution).toBe(false);  });
+    expect(
+      (payload.required_pull_request_reviews as Record<string, unknown>).dismiss_stale_reviews,
+    ).toBe(false);
+    expect(
+      (payload.required_pull_request_reviews as Record<string, unknown>).require_last_push_approval,
+    ).toBe(false);
+    expect(
+      (payload.required_pull_request_reviews as Record<string, unknown>)
+        .required_approving_review_count,
+    ).toBe(0);
+    expect(payload.required_conversation_resolution).toBe(false);
+  });
 
   test("creates a managed repository ruleset when requested", () => {
     const commands: string[] = [];
@@ -1109,17 +1304,31 @@ describe("protect-main", () => {
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home") {
         return { stdout: "User\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home/collaborators?per_page=100") {
+      if (
+        cmd[0] === "gh" &&
+        cmd[1] === "api" &&
+        cmd[2] === "repos/bdelanghe/ai-home/collaborators?per_page=100"
+      ) {
         return {
           stdout: JSON.stringify([{ permissions: { admin: true, push: true } }]),
           stderr: "",
           status: 0,
         };
       }
-      if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "-H" && cmd[6] === "repos/bdelanghe/ai-home/rulesets?per_page=100") {
+      if (
+        cmd[0] === "gh" &&
+        cmd[1] === "api" &&
+        cmd[2] === "-H" &&
+        cmd[6] === "repos/bdelanghe/ai-home/rulesets?per_page=100"
+      ) {
         return { stdout: "[]", stderr: "", status: 0 };
       }
-      if (cmd[0] === "git" && cmd[1] === "-C" && cmd[3] === "rev-parse" && cmd[4] === "--show-toplevel") {
+      if (
+        cmd[0] === "git" &&
+        cmd[1] === "-C" &&
+        cmd[3] === "rev-parse" &&
+        cmd[4] === "--show-toplevel"
+      ) {
         return { stdout: "/repo\n", stderr: "", status: 0 };
       }
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "--method" && cmd[3] === "POST") {
@@ -1130,13 +1339,17 @@ describe("protect-main", () => {
       throw new Error(`Unexpected command: ${cmd.join(" ")}|${options.cwd ?? ""}`);
     };
 
-    const result = protectMainBranch("/repo", {
-      backend: "ruleset",
-      apply: true,
-      requireConversationResolution: true,
-      requireLastPushApproval: true,
-      requiredStatusChecks: ["ci"],
-    }, runner);
+    const result = protectMainBranch(
+      "/repo",
+      {
+        backend: "ruleset",
+        apply: true,
+        requireConversationResolution: true,
+        requireLastPushApproval: true,
+        requiredStatusChecks: ["ci"],
+      },
+      runner,
+    );
     const payload = appliedPayload as unknown as Record<string, unknown>;
 
     expect(result.backend).toBe("ruleset");
@@ -1161,24 +1374,27 @@ describe("protect-main", () => {
       },
     });
     expect(payload.bypass_actors).toEqual([]);
-    expect(payload.rules).toEqual(expect.arrayContaining([      {
-        type: "pull_request",
-        parameters: expect.objectContaining({
-          required_approving_review_count: 0,
-          require_last_push_approval: false,
-          required_review_thread_resolution: true,
-        }),
-      },
-      { type: "deletion" },
-      { type: "non_fast_forward" },
-      {
-        type: "required_status_checks",
-        parameters: {
-          strict_required_status_checks_policy: true,
-          required_status_checks: [{ context: "ci" }],
+    expect(payload.rules).toEqual(
+      expect.arrayContaining([
+        {
+          type: "pull_request",
+          parameters: expect.objectContaining({
+            required_approving_review_count: 0,
+            require_last_push_approval: false,
+            required_review_thread_resolution: true,
+          }),
         },
-      },
-    ]));
+        { type: "deletion" },
+        { type: "non_fast_forward" },
+        {
+          type: "required_status_checks",
+          parameters: {
+            strict_required_status_checks_policy: true,
+            required_status_checks: [{ context: "ci" }],
+          },
+        },
+      ]),
+    );
   });
 });
 
@@ -1196,10 +1412,19 @@ describe("protect-main check", () => {
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home") {
         return { stdout: "User\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "git" && cmd[1] === "-C" && cmd[3] === "rev-parse" && cmd[4] === "--show-toplevel") {
+      if (
+        cmd[0] === "git" &&
+        cmd[1] === "-C" &&
+        cmd[3] === "rev-parse" &&
+        cmd[4] === "--show-toplevel"
+      ) {
         return { stdout: "/repo\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home/branches/main/protection") {
+      if (
+        cmd[0] === "gh" &&
+        cmd[1] === "api" &&
+        cmd[2] === "repos/bdelanghe/ai-home/branches/main/protection"
+      ) {
         return {
           stdout: JSON.stringify({
             required_status_checks: null,
@@ -1225,12 +1450,16 @@ describe("protect-main check", () => {
       throw new Error(`Unexpected command: ${cmd.join(" ")}|${options.cwd ?? ""}`);
     };
 
-    const result = checkMainBranchProtection("/repo", {
-      enforceAdmins: true,
-      requireConversationResolution: true,
-      requireLastPushApproval: true,
-      requireLinearHistory: true,
-    }, runner);
+    const result = checkMainBranchProtection(
+      "/repo",
+      {
+        enforceAdmins: true,
+        requireConversationResolution: true,
+        requireLastPushApproval: true,
+        requireLinearHistory: true,
+      },
+      runner,
+    );
 
     expect(result.matches).toBe(true);
   });
@@ -1248,10 +1477,19 @@ describe("protect-main check", () => {
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home") {
         return { stdout: "User\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "git" && cmd[1] === "-C" && cmd[3] === "rev-parse" && cmd[4] === "--show-toplevel") {
+      if (
+        cmd[0] === "git" &&
+        cmd[1] === "-C" &&
+        cmd[3] === "rev-parse" &&
+        cmd[4] === "--show-toplevel"
+      ) {
         return { stdout: "/repo\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home/branches/main/protection") {
+      if (
+        cmd[0] === "gh" &&
+        cmd[1] === "api" &&
+        cmd[2] === "repos/bdelanghe/ai-home/branches/main/protection"
+      ) {
         return {
           stdout: JSON.stringify({
             required_status_checks: { strict: true, contexts: ["lint", "ci"] },
@@ -1277,9 +1515,13 @@ describe("protect-main check", () => {
       throw new Error(`Unexpected command: ${cmd.join(" ")}|${options.cwd ?? ""}`);
     };
 
-    const result = checkMainBranchProtection("/repo", {
-      requiredStatusChecks: ["ci", "lint"],
-    }, runner);
+    const result = checkMainBranchProtection(
+      "/repo",
+      {
+        requiredStatusChecks: ["ci", "lint"],
+      },
+      runner,
+    );
 
     expect(result.matches).toBe(true);
   });
@@ -1297,10 +1539,19 @@ describe("protect-main check", () => {
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home") {
         return { stdout: "User\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "git" && cmd[1] === "-C" && cmd[3] === "rev-parse" && cmd[4] === "--show-toplevel") {
+      if (
+        cmd[0] === "git" &&
+        cmd[1] === "-C" &&
+        cmd[3] === "rev-parse" &&
+        cmd[4] === "--show-toplevel"
+      ) {
         return { stdout: "/repo\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home/branches/main/protection") {
+      if (
+        cmd[0] === "gh" &&
+        cmd[1] === "api" &&
+        cmd[2] === "repos/bdelanghe/ai-home/branches/main/protection"
+      ) {
         return {
           stdout: JSON.stringify({
             required_status_checks: { strict: true, contexts: [] },
@@ -1343,17 +1594,31 @@ describe("protect-main check", () => {
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home") {
         return { stdout: "User\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home/collaborators?per_page=100") {
+      if (
+        cmd[0] === "gh" &&
+        cmd[1] === "api" &&
+        cmd[2] === "repos/bdelanghe/ai-home/collaborators?per_page=100"
+      ) {
         return {
           stdout: JSON.stringify([{ permissions: { admin: true, push: true } }]),
           stderr: "",
           status: 0,
         };
       }
-      if (cmd[0] === "git" && cmd[1] === "-C" && cmd[3] === "rev-parse" && cmd[4] === "--show-toplevel") {
+      if (
+        cmd[0] === "git" &&
+        cmd[1] === "-C" &&
+        cmd[3] === "rev-parse" &&
+        cmd[4] === "--show-toplevel"
+      ) {
         return { stdout: "/repo\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "-H" && cmd[6] === "repos/bdelanghe/ai-home/rulesets?per_page=100") {
+      if (
+        cmd[0] === "gh" &&
+        cmd[1] === "api" &&
+        cmd[2] === "-H" &&
+        cmd[6] === "repos/bdelanghe/ai-home/rulesets?per_page=100"
+      ) {
         return {
           stdout: JSON.stringify([
             {
@@ -1366,44 +1631,47 @@ describe("protect-main check", () => {
           status: 0,
         };
       }
-      if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "-H" && cmd[6] === "repos/bdelanghe/ai-home/rulesets/42") {
+      if (
+        cmd[0] === "gh" &&
+        cmd[1] === "api" &&
+        cmd[2] === "-H" &&
+        cmd[6] === "repos/bdelanghe/ai-home/rulesets/42"
+      ) {
         return {
-          stdout: JSON.stringify(
-            {
-              id: 42,
-              name: "prx main branch ruleset",
-              target: "branch",
-              enforcement: "active",
-              bypass_actors: [],
-              conditions: {
-                ref_name: {
-                  include: ["refs/heads/main"],
-                  exclude: [],
+          stdout: JSON.stringify({
+            id: 42,
+            name: "prx main branch ruleset",
+            target: "branch",
+            enforcement: "active",
+            bypass_actors: [],
+            conditions: {
+              ref_name: {
+                include: ["refs/heads/main"],
+                exclude: [],
+              },
+            },
+            rules: [
+              {
+                type: "pull_request",
+                parameters: {
+                  dismiss_stale_reviews_on_push: false,
+                  require_code_owner_review: false,
+                  require_last_push_approval: false,
+                  required_approving_review_count: 0,
+                  required_review_thread_resolution: false,
                 },
               },
-              rules: [
-                {
-                  type: "pull_request",
-                  parameters: {
-                    dismiss_stale_reviews_on_push: false,
-                    require_code_owner_review: false,
-                    require_last_push_approval: false,
-                    required_approving_review_count: 0,
-                    required_review_thread_resolution: false,
-                  },
+              { type: "deletion" },
+              { type: "non_fast_forward" },
+              {
+                type: "required_status_checks",
+                parameters: {
+                  strict_required_status_checks_policy: true,
+                  required_status_checks: [{ context: "ci" }],
                 },
-                { type: "deletion" },
-                { type: "non_fast_forward" },
-                {
-                  type: "required_status_checks",
-                  parameters: {
-                    strict_required_status_checks_policy: true,
-                    required_status_checks: [{ context: "ci" }],
-                  },
-                },
-              ],
-            },
-          ),
+              },
+            ],
+          }),
           stderr: "",
           status: 0,
         };
@@ -1411,13 +1679,17 @@ describe("protect-main check", () => {
       throw new Error(`Unexpected command: ${cmd.join(" ")}|${options.cwd ?? ""}`);
     };
 
-    const result = checkMainBranchProtection("/repo", {
-      backend: "ruleset",
-      solo: true,
-      requireConversationResolution: true,
-      requireLastPushApproval: true,
-      requiredStatusChecks: ["ci"],
-    }, runner);
+    const result = checkMainBranchProtection(
+      "/repo",
+      {
+        backend: "ruleset",
+        solo: true,
+        requireConversationResolution: true,
+        requireLastPushApproval: true,
+        requiredStatusChecks: ["ci"],
+      },
+      runner,
+    );
 
     expect(result.backend).toBe("ruleset");
     expect(result.solo).toBe(true);
@@ -1435,10 +1707,18 @@ describe("repo-checks", () => {
       if (cmd[0] === "git" && cmd[1] === "-C" && cmd[3] === "remote" && cmd[4] === "get-url") {
         return { stdout: "https://github.com/bdelanghe/ai-home.git\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home/branches/main") {
+      if (
+        cmd[0] === "gh" &&
+        cmd[1] === "api" &&
+        cmd[2] === "repos/bdelanghe/ai-home/branches/main"
+      ) {
         return { stdout: "abc123\n", stderr: "", status: 0 };
       }
-      if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "repos/bdelanghe/ai-home/commits/abc123/check-runs") {
+      if (
+        cmd[0] === "gh" &&
+        cmd[1] === "api" &&
+        cmd[2] === "repos/bdelanghe/ai-home/commits/abc123/check-runs"
+      ) {
         return { stdout: "lint\nci / test\nlint\n", stderr: "", status: 0 };
       }
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
@@ -1576,7 +1856,12 @@ describe("update-pr", () => {
     const runner: CommandRunner = (cmd) => {
       if (cmd[0] === "gh" && cmd[1] === "pr" && cmd[2] === "view") {
         return {
-          stdout: JSON.stringify({ number: 41, isDraft: false, title: "Old title", url: "https://example.com" }),
+          stdout: JSON.stringify({
+            number: 41,
+            isDraft: false,
+            title: "Old title",
+            url: "https://example.com",
+          }),
           stderr: "",
           status: 0,
         };
@@ -1585,7 +1870,14 @@ describe("update-pr", () => {
     };
 
     expect(
-      updatePrFromContract(root, contractPath, join(root, ".pr", "local", "pr.md"), undefined, false, runner),
+      updatePrFromContract(
+        root,
+        contractPath,
+        join(root, ".pr", "local", "pr.md"),
+        undefined,
+        false,
+        runner,
+      ),
     ).toEqual({
       exitCode: 0,
       lines: [
@@ -1607,7 +1899,12 @@ describe("update-pr", () => {
       commands.push(cmd.join(" "));
       if (cmd[0] === "gh" && cmd[1] === "pr" && cmd[2] === "view") {
         return {
-          stdout: JSON.stringify({ number: 55, isDraft: true, title: "Old title", url: "https://example.com" }),
+          stdout: JSON.stringify({
+            number: 55,
+            isDraft: true,
+            title: "Old title",
+            url: "https://example.com",
+          }),
           stderr: "",
           status: 0,
         };
@@ -1636,10 +1933,7 @@ describe("update-pr", () => {
       ],
     });
     expect(renders).toEqual([`${contractPath} -> ${outputPath}`]);
-    expect(commands).toContain(
-      "gh pr edit 55 --title Sync example --body-file " +
-        outputPath,
-    );
+    expect(commands).toContain("gh pr edit 55 --title Sync example --body-file " + outputPath);
     expect(commands).toContain("gh pr ready 55");
   });
 });
@@ -1779,15 +2073,17 @@ describe("overview-status", () => {
 
 describe("worktree-status", () => {
   test("parses porcelain branch sync and file buckets", () => {
-    const summary = parseWorktreeStatus([
-      "## GH-5480...origin/GH-5480 [ahead 2, behind 1]",
-      "M  staged_only.rb",
-      " M unstaged_only.rb",
-      "MM both.rb",
-      "?? untracked.rb",
-      "UU conflict.rb",
-      "!! ignored.log",
-    ].join("\n"));
+    const summary = parseWorktreeStatus(
+      [
+        "## GH-5480...origin/GH-5480 [ahead 2, behind 1]",
+        "M  staged_only.rb",
+        " M unstaged_only.rb",
+        "MM both.rb",
+        "?? untracked.rb",
+        "UU conflict.rb",
+        "!! ignored.log",
+      ].join("\n"),
+    );
 
     expect(summary.branch.name).toBe("GH-5480");
     expect(summary.branch.upstream).toBe("origin/GH-5480");
@@ -1879,9 +2175,9 @@ describe("worktree-status", () => {
 
     wtStatus("/repo", false, runner);
     expect(captured.some((c) => c[0] === "wt")).toBe(false);
-    expect(
-      captured.some((c) => c.join(" ") === "git -C /repo worktree list --porcelain"),
-    ).toBe(true);
+    expect(captured.some((c) => c.join(" ") === "git -C /repo worktree list --porcelain")).toBe(
+      true,
+    );
   });
 
   test("marks unavailable when git worktree list fails", () => {
@@ -1968,7 +2264,9 @@ describe("wt-status cache (GH-705)", () => {
       const second = wtStatus("/repo", false, runner);
 
       expect(second).toEqual(first);
-      const wtCalls = captured.filter((entry) => entry.cmd.join(" ") === "git -C /repo worktree list --porcelain");
+      const wtCalls = captured.filter(
+        (entry) => entry.cmd.join(" ") === "git -C /repo worktree list --porcelain",
+      );
       expect(wtCalls).toHaveLength(1);
     });
   });
@@ -1983,7 +2281,9 @@ describe("wt-status cache (GH-705)", () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
       wtStatus("/repo", false, runner);
 
-      const wtCalls = captured.filter((entry) => entry.cmd.join(" ") === "git -C /repo worktree list --porcelain");
+      const wtCalls = captured.filter(
+        (entry) => entry.cmd.join(" ") === "git -C /repo worktree list --porcelain",
+      );
       expect(wtCalls).toHaveLength(2);
     });
   });
@@ -1997,10 +2297,13 @@ describe("wt-status cache (GH-705)", () => {
       wtStatus("/repo", false, runner);
       wtStatus("/repo", false, runner);
 
-      const wtCalls = captured.filter((entry) => entry.cmd.join(" ") === "git -C /repo worktree list --porcelain");
+      const wtCalls = captured.filter(
+        (entry) => entry.cmd.join(" ") === "git -C /repo worktree list --porcelain",
+      );
       expect(wtCalls).toHaveLength(2);
       const commonDirProbes = captured.filter(
-        (entry) => entry.cmd.join(" ") === "git -C /repo rev-parse --path-format=absolute --git-common-dir",
+        (entry) =>
+          entry.cmd.join(" ") === "git -C /repo rev-parse --path-format=absolute --git-common-dir",
       );
       expect(commonDirProbes).toHaveLength(0);
     });
@@ -2035,7 +2338,9 @@ describe("wt-status cache (GH-705)", () => {
       wtStatus("/repo", false, runner);
       wtStatus("/repo", true, runner);
 
-      const wtCalls = captured.filter((entry) => entry.cmd.join(" ") === "git -C /repo worktree list --porcelain");
+      const wtCalls = captured.filter(
+        (entry) => entry.cmd.join(" ") === "git -C /repo worktree list --porcelain",
+      );
       expect(wtCalls).toHaveLength(2);
     });
   });
@@ -2054,7 +2359,9 @@ describe("wt-status cache (GH-705)", () => {
 
       const result = wtStatus("/repo", false, runner);
       expect(result.wt_available).toBe(true);
-      const wtCalls = captured.filter((entry) => entry.cmd.join(" ") === "git -C /repo worktree list --porcelain");
+      const wtCalls = captured.filter(
+        (entry) => entry.cmd.join(" ") === "git -C /repo worktree list --porcelain",
+      );
       expect(wtCalls).toHaveLength(2);
     });
   });
@@ -2083,7 +2390,9 @@ describe("wt-status cache (GH-705)", () => {
       wtStatus("/repo", false, runner);
       wtStatus("/repo", false, runner);
 
-      const wtCalls = captured.filter((entry) => entry.cmd.join(" ") === "git -C /repo worktree list --porcelain");
+      const wtCalls = captured.filter(
+        (entry) => entry.cmd.join(" ") === "git -C /repo worktree list --porcelain",
+      );
       expect(wtCalls).toHaveLength(2);
       const cacheDir = join(cacheHome, "prx", "wt-status");
       expect(existsSync(cacheDir)).toBe(false);
@@ -2127,10 +2436,12 @@ describe("wt-status cache (GH-705)", () => {
       repoStatus("/repo", { includeGitDetails: false, fetch: false }, runner);
       repoStatus("/repo", { includeGitDetails: false, fetch: false }, runner);
 
-      const fetchCalls = captured.filter((entry) =>
-        entry.cmd.join(" ") === "git -C /repo fetch --dry-run origin",
+      const fetchCalls = captured.filter(
+        (entry) => entry.cmd.join(" ") === "git -C /repo fetch --dry-run origin",
       );
-      const wtCalls = captured.filter((entry) => entry.cmd.join(" ") === "git -C /repo worktree list --porcelain");
+      const wtCalls = captured.filter(
+        (entry) => entry.cmd.join(" ") === "git -C /repo worktree list --porcelain",
+      );
       expect(fetchCalls).toHaveLength(1);
       expect(wtCalls).toHaveLength(1);
     });
@@ -2150,7 +2461,9 @@ describe("wt-status cache (GH-705)", () => {
       writeFileSync(cacheFile, JSON.stringify(entry));
 
       wtStatus("/repo", false, runner);
-      const wtCalls = captured.filter((c) => c.cmd.join(" ") === "git -C /repo worktree list --porcelain");
+      const wtCalls = captured.filter(
+        (c) => c.cmd.join(" ") === "git -C /repo worktree list --porcelain",
+      );
       expect(wtCalls).toHaveLength(2);
     });
   });
@@ -2478,7 +2791,9 @@ describe("board-status", () => {
       if (rendered === "git -C /repo rev-list --left-right --count origin/main...origin/GH-185") {
         return { stdout: "0\t1\n", stderr: "", status: 0 };
       }
-      if (rendered === "git -C /repo rev-list --left-right --count origin/main...refs/heads/GH-185") {
+      if (
+        rendered === "git -C /repo rev-list --left-right --count origin/main...refs/heads/GH-185"
+      ) {
         return { stdout: "", stderr: "", status: 1 };
       }
       if (cmd.join(" ") === "git -C /repo fetch --dry-run origin") {
@@ -2570,7 +2885,11 @@ describe("board-status", () => {
         };
       }
       if (rendered === `bd show BEAD-190 --json`) {
-        return { stdout: JSON.stringify({ id: "BEAD-190", status: "in_progress" }), stderr: "", status: 0 };
+        return {
+          stdout: JSON.stringify({ id: "BEAD-190", status: "in_progress" }),
+          stderr: "",
+          status: 0,
+        };
       }
       if (rendered === `git -C ${root} branch --list -r`) {
         return { stdout: "  origin/GH-190\n", stderr: "", status: 0 };
@@ -2584,7 +2903,9 @@ describe("board-status", () => {
       if (rendered === `git -C ${root} rev-list --left-right --count origin/main...origin/GH-190`) {
         return { stdout: "0\t1\n", stderr: "", status: 0 };
       }
-      if (rendered === `git -C ${root} rev-list --left-right --count origin/main...refs/heads/GH-190`) {
+      if (
+        rendered === `git -C ${root} rev-list --left-right --count origin/main...refs/heads/GH-190`
+      ) {
         return { stdout: "0\t1\n", stderr: "", status: 0 };
       }
       if (rendered === `git -C ${root} fetch --dry-run origin`) {
@@ -2729,13 +3050,21 @@ describe("board-status", () => {
       if (rendered === "git -C /repo rev-list --left-right --count origin/main...origin/GH-172") {
         return { stdout: "1\t6\n", stderr: "", status: 0 };
       }
-      if (rendered === "git -C /repo rev-list --left-right --count origin/main...refs/heads/GH-172") {
+      if (
+        rendered === "git -C /repo rev-list --left-right --count origin/main...refs/heads/GH-172"
+      ) {
         return { stdout: "", stderr: "", status: 1 };
       }
-      if (rendered === "git -C /repo rev-list --left-right --count origin/main...origin/copilot/sub-pr-187") {
+      if (
+        rendered ===
+        "git -C /repo rev-list --left-right --count origin/main...origin/copilot/sub-pr-187"
+      ) {
         return { stdout: "0\t1\n", stderr: "", status: 0 };
       }
-      if (rendered === "git -C /repo rev-list --left-right --count origin/main...refs/heads/copilot/sub-pr-187") {
+      if (
+        rendered ===
+        "git -C /repo rev-list --left-right --count origin/main...refs/heads/copilot/sub-pr-187"
+      ) {
         return { stdout: "", stderr: "", status: 1 };
       }
       if (cmd.join(" ") === "git -C /repo fetch --dry-run origin") {
@@ -2825,7 +3154,11 @@ describe("board-status", () => {
         return { stdout: "", stderr: "", status: 0 };
       }
       if (rendered === `git -C ${root} branch --list -r`) {
-        return { stdout: "  origin/GH-100\n  origin/GH-200\n  origin/main\n", stderr: "", status: 0 };
+        return {
+          stdout: "  origin/GH-100\n  origin/GH-200\n  origin/main\n",
+          stderr: "",
+          status: 0,
+        };
       }
       if (rendered === `git -C ${root} branch --format=%(refname:short)`) {
         return { stdout: "main\nGH-100\nGH-200\n", stderr: "", status: 0 };
@@ -2836,7 +3169,9 @@ describe("board-status", () => {
       }
       if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "graphql") {
         return {
-          stdout: JSON.stringify({ data: { repository: { issue: { projectItems: { nodes: [] } } } } }),
+          stdout: JSON.stringify({
+            data: { repository: { issue: { projectItems: { nodes: [] } } } },
+          }),
           stderr: "",
           status: 0,
         };
@@ -2856,7 +3191,9 @@ describe("board-status", () => {
       if (rendered === `git -C ${root} show-ref --verify --quiet refs/heads/GH-100`) {
         return { stdout: "", stderr: "", status: 0 };
       }
-      if (rendered === `git -C ${root} rev-list --left-right --count origin/main...refs/heads/GH-100`) {
+      if (
+        rendered === `git -C ${root} rev-list --left-right --count origin/main...refs/heads/GH-100`
+      ) {
         return { stdout: "0\t1\n", stderr: "", status: 0 };
       }
       // GH-914 authorship gate reads (safeRun-wrapped; tolerate by throwing).
@@ -2877,7 +3214,9 @@ describe("board-status", () => {
     expect(other?.status).toBeUndefined();
 
     // Positive: the target's remote probe did fire.
-    expect(invoked.some((c) => c === "gh issue view 100 --json number,state -R owner/repo")).toBe(true);
+    expect(invoked.some((c) => c === "gh issue view 100 --json number,state -R owner/repo")).toBe(
+      true,
+    );
     // Zero fanout: no remote/local probe touched the non-target branch.
     expect(invoked.some((c) => c.includes("gh issue view 200"))).toBe(false);
     expect(invoked.some((c) => c.includes("--head GH-200"))).toBe(false);
@@ -2971,7 +3310,9 @@ describe("board-status", () => {
       if (rendered === `git -C ${root} show-ref --verify --quiet refs/heads/GH-220`) {
         return { stdout: "", stderr: "", status: 0 };
       }
-      if (rendered === `git -C ${root} rev-list --left-right --count origin/main...refs/heads/GH-220`) {
+      if (
+        rendered === `git -C ${root} rev-list --left-right --count origin/main...refs/heads/GH-220`
+      ) {
         return { stdout: "0 1\n", stderr: "", status: 0 };
       }
       if (rendered === `git -C ${root} rev-list --left-right --count origin/main...origin/GH-220`) {
@@ -3033,21 +3374,16 @@ describe("board-status", () => {
     // id shape itself; routing config is for legacy prefixes only.
     expect(resolveFeatureForPrefix("BD-407F177F", routing)).toBe("beads_issue");
     expect(resolveFeatureForPrefix("BD-407f177f", routing)).toBe("beads_issue");
-    expect(
-      resolveFeatureForPrefix("BD-ai-home-1778515181936-7-edba9d4a", routing),
-    ).toBe("beads_issue");
+    expect(resolveFeatureForPrefix("BD-ai-home-1778515181936-7-edba9d4a", routing)).toBe(
+      "beads_issue",
+    );
   });
 
   test("loads github project config from prx.toml", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-project-config-"));
     writeFileSync(
       join(root, "prx.toml"),
-      [
-        "[project]",
-        'owner = "bdelanghe"',
-        "number = 1",
-        "",
-      ].join("\n"),
+      ["[project]", 'owner = "bdelanghe"', "number = 1", ""].join("\n"),
     );
 
     const runner: CommandRunner = (cmd) => {
@@ -3065,10 +3401,7 @@ describe("board-status", () => {
 
   test("loadGithubProjectConfig returns nulls when prx.toml has no project section", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-project-config-missing-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      ["[worktree]", 'manager = "wt"', ""].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[worktree]", 'manager = "wt"', ""].join("\n"));
 
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
@@ -3087,12 +3420,7 @@ describe("board-status", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-project-config-invalid-"));
     writeFileSync(
       join(root, "prx.toml"),
-      [
-        "[project]",
-        'owner = "bdelanghe"',
-        "number = notanumber",
-        "",
-      ].join("\n"),
+      ["[project]", 'owner = "bdelanghe"', "number = notanumber", ""].join("\n"),
     );
 
     const runner: CommandRunner = (cmd) => {
@@ -3133,10 +3461,7 @@ describe("board-status", () => {
 
   test("loadIdentityConfig synthesizes a default when no [sources.*] section is present", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-identity-absent-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      ["[worktree]", 'manager = "wt"', ""].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[worktree]", 'manager = "wt"', ""].join("\n"));
 
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
@@ -3154,11 +3479,7 @@ describe("board-status", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-identity-legacy-"));
     writeFileSync(
       join(root, "prx.toml"),
-      [
-        "[identity]",
-        'canonical_id_pattern = "^(GH|PROD)-\\\\d+$"',
-        "",
-      ].join("\n"),
+      ["[identity]", 'canonical_id_pattern = "^(GH|PROD)-\\\\d+$"', ""].join("\n"),
     );
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
@@ -3226,12 +3547,7 @@ describe("board-status", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-identity-bad-"));
     writeFileSync(
       join(root, "prx.toml"),
-      [
-        "[sources.github]",
-        'kind = "github"',
-        'canonical_id_pattern = "^(GH|PROD"',
-        "",
-      ].join("\n"),
+      ["[sources.github]", 'kind = "github"', 'canonical_id_pattern = "^(GH|PROD"', ""].join("\n"),
     );
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
@@ -3264,12 +3580,9 @@ describe("board-status", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-identity-bad-kind-"));
     writeFileSync(
       join(root, "prx.toml"),
-      [
-        "[sources.gitlab]",
-        'kind = "gitlab"',
-        'canonical_id_pattern = "^GL-\\\\d+$"',
-        "",
-      ].join("\n"),
+      ["[sources.gitlab]", 'kind = "gitlab"', 'canonical_id_pattern = "^GL-\\\\d+$"', ""].join(
+        "\n",
+      ),
     );
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
@@ -3282,16 +3595,11 @@ describe("board-status", () => {
     );
   });
 
-  test("loadIdentityConfig rejects kind = \"dolt\" pointing at GH-852", () => {
+  test('loadIdentityConfig rejects kind = "dolt" pointing at GH-852', () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-identity-dolt-"));
     writeFileSync(
       join(root, "prx.toml"),
-      [
-        "[sources.dolt]",
-        'kind = "dolt"',
-        'canonical_id_pattern = "^DOLT-\\\\d+$"',
-        "",
-      ].join("\n"),
+      ["[sources.dolt]", 'kind = "dolt"', 'canonical_id_pattern = "^DOLT-\\\\d+$"', ""].join("\n"),
     );
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
@@ -3410,7 +3718,7 @@ describe("board-status", () => {
     );
   });
 
-  test("loadIdentityConfig accepts notion source with auth = \"claude-mcp\" and no other keys", () => {
+  test('loadIdentityConfig accepts notion source with auth = "claude-mcp" and no other keys', () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-identity-notion-claude-mcp-"));
     writeFileSync(
       join(root, "prx.toml"),
@@ -3465,7 +3773,7 @@ describe("board-status", () => {
     );
   });
 
-  test("loadIdentityConfig accepts notion source with auth = \"notion-cli\" and no other keys", () => {
+  test('loadIdentityConfig accepts notion source with auth = "notion-cli" and no other keys', () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-identity-notion-cli-"));
     writeFileSync(
       join(root, "prx.toml"),
@@ -3525,7 +3833,7 @@ describe("board-status", () => {
     expect(notion?.closedStatuses).toEqual(["Completed", "DNF - Did not Complete"]);
   });
 
-  test("loadIdentityConfig defaults auth to \"rest\" when absent (back-compat)", () => {
+  test('loadIdentityConfig defaults auth to "rest" when absent (back-compat)', () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-identity-notion-default-auth-"));
     writeFileSync(
       join(root, "prx.toml"),
@@ -3596,9 +3904,7 @@ describe("board-status", () => {
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
     };
 
-    expect(() => loadIdentityConfig(root, runner)).toThrow(
-      /token_op_ref must be an op:\/\/ URI/,
-    );
+    expect(() => loadIdentityConfig(root, runner)).toThrow(/token_op_ref must be an op:\/\/ URI/);
   });
 
   test("loadIdentityConfig rejects token_op_ref with too few segments", () => {
@@ -3621,16 +3927,11 @@ describe("board-status", () => {
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
     };
 
-    expect(() => loadIdentityConfig(root, runner)).toThrow(
-      /token_op_ref must be an op:\/\/ URI/,
-    );
+    expect(() => loadIdentityConfig(root, runner)).toThrow(/token_op_ref must be an op:\/\/ URI/);
   });
 
   describe("loadIdentityConfig ai-home overlay (GH-664)", () => {
-    function makeRunner(
-      repoRoot: string,
-      origin: string | null,
-    ): CommandRunner {
+    function makeRunner(repoRoot: string, origin: string | null): CommandRunner {
       const topLevelCmd = `git -C ${repoRoot} rev-parse --show-toplevel`;
       const remoteCmd = `git -C ${repoRoot} remote get-url origin`;
       return (cmd) => {
@@ -3669,12 +3970,7 @@ describe("board-status", () => {
       }
     }
 
-    function writeOverlay(
-      aiHome: string,
-      owner: string,
-      repo: string,
-      body: string,
-    ): string {
+    function writeOverlay(aiHome: string, owner: string, repo: string, body: string): string {
       const dir = join(aiHome, ".prx", "repos", "io.github", owner, repo);
       mkdirSync(dir, { recursive: true });
       const path = join(dir, "prx.toml");
@@ -3706,17 +4002,22 @@ describe("board-status", () => {
     test("overlay-only: repo-root prx.toml missing, overlay supplies sources", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-only-"));
       const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-overlay-only-"));
-      writeOverlay(aiHome, "demo", "demo-web", [
-        "[sources.github]",
-        'kind = "github"',
-        "canonical_id_pattern = '^(GH-\\d+|PROD-\\d+)$'",
-        "",
-        "[sources.notion]",
-        'kind = "notion"',
-        "canonical_id_pattern = '^PROD-\\d+$'",
-        'auth = "claude-mcp"',
-        "",
-      ].join("\n"));
+      writeOverlay(
+        aiHome,
+        "demo",
+        "demo-web",
+        [
+          "[sources.github]",
+          'kind = "github"',
+          "canonical_id_pattern = '^(GH-\\d+|PROD-\\d+)$'",
+          "",
+          "[sources.notion]",
+          'kind = "notion"',
+          "canonical_id_pattern = '^PROD-\\d+$'",
+          'auth = "claude-mcp"',
+          "",
+        ].join("\n"),
+      );
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
       withOverlayRoot(aiHome, () => {
@@ -3754,13 +4055,18 @@ describe("board-status", () => {
           "",
         ].join("\n"),
       );
-      writeOverlay(aiHome, "demo", "demo-web", [
-        "[sources.notion]",
-        'kind = "notion"',
-        "canonical_id_pattern = '^(GH|PROJECT)-\\d+$'",
-        'auth = "claude-mcp"',
-        "",
-      ].join("\n"));
+      writeOverlay(
+        aiHome,
+        "demo",
+        "demo-web",
+        [
+          "[sources.notion]",
+          'kind = "notion"',
+          "canonical_id_pattern = '^(GH|PROJECT)-\\d+$'",
+          'auth = "claude-mcp"',
+          "",
+        ].join("\n"),
+      );
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
       withOverlayRoot(aiHome, () => {
@@ -3787,20 +4093,19 @@ describe("board-status", () => {
       mkdirSync(flatDir, { recursive: true });
       writeFileSync(
         join(flatDir, "prx.toml"),
-        [
-          "[sources.github]",
-          'kind = "github"',
-          'canonical_id_pattern = "^FLAT-\\\\d+$"',
-          "",
-        ].join("\n"),
+        ["[sources.github]", 'kind = "github"', 'canonical_id_pattern = "^FLAT-\\\\d+$"', ""].join(
+          "\n",
+        ),
       );
 
-      writeOverlay(aiHome, "demo", "demo-web", [
-        "[sources.github]",
-        'kind = "github"',
-        "canonical_id_pattern = '^RDNS-\\d+$'",
-        "",
-      ].join("\n"));
+      writeOverlay(
+        aiHome,
+        "demo",
+        "demo-web",
+        ["[sources.github]", 'kind = "github"', "canonical_id_pattern = '^RDNS-\\d+$'", ""].join(
+          "\n",
+        ),
+      );
 
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
@@ -3815,17 +4120,19 @@ describe("board-status", () => {
     test("overlay parse error surfaces the overlay path, not just 'prx.toml'", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-bad-"));
       const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-bad-"));
-      const overlayPath = writeOverlay(aiHome, "demo", "demo-web", [
-        "[sources.github]",
-        'kind = "github"',
-        "canonical_id_pattern = 42",
-        "",
-      ].join("\n"));
+      const overlayPath = writeOverlay(
+        aiHome,
+        "demo",
+        "demo-web",
+        ["[sources.github]", 'kind = "github"', "canonical_id_pattern = 42", ""].join("\n"),
+      );
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
       withOverlayRoot(aiHome, () => {
         expect(() => loadIdentityConfig(root, runner)).toThrow(
-          new RegExp(`must be a TOML string.*${overlayPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}|${overlayPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}.*must be a TOML string`),
+          new RegExp(
+            `must be a TOML string.*${overlayPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}|${overlayPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}.*must be a TOML string`,
+          ),
         );
       });
     });
@@ -3833,12 +4140,14 @@ describe("board-status", () => {
     test("BAKED_OPERATOR_CONFIG_ROOT used when PRX_OPERATOR_CONFIG_ROOT is absent", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-baked-"));
       const baked = mkdtempSync(join(tmpdir(), "pr-state-identity-baked-"));
-      writeOverlay(baked, "demo", "demo-web", [
-        "[sources.github]",
-        'kind = "github"',
-        "canonical_id_pattern = '^BAKED-\\d+$'",
-        "",
-      ].join("\n"));
+      writeOverlay(
+        baked,
+        "demo",
+        "demo-web",
+        ["[sources.github]", 'kind = "github"', "canonical_id_pattern = '^BAKED-\\d+$'", ""].join(
+          "\n",
+        ),
+      );
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
       const snap: Record<string, string | undefined> = {};
@@ -3863,19 +4172,18 @@ describe("board-status", () => {
       const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-non-gh-"));
       writeFileSync(
         join(root, "prx.toml"),
-        [
-          "[sources.github]",
-          'kind = "github"',
-          'canonical_id_pattern = "^BASE-\\\\d+$"',
-          "",
-        ].join("\n"),
+        ["[sources.github]", 'kind = "github"', 'canonical_id_pattern = "^BASE-\\\\d+$"', ""].join(
+          "\n",
+        ),
       );
-      writeOverlay(aiHome, "demo", "demo-web", [
-        "[sources.github]",
-        'kind = "github"',
-        "canonical_id_pattern = '^OVERLAY-\\d+$'",
-        "",
-      ].join("\n"));
+      writeOverlay(
+        aiHome,
+        "demo",
+        "demo-web",
+        ["[sources.github]", 'kind = "github"', "canonical_id_pattern = '^OVERLAY-\\d+$'", ""].join(
+          "\n",
+        ),
+      );
       const runner = makeRunner(root, "git@gitlab.com:demo/demo-web.git");
 
       withOverlayRoot(aiHome, () => {
@@ -3891,12 +4199,9 @@ describe("board-status", () => {
       const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-traversal-"));
       writeFileSync(
         join(root, "prx.toml"),
-        [
-          "[sources.github]",
-          'kind = "github"',
-          'canonical_id_pattern = "^BASE-\\\\d+$"',
-          "",
-        ].join("\n"),
+        ["[sources.github]", 'kind = "github"', 'canonical_id_pattern = "^BASE-\\\\d+$"', ""].join(
+          "\n",
+        ),
       );
 
       const badOrigins = [
@@ -3917,17 +4222,21 @@ describe("board-status", () => {
     test("validation errors cite the overlay path when the bad value comes from the overlay", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-attrib-regex-"));
       const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-attrib-regex-"));
-      const overlayPath = writeOverlay(aiHome, "demo", "demo-web", [
-        "[sources.github]",
-        'kind = "github"',
-        "canonical_id_pattern = '^(GH|PROD'",
-        "",
-      ].join("\n"));
+      const overlayPath = writeOverlay(
+        aiHome,
+        "demo",
+        "demo-web",
+        ["[sources.github]", 'kind = "github"', "canonical_id_pattern = '^(GH|PROD'", ""].join(
+          "\n",
+        ),
+      );
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
       withOverlayRoot(aiHome, () => {
         expect(() => loadIdentityConfig(root, runner)).toThrow(
-          new RegExp(`is not a valid regex.*\\(at ${overlayPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)`),
+          new RegExp(
+            `is not a valid regex.*\\(at ${overlayPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)`,
+          ),
         );
       });
     });
@@ -3935,18 +4244,25 @@ describe("board-status", () => {
     test("'required when auth = rest' error cites the overlay when overlay declares the section", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-attrib-required-"));
       const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-attrib-required-"));
-      const overlayPath = writeOverlay(aiHome, "demo", "demo-web", [
-        "[sources.notion]",
-        'kind = "notion"',
-        "canonical_id_pattern = '^PROJECT-\\d+$'",
-        'database_id = "db"',
-        "",
-      ].join("\n"));
+      const overlayPath = writeOverlay(
+        aiHome,
+        "demo",
+        "demo-web",
+        [
+          "[sources.notion]",
+          'kind = "notion"',
+          "canonical_id_pattern = '^PROJECT-\\d+$'",
+          'database_id = "db"',
+          "",
+        ].join("\n"),
+      );
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
       withOverlayRoot(aiHome, () => {
         expect(() => loadIdentityConfig(root, runner)).toThrow(
-          new RegExp(`id_property is required when auth = "rest" \\(at ${overlayPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)`),
+          new RegExp(
+            `id_property is required when auth = "rest" \\(at ${overlayPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)`,
+          ),
         );
       });
     });
@@ -3989,8 +4305,8 @@ describe("board-status", () => {
         return { stdout: "[]", stderr: "", status: 0 };
       }
       if (
-        rendered
-        === `gh pr list --state all --head ${branch} --limit 1 --json number,state,isDraft,title,url,headRefName,reviewDecision,statusCheckRollup,mergeable,reviews -R owner/repo`
+        rendered ===
+        `gh pr list --state all --head ${branch} --limit 1 --json number,state,isDraft,title,url,headRefName,reviewDecision,statusCheckRollup,mergeable,reviews -R owner/repo`
       ) {
         return { stdout: "[]", stderr: "", status: 0 };
       }
@@ -4006,10 +4322,15 @@ describe("board-status", () => {
       if (rendered === `git -C ${root} show-ref --verify --quiet refs/heads/${branch}`) {
         return { stdout: "", stderr: "", status: 0 };
       }
-      if (rendered === `git -C ${root} rev-list --left-right --count origin/main...refs/heads/${branch}`) {
+      if (
+        rendered ===
+        `git -C ${root} rev-list --left-right --count origin/main...refs/heads/${branch}`
+      ) {
         return { stdout: "0 1\n", stderr: "", status: 0 };
       }
-      if (rendered === `git -C ${root} rev-list --left-right --count origin/main...origin/${branch}`) {
+      if (
+        rendered === `git -C ${root} rev-list --left-right --count origin/main...origin/${branch}`
+      ) {
         return { stdout: "", stderr: "fatal: bad revision", status: 128 };
       }
       if (rendered.includes("rev-list --left-right --count origin/main...local/")) {
@@ -4036,14 +4357,7 @@ describe("board-status", () => {
     const root = join(rootBase, "repo");
     mkdirSync(root);
     const branch = "feature/it's-ready";
-    writeFileSync(
-      join(root, "prx.toml"),
-      [
-        "[worktree]",
-        'manager = "git"',
-        "",
-      ].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[worktree]", 'manager = "git"', ""].join("\n"));
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
         return { stdout: `${root}\n`, stderr: "", status: 0 };
@@ -4062,7 +4376,17 @@ describe("board-status", () => {
             ticket: null,
             branch,
             worktree_path: null,
-            pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: false,
+              number: null,
+              title: null,
+              url: null,
+              draft: null,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: false, branch: true, pr: false, ticket: false },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
             status: {
@@ -4119,12 +4443,7 @@ describe("board-status", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-routing-parity-"));
     writeFileSync(
       join(root, "prx.toml"),
-      [
-        "[routing]",
-        'GH = "gh_issue"',
-        'BEAD = "beads_issue"',
-        "",
-      ].join("\n"),
+      ["[routing]", 'GH = "gh_issue"', 'BEAD = "beads_issue"', ""].join("\n"),
     );
 
     const runner: CommandRunner = (cmd) => {
@@ -4145,7 +4464,17 @@ describe("board-status", () => {
             ticket: "GH-224",
             branch: "GH-224",
             worktree_path: null,
-            pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: false,
+              number: null,
+              title: null,
+              url: null,
+              draft: null,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: false, branch: false, pr: false, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
             status: {
@@ -4174,7 +4503,17 @@ describe("board-status", () => {
             beadId: "BEAD-5",
             branch: "BEAD-5",
             worktree_path: null,
-            pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: false,
+              number: null,
+              title: null,
+              url: null,
+              draft: null,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: false, branch: false, pr: false, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
             status: {
@@ -4224,14 +4563,7 @@ describe("board-status", () => {
 
   test("buildParityChain --ticket scopes plan to a single work unit (GH-460)", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-ticket-filter-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      [
-        "[routing]",
-        'GH = "gh_issue"',
-        "",
-      ].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[routing]", 'GH = "gh_issue"', ""].join("\n"));
 
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
@@ -4249,7 +4581,17 @@ describe("board-status", () => {
           ticket: "GH-405",
           branch: "GH-405",
           worktree_path: null,
-          pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+          pr: {
+            exists: false,
+            number: null,
+            title: null,
+            url: null,
+            draft: null,
+            checks: null,
+            review: null,
+            approvals: null,
+            mergeable: null,
+          },
           artifacts: { worktree: false, branch: false, pr: false, ticket: true },
           local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
           status: {
@@ -4272,7 +4614,17 @@ describe("board-status", () => {
           ticket: "GH-441",
           branch: "GH-441",
           worktree_path: null,
-          pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+          pr: {
+            exists: false,
+            number: null,
+            title: null,
+            url: null,
+            draft: null,
+            checks: null,
+            review: null,
+            approvals: null,
+            mergeable: null,
+          },
           artifacts: { worktree: false, branch: false, pr: false, ticket: true },
           local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
           status: {
@@ -4336,14 +4688,7 @@ describe("board-status", () => {
 
   test("buildParityChain prunes orphaned local-only branches with completed PR lifecycle", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-orphan-prune-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      [
-        "[parity_chain]",
-        "gh_issue = true",
-        "",
-      ].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[parity_chain]", "gh_issue = true", ""].join("\n"));
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
         return { stdout: `${root}\n`, stderr: "", status: 0 };
@@ -4364,7 +4709,17 @@ describe("board-status", () => {
             ticket: "GH-336",
             branch: "GH-336",
             worktree_path: null,
-            pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: false,
+              number: null,
+              title: null,
+              url: null,
+              draft: null,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: false, branch: true, pr: false, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
             status: {
@@ -4406,14 +4761,7 @@ describe("board-status", () => {
 
   test("buildParityChain emits delete_worktree when PR merged + issue closed but worktree still present (GH-1126)", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-prune-worktree-present-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      [
-        "[parity_chain]",
-        "gh_issue = true",
-        "",
-      ].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[parity_chain]", "gh_issue = true", ""].join("\n"));
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
         return { stdout: `${root}\n`, stderr: "", status: 0 };
@@ -4432,7 +4780,17 @@ describe("board-status", () => {
             ticket: "GH-1048",
             branch: "GH-1048",
             worktree_path: `${root}/gh_1048_a8a`,
-            pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: false,
+              number: null,
+              title: null,
+              url: null,
+              draft: null,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: true, branch: true, pr: false, ticket: true },
             local: { clean: true, staged: 0, unstaged: 0, untracked: 0, conflicts: 0 },
             status: {
@@ -4478,21 +4836,41 @@ describe("board-status", () => {
   // GH-2147 / ai-home-rh8e9: a completed unit whose worktree is still present
   // but ineligible for delete_worktree (dirty worktree) must surface an
   // explicit blocker instead of a silent zero-action result.
-  const completedPresentUnit = (
-    overrides: {
-      local?: Partial<{ clean: boolean; staged: number; unstaged: number; untracked: number; conflicts: number }>;
-    },
-  ) => ({
+  const completedPresentUnit = (overrides: {
+    local?: Partial<{
+      clean: boolean;
+      staged: number;
+      unstaged: number;
+      untracked: number;
+      conflicts: number;
+    }>;
+  }) => ({
     ticket: "GH-2147",
     branch: "GH-2147",
     worktree_path: "/tmp/gh_2147_xyz",
-    pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+    pr: {
+      exists: false,
+      number: null,
+      title: null,
+      url: null,
+      draft: null,
+      checks: null,
+      review: null,
+      approvals: null,
+      mergeable: null,
+    },
     artifacts: { worktree: true, branch: true, pr: false, ticket: true },
     local: { clean: true, staged: 0, unstaged: 0, untracked: 0, conflicts: 0, ...overrides.local },
     status: {
       remote: {
-        gh_issue: "completed", beads_issue: "clean", project_item: "clean",
-        branch: "clean", pr: "completed", merge_state: "clean", ci: "clean", problem: "no",
+        gh_issue: "completed",
+        beads_issue: "clean",
+        project_item: "clean",
+        branch: "clean",
+        pr: "completed",
+        merge_state: "clean",
+        ci: "clean",
+        problem: "no",
       },
       local: { branch: "clean", worktree: "clean", dir: "present", problem: "no" },
     },
@@ -4509,9 +4887,7 @@ describe("board-status", () => {
     };
   }
 
-  function pruneCompletedPresent(
-    overrides: Parameters<typeof completedPresentUnit>[0],
-  ) {
+  function pruneCompletedPresent(overrides: Parameters<typeof completedPresentUnit>[0]) {
     const root = mkdtempSync(join(tmpdir(), "pr-state-prune-blocker-"));
     writeFileSync(join(root, "prx.toml"), ["[parity_chain]", "gh_issue = true", ""].join("\n"));
     return buildSurfaceSyncFromBoard(
@@ -4547,14 +4923,7 @@ describe("board-status", () => {
     // fire because the lifecycle is fully completed and operator state is
     // safe.
     const root = mkdtempSync(join(tmpdir(), "pr-state-prune-realworld-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      [
-        "[parity_chain]",
-        "gh_issue = true",
-        "",
-      ].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[parity_chain]", "gh_issue = true", ""].join("\n"));
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
         return { stdout: `${root}\n`, stderr: "", status: 0 };
@@ -4573,7 +4942,17 @@ describe("board-status", () => {
             ticket: "GH-1048",
             branch: "GH-1048",
             worktree_path: `${root}/gh_1048_a8a`,
-            pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: false,
+              number: null,
+              title: null,
+              url: null,
+              draft: null,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: true, branch: true, pr: false, ticket: true },
             local: { clean: true, staged: 0, unstaged: 0, untracked: 0, conflicts: 0 },
             status: {
@@ -4616,14 +4995,7 @@ describe("board-status", () => {
 
   test("buildParityChain prune does not re-emit delete_worktree once worktree is gone (GH-1126)", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-prune-idempotent-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      [
-        "[parity_chain]",
-        "gh_issue = true",
-        "",
-      ].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[parity_chain]", "gh_issue = true", ""].join("\n"));
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
         return { stdout: `${root}\n`, stderr: "", status: 0 };
@@ -4642,7 +5014,17 @@ describe("board-status", () => {
             ticket: "GH-1048",
             branch: "GH-1048",
             worktree_path: null,
-            pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: false,
+              number: null,
+              title: null,
+              url: null,
+              draft: null,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: false, branch: false, pr: false, ticket: true },
             local: { clean: true, staged: 0, unstaged: 0, untracked: 0, conflicts: 0 },
             status: {
@@ -4681,14 +5063,7 @@ describe("board-status", () => {
 
   test("buildParityChain skips delete_worktree on dirty local — operator state at risk (GH-1126)", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-prune-dirty-local-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      [
-        "[parity_chain]",
-        "gh_issue = true",
-        "",
-      ].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[parity_chain]", "gh_issue = true", ""].join("\n"));
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
         return { stdout: `${root}\n`, stderr: "", status: 0 };
@@ -4707,7 +5082,17 @@ describe("board-status", () => {
             ticket: "GH-1048",
             branch: "GH-1048",
             worktree_path: `${root}/gh_1048_a8a`,
-            pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: false,
+              number: null,
+              title: null,
+              url: null,
+              draft: null,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: true, branch: true, pr: false, ticket: true },
             local: { clean: false, staged: 1, unstaged: 0, untracked: 0, conflicts: 0 },
             status: {
@@ -4743,14 +5128,7 @@ describe("board-status", () => {
 
   test("buildParityChain prunes branches off the local buffer remote when PR completed (GH-868)", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-buffer-prune-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      [
-        "[parity_chain]",
-        "gh_issue = true",
-        "",
-      ].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[parity_chain]", "gh_issue = true", ""].join("\n"));
     const bufferPath = `${homedir()}/.local/state/git/buffer/owner/repo.git`;
     const runner: CommandRunner = (cmd) => {
       const joined = cmd.join(" ");
@@ -4774,7 +5152,17 @@ describe("board-status", () => {
             ticket: "GH-549",
             branch: "GH-549",
             worktree_path: null,
-            pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: false,
+              number: null,
+              title: null,
+              url: null,
+              draft: null,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: false, branch: false, pr: false, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
             status: {
@@ -4818,14 +5206,7 @@ describe("board-status", () => {
 
   test("buildParityChain skips buffer pruning when no `local` remote is configured (GH-868)", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-buffer-no-remote-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      [
-        "[parity_chain]",
-        "gh_issue = true",
-        "",
-      ].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[parity_chain]", "gh_issue = true", ""].join("\n"));
     const runner: CommandRunner = (cmd) => {
       const joined = cmd.join(" ");
       if (joined === `git -C ${root} rev-parse --show-toplevel`) {
@@ -4848,7 +5229,17 @@ describe("board-status", () => {
             ticket: "GH-549",
             branch: "GH-549",
             worktree_path: null,
-            pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: false,
+              number: null,
+              title: null,
+              url: null,
+              draft: null,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: false, branch: false, pr: false, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
             status: {
@@ -4879,14 +5270,7 @@ describe("board-status", () => {
 
   test("buildParityChain skips buffer pruning when `local` remote URL is outside the buffer tree (GH-868)", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-buffer-outside-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      [
-        "[parity_chain]",
-        "gh_issue = true",
-        "",
-      ].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[parity_chain]", "gh_issue = true", ""].join("\n"));
     const runner: CommandRunner = (cmd) => {
       const joined = cmd.join(" ");
       if (joined === `git -C ${root} rev-parse --show-toplevel`) {
@@ -4911,7 +5295,17 @@ describe("board-status", () => {
             ticket: "GH-549",
             branch: "GH-549",
             worktree_path: null,
-            pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: false,
+              number: null,
+              title: null,
+              url: null,
+              draft: null,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: false, branch: false, pr: false, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
             status: {
@@ -4946,10 +5340,7 @@ describe("board-status", () => {
   // actions. Strictly additive — without the flag, behavior is unchanged.
   test("buildParityChain `mergedOnly` emits close_issue for merged-PR-but-issue-open units (GH-1125)", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-1125-merged-only-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      ["[parity_chain]", "gh_issue = true", ""].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[parity_chain]", "gh_issue = true", ""].join("\n"));
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
         return { stdout: `${root}\n`, stderr: "", status: 0 };
@@ -4969,7 +5360,17 @@ describe("board-status", () => {
             ticket: "GH-700",
             branch: "GH-700",
             worktree_path: null,
-            pr: { exists: true, number: 1234, title: null, url: null, draft: false, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: true,
+              number: 1234,
+              title: null,
+              url: null,
+              draft: false,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: false, branch: false, pr: true, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
             status: {
@@ -4993,7 +5394,17 @@ describe("board-status", () => {
             ticket: "GH-701",
             branch: "GH-701",
             worktree_path: null,
-            pr: { exists: true, number: 1235, title: null, url: null, draft: false, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: true,
+              number: 1235,
+              title: null,
+              url: null,
+              draft: false,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: false, branch: false, pr: true, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
             status: {
@@ -5017,7 +5428,17 @@ describe("board-status", () => {
             ticket: "GH-702",
             branch: "GH-702",
             worktree_path: null,
-            pr: { exists: true, number: 1236, title: null, url: null, draft: true, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: true,
+              number: 1236,
+              title: null,
+              url: null,
+              draft: true,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: false, branch: true, pr: true, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
             status: {
@@ -5052,7 +5473,11 @@ describe("board-status", () => {
     // shellCommand quotes each arg, so the rendered command interleaves
     // single quotes — match on the unique `'700'` token instead. The command
     // is derived from the intent by the executor (no longer embedded).
-    const execCtx = { repoPath: ".", bufferPath: null, worktreeConfig: { manager: "git" as const, command: "git" } };
+    const execCtx = {
+      repoPath: ".",
+      bufferPath: null,
+      worktreeConfig: { manager: "git" as const, command: "git" },
+    };
     const closeCmd = commandForSurfaceSyncAction(closeActions[0]!, execCtx);
     expect(closeCmd).toContain("'gh' 'issue' 'close' '700'");
     expect(closeCmd).toContain("Shipped via #1234");
@@ -5068,10 +5493,7 @@ describe("board-status", () => {
 
   test("buildParityChain without `mergedOnly` does not emit close_issue (regression guard, GH-1125)", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-1125-no-merged-only-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      ["[parity_chain]", "gh_issue = true", ""].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[parity_chain]", "gh_issue = true", ""].join("\n"));
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
         return { stdout: `${root}\n`, stderr: "", status: 0 };
@@ -5090,7 +5512,17 @@ describe("board-status", () => {
             ticket: "GH-800",
             branch: "GH-800",
             worktree_path: null,
-            pr: { exists: true, number: 9000, title: null, url: null, draft: false, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: true,
+              number: 9000,
+              title: null,
+              url: null,
+              draft: false,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: false, branch: false, pr: true, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
             status: {
@@ -5126,10 +5558,7 @@ describe("board-status", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-1125-feature-disabled-"));
     // gh_issue feature off — without authority over the issue we must not
     // attempt to close it.
-    writeFileSync(
-      join(root, "prx.toml"),
-      ["[parity_chain]", "gh_issue = false", ""].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[parity_chain]", "gh_issue = false", ""].join("\n"));
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
         return { stdout: `${root}\n`, stderr: "", status: 0 };
@@ -5148,7 +5577,17 @@ describe("board-status", () => {
             ticket: "GH-900",
             branch: "GH-900",
             worktree_path: null,
-            pr: { exists: true, number: 9100, title: null, url: null, draft: false, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: true,
+              number: 9100,
+              title: null,
+              url: null,
+              draft: false,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: false, branch: false, pr: true, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
             status: {
@@ -5177,10 +5616,7 @@ describe("board-status", () => {
 
   test("buildParityChain `mergedOnly` does not emit close_issue when issue status is unknown", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-1125-status-unknown-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      ["[parity_chain]", "gh_issue = true", ""].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[parity_chain]", "gh_issue = true", ""].join("\n"));
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
         return { stdout: `${root}\n`, stderr: "", status: 0 };
@@ -5199,7 +5635,17 @@ describe("board-status", () => {
             ticket: "GH-901",
             branch: "GH-901",
             worktree_path: null,
-            pr: { exists: true, number: 9101, title: null, url: null, draft: false, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: true,
+              number: 9101,
+              title: null,
+              url: null,
+              draft: false,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: false, branch: false, pr: true, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
             // gh_issue is a non-canonical string ("unknown") — e.g. when
@@ -5233,14 +5679,7 @@ describe("board-status", () => {
 
   test("buildParityChain classifies merged-PR row as prune (GH-872)", () => {
     const root = mkdtempSync(join(tmpdir(), "pr-state-872-prune-disposition-"));
-    writeFileSync(
-      join(root, "prx.toml"),
-      [
-        "[parity_chain]",
-        "gh_issue = true",
-        "",
-      ].join("\n"),
-    );
+    writeFileSync(join(root, "prx.toml"), ["[parity_chain]", "gh_issue = true", ""].join("\n"));
     const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === `git -C ${root} rev-parse --show-toplevel`) {
         return { stdout: `${root}\n`, stderr: "", status: 0 };
@@ -5259,7 +5698,17 @@ describe("board-status", () => {
             ticket: "GH-700",
             branch: "GH-700",
             worktree_path: null,
-            pr: { exists: false, number: null, title: null, url: null, draft: null, checks: null, review: null, approvals: null, mergeable: null },
+            pr: {
+              exists: false,
+              number: null,
+              title: null,
+              url: null,
+              draft: null,
+              checks: null,
+              review: null,
+              approvals: null,
+              mergeable: null,
+            },
             artifacts: { worktree: false, branch: false, pr: false, ticket: true },
             local: { clean: null, staged: null, unstaged: null, untracked: null, conflicts: null },
             status: {
@@ -5352,7 +5801,9 @@ describe("board-status", () => {
       if (rendered === `git -C ${root} rev-list --left-right --count origin/main...origin/GH-190`) {
         return { stdout: "0\t1\n", stderr: "", status: 0 };
       }
-      if (rendered === `git -C ${root} rev-list --left-right --count origin/main...refs/heads/GH-190`) {
+      if (
+        rendered === `git -C ${root} rev-list --left-right --count origin/main...refs/heads/GH-190`
+      ) {
         return { stdout: "", stderr: "", status: 1 };
       }
       if (rendered === `git -C ${root} fetch --dry-run origin`) {
@@ -5435,7 +5886,7 @@ describe("remote-ci-check", () => {
               suite: "OrderfulInventoryInquiryAdviceTest",
               status: "FAILED",
               message: null,
-              details: "Expected: \"1\" Actual: nil",
+              details: 'Expected: "1" Actual: nil',
               duration_ns: 69930102,
             },
           ]),
@@ -5474,20 +5925,20 @@ describe("remote-ci-check", () => {
 describe("parseActionsRunIdFromLink", () => {
   test("parses run id from GitHub Actions URL", () => {
     expect(
-      parseActionsRunIdFromLink("https://github.com/bdelanghe/ai-home/actions/runs/23458383308/job/68253542877"),
+      parseActionsRunIdFromLink(
+        "https://github.com/bdelanghe/ai-home/actions/runs/23458383308/job/68253542877",
+      ),
     ).toBe("23458383308");
   });
 
   test("parses run id without job suffix", () => {
-    expect(
-      parseActionsRunIdFromLink("https://github.com/owner/repo/actions/runs/12345"),
-    ).toBe("12345");
+    expect(parseActionsRunIdFromLink("https://github.com/owner/repo/actions/runs/12345")).toBe(
+      "12345",
+    );
   });
 
   test("returns null for non-Actions URL", () => {
-    expect(
-      parseActionsRunIdFromLink("https://console.aws.amazon.com/codebuild/home"),
-    ).toBeNull();
+    expect(parseActionsRunIdFromLink("https://console.aws.amazon.com/codebuild/home")).toBeNull();
   });
 });
 
@@ -5496,8 +5947,8 @@ describe("pr comments", () => {
     const runner: CommandRunner = (cmd, options) => {
       if (
         cmd.join(" ") ===
-          "gh pr view GH-321 --json number,title,url,isDraft,baseRefName,reviewDecision,mergeStateStatus,mergeable,autoMergeRequest,reviews"
-        && options?.cwd === "/repo"
+          "gh pr view GH-321 --json number,title,url,isDraft,baseRefName,reviewDecision,mergeStateStatus,mergeable,autoMergeRequest,reviews" &&
+        options?.cwd === "/repo"
       ) {
         return {
           stdout: JSON.stringify({
@@ -5523,8 +5974,8 @@ describe("pr comments", () => {
       }
 
       if (
-        cmd.join(" ") === "gh repo view --json nameWithOwner --jq .nameWithOwner"
-        && options?.cwd === "/repo"
+        cmd.join(" ") === "gh repo view --json nameWithOwner --jq .nameWithOwner" &&
+        options?.cwd === "/repo"
       ) {
         return { stdout: "bdelanghe/ai-home\n", stderr: "", status: 0 };
       }
@@ -5596,8 +6047,8 @@ describe("pr comments", () => {
     const runner: CommandRunner = (cmd, options) => {
       if (
         cmd.join(" ") ===
-          "gh pr view GH-321 --json number,title,url,isDraft,baseRefName,reviewDecision,mergeStateStatus,mergeable,autoMergeRequest,reviews"
-        && options?.cwd === "/repo"
+          "gh pr view GH-321 --json number,title,url,isDraft,baseRefName,reviewDecision,mergeStateStatus,mergeable,autoMergeRequest,reviews" &&
+        options?.cwd === "/repo"
       ) {
         return {
           stdout: JSON.stringify({
@@ -5618,8 +6069,8 @@ describe("pr comments", () => {
       }
 
       if (
-        cmd.join(" ") === "gh repo view --json nameWithOwner --jq .nameWithOwner"
-        && options?.cwd === "/repo"
+        cmd.join(" ") === "gh repo view --json nameWithOwner --jq .nameWithOwner" &&
+        options?.cwd === "/repo"
       ) {
         return { stdout: "bdelanghe/ai-home\n", stderr: "", status: 0 };
       }
@@ -5829,8 +6280,8 @@ describe("pr comments", () => {
     const runner: CommandRunner = (cmd, options) => {
       if (
         cmd.join(" ") ===
-          "gh pr view GH-885 --json number,title,url,isDraft,baseRefName,reviewDecision,mergeStateStatus,mergeable,autoMergeRequest,reviews"
-        && options?.cwd === "/repo"
+          "gh pr view GH-885 --json number,title,url,isDraft,baseRefName,reviewDecision,mergeStateStatus,mergeable,autoMergeRequest,reviews" &&
+        options?.cwd === "/repo"
       ) {
         return {
           stdout: JSON.stringify({
@@ -5953,7 +6404,10 @@ describe("GH-2083 (.3.2) — view seams read a hydrated projection, never an inl
   });
 
   function recordingRunner(
-    handlers: Array<{ match: (cmd: string[]) => boolean; result: { stdout: string; stderr: string; status: number } }>,
+    handlers: Array<{
+      match: (cmd: string[]) => boolean;
+      result: { stdout: string; stderr: string; status: number };
+    }>,
   ): { runner: CommandRunner; calls: string[] } {
     const calls: string[] = [];
     const runner: CommandRunner = (cmd) => {
@@ -5964,15 +6418,28 @@ describe("GH-2083 (.3.2) — view seams read a hydrated projection, never an inl
     return { runner, calls };
   }
 
-  const ghOk = { match: (c: string[]) => c[0] === "gh" && c[1] === "issue" && c[2] === "view", result: { stdout: JSON.stringify({ number: 2083, state: "OPEN" }), stderr: "", status: 0 } };
-  const bdOk = { match: (c: string[]) => c[0] === "bd" && c[1] === "show", result: { stdout: JSON.stringify({ id: "ai-home-udqx2.9", status: "open" }), stderr: "", status: 0 } };
+  const ghOk = {
+    match: (c: string[]) => c[0] === "gh" && c[1] === "issue" && c[2] === "view",
+    result: { stdout: JSON.stringify({ number: 2083, state: "OPEN" }), stderr: "", status: 0 },
+  };
+  const bdOk = {
+    match: (c: string[]) => c[0] === "bd" && c[1] === "show",
+    result: {
+      stdout: JSON.stringify({ id: "ai-home-udqx2.9", status: "open" }),
+      stderr: "",
+      status: 0,
+    },
+  };
 
   test("read seams take no CommandRunner — pure over the hydrated projection", () => {
     const { runner } = recordingRunner([ghOk, bdOk]);
     hydrateIssue("owner/repo", "GH-2083", runner);
     hydrateBeads("/repo", "ai-home-udqx2.9", runner);
     expect(maybeViewIssue("owner/repo", "GH-2083")).toEqual({ number: 2083, state: "OPEN" });
-    expect(maybeViewBeadsIssue("/repo", "ai-home-udqx2.9")).toEqual({ id: "ai-home-udqx2.9", status: "open" });
+    expect(maybeViewBeadsIssue("/repo", "ai-home-udqx2.9")).toEqual({
+      id: "ai-home-udqx2.9",
+      status: "open",
+    });
   });
 
   test("an un-hydrated read raises ProjectionMiss — never falls back to a shell-out", () => {
@@ -6030,7 +6497,9 @@ describe("GH-2083 (.3.2) — view seams read a hydrated projection, never an inl
   });
 
   test("a gh miss hydrates view:null (deterministic) — read returns null, no fallback shell-out", () => {
-    const { runner, calls } = recordingRunner([{ match: (c) => c[0] === "gh", result: { stdout: "", stderr: "not found", status: 1 } }]);
+    const { runner, calls } = recordingRunner([
+      { match: (c) => c[0] === "gh", result: { stdout: "", stderr: "not found", status: 1 } },
+    ]);
     hydrateIssue("owner/repo", "GH-404", runner);
     expect(maybeViewIssue("owner/repo", "GH-404")).toBeNull();
     expect(calls.filter((c) => c.startsWith("gh issue view")).length).toBe(1);

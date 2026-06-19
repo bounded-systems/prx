@@ -80,10 +80,11 @@ export const runtimeOutputSchema = z
 
 // Compile-time pin: required keys in the Zod facade exactly match
 // `runtimeRequiredFields` from the canonical source.
-type _RuntimeRequiredFieldsPin =
-  (typeof runtimeRequiredFields)[number] extends keyof z.infer<typeof runtimeOutputSchema>
-    ? true
-    : never;
+type _RuntimeRequiredFieldsPin = (typeof runtimeRequiredFields)[number] extends keyof z.infer<
+  typeof runtimeOutputSchema
+>
+  ? true
+  : never;
 const _runtimeRequiredFieldsPin: _RuntimeRequiredFieldsPin = true;
 void _runtimeRequiredFieldsPin;
 

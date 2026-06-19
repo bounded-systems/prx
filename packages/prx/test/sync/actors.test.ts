@@ -117,7 +117,11 @@ describe("pushActor", () => {
     const adapter = fakeAdapter({
       push: async (bd, fields) => {
         seen = { bd, fields };
-        return { externalId: "https://github.com/bdelanghe/ai-home/issues/204", created: false, edited: true };
+        return {
+          externalId: "https://github.com/bdelanghe/ai-home/issues/204",
+          created: false,
+          edited: true,
+        };
       },
     });
     const out = await runActor<{ edited: boolean; externalId: string }>(pushActor, {
@@ -167,7 +171,11 @@ describe("pushActor", () => {
     const adapter = fakeAdapter({
       push: async (_bd, fields) => {
         seen = { fields };
-        return { externalId: "https://github.com/bdelanghe/ai-home/issues/204", created: false, edited: true };
+        return {
+          externalId: "https://github.com/bdelanghe/ai-home/issues/204",
+          created: false,
+          edited: true,
+        };
       },
     });
     await runActor<{ edited: boolean }>(pushActor, {

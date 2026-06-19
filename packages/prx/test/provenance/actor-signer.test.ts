@@ -32,7 +32,11 @@ const COMMIT = "1234567890abcdef1234567890abcdef12345678";
 let stateDir: string;
 function envFor(): (key: string) => string | undefined {
   return (k) =>
-    k === "XDG_STATE_HOME" ? stateDir : k === PROVENANCE_KEY_ENV ? ACTOR_DEV_SIGNER_MODE : undefined;
+    k === "XDG_STATE_HOME"
+      ? stateDir
+      : k === PROVENANCE_KEY_ENV
+        ? ACTOR_DEV_SIGNER_MODE
+        : undefined;
 }
 
 beforeEach(() => {
@@ -55,7 +59,12 @@ async function signedDerivation(claimActor: string, signActor: string): Promise<
     startedOn: "2026-06-04T00:00:00.000Z",
   });
   const envelope = await signSlsaStatement(statement, ed25519Signer(kp.privateKey, kp.keyid));
-  return { derivationId: "d1" as Derivation["derivationId"], manifest: {} as Derivation["manifest"], envelope, ts: 0 };
+  return {
+    derivationId: "d1" as Derivation["derivationId"],
+    manifest: {} as Derivation["manifest"],
+    envelope,
+    ts: 0,
+  };
 }
 
 describe("per-actor signing + verification (prx-keymaker slice 2)", () => {

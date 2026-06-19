@@ -40,7 +40,9 @@ export type DelegateAssignDeps = {
    */
   run?: CommandRunner;
   runBdShow?: typeof defaultRunBdShow;
-  resolveSelfOperator?: (deps?: ResolveSelfOperatorDeps) => ReturnType<typeof defaultResolveSelfOperator>;
+  resolveSelfOperator?: (
+    deps?: ResolveSelfOperatorDeps,
+  ) => ReturnType<typeof defaultResolveSelfOperator>;
 };
 
 export type DelegateAssignResult = {
@@ -65,15 +67,13 @@ export function runDelegateAssign(
   if (modes === 0) {
     return {
       exitCode: 2,
-      message:
-        "prx delegate assign: requires one of <agent>, --self, or --unassign",
+      message: "prx delegate assign: requires one of <agent>, --self, or --unassign",
     };
   }
   if (modes > 1) {
     return {
       exitCode: 2,
-      message:
-        "prx delegate assign: pick exactly one of <agent>, --self, or --unassign",
+      message: "prx delegate assign: pick exactly one of <agent>, --self, or --unassign",
     };
   }
 
@@ -120,10 +120,10 @@ export function runDelegateAssign(
   // for `bd update <id> --assignee <name>` (empty string clears); route it as
   // `prx beads update <id> --assignee <name>` through the single writer.
   const run = deps.run ?? procRunner;
-  const result = run(
-    ["prx", "beads", "update", input.id, "--assignee", target],
-    { cwd: input.repoPath, check: false },
-  );
+  const result = run(["prx", "beads", "update", input.id, "--assignee", target], {
+    cwd: input.repoPath,
+    check: false,
+  });
   if (result.status !== 0) {
     const detail = result.stderr.trim() || result.stdout.trim() || "prx beads update failed";
     return {
@@ -133,8 +133,6 @@ export function runDelegateAssign(
   }
 
   const message =
-    target.length === 0
-      ? `unassigned ${input.id}`
-      : `delegated ${input.id} → ${target}`;
+    target.length === 0 ? `unassigned ${input.id}` : `delegated ${input.id} → ${target}`;
   return { exitCode: 0, message };
 }

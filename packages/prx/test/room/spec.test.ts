@@ -88,9 +88,24 @@ describe("roomGrants", () => {
     const r = room({
       grants: ["repo:read"],
       doors: [
-        { name: "beadsd", direction: "consume", capability: "beads:read", socket: "/run/prx/doors/beadsd.sock" },
-        { name: "keeperd", direction: "consume", capability: "git:write", socket: "/run/prx/doors/keeperd.sock" },
-        { name: "beadsd", direction: "consume", capability: "beads:read", socket: "/run/prx/doors/beadsd.sock" },
+        {
+          name: "beadsd",
+          direction: "consume",
+          capability: "beads:read",
+          socket: "/run/prx/doors/beadsd.sock",
+        },
+        {
+          name: "keeperd",
+          direction: "consume",
+          capability: "git:write",
+          socket: "/run/prx/doors/keeperd.sock",
+        },
+        {
+          name: "beadsd",
+          direction: "consume",
+          capability: "beads:read",
+          socket: "/run/prx/doors/beadsd.sock",
+        },
       ],
     });
     expect(roomGrants(r)).toEqual(["beads:read", "git:write", "repo:read"]);
@@ -110,8 +125,20 @@ describe("roomGrants", () => {
   test("a CLOSED consumed door grants nothing (the seam is sealed)", () => {
     const r = room({
       doors: [
-        { name: "beadsd", direction: "consume", capability: "beads:read", socket: "/s", state: "open" },
-        { name: "keeperd", direction: "consume", capability: "git:write", socket: "/k", state: "closed" },
+        {
+          name: "beadsd",
+          direction: "consume",
+          capability: "beads:read",
+          socket: "/s",
+          state: "open",
+        },
+        {
+          name: "keeperd",
+          direction: "consume",
+          capability: "git:write",
+          socket: "/k",
+          state: "closed",
+        },
       ],
     });
     // Only the open door carries its capability.
@@ -120,7 +147,15 @@ describe("roomGrants", () => {
 
   test("a CLOSED exposed door is still declared-exposed, but not actively offered", () => {
     const r = room({
-      doors: [{ name: "control", direction: "expose", capability: "session:control", socket: "/c", state: "closed" }],
+      doors: [
+        {
+          name: "control",
+          direction: "expose",
+          capability: "session:control",
+          socket: "/c",
+          state: "closed",
+        },
+      ],
     });
     // The seam exists in the topology...
     expect(roomExposes(r, "session:control")).toBe(true);

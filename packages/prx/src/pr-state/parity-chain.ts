@@ -11,7 +11,11 @@
 // this focused leaf module breaks that edge; `cli.ts` re-exports them so its
 // existing callers are unaffected.
 
-import { surfaceSyncExecContext, commandForSurfaceSyncAction, type SurfaceSyncExecContext } from "./github.ts";
+import {
+  surfaceSyncExecContext,
+  commandForSurfaceSyncAction,
+  type SurfaceSyncExecContext,
+} from "./github.ts";
 import { procSpawnLike, resolveRepoRootWithSpawn, type SpawnLike } from "./cli-spawn.ts";
 import type { ParityChainApplyResult } from "./cli-types.ts";
 import type { SurfaceSyncResult } from "@bounded-systems/surface-sync";

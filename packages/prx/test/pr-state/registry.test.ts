@@ -10,21 +10,11 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, test } from "bun:test";
 
-import {
-  ActorName,
-  CommandSpec,
-  Deprecation,
-  SessionContext,
-} from "../../src/cli/registry.ts";
-import {
-  prxCommandRegistry,
-  promotedFor,
-} from "../../src/cli/registry.data.ts";
+import { ActorName, CommandSpec, Deprecation, SessionContext } from "../../src/cli/registry.ts";
+import { prxCommandRegistry, promotedFor } from "../../src/cli/registry.data.ts";
 import { sessionProfileNames } from "../../src/machine/runtime_profiles.ts";
 
-const cliPath = fileURLToPath(
-  new URL("../../src/pr-state/cli.ts", import.meta.url),
-);
+const cliPath = fileURLToPath(new URL("../../src/pr-state/cli.ts", import.meta.url));
 const cliSource = readFileSync(cliPath, "utf8");
 
 describe("CommandSpec schema", () => {
@@ -48,8 +38,7 @@ describe("CommandSpec schema", () => {
     expect(() =>
       CommandSpec.parse({
         name: "foo",
-        description:
-          "this description has way too many words to satisfy the help surface rule",
+        description: "this description has way too many words to satisfy the help surface rule",
         domain: "system",
       }),
     ).toThrow();
@@ -86,13 +75,10 @@ describe("IA invariants", () => {
 
   test("§6.2 — at most six promoted entries per session context", () => {
     for (const ctx of SessionContext.options) {
-      const count = prxCommandRegistry.filter((c) =>
-        c.promoted_in.includes(ctx),
-      ).length;
-      expect(
-        count,
-        `${count} entries promoted in '${ctx}' context (limit: 6)`,
-      ).toBeLessThanOrEqual(6);
+      const count = prxCommandRegistry.filter((c) => c.promoted_in.includes(ctx)).length;
+      expect(count, `${count} entries promoted in '${ctx}' context (limit: 6)`).toBeLessThanOrEqual(
+        6,
+      );
     }
   });
 
@@ -104,13 +90,7 @@ describe("IA invariants", () => {
     // (send `/review` into the live pane); with tmux gone it was removed,
     // dropping the canonical mainx set from six to five.
     const promoted = promotedFor("mainx").map((c) => c.name);
-    expect(promoted).toEqual([
-      "tui",
-      "plan session",
-      "next",
-      "do",
-      "plan handoff",
-    ]);
+    expect(promoted).toEqual(["tui", "plan session", "next", "do", "plan handoff"]);
   });
 
   test("§6.2 — plan promotion is the canonical six (GH-978, GH-1057)", () => {
@@ -161,9 +141,7 @@ describe("IA invariants", () => {
   test("session_profile values are drawn from runtime_profiles.sessionProfileNames", () => {
     for (const spec of prxCommandRegistry) {
       if (spec.session_profile === undefined) continue;
-      expect(
-        sessionProfileNames as readonly string[],
-      ).toContain(spec.session_profile);
+      expect(sessionProfileNames as readonly string[]).toContain(spec.session_profile);
     }
   });
 
@@ -217,9 +195,7 @@ describe("dispatch coverage (GH-975 mechanical port)", () => {
     // `plan session`, retired separately under #582 / #833 / #1084) may
     // remain with a `session` parent, and only because it has a deprecation
     // record. No other `session.*` registry entries are allowed.
-    const sessionParented = prxCommandRegistry.filter(
-      (c) => c.parent === "session",
-    );
+    const sessionParented = prxCommandRegistry.filter((c) => c.parent === "session");
     for (const spec of sessionParented) {
       expect(
         spec.deprecation,
@@ -240,8 +216,8 @@ describe("dispatch coverage (GH-975 mechanical port)", () => {
       blockMatch,
       "could not locate RETIRED_SESSION_VERB_REDIRECTS block in cli.ts",
     ).not.toBeNull();
-    const targets = Array.from(blockMatch![1]!.matchAll(/"prx ([a-z][a-z\- ]*)"/g)).map(
-      (m) => m[1]!.trim(),
+    const targets = Array.from(blockMatch![1]!.matchAll(/"prx ([a-z][a-z\- ]*)"/g)).map((m) =>
+      m[1]!.trim(),
     );
     expect(targets.length).toBeGreaterThan(0);
     for (const target of targets) {
@@ -293,10 +269,7 @@ describe("registry consistency", () => {
     for (const spec of prxCommandRegistry) {
       const parts = spec.name.split(" ");
       if (parts.length === 1) continue;
-      expect(
-        spec.parent,
-        `'${spec.name}' is namespaced but has no parent`,
-      ).toBe(parts[0]);
+      expect(spec.parent, `'${spec.name}' is namespaced but has no parent`).toBe(parts[0]);
     }
   });
 

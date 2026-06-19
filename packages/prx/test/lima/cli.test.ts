@@ -16,7 +16,16 @@ describe("prx beads serve parsing", () => {
   });
 
   test("parses --socket/--cwd/--pidfile", () => {
-    const p = parse(["beads", "serve", "--socket", "/vm/beadsd.sock", "--cwd", "/vm/clone", "--pidfile", "/vm/beadsd.pid"]);
+    const p = parse([
+      "beads",
+      "serve",
+      "--socket",
+      "/vm/beadsd.sock",
+      "--cwd",
+      "/vm/clone",
+      "--pidfile",
+      "/vm/beadsd.pid",
+    ]);
     expect(p.command).toBe("beads-serve");
     if (p.command === "beads-serve") {
       expect(p.socket).toBe("/vm/beadsd.sock");
@@ -80,7 +89,9 @@ describe("prx beads read-door (ready/list/show via beadsd)", () => {
   });
 
   test("a negative --limit is rejected", () => {
-    expect(() => parse(["beads", "list", "--limit=-1"])).toThrow(/--limit must be a non-negative integer/);
+    expect(() => parse(["beads", "list", "--limit=-1"])).toThrow(
+      /--limit must be a non-negative integer/,
+    );
   });
 
   test("`beads show <id> --vm` carries the id", () => {
@@ -158,18 +169,45 @@ describe("prx beads write-door (create/update/close via beadsd)", () => {
       "--title",
       "x",
     ]);
-    const p = parse(["beads", "create", "--type", "task", "--title", "do a thing", "--priority", "1"]);
+    const p = parse([
+      "beads",
+      "create",
+      "--type",
+      "task",
+      "--title",
+      "do a thing",
+      "--priority",
+      "1",
+    ]);
     expect(p.command).toBe("beads-write");
     if (p.command === "beads-write") {
-      expect(p.request).toEqual({ kind: "create", issueType: "task", title: "do a thing", priority: 1 });
+      expect(p.request).toEqual({
+        kind: "create",
+        issueType: "task",
+        title: "do a thing",
+        priority: 1,
+      });
       expect(p.vm).toBeUndefined(); // no --vm ⇒ local daemon
     }
   });
 
   test("`beads update <id>` carries the changed fields", () => {
-    const p = parse(["beads", "update", "prx-abb", "--status", "in_progress", "--assignee", "alice"]);
+    const p = parse([
+      "beads",
+      "update",
+      "prx-abb",
+      "--status",
+      "in_progress",
+      "--assignee",
+      "alice",
+    ]);
     if (p.command === "beads-write") {
-      expect(p.request).toEqual({ kind: "update", id: "prx-abb", status: "in_progress", assignee: "alice" });
+      expect(p.request).toEqual({
+        kind: "update",
+        id: "prx-abb",
+        status: "in_progress",
+        assignee: "alice",
+      });
     }
   });
 
@@ -181,7 +219,11 @@ describe("prx beads write-door (create/update/close via beadsd)", () => {
   });
 
   test("`beads reopen <id>`", () => {
-    expect(normalizeNamespaceArgv(["beads", "reopen", "prx-abb"])).toEqual(["beads-write", "reopen", "prx-abb"]);
+    expect(normalizeNamespaceArgv(["beads", "reopen", "prx-abb"])).toEqual([
+      "beads-write",
+      "reopen",
+      "prx-abb",
+    ]);
     const p = parse(["beads", "reopen", "prx-abb"]);
     if (p.command === "beads-write") {
       expect(p.request).toEqual({ kind: "reopen", id: "prx-abb" });
@@ -227,9 +269,9 @@ describe("prx beads write-door (create/update/close via beadsd)", () => {
   });
 
   test("priority out of range is rejected", () => {
-    expect(() => parse(["beads", "create", "--type", "task", "--title", "x", "--priority", "9"])).toThrow(
-      /--priority must be an integer/,
-    );
+    expect(() =>
+      parse(["beads", "create", "--type", "task", "--title", "x", "--priority", "9"]),
+    ).toThrow(/--priority must be an integer/);
   });
 });
 
@@ -368,9 +410,9 @@ describe("prx lima parsing", () => {
   });
 
   test("rejects an unknown --daemon", () => {
-    expect(() => parse(["lima", "up", "myvm", "--binary", "b", "--cwd", "/c", "--daemon", "bogus"])).toThrow(
-      /--daemon must be one of/,
-    );
+    expect(() =>
+      parse(["lima", "up", "myvm", "--binary", "b", "--cwd", "/c", "--daemon", "bogus"]),
+    ).toThrow(/--daemon must be one of/);
   });
 
   test("--socket requires a single --daemon", () => {
@@ -378,7 +420,19 @@ describe("prx lima parsing", () => {
       parse(["lima", "up", "myvm", "--binary", "b", "--cwd", "/c", "--socket", "/s"]),
     ).toThrow(/--socket requires a single --daemon/);
     // valid with a single daemon
-    const p = parse(["lima", "up", "myvm", "--binary", "b", "--cwd", "/c", "--daemon", "keeper", "--socket", "/s"]);
+    const p = parse([
+      "lima",
+      "up",
+      "myvm",
+      "--binary",
+      "b",
+      "--cwd",
+      "/c",
+      "--daemon",
+      "keeper",
+      "--socket",
+      "/s",
+    ]);
     expect(p.command === "lima" && p.socket).toBe("/s");
   });
 

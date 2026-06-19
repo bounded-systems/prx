@@ -84,10 +84,7 @@ describe("resolveNotionCacheDir", () => {
       env: { XDG_CACHE_HOME: xdg, HOME: "/h" },
       runner: makeOriginRunner("https://gitlab.com/foo/bar.git"),
     });
-    const fingerprint = createHash("sha256")
-      .update(resolve(repoRoot))
-      .digest("hex")
-      .slice(0, 8);
+    const fingerprint = createHash("sha256").update(resolve(repoRoot)).digest("hex").slice(0, 8);
     expect(dir).toBe(`/cache/prx/notion/_anon/${fingerprint}`);
   });
 

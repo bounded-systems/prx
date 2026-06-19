@@ -3,10 +3,7 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 
-import {
-  projectAnthropicUsage,
-  resolveWindowFloor,
-} from "../../src/services/anthropic.ts";
+import { projectAnthropicUsage, resolveWindowFloor } from "../../src/services/anthropic.ts";
 
 function makeDb(): Database {
   // The projector only reads the generic `events` table. Use the same DDL
@@ -86,7 +83,16 @@ function seedNonUsage(db: Database, ts: string): void {
   db.run(
     `INSERT INTO events (event_id, ts, actor, action, uow_id, artifact_type, artifact_ref, raw_json)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [`t::${eventIdCounter}`, ts, "claude-code", "non-interactive-agent", null, null, null, JSON.stringify(row)],
+    [
+      `t::${eventIdCounter}`,
+      ts,
+      "claude-code",
+      "non-interactive-agent",
+      null,
+      null,
+      null,
+      JSON.stringify(row),
+    ],
   );
 }
 
@@ -181,10 +187,7 @@ describe("projectAnthropicUsage", () => {
       input_tokens: 10,
     });
     const byActor = projectAnthropicUsage(db, { by: "actor" });
-    expect(byActor.map((b) => b.bucket).sort()).toEqual([
-      "claude-code",
-      "haiku-classifier",
-    ]);
+    expect(byActor.map((b) => b.bucket).sort()).toEqual(["claude-code", "haiku-classifier"]);
     const byUnit = projectAnthropicUsage(db, { by: "workUnitId" });
     expect(byUnit.map((b) => b.bucket).sort()).toEqual(["GH-1", "GH-2"]);
   });
@@ -217,14 +220,10 @@ describe("resolveWindowFloor", () => {
   });
 
   test("passes ISO timestamps through unchanged", () => {
-    expect(resolveWindowFloor("2026-05-10T00:00:00Z", fixedNow)).toBe(
-      "2026-05-10T00:00:00Z",
-    );
+    expect(resolveWindowFloor("2026-05-10T00:00:00Z", fixedNow)).toBe("2026-05-10T00:00:00Z");
   });
 
   test("rejects malformed window values", () => {
-    expect(() => resolveWindowFloor("yesterday", fixedNow)).toThrow(
-      /invalid --window/,
-    );
+    expect(() => resolveWindowFloor("yesterday", fixedNow)).toThrow(/invalid --window/);
   });
 });

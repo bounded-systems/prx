@@ -20,9 +20,7 @@ describe("UsageStateV1 schema + derive", () => {
 
   test("outer strict() rejects unknown top-level keys", () => {
     const empty = createEmptyUsageState();
-    expect(() =>
-      usageStateV1Schema.parse({ ...empty, bogus: 1 } as unknown),
-    ).toThrow();
+    expect(() => usageStateV1Schema.parse({ ...empty, bogus: 1 } as unknown)).toThrow();
   });
 
   test("nested strict() rejects unknown keys inside session", () => {
@@ -64,9 +62,7 @@ describe("UsageStateV1 schema + derive", () => {
     const empty = createEmptyUsageState();
     const state: UsageStateV1 = {
       ...empty,
-      weekly: [
-        { model: "opus", resetAt: null, usedFraction: 1.0, source: "manual" },
-      ],
+      weekly: [{ model: "opus", resetAt: null, usedFraction: 1.0, source: "manual" }],
     };
     const refreshed = refreshUsageDerived(state);
     expect(refreshed.derived.phase).toBe("blocked");
@@ -108,9 +104,7 @@ describe("UsageStateV1 schema + derive", () => {
     const state: UsageStateV1 = {
       ...empty,
       session: { ...empty.session, resetAt: laterIso, source: "manual" },
-      weekly: [
-        { model: "opus", resetAt: earlierIso, usedFraction: null, source: "manual" },
-      ],
+      weekly: [{ model: "opus", resetAt: earlierIso, usedFraction: null, source: "manual" }],
     };
     expect(deriveNearestResetAt(state)).toBe(earlierIso);
     expect(deriveNearestResetAt(createEmptyUsageState())).toBeNull();

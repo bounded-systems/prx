@@ -8,7 +8,11 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { provenanceSigner, provenanceVerifier, realStatementSigner } from "../../src/machine/machines/pilot-signing.ts";
+import {
+  provenanceSigner,
+  provenanceVerifier,
+  realStatementSigner,
+} from "../../src/machine/machines/pilot-signing.ts";
 import { mintSpawnAttestation } from "../../src/pipeline/spawn-attestation.ts";
 import { runSpawnVerify } from "../../src/spawn/verify.ts";
 
@@ -35,12 +39,21 @@ afterAll(() => {
 const sink = () => {
   const lines: string[] = [];
   const errs: string[] = [];
-  return { out: { log: (l: string) => lines.push(l), error: (l: string) => errs.push(l) }, lines, errs };
+  return {
+    out: { log: (l: string) => lines.push(l), error: (l: string) => errs.push(l) },
+    lines,
+    errs,
+  };
 };
 
 const mint = (unit: string) =>
   mintSpawnAttestation(
-    { unit, role: "plan", actor: "pilot", input: { ref: `${unit}:source@pinned`, sha: "sha256:material1" } },
+    {
+      unit,
+      role: "plan",
+      actor: "pilot",
+      input: { ref: `${unit}:source@pinned`, sha: "sha256:material1" },
+    },
     realStatementSigner(provenanceSigner()!),
   );
 
@@ -48,11 +61,10 @@ describe("prx spawn verify (GH-294)", () => {
   test("verifies a minted spawn and reports the material (json)", async () => {
     await mint("GH-1");
     const { out, lines } = sink();
-    const code = await runSpawnVerify(
-      { unit: "GH-1", role: "plan", format: "json" },
-      out,
-      { resolveVerifier: () => provenanceVerifier(), getCurrentSha: async () => "sha256:material1" },
-    );
+    const code = await runSpawnVerify({ unit: "GH-1", role: "plan", format: "json" }, out, {
+      resolveVerifier: () => provenanceVerifier(),
+      getCurrentSha: async () => "sha256:material1",
+    });
     expect(code).toBe(0);
     const payload = JSON.parse(lines[0]!);
     expect(payload.ok).toBe(true);
@@ -64,32 +76,27 @@ describe("prx spawn verify (GH-294)", () => {
   test("reports drift when the pinned input changed since the spawn", async () => {
     await mint("GH-drift");
     const { out, lines } = sink();
-    const code = await runSpawnVerify(
-      { unit: "GH-drift", role: "plan", format: "json" },
-      out,
-      { resolveVerifier: () => provenanceVerifier(), getCurrentSha: async () => "sha256:CHANGED" },
-    );
+    const code = await runSpawnVerify({ unit: "GH-drift", role: "plan", format: "json" }, out, {
+      resolveVerifier: () => provenanceVerifier(),
+      getCurrentSha: async () => "sha256:CHANGED",
+    });
     expect(code).toBe(0);
     expect(JSON.parse(lines[0]!).freshness).toBe("drifted");
   });
 
   test("fails closed when no spawn attestation exists", async () => {
     const { out } = sink();
-    const code = await runSpawnVerify(
-      { unit: "GH-none", role: "plan", format: "json" },
-      out,
-      { resolveVerifier: () => provenanceVerifier() },
-    );
+    const code = await runSpawnVerify({ unit: "GH-none", role: "plan", format: "json" }, out, {
+      resolveVerifier: () => provenanceVerifier(),
+    });
     expect(code).toBe(1);
   });
 
   test("fails closed when no verifier is configured", async () => {
     const { out, errs } = sink();
-    const code = await runSpawnVerify(
-      { unit: "GH-1", role: "plan", format: "plain" },
-      out,
-      { resolveVerifier: () => null },
-    );
+    const code = await runSpawnVerify({ unit: "GH-1", role: "plan", format: "plain" }, out, {
+      resolveVerifier: () => null,
+    });
     expect(code).toBe(1);
     expect(errs.join("\n")).toMatch(/no verifier/i);
   });

@@ -47,7 +47,12 @@ describe("createFileSessionStore", () => {
     const s = createFileSessionStore(tmp());
     s.put(rec({ id: "a" }));
     s.put(rec({ id: "b" }));
-    expect(s.list().map((r) => r.id).sort()).toEqual(["a", "b"]);
+    expect(
+      s
+        .list()
+        .map((r) => r.id)
+        .sort(),
+    ).toEqual(["a", "b"]);
     s.delete("a");
     expect(s.list().map((r) => r.id)).toEqual(["b"]);
   });

@@ -52,13 +52,7 @@ describe("plan-session vs session-open alias routing (ai-home-f2lcz)", () => {
     // GH-2089 wired beads as a first-class --from value. Pin that path here
     // so any regression of the print-default + beads-source composition is
     // caught at the parser layer (no need to spin up bd state to detect it).
-    const parsed = parseCommand([
-      "plan",
-      "session",
-      "GH-456",
-      "--create",
-      "--from=beads",
-    ]);
+    const parsed = parseCommand(["plan", "session", "GH-456", "--create", "--from=beads"]);
     expect(parsed.command).toBe("session-plan");
     if (parsed.command !== "session-plan") return;
     expect(parsed.create).toBe(true);
@@ -71,12 +65,7 @@ describe("plan-session vs session-open alias routing (ai-home-f2lcz)", () => {
     // way to drop the print default. Pinning this complements the alias
     // routing test above — if a future change makes the alias route to
     // session-plan, --interactive must still be the documented switch.
-    const parsed = parseCommand([
-      "plan",
-      "session",
-      "GH-456",
-      "--interactive",
-    ]);
+    const parsed = parseCommand(["plan", "session", "GH-456", "--interactive"]);
     // --interactive on the canonical re-routes through parseSessionOpenCommand
     // (it owns the tmux pane), tagging invokedViaPlanSession on the result so
     // the dispatch banner still says "plan session". The default claude

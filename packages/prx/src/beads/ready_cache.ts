@@ -24,12 +24,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 
-import {
-  BdReadyCacheSchema,
-  queryBdReady,
-  type BdReadyCache,
-  type BdRunner,
-} from "./ready.ts";
+import { BdReadyCacheSchema, queryBdReady, type BdReadyCache, type BdRunner } from "./ready.ts";
 
 export const DEFAULT_READY_TTL_SECONDS = 60;
 
@@ -107,10 +102,7 @@ function newRunId(): string {
  * `stale`/`refreshed` flags so the picker can emit the right audit events
  * (BD_READY_CACHE_HIT vs *_STALE_SERVED vs *_REFRESHED).
  */
-export function getBdReady(
-  repoPath: string,
-  opts: GetBdReadyOptions = {},
-): GetBdReadyResult {
+export function getBdReady(repoPath: string, opts: GetBdReadyOptions = {}): GetBdReadyResult {
   const ttlSeconds = opts.ttlSeconds ?? DEFAULT_READY_TTL_SECONDS;
   const now = Date.now();
 

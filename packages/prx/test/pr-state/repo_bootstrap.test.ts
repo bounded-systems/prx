@@ -134,24 +134,24 @@ function makeDeps(
     return classifyMode;
   };
   const deps: RepoBootstrapDeps = {
-    runner: overrides.runner ?? ((cmd, options) => {
-      recorded.git.push({ cmd: [...cmd], cwd: options?.cwd });
-      return { stdout: "", stderr: "", status: 0 };
-    }),
+    runner:
+      overrides.runner ??
+      ((cmd, options) => {
+        recorded.git.push({ cmd: [...cmd], cwd: options?.cwd });
+        return { stdout: "", stderr: "", status: 0 };
+      }),
     classify: overrides.classify ?? defaultClassify,
     bdInitRunner:
-      overrides.bdInitRunner
-      ?? ((cmd, options): SpawnCaptureResult => {
+      overrides.bdInitRunner ??
+      ((cmd, options): SpawnCaptureResult => {
         recorded.bdInit.push({ cmd, cwd: options?.cwd, env: options?.env });
         return { status: 0, signal: null, stdout: "", stderr: "" };
       }),
-    tempHomeFactory:
-      overrides.tempHomeFactory
-      ?? ((slug) => `/tmp/prx-bd-init-${slug}-fixed`),
+    tempHomeFactory: overrides.tempHomeFactory ?? ((slug) => `/tmp/prx-bd-init-${slug}-fixed`),
     legacyHomeProbe: overrides.legacyHomeProbe ?? (() => false),
     recordEvent:
-      overrides.recordEvent
-      ?? ((event, opts) => {
+      overrides.recordEvent ??
+      ((event, opts) => {
         recorded.events.push({
           event,
           ...(opts?.repo ? { repo: opts.repo } : {}),
@@ -161,8 +161,8 @@ function makeDeps(
     isMainProtected: overrides.isMainProtected ?? (() => true),
     gitStatusClean: overrides.gitStatusClean ?? (() => true),
     runAddDolthub:
-      overrides.runAddDolthub
-      ?? ((): AddDolthubResult =>
+      overrides.runAddDolthub ??
+      ((): AddDolthubResult =>
         overrides.addDolthubResult ?? {
           kind: "wired",
           slug: "ai-home",
@@ -204,10 +204,7 @@ describe("runRepoBootstrap: refused arms", () => {
   test("refuses with slug-not-found when slug does not resolve", () => {
     const { config } = seedInventory([makeRepo("ai-home")]);
     const { deps } = makeDeps();
-    const result = runRepoBootstrap(
-      baseOptions(config, { slug: "no-such-repo" }),
-      deps,
-    );
+    const result = runRepoBootstrap(baseOptions(config, { slug: "no-such-repo" }), deps);
     expect(result.kind).toBe("refused");
     expect((result as Extract<RepoBootstrapResult, { kind: "refused" }>).reason).toBe(
       "slug-not-found",
@@ -215,9 +212,7 @@ describe("runRepoBootstrap: refused arms", () => {
   });
 
   test("refuses with no-worktree when repo has no attached worktree", () => {
-    const { config } = seedInventory([
-      makeRepo("ai-home", { mainWorktree: null, worktrees: [] }),
-    ]);
+    const { config } = seedInventory([makeRepo("ai-home", { mainWorktree: null, worktrees: [] })]);
     const { deps } = makeDeps();
     const result = runRepoBootstrap(baseOptions(config), deps);
     expect(result.kind).toBe("refused");
@@ -229,37 +224,30 @@ describe("runRepoBootstrap: refused arms", () => {
   test.each([
     ["embedded", { kind: "embedded", doltDir: "/x/.dolt" }],
     ["per_project", { kind: "per_project", doltDir: "/x/dolt" }],
-    [
-      "shared_server",
-      { kind: "shared_server", sharedDir: "/x/shared" },
-    ],
+    ["shared_server", { kind: "shared_server", sharedDir: "/x/shared" }],
     [
       "ambiguous",
       { kind: "ambiguous", details: ".beads/ has neither dolt/ nor embeddeddolt/<ws>/.dolt" },
     ],
-  ] as Array<[string, BeadsWorkspaceMode]>)(
-    "refuses with beads-already-present when classify reports %s",
-    (_label, mode) => {
-      const { config } = seedInventory([makeRepo("ai-home")]);
-      // Force the classifier to return the same non-none mode on every call.
-      // For per_project we still need to ensure the inventory's prefix doesn't
-      // match (otherwise it'd flip to already-bootstrapped).
-      const { deps } = makeDeps(mode, { classify: () => mode });
-      const result = runRepoBootstrap(baseOptions(config), deps);
-      expect(result.kind).toBe("refused");
-      expect((result as Extract<RepoBootstrapResult, { kind: "refused" }>).reason).toBe(
-        "beads-already-present",
-      );
-    },
-  );
+  ] as Array<
+    [string, BeadsWorkspaceMode]
+  >)("refuses with beads-already-present when classify reports %s", (_label, mode) => {
+    const { config } = seedInventory([makeRepo("ai-home")]);
+    // Force the classifier to return the same non-none mode on every call.
+    // For per_project we still need to ensure the inventory's prefix doesn't
+    // match (otherwise it'd flip to already-bootstrapped).
+    const { deps } = makeDeps(mode, { classify: () => mode });
+    const result = runRepoBootstrap(baseOptions(config), deps);
+    expect(result.kind).toBe("refused");
+    expect((result as Extract<RepoBootstrapResult, { kind: "refused" }>).reason).toBe(
+      "beads-already-present",
+    );
+  });
 
   test("refuses with prefix-invalid when --prefix does not match the regex", () => {
     const { config } = seedInventory([makeRepo("ai-home")]);
     const { deps } = makeDeps();
-    const result = runRepoBootstrap(
-      baseOptions(config, { prefixOverride: "1bad-prefix" }),
-      deps,
-    );
+    const result = runRepoBootstrap(baseOptions(config, { prefixOverride: "1bad-prefix" }), deps);
     expect(result.kind).toBe("refused");
     expect((result as Extract<RepoBootstrapResult, { kind: "refused" }>).reason).toBe(
       "prefix-invalid",
@@ -269,10 +257,7 @@ describe("runRepoBootstrap: refused arms", () => {
   test("refuses with protected-branch-no-pr when main isn't protected (--ship-metadata)", () => {
     const { config } = seedInventory([makeRepo("ai-home")]);
     const { deps } = makeDeps({ kind: "none" }, { isMainProtected: () => false });
-    const result = runRepoBootstrap(
-      baseOptions(config, { shipMetadata: true }),
-      deps,
-    );
+    const result = runRepoBootstrap(baseOptions(config, { shipMetadata: true }), deps);
     expect(result.kind).toBe("refused");
     expect((result as Extract<RepoBootstrapResult, { kind: "refused" }>).reason).toBe(
       "protected-branch-no-pr",
@@ -282,14 +267,9 @@ describe("runRepoBootstrap: refused arms", () => {
   test("refuses with git-dirty when working tree is dirty (--ship-metadata)", () => {
     const { config } = seedInventory([makeRepo("ai-home")]);
     const { deps } = makeDeps({ kind: "none" }, { gitStatusClean: () => false });
-    const result = runRepoBootstrap(
-      baseOptions(config, { shipMetadata: true }),
-      deps,
-    );
+    const result = runRepoBootstrap(baseOptions(config, { shipMetadata: true }), deps);
     expect(result.kind).toBe("refused");
-    expect((result as Extract<RepoBootstrapResult, { kind: "refused" }>).reason).toBe(
-      "git-dirty",
-    );
+    expect((result as Extract<RepoBootstrapResult, { kind: "refused" }>).reason).toBe("git-dirty");
   });
 });
 
@@ -323,13 +303,7 @@ describe("runRepoBootstrap: happy paths", () => {
     expect(recorded.bdInit[0]!.cwd).toBe("/wt/ai-home/mainx");
     // GH-1935 — post-init disables dolt.auto-push to avoid the 30s timeout
     // when the Hosted Dolt remote is unreachable. See src/pr-state/repo_bootstrap.ts.
-    expect(recorded.bdInit[1]!.cmd).toEqual([
-      "bd",
-      "config",
-      "set",
-      "dolt.auto-push",
-      "false",
-    ]);
+    expect(recorded.bdInit[1]!.cmd).toEqual(["bd", "config", "set", "dolt.auto-push", "false"]);
     expect(recorded.bdInit[1]!.cwd).toBe("/wt/ai-home/mainx");
     // No git/gh ops in stealth mode.
     expect(recorded.git).toEqual([]);
@@ -351,10 +325,7 @@ describe("runRepoBootstrap: happy paths", () => {
     };
     const { deps, recorded } = makeDeps({ kind: "none" }, { runner });
 
-    const result = runRepoBootstrap(
-      baseOptions(config, { shipMetadata: true }),
-      deps,
-    );
+    const result = runRepoBootstrap(baseOptions(config, { shipMetadata: true }), deps);
     expect(result.kind).toBe("bootstrapped");
     const ok = result as Extract<RepoBootstrapResult, { kind: "bootstrapped" }>;
     expect(ok.shipped).toBe(true);
@@ -409,10 +380,7 @@ describe("runRepoBootstrap: happy paths", () => {
   test("--prefix override: uses operator-supplied prefix verbatim", () => {
     const { config, indexPath } = seedInventory([makeRepo("ai-home")]);
     const { deps, recorded } = makeDeps();
-    const result = runRepoBootstrap(
-      baseOptions(config, { prefixOverride: "custom-prefix" }),
-      deps,
-    );
+    const result = runRepoBootstrap(baseOptions(config, { prefixOverride: "custom-prefix" }), deps);
     expect(result.kind).toBe("bootstrapped");
     expect((result as Extract<RepoBootstrapResult, { kind: "bootstrapped" }>).prefix).toBe(
       "custom-prefix",
@@ -425,9 +393,7 @@ describe("runRepoBootstrap: happy paths", () => {
 
 describe("runRepoBootstrap: idempotency", () => {
   test("second run on already-bootstrapped repo returns already-bootstrapped without side effects", () => {
-    const { config } = seedInventory([
-      makeRepo("ai-home", { bd_workspace_prefix: "ai-home" }),
-    ]);
+    const { config } = seedInventory([makeRepo("ai-home", { bd_workspace_prefix: "ai-home" })]);
     const perProjectMode: BeadsWorkspaceMode = {
       kind: "per_project",
       doltDir: "/wt/ai-home/mainx/.beads/dolt",
@@ -504,9 +470,10 @@ describe("runRepoBootstrap: auto-chain non-fatality", () => {
     );
     const result = runRepoBootstrap(baseOptions(config), deps);
     expect(result.kind).toBe("bootstrapped");
-    expect(
-      (result as Extract<RepoBootstrapResult, { kind: "bootstrapped" }>).dolthub,
-    ).toEqual({ skipped: true, reason: "name-collision" });
+    expect((result as Extract<RepoBootstrapResult, { kind: "bootstrapped" }>).dolthub).toEqual({
+      skipped: true,
+      reason: "name-collision",
+    });
   });
 });
 
@@ -514,10 +481,7 @@ describe("runRepoBootstrap: GH-1750 HOME-isolation", () => {
   test("bd init runs with HOME overridden to the tempHomeFactory's tempdir", () => {
     const { config } = seedInventory([makeRepo("ai-home")]);
     const tempHome = "/tmp/prx-bd-init-ai-home-fixed";
-    const { deps, recorded } = makeDeps(
-      { kind: "none" },
-      { tempHomeFactory: () => tempHome },
-    );
+    const { deps, recorded } = makeDeps({ kind: "none" }, { tempHomeFactory: () => tempHome });
     const result = runRepoBootstrap(baseOptions(config), deps);
     expect(result.kind).toBe("bootstrapped");
     // 2 calls: bd init (with HOME override), then `bd config set dolt.auto-push false` (no override).
@@ -528,10 +492,7 @@ describe("runRepoBootstrap: GH-1750 HOME-isolation", () => {
 
   test("legacy home present → emits BD_BOOTSTRAP_LEGACY_HOME_DETECTED in the documented order", () => {
     const { config } = seedInventory([makeRepo("ai-home")]);
-    const { deps, recorded } = makeDeps(
-      { kind: "none" },
-      { legacyHomeProbe: () => true },
-    );
+    const { deps, recorded } = makeDeps({ kind: "none" }, { legacyHomeProbe: () => true });
     const result = runRepoBootstrap(baseOptions(config), deps);
     expect(result.kind).toBe("bootstrapped");
     const ok = result as Extract<RepoBootstrapResult, { kind: "bootstrapped" }>;
@@ -550,10 +511,7 @@ describe("runRepoBootstrap: GH-1750 HOME-isolation", () => {
 
   test("legacy home absent → BD_BOOTSTRAP_LEGACY_HOME_DETECTED is suppressed; isolation still emits", () => {
     const { config } = seedInventory([makeRepo("ai-home")]);
-    const { deps } = makeDeps(
-      { kind: "none" },
-      { legacyHomeProbe: () => false },
-    );
+    const { deps } = makeDeps({ kind: "none" }, { legacyHomeProbe: () => false });
     const result = runRepoBootstrap(baseOptions(config), deps);
     expect(result.kind).toBe("bootstrapped");
     const ok = result as Extract<RepoBootstrapResult, { kind: "bootstrapped" }>;
@@ -760,7 +718,11 @@ describe("runRepoBootstrap: GH-1935 dolt.auto-push disable", () => {
   test("failure path: bdInitRunner errors on config-set → bootstrap still succeeds, DISABLE_FAILED event carries detail", () => {
     const { config } = seedInventory([makeRepo("ai-home")]);
     const recorded: {
-      bdInit: Array<{ cmd: readonly string[]; cwd?: string | undefined; env?: NodeJS.ProcessEnv | undefined }>;
+      bdInit: Array<{
+        cmd: readonly string[];
+        cwd?: string | undefined;
+        env?: NodeJS.ProcessEnv | undefined;
+      }>;
       events: Array<{ event: BootstrapEventName; details?: Record<string, unknown> }>;
     } = { bdInit: [], events: [] };
     const { deps } = makeDeps(
@@ -797,9 +759,7 @@ describe("runRepoBootstrap: GH-1935 dolt.auto-push disable", () => {
       detail: "Error setting config: no config.yaml found",
     });
     // Disabled event NOT emitted on the failure arm.
-    expect(
-      recorded.events.some((e) => e.event === "BD_BOOTSTRAP_AUTO_PUSH_DISABLED"),
-    ).toBe(false);
+    expect(recorded.events.some((e) => e.event === "BD_BOOTSTRAP_AUTO_PUSH_DISABLED")).toBe(false);
     // Bootstrap still completes — failure is non-fatal.
     expect(recorded.events.some((e) => e.event === "BD_BOOTSTRAP_COMPLETED")).toBe(true);
   });

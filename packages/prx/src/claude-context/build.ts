@@ -25,8 +25,16 @@ const COMMANDS: ReadonlyArray<{ cmd: string; gloss: string; script?: string }> =
   { cmd: "bun test", gloss: "run the test suite" },
   { cmd: "bun run typecheck", gloss: "tsc --noEmit", script: "typecheck" },
   { cmd: "bun run prx:build", gloss: "compile dist/prx", script: "prx:build" },
-  { cmd: "bun run docs:render", gloss: "regenerate community files, prx.jsonld, README", script: "docs:render" },
-  { cmd: "bun run docs:check", gloss: "fail on doc drift (also `prx ci --phase=docs`)", script: "docs:check" },
+  {
+    cmd: "bun run docs:render",
+    gloss: "regenerate community files, prx.jsonld, README",
+    script: "docs:render",
+  },
+  {
+    cmd: "bun run docs:check",
+    gloss: "fail on doc drift (also `prx ci --phase=docs`)",
+    script: "docs:check",
+  },
 ];
 
 /** Assert every referenced script still exists, so a rename fails the build. */
@@ -39,7 +47,9 @@ function assertScripts(): void {
     .filter((s): s is string => Boolean(s))
     .filter((s) => !(s in scripts));
   if (missing.length > 0) {
-    throw new Error(`claude-context references missing package.json scripts: ${missing.join(", ")}`);
+    throw new Error(
+      `claude-context references missing package.json scripts: ${missing.join(", ")}`,
+    );
   }
 }
 

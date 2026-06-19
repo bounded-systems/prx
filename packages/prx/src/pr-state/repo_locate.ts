@@ -5,11 +5,7 @@
 // (slug branch first, cwd inference second, ambiguity reported with the
 // owner/name candidates).
 
-import {
-  findRepoBySlug,
-  type LocalRepo,
-  type RepoInventory,
-} from "./repos.ts";
+import { findRepoBySlug, type LocalRepo, type RepoInventory } from "./repos.ts";
 
 export type RepoLocateOptions = {
   /** Positional slug (or null → derive from cwd). */
@@ -22,10 +18,7 @@ export type RepoLocateResult =
   | { kind: "found"; repo: LocalRepo; index: number }
   | { kind: "not_found"; detail: string };
 
-export function locateRepo(
-  inventory: RepoInventory,
-  opts: RepoLocateOptions,
-): RepoLocateResult {
+export function locateRepo(inventory: RepoInventory, opts: RepoLocateOptions): RepoLocateResult {
   if (opts.slug && opts.slug.length > 0) {
     const lookup = findRepoBySlug(inventory, opts.slug);
     if (!lookup.ok) {

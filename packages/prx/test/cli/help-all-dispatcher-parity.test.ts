@@ -28,9 +28,7 @@ const KNOWN_DRIFT = new Set<string>(["map next", "map sync"]);
 
 /** Split a catalog row name into its dispatcher argv (parent + verb tokens). */
 function rowArgv(name: string, parent: string): string[] {
-  const verb = name.startsWith(`${parent} `)
-    ? name.slice(parent.length + 1)
-    : name;
+  const verb = name.startsWith(`${parent} `) ? name.slice(parent.length + 1) : name;
   return [parent, ...verb.split(" ")];
 }
 
@@ -44,9 +42,7 @@ function driftsUnknown(argv: string[]): boolean {
   }
 }
 
-const namespacedRows = prxCommandRegistry.filter(
-  (row) => row.parent !== undefined,
-);
+const namespacedRows = prxCommandRegistry.filter((row) => row.parent !== undefined);
 
 describe("help-all ⊆ dispatcher parity (GH-2129)", () => {
   test("every catalog verb reaches a route except known, pinned drift", () => {

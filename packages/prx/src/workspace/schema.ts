@@ -114,13 +114,7 @@ export type ServiceInput = z.infer<typeof ServiceInput>;
 
 export const ServiceOutput = z.object({
   workspace_id: WorkspaceId,
-  status: z.enum([
-    "started",
-    "stopped",
-    "skipped",
-    "no-profile",
-    "error",
-  ]),
+  status: z.enum(["started", "stopped", "skipped", "no-profile", "error"]),
   profile: z.string().optional(),
   compose_files: z.array(z.string()),
   error: z.string().optional(),

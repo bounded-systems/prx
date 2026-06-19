@@ -148,17 +148,11 @@ export function parseDispatchCommand(rest: string[]): ParsedDispatch {
   // Validate against the typed actor enum at the boundary.
   const sourceParsed = dispatchActorSchema.safeParse(source);
   if (!sourceParsed.success) {
-    throw new DispatchParseError(
-      `unknown source actor: ${source}`,
-      "INVALID_SOURCE",
-    );
+    throw new DispatchParseError(`unknown source actor: ${source}`, "INVALID_SOURCE");
   }
   const targetParsed = dispatchActorSchema.safeParse(resolvedTarget);
   if (!targetParsed.success) {
-    throw new DispatchParseError(
-      `unknown target actor: ${resolvedTarget}`,
-      "INVALID_TARGET",
-    );
+    throw new DispatchParseError(`unknown target actor: ${resolvedTarget}`, "INVALID_TARGET");
   }
 
   // GH-2418: assemble the typed-input ref at the boundary. `--input-cas`

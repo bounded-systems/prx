@@ -16,10 +16,7 @@
  * at apply, not at planning).
  */
 
-import type {
-  SurfaceSyncAction,
-  SurfaceSyncResult,
-} from "@bounded-systems/surface-sync";
+import type { SurfaceSyncAction, SurfaceSyncResult } from "@bounded-systems/surface-sync";
 
 import { sweepableFromMark, type GcDriver, type GcMark } from "../capability.ts";
 import type { GcFinding } from "../schema.ts";
@@ -42,9 +39,7 @@ function toFinding(action: DeleteWorktreeAction): GcFinding {
 }
 
 function deleteWorktreeActions(result: SurfaceSyncResult): DeleteWorktreeAction[] {
-  return result.actions.filter(
-    (a): a is DeleteWorktreeAction => a.type === "delete_worktree",
-  );
+  return result.actions.filter((a): a is DeleteWorktreeAction => a.type === "delete_worktree");
 }
 
 export function createWorktreeDriver(deps: GcDriverDeps): GcDriver {
@@ -89,9 +84,7 @@ export function createWorktreeDriver(deps: GcDriverDeps): GcDriver {
           failures.push(`${refOf(r.action)}: ${why}`);
         }
       }
-      return failures.length > 0
-        ? { reclaimed, failed: failures.join("; ") }
-        : { reclaimed };
+      return failures.length > 0 ? { reclaimed, failed: failures.join("; ") } : { reclaimed };
     },
   };
 }

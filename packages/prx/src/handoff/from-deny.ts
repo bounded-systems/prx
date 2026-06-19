@@ -51,10 +51,7 @@ import {
  * Default fallback is `publisher` (the documented primary forge recipient,
  * GH-1398 ADR §5).
  */
-export function recipientForDeniedVerb(
-  tool: PolicyTool,
-  subcommand: string,
-): HandoffTargetActor {
+export function recipientForDeniedVerb(tool: PolicyTool, subcommand: string): HandoffTargetActor {
   if (tool === "bd") {
     // Triage owns bd writes (promote, prioritize, remember, …).
     return "triage";
@@ -96,10 +93,7 @@ export function buildPolicyEnqueueAdapter(
   return async ({ tool, subcommand, state, role, owningRoles }) => {
     const target = recipientForDeniedVerb(tool, subcommand);
     const repoSlug =
-      deps.repoSlug?.() ??
-      tryRepoSlug(defaultRepoNameWithOwner) ??
-      hostName() ??
-      "unknown-repo";
+      deps.repoSlug?.() ?? tryRepoSlug(defaultRepoNameWithOwner) ?? hostName() ?? "unknown-repo";
     const result = await enqueueHandoff(
       buildEnvelopeInput({
         target,
@@ -147,8 +141,7 @@ export async function enqueueFromFlagLayerDeny(
   },
   deps: HandoffStoreDeps = {},
 ): Promise<EnqueueResult> {
-  const repoSlug =
-    input.repoSlug ?? tryRepoSlug(defaultRepoNameWithOwner) ?? "unknown-repo";
+  const repoSlug = input.repoSlug ?? tryRepoSlug(defaultRepoNameWithOwner) ?? "unknown-repo";
   const target = input.target ?? "publisher";
   return enqueueHandoff(
     buildEnvelopeInput({
@@ -220,9 +213,7 @@ function sourceActorFromEnv(): string {
   return "executor";
 }
 
-function tryRepoSlug(
-  fn: (cwd: string) => string,
-): string | undefined {
+function tryRepoSlug(fn: (cwd: string) => string): string | undefined {
   try {
     const slug = fn(process.cwd());
     if (typeof slug === "string" && slug.length > 0) return slug;

@@ -64,7 +64,10 @@ export function createHooksDriver(deps: GcDriverDeps): GcDriver {
       // Restrict the apply to exactly the marked-and-still-drifted repos (the
       // two-phase contract: sweep acts only on the marked set).
       const sweepableRefs = new Set(sweepable.map((f) => f.ref));
-      const scoped = { ...inventory, repos: inventory.repos.filter((r) => sweepableRefs.has(r.name)) };
+      const scoped = {
+        ...inventory,
+        repos: inventory.repos.filter((r) => sweepableRefs.has(r.name)),
+      };
       const result = ops.apply(scoped, expectedPath);
 
       const reclaimed: GcFinding[] = [];
@@ -77,9 +80,7 @@ export function createHooksDriver(deps: GcDriverDeps): GcDriver {
         }
         // changed:false + no error = already at expected (raced); not reclaimed, not failed.
       }
-      return failures.length > 0
-        ? { reclaimed, failed: failures.join("; ") }
-        : { reclaimed };
+      return failures.length > 0 ? { reclaimed, failed: failures.join("; ") } : { reclaimed };
     },
   };
 }
