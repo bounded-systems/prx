@@ -52,8 +52,9 @@
       },
       "suspicious": {
         "noExplicitAny": "warn",
-        "noFocusedTests": "warn",
-        "noDoubleEquals": "warn"
+        // Graduated warn → error (both at 0) — the ratchet's first lock-ins.
+        "noFocusedTests": "error",
+        "noDoubleEquals": "error"
       }
     }
   },
