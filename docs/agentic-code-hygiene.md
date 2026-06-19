@@ -15,6 +15,26 @@ function** — machine-checked, ratcheted, and self-documenting. A property that
 isn't enforced by a tool or a test is not a standard; it's a wish, and an agent
 will regress it the first time it's convenient.
 
+## The value proposition
+
+One line: **when agents write most of the code, the scarce resource is not
+authoring but *trust* — so the codebase's job is to make trust mechanical.**
+Every quality property is a forcing function: a deterministic, ratcheted,
+self-documenting gate that runs on every change. Velocity then costs nothing in
+correctness, because the guardrails — not a reviewer's vigilance — guarantee the
+outcome.
+
+*vs. raw agentic coding:* a change is gated by tools that **teach the fix in the
+failure message**, not by hope that review catches what an agent quietly broke.
+
+This is not aspirational — the gates catch real defects and force fixes rather
+than waivers: a per-file coverage gate that makes you *test* a new branch instead
+of baselining it; a changeset gate that won't let a package change land
+unrecorded; drift gates that keep the docs, the JSON-LD graph, and `openapi.json`
+in lockstep with the code. And the discipline is self-applied — a "value prop"
+here counts as **backed** only when a forcing function holds *now* (`STATUS.md`
+is generated from those functions), so the scoreboard can't lie.
+
 ## The self-check layers
 
 Each layer answers one question about a change. Together they make "is this code
@@ -22,7 +42,7 @@ good?" a set of deterministic checks instead of a judgement call.
 
 | # | Layer | Question | Mechanism | State |
 |---|-------|----------|-----------|-------|
-| 1 | **Shape & style** | Does it read like the codebase? | **Biome** (format + lint) · TS strict | **new** (this PR) |
+| 1 | **Shape & style** | Does it read like the codebase? | **Biome** (format + lint) · TS strict | **have** (#691) |
 | 2 | Liveness | Is it reachable / used? | `knip` | have |
 | 3 | Structure | Do imports point *down*? | `dependency-cruiser` · ≤2000-line size ratchet | have (64-cycle backlog) |
 | 4 | Capability & safety | Does it respect the boundaries? | ambient-authority guard · `extractability.test.ts` (×22) · `@bounded-systems/policy` | have (env/os/spawn at **0**) |
@@ -79,15 +99,15 @@ existing tools:
   fixtures/snapshots are projected from sources and are excluded — a formatter
   fighting a generator is drift, not cleanup (layer 6).
 
-Two follow-ups, deliberately *not* in the adoption PR so the signal stays
-reviewable:
+Two follow-ups landed separately (kept out of the adoption PR so its signal
+stayed reviewable):
 
-- **The reformat.** `bun run format:write` touches ~908 of 1219 files (expected
-  for a never-formatted tree). Land it as one dedicated commit and add its SHA to
-  `.git-blame-ignore-revs` so it doesn't pollute `git blame`.
-- **The gate.** Once the `warn` counts are driven down, wire `bun run lint` into a
-  ratchet test (the shape of `test/code_health.test.ts`) so the counts can only
-  shrink.
+- **The reformat.** `bun run format:write` (909 of 1219 files) landed in #693 as
+  one dedicated commit, with its SHA in `.git-blame-ignore-revs` so it doesn't
+  pollute `git blame`.
+- **The first lock-ins.** `noFocusedTests` and `noDoubleEquals` graduated `warn`
+  → `error` in #693 (both already at 0). The `unused-*` rules stay at `warn` —
+  the live ratchet: drive each to 0, then `error`.
 
 ## The honest gaps (the next ratchets)
 
@@ -98,33 +118,54 @@ agent-written code:
   richest source of agent defects is *plausible-but-wrong behavior*, which only
   behavioral/contract tests catch; type-checks and lint never will. This is the
   highest-leverage place to invest next.
-- **Lint is warn-only** and the reformat isn't applied — layer 1 is wired, not yet
-  enforced.
+- **Lint is only partly enforced** — the reformat landed (#693) and
+  `noFocusedTests`/`noDoubleEquals` are `error`; the `unused-*` rules (50 unused
+  imports, 24 params, 3 locals) are still `warn`. Drive each to 0, then `error`.
 - **`no-circular` is still 64** (warn) — flip to `error` at 0.
 - **`VerbSpec` coverage is ~1%** — property 5 above is mostly potential, not yet
   realized across the command surface.
 
-## Roadmap — open threads (capture)
+## Using this to generate work
 
-So nothing is lost: every thread this doctrine surfaced, with its status and home.
-Done items shipped in [#691]; queued items are scheduled work; spikes are
-design-only docs awaiting a decision before any code moves.
+The doctrine doubles as a backlog filter. A candidate is worth doing when it does
+at least one of:
+
+1. **converts a wish into a forcing function** — an unenforced standard becomes a
+   test that can't be skipped;
+2. **moves a ratchet toward its floor** — a `warn` rule → 0 → `error`;
+   `no-circular` 64 → 0; a baseline that only shrinks;
+3. **closes a gap in the eight-layer map** — invest where coverage is weakest
+   (today: layer 5, behavior); or
+4. **collapses surfaces to one source** — kills a whole class of drift.
+
+If a change scores on none of these, it is probably not ready. The **definition
+of done** for anything that does land: it ships *with* the forcing function that
+keeps it true — the gate, the ratchet, or the drift check — not just the feature.
+So the planning question is always: *which layer does this strengthen, and what
+ratchet proves it?* The open threads below fall straight out of that filter.
+
+## Roadmap — open threads
+
+Every thread this doctrine surfaced, with status and home. (This doc is the
+truth-layer exemplar — kept current as threads land.)
 
 | Thread | Layer | Status | Where |
 |--------|-------|--------|-------|
 | Biome — format + lint | 1 (shape) | **done** (#691) | `biome.jsonc` |
 | Agentic-hygiene doctrine | — | **done** (#691) | this doc |
-| verbspec's OpenAPI surface | 5/6 (truth) | **done** (#691) | `packages/prx/openapi.json` |
-| Repo-wide `format:write` (~908 files) + `.git-blame-ignore-revs` | 1 | **queued** (own PR) | — |
-| Ratchet `noFocusedTests` / `noDoubleEquals` `warn` → `error` (both at 0) | 1 | **queued** | `biome.jsonc` |
-| OpenAPI polish — `components/schemas` hoist + Pages site | 6 | **queued** | `src/cli/openapi.ts`, `scripts/build-site.ts` |
-| Capability-package consolidation | 4 (capability) | **spike** | [`spikes/capability-package-consolidation.md`](./spikes/capability-package-consolidation.md) |
-| Behavior / property testing | 5 (behavior) | **spike** | [`spikes/behavior-property-testing.md`](./spikes/behavior-property-testing.md) |
-| AST convention enforcement | 1 & 3 | **spike** | [`spikes/ast-convention-enforcement.md`](./spikes/ast-convention-enforcement.md) |
-| Decompose `pr-state/cli.ts` | 3 (structure) | **in progress** (ADR) | [`prx/cli-decomposition.md`](./prx/cli-decomposition.md) |
+| verbspec's OpenAPI surface | 5/6 | **done** (#691) | `packages/prx/openapi.json` |
+| Follow-ups captured as spikes + this roadmap | — | **done** (#692) | `spikes/` |
+| Repo-wide `format:write` + `.git-blame-ignore-revs` | 1 | **done** (#693) | `.git-blame-ignore-revs` |
+| Ratchet `noFocusedTests` / `noDoubleEquals` → `error` | 1 | **done** (#693) | `biome.jsonc` |
+| OpenAPI on the Pages site (Redoc) | 6 | **done** (#694) | `scripts/build-site.ts` |
+| OpenAPI `components/schemas` hoist | 6 | **done** (#695) | `src/cli/openapi.ts` |
+| Ratchet Biome `unused-*` rules `warn` → 0 → `error` | 1 | **queued** | `biome.jsonc` |
+| Flip `no-circular` `warn` → `error` (drive 64 → 0) | 3 | **queued** | `.dependency-cruiser.cjs` |
+| Capability-package consolidation | 4 | **spike** (#692) | [`spikes/capability-package-consolidation.md`](./spikes/capability-package-consolidation.md) |
+| Behavior / property testing | 5 | **spike** (#692) | [`spikes/behavior-property-testing.md`](./spikes/behavior-property-testing.md) |
+| AST convention enforcement | 1 & 3 | **spike** (#692) | [`spikes/ast-convention-enforcement.md`](./spikes/ast-convention-enforcement.md) |
+| Decompose `pr-state/cli.ts` | 3 | **in progress** (ADR) | [`prx/cli-decomposition.md`](./prx/cli-decomposition.md) |
 | Finish the VerbSpec migration (past ~1%) | 5 | **in progress** (ADR) | [`prx/cli-from-spec.md`](./prx/cli-from-spec.md) |
-
-[#691]: https://github.com/bounded-systems/prx/pull/691
 
 ## Adding a new check
 
