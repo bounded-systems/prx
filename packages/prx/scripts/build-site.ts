@@ -74,6 +74,29 @@ cpSync(join(REPO_ROOT, "prx.jsonld"), join(OUT, "prx.jsonld"));
 const schemasDir = join(REPO_ROOT, "packages/prx/schemas");
 if (existsSync(schemasDir)) cpSync(schemasDir, join(OUT, "schemas"), { recursive: true });
 
+// Publish the OpenAPI doc (verbspec's HTTP surface) + a zero-build Redoc viewer,
+// so the verb surface gets a live, hostable API reference on the Pages site.
+const openapiSrc = join(REPO_ROOT, "packages/prx/openapi.json");
+if (existsSync(openapiSrc)) {
+  cpSync(openapiSrc, join(OUT, "openapi.json"));
+  writeFileSync(
+    join(OUT, "openapi.html"),
+    `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>prx — API reference (OpenAPI)</title>
+</head>
+<body>
+<redoc spec-url="./openapi.json"></redoc>
+<script src="https://cdn.redocly.com/redoc/latest/bundles/redoc.standalone.js"></script>
+</body>
+</html>
+`,
+  );
+}
+
 // Group the index: top-level docs, docs/, package READMEs.
 const group = (pred: (r: string) => boolean) =>
   entries
@@ -99,7 +122,8 @@ const index = [
     group((r) => r.startsWith("packages/")),
   ),
   "<h2>Machine-readable</h2>",
-  '<ul>\n  <li><a href="prx.jsonld">prx.jsonld</a> — schema.org project graph</li>\n' +
+  '<ul>\n  <li><a href="openapi.html">API reference</a> — OpenAPI 3.1 of the verb surface (<a href="openapi.json">openapi.json</a>)</li>\n' +
+    '  <li><a href="prx.jsonld">prx.jsonld</a> — schema.org project graph</li>\n' +
     '  <li><a href="schemas/">schemas/</a> — JSON Schema artifacts</li>\n</ul>',
 ].join("\n");
 writeFileSync(join(OUT, "index.html"), page("Documentation", index, 0));
