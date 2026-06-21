@@ -1,0 +1,10 @@
+name: notify-front-desk
+on:
+  issues:
+    types: [opened, closed, reopened, labeled, unlabeled]
+  pull_request:
+    types: [opened, closed, reopened, labeled, unlabeled]
+jobs:
+  sync:
+    uses: bounded-systems/gh-project-room/.github/workflows/trigger-sync.yml@main
+    secrets: inherit
