@@ -23,7 +23,8 @@
     "sha256",
     "digest",
     "blob-store",
-    "provenance"
+    "provenance",
+    "seam"
   ],
   "exports": {
     ".": {

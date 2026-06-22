@@ -22,7 +22,8 @@
     "cli-wrapper",
     "policy",
     "stale-lock",
-    "capability"
+    "capability",
+    "seam"
   ],
   "exports": {
     ".": {

@@ -22,7 +22,8 @@
     "process-env",
     "capability",
     "configuration",
-    "ambient-authority"
+    "ambient-authority",
+    "seam"
   ],
   "exports": {
     ".": {

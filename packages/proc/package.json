@@ -22,7 +22,8 @@
     "subprocess",
     "spawn",
     "capability",
-    "policy"
+    "policy",
+    "seam"
   ],
   "exports": {
     ".": {
