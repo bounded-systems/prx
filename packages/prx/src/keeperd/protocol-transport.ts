@@ -26,5 +26,6 @@ import type { KeeperTransport } from "./client.ts";
  * method via `createDoorHandlers` (see {@link ./daemon.runKeeperServe}).
  */
 export function guestRoomKeeperTransport(endpoint: string): KeeperTransport {
-  return (request) => call(endpoint, "import-and-push", request as unknown as Record<string, unknown>);
+  return (request) =>
+    call(endpoint, "import-and-push", request as unknown as Record<string, unknown>);
 }
