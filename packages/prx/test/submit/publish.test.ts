@@ -18,6 +18,7 @@ import {
 import type { execGit, GitExecOptions, GitExecResult } from "@bounded-systems/git";
 
 import { getRef } from "../../src/plan-store/cas.ts";
+import { canonicalJson } from "../../src/provenance/verify-l3.ts";
 import { runKeeperServe, type KeeperDaemonDeps } from "../../src/keeperd/daemon.ts";
 import { runKeeperDoorPush } from "../../src/keeperd/host.ts";
 import {
@@ -431,7 +432,7 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
     };
     const l3 = {
       statement,
-      signature: sign(null, Buffer.from(JSON.stringify(statement)), privateKey).toString("base64"),
+      signature: sign(null, Buffer.from(canonicalJson(statement)), privateKey).toString("base64"),
       keyId: "test",
     };
     deps.keeperDoorMode = () => true;
@@ -464,7 +465,7 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
       pushedRef: "refs/heads/GH-1900",
       signedDerivation: {
         statement,
-        signature: sign(null, Buffer.from(JSON.stringify(statement)), signer.privateKey).toString("base64"),
+        signature: sign(null, Buffer.from(canonicalJson(statement)), signer.privateKey).toString("base64"),
       },
     });
     await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/L3 does not verify/);

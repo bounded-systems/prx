@@ -25,6 +25,22 @@ export type L3Attestation = {
   readonly keyId?: string;
 };
 
+/**
+ * Canonical JSON for verifying L3 signatures: recursively sort object keys, no
+ * whitespace — so the signature is independent of key insertion order. MUST be
+ * byte-identical to door-keeper's `canonicalJson` (the signer).
+ */
+export function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  const obj = value as Record<string, unknown>;
+  const body = Object.keys(obj)
+    .sort()
+    .map((k) => `${JSON.stringify(k)}:${canonicalJson(obj[k])}`)
+    .join(",");
+  return `{${body}}`;
+}
+
 /** True iff `value` is shaped like an {@link L3Attestation}. */
 export function isL3Attestation(value: unknown): value is L3Attestation {
   return (
@@ -55,7 +71,7 @@ export function verifyL3Attestation(
     const key = createPublicKey(publicKeyPem);
     return ed25519Verify(
       null,
-      Buffer.from(JSON.stringify(att.statement)),
+      Buffer.from(canonicalJson(att.statement)),
       key,
       Buffer.from(att.signature, "base64"),
     );
