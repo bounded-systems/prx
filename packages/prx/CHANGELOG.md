@@ -1,5 +1,26 @@
 # @bounded-systems/prx
 
+## 0.11.3
+
+### Patch Changes
+
+- e7c8c8a: Drop the stranded drizzle tooling left behind by the `anchored-chain-sqlite` extraction: `drizzle.config.ts` (pointed at the removed `packages/anchored-chain-sqlite/`), the `db:generate`/`db:check` scripts, and the `drizzle-kit` devDependency. The schema → SQL → embed chain now lives entirely in `bounded-systems/anchored-chain-sqlite`. Internal tooling only — no CLI behavior change.
+- 5a17281: Fix `prx beads publish` relink split-brain (prx-022t): switch the default bead reader in `publishOne` from direct `execBd` (reads the worktree's `.beads`) to `loadAllBeadsViaCli` (daemon-backed, reads the canonical `~/.local/state/prx/beads`). When the two databases diverge the daemon's `bd update --external-ref` step was failing with "record not found", leaving the GH issue created but the bead unlinked. Using the daemon for both read and write ensures consistency and pre-warms the daemon before the write-back step.
+- f2e7501: Hoist the OpenAPI projection's per-verb schemas into `components/schemas`: each
+  operation is now a thin `$ref` to `<VerbToken>Input` / `<VerbToken>Output` rather
+  than an inlined schema. The result is the conventional, consumer-referenceable
+  OpenAPI shape and ~57% smaller (37 KB vs 89 KB — it also drops 60 redundant
+  `$schema` dialect markers). Built by hand so ids and refs stay consistent: Zod's
+  registry-based dedup emits dangling `$ref`s for the space-namespaced verb ids, and
+  the verbs' schemas are self-contained today (no shared sub-schemas to dedupe), so
+  components are 1:1 with operations — the hoist is the structure dedup would use if
+  shared schemas ever appear.
+- 02a4e91: Emit the OpenAPI projection of the VerbSpec registry to `packages/prx/openapi.json`
+  — verbspec's fourth surface (CLI / MCP / Anthropic / OpenAPI) made real. The
+  document is generated from the verbs (`bun run openapi:render`) and drift-gated by
+  `test/cli/openapi.test.ts`, so it can't fall out of sync with the registry.
+- 17f15c6: Consume the extracted `@bounded-systems/*` libraries from JSR instead of carrying duplicate workspace copies. The 21 leaf + non-leaf packages now live in their own repos (JSR-linked); `packages/*` no longer vendors them. Internal restructure only — the prx CLI's behavior is unchanged. `anchored-chain-sqlite`'s migration generator moved into its own repo; the orphaned `gen-acs-migrations.ts` + `acs:migrations` scripts are removed from prx.
+
 ## 0.11.2
 
 ### Patch Changes
