@@ -65,6 +65,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Local CI in the pipeline — the `checking` gate + where health/OTEL belongs — `docs/prx/pipeline-local-checks.md`
 - Pilot & fleet — Claude subagents as a signed pipeline — `docs/prx/pipeline-orchestrator.md`
 - ADR — `MergeabilityVerdict` as a policy over a predicate bundle (GH-592) — `docs/prx/predicate-bundle-verdict.md`
+- Handoff — finishing the prx ⇄ bounded.tools seam pipeline — `docs/prx/seam-grid-handoff.md`
 - ADR — eval-gated prompt evolution as a signed derivation — `docs/prx/signed-self-improvement.md`
 - ADR — signed provenance for `claude --worktree` materialization (prx-hc5) — `docs/prx/worktree-provenance.md`
 - prx — project roadmap — `docs/roadmap/prx.md`
