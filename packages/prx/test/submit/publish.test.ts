@@ -3,6 +3,7 @@
 // delegated (keeper, publisher) and injected here as seams; the orchestrator
 // only runs the parity preflight (via `runner`) and advances the slot.
 
+import { generateKeyPairSync, sign } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -415,7 +416,73 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
       commitSha: MATERIALIZED_COMMIT,
       pushedRef: "refs/heads/GH-1900",
     });
-    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/emitted no signed derivation/);
+    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/emitted no signed attestation/);
+  });
+
+  test("requireSigned + door + a valid door-keeper L3 verifies → PR opens", async () => {
+    await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
+    const { deps, prOpens } = spy();
+    const { publicKey, privateKey } = generateKeyPairSync("ed25519");
+    const pubPem = publicKey.export({ type: "spki", format: "pem" }) as string;
+    const statement = {
+      _type: "https://in-toto.io/Statement/v1",
+      subject: [{ name: MATERIALIZED_COMMIT, digest: { gitCommit: MATERIALIZED_COMMIT } }],
+      predicateType: "https://slsa.dev/provenance/v1",
+    };
+    const l3 = {
+      statement,
+      signature: sign(null, Buffer.from(JSON.stringify(statement)), privateKey).toString("base64"),
+      keyId: "test",
+    };
+    deps.keeperDoorMode = () => true;
+    deps.requireSigned = true;
+    deps.resolveKeeperKey = () => pubPem;
+    deps.keeperDoor = async () => ({
+      status: "ok",
+      commitSha: MATERIALIZED_COMMIT,
+      pushedRef: "refs/heads/GH-1900",
+      signedDerivation: l3,
+    });
+    await runSubmitPublish(PUBLISH, deps);
+    expect(prOpens).toHaveLength(1);
+  });
+
+  test("requireSigned + door + L3 under the WRONG keeper key fails closed", async () => {
+    await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
+    const { deps } = spy();
+    const signer = generateKeyPairSync("ed25519");
+    const wrongPub = generateKeyPairSync("ed25519").publicKey.export({ type: "spki", format: "pem" }) as string;
+    const statement = {
+      subject: [{ name: MATERIALIZED_COMMIT, digest: { gitCommit: MATERIALIZED_COMMIT } }],
+    };
+    deps.keeperDoorMode = () => true;
+    deps.requireSigned = true;
+    deps.resolveKeeperKey = () => wrongPub;
+    deps.keeperDoor = async () => ({
+      status: "ok",
+      commitSha: MATERIALIZED_COMMIT,
+      pushedRef: "refs/heads/GH-1900",
+      signedDerivation: {
+        statement,
+        signature: sign(null, Buffer.from(JSON.stringify(statement)), signer.privateKey).toString("base64"),
+      },
+    });
+    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/L3 does not verify/);
+  });
+
+  test("requireSigned + door + L3 but no keeper trust key configured fails closed", async () => {
+    await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
+    const { deps } = spy();
+    deps.keeperDoorMode = () => true;
+    deps.requireSigned = true;
+    deps.resolveKeeperKey = () => null;
+    deps.keeperDoor = async () => ({
+      status: "ok",
+      commitSha: MATERIALIZED_COMMIT,
+      pushedRef: "refs/heads/GH-1900",
+      signedDerivation: { statement: { subject: [] }, signature: "x" },
+    });
+    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/no keeper trust key is configured/);
   });
 
   test("requireSigned + door + signed derivation for the WRONG commit fails closed", async () => {
@@ -508,7 +575,7 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
         deps.verifier = ed25519Verifier(kp.publicKey);
 
         await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(
-          /emitted no signed derivation/,
+          /emitted no signed attestation/,
         );
         expect(prOpens).toHaveLength(0); // fail closed before the PR opens
       },
