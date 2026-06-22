@@ -97,9 +97,18 @@ ones, which are already split-ready).
 
 ## Milestones (sequenced)
 
+> [!NOTE]
+> **2026-06-22:** the `ai-home` "consumes it published" exit criteria below are
+> **moot — satisfied by removal**. `ai-home` has no code importing any
+> `@bounded-systems/*` lib; it consumes prx only as a **Nix flake input**, not as
+> library deps. The general code already moved into the monorepo, so there is no
+> consume-back to perform. The live deliverable is publish + own-repo extraction;
+> see `docs/companion-repos.md`. Org + scope exist; all 22 libs publish from the
+> monorepo; 8 clean leaves now have their own repos + are JSR-re-linked.
+
 | M | Goal | Exit criterion |
 |---|---|---|
-| **M0** | Org + npm scope + release template | Org exists; one leaf published from `<org>/<pkg>`; `ai-home` consumes it published |
+| **M0** | Org + npm scope + release template | Org exists; one leaf published from `<org>/<pkg>`; ~~`ai-home` consumes it published~~ (moot, see note) |
 | **M1** | Wave 0 leaves extracted | All leaf packages live under the org + published; `ai-home` consumes them |
 | **M2** | Waves 1–3 (`@prx` substrate) extracted | `packages/` removed from `ai-home`; all deps consumed as published |
 | **M3** | Track A enforcement on | Published artifacts carry verifiable SLSA/DSSE; `requireSigned` enforced |

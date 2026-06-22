@@ -10,8 +10,8 @@
 
 | Package | Current path in ai-home | Target repo | Existing repo? | Status |
 |---|---|---|---|---|
-| cas | `packages/cas/` (SHA-256 CAS substrate + blob-store port) — bottom of the provenance stack, zero internal deps | `bounded-systems/cas` | no | M0 pilot — publish pipeline proven |
-| machine-schema | `src/machine/state.ts` (266 LOC) + branded id types | `bounded-systems/machine-schema` | no | not-started |
+| cas | `packages/cas/` (SHA-256 CAS substrate + blob-store port) — bottom of the provenance stack, zero internal deps | `bounded-systems/cas` | **yes** | **extracted** (2026-06-22) — own repo, history, CI, JSR re-linked |
+| machine-schema | `src/machine/state.ts` (266 LOC) + branded id types | `bounded-systems/machine-schema` | **yes** | **extracted** (2026-06-22) — own repo, history, CI, JSR re-linked |
 | pr-contract | `skills/pr-contract/` (Python scripts + schema + templates) | `bounded-systems/pr-contract` | no (unrelated: `bdelanghe/dev-contracts*`) | not-started |
 | safe-exec | `scripts/{git,gh,wt,bd,prx}-safe` + `scripts/tool-policy.sh` | `bounded-systems/safe-exec` | no | not-started |
 | gh-state-reader | `src/pr-state/github.ts` (5,419 LOC, 139 exports) | `bounded-systems/gh-state-reader` | no | not-started |
@@ -19,14 +19,31 @@
 
 > **Targets retargeted to the `bounded-systems` org** (npm scope `@bounded-systems/*`,
 > GitHub org `github.com/bounded-systems`) per `docs/roadmap/prx.md` Track C.
-> `cas` is the M0 leaf-first pilot: it proves the release template (manifest +
-> `dist/` build + changesets + `release.yml` provenance publish) that every
-> Wave 0–3 leaf reuses. M0 exit is met once `cas` is published from
-> `bounded-systems/cas` and `ai-home` consumes it as a published version (the
-> consume-back flip is the gated follow-up).
+> `cas` was the M0 leaf-first pilot: it proved the extraction template (subtree
+> split with history → standalone tsconfig + CI gate + OIDC publish workflow →
+> JSR re-link) that every leaf reuses.
 
-Status values: `not-started` → `in-progress` → `extracted`
-(plus `M0 pilot` for the leaf that proves the pipeline).
+> [!IMPORTANT]
+> **Update 2026-06-22 — the "consume-back flip" is moot (satisfied by removal).**
+> The roadmap's M0 exit assumed `ai-home` would *consume the published package as
+> a library dependency*. That premise no longer holds: `ai-home` contains **no
+> code that imports any `@bounded-systems/*` package** — it depends on prx only as
+> a **Nix flake input** (`prx.url = "github:bounded-systems/prx"`), not on the
+> libs. The TypeScript that once used these packages already moved wholesale into
+> the prx monorepo, so there is nothing left in `ai-home` to "flip" from
+> workspace → published. Wiring one would mean manufacturing a synthetic consumer.
+> **Net:** publish + own-repo extraction is the real deliverable; consume-back is
+> a no-op here. Don't re-chase it.
+>
+> **Extracted so far (own repo + history + CI + JSR re-linked to it):** the clean
+> leaves — `verbspec`, `cas`, `audit-context`, `disposition`, `env`, `fs`,
+> `machine-schema`, `policy`. All still also build inside the monorepo (workspace);
+> removal from `packages/*` is deferred (no consumer forces it).
+> **Not extracted:** the 13 non-leaf packages (sibling deps → need consume-from-JSR
+> setup in their standalone repos) and `prx-config` (a clean leaf, but gated:
+> no external consumer — see `.github-private` `prx-config-extraction.md`).
+
+Status values: `not-started` → `in-progress` → `extracted`.
 
 ## skills/.system/ decision
 
