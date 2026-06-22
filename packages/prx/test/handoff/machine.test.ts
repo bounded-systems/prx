@@ -4,7 +4,7 @@
 import { describe, expect, test } from "bun:test";
 import { createActor } from "xstate";
 
-import type { HandoffEnvelope } from "../../../machine-schema/src/handoff.ts";
+import type { HandoffEnvelope } from "@bounded-systems/machine-schema";
 import { handoffMachine } from "../../src/machine/machines/handoff.ts";
 
 const NOW = "2026-05-19T12:00:00.000Z";

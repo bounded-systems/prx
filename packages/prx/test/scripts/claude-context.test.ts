@@ -15,7 +15,7 @@ describe("claude context doc", () => {
   test("the doc surfaces the CLI, the libraries, and the docs index", () => {
     const doc = renderContextDoc();
     expect(doc).toContain("`@bounded-systems/prx`");
-    expect(doc).toContain("`@bounded-systems/cas`");
+    expect(doc).toContain("`@bounded-systems/prx-config`");
     expect(doc).toContain("## Packages");
     expect(doc).toContain("## Docs");
     expect(doc).toContain("## Commands & workflow");

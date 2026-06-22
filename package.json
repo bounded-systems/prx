@@ -11,8 +11,6 @@
     "prx:build": "bun install && mkdir -p dist && bun packages/prx/scripts/prx-compile.ts dist/prx",
     "prx:build:linux-arm64": "bun install && mkdir -p dist && bun packages/prx/scripts/prx-compile.ts dist/prx-linux-arm64 --target bun-linux-arm64",
     "slack-scout:build": "mkdir -p dist && bun build --compile packages/prx/src/slack/bin.ts --outfile dist/slack-scout",
-    "acs:migrations": "bun run packages/prx/scripts/gen-acs-migrations.ts",
-    "acs:migrations:check": "bun run packages/prx/scripts/gen-acs-migrations.ts --check",
     "health": "bun run packages/prx/scripts/code-health.ts",
     "jsr:manifest": "bun run packages/prx/scripts/gen-jsr-manifest.ts",
     "jsr:publish": "bun run packages/prx/scripts/jsr-publish.ts",
@@ -64,7 +62,7 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.177",
-    "@bounded-systems/machine-schema": "workspace:*",
+    "@bounded-systems/machine-schema": "npm:@jsr/bounded-systems__machine-schema@^0.2.0",
     "@bounded-systems/prx-config": "workspace:*",
     "@statelyai/inspect": "^0.7.1",
     "xstate": "^5.32.1",

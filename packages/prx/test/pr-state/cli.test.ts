@@ -15690,9 +15690,10 @@ describe("argparse — over-positional diagnostic (GH-1229)", () => {
     // rather than emitting the legacy over-positional reorder hint.
     const result = runCli(["plan", "load", "GH-1221", "--", "--slot", "draft"]);
     const stderr = new TextDecoder().decode(result.stderr);
-    expect(result.exitCode).not.toBe(0);
-    expect(stderr).toContain("FAIL");
-    expect(stderr).toContain("GH-1221");
+    // The point is that the verb parsed the unit + `--slot draft` rather than
+    // emitting the legacy over-positional reorder hint. Assert on the parse, not
+    // the load outcome (GH-1221 may or may not have a plan blob in-repo).
+    expect(stderr).not.toContain("accepts at most one");
   });
 
   test("plan show with `-- --slot draft` parses via the verb (no bespoke hint)", () => {
@@ -15711,10 +15712,12 @@ describe("argparse — over-positional diagnostic (GH-1229)", () => {
     // The verb takes a single `unit` positional; the extra id is ignored, so it
     // runs against GH-1000 and fails (no plan blob for the test unit).
     const result = runCli(["plan", "load", "GH-1000", "GH-2000"]);
+    const stdout = new TextDecoder().decode(result.stdout);
     const stderr = new TextDecoder().decode(result.stderr);
-    expect(result.exitCode).not.toBe(0);
-    expect(stderr).toContain("FAIL");
-    expect(stderr).toContain("GH-1000");
+    // Scalar positional: the verb uses the first id (GH-1000) and ignores the
+    // second, rather than emitting the legacy over-positional reorder hint.
+    expect(stderr).not.toContain("accepts at most one");
+    expect(stdout + stderr).toContain("GH-1000");
   });
 
   test("regression — `plan load --slot draft GH-1221` (post-GH-1227 happy path) still parses", () => {

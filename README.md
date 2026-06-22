@@ -15,28 +15,7 @@ libraries it builds on. A Bun + TypeScript monorepo.
 - `packages/prx/` — The agent-run PR contract / work-unit CLI
 - `packages/*` — the `@bounded-systems/*` libraries it builds on, workspace-internal
   via `workspace:*`:
-    - `anchored-chain` — Derivation chain with contract validation, signing, lineage tracking, and invalidation
-    - `anchored-chain-sqlite` — SQLite/Drizzle-backed implementation of the anchored-chain stores
-    - `audit-context` — Ambient runtime context for gh-call audit attribution (verb, actor, truth reason)
-    - `auth` — Service-credential resolver (GitHub, Notion) through a single sanctioned access point
-    - `bd` — Typed interface to the beads CLI with policy enforcement and short-ID guards
-    - `cas` — Content-addressable storage substrate: bytes addressed by their SHA-256 digest, with a storage-agnostic blob-store port
-    - `disposition` — Pure classifier mapping work-unit surface state to a disposition (ok/prune/repair/review)
-    - `env` — The one sanctioned reader of process.env, routing ambient config through capability imports
-    - `fs` — Filesystem capability seam; the one allowed filesystem-access point with an injectable FileSystem
-    - `gh` — GitHub CLI wrapper with policy enforcement, rate-limit gating, and budget audit logging
-    - `git` — Git CLI wrapper with policy enforcement and stale-lock recovery
-    - `github-budget` — Rate-limit-aware gh wrapper with bucket classification, pre-call gating, and audit trail
-    - `host` — The one sanctioned reader of host/OS ambient state (home dir, temp dir, hostname), routing ambient authority through capability imports
-    - `machine-schema` — Brands, handoff envelope, and state/phase/invariant primitives for work-unit machines
-    - `policy` — Tool-policy engine enforcing subcommand allowlists by tool, state, and role
-    - `proc` — The one allowed subprocess spawn point, routing external-tool invocations through a capability
     - `prx-config` — TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools
-    - `repo-root` — Repo-root resolution capability: lazy git-based runtime root plus the eager .git-marker walk for build/codegen, the one sanctioned root-resolution point
-    - `scout` — Content-addressed surface reads (file/grep/files) with anchored-chain provenance
-    - `slack` — Policy-gated, provenance-tracked Slack read surface: bounded read ops behind a swappable transport port, with keymaker-minted scoped credentials
-    - `surface-sync` — Type ontology for work-unit change-detection across GH/branch/worktree/tmux/beads
-    - `verbspec` — Spec-driven CLI core: author a verb once as a typed VerbSpec, project it to CLI, MCP, OpenAPI, and Anthropic tool surfaces
 - `spec/` — the prx effect/contract spec (`schema.cue`)
 
 ## Build & test
