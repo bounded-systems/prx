@@ -219,7 +219,10 @@ export function runKeeperServe(options: KeeperServeOptions): Promise<KeeperServe
   const target = listenTarget(socketPath);
   // A leftover unix socket file makes listen throw EADDRINUSE.
   if ("unix" in target && existsSync(target.unix)) rmSync(target.unix, { force: true });
-  const listener = Bun.listen({ ...target, socket: handlers });
+  const listener =
+    "unix" in target
+      ? Bun.listen({ unix: target.unix, socket: handlers })
+      : Bun.listen({ hostname: target.hostname, port: target.port, socket: handlers });
   if (pidfile !== undefined) {
     // O_NOFOLLOW refuses a pre-planted symlink at this predictable path; 0600
     // restricts the pidfile (closes the insecure-temp-file vector, CodeQL).

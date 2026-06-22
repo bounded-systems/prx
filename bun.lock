@@ -44,7 +44,7 @@
         "@bounded-systems/gh": "npm:@jsr/bounded-systems__gh@^0.1.0",
         "@bounded-systems/git": "npm:@jsr/bounded-systems__git@^0.1.0",
         "@bounded-systems/github-budget": "npm:@jsr/bounded-systems__github-budget@^0.1.0",
-        "@bounded-systems/guest-room": "npm:@jsr/bounded-systems__guest-room@^0.1.0",
+        "@bounded-systems/guest-room": "npm:@jsr/bounded-systems__guest-room@^0.2.0",
         "@bounded-systems/host": "npm:@jsr/bounded-systems__host@^0.2.0",
         "@bounded-systems/machine-schema": "npm:@jsr/bounded-systems__machine-schema@^0.2.0",
         "@bounded-systems/policy": "npm:@jsr/bounded-systems__policy@^0.2.0",
@@ -129,7 +129,7 @@
 
     "@bounded-systems/github-budget": ["@jsr/bounded-systems__github-budget@0.1.0", "https://npm.jsr.io/~/11/@jsr/bounded-systems__github-budget/0.1.0.tgz", { "dependencies": { "@jsr/bounded-systems__audit-context": "^0.2.0", "@jsr/bounded-systems__env": "^0.2.0", "@jsr/bounded-systems__proc": "^0.2.0", "zod": "^4.4.3" } }, "sha512-7lBN1nN6V3AGuBwF0TjepWklCvPX4FD7w1XJezhZaP7k1h6nGKB1xheu8RWPCWPGfV8DmePWpN2L8Znaugcm2w=="],
 
-    "@bounded-systems/guest-room": ["@jsr/bounded-systems__guest-room@0.1.0", "https://npm.jsr.io/~/11/@jsr/bounded-systems__guest-room/0.1.0.tgz", {}, "sha512-B2x+wyCyJT9ZNLmN64OS9SL81eqsFPmnWmL0A54Ic++X6GYqbwVdvWdHiE4lI8Bm3kP0mirLpIiP67ICkgaGOg=="],
+    "@bounded-systems/guest-room": ["@jsr/bounded-systems__guest-room@0.2.0", "https://npm.jsr.io/~/11/@jsr/bounded-systems__guest-room/0.2.0.tgz", {}, "sha512-pYtrdiEwZiUS2Hi2UNclGi9Q1LWMtXJwkCHILwQnXQbM2WE+/45Z+KKEoLnLe/r8zHD8tC/helVgeWGOKwtDcg=="],
 
     "@bounded-systems/host": ["@jsr/bounded-systems__host@0.2.0", "https://npm.jsr.io/~/11/@jsr/bounded-systems__host/0.2.0.tgz", { "dependencies": { "@jsr/bounded-systems__env": "^0.2.0" } }, "sha512-N5uc3Du3jzmlgX3tP0gnIZwOYXGOYYiU+wTBpiG6iYpfPG9WVoFWWoZkcb79QH93AaERnJUhrw2yKSq13VJEAg=="],
 
