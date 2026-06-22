@@ -452,13 +452,14 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
   ): Promise<void> {
     const socketPath = join(tmpdir(), `keeperd-publish-${process.pid}-${doorCounter++}.sock`);
     const server = await runKeeperServe({ socketPath, deps });
-    const prev = process.env.PRX_KEEPER_SOCKET;
-    process.env.PRX_KEEPER_SOCKET = socketPath;
+    // door-kit's keeper client reads KEEPERD_SOCK (the pod projects it).
+    const prev = process.env.KEEPERD_SOCK;
+    process.env.KEEPERD_SOCK = socketPath;
     try {
       await body(socketPath);
     } finally {
-      if (prev === undefined) delete process.env.PRX_KEEPER_SOCKET;
-      else process.env.PRX_KEEPER_SOCKET = prev;
+      if (prev === undefined) delete process.env.KEEPERD_SOCK;
+      else process.env.KEEPERD_SOCK = prev;
       await server.close();
     }
   }

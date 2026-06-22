@@ -17,9 +17,10 @@
 
 import { execGit } from "@bounded-systems/git";
 
+import { importAndPush as doorKeeperImportAndPush } from "@bounded-systems/door-kit/keeper";
+
 import { runKeeperCommitTree, runKeeperWriteTree } from "../pr-state/keeper.ts";
 import { createCommitRangeBundle } from "./bundle.ts";
-import { withKeeperClient } from "./client-factory.ts";
 import { IsolatedKeeperClient } from "./client.ts";
 import type { KeeperRemoteRequest, KeeperRemoteResponse } from "./contract.ts";
 
@@ -125,7 +126,9 @@ export interface KeeperDoorPushInput {
 /** Injectable seams for {@link runKeeperDoorPush} (default to the real impls). */
 export interface KeeperDoorPushDeps {
   bundle?: typeof createCommitRangeBundle | undefined;
-  withClient?: typeof withKeeperClient | undefined;
+  /** The door-kit keeper client (defaults to the published `importAndPush`); the
+   *  door endpoint comes from `KEEPERD_SOCK`/`KEEPERD_HOST` the pod projects. */
+  importAndPush?: typeof doorKeeperImportAndPush | undefined;
 }
 
 export async function runKeeperDoorPush(
@@ -133,17 +136,18 @@ export async function runKeeperDoorPush(
   deps: KeeperDoorPushDeps = {},
 ): Promise<KeeperRemoteResponse> {
   const bundle = deps.bundle ?? createCommitRangeBundle;
-  const withClient = deps.withClient ?? withKeeperClient;
+  const importAndPush = deps.importAndPush ?? doorKeeperImportAndPush;
   const bundleBase64 = bundle({ cwd: input.cwd, parentSha: input.parentSha, branch: input.branch });
-  return withClient((client) =>
-    client.importAndPush({
-      kind: "import-and-push",
-      bundleBase64,
-      commitSha: input.commitSha,
-      branch: input.branch,
-      remote: input.remote,
-      ...(input.pushArgs !== undefined ? { pushArgs: input.pushArgs } : {}),
-      ...(input.ledgerRef !== undefined ? { ledgerRef: input.ledgerRef } : {}),
-    }),
-  );
+  // Consume door-kit's published keeper client (guest-room protocol). Its
+  // ImportAndPushResult is the keeperd wire verdict — structurally the
+  // KeeperRemoteResponse the rest of the pipeline branches on.
+  const result = await importAndPush({
+    bundleBase64,
+    commitSha: input.commitSha,
+    branch: input.branch,
+    remote: input.remote,
+    ...(input.pushArgs !== undefined ? { pushArgs: input.pushArgs } : {}),
+    ...(input.ledgerRef !== undefined ? { ledgerRef: input.ledgerRef } : {}),
+  });
+  return result as KeeperRemoteResponse;
 }

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import type { ImportAndPushOptions } from "@bounded-systems/door-kit/keeper";
 import type { execGit, GitExecOptions, GitExecResult } from "@bounded-systems/git";
 
 import { IsolatedKeeperClient, type KeeperTransport } from "../../src/keeperd/client.ts";
@@ -112,7 +113,7 @@ describe("runKeeperRemote (host orchestrator, model A)", () => {
 
 describe("runKeeperDoorPush (door push of an already-materialized commit)", () => {
   test("bundles the (parent, branch] range and asks keeperd to import + push the commit", async () => {
-    let sent: KeeperRemoteRequest | undefined;
+    let sent: ImportAndPushOptions | undefined;
     let bundledFor: { cwd: string; parentSha: string; branch: string } | undefined;
     const res = await runKeeperDoorPush(
       {
@@ -127,19 +128,15 @@ describe("runKeeperDoorPush (door push of an already-materialized commit)", () =
           bundledFor = i;
           return BUNDLE;
         },
-        withClient: (fn) =>
-          fn(
-            new IsolatedKeeperClient(async (req) => {
-              sent = req;
-              return { status: "ok", commitSha: COMMIT, pushedRef: "refs/heads/GH-456" };
-            }),
-          ),
+        importAndPush: async (opts) => {
+          sent = opts;
+          return { status: "ok", commitSha: COMMIT, pushedRef: "refs/heads/GH-456" };
+        },
       },
     );
     // It does NOT re-commit (no write-tree/commit-tree) — only the bundle is cut.
     expect(bundledFor).toEqual({ cwd: "/work/repo", parentSha: "c".repeat(40), branch: "GH-456" });
     expect(sent).toEqual({
-      kind: "import-and-push",
       bundleBase64: BUNDLE,
       commitSha: COMMIT,
       branch: "GH-456",
@@ -149,7 +146,7 @@ describe("runKeeperDoorPush (door push of an already-materialized commit)", () =
   });
 
   test("threads pushArgs + ledgerRef into the request", async () => {
-    let sent: KeeperRemoteRequest | undefined;
+    let sent: ImportAndPushOptions | undefined;
     await runKeeperDoorPush(
       {
         cwd: "/w",
@@ -162,13 +159,10 @@ describe("runKeeperDoorPush (door push of an already-materialized commit)", () =
       },
       {
         bundle: () => BUNDLE,
-        withClient: (fn) =>
-          fn(
-            new IsolatedKeeperClient(async (req) => {
-              sent = req;
-              return { status: "ok", commitSha: COMMIT, pushedRef: "refs/heads/b" };
-            }),
-          ),
+        importAndPush: async (opts) => {
+          sent = opts;
+          return { status: "ok", commitSha: COMMIT, pushedRef: "refs/heads/b" };
+        },
       },
     );
     expect(sent?.pushArgs).toEqual(["--force-with-lease"]);

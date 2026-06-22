@@ -32,7 +32,7 @@ export const prxDoorCatalog: DoorCatalog = {
   keeper: {
     flag: "--keeper",
     inBox: "/run/prx/doors/keeperd.sock",
-    env: "PRX_KEEPER_SOCKET",
+    env: "KEEPERD_SOCK",
     hostDefault: DEFAULT_LOCAL_KEEPER_SOCKET,
     grants: "signed git writes via keeperd",
     use: "Route every git write through the keeper door; keeperd imports the commit and performs the signed push.",

@@ -137,13 +137,14 @@ function doorEnv(door: ResolvedDoor): Record<string, string> {
   // transport address the client dials.
   //   - beadsd → PRX_BEADS_DOOR / PRX_BEADS_SOCKET (fires the bd-door gate;
   //     read by isBdDoorMode + resolveBeadsEndpoint).
-  //   - keeperd → PRX_KEEPER_DOOR / PRX_KEEPER_SOCKET (read by isKeeperDoorMode
-  //     + resolveKeeperEndpoint; keeperd/endpoint.ts).
+  //   - keeperd → PRX_KEEPER_DOOR (mode flag, isKeeperDoorMode) + KEEPERD_SOCK
+  //     (the endpoint door-kit's keeper client reads; aligned to door-kit's
+  //     convention so prx consumes the published client as-is).
   if (door.door === "beadsd") {
     return { PRX_BEADS_DOOR: door.door, PRX_BEADS_SOCKET: door.socket };
   }
   if (door.door === "keeperd") {
-    return { PRX_KEEPER_DOOR: door.door, PRX_KEEPER_SOCKET: door.socket };
+    return { PRX_KEEPER_DOOR: door.door, KEEPERD_SOCK: door.socket };
   }
   return {};
 }
