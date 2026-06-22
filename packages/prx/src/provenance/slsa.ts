@@ -25,9 +25,13 @@ import {
   type Verifier,
 } from "@bounded-systems/anchored-chain";
 import type { AuditRuntimeContext } from "@bounded-systems/audit-context";
+import { IN_TOTO_STATEMENT_TYPE } from "@bounded-systems/ocap-provenance";
+import { SLSA_PROVENANCE_V1 } from "@bounded-systems/ocap-provenance/slsa";
 
-export const IN_TOTO_STATEMENT_TYPE = "https://in-toto.io/Statement/v1";
-export const SLSA_PROVENANCE_PREDICATE_TYPE = "https://slsa.dev/provenance/v1";
+// The predicate identifiers are owned by the ocap-provenance contract; re-export
+// the canonical values so prx's emitted Statement can never drift from it.
+export { IN_TOTO_STATEMENT_TYPE };
+export const SLSA_PROVENANCE_PREDICATE_TYPE = SLSA_PROVENANCE_V1;
 
 /**
  * An in-toto/SLSA digest set: algorithm → bare hex. `sha256` for CAS content,
