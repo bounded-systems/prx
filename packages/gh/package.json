@@ -22,7 +22,8 @@
     "gh",
     "cli-wrapper",
     "policy",
-    "rate-limit"
+    "rate-limit",
+    "seam"
   ],
   "exports": {
     ".": {
