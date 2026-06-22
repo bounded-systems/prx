@@ -24,14 +24,16 @@ import {
   runCaptured,
   type CommandRunner,
   type CommandResult,
-  type RunOptions,
 } from "@bounded-systems/proc";
 
 // Depend on the runner port; default to the real one.
-async function gitStatus(run: CommandRunner = defaultRunner) {
-  const res: CommandResult = await runCaptured(run, "git", ["status", "--porcelain"]);
+function gitStatus(run: CommandRunner = defaultRunner): string {
+  const res: CommandResult = run(["git", "status", "--porcelain"]);
   return res.stdout;
 }
+
+// Same port, temp-file-backed for large output.
+gitStatus(runCaptured);
 ```
 
 ## Design
