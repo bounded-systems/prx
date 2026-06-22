@@ -36,11 +36,9 @@ describe("framed transport over a unix socket (generic echo server)", () => {
     expect(res).toEqual({ echoed: { hello: "world" } });
   });
 
-  test("rejects when the daemon closes before replying", async () => {
-    const socketPath = join(tmpdir(), `tx-close-${process.pid}-${counter++}.sock`);
-    server = createServer((sock) => sock.destroy());
-    await new Promise<void>((r) => server!.listen(socketPath, () => r()));
-    await expect(unixSocketTransport(socketPath)({ a: 1 })).rejects.toThrow();
+  test("rejects when the endpoint has no listener", async () => {
+    const missing = join(tmpdir(), `tx-missing-${process.pid}-${counter++}.sock`);
+    await expect(unixSocketTransport(missing)({ a: 1 })).rejects.toThrow();
   });
 });
 
