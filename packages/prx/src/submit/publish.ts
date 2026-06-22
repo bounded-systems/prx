@@ -15,6 +15,8 @@ import { spawnCapture } from "@bounded-systems/proc";
 import { getRef, PlanStoreError, setRef, type CasSha } from "../plan-store/cas.ts";
 import { type AttestDeps } from "../provenance/attest.ts";
 import { verifySlsaDerivation } from "../provenance/verify.ts";
+import { isL3Attestation, verifyL3Attestation, type L3Attestation } from "../provenance/verify-l3.ts";
+import { resolveKeeperTrustKey } from "../provenance/keeper-trust.ts";
 // GH-2348.2: submit-publish is now an orchestrator — it delegates the push to
 // keeper (attesting) and the PR-open to publisher, keeping only artifact
 // resolution, the relocated requireSigned verify gate, and the slot advance.
@@ -112,6 +114,13 @@ export interface PublishDeps {
    * {@link requireSigned} is true; its absence under enforcement fails closed.
    */
   verifier?: Verifier;
+  /**
+   * Resolve the OPERATOR-supplied keeper trust key (PEM) for verifying the door
+   * (door-keeper) path's L3 attestation. Defaults to {@link resolveKeeperTrustKey}
+   * (`PRX_KEEPER_PUBKEY`). NEVER derived from the actor; null ⇒ fail closed under
+   * {@link requireSigned} in door mode. Tests inject a fixed key.
+   */
+  resolveKeeperKey?: typeof resolveKeeperTrustKey;
   // GH-2348.2: delegation seams. submit-publish orchestrates the side effects
   // through the effect roles rather than running git/gh itself.
   /** Keeper's attesting push (defaults to the real `runKeeperPush`). */
@@ -282,9 +291,9 @@ export async function runSubmitPublish(
   // it (the host holds no push credential / signing key). Either way `signed` is
   // the push's `push/v1` derivation — host-captured locally, or returned by the
   // daemon over the door — which the GH-2249 gate below verifies.
-  const keeperDoorMode = deps.keeperDoorMode ?? isKeeperDoorMode;
-  let signed: Derivation | null;
-  if (keeperDoorMode()) {
+  const inDoorMode = (deps.keeperDoorMode ?? isKeeperDoorMode)();
+  let signed: Derivation | L3Attestation | null;
+  if (inDoorMode) {
     const keeperDoor = deps.keeperDoor ?? runKeeperDoorPush;
     const resp = await keeperDoor({
       cwd: process.cwd(),
@@ -306,7 +315,7 @@ export async function runSubmitPublish(
         `prx submit publish: keeper door push reports ${resp.commitSha}, not the materialized commit ${materializedCommit}`,
       );
     }
-    signed = (resp.signedDerivation as Derivation | undefined) ?? null;
+    signed = (resp.signedDerivation as L3Attestation | undefined) ?? null;
   } else {
     const keeperPush = deps.keeperPush ?? runKeeperPush;
     const push = await keeperPush(pushArgs, undefined, pushAttest ? { attest: pushAttest } : {});
@@ -328,29 +337,48 @@ export async function runSubmitPublish(
   // today. The push side effect has already happened; failing here blocks PR
   // creation but does not (and cannot) unwind the push.
   if (deps.requireSigned) {
-    if (deps.verifier === undefined) {
-      throw new PublishError(
-        "prx submit publish: PRX_REQUIRE_SIGNED_DERIVATIONS is set but no provenance verifier is configured (set PRX_PROVENANCE_PUBKEY)",
-      );
-    }
     if (signed === null) {
       throw new PublishError(
-        "prx submit publish: PRX_REQUIRE_SIGNED_DERIVATIONS is set but the push emitted no signed derivation (no signer/ledger configured)",
+        "prx submit publish: PRX_REQUIRE_SIGNED_DERIVATIONS is set but the push emitted no signed attestation (no signer/ledger configured)",
       );
     }
-    // GH-2348.2 / GH-2381 subject-equality defense: the push attests a commit; it
-    // must equal the commit keeper just materialized from the tree artifact. A
-    // mismatch (drifted worktree, or a door daemon that pushed something else)
-    // fails closed before the PR opens.
-    if (signed.manifest.outputs.commit !== `gitCommit:${materializedCommit}`) {
-      throw new PublishError(
-        `prx submit publish: signed-derivation enforcement failed — push attests ${String(signed.manifest.outputs.commit)}, not the materialized commit gitCommit:${materializedCommit}`,
-      );
-    }
-    if (!(await verifySlsaDerivation(signed, deps.verifier))) {
-      throw new PublishError(
-        "prx submit publish: signed-derivation enforcement failed — the emitted push derivation does not verify under the configured verifier",
-      );
+    if (isL3Attestation(signed)) {
+      // door-keeper L3 path (branch on the attestation FORMAT, so prx's own
+      // push/v1 daemon and door-keeper's L3 both work during the transition):
+      // verify the L3 against the OPERATOR-supplied keeper trust key — never the
+      // actor's own key. Fail closed when the key is unconfigured.
+      // verifyL3Attestation also enforces subject == the materialized commit.
+      const keeperKey = (deps.resolveKeeperKey ?? resolveKeeperTrustKey)();
+      if (keeperKey === null) {
+        throw new PublishError(
+          "prx submit publish: PRX_REQUIRE_SIGNED_DERIVATIONS is set but no keeper trust key is configured (set PRX_KEEPER_PUBKEY)",
+        );
+      }
+      if (!verifyL3Attestation(signed, keeperKey, materializedCommit)) {
+        throw new PublishError(
+          "prx submit publish: signed-attestation enforcement failed — the door-keeper L3 does not verify against the configured keeper key, or attests the wrong commit",
+        );
+      }
+    } else {
+      // Local path: an anchored-chain DSSE `push/v1` derivation.
+      if (deps.verifier === undefined) {
+        throw new PublishError(
+          "prx submit publish: PRX_REQUIRE_SIGNED_DERIVATIONS is set but no provenance verifier is configured (set PRX_PROVENANCE_PUBKEY)",
+        );
+      }
+      const derivation = signed as Derivation;
+      // GH-2348.2 / GH-2381 subject-equality defense: the push attests a commit; it
+      // must equal the commit keeper just materialized from the tree artifact.
+      if (derivation.manifest.outputs.commit !== `gitCommit:${materializedCommit}`) {
+        throw new PublishError(
+          `prx submit publish: signed-derivation enforcement failed — push attests ${String(derivation.manifest.outputs.commit)}, not the materialized commit gitCommit:${materializedCommit}`,
+        );
+      }
+      if (!(await verifySlsaDerivation(derivation, deps.verifier))) {
+        throw new PublishError(
+          "prx submit publish: signed-derivation enforcement failed — the emitted push derivation does not verify under the configured verifier",
+        );
+      }
     }
   }
 
