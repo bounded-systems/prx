@@ -5,6 +5,7 @@ import { describe, test, expect } from "bun:test";
 import { generateKeyPairSync, sign, type KeyObject } from "node:crypto";
 
 import {
+  canonicalJson,
   isL3Attestation,
   verifyL3Attestation,
   type L3Attestation,
@@ -18,7 +19,7 @@ function makeL3(commitSha: string, privateKey: KeyObject): L3Attestation {
     predicateType: "https://slsa.dev/provenance/v1",
     predicate: { buildDefinition: { buildType: "https://prx.dev/git/push/v1" } },
   };
-  const signature = sign(null, Buffer.from(JSON.stringify(statement)), privateKey).toString("base64");
+  const signature = sign(null, Buffer.from(canonicalJson(statement)), privateKey).toString("base64");
   return { statement, signature, keyId: "test-key" };
 }
 
