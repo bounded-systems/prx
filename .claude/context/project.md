@@ -15,28 +15,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 ## Packages
 
 - `@bounded-systems/prx` — The agent-run PR contract / work-unit CLI
-- `@bounded-systems/anchored-chain` — Derivation chain with contract validation, signing, lineage tracking, and invalidation
-- `@bounded-systems/anchored-chain-sqlite` — SQLite/Drizzle-backed implementation of the anchored-chain stores
-- `@bounded-systems/audit-context` — Ambient runtime context for gh-call audit attribution (verb, actor, truth reason)
-- `@bounded-systems/auth` — Service-credential resolver (GitHub, Notion) through a single sanctioned access point
-- `@bounded-systems/bd` — Typed interface to the beads CLI with policy enforcement and short-ID guards
-- `@bounded-systems/cas` — Content-addressable storage substrate: bytes addressed by their SHA-256 digest, with a storage-agnostic blob-store port
-- `@bounded-systems/disposition` — Pure classifier mapping work-unit surface state to a disposition (ok/prune/repair/review)
-- `@bounded-systems/env` — The one sanctioned reader of process.env, routing ambient config through capability imports
-- `@bounded-systems/fs` — Filesystem capability seam; the one allowed filesystem-access point with an injectable FileSystem
-- `@bounded-systems/gh` — GitHub CLI wrapper with policy enforcement, rate-limit gating, and budget audit logging
-- `@bounded-systems/git` — Git CLI wrapper with policy enforcement and stale-lock recovery
-- `@bounded-systems/github-budget` — Rate-limit-aware gh wrapper with bucket classification, pre-call gating, and audit trail
-- `@bounded-systems/host` — The one sanctioned reader of host/OS ambient state (home dir, temp dir, hostname), routing ambient authority through capability imports
-- `@bounded-systems/machine-schema` — Brands, handoff envelope, and state/phase/invariant primitives for work-unit machines
-- `@bounded-systems/policy` — Tool-policy engine enforcing subcommand allowlists by tool, state, and role
-- `@bounded-systems/proc` — The one allowed subprocess spawn point, routing external-tool invocations through a capability
 - `@bounded-systems/prx-config` — TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools
-- `@bounded-systems/repo-root` — Repo-root resolution capability: lazy git-based runtime root plus the eager .git-marker walk for build/codegen, the one sanctioned root-resolution point
-- `@bounded-systems/scout` — Content-addressed surface reads (file/grep/files) with anchored-chain provenance
-- `@bounded-systems/slack` — Policy-gated, provenance-tracked Slack read surface: bounded read ops behind a swappable transport port, with keymaker-minted scoped credentials
-- `@bounded-systems/surface-sync` — Type ontology for work-unit change-detection across GH/branch/worktree/tmux/beads
-- `@bounded-systems/verbspec` — Spec-driven CLI core: author a verb once as a typed VerbSpec, project it to CLI, MCP, OpenAPI, and Anthropic tool surfaces
 
 ## Docs
 
@@ -82,28 +61,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Spike — eval-gated prompt evolution as a signed derivation — `docs/spikes/signed-prompt-evolution/README.md`
 - Two-clock policy — Netflix's slow-planner / fast-executor split, mapped to prx (spike) — `docs/spikes/two-clock-policy.md`
 - prx — value props (forcing-function-backed) — `docs/value-props.md`
-- @bounded-systems/anchored-chain-sqlite — `packages/anchored-chain-sqlite/README.md`
-- @bounded-systems/anchored-chain — `packages/anchored-chain/README.md`
-- @bounded-systems/audit-context — `packages/audit-context/README.md`
-- @bounded-systems/auth — `packages/auth/README.md`
-- @bounded-systems/bd — `packages/bd/README.md`
-- @bounded-systems/cas — `packages/cas/README.md`
-- @bounded-systems/disposition — `packages/disposition/README.md`
-- @bounded-systems/env — `packages/env/README.md`
-- @bounded-systems/fs — `packages/fs/README.md`
-- @bounded-systems/gh — `packages/gh/README.md`
-- @bounded-systems/git — `packages/git/README.md`
-- @bounded-systems/github-budget — `packages/github-budget/README.md`
-- @bounded-systems/host — `packages/host/README.md`
-- @bounded-systems/machine-schema — `packages/machine-schema/README.md`
-- @bounded-systems/policy — `packages/policy/README.md`
-- @bounded-systems/proc — `packages/proc/README.md`
 - @bounded-systems/prx-config — `packages/prx-config/README.md`
-- @bounded-systems/repo-root — `packages/repo-root/README.md`
-- @bounded-systems/scout — `packages/scout/README.md`
-- @bounded-systems/slack — `packages/slack/README.md`
-- @bounded-systems/surface-sync — `packages/surface-sync/README.md`
-- @bounded-systems/verbspec — `packages/verbspec/README.md`
 - prx — `README.md`
 - Security Policy — `SECURITY.md`
 - spike: effect-typed CUE spec unifying the prx actor-model invariants (+ Rule 4, MCP-as-projection) — `spec/README.md`

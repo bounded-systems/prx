@@ -7,7 +7,7 @@ import {
   handoffEnvelope,
   handoffStatus,
   handoffTargetActor,
-} from "../../../machine-schema/src/handoff.ts";
+} from "@bounded-systems/machine-schema";
 
 const NOW = "2026-05-19T12:00:00.000Z";
 
