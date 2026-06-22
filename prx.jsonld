@@ -195,7 +195,7 @@
       "@type": "SoftwareSourceCode",
       "@id": "https://github.com/bounded-systems/prx/tree/main/packages/cas",
       "name": "@bounded-systems/cas",
-      "description": "Content-addressable storage substrate: bytes addressed by their SHA-256 digest, with a storage-agnostic blob-store port.",
+      "description": "Content-addressable storage substrate: bytes addressed by their SHA-256 digest, with a storage-agnostic blob-store port",
       "codeRepository": "https://github.com/bounded-systems/prx",
       "isPartOf": {
         "@id": "https://github.com/bounded-systems/prx"

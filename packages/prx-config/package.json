@@ -2,6 +2,10 @@
   "name": "@bounded-systems/prx-config",
   "version": "0.2.0",
   "description": "TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools",
+  "bounded": {
+    "tagline": "TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools",
+    "kind": "guest"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

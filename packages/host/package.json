@@ -2,6 +2,10 @@
   "name": "@bounded-systems/host",
   "version": "0.2.0",
   "description": "The one sanctioned reader of host/OS ambient state (home dir, temp dir, hostname), routing ambient authority through capability imports",
+  "bounded": {
+    "tagline": "The one sanctioned reader of host/OS ambient state (home dir, temp dir, hostname), routing ambient authority through capability imports",
+    "kind": "door"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

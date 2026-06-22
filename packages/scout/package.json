@@ -2,6 +2,10 @@
   "name": "@bounded-systems/scout",
   "version": "0.1.1",
   "description": "Content-addressed surface reads (file/grep/files) with anchored-chain provenance",
+  "bounded": {
+    "tagline": "Content-addressed surface reads (file/grep/files) with anchored-chain provenance",
+    "kind": "door"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

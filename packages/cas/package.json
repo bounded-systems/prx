@@ -1,7 +1,11 @@
 {
   "name": "@bounded-systems/cas",
   "version": "0.1.1",
-  "description": "Content-addressable storage substrate: bytes addressed by their SHA-256 digest, with a storage-agnostic blob-store port.",
+  "description": "Content-addressable storage substrate: bytes addressed by their SHA-256 digest, with a storage-agnostic blob-store port",
+  "bounded": {
+    "tagline": "Content-addressable storage substrate: bytes addressed by their SHA-256 digest, with a storage-agnostic blob-store port",
+    "kind": "room"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

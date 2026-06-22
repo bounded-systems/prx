@@ -2,6 +2,10 @@
   "name": "@bounded-systems/disposition",
   "version": "0.2.0",
   "description": "Pure classifier mapping work-unit surface state to a disposition (ok/prune/repair/review)",
+  "bounded": {
+    "tagline": "Pure classifier mapping work-unit surface state to a disposition (ok/prune/repair/review)",
+    "kind": "guest"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

@@ -2,6 +2,10 @@
   "name": "@bounded-systems/fs",
   "version": "0.2.0",
   "description": "Filesystem capability seam; the one allowed filesystem-access point with an injectable FileSystem",
+  "bounded": {
+    "tagline": "Filesystem capability seam; the one allowed filesystem-access point with an injectable FileSystem",
+    "kind": "door"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

@@ -7,5 +7,9 @@
   "bin": {
     "prx": "./dist/prx"
   },
-  "description": "The agent-run PR contract / work-unit CLI"
+  "description": "The agent-run PR contract / work-unit CLI",
+  "bounded": {
+    "tagline": "The agent-run PR contract / work-unit CLI",
+    "kind": "guest"
+  }
 }

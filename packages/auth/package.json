@@ -2,6 +2,10 @@
   "name": "@bounded-systems/auth",
   "version": "0.2.0",
   "description": "Service-credential resolver (GitHub, Notion) through a single sanctioned access point",
+  "bounded": {
+    "tagline": "Service-credential resolver (GitHub, Notion) through a single sanctioned access point",
+    "kind": "door"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

@@ -2,6 +2,10 @@
   "name": "@bounded-systems/surface-sync",
   "version": "0.2.0",
   "description": "Type ontology for work-unit change-detection across GH/branch/worktree/tmux/beads",
+  "bounded": {
+    "tagline": "Type ontology for work-unit change-detection across GH/branch/worktree/tmux/beads",
+    "kind": "room"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

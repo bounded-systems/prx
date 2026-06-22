@@ -2,6 +2,10 @@
   "name": "@bounded-systems/proc",
   "version": "0.2.0",
   "description": "The one allowed subprocess spawn point, routing external-tool invocations through a capability",
+  "bounded": {
+    "tagline": "The one allowed subprocess spawn point, routing external-tool invocations through a capability",
+    "kind": "door"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
