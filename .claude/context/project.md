@@ -44,6 +44,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Contributing to prx — `CONTRIBUTING.md`
 - Agentic code hygiene — a self-checking codebase — `docs/agentic-code-hygiene.md`
 - The hard part of agent-built software isn't the code — `docs/blog/bifurcation-and-inter-contract-enforcement.md`
+- Author a verb once. Get the CLI, the MCP tool, the OpenAPI route, and the model schema for free. — `docs/blog/verbspec-author-once-project-everywhere.md`
 - Build & release — `docs/build-and-release.md`
 - Capability-Poor Orchestrator — `docs/capability-orchestrator.md`
 - Claims-calibration audit — instrument v0 — `docs/claims-audit-instrument-v0.md`

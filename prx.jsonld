@@ -436,6 +436,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/blog/verbspec-author-once-project-everywhere.md",
+      "name": "Author a verb once. Get the CLI, the MCP tool, the OpenAPI route, and the model schema for free.",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/blog/verbspec-author-once-project-everywhere.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/build-and-release.md",
       "name": "Build & release",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/build-and-release.md",
