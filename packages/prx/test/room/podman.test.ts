@@ -5,6 +5,7 @@
 
 import { describe, expect, test } from "bun:test";
 
+import { KEEPERD_ROOM_IMAGE } from "../../src/room/keeperd-room.ts";
 import { perRepoPod } from "../../src/room/per-repo-pod.ts";
 import {
   podmanDriver,
@@ -55,8 +56,8 @@ describe("renderPodmanKube", () => {
   test("renders each non-secret room's -box image; not the secret room's", () => {
     expect(manifest).toContain(`image: "claude-box"`);
     expect(manifest).toContain(`image: "beadsd-box"`);
-    // keeperd-box is delivered by `podman run`, not the kube manifest.
-    expect(manifest).not.toContain(`image: "keeperd-box"`);
+    // The keeperd image is delivered by `podman run`, not the kube manifest.
+    expect(manifest).not.toContain(`image: "${KEEPERD_ROOM_IMAGE}"`);
     // every rendered room declares an image → no placeholder fallback fires.
     expect(manifest).not.toContain("TODO(prx-zj8): no image declared");
   });
@@ -161,8 +162,8 @@ describe("renderPodmanRun (prx-b44y — secret-holding rooms)", () => {
     expect(argv[i + 1]).toBe("/run/prx/doors:/run/prx/doors:z");
   });
 
-  test("ends with the room's -box image", () => {
-    expect(argv[argv.length - 1]).toBe("keeperd-box");
+  test("ends with the room's image", () => {
+    expect(argv[argv.length - 1]).toBe(KEEPERD_ROOM_IMAGE);
   });
 
   test("adds the repo /work mount (shared :z) + workdir only when pod.repo is set", () => {
@@ -202,7 +203,7 @@ describe("renderPodmanQuadlet (prx-b44y — production systemd form)", () => {
   test("names the unit and container stably", () => {
     expect(quadletUnitName(perRepoPod, "keeperd-room")).toBe("prx-pod-keeperd-room.container");
     expect(lines).toContain(`ContainerName=${secretRoomContainer(perRepoPod, "keeperd-room")}`);
-    expect(lines).toContain("Image=keeperd-box");
+    expect(lines).toContain(`Image=${KEEPERD_ROOM_IMAGE}`);
   });
 
   test("delivers the signing key via a host-backed Secret= (never a layer)", () => {
