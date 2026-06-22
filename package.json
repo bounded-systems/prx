@@ -20,6 +20,8 @@
     "jsr:status:check": "bun run packages/prx/scripts/gen-jsr-status.ts --check",
     "site:build": "bun run packages/prx/scripts/build-site.ts",
     "typecov": "type-coverage --strict --at-least 98 --ignore-files '**/*.test.ts'",
+    "front-desk:coverage": "bun run packages/prx/scripts/front-desk-coverage.ts",
+    "front-desk:coverage:check": "bun run packages/prx/scripts/front-desk-coverage.ts --check",
     "doctor:agents": "bun run packages/prx/scripts/agent_doctor.ts",
     "doctor:agents:json": "bun run packages/prx/scripts/agent_doctor.ts --format json",
     "doctor:agents:strict": "bun run packages/prx/scripts/agent_doctor.ts --strict",
