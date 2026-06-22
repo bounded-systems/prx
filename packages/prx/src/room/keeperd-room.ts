@@ -24,10 +24,18 @@ const KEEPER_KEY_SECRET = "prx-keeper-key";
 /** Where the secret lands inside the room (the keeperd-box entrypoint default). */
 const KEEPER_KEY_TARGET = "/run/secrets/keeper-key";
 
+/**
+ * The canonical door-keeper image (the model-A keeperd: import-and-push + L3),
+ * pinned by digest — published from `bounded-systems/door-keeper`. prx verifies
+ * its L3 at the submit-publish gate (Phase B). Bump the digest when door-keeper
+ * releases; trusting the digest is the operator's pin, NOT the daemon's claim.
+ */
+export const KEEPERD_ROOM_IMAGE =
+  "ghcr.io/bounded-systems/door-keeper/keeperd@sha256:d489970b54a9ff5d35b31ef8c59ce8ffffcc3eae252745c20cdabd8ee969294e";
+
 export const keeperdRoom: RoomSpec = {
   name: "keeperd-room",
-  // Filled by the keeperd-box image (prx-anj).
-  image: "keeperd-box",
+  image: KEEPERD_ROOM_IMAGE,
   tier: "sandbox",
   doors: [
     {
