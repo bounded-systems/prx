@@ -4,7 +4,10 @@
   "description": "TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools",
   "bounded": {
     "tagline": "TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools",
-    "kind": "guest"
+    "kind": "guest",
+    "facet": "noun",
+    "role": "config-schema",
+    "domain": "tui-config"
   },
   "license": "MIT",
   "type": "module",
