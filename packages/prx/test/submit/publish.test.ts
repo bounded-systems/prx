@@ -575,7 +575,7 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
         deps.verifier = ed25519Verifier(kp.publicKey);
 
         await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(
-          /emitted no signed derivation/,
+          /emitted no signed attestation/,
         );
         expect(prOpens).toHaveLength(0); // fail closed before the PR opens
       },
