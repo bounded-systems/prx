@@ -53,7 +53,7 @@
     "test": "bun test",
     "test:dolt-smoke": "PRX_DOLT_SMOKE=1 bun test packages/prx/test/beads/hydrate.test.ts",
     "changeset": "bunx @changesets/cli@^2.27",
-    "version-packages": "bunx @changesets/cli@^2.27 version && bun run jsr:versions",
+    "version-packages": "bunx @changesets/cli@^2.27 version && bun run jsr:versions && bun run jsr:manifest && bun run jsr:status",
     "release": "bunx @changesets/cli@^2.27 publish",
     "jsr:versions": "bun run packages/prx/scripts/jsr-version-sync.ts --write",
     "jsr:versions:check": "bun run packages/prx/scripts/jsr-version-sync.ts"
