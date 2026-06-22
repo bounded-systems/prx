@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Git CLI wrapper with policy enforcement and stale-lock recovery",
   "bounded": {
-    "tagline": "Git CLI wrapper with policy enforcement and stale-lock recovery",
+    "tagline": "git CLI, lock-recovering",
     "kind": "door"
   },
   "license": "MIT",

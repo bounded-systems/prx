@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "description": "The one sanctioned reader of process.env, routing ambient config through capability imports",
   "bounded": {
-    "tagline": "The one sanctioned reader of process.env, routing ambient config through capability imports",
+    "tagline": "the one reader of process.env",
     "kind": "door"
   },
   "license": "MIT",

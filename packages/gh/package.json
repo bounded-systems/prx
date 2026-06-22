@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "GitHub CLI wrapper with policy enforcement, rate-limit gating, and budget audit logging",
   "bounded": {
-    "tagline": "GitHub CLI wrapper with policy enforcement, rate-limit gating, and budget audit logging",
+    "tagline": "GitHub CLI, policy-gated",
     "kind": "door"
   },
   "license": "MIT",

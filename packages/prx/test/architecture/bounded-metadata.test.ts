@@ -6,8 +6,11 @@
 // a new `@bounded-systems/*` package can't merge without a valid `bounded`.
 //
 // The contract:
-//   - `bounded.tagline` is a non-empty string equal to the package `description`
-//     (one source of truth — the tagline mirrors the description, never drifts).
+//   - `bounded.tagline` is a non-empty display string — the homepage copy the
+//     site renders for the package (curated for the seam grid), so it need NOT
+//     equal the longer `description` the package registry shows; the two fields
+//     serve different audiences. This guard only ensures the tagline is present
+//     and well-formed so the site never falls back to its stale seed copy.
 //   - `bounded.kind` is one of door | room | guest (the room/door/guest paradigm).
 
 import { describe, expect, test } from "bun:test";
@@ -65,16 +68,9 @@ describe("bounded metadata", () => {
       const tagline = bounded?.tagline;
       expect(typeof tagline, `${short}: bounded.tagline must be a string`).toBe("string");
       expect(
-        (tagline as string).length,
-        `${short}: bounded.tagline must be non-empty`,
+        (tagline as string).trim().length,
+        `${short}: bounded.tagline must be a non-empty display string`,
       ).toBeGreaterThan(0);
-
-      const description =
-        typeof manifest.description === "string" ? manifest.description.trim() : "";
-      expect(
-        tagline,
-        `${short}: bounded.tagline must mirror the package description verbatim (one source of truth)`,
-      ).toBe(description);
     });
   }
 });
