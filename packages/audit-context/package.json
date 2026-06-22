@@ -2,6 +2,10 @@
   "name": "@bounded-systems/audit-context",
   "version": "0.2.0",
   "description": "Ambient runtime context for gh-call audit attribution (verb, actor, truth reason)",
+  "bounded": {
+    "tagline": "Ambient runtime context for gh-call audit attribution (verb, actor, truth reason)",
+    "kind": "room"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

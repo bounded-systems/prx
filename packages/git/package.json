@@ -2,6 +2,10 @@
   "name": "@bounded-systems/git",
   "version": "0.1.0",
   "description": "Git CLI wrapper with policy enforcement and stale-lock recovery",
+  "bounded": {
+    "tagline": "Git CLI wrapper with policy enforcement and stale-lock recovery",
+    "kind": "door"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

@@ -2,6 +2,10 @@
   "name": "@bounded-systems/env",
   "version": "0.2.0",
   "description": "The one sanctioned reader of process.env, routing ambient config through capability imports",
+  "bounded": {
+    "tagline": "The one sanctioned reader of process.env, routing ambient config through capability imports",
+    "kind": "door"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

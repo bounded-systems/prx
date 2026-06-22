@@ -2,6 +2,10 @@
   "name": "@bounded-systems/anchored-chain",
   "version": "0.2.1",
   "description": "Derivation chain with contract validation, signing, lineage tracking, and invalidation",
+  "bounded": {
+    "tagline": "Derivation chain with contract validation, signing, lineage tracking, and invalidation",
+    "kind": "room"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

@@ -2,6 +2,10 @@
   "name": "@bounded-systems/verbspec",
   "version": "0.3.0",
   "description": "Spec-driven CLI core: author a verb once as a typed VerbSpec, project it to CLI, MCP, OpenAPI, and Anthropic tool surfaces",
+  "bounded": {
+    "tagline": "Spec-driven CLI core: author a verb once as a typed VerbSpec, project it to CLI, MCP, OpenAPI, and Anthropic tool surfaces",
+    "kind": "guest"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

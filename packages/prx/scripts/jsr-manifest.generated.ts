@@ -68,7 +68,7 @@ export const JSR_PACKAGES: readonly JsrPackageMeta[] = [
     "name": "@bounded-systems/cas",
     "scope": "bounded-systems",
     "pkg": "cas",
-    "description": "Content-addressable storage substrate: bytes addressed by their SHA-256 digest, with a storage-agnostic blob-store port.",
+    "description": "Content-addressable storage substrate: bytes addressed by their SHA-256 digest, with a storage-agnostic blob-store port",
     "repo": {
       "owner": "bounded-systems",
       "name": "prx"

@@ -2,6 +2,10 @@
   "name": "@bounded-systems/anchored-chain-sqlite",
   "version": "0.2.1",
   "description": "SQLite/Drizzle-backed implementation of the anchored-chain stores",
+  "bounded": {
+    "tagline": "SQLite/Drizzle-backed implementation of the anchored-chain stores",
+    "kind": "room"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

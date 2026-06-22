@@ -2,6 +2,10 @@
   "name": "@bounded-systems/repo-root",
   "version": "0.1.0",
   "description": "Repo-root resolution capability: lazy git-based runtime root plus the eager .git-marker walk for build/codegen, the one sanctioned root-resolution point",
+  "bounded": {
+    "tagline": "Repo-root resolution capability: lazy git-based runtime root plus the eager .git-marker walk for build/codegen, the one sanctioned root-resolution point",
+    "kind": "door"
+  },
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
