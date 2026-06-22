@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "description": "The one allowed subprocess spawn point, routing external-tool invocations through a capability",
   "bounded": {
-    "tagline": "The one allowed subprocess spawn point, routing external-tool invocations through a capability",
+    "tagline": "the one subprocess spawn",
     "kind": "door"
   },
   "license": "MIT",
