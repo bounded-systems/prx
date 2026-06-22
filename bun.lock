@@ -39,6 +39,7 @@
         "@bounded-systems/bd": "npm:@jsr/bounded-systems__bd@^0.2.0",
         "@bounded-systems/cas": "npm:@jsr/bounded-systems__cas@^0.1.1",
         "@bounded-systems/disposition": "npm:@jsr/bounded-systems__disposition@^0.2.0",
+        "@bounded-systems/door-kit": "npm:@jsr/bounded-systems__door-kit@^0.2.0",
         "@bounded-systems/env": "npm:@jsr/bounded-systems__env@^0.2.0",
         "@bounded-systems/fs": "npm:@jsr/bounded-systems__fs@^0.2.0",
         "@bounded-systems/gh": "npm:@jsr/bounded-systems__gh@^0.1.0",
@@ -118,6 +119,8 @@
     "@bounded-systems/cas": ["@jsr/bounded-systems__cas@0.1.1", "https://npm.jsr.io/~/11/@jsr/bounded-systems__cas/0.1.1.tgz", {}, "sha512-fD2vAvTY366X/ivqVT0aJ1Ngzq83B4P565zaAOWxYXEfTHy79daJpO+8AZT5GrqD7oXY9ARkH/mtPi1Bx70DlA=="],
 
     "@bounded-systems/disposition": ["@jsr/bounded-systems__disposition@0.2.0", "https://npm.jsr.io/~/11/@jsr/bounded-systems__disposition/0.2.0.tgz", { "dependencies": { "zod": "^4.4.3" } }, "sha512-fa5Xp4zwEnbLJyeTjjuGFRvCpBInxXajb9sjeYRekCxNqHRyBzBtCaWCFxMVWWPNbksCrNbsj882qiV3Wy+OzA=="],
+
+    "@bounded-systems/door-kit": ["@jsr/bounded-systems__door-kit@0.2.0", "https://npm.jsr.io/~/11/@jsr/bounded-systems__door-kit/0.2.0.tgz", {}, "sha512-q1ilRLBQA971buq+V2or2bM/gkEqMCMGfwAV9G/b4iHHU2K6fFUo1SHbOjRjRfFNCFw3SN/XnBjc1jA/PG4yxw=="],
 
     "@bounded-systems/env": ["@jsr/bounded-systems__env@0.2.0", "https://npm.jsr.io/~/11/@jsr/bounded-systems__env/0.2.0.tgz", {}, "sha512-5WqnPWlI4TI30T+FUWFXAQfZWV6epGQwScGeyVGh1ylNsLyscTyVdgiqBtdaJvQ1JGN6YaWqjZ7gq1dQC+THEA=="],
 
