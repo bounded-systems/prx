@@ -36,7 +36,7 @@ describe("withKeeperClient", () => {
   });
 
   test("defaults resolve from the env + real transport factory (no connection until used)", async () => {
-    // No deps: exercises the `?? resolveKeeperEndpoint` / `?? resolveFramedTransport`
+    // No deps: exercises the `?? resolveKeeperEndpoint` / `?? guestRoomKeeperTransport`
     // fallbacks. fn never calls the client, so the transport never connects.
     const client = await withKeeperClient(async (c) => c);
     expect(client).toBeInstanceOf(IsolatedKeeperClient);

@@ -20547,7 +20547,7 @@ export function runCli(
           });
           output.error(`keeperd: listening on ${parsed.socket}`);
           // Block until the process is terminated — the daemon runs until killed.
-          await new Promise<void>((resolve) => server.on("close", () => resolve()));
+          await server.closed;
           return 0;
         })();
       }

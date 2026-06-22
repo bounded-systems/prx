@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { existsSync, readFileSync, rmSync } from "node:fs";
-import { connect, type Server } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -11,11 +10,14 @@ import {
   type DerivationStore,
 } from "@bounded-systems/anchored-chain";
 
+import { call } from "@bounded-systems/guest-room/protocol";
+
 import { FrameDecoder, encodeFrame } from "../../src/door/framing.ts";
 import {
   handleKeeperRequest,
   runKeeperServe,
   type KeeperDaemonDeps,
+  type KeeperServer,
 } from "../../src/keeperd/daemon.ts";
 import type { KeeperRemoteRequest } from "../../src/keeperd/contract.ts";
 
@@ -200,13 +202,13 @@ describe("frame codec", () => {
   });
 });
 
-describe("runKeeperServe (unix socket, end-to-end)", () => {
-  let server: Server | undefined;
+describe("runKeeperServe (guest-room protocol, end-to-end)", () => {
+  let server: KeeperServer | undefined;
   let socketPath: string | undefined;
   let counter = 0;
 
   afterEach(async () => {
-    if (server) await new Promise<void>((r) => server!.close(() => r()));
+    if (server) await server.close();
     server = undefined;
   });
 
@@ -216,25 +218,15 @@ describe("runKeeperServe (unix socket, end-to-end)", () => {
     return socketPath;
   }
 
-  function sendFrame(path: string, value: unknown): Promise<unknown> {
-    return new Promise((resolve, reject) => {
-      const dec = new FrameDecoder();
-      const sock = connect(path, () => sock.write(encodeFrame(value)));
-      sock.on("data", (chunk: Buffer) => {
-        const frames = dec.push(chunk);
-        if (frames.length > 0) {
-          resolve(frames[0]);
-          sock.end();
-        }
-      });
-      sock.on("error", reject);
-    });
-  }
+  // Drive the daemon over the guest-room door protocol (the `import-and-push`
+  // method) — the same wire the keeper client uses.
+  const send = (path: string, value: unknown): Promise<unknown> =>
+    call(path, "import-and-push", value as Record<string, unknown>);
 
   test("serves a valid request to an ok verdict over the socket", async () => {
     const { git } = fakeGit();
     const path = await start({ git });
-    const res = (await sendFrame(path, REQUEST)) as { status: string; commitSha?: string };
+    const res = (await send(path, REQUEST)) as { status: string; commitSha?: string };
     expect(res.status).toBe("ok");
     expect(res.commitSha).toBe(COMMIT);
   });
@@ -242,7 +234,7 @@ describe("runKeeperServe (unix socket, end-to-end)", () => {
   test("replies bad-request for a frame that violates the contract (daemon stays up)", async () => {
     const { git } = fakeGit();
     const path = await start({ git });
-    const res = (await sendFrame(path, { kind: "import-and-push", commitSha: "nope" })) as {
+    const res = (await send(path, { kind: "import-and-push", commitSha: "nope" })) as {
       status: string;
       code?: string;
     };
@@ -258,7 +250,7 @@ describe("runKeeperServe (unix socket, end-to-end)", () => {
       server = await runKeeperServe({ socketPath, pidfile, deps: { git } });
       expect(existsSync(pidfile)).toBe(true);
       expect(readFileSync(pidfile, "utf8").trim()).toBe(String(process.pid));
-      await new Promise<void>((r) => server!.close(() => r()));
+      await server!.close();
       server = undefined;
       expect(existsSync(pidfile)).toBe(false);
     } finally {
@@ -278,7 +270,7 @@ describe("runKeeperServe (unix socket, end-to-end)", () => {
         close: () => {},
       }),
     });
-    const res = (await sendFrame(path, { ...REQUEST, ledgerRef: "refs/prx/ledger" })) as {
+    const res = (await send(path, { ...REQUEST, ledgerRef: "refs/prx/ledger" })) as {
       status: string;
       signedDerivation?: { manifest?: unknown };
     };

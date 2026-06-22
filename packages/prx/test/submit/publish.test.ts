@@ -6,7 +6,6 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Server } from "node:net";
 import type { SpawnSyncReturns } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
@@ -452,7 +451,7 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
     body: (socketPath: string) => Promise<void>,
   ): Promise<void> {
     const socketPath = join(tmpdir(), `keeperd-publish-${process.pid}-${doorCounter++}.sock`);
-    const server: Server = await runKeeperServe({ socketPath, deps });
+    const server = await runKeeperServe({ socketPath, deps });
     const prev = process.env.PRX_KEEPER_SOCKET;
     process.env.PRX_KEEPER_SOCKET = socketPath;
     try {
@@ -460,7 +459,7 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
     } finally {
       if (prev === undefined) delete process.env.PRX_KEEPER_SOCKET;
       else process.env.PRX_KEEPER_SOCKET = prev;
-      await new Promise<void>((r) => server.close(() => r()));
+      await server.close();
     }
   }
 
