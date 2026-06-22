@@ -35,13 +35,24 @@
 > **Net:** publish + own-repo extraction is the real deliverable; consume-back is
 > a no-op here. Don't re-chase it.
 >
-> **Extracted so far (own repo + history + CI + JSR re-linked to it):** the clean
-> leaves — `verbspec`, `cas`, `audit-context`, `disposition`, `env`, `fs`,
-> `machine-schema`, `policy`. All still also build inside the monorepo (workspace);
-> removal from `packages/*` is deferred (no consumer forces it).
-> **Not extracted:** the 13 non-leaf packages (sibling deps → need consume-from-JSR
-> setup in their standalone repos) and `prx-config` (a clean leaf, but gated:
-> no external consumer — see `.github-private` `prx-config-extraction.md`).
+> **Extracted — 21 of 22** (own repo + history + CI gate + OIDC publish + JSR
+> re-linked to the new repo):
+> - **Leaves (8):** `verbspec`, `cas`, `audit-context`, `disposition`, `env`,
+>   `fs`, `machine-schema`, `policy`.
+> - **Non-leaves (13):** `anchored-chain`, `anchored-chain-sqlite`, `auth`, `bd`,
+>   `gh`, `git`, `github-budget`, `host`, `proc`, `repo-root`, `scout`, `slack`,
+>   `surface-sync` — each consumes its `@bounded-systems` siblings **from JSR**
+>   (`bunx jsr add` → `.npmrc` `@jsr` registry); external npm deps (e.g.
+>   `drizzle-orm` for `anchored-chain-sqlite`) retained.
+>
+> All 21 still **also** build inside this monorepo (workspace); removal from
+> `packages/*` is deferred (nothing forces it — so these are dual-source until you
+> remove the monorepo copies). Since each repo now **owns publishing** (JSR linked
+> to it), future changes to a package should land in its own repo or the monorepo
+> copy will drift.
+>
+> **Not extracted — 1:** `prx-config` (a clean leaf, but gated: no external
+> consumer — see `.github-private` `prx-config-extraction.md`).
 
 Status values: `not-started` → `in-progress` → `extracted`.
 
