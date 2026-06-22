@@ -126,7 +126,7 @@ describe("podRoomEnv — the keystone", () => {
     });
   });
 
-  test("projects PRX_KEEPER_DOOR + PRX_KEEPER_SOCKET into the keeperd consumer", () => {
+  test("projects PRX_KEEPER_DOOR + KEEPERD_SOCK into the keeperd consumer", () => {
     const c = consumer([
       { name: "keeperd", direction: "consume", capability: "git:write", socket: "/x" },
     ]);
@@ -143,7 +143,7 @@ describe("podRoomEnv — the keystone", () => {
     };
     expect(podRoomEnv(pod([c, keeperdProvider]), "consumer")).toEqual({
       PRX_KEEPER_DOOR: "keeperd",
-      PRX_KEEPER_SOCKET: "/run/prx/doors/keeperd.sock",
+      KEEPERD_SOCK: "/run/prx/doors/keeperd.sock",
     });
   });
 
@@ -183,7 +183,7 @@ describe("perRepoPod", () => {
       PRX_BEADS_DOOR: "beadsd",
       PRX_BEADS_SOCKET: "/run/prx/doors/beadsd.sock",
       PRX_KEEPER_DOOR: "keeperd",
-      PRX_KEEPER_SOCKET: "/run/prx/doors/keeperd.sock",
+      KEEPERD_SOCK: "/run/prx/doors/keeperd.sock",
     });
   });
 });
