@@ -3,7 +3,7 @@
   "project": {
     "name": "prx",
     "tagline": "the agent-run PR contract / work-unit CLI",
-    "description": "The agent-run work-unit CLI: capability-scoped agents whose every privileged effect is verified against its signed owner, driving a work unit through one signed, content-addressed pipeline to a merged PR.",
+    "description": "The agent-run work-unit CLI: capability-scoped agents driving each work unit through one signed, content-addressed pipeline to a merged PR — git-writes signed and verified against their owner.",
     "claims": [
       "An agent cannot perform an action its role doesn't own.",
       "A privileged effect not produced by its owning actor fails verification.",
