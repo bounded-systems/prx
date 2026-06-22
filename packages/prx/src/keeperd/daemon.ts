@@ -20,12 +20,11 @@
  * response, so one bad request can't take the daemon down.
  */
 
-import { type Server, type Socket } from "node:net";
+import { closeSync, constants as FS, existsSync, openSync, rmSync, writeSync } from "node:fs";
 
 import { type Derivation } from "@bounded-systems/anchored-chain";
 import { execGit } from "@bounded-systems/git";
-
-import { encodeFrame, FrameDecoder, runFramedServe } from "../door/framing.ts";
+import { createDoorHandlers } from "@bounded-systems/guest-room/protocol";
 import { KeeperGitError, runKeeperPush, type KeeperPushDeps } from "../pr-state/keeper.ts";
 import { type AttestDeps } from "../provenance/attest.ts";
 import { importBundleIntoRepo } from "./bundle.ts";
@@ -156,45 +155,11 @@ export async function handleKeeperRequest(
   }
 }
 
-/**
- * Wire a connected socket to the handler: decode framed requests, validate each
- * against the contract, run the handler, and frame the response back — in
- * arrival order. A frame that fails the contract gets a `bad-request` error
- * response (the daemon stays up). Exported so it is testable over any duplex.
- */
-export function serveConnection(
-  socket: Socket,
-  handler: (request: KeeperRemoteRequest) => Promise<KeeperRemoteResponse>,
-): void {
-  const decoder = new FrameDecoder();
-  // Serialize responses so multiplexed frames reply in arrival order.
-  let chain: Promise<void> = Promise.resolve();
-  socket.on("data", (chunk: Buffer) => {
-    let frames: unknown[];
-    try {
-      frames = decoder.push(chunk);
-    } catch {
-      // Undecodable bytes (bad length / non-JSON) — reply once and move on.
-      socket.write(encodeFrame(badRequest("unframable bytes on the keeper channel")));
-      return;
-    }
-    for (const raw of frames) {
-      chain = chain.then(async () => {
-        const parsed = KeeperRemoteRequestSchema.safeParse(raw);
-        const response: KeeperRemoteResponse = parsed.success
-          ? await handler(parsed.data)
-          : badRequest("request failed the keeperd wire contract");
-        socket.write(encodeFrame(response));
-      });
-    }
-  });
-}
-
 function badRequest(message: string): KeeperRemoteResponse {
   return { status: "error", code: "bad-request", message };
 }
 
-// ── serve: bind keeperd's contract handler over the shared door framing ───────
+// ── serve: bind keeperd's contract handler over the guest-room door protocol ──
 
 export interface KeeperServeOptions {
   /** Unix socket path the daemon listens on. A stale socket file is removed first. */
@@ -210,15 +175,76 @@ export interface KeeperServeOptions {
   deps?: KeeperDaemonDeps | undefined;
 }
 
+/** A handle on the running keeper daemon: stop it, or await its close. */
+export interface KeeperServer {
+  /** Stop listening (and remove the socket/pidfile); resolves once closed. */
+  close(): Promise<void>;
+  /** Resolves when the daemon stops — a CLI blocks on this to run until killed. */
+  readonly closed: Promise<void>;
+}
+
+/** A Bun.listen target: a unix socket path, or a `host:port` TCP target. A leading
+ *  "/" (or `unix://`) is a unix path; otherwise `host:port` (optional `tcp://`). */
+function listenTarget(endpoint: string): { unix: string } | { hostname: string; port: number } {
+  const stripped = endpoint.replace(/^unix:\/\//, "");
+  if (!stripped.startsWith("/")) {
+    const m = stripped.replace(/^tcp:\/\//, "").match(/^([^/\s]+):(\d{1,5})$/);
+    if (m) return { hostname: m[1]!, port: Number(m[2]) };
+  }
+  return { unix: stripped };
+}
+
 /**
- * Bind the keeperd unix-socket server. Resolves with the listening `Server`
- * (close it to stop). Each connection is served by {@link serveConnection}
- * against {@link handleKeeperRequest} bound to `deps`. When `pidfile` is set the
- * daemon records its pid there (removed on close) so the host can stop it by pid.
+ * Bind the keeperd server over the guest-room door protocol (prx→guest-room
+ * convergence, A2): register the `import-and-push` method — validated against the
+ * wire contract, an invalid frame becoming a `bad-request` verdict while the
+ * daemon stays up — and listen on the resolved endpoint (a unix socket, or a
+ * `host:port` for the macOS/pod TCP case). When `pidfile` is set the daemon
+ * records its pid there (removed on close) so the host can stop it by pid.
  */
-export function runKeeperServe(options: KeeperServeOptions): Promise<Server> {
+export function runKeeperServe(options: KeeperServeOptions): Promise<KeeperServer> {
   const { socketPath, pidfile, deps } = options;
-  const handler = (request: KeeperRemoteRequest): Promise<KeeperRemoteResponse> =>
-    handleKeeperRequest(request, deps);
-  return runFramedServe(socketPath, pidfile, (socket) => serveConnection(socket, handler));
+  const handlers = createDoorHandlers(
+    "keeper",
+    {
+      "import-and-push": async (params) => {
+        const parsed = KeeperRemoteRequestSchema.safeParse(params);
+        return parsed.success
+          ? await handleKeeperRequest(parsed.data, deps)
+          : badRequest("request failed the keeperd wire contract");
+      },
+    },
+    () => {},
+  );
+  const target = listenTarget(socketPath);
+  // A leftover unix socket file makes listen throw EADDRINUSE.
+  if ("unix" in target && existsSync(target.unix)) rmSync(target.unix, { force: true });
+  const listener =
+    "unix" in target
+      ? Bun.listen({ unix: target.unix, socket: handlers })
+      : Bun.listen({ hostname: target.hostname, port: target.port, socket: handlers });
+  if (pidfile !== undefined) {
+    // O_NOFOLLOW refuses a pre-planted symlink at this predictable path; 0600
+    // restricts the pidfile (closes the insecure-temp-file vector, CodeQL).
+    const fd = openSync(pidfile, FS.O_WRONLY | FS.O_CREAT | FS.O_TRUNC | FS.O_NOFOLLOW, 0o600);
+    try {
+      writeSync(fd, `${process.pid}\n`);
+    } finally {
+      closeSync(fd);
+    }
+  }
+  let resolveClosed!: () => void;
+  const closed = new Promise<void>((r) => {
+    resolveClosed = r;
+  });
+  const server: KeeperServer = {
+    async close() {
+      listener.stop(true);
+      if ("unix" in target) rmSync(target.unix, { force: true });
+      if (pidfile !== undefined) rmSync(pidfile, { force: true });
+      resolveClosed();
+    },
+    closed,
+  };
+  return Promise.resolve(server);
 }

@@ -16,27 +16,30 @@
 
 import { IsolatedKeeperClient } from "./client.ts";
 import { resolveKeeperEndpoint, type KeeperEndpoint } from "./endpoint.ts";
-import { resolveFramedTransport, type FramedTransport } from "../door/transport.ts";
+import { guestRoomKeeperTransport } from "./protocol-transport.ts";
+import type { KeeperTransport } from "./client.ts";
 
 export interface WithKeeperClientDeps {
   /** Override the resolved endpoint (default: {@link resolveKeeperEndpoint}). */
   endpoint?: KeeperEndpoint | undefined;
-  /** Transport factory from a door address (default {@link resolveFramedTransport}); tests inject. */
-  makeTransport?: ((endpoint: string) => FramedTransport) | undefined;
+  /**
+   * Transport factory from a door address (default {@link guestRoomKeeperTransport},
+   * which speaks the guest-room door protocol); tests inject a fake.
+   */
+  makeTransport?: ((endpoint: string) => KeeperTransport) | undefined;
 }
 
 /**
- * Run `fn` with an {@link IsolatedKeeperClient} dialing the resolved keeper door.
- * The transport (`FramedTransport`) is structurally assignable to the client's
- * narrower `KeeperTransport`, so one factory serves the unix-socket (pod) and
- * `host:port` (macOS gateway) cases unchanged.
+ * Run `fn` with an {@link IsolatedKeeperClient} dialing the resolved keeper door
+ * over the guest-room door protocol. The endpoint is a unix socket (pod) or a
+ * `host:port` (macOS gateway) — guest-room's `call` handles both.
  */
 export async function withKeeperClient<T>(
   fn: (client: IsolatedKeeperClient) => Promise<T>,
   deps: WithKeeperClientDeps = {},
 ): Promise<T> {
   const endpoint = deps.endpoint ?? resolveKeeperEndpoint();
-  const makeTransport = deps.makeTransport ?? resolveFramedTransport;
+  const makeTransport = deps.makeTransport ?? guestRoomKeeperTransport;
   const client = new IsolatedKeeperClient(makeTransport(endpoint.socket));
   return fn(client);
 }
