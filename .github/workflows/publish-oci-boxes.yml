@@ -1,0 +1,100 @@
+name: publish-oci-boxes
+
+# Build and push nix-built OCI box images to GHCR.
+# These are the "box" images that run inside the prx pod rooms:
+#   beadsd-box → ghcr.io/bounded-systems/prx/beadsd-box
+#
+# Architecture: ubuntu-24.04-arm (aarch64-linux) — the same arch as the
+# podman machine on Mac M-series, so the image runs without QEMU emulation.
+#
+# Triggered on every semver tag (alongside release-binary.yml) and
+# via workflow_dispatch so a fresh digest can be pinned before a release.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build only; skip the GHCR push"
+        type: boolean
+        default: false
+
+jobs:
+  beadsd-box:
+    name: beadsd-box (aarch64-linux)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+
+      - name: Install skopeo
+        run: sudo apt-get install -y skopeo
+
+      - uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build beadsd-box OCI stream (nix)
+        run: nix build .#beadsd-box --out-link ./stream-beadsd-box
+
+      - name: Push to GHCR
+        if: ${{ !inputs.dry_run }}
+        id: push
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/prx/beadsd-box
+        run: |
+          set -euo pipefail
+          # Determine tags: always push 'latest'; also tag by semver on a tag push.
+          TAGS=("latest")
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            TAGS+=("${GITHUB_REF_NAME}")
+          fi
+          # skopeo reads docker credentials from ~/.docker/config.json (set by login-action).
+          # --insecure-policy: containers policy.json is absent on CI runners; bypass it.
+          ./stream-beadsd-box | skopeo --insecure-policy copy \
+            --format v2s2 \
+            --digestfile /tmp/beadsd-box-digest.txt \
+            docker-archive:/dev/stdin \
+            "docker://${IMAGE}:${TAGS[0]}"
+          DIGEST=$(cat /tmp/beadsd-box-digest.txt)
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          # Tag additional refs (e.g. semver tag) by re-copying from the just-pushed latest.
+          for tag in "${TAGS[@]:1}"; do
+            skopeo --insecure-policy copy \
+              "docker://${IMAGE}:${TAGS[0]}" \
+              "docker://${IMAGE}:${tag}"
+          done
+          # Step summary — paste this into beadsd-room.ts to pin the digest.
+          {
+            echo "### beadsd-box published"
+            echo ""
+            echo "Pin in \`beadsd-room.ts\`:"
+            echo "\`\`\`"
+            echo "${IMAGE}@${DIGEST}"
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Attest image provenance
+        if: ${{ !inputs.dry_run }}
+        continue-on-error: true
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/prx/beadsd-box
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Dry run summary
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "### beadsd-box (dry run)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Built successfully — not pushed (dry_run=true)." >> "$GITHUB_STEP_SUMMARY"
