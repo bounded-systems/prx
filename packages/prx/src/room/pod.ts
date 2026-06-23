@@ -25,15 +25,16 @@
 
 import { z } from "zod";
 
+import { getEnv } from "@bounded-systems/env";
 import { ExecutorSpecSchema, type ExecutorSpec } from "../executor/spec.ts";
 import { RoomSpecSchema, type RoomSpec } from "./spec.ts";
 
 /** The default shared door-socket directory (the pod's tmpfs door fabric).
  *  Prefers XDG_RUNTIME_DIR when set (rootless Linux), falls back to a
  *  home-local path so rootless podman can provision it without sudo. */
-export const DEFAULT_DOOR_DIR = process.env["XDG_RUNTIME_DIR"]
-  ? `${process.env["XDG_RUNTIME_DIR"]}/prx/doors`
-  : `${process.env["HOME"] ?? "/tmp"}/.local/run/prx/doors`;
+export const DEFAULT_DOOR_DIR = getEnv("XDG_RUNTIME_DIR")
+  ? `${getEnv("XDG_RUNTIME_DIR")}/prx/doors`
+  : `${getEnv("HOME") ?? "/tmp"}/.local/run/prx/doors`;
 
 export const PodSpecSchema = z.object({
   name: z.string().min(1),
