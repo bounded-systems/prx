@@ -8,12 +8,15 @@ import { launchPod, type PodmanRunResult } from "../../src/room/podman-runtime.t
 
 const ok: PodmanRunResult = { status: 0, stdout: "", stderr: "" };
 
+const readyNow = async () => true; // inject: socket already ready
+
 describe("launchPod", () => {
   test("brings the pod up, then attests + returns the l2LaunchDigest", async () => {
     let attestedFor: string | undefined;
     const { results, l2LaunchDigest } = await launchPod(perRepoPod, {
       run: () => ok,
       provision: () => ok,
+      waitForSocket: readyNow,
       attestLaunch: async (pod) => {
         attestedFor = pod.name;
         return "l".repeat(64);
@@ -28,6 +31,7 @@ describe("launchPod", () => {
     const { results, l2LaunchDigest } = await launchPod(perRepoPod, {
       run: () => ok,
       provision: () => ok,
+      waitForSocket: readyNow,
       attestLaunch: async () => {
         throw new Error("no keeper door");
       },

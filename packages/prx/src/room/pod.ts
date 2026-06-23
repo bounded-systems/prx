@@ -135,21 +135,23 @@ export function resolvePodDoors(pod: PodSpec): {
   return { resolved, diagnostics };
 }
 
-/** Project a single resolved door to the env vars that wire it for the consumer. */
-function doorEnv(door: ResolvedDoor): Record<string, string> {
-  // Each daemon door projects a {DOOR, SOCKET} env pair: DOOR is the box-mode
-  // signal (its presence routes the client through the door), SOCKET is the
-  // transport address the client dials.
-  //   - beadsd → PRX_BEADS_DOOR / PRX_BEADS_SOCKET (fires the bd-door gate;
-  //     read by isBdDoorMode + resolveBeadsEndpoint).
-  //   - keeperd → PRX_KEEPER_DOOR (mode flag, isKeeperDoorMode) + KEEPERD_SOCK
-  //     (the endpoint door-kit's keeper client reads; aligned to door-kit's
-  //     convention so prx consumes the published client as-is).
+/**
+ * Project a single resolved door to the env vars that wire it for the consumer.
+ * `doorDir` rebases the socket to the pod's fabric (the door spec socket path
+ * may differ from the actual fabric path when doorDir is rootless).
+ */
+function doorEnv(door: ResolvedDoor, doorDir: string): Record<string, string> {
+  // Each daemon door projects a {DOOR, SOCKET} env pair. The socket is rebased
+  // to `doorDir` so the path is correct regardless of the pod's fabric location.
+  //   - beadsd → PRX_BEADS_DOOR / PRX_BEADS_SOCKET (fires the bd-door gate).
+  //   - keeperd → PRX_KEEPER_DOOR + KEEPERD_SOCK (door-kit convention).
+  const socketFile = door.socket.split("/").at(-1) ?? door.socket;
+  const socket = `${doorDir}/${socketFile}`;
   if (door.door === "beadsd") {
-    return { PRX_BEADS_DOOR: door.door, PRX_BEADS_SOCKET: door.socket };
+    return { PRX_BEADS_DOOR: door.door, PRX_BEADS_SOCKET: socket };
   }
   if (door.door === "keeperd") {
-    return { PRX_KEEPER_DOOR: door.door, KEEPERD_SOCK: door.socket };
+    return { PRX_KEEPER_DOOR: door.door, KEEPERD_SOCK: socket };
   }
   return {};
 }
@@ -161,10 +163,11 @@ function doorEnv(door: ResolvedDoor): Record<string, string> {
  * `{ PRX_BEADS_DOOR, PRX_BEADS_SOCKET }`, firing the merged gate.
  */
 export function podRoomEnv(pod: PodSpec, roomName: string): Record<string, string> {
-  const { resolved } = resolvePodDoors(pod);
+  const p = PodSpecSchema.parse(pod);
+  const { resolved } = resolvePodDoors(p);
   return resolved
     .filter((d) => d.consumer === roomName)
-    .reduce<Record<string, string>>((env, d) => ({ ...env, ...doorEnv(d) }), {});
+    .reduce<Record<string, string>>((env, d) => ({ ...env, ...doorEnv(d, p.doorDir) }), {});
 }
 
 /**

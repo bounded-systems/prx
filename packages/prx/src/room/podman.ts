@@ -211,11 +211,20 @@ export function renderPodmanRun(pod: PodSpec, roomName: string): string[] {
   if (p.repo) {
     args.push("--volume", `${p.repo}:${WORK_DIR}:z`, "--workdir", WORK_DIR);
   }
-  // The wired-door env projection (a secret room that ALSO consumes doors gets
-  // its consumer env here, exactly as the kube containers do).
+  // Consumer env (doors this room consumes — usually empty for secret rooms).
   const env = podRoomEnv(p, room.name);
   for (const key of Object.keys(env).sort()) {
     args.push("--env", `${key}=${env[key]!}`);
+  }
+  // Server socket env: for each door this room EXPOSES, inject the env var that
+  // tells the daemon where to create its socket on the shared fabric. Convention:
+  // `${doorName.toUpperCase()}_SOCK` — matches door-kit's client convention so
+  // the same var configures both ends. E.g. keeperd → KEEPERD_SOCK.
+  for (const door of room.doors) {
+    if (door.direction === "expose") {
+      const socketFile = door.socket.split("/").at(-1) ?? door.socket;
+      args.push("--env", `${door.name.toUpperCase()}_SOCK=${p.doorDir}/${socketFile}`);
+    }
   }
   // The room's -box image; full registry ref resolved at deploy (prx-zj8).
   args.push(room.image ?? `prx/${room.name}:latest`);

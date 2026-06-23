@@ -70,7 +70,7 @@ describe("renderPodmanKube", () => {
     // it reaches the keeper on the shared fabric (the whole point of the split).
     expect(manifest).toContain("PRX_KEEPER_DOOR");
     expect(manifest).toContain(`value: "keeperd"`);
-    expect(manifest).toContain(`value: "/run/prx/doors/keeperd.sock"`);
+    expect(manifest).toContain(`value: "${perRepoPod.doorDir}/keeperd.sock"`);
   });
 
   test("falls back to a placeholder for a room with no image", () => {
@@ -87,7 +87,7 @@ describe("renderPodmanKube", () => {
     // The beadsd consume↔expose pair resolves → claude-room gets the gate env.
     expect(manifest).toContain("PRX_BEADS_DOOR");
     expect(manifest).toContain(`value: "beadsd"`);
-    expect(manifest).toContain(`value: "/run/prx/doors/beadsd.sock"`);
+    expect(manifest).toContain(`value: "${perRepoPod.doorDir}/beadsd.sock"`);
   });
 
   test("does not emit env for a room with no wired door (beadsd-room)", () => {
@@ -177,9 +177,18 @@ describe("renderPodmanRun (prx-b44y — secret-holding rooms)", () => {
     expect(withRepo[w + 1]).toBe("/work");
   });
 
-  test("the keeper room exposes (does not consume) → no door env on itself", () => {
-    // keeperd-room consumes nothing, so no PRX_*_DOOR env is projected onto it.
-    expect(argv).not.toContain("--env");
+  test("the keeper room exposes (does not consume) → no consumer PRX_*_DOOR env, but does get KEEPERD_SOCK server socket env", () => {
+    // keeperd-room consumes nothing → no PRX_*_DOOR consumer env.
+    const envPairs = argv.reduce<string[]>(
+      (acc, val, i) => (argv[i - 1] === "--env" ? [...acc, val] : acc),
+      [],
+    );
+    expect(envPairs.every((e) => !e.startsWith("PRX_"))).toBe(true);
+    // keeperd exposes a door → gets KEEPERD_SOCK so the daemon writes its socket
+    // onto the shared fabric (not the in-box default /run/keeperd.sock).
+    expect(envPairs.some((e) => e.startsWith("KEEPERD_SOCK="))).toBe(true);
+    const keeperSockEnv = envPairs.find((e) => e.startsWith("KEEPERD_SOCK="));
+    expect(keeperSockEnv).toBe(`KEEPERD_SOCK=${perRepoPod.doorDir}/keeperd.sock`);
   });
 
   test("throws for a non-member room", () => {
