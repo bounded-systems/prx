@@ -113,6 +113,17 @@ export const CAS_PRODUCERS: readonly CasProducer[] = [
       "(the DEFAULT_DOMAIN producer). §3 open question: rename prefix `plans`→`plan`.",
   },
   {
+    source: "provenance.launch_store",
+    callSite: "src/provenance/launch-store.ts",
+    domain: "plans",
+    serviceDomain: "provenance",
+    catalogDomains: ["launch_attestation"],
+    note:
+      "stores the signed L2 launch attestation (capability chain) as a blob + a " +
+      "`launch-<digest>` ref, content-addressed by `l2LaunchDigest`; the submit " +
+      "gate resolves it by the L3 write's launch link. Uses DEFAULT_DOMAIN today.",
+  },
+  {
     source: "submit.artifact_writer",
     callSite: "src/submit/artifact.schema.ts",
     domain: "submit",
