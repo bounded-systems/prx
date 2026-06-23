@@ -75,4 +75,5 @@ export const builderRoom: RoomSpec = {
   grants: ["nix:build", "oci:image"],
   // No host secret — the builder is a kube-play / standalone room without one.
   secrets: [],
+  extraArgs: [],
 };

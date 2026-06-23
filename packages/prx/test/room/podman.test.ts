@@ -165,8 +165,19 @@ describe("renderPodmanRun (prx-b44y — secret-holding rooms)", () => {
     expect(argv[i + 1]).toBe(`${dir}:${dir}:z`);
   });
 
-  test("ends with the room's image", () => {
-    expect(argv[argv.length - 1]).toBe(KEEPERD_ROOM_IMAGE);
+  test("image precedes CMD args; CMD args override entrypoint socket + key (prx-9yv3)", () => {
+    const imageIdx = argv.indexOf(KEEPERD_ROOM_IMAGE);
+    expect(imageIdx).toBeGreaterThanOrEqual(0);
+    // CMD args after the image override the entrypoint's hardcoded defaults
+    // (door-kit parseArgs last-wins): --socket for the fabric path, --key for
+    // the host-backed secret mount.
+    const cmdArgs = argv.slice(imageIdx + 1);
+    const socketIdx = cmdArgs.lastIndexOf("--socket");
+    expect(socketIdx).toBeGreaterThanOrEqual(0);
+    expect(cmdArgs[socketIdx + 1]).toBe(`${perRepoPod.doorDir}/keeperd.sock`);
+    const keyIdx = cmdArgs.lastIndexOf("--key");
+    expect(keyIdx).toBeGreaterThanOrEqual(0);
+    expect(cmdArgs[keyIdx + 1]).toBe("/run/secrets/keeper-key");
   });
 
   test("adds the repo /work mount (shared :z) + workdir only when pod.repo is set", () => {

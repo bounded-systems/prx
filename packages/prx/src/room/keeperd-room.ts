@@ -48,4 +48,8 @@ export const keeperdRoom: RoomSpec = {
   grants: [],
   // The provenance signing key, host-backed (prx-b44y) → secret runtime.
   secrets: [{ name: KEEPER_KEY_SECRET, target: KEEPER_KEY_TARGET }],
+  // The keeperd image's entrypoint hardcodes --key /keys/keeper.key before
+  // "$@". Pass --key <target> as a CMD arg so last-wins parseArgs uses our
+  // secret mount path instead of the baked-in default (prx-9yv3).
+  extraArgs: ["--key", KEEPER_KEY_TARGET],
 };

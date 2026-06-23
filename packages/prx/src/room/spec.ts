@@ -130,6 +130,14 @@ export const RoomSpecSchema = z.object({
    * NOT `podman kube play` (see {@link RoomSecretSchema}).
    */
   secrets: z.array(RoomSecretSchema).default([]),
+  /**
+   * Extra CMD args appended AFTER the image ref in `podman run`, passed to the
+   * entrypoint as `"$@"`. Use to override entrypoint defaults that can't be set
+   * via env (e.g. `["--key", "/run/secrets/keeper-key"]` for the keeperd image
+   * whose entrypoint hardcodes `--key /keys/keeper.key` but supports last-wins
+   * `--key` override via CMD args). Empty by default.
+   */
+  extraArgs: z.array(z.string()).default([]),
 });
 export type RoomSpec = z.infer<typeof RoomSpecSchema>;
 
