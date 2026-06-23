@@ -148,6 +148,9 @@ export async function runKeeperDoorPush(
   // ImportAndPushResult is the keeperd wire verdict — structurally the
   // KeeperRemoteResponse the rest of the pipeline branches on.
   const result = await importAndPush({
+    // The daemon imports + pushes from the shared worktree (path-translated to the
+    // host by door-kit); same `cwd` the host bundled the range from.
+    repo: input.cwd,
     bundleBase64,
     commitSha: input.commitSha,
     branch: input.branch,
