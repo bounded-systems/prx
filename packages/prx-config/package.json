@@ -1,6 +1,6 @@
 {
   "name": "@bounded-systems/prx-config",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools",
   "bounded": {
     "tagline": "TUI configuration schema parser/emitter for L1 Claude and L2 Warp tools",
