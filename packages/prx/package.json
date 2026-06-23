@@ -29,7 +29,7 @@
     "@bounded-systems/guest-room": "npm:@jsr/bounded-systems__guest-room@^0.2.0",
     "@bounded-systems/host": "npm:@jsr/bounded-systems__host@^0.2.0",
     "@bounded-systems/machine-schema": "npm:@jsr/bounded-systems__machine-schema@^0.2.0",
-    "@bounded-systems/ocap-provenance": "npm:@jsr/bounded-systems__ocap-provenance@^0.1.0",
+    "@bounded-systems/ocap-provenance": "npm:@jsr/bounded-systems__ocap-provenance@^0.2.0",
     "@bounded-systems/policy": "npm:@jsr/bounded-systems__policy@^0.2.0",
     "@bounded-systems/proc": "npm:@jsr/bounded-systems__proc@^0.2.0",
     "@bounded-systems/repo-root": "npm:@jsr/bounded-systems__repo-root@^0.1.0",
