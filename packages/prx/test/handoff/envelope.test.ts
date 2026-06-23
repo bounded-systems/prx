@@ -3,11 +3,38 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-  handoffDenialReason,
-  handoffEnvelope,
-  handoffStatus,
-  handoffTargetActor,
+  HANDOFF_TARGET_ACTOR_VALUES,
+  parseHandoffEnvelope,
+  type HandoffDenialReason,
+  type HandoffEnvelope,
+  type HandoffStatus,
 } from "@bounded-systems/machine-schema";
+
+const HANDOFF_DENIAL_REASON_VALUES: readonly HandoffDenialReason[] = [
+  "blocked",
+  "not-allowlisted-for-role",
+  "unknown-tool",
+  "flag-layer-deny",
+];
+
+const HANDOFF_STATUS_VALUES: readonly HandoffStatus[] = [
+  "pending",
+  "claimed",
+  "draining",
+  "done",
+  "failed",
+  "abandoned",
+];
+
+function safeParseEnvelope(
+  input: unknown,
+): { success: true; data: HandoffEnvelope } | { success: false } {
+  try {
+    return { success: true, data: parseHandoffEnvelope(input) };
+  } catch {
+    return { success: false };
+  }
+}
 
 const NOW = "2026-05-19T12:00:00.000Z";
 
@@ -31,7 +58,7 @@ function baseInput(overrides: Partial<Record<string, unknown>> = {}): Record<str
 
 describe("handoffEnvelope schema", () => {
   test("round-trips a minimal envelope", () => {
-    const parsed = handoffEnvelope.parse(baseInput());
+    const parsed = parseHandoffEnvelope(baseInput());
     expect(parsed.id).toBe("H01_abc");
     expect(parsed.targetActor).toBe("publisher");
     expect(parsed.status).toBe("pending");
@@ -40,35 +67,35 @@ describe("handoffEnvelope schema", () => {
   });
 
   test("rejects an unknown target actor", () => {
-    const result = handoffEnvelope.safeParse(baseInput({ targetActor: "unknown" }));
+    const result = safeParseEnvelope(baseInput({ targetActor: "unknown" }));
     expect(result.success).toBe(false);
   });
 
   test("rejects an unknown denial reason", () => {
-    const result = handoffEnvelope.safeParse(baseInput({ denialReason: "made-up" }));
+    const result = safeParseEnvelope(baseInput({ denialReason: "made-up" }));
     expect(result.success).toBe(false);
   });
 
   test("accepts the four denial reasons + four recipient actors + noop", () => {
-    for (const r of handoffDenialReason.options) {
-      const parsed = handoffEnvelope.parse(baseInput({ denialReason: r }));
+    for (const r of HANDOFF_DENIAL_REASON_VALUES) {
+      const parsed = parseHandoffEnvelope(baseInput({ denialReason: r }));
       expect(parsed.denialReason).toBe(r);
     }
-    for (const t of handoffTargetActor.options) {
-      const parsed = handoffEnvelope.parse(baseInput({ targetActor: t }));
+    for (const t of HANDOFF_TARGET_ACTOR_VALUES) {
+      const parsed = parseHandoffEnvelope(baseInput({ targetActor: t }));
       expect(parsed.targetActor).toBe(t);
     }
   });
 
   test("status enum covers the six lifecycle states", () => {
-    for (const s of handoffStatus.options) {
-      const parsed = handoffEnvelope.parse(baseInput({ status: s }));
+    for (const s of HANDOFF_STATUS_VALUES) {
+      const parsed = parseHandoffEnvelope(baseInput({ status: s }));
       expect(parsed.status).toBe(s);
     }
   });
 
   test("policyKey is optional but typed when present", () => {
-    const parsed = handoffEnvelope.parse(
+    const parsed = parseHandoffEnvelope(
       baseInput({
         policyKey: { tool: "git", subcommand: "push", state: "validating", role: "executor" },
       }),
@@ -77,12 +104,12 @@ describe("handoffEnvelope schema", () => {
   });
 
   test("inputRefs default to empty array when omitted", () => {
-    const parsed = handoffEnvelope.parse(baseInput());
+    const parsed = parseHandoffEnvelope(baseInput());
     expect(parsed.inputRefs).toEqual([]);
   });
 
   test("attempts must be non-negative; maxAttempts must be positive", () => {
-    expect(handoffEnvelope.safeParse(baseInput({ attempts: -1 })).success).toBe(false);
-    expect(handoffEnvelope.safeParse(baseInput({ maxAttempts: 0 })).success).toBe(false);
+    expect(safeParseEnvelope(baseInput({ attempts: -1 })).success).toBe(false);
+    expect(safeParseEnvelope(baseInput({ maxAttempts: 0 })).success).toBe(false);
   });
 });

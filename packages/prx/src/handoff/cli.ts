@@ -14,7 +14,8 @@
 import { readFileSync } from "node:fs";
 
 import {
-  handoffTargetActor,
+  HANDOFF_TARGET_ACTOR_VALUES,
+  safeParseHandoffTargetActor,
   type HandoffEnvelope,
   type HandoffStatus,
   type WorkUnitId,
@@ -63,10 +64,10 @@ export async function runHandoffEnqueue(
   output: HandoffCliOutput,
   deps: HandoffCliDeps = {},
 ): Promise<number> {
-  const target = handoffTargetActor.safeParse(opts.target);
+  const target = safeParseHandoffTargetActor(opts.target);
   if (!target.success) {
     output.error(
-      `handoff enqueue: --target must be one of ${handoffTargetActor.options.join("|")}, got "${opts.target}"`,
+      `handoff enqueue: --target must be one of ${HANDOFF_TARGET_ACTOR_VALUES.join("|")}, got "${opts.target}"`,
     );
     return 2;
   }
@@ -126,10 +127,10 @@ export async function runHandoffStatus(
 ): Promise<number> {
   let target: HandoffEnvelope["targetActor"] | undefined;
   if (opts.target) {
-    const parsed = handoffTargetActor.safeParse(opts.target);
+    const parsed = safeParseHandoffTargetActor(opts.target);
     if (!parsed.success) {
       output.error(
-        `handoff status: --target must be one of ${handoffTargetActor.options.join("|")}, got "${opts.target}"`,
+        `handoff status: --target must be one of ${HANDOFF_TARGET_ACTOR_VALUES.join("|")}, got "${opts.target}"`,
       );
       return 2;
     }
@@ -174,10 +175,10 @@ export async function runHandoffDrain(
   output: HandoffCliOutput,
   deps: HandoffCliDeps = {},
 ): Promise<number> {
-  const parsed = handoffTargetActor.safeParse(opts.actor);
+  const parsed = safeParseHandoffTargetActor(opts.actor);
   if (!parsed.success) {
     output.error(
-      `handoff drain: --actor must be one of ${handoffTargetActor.options.join("|")}, got "${opts.actor}"`,
+      `handoff drain: --actor must be one of ${HANDOFF_TARGET_ACTOR_VALUES.join("|")}, got "${opts.actor}"`,
     );
     return 2;
   }

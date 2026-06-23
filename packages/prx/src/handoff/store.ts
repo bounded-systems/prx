@@ -19,7 +19,7 @@
 import { processEnv } from "@bounded-systems/env";
 import { createHash, randomBytes } from "node:crypto";
 
-import { handoffEnvelope, type HandoffEnvelope } from "@bounded-systems/machine-schema";
+import { parseHandoffEnvelope, type HandoffEnvelope } from "@bounded-systems/machine-schema";
 
 import { writeBlob } from "../plan-store/cas.ts";
 import { execBd as defaultExecBd } from "@bounded-systems/bd";
@@ -191,7 +191,7 @@ export async function enqueueHandoff(
     attempts: 0,
     maxAttempts: input.maxAttempts ?? 3,
   };
-  const envelope = handoffEnvelope.parse(envelopeInput);
+  const envelope = parseHandoffEnvelope(envelopeInput);
   const body = JSON.stringify(envelope);
 
   const key = handoffMemoryKey(envelope);
@@ -359,7 +359,7 @@ export async function claimHandoff(
     claimAt: now.toISOString(),
     claimTtlSec,
   };
-  const validated = handoffEnvelope.parse(next);
+  const validated = parseHandoffEnvelope(next);
   const writeResult = execBd(
     {
       subcommand: "remember",
@@ -384,7 +384,7 @@ export async function writeEnvelope(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   // Re-validate on every persistence boundary. The Zod parser is the trust
   // boundary per `reference_zod_boundary_layer`.
-  const validated = handoffEnvelope.parse(envelope);
+  const validated = parseHandoffEnvelope(envelope);
   const key = handoffMemoryKey(validated);
   const body = JSON.stringify(validated);
   const result = exec(
@@ -458,7 +458,7 @@ function parseMemoriesJson(stdout: string): BdMemoryRow[] {
 function tryParseEnvelope(body: string): HandoffEnvelope | null {
   try {
     const parsed = JSON.parse(body);
-    return handoffEnvelope.parse(parsed);
+    return parseHandoffEnvelope(parsed);
   } catch {
     return null;
   }

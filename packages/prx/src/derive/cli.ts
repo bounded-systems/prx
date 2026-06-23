@@ -39,7 +39,7 @@ import {
   type DerivedView,
 } from "./index.ts";
 import { factColumns, type FactRelation } from "./schemas/relations.ts";
-import { rawStateV1Schema } from "@bounded-systems/machine-schema";
+import { parseRawStateV1 } from "@bounded-systems/machine-schema";
 import { evaluate, factKey, type Constant, type Fact } from "./engine.ts";
 import {
   projectFacts,
@@ -57,7 +57,7 @@ export type DeriveVerb = "ready" | "drift" | "eligible" | "why" | "dump-facts";
 
 const fixtureSchema = z
   .object({
-    rawStates: z.array(rawStateV1Schema).default([]),
+    rawStates: z.array(z.unknown().transform(parseRawStateV1)).default([]),
     beads: z
       .array(
         z

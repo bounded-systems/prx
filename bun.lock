@@ -6,7 +6,7 @@
       "name": "ai-home",
       "dependencies": {
         "@anthropic-ai/claude-agent-sdk": "^0.3.177",
-        "@bounded-systems/machine-schema": "npm:@jsr/bounded-systems__machine-schema@^0.2.0",
+        "@bounded-systems/machine-schema": "npm:@jsr/bounded-systems__machine-schema@^0.3.0",
         "@bounded-systems/prx-config": "workspace:*",
         "@statelyai/inspect": "^0.7.1",
         "xstate": "^5.32.1",
@@ -47,7 +47,7 @@
         "@bounded-systems/github-budget": "npm:@jsr/bounded-systems__github-budget@^0.1.0",
         "@bounded-systems/guest-room": "npm:@jsr/bounded-systems__guest-room@^0.2.0",
         "@bounded-systems/host": "npm:@jsr/bounded-systems__host@^0.2.0",
-        "@bounded-systems/machine-schema": "npm:@jsr/bounded-systems__machine-schema@^0.2.0",
+        "@bounded-systems/machine-schema": "npm:@jsr/bounded-systems__machine-schema@^0.3.0",
         "@bounded-systems/ocap-provenance": "npm:@jsr/bounded-systems__ocap-provenance@^0.2.0",
         "@bounded-systems/policy": "npm:@jsr/bounded-systems__policy@^0.2.0",
         "@bounded-systems/proc": "npm:@jsr/bounded-systems__proc@^0.2.0",
@@ -137,7 +137,7 @@
 
     "@bounded-systems/host": ["@jsr/bounded-systems__host@0.2.0", "https://npm.jsr.io/~/11/@jsr/bounded-systems__host/0.2.0.tgz", { "dependencies": { "@jsr/bounded-systems__env": "^0.2.0" } }, "sha512-N5uc3Du3jzmlgX3tP0gnIZwOYXGOYYiU+wTBpiG6iYpfPG9WVoFWWoZkcb79QH93AaERnJUhrw2yKSq13VJEAg=="],
 
-    "@bounded-systems/machine-schema": ["@jsr/bounded-systems__machine-schema@0.2.0", "https://npm.jsr.io/~/11/@jsr/bounded-systems__machine-schema/0.2.0.tgz", { "dependencies": { "zod": "^4.4.3" } }, "sha512-Ttvrh+Gj+IWkdq0fO6Db1OVuvMB5nRUOgKuvEUX7GfJK8AAU/dvsu9bq8sZCk67XGZl1diQ6BrflIgA5NxzqJg=="],
+    "@bounded-systems/machine-schema": ["@jsr/bounded-systems__machine-schema@0.3.0", "https://npm.jsr.io/~/11/@jsr/bounded-systems__machine-schema/0.3.0.tgz", { "dependencies": { "zod": "^4.4.3" } }, "sha512-gizXsBMAm/2Q6ZNl6lYrtaVXXjGhp98izwCRzX4izlaRdCVz6PiYXT0Ee/F0GNwNAPZc0j1Y/pEUWjbRqN6Vzg=="],
 
     "@bounded-systems/ocap-provenance": ["@jsr/bounded-systems__ocap-provenance@0.2.0", "https://npm.jsr.io/~/11/@jsr/bounded-systems__ocap-provenance/0.2.0.tgz", {}, "sha512-UgDBPeh8ky4WFpFEJb8RTGH3Bq5yyrIygmzQ/GwSEjTa8QOIs0IUfUOKpHotdxj0wmJfqFeogu7/GoOmE/zm+w=="],
 
