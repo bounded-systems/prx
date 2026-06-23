@@ -17,7 +17,10 @@
 
 import { execGit } from "@bounded-systems/git";
 
-import { importAndPush as doorKeeperImportAndPush } from "@bounded-systems/door-kit/keeper";
+import {
+  attestLaunch as doorKeeperAttestLaunch,
+  importAndPush as doorKeeperImportAndPush,
+} from "@bounded-systems/door-kit/keeper";
 
 import { runKeeperCommitTree, runKeeperWriteTree } from "../pr-state/keeper.ts";
 import { createCommitRangeBundle } from "./bundle.ts";
@@ -121,6 +124,9 @@ export interface KeeperDoorPushInput {
   pushArgs?: string[] | undefined;
   /** Opt-in: the daemon emits a signed `push/v1` into this ledger ref. */
   ledgerRef?: string | undefined;
+  /** Opt-in: the box's L2 launch-attestation content-address, so the L3 write
+   *  links back to its launch (capability chain). The pod projects it at launch. */
+  l2LaunchDigest?: string | undefined;
 }
 
 /** Injectable seams for {@link runKeeperDoorPush} (default to the real impls). */
@@ -151,6 +157,37 @@ export async function runKeeperDoorPush(
     notesRef: "provenance",
     ...(input.pushArgs !== undefined ? { pushArgs: input.pushArgs } : {}),
     ...(input.ledgerRef !== undefined ? { ledgerRef: input.ledgerRef } : {}),
+    // Link the L3 write back to the box's L2 launch (capability chain).
+    ...(input.l2LaunchDigest !== undefined ? { l2LaunchDigest: input.l2LaunchDigest } : {}),
   });
   return result as KeeperRemoteResponse;
+}
+
+/** Injectable seam for {@link runKeeperDoorAttestLaunch}. */
+export interface KeeperDoorAttestLaunchDeps {
+  attestLaunch?: typeof doorKeeperAttestLaunch | undefined;
+}
+
+/**
+ * Produce a signed L2 launch attestation for a room via the keeper door — the
+ * launcher acts THROUGH the door, so the launch key never leaves the daemon. The
+ * `manifest` is the room's resolved door set (authority = held references); the
+ * daemon digests it. Returns the signed L2 + its content-address
+ * (`l2LaunchDigest`), which the box's later keeper push links into its L3.
+ */
+export async function runKeeperDoorAttestLaunch(
+  input: { subject: string; manifest: unknown },
+  deps: KeeperDoorAttestLaunchDeps = {},
+): Promise<{ subject: string; manifestDigest: string; l2LaunchDigest: string; attestation: unknown }> {
+  const attestLaunch = deps.attestLaunch ?? doorKeeperAttestLaunch;
+  const result = await attestLaunch({ subject: input.subject, manifest: input.manifest });
+  if (result.status !== "ok") {
+    throw new Error(`prx keeper attest-launch failed (${result.code}) ${result.message}`.trim());
+  }
+  return {
+    subject: result.subject,
+    manifestDigest: result.manifestDigest,
+    l2LaunchDigest: result.l2LaunchDigest,
+    attestation: result.attestation,
+  };
 }

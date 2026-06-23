@@ -16,7 +16,8 @@ import { getRef, PlanStoreError, setRef, type CasSha } from "../plan-store/cas.t
 import { type AttestDeps } from "../provenance/attest.ts";
 import { verifySlsaDerivation } from "../provenance/verify.ts";
 import { isL3Attestation, verifyL3Attestation, type L3Attestation } from "../provenance/verify-l3.ts";
-import { resolveKeeperTrustKey } from "../provenance/keeper-trust.ts";
+import { verifyLaunchChain, type LaunchAttestation } from "../provenance/verify-chain.ts";
+import { resolveKeeperTrustKey, resolveLauncherTrustKey } from "../provenance/keeper-trust.ts";
 // GH-2348.2: submit-publish is now an orchestrator — it delegates the push to
 // keeper (attesting) and the PR-open to publisher, keeping only artifact
 // resolution, the relocated requireSigned verify gate, and the slot advance.
@@ -121,6 +122,20 @@ export interface PublishDeps {
    * {@link requireSigned} in door mode. Tests inject a fixed key.
    */
   resolveKeeperKey?: typeof resolveKeeperTrustKey;
+  /**
+   * Resolve the OPERATOR-supplied launcher trust key (PEM) — `PRX_LAUNCH_PUBKEY`,
+   * via {@link resolveLauncherTrustKey}. When non-null, **capability-chain
+   * enforcement is on**: the door L3 must link to a verifiable L2 launch. Null ⇒
+   * chain enforcement is skipped (opt-in). Tests inject a fixed key.
+   */
+  resolveLauncherKey?: typeof resolveLauncherTrustKey;
+  /**
+   * Fetch the L2 launch attestation the given L3 links to (by its content-address)
+   * — e.g. from the anchored-chain ledger. Returns null if absent (→ fail closed
+   * under chain enforcement). Tests inject the L2; the live CAS resolver + the
+   * launch-flow that stores the L2 are the producer capstone.
+   */
+  resolveLaunchAttestation?: (l3: L3Attestation) => Promise<LaunchAttestation | null>;
   // GH-2348.2: delegation seams. submit-publish orchestrates the side effects
   // through the effect roles rather than running git/gh itself.
   /** Keeper's attesting push (defaults to the real `runKeeperPush`). */
@@ -358,6 +373,31 @@ export async function runSubmitPublish(
         throw new PublishError(
           "prx submit publish: signed-attestation enforcement failed — the door-keeper L3 does not verify against the configured keeper key, or attests the wrong commit",
         );
+      }
+      // Capability-chain enforcement (opt-in): when a LAUNCHER trust key is
+      // configured, the L3 write must link back to a verifiable L2 launch — so
+      // the write provably came from an attested launch, not the host's claim.
+      const launcherKey = (deps.resolveLauncherKey ?? resolveLauncherTrustKey)();
+      if (launcherKey !== null) {
+        const l2 = await (deps.resolveLaunchAttestation ?? (async () => null))(signed);
+        if (l2 === null) {
+          throw new PublishError(
+            "prx submit publish: launch-chain enforcement failed — no L2 launch attestation found for the write's launch link",
+          );
+        }
+        if (
+          !verifyLaunchChain({
+            l3: signed,
+            l2,
+            keeperKeyPem: keeperKey,
+            launcherKeyPem: launcherKey,
+            expectedCommit: materializedCommit,
+          })
+        ) {
+          throw new PublishError(
+            "prx submit publish: launch-chain enforcement failed — the L3 write does not chain to a verifiable L2 launch under the configured launcher key",
+          );
+        }
       }
     } else {
       // Local path: an anchored-chain DSSE `push/v1` derivation.
