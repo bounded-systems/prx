@@ -97,7 +97,9 @@ function run(): void {
       );
       stored = res.status === 0;
       if (!stored) {
-        console.error(`\n⚠️  1Password store failed (op exit ${res.status}); the key is at ${keyFile}`);
+        console.error(
+          `\n⚠️  1Password store failed (op exit ${res.status}); the key is at ${keyFile}`,
+        );
         console.error("    Store it manually, then shred that file.");
       }
     } finally {
@@ -115,8 +117,11 @@ function run(): void {
     `  op document get "${opts.title}" --vault "${opts.vault}" | podman secret create prx-launch-key -`,
   );
   console.log(`  # publish under the owner's identity (operators pin from here)`);
-  console.log(`  cp "${opts.pubOut}" <site>/.well-known/launch.pub   # + a Keyoxide/OIDC owner proof`);
-  if (opts.store && stored) console.log(`\n✅ private key stored in 1Password: ${opts.vault}/${opts.title}`);
+  console.log(
+    `  cp "${opts.pubOut}" <site>/.well-known/launch.pub   # + a Keyoxide/OIDC owner proof`,
+  );
+  if (opts.store && stored)
+    console.log(`\n✅ private key stored in 1Password: ${opts.vault}/${opts.title}`);
 }
 
 if (import.meta.main) run();
