@@ -52,4 +52,10 @@ export const keeperdRoom: RoomSpec = {
   // "$@". Pass --key <target> as a CMD arg so last-wins parseArgs uses our
   // secret mount path instead of the baked-in default (prx-9yv3).
   extraArgs: ["--key", KEEPER_KEY_TARGET],
+  // macOS virtiofs limitation: the socket file appears on the host filesystem
+  // but Unix connections from the Mac host fail (virtiofs forwards file
+  // semantics, not socket semantics). TCP tunnels around this — podman
+  // publishes the port and the daemon listens on --port 9999 in addition to
+  // (or instead of) the Unix socket; door-kit's client uses KEEPERD_HOST.
+  tcpPort: 9999,
 };

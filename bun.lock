@@ -665,6 +665,8 @@
 
     "zod-to-json-schema": ["zod-to-json-schema@3.25.2", "", { "peerDependencies": { "zod": "^3.25.28 || ^4" } }, "sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA=="],
 
+    "@bounded-systems/prx/@bounded-systems/machine-schema": ["@jsr/bounded-systems__machine-schema@0.3.0", "https://npm.jsr.io/~/11/@jsr/bounded-systems__machine-schema/0.3.0.tgz", { "dependencies": { "zod": "^4.4.3" } }, "sha512-gizXsBMAm/2Q6ZNl6lYrtaVXXjGhp98izwCRzX4izlaRdCVz6PiYXT0Ee/F0GNwNAPZc0j1Y/pEUWjbRqN6Vzg=="],
+
     "@modelcontextprotocol/sdk/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
     "micromatch/picomatch": ["picomatch@2.3.2", "", {}, "sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA=="],

@@ -3,38 +3,14 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-  HANDOFF_TARGET_ACTOR_VALUES,
   parseHandoffEnvelope,
-  type HandoffDenialReason,
-  type HandoffEnvelope,
-  type HandoffStatus,
+  HANDOFF_TARGET_ACTOR_VALUES,
 } from "@bounded-systems/machine-schema";
-
-const HANDOFF_DENIAL_REASON_VALUES: readonly HandoffDenialReason[] = [
-  "blocked",
-  "not-allowlisted-for-role",
-  "unknown-tool",
-  "flag-layer-deny",
-];
-
-const HANDOFF_STATUS_VALUES: readonly HandoffStatus[] = [
-  "pending",
-  "claimed",
-  "draining",
-  "done",
-  "failed",
-  "abandoned",
-];
-
-function safeParseEnvelope(
-  input: unknown,
-): { success: true; data: HandoffEnvelope } | { success: false } {
-  try {
-    return { success: true, data: parseHandoffEnvelope(input) };
-  } catch {
-    return { success: false };
-  }
-}
+import type {
+  HandoffDenialReason,
+  HandoffStatus,
+  HandoffTargetActor,
+} from "@bounded-systems/machine-schema";
 
 const NOW = "2026-05-19T12:00:00.000Z";
 
@@ -56,7 +32,33 @@ function baseInput(overrides: Partial<Record<string, unknown>> = {}): Record<str
   };
 }
 
-describe("handoffEnvelope schema", () => {
+function safeParse(raw: unknown): { success: true } | { success: false } {
+  try {
+    parseHandoffEnvelope(raw);
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
+}
+
+// v0.3.0 replaced Zod schemas with parse functions + typed unions.
+// Use inline value arrays instead of schema.options.
+const DENIAL_REASON_VALUES: readonly HandoffDenialReason[] = [
+  "blocked",
+  "not-allowlisted-for-role",
+  "unknown-tool",
+  "flag-layer-deny",
+];
+const STATUS_VALUES: readonly HandoffStatus[] = [
+  "pending",
+  "claimed",
+  "draining",
+  "done",
+  "failed",
+  "abandoned",
+];
+
+describe("HandoffEnvelope schema", () => {
   test("round-trips a minimal envelope", () => {
     const parsed = parseHandoffEnvelope(baseInput());
     expect(parsed.id).toBe("H01_abc");
@@ -67,28 +69,28 @@ describe("handoffEnvelope schema", () => {
   });
 
   test("rejects an unknown target actor", () => {
-    const result = safeParseEnvelope(baseInput({ targetActor: "unknown" }));
+    const result = safeParse(baseInput({ targetActor: "unknown" }));
     expect(result.success).toBe(false);
   });
 
   test("rejects an unknown denial reason", () => {
-    const result = safeParseEnvelope(baseInput({ denialReason: "made-up" }));
+    const result = safeParse(baseInput({ denialReason: "made-up" }));
     expect(result.success).toBe(false);
   });
 
-  test("accepts the four denial reasons + four recipient actors + noop", () => {
-    for (const r of HANDOFF_DENIAL_REASON_VALUES) {
+  test("accepts the four denial reasons + six recipient actors", () => {
+    for (const r of DENIAL_REASON_VALUES) {
       const parsed = parseHandoffEnvelope(baseInput({ denialReason: r }));
       expect(parsed.denialReason).toBe(r);
     }
     for (const t of HANDOFF_TARGET_ACTOR_VALUES) {
       const parsed = parseHandoffEnvelope(baseInput({ targetActor: t }));
-      expect(parsed.targetActor).toBe(t);
+      expect(parsed.targetActor).toBe(t as HandoffTargetActor);
     }
   });
 
   test("status enum covers the six lifecycle states", () => {
-    for (const s of HANDOFF_STATUS_VALUES) {
+    for (const s of STATUS_VALUES) {
       const parsed = parseHandoffEnvelope(baseInput({ status: s }));
       expect(parsed.status).toBe(s);
     }
@@ -109,7 +111,7 @@ describe("handoffEnvelope schema", () => {
   });
 
   test("attempts must be non-negative; maxAttempts must be positive", () => {
-    expect(safeParseEnvelope(baseInput({ attempts: -1 })).success).toBe(false);
-    expect(safeParseEnvelope(baseInput({ maxAttempts: 0 })).success).toBe(false);
+    expect(safeParse(baseInput({ attempts: -1 })).success).toBe(false);
+    expect(safeParse(baseInput({ maxAttempts: 0 })).success).toBe(false);
   });
 });

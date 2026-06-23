@@ -9,7 +9,7 @@ import {
   refreshSprintDerived,
   sprintStateV1Schema,
 } from "../../src/pr-state/sprint.ts";
-import type { WorkUnitId } from "@bounded-systems/machine-schema";
+import { canonicalWorkUnitIdSchema } from "../../src/machine/work_unit.ts";
 
 describe("SprintX machine", () => {
   test("parses a valid minimal sprint", () => {
@@ -140,7 +140,7 @@ describe("SprintX machine", () => {
       bindings: {
         ...initial.bindings,
         prNumbers: [1, 2],
-        ticketIds: ["GH-1" as WorkUnitId],
+        ticketIds: [canonicalWorkUnitIdSchema.parse("GH-1")],
         unitIds: [],
       },
     };

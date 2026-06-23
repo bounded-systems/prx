@@ -179,6 +179,28 @@ function keeperSocketPath(pod: PodSpec): string | null {
 }
 
 /**
+ * Derive the keeper TCP port from the keeperd-room, if set. Returns null if
+ * the pod has no keeperd-room or the room declares no `tcpPort`. When non-null,
+ * `launchPod` uses `KEEPERD_HOST` (TCP) instead of `KEEPERD_SOCK` (Unix) —
+ * the macOS virtiofs workaround: the socket file appears on the host
+ * filesystem but connections from the Mac host fail (virtiofs forwards file
+ * semantics, not socket semantics).
+ */
+function keeperTcpPort(pod: PodSpec): number | null {
+  const p = PodSpecSchema.parse(pod);
+  for (const room of p.rooms) {
+    if (room.tcpPort !== undefined) {
+      for (const door of room.doors) {
+        if (door.direction === "expose" && door.name === "keeperd") {
+          return room.tcpPort;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Launch a pod AND attest its launch (capability chain). {@link playPod} brings
  * the pod up — the keeper door (a secret room) comes up last — then we wait for
  * the keeper socket to appear on the shared door fabric before attesting, so the
@@ -200,15 +222,30 @@ export async function launchPod(
   let l2LaunchDigest: string | null = null;
   try {
     const socketPath = keeperSocketPath(pod);
+    const tcpPort = keeperTcpPort(pod);
     if (socketPath) await poll(socketPath);
-    // Set KEEPERD_SOCK so door-kit's client connects to the fabric socket.
-    const prev = getEnv("KEEPERD_SOCK");
-    if (socketPath) setEnv("KEEPERD_SOCK", socketPath);
+    // Prefer KEEPERD_HOST (TCP) when the keeperd-room declares a tcpPort — on
+    // macOS the socket file appears on the host filesystem via virtiofs but
+    // connections from the Mac host fail (virtiofs forwards file semantics, not
+    // socket semantics); TCP tunnels around this. On Linux tcpPort is unset and
+    // we fall back to KEEPERD_SOCK (Unix). Restore whichever var we touch.
+    let prevSock: string | undefined;
+    let prevHost: string | undefined;
+    if (tcpPort !== null) {
+      prevHost = getEnv("KEEPERD_HOST");
+      setEnv("KEEPERD_HOST", `127.0.0.1:${tcpPort}`);
+    } else if (socketPath) {
+      prevSock = getEnv("KEEPERD_SOCK");
+      setEnv("KEEPERD_SOCK", socketPath);
+    }
     try {
       l2LaunchDigest = await attest(pod);
     } finally {
-      if (socketPath) {
-        if (prev !== undefined) setEnv("KEEPERD_SOCK", prev);
+      if (tcpPort !== null) {
+        if (prevHost !== undefined) setEnv("KEEPERD_HOST", prevHost);
+        else deleteEnv("KEEPERD_HOST");
+      } else if (socketPath) {
+        if (prevSock !== undefined) setEnv("KEEPERD_SOCK", prevSock);
         else deleteEnv("KEEPERD_SOCK");
       }
     }
