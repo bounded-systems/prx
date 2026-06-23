@@ -221,12 +221,17 @@ describe("anchoredChainBridge", () => {
     const map = defaultMachineSchemaMap();
 
     const requiredKeysOf = (schema: z.ZodTypeAny): string[] => {
-      // Unwrap ZodEffects (e.g. .refine()-wrapped ZodObject).
       let inner: z.ZodTypeAny = schema;
       const def = (s: z.ZodTypeAny): Record<string, unknown> =>
         s._def as unknown as Record<string, unknown>;
+      // Unwrap ZodEffects (.refine()-wrapped, Zod 3) then ZodPipe
+      // (.transform()/.pipe(), Zod 4) — for pipes the input schema holds the
+      // declared shape; the output/transform side is opaque.
       while (def(inner).schema !== undefined) {
         inner = def(inner).schema as z.ZodTypeAny;
+      }
+      while (inner instanceof z.ZodPipe) {
+        inner = def(inner).in as z.ZodTypeAny;
       }
       if (!(inner instanceof z.ZodObject)) {
         throw new Error(

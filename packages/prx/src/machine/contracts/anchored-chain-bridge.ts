@@ -109,7 +109,15 @@ export function anchoredChainBridge(args: AnchoredChainBridgeArgs): ContractRegi
  */
 export function defaultMachineSchemaMap(): Readonly<Record<string, z.ZodTypeAny>> {
   return {
-    raw_state_v1: z.unknown().transform(parseRawStateV1),
+    raw_state_v1: z
+      .looseObject({
+        unitId: z.string(),
+        artifacts: z.looseObject({}),
+        signals: z.looseObject({}),
+        sync: z.looseObject({}),
+        meta: z.looseObject({}),
+      })
+      .transform(parseRawStateV1),
     dispatch_request: dispatchRequestSchema,
     dispatch_result: dispatchResultSchema,
     blocker_report: blockerReportSchema,
