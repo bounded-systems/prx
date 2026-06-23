@@ -33,7 +33,7 @@ export type TuiSubset = {
   voice?: Voice;
 };
 
-const voiceSchema: z.ZodType<Voice> = z
+const voiceSchema = z
   .object({
     enabled: z.boolean().optional(),
     mode: z.enum(["hold", "tap"]).optional(),
@@ -41,8 +41,8 @@ const voiceSchema: z.ZodType<Voice> = z
   })
   .strict();
 
-/** Zod schema for {@link TuiSubset}. */
-export const TuiSubsetSchema: z.ZodType<TuiSubset> = z
+/** Zod schema for validating a {@link TuiSubset} config object. */
+export const TuiSubsetSchema = z
   .object({
     tui: z.enum(["fullscreen", "default"]).optional(),
     editorMode: z.enum(["normal", "vim"]).optional(),

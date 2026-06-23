@@ -19,8 +19,8 @@ export type TuiL2WarpSubset = {
   rendering?: "standard" | "experimental";
 };
 
-/** Zod schema for {@link TuiL2WarpSubset}. */
-export const TuiL2WarpSchema: z.ZodType<TuiL2WarpSubset> = z
+/** Zod schema for validating a {@link TuiL2WarpSubset} config object. */
+export const TuiL2WarpSchema = z
   .object({
     blocksUiMode: z.enum(["minimized", "default"]).optional(),
     inputAutoFormatEnabled: z.boolean().optional(),
