@@ -31,7 +31,7 @@ const KEEPER_KEY_TARGET = "/run/secrets/keeper-key";
  * releases; trusting the digest is the operator's pin, NOT the daemon's claim.
  */
 export const KEEPERD_ROOM_IMAGE =
-  "ghcr.io/bounded-systems/door-keeper/keeperd@sha256:2a2a64b6616e14b569c16648ace042d043bac56706c67529fcfabed507165f8e";
+  "ghcr.io/bounded-systems/door-keeper/keeperd@sha256:edbfcf6ed17dc9e21a82a1e6f0b69d4b0db56c2f98b88e79e6da0cecd91c834d";
 
 export const keeperdRoom: RoomSpec = {
   name: "keeperd-room",
