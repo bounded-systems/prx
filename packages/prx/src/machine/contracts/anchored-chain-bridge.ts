@@ -109,7 +109,26 @@ export function anchoredChainBridge(args: AnchoredChainBridgeArgs): ContractRegi
  */
 export function defaultMachineSchemaMap(): Readonly<Record<string, z.ZodTypeAny>> {
   return {
-    raw_state_v1: z.unknown().transform(parseRawStateV1),
+    raw_state_v1: z
+      .object({
+        unitId: z.string(),
+        artifacts: z.record(z.string(), z.unknown()),
+        signals: z.record(z.string(), z.unknown()),
+        sync: z.record(z.string(), z.unknown()),
+        meta: z.record(z.string(), z.unknown()),
+      })
+      .passthrough()
+      .refine(
+        (val) => {
+          try {
+            parseRawStateV1(val);
+            return true;
+          } catch {
+            return false;
+          }
+        },
+        { message: "raw_state_v1 schema validation failed" },
+      ),
     dispatch_request: dispatchRequestSchema,
     dispatch_result: dispatchResultSchema,
     blocker_report: blockerReportSchema,
