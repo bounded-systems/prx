@@ -15027,6 +15027,10 @@ export function runCli(
     if (orchestratorVerb === "plan-preflight") {
       return runSpecVerb("plan-preflight", orchestratorRest, output);
     }
+    // `pod up` — launch a pod and attest its launch (capability chain).
+    if (orchestratorVerb === "pod" && orchestratorRest[0] === "up") {
+      return runSpecVerb("pod up", orchestratorRest.slice(1), output);
+    }
     // The `contract <sub>` namespace reroutes several subcommands to verbs that
     // are now spec-driven. The early dispatch keys off the raw `argv[0]`
     // (`contract`), not the normalized rewrite, so those aliases would miss the
