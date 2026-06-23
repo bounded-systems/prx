@@ -28,13 +28,11 @@ export const canonicalWorkUnitIdSchema = z
     canonicalWorkUnitIdPattern,
     "must match CANONICAL-ID format (for example GH-456 or NOTION-<32hex>)",
   )
-  // GH-2098: brands the output with the literal tag "WorkUnitId" for
-  // nominal typing within prx. The permissive carrier in
-  // `@bounded-systems/machine-schema` uses a unique-symbol brand — the
-  // two are structurally distinct, but all value-producing paths use
-  // explicit `as WorkUnitId` casts so the cross-package boundary is
-  // always explicit. This module owns the canonical *shape* validation.
-  .brand<"WorkUnitId">();
+  // GH-2098: casts the validated output to the same unique-symbol WorkUnitId
+  // used by `@bounded-systems/machine-schema`, so the two schemas share
+  // a single structural brand. This module owns canonical *shape* validation;
+  // machine-schema owns the nominal *type* brand.
+  .transform((v) => v as WorkUnitId);
 
 export function normalizeCanonicalWorkUnitId(value: string): string {
   return value.trim().toUpperCase();

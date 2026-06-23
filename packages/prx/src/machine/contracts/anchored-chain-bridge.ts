@@ -14,7 +14,7 @@
 // that the agent owns but have no schema entry are reported as deferred
 // failures so the verdict surface distinguishes "unknown" from "wrong".
 
-import type { z } from "zod";
+import { z } from "zod";
 
 import { sha256Hex } from "@bounded-systems/anchored-chain";
 import type {
