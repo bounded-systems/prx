@@ -34,11 +34,13 @@ describe("renderPodmanKube", () => {
     // hostPath (not a pod-private emptyDir) so a standalone secret-room container
     // mounts the SAME door dir; DirectoryOrCreate so podman provisions it.
     expect(manifest).toContain("hostPath:");
-    expect(manifest).toContain(`path: "/run/prx/doors"`);
+    const dir = perRepoPod.doorDir;
+    expect(manifest).toContain(`path: "${dir}"`);
     expect(manifest).toContain("type: DirectoryOrCreate");
     expect(manifest).not.toContain("emptyDir:");
     // Every NON-SECRET room mounts it at the pod's doorDir.
-    const mounts = manifest.match(/mountPath: "\/run\/prx\/doors"/g) ?? [];
+    const escapedDir = dir.replace(/\//g, "\\/");
+    const mounts = manifest.match(new RegExp(`mountPath: "${escapedDir}"`, "g")) ?? [];
     expect(mounts.length).toBe(kubeRooms.length);
   });
 
@@ -159,7 +161,8 @@ describe("renderPodmanRun (prx-b44y — secret-holding rooms)", () => {
     expect(i).toBeGreaterThanOrEqual(0);
     // `:z` (shared) so an SELinux-enforcing host lets the keeper write its socket
     // on the dir shared with the kube pod (prx-3urm); shared, not private `:Z`.
-    expect(argv[i + 1]).toBe("/run/prx/doors:/run/prx/doors:z");
+    const dir = perRepoPod.doorDir;
+    expect(argv[i + 1]).toBe(`${dir}:${dir}:z`);
   });
 
   test("ends with the room's image", () => {
@@ -215,7 +218,8 @@ describe("renderPodmanQuadlet (prx-b44y — production systemd form)", () => {
   test("mounts the shared door fabric with a shared :z relabel (prx-3urm)", () => {
     // `:z` so an SELinux-enforcing host (the common production case) lets the
     // keeper write its socket on the shared door dir; shared, not private `:Z`.
-    expect(lines).toContain("Volume=/run/prx/doors:/run/prx/doors:z");
+    const dir = perRepoPod.doorDir;
+    expect(lines).toContain(`Volume=${dir}:${dir}:z`);
   });
 
   test("borrows claude-box's hardening floor; keeps egress for the push", () => {

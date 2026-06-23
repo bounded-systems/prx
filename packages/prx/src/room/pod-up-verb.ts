@@ -30,7 +30,8 @@ export const podUpVerb = defineVerb({
   }),
   output: PodUpResult,
   run: async ({ pod }) => {
-    const spec = pod === "per-repo" ? perRepoPod : perRepoPod;
+    const base = pod === "per-repo" ? perRepoPod : perRepoPod;
+    const spec = { ...base, repo: process.cwd() };
     const { results, l2LaunchDigest } = await launchPod(spec);
     return {
       pod: spec.name,
