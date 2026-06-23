@@ -167,6 +167,14 @@ describe("driftReport", () => {
   test("clean input has empty issues", () => {
     expect(driftReport({ tui: "default" })).toEqual({ ok: true, issues: [] });
   });
+
+  test("type mismatch (number for string) produces type_mismatch issue", () => {
+    const report = driftReport({ language: 42 });
+    expect(report.ok).toBe(false);
+    const issue = report.issues.find((i) => i.path === "language");
+    expect(issue?.kind).toBe("type_mismatch");
+    expect(issue?.rawValue).toBe(42);
+  });
 });
 
 describe("emit", () => {
