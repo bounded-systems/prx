@@ -146,6 +146,9 @@ export async function runKeeperDoorPush(
     commitSha: input.commitSha,
     branch: input.branch,
     remote: input.remote,
+    // Project the signed L3 onto the commit as a git note (refs/notes/provenance)
+    // so provenance travels with the repo (git notes / blame → commit → note).
+    notesRef: "provenance",
     ...(input.pushArgs !== undefined ? { pushArgs: input.pushArgs } : {}),
     ...(input.ledgerRef !== undefined ? { ledgerRef: input.ledgerRef } : {}),
   });

@@ -141,6 +141,7 @@ describe("runKeeperDoorPush (door push of an already-materialized commit)", () =
       commitSha: COMMIT,
       branch: "GH-456",
       remote: "origin",
+      notesRef: "provenance",
     });
     expect(res).toEqual({ status: "ok", commitSha: COMMIT, pushedRef: "refs/heads/GH-456" });
   });
