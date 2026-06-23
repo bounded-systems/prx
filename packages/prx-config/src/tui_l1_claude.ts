@@ -9,7 +9,31 @@ import {
   type DriftReport,
 } from "./drift.ts";
 
-const voiceSchema = z
+/** Claude TUI voice settings. */
+export type Voice = {
+  enabled?: boolean;
+  mode?: "hold" | "tap";
+  autoSubmit?: boolean;
+};
+
+/** The subset of the Claude TUI configuration this package owns. */
+export type TuiSubset = {
+  tui?: "fullscreen" | "default";
+  editorMode?: "normal" | "vim";
+  language?: string;
+  outputStyle?: string;
+  viewMode?: "default" | "verbose" | "focus";
+  autoScrollEnabled?: boolean;
+  prefersReducedMotion?: boolean;
+  showThinkingSummaries?: boolean;
+  showTurnDuration?: boolean;
+  terminalProgressBarEnabled?: boolean;
+  spinnerTipsEnabled?: boolean;
+  awaySummaryEnabled?: boolean;
+  voice?: Voice;
+};
+
+const voiceSchema: z.ZodType<Voice> = z
   .object({
     enabled: z.boolean().optional(),
     mode: z.enum(["hold", "tap"]).optional(),
@@ -17,7 +41,8 @@ const voiceSchema = z
   })
   .strict();
 
-export const TuiSubsetSchema = z
+/** Zod schema for {@link TuiSubset}. */
+export const TuiSubsetSchema: z.ZodType<TuiSubset> = z
   .object({
     tui: z.enum(["fullscreen", "default"]).optional(),
     editorMode: z.enum(["normal", "vim"]).optional(),
@@ -35,8 +60,7 @@ export const TuiSubsetSchema = z
   })
   .strict();
 
-export type TuiSubset = z.infer<typeof TuiSubsetSchema>;
-
+/** All keys managed by this module (the L1 Claude TUI slice). */
 export const TUI_KEYS = [
   "tui",
   "editorMode",
@@ -53,17 +77,20 @@ export const TUI_KEYS = [
   "voice",
 ] as const satisfies readonly (keyof TuiSubset)[];
 
+/** Parsed L1 Claude TUI configuration: owned keys + passthrough unknowns. */
 export type TuiL1Claude = {
   tui: TuiSubset;
   passthrough: Record<string, unknown>;
 };
 
+/** Result of parsing a TUI config — either the typed value or a drift report. */
 export type ParseResult =
   | { ok: true; value: TuiL1Claude; drift: DriftReport }
   | { ok: false; drift: DriftReport };
 
 const TUI_KEY_SET: ReadonlySet<string> = new Set<string>(TUI_KEYS);
 
+/** Parse an unknown config object into a typed {@link TuiL1Claude} + drift report. */
 export function parse(input: unknown): ParseResult {
   if (!isPlainObject(input)) {
     return { ok: false, drift: nonObjectRootDrift(input) };
@@ -82,6 +109,7 @@ export function parse(input: unknown): ParseResult {
   return { ok: true, value: { tui, passthrough }, drift };
 }
 
+/** Return only the drift report for a raw config object, without full parsing. */
 export function driftReport(input: unknown): DriftReport {
   if (!isPlainObject(input)) {
     return nonObjectRootDrift(input);
@@ -90,6 +118,7 @@ export function driftReport(input: unknown): DriftReport {
   return collectDrift(TuiSubsetSchema, tuiSlice);
 }
 
+/** Serialize a {@link TuiL1Claude} profile back to a JSON string. */
 export function emit(profile: TuiL1Claude): string {
   const merged: Record<string, unknown> = { ...profile.passthrough };
   for (const key of TUI_KEYS) {
@@ -101,11 +130,13 @@ export function emit(profile: TuiL1Claude): string {
   return `${JSON.stringify(merged, null, 2)}\n`;
 }
 
+/** Parse a TUI config from a JSON file at the given absolute path. */
 export function parseFile(absPath: string): ParseResult {
   const raw = JSON.parse(readFileSync(absPath, "utf8"));
   return parse(raw);
 }
 
+/** Write a {@link TuiL1Claude} profile to a JSON file at the given absolute path. */
 export function emitToFile(absPath: string, profile: TuiL1Claude): void {
   writeFileSync(absPath, emit(profile));
 }

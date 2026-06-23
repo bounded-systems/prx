@@ -1,5 +1,6 @@
 import type { ZodTypeAny } from "zod";
 
+/** A single drift issue found when comparing a live config to a schema. */
 export type DriftIssue =
   | {
       kind: "type_mismatch";
@@ -15,18 +16,22 @@ export type DriftIssue =
       reason: string;
     };
 
+/** Summary of all drift issues found for a config slice. */
 export type DriftReport = { ok: boolean; issues: DriftIssue[] };
 
+/** Returns true if `value` is a plain (non-array, non-null) object. */
 export function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Returns a human-readable runtime type name for a value. */
 export function describeRuntimeType(value: unknown): string {
   if (value === null) return "null";
   if (Array.isArray(value)) return "array";
   return typeof value;
 }
 
+/** Split a record into a keyed slice and a passthrough of remaining keys. */
 export function partition(
   input: Record<string, unknown>,
   keys: ReadonlySet<string>,
@@ -46,6 +51,7 @@ export function partition(
   return { slice, passthrough };
 }
 
+/** Parse a config slice against a schema and return a structured {@link DriftReport}. */
 export function collectDrift(schema: ZodTypeAny, slice: Record<string, unknown>): DriftReport {
   const result = schema.safeParse(slice);
   if (result.success) {
@@ -100,6 +106,7 @@ export function collectDrift(schema: ZodTypeAny, slice: Record<string, unknown>)
   return { ok: false, issues };
 }
 
+/** Build a {@link DriftReport} for an input that isn't a plain object at all. */
 export function nonObjectRootDrift(input: unknown): DriftReport {
   return {
     ok: false,
