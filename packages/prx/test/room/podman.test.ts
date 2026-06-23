@@ -5,6 +5,7 @@
 
 import { describe, expect, test } from "bun:test";
 
+import { BEADSD_ROOM_IMAGE } from "../../src/room/beadsd-room.ts";
 import { KEEPERD_ROOM_IMAGE } from "../../src/room/keeperd-room.ts";
 import { perRepoPod } from "../../src/room/per-repo-pod.ts";
 import {
@@ -57,7 +58,7 @@ describe("renderPodmanKube", () => {
 
   test("renders each non-secret room's -box image; not the secret room's", () => {
     expect(manifest).toContain(`image: "claude-box"`);
-    expect(manifest).toContain(`image: "beadsd-box"`);
+    expect(manifest).toContain(`image: "${BEADSD_ROOM_IMAGE}"`);
     // The keeperd image is delivered by `podman run`, not the kube manifest.
     expect(manifest).not.toContain(`image: "${KEEPERD_ROOM_IMAGE}"`);
     // every rendered room declares an image → no placeholder fallback fires.
