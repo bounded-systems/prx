@@ -1,3 +1,9 @@
+/**
+ * @module
+ * TUI configuration schema parser/emitter for the L1 Claude and L2 Warp tools.
+ * Parses raw JSON config objects into typed values + structured drift reports.
+ */
+
 export type { DriftIssue, DriftReport } from "./drift.ts";
 
 export {

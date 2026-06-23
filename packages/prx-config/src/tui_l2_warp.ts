@@ -9,6 +9,17 @@ import {
   type DriftReport,
 } from "./drift.ts";
 
+/** The subset of the Warp TUI configuration this package owns. */
+export type TuiL2WarpSubset = {
+  blocksUiMode?: "minimized" | "default";
+  inputAutoFormatEnabled?: boolean;
+  aiSuggestionOverlayEnabled?: boolean;
+  sendAltAsMeta?: boolean;
+  optionAsMeta?: boolean;
+  rendering?: "standard" | "experimental";
+};
+
+/** Zod schema for validating a {@link TuiL2WarpSubset} config object. */
 export const TuiL2WarpSchema = z
   .object({
     blocksUiMode: z.enum(["minimized", "default"]).optional(),
@@ -20,8 +31,7 @@ export const TuiL2WarpSchema = z
   })
   .strict();
 
-export type TuiL2WarpSubset = z.infer<typeof TuiL2WarpSchema>;
-
+/** All keys managed by this module (the L2 Warp TUI slice). */
 export const WARP_KEYS = [
   "blocksUiMode",
   "inputAutoFormatEnabled",
@@ -31,17 +41,20 @@ export const WARP_KEYS = [
   "rendering",
 ] as const satisfies readonly (keyof TuiL2WarpSubset)[];
 
+/** Parsed L2 Warp TUI configuration: owned keys + passthrough unknowns. */
 export type TuiL2Warp = {
   warp: TuiL2WarpSubset;
   passthrough: Record<string, unknown>;
 };
 
+/** Result of parsing a Warp TUI config — either the typed value or a drift report. */
 export type ParseResult =
   | { ok: true; value: TuiL2Warp; drift: DriftReport }
   | { ok: false; drift: DriftReport };
 
 const WARP_KEY_SET: ReadonlySet<string> = new Set<string>(WARP_KEYS);
 
+/** Parse an unknown config object into a typed {@link TuiL2Warp} + drift report. */
 export function parse(input: unknown): ParseResult {
   if (!isPlainObject(input)) {
     return { ok: false, drift: nonObjectRootDrift(input) };
@@ -60,6 +73,7 @@ export function parse(input: unknown): ParseResult {
   return { ok: true, value: { warp, passthrough }, drift };
 }
 
+/** Return only the drift report for a raw config object, without full parsing. */
 export function driftReport(input: unknown): DriftReport {
   if (!isPlainObject(input)) {
     return nonObjectRootDrift(input);
@@ -68,6 +82,7 @@ export function driftReport(input: unknown): DriftReport {
   return collectDrift(TuiL2WarpSchema, warpSlice);
 }
 
+/** Serialize a {@link TuiL2Warp} profile back to a JSON string. */
 export function emit(profile: TuiL2Warp): string {
   const merged: Record<string, unknown> = { ...profile.passthrough };
   for (const key of WARP_KEYS) {
@@ -79,11 +94,13 @@ export function emit(profile: TuiL2Warp): string {
   return `${JSON.stringify(merged, null, 2)}\n`;
 }
 
+/** Parse a Warp TUI config from a JSON file at the given absolute path. */
 export function parseFile(absPath: string): ParseResult {
   const raw = JSON.parse(readFileSync(absPath, "utf8"));
   return parse(raw);
 }
 
+/** Write a {@link TuiL2Warp} profile to a JSON file at the given absolute path. */
 export function emitToFile(absPath: string, profile: TuiL2Warp): void {
   writeFileSync(absPath, emit(profile));
 }
