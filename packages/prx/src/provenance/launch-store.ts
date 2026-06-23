@@ -18,9 +18,10 @@ import type { L3Attestation } from "./verify-l3.ts";
 
 const sha256hex = (s: string): string => createHash("sha256").update(s).digest("hex");
 
-/** The CAS ref a launch attestation lives under (keyed by its content-address). */
+/** The CAS ref a launch attestation lives under (keyed by its content-address;
+ *  hyphen-joined — ref names forbid `/`). */
 function refFor(l2LaunchDigest: string): string {
-  return `launch/${l2LaunchDigest}`;
+  return `launch-${l2LaunchDigest}`;
 }
 
 /** The content-address of a launch attestation (what an L3 write links back to). */
