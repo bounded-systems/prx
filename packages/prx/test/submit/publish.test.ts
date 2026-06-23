@@ -3,7 +3,7 @@
 // delegated (keeper, publisher) and injected here as seams; the orchestrator
 // only runs the parity preflight (via `runner`) and advances the slot.
 
-import { createHash, generateKeyPairSync, sign } from "node:crypto";
+import { createHash, generateKeyPairSync, sign, type KeyObject } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -453,7 +453,7 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
 
   // ── capability-chain enforcement (L3 write → L2 launch) ──────────────────────
   const sha256 = (s: string): string => createHash("sha256").update(s).digest("hex");
-  function buildL2(launcherPriv: ReturnType<typeof generateKeyPairSync>["privateKey"]) {
+  function buildL2(launcherPriv: KeyObject) {
     const slsa = toSLSA(
       statement([{ name: "box-1", digest: { sha256: "e".repeat(64) } }], {
         level: "launch",
@@ -463,7 +463,7 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
     );
     return { statement: slsa, signature: sign(null, Buffer.from(canonicalJson(slsa)), launcherPriv).toString("base64") };
   }
-  function buildLinkedL3(keeperPriv: ReturnType<typeof generateKeyPairSync>["privateKey"], l2Digest: string) {
+  function buildLinkedL3(keeperPriv: KeyObject, l2Digest: string) {
     const slsa = toSLSA(
       statement([{ name: MATERIALIZED_COMMIT, digest: { gitCommit: MATERIALIZED_COMMIT } }], {
         level: "write",
