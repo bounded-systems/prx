@@ -11,16 +11,15 @@ import {
 
 /** The subset of the Warp TUI configuration this package owns. */
 export type TuiL2WarpSubset = {
-  blocksUiMode?: "minimized" | "default";
-  inputAutoFormatEnabled?: boolean;
-  aiSuggestionOverlayEnabled?: boolean;
-  sendAltAsMeta?: boolean;
-  optionAsMeta?: boolean;
-  rendering?: "standard" | "experimental";
+  blocksUiMode?: "minimized" | "default" | undefined;
+  inputAutoFormatEnabled?: boolean | undefined;
+  aiSuggestionOverlayEnabled?: boolean | undefined;
+  sendAltAsMeta?: boolean | undefined;
+  optionAsMeta?: boolean | undefined;
+  rendering?: "standard" | "experimental" | undefined;
 };
 
-/** Zod schema for validating a {@link TuiL2WarpSubset} config object. */
-export const TuiL2WarpSchema = z
+const _tuiL2WarpSchemaImpl = z
   .object({
     blocksUiMode: z.enum(["minimized", "default"]).optional(),
     inputAutoFormatEnabled: z.boolean().optional(),
@@ -30,6 +29,9 @@ export const TuiL2WarpSchema = z
     rendering: z.enum(["standard", "experimental"]).optional(),
   })
   .strict();
+
+/** Zod schema for validating a {@link TuiL2WarpSubset} config object. */
+export const TuiL2WarpSchema: z.ZodType<TuiL2WarpSubset> = _tuiL2WarpSchemaImpl;
 
 /** All keys managed by this module (the L2 Warp TUI slice). */
 export const WARP_KEYS = [
@@ -60,11 +62,11 @@ export function parse(input: unknown): ParseResult {
     return { ok: false, drift: nonObjectRootDrift(input) };
   }
   const { slice: warpSlice, passthrough } = partition(input, WARP_KEY_SET);
-  const drift = collectDrift(TuiL2WarpSchema, warpSlice);
+  const drift = collectDrift(_tuiL2WarpSchemaImpl, warpSlice);
   const warp: TuiL2WarpSubset = {};
   for (const key of WARP_KEYS) {
     if (key in warpSlice) {
-      const result = TuiL2WarpSchema.shape[key].safeParse(warpSlice[key]);
+      const result = _tuiL2WarpSchemaImpl.shape[key].safeParse(warpSlice[key]);
       if (result.success) {
         (warp as Record<string, unknown>)[key] = result.data;
       }
@@ -79,7 +81,7 @@ export function driftReport(input: unknown): DriftReport {
     return nonObjectRootDrift(input);
   }
   const { slice: warpSlice } = partition(input, WARP_KEY_SET);
-  return collectDrift(TuiL2WarpSchema, warpSlice);
+  return collectDrift(_tuiL2WarpSchemaImpl, warpSlice);
 }
 
 /** Serialize a {@link TuiL2Warp} profile back to a JSON string. */

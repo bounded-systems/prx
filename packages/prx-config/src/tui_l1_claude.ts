@@ -11,29 +11,29 @@ import {
 
 /** Claude TUI voice settings. */
 export type Voice = {
-  enabled?: boolean;
-  mode?: "hold" | "tap";
-  autoSubmit?: boolean;
+  enabled?: boolean | undefined;
+  mode?: "hold" | "tap" | undefined;
+  autoSubmit?: boolean | undefined;
 };
 
 /** The subset of the Claude TUI configuration this package owns. */
 export type TuiSubset = {
-  tui?: "fullscreen" | "default";
-  editorMode?: "normal" | "vim";
-  language?: string;
-  outputStyle?: string;
-  viewMode?: "default" | "verbose" | "focus";
-  autoScrollEnabled?: boolean;
-  prefersReducedMotion?: boolean;
-  showThinkingSummaries?: boolean;
-  showTurnDuration?: boolean;
-  terminalProgressBarEnabled?: boolean;
-  spinnerTipsEnabled?: boolean;
-  awaySummaryEnabled?: boolean;
-  voice?: Voice;
+  tui?: "fullscreen" | "default" | undefined;
+  editorMode?: "normal" | "vim" | undefined;
+  language?: string | undefined;
+  outputStyle?: string | undefined;
+  viewMode?: "default" | "verbose" | "focus" | undefined;
+  autoScrollEnabled?: boolean | undefined;
+  prefersReducedMotion?: boolean | undefined;
+  showThinkingSummaries?: boolean | undefined;
+  showTurnDuration?: boolean | undefined;
+  terminalProgressBarEnabled?: boolean | undefined;
+  spinnerTipsEnabled?: boolean | undefined;
+  awaySummaryEnabled?: boolean | undefined;
+  voice?: Voice | undefined;
 };
 
-const voiceSchema = z
+const _voiceSchema = z
   .object({
     enabled: z.boolean().optional(),
     mode: z.enum(["hold", "tap"]).optional(),
@@ -41,8 +41,7 @@ const voiceSchema = z
   })
   .strict();
 
-/** Zod schema for validating a {@link TuiSubset} config object. */
-export const TuiSubsetSchema = z
+const _tuiSubsetSchemaImpl = z
   .object({
     tui: z.enum(["fullscreen", "default"]).optional(),
     editorMode: z.enum(["normal", "vim"]).optional(),
@@ -56,9 +55,12 @@ export const TuiSubsetSchema = z
     terminalProgressBarEnabled: z.boolean().optional(),
     spinnerTipsEnabled: z.boolean().optional(),
     awaySummaryEnabled: z.boolean().optional(),
-    voice: voiceSchema.optional(),
+    voice: _voiceSchema.optional(),
   })
   .strict();
+
+/** Zod schema for validating a {@link TuiSubset} config object. */
+export const TuiSubsetSchema: z.ZodType<TuiSubset> = _tuiSubsetSchemaImpl;
 
 /** All keys managed by this module (the L1 Claude TUI slice). */
 export const TUI_KEYS = [
@@ -96,11 +98,11 @@ export function parse(input: unknown): ParseResult {
     return { ok: false, drift: nonObjectRootDrift(input) };
   }
   const { slice: tuiSlice, passthrough } = partition(input, TUI_KEY_SET);
-  const drift = collectDrift(TuiSubsetSchema, tuiSlice);
+  const drift = collectDrift(_tuiSubsetSchemaImpl, tuiSlice);
   const tui: TuiSubset = {};
   for (const key of TUI_KEYS) {
     if (key in tuiSlice) {
-      const result = TuiSubsetSchema.shape[key].safeParse(tuiSlice[key]);
+      const result = _tuiSubsetSchemaImpl.shape[key].safeParse(tuiSlice[key]);
       if (result.success) {
         (tui as Record<string, unknown>)[key] = result.data;
       }
@@ -115,7 +117,7 @@ export function driftReport(input: unknown): DriftReport {
     return nonObjectRootDrift(input);
   }
   const { slice: tuiSlice } = partition(input, TUI_KEY_SET);
-  return collectDrift(TuiSubsetSchema, tuiSlice);
+  return collectDrift(_tuiSubsetSchemaImpl, tuiSlice);
 }
 
 /** Serialize a {@link TuiL1Claude} profile back to a JSON string. */
