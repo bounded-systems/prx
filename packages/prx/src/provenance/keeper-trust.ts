@@ -25,16 +25,17 @@ function looksLikePem(s: string): boolean {
   return s.trimStart().startsWith("-----BEGIN");
 }
 
-/**
- * The operator-supplied keeper public key (PEM), or `null` when none is
- * configured or it can't be read — the caller fails closed on `null` under
- * `requireSigned`. The key is NEVER fetched from the actor or its image.
- */
-export function resolveKeeperTrustKey(
-  env: EnvReader = getEnv,
-  read: (path: string) => string = (p) => readFileSync(p, "utf8"),
+/** Env var carrying the operator's launcher trust key (a PEM, or a path to one). */
+export const LAUNCHER_PUBKEY_ENV = "PRX_LAUNCH_PUBKEY";
+
+/** Resolve an operator-supplied trust key (PEM literal or path) from `envVar`,
+ *  or `null` when unset/unreadable/not-a-PEM. NEVER fetched from the actor. */
+function resolveTrustKey(
+  envVar: string,
+  env: EnvReader,
+  read: (path: string) => string,
 ): string | null {
-  const raw = env(KEEPER_PUBKEY_ENV);
+  const raw = env(envVar);
   if (raw === undefined || raw.trim() === "") return null; // unset → fail closed
   if (looksLikePem(raw)) return raw; // a PEM literal
   // Otherwise treat it as a path to a PEM file.
@@ -44,4 +45,27 @@ export function resolveKeeperTrustKey(
   } catch {
     return null; // configured but unreadable / not a PEM → fail closed
   }
+}
+
+/**
+ * The operator-supplied **keeper** public key (PEM) — verifies the L3 write — or
+ * `null` (the caller fails closed under `requireSigned`). NEVER from the actor.
+ */
+export function resolveKeeperTrustKey(
+  env: EnvReader = getEnv,
+  read: (path: string) => string = (p) => readFileSync(p, "utf8"),
+): string | null {
+  return resolveTrustKey(KEEPER_PUBKEY_ENV, env, read);
+}
+
+/**
+ * The operator-supplied **launcher** public key (PEM) — verifies the L2 launch in
+ * the capability chain — or `null`. Distinct guest/owner from the keeper (the
+ * launching guest signs L2; the keeper signs L3). NEVER from the actor.
+ */
+export function resolveLauncherTrustKey(
+  env: EnvReader = getEnv,
+  read: (path: string) => string = (p) => readFileSync(p, "utf8"),
+): string | null {
+  return resolveTrustKey(LAUNCHER_PUBKEY_ENV, env, read);
 }

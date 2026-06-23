@@ -6,6 +6,7 @@ import type { execGit, GitExecOptions, GitExecResult } from "@bounded-systems/gi
 import { IsolatedKeeperClient, type KeeperTransport } from "../../src/keeperd/client.ts";
 import type { KeeperRemoteRequest } from "../../src/keeperd/contract.ts";
 import {
+  runKeeperDoorAttestLaunch,
   runKeeperDoorPush,
   runKeeperRemote,
   type KeeperRemoteInput,
@@ -168,5 +169,60 @@ describe("runKeeperDoorPush (door push of an already-materialized commit)", () =
     );
     expect(sent?.pushArgs).toEqual(["--force-with-lease"]);
     expect(sent?.ledgerRef).toBe("GH-456:keeper");
+  });
+
+  test("threads l2LaunchDigest into the request (capability chain link)", async () => {
+    let sent: ImportAndPushOptions | undefined;
+    await runKeeperDoorPush(
+      {
+        cwd: "/w",
+        parentSha: "c".repeat(40),
+        commitSha: COMMIT,
+        branch: "b",
+        remote: "origin",
+        l2LaunchDigest: "deadbeef".repeat(8),
+      },
+      {
+        bundle: () => BUNDLE,
+        importAndPush: async (opts) => {
+          sent = opts;
+          return { status: "ok", commitSha: COMMIT, pushedRef: "refs/heads/b" };
+        },
+      },
+    );
+    expect(sent?.l2LaunchDigest).toBe("deadbeef".repeat(8));
+  });
+});
+
+describe("runKeeperDoorAttestLaunch (L2 launch via the keeper door)", () => {
+  test("calls attest-launch and returns the signed L2 + content-address", async () => {
+    let sent: { subject: string; manifest: unknown } | undefined;
+    const res = await runKeeperDoorAttestLaunch(
+      { subject: "box-1", manifest: { doors: ["keeper"] } },
+      {
+        attestLaunch: async (opts) => {
+          sent = opts;
+          return {
+            status: "ok",
+            subject: opts.subject,
+            manifestDigest: "m".repeat(64),
+            l2LaunchDigest: "l".repeat(64),
+            attestation: { statement: {}, signature: "sig" },
+          };
+        },
+      },
+    );
+    expect(sent).toEqual({ subject: "box-1", manifest: { doors: ["keeper"] } });
+    expect(res.l2LaunchDigest).toBe("l".repeat(64));
+    expect(res.manifestDigest).toBe("m".repeat(64));
+  });
+
+  test("throws when the daemon returns an error verdict", async () => {
+    await expect(
+      runKeeperDoorAttestLaunch(
+        { subject: "x", manifest: {} },
+        { attestLaunch: async () => ({ status: "error", code: "NO_KEY", message: "no key" }) },
+      ),
+    ).rejects.toThrow(/attest-launch failed.*NO_KEY/);
   });
 });
