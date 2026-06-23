@@ -14,6 +14,10 @@ import {
   resolvePodDoors,
   type PodSpec,
 } from "../../src/room/pod.ts";
+
+// Socket paths are rebased to doorDir at projection time.
+const beadsSock = `${DEFAULT_DOOR_DIR}/beadsd.sock`;
+const keeperSock = `${DEFAULT_DOOR_DIR}/keeperd.sock`;
 import { RoomSpecSchema } from "../../src/room/spec.ts";
 
 // Author rooms as schema INPUT (tier/doors/grants default in, executor optional);
@@ -123,7 +127,7 @@ describe("podRoomEnv — the keystone", () => {
     ]);
     expect(podRoomEnv(pod([c, beadsdProvider]), "consumer")).toEqual({
       PRX_BEADS_DOOR: "beadsd",
-      PRX_BEADS_SOCKET: "/run/prx/doors/beadsd.sock",
+      PRX_BEADS_SOCKET: beadsSock,
     });
   });
 
@@ -144,7 +148,7 @@ describe("podRoomEnv — the keystone", () => {
     };
     expect(podRoomEnv(pod([c, keeperdProvider]), "consumer")).toEqual({
       PRX_KEEPER_DOOR: "keeperd",
-      KEEPERD_SOCK: "/run/prx/doors/keeperd.sock",
+      KEEPERD_SOCK: keeperSock,
     });
   });
 
@@ -180,11 +184,12 @@ describe("perRepoPod", () => {
   });
 
   test("fires the gate env into claude-room (beadsd + keeperd doors)", () => {
+    const dir = perRepoPod.doorDir;
     expect(podRoomEnv(perRepoPod, "claude-room")).toEqual({
       PRX_BEADS_DOOR: "beadsd",
-      PRX_BEADS_SOCKET: "/run/prx/doors/beadsd.sock",
+      PRX_BEADS_SOCKET: `${dir}/beadsd.sock`,
       PRX_KEEPER_DOOR: "keeperd",
-      KEEPERD_SOCK: "/run/prx/doors/keeperd.sock",
+      KEEPERD_SOCK: `${dir}/keeperd.sock`,
     });
   });
 });

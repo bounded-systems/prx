@@ -22,6 +22,8 @@
  * — so the orchestration is fully offline-testable.
  */
 
+import { statPath } from "@bounded-systems/fs";
+import { deleteEnv, getEnv, setEnv } from "@bounded-systems/env";
 import { defaultRunner } from "@bounded-systems/proc";
 
 import {
@@ -138,14 +140,50 @@ export function playPod(
   return results;
 }
 
+/** Poll interval (ms) and total timeout (ms) waiting for the keeper socket. */
+const SOCKET_POLL_MS = 500;
+const SOCKET_TIMEOUT_MS = 30_000;
+
+/**
+ * Poll until a unix socket file appears at `socketPath` or the timeout elapses.
+ * Injectable via `deps.waitForSocket` for unit tests (avoids real fs polling).
+ */
+export async function waitForSocket(
+  socketPath: string,
+  pollMs = SOCKET_POLL_MS,
+  timeoutMs = SOCKET_TIMEOUT_MS,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (statPath(socketPath) !== null) return true;
+    await new Promise((r) => setTimeout(r, pollMs));
+  }
+  return statPath(socketPath) !== null;
+}
+
+/**
+ * Derive the keeper socket path from the pod's door fabric, if the pod has a
+ * keeperd-room. Returns null if no keeperd door is present.
+ */
+function keeperSocketPath(pod: PodSpec): string | null {
+  const p = PodSpecSchema.parse(pod);
+  for (const room of p.rooms) {
+    for (const door of room.doors) {
+      if (door.direction === "expose" && door.name === "keeperd") {
+        const socketFile = door.socket.split("/").at(-1) ?? door.socket;
+        return `${p.doorDir}/${socketFile}`;
+      }
+    }
+  }
+  return null;
+}
+
 /**
  * Launch a pod AND attest its launch (capability chain). {@link playPod} brings
- * the pod up — the keeper door (a secret room) comes up last — then
- * {@link attestLaunchForPod} attests the manifest + stores the L2; the keeper
- * daemon remembers it, so the box's later writes auto-link (no box-env injection
- * needed). **Best-effort attest:** a failure (e.g. the pod has no keeper door)
- * surfaces as `l2LaunchDigest: null` but never tears the running pod down — the
- * submit gate enforces the chain downstream (fail-closed there, not here).
+ * the pod up — the keeper door (a secret room) comes up last — then we wait for
+ * the keeper socket to appear on the shared door fabric before attesting, so the
+ * L2 digest is non-null on a clean run. **Best-effort attest:** a failure or
+ * timeout surfaces as `l2LaunchDigest: null` but never tears the pod down.
  */
 export async function launchPod(
   pod: PodSpec,
@@ -153,13 +191,27 @@ export async function launchPod(
     run?: PodmanRun;
     provision?: ProvisionDoorFabric;
     attestLaunch?: typeof attestLaunchForPod;
+    waitForSocket?: typeof waitForSocket;
   } = {},
 ): Promise<{ results: PodmanRunResult[]; l2LaunchDigest: string | null }> {
   const results = playPod(pod, deps.run ?? spawnPodman, deps.provision ?? provisionDoorFabric);
   const attest = deps.attestLaunch ?? attestLaunchForPod;
+  const poll = deps.waitForSocket ?? waitForSocket;
   let l2LaunchDigest: string | null = null;
   try {
-    l2LaunchDigest = await attest(pod);
+    const socketPath = keeperSocketPath(pod);
+    if (socketPath) await poll(socketPath);
+    // Set KEEPERD_SOCK so door-kit's client connects to the fabric socket.
+    const prev = getEnv("KEEPERD_SOCK");
+    if (socketPath) setEnv("KEEPERD_SOCK", socketPath);
+    try {
+      l2LaunchDigest = await attest(pod);
+    } finally {
+      if (socketPath) {
+        if (prev !== undefined) setEnv("KEEPERD_SOCK", prev);
+        else deleteEnv("KEEPERD_SOCK");
+      }
+    }
   } catch {
     l2LaunchDigest = null;
   }
