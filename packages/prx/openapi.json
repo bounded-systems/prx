@@ -528,6 +528,35 @@
         }
       }
     },
+    "/pod/up": {
+      "post": {
+        "operationId": "pod_up",
+        "summary": "Launch a pod and attest its launch (capability chain).",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/pod_upInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/pod_upOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pr-comments": {
       "post": {
         "operationId": "pr-comments",
@@ -2135,6 +2164,53 @@
           "mode"
         ],
         "additionalProperties": {}
+      },
+      "pod_upInput": {
+        "type": "object",
+        "properties": {
+          "pod": {
+            "default": "per-repo",
+            "description": "Pod spec to launch (currently only 'per-repo')",
+            "type": "string",
+            "enum": [
+              "per-repo"
+            ]
+          }
+        },
+        "required": [
+          "pod"
+        ],
+        "additionalProperties": false
+      },
+      "pod_upOutput": {
+        "type": "object",
+        "properties": {
+          "pod": {
+            "type": "string",
+            "description": "Pod name that was launched"
+          },
+          "containers": {
+            "type": "number",
+            "description": "Number of podman commands run (provision + rooms)"
+          },
+          "l2LaunchDigest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Content-address of the stored L2 launch attestation, or null if the pod has no keeper door"
+          }
+        },
+        "required": [
+          "pod",
+          "containers",
+          "l2LaunchDigest"
+        ],
+        "additionalProperties": false
       },
       "pr-commentsInput": {
         "type": "object",

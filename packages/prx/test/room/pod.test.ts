@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { perRepoPod } from "../../src/room/per-repo-pod.ts";
 import {
+  DEFAULT_DOOR_DIR,
   PodSpecSchema,
   effectiveExecutor,
   podRoomEnv,
@@ -39,7 +40,7 @@ const beadsdProvider: RoomInput = {
 describe("PodSpecSchema", () => {
   test("defaults doorDir and requires at least one room", () => {
     const p = pod([{ name: "r" }]);
-    expect(p.doorDir).toBe("/run/prx/doors");
+    expect(p.doorDir).toBe(DEFAULT_DOOR_DIR);
     expect(() => PodSpecSchema.parse({ name: "p", executor: { name: "h" }, rooms: [] })).toThrow();
   });
 });

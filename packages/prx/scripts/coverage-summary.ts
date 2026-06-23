@@ -65,6 +65,7 @@ const PER_FILE_BASELINE = new Set<string>([
   "packages/prx/src/intake/intake-status.ts", // 83% — reformat line-accounting
   "packages/prx/src/derive/cli.ts", // 84% — reformat line-accounting
   "packages/prx/src/pr-state/dolt-reconcile.ts", // 85% — reformat line-accounting (rounding)
+  "packages/prx/src/room/pod-up-verb.ts", // 77% — run() calls live launchPod (podman); covered by live e2e, not unit test
 ]);
 
 type Totals = {

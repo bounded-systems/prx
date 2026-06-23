@@ -13,6 +13,7 @@
 import { beadsdRoom } from "./beadsd-room.ts";
 import { claudeRoom } from "./claude-room.ts";
 import { keeperdRoom } from "./keeperd-room.ts";
+import { DEFAULT_DOOR_DIR } from "./pod.ts";
 import type { PodSpec } from "./pod.ts";
 
 export const perRepoPod: PodSpec = {
@@ -21,5 +22,5 @@ export const perRepoPod: PodSpec = {
   // Minimal here; the OCI/VM substrate is epic prx-zj8.
   executor: { name: "prx-pod-house" },
   rooms: [claudeRoom, beadsdRoom, keeperdRoom],
-  doorDir: "/run/prx/doors",
+  doorDir: DEFAULT_DOOR_DIR,
 };
