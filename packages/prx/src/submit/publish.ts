@@ -21,6 +21,7 @@ import {
   type L3Attestation,
 } from "../provenance/verify-l3.ts";
 import { verifyLaunchChain, type LaunchAttestation } from "../provenance/verify-chain.ts";
+import { resolveLaunchAttestationFromCas } from "../provenance/launch-store.ts";
 import { resolveKeeperTrustKey, resolveLauncherTrustKey } from "../provenance/keeper-trust.ts";
 // GH-2348.2: submit-publish is now an orchestrator — it delegates the push to
 // keeper (attesting) and the PR-open to publisher, keeping only artifact
@@ -383,7 +384,7 @@ export async function runSubmitPublish(
       // the write provably came from an attested launch, not the host's claim.
       const launcherKey = (deps.resolveLauncherKey ?? resolveLauncherTrustKey)();
       if (launcherKey !== null) {
-        const l2 = await (deps.resolveLaunchAttestation ?? (async () => null))(signed);
+        const l2 = await (deps.resolveLaunchAttestation ?? resolveLaunchAttestationFromCas)(signed);
         if (l2 === null) {
           throw new PublishError(
             "prx submit publish: launch-chain enforcement failed — no L2 launch attestation found for the write's launch link",
