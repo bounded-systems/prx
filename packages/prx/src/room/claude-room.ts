@@ -62,4 +62,5 @@ export const claudeRoom: RoomSpec = {
   grants: [],
   // No host secret — the agent room runs as a kube-play pod member.
   secrets: [],
+  extraArgs: [],
 };

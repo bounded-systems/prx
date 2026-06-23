@@ -28,4 +28,5 @@ export const beadsdRoom: RoomSpec = {
   grants: [],
   // No host secret — beadsd runs as a kube-play pod member.
   secrets: [],
+  extraArgs: [],
 };

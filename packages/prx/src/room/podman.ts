@@ -228,6 +228,18 @@ export function renderPodmanRun(pod: PodSpec, roomName: string): string[] {
   }
   // The room's -box image; full registry ref resolved at deploy (prx-zj8).
   args.push(room.image ?? `prx/${room.name}:latest`);
+  // CMD args (after image, become "$@" in the entrypoint): override the
+  // daemon's hardcoded socket with the fabric path for each exposed door.
+  // door-kit's guest-room parseArgs uses last-wins --socket semantics, so
+  // our arg defeats the entrypoint's baked-in default (prx-9yv3).
+  for (const door of room.doors) {
+    if (door.direction === "expose") {
+      const socketFile = door.socket.split("/").at(-1) ?? door.socket;
+      args.push("--socket", `${p.doorDir}/${socketFile}`);
+    }
+  }
+  // Room-specific CMD arg overrides (e.g. keeperd's --key <target>).
+  args.push(...room.extraArgs);
   return args;
 }
 
