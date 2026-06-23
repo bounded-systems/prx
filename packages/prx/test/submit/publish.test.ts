@@ -3,7 +3,7 @@
 // delegated (keeper, publisher) and injected here as seams; the orchestrator
 // only runs the parity preflight (via `runner`) and advances the slot.
 
-import { generateKeyPairSync, sign } from "node:crypto";
+import { createHash, generateKeyPairSync, sign } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -18,6 +18,9 @@ import {
 import type { execGit, GitExecOptions, GitExecResult } from "@bounded-systems/git";
 
 import { getRef } from "../../src/plan-store/cas.ts";
+import { statement } from "@bounded-systems/ocap-provenance";
+import { toSLSA } from "@bounded-systems/ocap-provenance/slsa";
+
 import { canonicalJson } from "../../src/provenance/verify-l3.ts";
 import { runKeeperServe, type KeeperDaemonDeps } from "../../src/keeperd/daemon.ts";
 import { runKeeperDoorPush } from "../../src/keeperd/host.ts";
@@ -444,6 +447,98 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
       pushedRef: "refs/heads/GH-1900",
       signedDerivation: l3,
     });
+    await runSubmitPublish(PUBLISH, deps);
+    expect(prOpens).toHaveLength(1);
+  });
+
+  // ── capability-chain enforcement (L3 write → L2 launch) ──────────────────────
+  const sha256 = (s: string): string => createHash("sha256").update(s).digest("hex");
+  function buildL2(launcherPriv: ReturnType<typeof generateKeyPairSync>["privateKey"]) {
+    const slsa = toSLSA(
+      statement([{ name: "box-1", digest: { sha256: "e".repeat(64) } }], {
+        level: "launch",
+        producer: { kind: "nix-flake", id: "launcher" },
+        capabilities: { workcell: "claude-box", manifestDigest: { sha256: "e".repeat(64) } },
+      }),
+    );
+    return { statement: slsa, signature: sign(null, Buffer.from(canonicalJson(slsa)), launcherPriv).toString("base64") };
+  }
+  function buildLinkedL3(keeperPriv: ReturnType<typeof generateKeyPairSync>["privateKey"], l2Digest: string) {
+    const slsa = toSLSA(
+      statement([{ name: MATERIALIZED_COMMIT, digest: { gitCommit: MATERIALIZED_COMMIT } }], {
+        level: "write",
+        producer: { kind: "keeperd", id: "keeper" },
+        capabilities: { workcell: "claude-box", manifestDigest: { sha256: "e".repeat(64) } },
+        links: [{ level: "launch", digest: { sha256: l2Digest } }],
+      }),
+    );
+    return { statement: slsa, signature: sign(null, Buffer.from(canonicalJson(slsa)), keeperPriv).toString("base64"), keyId: "keeper" };
+  }
+  const chainSpy = () => {
+    const keeper = generateKeyPairSync("ed25519");
+    const launcher = generateKeyPairSync("ed25519");
+    const l2 = buildL2(launcher.privateKey);
+    const l3 = buildLinkedL3(keeper.privateKey, sha256(canonicalJson(l2.statement)));
+    return {
+      l2,
+      l3,
+      kPem: keeper.publicKey.export({ type: "spki", format: "pem" }) as string,
+      lPem: launcher.publicKey.export({ type: "spki", format: "pem" }) as string,
+    };
+  };
+
+  test("requireSigned + door + a valid L3→L2 launch chain → PR opens", async () => {
+    await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
+    const { deps, prOpens } = spy();
+    const { l2, l3, kPem, lPem } = chainSpy();
+    deps.keeperDoorMode = () => true;
+    deps.requireSigned = true;
+    deps.resolveKeeperKey = () => kPem;
+    deps.resolveLauncherKey = () => lPem;
+    deps.resolveLaunchAttestation = async () => l2;
+    deps.keeperDoor = async () => ({ status: "ok", commitSha: MATERIALIZED_COMMIT, pushedRef: "refs/heads/GH-1900", signedDerivation: l3 });
+    await runSubmitPublish(PUBLISH, deps);
+    expect(prOpens).toHaveLength(1);
+  });
+
+  test("requireSigned + door + launcher key set but L2 not found → fail closed", async () => {
+    await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
+    const { deps } = spy();
+    const { l3, kPem, lPem } = chainSpy();
+    deps.keeperDoorMode = () => true;
+    deps.requireSigned = true;
+    deps.resolveKeeperKey = () => kPem;
+    deps.resolveLauncherKey = () => lPem;
+    deps.resolveLaunchAttestation = async () => null;
+    deps.keeperDoor = async () => ({ status: "ok", commitSha: MATERIALIZED_COMMIT, pushedRef: "refs/heads/GH-1900", signedDerivation: l3 });
+    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/no L2 launch attestation found/);
+  });
+
+  test("requireSigned + door + L3 links a non-verifying L2 → fail closed", async () => {
+    await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
+    const { deps } = spy();
+    const { l2, l3, kPem } = chainSpy();
+    // a launcher key that did NOT sign this L2
+    const wrongLauncher = generateKeyPairSync("ed25519").publicKey.export({ type: "spki", format: "pem" }) as string;
+    deps.keeperDoorMode = () => true;
+    deps.requireSigned = true;
+    deps.resolveKeeperKey = () => kPem;
+    deps.resolveLauncherKey = () => wrongLauncher;
+    deps.resolveLaunchAttestation = async () => l2;
+    deps.keeperDoor = async () => ({ status: "ok", commitSha: MATERIALIZED_COMMIT, pushedRef: "refs/heads/GH-1900", signedDerivation: l3 });
+    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/does not chain to a verifiable L2 launch/);
+  });
+
+  test("requireSigned + door + L3 verifies but NO launcher key → chain enforcement skipped (PR opens)", async () => {
+    await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
+    const { deps, prOpens } = spy();
+    const { l2, l3, kPem } = chainSpy();
+    deps.keeperDoorMode = () => true;
+    deps.requireSigned = true;
+    deps.resolveKeeperKey = () => kPem;
+    deps.resolveLauncherKey = () => null; // opt-out → only L3 verified
+    deps.resolveLaunchAttestation = async () => l2;
+    deps.keeperDoor = async () => ({ status: "ok", commitSha: MATERIALIZED_COMMIT, pushedRef: "refs/heads/GH-1900", signedDerivation: l3 });
     await runSubmitPublish(PUBLISH, deps);
     expect(prOpens).toHaveLength(1);
   });
