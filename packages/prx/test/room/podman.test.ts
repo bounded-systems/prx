@@ -39,9 +39,9 @@ describe("renderPodmanKube", () => {
     expect(manifest).toContain("type: DirectoryOrCreate");
     expect(manifest).not.toContain("emptyDir:");
     // Every NON-SECRET room mounts it at the pod's doorDir.
-    const escapedDir = dir.replace(/\//g, "\\/");
-    const mounts = manifest.match(new RegExp(`mountPath: "${escapedDir}"`, "g")) ?? [];
-    expect(mounts.length).toBe(kubeRooms.length);
+    const mountLine = `mountPath: "${dir}"`;
+    const mounts = manifest.split(mountLine).length - 1;
+    expect(mounts).toBe(kubeRooms.length);
   });
 
   test("renders one container per NON-SECRET room (secret rooms run elsewhere)", () => {
