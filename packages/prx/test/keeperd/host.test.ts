@@ -138,6 +138,7 @@ describe("runKeeperDoorPush (door push of an already-materialized commit)", () =
     // It does NOT re-commit (no write-tree/commit-tree) — only the bundle is cut.
     expect(bundledFor).toEqual({ cwd: "/work/repo", parentSha: "c".repeat(40), branch: "GH-456" });
     expect(sent).toEqual({
+      repo: "/work/repo",
       bundleBase64: BUNDLE,
       commitSha: COMMIT,
       branch: "GH-456",
