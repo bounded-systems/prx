@@ -206,6 +206,13 @@ export function renderPodmanRun(pod: PodSpec, roomName: string): string[] {
   // not private (`:Z`) because the dir is shared with the kube pod's containers.
   // A no-op on non-SELinux hosts. Live-validated on the host (prx-3urm).
   args.push("--volume", `${p.doorDir}:${p.doorDir}:z`);
+  // TCP port mapping for rooms that declare tcpPort — the macOS virtiofs
+  // workaround (prx-zj8): virtiofs exposes the socket file but not the socket
+  // semantics, so the Mac-host client can't connect via Unix; publishing a port
+  // and passing --port as a CMD arg lets it connect via TCP (KEEPERD_HOST).
+  if (room.tcpPort !== undefined) {
+    args.push("--publish", `${room.tcpPort}:${room.tcpPort}`);
+  }
   // The repo bind-mount + WorkingDir (mirrors the kube pod; prx-u5lx). `:z` for
   // the same SELinux reason — the repo is shared by every room.
   if (p.repo) {
@@ -240,6 +247,11 @@ export function renderPodmanRun(pod: PodSpec, roomName: string): string[] {
   }
   // Room-specific CMD arg overrides (e.g. keeperd's --key <target>).
   args.push(...room.extraArgs);
+  // TCP port CMD arg: the daemon listens on --port <N> so the Mac host client
+  // can reach it via TCP when Unix socket semantics don't cross virtiofs.
+  if (room.tcpPort !== undefined) {
+    args.push("--port", String(room.tcpPort));
+  }
   return args;
 }
 
