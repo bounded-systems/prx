@@ -30,6 +30,7 @@ import {
   renderPodmanRun,
   secretRoomContainer,
 } from "./podman.ts";
+import { attestLaunchForPod } from "./launch-attest.ts";
 import { PodSpecSchema, type PodSpec } from "./pod.ts";
 import { roomNeedsSecretRuntime, type RoomSpec } from "./spec.ts";
 
@@ -135,6 +136,34 @@ export function playPod(
     );
   }
   return results;
+}
+
+/**
+ * Launch a pod AND attest its launch (capability chain). {@link playPod} brings
+ * the pod up — the keeper door (a secret room) comes up last — then
+ * {@link attestLaunchForPod} attests the manifest + stores the L2; the keeper
+ * daemon remembers it, so the box's later writes auto-link (no box-env injection
+ * needed). **Best-effort attest:** a failure (e.g. the pod has no keeper door)
+ * surfaces as `l2LaunchDigest: null` but never tears the running pod down — the
+ * submit gate enforces the chain downstream (fail-closed there, not here).
+ */
+export async function launchPod(
+  pod: PodSpec,
+  deps: {
+    run?: PodmanRun;
+    provision?: ProvisionDoorFabric;
+    attestLaunch?: typeof attestLaunchForPod;
+  } = {},
+): Promise<{ results: PodmanRunResult[]; l2LaunchDigest: string | null }> {
+  const results = playPod(pod, deps.run ?? spawnPodman, deps.provision ?? provisionDoorFabric);
+  const attest = deps.attestLaunch ?? attestLaunchForPod;
+  let l2LaunchDigest: string | null = null;
+  try {
+    l2LaunchDigest = await attest(pod);
+  } catch {
+    l2LaunchDigest = null;
+  }
+  return { results, l2LaunchDigest };
 }
 
 /**
