@@ -461,7 +461,10 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
         capabilities: { workcell: "claude-box", manifestDigest: { sha256: "e".repeat(64) } },
       }),
     );
-    return { statement: slsa, signature: sign(null, Buffer.from(canonicalJson(slsa)), launcherPriv).toString("base64") };
+    return {
+      statement: slsa,
+      signature: sign(null, Buffer.from(canonicalJson(slsa)), launcherPriv).toString("base64"),
+    };
   }
   function buildLinkedL3(keeperPriv: KeyObject, l2Digest: string) {
     const slsa = toSLSA(
@@ -472,7 +475,11 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
         links: [{ level: "launch", digest: { sha256: l2Digest } }],
       }),
     );
-    return { statement: slsa, signature: sign(null, Buffer.from(canonicalJson(slsa)), keeperPriv).toString("base64"), keyId: "keeper" };
+    return {
+      statement: slsa,
+      signature: sign(null, Buffer.from(canonicalJson(slsa)), keeperPriv).toString("base64"),
+      keyId: "keeper",
+    };
   }
   const chainSpy = () => {
     const keeper = generateKeyPairSync("ed25519");
@@ -496,7 +503,12 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
     deps.resolveKeeperKey = () => kPem;
     deps.resolveLauncherKey = () => lPem;
     deps.resolveLaunchAttestation = async () => l2;
-    deps.keeperDoor = async () => ({ status: "ok", commitSha: MATERIALIZED_COMMIT, pushedRef: "refs/heads/GH-1900", signedDerivation: l3 });
+    deps.keeperDoor = async () => ({
+      status: "ok",
+      commitSha: MATERIALIZED_COMMIT,
+      pushedRef: "refs/heads/GH-1900",
+      signedDerivation: l3,
+    });
     await runSubmitPublish(PUBLISH, deps);
     expect(prOpens).toHaveLength(1);
   });
@@ -510,7 +522,12 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
     deps.resolveKeeperKey = () => kPem;
     deps.resolveLauncherKey = () => lPem;
     deps.resolveLaunchAttestation = async () => null;
-    deps.keeperDoor = async () => ({ status: "ok", commitSha: MATERIALIZED_COMMIT, pushedRef: "refs/heads/GH-1900", signedDerivation: l3 });
+    deps.keeperDoor = async () => ({
+      status: "ok",
+      commitSha: MATERIALIZED_COMMIT,
+      pushedRef: "refs/heads/GH-1900",
+      signedDerivation: l3,
+    });
     await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/no L2 launch attestation found/);
   });
 
@@ -519,14 +536,24 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
     const { deps } = spy();
     const { l2, l3, kPem } = chainSpy();
     // a launcher key that did NOT sign this L2
-    const wrongLauncher = generateKeyPairSync("ed25519").publicKey.export({ type: "spki", format: "pem" }) as string;
+    const wrongLauncher = generateKeyPairSync("ed25519").publicKey.export({
+      type: "spki",
+      format: "pem",
+    }) as string;
     deps.keeperDoorMode = () => true;
     deps.requireSigned = true;
     deps.resolveKeeperKey = () => kPem;
     deps.resolveLauncherKey = () => wrongLauncher;
     deps.resolveLaunchAttestation = async () => l2;
-    deps.keeperDoor = async () => ({ status: "ok", commitSha: MATERIALIZED_COMMIT, pushedRef: "refs/heads/GH-1900", signedDerivation: l3 });
-    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/does not chain to a verifiable L2 launch/);
+    deps.keeperDoor = async () => ({
+      status: "ok",
+      commitSha: MATERIALIZED_COMMIT,
+      pushedRef: "refs/heads/GH-1900",
+      signedDerivation: l3,
+    });
+    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(
+      /does not chain to a verifiable L2 launch/,
+    );
   });
 
   test("requireSigned + door + L3 verifies but NO launcher key → chain enforcement skipped (PR opens)", async () => {
@@ -538,7 +565,12 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
     deps.resolveKeeperKey = () => kPem;
     deps.resolveLauncherKey = () => null; // opt-out → only L3 verified
     deps.resolveLaunchAttestation = async () => l2;
-    deps.keeperDoor = async () => ({ status: "ok", commitSha: MATERIALIZED_COMMIT, pushedRef: "refs/heads/GH-1900", signedDerivation: l3 });
+    deps.keeperDoor = async () => ({
+      status: "ok",
+      commitSha: MATERIALIZED_COMMIT,
+      pushedRef: "refs/heads/GH-1900",
+      signedDerivation: l3,
+    });
     await runSubmitPublish(PUBLISH, deps);
     expect(prOpens).toHaveLength(1);
   });
@@ -547,7 +579,10 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
     await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
     const { deps } = spy();
     const signer = generateKeyPairSync("ed25519");
-    const wrongPub = generateKeyPairSync("ed25519").publicKey.export({ type: "spki", format: "pem" }) as string;
+    const wrongPub = generateKeyPairSync("ed25519").publicKey.export({
+      type: "spki",
+      format: "pem",
+    }) as string;
     const statement = {
       subject: [{ name: MATERIALIZED_COMMIT, digest: { gitCommit: MATERIALIZED_COMMIT } }],
     };
@@ -560,7 +595,9 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
       pushedRef: "refs/heads/GH-1900",
       signedDerivation: {
         statement,
-        signature: sign(null, Buffer.from(canonicalJson(statement)), signer.privateKey).toString("base64"),
+        signature: sign(null, Buffer.from(canonicalJson(statement)), signer.privateKey).toString(
+          "base64",
+        ),
       },
     });
     await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/L3 does not verify/);
@@ -578,7 +615,9 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
       pushedRef: "refs/heads/GH-1900",
       signedDerivation: { statement: { subject: [] }, signature: "x" },
     });
-    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/no keeper trust key is configured/);
+    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(
+      /no keeper trust key is configured/,
+    );
   });
 
   test("requireSigned + door + signed derivation for the WRONG commit fails closed", async () => {

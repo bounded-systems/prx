@@ -178,7 +178,12 @@ export interface KeeperDoorAttestLaunchDeps {
 export async function runKeeperDoorAttestLaunch(
   input: { subject: string; manifest: unknown },
   deps: KeeperDoorAttestLaunchDeps = {},
-): Promise<{ subject: string; manifestDigest: string; l2LaunchDigest: string; attestation: unknown }> {
+): Promise<{
+  subject: string;
+  manifestDigest: string;
+  l2LaunchDigest: string;
+  attestation: unknown;
+}> {
   const attestLaunch = deps.attestLaunch ?? doorKeeperAttestLaunch;
   const result = await attestLaunch({ subject: input.subject, manifest: input.manifest });
   if (result.status !== "ok") {

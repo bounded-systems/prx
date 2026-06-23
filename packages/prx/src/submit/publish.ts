@@ -15,7 +15,11 @@ import { spawnCapture } from "@bounded-systems/proc";
 import { getRef, PlanStoreError, setRef, type CasSha } from "../plan-store/cas.ts";
 import { type AttestDeps } from "../provenance/attest.ts";
 import { verifySlsaDerivation } from "../provenance/verify.ts";
-import { isL3Attestation, verifyL3Attestation, type L3Attestation } from "../provenance/verify-l3.ts";
+import {
+  isL3Attestation,
+  verifyL3Attestation,
+  type L3Attestation,
+} from "../provenance/verify-l3.ts";
 import { verifyLaunchChain, type LaunchAttestation } from "../provenance/verify-chain.ts";
 import { resolveKeeperTrustKey, resolveLauncherTrustKey } from "../provenance/keeper-trust.ts";
 // GH-2348.2: submit-publish is now an orchestrator — it delegates the push to
