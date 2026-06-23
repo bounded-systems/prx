@@ -21,5 +21,5 @@ export const perRepoPod: PodSpec = {
   // Minimal here; the OCI/VM substrate is epic prx-zj8.
   executor: { name: "prx-pod-house" },
   rooms: [claudeRoom, beadsdRoom, keeperdRoom],
-  doorDir: "/run/prx/doors",
+  // DEFAULT_DOOR_DIR resolves rootless (XDG_RUNTIME_DIR or ~/.local/run/prx/doors)
 };
