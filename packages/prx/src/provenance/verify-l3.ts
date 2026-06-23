@@ -26,19 +26,23 @@ export type L3Attestation = {
 };
 
 /**
- * Canonical JSON for verifying L3 signatures: recursively sort object keys, no
- * whitespace — so the signature is independent of key insertion order. MUST be
- * byte-identical to door-keeper's `canonicalJson` (the signer).
+ * Canonical JSON for verifying L3 signatures: recursively sort object keys, then
+ * `JSON.stringify` — independent of key insertion order AND stable across a JSON
+ * round-trip (the L3 always crosses the wire / a git note before it is verified,
+ * and JSON drops `undefined`-valued keys; sort-then-stringify matches that
+ * exactly). MUST be byte-identical to door-keeper's `canonicalJson` (the signer).
  */
-export function canonicalJson(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+function sortDeep(value: unknown): unknown {
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map(sortDeep);
   const obj = value as Record<string, unknown>;
-  const body = Object.keys(obj)
-    .sort()
-    .map((k) => `${JSON.stringify(k)}:${canonicalJson(obj[k])}`)
-    .join(",");
-  return `{${body}}`;
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(obj).sort()) out[k] = sortDeep(obj[k]);
+  return out;
+}
+
+export function canonicalJson(value: unknown): string {
+  return JSON.stringify(sortDeep(value));
 }
 
 /** True iff `value` is shaped like an {@link L3Attestation}. */
