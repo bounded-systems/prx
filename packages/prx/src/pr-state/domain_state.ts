@@ -30,7 +30,7 @@ import {
 import {
   assertInvariants,
   derivePhase,
-  rawStateV1Schema,
+  parseRawStateV1,
   workflowPhases,
   type InvariantFinding,
   type InvariantReport,
@@ -190,12 +190,12 @@ export const domainStateV1Schema = z
         remoteFreshness: z.enum(["fresh", "stale", "unknown"]),
         local: localCountsSchema,
         currentUnit: currentUnitSchema.nullable(),
-        artifacts: rawStateV1Schema.shape.artifacts,
-        sync: rawStateV1Schema.shape.sync,
+        artifacts: z.custom<RawStateV1["artifacts"]>(),
+        sync: z.custom<RawStateV1["sync"]>(),
       })
       .strict(),
     reviewState: reviewStateSchema,
-    rawState: rawStateV1Schema,
+    rawState: z.unknown().transform(parseRawStateV1),
     invariants: invariantReportSchema,
   })
   .strict();
@@ -288,7 +288,7 @@ function deriveRawState(
     repo.local.branch.ahead === 0 &&
     repo.local.branch.behind === 0;
 
-  return rawStateV1Schema.parse({
+  return parseRawStateV1({
     unitId: currentUnit?.ticket ?? branchName ?? repo.repo_root,
     artifacts: {
       ticket: {

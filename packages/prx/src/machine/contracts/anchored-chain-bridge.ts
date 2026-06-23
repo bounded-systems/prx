@@ -26,7 +26,7 @@ import type {
 
 import type { AgentContract } from "../contracts.ts";
 import { dispatchRequestSchema, dispatchResultSchema } from "../dispatch.ts";
-import { rawStateV1Schema } from "@bounded-systems/machine-schema";
+import { parseRawStateV1 } from "@bounded-systems/machine-schema";
 import { deriveTransitionSchema, runtimeOutputSchema } from "./derived_artifact_schemas.ts";
 import {
   blockerReportSchema,
@@ -109,7 +109,7 @@ export function anchoredChainBridge(args: AnchoredChainBridgeArgs): ContractRegi
  */
 export function defaultMachineSchemaMap(): Readonly<Record<string, z.ZodTypeAny>> {
   return {
-    raw_state_v1: rawStateV1Schema,
+    raw_state_v1: z.unknown().transform(parseRawStateV1),
     dispatch_request: dispatchRequestSchema,
     dispatch_result: dispatchResultSchema,
     blocker_report: blockerReportSchema,

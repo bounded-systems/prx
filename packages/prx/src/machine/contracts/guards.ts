@@ -14,7 +14,7 @@ import {
 } from "../contracts.ts";
 import {
   assertInvariants,
-  rawStateV1Schema,
+  parseRawStateV1,
   type RawStateV1,
 } from "@bounded-systems/machine-schema";
 
@@ -90,7 +90,7 @@ const inReviewToReadyToMerge: GuardFn = ({ graph, contract }) => {
   }
   let rawState: RawStateV1;
   try {
-    rawState = rawStateV1Schema.parse(payload);
+    rawState = parseRawStateV1(payload);
   } catch (err) {
     return {
       ok: false,
