@@ -170,7 +170,7 @@ describe("renderPodmanRun (prx-b44y — secret-holding rooms)", () => {
     expect(imageIdx).toBeGreaterThanOrEqual(0);
     // CMD args after the image override the entrypoint's hardcoded defaults
     // (door-kit parseArgs last-wins): --socket for the fabric path, --key for
-    // the host-backed secret mount.
+    // the host-backed secret mount, --port for TCP (macOS virtiofs workaround).
     const cmdArgs = argv.slice(imageIdx + 1);
     const socketIdx = cmdArgs.lastIndexOf("--socket");
     expect(socketIdx).toBeGreaterThanOrEqual(0);
@@ -178,6 +178,28 @@ describe("renderPodmanRun (prx-b44y — secret-holding rooms)", () => {
     const keyIdx = cmdArgs.lastIndexOf("--key");
     expect(keyIdx).toBeGreaterThanOrEqual(0);
     expect(cmdArgs[keyIdx + 1]).toBe("/run/secrets/keeper-key");
+    const portIdx = cmdArgs.lastIndexOf("--port");
+    expect(portIdx).toBeGreaterThanOrEqual(0);
+    expect(cmdArgs[portIdx + 1]).toBe("9999");
+  });
+
+  test("publishes the TCP port for the macOS virtiofs workaround (prx-zj8)", () => {
+    // virtiofs exposes the socket file but not socket semantics → Mac host
+    // can't connect via Unix; port mapping lets it connect via KEEPERD_HOST.
+    const i = argv.indexOf("--publish");
+    expect(i).toBeGreaterThanOrEqual(0);
+    expect(argv[i + 1]).toBe("9999:9999");
+    // A room without tcpPort gets no --publish.
+    const noPort = renderPodmanRun(
+      {
+        ...perRepoPod,
+        rooms: perRepoPod.rooms.map((r) =>
+          r.name === "keeperd-room" ? { ...r, tcpPort: undefined } : r,
+        ),
+      },
+      "keeperd-room",
+    );
+    expect(noPort).not.toContain("--publish");
   });
 
   test("adds the repo /work mount (shared :z) + workdir only when pod.repo is set", () => {

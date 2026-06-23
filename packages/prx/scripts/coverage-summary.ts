@@ -66,7 +66,7 @@ const PER_FILE_BASELINE = new Set<string>([
   "packages/prx/src/derive/cli.ts", // 84% — reformat line-accounting
   "packages/prx/src/pr-state/dolt-reconcile.ts", // 85% — reformat line-accounting (rounding)
   "packages/prx/src/room/pod-up-verb.ts", // 77% — run() calls live launchPod (podman); covered by live e2e, not unit test
-  "packages/prx/src/room/podman-runtime.ts", // 84% — waitForSocket real-fs poll + launchPod env set/restore; injectable seams; live paths covered by e2e
+  "packages/prx/src/room/podman-runtime.ts", // ~79% — spawnPodman/provisionDoorFabric/waitForSocket are live-spawn-only; KEEPERD_HOST/SOCK env juggling covered by launch-pod tests; live paths covered by e2e
 ]);
 
 type Totals = {
