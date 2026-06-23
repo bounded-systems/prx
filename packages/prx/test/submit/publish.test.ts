@@ -18,6 +18,7 @@ import {
 import type { execGit, GitExecOptions, GitExecResult } from "@bounded-systems/git";
 
 import { getRef } from "../../src/plan-store/cas.ts";
+import { storeLaunchAttestation } from "../../src/provenance/launch-store.ts";
 import { statement } from "@bounded-systems/ocap-provenance";
 import { toSLSA } from "@bounded-systems/ocap-provenance/slsa";
 
@@ -511,6 +512,45 @@ describe("runSubmitPublish — keeper door mode (box profile, prx-asr)", () => {
     });
     await runSubmitPublish(PUBLISH, deps);
     expect(prOpens).toHaveLength(1);
+  });
+
+  test("e2e: chain resolved from the REAL CAS (store → gate default resolver → verify) → PR opens", async () => {
+    await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
+    const { deps, prOpens } = spy();
+    const { l2, l3, kPem, lPem } = chainSpy();
+    // Producer side: store the signed L2 in the real CAS (PRX_CAS_ROOT, set in beforeEach).
+    await storeLaunchAttestation(l2);
+    deps.keeperDoorMode = () => true;
+    deps.requireSigned = true;
+    deps.resolveKeeperKey = () => kPem;
+    deps.resolveLauncherKey = () => lPem;
+    // NO injected resolveLaunchAttestation → the gate's DEFAULT
+    // (resolveLaunchAttestationFromCas) fetches the L2 from the real CAS by the L3's link.
+    deps.keeperDoor = async () => ({
+      status: "ok",
+      commitSha: MATERIALIZED_COMMIT,
+      pushedRef: "refs/heads/GH-1900",
+      signedDerivation: l3,
+    });
+    await runSubmitPublish(PUBLISH, deps);
+    expect(prOpens).toHaveLength(1);
+  });
+
+  test("e2e: L2 absent from the CAS → gate default resolver returns null → fail closed", async () => {
+    await writeSubmitArtifact({ artifact: validArtifact(), slot: "ready" });
+    const { deps } = spy();
+    const { l3, kPem, lPem } = chainSpy(); // L2 is NOT stored
+    deps.keeperDoorMode = () => true;
+    deps.requireSigned = true;
+    deps.resolveKeeperKey = () => kPem;
+    deps.resolveLauncherKey = () => lPem;
+    deps.keeperDoor = async () => ({
+      status: "ok",
+      commitSha: MATERIALIZED_COMMIT,
+      pushedRef: "refs/heads/GH-1900",
+      signedDerivation: l3,
+    });
+    await expect(runSubmitPublish(PUBLISH, deps)).rejects.toThrow(/no L2 launch attestation found/);
   });
 
   test("requireSigned + door + launcher key set but L2 not found → fail closed", async () => {
