@@ -56,4 +56,4 @@ Manual single-package publish: push a `@bounded-systems/<pkg>@<version>` tag, or
 
 | Package | Version | Auto-publish | Intra-scope deps |
 | --- | --- | --- | --- |
-| `@bounded-systems/prx-config` | 0.2.3 | ✅ ready | — |
+| `@bounded-systems/prx-config` | 0.3.0 | ✅ ready | — |
