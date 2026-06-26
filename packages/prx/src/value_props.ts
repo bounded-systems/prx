@@ -105,6 +105,7 @@ export const VALUE_PROPS: readonly ValueProp[] = [
           } as never).ok === false,
         exercises: [
           "provenance/effect-ownership.ts:verifyEffectOwnership",
+          "provenance/merge-guard.ts:projectProvenanceAxis",
           "provenance/signer.ts:actorFromBuilderId",
           "@bounded-systems/policy:findOwningRoles",
         ],
