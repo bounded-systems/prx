@@ -1,0 +1,23 @@
+packages/prx/src/agents/policy_guard.ts
+  s_8bfe0e8de6557c::t_55c6c2d0f849c3 57-59,61-62,67-116,120-124,127,130-131,134-142
+  s_8bfe0e8de6557c::t_7901ae4b6bcb98 156-181
+packages/prx/test/agents/policy_guard.test.ts
+  s_8bfe0e8de6557c::t_8c3fefa308ef37 124-175
+  s_8bfe0e8de6557c::t_8ff4304d800497 38-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "fe0d62d6c2b6e5a6bc4258ed8765aa7ad541f1ae",
+  "prompts": {},
+  "sessions": {
+    "s_8bfe0e8de6557c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "159cecef-b114-4932-b219-6b198cbf9abd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
