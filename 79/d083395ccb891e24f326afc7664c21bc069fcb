@@ -1,0 +1,21 @@
+packages/prx/src/provenance/effect-ownership.ts
+  s_8bfe0e8de6557c::t_4d0fec59812032 15-17
+packages/prx/src/value_props.ts
+  s_8bfe0e8de6557c::t_64aa39d3a4c44a 108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "79d083395ccb891e24f326afc7664c21bc069fcb",
+  "prompts": {},
+  "sessions": {
+    "s_8bfe0e8de6557c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "159cecef-b114-4932-b219-6b198cbf9abd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
