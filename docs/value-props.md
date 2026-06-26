@@ -23,7 +23,7 @@ value prop. `exercises` is the code that delivers the claim — the refactoring 
 **Why not X:** vs trust-the-signature: a valid signature isn't enough — the producer must OWN the effect, or it's an orphan/ambient effect.
 
 - [backed] a push produced by reviewer is rejected
-  - exercises: provenance/effect-ownership.ts:verifyEffectOwnership, provenance/signer.ts:actorFromBuilderId, @bounded-systems/policy:findOwningRoles
+  - exercises: provenance/effect-ownership.ts:verifyEffectOwnership, provenance/merge-guard.ts:projectProvenanceAxis, provenance/signer.ts:actorFromBuilderId, @bounded-systems/policy:findOwningRoles
 
 ## A beads work unit can travel intake → merged PR through one signed pipeline.  — BACKED
 
@@ -70,6 +70,7 @@ value prop. `exercises` is the code that delivers the claim — the refactoring 
 - `pr-state/keeper.ts:runKeeperCommitTree` → "A beads work unit can travel intake → merged PR through one signed pipeline."
 - `provenance/derivation_chain_feature.ts:generateDerivationChainFeature` → "A derivation's identity is content-addressed: any change to its manifest changes its id."
 - `provenance/effect-ownership.ts:verifyEffectOwnership` → "A privileged effect not produced by its owning actor fails verification."
+- `provenance/merge-guard.ts:projectProvenanceAxis` → "A privileged effect not produced by its owning actor fails verification."
 - `provenance/signer.ts:actorFromBuilderId` → "A privileged effect not produced by its owning actor fails verification."
 - `scripts/prx-compile.ts` → "You can see what each work unit cost."
 - `services/anthropic.ts:projectAnthropicUsage` → "You can see what each work unit cost."

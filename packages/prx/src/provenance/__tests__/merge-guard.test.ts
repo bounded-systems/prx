@@ -72,6 +72,22 @@ async function emitPush(deps: AttestDeps, oid: string): Promise<void> {
   await exec.exec({ command: "git", args: ["push"] } as ProcRequest);
 }
 
+/**
+ * prx-6s8: emit a push/v1 that carries `params.subcommand` (so it is a policed
+ * effect) and a chosen `producer` builder id (so its owning actor is known).
+ * `builderId` of `prx://<actor>/push` resolves to `<actor>` via
+ * `actorFromBuilderId`, the identity `verifyEffectOwnership` checks against the
+ * policy table.
+ */
+async function emitPushAs(deps: AttestDeps, oid: string, builderId: string): Promise<void> {
+  const exec = attestingProc(inner(), { ...deps, builderId }, () => ({
+    buildType: GIT_PUSH_BUILD_TYPE,
+    subject: [{ name: "commit", digest: { gitCommit: oid } }],
+    externalParameters: { subcommand: "push" },
+  }));
+  await exec.exec({ command: "git", args: ["push"] } as ProcRequest);
+}
+
 describe("projectProvenanceAxis", () => {
   test("enforcement off ⇒ unchecked (even with no derivation)", async () => {
     const store = fakeStore();
@@ -116,6 +132,23 @@ describe("projectProvenanceAxis", () => {
         isStale: async () => false,
       }),
     ).toBe("verified");
+  });
+
+  // prx-6s8: ownership is enforced alongside the signature. A push owned by its
+  // producer stays verified; one produced by a non-owning actor fails closed
+  // even though the envelope is authentic.
+  test("a signed push owned by its producer (keeper) ⇒ verified", async () => {
+    const store = fakeStore();
+    const { deps, verifier } = mkAttest(store);
+    await emitPushAs(deps, OID, "prx://keeper/push");
+    expect(await projectProvenanceAxis(OID, { store, verifier, enforce: true })).toBe("verified");
+  });
+
+  test("a signed push produced by a non-owning actor (reviewer) ⇒ unsigned (orphan effect)", async () => {
+    const store = fakeStore();
+    const { deps, verifier } = mkAttest(store);
+    await emitPushAs(deps, OID, "prx://reviewer/push");
+    expect(await projectProvenanceAxis(OID, { store, verifier, enforce: true })).toBe("unsigned");
   });
 
   test("a signed derivation under a wrong-key verifier ⇒ unsigned (fail closed)", async () => {

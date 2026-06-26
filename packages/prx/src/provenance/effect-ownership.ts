@@ -12,8 +12,9 @@
 // straight from the policy table (`findOwningRoles`), so this tightens
 // automatically as prx-gr1 narrows git custody to keeper.
 //
-// Pure + unwired: callers (e.g. the merge-guard) opt in. Default behavior of the
-// live pipeline is unchanged until a gate adopts it.
+// prx-6s8: the merge-guard (`projectProvenanceAxis`) now adopts this on the live
+// merge gate — under enforcement, a signature-valid effect whose producer does
+// not own it fails closed ("unsigned"). The function stays pure; the gate calls it.
 
 import {
   POLICY_ROLES,

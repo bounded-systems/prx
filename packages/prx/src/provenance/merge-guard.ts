@@ -21,7 +21,12 @@
  *     record, absent/forged envelope, bad signature) ⇒ "unsigned": the only
  *     value that blocks the gate. A present-but-unverifiable attestation is a
  *     hard fail.
- *   - every present derivation verifies ⇒ "verified".
+ *   - a derivation IS present and its envelope verifies, but its producer does
+ *     NOT own the effect (e.g. a signature-valid `push/v1` whose builder is
+ *     `reviewer`) ⇒ "unsigned": authenticity is necessary but not sufficient.
+ *     An orphan/ambient effect — a privileged output not produced by its owning
+ *     actor — fails closed even though the signature is good (prx-6s8).
+ *   - every present derivation verifies AND is owned by its producer ⇒ "verified".
  */
 
 import type {
@@ -32,6 +37,7 @@ import type {
 } from "@bounded-systems/anchored-chain";
 
 import type { ProvenanceAxis } from "../machine/machines/workflow.ts";
+import { verifyEffectOwnership } from "./effect-ownership.ts";
 import { verifySlsaDerivation } from "./verify.ts";
 
 /** What the projection needs: the ledger reverse-lookup + fetch, plus a verifier. */
@@ -108,6 +114,13 @@ export async function projectProvenanceAxis(
     const verifier = deps.verifierFor ? deps.verifierFor(derivation) : deps.verifier;
     if (verifier === null || !(await verifySlsaDerivation(derivation, verifier))) {
       return "unsigned"; // no key for this actor, or absent/forged envelope, or bad sig
+    }
+    // prx-6s8: authenticity is necessary but not sufficient. A signature-valid
+    // derivation whose producer does not OWN the effect it attests (per the
+    // policy table) is an orphan/ambient effect — fail closed. Non-effect
+    // derivations and non-role producers pass through (see verifyEffectOwnership).
+    if (!verifyEffectOwnership(derivation).ok) {
+      return "unsigned"; // authentic, but produced by a non-owning actor
     }
     // GH-352: a verified derivation that no longer covers the current tree is
     // not a valid verdict (uniform with the local `ci` freshness signal).
