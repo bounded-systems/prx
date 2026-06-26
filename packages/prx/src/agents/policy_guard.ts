@@ -54,46 +54,92 @@ const GH_GROUP_WORDS = new Set([
 ]);
 
 /**
- * Extract the policed `(tool, subcommand)` from a Bash command, or null when the
- * command isn't a policy-relevant tool invocation. Handles raw `git/gh/bd/wt
- * <sub>` and the `prx tools <tool> ... --subcommand <sub>` wrapper shape.
+ * Tokens of the command's first pipeline / sequencing segment — the command
+ * actually being run. Chained reads after `&&`/`|`/`;` fire their own hook (or
+ * are conservatively gated by the head).
+ */
+function headTokens(command: string): string[] {
+  return command
+    .trim()
+    .split(/\s*(?:\||&&|;)\s*/, 1)[0]!
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+// Global options that take a VALUE as the next token (space-separated form).
+// They must be skipped together with their value when scanning for the verb, or
+// the value is mistaken for the subcommand — e.g. `git -C /repo push` must read
+// `push`, not `/repo`, and `gh -R o/r pr merge` must read `merge`, not `o/r`.
+// The `--opt=value` form is a single token already skipped as an option, so only
+// the space form is listed here. (prx-w1v: closing the misparse fail-open.)
+const VALUE_OPTS: Partial<Record<PolicyTool, ReadonlySet<string>>> = {
+  git: new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace"]),
+  gh: new Set(["-R", "--repo"]),
+};
+
+/**
+ * The subcommand (verb) among a tool's args: the first non-option token, after
+ * skipping leading options and the values of value-taking options, stepping over
+ * a gh group word (`pr`/`issue`/…) to reach the real verb. Returns null when the
+ * args carry no derivable verb (only options / values) — an unparseable policed
+ * command the caller must fail closed on, not pass through.
+ */
+function subcommandFrom(tool: PolicyTool, args: readonly string[]): string | null {
+  const valueOpts = VALUE_OPTS[tool];
+  let i = 0;
+  while (i < args.length) {
+    const tok = args[i]!;
+    if (tok.startsWith("-")) {
+      i += valueOpts?.has(tok) ? 2 : 1; // skip the option (and its value, if any)
+      continue;
+    }
+    if (tool === "gh" && GH_GROUP_WORDS.has(tok)) {
+      const verb = args[i + 1];
+      return verb && !verb.startsWith("-") ? verb : null;
+    }
+    return tok;
+  }
+  return null;
+}
+
+/**
+ * Extract the policed `(tool, subcommand)` from a Bash command. Returns null when
+ * the command's head is NOT a policed tool — those genuinely pass through — AND
+ * when the head IS a policed tool but no subcommand can be derived. Callers tell
+ * the two apart with {@link namesPolicedTool} and fail closed on the latter
+ * (prx-w1v). Handles raw `git/gh/bd/wt <sub>` and the
+ * `prx tools <tool> ... --subcommand <sub>` wrapper shape.
  */
 export function parsePolicedCommand(
   command: string,
 ): { tool: PolicyTool; subcommand: string } | null {
-  const tokens = command
-    .trim()
-    // Only inspect the first pipeline / sequencing segment — that's the command
-    // actually being run; chained reads after `&&`/`|` are matched on their own
-    // hook fire if they're separate, and we conservatively gate the head.
-    .split(/\s*(?:\||&&|;)\s*/, 1)[0]!
-    .split(/\s+/)
-    .filter(Boolean);
+  const tokens = headTokens(command);
   if (tokens.length === 0) return null;
 
-  let rest = tokens;
   // `prx tools <tool> ...` wrapper → unwrap to the underlying tool.
-  if (rest[0] === "prx" && rest[1] === "tools" && rest[2] && isPolicyTool(rest[2])) {
-    const tool = rest[2] as PolicyTool;
-    const flagIdx = rest.findIndex((t) => t === "--subcommand");
-    const sub = flagIdx >= 0 ? rest[flagIdx + 1] : rest[3];
-    return sub ? { tool, subcommand: stripGhGroup(tool, [sub]) } : null;
+  if (tokens[0] === "prx" && tokens[1] === "tools" && tokens[2] && isPolicyTool(tokens[2])) {
+    const tool = tokens[2] as PolicyTool;
+    const flagIdx = tokens.findIndex((t) => t === "--subcommand");
+    const sub = flagIdx >= 0 ? tokens[flagIdx + 1] : tokens[3];
+    return sub && !sub.startsWith("-") ? { tool, subcommand: sub } : null;
   }
 
-  const head = rest[0];
+  const head = tokens[0];
   if (!head || !isPolicyTool(head)) return null;
   const tool = head as PolicyTool;
-  const args = rest.slice(1).filter((t) => !t.startsWith("-"));
-  if (args.length === 0) return null;
-  return { tool, subcommand: stripGhGroup(tool, args) };
+  const subcommand = subcommandFrom(tool, tokens.slice(1));
+  return subcommand === null ? null : { tool, subcommand };
 }
 
-/** For gh, skip a leading group word (`pr`/`issue`/...) to reach the verb. */
-function stripGhGroup(tool: PolicyTool, args: string[]): string {
-  if (tool === "gh" && args.length >= 2 && GH_GROUP_WORDS.has(args[0]!)) {
-    return args[1]!;
-  }
-  return args[0]!;
+/**
+ * True when the command's head names a policed tool (`git`/`gh`/`bd`/`prx`/… per
+ * `isPolicyTool`), regardless of whether a subcommand parses. Lets the guard
+ * distinguish "not a policed tool" (pass through) from "a policed tool we could
+ * not parse" (fail closed) — prx-w1v.
+ */
+export function namesPolicedTool(command: string): boolean {
+  const tokens = headTokens(command);
+  return tokens.length > 0 && isPolicyTool(tokens[0]!);
 }
 
 /**
@@ -107,7 +153,32 @@ function stripGhGroup(tool: PolicyTool, args: string[]): string {
  */
 export function decideAgentToolCall(call: AgentToolCall): PolicyGuardDecision {
   const parsed = parsePolicedCommand(call.command);
-  if (!parsed) return { allow: true };
+  if (!parsed) {
+    // prx-w1v: a head that names a policed tool but yields no parseable
+    // subcommand (`prx tools git`, `git -C /x` with no verb, an option whose
+    // value ate the verb) must NOT pass through — it could smuggle a write past
+    // the gate. Fail CLOSED for the actors this hook governs; the main session
+    // and unknown subagents stay out of scope (pass through), unchanged.
+    if (namesPolicedTool(call.command)) {
+      if (call.agentType === "orchestrator") {
+        return {
+          allow: false,
+          reason:
+            `orchestrator is capability-poor and owns no tool — and \`${call.command}\` names ` +
+            `a policed tool with no parseable subcommand (prx-w1v).`,
+        };
+      }
+      if (call.agentType && isPolicyRole(call.agentType)) {
+        return {
+          allow: false,
+          reason:
+            `\`${call.command}\` names a policed tool but no subcommand could be parsed — ` +
+            `fail closed: the ${call.agentType} actor's ownership cannot be verified (prx-w1v).`,
+        };
+      }
+    }
+    return { allow: true };
+  }
   const { tool, subcommand } = parsed;
 
   // The orchestrator owns nothing — any policed tool is a delegation it skipped.
