@@ -35,6 +35,34 @@ describe("parsePolicedCommand (prx-g88.2)", () => {
     expect(parsePolicedCommand("bun test")).toBeNull();
     expect(parsePolicedCommand("")).toBeNull();
   });
+
+  test("prx-w1v: value-taking leading options are skipped to reach the verb", () => {
+    expect(parsePolicedCommand("git -C /repo push origin x")).toEqual({
+      tool: "git",
+      subcommand: "push",
+    });
+    expect(parsePolicedCommand("git -c user.name=x commit -m y")).toEqual({
+      tool: "git",
+      subcommand: "commit",
+    });
+    expect(parsePolicedCommand("git --git-dir /x/.git push")).toEqual({
+      tool: "git",
+      subcommand: "push",
+    });
+    expect(parsePolicedCommand("gh -R o/r pr merge 9")).toEqual({ tool: "gh", subcommand: "merge" });
+    expect(parsePolicedCommand("gh --repo o/r issue create")).toEqual({
+      tool: "gh",
+      subcommand: "create",
+    });
+  });
+
+  test("prx-w1v: a policed tool with no derivable verb returns null", () => {
+    expect(parsePolicedCommand("git")).toBeNull();
+    expect(parsePolicedCommand("git -C /repo")).toBeNull(); // option consumed the only token
+    expect(parsePolicedCommand("prx tools git")).toBeNull(); // wrapper, no subcommand
+    expect(parsePolicedCommand("prx tools git --subcommand")).toBeNull(); // flag, no value
+    expect(parsePolicedCommand("gh -R o/r")).toBeNull();
+  });
 });
 
 describe("decideAgentToolCall (prx-g88.2)", () => {
@@ -91,5 +119,57 @@ describe("decideAgentToolCall (prx-g88.2)", () => {
     expect(decideAgentToolCall({ agentType: "planner", command: "echo hi" }).allow).toBe(true);
     // `git stash` isn't in the policy vocabulary — not our boundary to enforce.
     expect(decideAgentToolCall({ agentType: "planner", command: "git stash" }).allow).toBe(true);
+  });
+});
+
+describe("decideAgentToolCall — prx-w1v fail-closed parsing", () => {
+  // The misparse bypass: a value-taking option used to swallow the verb, so the
+  // real write read as an unknown subcommand and passed through. Now the verb is
+  // found and ownership is enforced.
+  test("a non-owning role cannot smuggle a write behind `-C` / `-R`", () => {
+    expect(
+      decideAgentToolCall({ agentType: "reviewer", command: "git -C /repo push origin x" }).allow,
+    ).toBe(false);
+    expect(
+      decideAgentToolCall({ agentType: "executor", command: "gh -R o/r pr merge 9" }).allow,
+    ).toBe(false);
+  });
+
+  test("the owning actor still passes with leading options (no over-deny)", () => {
+    expect(
+      decideAgentToolCall({ agentType: "keeper", command: "git -C /repo push origin x" }).allow,
+    ).toBe(true);
+    expect(decideAgentToolCall({ agentType: "forge", command: "gh -R o/r pr merge 9" }).allow).toBe(
+      true,
+    );
+    // a read with a leading option stays allowed for a git-capable role
+    expect(decideAgentToolCall({ agentType: "reviewer", command: "git -C /repo status" }).allow).toBe(
+      true,
+    );
+  });
+
+  test("an unparseable policed command fails closed for policy roles", () => {
+    for (const command of ["prx tools git", "prx tools git --subcommand", "git", "git -C /repo", "gh -R o/r"]) {
+      const d = decideAgentToolCall({ agentType: "reviewer", command });
+      expect(d.allow, `"${command}" should fail closed`).toBe(false);
+      expect(d.reason).toContain("prx-w1v");
+    }
+  });
+
+  test("unparseable policed fails closed for the orchestrator too", () => {
+    const d = decideAgentToolCall({ agentType: "orchestrator", command: "prx tools git" });
+    expect(d.allow).toBe(false);
+    expect(d.reason).toContain("capability-poor");
+  });
+
+  test("out of scope: main session + unknown subagents still pass through", () => {
+    expect(decideAgentToolCall({ command: "prx tools git" }).allow).toBe(true);
+    expect(
+      decideAgentToolCall({ agentType: "some-other-agent", command: "git -C /x" }).allow,
+    ).toBe(true);
+  });
+
+  test("non-policed unparseable still passes (not our boundary)", () => {
+    expect(decideAgentToolCall({ agentType: "reviewer", command: "echo" }).allow).toBe(true);
   });
 });
