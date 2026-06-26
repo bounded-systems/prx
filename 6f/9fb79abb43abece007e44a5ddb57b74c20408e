@@ -1,0 +1,23 @@
+packages/prx/src/provenance/merge-guard.ts
+  s_8bfe0e8de6557c::t_065d1f1b17845f 24-29,40
+  s_8bfe0e8de6557c::t_5f8bd6a8b8d696 118-124
+packages/prx/src/provenance/__tests__/merge-guard.test.ts
+  s_8bfe0e8de6557c::t_35003f2e43460f 75-90
+  s_8bfe0e8de6557c::t_7334463aca70ec 137-153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "6f9fb79abb43abece007e44a5ddb57b74c20408e",
+  "prompts": {},
+  "sessions": {
+    "s_8bfe0e8de6557c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "159cecef-b114-4932-b219-6b198cbf9abd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
