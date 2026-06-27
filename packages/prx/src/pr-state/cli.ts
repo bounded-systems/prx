@@ -327,6 +327,11 @@ import { diagnoseBeads, healBeads } from "../beads/doctor.ts";
 // GH-296: the host read-door — route `prx beads ready|list|show` through beadsd.
 import { withLimaBeadsClient } from "../beadsd/lima.ts";
 import { withBeadsClient, defaultCanonicalBeadsCwd } from "../beadsd/client-factory.ts";
+import {
+  resolveWorkspaceAffinity,
+  WorkspaceAffinityError,
+  readWorkspaceWarning,
+} from "../beadsd/workspace-affinity.ts";
 import { provisionLocalBeads } from "../beadsd/provision-local.ts";
 import { BeadsRequestSchema, type BeadsRequest } from "../beadsd/contract.ts";
 // GH-296: provision beads inside a Lima VM (install bd+dolt + clone canonical).
@@ -20861,6 +20866,14 @@ export function runCli(
             output.error(`beads ${parsed.kind}: ${reply.code}: ${reply.message}`);
             return 1;
           }
+          // prx-9e86: warn (non-fatal) when the daemon serves a different repo
+          // than this worktree — results are that repo's beads, not this one's.
+          // Uses the daemon-reported served prefix (no client subprocess); local
+          // path only (a `--vm` daemon serves its own workspace).
+          if (parsed.vm === undefined) {
+            const warning = readWorkspaceWarning(reply.servedPrefix);
+            if (warning !== null) output.error(warning);
+          }
           output.log(JSON.stringify(reply.result, null, 2));
           return 0;
         } catch (err) {
@@ -20877,6 +20890,22 @@ export function runCli(
       // clone). No `--vm` ⇒ local daemon (auto-started); `--vm` ⇒ the VM daemon.
       return (async () => {
         const { request } = parsed;
+        // prx-9e86: fail CLOSED on a cross-repo write. The host-global daemon
+        // serves ONE clone; a write from a worktree whose prefix differs would
+        // land in the wrong repo's beads. Local path only — a `--vm` daemon
+        // serves its own workspace, so the host-affinity concern doesn't apply.
+        if (parsed.vm === undefined) {
+          const affinity = resolveWorkspaceAffinity();
+          if (affinity.mismatch) {
+            output.error(
+              new WorkspaceAffinityError({
+                cwdPrefix: affinity.cwdPrefix!,
+                servedPrefix: affinity.servedPrefix!,
+              }).message,
+            );
+            return 1;
+          }
+        }
         try {
           const reply =
             parsed.vm !== undefined

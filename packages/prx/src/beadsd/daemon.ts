@@ -236,7 +236,12 @@ export async function handleBeadsRequest(
   // zero exit it succeeded; reply ok with no result (callers don't expect one).
   if (request.kind === "dep") {
     const etag = deps.etag?.();
-    return { status: "ok", result: null, ...(etag !== undefined ? { etag } : {}) };
+    return {
+      status: "ok",
+      result: null,
+      ...(etag !== undefined ? { etag } : {}),
+      ...(deps.localPrefix !== undefined ? { servedPrefix: deps.localPrefix } : {}),
+    };
   }
   let parsed: unknown;
   try {
@@ -249,7 +254,12 @@ export async function handleBeadsRequest(
     };
   }
   const etag = deps.etag?.();
-  return { status: "ok", result: parsed, ...(etag !== undefined ? { etag } : {}) };
+  return {
+    status: "ok",
+    result: parsed,
+    ...(etag !== undefined ? { etag } : {}),
+    ...(deps.localPrefix !== undefined ? { servedPrefix: deps.localPrefix } : {}),
+  };
 }
 
 /**
