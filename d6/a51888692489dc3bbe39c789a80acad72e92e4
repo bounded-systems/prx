@@ -1,0 +1,24 @@
+packages/prx/src/github-app/__tests__/installation-token.test.ts
+  s_3086de54355107::t_261585b2121fd5 42,46
+  s_3086de54355107::t_6e2acf7fc68ec2 1-41,43-45,47-81
+packages/prx/src/github-app/installation-token.ts
+  s_3086de54355107::t_c722e9bae22a45 1-101
+packages/prx/scripts/gh-app-token-spike.ts
+  s_3086de54355107::t_3ba6ed0d02c1e4 6-8,10-16,24-27,31,52-56,58-67,69-72,75,80-81,88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "d6a51888692489dc3bbe39c789a80acad72e92e4",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
