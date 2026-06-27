@@ -144,6 +144,18 @@ describe("handleBeadsRequest", () => {
     expect(calls[0]!.cwd).toBe("/repo/clone");
   });
 
+  test("forwards deps.localPrefix to execBd so native short ids are admitted (prx-3vow)", async () => {
+    const { execBd, calls } = fakeBd();
+    await handleBeadsRequest({ kind: "show", id: "prx-716" }, { execBd, localPrefix: "prx" });
+    expect(calls[0]!.localPrefix).toBe("prx");
+  });
+
+  test("omits localPrefix when deps has none (guard keeps its refuse-all default)", async () => {
+    const { execBd, calls } = fakeBd();
+    await handleBeadsRequest({ kind: "show", id: "prx-716" }, { execBd });
+    expect(calls[0]!.localPrefix).toBeUndefined();
+  });
+
   test("includes the dataset etag on ok replies when an etag source is wired (GH-296)", async () => {
     const { execBd } = fakeBd(okResult("[]"));
     const res = await handleBeadsRequest(READY, { execBd, etag: () => "head-abc123" });

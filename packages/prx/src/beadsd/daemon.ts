@@ -44,6 +44,15 @@ export interface BeadsDaemonDeps {
   /** The repo clone whose beads DB the reads run against (defaults to the daemon's cwd). */
   cwd?: string | undefined;
   /**
+   * The served clone's bd workspace prefix (e.g. `"prx"`). Forwarded to
+   * {@link execBd} as `localPrefix` so the bd-safe I-BF1 guard admits NATIVE
+   * short ids (prefix === this) — `prx beads show prx-716`, `dep add` on
+   * all-digit children — instead of refusing them as foreign surface refs
+   * (prx-3vow). Resolved ONCE at serve startup from the served cwd (the CLI
+   * passes it); absent it, the guard keeps its safe refuse-all default.
+   */
+  localPrefix?: string | undefined;
+  /**
    * GH-296: the dataset generation source — returns the served clone's current
    * dolt HEAD hash (a content-addressed etag for the whole bead store), or
    * undefined when unknown. Included on every `ok` reply so callers can validate
@@ -205,6 +214,9 @@ export async function handleBeadsRequest(
       cwd: deps.cwd,
       state: "planning",
       role: "planner",
+      // Admit native short ids (prefix === the served clone's workspace) past
+      // the bd-safe I-BF1 guard; foreign refs stay refused (prx-3vow).
+      ...(deps.localPrefix !== undefined ? { localPrefix: deps.localPrefix } : {}),
     });
   } catch (err) {
     return {
