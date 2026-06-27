@@ -27,7 +27,7 @@
     },
     "packages/prx": {
       "name": "@bounded-systems/prx",
-      "version": "0.11.3",
+      "version": "0.12.0",
       "bin": {
         "prx": "./dist/prx",
       },
@@ -60,7 +60,10 @@
     },
     "packages/prx-config": {
       "name": "@bounded-systems/prx-config",
-      "version": "0.3.0",
+      "version": "0.4.0",
+      "devDependencies": {
+        "@bounded-systems/seam-check": "npm:@jsr/bounded-systems__seam-check@^0.1.0",
+      },
       "peerDependencies": {
         "zod": "^3.25.0 || ^4.0.0",
       },
@@ -152,6 +155,8 @@
     "@bounded-systems/repo-root": ["@jsr/bounded-systems__repo-root@0.1.0", "https://npm.jsr.io/~/11/@jsr/bounded-systems__repo-root/0.1.0.tgz", { "dependencies": { "@jsr/bounded-systems__proc": "^0.2.0" } }, "sha512-yN833BSp3mxQ1ZQEVlO6iSmqfYZR36RFRzxip+ag8hDC2fWCK4Xixw7wUqQXNCqFa2Mqn7GnJEYD6JRr2SOfmg=="],
 
     "@bounded-systems/scout": ["@jsr/bounded-systems__scout@0.1.1", "https://npm.jsr.io/~/11/@jsr/bounded-systems__scout/0.1.1.tgz", { "dependencies": { "@jsr/bounded-systems__anchored-chain": "^0.2.1", "@jsr/bounded-systems__cas": "^0.1.1" } }, "sha512-OuYsiEQY/LwhG6zJ0dTY4MHrzN8CHg7RIWHCB+tKrch9MlZte3W7gCbW/574xJweGHKmJPKPnbzycO1nf1J6VQ=="],
+
+    "@bounded-systems/seam-check": ["@jsr/bounded-systems__seam-check@0.1.0", "https://npm.jsr.io/~/11/@jsr/bounded-systems__seam-check/0.1.0.tgz", {}, "sha512-nFzH7o19uIBF7BfJrly668AkynjdZ99Qk6pVRoOsf7/9M5vtKK7emI+B2jDFMSMyqZvVuILWKXz7tFs2vD1/LA=="],
 
     "@bounded-systems/slack": ["@jsr/bounded-systems__slack@0.2.1", "https://npm.jsr.io/~/11/@jsr/bounded-systems__slack/0.2.1.tgz", { "dependencies": { "@jsr/bounded-systems__anchored-chain": "^0.2.1", "@jsr/bounded-systems__cas": "^0.1.1", "@jsr/bounded-systems__policy": "^0.2.0" } }, "sha512-zKUfYsl497V9XDBvy+Ro1VoMrd3Js94jZKLX7RihiHNcgf8P6LTAn+9q8Zf7DAgA6+Mtg41PpSjAZVN0XQRDdg=="],
 
