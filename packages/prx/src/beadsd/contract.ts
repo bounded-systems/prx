@@ -188,6 +188,14 @@ export const BeadsResponseSchema = z.discriminatedUnion("status", [
      * daemon omits it when it has no HEAD source wired.
      */
     etag: z.string().min(1).optional(),
+    /**
+     * prx-9e86: the served clone's bd workspace prefix (e.g. `"prx"`). Lets a
+     * caller detect a workspace-affinity mismatch (reading through a daemon that
+     * serves a different repo than the caller's worktree) and warn — without a
+     * client-side `bd config` subprocess. Optional — omitted when the daemon has
+     * no served prefix wired.
+     */
+    servedPrefix: z.string().min(1).optional(),
   }),
   z.object({
     status: z.literal("error"),

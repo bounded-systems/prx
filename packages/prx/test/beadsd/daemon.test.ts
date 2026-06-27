@@ -156,6 +156,20 @@ describe("handleBeadsRequest", () => {
     expect(calls[0]!.localPrefix).toBeUndefined();
   });
 
+  test("reports the served prefix on ok replies when deps.localPrefix is set (prx-9e86)", async () => {
+    const { execBd } = fakeBd(okResult(JSON.stringify([{ id: "prx-1" }])));
+    const res = await handleBeadsRequest(READY, { execBd, localPrefix: "prx" });
+    expect(res.status).toBe("ok");
+    if (res.status === "ok") expect(res.servedPrefix).toBe("prx");
+  });
+
+  test("omits servedPrefix when deps.localPrefix is unset", async () => {
+    const { execBd } = fakeBd(okResult("[]"));
+    const res = await handleBeadsRequest(READY, { execBd });
+    expect(res.status).toBe("ok");
+    if (res.status === "ok") expect(res.servedPrefix).toBeUndefined();
+  });
+
   test("includes the dataset etag on ok replies when an etag source is wired (GH-296)", async () => {
     const { execBd } = fakeBd(okResult("[]"));
     const res = await handleBeadsRequest(READY, { execBd, etag: () => "head-abc123" });
