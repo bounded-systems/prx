@@ -1,0 +1,20 @@
+nix/hm-module.nix
+  s_af04857eb63b13::t_5965140c27a032 111-146
+  s_af04857eb63b13::t_53c6bbfd940723 36-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "25ee4008ea0ae7b0446343c81840c287ed387463",
+  "prompts": {},
+  "sessions": {
+    "s_af04857eb63b13": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "af44f481-365e-4ef2-874a-ead0644ceb40",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
