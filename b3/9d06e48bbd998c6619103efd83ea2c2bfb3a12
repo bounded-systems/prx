@@ -1,0 +1,23 @@
+packages/prx/src/pr-state/authorship-attest.ts
+  s_3086de54355107::t_158f11696c6486 1-78
+packages/prx/src/pr-state/__tests__/authorship-attest.test.ts
+  s_3086de54355107::t_0758607ca09449 1-135
+.changeset/authorship-attest.md
+  s_3086de54355107::t_c8654519061428 1-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "b39d06e48bbd998c6619103efd83ea2c2bfb3a12",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
