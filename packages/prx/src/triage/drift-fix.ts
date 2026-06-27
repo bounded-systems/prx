@@ -85,8 +85,6 @@ import {
 import { execBd as defaultExecBd } from "@bounded-systems/bd";
 import { updateBeadViaDaemon, reopenBeadViaDaemon } from "../beadsd/writes.ts";
 import {
-  bdDoctorReportSchema,
-  bdDuplicatesClusterSchema,
   emptyBdDoctorReport,
   runBdDoctorFix as defaultRunBdDoctorFix,
   runBdDoctorJson as defaultRunBdDoctorJson,
@@ -289,6 +287,33 @@ export const driftFixPlanRowSchema = z
   });
 
 export type DriftFixPlanRow = z.infer<typeof driftFixPlanRowSchema>;
+
+// bd's `duplicates`/`doctor` runtime shapes. @bounded-systems/bd@0.3.0 made its
+// public API type-only (schema-gen → generated fast-types; the zod schemas are
+// internal and no longer exported). The drift-fix plan still serializes these
+// surfaces, so prx owns the runtime schema for its OWN plan contract here,
+// mirroring bd's shape. `satisfies z.ZodType<…>` against bd's exported types
+// trips typecheck if bd's shape drifts from this mirror.
+const bdDuplicatesClusterMemberSchema = z.object({
+  beadsId: z.string(),
+  title: z.string().default(""),
+  status: z.string().default(""),
+  priority: z.number().int().nullable().default(null),
+});
+const bdDuplicatesClusterSchema = z.object({
+  target: bdDuplicatesClusterMemberSchema,
+  sources: z.array(bdDuplicatesClusterMemberSchema).nonempty(),
+});
+const bdDoctorIssueSchema = z.object({
+  category: z.string(),
+  count: z.number().int().nonnegative().default(0),
+  fixable: z.boolean().default(false),
+});
+const bdDoctorReportSchema = z.object({
+  total: z.number().int().nonnegative().default(0),
+  fixable: z.number().int().nonnegative().default(0),
+  issues: z.array(bdDoctorIssueSchema).default([]),
+});
 
 export const driftFixPlanSchema = z.object({
   repo: z.string().min(1),

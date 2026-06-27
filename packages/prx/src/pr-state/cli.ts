@@ -20657,18 +20657,15 @@ export function runCli(
       return (async () => {
         const deps: BeadsDaemonDeps = {};
         if (parsed.cwd !== undefined) deps.cwd = parsed.cwd;
-        // prx-3vow: resolve the served clone's bd issue_prefix ONCE and export
-        // it as PRX_BEADS_PREFIX for this daemon process, so every execBd call
-        // in handleBeadsRequest admits NATIVE short ids (e.g. `show prx-716`,
-        // `dep add` on all-digit children) past the bd-safe I-BF1 guard while
-        // foreign refs stay refused. Env (not an execBd opt) keeps this
-        // forward-compatible: a bd that predates `PRX_BEADS_PREFIX` just ignores
-        // it; once bumped, execBd's default env reads it. Best-effort: an
-        // unhealthy/prefixless clone leaves it unset → the guard keeps its safe
-        // refuse-all default.
+        // prx-3vow: resolve the served clone's bd issue_prefix ONCE and pass it
+        // as the daemon's localPrefix, so every execBd in handleBeadsRequest
+        // admits NATIVE short ids (e.g. `show prx-716`, `dep add` on all-digit
+        // children) past the bd-safe I-BF1 guard while foreign refs stay
+        // refused. Best-effort: an unhealthy/prefixless clone leaves it unset →
+        // the guard keeps its safe refuse-all default.
         const servedPrefix = diagnoseBeads(parsed.cwd !== undefined ? { cwd: parsed.cwd } : {})
           .prefix;
-        if (servedPrefix !== null) process.env.PRX_BEADS_PREFIX = servedPrefix;
+        if (servedPrefix !== null) deps.localPrefix = servedPrefix;
         // GH-296: keep the served clone fresh — `bd dolt pull` on start + every
         // 5 min (errors swallowed by runBeadsServe; conflicts vs local writes
         // are the sync agent's job, prx-cu1). Only when serving a real cwd.
