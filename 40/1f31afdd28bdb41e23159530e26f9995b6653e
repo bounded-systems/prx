@@ -1,0 +1,36 @@
+packages/prx/test/beadsd/daemon.test.ts
+  s_399e6065f1b4a3::t_9d25a26a454fac 147-158
+packages/prx/src/beadsd/daemon.ts
+  s_399e6065f1b4a3::t_e5a3cd2738c952 217-219
+  s_399e6065f1b4a3::t_6e0c553a33106e 47-54
+  s_399e6065f1b4a3::t_7c106bed2d84b9 46
+packages/prx/src/triage/drift-fix.ts
+  s_399e6065f1b4a3::t_51f4810deba39c 302,306-316
+  s_399e6065f1b4a3::t_ecf02fb4962f80 299-301
+  s_399e6065f1b4a3::t_d01ed381e5589b 303-305
+  s_399e6065f1b4a3::t_52d51d09c5a673 317
+packages/prx/package.json
+  s_399e6065f1b4a3::t_8fc3a2d4672e36 20
+.changeset/beadsd-localprefix-wiring.md
+  s_399e6065f1b4a3::t_620b9c778eac21 4-12
+packages/prx/src/pr-state/cli.ts
+  s_399e6065f1b4a3::t_44daca5079a186 20660-20665,20668
+bun.lock
+  s_399e6065f1b4a3::t_fbbe740694103e 39,63,118,184,186,668-684,693-698
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "401f31afdd28bdb41e23159530e26f9995b6653e",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
