@@ -1,0 +1,25 @@
+packages/prx-config/src/__tests__/extractability.test.ts
+  s_8bfe0e8de6557c::t_d2dcdd34713f32 1-2,5,7,9-17
+packages/prx-config/package.json
+  s_8bfe0e8de6557c::t_68ea4938e8df74 55-57
+.changeset/prx-config-seam-check.md
+  s_8bfe0e8de6557c::t_8ff65289cac9ec 1-7
+bun.lock
+  s_8bfe0e8de6557c::t_6c8c7e7c0ef9b6 30,63-66,159-160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a7949ce8c56c6d8f0f8102becfeb372a99219353",
+  "prompts": {},
+  "sessions": {
+    "s_8bfe0e8de6557c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "159cecef-b114-4932-b219-6b198cbf9abd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
