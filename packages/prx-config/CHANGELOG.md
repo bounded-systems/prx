@@ -1,5 +1,16 @@
 # @bounded-systems/prx-config
 
+## 0.4.0
+
+### Minor Changes
+
+- 06a401d: Remove Warp TUI support (`tui_l2_warp.ts` and all `*Warp` exports). Package now only manages the L1 Claude TUI slice.
+
+### Patch Changes
+
+- 585be9c: Add explicit `z.ZodType<T>` annotations to exported Zod schemas for JSR fast-check compliance. Add `| undefined` to optional TypeScript type fields to match `exactOptionalPropertyTypes: true` + Zod optional output.
+- 747b13f: Replace `z.infer<>` with explicit TypeScript types and add JSDoc to all exported symbols for JSR score 100.
+
 ## 0.2.1
 
 ### Patch Changes
