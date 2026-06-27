@@ -1,0 +1,21 @@
+.changeset/gh-app-token-spike.md
+  s_3086de54355107::t_62104b42cbf3c8 1-17
+packages/prx/scripts/gh-app-token-spike.ts
+  s_3086de54355107::t_9df3dbc9195a90 1-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "764895090f424848e486aa493f7b2edcafaa0559",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
