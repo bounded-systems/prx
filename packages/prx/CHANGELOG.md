@@ -1,5 +1,62 @@
 # @bounded-systems/prx
 
+## 0.12.0
+
+### Minor Changes
+
+- cff799e: Add `prx pod up` verb: launches the per-repo pod (claude-room + beadsd-room + keeperd-room) via `launchPod`, attests the launch (best-effort L2), and returns `{ pod, containers, l2LaunchDigest }`. Rootless `doorDir` (`$XDG_RUNTIME_DIR/prx/doors` or `~/.local/run/prx/doors`) so no sudo is required on macOS/Linux. Injected into the verb registry and routed via `cli.ts`.
+
+### Patch Changes
+
+- 513c2bd: Pin beadsd-box OCI image digest in `beadsd-room` (prx-634). Image is built via
+  `nix dockerTools.streamLayeredImage` (prx, bd, dolt, git, cacert) and pushed to
+  `ghcr.io/bounded-systems/prx/beadsd-box`; the digest reference replaces the
+  placeholder `"beadsd-box"` string. Adds `publish-oci-boxes.yml` CI workflow that
+  rebuilds and pushes on every `v*` tag.
+- df1713b: Correct the `gitAiAgent` comment in the home-manager module (prx-q9yj follow-up).
+
+  The merged comment claimed `GIT_AI_CUSTOM_ATTRIBUTES` is "persist[ed] into the
+  authorship note `custom_attributes`" with a local jq metric recipe. Verified
+  false (git-ai 1.6.3): the local note schema (`authorship/3.0.0`) has no
+  `custom_attributes` field — that data only flows to git-ai's cloud upload path
+  (`GIT_AI_API_KEY`). The local jq recipe always returns nothing.
+
+  Comment now states the real scope: the export is the cloud on-ramp (inert
+  without git-ai cloud), and a _local_ prx-vs-bypass metric needs a different
+  instrument. No behavior change — the `export` is unchanged.
+
+- b2b86da: Pass `--socket` and `--key` CMD args to keeperd container so it binds to the shared fabric.
+
+  The keeperd image entrypoint hardcodes `--socket /run/doors/keeperd.sock --key /keys/keeper.key`
+  before `"$@"`. door-kit's `parseArgs` uses last-wins semantics, so CMD args (after the OCI image
+  ref in `podman run`) override the baked-in defaults.
+
+  - **spec.ts** — `RoomSpec` gains `extraArgs: string[]` (default `[]`): room-specific CMD args
+    appended after the image ref for entrypoint override
+  - **podman.ts** — `renderPodmanRun` appends `--socket ${doorDir}/<basename>` CMD args for each
+    exposed door (overrides hardcoded entrypoint socket path), then `room.extraArgs`
+  - **keeperd-room.ts** — sets `extraArgs: ["--key", "/run/secrets/keeper-key"]` to override the
+    entrypoint's baked-in key path with our secret mount target
+  - all existing room definitions gain `extraArgs: []` to satisfy the TS output type
+
+- aacba94: Wire keeper socket readiness poll so `prx pod up` returns a non-null `l2LaunchDigest`.
+
+  Three-part fix closing the gap from prx-9yv3/#749:
+
+  1. **podman.ts** — `renderPodmanRun` injects `KEEPERD_SOCK=${doorDir}/<basename>` for
+     each exposed door, so the keeper daemon writes its socket onto the shared fabric
+     (not the in-box default `/run/keeperd.sock`).
+
+  2. **pod.ts** — `doorEnv` rebases consumer socket paths to `${doorDir}/<basename>`,
+     ensuring the client-side `KEEPERD_SOCK` and `PRX_BEADS_SOCKET` point to the
+     shared fabric regardless of the door spec's nominal path.
+
+  3. **podman-runtime.ts** — `launchPod` polls for the keeper socket via `waitForSocket`
+     (injectable, 500ms interval / 30s timeout), then sets `KEEPERD_SOCK` in the host
+     environment before calling `attestLaunchForPod`, and restores or deletes it after.
+     Best-effort: a poll timeout or attest failure surfaces as `l2LaunchDigest: null`
+     without tearing down the pod.
+
 ## 0.11.3
 
 ### Patch Changes
