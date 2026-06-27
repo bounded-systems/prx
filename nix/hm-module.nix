@@ -33,6 +33,24 @@ let
       ++ lib.optional cfg.provenance.requireSigned
         ''export PRX_REQUIRE_SIGNED_DERIVATIONS="1"''
     )
+    # prx-q9yj: tag prx-routed claude sessions as a distinct git-ai agent. Set in
+    # THIS wrapper only (never ~/.git-ai/config.json — global would tag every
+    # session as prx, destroying the prx-routed-vs-bypass distinction). git-ai
+    # persists it into the authorship note `custom_attributes`. Metric recipe:
+    #   git-ai log --raw | jq -s '
+    #     [.[] | select(.custom_attributes.agent=="prx")] as $prx
+    #     | { prx_lines: ($prx | map(.added_lines // 0) | add),
+    #         all_ai_lines: (map(.added_lines // 0) | add) }
+    #     | .pct_agent_prx = (100 * .prx_lines / (.all_ai_lines | if .==0 then 1 else . end))'
+    ++ lib.optional cfg.gitAiAgent.enable (
+      "export GIT_AI_CUSTOM_ATTRIBUTES=" + lib.escapeShellArg (builtins.toJSON (
+        {
+          agent = "prx";
+          version = cfg.gitAiAgent.version;
+          door = cfg.gitAiAgent.door;
+        } // cfg.gitAiAgent.extraAttributes
+      ))
+    )
   );
 
   # The prx launcher: inject the consumer env, then exec the binary.
@@ -88,6 +106,42 @@ in
       type = lib.types.bool;
       default = false;
       description = "Also install the `slack-scout` command (delegates to `prx scout slack`).";
+    };
+
+    # prx-q9yj: tag prx-routed sessions for git-ai attribution. Enabling this
+    # makes the wrapper export GIT_AI_CUSTOM_ATTRIBUTES so commits authored via
+    # `prx claude` carry `agent=prx` in their git-ai authorship note, while raw
+    # `claude` (a prx bypass) stays untagged — making prx adoption measurable.
+    gitAiAgent = {
+      enable = lib.mkEnableOption ''
+        tagging prx-routed claude sessions as a git-ai agent via
+        GIT_AI_CUSTOM_ATTRIBUTES (honored by git-ai >= 1.6.3)'';
+
+      door = lib.mkOption {
+        type = lib.types.str;
+        default = "local";
+        example = "vm";
+        description = ''
+          The `door` recorded in the attributes — the prx launch path this
+          wrapper drives (e.g. "local" for the tmux path). Crossing the --vm /
+          session-host seam with the var intact is tracked separately (prx-69j /
+          prx-bst); this option tags the local path.
+        '';
+      };
+
+      version = lib.mkOption {
+        type = lib.types.str;
+        default = bins.version;
+        defaultText = lib.literalExpression "the released prx version";
+        description = "The `version` recorded in the attributes (defaults to the installed prx).";
+      };
+
+      extraAttributes = lib.mkOption {
+        type = lib.types.attrsOf lib.types.str;
+        default = { };
+        example = lib.literalExpression ''{ host = "macbook"; }'';
+        description = "Extra string attributes merged into GIT_AI_CUSTOM_ATTRIBUTES (override agent/version/door if keyed the same).";
+      };
     };
 
     provenance = {
