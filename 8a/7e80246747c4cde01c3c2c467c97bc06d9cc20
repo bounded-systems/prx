@@ -1,0 +1,38 @@
+packages/prx/src/beadsd/daemon.ts
+  s_399e6065f1b4a3::t_4b702462032034 239-244
+  s_399e6065f1b4a3::t_d65fb2517ae036 257-262
+.changeset/beads-workspace-affinity-guard.md
+  s_399e6065f1b4a3::t_1be3f3dff96c7e 1-15
+packages/prx/test/beadsd/daemon.test.ts
+  s_399e6065f1b4a3::t_f36a282b59f80c 159-172
+packages/prx/src/pr-state/cli.ts
+  s_399e6065f1b4a3::t_42392859694b78 20869-20876
+  s_399e6065f1b4a3::t_9e3a5921085959 330-332,334
+  s_399e6065f1b4a3::t_b151793fbec767 333
+  s_399e6065f1b4a3::t_76528e9457677e 20893-20908
+packages/prx/test/beadsd/workspace-affinity.test.ts
+  s_399e6065f1b4a3::t_add7868739a4c5 83-103
+  s_399e6065f1b4a3::t_e028917d1ebe8b 1-6,8-82
+  s_399e6065f1b4a3::t_c361ee7d7d70e6 7
+packages/prx/src/beadsd/contract.ts
+  s_399e6065f1b4a3::t_7a18e84c592309 191-198
+packages/prx/src/beadsd/workspace-affinity.ts
+  s_399e6065f1b4a3::t_4941d9630af00e 91-108
+  s_399e6065f1b4a3::t_2150e6c3bc8e3f 1-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "8a7e80246747c4cde01c3c2c467c97bc06d9cc20",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
