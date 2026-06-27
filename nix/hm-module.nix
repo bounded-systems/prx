@@ -33,7 +33,21 @@ let
       ++ lib.optional cfg.provenance.requireSigned
         ''export PRX_REQUIRE_SIGNED_DERIVATIONS="1"''
     )
+    # prx-q9yj: tag prx-routed Claude sessions for git-ai authorship tracking.
+    # git-ai reads GIT_AI_CUSTOM_ATTRIBUTES and persists it into the authorship
+    # note; the launched claude inherits this env, so commits it authors carry
+    # `agent=prx`. Untagged (raw `claude`) commits = bypass. The pinned release
+    # version is baked here — a runtime export could not know it. `door` is
+    # deliberately omitted: it is runtime state, not known at eval time.
+    ++ lib.optional cfg.gitAiAgent.enable
+      ''export GIT_AI_CUSTOM_ATTRIBUTES=${lib.escapeShellArg (builtins.toJSON gitAiAttributes)}''
   );
+
+  # The attribute object git-ai persists; agent + pinned version, plus any
+  # consumer-supplied extras (extras win on key collision).
+  gitAiAttributes =
+    { agent = cfg.gitAiAgent.agent; version = bins.version; }
+    // cfg.gitAiAgent.extraAttributes;
 
   # The prx launcher: inject the consumer env, then exec the binary.
   wrapper = ''
@@ -114,6 +128,29 @@ in
           Sets PRX_REQUIRE_SIGNED_DERIVATIONS=1 — fail-closed verification: an
           unsigned or untrusted derivation is rejected at the merge-guard /
           publisher tier. The production posture; disable only to debug.
+        '';
+      };
+    };
+
+    gitAiAgent = {
+      enable = lib.mkEnableOption ''
+        tagging prx-routed Claude sessions for git-ai (prx-q9yj). When on, the
+        launcher exports GIT_AI_CUSTOM_ATTRIBUTES so git-ai attributes commits
+        authored through prx to `agent=prx` (vs raw `claude` = bypass)'';
+
+      agent = lib.mkOption {
+        type = lib.types.str;
+        default = "prx";
+        description = "The `agent` value in GIT_AI_CUSTOM_ATTRIBUTES — the git-ai authorship label for prx-routed sessions.";
+      };
+
+      extraAttributes = lib.mkOption {
+        type = lib.types.attrsOf lib.types.str;
+        default = { };
+        example = lib.literalExpression ''{ host = "laptop"; }'';
+        description = ''
+          Extra key/value pairs merged into GIT_AI_CUSTOM_ATTRIBUTES alongside
+          `agent` and the pinned prx `version`. Extras win on key collision.
         '';
       };
     };
