@@ -35,13 +35,17 @@ let
     )
     # prx-q9yj: tag prx-routed claude sessions as a distinct git-ai agent. Set in
     # THIS wrapper only (never ~/.git-ai/config.json — global would tag every
-    # session as prx, destroying the prx-routed-vs-bypass distinction). git-ai
-    # persists it into the authorship note `custom_attributes`. Metric recipe:
-    #   git-ai log --raw | jq -s '
-    #     [.[] | select(.custom_attributes.agent=="prx")] as $prx
-    #     | { prx_lines: ($prx | map(.added_lines // 0) | add),
-    #         all_ai_lines: (map(.added_lines // 0) | add) }
-    #     | .pct_agent_prx = (100 * .prx_lines / (.all_ai_lines | if .==0 then 1 else . end))'
+    # session as prx, destroying the prx-routed-vs-bypass distinction).
+    #
+    # SCOPE (verified, git-ai 1.6.3): GIT_AI_CUSTOM_ATTRIBUTES is consumed ONLY by
+    # git-ai's cloud upload path (GIT_AI_API_KEY → dashboard). It is NOT written to
+    # the local authorship note: the note schema (`authorship/3.0.0`) has no
+    # `custom_attributes` field — only `sessions.<id>.agent_id.{tool,id,model}`. So
+    # `git-ai log/usage/show` (local) never surface `agent=prx`, and a local jq over
+    # `custom_attributes` returns nothing. This export is therefore INERT without
+    # git-ai cloud — harmless, and the on-ramp for a future cloud-backed adoption
+    # metric. A *local* prx-vs-bypass metric needs a different instrument (prx's own
+    # telemetry, or git-ai surfacing custom_attributes / a custom tool label).
     ++ lib.optional cfg.gitAiAgent.enable (
       "export GIT_AI_CUSTOM_ATTRIBUTES=" + lib.escapeShellArg (builtins.toJSON (
         {
