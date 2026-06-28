@@ -189,8 +189,8 @@ describe("claudeRoom", () => {
     expect(() => RoomSpecSchema.parse(claudeRoom)).not.toThrow();
   });
 
-  test("consumes the daemon doors → its grants are beads:read + git:write", () => {
-    expect(roomGrants(claudeRoom)).toEqual(["beads:read", "git:write"]);
+  test("consumes the daemon doors → its grants are beads:read + git:write + github-app:token", () => {
+    expect(roomGrants(claudeRoom)).toEqual(["beads:read", "git:write", "github-app:token"]);
   });
 
   test("exposes a session:control door, strictly closed (reserved for prx-9s14)", () => {

@@ -47,6 +47,13 @@ export const claudeRoom: RoomSpec = {
       socket: `${DOORS}/keeperd.sock`,
       state: "open",
     },
+    {
+      name: "ghappd",
+      direction: "consume",
+      capability: "github-app:token",
+      socket: `${DOORS}/ghappd.sock`,
+      state: "open",
+    },
     // Declared but SEALED: the remote-control / drive-the-session seam. Opened
     // by prx-9s14 (authd-brokered); closed today.
     {

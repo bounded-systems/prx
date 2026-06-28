@@ -152,6 +152,26 @@ describe("podRoomEnv — the keystone", () => {
     });
   });
 
+  test("projects PRX_GH_APP_DOOR into the ghappd consumer", () => {
+    const c = consumer([
+      { name: "ghappd", direction: "consume", capability: "github-app:token", socket: "/x" },
+    ]);
+    const ghappdProvider: RoomInput = {
+      name: "ghappd-room",
+      doors: [
+        {
+          name: "ghappd",
+          direction: "expose",
+          capability: "github-app:token",
+          socket: "/run/prx/doors/ghappd.sock",
+        },
+      ],
+    };
+    expect(podRoomEnv(pod([c, ghappdProvider]), "consumer")).toEqual({
+      PRX_GH_APP_DOOR: `${DEFAULT_DOOR_DIR}/ghappd.sock`,
+    });
+  });
+
   test("a room with no wired beadsd door gets no gate env", () => {
     expect(podRoomEnv(pod([beadsdProvider]), "beadsd-room")).toEqual({});
   });
@@ -170,26 +190,27 @@ describe("perRepoPod", () => {
     expect(() => PodSpecSchema.parse(perRepoPod)).not.toThrow();
   });
 
-  test("wires claude-room's beadsd + keeperd consumes; control stays sealed", () => {
+  test("wires claude-room's beadsd + keeperd + ghappd consumes; control stays sealed", () => {
     const { resolved, diagnostics } = resolvePodDoors(perRepoPod);
     const caps = resolved
       .filter((r) => r.consumer === "claude-room")
       .map((r) => r.capability)
       .sort();
-    expect(caps).toEqual(["beads:read", "git:write"]);
+    expect(caps).toEqual(["beads:read", "git:write", "github-app:token"]);
     // The session:control door is EXPOSED+closed on claude-room → not a consume,
     // so it never appears as resolved or as a diagnostic.
     expect(diagnostics).toEqual([]);
     expect(resolved.some((r) => r.capability === "session:control")).toBe(false);
   });
 
-  test("fires the gate env into claude-room (beadsd + keeperd doors)", () => {
+  test("fires the gate env into claude-room (beadsd + keeperd + ghappd doors)", () => {
     const dir = perRepoPod.doorDir;
     expect(podRoomEnv(perRepoPod, "claude-room")).toEqual({
       PRX_BEADS_DOOR: "beadsd",
       PRX_BEADS_SOCKET: `${dir}/beadsd.sock`,
       PRX_KEEPER_DOOR: "keeperd",
       KEEPERD_SOCK: `${dir}/keeperd.sock`,
+      PRX_GH_APP_DOOR: `${dir}/ghappd.sock`,
     });
   });
 });
