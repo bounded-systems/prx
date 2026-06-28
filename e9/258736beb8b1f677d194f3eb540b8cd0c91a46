@@ -1,0 +1,29 @@
+packages/prx/src/ghappd/__tests__/client.test.ts
+  s_3086de54355107::t_8a620b5bf0c712 1-41
+.changeset/ghappd-core.md
+  s_3086de54355107::t_ee29bddb71ec38 1-15
+packages/prx/src/ghappd/daemon.ts
+  s_3086de54355107::t_8e7f50298a4c72 1-110
+packages/prx/src/ghappd/client.ts
+  s_3086de54355107::t_450f239a927832 1-69
+packages/prx/src/ghappd/__tests__/daemon.test.ts
+  s_3086de54355107::t_d0bf7a245223ba 1-146
+packages/prx/src/ghappd/contract.ts
+  s_3086de54355107::t_7c950cf459b1e2 1-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "e9258736beb8b1f677d194f3eb540b8cd0c91a46",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
