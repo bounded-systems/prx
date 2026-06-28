@@ -1,0 +1,24 @@
+packages/prx/test/room/podman.test.ts
+  s_399e6065f1b4a3::t_eb212f58026839 94-109
+packages/prx/src/room/podman.ts
+  s_399e6065f1b4a3::t_8b2a60dfe3cb88 168-171,173
+  s_399e6065f1b4a3::t_bd48bc062e5bb7 159-167,172,174-178
+.changeset/beadsd-door-socket-override.md
+  s_399e6065f1b4a3::t_f7b51c4dc2999b 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "6cc55e0068be17fee7dba786e37851fcc52bc785",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
