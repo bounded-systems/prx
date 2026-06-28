@@ -34,7 +34,7 @@ pkgs.stdenvNoCC.mkDerivation {
   # FOD: network allowed; output content-addressed by the NAR hash of the tree.
   outputHashMode = "recursive";
   outputHashAlgo = "sha256";
-  outputHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+  outputHash = "sha256-RA3DAIKHOZXSwFofd5x0Wnhs5tsGOzDEw4wfEchXkAg=";
 
   SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
 
