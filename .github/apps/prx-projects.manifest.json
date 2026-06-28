@@ -1,0 +1,26 @@
+{
+  "name": "prx-projects",
+  "url": "https://bounded.tools",
+  "description": "prx projects bucket — org Projects v2 board sync (the front-desk add-to-project grant a user install can't hold). One of the permission-bucketed apps (docs/prx/github-apps-architecture.md). Replaces the FRONT_DESK_* credentials.",
+  "public": false,
+  "hook_attributes": {
+    "url": "https://bounded.tools/api/github/webhooks",
+    "active": true
+  },
+  "redirect_url": "https://bounded.tools/app-manifest/callback",
+  "setup_url": "https://bounded.tools/setup",
+  "setup_on_update": false,
+  "request_oauth_on_install": false,
+  "default_events": [
+    "issues",
+    "pull_request",
+    "projects_v2_item",
+    "meta"
+  ],
+  "default_permissions": {
+    "metadata": "read",
+    "issues": "read",
+    "pull_requests": "read",
+    "organization_projects": "write"
+  }
+}
