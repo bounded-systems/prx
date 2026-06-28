@@ -169,6 +169,24 @@ export async function runKeeperCommitTree(
       `keeper commit-tree: expected a 40-hex commit sha, got '${commitSha}'`,
     );
   }
+  // prx-e7cl: fail closed. When commit-signing is configured
+  // (PRX_COMMIT_SIGNING_KEY — set by the keeper launch to prx's OWN key), the
+  // materialized commit MUST carry a signature. Refuse to ship an unsigned
+  // keeper commit that a signed-required base would reject at the merge gate —
+  // belt-and-suspenders even if the git seam's signing config was not applied.
+  if ((env as Record<string, string | undefined>)["PRX_COMMIT_SIGNING_KEY"]) {
+    const signed = git(
+      { subcommand: "show", args: ["-s", "--format=%G?", commitSha], cwd, role: "keeper" },
+      env,
+    );
+    const status = signed.stdout.trim();
+    if (signed.exitCode !== 0 || status === "" || status === "N") {
+      throw new KeeperGitError(
+        `keeper commit-tree: signing is configured (PRX_COMMIT_SIGNING_KEY) but commit ${commitSha} ` +
+          `is unsigned (git %G?='${status}'). Refusing to ship an unsigned keeper commit toward a signed-required base.`,
+      );
+    }
+  }
   // Point the derived branch at the materialized commit and check it out, so
   // `rev-parse HEAD` (the attested push subject) is the commit we just made.
   const switched = git({
