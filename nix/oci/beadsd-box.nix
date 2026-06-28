@@ -23,6 +23,29 @@ let
   # under the nix glibc loader in a from-scratch image. Drop-in for fetch-release.
   bins = import ./prx-fhs.nix self { inherit pkgs system; };
   bd = import ./bd.nix { inherit pkgs; };
+
+  # connect-to-external-dolt (prx-asr): the repo's `/work/.beads` is bind-mounted
+  # and SHARED with host bd, so beadsd must NOT serve (or mutate) it directly.
+  # Build a box-local `.beads` copy that points bd at the EXTERNAL dolt-box over
+  # the pod netns (server-mode), instead of spawning bd's own dolt on /work:
+  #   - drop the local `dolt/` clone + stale lock → force server-mode (verified:
+  #     bd connects with metadata only, no local clone — the prx-asr spike);
+  #   - set `dolt-server.port` to dolt-box's (default 3307; `PRX_DOLT_PORT`).
+  # The metadata (dolt_database, project_id, dolt_mode=server) carries over from
+  # /work/.beads unchanged. `"$@"` receives the pod's `--socket` arg override.
+  entrypoint = pkgs.writeShellScript "beadsd-box-entrypoint" ''
+    set -eu
+    cwd=/work
+    if [ -d /work/.beads ]; then
+      cwd=/beadsd
+      rm -rf "$cwd"
+      mkdir -p "$cwd"
+      cp -r /work/.beads "$cwd/.beads"
+      rm -rf "$cwd/.beads/dolt" "$cwd/.beads/dolt-server.lock"
+      printf '%s' "''${PRX_DOLT_PORT:-3307}" > "$cwd/.beads/dolt-server.port"
+    fi
+    exec /bin/prx beads serve --cwd "$cwd" "$@"
+  '';
 in
 pkgs.dockerTools.streamLayeredImage {
   name = "beadsd-box";
@@ -46,15 +69,16 @@ pkgs.dockerTools.streamLayeredImage {
 
   # A writable HOME for prx (config/cache) + the door-socket dir.
   extraCommands = ''
-    mkdir -p ./tmp ./home/prx ./run/prx/doors
+    mkdir -p ./tmp ./home/prx ./run/prx/doors ./beadsd
     chmod 1777 ./tmp
   '';
 
   config = {
-    # beadsd = `prx beads serve`, which shells to bd + dolt. The pod appends the
-    # clone dir (`--cwd`) and any external-dolt endpoint; this is the door the
-    # claude-room consumes (room/beadsd-room.ts).
-    Entrypoint = [ "/bin/prx" "beads" "serve" ];
+    # beadsd = `prx beads serve`, via the entrypoint wrapper that builds a
+    # box-local `.beads` pointing at the external dolt-box (connect-to-external-
+    # dolt, prx-asr) before serving `--cwd /beadsd`. Cmd carries the door socket
+    # (`"$@"` in the wrapper); the pod overrides it to the shared fabric path.
+    Entrypoint = [ "${entrypoint}" ];
     Cmd = [ "--socket" "/run/prx/doors/beadsd.sock" ];
     Env = [
       "SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt"
