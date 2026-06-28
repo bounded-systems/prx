@@ -4,15 +4,16 @@
 # It fires the moment an issue/PR is opened and adds it to Front Desk, so cards
 # land instantly; the central sweep (gh-project-room) is the backstop.
 #
-# Auth = the Front Desk *door*: the same signed GitHub App, granted only
-#   Organization Projects: read+write  (+ repo Issues/PRs: read).
-# Configure ONCE as ORG-level var + secret so every repo shares them:
-#   - org variable  FRONT_DESK_CLIENT_ID        (the App's Client ID, Iv23…)
-#   - org secret    FRONT_DESK_APP_PRIVATE_KEY
+# Auth = the prx-projects bucket app (docs/prx/github-apps-architecture.md),
+#   granted only Organization Projects: read+write (+ repo Issues/PRs: read).
+# Configure as var + secret (repo-level for this repo; org-level to share across
+# every repo's copy):
+#   - variable  PRX_PROJECTS_APP_ID          (the App ID, e.g. 4169314)
+#   - secret    PRX_PROJECTS_APP_PRIVATE_KEY
 # (See docs/handoffs/gh-project-room.md → "The door".)
 #
 # Until those are set, the job FAILS OPEN: the credentialed steps are gated on
-# FRONT_DESK_CLIENT_ID and skipped, so the `add` check passes instead of dying on
+# PRX_PROJECTS_APP_ID and skipped, so the `add` check passes instead of dying on
 # every PR org-wide (the bug in docs/handoffs/front-desk-app-credentials.md).
 # The central sweep (front-desk-sync.yml) is the backstop until the org-level
 # var + secret land.
@@ -32,24 +33,24 @@ jobs:
   add:
     runs-on: ubuntu-latest
     steps:
-      # Fail OPEN when the Front Desk App isn't configured yet: an unset
-      # org var FRONT_DESK_CLIENT_ID means the token mint (and thus the whole
+      # Fail OPEN when the prx-projects app isn't configured yet: an unset
+      # var PRX_PROJECTS_APP_ID means the token mint (and thus the whole
       # job) would fail on every PR. Skip the credentialed steps and let the
       # job pass — the central sweep (gh-project-room) is the backstop until
-      # the org-level var + secret are set.
-      - name: Front Desk App not configured — skipping
-        if: ${{ vars.FRONT_DESK_CLIENT_ID == '' }}
-        run: echo "FRONT_DESK_CLIENT_ID unset; relying on the central sweep. See docs/handoffs/gh-project-room.md."
-      - name: Mint Front Desk token from the GitHub App
+      # the var + secret are set.
+      - name: prx-projects app not configured — skipping
+        if: ${{ vars.PRX_PROJECTS_APP_ID == '' }}
+        run: echo "PRX_PROJECTS_APP_ID unset; relying on the central sweep. See docs/handoffs/gh-project-room.md."
+      - name: Mint Front Desk token from the prx-projects app
         id: app-token
-        if: ${{ vars.FRONT_DESK_CLIENT_ID != '' }}
+        if: ${{ vars.PRX_PROJECTS_APP_ID != '' }}
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          client-id: ${{ vars.FRONT_DESK_CLIENT_ID }}
-          private-key: ${{ secrets.FRONT_DESK_APP_PRIVATE_KEY }}
+          app-id: ${{ vars.PRX_PROJECTS_APP_ID }}
+          private-key: ${{ secrets.PRX_PROJECTS_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
       - name: Add to Front Desk
-        if: ${{ vars.FRONT_DESK_CLIENT_ID != '' }}
+        if: ${{ vars.PRX_PROJECTS_APP_ID != '' }}
         uses: actions/add-to-project@244f685bbc3b7adfa8466e08b698b5577571133e # v1.0.2
         with:
           project-url: https://github.com/orgs/bounded-systems/projects/2

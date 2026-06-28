@@ -10,8 +10,8 @@ name: version
 #     -> merging THAT PR lands the changelog + version bumps, and release.yml
 #        publishes.
 #
-# Auth: if a GitHub App is configured (repo var CHANGESETS_APP_ID + secret
-# CHANGESETS_APP_PRIVATE_KEY) this mints a short-lived App token and uses it to
+# Auth: if the prx-forge bucket app is configured (repo var PRX_FORGE_APP_ID +
+# secret PRX_FORGE_APP_PRIVATE_KEY) this mints a short-lived App token and uses it to
 # push the branch and open the PR — so "Allow GitHub Actions to create and
 # approve pull requests" can stay OFF (least privilege, prx-m1hs), and the PR
 # (created by the App, not GITHUB_TOKEN) actually triggers ci/coverage/etc.
@@ -45,11 +45,11 @@ jobs:
 
       - name: Mint GitHub App token
         id: app-token
-        if: ${{ vars.CHANGESETS_APP_ID != '' }}
+        if: ${{ vars.PRX_FORGE_APP_ID != '' }}
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.1.4
         with:
-          app-id: ${{ vars.CHANGESETS_APP_ID }}
-          private-key: ${{ secrets.CHANGESETS_APP_PRIVATE_KEY }}
+          app-id: ${{ vars.PRX_FORGE_APP_ID }}
+          private-key: ${{ secrets.PRX_FORGE_APP_PRIVATE_KEY }}
 
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
