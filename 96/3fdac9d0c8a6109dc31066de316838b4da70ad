@@ -1,0 +1,40 @@
+packages/prx/src/github-app/__tests__/broker.test.ts
+  s_3086de54355107::t_6b78031bf0ee57 38-52
+packages/prx/src/github-app/apply.ts
+  s_3086de54355107::t_ddc74f023b200d 9-13
+  s_3086de54355107::t_7e80a7764b7668 34-35
+  s_3086de54355107::t_57b1e8601bd505 80-86
+  s_3086de54355107::t_726f5596bc8a8a 62
+.changeset/gh-app-broker-harden.md
+  s_3086de54355107::t_55a84bd64e4460 1-22
+packages/prx/src/github-app/__tests__/apply.test.ts
+  s_3086de54355107::t_25b201e4f9682d 86-109
+packages/prx/src/github-app/broker-config.ts
+  s_3086de54355107::t_e5b46e8ca5c21e 24-27
+  s_3086de54355107::t_2482d81e3853bd 89-116
+packages/prx/src/github-app/__tests__/installation-token.test.ts
+  s_3086de54355107::t_5e85cb836b068c 70-109
+packages/prx/src/github-app/installation-token.ts
+  s_3086de54355107::t_5dbfaf2b13e4f5 38-47
+  s_3086de54355107::t_315c5d5c42e605 88-94,104,106
+packages/prx/src/github-app/broker.ts
+  s_3086de54355107::t_8cb92d290cdcea 59-61
+packages/prx/src/github-app/__tests__/broker-config.test.ts
+  s_3086de54355107::t_5b1714a9c81622 85-117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "963fdac9d0c8a6109dc31066de316838b4da70ad",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
