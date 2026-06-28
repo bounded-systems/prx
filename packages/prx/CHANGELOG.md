@@ -1,5 +1,29 @@
 # @bounded-systems/prx
 
+## 0.14.0
+
+### Minor Changes
+
+- 57c185b: Foreign-workspace signal for daemon-routed beads (prx-qmg). One daemon serves
+  one repo (GH-296), so a ref whose prefix is well-formed but not this daemon's
+  served prefix (e.g. `3qn-123`, `COMMERCE-456` against a `prx-*` daemon) can't
+  resolve here. `handleBeadsRequest` now short-circuits such refs with a clear
+  `foreign-workspace` error ("`3qn-123` isn't in this workspace — this daemon
+  serves `prx-*`") before spawning bd, for reads and writes alike — instead of a
+  generic not-found (read) or the bd-safe "resolve to canonical long id" refusal
+  (write). Uses the served prefix the daemon already knows (`deps.localPrefix`);
+  inert when no served prefix is wired. Cross-workspace routing remains out of
+  scope (signal only).
+- 895e8db: Add the GitHub App token broker: mint a short-lived installation token at startup and publish it as `GH_TOKEN`, so prx's GitHub ops run headless on the app's own (higher) rate-limit pool with a bot identity — no interactive `gh auth login`.
+
+  - **src/github-app/broker-config.ts** — `resolveBrokerConfig()`: fail-open (null when unconfigured); PEM precedence inline `PRX_GH_APP_PRIVATE_KEY` (cloud-agent shape) > `PRX_GH_APP_KEY_FILE` (path, read via injected `readFile`); throws on misconfig.
+  - **src/github-app/broker.ts** — `createBroker()`: per-process cache + expiry-aware re-mint + concurrent-dedupe around `mintInstallationToken`.
+  - **src/github-app/apply.ts** — `applyBrokeredGhToken()`: precedence `GH_TOKEN`/`GITHUB_TOKEN` already set (CI) > broker-minted > personal `gh` (fail-open). Writes via `@bounded-systems/env` (ambient-authority guard). Fail-closed only when configured-but-mint-fails. `getProcessBroker()` lets daemons refresh.
+  - **scripts/pr_state.ts** — startup hook (owns the `node:fs` PEM read so `src/` stays fs-free).
+  - **nix/hm-module.nix** — `programs.prx.githubApp.{enable, clientId, privateKeyFile, installationId}`; emits path/ids only, never the PEM (the inline env var is the cloud-agent-only path).
+
+  Works headless in Claude Code cloud agents (inject the App key as the `PRX_GH_APP_PRIVATE_KEY` env secret); self-hosted OCI uses the file path via a podman secret. Builds on the `mintInstallationToken` primitive.
+
 ## 0.13.0
 
 ### Minor Changes
