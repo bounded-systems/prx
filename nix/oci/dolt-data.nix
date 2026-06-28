@@ -34,7 +34,7 @@ pkgs.stdenvNoCC.mkDerivation {
   # FOD: network allowed; output content-addressed by the NAR hash of the tree.
   outputHashMode = "recursive";
   outputHashAlgo = "sha256";
-  outputHash = "sha256-r+qnq27eAeGDVADyeKZZAVP/MIEPZ9xm838rJwM7qWI=";
+  outputHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
   SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
 
@@ -46,8 +46,11 @@ pkgs.stdenvNoCC.mkDerivation {
     export HOME="$PWD/.home"
     mkdir -p "$HOME"
     echo "dolt-data: cloning ${remote} (network stage)..."
-    dolt clone ${remote} db
-    cd db
+    # Clone into a dir named for the database — dolt sql-server --data-dir serves
+    # each immediate subdir-with-.dolt as a database by that dir name, and beadsd
+    # connects to `${database}`.
+    dolt clone ${remote} ${database}
+    cd ${database}
     echo "dolt-data: pinning the default branch to commit ${pinnedCommit}..."
     # dolt forbids a detached HEAD; reset the (checked-out default) branch to the
     # pinned commit so the working set + branch point at the anchor.
@@ -60,11 +63,13 @@ pkgs.stdenvNoCC.mkDerivation {
 
   installPhase = ''
     runHook preInstall
-    mkdir -p "$out"
-    # The dolt database dir is the artifact; normalize local-only state that is
-    # not content (working-set pointer, server lock) so the bytes are stable.
-    rm -f db/.dolt/repo_state.json db/.dolt/sql-server.lock 2>/dev/null || true
-    cp -r db/. "$out/"
+    # $out is a DATA-DIR: it holds the database as a subdir, so populating the
+    # pod's /var/lib/dolt volume from $out yields /var/lib/dolt/${database}/.dolt.
+    mkdir -p "$out/${database}"
+    # Normalize local-only state that is not content (working-set pointer, server
+    # lock) so the bytes are stable across rebuilds.
+    rm -f ${database}/.dolt/repo_state.json ${database}/.dolt/sql-server.lock 2>/dev/null || true
+    cp -r ${database}/. "$out/${database}/"
     runHook postInstall
   '';
 
