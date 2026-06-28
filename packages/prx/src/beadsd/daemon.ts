@@ -184,6 +184,40 @@ function beadsArgs(request: BeadsRequest): string[] {
  * `bd-write`), unparseable output (`bad-output`), or a fieldless update
  * (`bad-request`). Pure w.r.t. the socket: returns data, never throws.
  */
+/**
+ * The workspace ids a request carries (for the prx-qmg foreign-workspace guard).
+ * `recall`/`memories` keys, `create`/`list`/`ready` (no id), and `remember` are
+ * not workspace refs, so they carry none.
+ */
+function requestWorkspaceIds(request: BeadsRequest): string[] {
+  switch (request.kind) {
+    case "show":
+    case "children":
+    case "update":
+    case "close":
+    case "reopen":
+      return [request.id];
+    case "dep":
+      return [request.from, request.to];
+    default:
+      return [];
+  }
+}
+
+/**
+ * The first id that belongs to a FOREIGN workspace — a prefixed ref (`<p>-…`)
+ * whose prefix is not `servedPrefix` — or null when all ids are native. A ref
+ * with no `-` isn't a prefixed workspace id, so it's left for bd to resolve.
+ * Case-insensitive: native ids are lowercase, foreign surface forms may not be.
+ */
+function foreignWorkspaceId(ids: string[], servedPrefix: string): string | null {
+  const native = `${servedPrefix.toLowerCase()}-`;
+  for (const id of ids) {
+    if (id.includes("-") && !id.toLowerCase().startsWith(native)) return id;
+  }
+  return null;
+}
+
 export async function handleBeadsRequest(
   request: BeadsRequest,
   deps: BeadsDaemonDeps = {},
@@ -201,6 +235,24 @@ export async function handleBeadsRequest(
       code: "beadsd",
       message: err instanceof Error ? err.message : String(err),
     };
+  }
+  // prx-qmg: foreign-workspace SIGNAL. One daemon serves one repo (GH-296), so a
+  // ref whose prefix is well-formed but not this daemon's served prefix can't
+  // resolve here. Short-circuit with a clear "wrong workspace" message instead of
+  // a generic not-found (read) or the bd-safe "resolve to canonical long id"
+  // refusal (write) — an agent learns the real reason without burning a turn.
+  // Only when the served prefix is known; cross-workspace routing is out of scope.
+  if (deps.localPrefix !== undefined) {
+    const foreign = foreignWorkspaceId(requestWorkspaceIds(request), deps.localPrefix);
+    if (foreign !== null) {
+      return {
+        status: "error",
+        code: "foreign-workspace",
+        message:
+          `${foreign} isn't in this workspace — this daemon serves "${deps.localPrefix}-*". ` +
+          `One daemon = one repo (GH-296); cross-workspace lookup isn't routed here.`,
+      };
+    }
   }
   let result: BdExecResult;
   try {
