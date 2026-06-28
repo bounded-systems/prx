@@ -1,0 +1,20 @@
+.github/workflows/publish-oci-boxes.yml
+  s_399e6065f1b4a3::t_2e667e1318dc00 4,6-7
+  s_399e6065f1b4a3::t_afd2a2f0598b44 181-253
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "06685160d56de351765c645aa7a4dc532c6f8bd4",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
