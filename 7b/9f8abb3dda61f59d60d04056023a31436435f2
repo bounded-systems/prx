@@ -1,0 +1,44 @@
+packages/prx/src/ghappd/lima-ghappd.ts
+  s_3086de54355107::t_e1b50e83970b5b 46
+packages/prx/src/room/ghappd-room.ts
+  s_3086de54355107::t_597f6a0ec034ab 48
+  s_3086de54355107::t_3ccc5fc0575a20 1-10,18-20,22-25,27,29-30
+packages/prx/src/github-app/broker-config.ts
+  s_3086de54355107::t_52e8cf30d59787 85-94
+nix/oci/ghappd-box.nix
+  s_3086de54355107::t_21734b4d416186 28-30,40-43
+  s_98e316d0b3248a::t_f2e82810d916cd 44
+  s_3086de54355107::t_699d87aa2f6d2f 13-15
+packages/prx/src/github-app/__tests__/broker-config.test.ts
+  s_3086de54355107::t_b29a006e8d31ce 20
+  s_3086de54355107::t_e2d23de1e162d9 53-61
+  s_3086de54355107::t_ec1f6f7487f14d 118
+  s_3086de54355107::t_b43cef003b8cd8 103
+  s_3086de54355107::t_a0de53270e15c0 48
+  s_3086de54355107::t_aabb9d4942c8c3 93
+  s_3086de54355107::t_451404d315fa19 36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "7b9f8abb3dda61f59d60d04056023a31436435f2",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    },
+    "s_98e316d0b3248a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8db980ee-eb6b-4866-832b-f795cef7f33c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
