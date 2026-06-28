@@ -14,6 +14,7 @@ import { spawnCapture } from "@bounded-systems/proc";
 
 import { getRef, PlanStoreError, setRef, type CasSha } from "../plan-store/cas.ts";
 import { type AttestDeps } from "../provenance/attest.ts";
+import { loadOrCreateCommitSigningKey } from "../provenance/commit-signing-key.ts";
 import { verifySlsaDerivation } from "../provenance/verify.ts";
 import {
   isL3Attestation,
@@ -278,6 +279,10 @@ export async function runSubmitPublish(
         branch,
       },
       undefined,
+      // prx-e7cl: the direct keeper path signs with prx's OWN internal key
+      // (generate-on-first-use), so the materialized commit is verified at
+      // creation and the keeper's fail-closed guard has a signature to check.
+      { signingKeyPath: () => loadOrCreateCommitSigningKey().privateKeyPath },
     );
   } catch (err) {
     throw new PublishError(

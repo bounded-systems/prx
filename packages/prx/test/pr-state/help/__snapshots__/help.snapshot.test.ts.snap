@@ -23,71 +23,72 @@ exports[`help-surface snapshots HelpAll(registry) 1`] = `
 ==========================
 
 State:
-  prx model show             Print machine model summary
-  prx model actors           List actors in the workflow model
-  prx model graph            Emit machine graph in chosen format
-  prx model stately          Open machine in Stately registry
-  prx chain status           Show parity chain status across repos
-  prx chain check            Run parity check for a unit
-  prx chain check-issue      Check issue parity for a unit
-  prx chain check-session    Check session parity for a unit
-  prx chain prune            Prune stale parity chain leaves
-  prx gc                     Reclaim and reconcile housekeeping across the system
-  prx gc inventory           Discover reclaimable housekeeping items without mutating anything
-  prx gc run                 Sweep reclaimable items (dry-run by default; --apply acts)
-  prx gc teardown            Fully tear down a named work-unit (acts by default)
-  prx chain backfill         Backfill missing parity chain entries
-  prx chain sync             Sync parity chain across authorities
-  prx contract show          Show current PR contract content
-  prx contract init          Initialize a new PR contract
-  prx contract status        Show PR contract status
-  prx contract transition    Transition the PR contract state
-  prx contract event         Emit an event onto the contract
-  prx contract skills        List skills enabled by the contract
-  prx contract open-mode     Show or compute open-mode for contract
-  prx contract update        Update PR contract from current state
-  prx scout comments         Fetch PR review comments and threads
-  prx scout ci               Fetch remote CI status for a PR
-  prx scout checks           Fetch repo check configuration
-  prx scout logs             Fetch CI logs for a PR
-  prx scout status           Fetch repo and worktree status
-  prx scout overview         Fetch a repo overview snapshot
-  prx scout notion           Resolve a Notion page UUID/Task-ID to a structured mirror record
-  prx scout source           Resolve a work unit's source authority (GH/beads/Notion)
-  prx spawn                  Signed SLSA spawn attestations — the ocap that gates leg launches
-  prx spawn verify           Verify a leg's signed SLSA spawn attestation (signature + material)
-  prx derive                 Query Datalog-derived facts over projected state
-  prx derive ready           List ready units via the readiness rules
-  prx derive drift           List drifted chains and the violated invariant
-  prx derive eligible        List actors eligible to act on an issue
-  prx derive why             Print the provenance tree for a derived fact
-  prx derive dump-facts      Emit projected and derived facts as JSONL
-  prx fetch                  Refresh substrate from external sources
-  prx fetch gh-issues        Project a GH-issues refresh cost; --dry-run only in spike
-  prx doctor gh-budget       Summarize recent gh GraphQL spend by verb
-  prx provenance             Inspect provenance signing identities (read-only)
-  prx provenance dev-pubkey  Print the persisted dev signing identity
-  prx audit                  Measure architectural adherence across artifact graph
-  prx audit ingest           Refresh metrics store from audit sink and transitions
-  prx audit system           Roll up seven V1 metrics across the artifact graph
-  prx services               Inspect external service planes (Anthropic, …)
-  prx services status        Project cache hit rate from non-interactive-agent usage rows
-  prx dep                    Periodically research upstream deps
-  prx dep manifest           Print resolved dep-research manifest
-  prx dep research           Snapshot upstream dep paths into .prx/dep-research/
-  prx dep status             Inspect last-run + classification per dep (read-only)
-  prx beads migrate          Migrate a registered repo's beads from embedded to shared-server
-  prx beads sync             Alias of sync issues; --limit caps push only
-  prx sync                   Canonical actor surface for issue reconcile
-  prx sync issues            Reconcile pinned pairs; --limit caps push only
-  prx sync backfill          Backfill cursor-skipped external records over a range
-  prx memory compact         Compact closed beads (memory-decay policy chokepoint)
-  prx handoff enqueue        Enqueue a handoff for the recipient actor
-  prx handoff status         Show pending handoffs filtered by target
-  prx handoff drain          Drain pending handoffs for one recipient
-  prx handoff replay         Re-enqueue an abandoned or failed row
-  prx transcripts digest     Digest transcripts into durable memory shards
-  prx transcripts status     Report transcript TTL pressure and candidates
+  prx model show                Print machine model summary
+  prx model actors              List actors in the workflow model
+  prx model graph               Emit machine graph in chosen format
+  prx model stately             Open machine in Stately registry
+  prx chain status              Show parity chain status across repos
+  prx chain check               Run parity check for a unit
+  prx chain check-issue         Check issue parity for a unit
+  prx chain check-session       Check session parity for a unit
+  prx chain prune               Prune stale parity chain leaves
+  prx gc                        Reclaim and reconcile housekeeping across the system
+  prx gc inventory              Discover reclaimable housekeeping items without mutating anything
+  prx gc run                    Sweep reclaimable items (dry-run by default; --apply acts)
+  prx gc teardown               Fully tear down a named work-unit (acts by default)
+  prx chain backfill            Backfill missing parity chain entries
+  prx chain sync                Sync parity chain across authorities
+  prx contract show             Show current PR contract content
+  prx contract init             Initialize a new PR contract
+  prx contract status           Show PR contract status
+  prx contract transition       Transition the PR contract state
+  prx contract event            Emit an event onto the contract
+  prx contract skills           List skills enabled by the contract
+  prx contract open-mode        Show or compute open-mode for contract
+  prx contract update           Update PR contract from current state
+  prx scout comments            Fetch PR review comments and threads
+  prx scout ci                  Fetch remote CI status for a PR
+  prx scout checks              Fetch repo check configuration
+  prx scout logs                Fetch CI logs for a PR
+  prx scout status              Fetch repo and worktree status
+  prx scout overview            Fetch a repo overview snapshot
+  prx scout notion              Resolve a Notion page UUID/Task-ID to a structured mirror record
+  prx scout source              Resolve a work unit's source authority (GH/beads/Notion)
+  prx spawn                     Signed SLSA spawn attestations — the ocap that gates leg launches
+  prx spawn verify              Verify a leg's signed SLSA spawn attestation (signature + material)
+  prx derive                    Query Datalog-derived facts over projected state
+  prx derive ready              List ready units via the readiness rules
+  prx derive drift              List drifted chains and the violated invariant
+  prx derive eligible           List actors eligible to act on an issue
+  prx derive why                Print the provenance tree for a derived fact
+  prx derive dump-facts         Emit projected and derived facts as JSONL
+  prx fetch                     Refresh substrate from external sources
+  prx fetch gh-issues           Project a GH-issues refresh cost; --dry-run only in spike
+  prx doctor gh-budget          Summarize recent gh GraphQL spend by verb
+  prx provenance                Inspect provenance signing identities (read-only)
+  prx provenance dev-pubkey     Print the persisted dev signing identity
+  prx provenance commit-pubkey  Print prx's commit-signing public key to register with GitHub
+  prx audit                     Measure architectural adherence across artifact graph
+  prx audit ingest              Refresh metrics store from audit sink and transitions
+  prx audit system              Roll up seven V1 metrics across the artifact graph
+  prx services                  Inspect external service planes (Anthropic, …)
+  prx services status           Project cache hit rate from non-interactive-agent usage rows
+  prx dep                       Periodically research upstream deps
+  prx dep manifest              Print resolved dep-research manifest
+  prx dep research              Snapshot upstream dep paths into .prx/dep-research/
+  prx dep status                Inspect last-run + classification per dep (read-only)
+  prx beads migrate             Migrate a registered repo's beads from embedded to shared-server
+  prx beads sync                Alias of sync issues; --limit caps push only
+  prx sync                      Canonical actor surface for issue reconcile
+  prx sync issues               Reconcile pinned pairs; --limit caps push only
+  prx sync backfill             Backfill cursor-skipped external records over a range
+  prx memory compact            Compact closed beads (memory-decay policy chokepoint)
+  prx handoff enqueue           Enqueue a handoff for the recipient actor
+  prx handoff status            Show pending handoffs filtered by target
+  prx handoff drain             Drain pending handoffs for one recipient
+  prx handoff replay            Re-enqueue an abandoned or failed row
+  prx transcripts digest        Digest transcripts into durable memory shards
+  prx transcripts status        Report transcript TTL pressure and candidates
 
 Work units:
   prx tui                        Interactive board and session UI
