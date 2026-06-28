@@ -1,0 +1,25 @@
+.github/apps/README.md
+  s_3086de54355107::t_d3679d5eb2f4c7 20-35
+.github/apps/prx-forge.manifest.json
+  s_3086de54355107::t_66a9caae521340 23
+.github/apps/prx-signing.manifest.json
+  s_3086de54355107::t_57107e612d0a10 4,6-9
+.changeset/app-manifest-fixes.md
+  s_3086de54355107::t_d0c9e379c405dc 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "c65c77bc958891163fd859bca70a4c99cad9d5e8",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
