@@ -1,0 +1,33 @@
+packages/prx/src/ghappd/endpoint.ts
+  s_3086de54355107::t_ce2741db443cac 1-6
+packages/prx/src/door/guest-room-catalog.ts
+  s_3086de54355107::t_4b1bd9463cf8c9 25,28-30,42-50,58-60
+  s_3086de54355107::t_76339bcdd03895 61-62
+packages/prx/src/ghappd/lima-ghappd.ts
+  s_3086de54355107::t_22b0ba95f57bf5 1-145
+.changeset/ghappd-deploy-wiring.md
+  s_3086de54355107::t_a038dad61ae908 1-20
+packages/prx/test/door/guest-room-catalog.test.ts
+  s_3086de54355107::t_97292c8646d543 30-49
+  s_3086de54355107::t_857998eea2a447 5
+packages/prx/src/ghappd/__tests__/lima-ghappd.test.ts
+  s_3086de54355107::t_8472e2b078320b 1-101
+packages/prx/src/ghappd/serve-verb.ts
+  s_3086de54355107::t_e3b5ee6d9c56a1 43-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "cc692a2153f34329a87b4692a1c3db4fe813aff1",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
