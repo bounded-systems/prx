@@ -1,5 +1,50 @@
 # @bounded-systems/prx
 
+## 0.15.0
+
+### Minor Changes
+
+- fba9198: Add the ghappd door core (prx-cdln Phase 1, spec claude-box/GHAPPD.md): the GitHub App credential-broker door holds the App private key and serves a `lease` op returning a short-lived installation token — callers never hold the PEM.
+
+  - **src/ghappd/contract.ts** — Zod wire contract (`lease` request with optional `repositories`/`permissions` attenuation; `ok`/`error` response).
+  - **src/ghappd/daemon.ts** — `handleGhappdRequest` (pure over deps: held App config + injected mint; never throws to the socket; PEM never in a reply) + `serveGhappdConnection`/`runGhappdServe` over the shared `door/framing`, mirroring beadsd.
+  - **src/ghappd/client.ts** — `IsolatedGhappdClient.lease` over an injected transport, validating both directions (`GhappdProtocolError` on contract violation), mirroring `IsolatedBeadsClient`.
+
+  Reuses `mintInstallationToken` server-side. Pure-over-deps, fully offline-tested
+  (handler logic, framed serve round-trip via a mock socket, client validation).
+  Remaining Phase 1 wiring — the `ghapp serve` CLI verb, the `prxDoorCatalog`
+  entry, and the Lima lifecycle — is a focused follow-up; the agent-side broker's
+  `door` backend (lease instead of local mint) is Phase 2.
+
+### Patch Changes
+
+- 02c9568: Harden the beads write-side workspace-affinity guard against an unregistered cwd
+  (prx-7odk). prx-9e86 decided by bd prefix, but a cwd not in the repo inventory
+  resolves to a null prefix → the guard allowed the write, so a cross-repo write
+  from an unregistered checkout slipped through. `resolveWorkspaceAffinity` now
+  falls back to git-remote repo identity when the prefix is unresolvable: it
+  refuses only on a POSITIVE cross-repo mismatch (both identities resolved and
+  differing), and still allows a same-repo or undeterminable cwd — no
+  over-blocking. The refusal message names the repo identities in that case.
+- 508206a: Harden the GitHub App token broker: scrub the inline PEM from the env after read, and support least-privilege token attenuation.
+
+  - **Env-scrub** (`apply.ts`): when the App key is injected as the inline
+    `PRX_GH_APP_PRIVATE_KEY` env var (the cloud-agent path), the broker now reads
+    it into memory and then `deleteEnv`s it — so the long-lived root key is not
+    inherited by every child process prx spawns, nor readable via
+    `/proc/<pid>/environ`. The file-path source keeps only a (non-secret) path in
+    env, so nothing is scrubbed there.
+  - **Token attenuation** (`installation-token.ts` + broker/config): the mint call
+    can now scope the installation token to specific `repositories` and a subset of
+    `permissions` (GitHub `access_tokens` body), configured via
+    `PRX_GH_APP_REPOSITORIES` (comma-sep) and `PRX_GH_APP_PERMISSIONS` (JSON).
+    Opt-in — unset means the installation's full scopes (back-compatible); an
+    unattenuated call sends no request body.
+
+  Both reduce the blast radius of the broker's long-lived root credential. The
+  larger move (holding the key behind a keeperd/authd-style credential-broker door
+  so cloud agents never receive it) remains the architectural target.
+
 ## 0.14.0
 
 ### Minor Changes
