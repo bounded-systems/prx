@@ -17,3 +17,19 @@ live apps are reconciled *to* these files.
 The union app `../prx-app.manifest.json` (`bounded-systems-prx`) stays as the
 def-of-record until the buckets are registered and CI/runtime cut over
 (migration: prx-zee7).
+
+## Registered (Phase 3, non-secret identifiers)
+
+| app | app_id | installation_id | status |
+|---|---|---|---|
+| `prx-forge` | 4169313 | 143190928 | created + installed (all repos) |
+| `prx-projects` | 4169314 | 143190950 | created + installed (all repos) |
+| `prx-signing` | — | — | **not registered** — manifest-flow rejects `git_ssh_signing_keys` as a permission key; resolve under prx-dqf (it's inert anyway) |
+
+Caveats:
+- **`prx-forge` live app still grants `contents:read`.** This manifest now declares
+  `contents:write` (needed to push the changeset release branch and merge PRs). Bump
+  the live app's permission in its settings → installations re-accept, to match.
+- PEMs / client secrets / webhook secrets are **not** in this repo — agenix/sops.
+  CI reads `vars.PRX_FORGE_APP_ID` + `secrets.PRX_FORGE_APP_PRIVATE_KEY` (and the
+  `PRX_PROJECTS_*` pair); runtime reads `PRX_GH_APP_*` / the bucket door endpoints.

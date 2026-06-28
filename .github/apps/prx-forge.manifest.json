@@ -20,7 +20,7 @@
   ],
   "default_permissions": {
     "metadata": "read",
-    "contents": "read",
+    "contents": "write",
     "issues": "write",
     "pull_requests": "write",
     "checks": "read"
