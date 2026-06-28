@@ -5,23 +5,23 @@
 class Prx < Formula
   desc "Agent-run PR contract / work-unit CLI"
   homepage "https://github.com/bounded-systems/prx"
-  version "0.13.0"
+  version "0.14.0"
 
   on_macos do
     on_arm do
-      url "https://github.com/bounded-systems/prx/releases/download/v0.13.0/prx-aarch64-darwin"
-      sha256 "631d05a102207cac161076ab716ba1bf360676a91c53664fef8b89d0617bba03"
+      url "https://github.com/bounded-systems/prx/releases/download/v0.14.0/prx-aarch64-darwin"
+      sha256 "0028922301799891028cca3b04c79b68a259aca148d188e212421fcfcada9acc"
     end
   end
 
   on_linux do
     on_intel do
-      url "https://github.com/bounded-systems/prx/releases/download/v0.13.0/prx-x86_64-linux"
-      sha256 "3e709dbb174fa32ec0d3e3f1402115d1e05ba2c80e4768fdd9739ee73ceeb150"
+      url "https://github.com/bounded-systems/prx/releases/download/v0.14.0/prx-x86_64-linux"
+      sha256 "93dd9349741ba9f9fc9ee96f909abed33cc38c0198da33e0b221975835fe4ac6"
     end
     on_arm do
-      url "https://github.com/bounded-systems/prx/releases/download/v0.13.0/prx-aarch64-linux"
-      sha256 "7299f59835b8fb79fc9ba628b3d3320c6b31809b6120b644346095525e7e21bf"
+      url "https://github.com/bounded-systems/prx/releases/download/v0.14.0/prx-aarch64-linux"
+      sha256 "fc06672488ae7ae550f92fc9227eecee246acb36637333480fd909623669ed9c"
     end
   end
 
