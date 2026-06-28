@@ -15,7 +15,14 @@ describe("resolveWorkspaceAffinity (prx-9e86)", () => {
       localPrefix: () => "spd",
       servedPrefix: () => "prx",
     });
-    expect(a).toEqual({ cwdPrefix: "spd", servedPrefix: "prx", mismatch: true });
+    expect(a).toEqual({
+      cwdPrefix: "spd",
+      servedPrefix: "prx",
+      cwdRepo: null,
+      servedRepo: null,
+      mismatch: true,
+      reason: "prefix",
+    });
   });
 
   test("match: same prefix is not a mismatch", () => {
@@ -27,7 +34,7 @@ describe("resolveWorkspaceAffinity (prx-9e86)", () => {
     expect(a.mismatch).toBe(false);
   });
 
-  test("unknown cwd prefix is allowed AND skips the served-prefix subprocess", () => {
+  test("unknown cwd prefix skips the served-prefix subprocess (falls back to repo identity)", () => {
     let servedCalls = 0;
     const a = resolveWorkspaceAffinity({
       cwd: "/tmp/somewhere",
@@ -36,9 +43,48 @@ describe("resolveWorkspaceAffinity (prx-9e86)", () => {
         servedCalls += 1;
         return "prx";
       },
+      repoIdentity: () => null, // undeterminable identity → allow
     });
-    expect(a).toEqual({ cwdPrefix: null, servedPrefix: null, mismatch: false });
-    expect(servedCalls).toBe(0); // gated: never resolved when cwd prefix is null
+    expect(a.mismatch).toBe(false);
+    expect(a.reason).toBeNull();
+    expect(servedCalls).toBe(0); // prefix subprocess never runs when cwd prefix is null
+  });
+
+  // prx-7odk: identity fallback when the cwd prefix is unresolvable.
+  test("identity fallback: unregistered cwd in a DIFFERENT repo is a mismatch", () => {
+    const a = resolveWorkspaceAffinity({
+      cwd: "/unregistered/spd-checkout",
+      localPrefix: () => null,
+      repoIdentity: (p) => (p === "/unregistered/spd-checkout" ? "pushd/spd" : "bounded-systems/prx"),
+    });
+    expect(a.mismatch).toBe(true);
+    expect(a.reason).toBe("repo");
+    expect(a.cwdRepo).toBe("pushd/spd");
+    expect(a.servedRepo).toBe("bounded-systems/prx");
+  });
+
+  test("identity fallback: unregistered cwd in the SAME repo is allowed", () => {
+    const a = resolveWorkspaceAffinity({
+      cwd: "/unregistered/prx-checkout",
+      localPrefix: () => null,
+      repoIdentity: () => "bounded-systems/prx",
+    });
+    expect(a.mismatch).toBe(false);
+  });
+
+  test("identity fallback: undeterminable cwd identity is allowed AND skips the served lookup", () => {
+    let servedRepoCalls = 0;
+    const a = resolveWorkspaceAffinity({
+      cwd: "/tmp/no-git",
+      localPrefix: () => null,
+      repoIdentity: (p) => {
+        if (p === "/tmp/no-git") return null;
+        servedRepoCalls += 1;
+        return "bounded-systems/prx";
+      },
+    });
+    expect(a.mismatch).toBe(false);
+    expect(servedRepoCalls).toBe(0); // skipped: cwd identity unknown can't mismatch
   });
 
   test("unknown served prefix is allowed (can't establish a definite mismatch)", () => {
@@ -65,11 +111,32 @@ describe("resolveWorkspaceAffinity (prx-9e86)", () => {
 });
 
 describe("WorkspaceAffinityError + warning", () => {
-  test("error is fail-closed (exit 1) and names both prefixes + the remedy", () => {
-    const e = new WorkspaceAffinityError({ cwdPrefix: "spd", servedPrefix: "prx" });
+  test("prefix-axis error is fail-closed (exit 1) and names both prefixes + the remedy", () => {
+    const e = new WorkspaceAffinityError({
+      cwdPrefix: "spd",
+      servedPrefix: "prx",
+      cwdRepo: null,
+      servedRepo: null,
+      mismatch: true,
+      reason: "prefix",
+    });
     expect(e.exitCode).toBe(1);
     expect(e.message).toContain('"spd"');
     expect(e.message).toContain('"prx"');
+    expect(e.message).toContain("PRX_BEADS_CWD");
+  });
+
+  test("repo-axis error names both repo identities (identity-fallback message)", () => {
+    const e = new WorkspaceAffinityError({
+      cwdPrefix: null,
+      servedPrefix: null,
+      cwdRepo: "pushd/spd",
+      servedRepo: "bounded-systems/prx",
+      mismatch: true,
+      reason: "repo",
+    });
+    expect(e.message).toContain("pushd/spd");
+    expect(e.message).toContain("bounded-systems/prx");
     expect(e.message).toContain("PRX_BEADS_CWD");
   });
 

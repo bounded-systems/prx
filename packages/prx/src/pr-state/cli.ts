@@ -20925,12 +20925,7 @@ export function runCli(
         if (parsed.vm === undefined) {
           const affinity = resolveWorkspaceAffinity();
           if (affinity.mismatch) {
-            output.error(
-              new WorkspaceAffinityError({
-                cwdPrefix: affinity.cwdPrefix!,
-                servedPrefix: affinity.servedPrefix!,
-              }).message,
-            );
+            output.error(new WorkspaceAffinityError(affinity).message);
             return 1;
           }
         }

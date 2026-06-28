@@ -23,7 +23,10 @@
  */
 
 import { diagnoseBeads } from "../beads/doctor.ts";
+import { runCaptured } from "@bounded-systems/proc";
+
 import { localWorkspacePrefixForCwd } from "../pr-state/repos.ts";
+import { parseGithubRepo } from "../pr-state/github.ts";
 import { resolveLocalBeadsCwd } from "./client-factory.ts";
 
 export interface WorkspaceAffinity {
@@ -31,8 +34,14 @@ export interface WorkspaceAffinity {
   cwdPrefix: string | null;
   /** The served clone's bd prefix (`bd config get issue_prefix`), or null. */
   servedPrefix: string | null;
-  /** True ONLY when both prefixes are known and differ — the cross-repo case. */
+  /** The cwd's git-remote repo identity — resolved only on prefix fallback. */
+  cwdRepo: string | null;
+  /** The served clone's git-remote repo identity — resolved only on fallback. */
+  servedRepo: string | null;
+  /** True on a definite cross-repo mismatch (by prefix, or by repo identity). */
   mismatch: boolean;
+  /** Which axis triggered the mismatch (for the message), or null. */
+  reason: "prefix" | "repo" | null;
 }
 
 export interface WorkspaceAffinityDeps {
@@ -44,40 +53,68 @@ export interface WorkspaceAffinityDeps {
   localPrefix?: (cwd: string) => string | null;
   /** servedCwd→prefix (bd subprocess). Defaults to {@link diagnoseBeads}. */
   servedPrefix?: (servedCwd: string) => string | null;
+  /** path→git-remote repo identity (`owner/repo`), or null. Default: git origin. */
+  repoIdentity?: (path: string) => string | null;
+}
+
+/** A path's GitHub `owner/repo` from its git origin (cheap; null when absent). */
+function defaultRepoIdentity(path: string): string | null {
+  try {
+    const r = runCaptured(["git", "-C", path, "remote", "get-url", "origin"], { check: false });
+    if (r.status !== 0) return null;
+    const url = r.stdout.trim();
+    return url ? parseGithubRepo(url) : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
- * Resolve the cwd vs served-clone prefix relationship. The served prefix (a bd
- * subprocess) is only read when the cwd prefix is known — a null cwd prefix can
- * never be a definite mismatch, so the expensive lookup is skipped.
+ * Resolve whether a daemon write/read from `cwd` would cross into another repo's
+ * beads. Fast path: compare the cwd's bd prefix to the served clone's prefix
+ * (the served prefix is a bd subprocess, read only when the cwd prefix is known).
+ *
+ * prx-7odk fallback: when the cwd prefix is UNRESOLVABLE (cwd not in the repo
+ * inventory), the prefix axis can't decide — so fall back to git-remote repo
+ * identity. This catches an unregistered cross-repo write (which the prefix-only
+ * guard let through) while NOT over-blocking a same-repo or undeterminable cwd:
+ * a mismatch requires BOTH identities resolved and differing.
  */
 export function resolveWorkspaceAffinity(deps: WorkspaceAffinityDeps = {}): WorkspaceAffinity {
   const cwd = deps.cwd ?? process.cwd();
-  const localPrefix = deps.localPrefix ?? localWorkspacePrefixForCwd;
-  const cwdPrefix = localPrefix(cwd);
-  if (cwdPrefix === null) {
-    return { cwdPrefix: null, servedPrefix: null, mismatch: false };
-  }
   const servedCwd = deps.servedCwd ?? resolveLocalBeadsCwd();
-  const servedPrefix = (deps.servedPrefix ?? ((s) => diagnoseBeads({ cwd: s }).prefix))(servedCwd);
-  return { cwdPrefix, servedPrefix, mismatch: servedPrefix !== null && cwdPrefix !== servedPrefix };
+  const cwdPrefix = (deps.localPrefix ?? localWorkspacePrefixForCwd)(cwd);
+
+  if (cwdPrefix !== null) {
+    const servedPrefix = (deps.servedPrefix ?? ((s) => diagnoseBeads({ cwd: s }).prefix))(servedCwd);
+    const mismatch = servedPrefix !== null && cwdPrefix !== servedPrefix;
+    return { cwdPrefix, servedPrefix, cwdRepo: null, servedRepo: null, mismatch, reason: mismatch ? "prefix" : null };
+  }
+
+  const repoIdentity = deps.repoIdentity ?? defaultRepoIdentity;
+  const cwdRepo = repoIdentity(cwd);
+  // Skip the second git call when the cwd identity is unknown — it can't mismatch.
+  const servedRepo = cwdRepo === null ? null : repoIdentity(servedCwd);
+  const mismatch = cwdRepo !== null && servedRepo !== null && cwdRepo !== servedRepo;
+  return { cwdPrefix: null, servedPrefix: null, cwdRepo, servedRepo, mismatch, reason: mismatch ? "repo" : null };
 }
 
-/** The fail-closed write refusal for a cross-repo daemon write. */
+/** The fail-closed write refusal for a cross-repo daemon write (by prefix or repo). */
 export class WorkspaceAffinityError extends Error {
-  readonly cwdPrefix: string;
-  readonly servedPrefix: string;
   readonly exitCode = 1;
-  constructor(opts: { cwdPrefix: string; servedPrefix: string }) {
+  constructor(a: WorkspaceAffinity) {
     super(
-      `workspace-affinity refusal: this worktree's bd prefix is "${opts.cwdPrefix}" but the ` +
-        `daemon serves "${opts.servedPrefix}" — a write here would land in the wrong repo's ` +
-        `beads. cd to a "${opts.servedPrefix}" worktree, or point the daemon at the ` +
-        `"${opts.cwdPrefix}" clone (PRX_BEADS_CWD=<clone> then restart beadsd).`,
+      a.reason === "repo"
+        ? `workspace-affinity refusal: this worktree's repo is "${a.cwdRepo}" but the daemon ` +
+            `serves "${a.servedRepo}"'s beads — a write here would land in the wrong repo. cd to a ` +
+            `"${a.servedRepo}" worktree, or point the daemon at this repo ` +
+            `(PRX_BEADS_CWD=<clone> then restart beadsd).`
+        : `workspace-affinity refusal: this worktree's bd prefix is "${a.cwdPrefix}" but the ` +
+            `daemon serves "${a.servedPrefix}" — a write here would land in the wrong repo's ` +
+            `beads. cd to a "${a.servedPrefix}" worktree, or point the daemon at the ` +
+            `"${a.cwdPrefix}" clone (PRX_BEADS_CWD=<clone> then restart beadsd).`,
     );
     this.name = "WorkspaceAffinityError";
-    this.cwdPrefix = opts.cwdPrefix;
-    this.servedPrefix = opts.servedPrefix;
   }
 }
 
