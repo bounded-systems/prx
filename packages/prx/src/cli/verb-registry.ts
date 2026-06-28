@@ -29,6 +29,7 @@ import { planSaveVerb } from "../pr-state/plan-save-verb.ts";
 import { planShowVerb } from "../pr-state/plan-show-verb.ts";
 import { planLoadVerb } from "../pr-state/plan-load-verb.ts";
 import { planPreflightVerb } from "../pr-state/plan-preflight-verb.ts";
+import { podSecretsVerb } from "../room/pod-secrets-verb.ts";
 import { podUpVerb } from "../room/pod-up-verb.ts";
 import { ghappServeVerb } from "../ghappd/serve-verb.ts";
 
@@ -61,6 +62,7 @@ export const verbRegistry: Registry = {
   [planShowVerb.id]: planShowVerb,
   [planLoadVerb.id]: planLoadVerb,
   [planPreflightVerb.id]: planPreflightVerb,
+  [podSecretsVerb.id]: podSecretsVerb,
   [podUpVerb.id]: podUpVerb,
   [ghappServeVerb.id]: ghappServeVerb,
 };
