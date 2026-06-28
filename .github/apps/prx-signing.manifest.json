@@ -1,8 +1,12 @@
 {
   "name": "prx-signing",
   "url": "https://bounded.tools",
-  "description": "prx signing bucket — git SSH signing keys, isolated so the high-value signing scope is never bundled with everyday forge ops. On-demand (no webhook events). Inert until prx-dqf (keeper bot account + keymaker SSH-key export). One of the permission-bucketed apps (docs/prx/github-apps-architecture.md).",
+  "description": "prx signing bucket — git SSH signing keys, isolated so the high-value signing scope is never bundled with everyday forge ops. On-demand (no webhook events of its own). Inert until prx-dqf (keeper bot account + keymaker SSH-key export). One of the permission-bucketed apps (docs/prx/github-apps-architecture.md).",
   "public": false,
+  "hook_attributes": {
+    "url": "https://bounded.tools/api/github/webhooks",
+    "active": false
+  },
   "setup_on_update": false,
   "request_oauth_on_install": false,
   "default_events": ["meta"],
