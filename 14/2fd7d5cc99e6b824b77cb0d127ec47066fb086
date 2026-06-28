@@ -1,0 +1,35 @@
+.changeset/bucket-app-manifests.md
+  s_d18f41cb48193c::t_ddb76c6bfc0fc9 1-5
+.github/apps/README.md
+  s_d18f41cb48193c::t_19d541c3824beb 1-19
+.github/apps/prx-forge.manifest.json
+  s_3863ba33b3534e::t_c33dd5fd507bdf 1-28
+.github/apps/prx-projects.manifest.json
+  s_3863ba33b3534e::t_a1e5740a9c5ee1 1-26
+.github/apps/prx-signing.manifest.json
+  s_3863ba33b3534e::t_3a070346251369 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "142fd7d5cc99e6b824b77cb0d127ec47066fb086",
+  "prompts": {},
+  "sessions": {
+    "s_3863ba33b3534e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8e086498-3831-4367-8e8a-408172df0420",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    },
+    "s_d18f41cb48193c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2e1595d1-4205-44e9-b5db-d6ccebeae882",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
