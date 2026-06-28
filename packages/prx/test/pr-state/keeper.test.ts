@@ -566,6 +566,50 @@ describe("runKeeperCommitTree (GH-2381)", () => {
     expect(git.calls[1]!.args).toEqual(["-C", "GH-2381", COMMIT_OID]);
   });
 
+  test("prx-e7cl: fails closed when signing is configured but the commit is unsigned", async () => {
+    const prev = process.env["PRX_COMMIT_SIGNING_KEY"];
+    process.env["PRX_COMMIT_SIGNING_KEY"] = "/state/prx/signing/id_ed25519";
+    try {
+      const git = ((opts: GitExecOptions): GitExecResult => {
+        if (opts.subcommand === "commit-tree") {
+          return { exitCode: 0, stdout: `${COMMIT_OID}\n`, stderr: "", policy: null };
+        }
+        if (opts.subcommand === "show") {
+          return { exitCode: 0, stdout: "N\n", stderr: "", policy: null }; // unsigned
+        }
+        return { exitCode: 0, stdout: "", stderr: "", policy: null };
+      }) as typeof execGit;
+      await expect(runKeeperCommitTree(input, "/repo", { git })).rejects.toThrow(/unsigned/);
+    } finally {
+      if (prev === undefined) delete process.env["PRX_COMMIT_SIGNING_KEY"];
+      else process.env["PRX_COMMIT_SIGNING_KEY"] = prev;
+    }
+  });
+
+  test("prx-e7cl: a signed commit (git %G?=U) passes the guard", async () => {
+    const prev = process.env["PRX_COMMIT_SIGNING_KEY"];
+    process.env["PRX_COMMIT_SIGNING_KEY"] = "/state/prx/signing/id_ed25519";
+    try {
+      const seen: string[] = [];
+      const git = ((opts: GitExecOptions): GitExecResult => {
+        seen.push(opts.subcommand);
+        if (opts.subcommand === "commit-tree") {
+          return { exitCode: 0, stdout: `${COMMIT_OID}\n`, stderr: "", policy: null };
+        }
+        if (opts.subcommand === "show") {
+          return { exitCode: 0, stdout: "U\n", stderr: "", policy: null }; // good sig, unknown signer
+        }
+        return { exitCode: 0, stdout: "", stderr: "", policy: null };
+      }) as typeof execGit;
+      const commit = await runKeeperCommitTree(input, "/repo", { git });
+      expect(commit).toBe(COMMIT_OID);
+      expect(seen).toContain("show"); // the guard verified the signature
+    } finally {
+      if (prev === undefined) delete process.env["PRX_COMMIT_SIGNING_KEY"];
+      else process.env["PRX_COMMIT_SIGNING_KEY"] = prev;
+    }
+  });
+
   test("a failing commit-tree aborts before the branch switch", async () => {
     const git = fakeGit({ commitExit: 1 });
     await expect(runKeeperCommitTree(input, "/repo", { git })).rejects.toBeInstanceOf(
