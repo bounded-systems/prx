@@ -180,6 +180,35 @@
         }
       }
     },
+    "/ghapp/serve": {
+      "post": {
+        "operationId": "ghapp_serve",
+        "summary": "Run the ghappd GitHub App credential-broker door on a unix socket.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ghapp_serveInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ghapp_serveOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/graph": {
       "post": {
         "operationId": "graph",
@@ -1315,6 +1344,42 @@
           "unitCount",
           "merged",
           "batchSignedBy"
+        ],
+        "additionalProperties": false
+      },
+      "ghapp_serveInput": {
+        "type": "object",
+        "properties": {
+          "socket": {
+            "type": "string",
+            "minLength": 1,
+            "description": "unix socket path the door listens on"
+          },
+          "pidfile": {
+            "description": "write the daemon pid here (removed on close)",
+            "type": "string"
+          }
+        },
+        "required": [
+          "socket"
+        ],
+        "additionalProperties": false
+      },
+      "ghapp_serveOutput": {
+        "type": "object",
+        "properties": {
+          "socket": {
+            "type": "string",
+            "description": "the unix socket the door listened on"
+          },
+          "configured": {
+            "type": "boolean",
+            "description": "whether an App key was resolved (else leases error)"
+          }
+        },
+        "required": [
+          "socket",
+          "configured"
         ],
         "additionalProperties": false
       },
