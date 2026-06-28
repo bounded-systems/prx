@@ -1,5 +1,54 @@
 # @bounded-systems/prx
 
+## 0.17.0
+
+### Minor Changes
+
+- ade07e5: Runtime door serves the prx-forge bucket (prx-zee7 Phase 4). broker-config now REQUIRES PRX_GH_INSTALLATION_ID when an app is configured (no default — each bucket app has its own installation; the union app was split). ghappd-box reads the installation from /run/secrets/ghapp-installation too, so one image serves any bucket (the mounts pick the app). ghappd-room retargets to prx-forge (host secrets prx-forge-key/id/installation), making the runtime ambient GH_TOKEN least-privilege forge scopes instead of the broad union app.
+- 32dbb61: Pod model: non-door backing services (prx-asr data layer, Phase 3). `PodSpec`
+  gains a `services` array (`PodServiceSchema`: name/image/dataVolume/env/args, no
+  doors) for co-resident infrastructure like dolt-box. `renderPodmanKube` renders
+  each service as a plain container with a `persistentVolumeClaim` named volume
+  (podman maps it to a named volume, auto-created and preserved across `kube
+down`) — no door fabric mount, no `--socket`. The per-repo pod now ships the
+  `dolt` backing service (the dolt SQL server beadsd connects to). Wiring beadsd
+  to it lands next.
+- dd7ca59: Add `prx pod secrets` (prx-0g8h): prx now owns provisioning the host podman secrets its pod rooms DECLARE (RoomSpec.secrets), instead of manual `podman secret create`. With no `--from` it's a doctor view (declared vs present vs missing-source); `--from name=<@file|literal>` provisions idempotently (`--replace` rotates). ocap-faithful: a file source hands podman the PATH (the secret never enters prx's memory/argv); a non-secret literal (app/installation id) is piped via stdin. Closes the deploy last-mile for ghappd-room/keeperd/etc.
+
+### Patch Changes
+
+- d05337b: Fix bucket app manifests after Phase 3 registration (prx-zee7): prx-forge gains `contents:write` (needed to push the changeset release branch + merge PRs — it absorbs the Changesets app); prx-signing gains the required `hook_attributes` (the manifest flow rejects a blank hook). Record the registered app_ids/installation_ids + the live-forge `contents` bump in .github/apps/README.md. (prx-signing remains unregistered — the flow rejects `git_ssh_signing_keys`; deferred to prx-dqf.)
+- d364495: beadsd-box connects to the external dolt-box (prx-asr data layer, Phase 4). The
+  beadsd-box entrypoint now builds a box-local `.beads` (copied from the shared
+  `/work/.beads`, with the local `dolt/` clone dropped and `dolt-server.port` set
+  to dolt-box's 3307) and serves `--cwd /beadsd` — so bd connects to the standalone
+  dolt-box over the pod netns instead of spawning its own dolt on the repo's
+  `/work/.beads` (which is shared with host bd). Rebuilt off current prx + bd 1.0.3
+  (fixes the stale `wisps` schema) and re-pinned `BEADSD_ROOM_IMAGE`. Verified live:
+  new beadsd-box + dolt-box on the FOD-seeded data → `bd ready` returns real beads
+  rows, `/work/.beads` untouched.
+- d695116: Add app-as-code manifests for the permission-bucketed GitHub Apps (Phase 2 of prx-zee7): `.github/apps/{prx-forge,prx-projects,prx-signing}.manifest.json`, splitting the union `bounded-systems-prx` manifest into coarse least-privilege buckets (forge = contents/issues/PRs/checks; projects = organization_projects; signing = git_ssh_signing_keys, isolated). These are the def-of-record to register the apps from; the union app stays until cutover. Per docs/prx/github-apps-architecture.md.
+- 4b0c60f: CI cutover to the bucketed apps (prx-zee7 Phase 5): version.yml mints from prx-forge (PRX*FORGE_APP_ID/PRX_FORGE_APP_PRIVATE_KEY) to push the release branch + open the PR; front-desk-add mints from prx-projects (PRX_PROJECTS_APP_ID/PRX_PROJECTS_APP_PRIVATE_KEY) for the add-to-project. Retires the CHANGESETS*_/FRONT*DESK*_ credential names. Both steps stay fail-open (gated on the \*\_APP_ID var).
+- 5b49dc3: Publish the dolt-box backing-service image to GHCR (prx-asr data layer). Adds a
+  dolt-box job to publish-oci-boxes.yml (mirrors beadsd-box) and pins the digest
+  as `DOLT_BOX_IMAGE` (packages/prx/src/room/dolt-service.ts). dolt-box is the
+  standalone dolt SQL server (port 3307, named volume) the per-repo pod's beadsd
+  connects to ("connect-to-external-dolt"). Image-only; wired into the pod in a
+  follow-up.
+- c94dcb1: Add the deterministic beads dolt-data build artifact (prx-asr data layer, Phase
+  2). `nix/oci/dolt-data.nix` is a fixed-output derivation that clones the DoltHub
+  remote, pins the default branch to a specific commit (`dolt reset --hard` + `dolt
+gc`), and emits a content-addressed dolt data dir — the network-fetch stage,
+  separated from the no-network copy stage (`tar | podman volume import` +
+  `chmod a+rwX`). Records `DOLT_BOX_ENV` (incl. `TMPDIR`, required so dolt's noms
+  temp writes succeed in the minimal image) + the copy recipe in dolt-service.ts.
+  Verified end-to-end: build → import → serve (3307) → query the issues table.
+- e43d3e8: Repin ghappd-room to the rebuilt ghappd-box (sha256:0b7d7be2…) carrying the Phase 4 forge-bucket changes (generic entrypoint reads the installation mount; prx binary with the de-hardcoded installation). Per prx-zee7.
+- 4c4df0d: Add the GitHub Apps architecture spec (docs/prx/github-apps-architecture.md): permission-bucketed apps (prx-forge / prx-projects / prx-signing) + per-use token attenuation, consumed by both CI (create-github-app-token) and runtime (ghappd-style bucket doors). Records that Front Desk == bounded-systems-prx (legacy secret name), and the migration off the union app + FRONT*DESK*_/CHANGESETS\__ names. Design doc only.
+- 77b6a6c: Add `org.opencontainers.image.source` to the beadsd-box and ghappd-box OCI images so each ghcr package is deterministically linked to `bounded-systems/prx` (and carries provenance). This is the documented, explicit way to tie a package to a repo for Actions push access — rather than relying on GitHub's implicit auto-link-on-create, which left `beadsd-box` an unowned orphan (`repository: null`, private → 403 on publish).
+- 45edeae: Wire `prx pod secrets` into the CLI dispatch (cli.ts) — the verb was registered (MCP/OpenAPI saw it) but had no `pod secrets` route next to `pod up`, so `prx pod secrets` errored "Unknown subcommand: pod". Follow-up to #806.
+- ec7f86d: Repin beadsd-room + ghappd-room to the freshly published, repo-linked box images. After labeling the images with `org.opencontainers.image.source` (#796) and recreating the orphaned beadsd-box package, both `prx/beadsd-box` and `prx/ghappd-box` are now `repository: bounded-systems/prx` + public and publish cleanly. Updated digests: beadsd-box → `sha256:f2d6ffd7…`, ghappd-box → `sha256:49eb0e3b…`.
+
 ## 0.16.1
 
 ### Patch Changes
