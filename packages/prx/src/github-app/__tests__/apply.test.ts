@@ -67,6 +67,41 @@ describe("applyBrokeredGhToken", () => {
     expect(serialized).not.toContain("SECRET-PEM");
   });
 
+  test("door backend: leases via ghappd when PRX_GH_APP_DOOR is set, winning over a local key", async () => {
+    const sets: Array<[string, string]> = [];
+    let doorEndpoint: string | undefined;
+    const r = await applyBrokeredGhToken({
+      getEnv: envFrom({
+        PRX_GH_APP_DOOR: "unix:///run/ghappd.sock",
+        PRX_GH_APP_ID: "Iv1",
+        PRX_GH_APP_PRIVATE_KEY: "P",
+      }),
+      setEnv: (k, v) => sets.push([k, v]),
+      resolveConfig: () => {
+        throw new Error("must not resolve a local key when the door is set");
+      },
+      createDoorBroker: (opts) => {
+        doorEndpoint = opts.endpoint;
+        return okBroker("ghs_leased");
+      },
+    });
+    expect(doorEndpoint).toBe("unix:///run/ghappd.sock");
+    expect(sets).toEqual([["GH_TOKEN", "ghs_leased"]]);
+    expect(r.applied).toBe(true);
+    if (r.applied) expect(r.source).toBe("door");
+  });
+
+  test("env token still wins over the door (CI precedence)", async () => {
+    const r = await applyBrokeredGhToken({
+      getEnv: envFrom({ GH_TOKEN: "ghs_ci", PRX_GH_APP_DOOR: "unix:///run/ghappd.sock" }),
+      setEnv: () => {},
+      createDoorBroker: () => {
+        throw new Error("must not lease when an explicit token is present");
+      },
+    });
+    expect(r).toEqual({ applied: false, reason: "env-token-present" });
+  });
+
   test("configured-but-mint-fails: throws (fail-closed)", async () => {
     await expect(
       applyBrokeredGhToken({
