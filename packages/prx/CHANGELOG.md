@@ -1,5 +1,105 @@
 # @bounded-systems/prx
 
+## 0.16.0
+
+### Minor Changes
+
+- 4d73b44: ghappd deployment wiring (prx-cdln, finishing Phase 1): the `--ghapp` door catalog entry + the Lima lifecycle.
+
+  - **door/guest-room-catalog.ts** — adds the `ghapp` door to `prxDoorCatalog`
+    (`env: PRX_GH_APP_DOOR`, the broker's door-backend reader) + `ghappDoorGrant`,
+    so a claude-box room can declare/mount the door (and the rulebook honestly
+    denies it when absent). New `ghappd/endpoint.ts` (`DEFAULT_LOCAL_GHAPP_SOCKET`).
+  - **ghappd/lima-ghappd.ts** — `startGhappd`/`stopGhappd`/`provisionGhappd`/
+    `deployGhappdBinary`, a thin wrapper over the shared Lima `lifecycle` (like
+    keeperd/beadsd). The App credential is injected as env — id/installation
+    plain, the **PEM from its file via `$(cat …)`** so it stays out of argv.
+  - **ghappd/serve-verb.ts** — accepts an (ignored) `--cwd` so the generic daemon
+    launcher's `--cwd` doesn't break `ghapp serve` (the door is not repo-bound).
+
+  With this, ghappd is mountable as a room door and deployable as a Lima daemon —
+  prx-cdln's door work is complete; what remains is operational cutover (stop
+  setting `PRX_GH_APP_PRIVATE_KEY` on agents once ghappd is deployed).
+
+- eb1d771: ghappd Phase 2: the broker's door backend. When `PRX_GH_APP_DOOR` is set, the agent leases a short-lived installation token from ghappd over the door transport instead of minting from a local PEM — so the agent holds no App key, only a reference to the door.
+
+  - **broker.ts** — extracted `cachingBroker(fetchToken, opts)` (the cache / expiry-refresh / concurrency-dedupe), now shared by both token sources; `createBroker` delegates to it (behavior unchanged).
+  - **door-source.ts** — `createDoorBroker({ endpoint, repositories?, permissions?, ... })`: leases via `IsolatedGhappdClient` over `resolveFramedTransport(endpoint)`, fail-closed on an error reply, cached like the local broker.
+  - **apply.ts** — precedence is now `GH_TOKEN`/`GITHUB_TOKEN` (CI) > **ghappd door** (`PRX_GH_APP_DOOR`) > local App key (`PRX_GH_APP_*`) > personal `gh`. New result `source: "door"`.
+
+  This is the security posture from GHAPPD.md: the long-lived App key lives behind
+  the door, the agent receives only a ≤1h lease. Running the door (`ghapp serve`)
+  is the remaining Phase 1 wiring (via VerbSpec).
+
+- d5ff4b5: Wire ghappd into the guest-room pod (prx-36xr complete): ghappd now runs as a room in the per-repo pod, and the App key is a host-backed podman secret — the strongest "better cloud secrets" posture (PEM never in env/argv/a layer).
+
+  - **room/ghappd-room.ts** — RoomSpec exposing the `github-app:token` door, pinned
+    to the published `ghappd-box` digest, with the App key + id mounted as podman
+    secrets (`/run/secrets/ghapp-{key,id}`).
+  - **room/pod.ts** — `doorEnv` projects the ghappd door as `PRX_GH_APP_DOOR` (the
+    endpoint the broker's door backend dials).
+  - **room/claude-room.ts** — consumes the `github-app:token` door, so the agent
+    gets `PRX_GH_APP_DOOR` and leases instead of holding the PEM.
+  - **room/per-repo-pod.ts** — adds `ghappdRoom` to the pod. (Note: ghappd is not
+    repo-specific; a shared/singleton ghappd is a later optimization.)
+
+  Completes the chain: `ghappd-room` holds the key → claude-room leases ≤1h scoped
+  tokens over the door → no App PEM in the agent. Movable by construction (the door
+  transport resolves unix pod-local or TCP remote). Deploying it requires the
+  `prx-ghapp-key` + `prx-ghapp-id` podman secrets on the host (see prx-z6ru).
+
+- b6a2c69: Add `prx ghapp serve` — run the ghappd GitHub App credential-broker door — as a spec-driven VerbSpec (prx-cdln Phase 1 wiring).
+
+  Authoring the verb once with `defineVerb` projects it to the CLI, MCP, and
+  OpenAPI surfaces (and the help/registry projections regenerate), so it needs no
+  hand-wired `registry.data.ts` entry or new actor — it registers in
+  `cli/verb-registry.ts` like the other infra verbs (`pod up`). `run` resolves the
+  App key host-side via `resolveBrokerConfig` (held in the daemon, never leaving
+  the door), starts `runGhappdServe`, logs the listen socket, and blocks until the
+  process is terminated. Unconfigured ⇒ the door still serves but leases reply
+  error (loud at lease time). Regenerates `openapi.json` + help snapshots.
+
+  With this, the door is runnable end-to-end: `prx ghapp serve --socket <path>`,
+  and agents lease from it via the broker's door backend (`PRX_GH_APP_DOOR`).
+
+- b5bb881: Signed-derivation verification is now **on by default** (fail-closed) — trust
+  ledger row 6.1. Previously `PRX_REQUIRE_SIGNED_DERIVATIONS` was opt-in and the
+  merge-guard / publisher tier skipped verification entirely when it was unset
+  (fail-open). Now an unset/empty value enforces verification, and the gate fails
+  closed when a signed derivation is missing, invalid, or unverifiable.
+
+  Migration: this can block merge/publish in environments without a verifier
+  configured (`PRX_PROVENANCE_PUBKEY`) or that don't emit signed push
+  attestations. To opt out where enforcement can't yet be satisfied, set
+  `PRX_REQUIRE_SIGNED_DERIVATIONS=0` (also accepts `false`/`off`/`no`). The
+  fail-closed error messages now name both the fix and the opt-out.
+
+### Patch Changes
+
+- 7731f4e: Add the `ghappd-box` OCI image — the container that runs `prx ghapp serve` inside a guest-room (prx-36xr, the linchpin for running ghappd in the per-repo pod).
+
+  - **nix/oci/ghappd-box.nix** — `streamLayeredImage` mirroring keeperd-box, but the
+    App PEM is a RUNTIME SECRET: the entrypoint points `PRX_GH_APP_KEY_FILE` at the
+    mounted secret (`/run/secrets/ghapp-key`) so the daemon reads it in-process —
+    the PEM never enters env/argv/a layer (stronger than keeperd-box, which cats
+    its key into env). Non-secret App id read from `/run/secrets/ghapp-id` when
+    present; installation defaults in the daemon. Unmounted ⇒ serves but leases
+    error (by design). Contents: prx + cacert (HTTPS to api.github.com only — no
+    git/ssh).
+  - **flake.nix** — `packages.<linux>.ghappd-box` (Linux-only, like the other boxes).
+  - **.github/workflows/publish-oci-boxes.yml** — a `ghappd-box` publish job
+    (build → skopeo push to ghcr → digest in the step summary to pin), mirroring
+    beadsd-box.
+
+  Follow-up (after the first publish): pin the digest into `room/ghappd-room.ts`
+  and wire the room into the per-repo pod (prx-36xr steps 2–5).
+
+- 9343ed2: `prx pod up` is now idempotent (prx-asr). Re-running it against an
+  already-running pod previously failed with `podman kube play … "<pod>" is in
+use: pod already exists` (exit 125). `playPod` now probes `podman pod exists
+<name>` first and returns a no-op result when the pod is up — non-destructive
+  (healthy daemons aren't restarted); run `prx pod down` first to recreate.
+
 ## 0.15.0
 
 ### Minor Changes
