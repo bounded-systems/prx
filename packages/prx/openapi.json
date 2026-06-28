@@ -557,6 +557,35 @@
         }
       }
     },
+    "/pod/secrets": {
+      "post": {
+        "operationId": "pod_secrets",
+        "summary": "Provision (or report) the host podman secrets the pod's rooms declare.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/pod_secretsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/pod_secretsOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pod/up": {
       "post": {
         "operationId": "pod_up",
@@ -2233,6 +2262,88 @@
           "mode"
         ],
         "additionalProperties": {}
+      },
+      "pod_secretsInput": {
+        "type": "object",
+        "properties": {
+          "pod": {
+            "default": "per-repo",
+            "description": "Pod spec (currently only 'per-repo')",
+            "type": "string",
+            "enum": [
+              "per-repo"
+            ]
+          },
+          "from": {
+            "default": [],
+            "description": "Source mapping name=<@/path/to/file | literal> (repeatable). @ → podman reads the file (the secret never enters prx); a literal is piped via stdin.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "replace": {
+            "default": false,
+            "description": "Replace (rotate) secrets that already exist",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "pod",
+          "from",
+          "replace"
+        ],
+        "additionalProperties": false
+      },
+      "pod_secretsOutput": {
+        "type": "object",
+        "properties": {
+          "pod": {
+            "type": "string"
+          },
+          "secrets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "target": {
+                  "type": "string"
+                },
+                "room": {
+                  "type": "string"
+                },
+                "present": {
+                  "type": "boolean"
+                },
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "created",
+                    "replaced",
+                    "exists",
+                    "missing-source"
+                  ]
+                }
+              },
+              "required": [
+                "name",
+                "target",
+                "room",
+                "present",
+                "action"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "pod",
+          "secrets"
+        ],
+        "additionalProperties": false
       },
       "pod_upInput": {
         "type": "object",
