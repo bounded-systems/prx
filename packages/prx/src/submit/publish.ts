@@ -364,7 +364,7 @@ export async function runSubmitPublish(
   if (deps.requireSigned) {
     if (signed === null) {
       throw new PublishError(
-        "prx submit publish: PRX_REQUIRE_SIGNED_DERIVATIONS is set but the push emitted no signed attestation (no signer/ledger configured)",
+        "prx submit publish: signed-derivation enforcement is on by default but the push emitted no signed attestation (no signer/ledger configured) — configure a signer, or opt out with PRX_REQUIRE_SIGNED_DERIVATIONS=0",
       );
     }
     if (isL3Attestation(signed)) {
@@ -376,7 +376,7 @@ export async function runSubmitPublish(
       const keeperKey = (deps.resolveKeeperKey ?? resolveKeeperTrustKey)();
       if (keeperKey === null) {
         throw new PublishError(
-          "prx submit publish: PRX_REQUIRE_SIGNED_DERIVATIONS is set but no keeper trust key is configured (set PRX_KEEPER_PUBKEY)",
+          "prx submit publish: signed-derivation enforcement is on by default but no keeper trust key is configured (set PRX_KEEPER_PUBKEY, or opt out with PRX_REQUIRE_SIGNED_DERIVATIONS=0)",
         );
       }
       if (!verifyL3Attestation(signed, keeperKey, materializedCommit)) {
@@ -413,7 +413,7 @@ export async function runSubmitPublish(
       // Local path: an anchored-chain DSSE `push/v1` derivation.
       if (deps.verifier === undefined) {
         throw new PublishError(
-          "prx submit publish: PRX_REQUIRE_SIGNED_DERIVATIONS is set but no provenance verifier is configured (set PRX_PROVENANCE_PUBKEY)",
+          "prx submit publish: signed-derivation enforcement is on by default but no provenance verifier is configured (set PRX_PROVENANCE_PUBKEY, or opt out with PRX_REQUIRE_SIGNED_DERIVATIONS=0)",
         );
       }
       const derivation = signed as Derivation;

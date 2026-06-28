@@ -13,7 +13,7 @@ operator-master configuration.
 | **master** | a 32-byte secret; per-actor signing keys derive from it | an agenix/sops-decrypted file (mode `0600`), pointed at by `PRX_PROVENANCE_MASTER_FILE`. **Never** in config, the nix store, or env (env carries only the path). |
 | **per-actor keys** | each actor (`plan`, `implement`, `submit`, …) signs with its own key derived from the master — attributable | derived at runtime; never persisted. `PRX_PROVENANCE_KEY=dev` selects per-actor mode. |
 | **trust map** | actor → **public** key; what verification pins | `~/.config/prx/config.json` `provenance.trust` — declarative, safe to commit. Written by `prx keymaker register`. |
-| **enforcement** | reject unsigned/untrusted derivations, fail-closed | `PRX_REQUIRE_SIGNED_DERIVATIONS=1`, read by the merge-guard / publisher tier. |
+| **enforcement** | reject unsigned/untrusted derivations, fail-closed | **on by default** (row 6.1), read by the merge-guard / publisher tier. Opt out with `PRX_REQUIRE_SIGNED_DERIVATIONS=0` only where a verifier can't yet be configured. |
 
 Public keys verify; they don't sign. The master signs; it never leaves the
 secret file. (`packages/prx/src/provenance/config.ts`, `signer.ts`, `keymaker.ts`.)
@@ -130,5 +130,5 @@ real deployment.
 | --- | --- |
 | `PRX_PROVENANCE_MASTER_FILE` | path to the decrypted base64 master (the deployment secret) |
 | `PRX_PROVENANCE_KEY=dev` | per-actor signing mode (keys derive from the resolved master) |
-| `PRX_REQUIRE_SIGNED_DERIVATIONS=1` | fail-closed verification at the merge-guard / publisher tier |
+| `PRX_REQUIRE_SIGNED_DERIVATIONS` | fail-closed verification at the merge-guard / publisher tier — **on by default**; set `=0`/`false`/`off` to opt out |
 | `PRX_PROVENANCE_PER_ACTOR=off` | escape hatch: single-key instead of per-actor (debug only) |

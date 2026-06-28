@@ -115,10 +115,17 @@ describe("resolveMergeGuardProvenanceAxis canonical ledger wiring (GH-2338)", ()
     runReserve({ branch: "main", base: "origin/main", local_only: false }, fixture.repoDir);
   }
 
-  test("AC-4: flag unset ⇒ undefined regardless of ledger (path unchanged)", async () => {
+  test("default-on: flag unset ⇒ enforced (fail closed, same as set)", async () => {
+    // Row 6.1: enforcement is now the default. Unset behaves like "1": no
+    // reserve ⇒ canonical ledger unresolvable ⇒ block, not pass.
     delete process.env[REQUIRE_SIGNED];
+    expect(await resolveMergeGuardProvenanceAxis(fixture.repoDir, undefined)).toBe("unsigned");
+  });
+
+  test("opt-out: flag=0 ⇒ undefined regardless of ledger (escape hatch, path unchanged)", async () => {
+    process.env[REQUIRE_SIGNED] = "0";
     expect(await resolveMergeGuardProvenanceAxis(fixture.repoDir, undefined)).toBeUndefined();
-    // Even reserved + an explicit ledger must stay undefined when enforcement is off.
+    // Even reserved + an explicit ledger must stay undefined when opted out.
     reserve();
     const empty = join(fixture.repoDir, "explicit.sqlite");
     expect(await resolveMergeGuardProvenanceAxis(fixture.repoDir, empty)).toBeUndefined();

@@ -186,17 +186,19 @@ export function resolveProvenanceVerifier(
 
 /**
  * Whether fail-closed signed-derivation enforcement is on, from
- * `PRX_REQUIRE_SIGNED_DERIVATIONS`. Truthy values: `1`/`true`/`on`/`yes`
- * (case-insensitive); unset/empty/anything else ⇒ off (backward compatible).
+ * `PRX_REQUIRE_SIGNED_DERIVATIONS`. **Default-on** (trust ledger row 6.1):
+ * unset or empty ⇒ enforced. Explicit opt-out values `0`/`false`/`off`/`no`
+ * (case-insensitive) ⇒ off — the escape hatch for environments that cannot yet
+ * configure a verifier (`PRX_PROVENANCE_PUBKEY`). Anything else ⇒ on.
  * `env` is injectable for tests.
  */
 export function requireSignedDerivations(
   env: (key: string) => string | undefined = getEnv,
 ): boolean {
   const raw = env(REQUIRE_SIGNED_ENV);
-  if (raw === undefined) return false;
+  if (raw === undefined || raw === "") return true;
   const v = raw.toLowerCase();
-  return v === "1" || v === "true" || v === "on" || v === "yes";
+  return !(v === "0" || v === "false" || v === "off" || v === "no");
 }
 
 /** Parse the actor out of a builder id `prx://<actor>/<verb>`; null if malformed. */

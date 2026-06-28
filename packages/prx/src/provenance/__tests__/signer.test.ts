@@ -192,17 +192,17 @@ describe("resolveProvenanceVerifier — env-gated", () => {
   });
 });
 
-describe("requireSignedDerivations — enforcement flag", () => {
-  test("truthy values turn enforcement on", () => {
-    for (const v of ["1", "true", "TRUE", "on", "yes"]) {
+describe("requireSignedDerivations — default-on with opt-out (row 6.1)", () => {
+  test("unset / empty / on / unknown values enforce (default-on)", () => {
+    expect(requireSignedDerivations(envFrom({}))).toBe(true);
+    for (const v of ["", "1", "true", "TRUE", "on", "yes", "anything-else"]) {
       expect(requireSignedDerivations(envFrom({ [REQUIRE_SIGNED_ENV]: v }))).toBe(true);
     }
   });
 
-  test("unset / empty / non-truthy leave enforcement off (backward compatible)", () => {
-    expect(requireSignedDerivations(envFrom({}))).toBe(false);
-    expect(requireSignedDerivations(envFrom({ [REQUIRE_SIGNED_ENV]: "" }))).toBe(false);
-    expect(requireSignedDerivations(envFrom({ [REQUIRE_SIGNED_ENV]: "0" }))).toBe(false);
-    expect(requireSignedDerivations(envFrom({ [REQUIRE_SIGNED_ENV]: "off" }))).toBe(false);
+  test("explicit opt-out values turn enforcement off", () => {
+    for (const v of ["0", "false", "FALSE", "off", "Off", "no", "No"]) {
+      expect(requireSignedDerivations(envFrom({ [REQUIRE_SIGNED_ENV]: v }))).toBe(false);
+    }
   });
 });
