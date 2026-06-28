@@ -1,0 +1,25 @@
+packages/prx/src/beadsd/daemon.ts
+  s_399e6065f1b4a3::t_6e2769c94b282b 187-220
+  s_399e6065f1b4a3::t_875fd00f813bb7 239-256
+packages/prx/test/beadsd/daemon.test.ts
+  s_399e6065f1b4a3::t_f0de8f08432299 147-154,156-187
+  s_399e6065f1b4a3::t_b128428b7a5001 155
+.changeset/beads-foreign-workspace-signal.md
+  s_399e6065f1b4a3::t_9c99106a2deeed 1-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "cf7d0a5dd39ede2d378c9a1c64a585fce9c886c3",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
