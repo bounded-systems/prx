@@ -156,6 +156,26 @@ export function renderPodmanKube(pod: PodSpec): string {
         lines.push(`          value: ${dq(env[key]!)}`);
       }
     }
+
+    // prx-asr: override the daemon's baked-in `--socket` to the SHARED fabric
+    // path (`${doorDir}/<sock>`) for each OPEN door this room exposes. Without
+    // it the daemon serves at its image-default path (e.g. beadsd-box's
+    // `/run/prx/doors/beadsd.sock`), which is NOT where the rootless doorDir is
+    // mounted — so its socket never lands on the fabric and consumers can't
+    // reach it. Mirrors renderPodmanRun's secret-room override; kube `args:`
+    // overrides the image Cmd while keeping its Entrypoint. Sealed doors (state
+    // ≠ "open", e.g. claude-room's `control`) get nothing — and a non-daemon
+    // occupant (claude) would choke on a stray `--socket`. "Open" follows the
+    // codebase convention (resolvePodDoors): a door is open unless explicitly
+    // `state: "closed"` (undefined ⇒ open), so beadsd-room's stateless door
+    // qualifies while claude-room's sealed `control` does not.
+    const socketArgs = room.doors
+      .filter((d) => d.direction === "expose" && d.state !== "closed")
+      .flatMap((d) => ["--socket", `${p.doorDir}/${d.socket.split("/").at(-1) ?? d.socket}`]);
+    if (socketArgs.length > 0) {
+      lines.push("      args:");
+      for (const arg of socketArgs) lines.push(`        - ${dq(arg)}`);
+    }
   }
 
   return lines.join("\n") + "\n";

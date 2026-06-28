@@ -91,6 +91,22 @@ describe("renderPodmanKube", () => {
     expect(manifest).toContain(`value: "${perRepoPod.doorDir}/beadsd.sock"`);
   });
 
+  test("overrides beadsd-room's --socket to the shared fabric path (prx-asr)", () => {
+    // The beadsd-box image bakes `--socket /run/prx/doors/beadsd.sock`; the kube
+    // container must override it to the mounted doorDir so the socket lands on
+    // the fabric consumers read (else beadsd serves off-fabric, unreachable).
+    expect(manifest).toContain("args:");
+    expect(manifest).toContain(`- "--socket"`);
+    expect(manifest).toContain(`- "${perRepoPod.doorDir}/beadsd.sock"`);
+  });
+
+  test("does NOT add a --socket override for claude-room's sealed control door", () => {
+    // claude-room exposes only `control` (state: closed) and its occupant is
+    // `claude`, which would choke on a stray --socket. Assert no control socket
+    // arg is emitted.
+    expect(manifest).not.toContain(`${perRepoPod.doorDir}/control.sock`);
+  });
+
   test("does not emit env for a room with no wired door (beadsd-room)", () => {
     // beadsd-room only exposes; it consumes nothing → no env block for it.
     // Isolate its container slice and assert no `env:` before the next room.
