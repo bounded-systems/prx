@@ -1,0 +1,28 @@
+packages/prx/test/provenance/commit-signing-key.test.ts
+  s_8bfe0e8de6557c::t_f552ec75aaeb23 1-56
+packages/prx/test/pr-state/keeper.test.ts
+  s_8bfe0e8de6557c::t_99d7e67b2804d5 569-612
+packages/prx/src/provenance/commit-signing-key.ts
+  s_8bfe0e8de6557c::t_f86b42e86a6fac 112-130
+  s_8bfe0e8de6557c::t_357645eee6a383 1-111
+packages/prx/src/pr-state/keeper.ts
+  s_8bfe0e8de6557c::t_cd3e946fb657b4 172-189
+.changeset/internal-commit-signing-key.md
+  s_8bfe0e8de6557c::t_8078e7120ef4ed 1-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "815d6d01cd5f94304bb4f89b565e5671711f661b",
+  "prompts": {},
+  "sessions": {
+    "s_8bfe0e8de6557c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "159cecef-b114-4932-b219-6b198cbf9abd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
