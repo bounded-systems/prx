@@ -1,0 +1,26 @@
+.changeset/ghappd-serve-verb.md
+  s_3086de54355107::t_2fe68ee85b1cfa 1-17
+packages/prx/src/ghappd/__tests__/serve-verb.test.ts
+  s_3086de54355107::t_7179a80c4f91a3 1-64
+packages/prx/src/ghappd/serve-verb.ts
+  s_3086de54355107::t_3cbd9df72f0cb9 1-77
+packages/prx/src/cli/verb-registry.ts
+  s_3086de54355107::t_11f5b271a9e299 33
+  s_3086de54355107::t_4ffeae492f895b 65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a5ec7a03d27451fc94e64366d575e27773aaa132",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
