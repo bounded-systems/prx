@@ -105,9 +105,13 @@ function secretRooms(pod: PodSpec): RoomSpec[] {
   return PodSpecSchema.parse(pod).rooms.filter(roomNeedsSecretRuntime);
 }
 
-/** True iff the pod has at least one non-secret room (a kube pod to play). */
+/**
+ * True iff the pod has at least one kube container to play — a non-secret room
+ * OR a backing service (prx-asr). Drives whether `kube play`/`kube down` run.
+ */
 function hasKubeRooms(pod: PodSpec): boolean {
-  return PodSpecSchema.parse(pod).rooms.some((r) => !roomNeedsSecretRuntime(r));
+  const p = PodSpecSchema.parse(pod);
+  return p.rooms.some((r) => !roomNeedsSecretRuntime(r)) || p.services.length > 0;
 }
 
 /**
