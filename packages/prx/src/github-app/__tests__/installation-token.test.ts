@@ -67,6 +67,46 @@ describe("mintInstallationToken", () => {
     expect(result.permissions.pull_requests).toBe("write");
   });
 
+  test("unattenuated call sends no request body (full installation scope)", async () => {
+    let sawBody: string | undefined;
+    const fakeFetch: typeof fetch = (async (_url: string, init?: RequestInit) => {
+      sawBody = init?.body as string | undefined;
+      return new Response(JSON.stringify({ token: "t", expires_at: "2026-06-27T23:59:59Z" }), {
+        status: 201,
+      });
+    }) as unknown as typeof fetch;
+
+    await mintInstallationToken(
+      { issuer: "12345", privateKeyPem: PEM, installationId: "1" },
+      { fetch: fakeFetch, now: () => NOW },
+    );
+    expect(sawBody).toBeUndefined();
+  });
+
+  test("attenuated call sends repositories + permissions in the JSON body", async () => {
+    const seen: { body: string; contentType: string } = { body: "", contentType: "" };
+    const fakeFetch: typeof fetch = (async (_url: string, init?: RequestInit) => {
+      seen.body = String(init?.body ?? "");
+      seen.contentType = String((init?.headers as Record<string, string>)?.["Content-Type"] ?? "");
+      return new Response(JSON.stringify({ token: "t", expires_at: "2026-06-27T23:59:59Z" }), {
+        status: 201,
+      });
+    }) as unknown as typeof fetch;
+
+    await mintInstallationToken(
+      {
+        issuer: "12345",
+        privateKeyPem: PEM,
+        installationId: "1",
+        repositories: ["prx"],
+        permissions: { contents: "read" },
+      },
+      { fetch: fakeFetch, now: () => NOW },
+    );
+    expect(seen.contentType).toBe("application/json");
+    expect(JSON.parse(seen.body)).toEqual({ repositories: ["prx"], permissions: { contents: "read" } });
+  });
+
   test("throws with status + body when GitHub rejects the request", async () => {
     const fakeFetch: typeof fetch = (async () =>
       new Response("bad key", { status: 401, statusText: "Unauthorized" })) as unknown as typeof fetch;

@@ -6,7 +6,11 @@
 // Precedence (so CI never double-mints): an explicit GH_TOKEN/GITHUB_TOKEN
 // already in env wins; else a configured app mints; else fail-open to personal
 // `gh` auth. Env is read/written via @bounded-systems/env (ambient guard).
-import { getEnv as defaultGetEnv, setEnv as defaultSetEnv } from "@bounded-systems/env";
+import {
+  deleteEnv as defaultDeleteEnv,
+  getEnv as defaultGetEnv,
+  setEnv as defaultSetEnv,
+} from "@bounded-systems/env";
 
 import {
   resolveBrokerConfig as defaultResolveBrokerConfig,
@@ -27,6 +31,8 @@ export type ApplyResult =
 export interface ApplyBrokeredGhTokenDeps {
   readonly getEnv?: (key: string) => string | undefined;
   readonly setEnv?: (key: string, value: string) => void;
+  /** Env unset seam — used to scrub the inline PEM after it is read. */
+  readonly deleteEnv?: (key: string) => void;
   /** fs-seam: forwarded to the config resolver to read PRX_GH_APP_KEY_FILE. */
   readonly readFile?: (path: string) => string;
   readonly resolveConfig?: typeof defaultResolveBrokerConfig;
@@ -53,6 +59,7 @@ export async function applyBrokeredGhToken(
 ): Promise<ApplyResult> {
   const getEnv = deps.getEnv ?? defaultGetEnv;
   const setEnv = deps.setEnv ?? defaultSetEnv;
+  const deleteEnv = deps.deleteEnv ?? defaultDeleteEnv;
   const resolveConfig = deps.resolveConfig ?? defaultResolveBrokerConfig;
   const createBroker = deps.createBroker ?? defaultCreateBroker;
 
@@ -70,6 +77,13 @@ export async function applyBrokeredGhToken(
 
   const broker = createBroker(config, deps.brokerDeps);
   processBroker = broker;
+
+  // Harden the inline-PEM cloud-agent path: the broker now holds the PEM in
+  // memory (for re-mints), so scrub it from the env. Otherwise it is inherited
+  // by every child process prx spawns and is readable via /proc/<pid>/environ.
+  // The file-path source keeps only a (non-secret) path in env — nothing to scrub.
+  if (config.source === "inline") deleteEnv("PRX_GH_APP_PRIVATE_KEY");
+
   const t = await broker.ensure(); // throws on mint failure — fail-closed
   setEnv("GH_TOKEN", t.token);
   return { applied: true, source: config.source, expiresAt: t.expiresAt, permissions: t.permissions };

@@ -35,6 +35,16 @@ export interface MintInstallationTokenInput {
   readonly privateKeyPem: string;
   /** The installation to mint for (e.g. 138039680 = the bounded-systems org). */
   readonly installationId: string;
+  /**
+   * Least-privilege attenuation (GitHub `access_tokens` body). When set, the
+   * minted token is scoped to only these repo names (not the whole installation).
+   */
+  readonly repositories?: readonly string[];
+  /**
+   * Least-privilege attenuation: a subset of the installation's permissions
+   * (e.g. `{ contents: "read" }`). Omit for the installation's full scopes.
+   */
+  readonly permissions?: Readonly<Record<string, string>>;
 }
 
 /** Injected ambient effects — defaulted in production, overridden in tests. */
@@ -75,6 +85,13 @@ export async function mintInstallationToken(
   const apiBaseUrl = deps.apiBaseUrl ?? DEFAULT_API_BASE_URL;
   const jwt = appJwt(input.issuer, input.privateKeyPem, deps.now);
 
+  // Least-privilege body: only sent when an attenuation is requested, so an
+  // unattenuated call keeps the installation's full scopes (back-compatible).
+  const body: Record<string, unknown> = {};
+  if (input.repositories) body.repositories = input.repositories;
+  if (input.permissions) body.permissions = input.permissions;
+  const hasBody = Object.keys(body).length > 0;
+
   const res = await doFetch(
     `${apiBaseUrl}/app/installations/${input.installationId}/access_tokens`,
     {
@@ -84,7 +101,9 @@ export async function mintInstallationToken(
         Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": USER_AGENT,
+        ...(hasBody ? { "Content-Type": "application/json" } : {}),
       },
+      ...(hasBody ? { body: JSON.stringify(body) } : {}),
     },
   );
   if (!res.ok) {

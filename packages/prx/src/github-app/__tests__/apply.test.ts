@@ -83,4 +83,28 @@ describe("applyBrokeredGhToken", () => {
       }),
     ).rejects.toThrow("mint boom");
   });
+
+  test("inline source: scrubs PRX_GH_APP_PRIVATE_KEY from the env after read", async () => {
+    const deleted: string[] = [];
+    await applyBrokeredGhToken({
+      getEnv: envFrom({}),
+      setEnv: () => {},
+      deleteEnv: (k) => deleted.push(k),
+      resolveConfig: () => CONFIG, // source: "inline"
+      createBroker: () => okBroker("ghs_minted"),
+    });
+    expect(deleted).toEqual(["PRX_GH_APP_PRIVATE_KEY"]);
+  });
+
+  test("file source: does not scrub (env holds only a path, not a secret)", async () => {
+    const deleted: string[] = [];
+    await applyBrokeredGhToken({
+      getEnv: envFrom({}),
+      setEnv: () => {},
+      deleteEnv: (k) => deleted.push(k),
+      resolveConfig: () => ({ ...CONFIG, source: "file" }),
+      createBroker: () => okBroker("ghs_minted"),
+    });
+    expect(deleted).toHaveLength(0);
+  });
 });

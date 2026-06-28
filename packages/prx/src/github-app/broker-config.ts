@@ -21,6 +21,10 @@ export interface BrokerConfig {
   readonly installationId: string;
   /** Where the PEM came from — non-secret, for diagnostics. */
   readonly source: "inline" | "file";
+  /** Optional least-privilege attenuation (PRX_GH_APP_REPOSITORIES, comma-sep). */
+  readonly repositories?: readonly string[];
+  /** Optional least-privilege attenuation (PRX_GH_APP_PERMISSIONS, JSON object). */
+  readonly permissions?: Readonly<Record<string, string>>;
 }
 
 export interface ResolveBrokerConfigDeps {
@@ -82,5 +86,32 @@ export function resolveBrokerConfig(deps: ResolveBrokerConfigDeps = {}): BrokerC
   }
 
   const installationId = getEnv("PRX_GH_INSTALLATION_ID") ?? DEFAULT_INSTALLATION_ID;
-  return { issuer, privateKeyPem, installationId, source };
+
+  // Optional least-privilege attenuation. Both default to absent (full
+  // installation scope) so the broker stays back-compatible when unset.
+  const reposRaw = getEnv("PRX_GH_APP_REPOSITORIES");
+  const repositories = reposRaw
+    ? reposRaw.split(",").map((r) => r.trim()).filter((r) => r.length > 0)
+    : undefined;
+
+  const permsRaw = getEnv("PRX_GH_APP_PERMISSIONS");
+  let permissions: Record<string, string> | undefined;
+  if (permsRaw) {
+    try {
+      permissions = JSON.parse(permsRaw) as Record<string, string>;
+    } catch (e) {
+      throw new BrokerConfigError(
+        `PRX_GH_APP_PERMISSIONS is not valid JSON: ${(e as Error).message}`,
+      );
+    }
+  }
+
+  return {
+    issuer,
+    privateKeyPem,
+    installationId,
+    source,
+    ...(repositories && repositories.length > 0 ? { repositories } : {}),
+    ...(permissions ? { permissions } : {}),
+  };
 }

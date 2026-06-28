@@ -35,6 +35,24 @@ describe("createBroker", () => {
     expect(b.expiresAt).toBe(Date.parse(EXPIRES));
   });
 
+  test("forwards configured attenuation (repositories/permissions) to mint", async () => {
+    let seen: {
+      repositories: readonly string[] | undefined;
+      permissions: Readonly<Record<string, string>> | undefined;
+    } = { repositories: undefined, permissions: undefined };
+    const mint = ((input) => {
+      seen = { repositories: input.repositories, permissions: input.permissions };
+      return Promise.resolve({ token: "t", expiresAt: EXPIRES, permissions: {} });
+    }) as typeof import("../installation-token.ts").mintInstallationToken;
+    const broker = createBroker(
+      { ...CONFIG, repositories: ["prx"], permissions: { contents: "read" } },
+      { mint, now: () => T0 },
+    );
+    await broker.ensure();
+    expect(seen.repositories).toEqual(["prx"]);
+    expect(seen.permissions).toEqual({ contents: "read" });
+  });
+
   test("re-mints when within the refresh margin of expiry", async () => {
     let mints = 0;
     let now = T0;
