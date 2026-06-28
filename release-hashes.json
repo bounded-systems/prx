@@ -1,14 +1,14 @@
 {
-  "version": "0.16.1",
+  "version": "0.17.0",
   "systems": {
     "aarch64-darwin": {
-      "prx": "0nhpa5w89dgmrii6qk510jcf47rcfvfmaa07jniysfgr4ikscp8a"
+      "prx": "0nxnja207kmc3n3bz1367k8mnri6grjj8f40h92bfkf3rypqg05p"
     },
     "x86_64-linux": {
-      "prx": "1czjsmw32mj97alg9aryrrn2lgqxr98j3vbg435gc3dz5w4idzly"
+      "prx": "0gx7hkcznmf4sqg308kkl3jyxzry8yhd9sg2a9zm9zadg61wakw1"
     },
     "aarch64-linux": {
-      "prx": "1w54gzjd3ws0zqy1hqf3zs8khhcbxdzyippw1zgsmxcgv18krz72"
+      "prx": "15rg22ml8zhx52icc5dy1b9jv0cpy054b8ba3cbaamjk99whb25d"
     }
   }
 }
