@@ -1,0 +1,22 @@
+.github/workflows/release-binary.yml
+  s_3086de54355107::t_865a9e4e7ee36e 161-170,172-173
+  s_3086de54355107::t_53aceea38ad0a3 232
+.changeset/relhashes-forge.md
+  s_3086de54355107::t_c6ea29b1ed2d1f 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "fbec22f5650b7be4ffaa602d0337a28f538de8dc",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
