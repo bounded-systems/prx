@@ -1,5 +1,15 @@
 # @bounded-systems/prx
 
+## 0.17.1
+
+### Patch Changes
+
+- 6bc6708: beadsd-box: chmod 700 the box-local `.beads` (the copy from `/work` inherited
+  0755, which bd warns about). Re-pinned `BEADSD_ROOM_IMAGE`. Cosmetic — drops the
+  startup permissions warning.
+- f8a7fd5: Route `prx ghapp serve` in the CLI (cli.ts) — the ghappd-box entrypoint runs `/bin/prx ghapp serve`, but the verb was registered without a dispatch case, so the door daemon crashed at deploy with "Unknown subcommand: ghapp". Adds the route + a regression guard (box-verbs-routed.test.ts) asserting box/daemon entrypoint verbs (ghapp serve, pod up, pod secrets) are CLI-reachable, not just registered — the bug bit three times.
+- f9c7803: Mint the prx-forge App token in release-binary.yml's update-hashes job (prx-zee7 Phase 5 leftover) so the release-hashes/brew-formula PR opens automatically. It used GITHUB_TOKEN, which "is not permitted to create or approve pull requests" — so every release's hashes PR failed and had to be opened by hand (e.g. #811 for v0.17.0). Mirrors version.yml; falls back to GITHUB_TOKEN when the app var is unset.
+
 ## 0.17.0
 
 ### Minor Changes
@@ -44,7 +54,7 @@ gc`), and emits a content-addressed dolt data dir — the network-fetch stage,
   temp writes succeed in the minimal image) + the copy recipe in dolt-service.ts.
   Verified end-to-end: build → import → serve (3307) → query the issues table.
 - e43d3e8: Repin ghappd-room to the rebuilt ghappd-box (sha256:0b7d7be2…) carrying the Phase 4 forge-bucket changes (generic entrypoint reads the installation mount; prx binary with the de-hardcoded installation). Per prx-zee7.
-- 4c4df0d: Add the GitHub Apps architecture spec (docs/prx/github-apps-architecture.md): permission-bucketed apps (prx-forge / prx-projects / prx-signing) + per-use token attenuation, consumed by both CI (create-github-app-token) and runtime (ghappd-style bucket doors). Records that Front Desk == bounded-systems-prx (legacy secret name), and the migration off the union app + FRONT*DESK*_/CHANGESETS\__ names. Design doc only.
+- 4c4df0d: Add the GitHub Apps architecture spec (docs/prx/github-apps-architecture.md): permission-bucketed apps (prx-forge / prx-projects / prx-signing) + per-use token attenuation, consumed by both CI (create-github-app-token) and runtime (ghappd-style bucket doors). Records that Front Desk == bounded-systems-prx (legacy secret name), and the migration off the union app + FRONT*DESK*\_/CHANGESETS\_\_ names. Design doc only.
 - 77b6a6c: Add `org.opencontainers.image.source` to the beadsd-box and ghappd-box OCI images so each ghcr package is deterministically linked to `bounded-systems/prx` (and carries provenance). This is the documented, explicit way to tie a package to a repo for Actions push access — rather than relying on GitHub's implicit auto-link-on-create, which left `beadsd-box` an unowned orphan (`repository: null`, private → 403 on publish).
 - 45edeae: Wire `prx pod secrets` into the CLI dispatch (cli.ts) — the verb was registered (MCP/OpenAPI saw it) but had no `pod secrets` route next to `pod up`, so `prx pod secrets` errored "Unknown subcommand: pod". Follow-up to #806.
 - ec7f86d: Repin beadsd-room + ghappd-room to the freshly published, repo-linked box images. After labeling the images with `org.opencontainers.image.source` (#796) and recreating the orphaned beadsd-box package, both `prx/beadsd-box` and `prx/ghappd-box` are now `repository: bounded-systems/prx` + public and publish cleanly. Updated digests: beadsd-box → `sha256:f2d6ffd7…`, ghappd-box → `sha256:49eb0e3b…`.
