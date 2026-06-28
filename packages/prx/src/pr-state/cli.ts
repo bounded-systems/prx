@@ -15051,6 +15051,10 @@ export function runCli(
     if (orchestratorVerb === "pod" && orchestratorRest[0] === "up") {
       return runSpecVerb("pod up", orchestratorRest.slice(1), output);
     }
+    // `pod secrets` — provision the host podman secrets the pod's rooms declare.
+    if (orchestratorVerb === "pod" && orchestratorRest[0] === "secrets") {
+      return runSpecVerb("pod secrets", orchestratorRest.slice(1), output);
+    }
     // The `contract <sub>` namespace reroutes several subcommands to verbs that
     // are now spec-driven. The early dispatch keys off the raw `argv[0]`
     // (`contract`), not the normalized rewrite, so those aliases would miss the
