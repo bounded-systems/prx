@@ -56,6 +56,9 @@ export function createBroker(config: BrokerConfig, deps: BrokerDeps = {}): Broke
         issuer: config.issuer,
         privateKeyPem: config.privateKeyPem,
         installationId: config.installationId,
+        // Forward least-privilege attenuation when configured (else full scope).
+        ...(config.repositories ? { repositories: config.repositories } : {}),
+        ...(config.permissions ? { permissions: config.permissions } : {}),
       },
       mintDeps,
     );

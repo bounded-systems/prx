@@ -82,4 +82,37 @@ describe("resolveBrokerConfig", () => {
       resolveBrokerConfig({ getEnv: envFrom({ PRX_GH_APP_ID: "Iv1", PRX_GH_APP_KEY_FILE: "/x" }) }),
     ).toThrow(BrokerConfigError);
   });
+
+  test("attenuation absent by default (full installation scope)", () => {
+    const cfg = resolveBrokerConfig({
+      getEnv: envFrom({ PRX_GH_APP_ID: "Iv1", PRX_GH_APP_PRIVATE_KEY: "P" }),
+    });
+    expect(cfg?.repositories).toBeUndefined();
+    expect(cfg?.permissions).toBeUndefined();
+  });
+
+  test("parses repositories (comma-sep, trimmed) and permissions (JSON)", () => {
+    const cfg = resolveBrokerConfig({
+      getEnv: envFrom({
+        PRX_GH_APP_ID: "Iv1",
+        PRX_GH_APP_PRIVATE_KEY: "P",
+        PRX_GH_APP_REPOSITORIES: "prx, trust ,",
+        PRX_GH_APP_PERMISSIONS: '{"contents":"read"}',
+      }),
+    });
+    expect(cfg?.repositories).toEqual(["prx", "trust"]);
+    expect(cfg?.permissions).toEqual({ contents: "read" });
+  });
+
+  test("invalid permissions JSON → throws", () => {
+    expect(() =>
+      resolveBrokerConfig({
+        getEnv: envFrom({
+          PRX_GH_APP_ID: "Iv1",
+          PRX_GH_APP_PRIVATE_KEY: "P",
+          PRX_GH_APP_PERMISSIONS: "{not json",
+        }),
+      }),
+    ).toThrow(BrokerConfigError);
+  });
 });
