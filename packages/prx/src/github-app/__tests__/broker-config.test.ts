@@ -17,6 +17,7 @@ describe("resolveBrokerConfig", () => {
     const cfg = resolveBrokerConfig({
       getEnv: envFrom({
         PRX_GH_APP_ID: "Iv1",
+        PRX_GH_INSTALLATION_ID: "I1",
         PRX_GH_APP_PRIVATE_KEY: "-----BEGIN-----inline-----END-----",
         PRX_GH_APP_KEY_FILE: "/should/not/read",
       }),
@@ -32,7 +33,7 @@ describe("resolveBrokerConfig", () => {
 
   test("reads the file when no inline PEM is set", () => {
     const cfg = resolveBrokerConfig({
-      getEnv: envFrom({ PRX_GH_APP_ID: "Iv1", PRX_GH_APP_KEY_FILE: "/key.pem" }),
+      getEnv: envFrom({ PRX_GH_APP_ID: "Iv1", PRX_GH_INSTALLATION_ID: "I1", PRX_GH_APP_KEY_FILE: "/key.pem" }),
       readFile: (p) => {
         expect(p).toBe("/key.pem");
         return "FILE_PEM";
@@ -44,16 +45,20 @@ describe("resolveBrokerConfig", () => {
 
   test("accepts PRX_GH_APP_CLIENT_ID as the issuer alias", () => {
     const cfg = resolveBrokerConfig({
-      getEnv: envFrom({ PRX_GH_APP_CLIENT_ID: "Iv2", PRX_GH_APP_PRIVATE_KEY: "P" }),
+      getEnv: envFrom({ PRX_GH_APP_CLIENT_ID: "Iv2", PRX_GH_INSTALLATION_ID: "I1", PRX_GH_APP_PRIVATE_KEY: "P" }),
     });
     expect(cfg?.issuer).toBe("Iv2");
   });
 
-  test("installationId defaults to the bounded-systems org, or honors override", () => {
-    const def = resolveBrokerConfig({
-      getEnv: envFrom({ PRX_GH_APP_ID: "Iv1", PRX_GH_APP_PRIVATE_KEY: "P" }),
-    });
-    expect(def?.installationId).toBe("138039680");
+  test("installationId is required when configured (no default since the union split)", () => {
+    // Absent → throws (each bucket app has its own installation; silently
+    // defaulting to one would mint mismatched tokens).
+    expect(() =>
+      resolveBrokerConfig({
+        getEnv: envFrom({ PRX_GH_APP_ID: "Iv1", PRX_GH_APP_PRIVATE_KEY: "P" }),
+      }),
+    ).toThrow(/PRX_GH_INSTALLATION_ID/);
+    // Present → honored.
     const override = resolveBrokerConfig({
       getEnv: envFrom({ PRX_GH_APP_ID: "Iv1", PRX_GH_APP_PRIVATE_KEY: "P", PRX_GH_INSTALLATION_ID: "999" }),
     });
@@ -85,7 +90,7 @@ describe("resolveBrokerConfig", () => {
 
   test("attenuation absent by default (full installation scope)", () => {
     const cfg = resolveBrokerConfig({
-      getEnv: envFrom({ PRX_GH_APP_ID: "Iv1", PRX_GH_APP_PRIVATE_KEY: "P" }),
+      getEnv: envFrom({ PRX_GH_APP_ID: "Iv1", PRX_GH_INSTALLATION_ID: "I1", PRX_GH_APP_PRIVATE_KEY: "P" }),
     });
     expect(cfg?.repositories).toBeUndefined();
     expect(cfg?.permissions).toBeUndefined();
@@ -95,6 +100,7 @@ describe("resolveBrokerConfig", () => {
     const cfg = resolveBrokerConfig({
       getEnv: envFrom({
         PRX_GH_APP_ID: "Iv1",
+        PRX_GH_INSTALLATION_ID: "I1",
         PRX_GH_APP_PRIVATE_KEY: "P",
         PRX_GH_APP_REPOSITORIES: "prx, trust ,",
         PRX_GH_APP_PERMISSIONS: '{"contents":"read"}',
@@ -109,6 +115,7 @@ describe("resolveBrokerConfig", () => {
       resolveBrokerConfig({
         getEnv: envFrom({
           PRX_GH_APP_ID: "Iv1",
+          PRX_GH_INSTALLATION_ID: "I1",
           PRX_GH_APP_PRIVATE_KEY: "P",
           PRX_GH_APP_PERMISSIONS: "{not json",
         }),

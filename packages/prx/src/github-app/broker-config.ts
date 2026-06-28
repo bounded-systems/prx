@@ -9,9 +9,6 @@
 // node:fs and stays pure/extractable.
 import { getEnv as defaultGetEnv } from "@bounded-systems/env";
 
-/** The bounded-systems org installation of the bounded-systems-prx app. */
-const DEFAULT_INSTALLATION_ID = "138039680";
-
 /** Resolved App credentials, ready for ./broker.ts. `privateKeyPem` is secret. */
 export interface BrokerConfig {
   /** App ID or Client ID — GitHub honors either as the JWT `iss`. */
@@ -85,7 +82,16 @@ export function resolveBrokerConfig(deps: ResolveBrokerConfigDeps = {}): BrokerC
     );
   }
 
-  const installationId = getEnv("PRX_GH_INSTALLATION_ID") ?? DEFAULT_INSTALLATION_ID;
+  // Installation is per-app — each bucket app (prx-forge / prx-projects / …) has
+  // its own. Required when configured: no default, since the union app was split
+  // (prx-zee7) and silently defaulting to one would mint mismatched tokens.
+  const installationId = getEnv("PRX_GH_INSTALLATION_ID");
+  if (!installationId) {
+    throw new BrokerConfigError(
+      "PRX_GH_APP_ID is set but PRX_GH_INSTALLATION_ID is not — each bucket app has " +
+        "its own installation; set it explicitly (no default since the union app was split).",
+    );
+  }
 
   // Optional least-privilege attenuation. Both default to absent (full
   // installation scope) so the broker stays back-compatible when unset.
