@@ -1,0 +1,32 @@
+packages/prx/test/room/pod.test.ts
+  s_3086de54355107::t_b66f8e90518530 193,199,206,213
+  s_3086de54355107::t_903f7de3a3d833 155-174
+packages/prx/src/room/pod.ts
+  s_3086de54355107::t_d512cad100f12e 156-160
+packages/prx/src/room/claude-room.ts
+  s_3086de54355107::t_50ba6d2a8e1f4e 50-56
+packages/prx/src/room/per-repo-pod.ts
+  s_3086de54355107::t_d6e57f38cae216 7-16,21,31
+packages/prx/test/room/spec.test.ts
+  s_3086de54355107::t_88598b2d10a3e2 192-193
+packages/prx/src/room/ghappd-room.ts
+  s_3086de54355107::t_7502b9d74d67e8 1-44
+.changeset/ghappd-room-wiring.md
+  s_3086de54355107::t_ba15c17e83d190 1-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "9fe527e7ab8640963d04eb500fcfa1bbee9a3fff",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
