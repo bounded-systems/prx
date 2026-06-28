@@ -22,11 +22,12 @@ import {
 import { processEnv } from "@bounded-systems/env";
 
 import { DEFAULT_LOCAL_KEEPER_SOCKET } from "../keeperd/endpoint.ts";
+import { DEFAULT_LOCAL_GHAPP_SOCKET } from "../ghappd/endpoint.ts";
 
 /**
- * prx's door catalog, expressed in the guest-room model. Today it is the keeper
- * door (signed git-writes via keeperd); the other prx doors (beads, …) join here
- * as they move onto the runtime.
+ * prx's door catalog, expressed in the guest-room model: the keeper door (signed
+ * git-writes via keeperd) and the ghapp door (short-lived GitHub App tokens via
+ * ghappd). Other prx doors (beads, …) join here as they move onto the runtime.
  */
 export const prxDoorCatalog: DoorCatalog = {
   keeper: {
@@ -38,11 +39,25 @@ export const prxDoorCatalog: DoorCatalog = {
     use: "Route every git write through the keeper door; keeperd imports the commit and performs the signed push.",
     deny: "No git-write authority in this room — relaunch with the keeper door.",
   },
+  ghapp: {
+    flag: "--ghapp",
+    inBox: "/run/prx/doors/ghappd.sock",
+    env: "PRX_GH_APP_DOOR",
+    hostDefault: DEFAULT_LOCAL_GHAPP_SOCKET,
+    grants: "short-lived GitHub App installation tokens via ghappd",
+    use: "Lease a scoped GitHub token from the ghapp door (PRX_GH_APP_DOOR); the box never holds the App private key.",
+    deny: "No GitHub App authority in this room — relaunch with the ghapp door.",
+  },
 };
 
 /** Resolve prx's keeper door to a concrete grant via the guest-room engine. */
 export function keeperDoorGrant(env: Env = processEnv()): DoorGrant {
   return resolveDoor(prxDoorCatalog, "keeper", undefined, env);
+}
+
+/** Resolve prx's ghapp door to a concrete grant via the guest-room engine. */
+export function ghappDoorGrant(env: Env = processEnv()): DoorGrant {
+  return resolveDoor(prxDoorCatalog, "ghapp", undefined, env);
 }
 
 /**
