@@ -1,0 +1,33 @@
+packages/prx/src/pr-state/keeper.ts
+  s_8bfe0e8de6557c::t_1f2765f2a9098b 155-158,163
+  s_8bfe0e8de6557c::t_cf3c94c5330c4f 73-81
+packages/prx/src/cli/registry.data.ts
+  s_8bfe0e8de6557c::t_e7184916e8f6e5 1349-1355
+packages/prx/src/submit/publish.ts
+  s_8bfe0e8de6557c::t_b9bec110d22ede 17
+  s_8bfe0e8de6557c::t_cad7f990e089dd 282-285
+packages/prx/src/pr-state/cli.ts
+  s_8bfe0e8de6557c::t_e372fee7c507c0 5507-5508
+  s_8bfe0e8de6557c::t_98fd3965a9e2d1 5495
+  s_8bfe0e8de6557c::t_4dd4540070abc5 5559-5561
+  s_8bfe0e8de6557c::t_b39c51f9c4de43 18611-18625
+  s_8bfe0e8de6557c::t_135fd693ff1aa6 550
+  s_8bfe0e8de6557c::t_291542d8588042 1208-1214
+  s_8bfe0e8de6557c::t_35e1352c838338 1207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "2a7d09b3274b69f83c79dcf071c86c0baa7c740a",
+  "prompts": {},
+  "sessions": {
+    "s_8bfe0e8de6557c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "159cecef-b114-4932-b219-6b198cbf9abd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
