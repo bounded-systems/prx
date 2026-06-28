@@ -1,0 +1,19 @@
+packages/prx/test/pr-state/help/__snapshots__/help.snapshot.test.ts.snap
+  s_8bfe0e8de6557c::t_d62e0873587e19 26-91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "20dc8b44aee133db9735a809987d9da391c2f00d",
+  "prompts": {},
+  "sessions": {
+    "s_8bfe0e8de6557c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "159cecef-b114-4932-b219-6b198cbf9abd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
