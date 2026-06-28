@@ -55,6 +55,20 @@ let
         } // cfg.gitAiAgent.extraAttributes
       ))
     )
+    # GitHub App token broker: when enabled, prx mints a short-lived installation
+    # token at startup and publishes it as GH_TOKEN (separate higher rate-limit
+    # pool, bot identity, headless — no `gh auth login`). Fail-open to personal
+    # `gh` when unset. Only the PATH/ids are emitted here — NEVER the PEM, which
+    # must not enter the nix store; the inline-PEM env var (PRX_GH_APP_PRIVATE_KEY)
+    # is the cloud-agent-only injection path. Mirrors the provenance.masterFile
+    # agenix pattern.
+    ++ lib.optionals cfg.githubApp.enable (
+      lib.optional (cfg.githubApp.clientId != null)
+        ''export PRX_GH_APP_ID="${cfg.githubApp.clientId}"''
+      ++ lib.optional (cfg.githubApp.privateKeyFile != null)
+        ''export PRX_GH_APP_KEY_FILE="${cfg.githubApp.privateKeyFile}"''
+      ++ [ ''export PRX_GH_INSTALLATION_ID="${cfg.githubApp.installationId}"'' ]
+    )
   );
 
   # The prx launcher: inject the consumer env, then exec the binary.
@@ -173,6 +187,42 @@ in
           unsigned or untrusted derivation is rejected at the merge-guard /
           publisher tier. The production posture; disable only to debug.
         '';
+      };
+    };
+
+    githubApp = {
+      enable = lib.mkEnableOption ''
+        the GitHub App token broker — mint a short-lived installation token at
+        startup and publish it as GH_TOKEN (separate higher rate-limit pool, bot
+        identity, headless). Fail-open to personal `gh` auth when unconfigured'';
+
+      clientId = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        example = "Iv23liAbc123";
+        description = ''
+          Sets PRX_GH_APP_ID — the App ID or the app's Client ID (GitHub honors
+          either as the JWT issuer). Null ⇒ the broker is inert (personal `gh`).
+        '';
+      };
+
+      privateKeyFile = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        example = "/run/agenix/prx-gh-app-key";
+        description = ''
+          Sets PRX_GH_APP_KEY_FILE — path to the agenix/sops-decrypted App
+          private-key PEM (mode 0600). The key never enters config or the nix
+          store (env carries only the path), mirroring PRX_PROVENANCE_MASTER_FILE.
+          For Claude Code cloud agents, inject the PEM directly as the
+          PRX_GH_APP_PRIVATE_KEY env secret instead — never emitted by nix.
+        '';
+      };
+
+      installationId = lib.mkOption {
+        type = lib.types.str;
+        default = "138039680";
+        description = "Sets PRX_GH_INSTALLATION_ID — the installation to mint for (default = the bounded-systems org).";
       };
     };
   };
