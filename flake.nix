@@ -68,6 +68,9 @@
           keeperd-box = import ./nix/oci/keeperd-box.nix self { inherit pkgs system; };
           ghappd-box = import ./nix/oci/ghappd-box.nix self { inherit pkgs system; };
           dolt-box = import ./nix/oci/dolt-box.nix self { inherit pkgs system; };
+          # The deterministic beads dolt-data artifact (prx-asr): the
+          # network-fetch stage; the pod volume is populated from it (no network).
+          dolt-data = import ./nix/oci/dolt-data.nix self { inherit pkgs system; };
         };
 
         devShells = {
