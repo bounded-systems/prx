@@ -24,3 +24,27 @@ export const DOLT_DATA_VOLUME = "prx-dolt-data";
 
 /** The in-container data dir dolt-box serves (`DOLT_DATA_DIR` in dolt-box.nix). */
 export const DOLT_DATA_DIR = "/var/lib/dolt";
+
+/**
+ * dolt's noms writes temp files to `$TMPDIR`; the minimal nix image has no
+ * writable `/tmp`, so the pod points TMPDIR at the (writable) data volume.
+ * Verified: without this dolt-box exits `open /tmp/<n>: no such file or
+ * directory`; with it the server starts and serves the database.
+ */
+export const DOLT_BOX_ENV: Readonly<Record<string, string>> = {
+  DOLT_PORT: String(DOLT_BOX_PORT),
+  TMPDIR: DOLT_DATA_DIR,
+};
+
+/**
+ * The deterministic data SEED is the `dolt-data` nix FOD
+ * (nix/oci/dolt-data.nix) — the network-fetch stage. The COPY stage populates
+ * the {@link DOLT_DATA_VOLUME} from that artifact with NO network, via:
+ *
+ *   tar -C "$(nix path)" -cf - . | podman volume import prx-dolt-data -
+ *   podman run --rm -v prx-dolt-data:/d alpine chmod -R a+rwX /d   # nix store is read-only
+ *
+ * (podman-machine can't see the host /nix/store, so a tar stream — not a bind —
+ * is the transport; the chmod makes the read-only store bytes writable for the
+ * dolt server.) Wired into pod provisioning in the pod-model phase.
+ */
