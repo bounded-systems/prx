@@ -54,6 +54,9 @@ const keeperdRoom: RoomInput = {
 function recorder(result: PodmanRunResult) {
   const calls: Array<{ args: string[]; input?: string }> = [];
   const run: PodmanRun = (args, input) => {
+    // The `pod exists` idempotency probe defaults to "not exists" (exit 1) so
+    // play proceeds; it isn't part of the command stream the tests assert on.
+    if (args[0] === "pod" && args[1] === "exists") return { status: 1, stdout: "", stderr: "" };
     calls.push(input !== undefined ? { args, input } : { args });
     return result;
   };
@@ -86,6 +89,25 @@ describe("playPod", () => {
     expect(calls[0]!.input).toBe(renderPodmanKube(p)); // exact manifest on stdin
     // …and its result leads the returned list, in run order.
     expect(res).toEqual([provisioned, ok]);
+  });
+
+  test("is idempotent: an already-running pod is a no-op (no provision, no kube play) — prx-asr", () => {
+    const p = pod([beadsdRoom, keeperdRoom]);
+    const calls: Array<{ args: string[] }> = [];
+    // `pod exists` → exit 0 (pod is up); every other call is unexpected here.
+    const run: PodmanRun = (args) => {
+      calls.push({ args });
+      return args[0] === "pod" && args[1] === "exists"
+        ? { status: 0, stdout: "", stderr: "" }
+        : { status: 0, stdout: "should-not-run", stderr: "" };
+    };
+    const { provision, dirs } = provisionRecorder();
+    const res = playPod(p, run, provision);
+    expect(calls).toEqual([{ args: ["pod", "exists", p.name] }]); // ONLY the existence probe
+    expect(dirs).toEqual([]); // door fabric not re-provisioned
+    expect(res).toHaveLength(1);
+    expect(res[0]!.status).toBe(0);
+    expect(res[0]!.stdout).toContain("already running");
   });
 
   test("kube-plays the non-secret rooms, then `podman run`s each secret room", () => {

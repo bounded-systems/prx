@@ -125,7 +125,22 @@ export function playPod(
   run: PodmanRun = spawnPodman,
   provision: ProvisionDoorFabric = provisionDoorFabric,
 ): PodmanRunResult[] {
-  const { doorDir } = PodSpecSchema.parse(pod);
+  const { name, doorDir } = PodSpecSchema.parse(pod);
+  // Idempotency (prx-asr): `pod up` on an already-running pod is a NO-OP, not an
+  // error. `podman kube play` / `podman run` would otherwise fail with "pod
+  // already exists" (exit 125). `podman pod exists <name>` exits 0 iff the pod
+  // exists — when it does, return without touching the running pod; `prx pod
+  // down` first to recreate. (Non-destructive on purpose: don't restart healthy
+  // daemons on a re-run.)
+  if (run(["pod", "exists", name]).status === 0) {
+    return [
+      {
+        status: 0,
+        stdout: `pod '${name}' already running — no-op (run \`prx pod down\` first to recreate)`,
+        stderr: "",
+      },
+    ];
+  }
   const results: PodmanRunResult[] = [];
   results.push(requireOk(provision(doorDir), `provision door fabric '${doorDir}'`));
   if (hasKubeRooms(pod)) {
