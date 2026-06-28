@@ -15055,6 +15055,10 @@ export function runCli(
     if (orchestratorVerb === "pod" && orchestratorRest[0] === "secrets") {
       return runSpecVerb("pod secrets", orchestratorRest.slice(1), output);
     }
+    // `ghapp serve` — the ghappd credential-broker door daemon (runs in ghappd-box).
+    if (orchestratorVerb === "ghapp" && orchestratorRest[0] === "serve") {
+      return runSpecVerb("ghapp serve", orchestratorRest.slice(1), output);
+    }
     // The `contract <sub>` namespace reroutes several subcommands to verbs that
     // are now spec-driven. The early dispatch keys off the raw `argv[0]`
     // (`contract`), not the normalized rewrite, so those aliases would miss the
