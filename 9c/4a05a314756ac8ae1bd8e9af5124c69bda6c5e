@@ -1,0 +1,30 @@
+packages/prx/src/beadsd/workspace-affinity.ts
+  s_399e6065f1b4a3::t_bc989e53504965 37-41,43-44,56-69,73-81,86-99,102,105,107-115
+  s_399e6065f1b4a3::t_fcdcdc4e5e61ba 26-27,29
+packages/prx/src/pr-state/cli.ts
+  s_399e6065f1b4a3::t_a5839f6009b4e3 20928
+packages/prx/test/beadsd/workspace-affinity.test.ts
+  s_399e6065f1b4a3::t_0a4a5c9ea8c767 37,46-58,60-87,141
+  s_399e6065f1b4a3::t_434c94771bcf66 18-25
+  s_399e6065f1b4a3::t_c8a93951b43f4c 114-122,129-139
+  s_399e6065f1b4a3::t_42e2b64aa50b13 140
+  s_399e6065f1b4a3::t_a06754477a796a 142
+.changeset/beads-affinity-identity-fallback.md
+  s_399e6065f1b4a3::t_a2b1ce7dcbe582 1-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "9c4a05a314756ac8ae1bd8e9af5124c69bda6c5e",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
