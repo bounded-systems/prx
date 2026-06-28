@@ -66,6 +66,7 @@
         // lib.optionalAttrs pkgs.stdenv.isLinux {
           beadsd-box = import ./nix/oci/beadsd-box.nix self { inherit pkgs system; };
           keeperd-box = import ./nix/oci/keeperd-box.nix self { inherit pkgs system; };
+          ghappd-box = import ./nix/oci/ghappd-box.nix self { inherit pkgs system; };
           dolt-box = import ./nix/oci/dolt-box.nix self { inherit pkgs system; };
         };
 
