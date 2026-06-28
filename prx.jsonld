@@ -307,6 +307,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/github-apps-architecture.md",
+      "name": "ADR — GitHub Apps: permission-bucketed apps + per-use attenuation",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/github-apps-architecture.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/oci-substrate.md",
       "name": "ADR — the prx OCI substrate: containerize the service fleet, retire the daemon-VM (prx-zj8)",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/oci-substrate.md",
