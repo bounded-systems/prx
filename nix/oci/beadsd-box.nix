@@ -63,6 +63,10 @@ pkgs.dockerTools.streamLayeredImage {
     ];
     WorkingDir = "/work";
     Labels = {
+      # Deterministically link the ghcr package to this repo (and record
+      # provenance) so the repo's Actions own + can push it — instead of relying
+      # on GitHub's implicit auto-link-on-create (which left beadsd-box orphaned).
+      "org.opencontainers.image.source" = "https://github.com/bounded-systems/prx";
       "dev.prx.room" = "beadsd-room";
       "dev.prx.image" = "beadsd-box";
     };

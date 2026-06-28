@@ -68,6 +68,9 @@ pkgs.dockerTools.streamLayeredImage {
     ];
     WorkingDir = "/work";
     Labels = {
+      # Deterministically link the ghcr package to this repo (+ provenance) so the
+      # repo's Actions own + can push it — explicit, not implicit auto-link.
+      "org.opencontainers.image.source" = "https://github.com/bounded-systems/prx";
       "dev.prx.room" = "ghappd-room";
       "dev.prx.image" = "ghappd-box";
     };
