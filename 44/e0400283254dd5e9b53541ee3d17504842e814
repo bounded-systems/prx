@@ -1,0 +1,21 @@
+packages/prx/src/pr-state/cli.ts
+  s_3086de54355107::t_8f89414a236f0a 15054-15057
+.changeset/pod-secrets-cli.md
+  s_3086de54355107::t_0d64f42bc99009 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "44e0400283254dd5e9b53541ee3d17504842e814",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
