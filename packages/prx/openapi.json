@@ -557,6 +557,35 @@
         }
       }
     },
+    "/pod/down": {
+      "post": {
+        "operationId": "pod_down",
+        "summary": "Tear a pod down (kube down + rm secret-room containers).",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/pod_downInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/pod_downOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pod/secrets": {
       "post": {
         "operationId": "pod_secrets",
@@ -2263,6 +2292,41 @@
         ],
         "additionalProperties": {}
       },
+      "pod_downInput": {
+        "type": "object",
+        "properties": {
+          "pod": {
+            "default": "per-repo",
+            "description": "Pod spec (currently only 'per-repo')",
+            "type": "string",
+            "enum": [
+              "per-repo"
+            ]
+          }
+        },
+        "required": [
+          "pod"
+        ],
+        "additionalProperties": false
+      },
+      "pod_downOutput": {
+        "type": "object",
+        "properties": {
+          "pod": {
+            "type": "string",
+            "description": "Pod name that was torn down"
+          },
+          "commands": {
+            "type": "number",
+            "description": "Number of podman commands run to tear the pod down"
+          }
+        },
+        "required": [
+          "pod",
+          "commands"
+        ],
+        "additionalProperties": false
+      },
       "pod_secretsInput": {
         "type": "object",
         "properties": {
@@ -2355,10 +2419,16 @@
             "enum": [
               "per-repo"
             ]
+          },
+          "recreate": {
+            "default": false,
+            "description": "Tear the pod down first, then launch — to apply a changed spec (e.g. a new image digest). Without it, `pod up` is a no-op on an already-running pod.",
+            "type": "boolean"
           }
         },
         "required": [
-          "pod"
+          "pod",
+          "recreate"
         ],
         "additionalProperties": false
       },
