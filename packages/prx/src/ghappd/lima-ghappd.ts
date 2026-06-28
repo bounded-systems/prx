@@ -43,7 +43,7 @@ export interface GhappdCredential {
   appId?: string | undefined;
   /** Absolute path IN the VM to the App private-key PEM (read via `$(cat …)`). */
   appKeyFile?: string | undefined;
-  /** PRX_GH_INSTALLATION_ID — defaults in the daemon to the bounded-systems org. */
+  /** PRX_GH_INSTALLATION_ID — required by the daemon (per-bucket; no default). */
   installationId?: string | undefined;
 }
 

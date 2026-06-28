@@ -10,8 +10,9 @@
 # PRX_GH_APP_KEY_FILE at that file and the daemon reads it IN-PROCESS. The PEM
 # never enters the process env or argv — only the path does (stronger than the
 # keeperd-box pattern, which cats its key into an env var). The (non-secret) App
-# id is read the same way from `/run/secrets/ghapp-id` when present; installation
-# defaults to the bounded-systems org in the daemon. Unmounted ⇒ the door still
+# id and installation id are read the same way from `/run/secrets/ghapp-id` and
+# `/run/secrets/ghapp-installation` — so this one image serves ANY bucket app
+# (forge / projects / …): the mounts pick the bucket. Unmounted ⇒ the door still
 # serves but every lease replies error (loud at lease time, by design).
 #
 # Build (offloads to the prx-62h linux builder from a macOS host):
@@ -24,8 +25,9 @@ let
   bins = import ./prx-fhs.nix self { inherit pkgs system; };
 
   # Entrypoint: point the daemon at the mounted secret (path only — the PEM is
-  # never read into env/argv), pass through the App id from its mount if present,
-  # then serve. Both mounts are optional; absent ⇒ leases reply error.
+  # never read into env/argv), pass through the App id + installation id from
+  # their mounts if present, then serve. All mounts optional; absent ⇒ leases
+  # reply error. The id/installation mounts are what select the bucket app.
   entrypoint = pkgs.writeShellScriptBin "ghappd-box-entrypoint" ''
     set -eu
     key_file="''${PRX_GH_APP_KEY_FILE:-/run/secrets/ghapp-key}"
@@ -34,6 +36,11 @@ let
     if [ -f "$id_file" ]; then
       PRX_GH_APP_ID="$(cat "$id_file")"
       export PRX_GH_APP_ID
+    fi
+    inst_file="''${PRX_GH_INSTALLATION_ID_FILE:-/run/secrets/ghapp-installation}"
+    if [ -f "$inst_file" ]; then
+      PRX_GH_INSTALLATION_ID="$(cat "$inst_file")"
+      export PRX_GH_INSTALLATION_ID
     fi
     exec /bin/prx ghapp serve --socket /run/prx/doors/ghappd.sock "$@"
   '';
