@@ -1,0 +1,21 @@
+nix/oci/ghappd-box.nix
+  s_3086de54355107::t_efcec0f08027f6 71-73
+nix/oci/beadsd-box.nix
+  s_3086de54355107::t_e1d13ce0a6bfa2 66-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "4c854c85d16f6f49851b247ca9a6c2a9eba4f723",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
