@@ -10,8 +10,9 @@
 #
 # Determinism: the DoltHub remote HEAD moves (it's the live canonical mirror), so
 # we pin a COMMIT (`pinnedCommit`) as the anchor — `dolt clone` fetches current
-# HEAD, then we `dolt checkout` the pinned commit and `dolt gc` so the store
-# carries only chunks reachable from it. Result is reproducible PER-COMMIT; the
+# HEAD, then we `dolt reset --hard` the default branch to the pinned commit and
+# `dolt gc` so the store carries only chunks reachable from it (dolt forbids a
+# detached HEAD, so reset rather than checkout). Reproducible PER-COMMIT; the
 # recursive-NAR `outputHash` pins the exact bytes (bump both together to advance
 # the data). FOD ⇒ network is allowed under the sandbox.
 #
@@ -33,7 +34,7 @@ pkgs.stdenvNoCC.mkDerivation {
   # FOD: network allowed; output content-addressed by the NAR hash of the tree.
   outputHashMode = "recursive";
   outputHashAlgo = "sha256";
-  outputHash = pkgs.lib.fakeHash; # TODO: replace with the real hash after the first build
+  outputHash = "sha256-r+qnq27eAeGDVADyeKZZAVP/MIEPZ9xm838rJwM7qWI=";
 
   SSL_CERT_FILE = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
 
