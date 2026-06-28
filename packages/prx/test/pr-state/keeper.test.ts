@@ -610,6 +610,29 @@ describe("runKeeperCommitTree (GH-2381)", () => {
     }
   });
 
+  test("prx-e7cl: signingKeyPath injects PRX_COMMIT_SIGNING_KEY into the git env", async () => {
+    const seen: Array<{ sub: string; env?: Record<string, string | undefined> | undefined }> = [];
+    const git = ((opts: GitExecOptions, env?: Record<string, string | undefined>): GitExecResult => {
+      seen.push({ sub: opts.subcommand, env });
+      if (opts.subcommand === "commit-tree") {
+        return { exitCode: 0, stdout: `${COMMIT_OID}\n`, stderr: "", policy: null };
+      }
+      if (opts.subcommand === "show") {
+        return { exitCode: 0, stdout: "U\n", stderr: "", policy: null }; // signed
+      }
+      return { exitCode: 0, stdout: "", stderr: "", policy: null };
+    }) as typeof execGit;
+    const commit = await runKeeperCommitTree(input, "/repo", {
+      git,
+      signingKeyPath: () => "/state/prx/signing/id_ed25519",
+    });
+    expect(commit).toBe(COMMIT_OID);
+    // the resolved key flows onto the commit-tree git env (never process.env)
+    expect(seen.find((c) => c.sub === "commit-tree")?.env?.["PRX_COMMIT_SIGNING_KEY"]).toBe(
+      "/state/prx/signing/id_ed25519",
+    );
+  });
+
   test("a failing commit-tree aborts before the branch switch", async () => {
     const git = fakeGit({ commitExit: 1 });
     await expect(runKeeperCommitTree(input, "/repo", { git })).rejects.toBeInstanceOf(

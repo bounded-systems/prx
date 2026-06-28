@@ -547,6 +547,7 @@ import {
 import type { ProvenanceAxis } from "../machine/machines/workflow.ts";
 // GH-2282: persisted dev provenance identity — `prx provenance dev-pubkey`.
 import { loadOrCreateDevKeypair, resolveDevKeyPathForDisplay } from "../provenance/dev-key.ts";
+import { loadOrCreateCommitSigningKey } from "../provenance/commit-signing-key.ts";
 // GH-2262: submit stage — producer that writes the CAS-backed artifact the
 // `publish` consumer reads.
 import {
@@ -1201,6 +1202,14 @@ type ParsedCommand =
       // to match resolver semantics, so it doubles as a bootstrap-and-inspect
       // command for the zero-config dev sign → enforce → verify loop.
       command: "provenance-dev-pubkey";
+      format: "plain" | "json";
+    }
+  | {
+      // prx-e7cl: read-only print of prx's OWN commit-signing identity — the
+      // ed25519 SSH key the keeper SSH-signs git commits with. Generate-on-first
+      // -use, so it doubles as bootstrap-and-print for one-time GitHub signing-key
+      // registration.
+      command: "provenance-commit-pubkey";
       format: "plain" | "json";
     }
   | {
@@ -5483,7 +5492,7 @@ function parsePublisherCommand(rest: string[]): ParsedCommand {
 }
 
 // GH-2282: `prx provenance <verb>` — read-only provenance key inspection.
-const PROVENANCE_VERBS = ["dev-pubkey", "status", "setup"] as const;
+const PROVENANCE_VERBS = ["dev-pubkey", "commit-pubkey", "status", "setup"] as const;
 
 function printProvenanceHelpAndExit(): never {
   process.stdout.write(
@@ -5495,7 +5504,8 @@ function printProvenanceHelpAndExit(): never {
       "Verbs:",
       "  setup       Publish the per-actor trust map + verify (the onboarding step)",
       "  status      Report the signing posture + onboarding next-steps",
-      "  dev-pubkey  Print the persisted dev signing identity (point + keyid + path)",
+      "  dev-pubkey    Print the persisted dev signing identity (point + keyid + path)",
+      "  commit-pubkey Print prx's commit-signing public key to register with GitHub",
       "",
       "Options:",
       "  --format <plain|json>  Output format (default: plain)",
@@ -5545,6 +5555,9 @@ function parseProvenanceCommand(rest: string[]): ParsedCommand {
   }
   if (verbArg === "setup") {
     return { command: "provenance-setup", format };
+  }
+  if (verbArg === "commit-pubkey") {
+    return { command: "provenance-commit-pubkey", format };
   }
   return { command: "provenance-dev-pubkey", format };
 }
@@ -18591,6 +18604,21 @@ export function runCli(
         output.log(`keyid:  ${kp.keyid}`);
         output.log(`path:   ${path}`);
         output.log(`source: ${source}`);
+      }
+      return 0;
+    }
+
+    if (parsed.command === "provenance-commit-pubkey") {
+      // prx-e7cl: prx's OWN commit-signing key (generate-on-first-use). Register
+      // the printed public key with GitHub (Settings → SSH and GPG keys → New
+      // SSH key → key type "Signing Key") for the "Verified" badge.
+      const key = loadOrCreateCommitSigningKey();
+      if (parsed.format === "json") {
+        output.log(JSON.stringify({ publicKey: key.publicKey, path: key.privateKeyPath }));
+      } else {
+        output.log(`publicKey: ${key.publicKey}`);
+        output.log(`path:      ${key.privateKeyPath}`);
+        output.log(`register:  GitHub → Settings → SSH and GPG keys → New SSH key (type: Signing Key)`);
       }
       return 0;
     }

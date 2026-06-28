@@ -70,6 +70,15 @@ export class KeeperGitError extends Error {
 /** Injectable git seam (defaults to `execGit`); tests stub it offline. */
 export interface KeeperGitDeps {
   git?: typeof execGit | undefined;
+  /**
+   * prx-e7cl: resolve the commit-signing private-key path for this commit. When
+   * it returns a path, it is injected as `PRX_COMMIT_SIGNING_KEY` into the git
+   * env so the seam SSH-signs the commit with prx's OWN key, and the fail-closed
+   * guard verifies the result. The direct keeper path wires this to prx's
+   * internal key; the keyless remote path (`keeperd/host.ts`) leaves it unset
+   * (its commit is signed in-VM). Lazy — only invoked here, never at import.
+   */
+  signingKeyPath?: (() => string | undefined) | undefined;
 }
 
 /**
@@ -143,10 +152,15 @@ export async function runKeeperCommitTree(
   deps: KeeperGitDeps = {},
 ): Promise<string> {
   const git = deps.git ?? execGit;
+  // prx-e7cl: when a signing key resolves, inject it so the git seam SSH-signs
+  // this commit with prx's own key. Never written to the ambient environment —
+  // it lives only on the child git env object built here.
+  const injectedSigningKey = deps.signingKeyPath?.();
   const env = {
     ...processEnv(),
     GIT_AUTHOR_DATE: input.date,
     GIT_COMMITTER_DATE: input.date,
+    ...(injectedSigningKey ? { PRX_COMMIT_SIGNING_KEY: injectedSigningKey } : {}),
   };
   const committed = git(
     {

@@ -1346,6 +1346,13 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     domain: "state",
     actor: "publisher",
   },
+  {
+    name: "provenance commit-pubkey",
+    parent: "provenance",
+    description: "Print prx's commit-signing public key to register with GitHub",
+    domain: "state",
+    actor: "publisher",
+  },
 
   // ─── Audit actor — adherence metrics (GH-1823) ────────────────────────────
   // Three read-only verbs that measure whether the artifact graph
