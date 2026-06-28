@@ -1,0 +1,39 @@
+packages/prx/src/github-app/apply.ts
+  s_3086de54355107::t_e2671bc8f56e51 1-76
+packages/prx/src/github-app/__tests__/broker-config.test.ts
+  s_3086de54355107::t_2c87991ec471ed 1-85
+packages/prx/scripts/pr_state.ts
+  s_3086de54355107::t_132948574e5b62 16
+  s_3086de54355107::t_b419cb144f2a38 2-4,7-15
+nix/hm-module.nix
+  s_3086de54355107::t_bb474d5d5f1f63 58-71
+  s_3086de54355107::t_3ba2e7cc81c761 192-227
+packages/prx/src/github-app/broker-config.ts
+  s_3086de54355107::t_312d19e868efee 1-5,8-76,78-86
+  s_3086de54355107::t_79a0bd77d39b57 6-7
+  s_3086de54355107::t_0fe2c6c54952d7 77
+packages/prx/src/github-app/broker.ts
+  s_3086de54355107::t_6d96af73b06450 1-88
+.changeset/gh-app-broker.md
+  s_3086de54355107::t_f917b0df6c2c77 1-13
+packages/prx/src/github-app/__tests__/apply.test.ts
+  s_3086de54355107::t_9b9495a9652de2 1-86
+packages/prx/src/github-app/__tests__/broker.test.ts
+  s_3086de54355107::t_d8072485426f1d 1-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "ca0feddde3359c110409735025e56ddaffaba78e",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
