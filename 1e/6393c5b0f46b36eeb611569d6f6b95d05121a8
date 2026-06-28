@@ -1,0 +1,25 @@
+flake.nix
+  s_3086de54355107::t_8596f30373ac14 69
+.github/workflows/publish-oci-boxes.yml
+  s_3086de54355107::t_d3e763c90d5c60 101-178
+.changeset/ghappd-box-image.md
+  s_3086de54355107::t_7152a4e6513e87 1-21
+nix/oci/ghappd-box.nix
+  s_3086de54355107::t_1de913555e7dc3 1-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "1e6393c5b0f46b36eeb611569d6f6b95d05121a8",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
