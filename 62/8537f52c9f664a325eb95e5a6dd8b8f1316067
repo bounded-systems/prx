@@ -1,0 +1,37 @@
+packages/prx/src/room/pod.ts
+  s_399e6065f1b4a3::t_d953b81b538d64 30
+  s_399e6065f1b4a3::t_042970574357d8 45-50
+packages/prx/src/room/podman-runtime.ts
+  s_399e6065f1b4a3::t_46b317f6f8dbbf 108-111,113-114
+packages/prx/src/room/podman.ts
+  s_399e6065f1b4a3::t_3fcf95c55ff543 125-137
+  s_399e6065f1b4a3::t_9164475f6ba152 194-218
+packages/prx/test/room/podman.test.ts
+  s_399e6065f1b4a3::t_c11b764363bda1 201,203
+  s_399e6065f1b4a3::t_569351ca5090f5 158-200,202,204-213
+packages/prx/src/room/per-repo-pod.ts
+  s_399e6065f1b4a3::t_e4f5ba44b85100 26-40,48
+  s_399e6065f1b4a3::t_8dd4828a975686 21
+packages/prx/src/room/spec.ts
+  s_399e6065f1b4a3::t_98b095d8869a41 172-191,193-199
+  s_399e6065f1b4a3::t_8dd4828a975686 192
+  s_399e6065f1b4a3::t_1fbf76be40a841 171
+.changeset/pod-backing-service.md
+  s_399e6065f1b4a3::t_876028ab18b758 1-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "628537f52c9f664a325eb95e5a6dd8b8f1316067",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
