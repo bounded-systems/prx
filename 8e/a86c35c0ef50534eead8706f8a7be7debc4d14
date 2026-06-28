@@ -1,0 +1,35 @@
+packages/prx/src/submit/publish.ts
+  s_8bfe0e8de6557c::t_cad7f990e089dd 282-285
+  s_8bfe0e8de6557c::t_b9bec110d22ede 17
+packages/prx/src/pr-state/cli.ts
+  s_8bfe0e8de6557c::t_b39c51f9c4de43 18611-18625
+  s_8bfe0e8de6557c::t_291542d8588042 1208-1214
+  s_8bfe0e8de6557c::t_35e1352c838338 1207
+  s_8bfe0e8de6557c::t_98fd3965a9e2d1 5495
+  s_8bfe0e8de6557c::t_135fd693ff1aa6 550
+  s_8bfe0e8de6557c::t_e372fee7c507c0 5507-5508
+  s_8bfe0e8de6557c::t_4dd4540070abc5 5559-5561
+packages/prx/src/pr-state/keeper.ts
+  s_8bfe0e8de6557c::t_cf3c94c5330c4f 73-81
+  s_8bfe0e8de6557c::t_1f2765f2a9098b 155-158,163
+packages/prx/test/pr-state/keeper.test.ts
+  s_8bfe0e8de6557c::t_45e9c8fb222984 613-635
+packages/prx/src/cli/registry.data.ts
+  s_8bfe0e8de6557c::t_e7184916e8f6e5 1349-1355
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "8ea86c35c0ef50534eead8706f8a7be7debc4d14",
+  "prompts": {},
+  "sessions": {
+    "s_8bfe0e8de6557c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "159cecef-b114-4932-b219-6b198cbf9abd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
