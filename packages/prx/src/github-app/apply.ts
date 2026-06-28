@@ -17,13 +17,14 @@ import {
   type ResolveBrokerConfigDeps,
 } from "./broker-config.ts";
 import { createBroker as defaultCreateBroker, type Broker, type BrokerDeps } from "./broker.ts";
+import { createDoorBroker as defaultCreateDoorBroker } from "./door-source.ts";
 
 /** Non-secret outcome of {@link applyBrokeredGhToken}. */
 export type ApplyResult =
   | { readonly applied: false; readonly reason: "env-token-present" | "not-configured" }
   | {
       readonly applied: true;
-      readonly source: "inline" | "file";
+      readonly source: "inline" | "file" | "door";
       readonly expiresAt: number;
       readonly permissions: Readonly<Record<string, string>>;
     };
@@ -37,6 +38,7 @@ export interface ApplyBrokeredGhTokenDeps {
   readonly readFile?: (path: string) => string;
   readonly resolveConfig?: typeof defaultResolveBrokerConfig;
   readonly createBroker?: typeof defaultCreateBroker;
+  readonly createDoorBroker?: typeof defaultCreateDoorBroker;
   readonly brokerDeps?: BrokerDeps;
 }
 
@@ -49,10 +51,11 @@ export function getProcessBroker(): Broker | null {
 }
 
 /**
- * Mint-and-publish GH_TOKEN if an App is configured. Returns a non-secret
- * summary. Throws (fail-closed) only when an App IS configured but resolving the
- * key or minting fails — in cloud/OCI there is no personal `gh` fallback, so a
- * silent degrade would mislead. Unconfigured environments fail-open (no throw).
+ * Resolve-and-publish GH_TOKEN if a GitHub App is reachable. Precedence:
+ * explicit GH_TOKEN/GITHUB_TOKEN (CI) > a ghappd door (PRX_GH_APP_DOOR) > a local
+ * App key (PRX_GH_APP_*) > fail-open to personal `gh`. Returns a non-secret
+ * summary. Throws (fail-closed) only when a door/key IS configured but the
+ * lease/mint fails — in cloud/OCI there is no personal `gh` fallback.
  */
 export async function applyBrokeredGhToken(
   deps: ApplyBrokeredGhTokenDeps = {},
@@ -62,10 +65,28 @@ export async function applyBrokeredGhToken(
   const deleteEnv = deps.deleteEnv ?? defaultDeleteEnv;
   const resolveConfig = deps.resolveConfig ?? defaultResolveBrokerConfig;
   const createBroker = deps.createBroker ?? defaultCreateBroker;
+  const createDoorBroker = deps.createDoorBroker ?? defaultCreateDoorBroker;
 
   // CI / explicit override wins — don't double-mint.
   if (getEnv("GH_TOKEN") ?? getEnv("GITHUB_TOKEN")) {
     return { applied: false, reason: "env-token-present" };
+  }
+
+  // DOOR backend (preferred when present): lease from ghappd over the door
+  // transport so the agent holds no App key — only a reference to the door. Wins
+  // over the local-PEM path. Fail-closed: a lease failure throws (no fallback).
+  const doorEndpoint = getEnv("PRX_GH_APP_DOOR");
+  if (doorEndpoint) {
+    const broker = createDoorBroker({ endpoint: doorEndpoint });
+    processBroker = broker;
+    const leased = await broker.ensure();
+    setEnv("GH_TOKEN", leased.token);
+    return {
+      applied: true,
+      source: "door",
+      expiresAt: leased.expiresAt,
+      permissions: leased.permissions,
+    };
   }
 
   const cfgDeps: ResolveBrokerConfigDeps = {
