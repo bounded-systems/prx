@@ -1,0 +1,33 @@
+packages/prx/src/room/pod-up-verb.ts
+  s_3086de54355107::t_f1693f1f4babd5 30-35,38,41
+  s_3086de54355107::t_e723ba3ddb7bbd 7
+packages/prx/src/pr-state/cli.ts
+  s_3086de54355107::t_5a933638602435 15058-15061
+packages/prx/test/cli/box-verbs-routed.test.ts
+  s_3086de54355107::t_48263dd56206e0 22
+packages/prx/scripts/coverage-summary.ts
+  s_3086de54355107::t_4e9ccdbce3cd59 70
+packages/prx/src/room/pod-down-verb.ts
+  s_3086de54355107::t_5ff819fff93cef 1-31
+packages/prx/src/cli/verb-registry.ts
+  s_3086de54355107::t_28460f62c515d8 33
+  s_3086de54355107::t_6f6fe367f168dc 67
+.changeset/pod-down.md
+  s_3086de54355107::t_4737220761fd46 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "1235c7974abbd9f003d5a4b6e2d3fd6095c9c010",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
