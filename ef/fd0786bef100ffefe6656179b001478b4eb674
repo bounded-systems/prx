@@ -1,0 +1,28 @@
+packages/prx/src/cli/verb-registry.ts
+  s_3086de54355107::t_5f357e26d7c724 65
+  s_3086de54355107::t_be4ec1e9a457df 32
+packages/prx/src/room/pod-secrets.ts
+  s_3086de54355107::t_523285c3d24cf5 1-99
+packages/prx/test/room/pod-secrets.test.ts
+  s_3086de54355107::t_168f4b3d9c848e 1-119
+packages/prx/src/room/pod-secrets-verb.ts
+  s_3086de54355107::t_62776bec04cdac 1-49
+.changeset/pod-secrets.md
+  s_3086de54355107::t_63951ecc188d69 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "effd0786bef100ffefe6656179b001478b4eb674",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
