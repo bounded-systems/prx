@@ -43,6 +43,9 @@ let
       cp -r /work/.beads "$cwd/.beads"
       rm -rf "$cwd/.beads/dolt" "$cwd/.beads/dolt-server.lock"
       printf '%s' "''${PRX_DOLT_PORT:-3307}" > "$cwd/.beads/dolt-server.port"
+      # bd warns if .beads is group/other-readable; the copy inherits /work's
+      # 0755, so tighten to 0700.
+      chmod 700 "$cwd/.beads"
     fi
     exec /bin/prx beads serve --cwd "$cwd" "$@"
   '';
