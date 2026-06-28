@@ -1,0 +1,21 @@
+packages/prx/src/room/ghappd-room.ts
+  s_3086de54355107::t_d47cc03beb0bb4 10
+packages/prx/src/room/beadsd-room.ts
+  s_3086de54355107::t_7f1b02e9b8a7ad 17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "e97e6946031610c6a49c5b6d842a2026abb4938e",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
