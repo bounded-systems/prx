@@ -1,5 +1,56 @@
 # @bounded-systems/prx
 
+## 0.13.0
+
+### Minor Changes
+
+- 8aa5855: Add `attestAuthorship` — project keeperd's L3 authorship reconciliation into the prx provenance ledger (prx-sfco, first slice).
+
+  keeperd's signed L3 records AI-vs-human authorship under `predicate.authorship`
+  (GitAI Phase 2, prx-ydib). `attestAuthorship` records a `prx.dev/authorship/v1`
+  derivation for it via `persistAttestation` — mirroring `scout-attest` /
+  `ci-attest`:
+
+  - **subject** = the commit (`gitCommit`).
+  - **resolvedDependencies** = `l3` (sha256 of keeperd's signed L3 envelope) — so
+    keeperd's commit-key signature is preserved as a content-addressed input
+    rather than re-signed; this derivation is the index/lineage entry.
+  - **params** = the reconciled verdict `{ model?, aiAuthored, divergent, stale }`;
+    `divergent` (staged-but-unclaimed = bypass) is the high-signal set.
+
+  Content-addressed + idempotent + signed; verifiable via `verifySlsaEnvelope`.
+  Follow-ups (prx-sfco): a `refs/notes/<ref>` reader that parses the L3 note,
+  sync-agent wiring (prx-697) to publish, and the trust-ledger `CLAIMS.md` row
+  (also closes the "off-the-shelf verifiability" Partial, prx-5lcd).
+
+- 4f1e6b6: Write-side workspace-affinity guard for daemon-routed beads (prx-9e86). The
+  host-global beadsd serves ONE clone, so a `prx beads create/update/close/dep`
+  issued from a worktree whose bd prefix differs from the served clone's prefix
+  would land in the WRONG repo's beads (the root cause of 54 supply-chain tasks
+  created with `prx-` ids from the supply-plan-design worktree). `prx beads`
+  writes now **fail closed** on that mismatch (nonzero exit, actionable message),
+  and reads **warn** (non-fatal). The served prefix is reported by the daemon on
+  every reply (`servedPrefix` on the wire contract), so the read-side check costs
+  only a cheap cwd index read — no `bd config` subprocess. Both prefixes must be
+  known for a mismatch, so an unregistered cwd is never blocked. Local path only;
+  a `--vm` daemon serves its own workspace.
+
+### Patch Changes
+
+- fb01abf: Add `scripts/gh-app-token-spike.ts` — de-risk minting a `bounded-systems-prx` GitHub App installation token locally.
+
+  Zero-dep Bun script (node:crypto + fetch): App ID/Client ID + private-key PEM →
+  signed RS256 JWT → `POST /app/installations/<id>/access_tokens` → installation
+  token → `GET /rate_limit` to prove the separate (higher) pool. The token is never
+  printed; it reports identity, scopes, and the rate-limit pools.
+
+  The spike before wiring a keymaker-style token broker so prx's GitHub ops run on
+  the app's quota (not the personal 5,000/hr that's easy to exhaust) with a bot
+  identity and least-privilege scopes (`.github/prx-app.manifest.json` is the
+  def-of-record). Credentials already exist for CI (FRONT_DESK_CLIENT_ID +
+  FRONT_DESK_APP_PRIVATE_KEY via actions/create-github-app-token); local use points
+  `PRX_GH_APP_KEY_FILE` at the key (ideally agenix/sops, path-only in env).
+
 ## 0.12.0
 
 ### Minor Changes
