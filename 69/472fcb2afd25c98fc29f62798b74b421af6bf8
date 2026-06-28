@@ -1,0 +1,25 @@
+.github/workflows/version.yml
+  s_3086de54355107::t_9b138a64502874 13-14
+  s_3086de54355107::t_f671fee9553cfa 48,51-52
+.github/workflows/front-desk-add.yml
+  s_3086de54355107::t_2fa8fbdc04089d 7-12,16
+  s_3086de54355107::t_447d65ba71ebb8 36-37,40-44,46,49-50,53
+.changeset/ci-app-cutover.md
+  s_3086de54355107::t_bedd784c57d95b 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "69472fcb2afd25c98fc29f62798b74b421af6bf8",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
