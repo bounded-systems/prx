@@ -5240,7 +5240,9 @@ export async function resolveMergeGuardProvenanceAxis(
   const effectiveLedger = ledgerPath ?? resolveCanonicalChainLedger(repoPath)?.ledgerPath;
   if (effectiveLedger === undefined) {
     process.stderr.write(
-      "provenance: no canonical ledger for UoW; refusing under PRX_REQUIRE_SIGNED_DERIVATIONS\n",
+      "provenance: no canonical ledger for UoW; refusing — signed-derivation enforcement is " +
+        "on by default. Reserve the UoW (so a canonical ledger exists) or, to opt out, set " +
+        "PRX_REQUIRE_SIGNED_DERIVATIONS=0.\n",
     );
     return "unsigned";
   }
