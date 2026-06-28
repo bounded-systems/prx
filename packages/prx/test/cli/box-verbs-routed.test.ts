@@ -19,6 +19,7 @@ const BOX_ENTRYPOINT_VERBS: ReadonlyArray<readonly string[]> = [
   ["ghapp", "serve"], // ghappd-box entrypoint — the credential-broker door daemon
   ["pod", "up"], // `prx pod up`
   ["pod", "secrets"], // `prx pod secrets`
+  ["pod", "down"], // `prx pod down`
 ];
 
 function capture() {
