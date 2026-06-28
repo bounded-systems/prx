@@ -144,6 +144,47 @@ describe("handleBeadsRequest", () => {
     expect(calls[0]!.cwd).toBe("/repo/clone");
   });
 
+  test("foreign-workspace ref short-circuits with a clear error, never spawns bd (prx-qmg)", async () => {
+    for (const id of ["3qn-123", "COMMERCE-456", "supply-plan-design-7"]) {
+      const { execBd, calls } = fakeBd();
+      const res = await handleBeadsRequest({ kind: "show", id }, { execBd, localPrefix: "prx" });
+      expect(res.status).toBe("error");
+      if (res.status === "error") {
+        expect(res.code).toBe("foreign-workspace");
+        expect(res.message).toContain(id);
+        expect(res.message).toContain('"prx-*"');
+      }
+      expect(calls).toHaveLength(0); // refused before dispatch
+    }
+  });
+
+  test("native ref (prefix matches served) passes the foreign guard (prx-qmg)", async () => {
+    for (const id of ["prx-716", "prx-tm7", "prx-1777491131716-7-abcd1234"]) {
+      const { execBd, calls } = fakeBd();
+      const res = await handleBeadsRequest({ kind: "show", id }, { execBd, localPrefix: "prx" });
+      expect(res.status).toBe("ok");
+      expect(calls).toHaveLength(1);
+    }
+  });
+
+  test("dep with a foreign endpoint is refused as foreign-workspace (prx-qmg)", async () => {
+    const { execBd, calls } = fakeBd();
+    const res = await handleBeadsRequest(
+      { kind: "dep", action: "add", from: "3qn-1", to: "prx-tm7" },
+      { execBd, localPrefix: "prx" },
+    );
+    expect(res.status).toBe("error");
+    if (res.status === "error") expect(res.code).toBe("foreign-workspace");
+    expect(calls).toHaveLength(0);
+  });
+
+  test("no served prefix known → foreign guard is inert (passes to bd)", async () => {
+    const { execBd, calls } = fakeBd();
+    const res = await handleBeadsRequest({ kind: "show", id: "3qn-123" }, { execBd });
+    expect(res.status).toBe("ok"); // guard can't decide; bd handles it
+    expect(calls).toHaveLength(1);
+  });
+
   test("forwards deps.localPrefix to execBd so native short ids are admitted (prx-3vow)", async () => {
     const { execBd, calls } = fakeBd();
     await handleBeadsRequest({ kind: "show", id: "prx-716" }, { execBd, localPrefix: "prx" });
