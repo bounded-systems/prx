@@ -1,0 +1,32 @@
+packages/prx/src/github-app/__tests__/door-source.test.ts
+  s_3086de54355107::t_9562497994d6e7 1-57
+packages/prx/src/github-app/door-source.ts
+  s_3086de54355107::t_6c3d2cfbaebe9a 1-51
+.changeset/ghappd-door-backend.md
+  s_3086de54355107::t_f2d8772419b266 1-13
+packages/prx/src/github-app/broker.ts
+  s_3086de54355107::t_ab63a9853e55f3 1-5,20,22,28-45,52-88,94,106,112-115
+packages/prx/src/github-app/apply.ts
+  s_3086de54355107::t_2f1eb3eaaafe2a 68,75-89
+  s_3086de54355107::t_d856bb740b431f 20,27,41
+  s_3086de54355107::t_7749a6b50999f9 54-58
+  s_3086de54355107::t_842b0a4021cab8 90-91
+packages/prx/src/github-app/__tests__/apply.test.ts
+  s_3086de54355107::t_bc6c5c73e76e87 70-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "aa069fc77d5507f1645c839a8ab1a51fc1cdad2e",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
