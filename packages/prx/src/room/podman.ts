@@ -122,6 +122,19 @@ export function renderPodmanKube(pod: PodSpec): string {
     );
   }
 
+  // prx-asr: backing-service data volumes. A named volume (persistentVolumeClaim
+  // → podman named volume, auto-created if absent, preserved across `kube down`)
+  // for each service that owns persistent state (e.g. dolt-box's dolt database).
+  for (const svc of p.services) {
+    if (svc.dataVolume) {
+      lines.push(
+        `    - name: ${svc.dataVolume.name}`,
+        "      persistentVolumeClaim:",
+        `        claimName: ${dq(svc.dataVolume.name)}`,
+      );
+    }
+  }
+
   lines.push("  containers:");
 
   for (const room of p.rooms) {
@@ -175,6 +188,31 @@ export function renderPodmanKube(pod: PodSpec): string {
     if (socketArgs.length > 0) {
       lines.push("      args:");
       for (const arg of socketArgs) lines.push(`        - ${dq(arg)}`);
+    }
+  }
+
+  // prx-asr: non-door backing services (e.g. dolt-box). Plain containers — their
+  // named data volume + env + optional CMD args; NO door fabric mount, NO door
+  // env, NO `--socket` (they serve over the pod netns, not the door fabric).
+  for (const svc of p.services) {
+    lines.push(`    - name: ${dq(svc.name)}`);
+    lines.push(`      image: ${dq(svc.image)}`);
+    if (svc.dataVolume) {
+      lines.push("      volumeMounts:");
+      lines.push(`        - name: ${svc.dataVolume.name}`);
+      lines.push(`          mountPath: ${dq(svc.dataVolume.mountPath)}`);
+    }
+    const svcKeys = Object.keys(svc.env).sort();
+    if (svcKeys.length > 0) {
+      lines.push("      env:");
+      for (const key of svcKeys) {
+        lines.push(`        - name: ${key}`);
+        lines.push(`          value: ${dq(svc.env[key]!)}`);
+      }
+    }
+    if (svc.args.length > 0) {
+      lines.push("      args:");
+      for (const arg of svc.args) lines.push(`        - ${dq(arg)}`);
     }
   }
 

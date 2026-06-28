@@ -18,10 +18,26 @@
 
 import { beadsdRoom } from "./beadsd-room.ts";
 import { claudeRoom } from "./claude-room.ts";
+import { DOLT_BOX_IMAGE, DOLT_BOX_ENV, DOLT_DATA_VOLUME, DOLT_DATA_DIR } from "./dolt-service.ts";
 import { ghappdRoom } from "./ghappd-room.ts";
 import { keeperdRoom } from "./keeperd-room.ts";
 import { DEFAULT_DOOR_DIR } from "./pod.ts";
 import type { PodSpec } from "./pod.ts";
+import type { PodService } from "./spec.ts";
+
+/**
+ * dolt-box — the standalone dolt SQL server (a backing service, NOT a room): it
+ * owns the beads database on the {@link DOLT_DATA_VOLUME} named volume and serves
+ * the MySQL wire on the pod netns, which beadsd-box connects to. Seeded out-of-
+ * band from the dolt-data FOD (see dolt-service.ts). No doors.
+ */
+const doltService: PodService = {
+  name: "dolt",
+  image: DOLT_BOX_IMAGE,
+  dataVolume: { name: DOLT_DATA_VOLUME, mountPath: DOLT_DATA_DIR },
+  env: { ...DOLT_BOX_ENV },
+  args: [],
+};
 
 export const perRepoPod: PodSpec = {
   name: "prx-pod",
@@ -29,5 +45,6 @@ export const perRepoPod: PodSpec = {
   // Minimal here; the OCI/VM substrate is epic prx-zj8.
   executor: { name: "prx-pod-house" },
   rooms: [claudeRoom, beadsdRoom, keeperdRoom, ghappdRoom],
+  services: [doltService],
   doorDir: DEFAULT_DOOR_DIR,
 };

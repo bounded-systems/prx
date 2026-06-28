@@ -155,6 +155,62 @@ describe("renderPodmanKube — repo /work mount (prx-u5lx)", () => {
   });
 });
 
+describe("renderPodmanKube — backing services (prx-asr / dolt-box)", () => {
+  const svcPod = {
+    ...perRepoPod,
+    services: [
+      {
+        name: "dolt",
+        image: "ghcr.io/x/dolt-box@sha256:abc",
+        dataVolume: { name: "prx-dolt-data", mountPath: "/var/lib/dolt" },
+        env: { DOLT_PORT: "3307", TMPDIR: "/var/lib/dolt" },
+        args: [],
+      },
+    ],
+  };
+
+  test("declares a persistentVolumeClaim named volume for the service data", () => {
+    const m = renderPodmanKube(svcPod);
+    expect(m).toContain("name: prx-dolt-data");
+    expect(m).toContain("persistentVolumeClaim:");
+    expect(m).toContain(`claimName: "prx-dolt-data"`);
+  });
+
+  test("renders the service as a plain container: image + data mount + env", () => {
+    const m = renderPodmanKube(svcPod);
+    expect(m).toContain(`- name: "dolt"`);
+    expect(m).toContain(`image: "ghcr.io/x/dolt-box@sha256:abc"`);
+    expect(m).toContain(`mountPath: "/var/lib/dolt"`);
+    // env is sorted; both keys present
+    expect(m).toContain("name: DOLT_PORT");
+    expect(m).toContain(`value: "3307"`);
+    expect(m).toContain("name: TMPDIR");
+  });
+
+  test("a backing service gets NO door fabric mount and NO --socket args", () => {
+    // Isolate the service container's slice of the manifest.
+    const lines = renderPodmanKube(svcPod).split("\n");
+    const start = lines.findIndex((l) => l.includes(`- name: "dolt"`));
+    const slice = lines.slice(start).join("\n");
+    expect(slice).not.toContain("--socket");
+    // The dolt container mounts ONLY its data volume, not the door fabric.
+    expect(slice).not.toContain(`mountPath: "${svcPod.doorDir}"`);
+  });
+
+  test("emits no persistentVolumeClaim when the pod has no services", () => {
+    const m = renderPodmanKube({ ...perRepoPod, services: [] });
+    expect(m).not.toContain("persistentVolumeClaim:");
+    expect(m).not.toContain(`- name: "dolt"`);
+  });
+
+  test("the canonical per-repo pod ships the dolt backing service", () => {
+    expect(perRepoPod.services?.length).toBeGreaterThan(0);
+    const m = renderPodmanKube(perRepoPod);
+    expect(m).toContain(`- name: "dolt"`);
+    expect(m).toContain(`claimName: "prx-dolt-data"`);
+  });
+});
+
 describe("renderPodmanRun (prx-b44y — secret-holding rooms)", () => {
   const argv = renderPodmanRun(perRepoPod, "keeperd-room");
 

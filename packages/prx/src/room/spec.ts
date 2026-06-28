@@ -169,6 +169,35 @@ export function roomNeedsSecretRuntime(room: RoomSpec): boolean {
 }
 
 /**
+ * A NON-DOOR backing service co-resident in a pod (prx-asr). Unlike a
+ * {@link RoomSpec}, it exposes no capability doors: it serves other rooms over
+ * the pod network (one shared netns ⇒ reachable at `127.0.0.1:<port>`, no
+ * publish needed) and owns persistent state on a named volume. dolt-box is the
+ * canonical case — the dolt SQL server beadsd connects to ("connect-to-external-
+ * dolt"). It has no doors/grants/secrets/executor; it is pure infrastructure the
+ * rooms depend on, rendered as a plain kube container (no door fabric, no
+ * `--socket`).
+ */
+export const PodServiceSchema = z.object({
+  name: z.string().min(1),
+  /** The OCI image that backs the service (a pinned registry ref). */
+  image: z.string().min(1),
+  /**
+   * A named volume holding the service's persistent state, mounted at
+   * `mountPath`. Rendered as a `persistentVolumeClaim` (podman kube play maps
+   * the claim name to a podman named volume, auto-creating it if absent and
+   * preserving it across `kube down`). Seeded out-of-band (e.g. the dolt-data
+   * FOD → `podman volume import`).
+   */
+  dataVolume: z.object({ name: z.string().min(1), mountPath: z.string().min(1) }).optional(),
+  /** Environment for the service container. */
+  env: z.record(z.string(), z.string()).default({}),
+  /** Extra CMD args appended after the image ref (override entrypoint defaults). */
+  args: z.array(z.string()).default([]),
+});
+export type PodService = z.infer<typeof PodServiceSchema>;
+
+/**
  * The occupant's full capability boundary: the explicit {@link RoomSpec.grants}
  * unioned with the capabilities carried by every **open, consumed** door. Closed
  * doors carry nothing (the seam is sealed); exposed doors are services the room

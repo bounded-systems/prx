@@ -27,7 +27,7 @@ import { z } from "zod";
 
 import { getEnv } from "@bounded-systems/env";
 import { ExecutorSpecSchema, type ExecutorSpec } from "../executor/spec.ts";
-import { RoomSpecSchema, type RoomSpec } from "./spec.ts";
+import { RoomSpecSchema, type RoomSpec, PodServiceSchema } from "./spec.ts";
 
 /** The default shared door-socket directory (the pod's tmpfs door fabric).
  *  Prefers XDG_RUNTIME_DIR when set (rootless Linux), falls back to a
@@ -42,6 +42,12 @@ export const PodSpecSchema = z.object({
   executor: ExecutorSpecSchema,
   /** The co-resident rooms. */
   rooms: z.array(RoomSpecSchema).min(1),
+  /**
+   * Non-door backing services co-resident in the pod (prx-asr) — e.g. dolt-box,
+   * the dolt SQL server beadsd connects to. Rendered as plain kube containers
+   * with their named data volumes; they expose no doors. Empty by default.
+   */
+  services: z.array(PodServiceSchema).default([]),
   /** The shared tmpfs dir the door sockets live on. */
   doorDir: z.string().min(1).default(DEFAULT_DOOR_DIR),
   /**
