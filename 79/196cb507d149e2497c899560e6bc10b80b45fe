@@ -1,0 +1,19 @@
+packages/prx/openapi.json
+  s_3086de54355107::t_0b2de9fd9a5b0e 560-588,2295-2329,2422-2426,2430-2431
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "79196cb507d149e2497c899560e6bc10b80b45fe",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
