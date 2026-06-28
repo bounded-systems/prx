@@ -1358,6 +1358,10 @@
           "pidfile": {
             "description": "write the daemon pid here (removed on close)",
             "type": "string"
+          },
+          "cwd": {
+            "description": "ignored — ghappd is not repo-bound",
+            "type": "string"
           }
         },
         "required": [

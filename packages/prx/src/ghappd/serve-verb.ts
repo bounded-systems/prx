@@ -40,6 +40,10 @@ export const ghappServeVerb = defineVerb({
   input: z.object({
     socket: z.string().min(1).describe("unix socket path the door listens on"),
     pidfile: z.string().optional().describe("write the daemon pid here (removed on close)"),
+    // Accepted for daemon-lifecycle uniformity (the generic Lima/pod launcher
+    // passes --cwd to every serve command). ghappd is NOT repo-bound — it holds
+    // a key and serves — so this is ignored.
+    cwd: z.string().optional().describe("ignored — ghappd is not repo-bound"),
   }),
   output: GhappServeResult,
   deps: realGhappServeDeps,
