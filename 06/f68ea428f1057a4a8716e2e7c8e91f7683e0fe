@@ -1,0 +1,20 @@
+nix/oci/dolt-data.nix
+  s_399e6065f1b4a3::t_cc9e1f33d97e1b 37
+  s_399e6065f1b4a3::t_639c31e30864ec 49-53,66-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "06f68ea428f1057a4a8716e2e7c8e91f7683e0fe",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
