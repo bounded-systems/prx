@@ -1,0 +1,29 @@
+packages/prx/test/provenance/commit-signing-key.test.ts
+  s_8bfe0e8de6557c::t_f552ec75aaeb23 1-56
+packages/prx/test/pr-state/keeper.test.ts
+  s_8bfe0e8de6557c::t_99d7e67b2804d5 569-612
+.changeset/internal-commit-signing-key.md
+  s_8bfe0e8de6557c::t_8078e7120ef4ed 1-14
+packages/prx/src/pr-state/keeper.ts
+  s_8bfe0e8de6557c::t_cd3e946fb657b4 172-176,178-189
+  s_8bfe0e8de6557c::t_8f23252a6687ee 177
+packages/prx/src/provenance/commit-signing-key.ts
+  s_8bfe0e8de6557c::t_f86b42e86a6fac 112-130
+  s_8bfe0e8de6557c::t_357645eee6a383 1-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "35ac9604b407fb80d53b21482deb0f6b84051fc4",
+  "prompts": {},
+  "sessions": {
+    "s_8bfe0e8de6557c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "159cecef-b114-4932-b219-6b198cbf9abd",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
