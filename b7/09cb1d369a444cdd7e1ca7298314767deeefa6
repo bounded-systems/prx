@@ -1,0 +1,61 @@
+packages/prx/src/services/anthropic.ts
+  s_5af7d7257a71b7::t_1bc26e57a8f1fe 51
+  s_5af7d7257a71b7::t_c18169c4f64df8 62
+  s_5af7d7257a71b7::t_e553213ed2acce 14
+  s_5af7d7257a71b7::t_e217b9d47cb1a8 70-94,102,112-121,122-133,135-146,147-156,158,159-172,173-180,185,205-241
+  s_5af7d7257a71b7::t_476d7b808ccfeb 242-335
+  s_5af7d7257a71b7::t_86bbdb92efee3f 95-101,103-111,134,157,181-184,186-204
+packages/prx/test/services/anthropic.test.ts
+  s_5af7d7257a71b7::t_3864809963d395 269-312
+  s_5af7d7257a71b7::t_53f4e90929bd26 41,56
+  s_5af7d7257a71b7::t_6bf543cead9ac7 6-7,9-11
+  s_5af7d7257a71b7::t_c67ce1e52764d6 326-413
+  s_5af7d7257a71b7::t_688ad6674d15af 8
+  s_5af7d7257a71b7::t_f2e3bbbc4f06ab 106-172
+packages/prx/src/services/cli.ts
+  s_5af7d7257a71b7::t_f2ee36cef35bf7 99-166
+  s_5af7d7257a71b7::t_cd5e2fa8bd6583 13,19
+  s_5af7d7257a71b7::t_c981e8dab3d3a0 14,20
+  s_5af7d7257a71b7::t_b542a09347308a 167-236
+packages/prx/src/pr-state/cli.ts
+  s_5af7d7257a71b7::t_539ab503b96094 18788-18798
+  s_5af7d7257a71b7::t_1869172fc5add1 1280-1286
+  s_5af7d7257a71b7::t_1993c27a94b479 5806,5809-5811,5817,5819
+  s_5af7d7257a71b7::t_f3cc61d39aab50 5846-5855,5857,5862-5863,5884
+  s_5af7d7257a71b7::t_054860f41544d0 5845,5856,5858-5861
+  s_5af7d7257a71b7::t_a126522eeb260a 5799,5812-5815,5820-5821
+  s_5af7d7257a71b7::t_7c5d20576f4528 1290-1294
+  s_5af7d7257a71b7::t_a646d2d943f7ea 340
+  s_5af7d7257a71b7::t_4f06fd20daff5d 18799-18809
+  s_98e316d0b3248a::t_a82fb30dc658cc 1289
+.changeset/services-diamond.md
+  s_5af7d7257a71b7::t_d1e6c6067fe01d 1-14
+packages/prx/test/services/cli.test.ts
+  s_5af7d7257a71b7::t_cd664a434a99bf 66-162
+  s_5af7d7257a71b7::t_3dcb3187fe2a5f 9
+  s_5af7d7257a71b7::t_0b37e0f089a234 163-196
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "b709cb1d369a444cdd7e1ca7298314767deeefa6",
+  "prompts": {},
+  "sessions": {
+    "s_5af7d7257a71b7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b292ff53-e67d-4386-be49-f24217c202d5",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    },
+    "s_98e316d0b3248a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8db980ee-eb6b-4866-832b-f795cef7f33c",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
