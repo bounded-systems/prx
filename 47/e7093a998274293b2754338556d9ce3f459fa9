@@ -1,0 +1,107 @@
+.changeset/forge-d-rename.md
+  s_399e6065f1b4a3::t_3783e9e163b479 1-13
+.github/apps/README.md
+  s_399e6065f1b4a3::t_f1be70ed046d6f 6
+.github/workflows/publish-oci-boxes.yml
+  s_399e6065f1b4a3::t_4b9756b1071b38 6,105-106,128-129,135,145,147,150,158,160,162,173,180,335
+docs/prx/door-bridge.md
+  s_399e6065f1b4a3::t_c9dd76b1b2e911 6,12,15,25,90,110,120,124
+docs/prx/github-apps-architecture.md
+  s_399e6065f1b4a3::t_a0ea3e03ce3b5e 6,17,26,64,71,79,97,106
+docs/prx/oci-substrate.md
+  s_399e6065f1b4a3::t_b8a07aef299808 148
+flake.nix
+  s_399e6065f1b4a3::t_571874bc82bbf7 69
+nix/oci/forge-d-box.nix
+  s_399e6065f1b4a3::t_91f07b5fbe245f 1-3,5,9,13-14,19,31,33,35,40,45,49,55,71,81-82
+packages/prx/openapi.json
+  s_399e6065f1b4a3::t_129ac90c6053ac 357,359-360,367,378,1817,1830,1839
+packages/prx/src/door/bridge.ts
+  s_399e6065f1b4a3::t_a37633d8212277 4
+packages/prx/src/door/grant-gate.ts
+  s_399e6065f1b4a3::t_c35e55c0e46e55 3,12
+packages/prx/src/door/guest-room-catalog.ts
+  s_399e6065f1b4a3::t_46db053a2f3978 25,29-30,42-49,58-60
+packages/prx/src/door/listen-target.ts
+  s_399e6065f1b4a3::t_dfd11b538e22c5 3
+packages/prx/src/forge-d/__tests__/client.test.ts
+  s_399e6065f1b4a3::t_691f2919d81b28 3,5,8,17,26,29,31,35-38
+packages/prx/src/forge-d/__tests__/daemon.test.ts
+  s_399e6065f1b4a3::t_d6e8c0a377fe7b 10-14,17,33-35,41,66,81,99-101,112-114
+packages/prx/src/forge-d/__tests__/serve-verb.test.ts
+  s_399e6065f1b4a3::t_9b2c8b184ab082 4-5,14-15,22,24,26,36,38,40-41,46,55
+packages/prx/src/forge-d/client.ts
+  s_399e6065f1b4a3::t_3e3cc382441634 1,4,7-10,13-14,16-17,23,28,30,33-34,36-37,39,41,44,57
+packages/prx/src/forge-d/contract.ts
+  s_399e6065f1b4a3::t_cb4dda5b4712b4 1,13,18,21,34
+packages/prx/src/forge-d/daemon.ts
+  s_399e6065f1b4a3::t_e44ddca029327b 1,14-17,19,21-22,30,32,42-45,47,69,73,75,81,84,87,90,95-96,104,109,112,116,122,126-127,130,133,138,140-141,168
+packages/prx/src/forge-d/endpoint.ts
+  s_399e6065f1b4a3::t_0cd3b1f85fcad6 1-2,5-6
+packages/prx/src/forge-d/grant-gate.ts
+  s_399e6065f1b4a3::t_2c0d94c23e18f5 2-3,5,7,20-21,23-24,26,28-29,32-33,36-37,41,44-45
+packages/prx/src/forge-d/serve-verb.ts
+  s_399e6065f1b4a3::t_90dc8b7621ed96 1,12,14,20,22,25,29,32,36-38,44,46,48-49,52-53,58,74
+packages/prx/src/github-app/__tests__/apply.test.ts
+  s_399e6065f1b4a3::t_a2758a68e49274 70,75,88,96
+packages/prx/src/github-app/__tests__/door-source-grant.test.ts
+  s_399e6065f1b4a3::t_8696cfe1397443 6,20,23,26-27,38,45,53
+packages/prx/src/github-app/__tests__/door-source.test.ts
+  s_399e6065f1b4a3::t_777fbbc0bfd9ad 7-8,15-17,26-27,32,46,67,83,86
+packages/prx/src/github-app/apply.ts
+  s_399e6065f1b4a3::t_32e4fe9214bd02 55,75,78
+packages/prx/src/github-app/broker.ts
+  s_399e6065f1b4a3::t_89be75078375de 5
+packages/prx/src/github-app/door-source.ts
+  s_399e6065f1b4a3::t_97ffaad2f24fcc 2,4,8,13,19,21,33,40,52,58-59,68
+packages/prx/src/pr-state/cli.ts
+  s_399e6065f1b4a3::t_127465ab546201 14849-14851
+packages/prx/src/room/claude-room.ts
+  s_399e6065f1b4a3::t_198520580bb588 51,54
+packages/prx/src/room/forge-d-room.ts
+  s_399e6065f1b4a3::t_d43f4519020dc2 1,13,15-16,21,25-30,32-34,38,41,46-48,52-53
+packages/prx/src/room/per-repo-pod.ts
+  s_399e6065f1b4a3::t_4bda0ee5e958e3 7-10,13-15,22,47
+packages/prx/src/room/pod.ts
+  s_399e6065f1b4a3::t_ccab40bdc6c186 162,164-165
+packages/prx/src/room/repin.ts
+  s_399e6065f1b4a3::t_766ca92f1b0b3e 17
+packages/prx/test/cli/box-verbs-routed.test.ts
+  s_399e6065f1b4a3::t_362c5bbedbb6cb 11,19
+packages/prx/test/door/bridge-verb.test.ts
+  s_399e6065f1b4a3::t_d18cdd0a9ce253 27,32-33
+packages/prx/test/door/bridge.test.ts
+  s_399e6065f1b4a3::t_a885125b30f425 24
+packages/prx/test/door/grant-issuer.test.ts
+  s_399e6065f1b4a3::t_5ccead6a98b110 62
+packages/prx/test/door/guest-room-catalog.test.ts
+  s_399e6065f1b4a3::t_794c5a04a3e7f4 5,31-34,37-40,44,47
+packages/prx/test/forge-d/grant-gate-serve.test.ts
+  s_399e6065f1b4a3::t_58d72a29ab5a04 8,43-44,48,60,71,87,89,94,110,122-123
+packages/prx/test/keeperd/grant-gate-serve.test.ts
+  s_399e6065f1b4a3::t_aa1b5bbaaa7e6c 95
+packages/prx/test/keeperd/grant-gate.test.ts
+  s_399e6065f1b4a3::t_b346d95c4bfcf7 80
+packages/prx/test/room/pod-secrets.test.ts
+  s_399e6065f1b4a3::t_c2c7b2c570db03 23,25-26,48-49
+packages/prx/test/room/pod.test.ts
+  s_399e6065f1b4a3::t_15e161c4dac21f 155,157,159-160,163,166,170-171,193,206,213
+packages/prx/test/room/repin.test.ts
+  s_399e6065f1b4a3::t_3799cc106aa4d6 10-11,13,18-19,24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "47e7093a998274293b2754338556d9ce3f459fa9",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
