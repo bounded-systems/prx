@@ -1,0 +1,33 @@
+packages/prx/src/room/lifecycle-runner.ts
+  s_399e6065f1b4a3::t_f2a8ac0444b8d1 33-39
+  s_399e6065f1b4a3::t_54e72df00d97d1 58,66
+packages/prx/src/beads/container-runner.ts
+  s_399e6065f1b4a3::t_1fd5e2f4c3becc 100-115
+  s_399e6065f1b4a3::t_9223917284327a 13-17
+  s_399e6065f1b4a3::t_858a61108ce763 97-99
+  s_399e6065f1b4a3::t_90e449ec063665 116-118
+  s_399e6065f1b4a3::t_449cb35d66d307 61-96,119-122
+packages/prx/src/pr-state/repo_add_dolthub.ts
+  s_399e6065f1b4a3::t_5f1d3c0ba2ed8a 31
+  s_399e6065f1b4a3::t_5a2dd90e5c00c4 173-177,179
+packages/prx/test/beads/container-runner.test.ts
+  s_399e6065f1b4a3::t_e9131686c5c45e 3-8
+.changeset/dolt-push-off-host.md
+  s_399e6065f1b4a3::t_c6dbc5e2a17550 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "5bc14263660e2a15d98412464b9145181e531116",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
