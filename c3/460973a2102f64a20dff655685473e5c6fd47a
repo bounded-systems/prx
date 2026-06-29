@@ -1,0 +1,35 @@
+STATUS.md
+  s_5af7d7257a71b7::t_5f431ee96bcf8f 5,7,13,17,22
+packages/prx/test/value_props.test.ts
+  s_5af7d7257a71b7::t_38b6d40a835915 16
+  s_5af7d7257a71b7::t_517a3d8457163f 51,53-54
+README.md
+  s_5af7d7257a71b7::t_2f4239008679c1 8
+prx.jsonld
+  s_5af7d7257a71b7::t_2f4239008679c1 26
+packages/prx/src/value_props.ts
+  s_5af7d7257a71b7::t_c133df95cd007b 216-225
+  s_5af7d7257a71b7::t_825e469dfb1584 316-317,320-324,330,332,335-339,343
+.changeset/status-honesty.md
+  s_5af7d7257a71b7::t_a385a6353041cc 1-17
+packages/prx/community/community.json
+  s_5af7d7257a71b7::t_d5e71e10644208 6
+docs/cli.md
+  s_5af7d7257a71b7::t_2f4239008679c1 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "c3460973a2102f64a20dff655685473e5c6fd47a",
+  "prompts": {},
+  "sessions": {
+    "s_5af7d7257a71b7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b292ff53-e67d-4386-be49-f24217c202d5",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
