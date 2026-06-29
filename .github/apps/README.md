@@ -12,7 +12,13 @@ live apps are reconciled *to* these files.
 |---|---|---|
 | `prx-forge.manifest.json` | contents/issues/PRs/checks | `CHANGESETS_*` (folds in) |
 | `prx-projects.manifest.json` | organization_projects | `FRONT_DESK_*` |
-| `prx-signing.manifest.json` | git_ssh_signing_keys (inert, prx-dqf) | — |
+
+> **No prx-signing bucket.** `git_ssh_signing_keys` is a **user/account** permission
+> (applies to the authorizing user via the user-to-server OAuth flow), **not** an
+> installation `default_permissions` scope — confirmed: the live `bounded-systems-prx`
+> app never held it despite its manifest declaring it, and the manifest flow rejects
+> it. Keeper SSH signing is therefore a **user-auth** concern (a keeper bot account
+> authorizes the app), tracked under **prx-dqf** — not an installation-token bucket.
 
 The union app `../prx-app.manifest.json` (`bounded-systems-prx`) stays as the
 def-of-record until the buckets are registered and CI/runtime cut over
@@ -24,7 +30,7 @@ def-of-record until the buckets are registered and CI/runtime cut over
 |---|---|---|---|
 | `prx-forge` | 4169313 | 143190928 | created + installed (all repos) |
 | `prx-projects` | 4169314 | 143190950 | created + installed (all repos) |
-| `prx-signing` | — | — | **not registered** — manifest-flow rejects `git_ssh_signing_keys` as a permission key; resolve under prx-dqf (it's inert anyway) |
+| ~~`prx-signing`~~ | — | — | **dropped as a bucket** — `git_ssh_signing_keys` is a user-auth permission, not an installation scope (prx-dqf) |
 
 Caveats:
 - **`prx-forge` live app still grants `contents:read`.** This manifest now declares
