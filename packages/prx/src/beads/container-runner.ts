@@ -11,8 +11,9 @@
 import type { SpawnCaptureResult } from "@bounded-systems/proc";
 
 import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
+
+import { getEnv } from "@bounded-systems/env";
 
 import { runBdLifecycle, DOLT_CREDS_SECRET } from "../room/lifecycle-runner.ts";
 import { spawnPodman, type PodmanRun } from "../room/podman-runtime.ts";
@@ -71,7 +72,8 @@ export interface DoltIdentity {
 
 /** Read the host dolt identity from `~/.dolt/config_global.json` (injectable). */
 export function readHostDoltIdentity(read: (p: string) => string = (p) => readFileSync(p, "utf8")): DoltIdentity {
-  const cfg = JSON.parse(read(join(homedir(), ".dolt", "config_global.json"))) as Record<string, string>;
+  const home = getEnv("HOME") ?? "";
+  const cfg = JSON.parse(read(join(home, ".dolt", "config_global.json"))) as Record<string, string>;
   const credsKey = cfg["user.creds"];
   if (!credsKey) throw new Error("no `user.creds` in ~/.dolt/config_global.json — run `dolt login` first");
   return { credsKey, email: cfg["user.email"] ?? "", name: cfg["user.name"] ?? "" };
