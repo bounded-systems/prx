@@ -16,7 +16,7 @@
 
 /** Pinned nix-builder-box image (published by .github/workflows/publish-oci-boxes.yml). */
 export const NIX_BUILDER_IMAGE =
-  "ghcr.io/bounded-systems/prx/nix-builder-box:latest"; // TODO(prx-zj8): pin @sha256 after first publish
+  "ghcr.io/bounded-systems/prx/nix-builder-box@sha256:a299e2a36040dac16466e019f8ed5aa2604bf2f981ea5ce6ffd374774f7f075d";
 
 /** The host port the builder's sshd is published on (→ `ssh-ng://builder@127.0.0.1:PORT`). */
 export const NIX_BUILDER_SSH_PORT = 2226;
