@@ -93,6 +93,35 @@
         }
       }
     },
+    "/door/bridge": {
+      "post": {
+        "operationId": "door_bridge",
+        "summary": "Run a loopback (127.0.0.1) TCP→unix forwarder for a door socket — phase-1 door-bridge (prx-8uf2).",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/door_bridgeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/door_bridgeOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/event": {
       "post": {
         "operationId": "event",
@@ -1165,6 +1194,49 @@
           "check",
           "driftCount",
           "targets"
+        ],
+        "additionalProperties": false
+      },
+      "door_bridgeInput": {
+        "type": "object",
+        "properties": {
+          "port": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "description": "loopback TCP port to listen on (bound to 127.0.0.1 only)"
+          },
+          "socket": {
+            "type": "string",
+            "minLength": 1,
+            "description": "door unix socket path to forward each connection to"
+          },
+          "cwd": {
+            "description": "ignored — the bridge is not repo-bound",
+            "type": "string"
+          }
+        },
+        "required": [
+          "port",
+          "socket"
+        ],
+        "additionalProperties": false
+      },
+      "door_bridgeOutput": {
+        "type": "object",
+        "properties": {
+          "port": {
+            "type": "number",
+            "description": "the loopback (127.0.0.1) TCP port the bridge listened on"
+          },
+          "socket": {
+            "type": "string",
+            "description": "the door unix socket the bridge forwarded to"
+          }
+        },
+        "required": [
+          "port",
+          "socket"
         ],
         "additionalProperties": false
       },
