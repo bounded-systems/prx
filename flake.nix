@@ -68,9 +68,6 @@
           keeperd-box = import ./nix/oci/keeperd-box.nix self { inherit pkgs system; };
           forge-d-box = import ./nix/oci/forge-d-box.nix self { inherit pkgs system; };
           dolt-box = import ./nix/oci/dolt-box.nix self { inherit pkgs system; };
-          # The deterministic beads dolt-data artifact (prx-asr): the
-          # network-fetch stage; the pod volume is populated from it (no network).
-          dolt-data = import ./nix/oci/dolt-data.nix self { inherit pkgs system; };
           # The nix remote BUILDER as a pinned container (prx-zj8 capstone) —
           # replaces the Lima builder VM (sshd + single-user nix on a /nix volume).
           nix-builder-box = import ./nix/oci/nix-builder-box.nix self { inherit pkgs system; };

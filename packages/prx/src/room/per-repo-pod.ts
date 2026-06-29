@@ -29,7 +29,7 @@ import type { PodService } from "./spec.ts";
  * dolt-box — the standalone dolt SQL server (a backing service, NOT a room): it
  * owns the beads database on the {@link DOLT_DATA_VOLUME} named volume and serves
  * the MySQL wire on the pod netns, which beadsd-box connects to. Seeded out-of-
- * band from the dolt-data FOD (see dolt-service.ts). No doors.
+ * band by a runtime clone of the pinned commit (see dolt-service.ts). No doors.
  */
 const doltService: PodService = {
   name: "dolt",
