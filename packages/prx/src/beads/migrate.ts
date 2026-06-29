@@ -33,7 +33,8 @@ import { join } from "node:path";
 import { z } from "zod";
 
 import { classifyBeadsWorkspace, type BeadsWorkspaceMode } from "./workspace_mode.ts";
-import { defaultBdMigrateRunner, type BdMigrateRunner } from "./migrate_runner.ts";
+import { type BdMigrateRunner } from "./migrate_runner.ts";
+import { containerBdRunner } from "./container-runner.ts";
 import { patchBeadsMetadataDoltMode } from "./metadata_patch.ts";
 import { isCaptureFailure, type SpawnCaptureResult } from "@bounded-systems/proc";
 import { recordEvent as defaultRecordEvent } from "../machine/record_event.ts";
@@ -145,7 +146,9 @@ export function runBeadsMigrate(rawOpts: MigrateOptions, deps: MigrateDeps = {})
   const cwd = deps.cwd ?? process.cwd();
   const home = deps.homeDir ?? homeDir();
   const now = deps.now ?? (() => new Date());
-  const runner = deps.runner ?? defaultBdMigrateRunner;
+  // prx-82b Slice 2c.2: migrate runs in an ephemeral beadsd-box container, not
+  // host bd (the host bd binary is being removed).
+  const runner = deps.runner ?? containerBdRunner();
   const recordEvent: MigrateRecordEvent =
     deps.recordEvent ??
     ((event, recordOpts) =>

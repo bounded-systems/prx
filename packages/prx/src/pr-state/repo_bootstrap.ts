@@ -45,7 +45,8 @@ import { homeDir } from "@bounded-systems/host";
 import { join } from "node:path";
 
 import { runBdInit } from "../beads/init.ts";
-import { defaultBdInitRunner, type BdInitRunner } from "../beads/init_runner.ts";
+import { type BdInitRunner } from "../beads/init_runner.ts";
+import { containerBdRunner } from "../beads/container-runner.ts";
 import { isCaptureFailure } from "@bounded-systems/proc";
 import {
   classifyBeadsWorkspace as defaultClassifyBeadsWorkspace,
@@ -285,7 +286,9 @@ export function runRepoBootstrap(
       const cwd = resolvedRepoCwd(repo) ?? repo.commonDir;
       return defaultClassifyBeadsWorkspace(cwd);
     });
-  const bdInitRunner: BdInitRunner = deps.bdInitRunner ?? defaultBdInitRunner;
+  // prx-82b Slice 2c.2: `bd init` + the `config set` below run in an ephemeral
+  // beadsd-box container, not host bd (the host bd binary is being removed).
+  const bdInitRunner: BdInitRunner = deps.bdInitRunner ?? containerBdRunner();
   const isMainProtected = deps.isMainProtected ?? defaultIsMainProtected(runner);
   const gitStatusClean = deps.gitStatusClean ?? defaultGitStatusClean(runner);
   const runAddDolthub = deps.runAddDolthub ?? defaultRunRepoAddDolthub;
