@@ -1,0 +1,21 @@
+.changeset/drop-noop-replace.md
+  s_a4789e0b0492f1::t_7047c60c173a26 1-6
+packages/prx/scripts/codemod/extract-module.ts
+  s_a4789e0b0492f1::t_06572dd676d5c0 208
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "cfb42c054004a581d509842ac6ad66fc6a33282c",
+  "prompts": {},
+  "sessions": {
+    "s_a4789e0b0492f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "08589f2f-93b7-4db3-a0a5-375b9672f700",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
