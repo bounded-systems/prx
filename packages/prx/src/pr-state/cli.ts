@@ -337,7 +337,7 @@ import { runDedupeBd as doctorRunDedupeBd } from "../doctor/dedupe-bd.ts";
 // GH-1823: audit actor — read-only adherence metrics over the artifact graph.
 import { runAuditIngest, runAuditUow, runAuditSystem } from "../audit/cli.ts";
 // GH-1407: services actor — Anthropic prompt-cache hit-rate projector.
-import { runServicesDiamond, runServicesStatus } from "../services/cli.ts";
+import { runServicesDiamond, runServicesSeries, runServicesStatus } from "../services/cli.ts";
 import { taskRoleMachine, taskRoles, type TaskRole } from "../machine/machines/task.ts";
 import { workflowMachine } from "../machine/machines/workflow.ts";
 import { resolveWorktreePath } from "../tools/worktree_path.ts";
@@ -1283,6 +1283,12 @@ type ParsedCommand =
   | {
       // prx-b2n — `prx services diamond` projects cost-vs-outcome per model.
       command: "services-diamond";
+      window?: string | undefined;
+      format: "plain" | "json";
+    }
+  | {
+      // prx-b2n — `prx services series` shows completion rate by model × spend tier.
+      command: "services-series";
       window?: string | undefined;
       format: "plain" | "json";
     }
@@ -5790,7 +5796,7 @@ function parseTestGateCommand(rest: string[]): ParsedCommand {
 }
 
 // GH-1407 — `prx services <verb>` read-only external-plane status verb.
-const SERVICES_VERBS = ["status", "diamond"] as const;
+const SERVICES_VERBS = ["status", "diamond", "series"] as const;
 
 function printServicesHelp(): string {
   return [
@@ -5803,11 +5809,16 @@ function printServicesHelp(): string {
     "  diamond [--window=Nd] [--format=plain|json]",
     "         Cost-vs-outcome diamond: avg spend and completion rate per model.",
     "",
+    "  series [--window=Nd] [--format=plain|json]",
+    "         Effort/token series: completion rate by model × spend tier.",
+    "         Reveals the non-monotonic relationship between spend and outcome.",
+    "",
     "Examples:",
     "  prx services status --anthropic --by=model",
     "  prx services status --anthropic --window=7d --format=json",
     "  prx services diamond --window=30d",
-    "  prx services diamond --format=json",
+    "  prx services series --window=30d",
+    "  prx services series --format=json",
   ].join("\n");
 }
 
@@ -5831,7 +5842,7 @@ function parseServicesCommand(rest: string[]): ParsedCommand {
     printServicesHelpAndExit();
   }
 
-  if (verbArg === "diamond") {
+  if (verbArg === "diamond" || verbArg === "series") {
     const { values, positionals } = parseArgs({
       args: subRest,
       options: {
@@ -5842,13 +5853,12 @@ function parseServicesCommand(rest: string[]): ParsedCommand {
       allowPositionals: true,
     });
     if (positionals.length > 0) {
-      throw new CliError("prx services diamond takes no positional arguments");
+      throw new CliError(`prx services ${verbArg} takes no positional arguments`);
     }
-    return {
-      command: "services-diamond",
-      ...(values.window !== undefined ? { window: values.window } : {}),
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
+    const fmt = ensureChoice(values.format, ["plain", "json"], "--format");
+    const win = values.window !== undefined ? { window: values.window } : {};
+    if (verbArg === "series") return { command: "services-series", ...win, format: fmt };
+    return { command: "services-diamond", ...win, format: fmt };
   }
 
   // verb === "status"
@@ -18778,6 +18788,17 @@ export function runCli(
     // prx-b2n: cost-vs-outcome diamond.
     if (parsed.command === "services-diamond") {
       return runServicesDiamond(
+        {
+          ...(parsed.window !== undefined ? { window: parsed.window } : {}),
+          format: parsed.format,
+        },
+        output,
+      );
+    }
+
+    // prx-b2n: effort/token series.
+    if (parsed.command === "services-series") {
+      return runServicesSeries(
         {
           ...(parsed.window !== undefined ? { window: parsed.window } : {}),
           format: parsed.format,

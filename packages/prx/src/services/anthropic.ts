@@ -92,12 +92,23 @@ const CLOSED_STATES = new Set(["closed"]);
 
 type TransitionRow = { issue: string; state_to: string; ts: string };
 
-export function projectAnthropicDiamond(
-  db: Database,
-  opts: AnthropicProjectorOptions = {},
-): DiamondPoint[] {
-  const since = opts.since;
+type WuidOutcome = {
+  dominantModel: string;
+  totalCost: number;
+  totalCacheRead: number;
+  totalInput: number;
+  outcome: "completed" | "closed" | "in_progress";
+};
 
+/**
+ * Shared loader used by both the diamond and series projectors.
+ *
+ * For each work unit that has at least one attributed usage event, resolves
+ * the dominant model (highest cost share) and the outcome from the latest
+ * transition. Work units with no `workUnitId` are skipped — there is no
+ * outcome to measure for unattached sessions.
+ */
+function buildWuidOutcomes(db: Database, since?: string): WuidOutcome[] {
   const rows = since
     ? db
         .query<EventRow, [string]>(
@@ -108,9 +119,6 @@ export function projectAnthropicDiamond(
         .query<EventRow, []>(`SELECT raw_json FROM events WHERE action = 'non-interactive-agent'`)
         .all();
 
-  // Accumulate cost per (workUnitId, model). Each work unit is later assigned
-  // to its dominant model (highest cost share) so it contributes exactly one
-  // point to the diamond — no double-counting across models.
   type ModelAccum = { cost: number; cache_read: number; input: number };
   const byWuid = new Map<string, Map<string, ModelAccum>>();
 
@@ -123,7 +131,7 @@ export function projectAnthropicDiamond(
     }
     if (payload.subkind !== "usage") continue;
     const wuid = payload.workUnitId;
-    if (!wuid) continue; // unattached — no outcome to measure
+    if (!wuid) continue;
     const model = payload.model ?? "(unknown model)";
     const inner = byWuid.get(wuid) ?? new Map<string, ModelAccum>();
     const entry = inner.get(model) ?? { cost: 0, cache_read: 0, input: 0 };
@@ -136,8 +144,6 @@ export function projectAnthropicDiamond(
 
   if (byWuid.size === 0) return [];
 
-  // Get latest state_to per issue from the transitions log (ascending order so
-  // each later row overwrites the previous — last write wins = most recent).
   const allTransitions = db
     .query<TransitionRow, []>(
       `SELECT issue, state_to, ts FROM transitions ORDER BY ts ASC`,
@@ -148,19 +154,8 @@ export function projectAnthropicDiamond(
     if (t.issue) latestState.set(t.issue, t.state_to);
   }
 
-  type ModelAgg = {
-    work_units: number;
-    total_cost: number;
-    completed: number;
-    closed: number;
-    in_progress: number;
-    total_cache_read: number;
-    total_input: number;
-  };
-  const modelAgg = new Map<string, ModelAgg>();
-
+  const outcomes: WuidOutcome[] = [];
   for (const [wuid, modelMap] of byWuid) {
-    // Dominant model = highest cost share for this work unit.
     let dominantModel = "(unknown model)";
     let maxCost = -1;
     let totalCost = 0;
@@ -175,7 +170,6 @@ export function projectAnthropicDiamond(
         dominantModel = model;
       }
     }
-
     const state = latestState.get(wuid);
     const outcome = state
       ? COMPLETED_STATES.has(state)
@@ -184,7 +178,30 @@ export function projectAnthropicDiamond(
           ? "closed"
           : "in_progress"
       : "in_progress";
+    outcomes.push({ dominantModel, totalCost, totalCacheRead, totalInput, outcome });
+  }
+  return outcomes;
+}
 
+export function projectAnthropicDiamond(
+  db: Database,
+  opts: AnthropicProjectorOptions = {},
+): DiamondPoint[] {
+  const outcomes = buildWuidOutcomes(db, opts.since);
+  if (outcomes.length === 0) return [];
+
+  type ModelAgg = {
+    work_units: number;
+    total_cost: number;
+    completed: number;
+    closed: number;
+    in_progress: number;
+    total_cache_read: number;
+    total_input: number;
+  };
+  const modelAgg = new Map<string, ModelAgg>();
+
+  for (const { dominantModel, totalCost, totalCacheRead, totalInput, outcome } of outcomes) {
     const agg = modelAgg.get(dominantModel) ?? {
       work_units: 0,
       total_cost: 0,
@@ -220,6 +237,100 @@ export function projectAnthropicDiamond(
       };
     })
     .sort((a, b) => b.completion_rate - a.completion_rate || b.total_cost_usd - a.total_cost_usd);
+}
+
+/**
+ * One point on the effort/token series — a (model, cost_tier) pair showing
+ * completion rate within a specific spend band.
+ *
+ * The series exposes the non-monotonic relationship between spend and outcome:
+ * more tokens ≠ better results past a model-specific peak. Use it to pick the
+ * cost-efficient tier for each task rather than defaulting to max effort.
+ */
+export type SeriesPoint = {
+  model: string;
+  tier: string;
+  tier_min: number;
+  tier_max: number;
+  work_units: number;
+  avg_cost_usd: number;
+  completion_rate: number;
+  hit_rate: number;
+};
+
+// Cost bands chosen to capture the ~$8 non-monotonic peak observed in
+// Opus 4.8 (peaks around $8, dips past $10.5 — higher spend ≠ better outcome).
+const COST_TIERS: ReadonlyArray<{ label: string; min: number; max: number }> = [
+  { label: "<$2", min: 0, max: 2 },
+  { label: "$2–$5", min: 2, max: 5 },
+  { label: "$5–$10", min: 5, max: 10 },
+  { label: "$10–$20", min: 10, max: 20 },
+  { label: "$20–$40", min: 20, max: 40 },
+  { label: "$40+", min: 40, max: Infinity },
+];
+
+function costTier(cost: number): (typeof COST_TIERS)[number] {
+  for (const tier of COST_TIERS) {
+    if (cost < tier.max) return tier;
+  }
+  return COST_TIERS[COST_TIERS.length - 1]!;
+}
+
+export function projectAnthropicSeries(
+  db: Database,
+  opts: AnthropicProjectorOptions = {},
+): SeriesPoint[] {
+  const outcomes = buildWuidOutcomes(db, opts.since);
+  if (outcomes.length === 0) return [];
+
+  type TierAgg = {
+    work_units: number;
+    total_cost: number;
+    completed: number;
+    total_cache_read: number;
+    total_input: number;
+  };
+  // key = `${model}\x00${tierLabel}`
+  const tierAgg = new Map<string, TierAgg & { tier: (typeof COST_TIERS)[number] }>();
+
+  for (const { dominantModel, totalCost, totalCacheRead, totalInput, outcome } of outcomes) {
+    const tier = costTier(totalCost);
+    const key = `${dominantModel}\x00${tier.label}`;
+    const agg = tierAgg.get(key) ?? {
+      work_units: 0,
+      total_cost: 0,
+      completed: 0,
+      total_cache_read: 0,
+      total_input: 0,
+      tier,
+    };
+    agg.work_units += 1;
+    agg.total_cost += totalCost;
+    agg.total_cache_read += totalCacheRead;
+    agg.total_input += totalInput;
+    if (outcome === "completed") agg.completed += 1;
+    tierAgg.set(key, agg);
+  }
+
+  return [...tierAgg.entries()]
+    .map(([key, agg]) => {
+      const model = key.split("\x00")[0]!;
+      const denom = agg.total_input + agg.total_cache_read;
+      return {
+        model,
+        tier: agg.tier.label,
+        tier_min: agg.tier.min,
+        tier_max: agg.tier.max === Infinity ? -1 : agg.tier.max,
+        work_units: agg.work_units,
+        avg_cost_usd: agg.work_units > 0 ? agg.total_cost / agg.work_units : 0,
+        completion_rate: agg.work_units > 0 ? agg.completed / agg.work_units : 0,
+        hit_rate: denom === 0 ? 0 : agg.total_cache_read / denom,
+      };
+    })
+    .sort((a, b) => {
+      const modelCmp = a.model.localeCompare(b.model);
+      return modelCmp !== 0 ? modelCmp : a.tier_min - b.tier_min;
+    });
 }
 
 export function projectAnthropicUsage(
