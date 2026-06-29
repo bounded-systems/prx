@@ -322,41 +322,13 @@ describe("prx beads provision (canonical local clone)", () => {
 });
 
 describe("prx lima parsing", () => {
-  test("`up <vm>` with --binary/--cwd", () => {
-    const p = parse(["lima", "up", "myvm", "--binary", "dist/prx", "--cwd", "/vm/clone"]);
-    expect(p.command).toBe("lima");
-    if (p.command === "lima") {
-      expect(p.verb).toBe("up");
-      expect(p.vm).toBe("myvm");
-      expect(p.binary).toBe("dist/prx");
-      expect(p.cwd).toBe("/vm/clone");
-    }
-  });
-
-  test("`daemons` needs no VM", () => {
-    const p = parse(["lima", "daemons"]);
-    expect(p.command === "lima" && p.verb).toBe("daemons");
-  });
-
-  test("`status <vm>` parses", () => {
-    const p = parse(["lima", "status", "myvm", "--daemon", "beads"]);
-    expect(p.command === "lima" && p.verb).toBe("status");
-    if (p.command === "lima") expect(p.daemon).toBe("beads");
-  });
-
-  test("requires a known verb", () => {
+  // The in-VM daemons (up/down/daemons/status/provision-beads) were retired for
+  // the podman pod (prx-zj8); only the nix builder (provision-builder) remains.
+  test("requires the provision-builder verb (daemon verbs retired)", () => {
     expect(() => parse(["lima"])).toThrow(/requires a verb/);
     expect(() => parse(["lima", "bogus"])).toThrow(/requires a verb/);
-  });
-
-  test("`provision-beads <vm> --origin` parses; requires --origin", () => {
-    const p = parse(["lima", "provision-beads", "myvm", "--origin", "bounded-systems/prx"]);
-    expect(p.command === "lima" && p.verb).toBe("provision-beads");
-    if (p.command === "lima") {
-      expect(p.vm).toBe("myvm");
-      expect(p.origin).toBe("bounded-systems/prx");
-    }
-    expect(() => parse(["lima", "provision-beads", "myvm"])).toThrow(/requires --origin/);
+    expect(() => parse(["lima", "up", "myvm"])).toThrow(/requires a verb/);
+    expect(() => parse(["lima", "daemons"])).toThrow(/requires a verb/);
   });
 
   test("`provision-builder <vm>` parses with defaults", () => {
@@ -397,43 +369,6 @@ describe("prx lima parsing", () => {
     expect(() => parse(["lima", "provision-builder", "myvm", "--max-jobs", "x"])).toThrow(
       /--max-jobs must be a positive integer/,
     );
-  });
-
-  test("up requires --binary and --cwd", () => {
-    expect(() => parse(["lima", "up", "myvm"])).toThrow(/--binary/);
-    expect(() => parse(["lima", "up", "myvm", "--binary", "b"])).toThrow(/--cwd/);
-  });
-
-  test("up/down/status require a VM", () => {
-    expect(() => parse(["lima", "down"])).toThrow(/requires a VM/);
-    expect(() => parse(["lima", "status"])).toThrow(/requires a VM/);
-  });
-
-  test("rejects an unknown --daemon", () => {
-    expect(() =>
-      parse(["lima", "up", "myvm", "--binary", "b", "--cwd", "/c", "--daemon", "bogus"]),
-    ).toThrow(/--daemon must be one of/);
-  });
-
-  test("--socket requires a single --daemon", () => {
-    expect(() =>
-      parse(["lima", "up", "myvm", "--binary", "b", "--cwd", "/c", "--socket", "/s"]),
-    ).toThrow(/--socket requires a single --daemon/);
-    // valid with a single daemon
-    const p = parse([
-      "lima",
-      "up",
-      "myvm",
-      "--binary",
-      "b",
-      "--cwd",
-      "/c",
-      "--daemon",
-      "keeper",
-      "--socket",
-      "/s",
-    ]);
-    expect(p.command === "lima" && p.socket).toBe("/s");
   });
 
   test("is a CliError, not a raw throw", () => {

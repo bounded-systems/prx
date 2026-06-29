@@ -17,8 +17,7 @@
  */
 
 import { spawnRun, type Run, type RunResult } from "../door/lima-exec.ts";
-import { resolveDoltDatabaseName } from "../dolt/namespace.ts";
-import { doltHubUrl } from "./provision.ts";
+import { resolveDoltDatabaseName, doltHubUrl } from "../dolt/namespace.ts";
 
 export interface ProvisionLocalBeadsDeps {
   run?: Run | undefined;

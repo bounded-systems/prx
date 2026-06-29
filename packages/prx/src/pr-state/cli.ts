@@ -316,12 +316,6 @@ import { runKeeperServe, type KeeperDaemonDeps } from "../keeperd/daemon.ts";
 import { provisionKeeperd, stopKeeperd } from "../keeperd/lima-keeperd.ts";
 // GH-228: beadsd in-VM read daemon (`beads serve`) + the `prx lima` daemon registry.
 import { runBeadsServe, type BeadsDaemonDeps } from "../beadsd/daemon.ts";
-import {
-  LIMA_DAEMONS,
-  LIMA_DAEMON_KEYS,
-  limaDaemonStatuses,
-  selectLimaDaemons,
-} from "../lima/registry.ts";
 // GH-228: beads workspace self-heal (`prx beads doctor [--fix]`).
 import { diagnoseBeads, healBeads } from "../beads/doctor.ts";
 // GH-296: the host read-door — route `prx beads ready|list|show` through beadsd.
@@ -335,7 +329,6 @@ import {
 import { provisionLocalBeads } from "../beadsd/provision-local.ts";
 import { BeadsRequestSchema, type BeadsRequest } from "../beadsd/contract.ts";
 // GH-296: provision beads inside a Lima VM (install bd+dolt + clone canonical).
-import { provisionVmBeads } from "../beadsd/provision.ts";
 import { provisionVmNixBuilder } from "../lima/nix-builder.ts";
 import { runScopeGate, ScopeGateInputError } from "./scope-gate.ts";
 import { runTestGate, TestGateInputError } from "./test-gate.ts";
@@ -1823,20 +1816,13 @@ type ParsedCommand =
       hostSocket?: string | undefined;
     }
   | {
-      // GH-228: `prx lima <verb>` — in-VM daemon lifecycle over the daemon registry.
+      // prx-62h: `prx lima provision-builder` — the nix remote builder. The in-VM
+      // DAEMONS were retired for the podman pod (prx-zj8); only the builder remains.
       command: "lima";
       format: "plain" | "json";
-      verb: "up" | "down" | "daemons" | "status" | "provision-beads" | "provision-builder";
-      vm?: string | undefined;
-      binary?: string | undefined;
-      cwd?: string | undefined;
-      socket?: string | undefined;
-      provenanceKeyFile?: string | undefined;
-      daemon?: string | undefined;
-      // GH-296: `lima provision-beads` — origin slug for the reverse-DNS db + DoltHub URL.
-      origin?: string | undefined;
-      workspace?: string | undefined;
-      // prx-62h: `lima provision-builder` — nix remote-builder descriptor overrides.
+      verb: "provision-builder";
+      vm: string;
+      // nix remote-builder descriptor overrides.
       maxJobs?: number | undefined;
       systems?: string | undefined;
       installerUrl?: string | undefined;
@@ -7730,19 +7716,13 @@ export function parseCommand(argv: string[]): ParsedCommand {
   // GH-228: `prx lima <up|down|daemons|status>` — in-VM daemon lifecycle over the
   // daemon registry (keeper + beads). Verb-dispatch like `keeper`.
   if (command === "lima") {
+    // The in-VM daemons (up/down/daemons/status/provision-beads) were retired for
+    // the podman pod (prx-zj8); only the nix BUILDER (prx-62h) remains on Lima.
     const { values, positionals } = parseArgs({
       args: rest,
       options: {
         format: { type: "string", default: "plain" },
         vm: { type: "string" },
-        binary: { type: "string" },
-        cwd: { type: "string" },
-        socket: { type: "string" },
-        "provenance-key-file": { type: "string" },
-        daemon: { type: "string" },
-        // GH-296: `lima provision-beads`
-        origin: { type: "string" },
-        workspace: { type: "string" },
         // prx-62h: `lima provision-builder`
         "max-jobs": { type: "string" },
         systems: { type: "string" },
@@ -7752,16 +7732,9 @@ export function parseCommand(argv: string[]): ParsedCommand {
       allowPositionals: true,
     });
     const verb = positionals[0];
-    if (
-      verb !== "up" &&
-      verb !== "down" &&
-      verb !== "daemons" &&
-      verb !== "status" &&
-      verb !== "provision-beads" &&
-      verb !== "provision-builder"
-    ) {
+    if (verb !== "provision-builder") {
       throw new CliError(
-        "prx lima requires a verb: up | down | daemons | status | provision-beads | provision-builder (e.g. `prx lima up <vm> --binary <path> --cwd <path>`)",
+        "prx lima requires a verb: provision-builder (the in-VM daemons were retired for the podman pod, prx-zj8; e.g. `prx lima provision-builder <vm>`)",
       );
     }
     // prx-62h: `--max-jobs`, when given, must be a positive integer.
@@ -7773,58 +7746,17 @@ export function parseCommand(argv: string[]): ParsedCommand {
       }
       maxJobs = n;
     }
-    // up/down/status/provision-beads are VM-scoped (positional <vm> or --vm); daemons is local.
     const vm = values.vm ?? positionals[1];
-    if (verb !== "daemons" && (typeof vm !== "string" || vm.length === 0)) {
+    if (typeof vm !== "string" || vm.length === 0) {
       throw new CliError(
-        `prx lima ${verb} requires a VM: \`prx lima ${verb} <vm>\` (or --vm <name>)`,
-      );
-    }
-    if (
-      verb === "provision-beads" &&
-      (typeof values.origin !== "string" || values.origin.length === 0)
-    ) {
-      throw new CliError(
-        "prx lima provision-beads requires --origin <owner/repo> (the repo whose beads to clone into the VM)",
-      );
-    }
-    if (verb === "up") {
-      if (typeof values.binary !== "string" || values.binary.length === 0) {
-        throw new CliError(
-          "prx lima up requires --binary <path> (the Linux prx; build it with `prx-compile --target`)",
-        );
-      }
-      if (typeof values.cwd !== "string" || values.cwd.length === 0) {
-        throw new CliError("prx lima up requires --cwd <path> (the repo clone inside the VM)");
-      }
-    }
-    if (
-      values.daemon !== undefined &&
-      values.daemon !== "all" &&
-      !LIMA_DAEMON_KEYS.includes(values.daemon)
-    ) {
-      throw new CliError(`prx lima --daemon must be one of ${LIMA_DAEMON_KEYS.join(" | ")} | all`);
-    }
-    // A per-daemon --socket only makes sense for a single daemon.
-    if (values.socket !== undefined && (values.daemon === undefined || values.daemon === "all")) {
-      throw new CliError(
-        "prx lima --socket requires a single --daemon (it is the listen path for one daemon)",
+        "prx lima provision-builder requires a VM: `prx lima provision-builder <vm>` (or --vm <name>)",
       );
     }
     return {
       command: "lima",
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
       verb,
-      ...(vm !== undefined ? { vm } : {}),
-      ...(values.binary !== undefined ? { binary: values.binary } : {}),
-      ...(values.cwd !== undefined ? { cwd: values.cwd } : {}),
-      ...(values.socket !== undefined ? { socket: values.socket } : {}),
-      ...(values["provenance-key-file"] !== undefined
-        ? { provenanceKeyFile: values["provenance-key-file"] }
-        : {}),
-      ...(values.daemon !== undefined ? { daemon: values.daemon } : {}),
-      ...(values.origin !== undefined ? { origin: values.origin } : {}),
-      ...(values.workspace !== undefined ? { workspace: values.workspace } : {}),
+      vm,
       ...(maxJobs !== undefined ? { maxJobs } : {}),
       ...(values.systems !== undefined ? { systems: values.systems } : {}),
       ...(values["installer-url"] !== undefined ? { installerUrl: values["installer-url"] } : {}),
@@ -20994,96 +20926,27 @@ export function runCli(
     }
 
     if (parsed.command === "lima") {
-      // GH-228: in-VM daemon lifecycle over the registry (keeper + beads).
+      // prx-62h: the nix remote BUILDER on Lima. The in-VM daemons (keeper/beads)
+      // were retired for the podman pod (prx-zj8); only the builder remains here.
       return (async () => {
-        if (parsed.verb === "daemons") {
-          const rows = LIMA_DAEMONS.map((d) => ({
-            daemon: d.key,
-            name: d.name,
-            socket: d.socket,
-            signing: d.signing,
-          }));
-          if (parsed.format === "json") {
-            output.log(JSON.stringify(rows, null, 2));
-          } else {
-            for (const r of rows) {
-              output.log(`${r.daemon}\t${r.name}\t${r.socket}${r.signing ? "\t(signing)" : ""}`);
-            }
-          }
-          return 0;
-        }
-        if (parsed.verb === "status") {
-          const statuses = limaDaemonStatuses(parsed.vm!, selectLimaDaemons(parsed.daemon));
-          if (parsed.format === "json") {
-            output.log(JSON.stringify(statuses, null, 2));
-          } else {
-            for (const s of statuses) output.log(`${s.key}\t${s.up ? "up" : "down"}\t${s.socket}`);
-          }
-          return 0;
-        }
-        if (parsed.verb === "provision-beads") {
-          // GH-296: install bd+dolt + clone the canonical beads into the VM so
-          // beadsd serves real data. Then `prx lima up --cwd <workspace> --daemon beads`.
-          const result = provisionVmBeads({
-            vm: parsed.vm!,
-            originSlug: parsed.origin!,
-            ...(parsed.workspace !== undefined ? { workspace: parsed.workspace } : {}),
-          });
-          if (parsed.format === "json") {
-            output.log(JSON.stringify(result, null, 2));
-          } else {
-            output.error(
-              `lima provision-beads on ${parsed.vm}: cloned ${result.database} → ${result.workspace}; ` +
-                `serve it with \`prx lima up ${parsed.vm} --binary <linux-prx> --cwd ${result.workspace} --daemon beads\``,
-            );
-          }
-          return 0;
-        }
-        if (parsed.verb === "provision-builder") {
-          // prx-62h: install nix in the VM + make it a trusted remote builder, so
-          // aarch64-linux/OCI builds offload here. Prints the host machines line
-          // the operator registers (prx never edits host /etc/nix/* itself).
-          const result = provisionVmNixBuilder({
-            vm: parsed.vm!,
-            ...(parsed.maxJobs !== undefined ? { maxJobs: parsed.maxJobs } : {}),
-            ...(parsed.systems !== undefined ? { systems: parsed.systems } : {}),
-            ...(parsed.installerUrl !== undefined ? { nixInstallerUrl: parsed.installerUrl } : {}),
-          });
-          if (parsed.format === "json") {
-            output.log(JSON.stringify(result, null, 2));
-          } else {
-            output.log(result.machinesLine);
-            output.error(
-              `lima provision-builder on ${parsed.vm}: nix builder ready. ` +
-                `Register it by adding the line above to /etc/nix/machines (and set ` +
-                `\`builders = @/etc/nix/machines\` in nix.conf) so \`nix build\` offloads here.`,
-            );
-          }
-          return 0;
-        }
-        const daemons = selectLimaDaemons(parsed.daemon);
-        if (parsed.verb === "up") {
-          for (const d of daemons) {
-            const handle = await d.provision({
-              vm: parsed.vm!,
-              binaryPath: parsed.binary!,
-              cwd: parsed.cwd!,
-              ...(parsed.socket !== undefined ? { socket: parsed.socket } : {}),
-              ...(parsed.provenanceKeyFile !== undefined
-                ? { provenanceKeyFile: parsed.provenanceKeyFile }
-                : {}),
-            });
-            output.error(`lima up on ${parsed.vm}: ${d.name} listening at ${handle.socket}`);
-          }
-          return 0;
-        }
-        // down
-        for (const d of daemons) {
-          await d.stop({
-            vm: parsed.vm!,
-            ...(parsed.socket !== undefined ? { socket: parsed.socket } : {}),
-          });
-          output.error(`lima down on ${parsed.vm}: ${d.name} stopped`);
+        // prx-62h: install nix in the VM + make it a trusted remote builder, so
+        // aarch64-linux/OCI builds offload here. Prints the host machines line
+        // the operator registers (prx never edits host /etc/nix/* itself).
+        const result = provisionVmNixBuilder({
+          vm: parsed.vm,
+          ...(parsed.maxJobs !== undefined ? { maxJobs: parsed.maxJobs } : {}),
+          ...(parsed.systems !== undefined ? { systems: parsed.systems } : {}),
+          ...(parsed.installerUrl !== undefined ? { nixInstallerUrl: parsed.installerUrl } : {}),
+        });
+        if (parsed.format === "json") {
+          output.log(JSON.stringify(result, null, 2));
+        } else {
+          output.log(result.machinesLine);
+          output.error(
+            `lima provision-builder on ${parsed.vm}: nix builder ready. ` +
+              `Register it by adding the line above to /etc/nix/machines (and set ` +
+              `\`builders = @/etc/nix/machines\` in nix.conf) so \`nix build\` offloads here.`,
+          );
         }
         return 0;
       })();

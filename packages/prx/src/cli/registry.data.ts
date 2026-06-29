@@ -1277,49 +1277,14 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
   // the VM's daemons are brought up/down/inspected from one place.
   {
     name: "lima",
-    description: "Manage in-VM daemons (keeper + beads) on a Lima VM",
-    domain: "work-units",
-    actor: "keeper",
-  },
-  {
-    name: "lima up",
-    parent: "lima",
-    description: "Deploy + start in-VM daemon(s) on a Lima VM (--daemon keeper|beads|all)",
-    domain: "work-units",
-    actor: "keeper",
-  },
-  {
-    name: "lima down",
-    parent: "lima",
-    description: "Stop in-VM daemon(s) on a Lima VM (--daemon keeper|beads|all)",
-    domain: "work-units",
-    actor: "keeper",
-  },
-  {
-    name: "lima daemons",
-    parent: "lima",
-    description: "List the registered in-VM daemons and their default sockets",
-    domain: "work-units",
-    actor: "keeper",
-  },
-  {
-    name: "lima status",
-    parent: "lima",
-    description: "Show which in-VM daemons are up on a Lima VM",
-    domain: "work-units",
-    actor: "keeper",
-  },
-  {
-    // GH-296: install bd+dolt + clone canonical beads into the VM (beadsd source).
-    name: "lima provision-beads",
-    parent: "lima",
-    description: "Install bd+dolt and clone canonical beads into a Lima VM (GH-296)",
+    description: "Manage the Lima nix remote builder (prx-62h)",
     domain: "work-units",
     actor: "keeper",
   },
   {
     // prx-62h: install nix in the VM + register it as a nix remote builder so
-    // aarch64-linux/OCI fleet images build off it (flavor B of the OCI ADR).
+    // aarch64-linux/OCI fleet images build off it (flavor B of the OCI ADR). The
+    // in-VM DAEMONS (keeper/beads) were retired for the podman pod (prx-zj8).
     name: "lima provision-builder",
     parent: "lima",
     description: "Install nix in a Lima VM as a remote builder (prx-62h)",
