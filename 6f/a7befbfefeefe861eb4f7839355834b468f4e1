@@ -1,0 +1,36 @@
+packages/prx/src/beadsd/client-factory.ts
+  s_399e6065f1b4a3::t_847a68c09f5428 47-51,53-61,72-98
+  s_399e6065f1b4a3::t_e2173a87b7fa3e 273
+  s_399e6065f1b4a3::t_039aa90d7037c2 62-71
+  s_399e6065f1b4a3::t_7497b2bf513d85 266-270,274-275
+  s_399e6065f1b4a3::t_c208ed7ad5e906 17,25
+packages/prx/test/beadsd/client-factory.test.ts
+  s_399e6065f1b4a3::t_0ac1f10d5cf03b 51-56
+  s_399e6065f1b4a3::t_ef9b1136cbce26 11
+  s_399e6065f1b4a3::t_e04b246fa348ba 22-24,30-43,47-48
+  s_98e316d0b3248a::t_a3d39afcc11436 49-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "6fa7befbfefeefe861eb4f7839355834b468f4e1",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    },
+    "s_98e316d0b3248a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8db980ee-eb6b-4866-832b-f795cef7f33c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
