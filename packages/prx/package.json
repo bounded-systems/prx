@@ -26,7 +26,7 @@
     "@bounded-systems/gh": "npm:@jsr/bounded-systems__gh@^0.1.0",
     "@bounded-systems/git": "npm:@jsr/bounded-systems__git@^0.1.0",
     "@bounded-systems/github-budget": "npm:@jsr/bounded-systems__github-budget@^0.1.0",
-    "@bounded-systems/guest-room": "npm:@jsr/bounded-systems__guest-room@^0.4.0",
+    "@bounded-systems/guest-room": "npm:@jsr/bounded-systems__guest-room@^0.5.0",
     "@bounded-systems/host": "npm:@jsr/bounded-systems__host@^0.2.0",
     "@bounded-systems/machine-schema": "npm:@jsr/bounded-systems__machine-schema@^0.3.0",
     "@bounded-systems/ocap-provenance": "npm:@jsr/bounded-systems__ocap-provenance@^0.2.0",

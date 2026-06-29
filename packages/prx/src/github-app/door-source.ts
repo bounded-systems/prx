@@ -6,6 +6,7 @@
 import { call } from "@bounded-systems/guest-room/protocol";
 
 import { IsolatedGhappdClient, type GhappdTransport } from "../ghappd/client.ts";
+import { type GrantProvider } from "../door/grant-provider.ts";
 import { type Broker, type BrokeredToken, cachingBroker } from "./broker.ts";
 
 export interface DoorBrokerOptions {
@@ -16,6 +17,14 @@ export interface DoorBrokerOptions {
   readonly permissions?: Readonly<Record<string, string>>;
   /** Injected transport (tests); defaults to a guest-room `call` to the endpoint. */
   readonly transport?: GhappdTransport;
+  /**
+   * Optional signed-grant provider. On a TCP/cross-host ghappd a reachable
+   * socket is not authority, so the lease must present a grant (the door's
+   * `signedGrantAuthorizer` verifies it); the provider refreshes it before TTL.
+   * Omitted ⇒ no grant presented (a unix door, where the held reference is the
+   * authority).
+   */
+  readonly grantProvider?: GrantProvider;
   readonly now?: () => number;
   readonly refreshMarginMs?: number;
 }
@@ -23,16 +32,20 @@ export interface DoorBrokerOptions {
 /**
  * The default ghappd transport: speak the guest-room door protocol — `call` the
  * `lease` method at the endpoint with the request's attenuation as params (the
- * `kind` discriminator is now carried by the method name, not the body). A
+ * `kind` discriminator is now carried by the method name, not the body). When a
+ * `grantProvider` is given, a live signed grant rides in the call (TCP doors). A
  * gate-denied / malformed reply rejects (fail-closed); a `status: "error"` lease
  * is a normal resolved reply (data, not an exception).
  */
-function ghappdCallTransport(endpoint: string): GhappdTransport {
-  return (request) =>
-    call(endpoint, "lease", {
+function ghappdCallTransport(endpoint: string, grantProvider?: GrantProvider): GhappdTransport {
+  return async (request) => {
+    const params = {
       ...(request.repositories ? { repositories: request.repositories } : {}),
       ...(request.permissions ? { permissions: request.permissions } : {}),
-    });
+    };
+    const grant = grantProvider ? await grantProvider.current() : undefined;
+    return call(endpoint, "lease", params, grant ? { grant } : {});
+  };
 }
 
 /**
@@ -41,7 +54,8 @@ function ghappdCallTransport(endpoint: string): GhappdTransport {
  * (fail-closed — there is no local PEM fallback on the door path).
  */
 export function createDoorBroker(options: DoorBrokerOptions): Broker {
-  const transport = options.transport ?? ghappdCallTransport(options.endpoint);
+  const transport =
+    options.transport ?? ghappdCallTransport(options.endpoint, options.grantProvider);
   const client = new IsolatedGhappdClient((request) => transport(request));
 
   const fetchToken = async (): Promise<BrokeredToken> => {
