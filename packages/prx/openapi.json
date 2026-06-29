@@ -35,6 +35,35 @@
         }
       }
     },
+    "/concierge/serve": {
+      "post": {
+        "operationId": "concierge_serve",
+        "summary": "Run concierged — register/resolve/keys/list grant broker (prx-8uf2).",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/concierge_serveInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/concierge_serveOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/contract": {
       "post": {
         "operationId": "contract",
@@ -1119,6 +1148,41 @@
         },
         "required": [
           "rendered"
+        ],
+        "additionalProperties": false
+      },
+      "concierge_serveInput": {
+        "type": "object",
+        "properties": {
+          "socket": {
+            "type": "string",
+            "minLength": 1,
+            "description": "unix socket path the concierge listens on"
+          },
+          "pidfile": {
+            "description": "write the daemon pid here (removed on close)",
+            "type": "string"
+          },
+          "cwd": {
+            "description": "ignored — concierged is not repo-bound",
+            "type": "string"
+          }
+        },
+        "required": [
+          "socket"
+        ],
+        "additionalProperties": false
+      },
+      "concierge_serveOutput": {
+        "type": "object",
+        "properties": {
+          "socket": {
+            "type": "string",
+            "description": "the unix socket the concierge listened on"
+          }
+        },
+        "required": [
+          "socket"
         ],
         "additionalProperties": false
       },
