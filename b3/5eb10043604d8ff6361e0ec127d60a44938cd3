@@ -1,0 +1,21 @@
+packages/prx/src/github-app/__tests__/door-source.test.ts
+  s_c4318117f42b02::t_9dc4387778d524 1-4,6,8,14-36,38-41
+  s_c4318117f42b02::t_734eaa8e2a3121 37
+  s_c4318117f42b02::t_e7933c1c43dad1 42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "b35eb10043604d8ff6361e0ec127d60a44938cd3",
+  "prompts": {},
+  "sessions": {
+    "s_c4318117f42b02": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b707ec58-424b-452d-b628-e6eb4bd39018",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
