@@ -1,5 +1,0 @@
----
-"@bounded-systems/prx": minor
----
-
-ghappd parity (prx-8uf2) — converge ghappd onto the guest-room door protocol and gate its TCP edge, mirroring keeperd. ghappd's daemon now serves `lease` via guest-room's `createDoorHandlers` (the same wire as keeperd/beadsd) instead of its bespoke length-prefixed framing, supports a `host:port` TCP endpoint, and installs `signedGrantAuthorizer` on the TCP path (a request must carry a grant minted for the `ghapp` door; unix bypasses — held-ref). The client (`github-app/door-source.ts`) leases via guest-room `call`. Config-gated by `GHAPPD_GRANT_AUDIENCE` + `GHAPPD_ISSUER_KEYS`; unconfigured TCP stays loopback + WARNs. The gate logic is extracted to a shared `src/door/grant-gate.ts` (`buildDoorAuthorizer` / `resolveDoorGrantGate`) and `src/door/listen-target.ts`, with keeperd refactored to thin wrappers — no duplication. Both ends of ghappd live in prx, so the wire change is atomic in-repo (the deployed ghappd-box + consumer images must be rebuilt together).
