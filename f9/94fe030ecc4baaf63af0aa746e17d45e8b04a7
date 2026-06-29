@@ -1,0 +1,20 @@
+packages/prx/test/value_props.test.ts
+  s_5af7d7257a71b7::t_517a3d8457163f 51,53-54
+  s_5af7d7257a71b7::t_38b6d40a835915 16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "f994fe030ecc4baaf63af0aa746e17d45e8b04a7",
+  "prompts": {},
+  "sessions": {
+    "s_5af7d7257a71b7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b292ff53-e67d-4386-be49-f24217c202d5",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
