@@ -80,11 +80,10 @@ export interface PrimeHostBeadsDoorDeps {
 /**
  * Host-shell read routing (prx-82b Slice 2e.1): when host `prx` runs in a repo
  * whose pod is up, point `PRX_BEADS_DOOR`/`PRX_BEADS_SOCKET` at that pod so the
- * door-gated bd READ sites (`bdDoorGate`/`bdCommandRunner`) route to the pod
- * instead of spawning host bd. No-op when already in a profile (the pod projects
- * these into rooms) or when no pod is up (the host-native daemon stays the
- * fallback until 2e.4). Returns true iff it primed the door. Call once at startup
- * before the door dialer is consulted.
+ * door-gated bd READ sites route to the pod instead of spawning host bd. No-op
+ * when already in a profile (the pod projects these into rooms) or when no pod is
+ * up (the host-native daemon stays the fallback until 2e.4). Returns true iff it
+ * primed the door. Call once at startup before the door dialer is consulted.
  */
 export function primeHostBeadsDoor(deps: PrimeHostBeadsDoorDeps = {}): boolean {
   const env = deps.env ?? getEnv;
