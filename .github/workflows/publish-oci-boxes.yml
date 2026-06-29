@@ -4,6 +4,7 @@ name: publish-oci-boxes
 # These are the "box" images that run inside the prx pod rooms + backing services:
 #   beadsd-box → ghcr.io/bounded-systems/prx/beadsd-box
 #   ghappd-box → ghcr.io/bounded-systems/prx/ghappd-box
+#   concierged-box → ghcr.io/bounded-systems/prx/concierged-box  (grant broker, prx-8uf2)
 #   dolt-box   → ghcr.io/bounded-systems/prx/dolt-box  (backing service, prx-asr)
 #   nix-builder-box → ghcr.io/bounded-systems/prx/nix-builder-box  (the nix remote builder, prx-zj8)
 #
@@ -178,6 +179,84 @@ jobs:
         if: ${{ inputs.dry_run }}
         run: |
           echo "### ghappd-box (dry run)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Built successfully — not pushed (dry_run=true)." >> "$GITHUB_STEP_SUMMARY"
+
+  concierged-box:
+    name: concierged-box (aarch64-linux)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+
+      - name: Install skopeo
+        run: sudo apt-get install -y skopeo
+
+      - uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build concierged-box OCI stream (nix)
+        run: nix build .#concierged-box --out-link ./stream-concierged-box
+
+      - name: Push to GHCR
+        if: ${{ !inputs.dry_run }}
+        id: push
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/prx/concierged-box
+        run: |
+          set -euo pipefail
+          # Determine tags: always push 'latest'; also tag by semver on a tag push.
+          TAGS=("latest")
+          if [[ "${GITHUB_REF:-}" == refs/tags/* ]]; then
+            TAGS+=("${GITHUB_REF_NAME}")
+          fi
+          # skopeo reads docker credentials from ~/.docker/config.json (set by login-action).
+          # --insecure-policy: containers policy.json is absent on CI runners; bypass it.
+          ./stream-concierged-box | skopeo --insecure-policy copy \
+            --format v2s2 \
+            --digestfile /tmp/concierged-box-digest.txt \
+            docker-archive:/dev/stdin \
+            "docker://${IMAGE}:${TAGS[0]}"
+          DIGEST=$(cat /tmp/concierged-box-digest.txt)
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          # Tag additional refs (e.g. semver tag) by re-copying from the just-pushed latest.
+          for tag in "${TAGS[@]:1}"; do
+            skopeo --insecure-policy copy \
+              "docker://${IMAGE}:${TAGS[0]}" \
+              "docker://${IMAGE}:${tag}"
+          done
+          # Step summary — paste this into concierged-room.ts to pin the digest.
+          {
+            echo "### concierged-box published"
+            echo ""
+            echo "Pin in \`concierged-room.ts\`:"
+            echo "\`\`\`"
+            echo "${IMAGE}@${DIGEST}"
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Attest image provenance
+        if: ${{ !inputs.dry_run }}
+        continue-on-error: true
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/prx/concierged-box
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Dry run summary
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "### concierged-box (dry run)" >> "$GITHUB_STEP_SUMMARY"
           echo "Built successfully — not pushed (dry_run=true)." >> "$GITHUB_STEP_SUMMARY"
 
   dolt-box:
