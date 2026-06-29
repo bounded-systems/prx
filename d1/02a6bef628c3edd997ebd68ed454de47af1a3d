@@ -1,0 +1,22 @@
+packages/prx/community/community.json
+  s_5af7d7257a71b7::t_d5e71e10644208 6
+packages/prx/src/value_props.ts
+  s_5af7d7257a71b7::t_825e469dfb1584 316-317,320-324,330,332,335-339,343
+  s_5af7d7257a71b7::t_c133df95cd007b 216-225
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "d102a6bef628c3edd997ebd68ed454de47af1a3d",
+  "prompts": {},
+  "sessions": {
+    "s_5af7d7257a71b7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b292ff53-e67d-4386-be49-f24217c202d5",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
