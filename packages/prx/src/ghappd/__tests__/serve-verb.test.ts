@@ -1,9 +1,7 @@
-import type { Server } from "node:net";
-
 import { describe, expect, test } from "bun:test";
 
 import type { BrokerConfig } from "../../github-app/broker-config.ts";
-import type { GhappdServeOptions } from "../daemon.ts";
+import type { GhappdServeOptions, GhappdServer } from "../daemon.ts";
 import { ghappServeVerb, type GhappServeDeps } from "../serve-verb.ts";
 
 const CONFIG: BrokerConfig = {
@@ -13,14 +11,12 @@ const CONFIG: BrokerConfig = {
   source: "inline",
 };
 
-/** A Server stub that fires "close" on the next tick so run() unblocks. */
-function fakeServer(): Server {
+/** A GhappdServer stub whose `closed` resolves on the next tick so run() unblocks. */
+function fakeServer(): GhappdServer {
   return {
-    on(event: string, cb: () => void) {
-      if (event === "close") setTimeout(cb, 0);
-      return this;
-    },
-  } as unknown as Server;
+    close: async () => {},
+    closed: new Promise<void>((resolve) => setTimeout(resolve, 0)),
+  };
 }
 
 describe("ghappServeVerb", () => {

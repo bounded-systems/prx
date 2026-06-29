@@ -75,7 +75,7 @@ export const ghappServeVerb = defineVerb({
     );
 
     // Block until the process is terminated — the daemon runs until killed.
-    await new Promise<void>((resolve) => server.on("close", () => resolve()));
+    await server.closed;
     return { socket: input.socket, configured: config !== null };
   },
 });

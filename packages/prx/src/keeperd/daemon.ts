@@ -25,6 +25,7 @@ import { closeSync, constants as FS, existsSync, openSync, rmSync, writeSync } f
 import { type Derivation } from "@bounded-systems/anchored-chain";
 import { execGit } from "@bounded-systems/git";
 import { createDoorHandlers } from "@bounded-systems/guest-room/protocol";
+import { listenTarget } from "../door/listen-target.ts";
 import { KeeperGitError, runKeeperPush, type KeeperPushDeps } from "../pr-state/keeper.ts";
 import { type AttestDeps } from "../provenance/attest.ts";
 import { importBundleIntoRepo } from "./bundle.ts";
@@ -197,17 +198,6 @@ export interface KeeperServer {
   close(): Promise<void>;
   /** Resolves when the daemon stops — a CLI blocks on this to run until killed. */
   readonly closed: Promise<void>;
-}
-
-/** A Bun.listen target: a unix socket path, or a `host:port` TCP target. A leading
- *  "/" (or `unix://`) is a unix path; otherwise `host:port` (optional `tcp://`). */
-function listenTarget(endpoint: string): { unix: string } | { hostname: string; port: number } {
-  const stripped = endpoint.replace(/^unix:\/\//, "");
-  if (!stripped.startsWith("/")) {
-    const m = stripped.replace(/^tcp:\/\//, "").match(/^([^/\s]+):(\d{1,5})$/);
-    if (m) return { hostname: m[1]!, port: Number(m[2]) };
-  }
-  return { unix: stripped };
 }
 
 /**
