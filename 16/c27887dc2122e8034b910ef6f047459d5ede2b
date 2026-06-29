@@ -1,0 +1,26 @@
+packages/prx/src/pr-state/cli.ts
+  s_399e6065f1b4a3::t_bd61a2f2976994 14779-14782
+  s_399e6065f1b4a3::t_3392785b3a34ad 320-324
+packages/prx/test/beadsd/client-factory.test.ts
+  s_399e6065f1b4a3::t_1eaca5d9da85d8 12
+  s_399e6065f1b4a3::t_42c7ed211c9544 205-240
+packages/prx/src/beadsd/client-factory.ts
+  s_399e6065f1b4a3::t_8667ddd9c3e4d0 19
+  s_399e6065f1b4a3::t_3844607cad35b2 72-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "16c27887dc2122e8034b910ef6f047459d5ede2b",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
