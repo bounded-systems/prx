@@ -256,12 +256,17 @@ describe("renderPodmanRun (prx-b44y — secret-holding rooms)", () => {
     expect(cmdArgs[portIdx + 1]).toBe("9999");
   });
 
-  test("publishes the TCP port for the macOS virtiofs workaround (prx-zj8)", () => {
+  test("publishes the TCP port on LOOPBACK for the macOS virtiofs workaround (prx-zj8, prx-8uf2)", () => {
     // virtiofs exposes the socket file but not socket semantics → Mac host
     // can't connect via Unix; port mapping lets it connect via KEEPERD_HOST.
+    // The bind MUST be loopback-only: a credential door (keeperd holds the push
+    // token) with no TCP-edge auth yet must never be reachable off-host (the
+    // door-bridge ADR's immediate safety fix, prx-8uf2). 0.0.0.0 would leak it.
     const i = argv.indexOf("--publish");
     expect(i).toBeGreaterThanOrEqual(0);
-    expect(argv[i + 1]).toBe("9999:9999");
+    expect(argv[i + 1]).toBe("127.0.0.1:9999:9999");
+    // Defence in depth: assert no bind on the wildcard interface.
+    expect(argv).not.toContain("9999:9999");
     // A room without tcpPort gets no --publish.
     const noPort = renderPodmanRun(
       {

@@ -139,12 +139,15 @@ export const RoomSpecSchema = z.object({
    */
   extraArgs: z.array(z.string()).default([]),
   /**
-   * Host TCP port to publish from this room (`-p <tcpPort>:<tcpPort>` in `podman
-   * run`). Also appended as `--port <tcpPort>` in CMD args so the daemon listens
-   * on TCP. Use for hosts where Unix-socket semantics don't cross the
-   * container-runtime boundary (e.g. macOS virtiofs: the socket file appears on
-   * the host filesystem but connections from the Mac host fail — ENOENT — because
-   * virtiofs forwards file semantics, not socket semantics). Absent by default.
+   * Host TCP port to publish from this room (`-p 127.0.0.1:<tcpPort>:<tcpPort>`
+   * in `podman run`). Also appended as `--port <tcpPort>` in CMD args so the
+   * daemon listens on TCP. Use for hosts where Unix-socket semantics don't cross
+   * the container-runtime boundary (e.g. macOS virtiofs: the socket file appears
+   * on the host filesystem but connections from the Mac host fail — ENOENT —
+   * because virtiofs forwards file semantics, not socket semantics). The publish
+   * is LOOPBACK-bound (not `0.0.0.0`): these are credential doors with no TCP-edge
+   * auth yet, so off-host reachability would leak the credential (door-bridge ADR
+   * safety fix, prx-8uf2). Absent by default.
    */
   tcpPort: z.number().int().positive().optional(),
 });
