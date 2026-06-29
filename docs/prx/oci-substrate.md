@@ -142,7 +142,12 @@ seam (injected runner ⇒ offline-tested; a non-zero exit → typed
 - **image registry refs** — `RoomSpec.image` carries the `-box` short name; the
   full registry ref (or local containerd load) is resolved at deploy.
 - **isolation tier** — shared-kernel pod; gVisor/runsc hardening is prx-5p5.
-- **retire the Lima daemon-VM** once the pod path is the default.
+- **retire the Lima daemon-VM** — ✅ done (prx#824/#825/#828): removed the in-VM
+  daemon code (`prx lima up|down|daemons|status|provision-beads`, `keeper up|down`,
+  the `--vm`/`PRX_BEADS_VM` beads path, and the `lima/{registry,lifecycle,channel}`
+  + `beadsd/provision` + `keeperd/lima-keeperd` + `ghappd/lima-ghappd` modules).
+  The Lima VM **remains as the nix remote builder** (`prx lima provision-builder`,
+  prx-62h). Removing the host bd/dolt install is the separate endgame, prx-82b.
 
 ## Sequencing (done)
 
@@ -152,7 +157,7 @@ prx-62h  Linux builder (Lima VM as remote builder)        ✅ works
    ├─ dolt-box ✅ #623                 └─ prx-d4o claude-box  ✅ (claude-box repo)
         └─ prx-asr  runtime ✅ #630 + /work ✅ #631 + door env ✅ #626/#628
              + prx-runnability ✅ #632
-                  └─ retire the Lima daemon-VM   ◻ remaining
+                  └─ retire the Lima daemon-VM   ✅ #824/#825/#828 (builder VM stays)
 ```
 
 ## Validation

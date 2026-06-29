@@ -1250,9 +1250,9 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     internal: true,
   },
 
-  // ─── Lima — in-VM daemon lifecycle (keeper + beads); GH-228 ────────────────
-  // Generalizes `keeper up|down` into one namespace over a daemon registry, so
-  // the VM's daemons are brought up/down/inspected from one place.
+  // ─── Lima — the nix remote builder (prx-62h) ───────────────────────────────
+  // The in-VM daemons (keeper/beads) were retired for the podman pod (prx-zj8);
+  // only the builder remains on Lima.
   {
     name: "lima",
     description: "Manage the Lima nix remote builder (prx-62h)",
