@@ -1,0 +1,57 @@
+packages/prx/src/sync/serve.ts
+  s_399e6065f1b4a3::t_46521a7041c6c2 1-16,19-43,48-52,55-124,126-129,137-138,144-159
+  s_399e6065f1b4a3::t_b2509423a6f65f 53-54
+  s_399e6065f1b4a3::t_eb5d296f89ae59 44-47
+  s_399e6065f1b4a3::t_7e4d4c6b80f10f 17-18
+  s_399e6065f1b4a3::t_d8c824a6a87dd4 125,130-136,139-143
+packages/prx/src/cli/registry.data.ts
+  s_399e6065f1b4a3::t_0dafa1e551b372 1931-1940
+  s_29527a1cf44457::t_92b11d05a2d786 1930
+packages/prx/test/sync/serve-verb.test.ts
+  s_399e6065f1b4a3::t_05a0a02b56609a 1-21,24-40,42-56
+  s_399e6065f1b4a3::t_8a1f64a6ef9d80 22-23
+  s_399e6065f1b4a3::t_30787159c2fa93 41
+packages/prx/src/sync/serve-verb.ts
+  s_399e6065f1b4a3::t_abf1c8829d779d 52-55
+  s_399e6065f1b4a3::t_2ed1dccabc6ec2 1-51,56-61
+packages/prx/src/pr-state/cli.ts
+  s_399e6065f1b4a3::t_e82d4718e9627a 14861-14866
+packages/prx/src/cli/verb-registry.ts
+  s_399e6065f1b4a3::t_c88f497a6f1d41 37
+  s_399e6065f1b4a3::t_3f6e5cb6cc3c15 77
+packages/prx/test/sync/serve.test.ts
+  s_399e6065f1b4a3::t_0ebb2fbce696fc 124-144
+  s_399e6065f1b4a3::t_48f596c2b7bbb3 1-123,145-148
+.changeset/sync-agent-serve.md
+  s_399e6065f1b4a3::t_50b184c3a6011d 1-12
+docs/cli.md
+  s_399e6065f1b4a3::t_063036e99e0325 5,178
+packages/prx/openapi.json
+  s_399e6065f1b4a3::t_00ca989e95d2bf 1082-1110,3438-3470
+packages/prx/test/pr-state/help/__snapshots__/help.snapshot.test.ts.snap
+  s_399e6065f1b4a3::t_facaaed37ce6f1 85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a4a2fb8b636684722d5802e6dd66cf0dc988a3c1",
+  "prompts": {},
+  "sessions": {
+    "s_29527a1cf44457": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "85265b05-183c-47f0-a52e-e37a83f4211c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    },
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
