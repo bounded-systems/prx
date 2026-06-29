@@ -1,0 +1,23 @@
+packages/prx/src/room/spec.ts
+  s_399e6065f1b4a3::t_c2521c0a42357c 192-193
+packages/prx/src/room/dolt-service.ts
+  s_399e6065f1b4a3::t_da7018e94c55f7 40,42-47,49-55
+packages/prx/src/room/per-repo-pod.ts
+  s_399e6065f1b4a3::t_a3bdb0a4cf844c 32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "3b4146e53050d3f07b29799d0aa80d28eddcf501",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
