@@ -30,6 +30,13 @@ export interface BdLifecycleOpts {
    * ephemeral container — no ad-hoc bind. Reuses the room {@link RoomSecret}.
    */
   secrets?: readonly RoomSecret[] | undefined;
+  /**
+   * Extra `-e KEY=VALUE` env for the container, beyond the always-set
+   * `HOME=/tmp`. For NON-secret identity a cred-bearing op needs (e.g. dolt's
+   * `user.creds` pubkey / email / name to install alongside the mounted jwk).
+   * The credential itself rides {@link BdLifecycleOpts.secrets}, never here.
+   */
+  env?: Readonly<Record<string, string>> | undefined;
 }
 
 /**
@@ -48,6 +55,7 @@ export function renderBdLifecycleArgs(o: BdLifecycleOpts): string[] {
     "--secret",
     `${s.name},target=${s.target}`,
   ]);
+  const envArgs = Object.entries(o.env ?? {}).flatMap(([k, v]) => ["-e", `${k}=${v}`]);
   return [
     "run",
     "--rm",
@@ -55,6 +63,7 @@ export function renderBdLifecycleArgs(o: BdLifecycleOpts): string[] {
     "keep-id",
     "-e",
     "HOME=/tmp",
+    ...envArgs,
     ...secretArgs,
     "-v",
     `${o.repo}:/work`,
