@@ -1,0 +1,26 @@
+packages/prx/src/cli/registry.data.ts
+  s_399e6065f1b4a3::t_39f5d581a6a206 1253-1255
+docs/prx/oci-substrate.md
+  s_399e6065f1b4a3::t_fb7c8629628cc3 145-150
+  s_399e6065f1b4a3::t_d0f1ece94a8275 160
+packages/prx/src/pr-state/cli.ts
+  s_399e6065f1b4a3::t_a1b59716807c00 315
+docs/prx/beadsd-door-wiring.md
+  s_399e6065f1b4a3::t_7186324ba483f0 38-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "21d0fda5779030e690f29901485848309aad41c8",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
