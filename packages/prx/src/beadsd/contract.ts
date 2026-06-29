@@ -68,6 +68,13 @@ export const BeadsRequestSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("recall"), key: z.string().min(1) }),
   /** `bd memories [<prefix>]` — memory rows whose key starts with prefix (READ). */
   z.object({ kind: z.literal("memories"), prefix: z.string().min(1).optional() }),
+  /**
+   * `bd config get <key>` — read a bd config value (READ). prx-82b 2e.2: routes
+   * watermark/config reads off host bd. NOTE: `bd config get` returns a PLAIN
+   * value (not `--json`), so the daemon replies `result` = the raw trimmed
+   * stdout, not a parsed object (handled like the non-JSON `dep` surface).
+   */
+  z.object({ kind: z.literal("config-get"), key: z.string().min(1) }),
   // ── writes (policy-gated; dispatched to `bd` --json) ──
   /** `bd remember <body> --key <key>` — upsert a memory row (WRITE). */
   z.object({ kind: z.literal("remember"), key: z.string().min(1), body: z.string() }),
@@ -139,6 +146,12 @@ export const BeadsRequestSchema = z.discriminatedUnion("kind", [
     to: z.string().min(1),
     depType: z.string().min(1).optional(),
   }),
+  /**
+   * `bd config set <key> <value>` — set a bd config value (WRITE). prx-82b 2e.2:
+   * routes watermark/config writes off host bd. `bd config set` echoes no record
+   * (like `dep`), so the daemon replies `result: null` on success.
+   */
+  z.object({ kind: z.literal("config-set"), key: z.string().min(1), value: z.string() }),
 ]);
 export type BeadsRequest = z.infer<typeof BeadsRequestSchema>;
 
@@ -150,6 +163,7 @@ export const BEADS_READ_KINDS = [
   "children",
   "recall",
   "memories",
+  "config-get",
 ] as const;
 /** The write kinds (policy-gated single-writer surface; GH-228 slice 5). */
 export const BEADS_WRITE_KINDS = [
@@ -159,6 +173,7 @@ export const BEADS_WRITE_KINDS = [
   "reopen",
   "dep",
   "remember",
+  "config-set",
 ] as const;
 /** Every kind beadsd exposes (the envelope), enumerable as an allowlist. */
 export const BEADS_REQUEST_KINDS = [...BEADS_READ_KINDS, ...BEADS_WRITE_KINDS] as const;

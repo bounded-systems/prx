@@ -11,8 +11,24 @@ import {
 
 describe("beadsd wire contract — request envelope", () => {
   test("the envelope is an enumerable read+write allowlist", () => {
-    expect(BEADS_READ_KINDS).toEqual(["ready", "list", "show", "children", "recall", "memories"]);
-    expect(BEADS_WRITE_KINDS).toEqual(["create", "update", "close", "reopen", "dep", "remember"]);
+    expect(BEADS_READ_KINDS).toEqual([
+      "ready",
+      "list",
+      "show",
+      "children",
+      "recall",
+      "memories",
+      "config-get",
+    ]);
+    expect(BEADS_WRITE_KINDS).toEqual([
+      "create",
+      "update",
+      "close",
+      "reopen",
+      "dep",
+      "remember",
+      "config-set",
+    ]);
     expect(BEADS_REQUEST_KINDS).toEqual([
       "ready",
       "list",
@@ -20,12 +36,14 @@ describe("beadsd wire contract — request envelope", () => {
       "children",
       "recall",
       "memories",
+      "config-get",
       "create",
       "update",
       "close",
       "reopen",
       "dep",
       "remember",
+      "config-set",
     ]);
   });
 

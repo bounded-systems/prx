@@ -614,3 +614,32 @@ describe("runBeadsServe (unix socket, end-to-end)", () => {
     }
   });
 });
+
+describe("handleBeadsRequest — config get/set (prx-82b 2e.2)", () => {
+  test("config-get dispatches `bd config get <key>` and returns the raw trimmed value", async () => {
+    const { execBd, calls } = fakeBd(okResult("2026-06-01T00:00:00Z\n"));
+    const res = await handleBeadsRequest(
+      { kind: "config-get", key: "prx.fetch.gh-issues.watermark" },
+      { execBd },
+    );
+    expect(calls[0]).toMatchObject({
+      subcommand: "config",
+      args: ["get", "prx.fetch.gh-issues.watermark"],
+    });
+    // Raw value, NOT JSON-parsed (the plain-output wrinkle).
+    expect(res).toMatchObject({ status: "ok", result: "2026-06-01T00:00:00Z" });
+  });
+
+  test("config-set dispatches `bd config set <key> <value>` and echoes no record", async () => {
+    const { execBd, calls } = fakeBd(okResult(""));
+    const res = await handleBeadsRequest({ kind: "config-set", key: "k", value: "v" }, { execBd });
+    expect(calls[0]).toMatchObject({ subcommand: "config", args: ["set", "k", "v"] });
+    expect(res).toMatchObject({ status: "ok", result: null });
+  });
+
+  test("a non-zero config-get exit surfaces a bd-read error", async () => {
+    const { execBd } = fakeBd({ exitCode: 1, stdout: "", stderr: "no such key", policy: null });
+    const res = await handleBeadsRequest({ kind: "config-get", key: "nope" }, { execBd });
+    expect(res).toMatchObject({ status: "error", code: "bd-read" });
+  });
+});
