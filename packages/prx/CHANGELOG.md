@@ -1,5 +1,16 @@
 # @bounded-systems/prx
 
+## 0.18.0
+
+### Minor Changes
+
+- 24ae9bb: Add `prx pod down` + `prx pod up --recreate` so the deploy lifecycle is fully prx-owned (no raw `podman pod rm`). `pod down` tears the pod down (kube down + rm secret-room containers — the counterpart `playPod`'s no-op message already pointed at); `pod up --recreate` tears down then launches, to apply a changed spec (e.g. a new image digest). Both routed in cli.ts + covered by the box-verbs-routed guard.
+
+### Patch Changes
+
+- 892576f: Repin ghappd-room to ghappd-box sha256:c6b0d636… — the rebuild carrying the `ghapp serve` CLI route (#814). The prior image (0b7d7be2) crashed the door daemon at deploy with "Unknown subcommand: ghapp". With this digest, `prx pod up` brings the forge door up.
+- 95c356f: Repin ghappd-room to ghappd-box sha256:d14a68c8… — the rebuild baking the released prx v0.17.1, which carries the `ghapp serve` CLI route (#814). Verified: `ghapp serve --help` dispatches in this image. The prior pins baked v0.17.0 (pre-route) and crashed the door at deploy ("Unknown subcommand: ghapp"). With this digest, `prx pod up --recreate` brings the forge door up on :9998.
+
 ## 0.17.1
 
 ### Patch Changes
