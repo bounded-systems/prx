@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { syncServeVerb, type SyncServeVerbDeps } from "../../src/sync/serve-verb.ts";
 import { DEFAULT_SYNC_INTERVAL_MS, type SyncServeHandle } from "../../src/sync/serve.ts";
@@ -26,10 +29,11 @@ describe("syncServeVerb", () => {
       log: (l) => logs.push(l),
     };
 
-    const out = await syncServeVerb.run({ interval: 60, pidfile: "/tmp/s.pid" }, deps);
+    const pidfile = join(mkdtempSync(join(tmpdir(), "prx-sync-")), "s.pid");
+    const out = await syncServeVerb.run({ interval: 60, pidfile }, deps);
 
     expect(servedMs).toBe(60_000);
-    expect(servedPidfile).toBe("/tmp/s.pid");
+    expect(servedPidfile).toBe(pidfile);
     expect(logs.some((l) => l.includes("every 60s"))).toBe(true);
     expect(out).toEqual({ intervalSeconds: 60 });
   });
