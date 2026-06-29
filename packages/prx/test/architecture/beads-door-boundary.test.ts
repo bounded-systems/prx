@@ -54,8 +54,9 @@ const HOST_ONLY_BD = [
   "pr-state/repo_add_dolthub.ts",
   "pr-state/repo_bootstrap.ts",
   "pr-state/repos.ts",
-  "fetch/watermark.ts",
-  "fetch/slack-watermark.ts",
+  // prx-82b 2e.2: fetch/watermark.ts + fetch/slack-watermark.ts no longer spawn
+  // bd — the fetch cursor is a host-local FILE now (neither door-gated nor
+  // host-bd), so they belong in neither list.
 ];
 
 function listTsFiles(dir: string): string[] {

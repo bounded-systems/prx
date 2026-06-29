@@ -80,8 +80,8 @@ export type FetchSlackDeps = {
   readHistory?: SlackFetchDeps["readHistory"];
   /** CAS port. Defaults to the on-disk plan-store CAS on the `slack` domain. */
   store?: Pick<BlobStore, "put" | "has">;
-  /** bd-config spawn seam for the watermark read/write (tests inject a fake). */
-  watermarkRunner?: WatermarkDeps["runner"];
+  /** Watermark cursor fs seam (read/write); prx-82b 2e.2 — file-based, not bd. */
+  watermarkFs?: Pick<WatermarkDeps, "readFile" | "writeFile" | "env">;
 };
 
 /**
@@ -165,7 +165,7 @@ export async function runFetchSlackSync(
 ): Promise<FetchSlackResult> {
   const watermarkDeps: WatermarkDeps = {
     cwd: deps.cwd,
-    ...(deps.watermarkRunner !== undefined ? { runner: deps.watermarkRunner } : {}),
+    ...deps.watermarkFs,
   };
 
   let from: string | null;

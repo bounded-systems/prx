@@ -1,39 +1,24 @@
-// GH-1245 — watermark wrapper for the fetch actor spike.
+// The gh-issues fetch cursor (GH-1245; prx-82b 2e.2).
 //
-// Beads owns the substrate, so the spike puts the watermark in
-// `bd config` under a `prx.fetch.*` namespace (spike doc §6, decision
-// log 2026-05-02). That gives clone-survival, queryability via SQL +
-// CLI, and reuse of bd's existing concurrency model without inventing
-// parallel state.
-//
-// The spike only exercises **read** at runtime — `setWatermark` exists
-// so the deliverable-2 probe (cost projection drops to ~0 after a
-// manual `bd github sync` writes the watermark) can be re-run from a
-// clean slate without leaving stale state behind. The post-spike write
-// ticket (spike doc §12 Ticket A) is the first caller that advances
-// the watermark from inside the verb.
+// WHAT IT IS: a LOCAL-FIRST, self-healing optimization cursor — the `updatedAt`
+// of the last gh issue mirrored into beads, so the next fetch only pulls issues
+// changed since (instead of re-reading everything). Like git-ai's local tracking
+// (and the sync agent's `sync/push-watermark.ts`), it is HOST-LOCAL state under
+// `~/.local/state/prx/sync/`, NOT data that must travel: the canonical issue data
+// lives in beads (which travels/survives via dolt). A missing cursor (fresh host,
+// new repo, lost file) is never WRONG — it just triggers one full re-fetch, then
+// re-establishes itself. That self-healing is how the durability concern is met
+// without depending on host `bd` (the old `bd config` home, prx-82b) — a fetch
+// cursor on the hot, sync, no-subprocess `work --check`/freshness path can't go
+// through host bd or the beadsd door (a subprocess), so it's a plain local file.
 
-import { spawnCapture } from "@bounded-systems/proc";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
+import { getEnv } from "@bounded-systems/env";
+
+/** Logical cursor names (also the on-disk basenames). Kept stable for logs. */
 export const WATERMARK_KEY = "prx.fetch.gh-issues.watermark";
 export const LAST_POINTS_KEY = "prx.fetch.gh-issues.last-points";
-
-export type SpawnResult = { stdout: string; stderr: string; status: number };
-
-export type SpawnRunner = (cmd: string[], options?: { cwd?: string }) => SpawnResult;
-
-// Routes the bd-config read through @bounded-systems/proc's sync capture primitive (no raw
-// spawn). Stays synchronous: watermark is internal infra read from sync seams
-// across scout/triage/fetch — the async ProcExecutor contract is the
-// remote-ready path for new code, not a forced rewrite of those seams here.
-export const defaultSpawnRunner: SpawnRunner = (cmd, options = {}) => {
-  const result = spawnCapture(cmd, options.cwd !== undefined ? { cwd: options.cwd } : {});
-  return {
-    stdout: result.stdout,
-    stderr: result.stderr,
-    status: result.status ?? 1,
-  };
-};
 
 export class WatermarkError extends Error {
   readonly code: string;
@@ -45,91 +30,78 @@ export class WatermarkError extends Error {
 }
 
 export type WatermarkDeps = {
+  /** The repo working dir the cursor is keyed by. */
   cwd: string;
-  runner?: SpawnRunner | undefined;
+  /** Read a file (default `fs.readFileSync`); tests inject. */
+  readFile?: ((path: string) => string) | undefined;
+  /** Write a file, creating parent dirs (default `fs`); tests inject. */
+  writeFile?: ((path: string, data: string) => void) | undefined;
+  /** Env lookup (default {@link getEnv}) — for `$HOME`. */
+  env?: typeof getEnv | undefined;
 };
 
+/** Filesystem-safe key from the repo cwd. */
+function safeKey(s: string): string {
+  return s.replace(/[^A-Za-z0-9._-]/g, "_");
+}
+
 /**
- * Read `prx.fetch.gh-issues.watermark` from `bd config`. Returns
- * `{ since: null }` when the key is absent. bd has two version-dependent
- * "absent" representations and both are coerced to `null`:
- *   - exit 0 with stdout `"<key> (not set)\n"` (current bd)
- *   - non-zero exit with stderr `"config key not set"` (legacy bd)
- * Throws `WatermarkError` only when the spawn itself failed for some
- * other reason (e.g., bd binary missing).
+ * The host-local cursor dir for a repo cwd. `null` when `$HOME` is unset (no
+ * persistence — every fetch is a full fetch, still correct).
  */
+function cursorDir(cwd: string, env: typeof getEnv): string | null {
+  const home = env("HOME");
+  if (typeof home !== "string" || home.length === 0) return null;
+  return `${home}/.local/state/prx/sync/gh-issues/${safeKey(cwd)}`;
+}
+
+/** Read a cursor file; `null` when absent/empty/unreadable (⇒ full fetch). */
+function readCursor(deps: WatermarkDeps, name: string): string | null {
+  const env = deps.env ?? getEnv;
+  const dir = cursorDir(deps.cwd, env);
+  if (dir === null) return null;
+  const read = deps.readFile ?? ((p: string) => readFileSync(p, "utf8"));
+  try {
+    const value = read(`${dir}/${name}`).trim();
+    return value.length > 0 ? value : null;
+  } catch {
+    return null; // absent ⇒ null ⇒ full re-fetch (self-healing)
+  }
+}
+
+/** Write a cursor file (best-effort — a failed write just means re-fetch next tick). */
+function writeCursor(deps: WatermarkDeps, name: string, value: string): void {
+  const env = deps.env ?? getEnv;
+  const dir = cursorDir(deps.cwd, env);
+  if (dir === null) return; // no HOME ⇒ no persistence
+  const write =
+    deps.writeFile ??
+    ((p: string, data: string) => {
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(p, data);
+    });
+  try {
+    write(`${dir}/${name}`, value);
+  } catch {
+    // Best-effort: the cursor is an optimization; a lost write self-heals on the
+    // next fetch (re-reads from the last persisted cursor, or full if none).
+  }
+}
+
+/** The fetch watermark (last mirrored `updatedAt`), or `{ since: null }` if unset. */
 export function getWatermark(deps: WatermarkDeps): { since: string | null } {
-  const runner = deps.runner ?? defaultSpawnRunner;
-  const result = runner(["bd", "config", "get", WATERMARK_KEY], {
-    cwd: deps.cwd,
-  });
-  if (result.status === 0) {
-    const trimmed = result.stdout.trim();
-    if (trimmed.length === 0) return { since: null };
-    // bd's exit-0 absent mode emits "<key> (not set)" on stdout. The
-    // parenthesized sentinel is the load-bearing marker — legitimate
-    // ISO-8601 timestamps cannot contain it.
-    if (trimmed.toLowerCase().includes("(not set)")) return { since: null };
-    return { since: trimmed };
-  }
-  // Legacy bd's exit-1 absent mode surfaces on stderr; coerce to null
-  // so callers can treat absence and an explicit empty value identically.
-  const combined = `${result.stdout}\n${result.stderr}`.toLowerCase();
-  if (combined.includes("not set") || combined.includes("not found")) {
-    return { since: null };
-  }
-  throw new WatermarkError(
-    `bd config get ${WATERMARK_KEY} failed (exit ${result.status}): ${result.stderr.trim()}`,
-    "WATERMARK_READ_FAILED",
-  );
+  return { since: readCursor(deps, "watermark") };
 }
 
-/**
- * Read `prx.fetch.gh-issues.last-points` from `bd config`. Returns
- * `{ points: null }` when the key is absent or stores a non-integer
- * value. Mirrors `getWatermark`'s absent-mode handling — both the
- * exit-0 `(not set)` sentinel and the legacy exit-1 stderr coerce to
- * `null`. Throws `WatermarkError` only when the spawn itself fails
- * for some other reason (e.g., bd binary missing).
- */
+/** The last-points cursor (GH points budget), or `{ points: null }` if unset/invalid. */
 export function getLastPoints(deps: WatermarkDeps): { points: number | null } {
-  const runner = deps.runner ?? defaultSpawnRunner;
-  const result = runner(["bd", "config", "get", LAST_POINTS_KEY], {
-    cwd: deps.cwd,
-  });
-  if (result.status === 0) {
-    const trimmed = result.stdout.trim();
-    if (trimmed.length === 0) return { points: null };
-    if (trimmed.toLowerCase().includes("(not set)")) return { points: null };
-    const n = Number.parseInt(trimmed, 10);
-    if (!Number.isFinite(n) || n < 0) return { points: null };
-    return { points: n };
-  }
-  const combined = `${result.stdout}\n${result.stderr}`.toLowerCase();
-  if (combined.includes("not set") || combined.includes("not found")) {
-    return { points: null };
-  }
-  throw new WatermarkError(
-    `bd config get ${LAST_POINTS_KEY} failed (exit ${result.status}): ${result.stderr.trim()}`,
-    "LAST_POINTS_READ_FAILED",
-  );
+  const raw = readCursor(deps, "last-points");
+  if (raw === null) return { points: null };
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? { points: n } : { points: null };
 }
 
-/**
- * Write `prx.fetch.gh-issues.watermark` to `bd config`. Unused by the
- * spike's read-only verb; lands here so the deliverable-2 measurement
- * (cost projection drops to ~0 after watermark advance) can be re-run
- * from scratch and so the post-spike write ticket has the seam.
- */
+/** Advance the fetch watermark. Best-effort (a lost write self-heals). */
 export function setWatermark(deps: WatermarkDeps, since: string): void {
-  const runner = deps.runner ?? defaultSpawnRunner;
-  const result = runner(["bd", "config", "set", WATERMARK_KEY, since], {
-    cwd: deps.cwd,
-  });
-  if (result.status !== 0) {
-    throw new WatermarkError(
-      `bd config set ${WATERMARK_KEY} failed (exit ${result.status}): ${result.stderr.trim()}`,
-      "WATERMARK_WRITE_FAILED",
-    );
-  }
+  writeCursor(deps, "watermark", since);
 }
