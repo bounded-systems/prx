@@ -1,0 +1,38 @@
+packages/prx/src/room/nix-builder-service.ts
+  s_399e6065f1b4a3::t_fe2ee56123545e 1-28
+flake.nix
+  s_399e6065f1b4a3::t_8aaeab9ff2d8f2 74-76
+docs/prx/articles/01-lra-vs-prx.md
+  s_0e0b4d6cd22542::t_dbd9b495984988 1-127
+.github/workflows/publish-oci-boxes.yml
+  s_399e6065f1b4a3::t_bc94c8c02b4227 8
+  s_399e6065f1b4a3::t_56fb7eea6dca07 256-328
+nix/oci/nix-builder-box.nix
+  s_399e6065f1b4a3::t_17c3e079a9425f 72-73,75-76
+  s_399e6065f1b4a3::t_143f6d3d9ee106 1-69,77-95
+  s_399e6065f1b4a3::t_3025c0d1816683 70-71,74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "358edd78b2d2f5b04d757b03f37ffc03212d1f2b",
+  "prompts": {},
+  "sessions": {
+    "s_0e0b4d6cd22542": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "25ca02d8-0ea9-405f-8441-40cf7bf0ee57",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    },
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
