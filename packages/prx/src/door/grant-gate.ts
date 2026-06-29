@@ -1,6 +1,6 @@
 /**
  * Shared door-side signed-grant gate (prx-8uf2) — the enforcement primitive
- * every credential door reuses (keeperd, ghappd, …).
+ * every credential door reuses (keeperd, forge-d, …).
  *
  * A credential door served over UNIX trusts the kernel-authenticated peer (the
  * held reference IS the authority). Served over a TCP/vsock edge, a reachable
@@ -9,7 +9,7 @@
  * The gate is a guest-room `RequestAuthorizer` over the request envelope's
  * `grant`; we reuse guest-room's `signedGrantAuthorizer` / `verifyGrantWithKeys`,
  * and the only prx-side pieces are the ed25519 crypto and the host-side config
- * seam. Per-door wrappers (`keeperd/grant-gate.ts`, `ghappd/grant-gate.ts`) bind
+ * seam. Per-door wrappers (`keeperd/grant-gate.ts`, `forge-d/grant-gate.ts`) bind
  * the door name + its env var names; the mechanism lives here once.
  *
  * The PRODUCTION source of the issuer keys + audience (keymaker publication +

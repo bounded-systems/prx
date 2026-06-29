@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
 import type { BrokerConfig } from "../../github-app/broker-config.ts";
-import type { GhappdServeOptions, GhappdServer } from "../daemon.ts";
-import { ghappServeVerb, type GhappServeDeps } from "../serve-verb.ts";
+import type { ForgeDServeOptions, ForgeDServer } from "../daemon.ts";
+import { forgeServeVerb, type ForgeServeDeps } from "../serve-verb.ts";
 
 const CONFIG: BrokerConfig = {
   issuer: "Iv1",
@@ -11,19 +11,19 @@ const CONFIG: BrokerConfig = {
   source: "inline",
 };
 
-/** A GhappdServer stub whose `closed` resolves on the next tick so run() unblocks. */
-function fakeServer(): GhappdServer {
+/** A ForgeDServer stub whose `closed` resolves on the next tick so run() unblocks. */
+function fakeServer(): ForgeDServer {
   return {
     close: async () => {},
     closed: new Promise<void>((resolve) => setTimeout(resolve, 0)),
   };
 }
 
-describe("ghappServeVerb", () => {
+describe("forgeServeVerb", () => {
   test("resolves the App key, serves with it as deps, logs listening", async () => {
-    let served: GhappdServeOptions | undefined;
+    let served: ForgeDServeOptions | undefined;
     const logs: string[] = [];
-    const deps: GhappServeDeps = {
+    const deps: ForgeServeDeps = {
       resolveConfig: () => CONFIG,
       readFile: () => "PEM",
       serve: async (opts) => {
@@ -33,17 +33,17 @@ describe("ghappServeVerb", () => {
       log: (l) => logs.push(l),
     };
 
-    const out = await ghappServeVerb.run({ socket: "/tmp/ghappd.sock" }, deps);
+    const out = await forgeServeVerb.run({ socket: "/tmp/forge-d.sock" }, deps);
 
-    expect(served?.socketPath).toBe("/tmp/ghappd.sock");
+    expect(served?.socketPath).toBe("/tmp/forge-d.sock");
     expect(served?.deps?.config?.issuer).toBe("Iv1");
-    expect(logs.some((l) => l.includes("listening on /tmp/ghappd.sock"))).toBe(true);
-    expect(out).toEqual({ socket: "/tmp/ghappd.sock", configured: true });
+    expect(logs.some((l) => l.includes("listening on /tmp/forge-d.sock"))).toBe(true);
+    expect(out).toEqual({ socket: "/tmp/forge-d.sock", configured: true });
   });
 
   test("serves without a key when unconfigured (configured:false; leases will error)", async () => {
     const logs: string[] = [];
-    const deps: GhappServeDeps = {
+    const deps: ForgeServeDeps = {
       resolveConfig: () => null,
       readFile: () => {
         throw new Error("should not read");
@@ -52,7 +52,7 @@ describe("ghappServeVerb", () => {
       log: (l) => logs.push(l),
     };
 
-    const out = await ghappServeVerb.run({ socket: "/tmp/x.sock" }, deps);
+    const out = await forgeServeVerb.run({ socket: "/tmp/x.sock" }, deps);
 
     expect(out.configured).toBe(false);
     expect(logs.some((l) => l.includes("no App key configured"))).toBe(true);

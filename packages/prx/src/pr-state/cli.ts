@@ -14846,9 +14846,9 @@ export function runCli(
     if (orchestratorVerb === "pod" && orchestratorRest[0] === "down") {
       return runSpecVerb("pod down", orchestratorRest.slice(1), output);
     }
-    // `ghapp serve` — the ghappd credential-broker door daemon (runs in ghappd-box).
-    if (orchestratorVerb === "ghapp" && orchestratorRest[0] === "serve") {
-      return runSpecVerb("ghapp serve", orchestratorRest.slice(1), output);
+    // `forge serve` — the forge-d credential-broker door daemon (runs in forge-d-box).
+    if (orchestratorVerb === "forge" && orchestratorRest[0] === "serve") {
+      return runSpecVerb("forge serve", orchestratorRest.slice(1), output);
     }
     // `builder up | register` — the nix remote builder as a podman container
     // (prx-zj8; replaces the retired `prx lima provision-builder`).

@@ -1,4 +1,4 @@
-// ghappd daemon: holds the GitHub App private key and answers `lease` with a
+// forge-d daemon: holds the GitHub App private key and answers `lease` with a
 // short-lived installation token, served over the guest-room door protocol
 // (prx→guest-room convergence — same wire as keeperd/beadsd). The request
 // handler is pure over deps (the App config + an injected mint), so the lease
@@ -11,15 +11,15 @@ import { createDoorHandlers } from "@bounded-systems/guest-room/protocol";
 import { listenTarget } from "../door/listen-target.ts";
 import { mintInstallationToken } from "../github-app/installation-token.ts";
 import {
-  buildGhappAuthorizer,
-  resolveGhappGrantGate,
-  GHAPP_DOOR,
-  type GhappGrantGate,
+  buildForgeAuthorizer,
+  resolveForgeGrantGate,
+  FORGE_DOOR,
+  type ForgeGrantGate,
 } from "./grant-gate.ts";
-import { GhappdRequestSchema, type GhappdRequest, type GhappdResponse } from "./contract.ts";
+import { ForgeDRequestSchema, type ForgeDRequest, type ForgeDResponse } from "./contract.ts";
 
-/** The App credential ghappd holds (sourced host-side; never sent to a caller). */
-export interface GhappdConfig {
+/** The App credential forge-d holds (sourced host-side; never sent to a caller). */
+export interface ForgeDConfig {
   /** App ID or Client ID — GitHub honors either as the JWT issuer. */
   readonly issuer: string;
   /** The App private-key PEM. Held in-process; never logged or returned. */
@@ -27,9 +27,9 @@ export interface GhappdConfig {
   readonly installationId: string;
 }
 
-export interface GhappdDaemonDeps {
+export interface ForgeDDaemonDeps {
   /** The held App credential. Absent ⇒ every lease replies `not-configured`. */
-  readonly config?: GhappdConfig;
+  readonly config?: ForgeDConfig;
   /** The minting primitive; injected for tests. */
   readonly mint?: typeof mintInstallationToken;
 }
@@ -39,12 +39,12 @@ export interface GhappdDaemonDeps {
  * if any) from the held App key. Pure over `deps`; never throws to the socket —
  * a failure becomes a `status: "error"` reply. The PEM is used, never returned.
  */
-export async function handleGhappdRequest(
-  request: GhappdRequest,
-  deps: GhappdDaemonDeps = {},
-): Promise<GhappdResponse> {
+export async function handleForgeDRequest(
+  request: ForgeDRequest,
+  deps: ForgeDDaemonDeps = {},
+): Promise<ForgeDResponse> {
   if (!deps.config) {
-    return { status: "error", code: "not-configured", message: "ghappd holds no GitHub App key" };
+    return { status: "error", code: "not-configured", message: "forge-d holds no GitHub App key" };
   }
   const mint = deps.mint ?? mintInstallationToken;
   try {
@@ -66,34 +66,34 @@ export async function handleGhappdRequest(
   }
 }
 
-function badRequest(message: string): GhappdResponse {
+function badRequest(message: string): ForgeDResponse {
   return { status: "error", code: "bad-request", message };
 }
 
-// ── serve: bind ghappd's contract handler over the guest-room door protocol ──
+// ── serve: bind forge-d's contract handler over the guest-room door protocol ──
 
-export interface GhappdServeOptions {
+export interface ForgeDServeOptions {
   /** Endpoint the daemon listens on — a unix socket path, or a `host:port` TCP
    *  target. A stale unix socket file is removed first. */
   socketPath: string;
   /** When set, the daemon records its pid here once listening (removed on close). */
   pidfile?: string | undefined;
-  deps?: GhappdDaemonDeps | undefined;
+  deps?: ForgeDDaemonDeps | undefined;
   /**
    * The signed-grant gate enforced on the TCP edge (prx-8uf2). When listening on
-   * TCP, requests must carry a grant minted for the `ghapp` door (audience + exp
+   * TCP, requests must carry a grant minted for the `forge` door (audience + exp
    * + issuer key); a unix listener ignores it (the held reference is the
    * authority). Omitted ⇒ resolved from the environment ({@link
-   * resolveGhappGrantGate}); a `null` resolution means NO TCP enforcement (kept
+   * resolveForgeGrantGate}); a `null` resolution means NO TCP enforcement (kept
    * loopback-bound by the publish-side safety fix).
    */
-  grantGate?: GhappGrantGate | null | undefined;
+  grantGate?: ForgeGrantGate | null | undefined;
   /** Structured log sink (level, message). Defaults to `console.error`. */
   log?: ((level: string, msg: string) => void) | undefined;
 }
 
-/** A handle on the running ghappd daemon: stop it, or await its close. */
-export interface GhappdServer {
+/** A handle on the running forge-d daemon: stop it, or await its close. */
+export interface ForgeDServer {
   /** Stop listening (and remove the socket/pidfile); resolves once closed. */
   close(): Promise<void>;
   /** Resolves when the daemon stops — a CLI blocks on this to run until killed. */
@@ -101,44 +101,44 @@ export interface GhappdServer {
 }
 
 /**
- * Bind the ghappd server over the guest-room door protocol: register the `lease`
+ * Bind the forge-d server over the guest-room door protocol: register the `lease`
  * method — its params validated against the wire contract, an invalid request
  * becoming a `bad-request` verdict while the daemon stays up — and listen on the
  * resolved endpoint (a unix socket, or a `host:port` for host/cross-host reach).
  * On a TCP edge the signed-grant gate is enforced before dispatch (see
- * {@link GhappdServeOptions.grantGate}); on unix the kernel-authenticated peer
+ * {@link ForgeDServeOptions.grantGate}); on unix the kernel-authenticated peer
  * is the authority. When `pidfile` is set the daemon records its pid there.
  */
-export function runGhappdServe(options: GhappdServeOptions): Promise<GhappdServer> {
+export function runForgeDServe(options: ForgeDServeOptions): Promise<ForgeDServer> {
   const { socketPath, pidfile, deps } = options;
   const target = listenTarget(socketPath);
   const onTcp = !("unix" in target);
-  const log = options.log ?? ((level: string, msg: string) => console.error(`ghappd ${level}: ${msg}`));
+  const log = options.log ?? ((level: string, msg: string) => console.error(`forge-d ${level}: ${msg}`));
 
   // The signed-grant gate is enforced ONLY on the TCP edge — a unix peer is
   // kernel-authenticated (held-ref = authority). A credential door on TCP with no
   // gate stays unauthenticated (kept off-host by the loopback publish bind) — WARN
   // loudly so that footgun is never silent.
-  const gate = onTcp ? (options.grantGate ?? resolveGhappGrantGate()) : null;
+  const gate = onTcp ? (options.grantGate ?? resolveForgeGrantGate()) : null;
   if (onTcp && !gate) {
     log(
       "WARN",
-      "serving the ghapp CREDENTIAL door over TCP with NO grant gate — unauthenticated " +
-        "(loopback-only; set GHAPPD_GRANT_AUDIENCE + GHAPPD_ISSUER_KEYS to enforce signed grants)",
+      "serving the forge CREDENTIAL door over TCP with NO grant gate — unauthenticated " +
+        "(loopback-only; set FORGE_D_GRANT_AUDIENCE + FORGE_D_ISSUER_KEYS to enforce signed grants)",
     );
   }
-  const authorize = gate ? buildGhappAuthorizer(gate) : undefined;
+  const authorize = gate ? buildForgeAuthorizer(gate) : undefined;
 
   const handlers = createDoorHandlers(
-    GHAPP_DOOR,
+    FORGE_DOOR,
     {
       // The method conveys the op; the lease body (repositories/permissions)
       // rides in params. Reconstruct the contract shape and validate it.
       lease: async (params) => {
-        const parsed = GhappdRequestSchema.safeParse({ kind: "lease", ...params });
+        const parsed = ForgeDRequestSchema.safeParse({ kind: "lease", ...params });
         return parsed.success
-          ? await handleGhappdRequest(parsed.data, deps ?? {})
-          : badRequest("request failed the ghappd wire contract");
+          ? await handleForgeDRequest(parsed.data, deps ?? {})
+          : badRequest("request failed the forge-d wire contract");
       },
     },
     (level, msg) => log(level, msg),
@@ -165,7 +165,7 @@ export function runGhappdServe(options: GhappdServeOptions): Promise<GhappdServe
   const closed = new Promise<void>((r) => {
     resolveClosed = r;
   });
-  const server: GhappdServer = {
+  const server: ForgeDServer = {
     async close() {
       listener.stop(true);
       if ("unix" in target) rmSync(target.unix, { force: true });

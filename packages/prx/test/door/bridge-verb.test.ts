@@ -24,13 +24,13 @@ describe("door bridge verb (prx-8uf2)", () => {
       log: (line) => logs.push(line),
     };
 
-    const run = doorBridgeVerb.run({ port: 9998, socket: "/run/prx/doors/ghappd.sock" }, deps);
+    const run = doorBridgeVerb.run({ port: 9998, socket: "/run/prx/doors/forge-d.sock" }, deps);
     // The verb blocks until the server closes — close it so run() resolves.
     queueMicrotask(() => server.emit("close"));
     const result = await run;
 
-    expect(calls).toEqual([{ port: 9998, socketPath: "/run/prx/doors/ghappd.sock" }]);
-    expect(result).toEqual({ port: 9998, socket: "/run/prx/doors/ghappd.sock" });
+    expect(calls).toEqual([{ port: 9998, socketPath: "/run/prx/doors/forge-d.sock" }]);
+    expect(result).toEqual({ port: 9998, socket: "/run/prx/doors/forge-d.sock" });
     // The startup line must name the security posture loudly.
     expect(logs).toHaveLength(1);
     expect(logs[0]).toContain("127.0.0.1:9998");

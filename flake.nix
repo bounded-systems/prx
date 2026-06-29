@@ -66,7 +66,7 @@
         // lib.optionalAttrs pkgs.stdenv.isLinux {
           beadsd-box = import ./nix/oci/beadsd-box.nix self { inherit pkgs system; };
           keeperd-box = import ./nix/oci/keeperd-box.nix self { inherit pkgs system; };
-          ghappd-box = import ./nix/oci/ghappd-box.nix self { inherit pkgs system; };
+          forge-d-box = import ./nix/oci/forge-d-box.nix self { inherit pkgs system; };
           dolt-box = import ./nix/oci/dolt-box.nix self { inherit pkgs system; };
           # The deterministic beads dolt-data artifact (prx-asr): the
           # network-fetch stage; the pod volume is populated from it (no network).
