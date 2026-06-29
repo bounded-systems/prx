@@ -67,12 +67,12 @@ describe("applyBrokeredGhToken", () => {
     expect(serialized).not.toContain("SECRET-PEM");
   });
 
-  test("door backend: leases via ghappd when PRX_GH_APP_DOOR is set, winning over a local key", async () => {
+  test("door backend: leases via forge-d when PRX_FORGE_DOOR is set, winning over a local key", async () => {
     const sets: Array<[string, string]> = [];
     let doorEndpoint: string | undefined;
     const r = await applyBrokeredGhToken({
       getEnv: envFrom({
-        PRX_GH_APP_DOOR: "unix:///run/ghappd.sock",
+        PRX_FORGE_DOOR: "unix:///run/forge-d.sock",
         PRX_GH_APP_ID: "Iv1",
         PRX_GH_APP_PRIVATE_KEY: "P",
       }),
@@ -85,7 +85,7 @@ describe("applyBrokeredGhToken", () => {
         return okBroker("ghs_leased");
       },
     });
-    expect(doorEndpoint).toBe("unix:///run/ghappd.sock");
+    expect(doorEndpoint).toBe("unix:///run/forge-d.sock");
     expect(sets).toEqual([["GH_TOKEN", "ghs_leased"]]);
     expect(r.applied).toBe(true);
     if (r.applied) expect(r.source).toBe("door");
@@ -93,7 +93,7 @@ describe("applyBrokeredGhToken", () => {
 
   test("env token still wins over the door (CI precedence)", async () => {
     const r = await applyBrokeredGhToken({
-      getEnv: envFrom({ GH_TOKEN: "ghs_ci", PRX_GH_APP_DOOR: "unix:///run/ghappd.sock" }),
+      getEnv: envFrom({ GH_TOKEN: "ghs_ci", PRX_FORGE_DOOR: "unix:///run/forge-d.sock" }),
       setEnv: () => {},
       createDoorBroker: () => {
         throw new Error("must not lease when an explicit token is present");

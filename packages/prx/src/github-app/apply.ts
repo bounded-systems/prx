@@ -52,7 +52,7 @@ export function getProcessBroker(): Broker | null {
 
 /**
  * Resolve-and-publish GH_TOKEN if a GitHub App is reachable. Precedence:
- * explicit GH_TOKEN/GITHUB_TOKEN (CI) > a ghappd door (PRX_GH_APP_DOOR) > a local
+ * explicit GH_TOKEN/GITHUB_TOKEN (CI) > a forge-d door (PRX_FORGE_DOOR) > a local
  * App key (PRX_GH_APP_*) > fail-open to personal `gh`. Returns a non-secret
  * summary. Throws (fail-closed) only when a door/key IS configured but the
  * lease/mint fails — in cloud/OCI there is no personal `gh` fallback.
@@ -72,10 +72,10 @@ export async function applyBrokeredGhToken(
     return { applied: false, reason: "env-token-present" };
   }
 
-  // DOOR backend (preferred when present): lease from ghappd over the door
+  // DOOR backend (preferred when present): lease from forge-d over the door
   // transport so the agent holds no App key — only a reference to the door. Wins
   // over the local-PEM path. Fail-closed: a lease failure throws (no fallback).
-  const doorEndpoint = getEnv("PRX_GH_APP_DOOR");
+  const doorEndpoint = getEnv("PRX_FORGE_DOOR");
   if (doorEndpoint) {
     const broker = createDoorBroker({ endpoint: doorEndpoint });
     processBroker = broker;

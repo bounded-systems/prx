@@ -14,7 +14,7 @@ export interface BoxPin {
 /** The prx-published boxes whose room digests are pinned in source. */
 export const BOX_PINS: readonly BoxPin[] = [
   { image: "ghcr.io/bounded-systems/prx/beadsd-box", file: "packages/prx/src/room/beadsd-room.ts" },
-  { image: "ghcr.io/bounded-systems/prx/ghappd-box", file: "packages/prx/src/room/ghappd-room.ts" },
+  { image: "ghcr.io/bounded-systems/prx/forge-d-box", file: "packages/prx/src/room/forge-d-room.ts" },
   { image: "ghcr.io/bounded-systems/prx/dolt-box", file: "packages/prx/src/room/dolt-service.ts" },
 ];
 

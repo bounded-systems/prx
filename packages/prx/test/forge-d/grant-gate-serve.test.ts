@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { issuerKeys, mintDoorGrant } from "../../src/door/grant-issuer.ts";
-import { runGhappdServe, type GhappdServer } from "../../src/ghappd/daemon.ts";
+import { runForgeDServe, type ForgeDServer } from "../../src/forge-d/daemon.ts";
 
 const AUDIENCE = "claude-room";
 
@@ -40,12 +40,12 @@ const leaseReq = (grant?: unknown) => ({
   ...(grant ? { grant } : {}),
 });
 
-describe("runGhappdServe TCP grant gate (prx-8uf2)", () => {
-  let server: GhappdServer | undefined;
+describe("runForgeDServe TCP grant gate (prx-8uf2)", () => {
+  let server: ForgeDServer | undefined;
   let unixPath: string | undefined;
   let counter = 0;
   const port = () => 42000 + (process.pid % 2000) + counter++;
-  // ghappd holds no key here — the gate runs BEFORE dispatch, so a gated request
+  // forge-d holds no key here — the gate runs BEFORE dispatch, so a gated request
   // is rejected before it ever reaches the (unconfigured) lease handler.
 
   afterEach(async () => {
@@ -57,7 +57,7 @@ describe("runGhappdServe TCP grant gate (prx-8uf2)", () => {
 
   test("TCP + gate: a lease with NO grant is denied before dispatch", async () => {
     const p = port();
-    server = await runGhappdServe({
+    server = await runForgeDServe({
       socketPath: `127.0.0.1:${p}`,
       grantGate: { keys: issuerKeys(), audience: AUDIENCE },
     });
@@ -68,7 +68,7 @@ describe("runGhappdServe TCP grant gate (prx-8uf2)", () => {
 
   test("TCP + gate: a grant minted for a DIFFERENT door is denied", async () => {
     const p = port();
-    server = await runGhappdServe({
+    server = await runForgeDServe({
       socketPath: `127.0.0.1:${p}`,
       grantGate: { keys: issuerKeys(), audience: AUDIENCE },
     });
@@ -84,14 +84,14 @@ describe("runGhappdServe TCP grant gate (prx-8uf2)", () => {
     expect(res.error?.code).toBe("UNAUTHENTICATED");
   });
 
-  test("TCP + gate: a valid ghapp grant passes the gate and reaches dispatch", async () => {
+  test("TCP + gate: a valid forge grant passes the gate and reaches dispatch", async () => {
     const p = port();
-    server = await runGhappdServe({
+    server = await runForgeDServe({
       socketPath: `127.0.0.1:${p}`,
       grantGate: { keys: issuerKeys(), audience: AUDIENCE },
     });
     const grant = mintDoorGrant({
-      door: "ghapp",
+      door: "forge",
       audience: AUDIENCE,
       ttlSeconds: 60,
       nonce: "n",
@@ -107,7 +107,7 @@ describe("runGhappdServe TCP grant gate (prx-8uf2)", () => {
   test("TCP + NO gate: serves but logs a loud WARN (footgun, never silent)", async () => {
     const p = port();
     const logs: Array<[string, string]> = [];
-    server = await runGhappdServe({
+    server = await runForgeDServe({
       socketPath: `127.0.0.1:${p}`,
       log: (level, msg) => logs.push([level, msg]),
     });
@@ -119,8 +119,8 @@ describe("runGhappdServe TCP grant gate (prx-8uf2)", () => {
   });
 
   test("UNIX: the gate is bypassed — a no-grant lease is served (held-ref = authority)", async () => {
-    unixPath = join(tmpdir(), `ghappd-gate-${process.pid}-${counter++}.sock`);
-    server = await runGhappdServe({
+    unixPath = join(tmpdir(), `forge-d-gate-${process.pid}-${counter++}.sock`);
+    server = await runForgeDServe({
       socketPath: unixPath,
       grantGate: { keys: issuerKeys(), audience: AUDIENCE },
     });

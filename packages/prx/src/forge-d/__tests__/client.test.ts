@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
-import { GhappdProtocolError, IsolatedGhappdClient, type GhappdTransport } from "../client.ts";
+import { ForgeDProtocolError, IsolatedForgeDClient, type ForgeDTransport } from "../client.ts";
 
-describe("IsolatedGhappdClient", () => {
+describe("IsolatedForgeDClient", () => {
   test("sends a validated lease request and returns the parsed ok reply", async () => {
     let sent: unknown;
-    const transport: GhappdTransport = async (req) => {
+    const transport: ForgeDTransport = async (req) => {
       sent = req;
       return {
         status: "ok",
@@ -14,7 +14,7 @@ describe("IsolatedGhappdClient", () => {
         permissions: { contents: "read" },
       };
     };
-    const client = new IsolatedGhappdClient(transport);
+    const client = new IsolatedForgeDClient(transport);
 
     const reply = await client.lease({ kind: "lease", repositories: ["prx"] });
     expect(sent).toEqual({ kind: "lease", repositories: ["prx"] });
@@ -23,19 +23,19 @@ describe("IsolatedGhappdClient", () => {
   });
 
   test("an error lease result is data, not an exception", async () => {
-    const transport: GhappdTransport = async () => ({
+    const transport: ForgeDTransport = async () => ({
       status: "error",
       code: "not-configured",
-      message: "ghappd holds no GitHub App key",
+      message: "forge-d holds no GitHub App key",
     });
-    const reply = await new IsolatedGhappdClient(transport).lease({ kind: "lease" });
+    const reply = await new IsolatedForgeDClient(transport).lease({ kind: "lease" });
     expect(reply.status).toBe("error");
   });
 
-  test("a reply that violates the contract throws GhappdProtocolError", async () => {
-    const transport: GhappdTransport = async () => ({ status: "ok" }); // missing token/expiresAt
-    await expect(new IsolatedGhappdClient(transport).lease({ kind: "lease" })).rejects.toBeInstanceOf(
-      GhappdProtocolError,
+  test("a reply that violates the contract throws ForgeDProtocolError", async () => {
+    const transport: ForgeDTransport = async () => ({ status: "ok" }); // missing token/expiresAt
+    await expect(new IsolatedForgeDClient(transport).lease({ kind: "lease" })).rejects.toBeInstanceOf(
+      ForgeDProtocolError,
     );
   });
 });

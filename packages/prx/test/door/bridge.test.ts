@@ -21,7 +21,7 @@ function freshSocketPath(): string {
 }
 
 // A throwaway unix-socket "door": every connection echoes back whatever it
-// receives. Stands in for a real daemon (keeperd/ghappd) — the bridge is
+// receives. Stands in for a real daemon (keeperd/forge-d) — the bridge is
 // frame-transparent, so an echo is a faithful upstream.
 function echoDoor(socketPath: string): Promise<Server> {
   const server = createServer((c) => c.pipe(c));

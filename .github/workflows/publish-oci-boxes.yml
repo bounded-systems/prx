@@ -3,7 +3,7 @@ name: publish-oci-boxes
 # Build and push nix-built OCI box images to GHCR.
 # These are the "box" images that run inside the prx pod rooms + backing services:
 #   beadsd-box → ghcr.io/bounded-systems/prx/beadsd-box
-#   ghappd-box → ghcr.io/bounded-systems/prx/ghappd-box
+#   forge-d-box → ghcr.io/bounded-systems/prx/forge-d-box
 #   concierged-box → ghcr.io/bounded-systems/prx/concierged-box  (grant broker, prx-8uf2)
 #   dolt-box   → ghcr.io/bounded-systems/prx/dolt-box  (backing service, prx-asr)
 #   nix-builder-box → ghcr.io/bounded-systems/prx/nix-builder-box  (the nix remote builder, prx-zj8)
@@ -103,8 +103,8 @@ jobs:
           echo "### beadsd-box (dry run)" >> "$GITHUB_STEP_SUMMARY"
           echo "Built successfully — not pushed (dry_run=true)." >> "$GITHUB_STEP_SUMMARY"
 
-  ghappd-box:
-    name: ghappd-box (aarch64-linux)
+  forge-d-box:
+    name: forge-d-box (aarch64-linux)
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     permissions:
@@ -126,14 +126,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build ghappd-box OCI stream (nix)
-        run: nix build .#ghappd-box --out-link ./stream-ghappd-box
+      - name: Build forge-d-box OCI stream (nix)
+        run: nix build .#forge-d-box --out-link ./stream-forge-d-box
 
       - name: Push to GHCR
         if: ${{ !inputs.dry_run }}
         id: push
         env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/prx/ghappd-box
+          IMAGE: ghcr.io/${{ github.repository_owner }}/prx/forge-d-box
         run: |
           set -euo pipefail
           # Determine tags: always push 'latest'; also tag by semver on a tag push.
@@ -143,12 +143,12 @@ jobs:
           fi
           # skopeo reads docker credentials from ~/.docker/config.json (set by login-action).
           # --insecure-policy: containers policy.json is absent on CI runners; bypass it.
-          ./stream-ghappd-box | skopeo --insecure-policy copy \
+          ./stream-forge-d-box | skopeo --insecure-policy copy \
             --format v2s2 \
-            --digestfile /tmp/ghappd-box-digest.txt \
+            --digestfile /tmp/forge-d-box-digest.txt \
             docker-archive:/dev/stdin \
             "docker://${IMAGE}:${TAGS[0]}"
-          DIGEST=$(cat /tmp/ghappd-box-digest.txt)
+          DIGEST=$(cat /tmp/forge-d-box-digest.txt)
           echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
           # Tag additional refs (e.g. semver tag) by re-copying from the just-pushed latest.
           for tag in "${TAGS[@]:1}"; do
@@ -156,11 +156,11 @@ jobs:
               "docker://${IMAGE}:${TAGS[0]}" \
               "docker://${IMAGE}:${tag}"
           done
-          # Step summary — paste this into ghappd-room.ts to pin the digest.
+          # Step summary — paste this into forge-d-room.ts to pin the digest.
           {
-            echo "### ghappd-box published"
+            echo "### forge-d-box published"
             echo ""
-            echo "Pin in \`ghappd-room.ts\`:"
+            echo "Pin in \`forge-d-room.ts\`:"
             echo "\`\`\`"
             echo "${IMAGE}@${DIGEST}"
             echo "\`\`\`"
@@ -171,14 +171,14 @@ jobs:
         continue-on-error: true
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
         with:
-          subject-name: ghcr.io/${{ github.repository_owner }}/prx/ghappd-box
+          subject-name: ghcr.io/${{ github.repository_owner }}/prx/forge-d-box
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
 
       - name: Dry run summary
         if: ${{ inputs.dry_run }}
         run: |
-          echo "### ghappd-box (dry run)" >> "$GITHUB_STEP_SUMMARY"
+          echo "### forge-d-box (dry run)" >> "$GITHUB_STEP_SUMMARY"
           echo "Built successfully — not pushed (dry_run=true)." >> "$GITHUB_STEP_SUMMARY"
 
   concierged-box:
@@ -411,7 +411,7 @@ jobs:
   # ("Actions can't create PRs"). Skipped on dry runs (nothing was pushed).
   repin:
     name: repin room images
-    needs: [beadsd-box, ghappd-box, dolt-box]
+    needs: [beadsd-box, forge-d-box, dolt-box]
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     permissions:

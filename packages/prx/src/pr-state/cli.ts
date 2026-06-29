@@ -325,8 +325,6 @@ import {
 } from "../beadsd/workspace-affinity.ts";
 import { provisionLocalBeads } from "../beadsd/provision-local.ts";
 import { BeadsRequestSchema, type BeadsRequest } from "../beadsd/contract.ts";
-// GH-296: provision beads inside a Lima VM (install bd+dolt + clone canonical).
-import { provisionVmNixBuilder } from "../lima/nix-builder.ts";
 import { runScopeGate, ScopeGateInputError } from "./scope-gate.ts";
 import { runTestGate, TestGateInputError } from "./test-gate.ts";
 import type { GateResult } from "../provenance/gate.ts";
@@ -1798,18 +1796,6 @@ type ParsedCommand =
       // GH-296: daemon-aware session primer — the prx-beads twin of `bd prime`.
       command: "beads-prime";
       format: "plain" | "json";
-    }
-  | {
-      // prx-62h: `prx lima provision-builder` — the nix remote builder. The in-VM
-      // DAEMONS were retired for the podman pod (prx-zj8); only the builder remains.
-      command: "lima";
-      format: "plain" | "json";
-      verb: "provision-builder";
-      vm: string;
-      // nix remote-builder descriptor overrides.
-      maxJobs?: number | undefined;
-      systems?: string | undefined;
-      installerUrl?: string | undefined;
     }
   | {
       // GH-1990: `prx sync issues --from <src> --to <dst>`. v0 wires only the
@@ -7632,54 +7618,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
 
   // GH-228: `prx lima <up|down|daemons|status>` — in-VM daemon lifecycle over the
   // daemon registry (keeper + beads). Verb-dispatch like `keeper`.
-  if (command === "lima") {
-    // The in-VM daemons (up/down/daemons/status/provision-beads) were retired for
-    // the podman pod (prx-zj8); only the nix BUILDER (prx-62h) remains on Lima.
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-        vm: { type: "string" },
-        // prx-62h: `lima provision-builder`
-        "max-jobs": { type: "string" },
-        systems: { type: "string" },
-        "installer-url": { type: "string" },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-    const verb = positionals[0];
-    if (verb !== "provision-builder") {
-      throw new CliError(
-        "prx lima requires a verb: provision-builder (the in-VM daemons were retired for the podman pod, prx-zj8; e.g. `prx lima provision-builder <vm>`)",
-      );
-    }
-    // prx-62h: `--max-jobs`, when given, must be a positive integer.
-    let maxJobs: number | undefined;
-    if (values["max-jobs"] !== undefined) {
-      const n = Number(values["max-jobs"]);
-      if (!Number.isInteger(n) || n < 1) {
-        throw new CliError("prx lima provision-builder --max-jobs must be a positive integer");
-      }
-      maxJobs = n;
-    }
-    const vm = values.vm ?? positionals[1];
-    if (typeof vm !== "string" || vm.length === 0) {
-      throw new CliError(
-        "prx lima provision-builder requires a VM: `prx lima provision-builder <vm>` (or --vm <name>)",
-      );
-    }
-    return {
-      command: "lima",
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      verb,
-      vm,
-      ...(maxJobs !== undefined ? { maxJobs } : {}),
-      ...(values.systems !== undefined ? { systems: values.systems } : {}),
-      ...(values["installer-url"] !== undefined ? { installerUrl: values["installer-url"] } : {}),
-    };
-  }
-
   // GH-2282: `prx provenance <verb>` — read-only provenance key inspection.
   // Verb: dev-pubkey (print the persisted dev signing identity).
   if (command === "provenance") {
@@ -14908,9 +14846,17 @@ export function runCli(
     if (orchestratorVerb === "pod" && orchestratorRest[0] === "down") {
       return runSpecVerb("pod down", orchestratorRest.slice(1), output);
     }
-    // `ghapp serve` — the ghappd credential-broker door daemon (runs in ghappd-box).
-    if (orchestratorVerb === "ghapp" && orchestratorRest[0] === "serve") {
-      return runSpecVerb("ghapp serve", orchestratorRest.slice(1), output);
+    // `forge serve` — the forge-d credential-broker door daemon (runs in forge-d-box).
+    if (orchestratorVerb === "forge" && orchestratorRest[0] === "serve") {
+      return runSpecVerb("forge serve", orchestratorRest.slice(1), output);
+    }
+    // `builder up | register` — the nix remote builder as a podman container
+    // (prx-zj8; replaces the retired `prx lima provision-builder`).
+    if (orchestratorVerb === "builder" && orchestratorRest[0] === "up") {
+      return runSpecVerb("builder up", orchestratorRest.slice(1), output);
+    }
+    if (orchestratorVerb === "builder" && orchestratorRest[0] === "register") {
+      return runSpecVerb("builder register", orchestratorRest.slice(1), output);
     }
     // The `contract <sub>` namespace reroutes several subcommands to verbs that
     // are now spec-driven. The early dispatch keys off the raw `argv[0]`
@@ -20771,33 +20717,6 @@ export function runCli(
           output.error(`beads provision: ${err instanceof Error ? err.message : String(err)}`);
           return 1;
         }
-      })();
-    }
-
-    if (parsed.command === "lima") {
-      // prx-62h: the nix remote BUILDER on Lima. The in-VM daemons (keeper/beads)
-      // were retired for the podman pod (prx-zj8); only the builder remains here.
-      return (async () => {
-        // prx-62h: install nix in the VM + make it a trusted remote builder, so
-        // aarch64-linux/OCI builds offload here. Prints the host machines line
-        // the operator registers (prx never edits host /etc/nix/* itself).
-        const result = provisionVmNixBuilder({
-          vm: parsed.vm,
-          ...(parsed.maxJobs !== undefined ? { maxJobs: parsed.maxJobs } : {}),
-          ...(parsed.systems !== undefined ? { systems: parsed.systems } : {}),
-          ...(parsed.installerUrl !== undefined ? { nixInstallerUrl: parsed.installerUrl } : {}),
-        });
-        if (parsed.format === "json") {
-          output.log(JSON.stringify(result, null, 2));
-        } else {
-          output.log(result.machinesLine);
-          output.error(
-            `lima provision-builder on ${parsed.vm}: nix builder ready. ` +
-              `Register it by adding the line above to /etc/nix/machines (and set ` +
-              `\`builders = @/etc/nix/machines\` in nix.conf) so \`nix build\` offloads here.`,
-          );
-        }
-        return 0;
       })();
     }
 

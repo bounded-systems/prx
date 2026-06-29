@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { cachingGrantProvider } from "../../door/grant-provider.ts";
 import { issuerKeys, mintDoorGrant } from "../../door/grant-issuer.ts";
 import type { mintInstallationToken } from "../installation-token.ts";
-import { runGhappdServe, type GhappdServer } from "../../ghappd/daemon.ts";
+import { runForgeDServe, type ForgeDServer } from "../../forge-d/daemon.ts";
 import { createDoorBroker } from "../door-source.ts";
 
 const AUDIENCE = "claude-room";
@@ -17,14 +17,14 @@ const leaseMint = (() => ({
 
 // A grant provider backed by the real issuer — in prod this `acquire` is a
 // concierge call; the provider's refresh/present logic is identical.
-const ghappGrantProvider = () =>
+const forgeGrantProvider = () =>
   cachingGrantProvider({
     acquire: () =>
-      mintDoorGrant({ door: "ghapp", audience: AUDIENCE, ttlSeconds: 60, nonce: "n", now: Date.now() }),
+      mintDoorGrant({ door: "forge", audience: AUDIENCE, ttlSeconds: 60, nonce: "n", now: Date.now() }),
   });
 
-describe("createDoorBroker over a GATED ghappd (grant presentation, prx-8uf2)", () => {
-  let server: GhappdServer | undefined;
+describe("createDoorBroker over a GATED forge-d (grant presentation, prx-8uf2)", () => {
+  let server: ForgeDServer | undefined;
   let counter = 0;
   const port = () => 43000 + (process.pid % 2000) + counter++;
 
@@ -35,14 +35,14 @@ describe("createDoorBroker over a GATED ghappd (grant presentation, prx-8uf2)", 
 
   test("presents a signed grant → passes the gate → leases a token", async () => {
     const p = port();
-    server = await runGhappdServe({
+    server = await runForgeDServe({
       socketPath: `127.0.0.1:${p}`,
       grantGate: { keys: issuerKeys(), audience: AUDIENCE },
       deps: { config: { issuer: "Iv1", privateKeyPem: "PEM", installationId: "1" }, mint: leaseMint },
     });
     const broker = createDoorBroker({
       endpoint: `127.0.0.1:${p}`,
-      grantProvider: ghappGrantProvider(),
+      grantProvider: forgeGrantProvider(),
     });
     const tok = await broker.ensure();
     expect(tok.token).toBe("ghs_granted");
@@ -50,7 +50,7 @@ describe("createDoorBroker over a GATED ghappd (grant presentation, prx-8uf2)", 
 
   test("WITHOUT a grant the gated door rejects the lease (fail-closed)", async () => {
     const p = port();
-    server = await runGhappdServe({
+    server = await runForgeDServe({
       socketPath: `127.0.0.1:${p}`,
       grantGate: { keys: issuerKeys(), audience: AUDIENCE },
       deps: { config: { issuer: "Iv1", privateKeyPem: "PEM", installationId: "1" }, mint: leaseMint },

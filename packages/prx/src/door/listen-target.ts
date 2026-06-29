@@ -1,6 +1,6 @@
 /**
  * Resolve a door endpoint string to a `Bun.listen` target — shared by every
- * door daemon that serves over the guest-room protocol (keeperd, ghappd).
+ * door daemon that serves over the guest-room protocol (keeperd, forge-d).
  *
  * A leading `/` (or a `unix://` prefix) is a unix socket path; otherwise it is a
  * `host:port` TCP target (an optional `tcp://` prefix is stripped). Symmetric

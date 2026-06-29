@@ -8,7 +8,7 @@ import { runCli } from "../../src/pr-state/cli.ts";
  * cli.ts's dispatch — so the CLI answers "Unknown subcommand". It stays invisible
  * for daemon verbs that only ever run inside an OCI box entrypoint (never in unit
  * tests), then crashes the container at deploy time:
- *   - `ghapp serve` (ghappd-box `/bin/prx ghapp serve`) → "Unknown subcommand: ghapp"
+ *   - `forge serve` (forge-d-box `/bin/prx forge serve`) → "Unknown subcommand: forge"
  *   - `pod secrets` (prx-zee7) → "Unknown subcommand: pod"
  *
  * These verbs are invoked by a box entrypoint or the deploy flow, so they MUST be
@@ -16,7 +16,7 @@ import { runCli } from "../../src/pr-state/cli.ts";
  * short-circuits verbspec dispatch (renders help, never runs the daemon).
  */
 const BOX_ENTRYPOINT_VERBS: ReadonlyArray<readonly string[]> = [
-  ["ghapp", "serve"], // ghappd-box entrypoint — the credential-broker door daemon
+  ["forge", "serve"], // forge-d-box entrypoint — the credential-broker door daemon
   ["pod", "up"], // `prx pod up`
   ["pod", "secrets"], // `prx pod secrets`
   ["pod", "down"], // `prx pod down`

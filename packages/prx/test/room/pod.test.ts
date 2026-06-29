@@ -152,23 +152,23 @@ describe("podRoomEnv — the keystone", () => {
     });
   });
 
-  test("projects PRX_GH_APP_DOOR into the ghappd consumer", () => {
+  test("projects PRX_FORGE_DOOR into the forge-d consumer", () => {
     const c = consumer([
-      { name: "ghappd", direction: "consume", capability: "github-app:token", socket: "/x" },
+      { name: "forge-d", direction: "consume", capability: "github-app:token", socket: "/x" },
     ]);
-    const ghappdProvider: RoomInput = {
-      name: "ghappd-room",
+    const forgeDProvider: RoomInput = {
+      name: "forge-d-room",
       doors: [
         {
-          name: "ghappd",
+          name: "forge-d",
           direction: "expose",
           capability: "github-app:token",
-          socket: "/run/prx/doors/ghappd.sock",
+          socket: "/run/prx/doors/forge-d.sock",
         },
       ],
     };
-    expect(podRoomEnv(pod([c, ghappdProvider]), "consumer")).toEqual({
-      PRX_GH_APP_DOOR: `${DEFAULT_DOOR_DIR}/ghappd.sock`,
+    expect(podRoomEnv(pod([c, forgeDProvider]), "consumer")).toEqual({
+      PRX_FORGE_DOOR: `${DEFAULT_DOOR_DIR}/forge-d.sock`,
     });
   });
 
@@ -190,7 +190,7 @@ describe("perRepoPod", () => {
     expect(() => PodSpecSchema.parse(perRepoPod)).not.toThrow();
   });
 
-  test("wires claude-room's beadsd + keeperd + ghappd consumes; control stays sealed", () => {
+  test("wires claude-room's beadsd + keeperd + forge-d consumes; control stays sealed", () => {
     const { resolved, diagnostics } = resolvePodDoors(perRepoPod);
     const caps = resolved
       .filter((r) => r.consumer === "claude-room")
@@ -203,14 +203,14 @@ describe("perRepoPod", () => {
     expect(resolved.some((r) => r.capability === "session:control")).toBe(false);
   });
 
-  test("fires the gate env into claude-room (beadsd + keeperd + ghappd doors)", () => {
+  test("fires the gate env into claude-room (beadsd + keeperd + forge-d doors)", () => {
     const dir = perRepoPod.doorDir;
     expect(podRoomEnv(perRepoPod, "claude-room")).toEqual({
       PRX_BEADS_DOOR: "beadsd",
       PRX_BEADS_SOCKET: `${dir}/beadsd.sock`,
       PRX_KEEPER_DOOR: "keeperd",
       KEEPERD_SOCK: `${dir}/keeperd.sock`,
-      PRX_GH_APP_DOOR: `${dir}/ghappd.sock`,
+      PRX_FORGE_DOOR: `${dir}/forge-d.sock`,
     });
   });
 });

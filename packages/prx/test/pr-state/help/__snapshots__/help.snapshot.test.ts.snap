@@ -162,8 +162,9 @@ Work units:
   prx keeper push                Push the work-unit branch to its remote (keeper role)
   prx keeper branch              Create or update the work-unit branch ref (keeper role)
   prx keeper commit              Headlessly stage and commit the worktree (keeper role; GH-2346)
-  prx lima                       Manage the Lima nix remote builder (prx-62h)
-  prx lima provision-builder     Install nix in a Lima VM as a remote builder (prx-62h)
+  prx builder                    Manage the nix remote builder (a pinned podman container, prx-zj8)
+  prx builder up                 Run the nix-builder container (sshd + nix) for remote builds
+  prx builder register           Print the /etc/nix/machines line + ssh config to register the builder
   prx audit uow                  Project per-UoW artifact chain and invariant findings
   prx scope-gate                 Gate a commit's diff against the plan's declared scope
   prx scope-gate run             Check files_changed ⊆ plan.paths; emit a signed gate/v1 verdict

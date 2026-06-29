@@ -7,14 +7,14 @@ import { call } from "@bounded-systems/guest-room/protocol";
 
 import type { mintInstallationToken } from "../../github-app/installation-token.ts";
 import {
-  type GhappdConfig,
-  type GhappdDaemonDeps,
-  type GhappdServer,
-  handleGhappdRequest,
-  runGhappdServe,
+  type ForgeDConfig,
+  type ForgeDDaemonDeps,
+  type ForgeDServer,
+  handleForgeDRequest,
+  runForgeDServe,
 } from "../daemon.ts";
 
-const CONFIG: GhappdConfig = {
+const CONFIG: ForgeDConfig = {
   issuer: "Iv1",
   privateKeyPem: "SECRET-PEM",
   installationId: "138039680",
@@ -30,15 +30,15 @@ function mintReturning(
   return ((input) => impl(input)) as typeof mintInstallationToken;
 }
 
-describe("handleGhappdRequest", () => {
-  test("not-configured: replies error when ghappd holds no key", async () => {
-    const r = await handleGhappdRequest({ kind: "lease" }, {});
+describe("handleForgeDRequest", () => {
+  test("not-configured: replies error when forge-d holds no key", async () => {
+    const r = await handleForgeDRequest({ kind: "lease" }, {});
     expect(r.status).toBe("error");
     if (r.status === "error") expect(r.code).toBe("not-configured");
   });
 
   test("leases a token from the held key; the PEM is never in the reply", async () => {
-    const r = await handleGhappdRequest(
+    const r = await handleForgeDRequest(
       { kind: "lease" },
       {
         config: CONFIG,
@@ -63,7 +63,7 @@ describe("handleGhappdRequest", () => {
       repositories: readonly string[] | undefined;
       permissions: Readonly<Record<string, string>> | undefined;
     } = { repositories: undefined, permissions: undefined };
-    await handleGhappdRequest(
+    await handleForgeDRequest(
       { kind: "lease", repositories: ["prx"], permissions: { contents: "read" } },
       {
         config: CONFIG,
@@ -78,7 +78,7 @@ describe("handleGhappdRequest", () => {
   });
 
   test("mint failure becomes an error reply, never throws", async () => {
-    const r = await handleGhappdRequest(
+    const r = await handleForgeDRequest(
       { kind: "lease" },
       {
         config: CONFIG,
@@ -96,9 +96,9 @@ describe("handleGhappdRequest", () => {
 });
 
 // The guest-room door protocol end-to-end (prx→guest-room convergence): the same
-// `lease` wire a real ghappd consumer drives, over a real unix socket.
-describe("runGhappdServe (guest-room protocol, end-to-end)", () => {
-  let server: GhappdServer | undefined;
+// `lease` wire a real forge-d consumer drives, over a real unix socket.
+describe("runForgeDServe (guest-room protocol, end-to-end)", () => {
+  let server: ForgeDServer | undefined;
   let socketPath: string | undefined;
   let counter = 0;
 
@@ -109,9 +109,9 @@ describe("runGhappdServe (guest-room protocol, end-to-end)", () => {
     socketPath = undefined;
   });
 
-  async function start(deps: GhappdDaemonDeps): Promise<string> {
-    socketPath = join(tmpdir(), `ghappd-${process.pid}-${counter++}.sock`);
-    server = await runGhappdServe({ socketPath, deps });
+  async function start(deps: ForgeDDaemonDeps): Promise<string> {
+    socketPath = join(tmpdir(), `forge-d-${process.pid}-${counter++}.sock`);
+    server = await runForgeDServe({ socketPath, deps });
     return socketPath;
   }
 

@@ -7,21 +7,21 @@ const D2 = "sha256:" + "b".repeat(64);
 
 describe("repinImage", () => {
   test("replaces the digest for the matching image", () => {
-    const text = `export const X = "ghcr.io/bounded-systems/prx/ghappd-box@${D1}";`;
-    const out = repinImage(text, "ghcr.io/bounded-systems/prx/ghappd-box", D2);
+    const text = `export const X = "ghcr.io/bounded-systems/prx/forge-d-box@${D1}";`;
+    const out = repinImage(text, "ghcr.io/bounded-systems/prx/forge-d-box", D2);
     expect(out.changed).toBe(true);
-    expect(out.text).toContain(`ghappd-box@${D2}`);
+    expect(out.text).toContain(`forge-d-box@${D2}`);
     expect(out.text).not.toContain(D1);
   });
 
   test("no-op when the digest already matches", () => {
-    const text = `"ghcr.io/bounded-systems/prx/ghappd-box@${D2}"`;
-    expect(repinImage(text, "ghcr.io/bounded-systems/prx/ghappd-box", D2).changed).toBe(false);
+    const text = `"ghcr.io/bounded-systems/prx/forge-d-box@${D2}"`;
+    expect(repinImage(text, "ghcr.io/bounded-systems/prx/forge-d-box", D2).changed).toBe(false);
   });
 
   test("no-op when the image is absent (does not touch other images)", () => {
     const text = `"ghcr.io/bounded-systems/prx/beadsd-box@${D1}"`;
-    const out = repinImage(text, "ghcr.io/bounded-systems/prx/ghappd-box", D2);
+    const out = repinImage(text, "ghcr.io/bounded-systems/prx/forge-d-box", D2);
     expect(out.changed).toBe(false);
     expect(out.text).toBe(text); // beadsd-box pin untouched
   });
