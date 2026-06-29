@@ -925,10 +925,6 @@ type ParsedCommand =
       command: "version";
     }
   | {
-      command: "tui";
-      forwardArgs: string[];
-    }
-  | {
       command: "init";
       force: boolean;
       format: "plain" | "json";
@@ -7667,10 +7663,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
   // prune. Verbs: session (lifecycle) | body-template (toolset renderer).
   if (command === "author") {
     return parseAuthorCommand(rest);
-  }
-
-  if (command === "tui") {
-    return { command: "tui", forwardArgs: rest };
   }
 
   const rewritten = normalizeNamespaceArgv(argv);
@@ -15016,18 +15008,6 @@ export function runCli(
         output.error(formatBinaryUpdateWarning(binaryUpdate));
       }
       return 0;
-    }
-
-    if (parsed.command === "tui") {
-      // procRunner throws on a spawn error (matching the prior `throw
-      // result.error`); check:false lets a non-zero tui exit return as status.
-      const result = procRunner(["bun", "run", "prx:tui", ...parsed.forwardArgs], {
-        cwd: repoRootPath,
-        stdio: "inherit",
-        env: processEnv(),
-        check: false,
-      });
-      return result.status;
     }
 
     if (parsed.command === "check-issue") {

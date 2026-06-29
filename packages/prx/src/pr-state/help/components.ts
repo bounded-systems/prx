@@ -138,8 +138,5 @@ export function FooterPointers(kind: FooterKind): string {
     "Work-unit identity:",
     `${INDENT}Canonical IDs use GH-NNN format (for example GH-456).`,
     `${INDENT}GitHub issue identity is canonical; ticket/unit/worktree/PR projections share it.`,
-    "",
-    "Interactive:",
-    `${INDENT}prx tui`,
   ].join("\n");
 }

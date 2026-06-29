@@ -181,11 +181,11 @@ describe("FooterPointers", () => {
     expect(out).toContain("prx <cmd> --help");
   });
 
-  test("help-all footer covers common flow + identity + interactive", () => {
+  test("help-all footer covers common flow + identity", () => {
     const out = FooterPointers("help-all");
     expect(out).toContain("Common flow:");
     expect(out).toContain("Work-unit identity:");
-    expect(out).toContain("Interactive:");
-    expect(out).toContain("prx tui");
+    // The interactive `prx tui` surface was removed (prx-fdf).
+    expect(out).not.toContain("prx tui");
   });
 });

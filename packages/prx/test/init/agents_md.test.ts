@@ -28,7 +28,6 @@ describe("buildAgentsMd", () => {
 
   test("promotes the prx workflow entry points", () => {
     const md = buildAgentsMd();
-    expect(md).toContain("prx tui");
     expect(md).toContain("prx plan session");
     expect(md).toContain("prx next");
     expect(md).toContain("prx do");

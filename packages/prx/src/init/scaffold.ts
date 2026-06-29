@@ -176,6 +176,6 @@ export function formatScaffoldResult(result: ScaffoldResult, format: "plain" | "
     lines.push(`${file.outcome.padEnd(7)} ${file.path}`);
   }
   lines.push("");
-  lines.push("Next: prx tui  |  prx plan session GH-<n>");
+  lines.push("Next: prx plan session GH-<n>");
   return lines.join("\n");
 }
