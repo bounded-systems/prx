@@ -1,5 +1,22 @@
 # @bounded-systems/prx
 
+## 0.20.0
+
+### Minor Changes
+
+- 0f86ac3: Door-bridge phase 2 (door-side gate) — keeperd enforces a signed grant on its TCP edge (prx-8uf2). keeperd holds the git push credential; on a unix socket the kernel authenticates the peer (held-ref = authority), but on a TCP edge a reachable socket is not authority. keeperd now installs guest-room's `signedGrantAuthorizer` on the TCP path only: a TCP request must carry a grant minted for the `keeper` door, audience-bound, unexpired, and signed by a published issuer key — verified before dispatch. Unix listeners are unchanged. Config-gated by `KEEPERD_GRANT_AUDIENCE` + `KEEPERD_ISSUER_KEYS` (inline JSON or `@<path>`); an unconfigured TCP keeper stays unauthenticated-but-loopback (the #827 safety fix) and logs a loud WARN. New `src/keeperd/grant-gate.ts` (reuses the guest-room primitive — no bespoke crypto beyond ed25519 verify); required bumping `@bounded-systems/guest-room` 0.2.0 → 0.4.0 (0.2.0 predates the grant primitives). Corrects `docs/prx/door-bridge.md`: the gate is door-side (a `RequestAuthorizer` over the request envelope's grant), not inside the forwarding bridge.
+- c8ee023: Add the `nix-builder-box` OCI image (prx-zj8 capstone) — the nix remote BUILDER
+  as a pinned container (sshd + single-user nix on a /nix volume), to replace the
+  Lima builder VM. Adds the image (nix/oci/nix-builder-box.nix), its publish job,
+  and the `NIX_BUILDER_IMAGE` pin (packages/prx/src/room/nix-builder-service.ts).
+  Verified: `nix store info --store ssh-ng://…` against the running container
+  returns Trusted:1 (a functional remote builder). Wiring it as the registered
+  builder + retiring Lima follows.
+
+### Patch Changes
+
+- befa26b: Fix `nextWork` triggering a `bd`/`gh` subprocess from a non-repo path. `loadTriageSnapshot` short-circuited only when **both** `.git` and `prx.toml` were absent — so a directory holding only a `prx.toml` (no git working tree) fell through and spawned `runStatusActor` → `bd`/`gh`, which hangs when no daemon/auth is present. Triage genuinely needs a git working tree, so the guard now gates on `.git` alone (a dir in the main repo, a file in a worktree). Pure-config callers (e.g. the `[next_work]` config-reader path) short-circuit cleanly instead of hanging.
+
 ## 0.19.0
 
 ### Minor Changes
