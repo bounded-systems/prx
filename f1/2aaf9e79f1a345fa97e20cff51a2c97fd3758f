@@ -1,0 +1,33 @@
+packages/prx/test/room/podman.test.ts
+  s_c4318117f42b02::t_54488ee16e3186 259,262-264,267-269
+packages/prx/src/room/spec.ts
+  s_c4318117f42b02::t_13861d5ed19935 142-150
+.changeset/door-publish-loopback.md
+  s_c4318117f42b02::t_380d1a8d25c426 1-5
+packages/prx/src/room/podman.ts
+  s_4ccf8ec3ddcbc8::t_7f4bcd93006de3 271-278,280
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "f12aaf9e79f1a345fa97e20cff51a2c97fd3758f",
+  "prompts": {},
+  "sessions": {
+    "s_4ccf8ec3ddcbc8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "684a1b39-b25c-4f45-ac97-97af68184b7a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    },
+    "s_c4318117f42b02": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b707ec58-424b-452d-b628-e6eb4bd39018",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
