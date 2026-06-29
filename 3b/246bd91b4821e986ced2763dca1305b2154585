@@ -1,0 +1,28 @@
+packages/prx/src/room/repin.ts
+  s_3086de54355107::t_1572298d6746fd 1-40
+packages/prx/scripts/repin-boxes.ts
+  s_3086de54355107::t_5ab9db6c689326 35-42
+  s_3086de54355107::t_b198fb8e97c722 1-34,43
+.github/workflows/publish-oci-boxes.yml
+  s_3086de54355107::t_f02e1656c1e5fb 254-305
+packages/prx/test/room/repin.test.ts
+  s_3086de54355107::t_0d3c6438fdf6d4 1-41
+.changeset/auto-repin-feature.md
+  s_3086de54355107::t_9112f076a50b54 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "3b246bd91b4821e986ced2763dca1305b2154585",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
