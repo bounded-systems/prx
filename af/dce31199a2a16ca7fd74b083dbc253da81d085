@@ -1,0 +1,25 @@
+packages/prx/src/keeperd/daemon.ts
+  s_c4318117f42b02::t_c1f30c225d7dd7 36-40
+  s_c4318117f42b02::t_12174eb1b6fcc8 181-191
+  s_c4318117f42b02::t_3e4eb468ae8c09 223-242,253-254
+packages/prx/src/keeperd/grant-gate.ts
+  s_c4318117f42b02::t_51523dd52d8c17 1-115
+packages/prx/test/keeperd/grant-gate.test.ts
+  s_c4318117f42b02::t_868cc2453aa764 1-139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "afdce31199a2a16ca7fd74b083dbc253da81d085",
+  "prompts": {},
+  "sessions": {
+    "s_c4318117f42b02": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b707ec58-424b-452d-b628-e6eb4bd39018",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
