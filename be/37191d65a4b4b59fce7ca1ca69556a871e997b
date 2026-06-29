@@ -1,0 +1,25 @@
+docs/prx/articles/02-capability-security.md
+  s_0e0b4d6cd22542::t_f657d4a9ca707d 1-96
+.changeset/article-2-capability-security.md
+  s_0e0b4d6cd22542::t_eba92682d39506 1-4
+.claude/context/project.md
+  s_0e0b4d6cd22542::t_123384e15b8438 37
+prx.jsonld
+  s_0e0b4d6cd22542::t_77a82ecaab7395 259-267
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "be37191d65a4b4b59fce7ca1ca69556a871e997b",
+  "prompts": {},
+  "sessions": {
+    "s_0e0b4d6cd22542": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "25ca02d8-0ea9-405f-8441-40cf7bf0ee57",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
