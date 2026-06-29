@@ -1,0 +1,19 @@
+STATUS.md
+  s_5af7d7257a71b7::t_5f431ee96bcf8f 5,7,13,17,22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "60a74e58425dbef41768e12ac1813d3c6f9c9124",
+  "prompts": {},
+  "sessions": {
+    "s_5af7d7257a71b7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b292ff53-e67d-4386-be49-f24217c202d5",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
