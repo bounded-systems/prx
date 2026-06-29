@@ -1,0 +1,44 @@
+packages/prx/test/services/cli.test.ts
+  s_5af7d7257a71b7::t_3dcb3187fe2a5f 9
+  s_5af7d7257a71b7::t_0b37e0f089a234 163-196
+packages/prx/test/services/anthropic.test.ts
+  s_5af7d7257a71b7::t_688ad6674d15af 8
+  s_5af7d7257a71b7::t_f2e3bbbc4f06ab 106-172
+packages/prx/src/pr-state/cli.ts
+  s_5af7d7257a71b7::t_054860f41544d0 5841,5852,5854-5857
+  s_5af7d7257a71b7::t_a126522eeb260a 5795,5808-5811,5816-5817
+  s_5af7d7257a71b7::t_7c5d20576f4528 1286-1290
+  s_5af7d7257a71b7::t_a646d2d943f7ea 336
+  s_5af7d7257a71b7::t_4f06fd20daff5d 18791-18801
+  s_98e316d0b3248a::t_a82fb30dc658cc 1285
+packages/prx/src/services/cli.ts
+  s_5af7d7257a71b7::t_c981e8dab3d3a0 14,20
+  s_5af7d7257a71b7::t_b542a09347308a 167-236
+packages/prx/src/services/anthropic.ts
+  s_5af7d7257a71b7::t_476d7b808ccfeb 242-335
+  s_5af7d7257a71b7::t_86bbdb92efee3f 95-101,103-111,134,157,181-184,186-204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "4ae17b9169af322a6019c62dce127a884c900a47",
+  "prompts": {},
+  "sessions": {
+    "s_5af7d7257a71b7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b292ff53-e67d-4386-be49-f24217c202d5",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    },
+    "s_98e316d0b3248a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8db980ee-eb6b-4866-832b-f795cef7f33c",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
