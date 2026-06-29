@@ -9,6 +9,7 @@ import {
   resolveLocalBeadsCwd,
   withBeadsClient,
   isHostNativeSocket,
+  primeHostBeadsDoor,
   DEFAULT_LOCAL_BEADS_SOCKET,
 } from "../../src/beadsd/client-factory.ts";
 
@@ -199,5 +200,41 @@ describe("ensureLocalBeadsd", () => {
         { isUp: async () => false, spawn: () => ({ pid: 1 }), sleep: async () => {} },
       ),
     ).rejects.toThrow(BeadsUnavailableError);
+  });
+});
+
+describe("primeHostBeadsDoor — host-shell read routing (prx-82b 2e.1)", () => {
+  function harness(overrides: { door?: string; podSocket?: string | null }) {
+    const set: Record<string, string> = {};
+    const env = (k: string) => (k === "PRX_BEADS_DOOR" ? overrides.door : undefined);
+    const result = primeHostBeadsDoor({
+      env: env as never,
+      setEnvVar: ((k: string, v: string) => {
+        set[k] = v;
+      }) as never,
+      podSocket: () => overrides.podSocket ?? null,
+    });
+    return { result, set };
+  }
+
+  test("primes the door to the cwd's pod socket when a pod is up", () => {
+    const { result, set } = harness({ podSocket: "/run/prx/doors/slug/beadsd.sock" });
+    expect(result).toBe(true);
+    expect(set).toEqual({
+      PRX_BEADS_DOOR: "beadsd",
+      PRX_BEADS_SOCKET: "/run/prx/doors/slug/beadsd.sock",
+    });
+  });
+
+  test("no-op when no pod is up (host-native fallback stays)", () => {
+    const { result, set } = harness({ podSocket: null });
+    expect(result).toBe(false);
+    expect(set).toEqual({});
+  });
+
+  test("no-op when already in a pod/room profile (PRX_BEADS_DOOR set)", () => {
+    const { result, set } = harness({ door: "beadsd", podSocket: "/run/prx/doors/x/beadsd.sock" });
+    expect(result).toBe(false);
+    expect(set).toEqual({});
   });
 });

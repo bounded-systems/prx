@@ -317,7 +317,11 @@ import { runBeadsServe, type BeadsDaemonDeps } from "../beadsd/daemon.ts";
 // GH-228: beads workspace self-heal (`prx beads doctor [--fix]`).
 import { diagnoseBeads, healBeads } from "../beads/doctor.ts";
 // GH-296: the host read-door — route `prx beads ready|list|show` through beadsd.
-import { withBeadsClient, defaultCanonicalBeadsCwd } from "../beadsd/client-factory.ts";
+import {
+  withBeadsClient,
+  defaultCanonicalBeadsCwd,
+  primeHostBeadsDoor,
+} from "../beadsd/client-factory.ts";
 import {
   resolveWorkspaceAffinity,
   WorkspaceAffinityError,
@@ -14772,6 +14776,10 @@ export function runCli(
   // instead of spawning a local `bd`; off-profile it is never consulted
   // (prx-asr / prx-634).
   registerBdDoorDialer(prxBeadsDoorDialer);
+  // prx-82b Slice 2e.1: on a host shell in a repo whose pod is up, point the bd
+  // door at that pod so the door-gated read sites route to it instead of host
+  // bd. No-op in a pod/room profile or when no pod is up (host-native fallback).
+  primeHostBeadsDoor();
   try {
     // Spec-driven verbs (pilot/fleet/health) are handled by the canonical
     // VerbSpec dispatch, ahead of the legacy typed-command union/executor

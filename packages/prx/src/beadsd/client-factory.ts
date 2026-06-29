@@ -16,7 +16,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-import { getEnv } from "@bounded-systems/env";
+import { getEnv, setEnv } from "@bounded-systems/env";
 import { spawnDetached } from "@bounded-systems/proc";
 
 import { IsolatedBeadsClient } from "./client.ts";
@@ -67,6 +67,34 @@ function defaultPodBeadsSocket(): string | null {
  */
 export function isHostNativeSocket(socket: string): boolean {
   return socket === DEFAULT_LOCAL_BEADS_SOCKET;
+}
+
+/** Deps for {@link primeHostBeadsDoor} (injectable for tests). */
+export interface PrimeHostBeadsDoorDeps {
+  env?: typeof getEnv;
+  setEnvVar?: typeof setEnv;
+  /** The cwd's pod beadsd socket if its pod is up, else null (default: probe `podFor`). */
+  podSocket?: (() => string | null) | undefined;
+}
+
+/**
+ * Host-shell read routing (prx-82b Slice 2e.1): when host `prx` runs in a repo
+ * whose pod is up, point `PRX_BEADS_DOOR`/`PRX_BEADS_SOCKET` at that pod so the
+ * door-gated bd READ sites (`bdDoorGate`/`bdCommandRunner`) route to the pod
+ * instead of spawning host bd. No-op when already in a profile (the pod projects
+ * these into rooms) or when no pod is up (the host-native daemon stays the
+ * fallback until 2e.4). Returns true iff it primed the door. Call once at startup
+ * before the door dialer is consulted.
+ */
+export function primeHostBeadsDoor(deps: PrimeHostBeadsDoorDeps = {}): boolean {
+  const env = deps.env ?? getEnv;
+  const set = deps.setEnvVar ?? setEnv;
+  if (env("PRX_BEADS_DOOR")) return false; // already in a pod/room profile
+  const socket = (deps.podSocket ?? defaultPodBeadsSocket)();
+  if (!socket) return false; // no live pod → host-native fallback
+  set("PRX_BEADS_DOOR", "beadsd");
+  set("PRX_BEADS_SOCKET", socket);
+  return true;
 }
 
 /** Deps for {@link resolveBeadsEndpoint} (injectable for tests). */
