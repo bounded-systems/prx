@@ -1,5 +1,17 @@
 # @bounded-systems/prx
 
+## 0.23.1
+
+### Patch Changes
+
+- d8d00bb: Auto-repin room images to the freshly-built box digests (publish-oci-boxes repin job).
+- 43c1507: Remove the `dolt-data` nix FOD — `dolt clone`+`gc` are NOT byte-reproducible
+  across builders (proven: same pinned commit → different NAR hashes on Lima vs the
+  container builder), so a content-addressed fixed-output derivation is the wrong
+  model. The beads data volume is seeded by a builder-INDEPENDENT runtime clone of
+  the pinned commit instead (deterministic per-commit; the path `prx dolt provision`
+  should take when wired). Updates the dolt-service / pod-spec docs accordingly.
+
 ## 0.23.0
 
 ### Minor Changes
