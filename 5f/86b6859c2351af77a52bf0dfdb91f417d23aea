@@ -1,0 +1,26 @@
+packages/prx/test/room/lifecycle-runner.test.ts
+  s_399e6065f1b4a3::t_f4a1654a9b9007 6
+  s_399e6065f1b4a3::t_32267e0c7761d4 67-99
+packages/prx/src/room/lifecycle-runner.ts
+  s_399e6065f1b4a3::t_79d78ad815112c 25-32,43-44,47-50,58,70-81
+  s_399e6065f1b4a3::t_6a9d245f20a1db 14
+  s_399e6065f1b4a3::t_67eef96ee6f434 82
+.changeset/lifecycle-secret-rail.md
+  s_399e6065f1b4a3::t_4e4362e132cbbd 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "5f86b6859c2351af77a52bf0dfdb91f417d23aea",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
