@@ -13,6 +13,7 @@ import {
   exercisedBy,
   generateStatusDoc,
   generateValuePropsDoc,
+  isFullyBacked,
   isValuePropBacked,
 } from "../src/value_props.ts";
 
@@ -47,10 +48,10 @@ describe("value props (prx-8mx)", () => {
     ).toBe(generateStatusDoc());
   });
 
-  test("STATUS.md reports the live backed count and lists every learning goal", () => {
+  test("STATUS.md reports the live fully-backed count and lists every learning goal", () => {
     const doc = generateStatusDoc();
-    const backed = VALUE_PROPS.filter(isValuePropBacked).length;
-    expect(doc).toContain(`**${backed} of ${VALUE_PROPS.length} value props backed**`);
+    const fullyBacked = VALUE_PROPS.filter(isFullyBacked).length;
+    expect(doc).toContain(`**${fullyBacked} of ${VALUE_PROPS.length} value props fully backed**`);
     for (const vp of VALUE_PROPS) {
       if (!isValuePropBacked(vp)) expect(doc).toContain(`- ${vp.claim}`);
     }

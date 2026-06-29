@@ -213,6 +213,16 @@ export function isValuePropBacked(vp: ValueProp): boolean {
   return vp.forcing.every((f) => backingOf(f) !== "learning-goal");
 }
 
+/** Fully backed = every FF is a live pure check that passes right now (no evidence items). */
+export function isFullyBacked(vp: ValueProp): boolean {
+  return vp.forcing.every((f) => "check" in f && f.check());
+}
+
+/** Evidence-backed = backed (no learning goals) but at least one FF is evidence, not a live check. */
+export function isEvidenceBacked(vp: ValueProp): boolean {
+  return isValuePropBacked(vp) && !isFullyBacked(vp);
+}
+
 /** The code each forcing function exercises (empty for learning goals). */
 export function exercisedBy(f: ForcingFunction): readonly string[] {
   return "exercises" in f ? f.exercises : [];
@@ -303,26 +313,34 @@ const STATUS_BANNER =
  * executing the checks, so this can't claim more than the code delivers.
  */
 export function generateStatusDoc(): string {
-  const backed = VALUE_PROPS.filter(isValuePropBacked);
+  const fullyBacked = VALUE_PROPS.filter(isFullyBacked);
+  const evidenceBacked = VALUE_PROPS.filter(isEvidenceBacked);
   const learning = VALUE_PROPS.filter((vp) => !isValuePropBacked(vp));
+
+  const evidenceNote =
+    evidenceBacked.length > 0
+      ? ` · ${evidenceBacked.length} evidence-backed (merged PR / recorded run, not a live check)`
+      : "";
 
   const lines: string[] = [
     "# prx — status",
     "",
     STATUS_BANNER,
     "",
-    `**${backed.length} of ${VALUE_PROPS.length} value props backed** · ${learning.length} learning goal${learning.length === 1 ? "" : "s"}.`,
+    `**${fullyBacked.length} of ${VALUE_PROPS.length} value props fully backed**${evidenceNote} · ${learning.length} learning goal${learning.length === 1 ? "" : "s"}.`,
     "",
-    "## What prx does today (backed)",
+    "## What prx does today",
     "",
   ];
-  if (backed.length === 0) lines.push("_(none backed yet)_");
-  for (const vp of backed) {
-    lines.push(`- ${vp.claim}`);
+  const allBacked = VALUE_PROPS.filter(isValuePropBacked);
+  if (allBacked.length === 0) lines.push("_(none backed yet)_");
+  for (const vp of allBacked) {
+    const tag = isFullyBacked(vp) ? "" : " _(evidence-backed)_";
+    lines.push(`- ${vp.claim}${tag}`);
     lines.push(`  - ${vp.whyNot}`);
   }
   lines.push("", "## Learning goals (what's next)", "");
-  if (learning.length === 0) lines.push("_(none — every value prop is backed)_");
+  if (learning.length === 0) lines.push("_(none)_");
   for (const vp of learning) {
     lines.push(`- ${vp.claim}`);
     for (const f of vp.forcing) {
