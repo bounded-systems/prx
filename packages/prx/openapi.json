@@ -35,6 +35,64 @@
         }
       }
     },
+    "/builder/register": {
+      "post": {
+        "operationId": "builder_register",
+        "summary": "Print the /etc/nix/machines line + ssh-config to register the builder.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/builder_registerInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/builder_registerOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/builder/up": {
+      "post": {
+        "operationId": "builder_up",
+        "summary": "Run the nix-builder container (sshd + nix) as the local remote builder.",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/builder_upInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/builder_upOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/concierge/serve": {
       "post": {
         "operationId": "concierge_serve",
@@ -1148,6 +1206,57 @@
         },
         "required": [
           "rendered"
+        ],
+        "additionalProperties": false
+      },
+      "builder_registerInput": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "builder_registerOutput": {
+        "type": "object",
+        "properties": {
+          "machinesLine": {
+            "type": "string",
+            "description": "The /etc/nix/machines line for the container builder"
+          },
+          "sshConfig": {
+            "type": "string",
+            "description": "The ssh-config alias block for the builder"
+          }
+        },
+        "required": [
+          "machinesLine",
+          "sshConfig"
+        ],
+        "additionalProperties": false
+      },
+      "builder_upInput": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "builder_upOutput": {
+        "type": "object",
+        "properties": {
+          "container": {
+            "type": "string",
+            "description": "The podman container name"
+          },
+          "sshPort": {
+            "type": "number",
+            "description": "Host port the builder's sshd is published on"
+          },
+          "pubKey": {
+            "type": "string",
+            "description": "Host path of the public key mounted as authorized_keys"
+          }
+        },
+        "required": [
+          "container",
+          "sshPort",
+          "pubKey"
         ],
         "additionalProperties": false
       },

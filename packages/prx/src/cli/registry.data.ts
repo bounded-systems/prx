@@ -1250,22 +1250,26 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     internal: true,
   },
 
-  // ─── Lima — the nix remote builder (prx-62h) ───────────────────────────────
-  // The in-VM daemons (keeper/beads) were retired for the podman pod (prx-zj8);
-  // only the builder remains on Lima.
+  // ─── Builder — the nix remote builder as a pinned container (prx-zj8) ───────
+  // Replaces the Lima builder VM with a podman container (sshd + single-user
+  // nix). The whole fleet (daemons + builder) is now artifact-native on podman.
   {
-    name: "lima",
-    description: "Manage the Lima nix remote builder (prx-62h)",
+    name: "builder",
+    description: "Manage the nix remote builder (a pinned podman container, prx-zj8)",
     domain: "work-units",
     actor: "keeper",
   },
   {
-    // prx-62h: install nix in the VM + register it as a nix remote builder so
-    // aarch64-linux/OCI fleet images build off it (flavor B of the OCI ADR). The
-    // in-VM DAEMONS (keeper/beads) were retired for the podman pod (prx-zj8).
-    name: "lima provision-builder",
-    parent: "lima",
-    description: "Install nix in a Lima VM as a remote builder (prx-62h)",
+    name: "builder up",
+    parent: "builder",
+    description: "Run the nix-builder container (sshd + nix) for remote builds",
+    domain: "work-units",
+    actor: "keeper",
+  },
+  {
+    name: "builder register",
+    parent: "builder",
+    description: "Print the /etc/nix/machines line + ssh config to register the builder",
     domain: "work-units",
     actor: "keeper",
   },
