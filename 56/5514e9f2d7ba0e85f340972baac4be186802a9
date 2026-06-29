@@ -1,0 +1,23 @@
+nix/oci/nix-builder-box.nix
+  s_399e6065f1b4a3::t_3025c0d1816683 70-71,74
+  s_399e6065f1b4a3::t_143f6d3d9ee106 1-69,77-95
+  s_399e6065f1b4a3::t_17c3e079a9425f 72-73,75-76
+flake.nix
+  s_399e6065f1b4a3::t_8aaeab9ff2d8f2 74-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "565514e9f2d7ba0e85f340972baac4be186802a9",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
