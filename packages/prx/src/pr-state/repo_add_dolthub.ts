@@ -28,6 +28,7 @@ import {
   type RepoRunner,
 } from "./repos.ts";
 import { locateRepo } from "./repo_locate.ts";
+import { containerRepoRunner } from "../beads/container-runner.ts";
 
 // ── options + deps ─────────────────────────────────────────────────────────
 
@@ -169,7 +170,11 @@ export function runRepoAddDolthub(
       const value = result.stdout.trim();
       return value.length > 0 ? value : null;
     });
-  const bdRemoteAdd = deps.bdDoltRemoteAdd ?? defaultBdDoltRemoteAdd(runner);
+  // prx-82b Slice 2c.3: `bd dolt remote add` (cred-free) runs in an ephemeral
+  // beadsd-box container, not host bd. `dolt push` stays on host for now — it
+  // needs DoltHub creds the container lacks; the sync agent owns recurring push,
+  // and relocating the initial push wants a creds-mount design (later).
+  const bdRemoteAdd = deps.bdDoltRemoteAdd ?? defaultBdDoltRemoteAdd(containerRepoRunner());
   const bdPush = deps.bdDoltPush ?? defaultBdDoltPush(runner);
 
   if (!opts.config.indexPath) {
