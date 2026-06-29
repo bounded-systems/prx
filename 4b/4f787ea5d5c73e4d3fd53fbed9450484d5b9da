@@ -8,6 +8,7 @@ nix/oci/concierged-box.nix
   s_c4318117f42b02::t_7b1aab4f793f13 19-23
 .changeset/concierged-box-image.md
   s_c4318117f42b02::t_e108f8ad3f5f0a 1-4
+  s_c4318117f42b02::t_a726c49ecf29ca 5
 ---
 {
   "schema_version": "authorship/3.0.0",
