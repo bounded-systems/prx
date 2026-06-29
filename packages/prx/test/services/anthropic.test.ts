@@ -3,7 +3,11 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 
-import { projectAnthropicUsage, resolveWindowFloor } from "../../src/services/anthropic.ts";
+import {
+  projectAnthropicDiamond,
+  projectAnthropicUsage,
+  resolveWindowFloor,
+} from "../../src/services/anthropic.ts";
 
 function makeDb(): Database {
   // The projector only reads the generic `events` table. Use the same DDL
@@ -33,6 +37,7 @@ function seedUsage(
     profile?: string;
     actor?: string;
     workUnitId?: string;
+    model?: string;
     input_tokens?: number;
     output_tokens?: number;
     cache_read_input_tokens?: number;
@@ -47,6 +52,7 @@ function seedUsage(
     profile: payload.profile,
     actor: payload.actor ?? "claude-code",
     workUnitId: payload.workUnitId,
+    ...(payload.model ? { model: payload.model } : {}),
     input_tokens: payload.input_tokens ?? 0,
     output_tokens: payload.output_tokens ?? 0,
     cache_read_input_tokens: payload.cache_read_input_tokens ?? 0,
@@ -192,6 +198,50 @@ describe("projectAnthropicUsage", () => {
     expect(byUnit.map((b) => b.bucket).sort()).toEqual(["GH-1", "GH-2"]);
   });
 
+  test("groups by model, falling back to (unknown model) when absent", () => {
+    const db = makeDb();
+    seedUsage(db, {
+      ts: "2026-05-15T00:00:00Z",
+      model: "claude-opus-4-8",
+      input_tokens: 100,
+      cache_read_input_tokens: 800,
+      total_cost_usd: 0.10,
+    });
+    seedUsage(db, {
+      ts: "2026-05-15T00:01:00Z",
+      model: "claude-opus-4-8",
+      input_tokens: 50,
+      cache_read_input_tokens: 400,
+      total_cost_usd: 0.05,
+    });
+    seedUsage(db, {
+      ts: "2026-05-15T00:02:00Z",
+      model: "claude-haiku-4-5",
+      input_tokens: 10,
+      cache_read_input_tokens: 90,
+      total_cost_usd: 0.001,
+    });
+    seedUsage(db, {
+      ts: "2026-05-15T00:03:00Z",
+      // no model field — falls back to (unknown model)
+      input_tokens: 5,
+    });
+
+    const buckets = projectAnthropicUsage(db, { by: "model" });
+    expect(buckets.length).toBe(3);
+
+    const opus = buckets.find((b) => b.bucket === "claude-opus-4-8")!;
+    expect(opus.calls).toBe(2);
+    expect(opus.total_cost_usd).toBeCloseTo(0.15, 5);
+    expect(opus.hit_rate).toBeCloseTo(1200 / 1350, 5);
+
+    const haiku = buckets.find((b) => b.bucket === "claude-haiku-4-5")!;
+    expect(haiku.calls).toBe(1);
+
+    const unknown = buckets.find((b) => b.bucket === "(unknown model)")!;
+    expect(unknown.calls).toBe(1);
+  });
+
   test("returns hit_rate=0 when both input and cache_read are zero", () => {
     const db = makeDb();
     seedUsage(db, {
@@ -202,6 +252,94 @@ describe("projectAnthropicUsage", () => {
     });
     const buckets = projectAnthropicUsage(db);
     expect(buckets[0]!.hit_rate).toBe(0);
+  });
+});
+
+describe("projectAnthropicDiamond", () => {
+  function makeDbWithTransitions(): Database {
+    const db = makeDb();
+    db.exec(`
+      CREATE TABLE transitions (
+        id          TEXT PRIMARY KEY,
+        issue       TEXT,
+        state_from  TEXT NOT NULL,
+        state_to    TEXT NOT NULL,
+        actor       TEXT NOT NULL,
+        artifact    TEXT,
+        ts          TEXT NOT NULL,
+        proof_commit TEXT,
+        proof_checks_json TEXT
+      );
+    `);
+    return db;
+  }
+
+  function seedTransition(
+    db: Database,
+    issue: string,
+    state_to: string,
+    ts: string,
+  ): void {
+    db.run(
+      `INSERT INTO transitions (id, issue, state_from, state_to, actor, ts)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [`tr::${issue}::${ts}`, issue, "open", state_to, "test", ts],
+    );
+  }
+
+  test("assigns work units to dominant model and computes completion_rate", () => {
+    const db = makeDbWithTransitions();
+
+    // GH-1: completed via merged, dominant model = opus (higher cost)
+    seedUsage(db, { ts: "2026-05-15T00:00:00Z", workUnitId: "GH-1", model: "claude-opus-4-8", total_cost_usd: 5.0, input_tokens: 100, cache_read_input_tokens: 800 });
+    seedUsage(db, { ts: "2026-05-15T00:01:00Z", workUnitId: "GH-1", model: "claude-haiku-4-5", total_cost_usd: 0.1, input_tokens: 10, cache_read_input_tokens: 50 });
+    seedTransition(db, "GH-1", "merged", "2026-05-15T01:00:00Z");
+
+    // GH-2: closed, dominant model = opus
+    seedUsage(db, { ts: "2026-05-15T00:02:00Z", workUnitId: "GH-2", model: "claude-opus-4-8", total_cost_usd: 3.0, input_tokens: 60, cache_read_input_tokens: 400 });
+    seedTransition(db, "GH-2", "closed", "2026-05-15T02:00:00Z");
+
+    // GH-3: in_progress (no transition), dominant model = haiku
+    seedUsage(db, { ts: "2026-05-15T00:03:00Z", workUnitId: "GH-3", model: "claude-haiku-4-5", total_cost_usd: 0.2, input_tokens: 20, cache_read_input_tokens: 80 });
+
+    const points = projectAnthropicDiamond(db);
+
+    const opus = points.find((p) => p.model === "claude-opus-4-8")!;
+    expect(opus.work_units).toBe(2); // GH-1 and GH-2
+    expect(opus.completed).toBe(1);
+    expect(opus.closed).toBe(1);
+    expect(opus.in_progress).toBe(0);
+    expect(opus.completion_rate).toBeCloseTo(0.5, 5);
+    expect(opus.total_cost_usd).toBeCloseTo(8.1, 5); // 5.1 (GH-1 total) + 3.0 (GH-2)
+
+    const haiku = points.find((p) => p.model === "claude-haiku-4-5")!;
+    expect(haiku.work_units).toBe(1); // GH-3
+    expect(haiku.in_progress).toBe(1);
+    expect(haiku.completion_rate).toBe(0);
+  });
+
+  test("returns empty when no work units have a workUnitId", () => {
+    const db = makeDbWithTransitions();
+    seedUsage(db, { ts: "2026-05-15T00:00:00Z", input_tokens: 10 }); // no workUnitId
+    expect(projectAnthropicDiamond(db)).toEqual([]);
+  });
+
+  test("treats cleaned as completed", () => {
+    const db = makeDbWithTransitions();
+    seedUsage(db, { ts: "2026-05-15T00:00:00Z", workUnitId: "GH-10", model: "claude-opus-4-8", total_cost_usd: 1.0 });
+    seedTransition(db, "GH-10", "cleaned", "2026-05-15T01:00:00Z");
+    const points = projectAnthropicDiamond(db);
+    expect(points[0]!.completed).toBe(1);
+    expect(points[0]!.completion_rate).toBe(1);
+  });
+
+  test("latest transition wins when multiple transitions exist", () => {
+    const db = makeDbWithTransitions();
+    seedUsage(db, { ts: "2026-05-15T00:00:00Z", workUnitId: "GH-20", model: "claude-opus-4-8", total_cost_usd: 2.0 });
+    seedTransition(db, "GH-20", "draft", "2026-05-15T01:00:00Z");
+    seedTransition(db, "GH-20", "merged", "2026-05-15T02:00:00Z");
+    const points = projectAnthropicDiamond(db);
+    expect(points[0]!.completed).toBe(1);
   });
 });
 

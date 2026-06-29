@@ -333,7 +333,7 @@ import { runDedupeBd as doctorRunDedupeBd } from "../doctor/dedupe-bd.ts";
 // GH-1823: audit actor — read-only adherence metrics over the artifact graph.
 import { runAuditIngest, runAuditUow, runAuditSystem } from "../audit/cli.ts";
 // GH-1407: services actor — Anthropic prompt-cache hit-rate projector.
-import { runServicesStatus } from "../services/cli.ts";
+import { runServicesDiamond, runServicesStatus } from "../services/cli.ts";
 import { taskRoleMachine, taskRoles, type TaskRole } from "../machine/machines/task.ts";
 import { workflowMachine } from "../machine/machines/workflow.ts";
 import { resolveWorktreePath } from "../tools/worktree_path.ts";
@@ -1273,7 +1273,13 @@ type ParsedCommand =
       command: "services-status";
       anthropic: boolean;
       window?: string | undefined;
-      by: "profile" | "actor" | "workUnitId";
+      by: "profile" | "actor" | "workUnitId" | "model";
+      format: "plain" | "json";
+    }
+  | {
+      // prx-b2n — `prx services diamond` projects cost-vs-outcome per model.
+      command: "services-diamond";
+      window?: string | undefined;
       format: "plain" | "json";
     }
   | {
@@ -5780,19 +5786,24 @@ function parseTestGateCommand(rest: string[]): ParsedCommand {
 }
 
 // GH-1407 — `prx services <verb>` read-only external-plane status verb.
-const SERVICES_VERBS = ["status"] as const;
+const SERVICES_VERBS = ["status", "diamond"] as const;
 
 function printServicesHelp(): string {
   return [
     "Usage: prx services <verb> [options]",
     "",
     "Verbs:",
-    "  status --anthropic [--window=Nd] [--by=profile|actor|workUnitId] [--format=plain|json]",
+    "  status --anthropic [--window=Nd] [--by=profile|actor|workUnitId|model] [--format=plain|json]",
     "         Project Anthropic prompt-cache hit rate from non-interactive-agent/usage rows.",
     "",
+    "  diamond [--window=Nd] [--format=plain|json]",
+    "         Cost-vs-outcome diamond: avg spend and completion rate per model.",
+    "",
     "Examples:",
-    "  prx services status --anthropic --by=profile",
+    "  prx services status --anthropic --by=model",
     "  prx services status --anthropic --window=7d --format=json",
+    "  prx services diamond --window=30d",
+    "  prx services diamond --format=json",
   ].join("\n");
 }
 
@@ -5816,6 +5827,26 @@ function parseServicesCommand(rest: string[]): ParsedCommand {
     printServicesHelpAndExit();
   }
 
+  if (verbArg === "diamond") {
+    const { values, positionals } = parseArgs({
+      args: subRest,
+      options: {
+        window: { type: "string" },
+        format: { type: "string", default: "plain" },
+      },
+      strict: true,
+      allowPositionals: true,
+    });
+    if (positionals.length > 0) {
+      throw new CliError("prx services diamond takes no positional arguments");
+    }
+    return {
+      command: "services-diamond",
+      ...(values.window !== undefined ? { window: values.window } : {}),
+      format: ensureChoice(values.format, ["plain", "json"], "--format"),
+    };
+  }
+
   // verb === "status"
   const { values, positionals } = parseArgs({
     args: subRest,
@@ -5836,7 +5867,7 @@ function parseServicesCommand(rest: string[]): ParsedCommand {
       "prx services status: --anthropic is required (per-actor planes ship with GH-1826)",
     );
   }
-  const by = ensureChoice(values.by, ["profile", "actor", "workUnitId"], "--by");
+  const by = ensureChoice(values.by, ["profile", "actor", "workUnitId", "model"], "--by");
   return {
     command: "services-status",
     anthropic: true,
@@ -18730,6 +18761,17 @@ export function runCli(
           anthropic: parsed.anthropic,
           ...(parsed.window !== undefined ? { window: parsed.window } : {}),
           by: parsed.by,
+          format: parsed.format,
+        },
+        output,
+      );
+    }
+
+    // prx-b2n: cost-vs-outcome diamond.
+    if (parsed.command === "services-diamond") {
+      return runServicesDiamond(
+        {
+          ...(parsed.window !== undefined ? { window: parsed.window } : {}),
           format: parsed.format,
         },
         output,

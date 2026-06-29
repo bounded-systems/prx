@@ -11,7 +11,7 @@
 
 import type { Database } from "bun:sqlite";
 
-export type AnthropicProjectorBy = "profile" | "actor" | "workUnitId";
+export type AnthropicProjectorBy = "profile" | "actor" | "workUnitId" | "model";
 
 export type AnthropicProjectorOptions = {
   /**
@@ -48,6 +48,7 @@ type UsagePayload = {
   profile?: string;
   actor?: string;
   workUnitId?: string;
+  model?: string;
   input_tokens?: number;
   output_tokens?: number;
   cache_read_input_tokens?: number;
@@ -58,11 +59,167 @@ type UsagePayload = {
 function bucketKey(row: UsagePayload, by: AnthropicProjectorBy): string {
   if (by === "actor") return row.actor ?? "(unknown actor)";
   if (by === "workUnitId") return row.workUnitId ?? "(unattached)";
+  if (by === "model") return row.model ?? "(unknown model)";
   return row.profile ?? "(unknown profile)";
 }
 
 function num(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+/**
+ * One point on the cost-vs-outcome diamond for a single model.
+ *
+ * Cost axis  — `avg_cost_usd`: average spend per work unit attributed to this
+ *              model (the work unit is assigned to its dominant model by cost).
+ * Outcome axis — `completion_rate`: fraction of work units that reached a
+ *              terminal "merged" or "cleaned" state in the transitions log.
+ */
+export type DiamondPoint = {
+  model: string;
+  work_units: number;
+  total_cost_usd: number;
+  avg_cost_usd: number;
+  completed: number;
+  closed: number;
+  in_progress: number;
+  completion_rate: number;
+  hit_rate: number;
+};
+
+const COMPLETED_STATES = new Set(["merged", "cleaned"]);
+const CLOSED_STATES = new Set(["closed"]);
+
+type TransitionRow = { issue: string; state_to: string; ts: string };
+
+export function projectAnthropicDiamond(
+  db: Database,
+  opts: AnthropicProjectorOptions = {},
+): DiamondPoint[] {
+  const since = opts.since;
+
+  const rows = since
+    ? db
+        .query<EventRow, [string]>(
+          `SELECT raw_json FROM events WHERE action = 'non-interactive-agent' AND ts >= ?`,
+        )
+        .all(since)
+    : db
+        .query<EventRow, []>(`SELECT raw_json FROM events WHERE action = 'non-interactive-agent'`)
+        .all();
+
+  // Accumulate cost per (workUnitId, model). Each work unit is later assigned
+  // to its dominant model (highest cost share) so it contributes exactly one
+  // point to the diamond — no double-counting across models.
+  type ModelAccum = { cost: number; cache_read: number; input: number };
+  const byWuid = new Map<string, Map<string, ModelAccum>>();
+
+  for (const row of rows) {
+    let payload: UsagePayload;
+    try {
+      payload = JSON.parse(row.raw_json) as UsagePayload;
+    } catch {
+      continue;
+    }
+    if (payload.subkind !== "usage") continue;
+    const wuid = payload.workUnitId;
+    if (!wuid) continue; // unattached — no outcome to measure
+    const model = payload.model ?? "(unknown model)";
+    const inner = byWuid.get(wuid) ?? new Map<string, ModelAccum>();
+    const entry = inner.get(model) ?? { cost: 0, cache_read: 0, input: 0 };
+    entry.cost += num(payload.total_cost_usd);
+    entry.cache_read += num(payload.cache_read_input_tokens);
+    entry.input += num(payload.input_tokens);
+    inner.set(model, entry);
+    byWuid.set(wuid, inner);
+  }
+
+  if (byWuid.size === 0) return [];
+
+  // Get latest state_to per issue from the transitions log (ascending order so
+  // each later row overwrites the previous — last write wins = most recent).
+  const allTransitions = db
+    .query<TransitionRow, []>(
+      `SELECT issue, state_to, ts FROM transitions ORDER BY ts ASC`,
+    )
+    .all();
+  const latestState = new Map<string, string>();
+  for (const t of allTransitions) {
+    if (t.issue) latestState.set(t.issue, t.state_to);
+  }
+
+  type ModelAgg = {
+    work_units: number;
+    total_cost: number;
+    completed: number;
+    closed: number;
+    in_progress: number;
+    total_cache_read: number;
+    total_input: number;
+  };
+  const modelAgg = new Map<string, ModelAgg>();
+
+  for (const [wuid, modelMap] of byWuid) {
+    // Dominant model = highest cost share for this work unit.
+    let dominantModel = "(unknown model)";
+    let maxCost = -1;
+    let totalCost = 0;
+    let totalCacheRead = 0;
+    let totalInput = 0;
+    for (const [model, accum] of modelMap) {
+      totalCost += accum.cost;
+      totalCacheRead += accum.cache_read;
+      totalInput += accum.input;
+      if (accum.cost > maxCost) {
+        maxCost = accum.cost;
+        dominantModel = model;
+      }
+    }
+
+    const state = latestState.get(wuid);
+    const outcome = state
+      ? COMPLETED_STATES.has(state)
+        ? "completed"
+        : CLOSED_STATES.has(state)
+          ? "closed"
+          : "in_progress"
+      : "in_progress";
+
+    const agg = modelAgg.get(dominantModel) ?? {
+      work_units: 0,
+      total_cost: 0,
+      completed: 0,
+      closed: 0,
+      in_progress: 0,
+      total_cache_read: 0,
+      total_input: 0,
+    };
+    agg.work_units += 1;
+    agg.total_cost += totalCost;
+    agg.total_cache_read += totalCacheRead;
+    agg.total_input += totalInput;
+    if (outcome === "completed") agg.completed += 1;
+    else if (outcome === "closed") agg.closed += 1;
+    else agg.in_progress += 1;
+    modelAgg.set(dominantModel, agg);
+  }
+
+  return [...modelAgg.entries()]
+    .map(([model, agg]) => {
+      const denom = agg.total_input + agg.total_cache_read;
+      return {
+        model,
+        work_units: agg.work_units,
+        total_cost_usd: agg.total_cost,
+        avg_cost_usd: agg.work_units > 0 ? agg.total_cost / agg.work_units : 0,
+        completed: agg.completed,
+        closed: agg.closed,
+        in_progress: agg.in_progress,
+        completion_rate: agg.work_units > 0 ? agg.completed / agg.work_units : 0,
+        hit_rate: denom === 0 ? 0 : agg.total_cache_read / denom,
+      };
+    })
+    .sort((a, b) => b.completion_rate - a.completion_rate || b.total_cost_usd - a.total_cost_usd);
 }
 
 export function projectAnthropicUsage(
