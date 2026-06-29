@@ -11,11 +11,13 @@ import { openAuditDb } from "../audit/store/db.ts";
 import { ingestAuditSources } from "../audit/store/ingest.ts";
 import {
   projectAnthropicDiamond,
+  projectAnthropicSeries,
   projectAnthropicUsage,
   resolveWindowFloor,
   type AnthropicProjectorBy,
   type AnthropicUsageBucket,
   type DiamondPoint,
+  type SeriesPoint,
 } from "./anthropic.ts";
 
 export type ServicesOutput = {
@@ -158,6 +160,76 @@ function renderDiamond(
     const hitPct = (p.hit_rate * 100).toFixed(1) + "%";
     output.log(
       `  ${p.model.padEnd(28)} ${String(p.work_units).padStart(5)} ${("$" + p.avg_cost_usd.toFixed(2)).padStart(10)} ${completionPct.padStart(11)} ${hitPct.padStart(9)}`,
+    );
+  }
+}
+
+export type RunServicesSeriesOptions = {
+  window?: string;
+  format?: "plain" | "json";
+};
+
+export function runServicesSeries(
+  opts: RunServicesSeriesOptions,
+  output: ServicesOutput,
+  deps: ServicesCliDeps = {},
+): number {
+  const db =
+    deps.db ??
+    (deps.openDb ?? openAuditDb)({
+      stateDirOverride: deps.stateDirOverride,
+    });
+
+  if (deps.auditDir || deps.transitionDir) {
+    ingestAuditSources(db, {
+      ...(deps.auditDir ? { auditDir: deps.auditDir } : {}),
+      ...(deps.transitionDir ? { transitionDir: deps.transitionDir } : {}),
+    });
+  }
+
+  const since = resolveWindowFloor(opts.window, deps.now?.() ?? new Date());
+  const points = projectAnthropicSeries(db, { ...(since ? { since } : {}) });
+
+  if (opts.format === "json") {
+    output.log(
+      JSON.stringify({
+        plane: "anthropic",
+        window: opts.window ?? null,
+        since: since ?? null,
+        points,
+      }),
+    );
+  } else {
+    renderSeries(points, opts, output);
+  }
+
+  if (!deps.db) db.close();
+  return 0;
+}
+
+function renderSeries(
+  points: SeriesPoint[],
+  opts: RunServicesSeriesOptions,
+  output: ServicesOutput,
+): void {
+  const windowLabel = opts.window ? ` (window=${opts.window})` : "";
+  output.log(`anthropic services series — completion rate by model × spend tier${windowLabel}`);
+  if (points.length === 0) {
+    output.log(
+      "  (no work-unit cost data found — try `prx audit ingest` with --audit-dir and --transition-dir)",
+    );
+    return;
+  }
+  output.log(
+    `  ${"model".padEnd(28)} ${"tier".padStart(10)} ${"wus".padStart(5)} ${"avg_cost".padStart(10)} ${"completion".padStart(11)}`,
+  );
+  let lastModel = "";
+  for (const p of points) {
+    if (p.model !== lastModel && lastModel !== "") output.log("");
+    lastModel = p.model;
+    const completionPct = (p.completion_rate * 100).toFixed(1) + "%";
+    output.log(
+      `  ${p.model.padEnd(28)} ${p.tier.padStart(10)} ${String(p.work_units).padStart(5)} ${("$" + p.avg_cost_usd.toFixed(2)).padStart(10)} ${completionPct.padStart(11)}`,
     );
   }
 }

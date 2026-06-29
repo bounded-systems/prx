@@ -6,7 +6,7 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 
-import { runServicesDiamond, runServicesStatus } from "../../src/services/cli.ts";
+import { runServicesDiamond, runServicesSeries, runServicesStatus } from "../../src/services/cli.ts";
 
 function seedDb(): Database {
   const db = new Database(":memory:");
@@ -157,6 +157,40 @@ describe("runServicesDiamond", () => {
     );
     expect(code).toBe(0);
     expect(logs.some((l) => l.includes("no work-unit cost data found"))).toBe(true);
+  });
+});
+
+describe("runServicesSeries", () => {
+  test("--format=json emits structured points with tier and completion_rate", () => {
+    const db = seedDbWithTransitions();
+    const logs: string[] = [];
+    const code = runServicesSeries(
+      { format: "json" },
+      { log: (l) => logs.push(l), error: () => {} },
+      { db },
+    );
+    expect(code).toBe(0);
+    const parsed = JSON.parse(logs[0]!) as {
+      plane: string;
+      points: Array<{ model: string; tier: string; completion_rate: number }>;
+    };
+    expect(parsed.plane).toBe("anthropic");
+    expect(parsed.points.length).toBeGreaterThan(0);
+    expect(parsed.points.every((p) => typeof p.tier === "string")).toBe(true);
+    expect(parsed.points.every((p) => typeof p.completion_rate === "number")).toBe(true);
+  });
+
+  test("plain format prints a header and model rows grouped by tier", () => {
+    const db = seedDbWithTransitions();
+    const logs: string[] = [];
+    const code = runServicesSeries(
+      { format: "plain" },
+      { log: (l) => logs.push(l), error: () => {} },
+      { db },
+    );
+    expect(code).toBe(0);
+    expect(logs.some((l) => l.includes("series"))).toBe(true);
+    expect(logs.some((l) => l.includes("claude-opus-4-8") || l.includes("claude-haiku-4-5"))).toBe(true);
   });
 });
 
