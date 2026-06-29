@@ -1,0 +1,21 @@
+.changeset/nextwork-triage-guard.md
+  s_c4318117f42b02::t_8f8db57cebdc1f 1-5
+packages/prx/src/pr-state/next_work.ts
+  s_c4318117f42b02::t_8d50d0bb1540ce 347-353,355
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a4ebe9f0cfb39124c1b7d00b69dfc6e3990c4c21",
+  "prompts": {},
+  "sessions": {
+    "s_c4318117f42b02": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b707ec58-424b-452d-b628-e6eb4bd39018",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
