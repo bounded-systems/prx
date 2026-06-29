@@ -1,0 +1,5 @@
+---
+"@bounded-systems/prx": minor
+---
+
+Door-bridge phase 2 (door-side gate) — keeperd enforces a signed grant on its TCP edge (prx-8uf2). keeperd holds the git push credential; on a unix socket the kernel authenticates the peer (held-ref = authority), but on a TCP edge a reachable socket is not authority. keeperd now installs guest-room's `signedGrantAuthorizer` on the TCP path only: a TCP request must carry a grant minted for the `keeper` door, audience-bound, unexpired, and signed by a published issuer key — verified before dispatch. Unix listeners are unchanged. Config-gated by `KEEPERD_GRANT_AUDIENCE` + `KEEPERD_ISSUER_KEYS` (inline JSON or `@<path>`); an unconfigured TCP keeper stays unauthenticated-but-loopback (the #827 safety fix) and logs a loud WARN. New `src/keeperd/grant-gate.ts` (reuses the guest-room primitive — no bespoke crypto beyond ed25519 verify); required bumping `@bounded-systems/guest-room` 0.2.0 → 0.4.0 (0.2.0 predates the grant primitives). Corrects `docs/prx/door-bridge.md`: the gate is door-side (a `RequestAuthorizer` over the request envelope's grant), not inside the forwarding bridge.

@@ -1,9 +1,11 @@
 # ADR — the door-bridge: authenticated TCP/vsock access to unix-only doors
 
-> **Status: design.** Bead: **prx-8uf2**. Pairs with the door substrate
-> (`src/door/transport.ts`, `framing.ts`), the credential doors (`ghappd`,
-> keeperd), and the capability-transport model (claude-box ADR, prx-86g9:
-> *authority chosen by `DoorTransport` — held-ref local, signed grant in transit*).
+> **Status: partly implemented** (phases 0–1 + the keeper door-side gate of
+> phase 2 are merged; see Phases). Bead: **prx-8uf2**. Pairs with the door
+> substrate (`src/door/transport.ts`, `framing.ts`, `src/door/bridge.ts`), the
+> credential doors (`ghappd`, keeperd: `src/keeperd/grant-gate.ts`), and the
+> capability-transport model (claude-box ADR, prx-86g9: *authority chosen by
+> `DoorTransport` — held-ref local, signed grant in transit*).
 
 ## Context
 
@@ -40,38 +42,54 @@ transit. The bridge is where "in transit" gets enforced.
 ## Decision
 
 A **per-box door-bridge** (the box always speaks unix; the bridge owns the
-tcp/vsock edge — prx-8uf2). The daemon stays unix-only; the bridge is the *only*
-TCP/vsock listener, and it **forwards to the unix socket only after authorizing
-the caller**:
+tcp/vsock edge — prx-8uf2). Two cooperating parts:
 
-1. **Frame-transparent forward** — the bridge speaks the same length-prefixed
-   framing (`door/framing.ts`); it does not parse door payloads, only gates them.
-2. **Signed-grant gate** (non-loopback / cross-host) — the caller presents a
-   grant: `{ door capability, holder identity, nbf, exp }` signed by the door
-   **authority** (keymaker / the signer). The bridge verifies signature + window +
-   that the capability matches this door, then forwards. No grant → refused
-   before the unix socket is touched.
-3. **vsock** for VM-isolated boxes (microVM / gVisor tiers) — same gate, vsock
-   transport instead of TCP.
+1. **Frame-transparent forward** — the bridge is a TCP/vsock listener that pumps
+   bytes to the door's unix socket. It does **not** parse door payloads or gate
+   them; it is pure reachability. Bound to **loopback** so an unauthenticated edge
+   is never reachable off-host. Built: `src/door/bridge.ts` + `prx door bridge`.
+2. **Signed-grant gate — AT THE DOOR, not in the bridge.** The caller presents a
+   grant inside its request envelope (`RequestEnvelope.grant`); the **door
+   daemon** verifies it before dispatch via guest-room's `signedGrantAuthorizer`
+   (audience + door + exp + issuer-key, over the request). On a **unix** socket
+   the kernel authenticates the peer, so the held reference is the authority (no
+   grant); on a **tcp/vsock** edge a reachable socket is not authority, so a valid
+   grant is required. Built for keeperd: `src/keeperd/grant-gate.ts`.
+3. **vsock** for VM-isolated boxes (microVM / gVisor tiers) — same door-side gate,
+   vsock transport instead of TCP.
 
-### Immediate safety fix (independent of the bridge)
+> **Correction (2026-06-29).** This ADR's first draft put the signed-grant gate
+> *inside the forwarding bridge*. That is wrong: the gate is a door-side
+> `RequestAuthorizer` over the request envelope's `grant` (already built +
+> e2e-verified in guest-room `signedGrantAuthorizer`, #38/#40, published in
+> `@bounded-systems/guest-room` **0.3.0+**). A byte-forwarding bridge *cannot*
+> gate without parsing the door protocol — which it must not do. So the bridge
+> stays transparent (reachability + loopback safety) and **the door authorizes**.
+> A bridge-level gate would also double-gate and split the authority model.
 
-`room/podman.ts` publishes `--publish ${port}:${port}` — i.e. `0.0.0.0`. Until the
-grant-bridge exists, the published port must bind **loopback** (`127.0.0.1:${port}:${port}`)
-so a credential door is never reachable off-host unauthenticated. (Today the port
-forwards to nothing, but the binding should be correct before any bridge lands.)
+### Immediate safety fix (independent of the bridge) — DONE (#827)
+
+`room/podman.ts` published `--publish ${port}:${port}` — i.e. `0.0.0.0`. It now
+binds **loopback** (`127.0.0.1:${port}:${port}`) so a credential door is never
+reachable off-host unauthenticated, independent of (and prerequisite to) the gate.
 
 ## Phases
 
-1. **Loopback bridge (opt-in, single-user/dev only).** A TCP→unix forwarder bound
-   to `127.0.0.1`, behind an explicit opt-in flag, with a documented caveat: it
-   widens door access from the socket's owner to *all local users* — acceptable on
-   a single-user dev mac, **not** on a shared/prod host. Unblocks host-side leasing
-   (e.g. the operator's `prx` dialing `PRX_GH_APP_DOOR=127.0.0.1:9998`).
-2. **Signed-grant bridge (the real prx-8uf2).** The grant format + signer +
-   in-bridge verification above. Enables multi-user hosts and cross-host/"movable"
-   rooms safely. This is the gate that makes `--remote-control` / cross-host doors
-   real (relates prx-9s14, authd/prx-6194).
+0. **Publish-side safety fix — DONE (#827).** `room/podman.ts` published a
+   credential door's `tcpPort` as `--publish PORT:PORT` (`0.0.0.0`). Now
+   `127.0.0.1:PORT:PORT` — never reachable off-host unauthenticated.
+1. **Loopback bridge — DONE (#830).** `prx door bridge` = a `127.0.0.1`-only
+   TCP→unix forwarder (`src/door/bridge.ts`), frame-transparent, explicit opt-in,
+   loud dev-only caveat (widens to all local users). Unblocks host-side leasing.
+2. **Door-side signed-grant gate — keeper DONE (this PR).** keeperd installs
+   guest-room's `signedGrantAuthorizer` on its **TCP** edge (unix bypasses —
+   held-ref): a TCP request must carry a valid grant (audience + `keeper` door +
+   exp + issuer key). Config-gated by `KEEPERD_GRANT_AUDIENCE` +
+   `KEEPERD_ISSUER_KEYS`; unconfigured TCP stays unauthenticated-but-loopback and
+   WARNs loudly. Needed the `@bounded-systems/guest-room` **0.2.0 → 0.4.0** bump
+   (0.2.0 predates the grant primitives). *Remaining:* the same gate for ghappd
+   (its own framing, not yet on the guest-room protocol), and **grant acquisition**
+   (concierge `resolve()` + refresh-before-TTL) — deployment-coupled, prx-9s14.
 3. **vsock transport** for VM-isolation tiers (prx-5p5 gVisor, prx-n8d Firecracker).
 
 ## Alternatives considered
@@ -84,13 +102,23 @@ forwards to nothing, but the binding should be correct before any bridge lands.)
   network reachability, but does **not** replace the per-door grant gate (mesh
   authenticates the *host*, the grant authenticates the *capability*).
 
+## Decisions settled (2026-06-29)
+
+- **Grant issuer** — reuse the published-issuer-key model guest-room already
+  ships (`IssuerKeys` = `{ kid, publicKeyPem }[]`, keyless verification), keyed to
+  prx's keymaker/provenance per-actor identities. Grants are **per-lease**
+  (short-lived, mirroring the ghappd token TTL), not per-session.
+- **Loopback bridge phase 1** — shipped, behind an explicit opt-in (`prx door
+  bridge`), with the multi-user caveat, since most prx hosts are single-user dev
+  machines.
+
 ## Open
 
-- **[DECISION] Grant issuer** — keymaker vs a dedicated door-authority signer; and
-  whether grants are per-lease (short-lived, like the tokens) or per-session.
-- **[DECISION] Loopback-bridge phase 1** — ship it as a dev convenience (with the
-  multi-user caveat), or skip straight to signed grants? Recommend phase 1 gated
-  behind an explicit opt-in, since most prx hosts are single-user dev machines.
+- **Grant acquisition** — how a legit client obtains + presents a grant
+  (concierge `resolve()` + refresh-before-TTL, where the issuer keys are
+  published). Deployment-coupled — tracked with prx-9s14.
+- **ghappd parity** — ghappd uses its own framing, not the guest-room door
+  protocol; converging it is the prerequisite to gating its TCP edge the same way.
 
 Relates: capability-transport model (prx-86g9), DOORS.md / CAPABILITIES.md,
 `src/door/transport.ts`, ghappd (prx-cdln) + keeperd, authd (prx-6194),

@@ -33,6 +33,11 @@ import {
   type KeeperRemoteRequest,
   type KeeperRemoteResponse,
 } from "./contract.ts";
+import {
+  buildKeeperAuthorizer,
+  resolveKeeperGrantGate,
+  type KeeperGrantGate,
+} from "./grant-gate.ts";
 
 /** Seams the daemon runs the git-write through (all injectable; tests stub them). */
 export interface KeeperDaemonDeps {
@@ -173,6 +178,17 @@ export interface KeeperServeOptions {
    */
   pidfile?: string | undefined;
   deps?: KeeperDaemonDeps | undefined;
+  /**
+   * The signed-grant gate enforced on the TCP edge (prx-8uf2). When listening on
+   * TCP, requests must carry a grant that verifies against this gate (audience +
+   * door + exp + issuer key); a unix listener ignores it (the held reference is
+   * the authority). When omitted, it is resolved from the environment
+   * ({@link resolveKeeperGrantGate}); a `null` resolution means NO TCP
+   * enforcement (kept loopback-bound by the publish-side safety fix).
+   */
+  grantGate?: KeeperGrantGate | null | undefined;
+  /** Structured log sink (level, message). Defaults to `console.error`. */
+  log?: ((level: string, msg: string) => void) | undefined;
 }
 
 /** A handle on the running keeper daemon: stop it, or await its close. */
@@ -204,6 +220,26 @@ function listenTarget(endpoint: string): { unix: string } | { hostname: string; 
  */
 export function runKeeperServe(options: KeeperServeOptions): Promise<KeeperServer> {
   const { socketPath, pidfile, deps } = options;
+  const target = listenTarget(socketPath);
+  const onTcp = !("unix" in target);
+  const log = options.log ?? ((level: string, msg: string) => console.error(`keeperd ${level}: ${msg}`));
+
+  // The signed-grant gate is enforced ONLY on the TCP edge — a unix peer is
+  // kernel-authenticated (held-ref = authority). When listening on TCP we resolve
+  // the gate (explicit option wins; else the environment) and, if present, install
+  // guest-room's `signedGrantAuthorizer` BEFORE method dispatch. A credential door
+  // on TCP with NO gate stays unauthenticated (today's behavior, kept off-host by
+  // the loopback publish bind) — we WARN loudly so that footgun is never silent.
+  const gate = onTcp ? (options.grantGate ?? resolveKeeperGrantGate()) : null;
+  if (onTcp && !gate) {
+    log(
+      "WARN",
+      "serving the keeper CREDENTIAL door over TCP with NO grant gate — unauthenticated " +
+        "(loopback-only; set KEEPERD_GRANT_AUDIENCE + KEEPERD_ISSUER_KEYS to enforce signed grants)",
+    );
+  }
+  const authorize = gate ? buildKeeperAuthorizer(gate) : undefined;
+
   const handlers = createDoorHandlers(
     "keeper",
     {
@@ -214,9 +250,9 @@ export function runKeeperServe(options: KeeperServeOptions): Promise<KeeperServe
           : badRequest("request failed the keeperd wire contract");
       },
     },
-    () => {},
+    (level, msg) => log(level, msg),
+    authorize,
   );
-  const target = listenTarget(socketPath);
   // A leftover unix socket file makes listen throw EADDRINUSE.
   if ("unix" in target && existsSync(target.unix)) rmSync(target.unix, { force: true });
   const listener =
