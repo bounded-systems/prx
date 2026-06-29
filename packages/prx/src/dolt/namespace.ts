@@ -28,6 +28,11 @@ export const reverseDnsScheme: DoltNamespaceScheme = (originSlug) =>
 /** The default scheme when a config supplies none. */
 export const DEFAULT_NAMESPACE_SCHEME: DoltNamespaceScheme = reverseDnsScheme;
 
+/** The DoltHub remote URL for a `owner/repo` origin slug. */
+export function doltHubUrl(originSlug: string): string {
+  return `https://doltremoteapi.dolthub.com/${originSlug}`;
+}
+
 export interface ResolveDoltDatabaseOptions {
   /** Override the naming scheme (e.g. a per-config map `owner/repo → prx`). */
   scheme?: DoltNamespaceScheme | undefined;
