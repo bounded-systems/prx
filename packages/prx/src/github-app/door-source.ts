@@ -3,8 +3,9 @@
 // posture — the agent holds no App key, only a reference to the door (the
 // `PRX_GH_APP_DOOR` endpoint), and asks ghappd to mint. Shares the broker cache
 // (`cachingBroker`) so a burst of GitHub ops triggers at most one lease.
-import { resolveFramedTransport, type FramedTransport } from "../door/transport.ts";
-import { IsolatedGhappdClient } from "../ghappd/client.ts";
+import { call } from "@bounded-systems/guest-room/protocol";
+
+import { IsolatedGhappdClient, type GhappdTransport } from "../ghappd/client.ts";
 import { type Broker, type BrokeredToken, cachingBroker } from "./broker.ts";
 
 export interface DoorBrokerOptions {
@@ -13,10 +14,25 @@ export interface DoorBrokerOptions {
   /** Optional client-requested attenuation (the door floors what it will grant). */
   readonly repositories?: readonly string[];
   readonly permissions?: Readonly<Record<string, string>>;
-  /** Injected transport (tests); defaults to resolving the endpoint. */
-  readonly transport?: FramedTransport;
+  /** Injected transport (tests); defaults to a guest-room `call` to the endpoint. */
+  readonly transport?: GhappdTransport;
   readonly now?: () => number;
   readonly refreshMarginMs?: number;
+}
+
+/**
+ * The default ghappd transport: speak the guest-room door protocol — `call` the
+ * `lease` method at the endpoint with the request's attenuation as params (the
+ * `kind` discriminator is now carried by the method name, not the body). A
+ * gate-denied / malformed reply rejects (fail-closed); a `status: "error"` lease
+ * is a normal resolved reply (data, not an exception).
+ */
+function ghappdCallTransport(endpoint: string): GhappdTransport {
+  return (request) =>
+    call(endpoint, "lease", {
+      ...(request.repositories ? { repositories: request.repositories } : {}),
+      ...(request.permissions ? { permissions: request.permissions } : {}),
+    });
 }
 
 /**
@@ -25,7 +41,7 @@ export interface DoorBrokerOptions {
  * (fail-closed — there is no local PEM fallback on the door path).
  */
 export function createDoorBroker(options: DoorBrokerOptions): Broker {
-  const transport = options.transport ?? resolveFramedTransport(options.endpoint);
+  const transport = options.transport ?? ghappdCallTransport(options.endpoint);
   const client = new IsolatedGhappdClient((request) => transport(request));
 
   const fetchToken = async (): Promise<BrokeredToken> => {

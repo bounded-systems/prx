@@ -1,14 +1,17 @@
-import type { Socket } from "node:net";
+import { afterEach, describe, expect, test } from "bun:test";
+import { rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-import { describe, expect, test } from "bun:test";
+import { call } from "@bounded-systems/guest-room/protocol";
 
-import { FrameDecoder, encodeFrame } from "../../door/framing.ts";
 import type { mintInstallationToken } from "../../github-app/installation-token.ts";
-import { GhappdResponseSchema, type GhappdRequest } from "../contract.ts";
 import {
   type GhappdConfig,
+  type GhappdDaemonDeps,
+  type GhappdServer,
   handleGhappdRequest,
-  serveGhappdConnection,
+  runGhappdServe,
 } from "../daemon.ts";
 
 const CONFIG: GhappdConfig = {
@@ -92,57 +95,66 @@ describe("handleGhappdRequest", () => {
   });
 });
 
-/** A minimal in-memory Socket: captures writes, exposes the data handler. */
-function fakeSocket(): { socket: Socket; emit: (chunk: Buffer) => void; writes: Buffer[] } {
-  const writes: Buffer[] = [];
-  let onData: ((chunk: Buffer) => void) | undefined;
-  const socket = {
-    on(event: string, cb: (chunk: Buffer) => void) {
-      if (event === "data") onData = cb;
-      return this;
-    },
-    write(buf: Buffer) {
-      writes.push(buf);
-      return true;
-    },
-  } as unknown as Socket;
-  return { socket, writes, emit: (chunk) => onData?.(chunk) };
-}
+// The guest-room door protocol end-to-end (prx→guest-room convergence): the same
+// `lease` wire a real ghappd consumer drives, over a real unix socket.
+describe("runGhappdServe (guest-room protocol, end-to-end)", () => {
+  let server: GhappdServer | undefined;
+  let socketPath: string | undefined;
+  let counter = 0;
 
-describe("serveGhappdConnection", () => {
-  test("decodes a framed lease, dispatches, and writes a framed ok reply", async () => {
-    const { socket, writes, emit } = fakeSocket();
-    serveGhappdConnection(socket, (req: GhappdRequest) =>
-      handleGhappdRequest(req, {
-        config: CONFIG,
-        mint: mintReturning(async () => ({
-          token: "ghs_wire",
-          expiresAt: "2026-06-27T23:59:59Z",
-          permissions: {},
-        })),
-      }),
-    );
-
-    emit(encodeFrame({ kind: "lease" }));
-    await new Promise((r) => setTimeout(r, 5)); // let the response chain settle
-
-    expect(writes).toHaveLength(1);
-    const [reply] = new FrameDecoder().push(writes[0]!);
-    const parsed = GhappdResponseSchema.parse(reply);
-    expect(parsed.status).toBe("ok");
-    if (parsed.status === "ok") expect(parsed.token).toBe("ghs_wire");
+  afterEach(async () => {
+    if (server) await server.close();
+    server = undefined;
+    if (socketPath) rmSync(socketPath, { force: true });
+    socketPath = undefined;
   });
 
-  test("a contract-violating frame gets a bad-request reply", async () => {
-    const { socket, writes, emit } = fakeSocket();
-    serveGhappdConnection(socket, (req: GhappdRequest) => handleGhappdRequest(req, { config: CONFIG }));
+  async function start(deps: GhappdDaemonDeps): Promise<string> {
+    socketPath = join(tmpdir(), `ghappd-${process.pid}-${counter++}.sock`);
+    server = await runGhappdServe({ socketPath, deps });
+    return socketPath;
+  }
 
-    emit(encodeFrame({ kind: "not-a-real-op" }));
-    await new Promise((r) => setTimeout(r, 5));
+  type Reply = { status: string; token?: string; code?: string };
 
-    const [reply] = new FrameDecoder().push(writes[0]!);
-    const parsed = GhappdResponseSchema.parse(reply);
-    expect(parsed.status).toBe("error");
-    if (parsed.status === "error") expect(parsed.code).toBe("bad-request");
+  test("leases a token over the `lease` method", async () => {
+    const path = await start({
+      config: CONFIG,
+      mint: mintReturning(async () => ({
+        token: "ghs_wire",
+        expiresAt: "2026-06-27T23:59:59Z",
+        permissions: {},
+      })),
+    });
+    const reply = (await call(path, "lease", {})) as Reply;
+    expect(reply.status).toBe("ok");
+    expect(reply.token).toBe("ghs_wire");
+  });
+
+  test("forwards attenuation params to the handler", async () => {
+    let seen: readonly string[] | undefined;
+    const path = await start({
+      config: CONFIG,
+      mint: mintReturning(async (input) => {
+        seen = input.repositories;
+        return { token: "t", expiresAt: "2026-06-27T23:59:59Z", permissions: {} };
+      }),
+    });
+    await call(path, "lease", { repositories: ["prx"], permissions: { contents: "read" } });
+    expect(seen).toEqual(["prx"]);
+  });
+
+  test("a contract-violating lease body replies bad-request (daemon stays up)", async () => {
+    const path = await start({ config: CONFIG });
+    const reply = (await call(path, "lease", { repositories: [123] })) as Reply;
+    expect(reply.status).toBe("error");
+    expect(reply.code).toBe("bad-request");
+  });
+
+  test("not-configured replies error over the wire (no key held)", async () => {
+    const path = await start({});
+    const reply = (await call(path, "lease", {})) as Reply;
+    expect(reply.status).toBe("error");
+    expect(reply.code).toBe("not-configured");
   });
 });

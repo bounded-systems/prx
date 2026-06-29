@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import type { FramedTransport } from "../../door/transport.ts";
+import type { GhappdTransport } from "../../ghappd/client.ts";
 import { createDoorBroker } from "../door-source.ts";
 
 const EXPIRES = "2026-01-01T01:00:00Z";
@@ -9,7 +9,7 @@ const T0 = Date.parse("2026-01-01T00:00:00Z"); // 1h before expiry → fresh
 describe("createDoorBroker", () => {
   test("leases a token over the door transport and caches it (one lease for a burst)", async () => {
     let leases = 0;
-    const transport: FramedTransport = async () => {
+    const transport: GhappdTransport = async () => {
       leases++;
       return {
         status: "ok",
@@ -30,7 +30,7 @@ describe("createDoorBroker", () => {
 
   test("forwards requested attenuation in the lease", async () => {
     let sent: unknown;
-    const transport: FramedTransport = async (req) => {
+    const transport: GhappdTransport = async (req) => {
       sent = req;
       return { status: "ok", token: "t", expiresAt: EXPIRES, permissions: {} };
     };
@@ -46,7 +46,7 @@ describe("createDoorBroker", () => {
   });
 
   test("an error lease reply throws (fail-closed — no local fallback on the door path)", async () => {
-    const transport: FramedTransport = async () => ({
+    const transport: GhappdTransport = async () => ({
       status: "error",
       code: "not-configured",
       message: "ghappd holds no GitHub App key",
