@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { defineVerb } from "@bounded-systems/verbspec";
 
-import { launchPod } from "./podman-runtime.ts";
+import { downPod, launchPod } from "./podman-runtime.ts";
 import { perRepoPod } from "./per-repo-pod.ts";
 
 export const PodUpResult = z.object({
@@ -27,11 +27,18 @@ export const podUpVerb = defineVerb({
       .enum(["per-repo"])
       .default("per-repo")
       .describe("Pod spec to launch (currently only 'per-repo')"),
+    recreate: z
+      .boolean()
+      .default(false)
+      .describe(
+        "Tear the pod down first, then launch — to apply a changed spec (e.g. a new image digest). Without it, `pod up` is a no-op on an already-running pod.",
+      ),
   }),
   output: PodUpResult,
-  run: async ({ pod }) => {
+  run: async ({ pod, recreate }) => {
     const base = pod === "per-repo" ? perRepoPod : perRepoPod;
     const spec = { ...base, repo: process.cwd() };
+    if (recreate) downPod(spec); // so launch isn't a no-op on the running pod
     const { results, l2LaunchDigest } = await launchPod(spec);
     return {
       pod: spec.name,

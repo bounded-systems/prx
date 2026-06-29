@@ -67,6 +67,7 @@ const PER_FILE_BASELINE = new Set<string>([
   "packages/prx/src/pr-state/dolt-reconcile.ts", // 85% — reformat line-accounting (rounding)
   "packages/prx/src/room/pod-up-verb.ts", // 77% — run() calls live launchPod (podman); covered by live e2e, not unit test
   "packages/prx/src/room/pod-secrets-verb.ts", // 79% — run() calls live podman (ensurePodSecrets); logic covered in pod-secrets.test.ts, not unit-tested here
+  "packages/prx/src/room/pod-down-verb.ts", // run() calls live downPod (podman); covered by live e2e, not unit test (mirrors pod-up-verb)
 ]);
 
 type Totals = {

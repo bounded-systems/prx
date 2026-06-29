@@ -15055,6 +15055,10 @@ export function runCli(
     if (orchestratorVerb === "pod" && orchestratorRest[0] === "secrets") {
       return runSpecVerb("pod secrets", orchestratorRest.slice(1), output);
     }
+    // `pod down` — tear the pod down (counterpart to `pod up`).
+    if (orchestratorVerb === "pod" && orchestratorRest[0] === "down") {
+      return runSpecVerb("pod down", orchestratorRest.slice(1), output);
+    }
     // `ghapp serve` — the ghappd credential-broker door daemon (runs in ghappd-box).
     if (orchestratorVerb === "ghapp" && orchestratorRest[0] === "serve") {
       return runSpecVerb("ghapp serve", orchestratorRest.slice(1), output);
