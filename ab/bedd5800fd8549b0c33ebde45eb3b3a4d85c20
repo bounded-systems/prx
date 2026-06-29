@@ -1,0 +1,28 @@
+packages/prx/src/door/grant-verb.ts
+  s_c4318117f42b02::t_e9b0cbbbdf720d 1-114
+packages/prx/src/door/grant-issuer.ts
+  s_c4318117f42b02::t_08af4cdf4f0ca4 1-123
+packages/prx/test/door/grant-issuer.test.ts
+  s_c4318117f42b02::t_fcbab1c48da7b1 1-113
+.changeset/door-grant-issuer.md
+  s_c4318117f42b02::t_5a3740bbce214f 1-5
+packages/prx/src/cli/verb-registry.ts
+  s_c4318117f42b02::t_320ab2b5d5c49f 73-74
+  s_c4318117f42b02::t_b8cdfdba3fe28e 37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "abbedd5800fd8549b0c33ebde45eb3b3a4d85c20",
+  "prompts": {},
+  "sessions": {
+    "s_c4318117f42b02": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b707ec58-424b-452d-b628-e6eb4bd39018",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
