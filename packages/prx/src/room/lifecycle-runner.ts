@@ -28,7 +28,10 @@ export interface BdLifecycleOpts {
  * unit-tested. `--userns keep-id` maps the container user to the host uid so
  * writes to `/work` (the host repo bind, e.g. `bd init`'s `.beads`) are
  * host-owned, not root; `--entrypoint <bin>` bypasses the daemon entrypoint so
- * the tool runs directly against `/work`.
+ * the tool runs directly against `/work`. `HOME=/tmp` because under `keep-id`
+ * the image's `/home/prx` isn't writable by the remapped (host) uid, and bd/dolt
+ * mkdir a global config dir under `$HOME` — without a writable HOME `bd init`
+ * panics (`mkdir /home/prx/.dolt: permission denied`). Verified live.
  */
 export function renderBdLifecycleArgs(o: BdLifecycleOpts): string[] {
   return [
@@ -36,6 +39,8 @@ export function renderBdLifecycleArgs(o: BdLifecycleOpts): string[] {
     "--rm",
     "--userns",
     "keep-id",
+    "-e",
+    "HOME=/tmp",
     "-v",
     `${o.repo}:/work`,
     "-w",
