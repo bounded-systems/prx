@@ -358,6 +358,38 @@ describe("handleBeadsRequest — writes (single-writer, policy passthrough)", ()
     ]);
   });
 
+  test("update with ONLY --external-ref is accepted — the publish relink (prx-022t)", async () => {
+    // Regression guard: `prx beads publish` relinks via an external-ref-only
+    // update. The door must treat external-ref as a sufficient field and NOT
+    // demand status/priority/assignee/type (the original prx-022t reject that
+    // stranded the bead↔issue link).
+    const { execBd, calls } = fakeBd(okResult("{}"));
+    await handleBeadsRequest(
+      {
+        kind: "update",
+        id: "prx-9iuu",
+        externalRef: "https://github.com/o/r/issues/652",
+      },
+      { execBd },
+    );
+    expect(calls[0]!.args).toEqual([
+      "prx-9iuu",
+      "--json",
+      "--external-ref",
+      "https://github.com/o/r/issues/652",
+    ]);
+  });
+
+  test("update with no fields returns a bad-request error (empty-update guard)", async () => {
+    // The door never throws to the socket — a truly-empty update is a typed
+    // `bad-request` error response (not a crash, and not a silent no-op).
+    const { execBd, calls } = fakeBd(okResult("{}"));
+    const res = await handleBeadsRequest({ kind: "update", id: "prx-9iuu" }, { execBd });
+    expect(res).toMatchObject({ status: "error", code: "bad-request" });
+    expect((res as { message: string }).message).toMatch(/at least one of/);
+    expect(calls).toHaveLength(0); // never reached bd
+  });
+
   test("reopen dispatches `bd reopen <id> --json` directly (allowed subcommand)", async () => {
     const { execBd, calls } = fakeBd(okResult("{}"));
     await handleBeadsRequest({ kind: "reopen", id: "prx-abb" }, { execBd });
