@@ -1,0 +1,27 @@
+flake.nix
+  s_c4318117f42b02::t_17c1ac43f86a9c 70
+.github/workflows/publish-oci-boxes.yml
+  s_c4318117f42b02::t_e4ee7a97dd9015 7
+  s_c4318117f42b02::t_1c33d3c6cde7a1 184-261
+nix/oci/concierged-box.nix
+  s_c4318117f42b02::t_85a39b313dcceb 1-18,24-79
+  s_c4318117f42b02::t_7b1aab4f793f13 19-23
+.changeset/concierged-box-image.md
+  s_c4318117f42b02::t_e108f8ad3f5f0a 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "04e34ac15a0dbaf38566e63ed320771058e31af1",
+  "prompts": {},
+  "sessions": {
+    "s_c4318117f42b02": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b707ec58-424b-452d-b628-e6eb4bd39018",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
