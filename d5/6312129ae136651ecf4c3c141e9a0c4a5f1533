@@ -1,0 +1,55 @@
+.changeset/concierged-daemon.md
+  s_399e6065f1b4a3::t_e6ab5e28ab0819 1-5
+.changeset/concierged-room.md
+  s_399e6065f1b4a3::t_b3646bd9682b18 1-5
+docs/github-app.md
+  s_399e6065f1b4a3::t_3fb8a35a6da959 5-16
+docs/prx/github-apps-architecture.md
+  s_399e6065f1b4a3::t_b8a96e80f3ef69 73,98-99
+nix/hm-module.nix
+  s_399e6065f1b4a3::t_27547a840316f7 224-231
+packages/prx/openapi.json
+  s_29527a1cf44457::t_5d05babfeca5d1 96-124,1263-1297
+packages/prx/src/cli/verb-registry.ts
+  s_399e6065f1b4a3::t_ddac24e4b2ffcd 39,79
+packages/prx/src/concierge/daemon.ts
+  s_399e6065f1b4a3::t_2194a196551c30 1-203
+packages/prx/src/concierge/registry.ts
+  s_399e6065f1b4a3::t_e0a092ca20ff68 1-102
+packages/prx/src/concierge/serve-verb.ts
+  s_399e6065f1b4a3::t_88101f68491ba2 1-55
+packages/prx/src/room/concierged-room.ts
+  s_399e6065f1b4a3::t_b5abca7ac16a40 1-61
+packages/prx/test/concierge/daemon.test.ts
+  s_399e6065f1b4a3::t_5bd4cfb98f59a3 1-79
+packages/prx/test/concierge/registry.test.ts
+  s_399e6065f1b4a3::t_b97216a5c4ee66 1-51
+packages/prx/test/concierge/serve-verb.test.ts
+  s_399e6065f1b4a3::t_76878878ee3f9b 1-33
+packages/prx/test/room/concierged-room.test.ts
+  s_399e6065f1b4a3::t_0c5f6512644c5a 1-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "d56312129ae136651ecf4c3c141e9a0c4a5f1533",
+  "prompts": {},
+  "sessions": {
+    "s_29527a1cf44457": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "85265b05-183c-47f0-a52e-e37a83f4211c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    },
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
