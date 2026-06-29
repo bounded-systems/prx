@@ -1,0 +1,29 @@
+packages/prx/src/room/nix-builder-service.ts
+  s_399e6065f1b4a3::t_07a6fb7f3a2851 19
+.changeset/nix-builder-box.md
+  s_daf186a10ceb79::t_c9ae65b239d961 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "cc41c19ce3af76b365e416a88947fb51003e374c",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    },
+    "s_daf186a10ceb79": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b12e51a-0fe8-4a34-b79d-f09c5a08f4ef",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
