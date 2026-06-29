@@ -58,7 +58,7 @@ jobs:
       # After the binary is built: a failed attestation must not block the release.
       - name: Attest build provenance
         continue-on-error: true
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4
         with:
           subject-path: prx-${{ matrix.target }}
 
@@ -101,7 +101,7 @@ jobs:
       # The image is already pushed above; a failed attestation must not fail the job.
       - name: Attest image provenance
         continue-on-error: true
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.build.outputs.digest }}
@@ -131,7 +131,7 @@ jobs:
       - name: List assets
         run: ls -l release-assets
       - name: Create draft release with both assets
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         with:
           draft: true
           files: |
