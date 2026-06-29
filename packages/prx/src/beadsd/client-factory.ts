@@ -3,7 +3,7 @@
  *
  * The migration model is "require beadsd up": prx reaches beads through the
  * daemon, never local `execBd`. This factory resolves the beadsd endpoint (a
- * local unix socket, or a configured Lima VM) and hands back an
+ * local unix socket — the host-native daemon or the pod's door socket) and hands back an
  * {@link IsolatedBeadsClient}, failing fast with an actionable error when the
  * daemon isn't reachable — so a missing daemon is a clear "start beadsd"
  * message, not an opaque socket error.
@@ -19,19 +19,16 @@ import { getEnv } from "@bounded-systems/env";
 import { spawnDetached } from "@bounded-systems/proc";
 
 import { IsolatedBeadsClient } from "./client.ts";
-import { withLimaBeadsClient, type LimaBeadsChannelDeps } from "./lima.ts";
 import { unixSocketTransport, type FramedTransport } from "../door/transport.ts";
 import { getRepoRoot } from "../repo-root.ts";
 
-/** Where beadsd lives: a local unix socket, or a daemon inside a Lima VM. */
-export type BeadsEndpoint =
-  | { readonly kind: "local"; readonly socket: string }
-  | { readonly kind: "lima"; readonly vm: string; readonly vmSocket: string };
+/** Where beadsd lives: a local unix socket (the host-native daemon or the pod's
+ *  door fabric socket via `PRX_BEADS_SOCKET`). The in-VM Lima daemon was retired
+ *  for the podman pod (prx-zj8). */
+export type BeadsEndpoint = { readonly kind: "local"; readonly socket: string };
 
 /** Default local beadsd socket (override with `PRX_BEADS_SOCKET`). */
 export const DEFAULT_LOCAL_BEADS_SOCKET = "/tmp/prx-beadsd.sock";
-/** Default in-VM beadsd socket (matches the BEADS_SPEC default). */
-export const DEFAULT_VM_BEADS_SOCKET = "/tmp/beadsd.sock";
 
 /** Thrown when beadsd isn't reachable — carries an actionable "start it" message. */
 export class BeadsUnavailableError extends Error {
@@ -45,15 +42,10 @@ export class BeadsUnavailableError extends Error {
 }
 
 /**
- * Resolve the beads endpoint from the environment: `PRX_BEADS_VM` selects the
- * Lima VM daemon (`PRX_BEADS_VM_SOCKET` overrides its in-VM socket); otherwise a
- * local socket (`PRX_BEADS_SOCKET` overrides the default).
+ * Resolve the beads endpoint from the environment: a local socket
+ * (`PRX_BEADS_SOCKET` overrides the default — e.g. the pod's door fabric socket).
  */
 export function resolveBeadsEndpoint(env: typeof getEnv = getEnv): BeadsEndpoint {
-  const vm = env("PRX_BEADS_VM");
-  if (vm) {
-    return { kind: "lima", vm, vmSocket: env("PRX_BEADS_VM_SOCKET") ?? DEFAULT_VM_BEADS_SOCKET };
-  }
   return { kind: "local", socket: env("PRX_BEADS_SOCKET") ?? DEFAULT_LOCAL_BEADS_SOCKET };
 }
 
@@ -203,8 +195,6 @@ export interface WithBeadsClientDeps {
   endpoint?: BeadsEndpoint | undefined;
   /** Local transport factory (default {@link unixSocketTransport}); tests inject. */
   localTransport?: ((socket: string) => FramedTransport) | undefined;
-  /** Lima channel deps (forwarded to {@link withLimaBeadsClient}); tests inject. */
-  lima?: LimaBeadsChannelDeps | undefined;
   /**
    * Ensure a local beadsd is up before connecting (default:
    * {@link ensureLocalBeadsd}). Tests pass a no-op; a caller can disable
@@ -224,25 +214,6 @@ export async function withBeadsClient<T>(
 ): Promise<T> {
   const endpoint = deps.endpoint ?? resolveBeadsEndpoint();
 
-  if (endpoint.kind === "lima") {
-    try {
-      return await withLimaBeadsClient(
-        { vm: endpoint.vm, vmSocket: endpoint.vmSocket },
-        fn,
-        deps.lima ?? {},
-      );
-    } catch (err) {
-      if (isUnreachable(err)) {
-        throw new BeadsUnavailableError(
-          `beadsd not reachable in VM ${endpoint.vm} — bring it up with ` +
-            `\`prx lima up ${endpoint.vm} --daemon beads\` (after \`prx lima provision-beads\`)`,
-          err,
-        );
-      }
-      throw err;
-    }
-  }
-
   // Require beadsd up: auto-start a local daemon if needed (seamless), then
   // connect. The daemon serves the resolved canonical beads (decoupled from the
   // current worktree), not whichever `.beads` is underfoot.
@@ -259,7 +230,7 @@ export async function withBeadsClient<T>(
     if (isUnreachable(err)) {
       throw new BeadsUnavailableError(
         `beadsd not reachable at ${endpoint.socket} — start it with ` +
-          `\`prx beads serve --socket ${endpoint.socket} --cwd <repo>\` (or set PRX_BEADS_VM)`,
+          `\`prx beads serve --socket ${endpoint.socket} --cwd <repo>\``,
         err,
       );
     }

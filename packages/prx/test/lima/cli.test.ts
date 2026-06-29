@@ -58,24 +58,19 @@ describe("prx beads doctor parsing", () => {
 });
 
 describe("prx beads read-door (ready/list/show via beadsd)", () => {
-  test("`beads ready --vm` rewrites to beads-read and parses", () => {
-    expect(normalizeNamespaceArgv(["beads", "ready", "--vm", "myvm"])).toEqual([
-      "beads-read",
-      "ready",
-      "--vm",
-      "myvm",
-    ]);
-    const p = parse(["beads", "ready", "--vm", "myvm"]);
+  // The in-VM (`--vm`) path was retired for the podman pod (prx-zj8); beads
+  // always routes through the local daemon (`PRX_BEADS_SOCKET` selects which).
+  test("`beads ready` rewrites to beads-read and parses", () => {
+    expect(normalizeNamespaceArgv(["beads", "ready"])).toEqual(["beads-read", "ready"]);
+    const p = parse(["beads", "ready"]);
     expect(p.command).toBe("beads-read");
     if (p.command === "beads-read") {
       expect(p.kind).toBe("ready");
-      expect(p.vm).toBe("myvm");
-      expect(p.vmSocket).toBe("/tmp/beadsd.sock"); // default
     }
   });
 
-  test("`beads list --vm --status open` carries the status", () => {
-    const p = parse(["beads", "list", "--vm", "myvm", "--status", "open"]);
+  test("`beads list --status open` carries the status", () => {
+    const p = parse(["beads", "list", "--status", "open"]);
     expect(p.command === "beads-read" && p.kind).toBe("list");
     if (p.command === "beads-read") expect(p.status).toBe("open");
   });
@@ -94,25 +89,18 @@ describe("prx beads read-door (ready/list/show via beadsd)", () => {
     );
   });
 
-  test("`beads show <id> --vm` carries the id", () => {
-    const p = parse(["beads", "show", "prx-abb", "--vm", "myvm"]);
+  test("`beads show <id>` carries the id", () => {
+    const p = parse(["beads", "show", "prx-abb"]);
     expect(p.command === "beads-read" && p.kind).toBe("show");
     if (p.command === "beads-read") expect(p.id).toBe("prx-abb");
   });
 
-  test("no --vm ⇒ local daemon (vm undefined, reachable from any shell)", () => {
-    // GH-296: `prx beads ready` with no VM routes through the local daemon via
-    // withBeadsClient (auto-started) — the reachable surface for any shell.
-    const p = parse(["beads", "ready"]);
-    expect(p.command).toBe("beads-read");
-    if (p.command === "beads-read") {
-      expect(p.kind).toBe("ready");
-      expect(p.vm).toBeUndefined();
-    }
+  test("the retired `--vm` flag is rejected", () => {
+    expect(() => parse(["beads", "ready", "--vm", "myvm"])).toThrow();
   });
 
   test("show requires an id", () => {
-    expect(() => parse(["beads", "show", "--vm", "myvm"])).toThrow(/requires an id/);
+    expect(() => parse(["beads", "show"])).toThrow(/requires an id/);
   });
 
   test("`beads children <id>` rewrites to beads-read and carries the id (prx-zbsi)", () => {
@@ -187,7 +175,6 @@ describe("prx beads write-door (create/update/close via beadsd)", () => {
         title: "do a thing",
         priority: 1,
       });
-      expect(p.vm).toBeUndefined(); // no --vm ⇒ local daemon
     }
   });
 
@@ -276,20 +263,18 @@ describe("prx beads write-door (create/update/close via beadsd)", () => {
 });
 
 describe("prx beads prime (daemon-aware session primer)", () => {
-  test("`beads prime` rewrites + parses (local daemon by default)", () => {
+  test("`beads prime` rewrites + parses (local daemon)", () => {
     expect(normalizeNamespaceArgv(["beads", "prime"])).toEqual(["beads-prime"]);
     const p = parse(["beads", "prime"]);
     expect(p.command).toBe("beads-prime");
     if (p.command === "beads-prime") {
-      expect(p.vm).toBeUndefined();
       expect(p.format).toBe("plain");
     }
   });
 
-  test("`beads prime --vm --format json` carries through", () => {
-    const p = parse(["beads", "prime", "--vm", "myvm", "--format", "json"]);
+  test("`beads prime --format json` carries the format", () => {
+    const p = parse(["beads", "prime", "--format", "json"]);
     if (p.command === "beads-prime") {
-      expect(p.vm).toBe("myvm");
       expect(p.format).toBe("json");
     }
   });

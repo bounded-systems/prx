@@ -318,7 +318,6 @@ import { runBeadsServe, type BeadsDaemonDeps } from "../beadsd/daemon.ts";
 // GH-228: beads workspace self-heal (`prx beads doctor [--fix]`).
 import { diagnoseBeads, healBeads } from "../beads/doctor.ts";
 // GH-296: the host read-door — route `prx beads ready|list|show` through beadsd.
-import { withLimaBeadsClient } from "../beadsd/lima.ts";
 import { withBeadsClient, defaultCanonicalBeadsCwd } from "../beadsd/client-factory.ts";
 import {
   resolveWorkspaceAffinity,
@@ -1767,14 +1766,11 @@ type ParsedCommand =
     }
   | {
       // GH-296: `beads ready|list|show` routed through beadsd — the reachable
-      // beads surface for any shell. No `--vm` ⇒ local daemon (auto-started);
-      // `--vm <name>` (or PRX_BEADS_VM) ⇒ the in-VM daemon (the read door).
+      // beads surface for any shell. Routes through the local daemon
+      // (auto-started; `PRX_BEADS_SOCKET` selects the host-native or pod socket).
       command: "beads-read";
       format: "plain" | "json";
       kind: "ready" | "list" | "show" | "children" | "recall" | "memories";
-      vm?: string | undefined;
-      vmSocket: string;
-      hostSocket?: string | undefined;
       id?: string | undefined;
       status?: string | undefined;
       all?: boolean | undefined;
@@ -1790,9 +1786,6 @@ type ParsedCommand =
       command: "beads-write";
       format: "plain" | "json";
       request: BeadsRequest;
-      vm?: string | undefined;
-      vmSocket: string;
-      hostSocket?: string | undefined;
     }
   | {
       // GH-296: provision the canonical LOCAL beads clone (host twin of
@@ -1806,9 +1799,6 @@ type ParsedCommand =
       // GH-296: daemon-aware session primer — the prx-beads twin of `bd prime`.
       command: "beads-prime";
       format: "plain" | "json";
-      vm?: string | undefined;
-      vmSocket: string;
-      hostSocket?: string | undefined;
     }
   | {
       // prx-62h: `prx lima provision-builder` — the nix remote builder. The in-VM
@@ -7377,29 +7367,21 @@ export function parseCommand(argv: string[]): ParsedCommand {
 
   // GH-296: `prx beads ready|list|show` — the reachable beads surface for any
   // shell (rewritten to `beads-read <kind>` by normalizeNamespaceArgv). The host
-  // holds no beads DB; it asks the daemon. With no `--vm` it routes through the
-  // local daemon (auto-started by `withBeadsClient`); `--vm <name>` (or
-  // `PRX_BEADS_VM`) targets the in-VM daemon explicitly.
+  // holds no beads DB; it asks the local daemon (auto-started by
+  // `withBeadsClient`; `PRX_BEADS_SOCKET` selects the host-native or pod socket).
   if (command === "beads-prime") {
     // GH-296: daemon-aware session primer (prx-beads twin of `bd prime`).
     const { values } = parseArgs({
       args: rest,
       options: {
         format: { type: "string", default: "plain" },
-        vm: { type: "string" },
-        "vm-socket": { type: "string" },
-        "host-socket": { type: "string" },
       },
       strict: true,
       allowPositionals: false,
     });
-    const vm = values.vm ?? getEnv("PRX_BEADS_VM");
     return {
       command: "beads-prime",
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      ...(typeof vm === "string" && vm.length > 0 ? { vm } : {}),
-      vmSocket: values["vm-socket"] ?? "/tmp/beadsd.sock",
-      ...(values["host-socket"] !== undefined ? { hostSocket: values["host-socket"] } : {}),
     };
   }
 
@@ -7408,9 +7390,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       args: rest,
       options: {
         format: { type: "string", default: "plain" },
-        vm: { type: "string" },
-        "vm-socket": { type: "string" },
-        "host-socket": { type: "string" },
         status: { type: "string" },
         all: { type: "boolean" },
         limit: { type: "string" },
@@ -7436,7 +7415,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
         "prx beads read requires a kind: ready | list | show | children | recall | memories",
       );
     }
-    const vm = values.vm ?? getEnv("PRX_BEADS_VM");
     const id = positionals[1];
     if ((kind === "show" || kind === "children") && (typeof id !== "string" || id.length === 0)) {
       throw new CliError(`prx beads ${kind} requires an id: \`prx beads ${kind} <id>\``);
@@ -7457,9 +7435,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       command: "beads-read",
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
       kind,
-      ...(typeof vm === "string" && vm.length > 0 ? { vm } : {}),
-      vmSocket: values["vm-socket"] ?? "/tmp/beadsd.sock",
-      ...(values["host-socket"] !== undefined ? { hostSocket: values["host-socket"] } : {}),
       ...(kind === "show" || kind === "children" ? { id } : {}),
       ...(kind === "recall" ? { key: id } : {}),
       ...(kind === "memories" && typeof id === "string" && id.length > 0 ? { prefix: id } : {}),
@@ -7478,9 +7453,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       args: rest,
       options: {
         format: { type: "string", default: "plain" },
-        vm: { type: "string" },
-        "vm-socket": { type: "string" },
-        "host-socket": { type: "string" },
         type: { type: "string" },
         title: { type: "string" },
         priority: { type: "string" },
@@ -7501,7 +7473,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       allowPositionals: true,
     });
     const kind = positionals[0];
-    const vm = values.vm ?? getEnv("PRX_BEADS_VM");
     const priority = ((): number | undefined => {
       if (values.priority === undefined) return undefined;
       const n = Number(values.priority);
@@ -7623,9 +7594,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       command: "beads-write",
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
       request: parsed.data,
-      ...(typeof vm === "string" && vm.length > 0 ? { vm } : {}),
-      vmSocket: values["vm-socket"] ?? "/tmp/beadsd.sock",
-      ...(values["host-socket"] !== undefined ? { hostSocket: values["host-socket"] } : {}),
     };
   }
 
@@ -20661,17 +20629,7 @@ export function runCli(
         let ready: unknown[] = [];
         let reachError: string | null = null;
         try {
-          const reply =
-            parsed.vm !== undefined
-              ? await withLimaBeadsClient(
-                  {
-                    vm: parsed.vm,
-                    vmSocket: parsed.vmSocket,
-                    ...(parsed.hostSocket !== undefined ? { hostSocket: parsed.hostSocket } : {}),
-                  },
-                  (client) => client.query({ kind: "ready" }),
-                )
-              : await withBeadsClient((client) => client.query({ kind: "ready" }));
+          const reply = await withBeadsClient((client) => client.query({ kind: "ready" }));
           if (reply.status === "ok" && Array.isArray(reply.result)) {
             ready = reply.result;
           } else if (reply.status === "error") {
@@ -20697,9 +20655,7 @@ export function runCli(
         ];
         if (reachError) {
           lines.push(`beads daemon not reachable: ${reachError}`);
-          lines.push(
-            "Start it: `prx beads serve --socket <path> --cwd <clone>` (or set PRX_BEADS_VM).",
-          );
+          lines.push("Start it: `prx beads serve --socket <path> --cwd <clone>`.");
         } else {
           lines.push(`## Ready work (${ready.length})`);
           if (ready.length === 0) {
@@ -20721,8 +20677,8 @@ export function runCli(
     if (parsed.command === "beads-read") {
       // GH-296: read through beadsd — the reachable beads surface for any shell.
       // The host holds no beads DB, it asks the daemon (the single source for the
-      // human too). No `--vm` ⇒ local daemon (auto-started); `--vm` ⇒ the VM
-      // daemon over the Lima channel.
+      // human too) — the local daemon, auto-started (`PRX_BEADS_SOCKET` selects
+      // the host-native or pod socket).
       return (async () => {
         const request: BeadsRequest =
           parsed.kind === "show"
@@ -20745,29 +20701,16 @@ export function runCli(
                       }
                     : { kind: "ready" };
         try {
-          const reply =
-            parsed.vm !== undefined
-              ? await withLimaBeadsClient(
-                  {
-                    vm: parsed.vm,
-                    vmSocket: parsed.vmSocket,
-                    ...(parsed.hostSocket !== undefined ? { hostSocket: parsed.hostSocket } : {}),
-                  },
-                  (client) => client.query(request),
-                )
-              : await withBeadsClient((client) => client.query(request));
+          const reply = await withBeadsClient((client) => client.query(request));
           if (reply.status === "error") {
             output.error(`beads ${parsed.kind}: ${reply.code}: ${reply.message}`);
             return 1;
           }
           // prx-9e86: warn (non-fatal) when the daemon serves a different repo
           // than this worktree — results are that repo's beads, not this one's.
-          // Uses the daemon-reported served prefix (no client subprocess); local
-          // path only (a `--vm` daemon serves its own workspace).
-          if (parsed.vm === undefined) {
-            const warning = readWorkspaceWarning(reply.servedPrefix);
-            if (warning !== null) output.error(warning);
-          }
+          // Uses the daemon-reported served prefix (no client subprocess).
+          const warning = readWorkspaceWarning(reply.servedPrefix);
+          if (warning !== null) output.error(warning);
           output.log(JSON.stringify(reply.result, null, 2));
           return 0;
         } catch (err) {
@@ -20780,33 +20723,20 @@ export function runCli(
 
     if (parsed.command === "beads-write") {
       // GH-296 wave 2: the single-writer surface — the validated write request
-      // goes to the daemon (which dispatches `bd` against the one canonical
-      // clone). No `--vm` ⇒ local daemon (auto-started); `--vm` ⇒ the VM daemon.
+      // goes to the local daemon (which dispatches `bd` against the one canonical
+      // clone), auto-started.
       return (async () => {
         const { request } = parsed;
         // prx-9e86: fail CLOSED on a cross-repo write. The host-global daemon
         // serves ONE clone; a write from a worktree whose prefix differs would
-        // land in the wrong repo's beads. Local path only — a `--vm` daemon
-        // serves its own workspace, so the host-affinity concern doesn't apply.
-        if (parsed.vm === undefined) {
-          const affinity = resolveWorkspaceAffinity();
-          if (affinity.mismatch) {
-            output.error(new WorkspaceAffinityError(affinity).message);
-            return 1;
-          }
+        // land in the wrong repo's beads.
+        const affinity = resolveWorkspaceAffinity();
+        if (affinity.mismatch) {
+          output.error(new WorkspaceAffinityError(affinity).message);
+          return 1;
         }
         try {
-          const reply =
-            parsed.vm !== undefined
-              ? await withLimaBeadsClient(
-                  {
-                    vm: parsed.vm,
-                    vmSocket: parsed.vmSocket,
-                    ...(parsed.hostSocket !== undefined ? { hostSocket: parsed.hostSocket } : {}),
-                  },
-                  (client) => client.query(request),
-                )
-              : await withBeadsClient((client) => client.query(request));
+          const reply = await withBeadsClient((client) => client.query(request));
           if (reply.status === "error") {
             output.error(`beads ${request.kind}: ${reply.code}: ${reply.message}`);
             return 1;
