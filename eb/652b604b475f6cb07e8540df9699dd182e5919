@@ -1,0 +1,24 @@
+docs/prx/github-apps-architecture.md
+  s_a4789e0b0492f1::t_b16c665c2dc095 73
+  s_a4789e0b0492f1::t_9f6d5dfcb68a58 98-99
+docs/github-app.md
+  s_a4789e0b0492f1::t_8ca967f903c1c1 5-16
+nix/hm-module.nix
+  s_a4789e0b0492f1::t_8e5414d3f1f655 224-231
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "eb652b604b475f6cb07e8540df9699dd182e5919",
+  "prompts": {},
+  "sessions": {
+    "s_a4789e0b0492f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "08589f2f-93b7-4db3-a0a5-375b9672f700",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
