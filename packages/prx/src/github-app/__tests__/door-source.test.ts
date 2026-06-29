@@ -1,10 +1,44 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import { rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
+import type { mintInstallationToken } from "../installation-token.ts";
 import type { GhappdTransport } from "../../ghappd/client.ts";
+import { runGhappdServe, type GhappdServer } from "../../ghappd/daemon.ts";
 import { createDoorBroker } from "../door-source.ts";
 
 const EXPIRES = "2026-01-01T01:00:00Z";
 const T0 = Date.parse("2026-01-01T00:00:00Z"); // 1h before expiry → fresh
+
+// The DEFAULT transport (no injection): drive createDoorBroker over a REAL
+// ghappd serving the guest-room protocol, exercising `ghappdCallTransport`.
+describe("createDoorBroker (default transport — real ghappd over guest-room call)", () => {
+  let server: GhappdServer | undefined;
+  let socketPath: string | undefined;
+  afterEach(async () => {
+    if (server) await server.close();
+    server = undefined;
+    if (socketPath) rmSync(socketPath, { force: true });
+    socketPath = undefined;
+  });
+
+  test("leases a token from a real ghappd via the default `call` transport", async () => {
+    socketPath = join(tmpdir(), `ds-ghappd-${process.pid}.sock`);
+    const mint = ((input) => {
+      void input;
+      return Promise.resolve({ token: "ghs_e2e", expiresAt: EXPIRES, permissions: { contents: "read" } });
+    }) as typeof mintInstallationToken;
+    server = await runGhappdServe({
+      socketPath,
+      deps: { config: { issuer: "Iv1", privateKeyPem: "PEM", installationId: "1" }, mint },
+    });
+    const broker = createDoorBroker({ endpoint: socketPath, now: () => T0 });
+    const tok = await broker.ensure();
+    expect(tok.token).toBe("ghs_e2e");
+    expect(tok.permissions.contents).toBe("read");
+  });
+});
 
 describe("createDoorBroker", () => {
   test("leases a token over the door transport and caches it (one lease for a burst)", async () => {
