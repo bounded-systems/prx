@@ -1,5 +1,0 @@
----
-"@bounded-systems/prx": minor
----
-
-concierged — the concierge daemon (prx-8uf2 / prx-9s14), the grant SOURCE the door-gate system was missing. `prx concierge serve --socket <path>` runs a broker that holds a provider registry + the door authority's signing key and serves the exact wire contract door-kit's published client dials: `register {capability, door, lease} → {ttl}`, `resolve {capability, want, audience} → {door: SignedGrant}`, `keys → IssuerKeys`, `list → {capabilities}`. `resolve` mints a short-lived, audience/exp/nonce-bound grant for a live provider (attenuated by `want`), signed by the keymaker per-actor door-authority key — reusing the issuer (#839) + guest-room `signGrant`/`attenuate`. A serving room's `signedGrantAuthorizer` (keeperd #833 / ghappd #844), configured with the concierge's `keys`, then verifies it. Closes the loop end-to-end: register → resolve → present → verify (tested directly against the real gate authorizer). New: `src/concierge/{registry,daemon,serve-verb}.ts`. concierged is reached over the in-pod unix fabric (held-ref authority), so it does not gate its own edge.
