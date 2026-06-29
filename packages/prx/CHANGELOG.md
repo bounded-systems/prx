@@ -1,5 +1,41 @@
 # @bounded-systems/prx
 
+## 0.23.0
+
+### Minor Changes
+
+- f7b762b: concierged — the concierge daemon (prx-8uf2 / prx-9s14), the grant SOURCE the door-gate system was missing. `prx concierge serve --socket <path>` runs a broker that holds a provider registry + the door authority's signing key and serves the exact wire contract door-kit's published client dials: `register {capability, door, lease} → {ttl}`, `resolve {capability, want, audience} → {door: SignedGrant}`, `keys → IssuerKeys`, `list → {capabilities}`. `resolve` mints a short-lived, audience/exp/nonce-bound grant for a live provider (attenuated by `want`), signed by the keymaker per-actor door-authority key — reusing the issuer (#839) + guest-room `signGrant`/`attenuate`. A serving room's `signedGrantAuthorizer` (keeperd #833 / ghappd #844), configured with the concierge's `keys`, then verifies it. Closes the loop end-to-end: register → resolve → present → verify (tested directly against the real gate authorizer). New: `src/concierge/{registry,daemon,serve-verb}.ts`. concierged is reached over the in-pod unix fabric (held-ref authority), so it does not gate its own edge.
+- 2a1eea3: concierged room spec (prx-8uf2 / prx-9s14) — `conciergedRoom` declares concierged (the grant broker, #853) as a per-repo pod member. It EXPOSES the `grant:broker` door on the shared fabric (`/run/prx/doors/concierged.sock`) and HOLDS the provenance master secret (`prx-provenance-master` → `/run/secrets/provenance-master`) from which the door-authority signing key is derived — so `resolve` signs grants and `keys` publishes the public half the serving doors verify against. IN-POD UNIX ONLY: no `tcpPort` (the broker is reached over the door fabric, held-ref authority; the cross-host TCP edge belongs to the serving doors, fronted by the consumer's interposer — "TCP always routes to sockets"). Mirrors keeperd-room's secret-runtime pattern. NOT YET joined to `perRepoPod`: that + building/pinning the `concierged-box` image (publish-oci-boxes) is the deployment step (prx-9s14), so this placeholder image ref can't break a live `prx pod up`.
+- 14fc724: Rename the GitHub-App credential door from `ghappd`/`ghapp` to `forge-d`/`forge` (prx-zee7 Phase 4). The runtime door already served the **prx-forge** bucket; this aligns the names with the bucket per the bucketed-apps ADR (`docs/prx/github-apps-architecture.md`). The daemon (dir `src/ghappd/` → `src/forge-d/`, room, OCI box, all `Ghappd*` symbols) becomes `forge-d`; the door identity / CLI verb / grant audience (`ghapp`) becomes `forge`. Identifiers use `ForgeD`/`forgeD` (never `forged`) to avoid the forgery misread.
+
+  **Breaking — deployment contracts change:**
+
+  - CLI verb: `prx ghapp serve` → `prx forge serve`.
+  - Env vars: `PRX_GH_APP_DOOR` → `PRX_FORGE_DOOR`; `GHAPPD_GRANT_AUDIENCE` → `FORGE_D_GRANT_AUDIENCE`; `GHAPPD_ISSUER_KEYS` → `FORGE_D_ISSUER_KEYS`; `GHAPPD_ROOM_IMAGE` → `FORGE_D_ROOM_IMAGE`; the `GHAPP_*` secret/target/socket consts → `FORGE_*`.
+  - OCI image: `ghcr.io/bounded-systems/prx/ghappd-box` → `.../forge-d-box`; room socket `/run/prx/doors/ghappd.sock` → `/run/prx/doors/forge-d.sock`.
+
+  The pinned `forge-d-box` digest still points at the digest published under the old `ghappd-box` name — the image must be **rebuilt + re-pushed as `forge-d-box` and repinned**, and deployed env/secret names migrated, before `prx pod up` will pull. That operational cutover is tracked separately and runs out-of-band from this code rename.
+
+- 4a21b69: Client-side grant provider (prx-8uf2) — the present-and-refresh half of grant acquisition. `cachingGrantProvider` (`src/door/grant-provider.ts`) holds a signed grant and re-acquires it before TTL (cache + expiry-aware refresh + concurrency dedupe, mirroring the token broker), so a burst of door calls never presents a stale grant. The `acquire` source is injected — a concierge call in production (deployment-coupled, prx-9s14), `mintDoorGrant` in dev/tests — so the cache/refresh/present logic is pure and verifiable independent of where grants come from. Wired into the ghappd client: `createDoorBroker({ grantProvider })` presents a live grant on each lease via guest-room `call(..., { grant })` over a TCP/gated ghappd; omitted ⇒ no grant (a unix door, held-ref). Proven e2e: a provided grant passes the real ghappd gate and leases; without one the gated door rejects (fail-closed). The keeper client can adopt the same door-agnostic provider.
+- 1d3f6b3: Retire all remaining Lima code (prx-zj8 capstone): delete `lima/nix-builder.ts` +
+  the `prx lima` command (its last verb, `provision-builder`, is replaced by the
+  nix-builder container), delete the dead `session-host/*`, and rename the
+  generic spawn seam `door/lima-exec.ts` → `door/exec.ts` (it was misnamed — just
+  `spawnRun` over @bounded-systems/proc; still used by provision-local). Adds the
+  `prx builder up | register` CLI (run the nix-builder container / print its
+  `/etc/nix/machines` + ssh-config registration), driven by the tested
+  container-builder render core. No `lima/` source dir remains; Lima is purely the
+  external devshell VM now.
+
+### Patch Changes
+
+- f87b7af: nix-builder-box: set `ssl-cert-file` in the container's nix.conf so the
+  remote-build ssh session can substitute from cache.nixos.org (it doesn't inherit
+  the image SSL_CERT_FILE env), and re-pin `NIX_BUILDER_IMAGE` to the fixed digest.
+  Verified live: the host nix daemon offloads a real OCI build (dolt-box) to the
+  container with Lima stopped — the builder cutover (prx-zj8).
+- 3659e16: concierged-box OCI image (prx-8uf2 / prx-9s14) — the buildable image definition for the concierged grant broker. `nix/oci/concierged-box.nix` packages the released prx with an entrypoint that points `PRX_PROVENANCE_MASTER_FILE` at the mounted master secret and runs `prx concierge serve` (no cacert — concierge is local/unix, no network). Exposed as `.#concierged-box` in the flake and given a `concierged-box` job in `publish-oci-boxes.yml` (mirrors forge-d-box: build → push to GHCR → attest). The image is BUILDABLE but produces a working broker only once prx is released past v0.19.0 (the `concierge serve` verb shipped in #853); the actual GHCR publish runs on release. The deployment (prx-9s14) then pins the digest into `concierged-room.ts` + joins the room to the pod.
+
 ## 0.22.0
 
 ### Minor Changes
