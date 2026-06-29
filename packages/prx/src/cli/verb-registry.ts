@@ -33,6 +33,7 @@ import { podSecretsVerb } from "../room/pod-secrets-verb.ts";
 import { podDownVerb } from "../room/pod-down-verb.ts";
 import { podUpVerb } from "../room/pod-up-verb.ts";
 import { ghappServeVerb } from "../ghappd/serve-verb.ts";
+import { doorBridgeVerb } from "../door/bridge-verb.ts";
 
 export const verbRegistry: Registry = {
   ...orchestratorRegistry,
@@ -67,4 +68,5 @@ export const verbRegistry: Registry = {
   [podDownVerb.id]: podDownVerb,
   [podUpVerb.id]: podUpVerb,
   [ghappServeVerb.id]: ghappServeVerb,
+  [doorBridgeVerb.id]: doorBridgeVerb,
 };
