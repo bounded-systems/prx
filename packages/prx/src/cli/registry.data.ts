@@ -1928,6 +1928,17 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "domain_sync",
   },
   {
+    // prx-697: the SYNC AGENT daemon. A long-running loop that every --interval
+    // seconds runs the cross-repo reconcile orchestrators (beads↔GH + dolt
+    // push/pull) over the repo inventory, so beads durability doesn't depend on
+    // a hand-run sync. The blocking prerequisite for prx-82b (remove host bd).
+    name: "sync serve",
+    parent: "sync",
+    description: "Run the sync agent: periodic cross-repo reconcile daemon",
+    domain: "state",
+    actor: "domain_sync",
+  },
+  {
     // GH-1513: bd-side memory-decay policy (GH-1500 ADR §3b; capability
     // split 4/4 of GH-298). Operator-triggered tick that classifies closed
     // bd records and hands eligible ids to `bd admin compact --auto`.
