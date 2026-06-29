@@ -312,8 +312,7 @@ import {
 // GH-2348.2: keeper attested-push handler.
 import { runKeeperPush, type KeeperPushDeps } from "./keeper.ts";
 import { runKeeperServe, type KeeperDaemonDeps } from "../keeperd/daemon.ts";
-// GH-201/223: host-side keeperd VM lifecycle for `keeper up|down`.
-// GH-228: beadsd in-VM read daemon (`beads serve`) + the `prx lima` daemon registry.
+// GH-228: the beadsd read daemon (`prx beads serve`) — runs in the pod or locally.
 import { runBeadsServe, type BeadsDaemonDeps } from "../beadsd/daemon.ts";
 // GH-228: beads workspace self-heal (`prx beads doctor [--fix]`).
 import { diagnoseBeads, healBeads } from "../beads/doctor.ts";

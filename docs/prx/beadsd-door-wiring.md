@@ -35,9 +35,9 @@ shape). The host dials it through `unixSocketTransport(socketPath)`
 environment (`packages/prx/src/beadsd/client-factory.ts`
 `resolveBeadsEndpoint`):
 
-- `PRX_BEADS_VM` → reach beadsd inside a Lima VM (SSH-forwarded socket);
-- else **local unix socket** at `PRX_BEADS_SOCKET` (default
-  `/tmp/prx-beadsd.sock`).
+- a **local unix socket** at `PRX_BEADS_SOCKET` (default `/tmp/prx-beadsd.sock`)
+  — the host-native daemon, or the pod's door-fabric socket. (The in-VM Lima
+  daemon path was retired for the podman pod, prx-zj8.)
 
 The dialer the gate registers (`prxBeadsDoorDialer`) does **not** open a socket
 itself — it spawns `prx beads <verb>` as a subprocess, and *that* process runs
