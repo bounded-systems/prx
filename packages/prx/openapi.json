@@ -122,6 +122,64 @@
         }
       }
     },
+    "/door/grant": {
+      "post": {
+        "operationId": "door_grant",
+        "summary": "Mint a short-lived, audience-bound signed grant for a door (prx-8uf2).",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/door_grantInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/door_grantOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/door/issuer-keys": {
+      "post": {
+        "operationId": "door_issuer-keys",
+        "summary": "Emit the published IssuerKeys for a door authority (configure on a door to verify its grants).",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/door_issuer-keysInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/door_issuer-keysOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/event": {
       "post": {
         "operationId": "event",
@@ -1237,6 +1295,112 @@
         "required": [
           "port",
           "socket"
+        ],
+        "additionalProperties": false
+      },
+      "door_grantInput": {
+        "type": "object",
+        "properties": {
+          "door": {
+            "type": "string",
+            "minLength": 1,
+            "description": "the door the grant authorizes (e.g. keeper)"
+          },
+          "audience": {
+            "type": "string",
+            "minLength": 1,
+            "description": "the room id permitted to present the grant"
+          },
+          "ttl": {
+            "default": 60,
+            "description": "grant lifetime in seconds (keep short — per-lease)",
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "actor": {
+            "default": "door-authority",
+            "description": "the door-authority actor that signs the grant",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "door",
+          "audience",
+          "ttl",
+          "actor"
+        ],
+        "additionalProperties": false
+      },
+      "door_grantOutput": {
+        "type": "object",
+        "properties": {
+          "door": {
+            "type": "string",
+            "description": "the door the grant authorizes"
+          },
+          "audience": {
+            "type": "string",
+            "description": "the room id permitted to present it"
+          },
+          "expiresAt": {
+            "type": "number",
+            "description": "grant expiry, epoch ms"
+          },
+          "grant": {
+            "description": "the SignedGrant to present to the door's TCP edge"
+          }
+        },
+        "required": [
+          "door",
+          "audience",
+          "expiresAt",
+          "grant"
+        ],
+        "additionalProperties": false
+      },
+      "door_issuer-keysInput": {
+        "type": "object",
+        "properties": {
+          "actor": {
+            "default": "door-authority",
+            "description": "the door-authority actor whose public key is published",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "actor"
+        ],
+        "additionalProperties": false
+      },
+      "door_issuer-keysOutput": {
+        "type": "object",
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kid": {
+                  "type": "string"
+                },
+                "publicKeyPem": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kid",
+                "publicKeyPem"
+              ],
+              "additionalProperties": false
+            },
+            "description": "the published issuer verification keys (configure on the door)"
+          }
+        },
+        "required": [
+          "keys"
         ],
         "additionalProperties": false
       },
