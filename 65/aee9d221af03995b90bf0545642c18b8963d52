@@ -1,0 +1,49 @@
+packages/prx/src/beadsd/contract.ts
+  s_399e6065f1b4a3::t_831c4803f52800 149-154
+  s_399e6065f1b4a3::t_4b2d29b73a4d47 166
+  s_399e6065f1b4a3::t_e6228d26fd5242 176
+  s_399e6065f1b4a3::t_aa4ce22dd3cecd 71-77
+packages/prx/test/beadsd/contract.test.ts
+  s_399e6065f1b4a3::t_3c0a90602996fe 14-31,39,46
+packages/prx/src/beadsd/daemon.ts
+  s_399e6065f1b4a3::t_fd9932e0f7c3c9 171-177
+  s_399e6065f1b4a3::t_1cb451c0f5a97a 295-297,306-312
+  s_399e6065f1b4a3::t_c2061dc2161064 78
+  s_a96a0778896457::t_2516df4b0a1ac8 313-316
+.changeset/beadsd-config-door-verb.md
+  s_98e316d0b3248a::t_13a67c50e76eb6 1-11
+packages/prx/test/beadsd/daemon.test.ts
+  s_399e6065f1b4a3::t_f9c010c8072b33 617-645
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "65aee9d221af03995b90bf0545642c18b8963d52",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    },
+    "s_98e316d0b3248a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8db980ee-eb6b-4866-832b-f795cef7f33c",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    },
+    "s_a96a0778896457": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5017cc0b-421b-4314-b3a8-5ea45503231a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
