@@ -1,0 +1,21 @@
+packages/prx/src/room/ghappd-room.ts
+  s_3086de54355107::t_0a623bd34e1eae 16
+.changeset/ghappd-repin3.md
+  s_3086de54355107::t_137fd941242b8b 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "3cae7c58f6071e74242ae938058a2b2c4bffa7c6",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
