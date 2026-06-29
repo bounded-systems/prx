@@ -1,0 +1,33 @@
+docs/cli.md
+  s_399e6065f1b4a3::t_e0ffc5e43792ff 5,55
+packages/prx/src/pr-state/cli.ts
+  s_399e6065f1b4a3::t_19e3886686c805 7719-7720,7735,7737,7750,7752,7759
+  s_399e6065f1b4a3::t_343e25076ae457 20929-20930,20932-20949
+  s_399e6065f1b4a3::t_9d0cd0cd454950 1819-1820,1823-1825
+packages/prx/src/cli/registry.data.ts
+  s_399e6065f1b4a3::t_443229c5639ecb 1280,1286-1287
+packages/prx/test/lima/cli.test.ts
+  s_399e6065f1b4a3::t_acb148cf60e172 325-327,330-331
+packages/prx/src/dolt/namespace.ts
+  s_399e6065f1b4a3::t_8564d57d08c93a 31-35
+packages/prx/src/beadsd/provision-local.ts
+  s_399e6065f1b4a3::t_8ffe6110a3d595 20
+packages/prx/test/pr-state/help/__snapshots__/help.snapshot.test.ts.snap
+  s_399e6065f1b4a3::t_3c8c10f03d9c4c 165
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "13165f38b32e253b91df3fc2a2e5a054b6c8d80f",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
