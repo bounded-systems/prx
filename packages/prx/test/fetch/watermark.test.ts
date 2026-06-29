@@ -1,131 +1,103 @@
-// GH-1600 — direct unit tests for `getWatermark`.
+// prx-82b 2e.2 — unit tests for the file-based gh-issues fetch cursor.
 //
-// Pins the contract that every bd "absent" representation maps to
-// `{ since: null }`. bd has two version-dependent absent modes:
-//   - exit 0 with stdout "<key> (not set)\n" (current bd, GH-1600 regression)
-//   - non-zero exit with stderr "config key not set" (legacy bd)
-// Both must be coerced. Genuine spawn failures still throw.
+// The cursor is local-first, self-healing state (host-local file, like git-ai /
+// the sync agent's push-watermark): absent ⇒ `{ since: null }` ⇒ full re-fetch,
+// never an error. No host bd. Drives a fake fs (path→content map) + a fake env.
 
 import { describe, expect, test } from "bun:test";
 
-import {
-  getLastPoints,
-  getWatermark,
-  LAST_POINTS_KEY,
-  WatermarkError,
-  WATERMARK_KEY,
-  type SpawnResult,
-  type SpawnRunner,
-} from "../../src/fetch/watermark.ts";
+import { getLastPoints, getWatermark, setWatermark } from "../../src/fetch/watermark.ts";
 
-function runnerReturning(result: SpawnResult): SpawnRunner {
-  return () => result;
+const HOME = "/home/test";
+const env = ((k: string) => (k === "HOME" ? HOME : undefined)) as never;
+
+/** A fake fs (path → content); `readFile` throws ENOENT-style when absent. */
+function fakeFs(seed: Record<string, string> = {}) {
+  const files = new Map<string, string>(Object.entries(seed));
+  return {
+    files,
+    readFile: (p: string): string => {
+      const v = files.get(p);
+      if (v === undefined) throw new Error(`ENOENT: ${p}`);
+      return v;
+    },
+    writeFile: (p: string, data: string): void => {
+      files.set(p, data);
+    },
+  };
 }
 
-describe("getWatermark", () => {
-  test("returns the trimmed timestamp when bd emits a value", () => {
-    const runner = runnerReturning({
-      stdout: "2026-05-12T00:00:00Z\n",
-      stderr: "",
-      status: 0,
-    });
-    expect(getWatermark({ cwd: "/tmp", runner })).toEqual({
+const WM = `${HOME}/.local/state/prx/sync/gh-issues/_tmp/watermark`;
+const LP = `${HOME}/.local/state/prx/sync/gh-issues/_tmp/last-points`;
+
+describe("getWatermark — file cursor (prx-82b 2e.2)", () => {
+  test("returns the trimmed value when the cursor file exists", () => {
+    const fs = fakeFs({ [WM]: "2026-05-12T00:00:00Z\n" });
+    expect(getWatermark({ cwd: "/tmp", env, readFile: fs.readFile })).toEqual({
       since: "2026-05-12T00:00:00Z",
     });
   });
 
-  test("returns { since: null } when bd exits 0 with empty stdout", () => {
-    const runner = runnerReturning({ stdout: "", stderr: "", status: 0 });
-    expect(getWatermark({ cwd: "/tmp", runner })).toEqual({ since: null });
+  test("absent cursor ⇒ { since: null } (self-healing, never throws)", () => {
+    const fs = fakeFs();
+    expect(getWatermark({ cwd: "/tmp", env, readFile: fs.readFile })).toEqual({ since: null });
   });
 
-  test("returns { since: null } for legacy bd stderr/exit-1 absent mode", () => {
-    const runner = runnerReturning({
-      stdout: "",
-      stderr: "config key not set",
-      status: 1,
-    });
-    expect(getWatermark({ cwd: "/tmp", runner })).toEqual({ since: null });
+  test("empty cursor file ⇒ { since: null }", () => {
+    const fs = fakeFs({ [WM]: "   \n" });
+    expect(getWatermark({ cwd: "/tmp", env, readFile: fs.readFile })).toEqual({ since: null });
   });
 
-  test("returns { since: null } for current bd stdout/exit-0 sentinel (GH-1600)", () => {
-    const runner = runnerReturning({
-      stdout: `${WATERMARK_KEY} (not set)\n`,
-      stderr: "",
-      status: 0,
-    });
-    expect(getWatermark({ cwd: "/tmp", runner })).toEqual({ since: null });
-  });
-
-  test("throws WatermarkError on genuine spawn failure", () => {
-    // Use a stderr message that doesn't match the absent-mode coercion
-    // ("not set"/"not found") so we exercise the throw branch.
-    const runner = runnerReturning({
-      stdout: "",
-      stderr: "permission denied opening config database",
-      status: 1,
-    });
-    expect(() => getWatermark({ cwd: "/tmp", runner })).toThrow(WatermarkError);
-    try {
-      getWatermark({ cwd: "/tmp", runner });
-    } catch (err) {
-      expect(err).toBeInstanceOf(WatermarkError);
-      expect((err as WatermarkError).code).toBe("WATERMARK_READ_FAILED");
-    }
+  test("no HOME ⇒ { since: null } (no persistence)", () => {
+    const noHome = ((_k: string) => undefined) as never;
+    expect(getWatermark({ cwd: "/tmp", env: noHome })).toEqual({ since: null });
   });
 });
 
-describe("getLastPoints (GH-1257)", () => {
-  test("parses an integer stdout into { points: n }", () => {
-    const runner = runnerReturning({ stdout: "42\n", stderr: "", status: 0 });
-    expect(getLastPoints({ cwd: "/tmp", runner })).toEqual({ points: 42 });
-  });
-
-  test("returns { points: null } for the exit-0 (not set) sentinel", () => {
-    const runner = runnerReturning({
-      stdout: `${LAST_POINTS_KEY} (not set)\n`,
-      stderr: "",
-      status: 0,
+describe("setWatermark — file cursor", () => {
+  test("writes the cursor, and getWatermark reads it back (round-trip)", () => {
+    const fs = fakeFs();
+    setWatermark({ cwd: "/tmp", env, writeFile: fs.writeFile }, "2026-06-01T00:00:00Z");
+    expect(fs.files.get(WM)).toBe("2026-06-01T00:00:00Z");
+    expect(getWatermark({ cwd: "/tmp", env, readFile: fs.readFile })).toEqual({
+      since: "2026-06-01T00:00:00Z",
     });
-    expect(getLastPoints({ cwd: "/tmp", runner })).toEqual({ points: null });
   });
 
-  test("returns { points: null } for legacy bd stderr/exit-1 absent mode", () => {
-    const runner = runnerReturning({
-      stdout: "",
-      stderr: "config key not set",
-      status: 1,
+  test("no HOME ⇒ a no-op (best-effort persistence)", () => {
+    const noHome = ((_k: string) => undefined) as never;
+    const fs = fakeFs();
+    setWatermark({ cwd: "/tmp", env: noHome, writeFile: fs.writeFile }, "x");
+    expect(fs.files.size).toBe(0);
+  });
+
+  test("swallows a write error (best-effort; a lost cursor self-heals)", () => {
+    const writeFile = () => {
+      throw new Error("EACCES");
+    };
+    expect(() => setWatermark({ cwd: "/tmp", env, writeFile }, "x")).not.toThrow();
+  });
+});
+
+describe("getLastPoints — file cursor (GH-1257)", () => {
+  test("parses an integer cursor into { points: n }", () => {
+    const fs = fakeFs({ [LP]: "42\n" });
+    expect(getLastPoints({ cwd: "/tmp", env, readFile: fs.readFile })).toEqual({ points: 42 });
+  });
+
+  test("absent ⇒ { points: null }", () => {
+    expect(getLastPoints({ cwd: "/tmp", env, readFile: fakeFs().readFile })).toEqual({
+      points: null,
     });
-    expect(getLastPoints({ cwd: "/tmp", runner })).toEqual({ points: null });
   });
 
-  test("returns { points: null } when stdout isn't a parseable integer", () => {
-    const runner = runnerReturning({ stdout: "abc\n", stderr: "", status: 0 });
-    expect(getLastPoints({ cwd: "/tmp", runner })).toEqual({ points: null });
+  test("non-integer ⇒ { points: null }", () => {
+    const fs = fakeFs({ [LP]: "abc\n" });
+    expect(getLastPoints({ cwd: "/tmp", env, readFile: fs.readFile })).toEqual({ points: null });
   });
 
-  test("returns { points: null } for negative integers", () => {
-    const runner = runnerReturning({ stdout: "-3\n", stderr: "", status: 0 });
-    expect(getLastPoints({ cwd: "/tmp", runner })).toEqual({ points: null });
-  });
-
-  test("returns { points: null } when stdout is empty on exit 0", () => {
-    const runner = runnerReturning({ stdout: "", stderr: "", status: 0 });
-    expect(getLastPoints({ cwd: "/tmp", runner })).toEqual({ points: null });
-  });
-
-  test("throws WatermarkError on genuine spawn failure", () => {
-    const runner = runnerReturning({
-      stdout: "",
-      stderr: "permission denied opening config database",
-      status: 1,
-    });
-    expect(() => getLastPoints({ cwd: "/tmp", runner })).toThrow(WatermarkError);
-    try {
-      getLastPoints({ cwd: "/tmp", runner });
-    } catch (err) {
-      expect(err).toBeInstanceOf(WatermarkError);
-      expect((err as WatermarkError).code).toBe("LAST_POINTS_READ_FAILED");
-    }
+  test("negative ⇒ { points: null }", () => {
+    const fs = fakeFs({ [LP]: "-3\n" });
+    expect(getLastPoints({ cwd: "/tmp", env, readFile: fs.readFile })).toEqual({ points: null });
   });
 });

@@ -182,8 +182,8 @@ export type FetchGhIssuesDeps = {
   graphql?: GhGraphqlDeps;
   /** bd writer deps — admits an `execBd` shim and per-call env. */
   writer?: FetchWriteDeps;
-  /** Watermark wrapper deps (read + write). */
-  watermarkRunner?: WatermarkDeps["runner"];
+  /** Watermark cursor fs seam (read + write); prx-82b 2e.2 — file-based, not bd. */
+  watermarkFs?: Pick<WatermarkDeps, "readFile" | "writeFile" | "env">;
   /** Shared rate-limit deps (gate refresh + audit log location). */
   rateLimit?: RateLimitDeps;
   /** `gh repo view` / origin URL parse — defaults to the prod resolver. */
@@ -292,7 +292,7 @@ export function runFetchGhIssues(
   //    pretending there's no prior watermark.
   let watermark: { since: string | null };
   try {
-    watermark = getWatermark({ cwd: deps.cwd, runner: deps.watermarkRunner });
+    watermark = getWatermark({ cwd: deps.cwd, ...deps.watermarkFs });
   } catch (err) {
     if (err instanceof WatermarkError) {
       throw new FetchGhIssuesError(
@@ -476,7 +476,7 @@ export function runFetchGhIssues(
     // claim "committed" status (I-F5: monotonicity is preserved by skipping
     // the advance if it fails).
     try {
-      setWatermark({ cwd: deps.cwd, runner: deps.watermarkRunner }, writeResult.lastUpdatedAt);
+      setWatermark({ cwd: deps.cwd, ...deps.watermarkFs }, writeResult.lastUpdatedAt);
     } catch (err) {
       pages.push({
         pageNumber,

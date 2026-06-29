@@ -313,21 +313,21 @@ function setupMocks(opts: MockOpts): MockedDeps {
     return { status: 0, stdout: "", stderr: "" };
   };
 
-  // Watermark runner — drives `bd config get` / `bd config set`.
-  const watermarkRunner = (cmd: string[]): { stdout: string; stderr: string; status: number } => {
-    if (cmd[0] === "bd" && cmd[1] === "config" && cmd[2] === "get") {
+  // Watermark cursor fs seam — prx-82b 2e.2: the cursor is a host-local FILE now,
+  // not `bd config`. Simulate it in-memory (`liveWatermark`). `bdSetCalls` keeps
+  // its bd-argv shape (`[...,"set",key,value]`) so the `set[0][4]` value
+  // assertions stay unchanged. `env` returns a HOME so the cursor dir resolves.
+  const watermarkFs = {
+    env: ((k: string) => (k === "HOME" ? cwd : undefined)) as never,
+    readFile: (_p: string): string => {
       bdConfigGetCalls += 1;
-      if (liveWatermark === null) {
-        return { stdout: `${cmd[3]} (not set)\n`, stderr: "", status: 0 };
-      }
-      return { stdout: `${liveWatermark}\n`, stderr: "", status: 0 };
-    }
-    if (cmd[0] === "bd" && cmd[1] === "config" && cmd[2] === "set") {
-      bdSetCalls.push(cmd);
-      liveWatermark = cmd[4] ?? liveWatermark;
-      return { stdout: "", stderr: "", status: 0 };
-    }
-    return { stdout: "", stderr: `unexpected watermark cmd: ${cmd.join(" ")}`, status: 1 };
+      if (liveWatermark === null) throw new Error("ENOENT (cursor absent)");
+      return liveWatermark;
+    },
+    writeFile: (_p: string, data: string): void => {
+      bdSetCalls.push(["bd", "config", "set", "prx.fetch.gh-issues.watermark", data]);
+      liveWatermark = data;
+    },
   };
 
   // gh api rate_limit probe — non-graphql; routed through the raw runner
@@ -369,7 +369,7 @@ function setupMocks(opts: MockOpts): MockedDeps {
     bdSetCalls,
     bdConfigGetCalls,
     rateLimit,
-    watermarkRunner,
+    watermarkFs,
     execBd,
     run,
   } as any;
@@ -387,7 +387,11 @@ function longIdForUrl(url: string): string {
 
 function makeDeps(mocks: ReturnType<typeof setupMocks>) {
   const m = mocks as unknown as MockedDeps & {
-    watermarkRunner: (cmd: string[]) => { stdout: string; stderr: string; status: number };
+    watermarkFs: {
+      env: (k: string) => string | undefined;
+      readFile: (p: string) => string;
+      writeFile: (p: string, data: string) => void;
+    };
     execBd: (opts: { subcommand: string; args: string[] }) => BdExecResult;
     run: (cmd: string[]) => { status: number; stdout: string; stderr: string };
   };
@@ -395,7 +399,7 @@ function makeDeps(mocks: ReturnType<typeof setupMocks>) {
     cwd: m.cwd,
     graphql: { rawRunner: m.ghRunner, rateLimit: m.rateLimit },
     writer: { run: m.run },
-    watermarkRunner: m.watermarkRunner,
+    watermarkFs: m.watermarkFs,
     rateLimit: m.rateLimit,
     // GH-1649: keep the snapshot empty + resolve every row to a canonical
     // long id so the live path never spawns a real bd (loadAllBeads /
