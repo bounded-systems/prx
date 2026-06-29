@@ -1,5 +1,40 @@
 # @bounded-systems/prx
 
+## 0.19.0
+
+### Minor Changes
+
+- 8696041: Auto-repin room images (prx-hfgg, the prx-zee7 release-chain wart): publish-oci-boxes gains a `repin` job that, after the boxes rebuild+push (e.g. on a release tag), bumps each room's pinned `<box>@sha256:…` to the freshly-built digest and opens a PR (via the prx-forge App token). Removes the manual repin hop that caused the ghappd door's mis-ordered deploys. New: src/room/repin.ts (pure `repinImage` + `BOX_PINS`, tested) + scripts/repin-boxes.ts (skopeo inspect → repin → changeset).
+- e5d5ec3: Door-bridge phase 1 — `prx door bridge` (prx-8uf2): a `127.0.0.1`-only TCP→unix forwarder that gives a host-side caller a way to reach a door (ghappd/keeperd/beadsd) that otherwise only listens on a unix socket. Frame-transparent (forwards bytes, never parses door frames), loopback-hardcoded (`BRIDGE_BIND_ADDRESS`, never `0.0.0.0`), and explicitly opt-in (you run the verb), with a loud dev-only caveat at startup — the edge is UNAUTHENTICATED and widens the door from the socket's owner to all local users. Phase 2 adds the signed-grant gate (reusing keymaker/provenance, per-lease grants) in front of this forward. New: `src/door/bridge.ts` (`runLoopbackBridge`) + `src/door/bridge-verb.ts`, both tested.
+- 7dda2e4: Retire `prx keeper up | down` (the in-VM keeperd lifecycle — superseded by the
+  pod's keeperd-room, prx-zj8) and delete the now-dead Lima daemon modules
+  (`keeperd/lima-keeperd.ts`, `keeperd/lima-transport.ts`, `ghappd/lima-ghappd.ts`).
+  Keeps `prx keeper push | branch | commit | serve`. Second of the
+  Lima-daemon-retirement PRs.
+- 5f998cb: Retire the `prx lima` in-VM daemon verbs (prx-zj8 — the podman pod superseded
+  them). Removes `prx lima up|down|daemons|status|provision-beads` (and their
+  `lima/registry.ts` + `beadsd/provision.ts` modules); keeps `prx lima
+provision-builder` (the nix remote builder, prx-62h). `doltHubUrl` moved to
+  `dolt/namespace.ts` (the kept local-beads path still uses it). First of the
+  Lima-daemon-retirement PRs; the host-native daemon + builder are untouched.
+- 14ad6be: Retire the in-VM beads read path and the last Lima daemon modules (prx-zj8 — the
+  podman pod is the substrate). Drops `--vm`/`--vm-socket`/`--host-socket` +
+  `PRX_BEADS_VM` from `prx beads read|write|prime`; `withBeadsClient` resolves a
+  local endpoint only (the host-native daemon or the pod's door socket via
+  `PRX_BEADS_SOCKET`), and the cross-repo affinity guards are now unconditional.
+  Deletes `beadsd/lima.ts`, `lima/channel.ts`, `lima/lifecycle.ts`. Final
+  Lima-daemon-retirement PR: only `prx lima provision-builder` (the nix builder)
+  remains on Lima.
+
+### Patch Changes
+
+- 7f7e6fc: Add the door-bridge ADR (docs/prx/door-bridge.md, prx-8uf2): authenticated TCP/vsock access to the unix-only doors. Doors are in-pod-only today (verified: host TCP connect-then-closes, unix-over-virtiofs ENOENTs); the design is a per-box bridge that gates on a signed grant before forwarding to the unix socket (a naive socat would expose a credential door). Includes an immediate safety note (publish loopback, not 0.0.0.0) + phased plan (loopback dev convenience → signed-grant → vsock). Design only.
+- ccb5af2: Bind published door ports to loopback (door-bridge ADR safety fix, prx-8uf2). `renderPodmanRun` published a secret room's `tcpPort` as `--publish <port>:<port>`, which binds `0.0.0.0` — an off-host credential leak, since these are credential doors (keeperd holds the git push token) and the TCP edge carries no authentication yet. The publish is now `127.0.0.1:<port>:<port>`: the host's own client keeps working (it dials localhost) while off-host callers are refused until the signed-grant bridge (phase 2) gates the edge.
+- 159a2c9: Docs: mark the Lima daemon-VM retirement done (prx-zj8) in oci-substrate.md +
+  beadsd-door-wiring.md (the endpoint is local-only; the Lima VM stays as the nix
+  builder), and tidy stale `keeper up|down` / `prx lima` daemon comments.
+- 8f21a1d: Drop the prx-signing bucket: `git_ssh_signing_keys` is a user/account permission (user-to-server OAuth), not an installation `default_permissions` scope — confirmed empirically (the live bounded-systems-prx app never held it despite declaring it; the App-manifest flow rejects it). Remove the incoherent `.github/apps/prx-signing.manifest.json` and correct the architecture doc + README: keeper SSH signing is a user-auth concern (prx-dqf), not an installation-token bucket. The bucket model is two apps (prx-forge, prx-projects).
+
 ## 0.18.0
 
 ### Minor Changes
