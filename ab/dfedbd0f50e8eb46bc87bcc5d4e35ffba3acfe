@@ -1,0 +1,33 @@
+packages/prx/src/sync/serve-verb.ts
+  s_399e6065f1b4a3::t_47b54254b796be 12-38
+  s_399e6065f1b4a3::t_058e64c590c6cb 81
+packages/prx/src/sync/serve.ts
+  s_399e6065f1b4a3::t_56be5363287462 28-30,32-35
+  s_399e6065f1b4a3::t_daa4d12b28f7e8 54-55
+  s_399e6065f1b4a3::t_94ed67c43917ce 73,79,82-83
+packages/prx/src/pr-state/cli.ts
+  s_399e6065f1b4a3::t_e9813cdfe173c0 4151,4159-4162
+  s_399e6065f1b4a3::t_5ca42366f0ab85 4163
+packages/prx/scripts/coverage-summary.ts
+  s_399e6065f1b4a3::t_23e42df241fe32 72
+packages/prx/test/sync/serve.test.ts
+  s_399e6065f1b4a3::t_958751c6773511 2-4,8-11
+  s_399e6065f1b4a3::t_87e1f94e7d21e4 153-172
+  s_399e6065f1b4a3::t_e679b40f4705a2 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "abdfedbd0f50e8eb46bc87bcc5d4e35ffba3acfe",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
