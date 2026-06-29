@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   renderBdLifecycleArgs,
   runBdLifecycle,
+  DOLT_CREDS_SECRET,
 } from "../../src/room/lifecycle-runner.ts";
 import { BEADSD_ROOM_IMAGE } from "../../src/room/beadsd-room.ts";
 import type { PodmanRunResult } from "../../src/room/podman-runtime.ts";
@@ -61,5 +62,38 @@ describe("runBdLifecycle", () => {
     const res = runBdLifecycle({ repo: "/r", args: ["config", "set", "k", "v"] }, fakeRun);
     expect(res).toEqual({ status: 0, stdout: "ok", stderr: "" });
     expect(seen).toEqual(renderBdLifecycleArgs({ repo: "/r", args: ["config", "set", "k", "v"] }));
+  });
+});
+
+describe("renderBdLifecycleArgs — room-style secret mounts (prx-82b 2c.4)", () => {
+  test("renders --secret name,target=path the same way rooms do", () => {
+    const argv = renderBdLifecycleArgs({
+      repo: "/r",
+      args: ["dolt", "push", "origin", "main"],
+      secrets: [DOLT_CREDS_SECRET],
+    });
+    const i = argv.indexOf("--secret");
+    expect(i).toBeGreaterThanOrEqual(0);
+    expect(argv[i + 1]).toBe("prx-dolt-creds,target=/run/secrets/dolt-creds");
+    // secrets precede the volume + image; the op args stay last.
+    expect(argv.slice(-4)).toEqual(["dolt", "push", "origin", "main"]);
+  });
+
+  test("multiple secrets each render a --secret flag; none by default", () => {
+    const none = renderBdLifecycleArgs({ repo: "/r", args: ["init"] });
+    expect(none).not.toContain("--secret");
+    const two = renderBdLifecycleArgs({
+      repo: "/r",
+      args: ["x"],
+      secrets: [
+        { name: "a", target: "/run/secrets/a" },
+        { name: "b", target: "/run/secrets/b" },
+      ],
+    });
+    expect(two.filter((x) => x === "--secret")).toHaveLength(2);
+  });
+
+  test("DOLT_CREDS_SECRET is a room-shaped secret (provisioned like the others)", () => {
+    expect(DOLT_CREDS_SECRET).toEqual({ name: "prx-dolt-creds", target: "/run/secrets/dolt-creds" });
   });
 });
