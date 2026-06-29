@@ -1,0 +1,21 @@
+packages/prx/scripts/coverage-summary.ts
+  s_399e6065f1b4a3::t_9173998c048386 72
+packages/prx/test/beads/container-runner.test.ts
+  s_399e6065f1b4a3::t_6d3eb4fece1f8d 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "b758c17b2f0d4524531a8c5d5a1def0ad7d4ccc1",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
