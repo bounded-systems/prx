@@ -12,7 +12,8 @@
 // the channel-scoped wrappers are new. The gh-issues watermark functions are
 // untouched.
 
-import { defaultSpawnRunner, WatermarkError, type WatermarkDeps } from "./watermark.ts";
+import { WatermarkError, type WatermarkDeps } from "./watermark.ts";
+import { containerRepoRunner } from "../beads/container-runner.ts";
 
 // Channel ids are Slack's `C…`/`G…`/`D…` opaque ids (uppercase alphanumerics).
 // Constrain the segment that lands in the bd-config dotted key so a malformed
@@ -40,7 +41,8 @@ export function slackWatermarkKey(channel: string): string {
  */
 export function getSlackWatermark(channel: string, deps: WatermarkDeps): { ts: string | null } {
   const key = slackWatermarkKey(channel);
-  const runner = deps.runner ?? defaultSpawnRunner;
+  // prx-82b 2e.2: bd config get/set runs in an ephemeral container, not host bd.
+  const runner = deps.runner ?? containerRepoRunner();
   const result = runner(["bd", "config", "get", key], { cwd: deps.cwd });
   if (result.status === 0) {
     const trimmed = result.stdout.trim();
@@ -64,7 +66,8 @@ export function getSlackWatermark(channel: string, deps: WatermarkDeps): { ts: s
  */
 export function setSlackWatermark(channel: string, ts: string, deps: WatermarkDeps): void {
   const key = slackWatermarkKey(channel);
-  const runner = deps.runner ?? defaultSpawnRunner;
+  // prx-82b 2e.2: bd config get/set runs in an ephemeral container, not host bd.
+  const runner = deps.runner ?? containerRepoRunner();
   const result = runner(["bd", "config", "set", key, ts], { cwd: deps.cwd });
   if (result.status !== 0) {
     throw new WatermarkError(

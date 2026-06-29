@@ -22,6 +22,7 @@
  */
 
 import { captureFailureDetail, isCaptureFailure, spawnCapture } from "@bounded-systems/proc";
+import { containerBdSchemaRunner } from "./container-runner.ts";
 import { z } from "zod";
 
 export const BdSchemaProbeResultSchema = z.object({
@@ -88,7 +89,7 @@ function classifyStderr(stderr: string): BdSchemaProbeResult["errorClass"] {
  */
 export function probeBdSchema(
   cwd: string,
-  runner: BdRunner = defaultBdRunner,
+  runner: BdRunner = containerBdSchemaRunner(),
 ): BdSchemaProbeResult {
   const result = runner(["stats", "--json"], cwd);
   if (result.exitCode === 0) {
@@ -112,7 +113,7 @@ export function probeBdSchema(
  */
 export function repairBdSchema(
   cwd: string,
-  runner: BdRunner = defaultBdRunner,
+  runner: BdRunner = containerBdSchemaRunner(),
 ): BdSchemaRepairResult {
   const command = "bd stats --json";
   const start = performance.now();

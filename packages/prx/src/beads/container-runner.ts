@@ -151,3 +151,17 @@ export function containerDoltClone(
     return { exitCode: res.status ?? 1, stderr: res.stderr };
   };
 }
+
+/**
+ * A `schema_repair` `BdRunner`-shaped runner `(args, cwd) => {exitCode,stdout,stderr}`
+ * (note: `args` is WITHOUT the leading "bd") that runs the cold bootstrap
+ * schema-repair op in an ephemeral beadsd-box container, not host bd.
+ */
+export function containerBdSchemaRunner(
+  run: PodmanRun = spawnPodman,
+): (args: string[], cwd: string) => { exitCode: number; stdout: string; stderr: string } {
+  return (args, cwd) => {
+    const res = runBdLifecycle({ repo: cwd, bin: "bd", args }, run);
+    return { exitCode: res.status ?? 1, stdout: res.stdout, stderr: res.stderr };
+  };
+}
