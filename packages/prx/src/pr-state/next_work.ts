@@ -344,12 +344,15 @@ function loadTransitionLogForRepo(repoPath: string): TransitionEntry[] {
 
 // GH-1617: pull the triage snapshot via `runStatusActor()`. Triage requires a
 // working `bd` substrate + `gh` auth, so a missing/broken environment
-// degrades to "no triage signal" rather than failing the picker. Tests that
-// don't inject `opts.triage` and pass a non-repo path (e.g. `/dev/null`)
-// short-circuit before any subprocess spawn — keeps the picker's read
-// surface deterministic in fixture-driven tests.
+// degrades to "no triage signal" rather than failing the picker. The spawn is
+// gated on the path being an actual GIT WORKING TREE (`.git` present, as a dir
+// in the main repo or a file in a worktree): triage reads git + bd, so a path
+// with no `.git` can yield nothing anyway. Gating on `.git` ALONE (not "`.git`
+// OR `prx.toml`") is also what keeps fixture-driven tests hermetic — a temp dir
+// holding only a `prx.toml` (e.g. the config-reader tests) must short-circuit
+// here, else `runStatusActor` spawns `bd`/`gh` and HANGS with no daemon/auth.
 function loadTriageSnapshot(repoPath: string): TriageStatusResult | null {
-  if (!existsSync(join(repoPath, ".git")) && !existsSync(join(repoPath, "prx.toml"))) {
+  if (!existsSync(join(repoPath, ".git"))) {
     return null;
   }
   try {
