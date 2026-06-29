@@ -1,0 +1,31 @@
+packages/prx/src/services/anthropic.ts
+  s_5af7d7257a71b7::t_e217b9d47cb1a8 70-224
+packages/prx/src/services/cli.ts
+  s_5af7d7257a71b7::t_f2ee36cef35bf7 97-164
+  s_5af7d7257a71b7::t_cd5e2fa8bd6583 13,18
+packages/prx/test/services/anthropic.test.ts
+  s_5af7d7257a71b7::t_6bf543cead9ac7 6-10
+  s_5af7d7257a71b7::t_c67ce1e52764d6 258-345
+packages/prx/src/pr-state/cli.ts
+  s_5af7d7257a71b7::t_539ab503b96094 18770-18780
+  s_5af7d7257a71b7::t_f87222b8c4b411 336
+  s_5af7d7257a71b7::t_1869172fc5add1 1276-1282
+  s_5af7d7257a71b7::t_1993c27a94b479 5789,5796,5799-5801,5803,5805-5806
+  s_5af7d7257a71b7::t_f3cc61d39aab50 5830-5849,5870
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "f3198265e8a0581d5a9d9e1d59dd971c21f45a40",
+  "prompts": {},
+  "sessions": {
+    "s_5af7d7257a71b7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b292ff53-e67d-4386-be49-f24217c202d5",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
