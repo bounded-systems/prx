@@ -36,6 +36,7 @@ import { builderUpVerb, builderRegisterVerb } from "../builder/verb.ts";
 import { ghappServeVerb } from "../ghappd/serve-verb.ts";
 import { doorBridgeVerb } from "../door/bridge-verb.ts";
 import { doorGrantVerb, doorIssuerKeysVerb } from "../door/grant-verb.ts";
+import { conciergeServeVerb } from "../concierge/serve-verb.ts";
 
 export const verbRegistry: Registry = {
   ...orchestratorRegistry,
@@ -75,4 +76,5 @@ export const verbRegistry: Registry = {
   [doorBridgeVerb.id]: doorBridgeVerb,
   [doorGrantVerb.id]: doorGrantVerb,
   [doorIssuerKeysVerb.id]: doorIssuerKeysVerb,
+  [conciergeServeVerb.id]: conciergeServeVerb,
 };

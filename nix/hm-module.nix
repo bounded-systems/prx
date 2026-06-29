@@ -221,8 +221,14 @@ in
 
       installationId = lib.mkOption {
         type = lib.types.str;
-        default = "138039680";
-        description = "Sets PRX_GH_INSTALLATION_ID — the installation to mint for (default = the bounded-systems org).";
+        default = "143190928";
+        description = ''
+          Sets PRX_GH_INSTALLATION_ID — the installation to mint for. Default =
+          the prx-forge bucket app's installation on `bounded-systems` (appId
+          4169313; the repo-write bucket per docs/prx/github-apps-architecture.md).
+          Must match the app whose key is in `privateKeyFile`/`clientId` — mixing
+          the forge key with a different installation fails to mint.
+        '';
       };
     };
   };

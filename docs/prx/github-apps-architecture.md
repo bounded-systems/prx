@@ -70,7 +70,7 @@ Unify on a per-bucket convention, dropping the legacy names:
 - CI/secret families: `PRX_FORGE_APP_*` (id + private key). ~~`PRX_PROJECTS_APP_*`~~ **deleted (prx-26bq)** — the projects path is brokered, no repo secret. ~~`PRX_SIGNING_APP_*`~~ not a bucket (see note).
 - Runtime door endpoints: `PRX_FORGE_DOOR` (the broker's `PRX_GH_APP_DOOR` generalizes). No `PRX_PROJECTS_DOOR` — projects is served by the cf-token-broker, not a runtime bucket door.
 - `FRONT_DESK_*` org secrets — **deleted (prx-26bq)**; the front-desk path is OIDC-brokered. `CHANGESETS_*` → folds into `prx-forge`.
-- De-hardcode the installation id (currently `138039680` in `broker-config.ts:13`) — the forge bucket has its own installation.
+- De-hardcode the installation id. **Done (prx-fkd2):** `broker-config.ts` reads `PRX_GH_INSTALLATION_ID` from env (no constant), and the runtime default (`nix/hm-module.nix`) now resolves to the **prx-forge** bucket installation `143190928` (appId `4169313`) — not the old union installation `138039680`. The forge bucket has its own installation.
 
 ## Threat model
 
@@ -95,8 +95,8 @@ Unify on a per-bucket convention, dropping the legacy names:
 2. **Author the prx-forge manifest** as app-as-code; split `.github/prx-app.manifest.json`. (No projects manifest — brokered; no signing manifest — see the note above.)
 3. **Register/split prx-forge**, install on `@bounded-systems`, store the PEM in agenix/sops (never in repo).
 4. **Runtime**: generalize `ghappd` into the `forge-d` bucket door; `door-source`/`apply` select by capability; rooms grant the door they need.
-5. **CI**: switch `version.yml` to the prx-forge app via `create-github-app-token` with per-job attenuation. (front-desk-add is already brokered.)
-6. **Retire** `CHANGESETS_*` (→ prx-forge); de-hardcode the installation id. (`FRONT_DESK_*` / `PRX_PROJECTS_*` already deleted in prx-26bq.)
+5. ~~**CI**: switch `version.yml` to the prx-forge app via `create-github-app-token` with per-job attenuation.~~ **Done** — `version.yml` mints `PRX_FORGE_APP_ID`/`PRX_FORGE_APP_PRIVATE_KEY` (fail-open to `GITHUB_TOKEN`); front-desk-add is already brokered.
+6. **Retire** `CHANGESETS_*` (→ prx-forge) — **done** (no `CHANGESETS_*` refs remain); de-hardcode the installation id — **done (prx-fkd2)**, see Naming & secrets above. (`FRONT_DESK_*` / `PRX_PROJECTS_*` already deleted in prx-26bq.)
 
 ## Open
 
