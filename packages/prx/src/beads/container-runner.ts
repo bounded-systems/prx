@@ -32,3 +32,25 @@ export function containerBdRunner(run: PodmanRun = spawnPodman): BdLifecycleRunn
     return { status: res.status, signal: null, stdout: res.stdout, stderr: res.stderr };
   };
 }
+
+/**
+ * A `RepoRunner`-shaped variant (returns `{stdout, stderr, status: number}` —
+ * non-null status) for the `bd dolt remote add` site in repo_add_dolthub. The
+ * inline return type avoids a beads↔pr-state import cycle; it's structurally a
+ * `RepoRunner` at the call site. Only cred-FREE dolt ops belong here — `dolt
+ * push` needs DoltHub creds the container lacks (left on host; the sync agent
+ * owns recurring push).
+ */
+export function containerRepoRunner(
+  run: PodmanRun = spawnPodman,
+): (
+  cmd: string[],
+  options?: { cwd?: string; check?: boolean },
+) => { stdout: string; stderr: string; status: number } {
+  return (cmd, options = {}) => {
+    const repo = options.cwd ?? process.cwd();
+    const [bin, ...args] = cmd;
+    const res = runBdLifecycle({ repo, bin, args }, run);
+    return { stdout: res.stdout, stderr: res.stderr, status: res.status ?? 1 };
+  };
+}

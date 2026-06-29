@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { containerBdRunner } from "../../src/beads/container-runner.ts";
+import { containerBdRunner, containerRepoRunner } from "../../src/beads/container-runner.ts";
 import { renderBdLifecycleArgs } from "../../src/room/lifecycle-runner.ts";
 import type { PodmanRunResult } from "../../src/room/podman-runtime.ts";
 
@@ -43,5 +43,25 @@ describe("containerBdRunner — bd lifecycle ops in an ephemeral container (prx-
     // No host HOME leaks into the podman argv — the runner sets HOME=/tmp itself.
     expect(seen).not.toContain("/some/host/tmp");
     expect(seen?.[seen.indexOf("-e") + 1]).toBe("HOME=/tmp");
+  });
+});
+
+describe("containerRepoRunner — RepoRunner-shaped (bd dolt remote add)", () => {
+  test("runs the dolt op in-container and returns {stdout,stderr,status:number}", () => {
+    let seen: string[] | undefined;
+    const run = (args: string[]): PodmanRunResult => {
+      seen = args;
+      return { status: 0, stdout: "added", stderr: "" };
+    };
+    const res = containerRepoRunner(run)(["bd", "dolt", "remote", "add", "origin", "u"], { cwd: "/r" });
+    expect(seen).toEqual(
+      renderBdLifecycleArgs({ repo: "/r", bin: "bd", args: ["dolt", "remote", "add", "origin", "u"] }),
+    );
+    expect(res).toEqual({ stdout: "added", stderr: "", status: 0 });
+  });
+
+  test("a null podman status maps to 1 (RepoRunner wants a number)", () => {
+    const run = (): PodmanRunResult => ({ status: null, stdout: "", stderr: "x" });
+    expect(containerRepoRunner(run)(["bd", "dolt", "remote", "add"], { cwd: "/r" }).status).toBe(1);
   });
 });
