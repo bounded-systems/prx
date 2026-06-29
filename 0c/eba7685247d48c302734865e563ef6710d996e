@@ -1,0 +1,25 @@
+packages/prx/test/sync/serve.test.ts
+  s_a4789e0b0492f1::t_8e0cbcbed392c6 135-137,139
+  s_a4789e0b0492f1::t_147f9ae1fadbbe 150,153
+packages/prx/test/sync/serve-verb.test.ts
+  s_a4789e0b0492f1::t_c62d801ab6de7e 2-4
+  s_a4789e0b0492f1::t_1e80202dcb1716 32-33,36
+.changeset/sync-pidfile-tmp.md
+  s_a4789e0b0492f1::t_422e28c4119aa2 1-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "0ceba7685247d48c302734865e563ef6710d996e",
+  "prompts": {},
+  "sessions": {
+    "s_a4789e0b0492f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "08589f2f-93b7-4db3-a0a5-375b9672f700",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
