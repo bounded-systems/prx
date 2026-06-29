@@ -5,7 +5,7 @@
 -->
 # prx
 
-> The agent-run work-unit CLI: capability-scoped agents driving each work unit through one signed, content-addressed pipeline to a merged PR — git-writes signed and verified against their owner.
+> The agent-run work-unit CLI: capability-scoped agents driving each work unit through one signed, content-addressed pipeline to a merged PR — git-writes signed by a capability-gated actor.
 
 `prx` — the agent-run PR contract / work-unit CLI, plus the `@bounded-systems/*`
 libraries it builds on. A Bun + TypeScript monorepo.
