@@ -75,6 +75,7 @@ class EmptyUpdateError extends Error {}
 function beadsSubcommand(request: BeadsRequest): string {
   if (request.kind === "close") return "update";
   if (request.kind === "children") return "dep";
+  if (request.kind === "config-get" || request.kind === "config-set") return "config";
   return request.kind;
 }
 
@@ -167,6 +168,13 @@ function beadsArgs(request: BeadsRequest): string[] {
             request.to,
           ]
         : ["remove", request.from, request.to];
+    case "config-get":
+      // `bd config get <key>` — plain value, NOT --json (special output handling
+      // in handleBeadsRequest, like `dep`).
+      return ["get", request.key];
+    case "config-set":
+      // `bd config set <key> <value>` — echoes no record (result: null).
+      return ["set", request.key, request.value];
     default: {
       // Exhaustiveness: a new request kind is a compile error here until given args.
       const unreachable: never = request;
@@ -284,13 +292,24 @@ export async function handleBeadsRequest(
       message: (result.stderr || result.stdout).trim() || `bd ${request.kind} failed`,
     };
   }
-  // `bd dep add/remove` is not a `--json` surface — it echoes no record. On a
-  // zero exit it succeeded; reply ok with no result (callers don't expect one).
-  if (request.kind === "dep") {
+  // `bd dep add/remove` and `bd config set` are not `--json` surfaces — they
+  // echo no record. On a zero exit they succeeded; reply ok with no result.
+  if (request.kind === "dep" || request.kind === "config-set") {
     const etag = deps.etag?.();
     return {
       status: "ok",
       result: null,
+      ...(etag !== undefined ? { etag } : {}),
+      ...(deps.localPrefix !== undefined ? { servedPrefix: deps.localPrefix } : {}),
+    };
+  }
+  // `bd config get` returns a PLAIN value (not `--json`) — reply the raw trimmed
+  // stdout as the result, bypassing the JSON parse below (prx-82b 2e.2).
+  if (request.kind === "config-get") {
+    const etag = deps.etag?.();
+    return {
+      status: "ok",
+      result: result.stdout.trim(),
       ...(etag !== undefined ? { etag } : {}),
       ...(deps.localPrefix !== undefined ? { servedPrefix: deps.localPrefix } : {}),
     };
