@@ -33,6 +33,7 @@ function seedUsage(
     profile?: string;
     actor?: string;
     workUnitId?: string;
+    model?: string;
     input_tokens?: number;
     output_tokens?: number;
     cache_read_input_tokens?: number;
@@ -47,6 +48,7 @@ function seedUsage(
     profile: payload.profile,
     actor: payload.actor ?? "claude-code",
     workUnitId: payload.workUnitId,
+    ...(payload.model ? { model: payload.model } : {}),
     input_tokens: payload.input_tokens ?? 0,
     output_tokens: payload.output_tokens ?? 0,
     cache_read_input_tokens: payload.cache_read_input_tokens ?? 0,
@@ -190,6 +192,50 @@ describe("projectAnthropicUsage", () => {
     expect(byActor.map((b) => b.bucket).sort()).toEqual(["claude-code", "haiku-classifier"]);
     const byUnit = projectAnthropicUsage(db, { by: "workUnitId" });
     expect(byUnit.map((b) => b.bucket).sort()).toEqual(["GH-1", "GH-2"]);
+  });
+
+  test("groups by model, falling back to (unknown model) when absent", () => {
+    const db = makeDb();
+    seedUsage(db, {
+      ts: "2026-05-15T00:00:00Z",
+      model: "claude-opus-4-8",
+      input_tokens: 100,
+      cache_read_input_tokens: 800,
+      total_cost_usd: 0.10,
+    });
+    seedUsage(db, {
+      ts: "2026-05-15T00:01:00Z",
+      model: "claude-opus-4-8",
+      input_tokens: 50,
+      cache_read_input_tokens: 400,
+      total_cost_usd: 0.05,
+    });
+    seedUsage(db, {
+      ts: "2026-05-15T00:02:00Z",
+      model: "claude-haiku-4-5",
+      input_tokens: 10,
+      cache_read_input_tokens: 90,
+      total_cost_usd: 0.001,
+    });
+    seedUsage(db, {
+      ts: "2026-05-15T00:03:00Z",
+      // no model field — falls back to (unknown model)
+      input_tokens: 5,
+    });
+
+    const buckets = projectAnthropicUsage(db, { by: "model" });
+    expect(buckets.length).toBe(3);
+
+    const opus = buckets.find((b) => b.bucket === "claude-opus-4-8")!;
+    expect(opus.calls).toBe(2);
+    expect(opus.total_cost_usd).toBeCloseTo(0.15, 5);
+    expect(opus.hit_rate).toBeCloseTo(1200 / 1350, 5);
+
+    const haiku = buckets.find((b) => b.bucket === "claude-haiku-4-5")!;
+    expect(haiku.calls).toBe(1);
+
+    const unknown = buckets.find((b) => b.bucket === "(unknown model)")!;
+    expect(unknown.calls).toBe(1);
   });
 
   test("returns hit_rate=0 when both input and cache_read are zero", () => {

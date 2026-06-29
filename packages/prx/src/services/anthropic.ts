@@ -11,7 +11,7 @@
 
 import type { Database } from "bun:sqlite";
 
-export type AnthropicProjectorBy = "profile" | "actor" | "workUnitId";
+export type AnthropicProjectorBy = "profile" | "actor" | "workUnitId" | "model";
 
 export type AnthropicProjectorOptions = {
   /**
@@ -48,6 +48,7 @@ type UsagePayload = {
   profile?: string;
   actor?: string;
   workUnitId?: string;
+  model?: string;
   input_tokens?: number;
   output_tokens?: number;
   cache_read_input_tokens?: number;
@@ -58,6 +59,7 @@ type UsagePayload = {
 function bucketKey(row: UsagePayload, by: AnthropicProjectorBy): string {
   if (by === "actor") return row.actor ?? "(unknown actor)";
   if (by === "workUnitId") return row.workUnitId ?? "(unattached)";
+  if (by === "model") return row.model ?? "(unknown model)";
   return row.profile ?? "(unknown profile)";
 }
 
