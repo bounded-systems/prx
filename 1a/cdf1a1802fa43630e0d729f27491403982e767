@@ -1,0 +1,29 @@
+packages/prx/src/keeperd/grant-gate.ts
+  s_c4318117f42b02::t_51523dd52d8c17 1-115
+packages/prx/test/keeperd/grant-gate.test.ts
+  s_c4318117f42b02::t_868cc2453aa764 1-139
+packages/prx/src/keeperd/daemon.ts
+  s_c4318117f42b02::t_3e4eb468ae8c09 223-242,253-254
+  s_c4318117f42b02::t_c1f30c225d7dd7 36-40
+  s_c4318117f42b02::t_12174eb1b6fcc8 181-191
+packages/prx/package.json
+  s_c4318117f42b02::t_7cf4f5d165690c 29
+bun.lock
+  s_c4318117f42b02::t_5c34102a9c7c71 30,48,139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "1acdf1a1802fa43630e0d729f27491403982e767",
+  "prompts": {},
+  "sessions": {
+    "s_c4318117f42b02": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b707ec58-424b-452d-b628-e6eb4bd39018",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null
+    }
+  }
+}
