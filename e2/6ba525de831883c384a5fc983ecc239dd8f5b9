@@ -1,0 +1,37 @@
+packages/prx/src/pr-state/cli.ts
+  s_399e6065f1b4a3::t_32b46a7e4ce92e 20704,20711-20713
+  s_399e6065f1b4a3::t_c0abced7c5b7f4 20726-20727,20732-20736,20739
+  s_399e6065f1b4a3::t_d106ad61ddaae7 20632
+  s_399e6065f1b4a3::t_ceb05883e4f3b0 7370-7371
+  s_399e6065f1b4a3::t_7396f1022675da 20680-20681
+  s_399e6065f1b4a3::t_680716fe985984 1769-1770
+  s_399e6065f1b4a3::t_1736894097857e 20658
+packages/prx/src/beadsd/client-factory.ts
+  s_399e6065f1b4a3::t_0efd98de9c4554 6
+  s_399e6065f1b4a3::t_38b1fa0bdbb9d8 45-46
+  s_399e6065f1b4a3::t_8a09ef39459807 233
+  s_399e6065f1b4a3::t_61149ac519d1fc 25-28
+packages/prx/test/beadsd/client-factory.test.ts
+  s_399e6065f1b4a3::t_534c631c913401 36-37
+packages/prx/test/lima/cli.test.ts
+  s_399e6065f1b4a3::t_df9f6a6520d6a5 266,275-276
+  s_399e6065f1b4a3::t_9a68e2f8e51932 61-65,72-73,92-93,98-99,103
+.changeset/retire-vm-beads-path.md
+  s_399e6065f1b4a3::t_e4a800f97d5bec 1-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "e26ba525de831883c384a5fc983ecc239dd8f5b9",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
