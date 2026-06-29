@@ -39,6 +39,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - ADR — decomposing the `pr-state/cli.ts` monolith — `docs/prx/cli-decomposition.md`
 - ADR — a spec-driven CLI: author verbs once, project everywhere — `docs/prx/cli-from-spec.md`
 - `prx dolt start` — the dolt actor's start driver (GH-555) — `docs/prx/dolt-start.md`
+- ADR — the door-bridge: authenticated TCP/vsock access to unix-only doors — `docs/prx/door-bridge.md`
 - ADR — GitHub Apps: permission-bucketed apps + per-use attenuation — `docs/prx/github-apps-architecture.md`
 - ADR — the prx OCI substrate: containerize the service fleet, retire the daemon-VM (prx-zj8) — `docs/prx/oci-substrate.md`
 - Publishing the `@bounded-systems/*` packages (JSR) — `docs/prx/package-publishing.md`
