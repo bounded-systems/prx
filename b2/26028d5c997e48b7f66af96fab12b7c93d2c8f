@@ -1,0 +1,30 @@
+packages/prx/src/fetch/slack-watermark.ts
+  s_399e6065f1b4a3::t_84c95c26fa0e58 15-16
+  s_399e6065f1b4a3::t_d7df84523f7d8f 44-45,69-70
+packages/prx/test/architecture/beads-door-boundary.test.ts
+  s_399e6065f1b4a3::t_e69a6f43caa117 45-50
+packages/prx/src/beads/schema_repair.ts
+  s_399e6065f1b4a3::t_8babd052eaf4aa 92,116
+  s_399e6065f1b4a3::t_2f68f4b830d90e 25
+packages/prx/src/fetch/watermark.ts
+  s_399e6065f1b4a3::t_b35160733367dd 64-65,99-100,129-130
+  s_399e6065f1b4a3::t_4fc2d7738233a8 18-19
+packages/prx/src/beads/container-runner.ts
+  s_399e6065f1b4a3::t_d31020fb3f2d70 154-167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "b226028d5c997e48b7f66af96fab12b7c93d2c8f",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
