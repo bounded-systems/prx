@@ -3,7 +3,7 @@
 App-as-code manifests for prx's permission-**bucketed** GitHub Apps
 (spec: [docs/prx/github-apps-architecture.md](../../docs/prx/github-apps-architecture.md)).
 Each app holds one coherent permission bucket (coarse least-privilege / key
-blast-radius); the broker/ghappd door attenuates each minted token per use (fine
+blast-radius); the broker/forge-d door attenuates each minted token per use (fine
 least-privilege). These are the **def-of-record** to register the apps from
 (POST the manifest → conversion → App ID / pem / secrets in agenix/sops); the
 live apps are reconciled *to* these files.

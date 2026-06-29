@@ -159,10 +159,10 @@ function doorEnv(door: ResolvedDoor, doorDir: string): Record<string, string> {
   if (door.door === "keeperd") {
     return { PRX_KEEPER_DOOR: door.door, KEEPERD_SOCK: socket };
   }
-  //   - ghappd → PRX_GH_APP_DOOR (the endpoint the broker's door backend dials;
+  //   - forge-d → PRX_FORGE_DOOR (the endpoint the broker's door backend dials;
   //     apply.ts leases from it instead of minting from a local PEM).
-  if (door.door === "ghappd") {
-    return { PRX_GH_APP_DOOR: socket };
+  if (door.door === "forge-d") {
+    return { PRX_FORGE_DOOR: socket };
   }
   return {};
 }

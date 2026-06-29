@@ -59,7 +59,7 @@ describe("door grant issuer ↔ keeper gate (prx-8uf2, end-to-end)", () => {
 
   test("a grant minted for a different door is rejected by the keeper gate", () => {
     const grant = mintDoorGrant({
-      door: "ghapp",
+      door: "forge",
       audience: AUDIENCE,
       ttlSeconds: 60,
       nonce: "n4",

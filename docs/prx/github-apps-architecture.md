@@ -3,7 +3,7 @@
 > **Status: design (partially superseded).** Supersedes the single-app framing in
 > [docs/github-app.md](../github-app.md) (the `bounded-systems-prx` operational
 > doc). Pairs with the runtime broker (`packages/prx/src/github-app/*`) and the
-> `ghappd` credential-broker door ([GHAPPD.md in claude-box], `src/ghappd/*`).
+> `forge-d` credential-broker door ([GHAPPD.md in claude-box], `src/forge-d/*`).
 >
 > **UPDATE (prx-26bq, 2026-06-29) — the `prx-projects` bucket is retired.** The
 > `organization_projects` / front-desk-add path is now served by the deployed
@@ -14,7 +14,7 @@
 > token from the broker over GitHub Actions OIDC; the App key lives only in the
 > broker. The `prx-projects` app's secret/var (`PRX_PROJECTS_APP_*`) are deleted,
 > and its registration can be uninstalled. **This ADR's remaining live scope is the
-> `prx-forge` bucket (agents / `version.yml`) + the runtime `ghappd` doors.**
+> `prx-forge` bucket (agents / `version.yml`) + the runtime `forge-d` doors.**
 > `prx-projects` rows below are kept for history and marked retired.
 
 ## Context — what exists today
@@ -23,7 +23,7 @@ Three GitHub-App credential families are in use, but only one is app-as-code:
 
 | credential | secrets | used by | scopes |
 |---|---|---|---|
-| **bounded-systems-prx** (a.k.a. the broker's `front-desk` app) | `PRX_GH_APP_*` (runtime); ~~`FRONT_DESK_*` (CI)~~ — **deleted (prx-26bq)**; CI now mints via the cf-token-broker over OIDC | broker/ghappd (runtime) + cf-token-broker `front-desk` app (all front-desk CI) | union: `contents`/`issues`/`pull_requests`/`checks` + `organization_projects:write` + `git_ssh_signing_keys:write` (inert, prx-dqf) |
+| **bounded-systems-prx** (a.k.a. the broker's `front-desk` app) | `PRX_GH_APP_*` (runtime); ~~`FRONT_DESK_*` (CI)~~ — **deleted (prx-26bq)**; CI now mints via the cf-token-broker over OIDC | broker/forge-d (runtime) + cf-token-broker `front-desk` app (all front-desk CI) | union: `contents`/`issues`/`pull_requests`/`checks` + `organization_projects:write` + `git_ssh_signing_keys:write` (inert, prx-dqf) |
 | **Changesets** | `CHANGESETS_APP_*` | `version.yml` (push release branch + open PR) | `contents` + `pull_requests` write |
 
 Problems:
@@ -61,14 +61,14 @@ projects bucket is superseded by the cf-token-broker.
 
 ### Consumption — two surfaces, the SAME apps
 
-- **Runtime** (agents / local / pod): a `ghappd`-shaped **credential door per bucket app** — `forge-d` / `projects-d` — each holding that bucket's PEM and leasing per-use attenuated installation tokens. A room grants only the bucket-doors it needs (DOORS.md: a door is one kind of access → a bucket *is* a door). This **generalizes the `ghappd` we built** (parameterize by bucket; `door-source.ts` already dials a door by endpoint — extend to per-bucket endpoints).
+- **Runtime** (agents / local / pod): a `forge-d`-shaped **credential door per bucket app** — `forge-d` / `projects-d` — each holding that bucket's PEM and leasing per-use attenuated installation tokens. A room grants only the bucket-doors it needs (DOORS.md: a door is one kind of access → a bucket *is* a door). This **generalizes the `forge-d` we built** (parameterize by bucket; `door-source.ts` already dials a door by endpoint — extend to per-bucket endpoints).
 - **CI** (Actions): `version.yml` mints the **prx-forge** app via `create-github-app-token`, attenuated via the action's `repositories`/`permission-*` inputs. **Front Desk CI no longer uses a bucket app** — `front-desk-add` / the sync chain mint the `front-desk` app from the **cf-token-broker** over OIDC (prx-26bq), so no App key reaches the runner.
 
 ### Naming & secrets
 
 Unify on a per-bucket convention, dropping the legacy names:
 - CI/secret families: `PRX_FORGE_APP_*` (id + private key). ~~`PRX_PROJECTS_APP_*`~~ **deleted (prx-26bq)** — the projects path is brokered, no repo secret. ~~`PRX_SIGNING_APP_*`~~ not a bucket (see note).
-- Runtime door endpoints: `PRX_FORGE_DOOR` (the broker's `PRX_GH_APP_DOOR` generalizes). No `PRX_PROJECTS_DOOR` — projects is served by the cf-token-broker, not a runtime bucket door.
+- Runtime door endpoints: `PRX_FORGE_DOOR` (the broker's `PRX_FORGE_DOOR` generalizes). No `PRX_PROJECTS_DOOR` — projects is served by the cf-token-broker, not a runtime bucket door.
 - `FRONT_DESK_*` org secrets — **deleted (prx-26bq)**; the front-desk path is OIDC-brokered. `CHANGESETS_*` → folds into `prx-forge`.
 - De-hardcode the installation id. **Done (prx-fkd2):** `broker-config.ts` reads `PRX_GH_INSTALLATION_ID` from env (no constant), and the runtime default (`nix/hm-module.nix`) now resolves to the **prx-forge** bucket installation `143190928` (appId `4169313`) — not the old union installation `138039680`. The forge bucket has its own installation.
 
@@ -76,7 +76,7 @@ Unify on a per-bucket convention, dropping the legacy names:
 
 - **App-key leak** → one bucket's scopes (not the union).
 - **Minted-token leak** → ≤1h, attenuated to the caller's repos + a permission subset.
-- **PEMs live behind the doors** (ghappd pattern: `PRX_GH_APP_KEY_FILE` → tmpfs mount; never in agent env/argv/image layer).
+- **PEMs live behind the doors** (forge-d pattern: `PRX_GH_APP_KEY_FILE` → tmpfs mount; never in agent env/argv/image layer).
 - Every lease is an auditable door event (trust-ledger fit).
 
 ## Alternatives considered
@@ -94,7 +94,7 @@ Unify on a per-bucket convention, dropping the legacy names:
 1. ~~**Unify naming.**~~ Done — Front Desk == bounded-systems-prx (confirmed); the front-desk CI path is now OIDC-brokered.
 2. **Author the prx-forge manifest** as app-as-code; split `.github/prx-app.manifest.json`. (No projects manifest — brokered; no signing manifest — see the note above.)
 3. **Register/split prx-forge**, install on `@bounded-systems`, store the PEM in agenix/sops (never in repo).
-4. **Runtime**: generalize `ghappd` into the `forge-d` bucket door; `door-source`/`apply` select by capability; rooms grant the door they need.
+4. **Runtime**: generalize `forge-d` into the `forge-d` bucket door; `door-source`/`apply` select by capability; rooms grant the door they need.
 5. ~~**CI**: switch `version.yml` to the prx-forge app via `create-github-app-token` with per-job attenuation.~~ **Done** — `version.yml` mints `PRX_FORGE_APP_ID`/`PRX_FORGE_APP_PRIVATE_KEY` (fail-open to `GITHUB_TOKEN`); front-desk-add is already brokered.
 6. **Retire** `CHANGESETS_*` (→ prx-forge) — **done** (no `CHANGESETS_*` refs remain); de-hardcode the installation id — **done (prx-fkd2)**, see Naming & secrets above. (`FRONT_DESK_*` / `PRX_PROJECTS_*` already deleted in prx-26bq.)
 
@@ -103,4 +103,4 @@ Unify on a per-bucket convention, dropping the legacy names:
 - **[DECISION] Door topology** — one multi-key door (`lease(bucket, attenuation)`) vs one door per bucket app (`forge-d`/`projects-d`). Recommend **per-bucket doors** (matches DOORS.md "one door = one kind of access"; a room grants exactly the buckets it needs).
 - **[RESOLVED]** Front Desk == bounded-systems-prx (legacy secret name).
 
-Relates: **prx-26bq** (cf-token-broker — supersedes the projects bucket), `ghappd` (the first bucket door — likely `forge-d`), GHAPPD.md, AUTHD.md (sibling token-lease door), prx-cdln (ghappd build), prx-z6ru (operational deploy), prx-dqf (signing scope), prx-6194/prx-9s14 (credential-broker doors).
+Relates: **prx-26bq** (cf-token-broker — supersedes the projects bucket), `forge-d` (the first bucket door — likely `forge-d`), GHAPPD.md, AUTHD.md (sibling token-lease door), prx-cdln (forge-d build), prx-z6ru (operational deploy), prx-dqf (signing scope), prx-6194/prx-9s14 (credential-broker doors).

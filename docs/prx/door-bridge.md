@@ -3,16 +3,16 @@
 > **Status: partly implemented** (phases 0–1 + the keeper door-side gate of
 > phase 2 are merged; see Phases). Bead: **prx-8uf2**. Pairs with the door
 > substrate (`src/door/transport.ts`, `framing.ts`, `src/door/bridge.ts`), the
-> credential doors (`ghappd`, keeperd: `src/keeperd/grant-gate.ts`), and the
+> credential doors (`forge-d`, keeperd: `src/keeperd/grant-gate.ts`), and the
 > capability-transport model (claude-box ADR, prx-86g9: *authority chosen by
 > `DoorTransport` — held-ref local, signed grant in transit*).
 
 ## Context
 
-Every actor-door (ghappd / keeperd / beadsd) listens on a **unix socket** in the
+Every actor-door (forge-d / keeperd / beadsd) listens on a **unix socket** in the
 shared door fabric (`/…/run/prx/doors/<door>.sock`). In-pod consumers reach it
 container-to-container over that fabric — verified live: claude-room leased a
-forge token through ghappd's unix socket.
+forge token through forge-d's unix socket.
 
 `RoomSpec.tcpPort` makes the pod `--publish <port>:<port>`, but **nothing in the
 box bridges TCP → the unix socket** — the daemon only binds the socket. So:
@@ -22,7 +22,7 @@ box bridges TCP → the unix socket** — the daemon only binds the socket. So:
 
 So doors are **in-pod-only** today. The gap is host and cross-host access.
 
-**The hard constraint:** these are **credential** doors (ghappd leases GitHub App
+**The hard constraint:** these are **credential** doors (forge-d leases GitHub App
 tokens; keeperd performs git writes). Exposing one on a non-loopback interface
 *without authentication* is a credential-leak hole — anyone who can reach the port
 can lease. A naive `socat TCP→unix` is therefore **unacceptable**.
@@ -87,7 +87,7 @@ reachable off-host unauthenticated, independent of (and prerequisite to) the gat
    exp + issuer key). Config-gated by `KEEPERD_GRANT_AUDIENCE` +
    `KEEPERD_ISSUER_KEYS`; unconfigured TCP stays unauthenticated-but-loopback and
    WARNs loudly. Needed the `@bounded-systems/guest-room` **0.2.0 → 0.4.0** bump
-   (0.2.0 predates the grant primitives). *Remaining:* the same gate for ghappd
+   (0.2.0 predates the grant primitives). *Remaining:* the same gate for forge-d
    (its own framing, not yet on the guest-room protocol), and **grant acquisition**
    (concierge `resolve()` + refresh-before-TTL) — deployment-coupled, prx-9s14.
 3. **vsock transport** for VM-isolation tiers (prx-5p5 gVisor, prx-n8d Firecracker).
@@ -107,7 +107,7 @@ reachable off-host unauthenticated, independent of (and prerequisite to) the gat
 - **Grant issuer** — reuse the published-issuer-key model guest-room already
   ships (`IssuerKeys` = `{ kid, publicKeyPem }[]`, keyless verification), keyed to
   prx's keymaker/provenance per-actor identities. Grants are **per-lease**
-  (short-lived, mirroring the ghappd token TTL), not per-session.
+  (short-lived, mirroring the forge-d token TTL), not per-session.
 - **Loopback bridge phase 1** — shipped, behind an explicit opt-in (`prx door
   bridge`), with the multi-user caveat, since most prx hosts are single-user dev
   machines.
@@ -117,9 +117,9 @@ reachable off-host unauthenticated, independent of (and prerequisite to) the gat
 - **Grant acquisition** — how a legit client obtains + presents a grant
   (concierge `resolve()` + refresh-before-TTL, where the issuer keys are
   published). Deployment-coupled — tracked with prx-9s14.
-- **ghappd parity** — ghappd uses its own framing, not the guest-room door
+- **forge-d parity** — forge-d uses its own framing, not the guest-room door
   protocol; converging it is the prerequisite to gating its TCP edge the same way.
 
 Relates: capability-transport model (prx-86g9), DOORS.md / CAPABILITIES.md,
-`src/door/transport.ts`, ghappd (prx-cdln) + keeperd, authd (prx-6194),
+`src/door/transport.ts`, forge-d (prx-cdln) + keeperd, authd (prx-6194),
 `--remote-control` (prx-9s14), host provisioning (prx-9yv3).

@@ -77,7 +77,7 @@ describe("buildKeeperAuthorizer (the keeper TCP gate)", () => {
   });
 
   test("rejects a grant minted for a DIFFERENT door (audience confusion)", () => {
-    expect(authorize(req(mint({ door: "ghapp" })))).toBe(false);
+    expect(authorize(req(mint({ door: "forge" })))).toBe(false);
   });
 
   test("rejects a grant bound to a different audience", () => {

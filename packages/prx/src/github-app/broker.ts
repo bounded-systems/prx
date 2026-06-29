@@ -2,7 +2,7 @@
 // concurrency dedupe wrapped around a token source, so a burst of GitHub ops
 // triggers at most one fetch. Two sources share the cache: `createBroker` mints
 // locally from a held PEM (`./installation-token`); `createDoorBroker`
-// (`./door-source`) leases from ghappd. Pure over injected deps; never logs.
+// (`./door-source`) leases from forge-d. Pure over injected deps; never logs.
 import { mintInstallationToken } from "./installation-token.ts";
 import type { BrokerConfig } from "./broker-config.ts";
 

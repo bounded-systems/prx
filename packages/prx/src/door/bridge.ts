@@ -1,7 +1,7 @@
 /**
  * The door-bridge — phase 1: a loopback TCP→unix forwarder (prx-8uf2).
  *
- * Every actor-door (ghappd / keeperd / beadsd) listens on a UNIX socket. A
+ * Every actor-door (forge-d / keeperd / beadsd) listens on a UNIX socket. A
  * host/remote caller can't reach it: a macOS host can't connect a unix socket
  * across virtiofs, and there is no TCP listener behind a published port. This
  * forwarder is the host-side edge: a `127.0.0.1`-only TCP listener that, per
