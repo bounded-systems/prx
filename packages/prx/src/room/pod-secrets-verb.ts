@@ -7,7 +7,7 @@
 import { z } from "zod";
 import { defineVerb } from "@bounded-systems/verbspec";
 
-import { perRepoPod } from "./per-repo-pod.ts";
+import { perRepoPodFor } from "./per-repo-pod.ts";
 import { ensurePodSecrets, parseSource, type SecretSource } from "./pod-secrets.ts";
 
 export const PodSecretsResult = z.object({
@@ -37,7 +37,7 @@ export const podSecretsVerb = defineVerb({
   }),
   output: PodSecretsResult,
   run: async ({ from, replace }) => {
-    const spec = perRepoPod;
+    const spec = perRepoPodFor(process.cwd());
     const sources = new Map<string, SecretSource>();
     for (const entry of from) {
       const eq = entry.indexOf("=");

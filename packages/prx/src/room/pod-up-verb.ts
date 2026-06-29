@@ -5,7 +5,7 @@ import { z } from "zod";
 import { defineVerb } from "@bounded-systems/verbspec";
 
 import { downPod, launchPod } from "./podman-runtime.ts";
-import { perRepoPod } from "./per-repo-pod.ts";
+import { perRepoPodFor } from "./per-repo-pod.ts";
 
 export const PodUpResult = z.object({
   pod: z.string().describe("Pod name that was launched"),
@@ -36,8 +36,10 @@ export const podUpVerb = defineVerb({
   }),
   output: PodUpResult,
   run: async ({ pod, recreate }) => {
-    const base = pod === "per-repo" ? perRepoPod : perRepoPod;
-    const spec = { ...base, repo: process.cwd() };
+    // prx-82b Slice 2a: per-repo pod identity (name + door fabric keyed by the
+    // cwd's repo), so N repos run N isolated pods.
+    void pod;
+    const spec = perRepoPodFor(process.cwd());
     if (recreate) downPod(spec); // so launch isn't a no-op on the running pod
     const { results, l2LaunchDigest } = await launchPod(spec);
     return {

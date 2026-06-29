@@ -23,6 +23,7 @@ import { forgeDRoom } from "./forge-d-room.ts";
 import { keeperdRoom } from "./keeperd-room.ts";
 import { DEFAULT_DOOR_DIR } from "./pod.ts";
 import type { PodSpec } from "./pod.ts";
+import { podFor, type SlugResolver } from "./pod-identity.ts";
 import type { PodService } from "./spec.ts";
 
 /**
@@ -48,3 +49,15 @@ export const perRepoPod: PodSpec = {
   services: [doltService],
   doorDir: DEFAULT_DOOR_DIR,
 };
+
+/**
+ * The per-repo pod for a working directory (prx-82b, Slice 2a). Same fleet as
+ * {@link perRepoPod}, but with a per-repo `name`/`doorDir` (via {@link podFor})
+ * and `repo` bound to `cwd` — so two repos run two isolated pods on two door
+ * fabrics. The lifecycle verbs (`pod up | down | secrets`) build their spec
+ * here; {@link perRepoPod} stays the static template.
+ */
+export function perRepoPodFor(cwd: string, resolveSlug?: SlugResolver): PodSpec {
+  const id = resolveSlug ? podFor(cwd, resolveSlug) : podFor(cwd);
+  return { ...perRepoPod, name: id.name, doorDir: id.doorDir, repo: cwd };
+}

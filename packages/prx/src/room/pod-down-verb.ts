@@ -7,7 +7,7 @@ import { z } from "zod";
 import { defineVerb } from "@bounded-systems/verbspec";
 
 import { downPod } from "./podman-runtime.ts";
-import { perRepoPod } from "./per-repo-pod.ts";
+import { perRepoPodFor } from "./per-repo-pod.ts";
 
 export const PodDownResult = z.object({
   pod: z.string().describe("Pod name that was torn down"),
@@ -23,8 +23,9 @@ export const podDownVerb = defineVerb({
   }),
   output: PodDownResult,
   run: async ({ pod }) => {
-    const base = pod === "per-repo" ? perRepoPod : perRepoPod;
-    const spec = { ...base, repo: process.cwd() };
+    // prx-82b Slice 2a: tear down the cwd's per-repo pod (per-repo name).
+    void pod;
+    const spec = perRepoPodFor(process.cwd());
     const results = downPod(spec);
     return { pod: spec.name, commands: results.length };
   },
