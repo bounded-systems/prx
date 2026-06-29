@@ -1,0 +1,30 @@
+.github/apps/README.md
+  s_dc3042bf98674e::t_dfa2eb3acf6a4f 40
+  s_dc3042bf98674e::t_4045fe365c8d7e 14-21
+  s_dc3042bf98674e::t_27396a8c3e0f88 31-33
+  s_dc3042bf98674e::t_b80cc521dd5080 48-50
+docs/prx/github-apps-architecture.md
+  s_dc3042bf98674e::t_df0d869ca3aa71 26
+  s_dc3042bf98674e::t_eb5abe13535345 90-99
+  s_dc3042bf98674e::t_36dd424c8d0c93 106
+  s_dc3042bf98674e::t_050205d4020db1 3,7-18
+  s_dc3042bf98674e::t_85b68b17d3d2b8 47,49-50
+  s_dc3042bf98674e::t_a659d32d117152 65
+  s_dc3042bf98674e::t_a8305be54360a7 70-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "9c19f19bf9f51c45280d5c606cc6ae04b4f156ec",
+  "prompts": {},
+  "sessions": {
+    "s_dc3042bf98674e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4a4c41b5-bdca-4635-99d7-b7338a15ff09",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
