@@ -1,0 +1,27 @@
+docs/prx/github-apps-architecture.md
+  s_3086de54355107::t_a6e7875cebb8ad 37-47
+  s_3086de54355107::t_6fd5bc281d37aa 78
+  s_3086de54355107::t_4489d1663fc34b 86
+  s_3086de54355107::t_fbf289b056c14e 51
+.github/apps/README.md
+  s_3086de54355107::t_4da36f3e5d340f 15-21
+  s_3086de54355107::t_2605dbfc6cb6c4 33
+.changeset/signing-not-a-bucket.md
+  s_3086de54355107::t_a514ec4c50aadb 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "691bb5b7b403bffd3c044df284c367dd629dae7b",
+  "prompts": {},
+  "sessions": {
+    "s_3086de54355107": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "596c64d8-d3a2-48a6-b328-a7e6b9ad525c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
