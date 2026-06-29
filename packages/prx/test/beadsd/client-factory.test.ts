@@ -8,6 +8,7 @@ import {
   resolveBeadsEndpoint,
   resolveLocalBeadsCwd,
   withBeadsClient,
+  isHostNativeSocket,
   DEFAULT_LOCAL_BEADS_SOCKET,
 } from "../../src/beadsd/client-factory.ts";
 
@@ -18,23 +19,41 @@ const okTransport: FramedTransport = async () => ({ status: "ok", result: [] });
 /** No-op auto-start for tests that drive the client over a fake transport. */
 const noEnsure = async () => {};
 
-describe("resolveBeadsEndpoint", () => {
-  test("defaults to a local socket", () => {
-    expect(resolveBeadsEndpoint(fakeEnv({}))).toEqual({
+describe("resolveBeadsEndpoint — the read router (prx-82b Slice 2b)", () => {
+  test("falls back to the host-native socket when no override + no pod up", () => {
+    expect(resolveBeadsEndpoint(fakeEnv({}), { podSocket: () => null })).toEqual({
       kind: "local",
       socket: DEFAULT_LOCAL_BEADS_SOCKET,
     });
   });
 
-  test("PRX_BEADS_SOCKET overrides the local socket", () => {
-    expect(resolveBeadsEndpoint(fakeEnv({ PRX_BEADS_SOCKET: "/run/bd.sock" }))).toEqual({
-      kind: "local",
-      socket: "/run/bd.sock",
-    });
+  test("PRX_BEADS_SOCKET override wins over the pod (intra-pod + operator)", () => {
+    expect(
+      resolveBeadsEndpoint(fakeEnv({ PRX_BEADS_SOCKET: "/run/bd.sock" }), {
+        podSocket: () => "/run/prx/doors/slug/beadsd.sock",
+      }),
+    ).toEqual({ kind: "local", socket: "/run/bd.sock" });
+  });
+
+  test("routes to the cwd's pod socket when that pod is up (no override)", () => {
+    expect(
+      resolveBeadsEndpoint(fakeEnv({}), {
+        podSocket: () => "/run/prx/doors/io_github_x/beadsd.sock",
+      }),
+    ).toEqual({ kind: "local", socket: "/run/prx/doors/io_github_x/beadsd.sock" });
   });
 
   // The in-VM (`PRX_BEADS_VM`/Lima) endpoint was retired for the podman pod
-  // (prx-zj8); the endpoint is always local (the pod socket via PRX_BEADS_SOCKET).
+  // (prx-zj8); the endpoint is always a local socket (pod door, override, or the
+  // host-native fallback).
+});
+
+describe("isHostNativeSocket — auto-start gate (prx-82b Slice 2b)", () => {
+  test("only the host-native default socket is auto-startable", () => {
+    expect(isHostNativeSocket(DEFAULT_LOCAL_BEADS_SOCKET)).toBe(true);
+    expect(isHostNativeSocket("/run/prx/doors/slug/beadsd.sock")).toBe(false);
+    expect(isHostNativeSocket("/run/bd.sock")).toBe(false);
+  });
 });
 
 describe("resolveLocalBeadsCwd — which beads the local daemon serves (GH-296)", () => {

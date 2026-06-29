@@ -14,6 +14,7 @@
  */
 
 import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 import { getEnv } from "@bounded-systems/env";
 import { spawnDetached } from "@bounded-systems/proc";
@@ -21,6 +22,7 @@ import { spawnDetached } from "@bounded-systems/proc";
 import { IsolatedBeadsClient } from "./client.ts";
 import { unixSocketTransport, type FramedTransport } from "../door/transport.ts";
 import { getRepoRoot } from "../repo-root.ts";
+import { podFor } from "../room/pod-identity.ts";
 
 /** Where beadsd lives: a local unix socket (the host-native daemon or the pod's
  *  door fabric socket via `PRX_BEADS_SOCKET`). The in-VM Lima daemon was retired
@@ -42,11 +44,58 @@ export class BeadsUnavailableError extends Error {
 }
 
 /**
- * Resolve the beads endpoint from the environment: a local socket
- * (`PRX_BEADS_SOCKET` overrides the default — e.g. the pod's door fabric socket).
+ * The cwd's per-repo POD beadsd socket, IF that pod is up (its door file exists),
+ * else `null`. The host-beads read router (prx-82b Slice 2b): when a repo's pod
+ * is running, host `prx beads` reads route to the pod's beadsd (`podFor()` →
+ * `<doorDir>/beadsd.sock`) rather than the host-native daemon. Best-effort —
+ * resolution failures (not in a repo, no inventory) just mean "no pod routing".
  */
-export function resolveBeadsEndpoint(env: typeof getEnv = getEnv): BeadsEndpoint {
-  return { kind: "local", socket: env("PRX_BEADS_SOCKET") ?? DEFAULT_LOCAL_BEADS_SOCKET };
+function defaultPodBeadsSocket(): string | null {
+  try {
+    const socket = join(podFor(getRepoRoot()).doorDir, "beadsd.sock");
+    return existsSync(socket) ? socket : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether `withBeadsClient` may AUTO-START a daemon on this socket. Only the
+ * host-native default qualifies — a pod door socket or an explicit override is
+ * owned by the pod/operator, so prx must never spawn `prx beads serve` onto it
+ * (that would race the pod's own beadsd on its door path).
+ */
+export function isHostNativeSocket(socket: string): boolean {
+  return socket === DEFAULT_LOCAL_BEADS_SOCKET;
+}
+
+/** Deps for {@link resolveBeadsEndpoint} (injectable for tests). */
+export interface ResolveBeadsEndpointDeps {
+  /** The cwd's pod beadsd socket if its pod is up, else null (default: probe `podFor`). */
+  podSocket?: (() => string | null) | undefined;
+}
+
+/**
+ * Resolve the beads endpoint (prx-82b Slice 2b — the read router), in precedence:
+ *   1. `PRX_BEADS_SOCKET` — explicit override (also how the pod projects its door
+ *      socket into a room), else
+ *   2. the cwd's per-repo POD socket when that pod is up (route reads to the pod),
+ *      else
+ *   3. {@link DEFAULT_LOCAL_BEADS_SOCKET} — the host-native daemon (auto-started
+ *      by {@link withBeadsClient}). The host-native daemon stays the fallback
+ *      until host bd is removed (Slice 2e); 2b just prefers the pod when present.
+ */
+export function resolveBeadsEndpoint(
+  env: typeof getEnv = getEnv,
+  deps: ResolveBeadsEndpointDeps = {},
+): BeadsEndpoint {
+  const override = env("PRX_BEADS_SOCKET");
+  if (typeof override === "string" && override.length > 0) {
+    return { kind: "local", socket: override };
+  }
+  const pod = (deps.podSocket ?? defaultPodBeadsSocket)();
+  if (pod) return { kind: "local", socket: pod };
+  return { kind: "local", socket: DEFAULT_LOCAL_BEADS_SOCKET };
 }
 
 // ── which beads the LOCAL daemon serves ───────────────────────────────────────
@@ -214,12 +263,16 @@ export async function withBeadsClient<T>(
 ): Promise<T> {
   const endpoint = deps.endpoint ?? resolveBeadsEndpoint();
 
-  // Require beadsd up: auto-start a local daemon if needed (seamless), then
-  // connect. The daemon serves the resolved canonical beads (decoupled from the
-  // current worktree), not whichever `.beads` is underfoot.
+  // Require beadsd up — but ONLY auto-start the HOST-NATIVE daemon. When the
+  // endpoint is a POD socket (router preference, Slice 2b) or an explicit
+  // override, the pod/operator owns the daemon; spawning `prx beads serve` onto
+  // its door path would conflict. So pod/override sockets are connect-only — a
+  // dead one surfaces as a BeadsUnavailableError below, not a host daemon.
   const ensureUp =
     deps.ensureUp ??
-    ((socket: string) => ensureLocalBeadsd({ socket, cwd: resolveLocalBeadsCwd() }));
+    (isHostNativeSocket(endpoint.socket)
+      ? (socket: string) => ensureLocalBeadsd({ socket, cwd: resolveLocalBeadsCwd() })
+      : () => Promise.resolve());
   await ensureUp(endpoint.socket);
 
   const makeTransport = deps.localTransport ?? unixSocketTransport;
