@@ -41,7 +41,12 @@ let
       cp /run/builder/authorized_keys /root/.ssh/authorized_keys
       chmod 600 /root/.ssh/authorized_keys
     fi
-    printf 'experimental-features = nix-command flakes\ntrusted-users = root\nbuild-users-group =\nsandbox = false\n' > /etc/nix/nix.conf
+    # ssl-cert-file in nix.conf (NOT just env): the remote-build `nix-store
+    # --serve` runs in an ssh session that does NOT inherit the image's
+    # SSL_CERT_FILE, so without this nix can't verify TLS to cache.nixos.org and
+    # falls back to building every dep from source (slow / OOMs). nix.conf is read
+    # regardless of env, so it fixes substitution for the builder protocol.
+    printf 'experimental-features = nix-command flakes\ntrusted-users = root\nbuild-users-group =\nsandbox = false\nssl-cert-file = ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt\n' > /etc/nix/nix.conf
     exec ${pkgs.openssh}/bin/sshd -D -e -f ${sshdConfig}
   '';
 in
