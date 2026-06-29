@@ -253,6 +253,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/articles/01-lra-vs-prx.md",
+      "name": "Durable agents, two ways — and the half that's still missing",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/articles/01-lra-vs-prx.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/beadsd-door-wiring.md",
       "name": "ADR — wiring the beadsd door into the claude-box pod (prx-asr / prx-634)",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/beadsd-door-wiring.md",

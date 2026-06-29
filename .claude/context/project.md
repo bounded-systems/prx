@@ -33,6 +33,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Running CI locally — `docs/local-ci.md`
 - Object-capability languages — prior art for prx's capability model — `docs/object-capability-languages.md`
 - Provenance signing — setup — `docs/provenance/signing.md`
+- Durable agents, two ways — and the half that's still missing — `docs/prx/articles/01-lra-vs-prx.md`
 - ADR — wiring the beadsd door into the claude-box pod (prx-asr / prx-634) — `docs/prx/beadsd-door-wiring.md`
 - ADR — `prx ci` as a signed derivation chain (GH-352) — `docs/prx/ci-as-derivation.md`
 - ADR — the Claude runtime as a pinned OCI fleet (prx-d4o / prx-zj8) — `docs/prx/claude-runtime.md`
