@@ -1,0 +1,21 @@
+packages/prx/test/room/lifecycle-runner.test.ts
+  s_399e6065f1b4a3::t_1533ab429e5d57 1-63
+packages/prx/src/room/lifecycle-runner.ts
+  s_399e6065f1b4a3::t_542ed48b5bede3 1-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "850b99db105ac08a351bb389cee8f38789eb2b92",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
