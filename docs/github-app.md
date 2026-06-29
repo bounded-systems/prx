@@ -2,6 +2,18 @@
 
 **Status:** Spec / app-as-code (prx-0qr, prx-h1e) · **Owner:** bounded-systems org · **Date:** 2026-06-04
 
+> [!IMPORTANT]
+> **Superseded by the bucket split (prx-zee7).** `bounded-systems-prx` was the
+> single *union*-scope app. Its scopes are now split into permission-bucketed
+> apps per the ADR [GitHub Apps: permission-bucketed apps + per-use
+> attenuation](prx/github-apps-architecture.md): repo-write (contents/issues/
+> PRs/checks) is the **`prx-forge`** bucket (appId `4169313`, installation
+> `143190928`), and the org-projects path moved to the **cf-token-broker** OIDC
+> flow (prx-26bq), not a bucket app. The prx runtime broker + `version.yml` now
+> mint the **prx-forge** app, not this union app. This doc is retained for the
+> webhook/event-receiver facts and history; for the live credential model read
+> the ADR.
+
 The org-owned GitHub App that lets prx react to GitHub events and keep a Project
 in sync. Its definition of record is the committed manifest
 [`.github/prx-app.manifest.json`](../.github/prx-app.manifest.json) — app-as-code,
