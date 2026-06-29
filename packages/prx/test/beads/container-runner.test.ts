@@ -4,6 +4,7 @@ import {
   containerBdRunner,
   containerRepoRunner,
   containerBdDoltPush,
+  containerDoltClone,
   readHostDoltIdentity,
 } from "../../src/beads/container-runner.ts";
 import { renderBdLifecycleArgs } from "../../src/room/lifecycle-runner.ts";
@@ -111,5 +112,32 @@ describe("readHostDoltIdentity + containerBdDoltPush (prx-82b 2c.5)", () => {
     expect(joined).toContain("install -m600 /run/secrets/dolt-creds");
     expect(joined).toContain("bd dolt push origin");
     expect(seen!.slice(-2)).toEqual(["_", "main"]);
+  });
+});
+
+describe("containerDoltClone — hydrate clone off host (prx-82b 2d)", () => {
+  test("binds the dest parent at /work, clones into it, creds via the secret rail", () => {
+    let seen: string[] | undefined;
+    const run = (args: string[]): PodmanRunResult => {
+      seen = args;
+      return { status: 0, stdout: "", stderr: "" };
+    };
+    const clone = containerDoltClone(run, { credsKey: "k", email: "e", name: "n" });
+    const res = clone("https://doltremoteapi.dolthub.com/o/db", "/buf/o/repo/db/tmp123");
+
+    expect(res).toEqual({ exitCode: 0, stderr: "" });
+    const joined = seen!.join(" ");
+    expect(seen!).toContain("/buf/o/repo/db:/work"); // dest PARENT bound at /work
+    expect(joined).toContain("--secret prx-dolt-creds,target=/run/secrets/dolt-creds");
+    expect(joined).toContain("-e DOLT_CREDS_KEY=k");
+    expect(joined).toContain("dolt clone");
+    // url + basename(dest) passed as the sh positionals.
+    expect(seen!.slice(-2)).toEqual(["https://doltremoteapi.dolthub.com/o/db", "tmp123"]);
+  });
+
+  test("a non-zero clone maps to exitCode (status null → 1)", () => {
+    const run = (): PodmanRunResult => ({ status: null, stdout: "", stderr: "auth" });
+    const res = containerDoltClone(run, { credsKey: "k", email: "", name: "" })("u", "/p/d");
+    expect(res).toEqual({ exitCode: 1, stderr: "auth" });
   });
 });

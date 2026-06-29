@@ -11,7 +11,7 @@
 import type { SpawnCaptureResult } from "@bounded-systems/proc";
 
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname, basename } from "node:path";
 
 import { getEnv } from "@bounded-systems/env";
 
@@ -90,6 +90,11 @@ const DOLT_CREDS_INSTALL = [
   'dolt config --global --add user.name "$DOLT_USER_NAME" >/dev/null',
 ].join(" && ");
 
+/** The non-secret identity env every credentialed dolt op installs the creds with. */
+function doltCredsEnv(id: DoltIdentity): Record<string, string> {
+  return { DOLT_CREDS_KEY: id.credsKey, DOLT_USER_EMAIL: id.email, DOLT_USER_NAME: id.name };
+}
+
 /**
  * A push runner `(cwd, branch) => {stdout,stderr,status}` (the repo_add_dolthub
  * seam) that runs `bd dolt push` in an EPHEMERAL beadsd-box container with the
@@ -111,14 +116,38 @@ export function containerBdDoltPush(
         bin: "sh",
         args: ["-c", script, "_", branch],
         secrets: [DOLT_CREDS_SECRET],
-        env: {
-          DOLT_CREDS_KEY: id.credsKey,
-          DOLT_USER_EMAIL: id.email,
-          DOLT_USER_NAME: id.name,
-        },
+        env: doltCredsEnv(id),
       },
       run,
     );
     return { stdout: res.stdout, stderr: res.stderr, status: res.status ?? 1 };
+  };
+}
+
+/**
+ * A `dolt clone` runner `(url, dest) => {exitCode, stderr}` (the hydrate
+ * `doltClone` dep) that clones in an EPHEMERAL beadsd-box container with DoltHub
+ * creds on the room-secret rail — no host dolt. The host clone dest's PARENT is
+ * bound at `/work` and dolt clones into it (so the host buffer gets the clone,
+ * host-owned via keep-id); hydrate's host-side rename then promotes it.
+ */
+export function containerDoltClone(
+  run: PodmanRun = spawnPodman,
+  identity?: DoltIdentity,
+): (url: string, dest: string) => { exitCode: number; stderr: string } {
+  return (url, dest) => {
+    const id = identity ?? readHostDoltIdentity();
+    const script = `${DOLT_CREDS_INSTALL} && exec dolt clone "$1" "/work/$2"`;
+    const res = runBdLifecycle(
+      {
+        repo: dirname(dest),
+        bin: "sh",
+        args: ["-c", script, "_", url, basename(dest)],
+        secrets: [DOLT_CREDS_SECRET],
+        env: doltCredsEnv(id),
+      },
+      run,
+    );
+    return { exitCode: res.status ?? 1, stderr: res.stderr };
   };
 }

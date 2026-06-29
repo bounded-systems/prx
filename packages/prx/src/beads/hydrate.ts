@@ -56,6 +56,7 @@
 
 import { processEnv } from "@bounded-systems/env";
 import { spawnCapture } from "@bounded-systems/proc";
+import { containerDoltClone } from "./container-runner.ts";
 import {
   chmodSync,
   cpSync,
@@ -298,13 +299,9 @@ const defaultDeps: HydrateDeps = {
     delete env.BEADS_DIR;
     spawnCapture(["bd", "dolt", "stop"], { cwd, env });
   },
-  doltClone: (url, dest) => {
-    const r = spawnCapture(["dolt", "clone", url, dest]);
-    return {
-      exitCode: r.status ?? 1,
-      stderr: r.stderr,
-    };
-  },
+  // prx-82b Slice 2d: clone in an ephemeral beadsd-box container (DoltHub creds
+  // via the room-secret rail), not host dolt.
+  doltClone: containerDoltClone(),
   env: processEnv(),
   fsRename: (from, to) => renameSync(from, to),
   rmTree: (path) => rmSync(path, { recursive: true, force: true }),
