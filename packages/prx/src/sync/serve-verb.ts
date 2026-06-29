@@ -9,7 +9,33 @@ import { z } from "zod";
 
 import { defineVerb } from "@bounded-systems/verbspec";
 
-import { runSyncServe, DEFAULT_SYNC_INTERVAL_MS, type SyncServeHandle } from "./serve.ts";
+import {
+  runSyncServe,
+  DEFAULT_SYNC_INTERVAL_MS,
+  type SyncServeHandle,
+  type SyncServeOutput,
+} from "./serve.ts";
+import { runBeadsSyncAcrossRepos } from "./run-cross-repo.ts";
+import { runDoltReconcileAcrossRepos } from "./run-dolt-reconcile-cross-repo.ts";
+import { DEFAULT_SYNC_LIMIT } from "./limits.ts";
+
+/** The real domain↔GH pass: reconcile every inventory repo against GitHub. */
+async function beadsSyncPass(output: SyncServeOutput): Promise<{ exitCode: number }> {
+  const r = await runBeadsSyncAcrossRepos(
+    { dryRun: false, domain: "gh", limit: DEFAULT_SYNC_LIMIT, format: "plain" },
+    output,
+  );
+  return { exitCode: r.exitCode };
+}
+
+/** The real dolt pass: full commit→pull→push reconcile of every eligible repo. */
+async function doltReconcilePass(output: SyncServeOutput): Promise<{ exitCode: number }> {
+  const { exitCode } = await runDoltReconcileAcrossRepos(
+    { mode: "full", dryRun: false, format: "plain" },
+    output,
+  );
+  return { exitCode };
+}
 
 export const SyncServeResult = z
   .object({
@@ -52,6 +78,7 @@ export const syncServeVerb = defineVerb({
     const handle: SyncServeHandle = await deps.serve({
       intervalMs: intervalSeconds * 1000,
       ...(input.pidfile ? { pidfile: input.pidfile } : {}),
+      deps: { beadsSyncPass, doltReconcilePass },
     });
     deps.log(`sync agent: reconciling every inventory repo every ${intervalSeconds}s`);
     // Block until terminated — the daemon runs until killed (SIGTERM/SIGINT).

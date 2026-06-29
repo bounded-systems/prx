@@ -1,6 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { runSyncServe, DEFAULT_SYNC_INTERVAL_MS, type SyncServeOutput } from "../../src/sync/serve.ts";
+
+const SAFE_PASSES = {
+  beadsSyncPass: async () => ({ exitCode: 0 }),
+  doltReconcilePass: async () => ({ exitCode: 0 }),
+};
 
 function collectOutput(): SyncServeOutput & { lines: string[]; errors: string[] } {
   const lines: string[] = [];
@@ -140,6 +148,26 @@ describe("runSyncServe — the sync-agent loop (prx-697)", () => {
     handle.stop();
     await handle.closed;
     expect(removed).toEqual(["/tmp/prx-sync.pid"]);
+  });
+
+  test("real defaults: wires the wall-clock timer, process signals, and fs pidfile", async () => {
+    // Exercise the default setInterval/clearInterval/onSignal/writePidfile/
+    // removePidfile seams (injected passes keep it offline + side-effect-free).
+    const dir = mkdtempSync(join(tmpdir(), "prx-sync-"));
+    const pidfile = join(dir, "agent.pid");
+    try {
+      const handle = await runSyncServe({
+        intervalMs: 60 * 60_000, // far in the future — never fires during the test
+        pidfile,
+        deps: { ...SAFE_PASSES },
+      });
+      expect(existsSync(pidfile)).toBe(true);
+      handle.stop();
+      await handle.closed;
+      expect(existsSync(pidfile)).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("DEFAULT_SYNC_INTERVAL_MS is 5 minutes (matches beadsd refresh)", () => {

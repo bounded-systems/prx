@@ -4148,13 +4148,18 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   // parse time (see the executor branch for `sync-issues-pair`).
   if (c0 === "sync") {
     if (!c1 || c1.startsWith("-")) {
-      throw new CliError("sync requires a subcommand: issues, backfill");
+      throw new CliError("sync requires a subcommand: issues, backfill, serve");
     }
     if (c1 === "issues") {
       return ["sync-issues-pair", ...tail];
     }
     if (c1 === "backfill") {
       return ["sync-backfill", ...tail];
+    }
+    // prx-697: `sync serve` (the sync agent) is a spec-driven verb dispatched
+    // ahead of the legacy parser (runSpecVerb); pass it through unchanged.
+    if (c1 === "serve") {
+      return argv;
     }
     throw new CliError(`Unknown sync subcommand: ${c1}`);
   }

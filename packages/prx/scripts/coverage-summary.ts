@@ -69,6 +69,7 @@ const PER_FILE_BASELINE = new Set<string>([
   "packages/prx/src/room/pod-secrets-verb.ts", // 79% — run() calls live podman (ensurePodSecrets); logic covered in pod-secrets.test.ts, not unit-tested here
   "packages/prx/src/room/pod-down-verb.ts", // run() calls live downPod (podman); covered by live e2e, not unit test (mirrors pod-up-verb)
   "packages/prx/src/builder/verb.ts", // run() calls live podman + ssh-keygen (the nix-builder container); render core (container-builder.ts) is unit-tested, not the live verb (mirrors pod-up-verb)
+  "packages/prx/src/sync/serve-verb.ts", // wraps the live cross-repo orchestrators (real bd/gh/dolt); the loop (serve.ts) is unit-tested, not the live wiring (mirrors pod-up-verb)
 ]);
 
 type Totals = {

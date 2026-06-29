@@ -16,10 +16,6 @@
 
 import { writeFileSync, rmSync } from "node:fs";
 
-import { runBeadsSyncAcrossRepos } from "./run-cross-repo.ts";
-import { runDoltReconcileAcrossRepos } from "./run-dolt-reconcile-cross-repo.ts";
-import { DEFAULT_SYNC_LIMIT } from "./limits.ts";
-
 /** Where pass output goes (mirrors the orchestrators' `output` shape). */
 export interface SyncServeOutput {
   log: (line: string) => void;
@@ -29,12 +25,14 @@ export interface SyncServeOutput {
 /** Default tick interval — 5 min, matching the per-repo beadsd refresh cadence. */
 export const DEFAULT_SYNC_INTERVAL_MS = 5 * 60_000;
 
-/** Injectable seams (defaults call the real orchestrators / wall clock). */
+/** Injectable seams. The two passes are required (the verb supplies the real
+ *  orchestrator-backed ones — see serve-verb.ts; tests supply fakes); the rest
+ *  default to the wall clock / fs / process signals. */
 export interface SyncServeDeps {
-  /** The domain↔GH cross-repo pass. Default: `runBeadsSyncAcrossRepos` (all repos). */
-  beadsSyncPass?: (output: SyncServeOutput) => Promise<{ exitCode: number }>;
-  /** The dolt reconcile cross-repo pass. Default: `runDoltReconcileAcrossRepos` (full). */
-  doltReconcilePass?: (output: SyncServeOutput) => Promise<{ exitCode: number }>;
+  /** The domain↔GH cross-repo pass (e.g. `runBeadsSyncAcrossRepos` over all repos). */
+  beadsSyncPass: (output: SyncServeOutput) => Promise<{ exitCode: number }>;
+  /** The dolt reconcile cross-repo pass (e.g. `runDoltReconcileAcrossRepos` full). */
+  doltReconcilePass: (output: SyncServeOutput) => Promise<{ exitCode: number }>;
   /** `setInterval` seam (test injection). */
   setInterval?: (fn: () => void, ms: number) => ReturnType<typeof setInterval>;
   /** `clearInterval` seam (test injection). */
@@ -53,7 +51,8 @@ export interface SyncServeOptions {
   /** Write the daemon pid here on start; removed on stop (launcher-trackable). */
   pidfile?: string | undefined;
   output?: SyncServeOutput | undefined;
-  deps?: SyncServeDeps | undefined;
+  /** The reconcile passes (+ optional clock/fs/signal seams). Required. */
+  deps: SyncServeDeps;
 }
 
 export interface SyncServeHandle {
@@ -65,41 +64,23 @@ export interface SyncServeHandle {
   tick: () => Promise<void>;
 }
 
-/** The default domain↔GH pass: reconcile every inventory repo against GitHub. */
-async function defaultBeadsSyncPass(output: SyncServeOutput): Promise<{ exitCode: number }> {
-  const r = await runBeadsSyncAcrossRepos(
-    { dryRun: false, domain: "gh", limit: DEFAULT_SYNC_LIMIT, format: "plain" },
-    output,
-  );
-  return { exitCode: r.exitCode };
-}
-
-/** The default dolt pass: full commit→pull→push reconcile of every eligible repo. */
-async function defaultDoltReconcilePass(output: SyncServeOutput): Promise<{ exitCode: number }> {
-  const { exitCode } = await runDoltReconcileAcrossRepos(
-    { mode: "full", dryRun: false, format: "plain" },
-    output,
-  );
-  return { exitCode };
-}
-
 /**
  * Run the sync agent: an on-start pass then one every `intervalMs`. Each pass is
  * best-effort — the orchestrators already self-isolate per-repo failures, and a
  * pass-level throw is swallowed + logged (a stale-but-up agent beats a crash,
  * like beadsd's refresh). Returns a handle whose `closed` resolves on shutdown.
  */
-export async function runSyncServe(options: SyncServeOptions = {}): Promise<SyncServeHandle> {
+export async function runSyncServe(options: SyncServeOptions): Promise<SyncServeHandle> {
   const output: SyncServeOutput = options.output ?? {
     log: (line) => console.error(line),
     error: (line) => console.error(line),
   };
   const intervalMs = options.intervalMs ?? DEFAULT_SYNC_INTERVAL_MS;
-  const deps = options.deps ?? {};
+  const deps = options.deps;
   const setI = deps.setInterval ?? ((fn, ms) => setInterval(fn, ms));
   const clearI = deps.clearInterval ?? ((handle) => clearInterval(handle));
-  const beadsSyncPass = deps.beadsSyncPass ?? defaultBeadsSyncPass;
-  const doltReconcilePass = deps.doltReconcilePass ?? defaultDoltReconcilePass;
+  const beadsSyncPass = deps.beadsSyncPass;
+  const doltReconcilePass = deps.doltReconcilePass;
 
   const tick = async (): Promise<void> => {
     try {
