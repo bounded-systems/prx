@@ -1,0 +1,36 @@
+packages/prx/src/room/per-repo-pod.ts
+  s_399e6065f1b4a3::t_b36e13e8762f47 52-59,62-63
+  s_399e6065f1b4a3::t_181348191d5b94 26
+  s_399e6065f1b4a3::t_a84782de49ab08 60-61
+packages/prx/src/room/pod-up-verb.ts
+  s_399e6065f1b4a3::t_2953608d905813 39-42
+  s_399e6065f1b4a3::t_a8f3ef4679b109 8
+packages/prx/src/room/pod-down-verb.ts
+  s_399e6065f1b4a3::t_e1470eb81a4e43 26-28
+  s_399e6065f1b4a3::t_217536fa4abfd9 10
+packages/prx/src/room/pod-identity.ts
+  s_399e6065f1b4a3::t_ae3689bb85b9e6 16,18-22
+  s_399e6065f1b4a3::t_d47c1013701f9b 42-43
+  s_399e6065f1b4a3::t_784dfa35ddd8ce 1-15,17,23-41,44-48
+packages/prx/src/room/pod-secrets-verb.ts
+  s_399e6065f1b4a3::t_4bc0f769970e4a 40
+  s_399e6065f1b4a3::t_eff8119534f7f6 10
+packages/prx/test/room/pod-identity.test.ts
+  s_399e6065f1b4a3::t_9f89fe352174fb 1-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "ca0b316e57317dce3bc55f5730c744fe411a66a2",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
