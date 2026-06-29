@@ -1,0 +1,22 @@
+packages/prx/test/beadsd/daemon.test.ts
+  s_a4789e0b0492f1::t_f3d072256d2d71 361-382,391-392
+  s_a4789e0b0492f1::t_408f3f3a79fb21 383-390
+.changeset/relink-guard.md
+  s_a4789e0b0492f1::t_2f66dfd20bcd9f 1-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "b00cd13982a90019dc8047e469e803ac719f10eb",
+  "prompts": {},
+  "sessions": {
+    "s_a4789e0b0492f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "08589f2f-93b7-4db3-a0a5-375b9672f700",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
