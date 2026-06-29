@@ -132,8 +132,11 @@ describe("runSyncServe — the sync-agent loop (prx-697)", () => {
   test("writes the pidfile on start and removes it on stop", async () => {
     const written: Array<{ path: string; pid: number }> = [];
     const removed: string[] = [];
+    // Private 0700 temp dir (not a predictable /tmp path) — fs is mocked here,
+    // but keep the path secure so it doesn't trip js/insecure-temporary-file.
+    const pidfile = join(mkdtempSync(join(tmpdir(), "prx-sync-")), "agent.pid");
     const handle = await runSyncServe({
-      pidfile: "/tmp/prx-sync.pid",
+      pidfile,
       deps: {
         beadsSyncPass: async () => ({ exitCode: 0 }),
         doltReconcilePass: async () => ({ exitCode: 0 }),
@@ -144,10 +147,10 @@ describe("runSyncServe — the sync-agent loop (prx-697)", () => {
         removePidfile: (path) => removed.push(path),
       },
     });
-    expect(written).toEqual([{ path: "/tmp/prx-sync.pid", pid: process.pid }]);
+    expect(written).toEqual([{ path: pidfile, pid: process.pid }]);
     handle.stop();
     await handle.closed;
-    expect(removed).toEqual(["/tmp/prx-sync.pid"]);
+    expect(removed).toEqual([pidfile]);
   });
 
   test("real defaults: wires the wall-clock timer, process signals, and fs pidfile", async () => {
