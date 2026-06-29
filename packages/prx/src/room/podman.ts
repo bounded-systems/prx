@@ -268,8 +268,16 @@ export function renderPodmanRun(pod: PodSpec, roomName: string): string[] {
   // workaround (prx-zj8): virtiofs exposes the socket file but not the socket
   // semantics, so the Mac-host client can't connect via Unix; publishing a port
   // and passing --port as a CMD arg lets it connect via TCP (KEEPERD_HOST).
+  //
+  // Bind LOOPBACK (`127.0.0.1:<port>:<port>`), not the `--publish <port>:<port>`
+  // default (`0.0.0.0`) — the door-bridge ADR's immediate safety fix (prx-8uf2).
+  // These are CREDENTIAL doors (keeperd holds the git push token); the TCP edge
+  // carries no authentication yet, so a `0.0.0.0` bind is an off-host credential
+  // leak — anyone who can reach the port could lease/push. Loopback keeps the
+  // host's own client working (it dials localhost) while refusing off-host
+  // callers until the signed-grant bridge (phase 2) gates the edge.
   if (room.tcpPort !== undefined) {
-    args.push("--publish", `${room.tcpPort}:${room.tcpPort}`);
+    args.push("--publish", `127.0.0.1:${room.tcpPort}:${room.tcpPort}`);
   }
   // The repo bind-mount + WorkingDir (mirrors the kube pod; prx-u5lx). `:z` for
   // the same SELinux reason — the repo is shared by every room.
