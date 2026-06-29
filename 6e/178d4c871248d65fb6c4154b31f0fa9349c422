@@ -1,0 +1,38 @@
+packages/prx/src/init/scaffold.ts
+  s_a4789e0b0492f1::t_cd8bcabc91b790 179
+packages/prx/test/pr-state/registry.test.ts
+  s_a4789e0b0492f1::t_67ea664a8d75fb 85,92-93,95
+packages/prx/src/pr-state/api.ts
+  s_a4789e0b0492f1::t_211194d53daa94 8-15
+packages/prx/test/pr-state/cli.test.ts
+  s_a4789e0b0492f1::t_79d1b6be7c24e5 327
+  s_a4789e0b0492f1::t_91e65bf28755a8 1612
+packages/prx/src/cli/registry.data.ts
+  s_a4789e0b0492f1::t_352b7cddc97fd8 29-31
+packages/prx/test/init/scaffold.test.ts
+  s_a4789e0b0492f1::t_08d7d02888e79d 152
+packages/prx/test/pr-state/help/overview.test.ts
+  s_a4789e0b0492f1::t_6dc4f765b21a23 83-86
+packages/prx/test/pr-state/help/components.test.ts
+  s_a4789e0b0492f1::t_89a3f81c82f41d 184,188-189
+.changeset/remove-tui.md
+  s_a4789e0b0492f1::t_9f227954e342ad 1-11
+packages/prx/test/pr-state/help/__snapshots__/help.snapshot.test.ts.snap
+  s_a4789e0b0492f1::t_7db38c07028a70 276
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "6e178d4c871248d65fb6c4154b31f0fa9349c422",
+  "prompts": {},
+  "sessions": {
+    "s_a4789e0b0492f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "08589f2f-93b7-4db3-a0a5-375b9672f700",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
