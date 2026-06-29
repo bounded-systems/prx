@@ -14,7 +14,7 @@ import type { RoomSpec } from "./spec.ts";
 // Pinned beadsd-box image (prx-634). Digest is immutable; update by re-running
 // the publish-oci-boxes workflow and replacing this constant.
 export const BEADSD_ROOM_IMAGE =
-  "ghcr.io/bounded-systems/prx/beadsd-box@sha256:477185da33d65b1419066aaa3aa9b7ca77eda54d2988e1c9770fc8f2b375062c";
+  "ghcr.io/bounded-systems/prx/beadsd-box@sha256:38f44cf0040d6f74f09d46bbc79ab9e64b28e4919146e4aed93fd917f964ea9d";
 
 export const beadsdRoom: RoomSpec = {
   name: "beadsd-room",
