@@ -4148,13 +4148,18 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   // parse time (see the executor branch for `sync-issues-pair`).
   if (c0 === "sync") {
     if (!c1 || c1.startsWith("-")) {
-      throw new CliError("sync requires a subcommand: issues, backfill");
+      throw new CliError("sync requires a subcommand: issues, backfill, serve");
     }
     if (c1 === "issues") {
       return ["sync-issues-pair", ...tail];
     }
     if (c1 === "backfill") {
       return ["sync-backfill", ...tail];
+    }
+    // prx-697: `sync serve` (the sync agent) is a spec-driven verb dispatched
+    // ahead of the legacy parser (runSpecVerb); pass it through unchanged.
+    if (c1 === "serve") {
+      return argv;
     }
     throw new CliError(`Unknown sync subcommand: ${c1}`);
   }
@@ -14857,6 +14862,12 @@ export function runCli(
     }
     if (orchestratorVerb === "builder" && orchestratorRest[0] === "register") {
       return runSpecVerb("builder register", orchestratorRest.slice(1), output);
+    }
+    // `sync serve` — the sync agent (prx-697): periodic cross-repo beads+dolt
+    // reconcile. Only `serve` routes here; `prx sync issues` falls through to the
+    // legacy sync parser below.
+    if (orchestratorVerb === "sync" && orchestratorRest[0] === "serve") {
+      return runSpecVerb("sync serve", orchestratorRest.slice(1), output);
     }
     // The `contract <sub>` namespace reroutes several subcommands to verbs that
     // are now spec-driven. The early dispatch keys off the raw `argv[0]`

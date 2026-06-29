@@ -82,6 +82,7 @@ State:
   prx sync                      Canonical actor surface for issue reconcile
   prx sync issues               Reconcile pinned pairs; --limit caps push only
   prx sync backfill             Backfill cursor-skipped external records over a range
+  prx sync serve                Run the sync agent: periodic cross-repo reconcile daemon
   prx memory compact            Compact closed beads (memory-decay policy chokepoint)
   prx handoff enqueue           Enqueue a handoff for the recipient actor
   prx handoff status            Show pending handoffs filtered by target

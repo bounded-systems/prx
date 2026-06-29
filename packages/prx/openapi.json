@@ -1079,6 +1079,35 @@
         }
       }
     },
+    "/sync/serve": {
+      "post": {
+        "operationId": "sync_serve",
+        "summary": "Run the sync agent: periodically reconcile every inventory repo (beads + dolt).",
+        "x-prx-actor": "work",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/sync_serveInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/sync_serveOutput"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/transition": {
       "post": {
         "operationId": "transition",
@@ -3403,6 +3432,39 @@
         },
         "required": [
           "rendered"
+        ],
+        "additionalProperties": false
+      },
+      "sync_serveInput": {
+        "type": "object",
+        "properties": {
+          "interval": {
+            "description": "seconds between cross-repo reconcile passes (default 300)",
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "pidfile": {
+            "description": "write the daemon pid here (removed on close)",
+            "type": "string"
+          },
+          "cwd": {
+            "description": "ignored — the sync agent is not repo-bound",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "sync_serveOutput": {
+        "type": "object",
+        "properties": {
+          "intervalSeconds": {
+            "type": "number",
+            "description": "the cross-repo reconcile interval the agent ran at"
+          }
+        },
+        "required": [
+          "intervalSeconds"
         ],
         "additionalProperties": false
       },
