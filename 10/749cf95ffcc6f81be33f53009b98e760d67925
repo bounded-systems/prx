@@ -1,0 +1,23 @@
+packages/prx/test/room/concierged-room.test.ts
+  s_c4318117f42b02::t_5c81e6e2d76fa1 1-67
+.changeset/concierged-room.md
+  s_c4318117f42b02::t_2b38b70bd5a6a1 1-5
+packages/prx/src/room/concierged-room.ts
+  s_c4318117f42b02::t_e59ba091c6ac66 1-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "10749cf95ffcc6f81be33f53009b98e760d67925",
+  "prompts": {},
+  "sessions": {
+    "s_c4318117f42b02": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b707ec58-424b-452d-b628-e6eb4bd39018",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
