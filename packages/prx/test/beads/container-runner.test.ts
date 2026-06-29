@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
-import { containerBdRunner, containerRepoRunner } from "../../src/beads/container-runner.ts";
+import {
+  containerBdRunner,
+  containerRepoRunner,
+  containerBdDoltPush,
+  readHostDoltIdentity,
+} from "../../src/beads/container-runner.ts";
 import { renderBdLifecycleArgs } from "../../src/room/lifecycle-runner.ts";
 import type { PodmanRunResult } from "../../src/room/podman-runtime.ts";
 
@@ -63,5 +68,48 @@ describe("containerRepoRunner — RepoRunner-shaped (bd dolt remote add)", () =>
   test("a null podman status maps to 1 (RepoRunner wants a number)", () => {
     const run = (): PodmanRunResult => ({ status: null, stdout: "", stderr: "x" });
     expect(containerRepoRunner(run)(["bd", "dolt", "remote", "add"], { cwd: "/r" }).status).toBe(1);
+  });
+});
+
+describe("readHostDoltIdentity + containerBdDoltPush (prx-82b 2c.5)", () => {
+  const CFG = JSON.stringify({
+    "user.creds": "onr6skey",
+    "user.email": "me@example.com",
+    "user.name": "bdelanghe",
+  });
+
+  test("readHostDoltIdentity parses the dolt global config", () => {
+    const id = readHostDoltIdentity(() => CFG);
+    expect(id).toEqual({ credsKey: "onr6skey", email: "me@example.com", name: "bdelanghe" });
+  });
+
+  test("readHostDoltIdentity throws when no active creds are configured", () => {
+    expect(() => readHostDoltIdentity(() => "{}")).toThrow(/user\.creds/);
+  });
+
+  test("containerBdDoltPush mounts the creds secret + identity env + installs the jwk", () => {
+    let seen: string[] | undefined;
+    const run = (args: string[]): PodmanRunResult => {
+      seen = args;
+      return { status: 0, stdout: "pushed", stderr: "" };
+    };
+    const push = containerBdDoltPush(run, {
+      credsKey: "onr6skey",
+      email: "me@example.com",
+      name: "bdelanghe",
+    });
+    const res = push("/work/repo", "main");
+
+    expect(res).toEqual({ stdout: "pushed", stderr: "", status: 0 });
+    const joined = seen!.join(" ");
+    // creds ride the room-secret rail; identity is non-secret env.
+    expect(joined).toContain("--secret prx-dolt-creds,target=/run/secrets/dolt-creds");
+    expect(joined).toContain("-e DOLT_CREDS_KEY=onr6skey");
+    expect(joined).toContain("-e DOLT_USER_EMAIL=me@example.com");
+    // runs the install-then-push wrapper under sh, against the repo bind.
+    expect(seen!).toContain("/work/repo:/work");
+    expect(joined).toContain("install -m600 /run/secrets/dolt-creds");
+    expect(joined).toContain("bd dolt push origin");
+    expect(seen!.slice(-2)).toEqual(["_", "main"]);
   });
 });

@@ -28,7 +28,7 @@ import {
   type RepoRunner,
 } from "./repos.ts";
 import { locateRepo } from "./repo_locate.ts";
-import { containerRepoRunner } from "../beads/container-runner.ts";
+import { containerRepoRunner, containerBdDoltPush } from "../beads/container-runner.ts";
 
 // ── options + deps ─────────────────────────────────────────────────────────
 
@@ -170,12 +170,13 @@ export function runRepoAddDolthub(
       const value = result.stdout.trim();
       return value.length > 0 ? value : null;
     });
-  // prx-82b Slice 2c.3: `bd dolt remote add` (cred-free) runs in an ephemeral
-  // beadsd-box container, not host bd. `dolt push` stays on host for now — it
-  // needs DoltHub creds the container lacks; the sync agent owns recurring push,
-  // and relocating the initial push wants a creds-mount design (later).
+  // prx-82b Slice 2c.3/2c.5: both `bd dolt remote add` (cred-free) and `bd dolt
+  // push` run in an ephemeral beadsd-box container, not host bd. The push mounts
+  // the DoltHub creds via the room-secret rail (prx-dolt-creds) — auth validated
+  // live (`dolt creds check`). Provision once: `prx pod secrets --from
+  // prx-dolt-creds=@~/.dolt/creds/<active>.jwk`.
   const bdRemoteAdd = deps.bdDoltRemoteAdd ?? defaultBdDoltRemoteAdd(containerRepoRunner());
-  const bdPush = deps.bdDoltPush ?? defaultBdDoltPush(runner);
+  const bdPush = deps.bdDoltPush ?? containerBdDoltPush();
 
   if (!opts.config.indexPath) {
     return {
@@ -361,18 +362,6 @@ function defaultBdDoltRemoteAdd(
 ): (cwd: string, url: string) => BdSubprocessResult {
   return (cwd, url) => {
     const result = runner(["bd", "dolt", "remote", "add", "origin", url], {
-      cwd,
-      check: false,
-    });
-    return { stdout: result.stdout, stderr: result.stderr, status: result.status };
-  };
-}
-
-function defaultBdDoltPush(
-  runner: RepoRunner,
-): (cwd: string, branch: "main") => BdSubprocessResult {
-  return (cwd, branch) => {
-    const result = runner(["bd", "dolt", "push", "origin", branch], {
       cwd,
       check: false,
     });
