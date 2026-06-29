@@ -26,16 +26,10 @@ import {
 
 const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
   // ─── Promoted on mainx (help-surface.md §6.2: canonical order) ─
-  // tmux removal (prx-519) dropped `review` (a tmux-pane keystroke sender),
-  // so the promoted mainx set is now five.
+  // tmux removal (prx-519) dropped `review` (a tmux-pane keystroke sender);
+  // tui removal (prx-fdf) dropped the interactive board UI — the promoted
+  // mainx set is now four.
 
-  {
-    name: "tui",
-    description: "Interactive board and session UI",
-    domain: "work-units",
-    promoted_in: ["mainx"],
-    actor: "work",
-  },
   {
     name: "plan session",
     parent: "plan",

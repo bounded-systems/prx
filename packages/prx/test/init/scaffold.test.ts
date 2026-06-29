@@ -149,8 +149,7 @@ describe("formatScaffoldResult", () => {
     );
     expect(out).toContain("created /tmp/repo/AGENTS.md");
     expect(out).toContain("skipped /tmp/repo/.claude/settings.json");
-    expect(out).toContain("Next: prx tui");
-    expect(out).toContain("prx plan session GH-<n>");
+    expect(out).toContain("Next: prx plan session GH-<n>");
   });
 
   test("json output is parseable and matches the input shape", () => {

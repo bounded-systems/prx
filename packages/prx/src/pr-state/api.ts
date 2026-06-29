@@ -5,7 +5,14 @@ import {
   type UnitOfWorkSurface,
   type UnitOfWorkSurfaceRow,
 } from "./uow.ts";
-import type { ClaudeRunResult } from "./tui.ts";
+/** Result of a captured Claude subprocess run (formerly re-exported from the
+ * now-removed pr-state/tui.ts; inlined here, its only remaining consumer). */
+export type ClaudeRunResult = {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  parsed: unknown;
+};
 
 export type PrxControlState = "idle" | "dispatching" | "done" | "failed";
 export type PrxUnitState = UnitOfWorkSurfaceRow["board"] | "unmapped";

@@ -7,7 +7,6 @@ exports[`help-surface snapshots HelpOverview(registry, 'mainx') 1`] = `
 Work-unit identity: GH-NNN (for example GH-456). GitHub issue identity is canonical.
 
 Primary workflow:
-  prx tui           Interactive board and session UI
   prx plan session  Open plan-mode work session for a unit
   prx next          Show next recommended action
   prx do            Execute an enabled derived action
@@ -92,7 +91,6 @@ State:
   prx transcripts status        Report transcript TTL pressure and candidates
 
 Work units:
-  prx tui                        Interactive board and session UI
   prx plan session               Open plan-mode work session for a unit
   prx next                       Show next recommended action
   prx do                         Execute an enabled derived action
@@ -275,8 +273,5 @@ Common flow:
 
 Work-unit identity:
   Canonical IDs use GH-NNN format (for example GH-456).
-  GitHub issue identity is canonical; ticket/unit/worktree/PR projections share it.
-
-Interactive:
-  prx tui"
+  GitHub issue identity is canonical; ticket/unit/worktree/PR projections share it."
 `;

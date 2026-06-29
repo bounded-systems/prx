@@ -80,9 +80,10 @@ describe("HelpOverview", () => {
   test("real registry + mainx renders the canonical promoted set in promotedFor order", () => {
     const out = HelpOverview(prxCommandRegistry, "mainx");
     const expected = promotedFor("mainx").map((c) => c.name);
-    // Slice 3 removed `prx review` (tmux send-keys) from the promoted set,
-    // leaving five (the §6.2 cap of six is a ceiling, not a floor).
-    expect(expected).toHaveLength(5);
+    // Slice 3 removed `prx review` (tmux send-keys); prx-fdf removed `prx tui`
+    // (the interactive board UI) — leaving four (the §6.2 cap of six is a
+    // ceiling, not a floor).
+    expect(expected).toHaveLength(4);
     // Find each promoted name in the rendered output, in order.
     let cursor = 0;
     for (const name of expected) {

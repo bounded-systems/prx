@@ -324,8 +324,7 @@ describe("pr_state cli", () => {
     expect(stdout).toContain("Primary workflow:");
     // Canonical promoted set (registry §6.2; GH-1166: bare-session retired,
     // slots renamed to `prx next` and `prx plan handoff`; slice 3 removed the
-    // tmux send-keys `prx review` slot):
-    expect(stdout).toContain("prx tui");
+    // tmux send-keys `prx review` slot; prx-fdf removed the `prx tui` slot):
     expect(stdout).toContain("prx plan session");
     expect(stdout).toContain("prx next");
     expect(stdout).toContain("prx do");
@@ -1610,7 +1609,7 @@ describe("pr_state cli", () => {
       });
       expect(result.exitCode).toBe(0);
       const stdout = new TextDecoder().decode(result.stdout);
-      expect(stdout).toContain("prx tui");
+      expect(stdout).toContain("prx plan session");
       expect(stdout).toContain("Primary workflow:");
     });
 

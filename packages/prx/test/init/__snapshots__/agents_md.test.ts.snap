@@ -12,7 +12,6 @@ them; this file is the floor every conformant agent sees.
 
 This repo uses **prx** as the operator surface. The promoted entry points:
 
-- \`prx tui\` — interactive surface across worktrees + work units
 - \`prx plan session GH-<n>\` — open a planning session for a work unit
 - \`prx next\` — recommend the next action on the current work unit
 - \`prx do\` — drive the recommended action
