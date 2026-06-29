@@ -1,0 +1,30 @@
+packages/prx/test/concierge/daemon.test.ts
+  s_c4318117f42b02::t_201221796545d6 1-79
+packages/prx/src/concierge/serve-verb.ts
+  s_c4318117f42b02::t_fad6f9b05c0a68 1-55
+packages/prx/src/concierge/daemon.ts
+  s_c4318117f42b02::t_0f9965c5d54a2b 1-203
+packages/prx/src/cli/verb-registry.ts
+  s_c4318117f42b02::t_b86f2afdee5103 76
+  s_c4318117f42b02::t_8beb000dcb5e90 38
+packages/prx/test/concierge/registry.test.ts
+  s_c4318117f42b02::t_06a84d73c486f7 1-51
+.changeset/concierged-daemon.md
+  s_c4318117f42b02::t_0610e759166b7e 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "3e757d8b2703eb9fc5b076d6f111ded3dd9f03ef",
+  "prompts": {},
+  "sessions": {
+    "s_c4318117f42b02": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b707ec58-424b-452d-b628-e6eb4bd39018",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
