@@ -1,0 +1,19 @@
+.github/workflows/front-desk-add.yml
+  s_dc3042bf98674e::t_e77e13ef65e546 7-13,15-17,26-27,33-44,46-48,50-51,53-55,58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "f73152a570fe1d9b08fa21ba0ab87d8c63d5df6e",
+  "prompts": {},
+  "sessions": {
+    "s_dc3042bf98674e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4a4c41b5-bdca-4635-99d7-b7338a15ff09",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
