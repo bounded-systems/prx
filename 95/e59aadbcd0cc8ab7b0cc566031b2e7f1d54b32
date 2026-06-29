@@ -1,0 +1,24 @@
+packages/prx/src/builder/container-builder.ts
+  s_399e6065f1b4a3::t_eeb1ae667cc8ba 1-124
+packages/prx/test/builder/container-builder.test.ts
+  s_399e6065f1b4a3::t_338a47d31eceef 1-44,52-70,76-92
+  s_399e6065f1b4a3::t_f23161e5c8c27a 45-51,71-75
+.changeset/builder-container-render.md
+  s_399e6065f1b4a3::t_adc5e4ce784eb2 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "95e59aadbcd0cc8ab7b0cc566031b2e7f1d54b32",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
