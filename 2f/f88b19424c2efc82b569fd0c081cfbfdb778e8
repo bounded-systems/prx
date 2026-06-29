@@ -1,0 +1,38 @@
+packages/prx/src/cli/registry.data.ts
+  s_399e6065f1b4a3::t_a26699287d39c6 1253-1255,1257-1258,1263-1272
+packages/prx/test/door/exec.test.ts
+  s_399e6065f1b4a3::t_32c99f5a864fe4 7
+packages/prx/src/builder/verb.ts
+  s_399e6065f1b4a3::t_8c8962dadeeda9 1-73
+packages/prx/src/pr-state/cli.ts
+  s_399e6065f1b4a3::t_70ceeb4b61f04c 14853-14860
+packages/prx/test/beadsd/provision-local.test.ts
+  s_399e6065f1b4a3::t_ea6cb4fa23d692 3
+packages/prx/src/cli/verb-registry.ts
+  s_399e6065f1b4a3::t_2865e1f4a20a21 35
+  s_399e6065f1b4a3::t_1b482b654be351 72-73
+packages/prx/src/beadsd/provision-local.ts
+  s_399e6065f1b4a3::t_dcb6c768cd41f7 19
+.changeset/retire-all-lima-code.md
+  s_399e6065f1b4a3::t_1bc64a645e45dc 1-13
+docs/cli.md
+  s_399e6065f1b4a3::t_9b6328cea564b9 5,18-20
+packages/prx/test/pr-state/help/__snapshots__/help.snapshot.test.ts.snap
+  s_399e6065f1b4a3::t_c47faf96c3bf61 165-167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "2ff88b19424c2efc82b569fd0c081cfbfdb778e8",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
