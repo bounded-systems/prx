@@ -145,7 +145,7 @@ seam (injected runner ⇒ offline-tested; a non-zero exit → typed
 - **retire the Lima daemon-VM** — ✅ done (prx#824/#825/#828): removed the in-VM
   daemon code (`prx lima up|down|daemons|status|provision-beads`, `keeper up|down`,
   the `--vm`/`PRX_BEADS_VM` beads path, and the `lima/{registry,lifecycle,channel}`
-  + `beadsd/provision` + `keeperd/lima-keeperd` + `ghappd/lima-ghappd` modules).
+  + `beadsd/provision` + `keeperd/lima-keeperd` + `forge-d/lima-forge-d` modules).
   The Lima VM **remains as the nix remote builder** (`prx lima provision-builder`,
   prx-62h). Removing the host bd/dolt install is the separate endgame, prx-82b.
 

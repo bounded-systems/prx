@@ -48,10 +48,10 @@ export const claudeRoom: RoomSpec = {
       state: "open",
     },
     {
-      name: "ghappd",
+      name: "forge-d",
       direction: "consume",
       capability: "github-app:token",
-      socket: `${DOORS}/ghappd.sock`,
+      socket: `${DOORS}/forge-d.sock`,
       state: "open",
     },
     // Declared but SEALED: the remote-control / drive-the-session seam. Opened

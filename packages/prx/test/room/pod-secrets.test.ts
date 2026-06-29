@@ -20,10 +20,10 @@ const keeper: RoomInput = {
   secrets: [{ name: "prx-keeper-key", target: "/run/secrets/keeper-key" }],
 };
 const forge: RoomInput = {
-  name: "ghappd-room",
+  name: "forge-d-room",
   secrets: [
-    { name: "prx-forge-key", target: "/run/secrets/ghapp-key" },
-    { name: "prx-forge-id", target: "/run/secrets/ghapp-id" },
+    { name: "prx-forge-key", target: "/run/secrets/forge-key" },
+    { name: "prx-forge-id", target: "/run/secrets/forge-id" },
   ],
 };
 
@@ -45,8 +45,8 @@ describe("declaredSecrets", () => {
   test("flattens every room's declared secrets, tagged with the room", () => {
     expect(declaredSecrets(pod([keeper, forge]))).toEqual([
       { name: "prx-keeper-key", target: "/run/secrets/keeper-key", room: "keeperd-room" },
-      { name: "prx-forge-key", target: "/run/secrets/ghapp-key", room: "ghappd-room" },
-      { name: "prx-forge-id", target: "/run/secrets/ghapp-id", room: "ghappd-room" },
+      { name: "prx-forge-key", target: "/run/secrets/forge-key", room: "forge-d-room" },
+      { name: "prx-forge-id", target: "/run/secrets/forge-id", room: "forge-d-room" },
     ]);
   });
 

@@ -267,17 +267,17 @@
         }
       }
     },
-    "/ghapp/serve": {
+    "/forge/serve": {
       "post": {
-        "operationId": "ghapp_serve",
-        "summary": "Run the ghappd GitHub App credential-broker door on a unix socket.",
+        "operationId": "forge_serve",
+        "summary": "Run the forge-d GitHub App credential-broker door on a unix socket.",
         "x-prx-actor": "work",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ghapp_serveInput"
+                "$ref": "#/components/schemas/forge_serveInput"
               }
             }
           }
@@ -288,7 +288,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ghapp_serveOutput"
+                  "$ref": "#/components/schemas/forge_serveOutput"
                 }
               }
             }
@@ -1641,7 +1641,7 @@
         ],
         "additionalProperties": false
       },
-      "ghapp_serveInput": {
+      "forge_serveInput": {
         "type": "object",
         "properties": {
           "socket": {
@@ -1654,7 +1654,7 @@
             "type": "string"
           },
           "cwd": {
-            "description": "ignored — ghappd is not repo-bound",
+            "description": "ignored — forge-d is not repo-bound",
             "type": "string"
           }
         },
@@ -1663,7 +1663,7 @@
         ],
         "additionalProperties": false
       },
-      "ghapp_serveOutput": {
+      "forge_serveOutput": {
         "type": "object",
         "properties": {
           "socket": {

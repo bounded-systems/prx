@@ -1,4 +1,4 @@
-// The ghappd-room (prx-36xr) — runs ghappd-box in the per-repo pod, EXPOSING the
+// The forge-d-room (prx-36xr) — runs forge-d-box in the per-repo pod, EXPOSING the
 // `github-app:token` door so a claude-room can LEASE short-lived installation
 // tokens without ever holding the App private key (ocap; see GHAPPD.md). Sibling
 // of keeperd-room/beadsd-room.
@@ -10,46 +10,46 @@
 // project consumer exists — the box is bucket-generic (the mounts pick the app).
 import type { RoomSpec } from "./spec.ts";
 
-// Pinned ghappd-box image (prx-36xr). Digest is immutable; update by re-running
+// Pinned forge-d-box image (prx-36xr). Digest is immutable; update by re-running
 // the publish-oci-boxes workflow and replacing this constant.
-export const GHAPPD_ROOM_IMAGE =
-  "ghcr.io/bounded-systems/prx/ghappd-box@sha256:d14a68c8c48272cd34916b81281b55d542c6df243f29e63fe5e2cb623b71b6b1";
+export const FORGE_D_ROOM_IMAGE =
+  "ghcr.io/bounded-systems/prx/forge-d-box@sha256:d14a68c8c48272cd34916b81281b55d542c6df243f29e63fe5e2cb623b71b6b1";
 
 // Host-backed runtime secrets the pod mounts onto tmpfs, all for the prx-forge
 // bucket app. The private key is the real secret; the App id (4169313) and
 // installation id (143190928) are non-secret but deployment-specific, carried the
-// same way so the room needs no env field. The ghappd-box entrypoint points
+// same way so the room needs no env field. The forge-d-box entrypoint points
 // PRX_GH_APP_KEY_FILE at the key mount (read in-process — the PEM never enters
 // env/argv) and reads the id/installation mounts into PRX_GH_APP_ID /
 // PRX_GH_INSTALLATION_ID.
-const GHAPP_KEY_SECRET = "prx-forge-key";
-const GHAPP_KEY_TARGET = "/run/secrets/ghapp-key";
-const GHAPP_ID_SECRET = "prx-forge-id";
-const GHAPP_ID_TARGET = "/run/secrets/ghapp-id";
-const GHAPP_INSTALLATION_SECRET = "prx-forge-installation";
-const GHAPP_INSTALLATION_TARGET = "/run/secrets/ghapp-installation";
+const FORGE_KEY_SECRET = "prx-forge-key";
+const FORGE_KEY_TARGET = "/run/secrets/forge-key";
+const FORGE_ID_SECRET = "prx-forge-id";
+const FORGE_ID_TARGET = "/run/secrets/forge-id";
+const FORGE_INSTALLATION_SECRET = "prx-forge-installation";
+const FORGE_INSTALLATION_TARGET = "/run/secrets/forge-installation";
 
-export const ghappdRoom: RoomSpec = {
-  name: "ghappd-room",
-  image: GHAPPD_ROOM_IMAGE,
+export const forgeDRoom: RoomSpec = {
+  name: "forge-d-room",
+  image: FORGE_D_ROOM_IMAGE,
   tier: "sandbox",
   doors: [
     {
-      name: "ghappd",
+      name: "forge-d",
       direction: "expose",
       capability: "github-app:token",
-      socket: "/run/prx/doors/ghappd.sock",
+      socket: "/run/prx/doors/forge-d.sock",
     },
   ],
   grants: [],
   secrets: [
-    { name: GHAPP_KEY_SECRET, target: GHAPP_KEY_TARGET },
-    { name: GHAPP_ID_SECRET, target: GHAPP_ID_TARGET },
-    { name: GHAPP_INSTALLATION_SECRET, target: GHAPP_INSTALLATION_TARGET },
+    { name: FORGE_KEY_SECRET, target: FORGE_KEY_TARGET },
+    { name: FORGE_ID_SECRET, target: FORGE_ID_TARGET },
+    { name: FORGE_INSTALLATION_SECRET, target: FORGE_INSTALLATION_TARGET },
   ],
   extraArgs: [],
   // macOS virtiofs: Unix-socket connections from the host fail (file, not socket
-  // semantics); TCP tunnels around it. keeperd uses 9999; ghappd uses 9998. The
-  // pod publishes the port and the door client dials it via PRX_GH_APP_DOOR.
+  // semantics); TCP tunnels around it. keeperd uses 9999; forge-d uses 9998. The
+  // pod publishes the port and the door client dials it via PRX_FORGE_DOOR.
   tcpPort: 9998,
 };

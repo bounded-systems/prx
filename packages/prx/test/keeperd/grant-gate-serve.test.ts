@@ -92,7 +92,7 @@ describe("runKeeperServe TCP grant gate (prx-8uf2)", () => {
   test("TCP + gate: a grant minted for a DIFFERENT door is denied", async () => {
     const p = port();
     server = await runKeeperServe({ socketPath: `127.0.0.1:${p}`, grantGate: { keys, audience: AUDIENCE } });
-    const res = await send({ port: p }, pushReq(mintGrant("ghapp")));
+    const res = await send({ port: p }, pushReq(mintGrant("forge")));
     expect(res.ok).toBe(false);
     expect(res.error?.code).toBe("UNAUTHENTICATED");
   });
