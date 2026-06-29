@@ -189,8 +189,8 @@ export const PodServiceSchema = z.object({
    * A named volume holding the service's persistent state, mounted at
    * `mountPath`. Rendered as a `persistentVolumeClaim` (podman kube play maps
    * the claim name to a podman named volume, auto-creating it if absent and
-   * preserving it across `kube down`). Seeded out-of-band (e.g. the dolt-data
-   * FOD → `podman volume import`).
+   * preserving it across `kube down`). Seeded out-of-band (e.g. a runtime
+   * `dolt clone` of the pinned commit into the volume — see dolt-service.ts).
    */
   dataVolume: z.object({ name: z.string().min(1), mountPath: z.string().min(1) }).optional(),
   /** Environment for the service container. */

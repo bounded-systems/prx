@@ -37,14 +37,20 @@ export const DOLT_BOX_ENV: Readonly<Record<string, string>> = {
 };
 
 /**
- * The deterministic data SEED is the `dolt-data` nix FOD
- * (nix/oci/dolt-data.nix) — the network-fetch stage. The COPY stage populates
- * the {@link DOLT_DATA_VOLUME} from that artifact with NO network, via:
+ * SEEDING the data volume — a RUNTIME clone, not a nix build artifact.
  *
- *   tar -C "$(nix path)" -cf - . | podman volume import prx-dolt-data -
- *   podman run --rm -v prx-dolt-data:/d alpine chmod -R a+rwX /d   # nix store is read-only
+ * A content-addressed nix FOD was tried (the old nix/oci/dolt-data.nix) but
+ * `dolt clone` + `dolt gc` are NOT byte-reproducible across builders (or runs),
+ * so the FOD's fixed output hash mismatched on any rebuild — proven: the same
+ * pinned commit yielded different NAR hashes on the Lima vs the container
+ * builder. So the seed is builder-INDEPENDENT and deterministic only PER-COMMIT:
+ * clone the DoltHub remote at the pinned commit straight into the volume:
  *
- * (podman-machine can't see the host /nix/store, so a tar stream — not a bind —
- * is the transport; the chmod makes the read-only store bytes writable for the
- * dolt server.) Wired into pod provisioning in the pod-model phase.
+ *   podman run --rm -v prx-dolt-data:/var/lib/dolt:U -e HOME=/tmp \
+ *     <dolt-box> dolt clone <remote> /var/lib/dolt/io_github_bounded_systems_prx
+ *   # then `dolt reset --hard <pinnedCommit>` for the pin (optional)
+ *
+ * One-time at provision; the volume then persists. This is what `prx dolt
+ * provision` (the stubbed GH-1685 verb) should do when wired — no nix FOD, no
+ * cross-builder hash to break.
  */
