@@ -13,7 +13,7 @@ import type { RoomSpec } from "./spec.ts";
 // Pinned ghappd-box image (prx-36xr). Digest is immutable; update by re-running
 // the publish-oci-boxes workflow and replacing this constant.
 export const GHAPPD_ROOM_IMAGE =
-  "ghcr.io/bounded-systems/prx/ghappd-box@sha256:d14a68c8c48272cd34916b81281b55d542c6df243f29e63fe5e2cb623b71b6b1";
+  "ghcr.io/bounded-systems/prx/ghappd-box@sha256:085dc0883673d511998ab0838c1fddfc7aa69f3dc8451c777e782d887fe576a2";
 
 // Host-backed runtime secrets the pod mounts onto tmpfs, all for the prx-forge
 // bucket app. The private key is the real secret; the App id (4169313) and
