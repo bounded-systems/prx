@@ -262,6 +262,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/articles/02-capability-security.md",
+      "name": "SLSA-for-agents: capability-security as the unsolved half",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/articles/02-capability-security.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/beadsd-door-wiring.md",
       "name": "ADR — wiring the beadsd door into the claude-box pod (prx-asr / prx-634)",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/beadsd-door-wiring.md",
