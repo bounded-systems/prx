@@ -1,0 +1,27 @@
+packages/prx/test/beads/container-runner.test.ts
+  s_399e6065f1b4a3::t_0f718004944ca9 3
+  s_399e6065f1b4a3::t_a41e4d6257fab2 48-67
+packages/prx/src/beads/container-runner.ts
+  s_399e6065f1b4a3::t_452ae689aae1d2 35-56
+packages/prx/src/pr-state/repo_add_dolthub.ts
+  s_399e6065f1b4a3::t_e9ec13e5322416 173-177
+  s_399e6065f1b4a3::t_a2c62131d1bfe4 31
+.changeset/relocate-dolt-remote-add.md
+  s_399e6065f1b4a3::t_96da736ed312fa 1-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "d2485b631547713e40cbf7601e56a5bae99c7246",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
