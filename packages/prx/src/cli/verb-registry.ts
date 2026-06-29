@@ -33,7 +33,6 @@ import { podSecretsVerb } from "../room/pod-secrets-verb.ts";
 import { podDownVerb } from "../room/pod-down-verb.ts";
 import { podUpVerb } from "../room/pod-up-verb.ts";
 import { builderUpVerb, builderRegisterVerb } from "../builder/verb.ts";
-import { ghappServeVerb } from "../ghappd/serve-verb.ts";
 import { forgeServeVerb } from "../forge-d/serve-verb.ts";
 import { doorBridgeVerb } from "../door/bridge-verb.ts";
 import { doorGrantVerb, doorIssuerKeysVerb } from "../door/grant-verb.ts";
@@ -73,7 +72,6 @@ export const verbRegistry: Registry = {
   [podUpVerb.id]: podUpVerb,
   [builderUpVerb.id]: builderUpVerb,
   [builderRegisterVerb.id]: builderRegisterVerb,
-  [ghappServeVerb.id]: ghappServeVerb,
   [forgeServeVerb.id]: forgeServeVerb,
   [doorBridgeVerb.id]: doorBridgeVerb,
   [doorGrantVerb.id]: doorGrantVerb,
