@@ -1,0 +1,30 @@
+packages/prx/test/door/bridge.test.ts
+  s_c4318117f42b02::t_20e5305862c81c 1-115
+packages/prx/src/door/bridge.ts
+  s_c4318117f42b02::t_8946cbb5ea6cfc 1-81
+packages/prx/src/cli/verb-registry.ts
+  s_c4318117f42b02::t_1cbe28541d94ab 36
+  s_c4318117f42b02::t_80e7dfc432124c 71
+packages/prx/test/door/bridge-verb.test.ts
+  s_c4318117f42b02::t_ff900f0819e389 1-39
+.changeset/door-bridge-phase1.md
+  s_c4318117f42b02::t_ddd825b03f3ae5 1-5
+packages/prx/src/door/bridge-verb.ts
+  s_c4318117f42b02::t_dc6d5f1c708ad5 1-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "1a73b990328dea6fff9f7cc6b64f3883aa7629e5",
+  "prompts": {},
+  "sessions": {
+    "s_c4318117f42b02": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b707ec58-424b-452d-b628-e6eb4bd39018",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
