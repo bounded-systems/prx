@@ -1,0 +1,147 @@
+.changeset/concierged-box-image.md
+  s_c4318117f42b02::t_fc7773f62d83f9 5
+.changeset/forge-d-rename.md
+  s_c4318117f42b02::t_2f9d0ec1335d37 1-13
+.changeset/retire-all-lima-code.md
+  s_c4318117f42b02::t_aba59a6165f004 1-13
+.github/apps/README.md
+  s_c4318117f42b02::t_e3dadb19a8915b 6
+.github/workflows/publish-oci-boxes.yml
+  s_29527a1cf44457::t_e5e9cd95cb5749 6,106-107,129-130,136,146,148,151,159,161,163,174,181,414
+docs/cli.md
+  s_c4318117f42b02::t_76ecf24d1902df 5,18-20
+docs/prx/door-bridge.md
+  s_c4318117f42b02::t_8e2cc2f826934f 6,12,15,25,90,110,120,124
+docs/prx/github-apps-architecture.md
+  s_c4318117f42b02::t_1e11234cd1a9a7 6,17,26,64,71,79,97,106
+docs/prx/oci-substrate.md
+  s_c4318117f42b02::t_00c71f7f0c9f27 148
+flake.nix
+  s_98e316d0b3248a::t_dc9124dbd4fbe9 69
+nix/oci/forge-d-box.nix
+  s_c4318117f42b02::t_e8f440beaa0ad1 1-3,5,9,13-14,19,31,33,35,40,45,49,55,71,81-82
+packages/prx/openapi.json
+  s_c4318117f42b02::t_37fa26b9cd83aa 38-95,357,359-360,367,378,1212-1262,1817,1830,1839
+packages/prx/scripts/coverage-summary.ts
+  s_c4318117f42b02::t_27ce5f9d6059c8 71
+packages/prx/src/beadsd/provision-local.ts
+  s_c4318117f42b02::t_da6cc456f9ba23 19
+packages/prx/src/builder/verb.ts
+  s_c4318117f42b02::t_a65ff7ee29da6b 1-7,9-10,12-14,16-24,26-32,34,37-53,55,57-73
+packages/prx/src/cli/registry.data.ts
+  s_c4318117f42b02::t_d3c27b4ed3add4 1253-1255,1257-1258,1263-1272
+packages/prx/src/cli/verb-registry.ts
+  s_c4318117f42b02::t_7fbab9590b810f 35-36,73-75
+packages/prx/src/door/bridge.ts
+  s_c4318117f42b02::t_901115aeca5dde 4
+packages/prx/src/door/grant-gate.ts
+  s_c4318117f42b02::t_3127d15ccaf08a 3,12
+packages/prx/src/door/guest-room-catalog.ts
+  s_c4318117f42b02::t_2d1f514d82913c 25,29-30,42-49,58-60
+packages/prx/src/door/listen-target.ts
+  s_c4318117f42b02::t_d7658edefc8092 3
+packages/prx/src/forge-d/__tests__/client.test.ts
+  s_c4318117f42b02::t_8ee8e0ae4068f7 3,5,8,17,26,29,31,35-38
+packages/prx/src/forge-d/__tests__/daemon.test.ts
+  s_c4318117f42b02::t_04eed9c43e2d9c 10-14,17,33-35,41,66,81,99-101,112-114
+packages/prx/src/forge-d/__tests__/serve-verb.test.ts
+  s_c4318117f42b02::t_9eff6a3337c813 4-5,14-15,22,24,26,36,38,40-41,46,55
+packages/prx/src/forge-d/client.ts
+  s_c4318117f42b02::t_d8b82e9b3ce282 1,4,7-10,13-14,16-17,23,28,30,33-34,36-37,39,41,44,57
+packages/prx/src/forge-d/contract.ts
+  s_c4318117f42b02::t_27110889f1599c 1,13,18,21,34
+packages/prx/src/forge-d/daemon.ts
+  s_c4318117f42b02::t_ddfa7391c66602 1,14-17,19,21-22,30,32,42-45,47,69,73,75,81,84,87,90,95-96,104,109,112,116,122,126-127,130,133,138,140-141,168
+packages/prx/src/forge-d/endpoint.ts
+  s_c4318117f42b02::t_5e27df43c90246 1-2,5-6
+packages/prx/src/forge-d/grant-gate.ts
+  s_c4318117f42b02::t_68580113c32320 2-3,5,7,20-21,23-24,26,28-29,32-33,36-37,41,44-45
+packages/prx/src/forge-d/serve-verb.ts
+  s_c4318117f42b02::t_4fb27942d64146 1,12,14,20,22,25,29,32,36-38,44,46,48-49,52-53,58,74
+packages/prx/src/github-app/__tests__/apply.test.ts
+  s_c4318117f42b02::t_1371681af0908c 70,75,88,96
+packages/prx/src/github-app/__tests__/door-source-grant.test.ts
+  s_c4318117f42b02::t_759c0315fc81a2 6,20,23,26-27,38,45,53
+packages/prx/src/github-app/__tests__/door-source.test.ts
+  s_c4318117f42b02::t_47ab8d5ae2dffb 7-8,15-17,26-27,32,46,67,83,86
+packages/prx/src/github-app/apply.ts
+  s_c4318117f42b02::t_0ad0c51b974aa0 55,75,78
+packages/prx/src/github-app/broker.ts
+  s_c4318117f42b02::t_32b6c41c06f3b1 5
+packages/prx/src/github-app/door-source.ts
+  s_c4318117f42b02::t_4ea720a1e4a702 2,4,8,13,19,21,33,40,52,58-59,68
+packages/prx/src/pr-state/cli.ts
+  s_c4318117f42b02::t_3d9fc176a05e45 14849-14859
+packages/prx/src/room/claude-room.ts
+  s_c4318117f42b02::t_52dab2cc4bbe88 51,54
+packages/prx/src/room/forge-d-room.ts
+  s_c4318117f42b02::t_e4ac2fbafb56b7 1,13,15-16,21,25-30,32-34,38,41,46-48,52-53
+packages/prx/src/room/per-repo-pod.ts
+  s_c4318117f42b02::t_1074f311d176e5 7-10,13-15,22,47
+packages/prx/src/room/pod.ts
+  s_c4318117f42b02::t_89474710f27e67 162,164-165
+packages/prx/src/room/repin.ts
+  s_c4318117f42b02::t_95df4a61490962 17
+packages/prx/test/beadsd/provision-local.test.ts
+  s_c4318117f42b02::t_d9cd00f09430ca 3
+packages/prx/test/builder/verb.test.ts
+  s_c4318117f42b02::t_ff71c5aa198ada 3-4,6-9,12-17,19-21
+packages/prx/test/cli/box-verbs-routed.test.ts
+  s_c4318117f42b02::t_f7d0af4e345373 11,19
+packages/prx/test/door/bridge-verb.test.ts
+  s_c4318117f42b02::t_7f950c66d6ea91 27,32-33
+packages/prx/test/door/bridge.test.ts
+  s_c4318117f42b02::t_b826685c23a959 24
+packages/prx/test/door/exec.test.ts
+  s_c4318117f42b02::t_93473ba024fdb9 7
+packages/prx/test/door/grant-issuer.test.ts
+  s_c4318117f42b02::t_6a07625c9a9c77 62
+packages/prx/test/door/guest-room-catalog.test.ts
+  s_c4318117f42b02::t_768bb6ab3f1309 5,31-34,37-40,44,47
+packages/prx/test/forge-d/grant-gate-serve.test.ts
+  s_c4318117f42b02::t_7b47f4cfb73826 8,43-44,48,60,71,87,89,94,110,122-123
+packages/prx/test/keeperd/grant-gate-serve.test.ts
+  s_c4318117f42b02::t_5a5ec1045a8561 95
+packages/prx/test/keeperd/grant-gate.test.ts
+  s_c4318117f42b02::t_643463e07e1dd0 80
+packages/prx/test/pr-state/help/__snapshots__/help.snapshot.test.ts.snap
+  s_c4318117f42b02::t_ed88a1f5418b6a 165-167
+packages/prx/test/room/pod-secrets.test.ts
+  s_c4318117f42b02::t_af6da5a4940cf4 23,25-26,48-49
+packages/prx/test/room/pod.test.ts
+  s_c4318117f42b02::t_a72e0b2b095873 155,157,159-160,163,166,170-171,193,206,213
+packages/prx/test/room/repin.test.ts
+  s_c4318117f42b02::t_1c89ac83e09fb4 10-11,13,18-19,24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "b88d5de484a3258ce7ba9a8d6628b901f634b48b",
+  "prompts": {},
+  "sessions": {
+    "s_29527a1cf44457": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "85265b05-183c-47f0-a52e-e37a83f4211c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    },
+    "s_98e316d0b3248a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8db980ee-eb6b-4866-832b-f795cef7f33c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    },
+    "s_c4318117f42b02": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b707ec58-424b-452d-b628-e6eb4bd39018",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
