@@ -1,12 +1,11 @@
 ---
-"@bounded-systems/prx": minor
+"@bounded-systems/prx": patch
 ---
 
-Move the residual bd config/schema WRITES off host bd (prx-82b Slice 2e.2): the
-watermark + slack-watermark `bd config get/set` (`fetch/watermark.ts`,
-`fetch/slack-watermark.ts`) and the bootstrap `schema_repair` op now default to an
-ephemeral beadsd-box container runner (reusing `containerRepoRunner`; new
-`containerBdSchemaRunner` for the `(args, cwd)` seam) instead of host bd —
-per-repo-correct via the `/work` cwd bind. The host-bd primitives stay as the
-injectable test seam. (A beadsd door config-verb is a later perf optimization for
-the per-fetch-tick watermark path.)
+Move the cold `schema_repair` bd op off host bd (prx-82b Slice 2e.2a): the
+bootstrap schema-repair op now defaults to an ephemeral beadsd-box container
+(`containerBdSchemaRunner`) instead of host bd. The host primitive
+(`defaultBdRunner`) stays as the injectable test seam. (The watermark `bd config
+get/set` is on the hot, runtime-free freshness path — `work --check` →
+freshness-gate → getWatermark — so it can't spawn a container; it needs a beadsd
+door config-verb instead, deferred to 2e.2b.)

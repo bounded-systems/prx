@@ -15,8 +15,6 @@
 
 import { spawnCapture } from "@bounded-systems/proc";
 
-import { containerRepoRunner } from "../beads/container-runner.ts";
-
 export const WATERMARK_KEY = "prx.fetch.gh-issues.watermark";
 export const LAST_POINTS_KEY = "prx.fetch.gh-issues.last-points";
 
@@ -61,8 +59,7 @@ export type WatermarkDeps = {
  * other reason (e.g., bd binary missing).
  */
 export function getWatermark(deps: WatermarkDeps): { since: string | null } {
-  // prx-82b 2e.2: bd config get/set runs in an ephemeral container, not host bd.
-  const runner = deps.runner ?? containerRepoRunner();
+  const runner = deps.runner ?? defaultSpawnRunner;
   const result = runner(["bd", "config", "get", WATERMARK_KEY], {
     cwd: deps.cwd,
   });
@@ -96,8 +93,7 @@ export function getWatermark(deps: WatermarkDeps): { since: string | null } {
  * for some other reason (e.g., bd binary missing).
  */
 export function getLastPoints(deps: WatermarkDeps): { points: number | null } {
-  // prx-82b 2e.2: bd config get/set runs in an ephemeral container, not host bd.
-  const runner = deps.runner ?? containerRepoRunner();
+  const runner = deps.runner ?? defaultSpawnRunner;
   const result = runner(["bd", "config", "get", LAST_POINTS_KEY], {
     cwd: deps.cwd,
   });
@@ -126,8 +122,7 @@ export function getLastPoints(deps: WatermarkDeps): { points: number | null } {
  * from scratch and so the post-spike write ticket has the seam.
  */
 export function setWatermark(deps: WatermarkDeps, since: string): void {
-  // prx-82b 2e.2: bd config get/set runs in an ephemeral container, not host bd.
-  const runner = deps.runner ?? containerRepoRunner();
+  const runner = deps.runner ?? defaultSpawnRunner;
   const result = runner(["bd", "config", "set", WATERMARK_KEY, since], {
     cwd: deps.cwd,
   });

@@ -43,11 +43,12 @@ const GATE_USERS = [
 ].sort();
 
 // Host-management / dolt-lifecycle files that spawn `bd` directly. They must
-// never reference the read-door gate. (prx-82b 2e.2: several — watermark,
-// slack-watermark, schema_repair — now default their bd op to an ephemeral
-// CONTAINER runner rather than host bd; they keep the `["bd", …]` literal but
-// route it to a container, still satisfying this guard's invariant: no read-door
-// gate ref, so a write never leaks onto the read door.)
+// never reference the read-door gate. (prx-82b 2e.2a: schema_repair now defaults
+// its bd op to an ephemeral CONTAINER runner rather than host bd; it keeps the
+// `["bd", …]` literal but routes it to a container, still satisfying this guard's
+// invariant: no read-door gate ref. The watermark config get/set stays host for
+// now — it's on the hot freshness path and needs a door config-verb, not a
+// container, 2e.2b.)
 const HOST_ONLY_BD = [
   "beads/doctor.ts",
   "beads/schema_repair.ts",
