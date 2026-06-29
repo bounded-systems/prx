@@ -1249,28 +1249,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "keeper",
     internal: true,
   },
-  {
-    // GH-201/223: `keeper up <vm>` deploys the Linux prx into the Lima VM and
-    // starts keeperd detached (writing its own pidfile); `keeper down <vm>` stops
-    // it by that pidfile. Host-side infrastructure verbs (run limactl),
-    // `internal: true` like `serve`.
-    name: "keeper up",
-    parent: "keeper",
-    description: "Deploy + start keeperd inside a Lima VM (keeper role; GH-201)",
-    domain: "work-units",
-    binding: "work-unit",
-    actor: "keeper",
-    internal: true,
-  },
-  {
-    name: "keeper down",
-    parent: "keeper",
-    description: "Stop keeperd inside a Lima VM (keeper role; GH-201)",
-    domain: "work-units",
-    binding: "work-unit",
-    actor: "keeper",
-    internal: true,
-  },
 
   // ─── Lima — in-VM daemon lifecycle (keeper + beads); GH-228 ────────────────
   // Generalizes `keeper up|down` into one namespace over a daemon registry, so

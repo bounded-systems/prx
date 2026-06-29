@@ -313,7 +313,6 @@ import {
 import { runKeeperPush, type KeeperPushDeps } from "./keeper.ts";
 import { runKeeperServe, type KeeperDaemonDeps } from "../keeperd/daemon.ts";
 // GH-201/223: host-side keeperd VM lifecycle for `keeper up|down`.
-import { provisionKeeperd, stopKeeperd } from "../keeperd/lima-keeperd.ts";
 // GH-228: beadsd in-VM read daemon (`beads serve`) + the `prx lima` daemon registry.
 import { runBeadsServe, type BeadsDaemonDeps } from "../beadsd/daemon.ts";
 // GH-228: beads workspace self-heal (`prx beads doctor [--fix]`).
@@ -1673,7 +1672,8 @@ type ParsedCommand =
       // GH-2353 (GH-2348.3): `prx keeper <verb>` — git-write / ref custody.
       command: "keeper";
       format: "plain" | "json";
-      verb: "push" | "branch" | "commit" | "serve" | "up" | "down";
+      // `up|down` (in-VM keeperd lifecycle) retired for the podman pod (prx-zj8).
+      verb: "push" | "branch" | "commit" | "serve";
       passArgs: string[];
       // GH-2346: commit message for `keeper commit` (add -A + commit).
       message?: string | undefined;
@@ -1684,11 +1684,6 @@ type ParsedCommand =
       // GH-223: pidfile the keeperd daemon writes its own pid to (robust stop).
       pidfile?: string | undefined;
       cwd?: string | undefined;
-      // GH-201/223: host-side keeperd VM lifecycle (`keeper up|down <vm>`).
-      vm?: string | undefined;
-      binary?: string | undefined;
-      // GH-236 slice 4: in-VM provenance key file injected into the daemon env.
-      provenanceKeyFile?: string | undefined;
     }
   | {
       command: "tools-bd";
@@ -7268,17 +7263,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
   if (command === "keeper") {
     const { prxArgs, passthrough } = splitPassthroughArgv(
       rest,
-      new Set([
-        "format",
-        "cwd",
-        "message",
-        "ledger",
-        "socket",
-        "pidfile",
-        "vm",
-        "binary",
-        "provenance-key-file",
-      ]),
+      new Set(["format", "cwd", "message", "ledger", "socket", "pidfile"]),
       new Set(),
     );
     const { values, positionals } = parseArgs({
@@ -7293,26 +7278,16 @@ export function parseCommand(argv: string[]): ParsedCommand {
         socket: { type: "string" },
         // GH-223: pidfile the keeperd daemon writes its own pid to.
         pidfile: { type: "string" },
-        // GH-201/223: host-side keeperd VM lifecycle (`keeper up|down`).
-        vm: { type: "string" },
-        binary: { type: "string" },
-        // GH-236 slice 4: in-VM provenance key file to inject as PRX_PROVENANCE_KEY.
-        "provenance-key-file": { type: "string" },
       },
       strict: true,
       allowPositionals: true,
     });
     const verb = positionals[0];
-    if (
-      verb !== "push" &&
-      verb !== "branch" &&
-      verb !== "commit" &&
-      verb !== "serve" &&
-      verb !== "up" &&
-      verb !== "down"
-    ) {
+    // `keeper up|down` (the in-VM keeperd lifecycle) was retired for the podman
+    // pod (prx-zj8); keeperd now runs as the pod's keeperd-room.
+    if (verb !== "push" && verb !== "branch" && verb !== "commit" && verb !== "serve") {
       throw new CliError(
-        "prx keeper requires a verb: push | branch | commit | serve | up | down (e.g. `prx keeper up <vm>`)",
+        "prx keeper requires a verb: push | branch | commit | serve (e.g. `prx keeper serve --socket <path>`)",
       );
     }
     // GH-201: `keeper serve` runs the keeperd daemon on a unix socket.
@@ -7320,26 +7295,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       throw new CliError(
         "prx keeper serve requires a socket: --socket <path> (the keeperd listen path)",
       );
-    }
-    // GH-201/223: `keeper up|down <vm>` — host-side keeperd VM lifecycle. The VM
-    // is a positional (`prx keeper up <vm>`) or `--vm <name>`.
-    const vm = values.vm ?? positionals[1];
-    if ((verb === "up" || verb === "down") && (typeof vm !== "string" || vm.length === 0)) {
-      throw new CliError(
-        `prx keeper ${verb} requires a VM: \`prx keeper ${verb} <vm>\` (or --vm <name>)`,
-      );
-    }
-    if (verb === "up") {
-      if (typeof values.binary !== "string" || values.binary.length === 0) {
-        throw new CliError(
-          "prx keeper up requires --binary <path> (the Linux prx; build it with `bun run prx:build:linux-arm64`)",
-        );
-      }
-      if (typeof values.cwd !== "string" || values.cwd.length === 0) {
-        throw new CliError(
-          "prx keeper up requires --cwd <path> (the keeper repo clone inside the VM)",
-        );
-      }
     }
     // GH-2346: `keeper commit` finalizes the worktree headlessly (add -A +
     // commit under role=keeper). `--message <msg>` is the canonical flag; `-m`
@@ -7361,11 +7316,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       ...(values.ledger !== undefined ? { ledger: values.ledger } : {}),
       ...(values.socket !== undefined ? { socket: values.socket } : {}),
       ...(values.pidfile !== undefined ? { pidfile: values.pidfile } : {}),
-      ...(vm !== undefined ? { vm } : {}),
-      ...(values.binary !== undefined ? { binary: values.binary } : {}),
-      ...(values["provenance-key-file"] !== undefined
-        ? { provenanceKeyFile: values["provenance-key-file"] }
-        : {}),
       cwd: values.cwd,
     };
   }
@@ -20531,36 +20481,6 @@ export function runCli(
           output.error(`keeperd: listening on ${parsed.socket}`);
           // Block until the process is terminated — the daemon runs until killed.
           await server.closed;
-          return 0;
-        })();
-      }
-      // GH-201/223: `keeper up <vm>` brings keeperd up inside the VM — copy the
-      // Linux prx in, start the daemon detached on its socket (writing its own
-      // pidfile), bound to the in-VM keeper clone (`--cwd`). One-shot: the daemon
-      // stays running after this exits; the host reaches it via the Lima
-      // transport. `keeper down <vm>` stops it by that pidfile.
-      if (parsed.verb === "up") {
-        return (async () => {
-          const handle = await provisionKeeperd({
-            vm: parsed.vm!,
-            binaryPath: parsed.binary!,
-            cwd: parsed.cwd!,
-            ...(parsed.socket !== undefined ? { socket: parsed.socket } : {}),
-            ...(parsed.provenanceKeyFile !== undefined
-              ? { provenanceKeyFile: parsed.provenanceKeyFile }
-              : {}),
-          });
-          output.error(`keeperd up on ${parsed.vm}: listening at ${handle.socket}`);
-          return 0;
-        })();
-      }
-      if (parsed.verb === "down") {
-        return (async () => {
-          await stopKeeperd({
-            vm: parsed.vm!,
-            ...(parsed.socket !== undefined ? { socket: parsed.socket } : {}),
-          });
-          output.error(`keeperd down on ${parsed.vm}`);
           return 0;
         })();
       }
