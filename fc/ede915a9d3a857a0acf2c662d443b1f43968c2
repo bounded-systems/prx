@@ -1,0 +1,26 @@
+packages/prx/test/beads/container-runner.test.ts
+  s_399e6065f1b4a3::t_60771e0f305c18 7
+packages/prx/src/beads/container-runner.ts
+  s_399e6065f1b4a3::t_09ca746adce9b3 14
+  s_399e6065f1b4a3::t_164272ad368b0c 93-97,119,126-151,153
+  s_399e6065f1b4a3::t_0cc94a6933bfed 152
+packages/prx/src/beads/hydrate.ts
+  s_399e6065f1b4a3::t_6cd202cf8c831f 302-304
+  s_399e6065f1b4a3::t_5b7f8fe3f7d3c0 59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "fcede915a9d3a857a0acf2c662d443b1f43968c2",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
