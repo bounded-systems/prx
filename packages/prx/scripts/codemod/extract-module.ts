@@ -205,7 +205,7 @@ for (const s of target.getStatements().slice(beforeCount)) {
 
 if (reimport.length) {
   source.addImportDeclaration({
-    moduleSpecifier: `./${targetRel.split("/").pop()!.replace(/\.ts$/, ".ts")}`,
+    moduleSpecifier: `./${targetRel.split("/").pop()!}`,
     namedImports: reimport.map((name) => ({ name, isTypeOnly: typeNames.has(name) })),
   });
 }
