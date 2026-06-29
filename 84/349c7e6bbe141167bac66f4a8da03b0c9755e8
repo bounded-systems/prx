@@ -1,0 +1,27 @@
+packages/prx/src/door/grant-provider.ts
+  s_c4318117f42b02::t_2b723c26c8a83b 1-67
+packages/prx/test/door/grant-provider.test.ts
+  s_c4318117f42b02::t_3e65c8d7125d21 1-73
+packages/prx/src/github-app/__tests__/door-source-grant.test.ts
+  s_c4318117f42b02::t_3c01c066f98b21 1-63
+packages/prx/src/github-app/door-source.ts
+  s_c4318117f42b02::t_0f0f60acbe9e34 9,20-27,35-36,40-42,45-48,57-58
+.changeset/grant-provider-refresh.md
+  s_c4318117f42b02::t_287f3ef9823f86 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "84349c7e6bbe141167bac66f4a8da03b0c9755e8",
+  "prompts": {},
+  "sessions": {
+    "s_c4318117f42b02": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b707ec58-424b-452d-b628-e6eb4bd39018",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
