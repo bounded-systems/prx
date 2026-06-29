@@ -41,11 +41,20 @@ describe("statusActor — parses options and forwards the deps seam", () => {
       repo: "o/r",
       format: "json",
       // The forwarded deps seam (the point of the refactor): empty gh/bd seams
-      // keep the delegate off the network and off `bd`.
+      // keep the delegate off the network and off `bd`. The hermetic set must
+      // also stub the read-time freshness gate (refreshSubstrate → a real `gh`
+      // fetch), the watermark read (bd), and repo resolution (gh/git) — each is
+      // a default that spawns a real subprocess and would otherwise HANG with no
+      // service present.
       deps: {
         listOpenIssues: () => [],
         listIssuesByState: () => [],
         execBd: () => ({ exitCode: 0, stdout: "[]", stderr: "", policy: null }),
+        refreshSubstrate: () => ({ ok: true as const }),
+        readSubstrateWatermark: () => null,
+        localRepoForCwd: () => null,
+        repoNameWithOwner: () => "o/r",
+        cwd: () => "/tmp",
       },
     };
     const result = (await settle(statusActor, input)) as { stdout?: unknown; exitCode?: unknown };
