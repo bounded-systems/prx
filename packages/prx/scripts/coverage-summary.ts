@@ -45,7 +45,6 @@ const lcovPath =
 // floor, or if a baselined entry goes stale (now at/above the floor, or gone) —
 // so the list only shrinks. Repo-relative paths (normalized to `packages/...`).
 const PER_FILE_BASELINE = new Set<string>([
-  "packages/prx/src/pr-state/tui.ts", // deprecated TUI surface
   "packages/prx/src/pr-state/cli.ts", // 23k-line CLI, mid §4 decomposition
   "packages/prx/src/pr-state/cli-spawn.ts", // cli.ts spawn helpers, decomposed alongside it
   "packages/prx/src/triage/actors.ts", // thin XState wrappers; haiku-headless-actor reshape pending (#502)
