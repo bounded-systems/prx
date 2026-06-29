@@ -1,0 +1,44 @@
+packages/prx/src/github-app/__tests__/door-source.test.ts
+  s_c4318117f42b02::t_5570db8c34454d 12,33,49
+  s_c4318117f42b02::t_43cd3bc83f8a70 3
+packages/prx/src/ghappd/daemon.ts
+  s_c4318117f42b02::t_64fd5ab86736e9 2-7,9-11,13-18,73,76-77,82-100,104-110,112,114-177
+packages/prx/src/ghappd/serve-verb.ts
+  s_c4318117f42b02::t_adf5336f458e74 78
+packages/prx/src/ghappd/__tests__/daemon.test.ts
+  s_c4318117f42b02::t_8d8e14264a7b42 1-4,6,11-12,14,98-103,105-116,118,120-131,134-145,147-152,154-158
+packages/prx/src/github-app/door-source.ts
+  s_c4318117f42b02::t_3bb033e4ac6997 6-8,17-18,23-37,44
+packages/prx/src/door/listen-target.ts
+  s_c4318117f42b02::t_e134ae3a3e3a35 1-19
+packages/prx/src/door/grant-gate.ts
+  s_c4318117f42b02::t_d39b04eff05763 1-113
+packages/prx/test/ghappd/grant-gate-serve.test.ts
+  s_c4318117f42b02::t_35021b9f45c6c1 1-130
+packages/prx/src/ghappd/__tests__/serve-verb.test.ts
+  s_c4318117f42b02::t_74ab73c6fc8c8f 4,14-15,17-19
+packages/prx/src/keeperd/daemon.ts
+  s_c4318117f42b02::t_02d2687498e044 28
+.changeset/ghappd-guest-room-parity.md
+  s_c4318117f42b02::t_05d303a1c09f76 1-5
+packages/prx/src/ghappd/grant-gate.ts
+  s_c4318117f42b02::t_6c186795483434 1-46
+packages/prx/src/keeperd/grant-gate.ts
+  s_c4318117f42b02::t_f8ee3b0623436d 2-3,5-9,11-18,20,31,34-36,39,43-44,47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "161fbb2a735f8fc7523ab1bb75d634adea6eb43f",
+  "prompts": {},
+  "sessions": {
+    "s_c4318117f42b02": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b707ec58-424b-452d-b628-e6eb4bd39018",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
