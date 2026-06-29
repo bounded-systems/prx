@@ -16,7 +16,7 @@
  * unit-tested offline.
  */
 
-import { spawnRun, type Run, type RunResult } from "../door/lima-exec.ts";
+import { spawnRun, type Run, type RunResult } from "../door/exec.ts";
 import { resolveDoltDatabaseName, doltHubUrl } from "../dolt/namespace.ts";
 
 export interface ProvisionLocalBeadsDeps {
