@@ -5,6 +5,7 @@ import {
   containerRepoRunner,
   containerBdDoltPush,
   containerDoltClone,
+  containerBdSchemaRunner,
   readHostDoltIdentity,
 } from "../../src/beads/container-runner.ts";
 import { renderBdLifecycleArgs } from "../../src/room/lifecycle-runner.ts";
@@ -139,5 +140,25 @@ describe("containerDoltClone — hydrate clone off host (prx-82b 2d)", () => {
     const run = (): PodmanRunResult => ({ status: null, stdout: "", stderr: "auth" });
     const res = containerDoltClone(run, { credsKey: "k", email: "", name: "" })("u", "/p/d");
     expect(res).toEqual({ exitCode: 1, stderr: "auth" });
+  });
+});
+
+describe("containerBdSchemaRunner — schema_repair off host (prx-82b 2e.2)", () => {
+  test("runs bd in-container (args without 'bd') and maps to {exitCode,stdout,stderr}", () => {
+    let seen: string[] | undefined;
+    const run = (args: string[]): PodmanRunResult => {
+      seen = args;
+      return { status: 0, stdout: "ok", stderr: "" };
+    };
+    const res = containerBdSchemaRunner(run)(["migrate", "--dry-run"], "/work/repo");
+    expect(res).toEqual({ exitCode: 0, stdout: "ok", stderr: "" });
+    expect(seen).toEqual(
+      renderBdLifecycleArgs({ repo: "/work/repo", bin: "bd", args: ["migrate", "--dry-run"] }),
+    );
+  });
+
+  test("null podman status maps to exitCode 1", () => {
+    const run = (): PodmanRunResult => ({ status: null, stdout: "", stderr: "x" });
+    expect(containerBdSchemaRunner(run)(["x"], "/r").exitCode).toBe(1);
   });
 });
