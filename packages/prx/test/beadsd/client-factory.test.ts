@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import type { CommandRunner } from "@bounded-systems/proc";
+
 import type { FramedTransport } from "../../src/door/transport.ts";
 import {
   BeadsUnavailableError,
@@ -10,6 +12,14 @@ import {
   primeHostBeadsDoor,
 } from "../../src/beadsd/client-factory.ts";
 
+/** A run() that simulates "not in a git repo" so per-repo discovery is skipped. */
+const noGitRun: CommandRunner = () => ({ stdout: "", stderr: "", status: 1 });
+/** A run() that returns a given git-common-dir. */
+const gitRun =
+  (commonDir: string): CommandRunner =>
+  () => ({ stdout: commonDir + "\n", stderr: "", status: 0 });
+const neverExists = () => false;
+
 /** A fake env lookup over a fixed map. */
 const fakeEnv = (vars: Record<string, string | undefined>) => (k: string) => vars[k];
 
@@ -18,29 +28,76 @@ const okTransport: FramedTransport = async () => ({ status: "ok", result: [] });
 const noEnsure = async () => {};
 
 describe("resolveBeadsEndpoint — the read router (prx-82b Slice 2e.4)", () => {
-  test("throws (no host-native fallback) when no override + no pod up", () => {
-    expect(() => resolveBeadsEndpoint(fakeEnv({}), { podSocket: () => null })).toThrow(
-      BeadsUnavailableError,
-    );
-    expect(() => resolveBeadsEndpoint(fakeEnv({}), { podSocket: () => null })).toThrow(
-      /prx pod up/,
-    );
+  test("throws (no host-native fallback) when no override + no .beads/ + no pod up", () => {
+    expect(() =>
+      resolveBeadsEndpoint(fakeEnv({}), { podSocket: () => null, run: noGitRun, exists: neverExists }),
+    ).toThrow(BeadsUnavailableError);
+    expect(() =>
+      resolveBeadsEndpoint(fakeEnv({}), { podSocket: () => null, run: noGitRun, exists: neverExists }),
+    ).toThrow(/prx pod up/);
   });
 
-  test("PRX_BEADS_SOCKET override wins over the pod (intra-pod + operator)", () => {
+  test("PRX_BEADS_SOCKET override wins over .beads/ and the pod", () => {
+    const gitCommonDir = "/bare/my-repo.git";
     expect(
       resolveBeadsEndpoint(fakeEnv({ PRX_BEADS_SOCKET: "/run/bd.sock" }), {
         podSocket: () => "/run/prx/doors/slug/beadsd.sock",
+        run: gitRun(gitCommonDir),
+        exists: (p) => p.startsWith(gitCommonDir),
       }),
     ).toEqual({ kind: "local", socket: "/run/bd.sock" });
   });
 
-  test("routes to the cwd's pod socket when that pod is up (no override)", () => {
+  test("routes to the cwd's pod socket when that pod is up and no .beads/", () => {
     expect(
       resolveBeadsEndpoint(fakeEnv({}), {
         podSocket: () => "/run/prx/doors/io_github_x/beadsd.sock",
+        run: noGitRun,
+        exists: neverExists,
       }),
     ).toEqual({ kind: "local", socket: "/run/prx/doors/io_github_x/beadsd.sock" });
+  });
+
+  test("uses per-repo .beads/ socket when present (bare-repo setup, prx-z7of)", () => {
+    const gitCommonDir = "/bare/my-repo.git";
+    const perRepoSocket = `${gitCommonDir}/.beads/dolt-server.sock`;
+    expect(
+      resolveBeadsEndpoint(fakeEnv({}), {
+        podSocket: () => null,
+        run: gitRun(gitCommonDir),
+        exists: (p) => p === `${gitCommonDir}/.beads` || p === perRepoSocket,
+      }),
+    ).toEqual({ kind: "local", socket: perRepoSocket });
+  });
+
+  test(".beads/ exists but socket missing → error (daemon must be started explicitly)", () => {
+    const gitCommonDir = "/bare/my-repo.git";
+    expect(() =>
+      resolveBeadsEndpoint(fakeEnv({}), {
+        podSocket: () => null,
+        run: gitRun(gitCommonDir),
+        exists: (p) => p === `${gitCommonDir}/.beads`,
+      }),
+    ).toThrow(BeadsUnavailableError);
+    expect(() =>
+      resolveBeadsEndpoint(fakeEnv({}), {
+        podSocket: () => null,
+        run: gitRun(gitCommonDir),
+        exists: (p) => p === `${gitCommonDir}/.beads`,
+      }),
+    ).toThrow(/prx beads serve/);
+  });
+
+  test("per-repo socket takes priority over pod when both present", () => {
+    const gitCommonDir = "/bare/my-repo.git";
+    const perRepoSocket = `${gitCommonDir}/.beads/dolt-server.sock`;
+    expect(
+      resolveBeadsEndpoint(fakeEnv({}), {
+        podSocket: () => "/run/prx/doors/slug/beadsd.sock",
+        run: gitRun(gitCommonDir),
+        exists: (p) => p === `${gitCommonDir}/.beads` || p === perRepoSocket,
+      }),
+    ).toEqual({ kind: "local", socket: perRepoSocket });
   });
 
   // The in-VM (`PRX_BEADS_VM`/Lima) endpoint was retired for the podman pod

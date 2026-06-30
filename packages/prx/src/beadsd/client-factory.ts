@@ -17,6 +17,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 import { getEnv, setEnv } from "@bounded-systems/env";
+import { defaultRunner, type CommandRunner } from "@bounded-systems/proc";
 
 import { IsolatedBeadsClient } from "./client.ts";
 import { unixSocketTransport, type FramedTransport } from "../door/transport.ts";
@@ -88,13 +89,21 @@ export function primeHostBeadsDoor(deps: PrimeHostBeadsDoorDeps = {}): boolean {
 export interface ResolveBeadsEndpointDeps {
   /** The cwd's pod beadsd socket if its pod is up, else null (default: probe `podFor`). */
   podSocket?: (() => string | null) | undefined;
+  /** Sync command runner for git-common-dir discovery (default {@link defaultRunner}). */
+  run?: CommandRunner;
+  /** Path-existence probe for per-repo .beads/ discovery (default `fs.existsSync`). */
+  exists?: (path: string) => boolean;
 }
 
 /**
  * Resolve the beads endpoint (prx-82b — the read router), in precedence:
  *   1. `PRX_BEADS_SOCKET` — explicit override (also how the pod projects its door
  *      socket into a room), else
- *   2. the cwd's per-repo POD socket when that pod is up (route reads to the pod).
+ *   2. per-repo standalone beadsd: `git rev-parse --git-common-dir` → `<git-common-dir>/.beads/dolt-server.sock`
+ *      (for bare-repo setups like supply-plan-design; will move to git guest eventually)
+ *      — `.beads/` exists but socket missing → error (require explicit start)
+ *      — `.beads/` missing → fall through to pod routing, else
+ *   3. the cwd's per-repo POD socket when that pod is up (route reads to the pod).
  *
  * prx-82b Slice 2e.4 (full cutover): there is NO host-native fallback. When no
  * pod is up for the repo (and no override) this THROWS {@link BeadsUnavailableError}
@@ -109,6 +118,31 @@ export function resolveBeadsEndpoint(
   if (typeof override === "string" && override.length > 0) {
     return { kind: "local", socket: override };
   }
+
+  // Per-repo standalone beads discovery via git-common-dir (will move to git guest eventually)
+  const run = deps.run ?? defaultRunner;
+  const exists = deps.exists ?? existsSync;
+  try {
+    const result = run(["git", "rev-parse", "--git-common-dir"]);
+    const gitCommonDir = result.stdout.trim();
+    if (gitCommonDir) {
+      const beadsDir = join(gitCommonDir, ".beads");
+      if (exists(beadsDir)) {
+        const perRepoSocket = join(beadsDir, "dolt-server.sock");
+        if (!exists(perRepoSocket)) {
+          throw new BeadsUnavailableError(
+            `per-repo beadsd not running for ${gitCommonDir} — start it with:\n` +
+              `  prx beads serve --cwd ${gitCommonDir}`,
+          );
+        }
+        return { kind: "local", socket: perRepoSocket };
+      }
+    }
+  } catch (err) {
+    if (err instanceof BeadsUnavailableError) throw err;
+    // not in a git repo or git unavailable — fall through to pod routing
+  }
+
   const pod = (deps.podSocket ?? defaultPodBeadsSocket)();
   if (pod) return { kind: "local", socket: pod };
   throw new BeadsUnavailableError(
