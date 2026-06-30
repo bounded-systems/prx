@@ -12,8 +12,6 @@ import {
   primeHostBeadsDoor,
 } from "../../src/beadsd/client-factory.ts";
 
-/** A run() that simulates "not in a git repo" so per-repo discovery is skipped. */
-const noGitRun: CommandRunner = () => ({ stdout: "", stderr: "", status: 1 });
 /** A run() that returns a given git-common-dir. */
 const gitRun =
   (commonDir: string): CommandRunner =>
