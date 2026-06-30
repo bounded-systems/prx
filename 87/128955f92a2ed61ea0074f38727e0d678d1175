@@ -1,0 +1,28 @@
+packages/prx/test/beadsd/client-factory.test.ts
+  s_399e6065f1b4a3::t_a8a35178ff7899 47-48,51
+  s_399e6065f1b4a3::t_e85b2c785c5f22 20-27
+  s_399e6065f1b4a3::t_eb9cf1be257bdc 148-149
+  s_399e6065f1b4a3::t_b01af7d00c43ff 174
+packages/prx/src/beadsd/client-factory.ts
+  s_399e6065f1b4a3::t_2a24fbfc367a54 71-74,81
+  s_399e6065f1b4a3::t_50c4bfb3192611 187-189
+  s_399e6065f1b4a3::t_162abcc73170df 94,97-102,114-117
+  s_399e6065f1b4a3::t_474b4b797e307f 205-208
+  s_399e6065f1b4a3::t_1d3b6b887263b0 176-179
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "87128955f92a2ed61ea0074f38727e0d678d1175",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
