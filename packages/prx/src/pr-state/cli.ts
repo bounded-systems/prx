@@ -418,7 +418,6 @@ import {
   type DoltReconcileDeps,
 } from "./dolt-reconcile.ts";
 import { runDoltStatus, type DoltStatusOptions, type DoltStatusDeps } from "../dolt/status.ts";
-import { runDoltStartCli } from "../dolt/start.ts";
 import { runSpecVerb } from "../cli/orchestrator-cli.ts";
 import { runPluginVerb } from "../cli/plugin-emit.ts";
 import { runHookVerb } from "../cli/policy-guard-hook.ts";
@@ -2073,11 +2072,6 @@ type ParsedCommand =
     }
   | {
       command: "dolt-status";
-      repoPath: string;
-      format: "plain" | "json";
-    }
-  | {
-      command: "dolt-start";
       repoPath: string;
       format: "plain" | "json";
     }
@@ -9286,24 +9280,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
 
     return {
       command: "dolt-status",
-      repoPath: values["repo-path"],
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
-
-  if (command === "dolt-start") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        "repo-path": { type: "string", default: "." },
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command: "dolt-start",
       repoPath: values["repo-path"],
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
     };
@@ -18163,10 +18139,6 @@ export function runCli(
     if (parsed.command === "dolt-status") {
       const handler = deps.runDoltStatus ?? runDoltStatus;
       return handler({ repoPath: parsed.repoPath, format: parsed.format }, output);
-    }
-
-    if (parsed.command === "dolt-start") {
-      return runDoltStartCli({ repoPath: parsed.repoPath, format: parsed.format }, output);
     }
 
     if (parsed.command === "dolt-stub") {

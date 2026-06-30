@@ -49,8 +49,9 @@ const HOST_ONLY_BD = [
   "beads/doctor.ts",
   "beads/schema_repair.ts",
   "beads/migrate.ts",
-  "beads/hydrate.ts",
-  "dolt/start.ts",
+  // prx-82b 2e.3: dolt/start.ts (host dolt-server start) RETIRED — deleted;
+  // beads/hydrate.ts no longer spawns `bd dolt stop` (host dolt-server stop
+  // retired too), so it spawns no bd and belongs in neither list.
   "pr-state/repo_add_dolthub.ts",
   "pr-state/repo_bootstrap.ts",
   "pr-state/repos.ts",

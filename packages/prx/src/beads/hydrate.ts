@@ -259,8 +259,6 @@ export type DoltCloneResult = { exitCode: number; stderr: string };
 export type HydrateDeps = {
   /** Resolve the git origin URL for `cwd`. Returns null when unset. */
   getGitOrigin: (cwd: string) => string | null;
-  /** Stop the bd-managed Dolt server for `cwd`. Errors are ignored. */
-  stopBdDoltServer: (cwd: string) => void;
   /** Run `dolt clone <url> <dest>`. Returns exit code + captured stderr. */
   doltClone: (url: string, dest: string) => DoltCloneResult;
   /** Environment (for BEADS_DOLTHUB_OWNER lookup). */
@@ -293,11 +291,6 @@ const defaultDeps: HydrateDeps = {
     if (r.status !== 0) return null;
     const out = r.stdout.trim();
     return out || null;
-  },
-  stopBdDoltServer: (cwd) => {
-    const env = { ...processEnv() };
-    delete env.BEADS_DIR;
-    spawnCapture(["bd", "dolt", "stop"], { cwd, env });
   },
   // prx-82b Slice 2d: clone in an ephemeral beadsd-box container (DoltHub creds
   // via the room-secret rail), not host dolt.
@@ -480,12 +473,9 @@ export function hydrate(opts: HydrateOptions = {}, deps: HydrateDeps = defaultDe
     }
   }
 
-  // bd auto-starts a Dolt server pointing at .beads/dolt/ on demand. If
-  // one is running it holds the data directory exclusively and the clone
-  // below will fail. Stop it first; the next bd call will auto-start a
-  // fresh server pointing at the newly-cloned data.
-  deps.stopBdDoltServer(cwd);
-
+  // prx-82b 2e.3/2e.4: no host bd dolt server to stop — the host-native daemon
+  // is retired and the clone runs in an ephemeral container (Slice 2d) that owns
+  // its own dolt process, so there is no host server holding `.beads/dolt/`.
   mkdirSync(doltParent, { recursive: true });
   // GH-442: harden .beads to owner-only. mkdirSync honours the umask
   // (typically 0755 on macOS), so chmod explicitly. Idempotent.
