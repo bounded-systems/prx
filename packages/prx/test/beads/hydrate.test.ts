@@ -195,7 +195,6 @@ const RUN_DOLT_SMOKE = Boolean(process.env.PRX_DOLT_SMOKE) && doltOnPath();
 
 type DepsState = {
   cloneCalls: Array<{ url: string; dest: string }>;
-  stopCalls: number;
   renameCalls: Array<{ from: string; to: string }>;
   rmTreeCalls: string[];
   copyCalls: Array<{ src: string; dest: string }>;
@@ -208,7 +207,6 @@ function makeDeps(overrides: Partial<HydrateDeps> & { state?: DepsState; homeDir
 } {
   const state: DepsState = overrides.state ?? {
     cloneCalls: [],
-    stopCalls: 0,
     renameCalls: [],
     rmTreeCalls: [],
     copyCalls: [],
@@ -222,11 +220,6 @@ function makeDeps(overrides: Partial<HydrateDeps> & { state?: DepsState; homeDir
   const envWithHome: NodeJS.ProcessEnv = { ...envOverride, HOME: homeDir };
   const deps: HydrateDeps = {
     getGitOrigin: overrides.getGitOrigin ?? (() => "git@github.com:bdelanghe/ai-home.git"),
-    stopBdDoltServer:
-      overrides.stopBdDoltServer ??
-      (() => {
-        state.stopCalls++;
-      }),
     doltClone:
       overrides.doltClone ??
       ((url, dest) => {
@@ -317,9 +310,7 @@ describe("hydrate", () => {
     const { deps, state } = makeDeps();
     const result = hydrate({ cwd: wt.root }, deps);
     expect(result.status).toBe("already-hydrated");
-    expect(state.cloneCalls).toHaveLength(0);
-    expect(state.stopCalls).toBe(0);
-  });
+    expect(state.cloneCalls).toHaveLength(0);  });
 
   test("skips when git origin is not set", () => {
     const wt = track(makeTestWorktree(defaultMetadata));
@@ -354,9 +345,7 @@ describe("hydrate", () => {
     // GH-879: second hop is now a recursive copy, not a `dolt clone file://`.
     expect(result.message).toContain(`would copy ${expectedMirror}`);
     expect(state.cloneCalls).toHaveLength(0);
-    expect(state.copyCalls).toHaveLength(0);
-    expect(state.stopCalls).toBe(0);
-    expect(state.renameCalls).toHaveLength(0);
+    expect(state.copyCalls).toHaveLength(0);    expect(state.renameCalls).toHaveLength(0);
     expect(state.rmTreeCalls).toHaveLength(0);
   });
 
@@ -370,9 +359,7 @@ describe("hydrate", () => {
     const result = hydrate({ cwd: wt.root }, deps);
     expect(result.status).toBe("hydrated");
     // GH-442: hydrate must chmod .beads to 0700 (owner-only).
-    expect(statSync(join(wt.root, ".beads")).mode & 0o777).toBe(0o700);
-    expect(state.stopCalls).toBe(1);
-    // GH-879: only the first hop calls dolt clone. The second hop is a copy.
+    expect(statSync(join(wt.root, ".beads")).mode & 0o777).toBe(0o700);    // GH-879: only the first hop calls dolt clone. The second hop is a copy.
     expect(state.cloneCalls).toHaveLength(1);
     const mirrorPath = join(
       homeDir,
@@ -666,9 +653,7 @@ describe("hydrate", () => {
     expect(result.message).toContain(fakePrimary);
     expect(result.doltDatabase).toBe("io_github_bdelanghe_ai_home");
     expect(state.cloneCalls).toHaveLength(0);
-    expect(state.copyCalls).toHaveLength(0);
-    expect(state.stopCalls).toBe(0);
-  });
+    expect(state.copyCalls).toHaveLength(0);  });
 
   test("GH-653: primary worktree (resolveMainWorktree === cwd) hydrates normally", () => {
     // Confirms the new gate doesn't false-positive on the primary itself.
@@ -681,9 +666,7 @@ describe("hydrate", () => {
     const result = hydrate({ cwd: wt.root }, deps);
     expect(result.status).toBe("hydrated");
     expect(state.cloneCalls).toHaveLength(1);
-    expect(state.copyCalls).toHaveLength(1);
-    expect(state.stopCalls).toBe(1);
-  });
+    expect(state.copyCalls).toHaveLength(1);  });
 
   test("GH-653: non-git cwd (resolveMainWorktree → null) falls through to existing logic", () => {
     // Defensive: when classification is impossible, hydrate must not

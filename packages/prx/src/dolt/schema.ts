@@ -247,7 +247,9 @@ export const DOLT_OUTPUT_SCHEMAS = {
 // dispatcher, error messages, and parity tests all derive from this table.
 export const DOLT_VERB_DISPATCH = {
   provision: { route: "dolt-stub", tracking: "GH-1685" },
-  start: { route: "dolt-start", tracking: "GH-555" },
+  // prx-82b 2e.3: the host dolt-server start is RETIRED — the pod's dolt-box is
+  // the server now (`prx pod up`). Routed to the stub (no host server start).
+  start: { route: "dolt-stub", tracking: "GH-555" },
   stop: { route: "dolt-stub", tracking: "GH-555" },
   status: { route: "dolt-status", tracking: "GH-555" },
   adopt: { route: "dolt-stub", tracking: "GH-555" },
