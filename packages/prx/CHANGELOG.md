@@ -1,5 +1,159 @@
 # @bounded-systems/prx
 
+## 0.25.0
+
+### Minor Changes
+
+- f5329db: beadsd door config-verb (prx-82b Slice 2e.2a): the beadsd daemon now serves
+  `bd config get`/`bd config set` over the door (new `config-get` READ + `config-set`
+  WRITE request kinds). `bd config get` returns a PLAIN value (not `--json`), so the
+  daemon replies `result` = the raw trimmed stdout (handled like the non-JSON `dep`
+  surface); `config-set` echoes no record (`result: null`). This is the daemon
+  capability that lets the watermark/config reads+writes route off host bd (the
+  routing — door dialer + the watermark sites — is the next slice, 2e.2b).
+- ca18248: Move `dolt push` off host bd (prx-82b Slice 2c.5): `prx repo add-dolthub`'s push
+  now runs in an ephemeral beadsd-box container with the DoltHub creds mounted via
+  the room-secret rail (`prx-dolt-creds`), not host bd. A small in-container wrapper
+  installs the mounted jwk into dolt's creds dir + sets the active creds/author from
+  non-secret env (`readHostDoltIdentity` reads `~/.dolt/config_global.json`), then
+  runs the push. The runner gains `env` support (`-e KEY=VALUE`). Auth validated
+  live end-to-end (`dolt creds check` → Success through the exact wrapper). Provision
+  once: `podman secret create prx-dolt-creds ~/.dolt/creds/<active>.jwk` (the active
+  key = `dolt config --global --get user.creds`).
+- 4a77c5a: Move the gh-issues + slack fetch cursors off host `bd config` to a local-first
+  file store (prx-82b Slice 2e.2). The watermark is an optimization cursor (the
+  last mirrored `updatedAt`/`ts`), not data that must travel — the canonical issue
+  data lives in beads (which travels via dolt). Like git-ai's local tracking (and
+  the sync agent's `push-watermark`), it now lives host-local under
+  `~/.local/state/prx/sync/`. A missing cursor is never wrong — it self-heals to a
+  full re-fetch. This removes the last hot host-`bd config` user: the cursor is on
+  the sync, no-subprocess `work --check`/freshness path, so it can route through
+  neither a container (CI hang) nor the beadsd door (subprocess) — a plain local
+  file is the right home. `WatermarkDeps` swaps its `bd` runner seam for injectable
+  `readFile`/`writeFile`/`env`.
+- 4a2e2e9: Host-shell read routing (prx-82b Slice 2e.1): `primeHostBeadsDoor` — on a host
+  shell in a repo whose pod is up, prx now points `PRX_BEADS_DOOR`/`PRX_BEADS_SOCKET`
+  at that pod's beadsd socket at startup, so the door-gated bd READ sites
+  (`bdDoorGate` / `bdCommandRunner`) route to the pod instead of spawning host bd.
+  No-op in a pod/room profile (the pod already projects these) or when no pod is up
+  (the host-native daemon stays the fallback until 2e.4). Reuses `podFor` (2a) +
+  the pod-socket probe (2b); env writes go through `@bounded-systems/env` `setEnv`.
+- 2b01ff5: Host-beads read router (prx-82b Slice 2b): `resolveBeadsEndpoint` now prefers the
+  cwd's per-repo POD beadsd socket when that pod is up (`podFor()` →
+  `<doorDir>/beadsd.sock`), so host `prx beads` reads route to the pod's beadsd
+  instead of the host-native daemon. Precedence: `PRX_BEADS_SOCKET` override (how
+  the pod projects its door into a room) → the cwd's pod socket → the host-native
+  default. `withBeadsClient` only auto-starts a daemon for the host-native socket —
+  never onto a pod/override socket (which the pod/operator owns). The host-native
+  daemon stays the fallback (no-pod repos keep working); its full retirement is
+  Slice 2e, when host bd is removed.
+- ce53853: Move `prx beads hydrate`'s `dolt clone` off host dolt (prx-82b Slice 2d):
+  `containerDoltClone` runs the clone in an ephemeral beadsd-box container with
+  DoltHub creds on the room-secret rail (`prx-dolt-creds`) — the dest's parent is
+  bound at `/work` and dolt clones into it (host-owned via keep-id), then hydrate's
+  host-side rename promotes the mirror. Shares the credentialed-dolt wrapper with
+  `dolt push` (2c.5). No host `dolt` binary in the hydrate clone path. (The
+  `bd dolt stop` host-cleanup in hydrate stops a host process — moot once host bd
+  is removed in 2e; left for then.)
+- 1e18253: Ephemeral lifecycle runner (prx-82b Slice 2c.1): `renderBdLifecycleArgs` /
+  `runBdLifecycle` run a one-shot bd/dolt SETUP op inside an ephemeral beadsd-box
+  container (`podman run --rm --userns keep-id -v <repo>:/work --entrypoint <bin>`)
+  instead of host `bd`. The foundation for relocating the setup ops (init / migrate
+  / dolt remote add / config set) off the host bd binary — these run before a repo's
+  pod exists and are operator-triggered, so an ephemeral container sidesteps both
+  the chicken-and-egg and any door/authorization. Pure render is unit-tested;
+  `--userns keep-id` keeps `/work` writes host-owned.
+- c819a17: Lifecycle-runner room-secret rail (prx-82b Slice 2c.4): `renderBdLifecycleArgs`
+  now accepts `secrets: RoomSecret[]` and renders `--secret <name>,target=<path>`
+  the SAME way the pod's rooms get theirs (keeperd's `keeper-key`, forge-d's App
+  key) — so a cred-bearing ephemeral op (`dolt push`, private `dolt clone`) gets
+  its DoltHub creds via a `prx pod secrets`-provisioned podman secret, not an
+  ad-hoc bind. Adds the `DOLT_CREDS_SECRET` declaration (`prx-dolt-creds` →
+  `/run/secrets/dolt-creds`). The `dolt push` cutover that mounts it is gated on a
+  live DoltHub validation (dolt's active-creds discovery for a mounted jwk) — until
+  then push stays on host.
+- b5182e2: Per-repo pod identity (prx-82b Slice 2a): `prx pod up | down | secrets` now derive
+  the pod name + door fabric from the cwd's repo (`prx-<slug>` + a per-repo
+  `<DEFAULT_DOOR_DIR>/<slug>`), via the new `podFor()` resolver over the repo
+  inventory. So N repos run N isolated pods on N door fabrics — previously the pod
+  was a singleton (`prx-pod` + one shared door dir), so a second repo's `pod up`
+  no-op'd and the two pods' `beadsd.sock` would collide. An unregistered cwd falls
+  back to the legacy singleton (back-compat). The foundation for the host-beads
+  router (Slice 2b).
+- c67710b: Relocate the bd setup-lifecycle ops off host bd (prx-82b Slice 2c.2): `bd init`,
+  `bd migrate`, and the bootstrap `bd config set` now run in an ephemeral beadsd-box
+  container (`containerBdRunner` → `runBdLifecycle`) by default, not the host `bd`
+  binary. The host-bd primitives (`defaultBdInitRunner`/`defaultBdMigrateRunner`)
+  stay as the injectable seam for tests. Also fixes the runner to set `HOME=/tmp`
+  (under `--userns keep-id` the image's `/home/prx` isn't writable by the remapped
+  uid, so dolt's global-config mkdir would panic — verified live: `bd init` now
+  succeeds in-container with `.beads` host-owned). `prx repo bootstrap` / `migrate`
+  no longer shell to host bd.
+- a6c56d6: Remove the interactive `prx tui` board UI (prx-fdf, slice 1 of the TUI
+  retirement). Deletes `pr-state/tui.ts` + its test, the `tui` registry verb,
+  the cli `tui` command/parse/dispatch (the `prx:tui` script it shelled to no
+  longer existed), and the `prx tui` lines from the scaffold/agents-md/help
+  surfaces. The canonical mainx promoted set drops from five to four
+  (`plan session`, `next`, `do`, `plan handoff`). The board projection
+  (boardStatus) is untouched.
+- 5c54d72: Retire the host dolt-server lifecycle (prx-82b Slice 2e.3). The pod's dolt-box is
+  the dolt server now (`prx pod up`), so the host-server start/stop are gone:
+  `prx dolt start` is routed to the typed `dolt-stub` (no host server start; the
+  `dolt-start` command + `dolt/start.ts` are deleted), and `prx beads hydrate` no
+  longer runs `bd dolt stop` (the host-native daemon that auto-started a host dolt
+  server was retired in 2e.4, and hydrate's clone runs in an ephemeral container).
+  `beads/hydrate.ts` + `dolt/start.ts` leave the door-boundary `HOST_ONLY_BD` list
+  (neither spawns bd). `prx dolt status` + `dolt/status.ts` stay (the latter is
+  shared with `create_database`).
+- 9f9c746: Retire the host-native beadsd daemon + its auto-start (prx-82b Slice 2e.4, full
+  cutover). `prx` no longer falls back to — or auto-starts — a host-native beadsd:
+  `resolveBeadsEndpoint` resolves `PRX_BEADS_SOCKET` → the cwd's pod socket, and
+  when no pod is up (and no override) it THROWS `BeadsUnavailableError` with a
+  "run `prx pod up`" hint. `withBeadsClient` never spawns a daemon (the pod owns
+  beadsd; it runs `prx beads serve` in-box). Removed: `ensureLocalBeadsd`,
+  `isHostNativeSocket`, `DEFAULT_LOCAL_BEADS_SOCKET`. Host beads is pod-only now
+  (less host is better). BREAKING for host shells with no pod up — start one with
+  `prx pod up`. (`prx beads serve` + `resolveLocalBeadsCwd` stay — the pod uses them.)
+- 5250787: Add `prx services diamond` verb and `--by=model` to `prx services status`.
+
+  `prx services diamond [--window=Nd] [--format=plain|json]` projects a
+  cost-vs-outcome table from the audit store: average spend per work unit
+  on the cost axis, fraction of work units that reached `merged`/`cleaned`
+  on the outcome axis, grouped by dominant model.
+
+  `prx services status --anthropic --by=model` buckets prompt-cache hit
+  rate and token cost by model (the `model` field was already written to
+  audit events; this surfaces it as a first-class `--by` dimension).
+
+- 644da08: Add `prx services series` — effort/token series showing completion rate by
+  model × spend tier.
+
+  Reveals the non-monotonic relationship between spend and outcome (higher spend
+  does not monotonically improve completion rate past a model-specific peak).
+  Refactors the shared work-unit loading into a private `buildWuidOutcomes`
+  helper used by both the diamond and series projectors.
+
+### Patch Changes
+
+- 520c57d: Relocate `bd dolt remote add` off host bd (prx-82b Slice 2c.3): the cred-free
+  remote-add in `prx repo add-dolthub` now runs in an ephemeral beadsd-box
+  container (`containerRepoRunner`), not the host bd binary. `dolt push` stays on
+  host for now — it needs DoltHub creds the container lacks, and the sync agent
+  owns recurring push; relocating the initial push wants a creds-mount design.
+- ab606de: Distinguish fully-backed (live checks) from evidence-backed value props in
+  STATUS.md and the value-props doc.
+
+  STATUS.md previously said "5 of 5 value props backed · 0 learning goals" —
+  accurate but misleading (two props are backed by evidence from merged PRs, not
+  by repeatable live checks). The new rollup reads
+  "3 of 5 value props fully backed · 2 evidence-backed … · 0 learning goals"
+  with evidence-backed props tagged `_(evidence-backed)_` in the body.
+
+  Softens the README description from "git-writes signed and verified against
+  their owner" (overclaims universal ownership verification) to
+  "git-writes signed by a capability-gated actor" (accurate today: opt-in,
+  git-only, by role not full ownership).
+
 ## 0.24.0
 
 ### Minor Changes
