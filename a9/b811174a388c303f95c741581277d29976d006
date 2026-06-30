@@ -1,0 +1,28 @@
+packages/prx/src/beads/hydrate.ts
+  s_399e6065f1b4a3::t_c9d858576a24f4 476-478
+packages/prx/test/architecture/beads-door-boundary.test.ts
+  s_399e6065f1b4a3::t_62931108164e1b 52-54
+packages/prx/test/beads/hydrate.test.ts
+  s_399e6065f1b4a3::t_9d9c87e4a55132 362,669
+  s_399e6065f1b4a3::t_bfaa0de725d3eb 313,348,656
+packages/prx/src/dolt/schema.ts
+  s_399e6065f1b4a3::t_55e5f3f6c81abd 250-252
+.changeset/retire-dolt-server-lifecycle.md
+  s_399e6065f1b4a3::t_2b662702e8d794 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a9b811174a388c303f95c741581277d29976d006",
+  "prompts": {},
+  "sessions": {
+    "s_399e6065f1b4a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2a796dc6-3857-431d-90c5-9799f8d4865b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
