@@ -1,0 +1,24 @@
+packages/prx/src/beadsd/client-factory.ts
+  s_2a469b60e68f47::t_a70f9412fe2d29 99-103
+  s_2a469b60e68f47::t_a2d817de0a61ec 129-135
+packages/prx/test/beadsd/client-factory.test.ts
+  s_2a469b60e68f47::t_6de7c811b205ab 91-115
+.changeset/fix-resolve-beads-endpoint-absolute-path.md
+  s_2a469b60e68f47::t_1964858ee8fc54 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "c354db4baa9133c20939f97dee616c227f94420a",
+  "prompts": {},
+  "sessions": {
+    "s_2a469b60e68f47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1f6e6773-0f38-4e61-9244-8ceacfa5b893",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
