@@ -94,8 +94,10 @@ export function buildClaudeSettings(): ClaudeSettings {
  *
  *   - env: subagent model → haiku, autocompact at 75%, telemetry switch on
  *     (inert until an OTEL endpoint is configured out-of-band).
- *   - SessionStart: injects the org canonical context via
- *     `.claude/inject-org-context.sh` (fails open).
+ *   - SessionStart: ensures the per-repo beadsd is up (host-side bridge for
+ *     the retired auto-start, prx-82b Slice 2e.4 — see `.claude/ensure-beads.sh`),
+ *     then injects the org canonical context via `.claude/inject-org-context.sh`
+ *     (both fail open).
  */
 export function buildOrgHarnessSettings(): ClaudeSettings {
   return {
@@ -109,7 +111,10 @@ export function buildOrgHarnessSettings(): ClaudeSettings {
       SessionStart: [
         {
           matcher: "",
-          hooks: [{ type: "command", command: "bash .claude/inject-org-context.sh" }],
+          hooks: [
+            { type: "command", command: "bash .claude/ensure-beads.sh" },
+            { type: "command", command: "bash .claude/inject-org-context.sh" },
+          ],
         },
       ],
     },

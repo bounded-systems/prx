@@ -62,12 +62,15 @@ describe("buildOrgHarnessSettings", () => {
     });
   });
 
-  test("wires the SessionStart context-injection hook", () => {
+  test("wires the beadsd-ensure hook ahead of the context-injection hook", () => {
     const sessionStart = buildOrgHarnessSettings().hooks?.SessionStart;
     expect(sessionStart).toEqual([
       {
         matcher: "",
-        hooks: [{ type: "command", command: "bash .claude/inject-org-context.sh" }],
+        hooks: [
+          { type: "command", command: "bash .claude/ensure-beads.sh" },
+          { type: "command", command: "bash .claude/inject-org-context.sh" },
+        ],
       },
     ]);
   });
