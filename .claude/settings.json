@@ -46,6 +46,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash .claude/ensure-beads.sh"
+          },
+          {
+            "type": "command",
             "command": "bash .claude/inject-org-context.sh"
           }
         ]
