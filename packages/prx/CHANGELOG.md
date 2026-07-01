@@ -1,5 +1,13 @@
 # @bounded-systems/prx
 
+## 0.26.3
+
+### Patch Changes
+
+- b971d70: Auto-repin room images to the freshly-built box digests (publish-oci-boxes repin job).
+- 8c90c65: `primeHostBeadsDoor` no longer primes toward the legacy singleton door fallback (`~/.local/run/prx/doors/beadsd.sock`, `podFor`'s back-compat bucket for any repo not registered under its exact commonDir) — only toward a door scoped to the cwd's own resolved per-repo identity. The singleton is a well-known, shared path any unregistered repo's host shell can reach; priming toward it was ambient authority — a process for repo A could silently reach whatever repo B's door happened to be serving, with the only guard being the destination daemon's own best-effort `foreignWorkspaceId` heuristic, not a client-side capability check. An unregistered cwd now falls through to `resolveBeadsEndpoint`'s own git-common-dir derivation instead, which is self-scoped by construction (a caller can only ever derive its own commonDir's path). Registered repos with a live per-repo door are unaffected.
+- 7677f7b: `resolveBeadsEndpoint` now requests `--path-format=absolute` from `git rev-parse --git-common-dir` (prx-d8hc). Without it, a normal (non-bare) checkout run from its own root gets back the bare relative string `.git`, and `join(".git", ".beads")` misses the real `.beads/` — a sibling of `.git`, not nested under it — so `prx beads ready`/`show`/etc. could never derive their own socket from such a checkout and fell through to other resolution paths instead.
+
 ## 0.26.2
 
 ### Patch Changes
