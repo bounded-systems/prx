@@ -50,6 +50,24 @@ export type DelegateAssignResult = {
   message: string;
 };
 
+// supply-plan-design-6nd: a GH-form id (`GH-1234`) that fails eligibility is
+// often not a real bd/bd-show error but a structural mismatch — the repo has
+// GitHub Issues disabled, or the id was copied from a GH-issue-keyed source
+// (e.g. an external tracker) when the canonical id is the bd-native one
+// (`<prefix>-<short>`, from `prx beads list`/`prx beads ready`). `assign`
+// itself has no GH-specific parsing — any id string passes straight through
+// to `bd show`/`bd update` — so this is purely a clearer failure message, not
+// a behavior change for well-formed bd ids.
+const GH_FORM_ID = /^GH-\d+$/i;
+
+function ghFormHint(id: string): string {
+  return GH_FORM_ID.test(id)
+    ? ` (looks like a GitHub issue id — if this repo has GH Issues disabled, or ` +
+        `its canonical tracker is bd, pass the bd-native id instead, e.g. from ` +
+        `\`prx beads list\`/\`prx beads ready\`)`
+    : "";
+}
+
 function modeCount(input: DelegateAssignInput): number {
   let n = 0;
   if (typeof input.agent === "string" && input.agent.length > 0) n++;
@@ -84,7 +102,7 @@ export function runDelegateAssign(
     const detail = show.stderr.trim() || show.stdout.trim() || `bd show ${input.id} failed`;
     return {
       exitCode: 1,
-      message: `prx delegate assign: not eligible — ${detail}`,
+      message: `prx delegate assign: not eligible — ${detail}${ghFormHint(input.id)}`,
     };
   }
   const status = show.record.status.toLowerCase();
