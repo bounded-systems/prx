@@ -88,6 +88,31 @@ describe("resolveBeadsEndpoint — derived from git-common-dir (prx-z7of)", () =
 
   // The in-VM (`PRX_BEADS_VM`/Lima) and host-native fallbacks are retired.
   // Pod routing primes PRX_BEADS_SOCKET via primeHostBeadsDoor — no inline pod discovery.
+
+  // prx-d8hc: a normal (non-bare) checkout run from its own root gets a bare
+  // relative ".git" from `git rev-parse --git-common-dir` with no format flag
+  // — join(".git", ".beads") then misses the real .beads/ (a sibling of
+  // .git, not nested under it). Requesting --path-format=absolute fixes it.
+  test("prx-d8hc: requests --path-format=absolute so a non-bare checkout resolves correctly", () => {
+    const repoRoot = "/home/dev/prx";
+    const beadsDir = `${repoRoot}/.beads`;
+    const perRepoSocket = `${beadsDir}/dolt-server.sock`;
+    const allPresentAtRoot = (p: string) => p === beadsDir || p === perRepoSocket;
+
+    let capturedArgv: string[] | undefined;
+    // Mimics real git: relative ".git" WITHOUT the absolute flag, the correct
+    // absolute repo root WITH it — the exact difference that caused prx-d8hc.
+    const gitLikeRun: CommandRunner = (argv) => {
+      capturedArgv = argv;
+      const stdout = argv.includes("--path-format=absolute") ? repoRoot : ".git";
+      return { stdout: `${stdout}\n`, stderr: "", status: 0 };
+    };
+
+    expect(
+      resolveBeadsEndpoint(fakeEnv({}), { run: gitLikeRun, exists: allPresentAtRoot }),
+    ).toEqual({ kind: "local", socket: perRepoSocket });
+    expect(capturedArgv).toEqual(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"]);
+  });
 });
 
 describe("resolveLocalBeadsCwd — which beads `prx beads serve` serves (GH-296)", () => {
