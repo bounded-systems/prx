@@ -1,0 +1,21 @@
+packages/prx/test/init/claude_settings.test.ts
+  s_2a469b60e68f47::t_088dc021a9b996 65,70-73
+packages/prx/src/init/claude_settings.ts
+  s_2a469b60e68f47::t_4c212ab94840e8 97-100,114-117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "1219a89abecb9f64e042f7511802d0ad3c351a5b",
+  "prompts": {},
+  "sessions": {
+    "s_2a469b60e68f47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1f6e6773-0f38-4e61-9244-8ceacfa5b893",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
