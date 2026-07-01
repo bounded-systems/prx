@@ -1,19 +1,27 @@
 /**
  * Write-side workspace-affinity guard (prx-9e86).
  *
- * The beads daemon is host-global but a bd workspace prefix is repo-scoped, and
- * nothing binds them: `resolveLocalBeadsCwd` picks ONE served clone, and every
- * `prx beads` call from any worktree hits that same daemon. So a write issued
- * from a worktree whose repo prefix differs from the served clone's prefix lands
- * in the WRONG repo's beads (observed 2026-06-23: 54 supply-chain tasks created
- * with `prx-` ids while the operator was in the supply-plan-design worktree).
+ * Pre-prx-z7of, the beads daemon was host-global but a bd workspace prefix is
+ * repo-scoped, and nothing bound them: every `prx beads` call from any worktree
+ * hit the same served clone, so a write issued from a worktree whose repo
+ * prefix differs from the served clone's prefix landed in the WRONG repo's
+ * beads (observed 2026-06-23: dozens of tasks created with the wrong repo's
+ * id prefix while the operator was in a different repo's worktree).
  *
- * This resolves the cwd's expected prefix and the served clone's prefix and
- * reports a definite mismatch — the write path refuses (fail CLOSED, same
- * posture as prx-w1v), the read path warns. Both prefixes must be known for a
- * mismatch: a null cwd prefix (cwd not in the repo inventory) can't establish
- * cross-repo intent, so it is allowed rather than blocking every unregistered
- * directory.
+ * prx-z7of retired that host-global singleton: `resolveBeadsEndpoint` now
+ * derives the socket per-repo straight from `git rev-parse --git-common-dir`.
+ * That fix alone doesn't reach this guard, though — this PRE-flight check ran
+ * BEFORE `resolveBeadsEndpoint` was ever consulted, so it could still refuse
+ * (or worse, silently disagree) using its own notion of "what's served". This
+ * resolves "what's served" via the SAME resolver a write will actually dial
+ * (prx-9e86 ocap follow-up — one source of truth, not two independent
+ * guesses), then compares it against the cwd's expected prefix and reports a
+ * definite mismatch: the write path refuses (fail CLOSED, same posture as
+ * prx-w1v), the read path warns. Both prefixes must be known for a mismatch: a
+ * null cwd prefix (cwd not in the repo inventory) can't establish cross-repo
+ * intent, so it is allowed rather than blocking every unregistered directory —
+ * same for an undeterminable served location (a pod door socket, or no
+ * beadsd configured yet for this repo).
  *
  * Cost: the served prefix is read via {@link diagnoseBeads} (`bd config get
  * issue_prefix`, a subprocess). It is gated behind the cheap cwd-prefix lookup
@@ -27,7 +35,28 @@ import { runCaptured } from "@bounded-systems/proc";
 
 import { localWorkspacePrefixForCwd } from "../pr-state/repos.ts";
 import { parseGithubRepo } from "../pr-state/github.ts";
-import { resolveLocalBeadsCwd } from "./client-factory.ts";
+import { resolveBeadsEndpoint } from "./client-factory.ts";
+
+/** Suffix `resolveBeadsEndpoint` (prx-z7of) appends to a repo's git-common-dir. */
+const BEADS_SOCKET_SUFFIX = "/.beads/dolt-server.sock";
+
+/**
+ * "The repo the daemon would actually serve", derived from the SAME resolver
+ * {@link import("./client-factory.ts").withBeadsClient} dials (prx-z7of's
+ * git-common-dir derivation) — not an independent lookup. Returns `null` when
+ * the resolved endpoint isn't a local per-repo socket this can map back to a
+ * commonDir (a pod door socket via `PRX_BEADS_SOCKET`, or beadsd not yet
+ * configured for this repo) — the affinity check then can't establish a
+ * mismatch and allows.
+ */
+function defaultServedCwd(): string | null {
+  try {
+    const { socket } = resolveBeadsEndpoint();
+    return socket.endsWith(BEADS_SOCKET_SUFFIX) ? socket.slice(0, -BEADS_SOCKET_SUFFIX.length) : null;
+  } catch {
+    return null;
+  }
+}
 
 export interface WorkspaceAffinity {
   /** The cwd repo's bd prefix (from the repo inventory), or null if unknown. */
@@ -47,8 +76,11 @@ export interface WorkspaceAffinity {
 export interface WorkspaceAffinityDeps {
   /** The worktree the operator is in. Defaults to `process.cwd()`. */
   cwd?: string;
-  /** The clone the daemon serves. Defaults to {@link resolveLocalBeadsCwd}. */
-  servedCwd?: string;
+  /** The clone the daemon serves, or `null` when undeterminable (a pod door
+   *  socket, or beadsd not yet configured for this repo). Defaults to
+   *  {@link defaultServedCwd} — the SAME `resolveBeadsEndpoint` resolution a
+   *  write will actually dial. */
+  servedCwd?: string | null;
   /** cwd→prefix (index read). Defaults to {@link localWorkspacePrefixForCwd}. */
   localPrefix?: (cwd: string) => string | null;
   /** servedCwd→prefix (bd subprocess). Defaults to {@link diagnoseBeads}. */
@@ -82,19 +114,31 @@ function defaultRepoIdentity(path: string): string | null {
  */
 export function resolveWorkspaceAffinity(deps: WorkspaceAffinityDeps = {}): WorkspaceAffinity {
   const cwd = deps.cwd ?? process.cwd();
-  const servedCwd = deps.servedCwd ?? resolveLocalBeadsCwd();
   const cwdPrefix = (deps.localPrefix ?? localWorkspacePrefixForCwd)(cwd);
 
+  // Lazy + memoized (including a `null` result): only one branch below runs,
+  // and the repo-identity branch skips this entirely when the cwd identity is
+  // unknown — so don't eagerly dial resolveBeadsEndpoint (a real git
+  // subprocess by default) when neither branch ends up needing it.
+  let servedCwdCache: { value: string | null } | undefined;
+  const servedCwd = (): string | null => {
+    servedCwdCache ??= { value: deps.servedCwd !== undefined ? deps.servedCwd : defaultServedCwd() };
+    return servedCwdCache.value;
+  };
+
   if (cwdPrefix !== null) {
-    const servedPrefix = (deps.servedPrefix ?? ((s) => diagnoseBeads({ cwd: s }).prefix))(servedCwd);
+    const served = servedCwd();
+    const servedPrefix =
+      served === null ? null : (deps.servedPrefix ?? ((s) => diagnoseBeads({ cwd: s }).prefix))(served);
     const mismatch = servedPrefix !== null && cwdPrefix !== servedPrefix;
     return { cwdPrefix, servedPrefix, cwdRepo: null, servedRepo: null, mismatch, reason: mismatch ? "prefix" : null };
   }
 
   const repoIdentity = deps.repoIdentity ?? defaultRepoIdentity;
   const cwdRepo = repoIdentity(cwd);
-  // Skip the second git call when the cwd identity is unknown — it can't mismatch.
-  const servedRepo = cwdRepo === null ? null : repoIdentity(servedCwd);
+  // Skip the served lookup entirely when the cwd identity is unknown — it can't mismatch.
+  const served = cwdRepo === null ? null : servedCwd();
+  const servedRepo = served === null ? null : repoIdentity(served);
   const mismatch = cwdRepo !== null && servedRepo !== null && cwdRepo !== servedRepo;
   return { cwdPrefix: null, servedPrefix: null, cwdRepo, servedRepo, mismatch, reason: mismatch ? "repo" : null };
 }
