@@ -1,5 +1,12 @@
 # @bounded-systems/prx
 
+## 0.26.2
+
+### Patch Changes
+
+- 35580b9: `prx delegate assign` now surfaces a clearer failure message when a `GH-\d+`-shaped id fails eligibility — pointing at the bd-native id (`prx beads list`/`prx beads ready`) instead of just bd's raw "no issue found" error. The command itself has no GH-specific parsing; a bd-native id already worked end to end (supply-plan-design-6nd).
+- 0d62b23: `buildOrgHarnessSettings()` now wires `.claude/ensure-beads.sh` ahead of `inject-org-context.sh` in the generated `SessionStart` hooks — a host-side bridge for the retired beadsd auto-start (prx-82b Slice 2e.4) so local sessions can reach `prx beads` without a manual `prx beads serve`.
+
 ## 0.26.1
 
 ### Patch Changes
