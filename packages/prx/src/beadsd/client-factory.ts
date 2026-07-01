@@ -96,8 +96,11 @@ export interface ResolveBeadsEndpointDeps {
 /**
  * Resolve the beads endpoint for the current repo (prx-z7of):
  *
- * The socket is DERIVED from the repo: `git rev-parse --git-common-dir` →
- * `<git-common-dir>/.beads/dolt-server.sock`. `PRX_BEADS_SOCKET` overrides
+ * The socket is DERIVED from the repo: `git rev-parse --path-format=absolute
+ * --git-common-dir` → `<git-common-dir>/.beads/dolt-server.sock` (prx-d8hc:
+ * the flag matters — a normal non-bare checkout run from its own root prints
+ * the bare relative ".git" without it, silently missing the real .beads/, a
+ * sibling of .git rather than nested under it). `PRX_BEADS_SOCKET` overrides
  * the derived path (pods prime this via {@link primeHostBeadsDoor}).
  *
  * Errors explicitly — no silent fallbacks:
@@ -123,7 +126,13 @@ export function resolveBeadsEndpoint(
 
   let gitCommonDir: string;
   try {
-    gitCommonDir = run(["git", "rev-parse", "--git-common-dir"]).stdout.trim();
+    // prx-d8hc: `--git-common-dir` alone prints the bare relative string ".git"
+    // for a normal (non-bare) checkout run from its own root — join(".git",
+    // ".beads") then misses the real .beads/, a SIBLING of .git, not nested
+    // under it. --path-format=absolute (already used the same way in
+    // pr-state/github.ts) makes this unambiguous for every checkout shape.
+    gitCommonDir = run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"])
+      .stdout.trim();
   } catch {
     throw new BeadsUnavailableError("not in a git repo — cannot derive beads endpoint");
   }
