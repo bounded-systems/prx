@@ -35,6 +35,25 @@ describe("resolveWorkspaceAffinity (prx-9e86)", () => {
     expect(a.mismatch).toBe(false);
   });
 
+  // No servedCwd/servedPrefix override: exercises the REAL default
+  // (resolveBeadsEndpoint's git-common-dir derivation) end to end. The result
+  // depends on the runner's actual repo state (whether beadsd is configured
+  // here), so this only asserts the call completes and returns a well-formed
+  // result — never crashes, never hangs — not a specific served value.
+  test("real defaultServedCwd resolution doesn't throw and returns a well-formed result", () => {
+    const a = resolveWorkspaceAffinity({ cwd: "/wt/prx", localPrefix: () => "prx" });
+    expect(typeof a.mismatch).toBe("boolean");
+    expect(a.cwdPrefix).toBe("prx");
+  });
+
+  // No repoIdentity override on the fallback branch: exercises the REAL
+  // default (`git remote get-url origin`) against a path with no such remote.
+  test("real defaultRepoIdentity resolution on a bogus path returns null, not a throw", () => {
+    const a = resolveWorkspaceAffinity({ cwd: "/no/such/path/at/all", localPrefix: () => null });
+    expect(a.cwdRepo).toBeNull();
+    expect(a.mismatch).toBe(false);
+  });
+
   test("unknown cwd prefix skips the served-prefix subprocess (falls back to repo identity)", () => {
     let servedCalls = 0;
     const a = resolveWorkspaceAffinity({
