@@ -6,6 +6,7 @@ import type { FramedTransport } from "../../src/door/transport.ts";
 import {
   BeadsUnavailableError,
   defaultCanonicalBeadsCwd,
+  defaultPodBeadsSocket,
   resolveBeadsEndpoint,
   resolveLocalBeadsCwd,
   withBeadsClient,
@@ -248,5 +249,46 @@ describe("primeHostBeadsDoor — host-shell read routing (prx-82b 2e.1)", () => 
     const { result, set } = harness({ door: "beadsd", podSocket: "/run/prx/doors/x/beadsd.sock" });
     expect(result).toBe(false);
     expect(set).toEqual({});
+  });
+});
+
+describe("defaultPodBeadsSocket — never primes toward the ambient legacy singleton (ocap)", () => {
+  test("registered repo (slug resolved) → checks its OWN per-repo door", () => {
+    const socket = defaultPodBeadsSocket({
+      repoRoot: () => "/home/dev/supply-plan-design",
+      resolvePod: () => ({
+        slug: "supply-plan-design",
+        name: "prx-supply-plan-design",
+        doorDir: "/run/prx/doors/supply-plan-design",
+      }),
+      exists: (p) => p === "/run/prx/doors/supply-plan-design/beadsd.sock",
+    });
+    expect(socket).toBe("/run/prx/doors/supply-plan-design/beadsd.sock");
+  });
+
+  test("unregistered repo (slug null) → returns null WITHOUT checking the legacy singleton path", () => {
+    let checkedPaths: string[] = [];
+    const socket = defaultPodBeadsSocket({
+      repoRoot: () => "/home/dev/some-ad-hoc-clone",
+      resolvePod: () => ({ slug: null, name: "prx-pod", doorDir: "/run/prx/doors" }),
+      // Even if something IS listening at the shared singleton path, this must
+      // never be consulted for an unregistered cwd — that's the ambient-authority
+      // leak (a process for repo A reaching whatever repo B's door happens to serve).
+      exists: (p) => {
+        checkedPaths.push(p);
+        return true;
+      },
+    });
+    expect(socket).toBeNull();
+    expect(checkedPaths).toEqual([]);
+  });
+
+  test("registered repo but its own per-repo door isn't up → null (no fallback to the singleton)", () => {
+    const socket = defaultPodBeadsSocket({
+      repoRoot: () => "/home/dev/prx",
+      resolvePod: () => ({ slug: "prx", name: "prx-prx", doorDir: "/run/prx/doors/prx" }),
+      exists: () => false,
+    });
+    expect(socket).toBeNull();
   });
 });
