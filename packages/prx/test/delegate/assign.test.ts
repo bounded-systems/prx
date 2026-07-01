@@ -130,6 +130,60 @@ describe("runDelegateAssign — eligibility", () => {
     expect(result.message).toMatch(/closed/);
     expect(rec.calls).toEqual([]);
   });
+
+  // supply-plan-design-6nd: a GH-form id that fails eligibility gets a hint
+  // pointing at the bd-native id — GH ids aren't special-cased elsewhere in
+  // this function, so the hint is purely additive to the failure message.
+  test("GH-form id that fails eligibility gets a bd-native-id hint", () => {
+    const rec = recordingExec();
+    const result = runDelegateAssign(
+      { id: "GH-2110", self: true, repoPath: "." },
+      { run: rec.run, runBdShow: showFail() },
+    );
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toMatch(/not eligible/);
+    expect(result.message).toMatch(/bd-native id/);
+    expect(result.message).toMatch(/prx beads list/);
+    expect(rec.calls).toEqual([]);
+  });
+
+  test("bd-native id that fails eligibility gets NO GH hint", () => {
+    const rec = recordingExec();
+    const result = runDelegateAssign(
+      { id: "supply-plan-design-3pc", self: true, repoPath: "." },
+      { run: rec.run, runBdShow: showFail() },
+    );
+    expect(result.exitCode).toBe(1);
+    expect(result.message).toMatch(/not eligible/);
+    expect(result.message).not.toMatch(/bd-native id/);
+  });
+});
+
+describe("runDelegateAssign — bd-native id passthrough (supply-plan-design-6nd)", () => {
+  // assign.ts has no GH-specific parsing anywhere — `id` is an opaque string
+  // handed to `bd show`/`bd update`. This pins that a plain bd id (the
+  // `<prefix>-<short>` shape from `bd create`) already works end to end,
+  // identically to the GH-form ids exercised elsewhere in this file.
+  test("happy path: assigns via a plain bd-native id, not just GH-form", () => {
+    const rec = recordingExec();
+    const result = runDelegateAssign(
+      { id: "supply-plan-design-3pc", agent: "bdelanghe", repoPath: "/repo" },
+      { run: rec.run, runBdShow: showOk("supply-plan-design-3pc") },
+    );
+    expect(result).toEqual({
+      exitCode: 0,
+      message: "delegated supply-plan-design-3pc → bdelanghe",
+    });
+    expect(rec.calls).toEqual([
+      {
+        subcommand: "assign",
+        args: ["supply-plan-design-3pc", "bdelanghe"],
+        cwd: "/repo",
+        state: "planning",
+        role: "planner",
+      },
+    ]);
+  });
 });
 
 describe("runDelegateAssign — agent passthrough", () => {
