@@ -1,0 +1,19 @@
+.changeset/ensure-beads-session-hook.md
+  s_2a469b60e68f47::t_04d1e710c50796 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "9d5463d9d7372536c9b0d69c5f4d47f8d0035685",
+  "prompts": {},
+  "sessions": {
+    "s_2a469b60e68f47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1f6e6773-0f38-4e61-9244-8ceacfa5b893",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
