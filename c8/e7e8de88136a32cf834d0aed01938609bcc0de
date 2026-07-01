@@ -1,0 +1,26 @@
+packages/prx/src/beadsd/client-factory.ts
+  s_2a469b60e68f47::t_158a74977bd4f7 63-73,75,78
+  s_2a469b60e68f47::t_0e60468936e4a9 25
+  s_2a469b60e68f47::t_b01f7aaff9ede1 49-61,76-77
+.changeset/fix-ambient-door-priming.md
+  s_2a469b60e68f47::t_2a765fa01012c0 1-5
+packages/prx/test/beadsd/client-factory.test.ts
+  s_2a469b60e68f47::t_0ea62c98696691 254-294
+  s_2a469b60e68f47::t_5d63292af9be97 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "c8e7e8de88136a32cf834d0aed01938609bcc0de",
+  "prompts": {},
+  "sessions": {
+    "s_2a469b60e68f47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1f6e6773-0f38-4e61-9244-8ceacfa5b893",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
