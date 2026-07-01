@@ -22,7 +22,7 @@ import { defaultRunner, type CommandRunner } from "@bounded-systems/proc";
 import { IsolatedBeadsClient } from "./client.ts";
 import { unixSocketTransport, type FramedTransport } from "../door/transport.ts";
 import { getRepoRoot } from "../repo-root.ts";
-import { podFor } from "../room/pod-identity.ts";
+import { podFor, type PodIdentity } from "../room/pod-identity.ts";
 
 /** Where beadsd lives: a local unix socket (the host-native daemon or the pod's
  *  door fabric socket via `PRX_BEADS_SOCKET`). The in-VM Lima daemon was retired
@@ -46,11 +46,36 @@ export class BeadsUnavailableError extends Error {
  * is running, host `prx beads` reads route to the pod's beadsd (`podFor()` →
  * `<doorDir>/beadsd.sock`) rather than the host-native daemon. Best-effort —
  * resolution failures (not in a repo, no inventory) just mean "no pod routing".
+ *
+ * Ocap note: only primes toward a door scoped to THIS cwd's own resolved
+ * identity (`podFor().slug` non-null) — never toward the legacy singleton
+ * fallback (`slug === null`, `podFor.pod-identity.ts`'s back-compat bucket
+ * every unregistered repo collapses into). That singleton is a well-known,
+ * shared path any unregistered repo's host shell can reach; priming toward
+ * it from here is ambient authority — a process for repo A can end up
+ * silently reading (or attempting to write) repo B's beads with no capability
+ * check on the client side, the ONLY guard being the destination daemon's own
+ * best-effort `foreignWorkspaceId` heuristic. An unregistered cwd instead
+ * falls through to {@link resolveBeadsEndpoint}'s own git-common-dir
+ * derivation — self-scoped by construction, since a caller can only ever
+ * derive ITS OWN commonDir's path, never another repo's.
  */
-function defaultPodBeadsSocket(): string | null {
+/** Deps for {@link defaultPodBeadsSocket} (injectable for tests). */
+export interface DefaultPodBeadsSocketDeps {
+  repoRoot?: (() => string) | undefined;
+  resolvePod?: ((cwd: string) => PodIdentity) | undefined;
+  exists?: ((path: string) => boolean) | undefined;
+}
+
+export function defaultPodBeadsSocket(deps: DefaultPodBeadsSocketDeps = {}): string | null {
+  const repoRoot = deps.repoRoot ?? getRepoRoot;
+  const resolvePod = deps.resolvePod ?? podFor;
+  const exists = deps.exists ?? existsSync;
   try {
-    const socket = join(podFor(getRepoRoot()).doorDir, "beadsd.sock");
-    return existsSync(socket) ? socket : null;
+    const identity = resolvePod(repoRoot());
+    if (identity.slug === null) return null; // unregistered → no ambient singleton priming
+    const socket = join(identity.doorDir, "beadsd.sock");
+    return exists(socket) ? socket : null;
   } catch {
     return null;
   }
