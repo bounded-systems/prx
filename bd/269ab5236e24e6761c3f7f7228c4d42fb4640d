@@ -1,0 +1,22 @@
+packages/prx/test/delegate/assign.test.ts
+  s_2a469b60e68f47::t_412b4c356e4f7b 133-186
+packages/prx/src/delegate/assign.ts
+  s_2a469b60e68f47::t_bb856e93adb9cb 53-70
+  s_2a469b60e68f47::t_656f6d8ab660f9 105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "bd269ab5236e24e6761c3f7f7228c4d42fb4640d",
+  "prompts": {},
+  "sessions": {
+    "s_2a469b60e68f47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1f6e6773-0f38-4e61-9244-8ceacfa5b893",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
