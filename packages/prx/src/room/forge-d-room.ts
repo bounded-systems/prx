@@ -13,7 +13,7 @@ import type { RoomSpec } from "./spec.ts";
 // Pinned forge-d-box image (prx-36xr). Digest is immutable; update by re-running
 // the publish-oci-boxes workflow and replacing this constant.
 export const FORGE_D_ROOM_IMAGE =
-  "ghcr.io/bounded-systems/prx/forge-d-box@sha256:7d0c937fe45cb41b21bfc3da034473b8990ce18f3026a58659a9688346250c04";
+  "ghcr.io/bounded-systems/prx/forge-d-box@sha256:d69741cb652749b3826283d859d7d4c6642cfd62a92dd1e174ff0e6733024480";
 
 // Host-backed runtime secrets the pod mounts onto tmpfs, all for the prx-forge
 // bucket app. The private key is the real secret; the App id (4169313) and
