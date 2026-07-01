@@ -1,0 +1,22 @@
+.claude/ensure-beads.sh
+  s_2a469b60e68f47::t_31400f98b542db 1-57
+.claude/settings.json
+  s_2a469b60e68f47::t_145776a58600c4 49-50
+  s_2a469b60e68f47::t_6a1f938a3c3e70 47-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a761462f9bc8991ad7c16d5bd86179d41c56a3a6",
+  "prompts": {},
+  "sessions": {
+    "s_2a469b60e68f47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1f6e6773-0f38-4e61-9244-8ceacfa5b893",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
