@@ -843,6 +843,7 @@ import {
   formatRepairBdResults,
   formatRepoAdd,
   formatRepoNormalization,
+  formatRepoOrigins,
   formatRepoRefresh,
   formatRepoSet,
   formatRepoStatus,
@@ -1540,6 +1541,10 @@ type ParsedCommand =
       local: boolean;
       names: string[];
       apply: boolean;
+      // `prx repo list --list-origins`: skip the full listing and print just
+      // each discovered repo's origin remote URL (deduped, sorted) — for
+      // scripting against every repo's upstream in one pass.
+      listOrigins: boolean;
       format: "plain" | "json";
     }
   | {
@@ -8788,6 +8793,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
         local: { type: "boolean", default: false },
         name: { type: "string", multiple: true },
         apply: { type: "boolean", default: false },
+        "list-origins": { type: "boolean", default: false },
         format: { type: "string", default: "plain" },
       },
       strict: true,
@@ -8802,6 +8808,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
       local: values.local,
       names: values.name ?? [],
       apply: values.apply,
+      listOrigins: values["list-origins"] === true,
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
     };
   }
@@ -17486,6 +17493,10 @@ export function runCli(
           names: parsed.names,
         });
         output.log(formatRepoNormalization(normalization, parsed.format));
+        return 0;
+      }
+      if (parsed.listOrigins) {
+        output.log(formatRepoOrigins(inventory, parsed.format));
         return 0;
       }
       const filteredInventory = parsed.local

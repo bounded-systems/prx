@@ -13,6 +13,7 @@ import {
   formatBeadsIssueMatches,
   formatGateResult,
   formatRemoteCiCheck,
+  formatRepoOrigins,
   formatResolvedWorkUnitCheck,
   formatScoutLogs,
   formatSessionOpenCheck,
@@ -25,6 +26,7 @@ import {
   formatWorktreeRemove,
 } from "../../src/pr-state/cli-format.ts";
 import { createTaskContract } from "../../src/pr-state/task.ts";
+import type { LocalRepo, RepoInventory } from "../../src/pr-state/repos.ts";
 
 function taskInTmp(workUnitId = "GH-5431") {
   const root = mkdtempSync(join(tmpdir(), "cli-format-task-"));
@@ -297,5 +299,52 @@ describe("cli-format — verb help", () => {
     expect(help).toContain("prx next");
     expect(help).toContain("domain:");
     expect(help).toContain("Run `prx help-all`");
+  });
+});
+
+describe("cli-format — repo origins", () => {
+  function repo(name: string, remotes: LocalRepo["remotes"]): LocalRepo {
+    return {
+      name,
+      commonDir: `/bare/${name}.git`,
+      kind: "bare",
+      mainWorktree: null,
+      worktrees: [],
+      localOnlyBranches: [],
+      findings: [],
+      remotes,
+      primaryRemote: remotes[0] ?? null,
+      upstreamRemote: null,
+    };
+  }
+
+  test("formatRepoOrigins dedupes, sorts, and keys on the remote literally named origin", () => {
+    const inventory: RepoInventory = {
+      roots: [],
+      repos: [
+        repo("b-repo", [{ name: "origin", url: "https://github.com/b/repo.git", githubRepo: "b/repo" }]),
+        repo("a-repo", [{ name: "origin", url: "https://github.com/a/repo.git", githubRepo: "a/repo" }]),
+        // Duplicate origin URL (e.g. two worktrees of the same repo) collapses.
+        repo("b-repo-dup", [{ name: "origin", url: "https://github.com/b/repo.git", githubRepo: "b/repo" }]),
+        // Only a "local" buffer remote, no real origin — must be excluded, not
+        // fall back to it the way `primaryRemote` would.
+        repo("local-only", [{ name: "local", url: "file:///buffer/local-only.git", githubRepo: null }]),
+        // No remotes at all.
+        repo("no-remotes", []),
+      ],
+    };
+    const plain = formatRepoOrigins(inventory, "plain");
+    expect(plain.split("\n")).toEqual([
+      "https://github.com/a/repo.git",
+      "https://github.com/b/repo.git",
+    ]);
+    const json = JSON.parse(formatRepoOrigins(inventory, "json"));
+    expect(json).toEqual(["https://github.com/a/repo.git", "https://github.com/b/repo.git"]);
+  });
+
+  test("formatRepoOrigins on an empty inventory", () => {
+    const inventory: RepoInventory = { roots: [], repos: [] };
+    expect(formatRepoOrigins(inventory, "plain")).toBe("");
+    expect(JSON.parse(formatRepoOrigins(inventory, "json"))).toEqual([]);
   });
 });

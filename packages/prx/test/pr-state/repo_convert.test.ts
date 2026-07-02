@@ -80,10 +80,12 @@ function withConvertResponses(
   branch = "main",
 ): Map<string, RunnerResponse | RunnerResponse[]> {
   responses.set(`git config core.bare true|${f.targetBare}`, ok(""));
+  responses.set(`git config extensions.worktreeConfig true|${f.targetBare}`, ok(""));
   responses.set(
     `git -C ${f.targetBare} worktree add ${f.worktree} ${branch}|`,
     ok(""),
   );
+  responses.set(`git config --worktree core.bare false|${f.worktree}`, ok(""));
   return responses;
 }
 
@@ -101,7 +103,8 @@ describe("convertWorktreeToBare", () => {
         const { store, close } = makeStore(dir);
         try {
           const responses = withConvertResponses(f, baseResponses(f.worktree));
-          const runner = makeRunner(responses);
+          const calls: RunnerCall[] = [];
+          const runner = makeRunner(responses, calls);
           const result = convertWorktreeToBare({
             worktreePath: f.worktree,
             bareRoot: f.bareRoot,
@@ -118,6 +121,17 @@ describe("convertWorktreeToBare", () => {
           expect(existsSync(f.targetBare)).toBe(true);
           expect(existsSync(join(f.worktree, "README.md"))).toBe(true);
           expect(existsSync(`${f.worktree}.prx-backup`)).toBe(false);
+          // Regression: a linked worktree must never inherit core.bare=true
+          // from the bare's shared config (breaks `git status`, etc. — see
+          // markWorktreeNotBare doc comment).
+          expect(calls).toContainEqual({
+            cmd: ["git", "config", "extensions.worktreeConfig", "true"],
+            cwd: f.targetBare,
+          });
+          expect(calls).toContainEqual({
+            cmd: ["git", "config", "--worktree", "core.bare", "false"],
+            cwd: f.worktree,
+          });
         } finally {
           close();
         }
@@ -196,6 +210,7 @@ describe("convertWorktreeToBare", () => {
             fail("fatal: not a git repository"),
             ok(`${f.targetBare}\n`),
           ]);
+          responses.set(`git config --worktree core.bare false|${sibling}`, ok(""));
           const calls: RunnerCall[] = [];
           const runner = makeRunner(responses, calls);
           const result = convertWorktreeToBare({

@@ -263,6 +263,26 @@ export function convertWorktreeToBare({
       "bare_config_failed",
     );
   }
+  // Always enable worktreeConfig, unconditionally. If the source repo had
+  // already enabled it before conversion (e.g. from prior `git worktree`
+  // use), `git worktree add` below does *not* reliably add the per-worktree
+  // `core.bare=false` override that a from-scratch enable gets — leaving
+  // every worktree it creates permanently confused about being "inside a
+  // bare repo" (`git status` fails with "must be run in a work tree", even
+  // though `git worktree list` shows it correctly). Enabling it here and
+  // setting the override explicitly below sidesteps that regardless of
+  // whether it was already on.
+  const worktreeConfigExt = runner(["git", "config", "extensions.worktreeConfig", "true"], {
+    cwd: plan.targetBarePath,
+    check: false,
+  });
+  if (worktreeConfigExt.status !== 0) {
+    throw new RepoConvertError(
+      `git config extensions.worktreeConfig true failed on ${plan.targetBarePath}: ` +
+        `${(worktreeConfigExt.stderr || worktreeConfigExt.stdout).trim()}`,
+      "bare_config_failed",
+    );
+  }
 
   const backupPath = uniqueBackupPath(absWorktree);
   renameSync(absWorktree, backupPath);
@@ -280,6 +300,7 @@ export function convertWorktreeToBare({
       "worktree_add_failed",
     );
   }
+  markWorktreeNotBare(absWorktree, runner);
 
   if (stashed) {
     const stashPop = runner(["git", "stash", "pop"], { cwd: absWorktree, check: false });
@@ -367,5 +388,36 @@ function repairSiblingWorktrees(
       "sibling_repair_incomplete",
     );
   }
+  // Siblings pre-date this conversion, so unlike the freshly-created main
+  // worktree they may already carry a correct per-worktree override — but
+  // if they don't (the pre-conversion repo's shared config never needed
+  // one, since core.bare was false then), they now inherit the same
+  // now-true core.bare as the main worktree. Cheap and idempotent either way.
+  for (const sibling of siblingPaths) {
+    markWorktreeNotBare(sibling, runner);
+  }
   return siblingPaths;
+}
+
+// A linked worktree must never appear "bare" to git — but when the bare's
+// shared config has `core.bare=true` (always true right after this module
+// moves .git there) *and* `extensions.worktreeConfig` was already enabled
+// on the source repo before conversion (e.g. from prior `git worktree`
+// use), `git worktree add` does not reliably add the per-worktree override
+// that undoes it. The result: `git status`/`rev-parse --is-inside-work-tree`
+// fail with "must be run in a work tree" even though `git worktree list`
+// shows the worktree correctly. Setting the override explicitly, every
+// time, sidesteps relying on `worktree add`'s automatic behavior.
+function markWorktreeNotBare(worktreePath: string, runner: RepoRunner): void {
+  const result = runner(["git", "config", "--worktree", "core.bare", "false"], {
+    cwd: worktreePath,
+    check: false,
+  });
+  if (result.status !== 0) {
+    throw new RepoConvertError(
+      `git config --worktree core.bare false failed in ${worktreePath}: ` +
+        `${(result.stderr || result.stdout).trim()}`,
+      "worktree_bare_flag_failed",
+    );
+  }
 }
