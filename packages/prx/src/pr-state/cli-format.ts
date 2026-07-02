@@ -958,6 +958,27 @@ export function formatRepos(
   return lines.join("\n").trimEnd();
 }
 
+// `prx repo list --list-origins`: every discovered repo's `origin` remote
+// URL, deduped and sorted — for scripting against every repo's upstream in
+// one pass (e.g. piping into `gh repo view` or diffing against a prior run).
+// Deliberately keys on a remote literally named "origin" rather than
+// `primaryRemote` (which falls back to the first remote of any name) — a
+// repo whose only remote is a local buffer cache has no real origin to list.
+// Repos with no `origin` remote configured are silently omitted.
+export function formatRepoOrigins(inventory: RepoInventory, format: "plain" | "json"): string {
+  const origins = Array.from(
+    new Set(
+      inventory.repos
+        .map((repo) => repo.remotes.find((remote) => remote.name === "origin")?.url)
+        .filter((url): url is string => typeof url === "string" && url.length > 0),
+    ),
+  ).sort();
+  if (format === "json") {
+    return JSON.stringify(origins, null, 2);
+  }
+  return origins.join("\n");
+}
+
 export function formatRepoSet<T>(
   slug: string,
   axis: "canonical" | "stale-threshold-days" | "bd-workspace-prefix" | "dolt-remote",
