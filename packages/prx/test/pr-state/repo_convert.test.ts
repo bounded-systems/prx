@@ -156,6 +156,10 @@ describe("convertWorktreeToBare", () => {
             `git stash push -u -m prx repo convert-to-bare: 2026-01-01T00:00:00.000Z|${f.worktree}`,
             ok(""),
           );
+          responses.set(
+            `git stash list|${f.worktree}`,
+            ok("stash@{0}: On main: prx repo convert-to-bare: 2026-01-01T00:00:00.000Z\n"),
+          );
           responses.set(`git stash pop|${f.worktree}`, ok(""));
           const calls: RunnerCall[] = [];
           const runner = makeRunner(responses, calls);
@@ -229,6 +233,221 @@ describe("convertWorktreeToBare", () => {
           expect(repairCalls.length).toBe(2);
           expect(repairCalls[0]!.cmd).toContain(sibling);
           expect(repairCalls[1]!.cmd).toContain(sibling);
+        } finally {
+          close();
+        }
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    } finally {
+      teardownFixture(f);
+    }
+  });
+
+  // Regression: a real conversion (bounded-systems/site) hit a repo with a
+  // pre-existing, unrelated stash sitting in stash@{0} ("WIP on
+  // feat/sri-csp") from months earlier. `git status --porcelain` showed a
+  // change (a bare submodule pointer bump), but `git stash push` didn't
+  // consider it stash-worthy and created no new entry — yet the code still
+  // believed it had stashed something and blindly popped stash@{0},
+  // producing a real merge conflict against completely unrelated old WIP.
+  test("does not pop a pre-existing unrelated stash when push created no new entry", () => {
+    const f = setupFixture();
+    try {
+      const dir = mkdtempSync(join(tmpdir(), "prx-convert-store-"));
+      try {
+        const { store, close } = makeStore(dir);
+        try {
+          const responses = withConvertResponses(f, baseResponses(f.worktree));
+          responses.set(`git status --porcelain|${f.worktree}`, ok(" M brand\n"));
+          responses.set(
+            `git stash push -u -m prx repo convert-to-bare: 2026-01-01T00:00:00.000Z|${f.worktree}`,
+            ok("No local changes to save\n"),
+          );
+          // A pre-existing, unrelated stash sits at stash@{0} — our push
+          // never created a new entry, so this is what stash list reports.
+          responses.set(
+            `git stash list|${f.worktree}`,
+            ok("stash@{0}: WIP on feat/sri-csp: 7624fb5 own the security headers\n"),
+          );
+          const calls: RunnerCall[] = [];
+          const runner = makeRunner(responses, calls);
+          const result = convertWorktreeToBare({
+            worktreePath: f.worktree,
+            bareRoot: f.bareRoot,
+            store,
+            runner,
+            now: () => new Date("2026-01-01T00:00:00.000Z"),
+          });
+          expect(result.kind).toBe("converted");
+          if (result.kind !== "converted") throw new Error("unreachable");
+          expect(result.stashed).toBe(false);
+          expect(calls.some((c) => c.cmd[1] === "stash" && c.cmd[2] === "pop")).toBe(false);
+        } finally {
+          close();
+        }
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    } finally {
+      teardownFixture(f);
+    }
+  });
+
+  test("initializes submodules in the fresh main worktree after checkout", () => {
+    const f = setupFixture();
+    try {
+      const dir = mkdtempSync(join(tmpdir(), "prx-convert-store-"));
+      try {
+        const { store, close } = makeStore(dir);
+        try {
+          const responses = withConvertResponses(f, baseResponses(f.worktree));
+          responses.set(`git submodule update --init --recursive|${f.worktree}`, ok(""));
+          const inner = makeRunner(responses);
+          // `git worktree add` is mocked and doesn't touch the real fs;
+          // simulate its real effect (checking .gitmodules back out) so the
+          // submodule-init step has something real to detect.
+          const runner: RepoRunner = (cmd, options) => {
+            if (cmd.includes("worktree") && cmd.includes("add")) {
+              writeFileSync(join(f.worktree, ".gitmodules"), '[submodule "brand"]\n\tpath = brand\n');
+            }
+            return inner(cmd, options);
+          };
+          const result = convertWorktreeToBare({
+            worktreePath: f.worktree,
+            bareRoot: f.bareRoot,
+            store,
+            runner,
+            now: () => new Date("2026-01-01T00:00:00.000Z"),
+          });
+          expect(result.kind).toBe("converted");
+        } finally {
+          close();
+        }
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    } finally {
+      teardownFixture(f);
+    }
+  });
+
+  test("throws with backup preserved when submodule init fails", () => {
+    const f = setupFixture();
+    try {
+      const dir = mkdtempSync(join(tmpdir(), "prx-convert-store-"));
+      try {
+        const { store, close } = makeStore(dir);
+        try {
+          const responses = withConvertResponses(f, baseResponses(f.worktree));
+          responses.set(
+            `git submodule update --init --recursive|${f.worktree}`,
+            fail("fatal: could not fetch submodule"),
+          );
+          const inner = makeRunner(responses);
+          const runner: RepoRunner = (cmd, options) => {
+            if (cmd.includes("worktree") && cmd.includes("add")) {
+              writeFileSync(join(f.worktree, ".gitmodules"), '[submodule "brand"]\n\tpath = brand\n');
+            }
+            return inner(cmd, options);
+          };
+          let thrown: unknown;
+          try {
+            convertWorktreeToBare({
+              worktreePath: f.worktree,
+              bareRoot: f.bareRoot,
+              store,
+              runner,
+              now: () => new Date("2026-01-01T00:00:00.000Z"),
+            });
+          } catch (err) {
+            thrown = err;
+          }
+          expect(thrown).toBeInstanceOf(RepoConvertError);
+          expect((thrown as RepoConvertError).code).toBe("submodule_init_failed");
+          expect(existsSync(`${f.worktree}.prx-backup`)).toBe(true);
+        } finally {
+          close();
+        }
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    } finally {
+      teardownFixture(f);
+    }
+  });
+
+  // Regression: a real conversion hit a sibling worktree whose submodule's
+  // own gitdir pointer (a separate, absolute-path reference baked in at
+  // `git submodule update --init` time) went stale after the bare moved —
+  // `git worktree repair` only fixes the sibling's own top-level pointer,
+  // never a submodule's nested one.
+  test("repairs a stale submodule gitdir pointer inside a sibling worktree", () => {
+    const f = setupFixture();
+    const sibling = join(f.root, "sibling-wt");
+    try {
+      mkdirSync(sibling, { recursive: true });
+      writeFileSync(join(sibling, ".gitmodules"), '[submodule "brand"]\n\tpath = brand\n');
+      // Simulates the state *after* `git worktree repair` has already fixed
+      // the sibling's own top-level pointer (that part is exercised by the
+      // "happy path with sibling worktrees" test above; this test is only
+      // about the submodule's separate, nested pointer).
+      // Deliberately NOT nested under f.targetBare — that path must not
+      // exist yet when convertWorktreeToBare's precondition check runs;
+      // this only needs to be *some* real path the sibling's own pointer
+      // resolves to, standing in for "the bare, post-move."
+      const siblingAdminDir = join(f.root, "post-repair-admin", "sibling-wt");
+      writeFileSync(join(sibling, ".git"), `gitdir: ${siblingAdminDir}\n`);
+      mkdirSync(join(siblingAdminDir, "modules", "brand"), { recursive: true });
+      mkdirSync(join(sibling, "brand"), { recursive: true });
+      writeFileSync(join(sibling, "brand", ".git"), "gitdir: /some/stale/old/path/modules/brand\n");
+
+      const dir = mkdtempSync(join(tmpdir(), "prx-convert-store-"));
+      try {
+        const { store, close } = makeStore(dir);
+        try {
+          const responses = withConvertResponses(f, baseResponses(f.worktree));
+          responses.set(
+            `git worktree list --porcelain|${f.worktree}`,
+            ok(
+              `worktree ${f.worktree}\nHEAD ${HEAD_SHA}\nbranch refs/heads/main\n\n` +
+                `worktree ${sibling}\nHEAD ${HEAD_SHA}\nbranch refs/heads/feature\n\n`,
+            ),
+          );
+          responses.set(`git rev-parse --git-common-dir|${sibling}`, ok(`${f.targetBare}\n`));
+          responses.set(`git config --worktree core.bare false|${sibling}`, ok(""));
+          responses.set(
+            `git config --file ${join(sibling, ".gitmodules")} --get-regexp submodule\\..*\\.path|${sibling}`,
+            ok("submodule.brand.path brand\n"),
+          );
+          const newGitdir = join(siblingAdminDir, "modules", "brand");
+          const submoduleWorktreePath = join(sibling, "brand");
+          responses.set(
+            `git config --file ${join(newGitdir, "config")} core.worktree ${submoduleWorktreePath}|${sibling}`,
+            ok(""),
+          );
+          const calls: RunnerCall[] = [];
+          const runner = makeRunner(responses, calls);
+          const result = convertWorktreeToBare({
+            worktreePath: f.worktree,
+            bareRoot: f.bareRoot,
+            store,
+            runner,
+            now: () => new Date("2026-01-01T00:00:00.000Z"),
+          });
+          expect(result.kind).toBe("converted");
+          expect(readFileSync(join(sibling, "brand", ".git"), "utf8")).toBe(
+            `gitdir: ${newGitdir}\n`,
+          );
+          // Regression: a submodule's own `config` also carries a stale
+          // *relative* core.worktree computed at its original init time
+          // (before the bare moved) — `git worktree repair` never touches
+          // this either. Fixed with an absolute path instead of trying to
+          // recompute the relative depth by hand.
+          expect(calls).toContainEqual({
+            cmd: ["git", "config", "--file", join(newGitdir, "config"), "core.worktree", submoduleWorktreePath],
+            cwd: sibling,
+          });
         } finally {
           close();
         }
@@ -381,6 +600,10 @@ describe("convertWorktreeToBare", () => {
           responses.set(
             `git stash push -u -m prx repo convert-to-bare: 2026-01-01T00:00:00.000Z|${f.worktree}`,
             ok(""),
+          );
+          responses.set(
+            `git stash list|${f.worktree}`,
+            ok("stash@{0}: On main: prx repo convert-to-bare: 2026-01-01T00:00:00.000Z\n"),
           );
           responses.set(
             `git stash pop|${f.worktree}`,
