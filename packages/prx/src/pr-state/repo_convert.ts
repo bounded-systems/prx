@@ -15,14 +15,17 @@
 // every step here runs sequentially against the same local repo).
 
 import {
+  closeSync,
   existsSync,
+  ftruncateSync,
   mkdirSync,
+  openSync,
   readdirSync,
   readFileSync,
   renameSync,
   rmSync,
   statSync,
-  writeFileSync,
+  writeSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import {
@@ -498,37 +501,46 @@ function repairSiblingSubmodules(siblingPath: string, runner: RepoRunner): void 
     if (!entryMatch) continue;
     const [, submoduleName, submodulePath] = entryMatch as [string, string, string];
     const submoduleGitFile = join(siblingPath, submodulePath, ".git");
-    let submoduleGitStat;
-    try {
-      submoduleGitStat = statSync(submoduleGitFile);
-    } catch {
-      // Not initialized in this sibling — nothing to repair.
-      continue;
-    }
-    if (submoduleGitStat.isDirectory()) {
-      // Already a real directory (an unlikely but harmless shape this
-      // function has nothing to fix) — nothing to repair.
-      continue;
-    }
     const newGitdir = join(outerGitdir, "modules", submoduleName);
     if (!existsSync(newGitdir)) {
       // No corresponding modules/ entry moved over; leave the stale pointer
       // in place rather than point it somewhere that doesn't exist.
       continue;
     }
-    // The stat above is a "should I even attempt this" decision, not a
-    // guarantee the write will succeed — this repo's own submodule dir is
-    // local, single-process, fully-owned state for the duration of this
-    // operation, but there's no reason to leave a check-then-use gap when a
-    // try/catch on the write itself is just as simple and closes it.
+    // Open the existing gitfile once and reuse that descriptor for both the
+    // "is this a regular file I can even repair" decision (ENOENT = not
+    // initialized in this sibling, EISDIR = already a real directory — both
+    // just mean skip) and the write itself, rather than a path-based
+    // stat/exists check followed by a separate path-based write. A file
+    // descriptor is bound to the inode it opened, not the path string, so
+    // there's no window between "checked" and "used" for the path to
+    // resolve to something else.
+    let fd: number;
     try {
-      writeFileSync(submoduleGitFile, `gitdir: ${newGitdir}\n`);
+      fd = openSync(submoduleGitFile, "r+");
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === "ENOENT" || code === "EISDIR") {
+        continue;
+      }
+      throw new RepoConvertError(
+        `Failed to open submodule gitdir pointer for ${submoduleName} in ${siblingPath}: ` +
+          `${(err as Error).message}`,
+        "sibling_submodule_repair_failed",
+      );
+    }
+    try {
+      const content = Buffer.from(`gitdir: ${newGitdir}\n`, "utf8");
+      writeSync(fd, content, 0, content.length, 0);
+      ftruncateSync(fd, content.length);
     } catch (err) {
       throw new RepoConvertError(
         `Failed to rewrite submodule gitdir pointer for ${submoduleName} in ${siblingPath}: ` +
           `${(err as Error).message}`,
         "sibling_submodule_repair_failed",
       );
+    } finally {
+      closeSync(fd);
     }
     const submoduleWorktreePath = join(siblingPath, submodulePath);
     const coreWorktree = runner(
