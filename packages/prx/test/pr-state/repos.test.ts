@@ -36,15 +36,25 @@ import {
   type RepoInventory,
 } from "../../src/pr-state/repos.ts";
 
+// A realistic-enough git dir fixture — walkForGitEntries's looksLikeGitDir
+// pre-filter requires a HEAD file (deliberately the *only* thing it
+// requires, to avoid false-negatives on unusual-but-real repos), so an
+// empty mkdirSync(".git") fixture no longer reaches the mocked git
+// rev-parse calls below.
+function makeGitDir(gitDirPath: string): void {
+  mkdirSync(gitDirPath, { recursive: true });
+  writeFileSync(join(gitDirPath, "HEAD"), "ref: refs/heads/main\n");
+}
+
 describe("discoverLocalRepos", () => {
   test("groups standard and worktree repos by common dir", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-repos-"));
     const standardRepo = join(root, "dev", "ai-home");
     const standardGitDir = join(standardRepo, ".git");
-    mkdirSync(standardGitDir, { recursive: true });
+    makeGitDir(standardGitDir);
 
     const bareRepo = join(root, "bare", "demo-web.git");
-    mkdirSync(bareRepo, { recursive: true });
+    makeGitDir(bareRepo);
 
     const worktreeRepo = join(root, "worktrees", "demo-web", "GH-5431");
     mkdirSync(worktreeRepo, { recursive: true });
@@ -168,7 +178,7 @@ describe("discoverLocalRepos", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-repos-local-"));
     const worktreeRepo = join(root, "dev", "ai-home");
     const worktreeGitDir = join(worktreeRepo, ".git");
-    mkdirSync(worktreeGitDir, { recursive: true });
+    makeGitDir(worktreeGitDir);
 
     const responses = new Map<string, { stdout: string; stderr: string; status: number }>([
       [
@@ -241,7 +251,7 @@ describe("discoverLocalRepos", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-repos-main-"));
     const bareRepo = join(root, "bare", "amz_sp_api.git");
     const worktreeRepo = join(root, "worktrees", "amz_sp_api", "main");
-    mkdirSync(bareRepo, { recursive: true });
+    makeGitDir(bareRepo);
     mkdirSync(worktreeRepo, { recursive: true });
     writeFileSync(join(worktreeRepo, ".git"), `gitdir: ${bareRepo}/worktrees/main\n`);
 
@@ -307,9 +317,9 @@ describe("discoverLocalRepos", () => {
   test("skips .tmp directories so bun-test fixtures are not enumerated", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-repos-tmp-skip-"));
     const realRepo = join(root, "dev", "ai-home");
-    mkdirSync(join(realRepo, ".git"), { recursive: true });
+    makeGitDir(join(realRepo, ".git"));
     const fixtureRepo = join(root, ".tmp", "bun-tests", "pr-state-foo");
-    mkdirSync(join(fixtureRepo, ".git"), { recursive: true });
+    makeGitDir(join(fixtureRepo, ".git"));
 
     const calls: string[] = [];
     const inventory = discoverLocalRepos(
@@ -329,9 +339,9 @@ describe("discoverLocalRepos", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-repos-home-depth-"));
     const homeDir = join(root, "home");
     const strayRepo = join(homeDir, "prx");
-    mkdirSync(join(strayRepo, ".git"), { recursive: true });
+    makeGitDir(join(strayRepo, ".git"));
     const deepRepo = join(homeDir, "dev", "nested", "deep-repo");
-    mkdirSync(join(deepRepo, ".git"), { recursive: true });
+    makeGitDir(join(deepRepo, ".git"));
 
     const previousHome = process.env.HOME;
     process.env.HOME = homeDir;
@@ -364,7 +374,7 @@ describe("discoverLocalRepos", () => {
   test("skips a root that throws on readdir (e.g. EPERM on ~/.Trash) instead of crashing the whole scan", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-repos-eperm-"));
     const realRepo = join(root, "dev", "ai-home");
-    mkdirSync(join(realRepo, ".git"), { recursive: true });
+    makeGitDir(join(realRepo, ".git"));
     const lockedDir = join(root, "locked");
     mkdirSync(lockedDir, { recursive: true });
     chmodSync(lockedDir, 0o000);
@@ -393,10 +403,64 @@ describe("discoverLocalRepos", () => {
     }
   });
 
+  test("pre-filters an obvious non-repo .git-suffixed dir without spawning git rev-parse", () => {
+    const root = mkdtempSync(join(tmpdir(), "prx-repos-fakegit-"));
+    // Not a real git dir: no HEAD file, just a name that happens to match.
+    mkdirSync(join(root, "not-a-repo.git"), { recursive: true });
+    writeFileSync(join(root, "not-a-repo.git", "README.md"), "just a folder\n");
+    // Not a real linked-worktree gitfile: a plain dotfile that happens to be
+    // named ".git" but doesn't start with "gitdir:" (e.g. .envrc.git-style).
+    mkdirSync(join(root, "stray-file-repo"), { recursive: true });
+    writeFileSync(join(root, "stray-file-repo", ".git"), "not a real gitfile\n");
+
+    const calls: string[] = [];
+    const inventory = discoverLocalRepos(
+      [root],
+      (cmd, options = {}) => {
+        calls.push(`${cmd.join(" ")}|${options.cwd ?? ""}`);
+        return { stdout: "", stderr: "missing", status: 1 };
+      },
+      root,
+    );
+
+    expect(inventory.repos).toEqual([]);
+    expect(calls).toEqual([]);
+  });
+
+  test("does not false-negative on a real git dir with only HEAD (e.g. reftable ref storage, no refs/ tree)", () => {
+    const root = mkdtempSync(join(tmpdir(), "prx-repos-minimal-git-"));
+    const repoPath = join(root, "minimal-repo.git");
+    // Deliberately minimal: only HEAD, no objects/ or refs/ — must still be
+    // treated as a real candidate and handed to the downstream git rev-parse
+    // check, not silently dropped by the pre-filter.
+    mkdirSync(repoPath, { recursive: true });
+    writeFileSync(join(repoPath, "HEAD"), "ref: refs/heads/main\n");
+
+    const responses = new Map<string, { stdout: string; stderr: string; status: number }>([
+      [`git rev-parse --is-bare-repository|${repoPath}`, { stdout: "true\n", stderr: "", status: 0 }],
+      [
+        `git rev-parse --git-common-dir|${repoPath}`,
+        { stdout: `${repoPath}\n`, stderr: "", status: 0 },
+      ],
+    ]);
+    const inventory = discoverLocalRepos(
+      [root],
+      (cmd, options = {}) =>
+        responses.get(`${cmd.join(" ")}|${options.cwd ?? ""}`) ?? {
+          stdout: "",
+          stderr: "missing",
+          status: 1,
+        },
+      root,
+    );
+
+    expect(inventory.repos.some((r) => r.commonDir === repoPath)).toBe(true);
+  });
+
   test("loads repo inventory config and writes an index", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-repos-config-"));
     const repoRoot = join(root, "ai-home");
-    mkdirSync(join(repoRoot, ".git"), { recursive: true });
+    makeGitDir(join(repoRoot, ".git"));
     mkdirSync(join(repoRoot, ".prx", "repos"), { recursive: true });
     writeFileSync(
       join(repoRoot, ".prx", "repos", "config.json"),
@@ -466,7 +530,7 @@ describe("discoverLocalRepos", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-repos-global-config-"));
     const repoRoot = join(root, "ai-home");
     const homeRoot = join(root, "home");
-    mkdirSync(join(repoRoot, ".git"), { recursive: true });
+    makeGitDir(join(repoRoot, ".git"));
     mkdirSync(join(homeRoot, ".config", "prx"), { recursive: true });
     writeFileSync(
       join(homeRoot, ".config", "prx", "config.json"),
@@ -510,7 +574,7 @@ describe("discoverLocalRepos", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-repos-home-defaults-"));
     const repoRoot = join(root, "ai-home");
     const homeRoot = join(root, "home");
-    mkdirSync(join(repoRoot, ".git"), { recursive: true });
+    makeGitDir(join(repoRoot, ".git"));
 
     const previousHome = process.env.HOME;
     process.env.HOME = homeRoot;
