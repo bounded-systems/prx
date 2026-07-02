@@ -498,10 +498,16 @@ function repairSiblingSubmodules(siblingPath: string, runner: RepoRunner): void 
     if (!entryMatch) continue;
     const [, submoduleName, submodulePath] = entryMatch as [string, string, string];
     const submoduleGitFile = join(siblingPath, submodulePath, ".git");
-    if (!existsSync(submoduleGitFile) || statSync(submoduleGitFile).isDirectory()) {
-      // Not initialized in this sibling, or already a real directory (an
-      // unlikely but harmless shape this function has nothing to fix) —
-      // either way, nothing to repair.
+    let submoduleGitStat;
+    try {
+      submoduleGitStat = statSync(submoduleGitFile);
+    } catch {
+      // Not initialized in this sibling — nothing to repair.
+      continue;
+    }
+    if (submoduleGitStat.isDirectory()) {
+      // Already a real directory (an unlikely but harmless shape this
+      // function has nothing to fix) — nothing to repair.
       continue;
     }
     const newGitdir = join(outerGitdir, "modules", submoduleName);
@@ -510,7 +516,20 @@ function repairSiblingSubmodules(siblingPath: string, runner: RepoRunner): void 
       // in place rather than point it somewhere that doesn't exist.
       continue;
     }
-    writeFileSync(submoduleGitFile, `gitdir: ${newGitdir}\n`);
+    // The stat above is a "should I even attempt this" decision, not a
+    // guarantee the write will succeed — this repo's own submodule dir is
+    // local, single-process, fully-owned state for the duration of this
+    // operation, but there's no reason to leave a check-then-use gap when a
+    // try/catch on the write itself is just as simple and closes it.
+    try {
+      writeFileSync(submoduleGitFile, `gitdir: ${newGitdir}\n`);
+    } catch (err) {
+      throw new RepoConvertError(
+        `Failed to rewrite submodule gitdir pointer for ${submoduleName} in ${siblingPath}: ` +
+          `${(err as Error).message}`,
+        "sibling_submodule_repair_failed",
+      );
+    }
     const submoduleWorktreePath = join(siblingPath, submodulePath);
     const coreWorktree = runner(
       ["git", "config", "--file", join(newGitdir, "config"), "core.worktree", submoduleWorktreePath],
