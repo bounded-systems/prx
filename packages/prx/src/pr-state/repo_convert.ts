@@ -1,6 +1,6 @@
 // `prx repo convert-to-bare --from-worktree <path>` — physically move a
 // standard (non-bare) working copy's `.git` out to the canonical
-// `~/.local/share/git/bare/...` location and recreate the workdir as a
+// `~/.local/share/git/repos/...` location and recreate the workdir as a
 // linked worktree, then register it via `adoptRepo`.
 //
 // Scope: only the case where no bare already exists at the target

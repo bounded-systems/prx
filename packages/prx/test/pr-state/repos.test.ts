@@ -589,10 +589,10 @@ describe("discoverLocalRepos", () => {
       });
 
       expect(config).toMatchObject({
-        bareRoot: join(homeRoot, ".local", "share", "git", "bare"),
-        roots: [join(homeRoot, ".local", "share", "git", "bare")],
+        bareRoot: join(homeRoot, ".local", "share", "git", "repos"),
+        roots: [join(homeRoot, ".local", "share", "git", "repos")],
         everywhereRoots: [
-          join(homeRoot, ".local", "share", "git", "bare"),
+          join(homeRoot, ".local", "share", "git", "repos"),
           join(homeRoot, ".local", "share"),
           join(homeRoot, ".local", "state", "wt", "worktrees"),
           join(homeRoot, ".local", "state", "git", "worktrees"),

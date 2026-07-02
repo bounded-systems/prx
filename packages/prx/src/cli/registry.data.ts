@@ -1471,7 +1471,7 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
   },
   {
     // Move a standard (non-bare) working copy's .git to the canonical
-    // ~/.local/share/git/bare/... location, recreate the workdir as a
+    // ~/.local/share/git/repos/... location, recreate the workdir as a
     // linked worktree, then adopt it. See repo_convert.ts.
     name: "repo convert-to-bare",
     parent: "repo",
