@@ -3777,7 +3777,7 @@ function mergeIdentityTomlFields(
 // the baked default injected by the nix home-manager wrapper) so we can carry
 // per-repo prx config for external repos we don't own
 // without touching those repos. Uses the same reverse-DNS layout as
-// `~/.local/share/git/bare/io.github/<owner>/<repo>.git/`.
+// `~/.local/share/git/repos/io.github/<owner>/<repo>.git/`.
 function resolveOperatorOverlayPath(repoPath: string, runner: CommandRunner): string | null {
   const overlayRoot = operatorConfigRoot();
   if (!overlayRoot || overlayRoot.length === 0) {

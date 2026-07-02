@@ -266,7 +266,7 @@ export type RepoInventoryConfig = {
 };
 
 function defaultBareRootForHome(homeDir: string | null): string | null {
-  return homeDir ? join(homeDir, ".local", "share", "git", "bare") : null;
+  return homeDir ? join(homeDir, ".local", "share", "git", "repos") : null;
 }
 
 function defaultRootsForHome(homeDir: string | null): string[] {
@@ -926,7 +926,7 @@ export function localWorkspacePrefixForCwd(
   if (!inventory) return null;
   const target = resolve(cwd);
   // GH-2156: a managed worktree (under ~/.local/state/wt/...) is never an
-  // ancestor of its bare repo's `commonDir` (under ~/.local/share/git/bare/...)
+  // ancestor of its bare repo's `commonDir` (under ~/.local/share/git/repos/...)
   // and the `worktrees[]` array is often stale/empty, so the commonDir-ancestor
   // and worktree-path arms below miss from inside a worktree. Resolve the cwd's
   // git common-dir — which IS the bare repo path — and match it directly
@@ -1573,7 +1573,7 @@ export class RepoAddError extends Error {
 /**
  * Map a hostname to the canonical `io.<short>` namespace used by the bare-clone
  * tree and the operator-config overlay. The convention (predates GH-989; see
- * `~/.local/share/git/bare/io.github/...` and `<ai-home>/.prx/repos/io.github/...`)
+ * `~/.local/share/git/repos/io.github/...` and `<ai-home>/.prx/repos/io.github/...`)
  * is to drop the trailing TLD label so `github.com → github`,
  * `gitlab.com → gitlab`, `gitlab.example.com → gitlab.example`. Single-label
  * hosts pass through unchanged.
