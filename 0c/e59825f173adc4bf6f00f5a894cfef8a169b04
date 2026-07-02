@@ -1,0 +1,36 @@
+.changeset/git-dir-discovery-structural-marker.md
+  s_2a469b60e68f47::t_185d5240398048 1-15
+packages/prx/src/pr-state/repos.ts
+  s_2a469b60e68f47::t_1457fb7ef58639 347-363
+  s_2a469b60e68f47::t_f8c46328da8809 412-414
+  s_2a469b60e68f47::t_f7c41a878aba05 364-367,379
+  s_2a469b60e68f47::t_9e1e5a1185e3b3 368-378,380-384
+  s_2a469b60e68f47::t_80ebeb0b7d08cb 420,423-433
+packages/prx/test/pr-state/repos.test.ts
+  s_2a469b60e68f47::t_49b69f406189e6 406-459
+  s_2a469b60e68f47::t_6f547e04d69994 322
+  s_2a469b60e68f47::t_85e2dbc9313809 342
+  s_2a469b60e68f47::t_dd1cccddf7cde6 254
+  s_2a469b60e68f47::t_6936af5d93c3a1 320,377
+  s_2a469b60e68f47::t_020c50ee577939 39-48
+  s_2a469b60e68f47::t_a9a4b58c3ea327 181
+  s_2a469b60e68f47::t_c54ec97706bf13 54,57
+  s_2a469b60e68f47::t_8a912b303fd977 344
+  s_2a469b60e68f47::t_52bd899b7d6879 463,533,577
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "0ce59825f173adc4bf6f00f5a894cfef8a169b04",
+  "prompts": {},
+  "sessions": {
+    "s_2a469b60e68f47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1f6e6773-0f38-4e61-9244-8ceacfa5b893",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
