@@ -286,6 +286,11 @@ function defaultRootsForHome(homeDir: string | null): string[] {
     join(homeDir, ".local", "state", "git", "worktrees"),
     join(homeDir, "dev"),
     join(homeDir, "src"),
+    // GH-1836 follow-up: catch stray top-level clones (e.g. ~/prx,
+    // ~/claude-box) that don't live under any of the roots above. Scanned
+    // at depth 1 only (see discoverLocalRepos) so this doesn't recurse into
+    // ~/Library, ~/Downloads, etc. — just checks $HOME's direct children.
+    homeDir,
   ];
 }
 
@@ -355,7 +360,14 @@ function walkForGitEntries(root: string, maxDepth: number, entries: string[], de
     return;
   }
 
-  const dirents = readdirSync(root, { withFileTypes: true });
+  let dirents;
+  try {
+    dirents = readdirSync(root, { withFileTypes: true });
+  } catch {
+    // EPERM etc. — e.g. ~/.Trash is unreadable without extra macOS
+    // permissions when $HOME is a scan root. Skip rather than crash the walk.
+    return;
+  }
   for (const dirent of dirents) {
     const fullPath = join(root, dirent.name);
     if (dirent.name === ".git") {
@@ -1037,7 +1049,10 @@ export function discoverLocalRepos(
   const resolvedRoots = roots.length > 0 ? roots : defaultRootsForHome(homeDir);
   const candidates: string[] = [];
   for (const root of resolvedRoots) {
-    walkForGitEntries(root, 6, candidates);
+    // $HOME itself is scanned shallow (direct children only) — it's included
+    // to catch stray top-level clones, not to recurse into every dotdir.
+    const maxDepth = homeDir && root === homeDir ? 1 : 6;
+    walkForGitEntries(root, maxDepth, candidates);
   }
 
   const repoMap = new Map<string, LocalRepo>();
@@ -1470,12 +1485,18 @@ export function canonicalBarePathFromParsed(bareRoot: string, parsed: ParsedRepo
 }
 
 export function canonicalMainxPathFromParsed(wtRoot: string, parsed: ParsedRepoUrl): string {
-  // Convention matches wt switch --create: {{ repo }}/{{ branch }} where
-  // {{ repo }} is the bare basename (<name>.git). Owner/host are not included
-  // so the path stays consistent with worktrees created by worktrunk. Cross-
-  // owner collisions are possible but uncommon in operator use; reject at
-  // clone time via the bare-path existence check if needed.
-  return join(wtRoot, `${parsed.name}.git`, "mainx");
+  // Mirrors canonicalBarePathFromParsed: owner-qualified so two repos with
+  // the same name under different owners (e.g. github.com/a/deploy and
+  // github.com/b/deploy) never collide on the same mainx path. Worktrunk
+  // (the prior source of the org-agnostic convention this replaced) is
+  // retired — prx now owns the worktree lifecycle end-to-end.
+  return join(
+    wtRoot,
+    `io.${canonicalHostSegment(parsed.host)}`,
+    parsed.owner,
+    parsed.name,
+    "mainx",
+  );
 }
 
 export function resolveDefaultBranch(barePath: string, runner: RepoRunner): string {

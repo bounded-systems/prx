@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -324,6 +325,74 @@ describe("discoverLocalRepos", () => {
     expect(calls.every((c) => !c.includes(fixtureRepo))).toBe(true);
   });
 
+  test("scans a HOME root at depth 1 only — catches stray top-level clones, not grandchildren", () => {
+    const root = mkdtempSync(join(tmpdir(), "prx-repos-home-depth-"));
+    const homeDir = join(root, "home");
+    const strayRepo = join(homeDir, "prx");
+    mkdirSync(join(strayRepo, ".git"), { recursive: true });
+    const deepRepo = join(homeDir, "dev", "nested", "deep-repo");
+    mkdirSync(join(deepRepo, ".git"), { recursive: true });
+
+    const previousHome = process.env.HOME;
+    process.env.HOME = homeDir;
+    try {
+      const responses = new Map<string, { stdout: string; stderr: string; status: number }>([
+        [
+          `git rev-parse --show-toplevel|${strayRepo}`,
+          { stdout: `${strayRepo}\n`, stderr: "", status: 0 },
+        ],
+        [`git rev-parse --git-common-dir|${strayRepo}`, { stdout: ".git\n", stderr: "", status: 0 }],
+      ]);
+      const inventory = discoverLocalRepos(
+        [homeDir],
+        (cmd, options = {}) =>
+          responses.get(`${cmd.join(" ")}|${options.cwd ?? ""}`) ?? {
+            stdout: "",
+            stderr: "missing",
+            status: 1,
+          },
+        strayRepo,
+      );
+      const commonDirs = inventory.repos.map((r) => r.commonDir);
+      expect(commonDirs.some((d) => d.startsWith(strayRepo))).toBe(true);
+      expect(commonDirs.some((d) => d.startsWith(deepRepo))).toBe(false);
+    } finally {
+      process.env.HOME = previousHome;
+    }
+  });
+
+  test("skips a root that throws on readdir (e.g. EPERM on ~/.Trash) instead of crashing the whole scan", () => {
+    const root = mkdtempSync(join(tmpdir(), "prx-repos-eperm-"));
+    const realRepo = join(root, "dev", "ai-home");
+    mkdirSync(join(realRepo, ".git"), { recursive: true });
+    const lockedDir = join(root, "locked");
+    mkdirSync(lockedDir, { recursive: true });
+    chmodSync(lockedDir, 0o000);
+
+    try {
+      const responses = new Map<string, { stdout: string; stderr: string; status: number }>([
+        [
+          `git rev-parse --show-toplevel|${realRepo}`,
+          { stdout: `${realRepo}\n`, stderr: "", status: 0 },
+        ],
+        [`git rev-parse --git-common-dir|${realRepo}`, { stdout: ".git\n", stderr: "", status: 0 }],
+      ]);
+      const inventory = discoverLocalRepos(
+        [root],
+        (cmd, options = {}) =>
+          responses.get(`${cmd.join(" ")}|${options.cwd ?? ""}`) ?? {
+            stdout: "",
+            stderr: "missing",
+            status: 1,
+          },
+        realRepo,
+      );
+      expect(inventory.repos.some((r) => r.commonDir.startsWith(realRepo))).toBe(true);
+    } finally {
+      chmodSync(lockedDir, 0o755);
+    }
+  });
+
   test("loads repo inventory config and writes an index", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-repos-config-"));
     const repoRoot = join(root, "ai-home");
@@ -464,6 +533,7 @@ describe("discoverLocalRepos", () => {
           join(homeRoot, ".local", "state", "git", "worktrees"),
           join(homeRoot, "dev"),
           join(homeRoot, "src"),
+          homeRoot,
         ],
       });
     } finally {
@@ -832,7 +902,7 @@ describe("addLocalRepo", () => {
     mkdirSync(wtRoot, { recursive: true });
 
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const expectedMainx = join(wtRoot, "scratch.git", "mainx");
+    const expectedMainx = join(wtRoot, "io.github", "owner", "scratch", "mainx");
 
     const { runner, calls } = makeRunner(
       new Map([
@@ -883,6 +953,49 @@ describe("addLocalRepo", () => {
       "bd config get database.workspace_prefix",
     ]);
     expect(result.originHeadSet).toBe(true);
+  });
+
+  test("cross-owner same-name repos get distinct, non-colliding mainx paths", () => {
+    const root = mkdtempSync(join(tmpdir(), "prx-repo-add-cross-owner-"));
+    const bareRoot = join(root, "bare");
+    const wtRoot = join(root, "wt");
+    mkdirSync(bareRoot, { recursive: true });
+    mkdirSync(wtRoot, { recursive: true });
+
+    const expectedBareA = join(bareRoot, "io.github", "owner1", "deploy.git");
+    const expectedMainxA = join(wtRoot, "io.github", "owner1", "deploy", "mainx");
+    const expectedBareB = join(bareRoot, "io.github", "owner2", "deploy.git");
+    const expectedMainxB = join(wtRoot, "io.github", "owner2", "deploy", "mainx");
+
+    const { runner: runnerA } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBareA} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+      ]),
+    );
+    const resultA = addLocalRepo(
+      { url: "git@github.com:owner1/deploy.git", bareRoot, wtRoot, operatorConfigRoot: null, overlay: false },
+      runnerA,
+    );
+
+    const { runner: runnerB } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBareB} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+      ]),
+    );
+    const resultB = addLocalRepo(
+      { url: "git@github.com:owner2/deploy.git", bareRoot, wtRoot, operatorConfigRoot: null, overlay: false },
+      runnerB,
+    );
+
+    expect(resultA.mainxPath).toBe(expectedMainxA);
+    expect(resultB.mainxPath).toBe(expectedMainxB);
+    expect(resultA.mainxPath).not.toBe(resultB.mainxPath);
   });
 
   test("falls back to ls-remote when origin/HEAD symref is missing", () => {
@@ -949,7 +1062,7 @@ describe("addLocalRepo", () => {
     const bareRoot = join(root, "bare");
     const wtRoot = join(root, "wt");
     mkdirSync(bareRoot, { recursive: true });
-    mkdirSync(join(wtRoot, "scratch.git", "mainx"), { recursive: true });
+    mkdirSync(join(wtRoot, "io.github", "owner", "scratch", "mainx"), { recursive: true });
 
     const { runner } = makeRunner();
 
@@ -1537,7 +1650,7 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
   test("auto-populates from `bd config get database.workspace_prefix` in the mainx", () => {
     const { bareRoot, wtRoot } = setupRoots();
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const expectedMainx = join(wtRoot, "scratch.git", "mainx");
+    const expectedMainx = join(wtRoot, "io.github", "owner", "scratch", "mainx");
     const { runner, calls } = makeRunner(
       new Map([
         [
@@ -1737,7 +1850,7 @@ describe("rollbackRepoAdd (GH-1657)", () => {
   test("removes existing bare + mainx paths", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-rollback-"));
     const barePath = join(root, "bare", "scratch.git");
-    const mainxPath = join(root, "wt", "scratch.git", "mainx");
+    const mainxPath = join(root, "git", "worktrees", "io.github", "owner", "scratch", "mainx");
     mkdirSync(barePath, { recursive: true });
     mkdirSync(mainxPath, { recursive: true });
 
@@ -1878,7 +1991,7 @@ describe("addLocalRepo .beads hydrate (GH-1680)", () => {
   test("hydrated → captured on result.beadsHydrate, stub invoked with mainxPath", () => {
     const { bareRoot, wtRoot } = setupRoots();
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const expectedMainx = join(wtRoot, "scratch.git", "mainx");
+    const expectedMainx = join(wtRoot, "io.github", "owner", "scratch", "mainx");
     const { runner } = makeRunner(
       new Map([
         [
@@ -1915,7 +2028,7 @@ describe("addLocalRepo .beads hydrate (GH-1680)", () => {
   test("skipped-no-beads → captured on result.beadsHydrate, no throw", () => {
     const { bareRoot, wtRoot } = setupRoots();
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const expectedMainx = join(wtRoot, "scratch.git", "mainx");
+    const expectedMainx = join(wtRoot, "io.github", "owner", "scratch", "mainx");
     const { runner } = makeRunner(
       new Map([
         [
@@ -1951,7 +2064,7 @@ describe("addLocalRepo .beads hydrate (GH-1680)", () => {
   test("clone-failed → captured, no throw, bare + mainx remain on disk (no rollback)", () => {
     const { bareRoot, wtRoot } = setupRoots();
     const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const expectedMainx = join(wtRoot, "scratch.git", "mainx");
+    const expectedMainx = join(wtRoot, "io.github", "owner", "scratch", "mainx");
     const { runner } = makeRunner(
       new Map([
         [
@@ -2102,7 +2215,7 @@ describe("refreshLocalRepo (GH-1681)", () => {
     const bareRoot = join(root, "bare");
     const wtRoot = join(root, "wt");
     const barePath = join(bareRoot, "io.github", "owner", "scratch.git");
-    const mainxPath = join(wtRoot, "scratch.git", "mainx");
+    const mainxPath = join(wtRoot, "io.github", "owner", "scratch", "mainx");
     mkdirSync(barePath, { recursive: true });
     mkdirSync(wtRoot, { recursive: true });
     if (!opts.coldMainx) {
@@ -2571,7 +2684,7 @@ describe("refreshLocalRepo — legacy bare integration (GH-1751)", () => {
     expect(probe.status).not.toBe(0);
 
     // 3. Run refresh with the real default runner.
-    const mainxPath = join(wtRoot, "scratch.git", "mainx");
+    const mainxPath = join(wtRoot, "io.github", "owner", "scratch", "mainx");
     const repo: LocalRepo = {
       name: "scratch",
       commonDir: barePath,
@@ -2581,7 +2694,7 @@ describe("refreshLocalRepo — legacy bare integration (GH-1751)", () => {
       localOnlyBranches: [],
       findings: [],
       // GH-1751: `primaryRemote.url` is used by `refreshLocalRepo` solely to
-      // derive the canonical mainx path (parseRepoUrl → name → wtRoot/<name>.git/mainx).
+      // derive the canonical mainx path (parseRepoUrl → owner/name → wtRoot/io.<host>/<owner>/<name>/mainx).
       // The bare's actual `remote.origin.url` (set when we did `git clone --bare
       // <upstreamBare>`) is what `git fetch` and `git remote set-head` operate
       // against. Keep them decoupled here: the LocalRepo.primaryRemote.url is

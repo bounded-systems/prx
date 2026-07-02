@@ -10,7 +10,11 @@ import {
   type RepoGcReport,
 } from "../../src/pr-state/repo_gc.ts";
 import type { LocalRepo, RepoInventory, RepoInventoryConfig } from "../../src/pr-state/repos.ts";
-import { writeRepoInventoryIndex } from "../../src/pr-state/repos.ts";
+import {
+  canonicalMainxPathFromParsed,
+  parseRepoUrl,
+  writeRepoInventoryIndex,
+} from "../../src/pr-state/repos.ts";
 
 type EntryOverrides = Partial<LocalRepo>;
 
@@ -70,7 +74,8 @@ function withFixture(repos: LocalRepo[]): Fixture {
   writeRepoInventoryIndex(indexPath, inventory);
 
   const workspacePath = (slug: string): string => {
-    const p = join(wtRoot, `${slug}.git`, "mainx");
+    const parsed = parseRepoUrl(`git@github.com:owner/${slug}.git`)!;
+    const p = canonicalMainxPathFromParsed(wtRoot, parsed);
     mkdirSync(p, { recursive: true });
     return p;
   };
