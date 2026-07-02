@@ -1470,6 +1470,16 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "repo",
   },
   {
+    // Move a standard (non-bare) working copy's .git to the canonical
+    // ~/.local/share/git/bare/... location, recreate the workdir as a
+    // linked worktree, then adopt it. See repo_convert.ts.
+    name: "repo convert-to-bare",
+    parent: "repo",
+    description: "Convert a standard working copy to bare + linked worktree",
+    domain: "repo-plumbing",
+    actor: "repo",
+  },
+  {
     // GH-1761: register the current branch of an on-disk worktree in the
     // prx registry. Requires the owning repo to be adopted first.
     name: "branch adopt",

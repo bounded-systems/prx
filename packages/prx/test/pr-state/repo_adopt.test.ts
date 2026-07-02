@@ -171,4 +171,40 @@ describe("adoptRepo", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  test("force option bypasses the identity check and overwrites the row", () => {
+    const dir = mkdtempSync(join(tmpdir(), "prx-adopt-"));
+    try {
+      const db = openRegistry(join(dir, "registry.sqlite"));
+      try {
+        const store = new RepositoryStore(db);
+        store.upsertRepo({
+          repo_id: "github.com/bdelanghe/ai-home",
+          bare_path: "/different/bare/path.git",
+          remote_url: "https://github.com/bdelanghe/ai-home.git",
+          default_branch: "main",
+          managed_by: "prx",
+          adopted_at: "2025-01-01T00:00:00.000Z",
+        });
+
+        const runner = makeRunner(happyPathResponses());
+        const result = adoptRepo({
+          worktreePath: WORKTREE,
+          store,
+          runner,
+          force: true,
+          now: () => new Date("2026-05-15T12:00:00.000Z"),
+        });
+        expect(result.kind).toBe("adopted");
+        expect(result.row.bare_path).toBe(BARE);
+        expect(result.row.adopted_at).toBe("2026-05-15T12:00:00.000Z");
+        expect(store.getById("github.com/bdelanghe/ai-home")?.bare_path).toBe(BARE);
+        expect(store.count()).toBe(1);
+      } finally {
+        db.close();
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

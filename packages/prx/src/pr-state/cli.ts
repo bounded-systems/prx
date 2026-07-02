@@ -173,6 +173,11 @@ import {
   openRegistry,
 } from "./registry_store.ts";
 import { adoptRepo, type AdoptRepoResult } from "./repo_adopt.ts";
+import {
+  convertWorktreeToBare,
+  RepoConvertError,
+  type RepoConvertResult,
+} from "./repo_convert.ts";
 import { adoptBranch, type AdoptBranchResult } from "./branch_adopt.ts";
 import { adoptWorkspace, type AdoptWorkspaceResult } from "./workspace_adopt.ts";
 import { formatRepoBackfill, RepoBackfillError, runRepoBackfill } from "./repo_backfill.ts";
@@ -1621,6 +1626,16 @@ type ParsedCommand =
       // inference + idempotent registry write into the sqlite registry.
       command: "repos-adopt";
       fromWorktree: string;
+      force: boolean;
+      format: "plain" | "json";
+    }
+  | {
+      // `prx repo convert-to-bare --from-worktree <path> [--dry-run]` —
+      // move a standard working copy's .git to the canonical bare location
+      // and register it. See `repo_convert.ts`.
+      command: "repos-convert-to-bare";
+      fromWorktree: string;
+      dryRun: boolean;
       format: "plain" | "json";
     }
   | {
@@ -2462,6 +2477,7 @@ type CliDeps = {
   // fakes so the parser → runner glue is exercised without spawning a real
   // `git`.
   adoptRepo?: typeof adoptRepo;
+  convertWorktreeToBare?: typeof convertWorktreeToBare;
   adoptBranch?: typeof adoptBranch;
   adoptWorkspace?: typeof adoptWorkspace;
   // GH-1681: hydrate/refspec recovery for an existing registered bare.
@@ -3803,6 +3819,11 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     if (c1 === "adopt") {
       // GH-1760: idempotent registry write for an existing on-disk worktree.
       return ["repos-adopt", ...tail];
+    }
+    if (c1 === "convert-to-bare") {
+      // Move a standard working copy's .git to the canonical bare location,
+      // recreate the workdir as a linked worktree, then adopt it.
+      return ["repos-convert-to-bare", ...tail];
     }
     if (c1 === "backfill") {
       return ["repos-backfill", ...tail];
@@ -8862,6 +8883,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
       args: rest,
       options: {
         "from-worktree": { type: "string" },
+        force: { type: "boolean", default: false },
         format: { type: "string", default: "plain" },
       },
       strict: true,
@@ -8879,6 +8901,38 @@ export function parseCommand(argv: string[]): ParsedCommand {
     return {
       command,
       fromWorktree,
+      force: values.force === true,
+      format: ensureChoice(values.format, ["plain", "json"], "--format"),
+    };
+  }
+
+  if (command === "repos-convert-to-bare") {
+    // `prx repo convert-to-bare --from-worktree <path> [--dry-run]`.
+    // `--from-worktree` stays required for the same reason as `repos-adopt`:
+    // an accidental cwd should never silently convert the wrong repo.
+    const { values, positionals } = parseArgs({
+      args: rest,
+      options: {
+        "from-worktree": { type: "string" },
+        "dry-run": { type: "boolean", default: false },
+        format: { type: "string", default: "plain" },
+      },
+      strict: true,
+      allowPositionals: true,
+    });
+    if (positionals.length > 0) {
+      throw new CliError(
+        `repo convert-to-bare takes no positional arguments; use --from-worktree <path>. Got: ${positionals.join(", ")}`,
+      );
+    }
+    const fromWorktree = values["from-worktree"];
+    if (typeof fromWorktree !== "string" || fromWorktree.length === 0) {
+      throw new CliError("repo convert-to-bare requires --from-worktree <path>");
+    }
+    return {
+      command,
+      fromWorktree,
+      dryRun: values["dry-run"] === true,
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
     };
   }
@@ -13216,6 +13270,36 @@ function formatRepoAdoptResult(result: AdoptRepoResult, format: "plain" | "json"
     `  default_branch: ${result.row.default_branch}`,
     `  adopted_at:     ${result.row.adopted_at}`,
   ];
+  return lines.join("\n");
+}
+
+function formatRepoConvert(result: RepoConvertResult, format: "plain" | "json"): string {
+  if (format === "json") {
+    return JSON.stringify(result, null, 2);
+  }
+  const { plan } = result;
+  if (result.kind === "planned") {
+    const lines = [
+      `Would convert: ${plan.repoId}`,
+      `  ${plan.sourceGitDir} -> ${plan.targetBarePath}`,
+      `  worktree: ${plan.worktreePath} (${plan.branch ? `branch ${plan.branch}` : `detached at ${plan.headSha}`})`,
+      `  stash needed: ${plan.willStash ? "yes" : "no"}`,
+    ];
+    if (plan.siblingWorktrees.length > 0) {
+      lines.push(`  sibling worktrees to repair: ${plan.siblingWorktrees.join(", ")}`);
+    }
+    return lines.join("\n");
+  }
+  const lines = [
+    `Converted repo: ${plan.repoId}`,
+    `  bare_path: ${plan.targetBarePath}`,
+    `  worktree:  ${plan.worktreePath}`,
+    `  stashed:   ${result.stashed ? "yes (popped clean)" : "no"}`,
+  ];
+  if (result.repairedSiblings.length > 0) {
+    lines.push(`  repaired siblings: ${result.repairedSiblings.join(", ")}`);
+  }
+  lines.push(`  adopted: ${result.adopt.kind}`);
   return lines.join("\n");
 }
 
@@ -17653,9 +17737,40 @@ export function runCli(
         const result = (deps.adoptRepo ?? adoptRepo)({
           worktreePath: parsed.fromWorktree,
           store,
+          force: parsed.force,
         });
         output.log(formatRepoAdoptResult(result, parsed.format));
         return 0;
+      } finally {
+        registry.close();
+      }
+    }
+
+    if (parsed.command === "repos-convert-to-bare") {
+      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(
+        process.cwd(),
+      );
+      if (!repoInventoryConfig.bareRoot) {
+        throw new CliError(
+          "No configured bare root. Configure prx via ~/.config/prx/config.json or .prx/repos/config.json before running `prx repo convert-to-bare`.",
+        );
+      }
+      const registry = (deps.openRegistry ?? openRegistry)(defaultRegistryPath());
+      try {
+        const store = new RepositoryStore(registry);
+        const result = (deps.convertWorktreeToBare ?? convertWorktreeToBare)({
+          worktreePath: parsed.fromWorktree,
+          bareRoot: repoInventoryConfig.bareRoot,
+          store,
+          dryRun: parsed.dryRun,
+        });
+        output.log(formatRepoConvert(result, parsed.format));
+        return 0;
+      } catch (err) {
+        if (err instanceof RepoConvertError) {
+          throw new CliError(err.message);
+        }
+        throw err;
       } finally {
         registry.close();
       }
