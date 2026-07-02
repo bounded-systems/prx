@@ -1,0 +1,29 @@
+packages/prx/src/pr-state/repos.ts
+  s_2a469b60e68f47::t_2b91cc72da252a 269
+  s_2a469b60e68f47::t_cc9bcdd1bc339a 929
+  s_2a469b60e68f47::t_6e4e3948412997 1576
+packages/prx/test/pr-state/repos.test.ts
+  s_2a469b60e68f47::t_0db4d64c4dad4d 592-593,595
+packages/prx/src/pr-state/repo_convert.ts
+  s_2a469b60e68f47::t_34d8af8413fc99 3
+packages/prx/src/cli/registry.data.ts
+  s_2a469b60e68f47::t_b22f635e9cbbd8 1474
+packages/prx/src/pr-state/github.ts
+  s_2a469b60e68f47::t_30e13dc0f7d2fc 3780
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a6d23ab1b80077ca855cf3c3e72e2751331b688d",
+  "prompts": {},
+  "sessions": {
+    "s_2a469b60e68f47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1f6e6773-0f38-4e61-9244-8ceacfa5b893",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
