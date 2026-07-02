@@ -1,0 +1,39 @@
+packages/prx/test/pr-state/repo_convert.test.ts
+  s_2a469b60e68f47::t_a39515da8c4b6f 213
+  s_2a469b60e68f47::t_0305c0db00b308 83,88
+  s_2a469b60e68f47::t_c9733aba8df959 106-107,124-134
+packages/prx/src/pr-state/repo_convert.ts
+  s_2a469b60e68f47::t_ea608c797bde91 303
+  s_2a469b60e68f47::t_3a650a175dad4a 391-398,401-422
+  s_2a469b60e68f47::t_9817e4e5a231f8 266-285
+  s_2a469b60e68f47::t_7c4d45305ca830 423
+packages/prx/src/pr-state/cli.ts
+  s_2a469b60e68f47::t_91deafdb2f3369 1544-1547
+  s_2a469b60e68f47::t_63683afc9443ed 8796,8811
+  s_2a469b60e68f47::t_84f320f2532be1 846
+  s_2a469b60e68f47::t_b5755e17b37ddd 17498-17501
+packages/prx/src/pr-state/cli-format.ts
+  s_2a469b60e68f47::t_5c99f499c1b181 961-967,972
+  s_2a469b60e68f47::t_cfa05c270a5ab3 968-971,973-981
+packages/prx/test/pr-state/cli-format.test.ts
+  s_2a469b60e68f47::t_deff9225557c81 304-350
+  s_2a469b60e68f47::t_dfa6dd076f229e 16,29
+.changeset/convert-to-bare-worktreeconfig-list-origins.md
+  s_2a469b60e68f47::t_36a119ceee7046 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "b8a69a78be609d9b43b564f4b8dd3e51f1c0c755",
+  "prompts": {},
+  "sessions": {
+    "s_2a469b60e68f47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1f6e6773-0f38-4e61-9244-8ceacfa5b893",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
