@@ -1,0 +1,20 @@
+packages/prx/src/pr-state/repo_convert.ts
+  s_2a469b60e68f47::t_334df9f5e8b3e5 501-510,519-531
+  s_2a469b60e68f47::t_63374f5c150cf4 532
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "cede4e962f27611bde2e96959f61b40cbfb9a399",
+  "prompts": {},
+  "sessions": {
+    "s_2a469b60e68f47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1f6e6773-0f38-4e61-9244-8ceacfa5b893",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
