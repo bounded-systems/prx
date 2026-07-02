@@ -1,0 +1,37 @@
+packages/prx/test/pr-state/cli-format.test.ts
+  s_2a469b60e68f47::t_65ba390c29c8e9 352-375
+  s_2a469b60e68f47::t_18eaa15aa261f8 17,30
+.changeset/list-submodules.md
+  s_2a469b60e68f47::t_3f8e97259f7cf2 1-8
+packages/prx/src/pr-state/repos.ts
+  s_2a469b60e68f47::t_8fcd2899c91707 1274-1336
+packages/prx/src/pr-state/cli.ts
+  s_2a469b60e68f47::t_45d27c2bf291d2 8804,8819
+  s_2a469b60e68f47::t_d910caf69bc00c 17511-17515
+  s_2a469b60e68f47::t_45788b31d4d62e 141
+  s_2a469b60e68f47::t_88a6e068c8cd69 851
+  s_2a469b60e68f47::t_8865d4fc511e6d 1550-1553
+  s_2a469b60e68f47::t_df52002ec29034 2480
+packages/prx/test/pr-state/repos.test.ts
+  s_2a469b60e68f47::t_5d6e7e7635a1c6 21
+  s_2a469b60e68f47::t_5bb42023c7c3bf 894-980
+packages/prx/src/pr-state/cli-format.ts
+  s_2a469b60e68f47::t_efe6082596968b 28
+  s_2a469b60e68f47::t_15e9b6f6e1739c 983-1004
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a53203612bcfc87aba6a6878aacab3294272b3aa",
+  "prompts": {},
+  "sessions": {
+    "s_2a469b60e68f47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1f6e6773-0f38-4e61-9244-8ceacfa5b893",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
