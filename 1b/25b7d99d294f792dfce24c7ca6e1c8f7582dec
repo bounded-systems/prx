@@ -1,0 +1,33 @@
+.changeset/convert-to-bare-submodules-and-stale-stash.md
+  s_2a469b60e68f47::t_1c5a8ece05dca3 1-23
+packages/prx/test/pr-state/repo_convert.test.ts
+  s_2a469b60e68f47::t_36c9284f15d0bd 247-394,400-422,431-439,441,451-461
+  s_2a469b60e68f47::t_66fd025c1284e0 423-430,440,442-450,604
+  s_2a469b60e68f47::t_17c8ff59e94aac 605-607
+  s_2a469b60e68f47::t_9396c40140f107 159-162
+  s_2a469b60e68f47::t_78fd9a1d2e64f5 395-399
+packages/prx/src/pr-state/repo_convert.ts
+  s_2a469b60e68f47::t_8759f964b3e6b0 340-360
+  s_2a469b60e68f47::t_2b800105b91209 441,446,473-513,526
+  s_2a469b60e68f47::t_38b86028482303 17-26
+  s_2a469b60e68f47::t_6a9386a4918d50 447-472
+  s_2a469b60e68f47::t_e8e65816b4f58c 241-245,252-264
+  s_2a469b60e68f47::t_3730d2fd209ee1 514-525
+  s_2a469b60e68f47::t_1305fd169de5f5 527-528
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "1b25b7d99d294f792dfce24c7ca6e1c8f7582dec",
+  "prompts": {},
+  "sessions": {
+    "s_2a469b60e68f47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1f6e6773-0f38-4e61-9244-8ceacfa5b893",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
