@@ -25,6 +25,7 @@ import {
   type RepoInventory,
   type RepoNormalizationResult,
   type RepoRefreshResult,
+  type RepoSubmoduleFinding,
   type SetRepoAxisDelta,
 } from "./repos.ts";
 import { type MaterializeResult } from "./materialize.ts";
@@ -977,6 +978,28 @@ export function formatRepoOrigins(inventory: RepoInventory, format: "plain" | "j
     return JSON.stringify(origins, null, 2);
   }
   return origins.join("\n");
+}
+
+// `prx repo list --list-submodules`: every discovered repo's .gitmodules
+// entries — an audit surface, not a repair; see findRepoSubmodules.
+export function formatRepoSubmodules(
+  findings: RepoSubmoduleFinding[],
+  format: "plain" | "json",
+): string {
+  if (format === "json") {
+    return JSON.stringify(findings, null, 2);
+  }
+  if (findings.length === 0) {
+    return "No git submodules found.";
+  }
+  const lines: string[] = [];
+  for (const finding of findings) {
+    lines.push(`${finding.repoName} — ${finding.worktreePath}`);
+    for (const sub of finding.submodules) {
+      lines.push(`  ${sub.name} (${sub.path}) -> ${sub.url ?? "<no url>"}`);
+    }
+  }
+  return lines.join("\n");
 }
 
 export function formatRepoSet<T>(

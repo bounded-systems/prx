@@ -14,6 +14,7 @@ import {
   formatGateResult,
   formatRemoteCiCheck,
   formatRepoOrigins,
+  formatRepoSubmodules,
   formatResolvedWorkUnitCheck,
   formatScoutLogs,
   formatSessionOpenCheck,
@@ -26,7 +27,7 @@ import {
   formatWorktreeRemove,
 } from "../../src/pr-state/cli-format.ts";
 import { createTaskContract } from "../../src/pr-state/task.ts";
-import type { LocalRepo, RepoInventory } from "../../src/pr-state/repos.ts";
+import type { LocalRepo, RepoInventory, RepoSubmoduleFinding } from "../../src/pr-state/repos.ts";
 
 function taskInTmp(workUnitId = "GH-5431") {
   const root = mkdtempSync(join(tmpdir(), "cli-format-task-"));
@@ -346,5 +347,29 @@ describe("cli-format — repo origins", () => {
     const inventory: RepoInventory = { roots: [], repos: [] };
     expect(formatRepoOrigins(inventory, "plain")).toBe("");
     expect(JSON.parse(formatRepoOrigins(inventory, "json"))).toEqual([]);
+  });
+});
+
+describe("cli-format — repo submodules", () => {
+  test("formatRepoSubmodules renders per-repo submodule entries", () => {
+    const findings: RepoSubmoduleFinding[] = [
+      {
+        repoName: "site",
+        commonDir: "/bare/site.git",
+        worktreePath: "/worktrees/site/mainx",
+        submodules: [
+          { name: "brand", path: "brand", url: "https://github.com/bounded-systems/brand.git" },
+        ],
+      },
+    ];
+    const plain = formatRepoSubmodules(findings, "plain");
+    expect(plain).toContain("site — /worktrees/site/mainx");
+    expect(plain).toContain("brand (brand) -> https://github.com/bounded-systems/brand.git");
+    expect(JSON.parse(formatRepoSubmodules(findings, "json"))).toEqual(findings);
+  });
+
+  test("formatRepoSubmodules on no findings", () => {
+    expect(formatRepoSubmodules([], "plain")).toBe("No git submodules found.");
+    expect(JSON.parse(formatRepoSubmodules([], "json"))).toEqual([]);
   });
 });

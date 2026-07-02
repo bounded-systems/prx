@@ -138,6 +138,7 @@ import {
   canonicalBarePathFromParsed,
   discoverLocalRepos,
   findRepoBySlug,
+  findRepoSubmodules,
   listIndexedReposForDoltReconcile,
   loadRepoInventoryConfig,
   loadRepoInventoryIndex,
@@ -847,6 +848,7 @@ import {
   formatRepoRefresh,
   formatRepoSet,
   formatRepoStatus,
+  formatRepoSubmodules,
   formatRepos,
   formatResolvedWorkUnitCheck,
   formatRuntimeProfile,
@@ -1545,6 +1547,10 @@ type ParsedCommand =
       // each discovered repo's origin remote URL (deduped, sorted) — for
       // scripting against every repo's upstream in one pass.
       listOrigins: boolean;
+      // `prx repo list --list-submodules`: skip the full listing and print
+      // every discovered repo's .gitmodules entries — a submodule audit,
+      // not a repair; see findRepoSubmodules.
+      listSubmodules: boolean;
       format: "plain" | "json";
     }
   | {
@@ -2471,6 +2477,7 @@ type CliDeps = {
   syncStatus?: typeof syncStatus;
   updatePrFromContract?: typeof updatePrFromContract;
   discoverLocalRepos?: typeof discoverLocalRepos;
+  findRepoSubmodules?: typeof findRepoSubmodules;
   normalizeLocalRepos?: typeof normalizeLocalRepos;
   addLocalRepo?: typeof addLocalRepo;
   // GH-1760: opener for the new sqlite registry. Tests inject an in-memory
@@ -8794,6 +8801,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
         name: { type: "string", multiple: true },
         apply: { type: "boolean", default: false },
         "list-origins": { type: "boolean", default: false },
+        "list-submodules": { type: "boolean", default: false },
         format: { type: "string", default: "plain" },
       },
       strict: true,
@@ -8808,6 +8816,7 @@ export function parseCommand(argv: string[]): ParsedCommand {
       local: values.local,
       names: values.name ?? [],
       apply: values.apply,
+      listSubmodules: values["list-submodules"] === true,
       listOrigins: values["list-origins"] === true,
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
     };
@@ -17497,6 +17506,11 @@ export function runCli(
       }
       if (parsed.listOrigins) {
         output.log(formatRepoOrigins(inventory, parsed.format));
+        return 0;
+      }
+      if (parsed.listSubmodules) {
+        const submoduleFindings = (deps.findRepoSubmodules ?? findRepoSubmodules)(inventory);
+        output.log(formatRepoSubmodules(submoduleFindings, parsed.format));
         return 0;
       }
       const filteredInventory = parsed.local
