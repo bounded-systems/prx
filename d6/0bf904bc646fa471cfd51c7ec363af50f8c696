@@ -1,0 +1,63 @@
+packages/prx/src/pr-state/repos.ts
+  s_2a469b60e68f47::t_6aafd0e0604654 555
+docs/cli.md
+  s_2a469b60e68f47::t_1da07c1ff0389a 5,219
+packages/prx/src/pr-state/cli.ts
+  s_2a469b60e68f47::t_52115d9ccc36b5 1629
+  s_2a469b60e68f47::t_6a1cb33e6c00b7 8909-8935
+  s_2a469b60e68f47::t_1cf60447c926db 3823-3827
+  s_2a469b60e68f47::t_e7d974c11fc092 17740
+  s_2a469b60e68f47::t_3df065e07488aa 1633-1638
+  s_2a469b60e68f47::t_2928d54165388e 1631,17749-17778
+  s_2a469b60e68f47::t_d409c788a79efd 8886,8904
+  s_2a469b60e68f47::t_70c54141b7d294 176-180
+  s_2a469b60e68f47::t_842191810ba1f5 2480
+  s_2a469b60e68f47::t_5939a20b6a33cf 8907,13276-13305
+  s_2a469b60e68f47::t_e76aca46c7fdd7 1630
+  s_2a469b60e68f47::t_3d2c5c632acfbe 1632
+  s_2a469b60e68f47::t_8a5da5d1a88cbe 8905-8906
+  s_2a469b60e68f47::t_f82c196d111a4f 8908
+packages/prx/src/pr-state/repo_convert.ts
+  s_2a469b60e68f47::t_b6fb5c6921df21 326-330,332
+  s_2a469b60e68f47::t_0e47c0797619d1 17
+  s_2a469b60e68f47::t_49ff25548916a0 1-16,19-296,309-321,323-325,333-336,340-371
+  s_2a469b60e68f47::t_660abb17da6384 18
+  s_2a469b60e68f47::t_aca516674f2a21 297-308
+  s_2a469b60e68f47::t_55af270d6dda56 322,331,337-339
+packages/prx/src/pr-state/repo_adopt.ts
+  s_2a469b60e68f47::t_fb79e3cec5e037 124,131-140
+  s_2a469b60e68f47::t_c4b56a176ba903 105-108
+.changeset/repo-convert-to-bare.md
+  s_2a469b60e68f47::t_16a07083ecbc7b 1-16
+packages/prx/test/pr-state/repo_convert.test.ts
+  s_2a469b60e68f47::t_6cf58d9669d802 1
+  s_2a469b60e68f47::t_f3ff9113b13a2b 2-400,450-472,477-491
+  s_2a469b60e68f47::t_d1787faac5d322 401-409,420,427-435,437-438
+  s_2a469b60e68f47::t_8df68550ef452b 410-416,439-449
+  s_2a469b60e68f47::t_3d0ebbec4f532c 473-476
+  s_2a469b60e68f47::t_491fccc398713c 417-419,421-426
+  s_2a469b60e68f47::t_3535927484b0c6 436
+packages/prx/test/pr-state/repo_adopt.test.ts
+  s_2a469b60e68f47::t_116ca0492459b4 174-209
+packages/prx/src/cli/registry.data.ts
+  s_2a469b60e68f47::t_562ddef81e0745 1473-1481
+  s_2a469b60e68f47::t_39dd1db7650ca8 1472
+packages/prx/test/pr-state/help/__snapshots__/help.snapshot.test.ts.snap
+  s_2a469b60e68f47::t_6dfa963c24a879 184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "d60bf904bc646fa471cfd51c7ec363af50f8c696",
+  "prompts": {},
+  "sessions": {
+    "s_2a469b60e68f47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1f6e6773-0f38-4e61-9244-8ceacfa5b893",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
