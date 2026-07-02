@@ -179,7 +179,7 @@ describe("prx repo materialize CLI — end-to-end fixture", () => {
     repoRoot = join(root, "operator");
     bareRoot = join(root, "bare");
     xdgStateHome = join(root, "state");
-    wtRoot = join(xdgStateHome, "wt", "worktrees");
+    wtRoot = join(xdgStateHome, "git", "worktrees");
     const prxDir = join(repoRoot, ".prx", "repos");
     mkdirSync(prxDir, { recursive: true });
     mkdirSync(bareRoot, { recursive: true });
@@ -190,7 +190,10 @@ describe("prx repo materialize CLI — end-to-end fixture", () => {
     git(repoRoot, ["init"]);
 
     targetBarePath = join(bareRoot, "io.github", "octo", "demo.git");
-    expectedMainxPath = join(wtRoot, "demo.git", "mainx");
+    // primaryRemote.url below is "https://example.invalid/octo/demo.git" —
+    // canonicalMainxPathFromParsed derives the host segment from that URL
+    // (io.example), independent of where targetBarePath physically sits.
+    expectedMainxPath = join(wtRoot, "io.example", "octo", "demo", "mainx");
 
     // Pre-populate the registered bare path so `materializeBareRepo`
     // takes the `noop` arm (combined with a high TTL via prx.toml).

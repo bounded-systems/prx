@@ -24,7 +24,7 @@ describe("resolveWorktreePath", () => {
     });
     expect(result.source).toBe("XDG_STATE_HOME");
     expect(result.template).toBe(`/home/test/.local/state/${WT_SUBDIRECTORY}/${TEMPLATE_SUFFIX}`);
-    expect(result.base).toBe("/home/test/.local/state/wt/worktrees");
+    expect(result.base).toBe("/home/test/.local/state/git/worktrees");
   });
 
   test("falls back to default XDG path when nothing set", () => {
@@ -32,7 +32,7 @@ describe("resolveWorktreePath", () => {
       HOME: "/home/test",
     });
     expect(result.source).toBe("default");
-    expect(result.template).toContain("/home/test/.local/state/wt/worktrees/");
+    expect(result.template).toContain("/home/test/.local/state/git/worktrees/");
     expect(result.xdgStateHome).toBe("/home/test/.local/state");
   });
 
@@ -40,9 +40,9 @@ describe("resolveWorktreePath", () => {
     const result = resolveWorktreePath({
       HOME: "/home/test",
     });
-    expect(result.template).toContain("wt/worktrees/{{ repo }}/{{ branch | sanitize_db }}");
-    // Must NOT contain the old divergent git/worktrees path
-    expect(result.template).not.toContain("git/worktrees/{{ repo }}");
+    expect(result.template).toContain("git/worktrees/{{ repo }}/{{ branch | sanitize_db }}");
+    // Must NOT contain the retired worktrunk-era wt/worktrees path
+    expect(result.template).not.toContain("wt/worktrees/{{ repo }}");
   });
 
   test("WT_WORKTREE_PATH and WORKTRUNK_WORKTREE_PATH are always equal", () => {
