@@ -344,6 +344,44 @@ function gitCommonDir(cwd: string, runner: RepoRunner): string | null {
   return value ? resolve(cwd, value) : null;
 }
 
+// Two jobs: (1) recognize a bare repo by its actual on-disk shape instead of
+// its name — `*.git` is a strong convention (this project's own included),
+// not something git requires, so `walkForGitEntries` checks every directory
+// with this, not just ones matching that naming pattern; (2) cheaply reject
+// a naming false-positive (a stray dotfile like `.envrc.git`, or an
+// unrelated directory that happens to end in `.git`) before it costs two
+// `git rev-parse` subprocess spawns being rejected downstream in
+// `discoverLocalRepos`.
+//
+// A false positive here is harmless — `discoverLocalRepos` still does the
+// authoritative `git rev-parse` validation afterward, so worst case is a
+// couple of wasted subprocess spawns, same as before this function existed.
+// A false negative is NOT harmless: nothing downstream re-checks a directory
+// this function rejects, so a real repo would silently vanish from the scan
+// entirely. That asymmetry means this must stay deliberately permissive —
+// check only for `HEAD`, the one file present in literally every real git
+// dir regardless of ref-storage format (traditional refs/ vs. the newer
+// `reftable` format, git 2.44+), object-storage layout, bare/non-bare,
+// shallow/partial/sparse. Do NOT also require objects/ or refs/ — a
+// reftable-format repo may not have a conventional refs/ tree, and that's
+// exactly the kind of edge case this must never reject on its own say-so.
+function looksLikeGitDir(path: string, isDirectory: boolean): boolean {
+  if (!isDirectory) {
+    // A linked-worktree gitfile is a plain text file starting with
+    // "gitdir: <path>".
+    try {
+      return readFileSync(path, "utf8").trimStart().startsWith("gitdir:");
+    } catch {
+      return false;
+    }
+  }
+  try {
+    return existsSync(join(path, "HEAD"));
+  } catch {
+    return false;
+  }
+}
+
 function walkForGitEntries(root: string, maxDepth: number, entries: string[], depth = 0): void {
   if (!existsSync(root)) {
     return;
@@ -371,20 +409,28 @@ function walkForGitEntries(root: string, maxDepth: number, entries: string[], de
   for (const dirent of dirents) {
     const fullPath = join(root, dirent.name);
     if (dirent.name === ".git") {
-      entries.push(fullPath);
+      if (looksLikeGitDir(fullPath, dirent.isDirectory())) {
+        entries.push(fullPath);
+      }
       continue;
     }
-    if (dirent.isDirectory() && dirent.name.endsWith(".git")) {
-      entries.push(fullPath);
-    }
-
     if (!dirent.isDirectory()) {
       continue;
     }
-    if (depth >= maxDepth) {
+    if (ignoredDirs.has(dirent.name)) {
       continue;
     }
-    if (ignoredDirs.has(dirent.name)) {
+    // A bare repo can be named anything at all — the `*.git` suffix is a
+    // strong convention (and this project's own), not something git
+    // requires. Check every directory here, not just ones matching that
+    // naming pattern, so a bare repo without it isn't invisible to the
+    // whole candidate-selection step. Don't recurse into a repo once found
+    // — its own internals (objects/, refs/) have nothing more to discover.
+    if (looksLikeGitDir(fullPath, true)) {
+      entries.push(fullPath);
+      continue;
+    }
+    if (depth >= maxDepth) {
       continue;
     }
     walkForGitEntries(fullPath, maxDepth, entries, depth + 1);
