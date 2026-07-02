@@ -1,0 +1,44 @@
+packages/prx/test/pr-state/repos.test.ts
+  s_2a469b60e68f47::t_2e765df65aa89d 536
+  s_2a469b60e68f47::t_276b9a4a53310f 339-345,348-353,373-379,382-387
+  s_2a469b60e68f47::t_0b8fc7cb550e9a 1853
+  s_2a469b60e68f47::t_c083430eee4471 905,1065,1653,1994,2031,2067,2218,2687
+  s_2a469b60e68f47::t_61857ddc4ae50b 328-338,346-347,354-372,380-381,388-395
+  s_2a469b60e68f47::t_5e6958cc381cd2 3
+  s_2a469b60e68f47::t_d218448acaa9e1 2697
+  s_2a469b60e68f47::t_ab17649a299693 958-1000
+.changeset/fix-worktree-path-org-collision.md
+  s_2a469b60e68f47::t_37560e688aa89b 1-13
+packages/prx/test/pr-state/repo_gc.test.ts
+  s_2a469b60e68f47::t_16f55ba496efd1 13-17
+  s_2a469b60e68f47::t_d76648983701f3 77-78
+packages/prx/test/tools/worktree_path.test.ts
+  s_2a469b60e68f47::t_bb378c884640d7 27,35,43-45
+packages/prx/src/tools/worktree_path.ts
+  s_2a469b60e68f47::t_87b22b64eb08e2 50-51
+  s_2a469b60e68f47::t_be713fd8a10c2f 5,13-15,20
+packages/prx/src/pr-state/repos.ts
+  s_2a469b60e68f47::t_730e141980eb49 289-293
+  s_2a469b60e68f47::t_dbbd5cfa4d906e 363-370
+  s_2a469b60e68f47::t_dc1a37a823ebe5 1488-1499
+  s_2a469b60e68f47::t_03c23322e8a872 1052-1055
+packages/prx/test/pr-state/materialize.integration.test.ts
+  s_2a469b60e68f47::t_1aaf77dc47f9b4 182
+  s_2a469b60e68f47::t_e0f24f8e6e9f30 193-196
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a9f65ac13d445895f51bc8565213181326ac504f",
+  "prompts": {},
+  "sessions": {
+    "s_2a469b60e68f47": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1f6e6773-0f38-4e61-9244-8ceacfa5b893",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
