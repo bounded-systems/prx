@@ -1,0 +1,19 @@
+packages/prx/test/pr-state/cli.test.ts
+  s_a4789e0b0492f1::t_d397ceca30efd9 15693-15696,15715,15717-15720
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "d93c8e201fadd6bbf99a02d50cd6998d00f86884",
+  "prompts": {},
+  "sessions": {
+    "s_a4789e0b0492f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "08589f2f-93b7-4db3-a0a5-375b9672f700",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
