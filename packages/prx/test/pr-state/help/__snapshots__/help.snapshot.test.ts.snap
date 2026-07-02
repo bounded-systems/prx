@@ -181,6 +181,7 @@ Work units:
 Repo plumbing:
   prx repo add               Clone bare repo and bootstrap detached mainx
   prx repo adopt             Adopt on-disk worktree into prx registry
+  prx repo convert-to-bare   Convert a standard working copy to bare + linked worktree
   prx branch adopt           Adopt current branch into prx registry
   prx workspace adopt        Adopt on-disk worktree into prx registry
   prx workspace reserve      Reserve a workspace branch (idempotent ensure-branch)

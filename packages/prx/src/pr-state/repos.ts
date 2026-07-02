@@ -552,7 +552,7 @@ function canonicalWorktreePathForRepo(
   return join(homeDir, ".local", "state", "git", "worktrees", "io.github", owner, name, branch);
 }
 
-function uniqueBackupPath(path: string): string {
+export function uniqueBackupPath(path: string): string {
   let attempt = `${path}.prx-backup`;
   let suffix = 2;
   while (existsSync(attempt)) {

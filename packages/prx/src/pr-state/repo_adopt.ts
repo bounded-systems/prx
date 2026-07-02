@@ -102,6 +102,10 @@ export type AdoptRepoOptions = {
   store: RepositoryStore;
   runner?: RepoRunner;
   now?: () => Date;
+  // Skip the sameRepoIdentity mismatch check and overwrite the registered
+  // row. For repos whose bare_path/remote_url legitimately changed (e.g.
+  // moved into the canonical bare+worktree layout by `repo convert-to-bare`).
+  force?: boolean;
 };
 
 export type AdoptRepoResult =
@@ -117,20 +121,24 @@ export function adoptRepo({
   store,
   runner = defaultRepoRunner,
   now = () => new Date(),
+  force = false,
 }: AdoptRepoOptions): AdoptRepoResult {
   const inferred = inferRepoFromWorktree(worktreePath, runner);
   const prior = store.getById(inferred.repo_id);
 
   if (prior) {
     if (!sameRepoIdentity(prior, inferred)) {
-      throw new CliError(
-        `repo adopt: registered entry for ${inferred.repo_id} disagrees with ${worktreePath}. ` +
-          `registered bare_path=${prior.bare_path} remote_url=${prior.remote_url}; ` +
-          `inferred bare_path=${inferred.bare_path} remote_url=${inferred.remote_url}. ` +
-          "Refusing to silently rewrite. Re-run against the registered worktree or remove the registry entry first.",
-      );
+      if (!force) {
+        throw new CliError(
+          `repo adopt: registered entry for ${inferred.repo_id} disagrees with ${worktreePath}. ` +
+            `registered bare_path=${prior.bare_path} remote_url=${prior.remote_url}; ` +
+            `inferred bare_path=${inferred.bare_path} remote_url=${inferred.remote_url}. ` +
+            "Refusing to silently rewrite. Re-run against the registered worktree, remove the registry entry first, or pass --force.",
+        );
+      }
+    } else {
+      return { kind: "already-adopted", row: prior };
     }
-    return { kind: "already-adopted", row: prior };
   }
 
   const row: RepoRow = {
