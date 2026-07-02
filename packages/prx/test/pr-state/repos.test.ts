@@ -18,6 +18,7 @@ import {
   addLocalRepo,
   discoverLocalRepos,
   findRepoBySlug,
+  findRepoSubmodules,
   loadRepoInventoryConfig,
   loadRepoInventoryIndex,
   localWorkspacePrefixForCwd,
@@ -887,6 +888,93 @@ describe("discoverLocalRepos", () => {
 
     const result = normalizeLocalRepos(inventory);
     expect(result.repos).toHaveLength(0);
+  });
+});
+
+describe("findRepoSubmodules", () => {
+  test("reports .gitmodules entries per worktree, and nothing for a repo without one", () => {
+    const root = mkdtempSync(join(tmpdir(), "prx-repos-submodules-"));
+    const withSubmodule = join(root, "site");
+    mkdirSync(withSubmodule, { recursive: true });
+    writeFileSync(
+      join(withSubmodule, ".gitmodules"),
+      [
+        '[submodule "brand"]',
+        "\tpath = brand",
+        "\turl = https://github.com/bounded-systems/brand.git",
+        "\tbranch = main",
+      ].join("\n"),
+    );
+    const withoutSubmodule = join(root, "cv");
+    mkdirSync(withoutSubmodule, { recursive: true });
+
+    const inventory: RepoInventory = {
+      roots: [root],
+      repos: [
+        {
+          name: "site",
+          commonDir: join(withSubmodule, ".git"),
+          kind: "standard",
+          mainWorktree: withSubmodule,
+          worktrees: [{ path: withSubmodule, branch: "main", current: false, kind: "standard" }],
+          localOnlyBranches: [],
+          findings: [],
+          remotes: [],
+          primaryRemote: null,
+          upstreamRemote: null,
+        },
+        {
+          name: "cv",
+          commonDir: join(withoutSubmodule, ".git"),
+          kind: "standard",
+          mainWorktree: withoutSubmodule,
+          worktrees: [
+            { path: withoutSubmodule, branch: "main", current: false, kind: "standard" },
+          ],
+          localOnlyBranches: [],
+          findings: [],
+          remotes: [],
+          primaryRemote: null,
+          upstreamRemote: null,
+        },
+      ],
+    };
+
+    const runner: import("../../src/pr-state/repos.ts").RepoRunner = (cmd, options = {}) => {
+      if (
+        cmd[0] === "git" &&
+        cmd[1] === "config" &&
+        cmd[2] === "--file" &&
+        cmd[3] === join(withSubmodule, ".gitmodules")
+      ) {
+        return {
+          stdout: [
+            "submodule.brand.path=brand",
+            "submodule.brand.url=https://github.com/bounded-systems/brand.git",
+            "submodule.brand.branch=main",
+          ].join("\n"),
+          stderr: "",
+          status: 0,
+        };
+      }
+      return { stdout: "", stderr: `unmocked: ${cmd.join(" ")}|${options.cwd ?? ""}`, status: 1 };
+    };
+
+    const findings = findRepoSubmodules(inventory, runner);
+    expect(findings).toEqual([
+      {
+        repoName: "site",
+        commonDir: join(withSubmodule, ".git"),
+        worktreePath: withSubmodule,
+        submodules: [
+          {
+            name: "brand",
+            path: "brand",
+            url: "https://github.com/bounded-systems/brand.git",
+          },
+        ],
+      },
+    ]);
   });
 });
 

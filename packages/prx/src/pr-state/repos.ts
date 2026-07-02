@@ -1271,6 +1271,69 @@ export function discoverLocalRepos(
   };
 }
 
+export type RepoSubmoduleRef = {
+  name: string;
+  path: string;
+  url: string | null;
+};
+
+export type RepoSubmoduleFinding = {
+  repoName: string;
+  commonDir: string;
+  worktreePath: string;
+  submodules: RepoSubmoduleRef[];
+};
+
+/**
+ * `prx repo list --list-submodules`: git submodules are a frequent source of
+ * silent divergence — each checkout has its own independently-dirty copy at
+ * whatever commit it happens to be pinned to (see the `bounded-systems/brand`
+ * case: found as 3+ genuinely different, independently-uncommitted copies
+ * across 5 repos in a single sweep of this machine). This surfaces every
+ * `.gitmodules` a discovered repo's worktrees carry, purely for audit — it
+ * does not touch or resolve anything.
+ */
+export function findRepoSubmodules(
+  inventory: RepoInventory,
+  runner: RepoRunner = defaultRepoRunner,
+): RepoSubmoduleFinding[] {
+  const findings: RepoSubmoduleFinding[] = [];
+  for (const repo of inventory.repos) {
+    for (const worktree of repo.worktrees) {
+      const gitmodulesPath = join(worktree.path, ".gitmodules");
+      if (!existsSync(gitmodulesPath)) {
+        continue;
+      }
+      const result = runner(["git", "config", "--file", gitmodulesPath, "--list"], {
+        cwd: worktree.path,
+        check: false,
+      });
+      if (result.status !== 0) {
+        continue;
+      }
+      const byName = new Map<string, RepoSubmoduleRef>();
+      for (const line of result.stdout.split("\n")) {
+        const match = line.match(/^submodule\.(.+)\.(path|url)=(.*)$/);
+        if (!match) continue;
+        const [, name, key, value] = match as [string, string, "path" | "url", string];
+        const entry = byName.get(name) ?? { name, path: "", url: null };
+        if (key === "path") entry.path = value;
+        if (key === "url") entry.url = value;
+        byName.set(name, entry);
+      }
+      if (byName.size > 0) {
+        findings.push({
+          repoName: repo.name,
+          commonDir: repo.commonDir,
+          worktreePath: worktree.path,
+          submodules: [...byName.values()],
+        });
+      }
+    }
+  }
+  return findings;
+}
+
 export function normalizeLocalRepos(
   inventory: RepoInventory,
   options: {
