@@ -1,0 +1,29 @@
+.claude/context/project.md
+  s_5af7d7257a71b7::t_f01f0ea7c681f8 47
+prx.jsonld
+  s_33bbcd0fd4f723::t_30e4a1f28295cd 437-445
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a64e9b81ad481f198ca6823440b098008176aea9",
+  "prompts": {},
+  "sessions": {
+    "s_33bbcd0fd4f723": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5bc706a5-d0fc-454d-969d-ac79309da678",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    },
+    "s_5af7d7257a71b7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b292ff53-e67d-4386-be49-f24217c202d5",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
