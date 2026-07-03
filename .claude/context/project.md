@@ -57,6 +57,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Behavior layer — property & contract testing over the verb registry (spike) — `docs/spikes/behavior-property-testing.md`
 - Capability-package consolidation — granularity of the `@bounded-systems/*` seams (spike) — `docs/spikes/capability-package-consolidation.md`
 - GH-1836 — PRX runtime + workspace architecture: Nix + Moon + Deno/Bun hybrid (ADR) — `docs/spikes/GH-1836-prx-runtime-architecture.md`
+- Spike — the git-gateway permission intersection model (prx-0wsf round 5) — `docs/spikes/git-gateway-permission-intersection/README.md`
 - Kata Containers — VM-grade isolation with container ergonomics, mapped to prx (spike) — `docs/spikes/kata-containers-isolation-boundary.md`
 - Spike — validate the keeper door: host-backed secret + live push (prx-b44y) — `docs/spikes/keeper-door-secret-validation.md`
 - prx-3eu — Sync agent: adopt a sync framework, or build bespoke? (ADR) — `docs/spikes/prx-3eu-sync-framework-build-vs-adopt.md`
