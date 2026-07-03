@@ -9780,10 +9780,11 @@ describe("pr_state cli", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-cli-repair-"));
     return {
       root,
-      // The handler computes `<bareRoot>/io.<short>/<owner>/<name>.git` —
-      // pre-create this for "exists on disk" cases.
+      // The handler computes `<bareRoot>/com.<host>/<owner>/<name>.git` via
+      // hostSegmentForHost (true reverse-DNS) — pre-create this for
+      // "exists on disk" cases.
       barePathFor(owner: string, name: string, host: "github" | "gitlab" = "github") {
-        const path = join(root, `io.${host}`, owner, `${name}.git`);
+        const path = join(root, `com.${host}`, owner, `${name}.git`);
         mkdirSync(path, { recursive: true });
         return path;
       },
