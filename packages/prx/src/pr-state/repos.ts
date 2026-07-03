@@ -305,6 +305,19 @@ const ignoredDirs = new Set([
   ".tmp",
   "vendor",
   ".cache",
+  // Below: third-party tool state directories, not user repos. Each is a
+  // home-manager-deployed app-support/plugin-cache tree that the owning tool
+  // manages with its own git internals — walking into them either finds
+  // nothing useful or surfaces vendored/cached checkouts the tool re-creates
+  // on every run. Matched by directory name (not full path), same as the
+  // build-artifact entries above.
+  "cache", // e.g. .local/state/cache/{act,trunk,sorbet-typed} — CI/lint tool caches
+  "asdf", // asdf version-manager's plugin repos + registry checkout
+  "cursor-home", // Cursor editor's own app-support state (plugin cache, internal worktrees) — NOT dx-home/cursor, which is a real tracked repo
+  "codex-home", // Codex CLI's vendored plugin/skill imports
+  "gitkraken-home", // GitKraken's bundled tutorial repo
+  "rbenv-home", // rbenv-managed Ruby installs; bundler vendors git-sourced gems here
+  "marketplaces", // Claude Code plugin marketplace clones under .config/claude/plugins/marketplaces — managed by claude, not user repos
 ]);
 
 function normalizeCommonDir(raw: string, cwd: string): string {
