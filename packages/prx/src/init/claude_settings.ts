@@ -96,8 +96,9 @@ export function buildClaudeSettings(): ClaudeSettings {
  *     (inert until an OTEL endpoint is configured out-of-band).
  *   - SessionStart: ensures the per-repo beadsd is up (host-side bridge for
  *     the retired auto-start, prx-82b Slice 2e.4 — see `.claude/ensure-beads.sh`),
- *     then injects the org canonical context via `.claude/inject-org-context.sh`
- *     (both fail open).
+ *     injects the org canonical context via `.claude/inject-org-context.sh`,
+ *     then emits the cloud-box identity attestation via `.claude/attest-box.sh`
+ *     (see docs/prx/cloud-box-attestation.md — all three fail open).
  */
 export function buildOrgHarnessSettings(): ClaudeSettings {
   return {
@@ -114,6 +115,7 @@ export function buildOrgHarnessSettings(): ClaudeSettings {
           hooks: [
             { type: "command", command: "bash .claude/ensure-beads.sh" },
             { type: "command", command: "bash .claude/inject-org-context.sh" },
+            { type: "command", command: "bash .claude/attest-box.sh" },
           ],
         },
       ],

@@ -62,7 +62,7 @@ describe("buildOrgHarnessSettings", () => {
     });
   });
 
-  test("wires the beadsd-ensure hook ahead of the context-injection hook", () => {
+  test("wires beadsd-ensure, then context-injection, then box-attestation", () => {
     const sessionStart = buildOrgHarnessSettings().hooks?.SessionStart;
     expect(sessionStart).toEqual([
       {
@@ -70,6 +70,7 @@ describe("buildOrgHarnessSettings", () => {
         hooks: [
           { type: "command", command: "bash .claude/ensure-beads.sh" },
           { type: "command", command: "bash .claude/inject-org-context.sh" },
+          { type: "command", command: "bash .claude/attest-box.sh" },
         ],
       },
     ]);
