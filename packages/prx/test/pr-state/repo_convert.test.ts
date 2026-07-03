@@ -51,7 +51,7 @@ function setupFixture(): Fixture {
   mkdirSync(join(worktree, ".git"), { recursive: true });
   writeFileSync(join(worktree, "README.md"), "hello\n");
   const bareRoot = join(root, "bare-root");
-  const targetBare = join(bareRoot, "io.github", "bdelanghe", "ai-home.git");
+  const targetBare = join(bareRoot, "com.github", "bdelanghe", "ai-home.git");
   return { root, worktree, bareRoot, targetBare };
 }
 
