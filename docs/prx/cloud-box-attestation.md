@@ -226,8 +226,92 @@ Recommended sequencing:
    *more than the cloud* posture: the signing key never touches Anthropic infra.
 
 A standalone **Cloudflare Worker** is the middle option when you want an
-always-on edge broker without running keeperd — DoltHub's HTTP SQL API makes the
-write feasible from the Worker, and it re-verifies against GitHub itself.
+always-on edge broker without running keeperd — but to stay aligned it must
+still route the write **through bd** (see *Data plane*), not hand-write SQL.
+
+## Data plane — bd is the writer; the box holds no dolt
+
+A bead write is **not raw SQL**: bd owns id allocation, dependency edges, the
+events audit trail, JSONL export, and high-water marks. So the write must go
+*through bd*, or it drifts from bd's invariants (the same drift the repo's
+dolt-canonical rule forbids). This ranks the deployment shapes — and note the
+**cloud box never needs dolt**; it holds nothing and only submits the signed
+artifact. dolt lives in the *broker's* domain:
+
+| Shape | dolt instance | Who writes | Aligned? |
+| --- | --- | --- | --- |
+| keeperd + `dolt-box` (local) | a real dolt server you run, ingress-fronted | **bd** → local dolt; keeper pushes | **best** — this *is* `beadsd-box`+`dolt-box`+keeper |
+| bd → remote dolt sql-server | dolt as a shared service (hosted / managed `dolt-box`); no local clone | **bd** over MySQL protocol (`dolt_mode: server`) | aligned — bd stays the writer |
+| raw DoltHub HTTP SQL API | none | reimplements bd's schema + events | **off-model** — bypasses bd |
+
+Chosen: **bd is always the writer.** Run it against a local `dolt-box` (richest,
+prx-native) or point it at a remote dolt sql-server (lighter ops) — but never the
+raw HTTP SQL path.
+
+## Scaffold — the bead-write broker contract
+
+Mirrors keeperd's spec-as-schema seam (`packages/prx/src/keeperd/contract.ts`):
+both ends `parse()` every frame, so a malformed request is a validation error at
+the seam, never a half-executed write. The box holds no dolt and no secret; it
+submits the bead plus the GitHub-anchored proof the door **re-verifies**.
+
+```ts
+// Box → broker (keeperd). The door NEVER trusts these fields — proof.* is
+// re-verified against GitHub before any write.
+export const BeadWriteRequestSchema = z.object({
+  kind: z.literal("bead-write"),
+  // The proposed bead — these become `bd create` args (bd is the writer).
+  bead: z.object({
+    title: z.string().min(1),
+    type: z.enum(["bug", "feature", "task", "chore", "epic"]),
+    body: z.string().default(""),
+    // optional: labels, priority, dependency edges — whatever bd create accepts
+  }),
+  // The evidence, re-checked at GitHub (an authority independent of the box).
+  proof: z.object({
+    repo: z.string().min(1),            // owner/repo
+    branch: z.string().min(1),          // the box's working branch (push-restricted)
+    artifactCommit: Sha1,               // web-flow-signed commit carrying the bead artifact
+    artifactDigest: z.string().min(1),  // sha256 of the canonical bead artifact
+    sessionId: z.string().min(1),       // cse_… — matched to the operator's launch pre-registration
+    // optional delegated-launch-key signature over (artifactDigest || nonce)
+    launchSig: z.object({ alg: z.string(), sig: z.string(), nonce: z.string() }).optional(),
+  }),
+});
+// Response mirrors KeeperRemoteResponse: ok { beadId, doltPushRef, signedDerivation? }
+// | error { code, message }.
+```
+
+Keeper-side pipeline — **fail closed**, each step a caveat verified by a
+different party:
+
+1. **`parse()`** the frame (schema seam).
+2. **Ingress auth** — the call arrived over an authenticated channel (door-bridge
+   TCP/vsock, or a Cloudflare Tunnel service token), not an open port.
+3. **GitHub re-verify** (independent authority): `artifactCommit` is on `branch`
+   of `repo` with `verification.verified == true && reason == "valid"` and signer
+   = GitHub web-flow; its tree contains the artifact whose sha256 ==
+   `artifactDigest`; and the authenticated identity can read the ACL repo (the
+   `inject-org-context.sh` maintainer gate).
+4. **Launch binding** — `sessionId` ∈ the operator's pre-registered launches for
+   `(repo, branch)`; if `launchSig` is present, verify it against the
+   pre-registered launch pubkey.
+5. **Policy caveats** — idempotency/replay guard keyed on `artifactCommit` (a
+   web-flow-signed commit is unique + tamper-evident, so a replay writes no second
+   bead), rate-limit, optional human gate (Environment reviewer / keeper lease).
+6. **Write via bd** — `bd create --type … --title … …` against `dolt-box` (or the
+   remote sql-server). bd owns ids/events/schema.
+7. **Signed push** — keeperd performs ONLY the security-sensitive step, the push
+   to DoltHub with the **host-backed secret** (`prx-b44y`: podman secret → tmpfs,
+   never in an image/git/host-plaintext). Optionally emit a signed
+   `beadwrite/v1` derivation into a ledger ref, mirroring keeper's `push/v1`.
+8. **Provenance return** — reply `ok` with `{ beadId, doltPushRef }`, stamped with
+   the `session_url` for traceability.
+
+Reuses, end to end: the box's push-restriction (proxy) → the web-flow signature
+(GitHub) → the door's GitHub re-verification → bd's write correctness → keeper's
+host-backed signed push. No single party — box, Anthropic platform, or GitHub
+alone — can effect the write.
 
 ## Alternatives considered
 
