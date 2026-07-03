@@ -36,6 +36,19 @@ export const DEFAULT_DOOR_DIR = getEnv("XDG_RUNTIME_DIR")
   ? `${getEnv("XDG_RUNTIME_DIR")}/prx/doors`
   : `${getEnv("HOME") ?? "/tmp"}/.local/run/prx/doors`;
 
+/**
+ * The default IN-CONTAINER mount path for the door fabric — deliberately
+ * host-agnostic (no username, no home-dir layout), unlike {@link DEFAULT_DOOR_DIR}
+ * which is a real host path. A 2026-07-03 finding: mounting the fabric at the
+ * SAME path on both sides (`${doorDir}:${doorDir}`) let a guest fingerprint the
+ * host (macOS, username, home layout) purely from its own mountinfo/env, even
+ * though the doors themselves are unstatable/credential-free. Guest-side code
+ * should always resolve door sockets via {@link podRoomEnv}'s projected env
+ * vars, never by reconstructing a path from `doorDir` — this constant exists
+ * so a guest ps/mount listing reveals nothing about the host.
+ */
+export const DEFAULT_GUEST_DOOR_DIR = "/run/prx/doors";
+
 export const PodSpecSchema = z.object({
   name: z.string().min(1),
   /** The shared house — the executor every member room runs in (per-repo). */
@@ -48,8 +61,17 @@ export const PodSpecSchema = z.object({
    * with their named data volumes; they expose no doors. Empty by default.
    */
   services: z.array(PodServiceSchema).default([]),
-  /** The shared tmpfs dir the door sockets live on. */
+  /** The shared tmpfs dir the door sockets live on, on the HOST. */
   doorDir: z.string().min(1).default(DEFAULT_DOOR_DIR),
+  /**
+   * The path the door fabric is mounted at INSIDE each room's container —
+   * deliberately distinct from {@link doorDir} so the guest can't infer the
+   * host's OS/username/home layout from its own mount table (2026-07-03
+   * finding). Every in-container reference (kube `mountPath`, `Volume=`
+   * destinations, the env `podRoomEnv` projects, `--socket` args) uses this;
+   * only host-side provisioning/polling uses the real `doorDir`.
+   */
+  guestDoorDir: z.string().min(1).default(DEFAULT_GUEST_DOOR_DIR),
   /**
    * Absolute host path of the repo this pod operates on, bind-mounted at `/work`
    * (the daemon images' `WorkingDir`) in every room (prx-u5lx). One pod = one
@@ -178,7 +200,7 @@ export function podRoomEnv(pod: PodSpec, roomName: string): Record<string, strin
   const { resolved } = resolvePodDoors(p);
   return resolved
     .filter((d) => d.consumer === roomName)
-    .reduce<Record<string, string>>((env, d) => ({ ...env, ...doorEnv(d, p.doorDir) }), {});
+    .reduce<Record<string, string>>((env, d) => ({ ...env, ...doorEnv(d, p.guestDoorDir) }), {});
 }
 
 /**

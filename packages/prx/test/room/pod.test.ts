@@ -8,6 +8,7 @@ import { z } from "zod";
 import { perRepoPod } from "../../src/room/per-repo-pod.ts";
 import {
   DEFAULT_DOOR_DIR,
+  DEFAULT_GUEST_DOOR_DIR,
   PodSpecSchema,
   effectiveExecutor,
   podRoomEnv,
@@ -15,9 +16,10 @@ import {
   type PodSpec,
 } from "../../src/room/pod.ts";
 
-// Socket paths are rebased to doorDir at projection time.
-const beadsSock = `${DEFAULT_DOOR_DIR}/beadsd.sock`;
-const keeperSock = `${DEFAULT_DOOR_DIR}/keeperd.sock`;
+// Socket paths are rebased to guestDoorDir (the in-container mount path,
+// host-agnostic by design) at projection time — NOT the host doorDir.
+const beadsSock = `${DEFAULT_GUEST_DOOR_DIR}/beadsd.sock`;
+const keeperSock = `${DEFAULT_GUEST_DOOR_DIR}/keeperd.sock`;
 import { RoomSpecSchema } from "../../src/room/spec.ts";
 
 // Author rooms as schema INPUT (tier/doors/grants default in, executor optional);
@@ -168,7 +170,7 @@ describe("podRoomEnv — the keystone", () => {
       ],
     };
     expect(podRoomEnv(pod([c, forgeDProvider]), "consumer")).toEqual({
-      PRX_FORGE_DOOR: `${DEFAULT_DOOR_DIR}/forge-d.sock`,
+      PRX_FORGE_DOOR: `${DEFAULT_GUEST_DOOR_DIR}/forge-d.sock`,
     });
   });
 
@@ -204,7 +206,7 @@ describe("perRepoPod", () => {
   });
 
   test("fires the gate env into claude-room (beadsd + keeperd + forge-d doors)", () => {
-    const dir = perRepoPod.doorDir;
+    const dir = perRepoPod.guestDoorDir;
     expect(podRoomEnv(perRepoPod, "claude-room")).toEqual({
       PRX_BEADS_DOOR: "beadsd",
       PRX_BEADS_SOCKET: `${dir}/beadsd.sock`,
