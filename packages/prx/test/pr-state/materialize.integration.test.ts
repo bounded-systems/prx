@@ -192,8 +192,9 @@ describe("prx repo materialize CLI — end-to-end fixture", () => {
     targetBarePath = join(bareRoot, "io.github", "octo", "demo.git");
     // primaryRemote.url below is "https://example.invalid/octo/demo.git" —
     // canonicalMainxPathFromParsed derives the host segment from that URL
-    // (io.example), independent of where targetBarePath physically sits.
-    expectedMainxPath = join(wtRoot, "io.example", "octo", "demo", "mainx");
+    // via hostSegmentForHost (true reverse-DNS: invalid.example), independent
+    // of where targetBarePath physically sits.
+    expectedMainxPath = join(wtRoot, "invalid.example", "octo", "demo", "mainx");
 
     // Pre-populate the registered bare path so `materializeBareRepo`
     // takes the `noop` arm (combined with a high TTL via prx.toml).
