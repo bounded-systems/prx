@@ -7,7 +7,10 @@
 > **external broker** without ever placing a credential inside the box. The
 > `.claude/attest-box.sh` SessionStart hook emits the attestation this ADR
 > specifies. Sibling to `docs/prx/beadsd-door-wiring.md` (the door that would
-> consume it).
+> consume it) and to the keeper door (`docs/spikes/keeper-door-secret-validation.md`,
+> prx-b44y) — one candidate broker. Attenuation is a **multi-party caveat
+> chain**, not a box boundary (see *Layered attenuation*); the broker holds the
+> DoltHub credential off the cloud entirely (see *Broker realizations*).
 
 ## Problem
 
@@ -121,6 +124,110 @@ This maps onto primitives prx already has: the proxy's per-branch push
 restriction *is* capability attenuation (`git-gateway-permission-intersection`),
 and `signed-ref-snapshot` / `worktree-provenance` are the artifact-identity
 layer the broker checks.
+
+## Layered attenuation — a caveat chain, not a box boundary
+
+Attenuating "what Claude can do" **only** at the box boundary is too weak: the
+box's one authenticated power (push to its branch) is a coarse grant, and a
+single boundary is a single point of forgery. Attenuation must be a **chain of
+caveats**, each narrowed and — critically — **verified by a different party**, so
+that no single compromise (not the box, not Anthropic's platform, not GitHub
+alone) is sufficient to effect the privileged write. Two slogans capture the two
+directions this must extend:
+
+- **More than the box.** Authority is narrowed at every hop, not just at the
+  sandbox edge: launch → box → artifact → broker → DoltHub.
+- **More than the cloud.** The *roots of trust* are distributed off the cloud:
+  GitHub (signer + branch/ACL authority), the launch origin (the operator's
+  pre-registration / launch key), the broker's own host-backed key, and an
+  optional human gate. Anthropic's cloud channel *mediates* but is never the sole
+  root.
+
+| Hop | Authority it holds | Attenuated to | Verified by |
+| --- | --- | --- | --- |
+| Launch origin | operator account + optional launch key | one session, one `(repo, branch)` | operator (pre-registration) |
+| Box | GitHub-proxy push | its working branch only | the proxy (per-branch restriction) |
+| Artifact | a web-flow-signed commit | one bead request + its digest | GitHub (`verification.verified`) |
+| Broker | the DoltHub secret | one scoped write per verified request | itself, re-checking GitHub |
+| Human gate (opt.) | approval | release / deny | reviewer (Environment / keeper lease) |
+| keeperd | host-backed signing key | the signed push, nothing else | a key that never entered the cloud |
+
+Each row is a caveat over the last — the `git-gateway-permission-intersection`
+model, extended past the git edge to the DoltHub write.
+
+## Signing on the token's authority — GitHub web-flow
+
+A GitHub token is a bearer credential, not a signing key, and the box holds only
+a `proxy-…` translation of it — so the box cannot *sign* with it. But a commit
+**created through the GitHub API** (contents endpoint / merge) is signed by
+GitHub's `web-flow` GPG key and returns `verification.verified = true`,
+attributed to the session's authenticated identity. So the broker upgrades step
+1: the box **creates the bead-artifact commit via the API** (web-flow signed) on
+its branch rather than `git push`-ing it, and the broker checks
+`verification.verified == true && reason == "valid"` and that the signer is
+GitHub's web-flow key. This is a *portable cryptographic signature* over the
+artifact — evidence that survives outside the branch context — with still no
+secret in the box.
+
+Caveat on what it attests: the signature is **GitHub's**, asserting "GitHub made
+this commit on behalf of the token-holder," *not* "the user's private key signed
+this." It proves account-authorized-via-this-session, mediated by GitHub. Local
+`git push` commits are **not** web-flow signed — they are attributed only by
+spoofable email→account mapping — so attestation must use API-created commits.
+
+## Passing a root of trust from the launch origin
+
+The box has no innate root of trust, but the **operator who launches it does**,
+and can seed one at launch (`claude --remote`, the Remote/Routines SDK):
+
+- **Correlation key (no secret).** The launch returns `{session_id, repo,
+  branch, account}`; pre-register it with the broker. A submission proving
+  GitHub-verified control of that `(repo, branch)` and reporting that
+  `session_id` is bound to the job the operator actually started — turning
+  "*some* session controls this branch" into "the session **I launched** does."
+- **Delegated launch key (strong).** Mint an ephemeral keypair on the trusted
+  machine; inject the private half at launch, register the public half with the
+  broker. Now the box can sign the artifact / a broker challenge, verified
+  against the pre-registered key. Best form: use it as a git commit-signing key
+  (`git commit -S`), optionally registered to the account via the token
+  (`POST /user/gpg_keys`) so it *also* verifies on GitHub — two independent
+  anchors on one object.
+
+Boundary: a launch key protects against a forging third party, not against the
+platform itself (a compromised base image could read it from the env within its
+validity window — there is no TPM/SEV/IMDS to detect that). This is acceptable
+only because the same platform already holds the real GitHub token behind the
+proxy — the launch key rides trust already extended, it does not widen it. Scope
+it **single-use, session-scoped, short-lived**.
+
+## Broker realizations
+
+Three ways to stand up the door that holds the DoltHub credential outside the
+box and performs the write on verified evidence:
+
+| Realization | Where the secret lives | Reaches the box how | Attenuation layers it adds | Cost |
+| --- | --- | --- | --- | --- |
+| **GitHub Actions + Environments** | repo **Actions secret** (`DOLTHUB_TOKEN`) | box pushes / dispatches → workflow runs on GitHub's runners | branch protection, CODEOWNERS, **Environment required-reviewers** (human gate), secret scoped to the workflow | **lowest** — no new infra |
+| **Cloudflare Worker / Tunnel** | Worker secret (or Access-gated origin) | box calls the Worker over egress (allowlist its domain); or a **Tunnel** fronts a local keeperd | Cloudflare Access (mTLS/service tokens), edge rate-limit, Worker re-verifies at GitHub, DoltHub write via its HTTP SQL API | medium — deploy a Worker |
+| **keeperd (prx-native)** | **host-backed** podman secret → tmpfs (never in image/git) | door-bridge (authenticated TCP/vsock) from the pod; from cloud, via a Cloudflare Tunnel ingress | caveat-based leases (`forge-d` scoping), the keeper door signs/pushes and nothing else, key is a **separate** root of trust | highest — run keeperd + tunnel |
+
+Recommended sequencing:
+
+1. **Start with GitHub Actions + Environments.** It uses the GitHub secret store
+   you already have, needs zero new infrastructure, and its **Environment
+   required-reviewer** gate is the "human approval" caveat — realizing *more than
+   the box* immediately. The box produces a web-flow-signed request commit; a
+   workflow (not the box) verifies it, installs bd+dolt, and writes the bead with
+   the secret. This is the fastest path to a working, multi-party broker.
+2. **Graduate to keeperd fronted by a Cloudflare Tunnel** as the end-state — the
+   prx-native door already validated by `prx-b44y` (host-backed secret + live
+   push), with the Tunnel giving the cloud box an authenticated ingress to reach
+   a keeperd you run. Richest attenuation (lease caveats) and the strongest
+   *more than the cloud* posture: the signing key never touches Anthropic infra.
+
+A standalone **Cloudflare Worker** is the middle option when you want an
+always-on edge broker without running keeperd — DoltHub's HTTP SQL API makes the
+write feasible from the Worker, and it re-verifies against GitHub itself.
 
 ## Alternatives considered
 
