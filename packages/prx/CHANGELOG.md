@@ -1,5 +1,142 @@
 # @bounded-systems/prx
 
+## 0.27.0
+
+### Minor Changes
+
+- 5011d33: Canonical bare/worktree paths now derive their host segment from the actual
+  remote URL instead of a hardcoded `"io.github"` literal. Three independent
+  copies of that literal (`canonicalBarePathForRepo`/`canonicalWorktreePathForRepo`,
+  `canonicalBarePathFromParsed`/`canonicalMainxPathFromParsed`/`writeOverlayStub`,
+  and github.ts's `reverseDnsRepoSegments`) now share one `hostSegmentForHost`
+  function.
+
+  - `hostSegmentForHost` is a pure derivation (reverses a host's dot-separated
+    labels), not a lookup table — any host with 2+ labels works automatically,
+    not just GitHub. `gitlab.com` → `com.gitlab` is supported as of this
+    release.
+  - `github.com` moves from `io.github` (reverse-DNS of the `github.io` Pages
+    domain — never actually a property of the git host) to `com.github` (true
+    reverse-DNS of `github.com` itself). Existing bare repos / worktrees under
+    `io.github` are **not** migrated automatically — this is a one-time manual
+    filesystem move (`mv .../repos/io.github .../repos/com.github`, same for
+    `state/git/worktrees/`, plus rewriting the `.git`/`gitdir` pointers that
+    reference the old absolute paths) before upgrading, or new repos will land
+    in `com.github` alongside old ones still in `io.github`.
+  - Canonical path derivation now prefers the `upstream` remote over
+    `origin`/primaryRemote when both are configured, so a fork's bare+worktree
+    placement reflects its actual source rather than wherever the fork lives.
+  - Identity-hashing consumers (`canonicalDoltDatabase`, `workspace/actor.ts`'s
+    workspace ledger id, `dolt/status.ts`'s dolt-server id) are **not**
+    affected — they're pinned to the historical `io.github` value forever via
+    a new `legacyGithubIdentitySegments`, since migrating them would silently
+    orphan already-running dolt servers, live databases, and on-disk ledger
+    files.
+
+- 608510a: `forge-d`'s TCP grant gate now enforces caveat-based scoping on GitHub App
+  installation-token leases, closing a gap where any caller with a valid
+  `forge`-door grant (right signature, audience, expiry) could request an
+  installation token for **any** repositories/permissions the App installation
+  holds — the base gate only verified who could ask, not what they could ask
+  for.
+
+  - `mintDoorGrant` (`src/door/grant-issuer.ts`) accepts an optional
+    `caveats?: readonly string[]`, threaded into the signed grant like any other
+    authority-bearing field.
+  - New `src/forge-d/caveats.ts` adds two caveat verifiers, each owning its own
+    comma-separated OR-set grammar (per guest-room's `checkCaveats`
+    convention): `repos=<owner/repo>,...` and `perms=<key>:<value>,...`. A
+    request must satisfy every caveat on the presented grant; omitting the
+    narrowed field entirely (asking for the installation's full scope) is
+    denied, not treated as "nothing requested."
+  - `runForgeDServe` wraps its base `RequestAuthorizer` with
+    `withForgeCaveats`, so caveats are checked immediately after
+    signature/audience/expiry and before the lease ever reaches
+    `mintInstallationToken`.
+  - Grants with no caveats are unattenuated (unchanged, full installation
+    scope) — this is purely additive.
+
+- 0501847: Add `prx repo list --list-submodules` — prints every discovered repo's
+  `.gitmodules` entries (submodule name, path, and url) across all of its
+  worktrees, for auditing where git submodules are used. Read-only; does not
+  touch or resolve anything.
+- 3e49320: Add `prx repo convert-to-bare --from-worktree <path> [--dry-run]` — moves a
+  standard (non-bare) working copy's `.git` to the canonical
+  `~/.local/share/git/bare/...` location, recreates the workdir as a linked
+  worktree on its exact captured branch/commit, restores any stashed tracked
+  changes and untracked/gitignored content, repairs sibling worktrees'
+  `.git` pointers, and registers the result. This bakes in a previously
+  manual, error-prone procedure for consolidating repos into prx's
+  bare+worktree convention.
+
+  Add `prx repo adopt --force` to re-register a repo whose `bare_path` or
+  `remote_url` has legitimately changed (e.g. after `convert-to-bare`),
+  bypassing the identity-mismatch refusal.
+
+### Patch Changes
+
+- cd38b71: Auto-repin room images to the freshly-built box digests (publish-oci-boxes repin job).
+- ef69586: Fix three more `prx repo convert-to-bare` bugs found dogfooding a repo with
+  git submodules and sibling worktrees:
+
+  - Submodules are now initialized (`git submodule update --init --recursive`)
+    in the freshly-created main worktree — previously they were left as empty
+    placeholder directories.
+  - A submodule's own gitdir pointer, and its `core.worktree` setting, inside
+    a pre-existing sibling worktree are now repaired — `git worktree repair`
+    only fixes the sibling's own top-level `.git` pointer, never a
+    submodule's separate, nested references, which go stale once the bare
+    moves.
+  - `git stash push` can report success while creating no new stash entry at
+    all (a change `git status --porcelain` shows but that git doesn't
+    consider stash-worthy, e.g. a bare submodule-pointer bump). Previously
+    this could cause a later blind `git stash pop` to grab whatever
+    pre-existing, unrelated stash happened to already sit at `stash@{0}`,
+    producing a real conflict against old work with nothing to do with the
+    conversion. Now confirmed by checking the pushed message actually landed
+    before ever popping.
+
+- d50eabe: Fix `prx repo convert-to-bare`: when the source repo already had
+  `extensions.worktreeConfig` enabled before conversion (e.g. from prior
+  `git worktree` use), the newly-created worktree could permanently inherit
+  `core.bare=true` from the bare's shared config, breaking `git status` and
+  other work-tree-scoped commands with "this operation must be run in a work
+  tree" even though `git worktree list` showed it correctly. The per-worktree
+  `core.bare=false` override is now set explicitly for the main worktree and
+  every repaired sibling, regardless of whether the extension was already on.
+
+  Add `prx repo list --list-origins` — prints each discovered repo's `origin`
+  remote URL, deduped and sorted, for scripting against every repo's upstream
+  in one pass.
+
+- 93f34d8: Fix `prx repo add` collision when two registered repos share a name across
+  different owners (e.g. `github.com/a/deploy` and `github.com/b/deploy`) — the
+  mainx worktree path is now org-qualified (`wtRoot/io.<host>/<owner>/<name>/mainx`),
+  mirroring the bare-repo path convention instead of colliding on name alone.
+  The worktree root also moves from `~/.local/state/wt/worktrees` back to
+  `~/.local/state/git/worktrees` (the pre-worktrunk convention; worktrunk is
+  retired). `defaultRootsForHome()`'s `--everywhere` scan now also covers
+  `$HOME` itself at depth 1, and no longer crashes on unreadable directories
+  (e.g. `~/.Trash`) encountered during the walk.
+- 099d410: `prx repo list --everywhere`'s discovery walk now recognizes a bare repo by
+  its actual on-disk shape (presence of a `HEAD` file) rather than requiring
+  the `*.git` naming convention — a bare repo without that suffix was
+  previously invisible to the whole candidate-selection step, not just
+  filtered incorrectly. The same structural check also cheaply skips obvious
+  naming false positives (a stray dotfile like `.envrc.git`) before spending a
+  `git rev-parse` subprocess spawn to reject them. Deliberately checks only
+  for `HEAD` — not `objects/`/`refs/` — since a repo using git's newer
+  `reftable` ref-storage format (2.44+) may not have a conventional `refs/`
+  tree, and a false negative here silently drops a real repo from the scan
+  with nothing downstream to catch it.
+- e70127c: `prx repo local`/`--everywhere` no longer surfaces third-party tool-state
+  trees as noise: `cursor-home`, `codex-home`, `gitkraken-home`, `rbenv-home`,
+  `asdf`, generic `cache` dirs (act/trunk/sorbet-typed style CI/lint tool
+  caches), and Claude's plugin `marketplaces` directory are now skipped by
+  `ignoredDirs`, each with an inline comment explaining why. These are
+  home-manager-deployed app-support/plugin-cache trees the owning tool
+  manages with its own git internals, not user repos.
+
 ## 0.26.3
 
 ### Patch Changes
