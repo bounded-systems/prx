@@ -586,8 +586,20 @@ export function hostSegmentForHost(host: string): string | null {
   return KNOWN_HOST_SEGMENTS[host] ?? null;
 }
 
-function hostSegmentForRepo(repo: Pick<LocalRepo, "primaryRemote">): string | null {
-  const url = repo.primaryRemote?.url;
+// Prefer `upstream` over `origin`/primaryRemote: for a fork, origin points at
+// *your* copy, but the canonical bare+worktree placement should reflect the
+// repo's actual upstream source, not wherever the fork happens to live.
+// Falls back to primaryRemote when there's no upstream remote configured.
+function canonicalRemoteForRepo(
+  repo: Pick<LocalRepo, "primaryRemote" | "upstreamRemote">,
+): RepoRemote | null {
+  return repo.upstreamRemote ?? repo.primaryRemote ?? null;
+}
+
+function hostSegmentForRepo(
+  repo: Pick<LocalRepo, "primaryRemote" | "upstreamRemote">,
+): string | null {
+  const url = canonicalRemoteForRepo(repo)?.url;
   if (!url) {
     return null;
   }
@@ -599,9 +611,9 @@ function hostSegmentForRepo(repo: Pick<LocalRepo, "primaryRemote">): string | nu
 }
 
 function ownerAndNameForRepo(
-  repo: Pick<LocalRepo, "primaryRemote">,
+  repo: Pick<LocalRepo, "primaryRemote" | "upstreamRemote">,
 ): { owner: string; name: string } | null {
-  const url = repo.primaryRemote?.url;
+  const url = canonicalRemoteForRepo(repo)?.url;
   if (!url) {
     return null;
   }
@@ -613,7 +625,7 @@ function ownerAndNameForRepo(
 }
 
 function canonicalBarePathForRepo(
-  repo: Pick<LocalRepo, "primaryRemote">,
+  repo: Pick<LocalRepo, "primaryRemote" | "upstreamRemote">,
   bareRoot: string | null | undefined,
 ): string | null {
   if (!bareRoot) {
@@ -628,7 +640,7 @@ function canonicalBarePathForRepo(
 }
 
 function canonicalWorktreePathForRepo(
-  repo: Pick<LocalRepo, "primaryRemote">,
+  repo: Pick<LocalRepo, "primaryRemote" | "upstreamRemote">,
   branch: string,
 ): string | null {
   const homeDir = resolvedHome() ?? osHomeDir();
