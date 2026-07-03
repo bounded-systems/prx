@@ -569,21 +569,20 @@ function repoIdentityKey(repo: Pick<LocalRepo, "name" | "primaryRemote" | "commo
   return repo.primaryRemote?.githubRepo ?? `${repo.name}:${repo.commonDir}`;
 }
 
-// Host segment is the reverse-DNS form of each host's *Pages* domain, not its
-// git-remote domain — "io.github" reverses "github.io", not "github.com".
-// That's the convention every existing repo/worktree path was already built
-// on, so github.com keeps its literal rather than becoming "com.github".
-// Add an entry here for any other host once its worktree layout is adopted;
-// unlisted hosts fall back to `null` (no canonical placement), same as
-// before this map existed.
-const KNOWN_HOST_SEGMENTS: Record<string, string> = {
-  "github.com": "io.github",
-  "gitlab.com": "io.gitlab",
-};
-
-/** Shared by github.ts's `reverseDnsRepoSegments` — one host map, not two. */
+/**
+ * True reverse-DNS of a host's own domain — reverses its dot-separated
+ * labels (`github.com` -> `com.github`, `gitlab.com` -> `com.gitlab`).
+ * Derived, not a lookup table: any host with 2+ labels gets a segment for
+ * free, no per-host entry required. Single-label hosts (e.g. `localhost`)
+ * return `null` since there's no meaningful namespace to reverse.
+ * Shared by github.ts's `reverseDnsRepoSegments`.
+ */
 export function hostSegmentForHost(host: string): string | null {
-  return KNOWN_HOST_SEGMENTS[host] ?? null;
+  const labels = host.split(".").filter((label) => label.length > 0);
+  if (labels.length < 2) {
+    return null;
+  }
+  return labels.reverse().join(".");
 }
 
 // Prefer `upstream` over `origin`/primaryRemote: for a fork, origin points at
@@ -607,7 +606,7 @@ function hostSegmentForRepo(
   if (!parsed) {
     return null;
   }
-  return KNOWN_HOST_SEGMENTS[parsed.host] ?? null;
+  return hostSegmentForHost(parsed.host);
 }
 
 function ownerAndNameForRepo(
