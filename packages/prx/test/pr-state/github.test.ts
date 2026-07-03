@@ -3971,7 +3971,7 @@ describe("board-status", () => {
     }
 
     function writeOverlay(aiHome: string, owner: string, repo: string, body: string): string {
-      const dir = join(aiHome, ".prx", "repos", "io.github", owner, repo);
+      const dir = join(aiHome, ".prx", "repos", "com.github", owner, repo);
       mkdirSync(dir, { recursive: true });
       const path = join(dir, "prx.toml");
       writeFileSync(path, body);
@@ -4085,7 +4085,7 @@ describe("board-status", () => {
       });
     });
 
-    test("reverse-DNS layout: overlay under io.github/<owner>/<repo>/, not flat repo-name", () => {
+    test("reverse-DNS layout: overlay under com.github/<owner>/<repo>/, not flat repo-name", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-layout-"));
       const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-layout-"));
 
