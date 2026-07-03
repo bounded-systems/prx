@@ -10,6 +10,7 @@ import { createDoorHandlers } from "@bounded-systems/guest-room/protocol";
 
 import { listenTarget } from "../door/listen-target.ts";
 import { mintInstallationToken } from "../github-app/installation-token.ts";
+import { withForgeCaveats } from "./caveats.ts";
 import {
   buildForgeAuthorizer,
   resolveForgeGrantGate,
@@ -127,7 +128,7 @@ export function runForgeDServe(options: ForgeDServeOptions): Promise<ForgeDServe
         "(loopback-only; set FORGE_D_GRANT_AUDIENCE + FORGE_D_ISSUER_KEYS to enforce signed grants)",
     );
   }
-  const authorize = gate ? buildForgeAuthorizer(gate) : undefined;
+  const authorize = gate ? withForgeCaveats(buildForgeAuthorizer(gate)) : undefined;
 
   const handlers = createDoorHandlers(
     FORGE_DOOR,
