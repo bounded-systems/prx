@@ -213,6 +213,34 @@ describe("withBeadsClient — local", () => {
   });
 });
 
+describe("withBeadsClient — default transport dispatches unix-vs-TCP (door-bridge, prx-8uf2)", () => {
+  test("a host:port endpoint with NO localTransport override reaches a real TCP door", async () => {
+    // No `localTransport` injected — this is the actual `resolveFramedTransport`
+    // default. A unix-shaped endpoint would never connect to this TCP listener,
+    // so success here proves the default picked TCP, not unix.
+    const { createServer } = await import("node:net");
+    const { encodeFrame, FrameDecoder } = await import("../../src/door/framing.ts");
+    const server = createServer((socket) => {
+      const decoder = new FrameDecoder();
+      socket.on("data", (chunk: Buffer) => {
+        const frames = decoder.push(chunk);
+        if (frames.length > 0) socket.end(encodeFrame({ status: "ok", result: [] }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const port = (server.address() as { port: number }).port;
+    try {
+      const res = await withBeadsClient((c) => c.query({ kind: "ready" }), {
+        endpoint: { kind: "local", socket: `127.0.0.1:${port}` },
+        ensureUp: noEnsure,
+      });
+      expect(res.status).toBe("ok");
+    } finally {
+      server.close();
+    }
+  });
+});
+
 // prx-82b Slice 2e.4: `ensureLocalBeadsd` (the host auto-start) was removed —
 // prx never spawns a host beadsd; the pod owns it. No tests to keep here.
 

@@ -20,13 +20,16 @@ import { getEnv, setEnv } from "@bounded-systems/env";
 import { defaultRunner, type CommandRunner } from "@bounded-systems/proc";
 
 import { IsolatedBeadsClient } from "./client.ts";
-import { unixSocketTransport, type FramedTransport } from "../door/transport.ts";
+import { resolveFramedTransport, type FramedTransport } from "../door/transport.ts";
 import { getRepoRoot } from "../repo-root.ts";
 import { podFor, type PodIdentity } from "../room/pod-identity.ts";
 
-/** Where beadsd lives: a local unix socket (the host-native daemon or the pod's
- *  door fabric socket via `PRX_BEADS_SOCKET`). The in-VM Lima daemon was retired
- *  for the podman pod (prx-zj8). */
+/** Where beadsd lives: a unix socket path, OR (via the door-bridge, prx-8uf2) a
+ *  `host:port` TCP endpoint — the string is transport-agnostic;
+ *  {@link resolveFramedTransport} decides unix-vs-TCP. `PRX_BEADS_SOCKET` sets
+ *  it explicitly; a macOS host reaching a podman-machine pod's beadsd MUST use
+ *  the TCP form (unix-over-virtiofs is unreachable — docs/prx/door-bridge.md).
+ *  The in-VM Lima daemon was retired for the podman pod (prx-zj8). */
 export type BeadsEndpoint = { readonly kind: "local"; readonly socket: string };
 
 /** Thrown when beadsd isn't reachable — carries an actionable "start it" message. */
@@ -248,7 +251,8 @@ function isUnreachable(err: unknown): boolean {
 export interface WithBeadsClientDeps {
   /** Override the resolved endpoint (default: {@link resolveBeadsEndpoint}). */
   endpoint?: BeadsEndpoint | undefined;
-  /** Local transport factory (default {@link unixSocketTransport}); tests inject. */
+  /** Transport factory (default {@link resolveFramedTransport} — unix or TCP,
+   *  dispatched by the socket string's shape); tests inject. */
   localTransport?: ((socket: string) => FramedTransport) | undefined;
   /**
    * Hook run before connecting (default: a no-op). prx-82b Slice 2e.4 retired
@@ -275,7 +279,7 @@ export async function withBeadsClient<T>(
   const ensureUp = deps.ensureUp ?? (() => Promise.resolve());
   await ensureUp(endpoint.socket);
 
-  const makeTransport = deps.localTransport ?? unixSocketTransport;
+  const makeTransport = deps.localTransport ?? resolveFramedTransport;
   const client = new IsolatedBeadsClient(makeTransport(endpoint.socket));
   try {
     return await fn(client);
