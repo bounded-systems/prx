@@ -569,33 +569,96 @@ function repoIdentityKey(repo: Pick<LocalRepo, "name" | "primaryRemote" | "commo
   return repo.primaryRemote?.githubRepo ?? `${repo.name}:${repo.commonDir}`;
 }
 
+/**
+ * True reverse-DNS of a host's own domain — reverses its dot-separated
+ * labels (`github.com` -> `com.github`, `gitlab.com` -> `com.gitlab`).
+ * Derived, not a lookup table: any host with 2+ labels gets a segment for
+ * free, no per-host entry required. Single-label hosts (e.g. `localhost`)
+ * return `null` since there's no meaningful namespace to reverse.
+ * Shared by github.ts's `reverseDnsRepoSegments`.
+ */
+export function hostSegmentForHost(host: string): string | null {
+  const labels = host.split(".").filter((label) => label.length > 0);
+  if (labels.length < 2) {
+    return null;
+  }
+  return labels.reverse().join(".");
+}
+
+// Prefer `upstream` over `origin`/primaryRemote: for a fork, origin points at
+// *your* copy, but the canonical bare+worktree placement should reflect the
+// repo's actual upstream source, not wherever the fork happens to live.
+// Falls back to primaryRemote when there's no upstream remote configured.
+function canonicalRemoteForRepo(
+  repo: Pick<LocalRepo, "primaryRemote" | "upstreamRemote">,
+): RepoRemote | null {
+  return repo.upstreamRemote ?? repo.primaryRemote ?? null;
+}
+
+function hostSegmentForRepo(
+  repo: Pick<LocalRepo, "primaryRemote" | "upstreamRemote">,
+): string | null {
+  const url = canonicalRemoteForRepo(repo)?.url;
+  if (!url) {
+    return null;
+  }
+  const parsed = parseRepoUrl(url);
+  if (!parsed) {
+    return null;
+  }
+  return hostSegmentForHost(parsed.host);
+}
+
+function ownerAndNameForRepo(
+  repo: Pick<LocalRepo, "primaryRemote" | "upstreamRemote">,
+): { owner: string; name: string } | null {
+  const url = canonicalRemoteForRepo(repo)?.url;
+  if (!url) {
+    return null;
+  }
+  const parsed = parseRepoUrl(url);
+  if (!parsed) {
+    return null;
+  }
+  return { owner: parsed.owner, name: parsed.name };
+}
+
 function canonicalBarePathForRepo(
-  repo: Pick<LocalRepo, "primaryRemote">,
+  repo: Pick<LocalRepo, "primaryRemote" | "upstreamRemote">,
   bareRoot: string | null | undefined,
 ): string | null {
-  if (!bareRoot || !repo.primaryRemote?.githubRepo) {
+  if (!bareRoot) {
     return null;
   }
-  const [owner, name] = repo.primaryRemote.githubRepo.split("/");
-  if (!owner || !name) {
+  const hostSegment = hostSegmentForRepo(repo);
+  const ownerAndName = ownerAndNameForRepo(repo);
+  if (!hostSegment || !ownerAndName) {
     return null;
   }
-  return join(bareRoot, "io.github", owner, `${name}.git`);
+  return join(bareRoot, hostSegment, ownerAndName.owner, `${ownerAndName.name}.git`);
 }
 
 function canonicalWorktreePathForRepo(
-  repo: Pick<LocalRepo, "primaryRemote">,
+  repo: Pick<LocalRepo, "primaryRemote" | "upstreamRemote">,
   branch: string,
 ): string | null {
   const homeDir = resolvedHome() ?? osHomeDir();
-  if (!repo.primaryRemote?.githubRepo) {
+  const hostSegment = hostSegmentForRepo(repo);
+  const ownerAndName = ownerAndNameForRepo(repo);
+  if (!hostSegment || !ownerAndName) {
     return null;
   }
-  const [owner, name] = repo.primaryRemote.githubRepo.split("/");
-  if (!owner || !name) {
-    return null;
-  }
-  return join(homeDir, ".local", "state", "git", "worktrees", "io.github", owner, name, branch);
+  return join(
+    homeDir,
+    ".local",
+    "state",
+    "git",
+    "worktrees",
+    hostSegment,
+    ownerAndName.owner,
+    ownerAndName.name,
+    branch,
+  );
 }
 
 export function uniqueBackupPath(path: string): string {
@@ -1570,24 +1633,10 @@ export class RepoAddError extends Error {
   }
 }
 
-/**
- * Map a hostname to the canonical `io.<short>` namespace used by the bare-clone
- * tree and the operator-config overlay. The convention (predates GH-989; see
- * `~/.local/share/git/repos/io.github/...` and `<ai-home>/.prx/repos/io.github/...`)
- * is to drop the trailing TLD label so `github.com → github`,
- * `gitlab.com → gitlab`, `gitlab.example.com → gitlab.example`. Single-label
- * hosts pass through unchanged.
- */
-function canonicalHostSegment(host: string): string {
-  const labels = host.split(".");
-  if (labels.length <= 1) return host;
-  return labels.slice(0, -1).join(".");
-}
-
 export function canonicalBarePathFromParsed(bareRoot: string, parsed: ParsedRepoUrl): string {
   return join(
     bareRoot,
-    `io.${canonicalHostSegment(parsed.host)}`,
+    hostSegmentForHost(parsed.host) ?? parsed.host,
     parsed.owner,
     `${parsed.name}.git`,
   );
@@ -1601,7 +1650,7 @@ export function canonicalMainxPathFromParsed(wtRoot: string, parsed: ParsedRepoU
   // retired — prx now owns the worktree lifecycle end-to-end.
   return join(
     wtRoot,
-    `io.${canonicalHostSegment(parsed.host)}`,
+    hostSegmentForHost(parsed.host) ?? parsed.host,
     parsed.owner,
     parsed.name,
     "mainx",
@@ -1747,7 +1796,7 @@ function writeOverlayStub(operatorConfigRoot: string, parsed: ParsedRepoUrl): Re
     operatorConfigRoot,
     ".prx",
     "repos",
-    `io.${canonicalHostSegment(parsed.host)}`,
+    hostSegmentForHost(parsed.host) ?? parsed.host,
     parsed.owner,
     parsed.name,
   );

@@ -30,7 +30,7 @@ import { spawnCapture } from "@bounded-systems/proc";
 
 import {
   defaultPidAliveProbe,
-  reverseDnsRepoSegments,
+  legacyGithubIdentitySegments,
   type PidAliveProbe,
 } from "../pr-state/github.ts";
 import { DoltServerId, type StatusOutput } from "./schema.ts";
@@ -133,7 +133,7 @@ export function defaultResolveContext(
   const commonDir = commonRaw.startsWith("/") ? commonRaw : join(repoRoot, commonRaw);
   const originUrl = tryGit(spawn, ["remote", "get-url", "origin"], repoRoot, env);
   if (!originUrl) return null;
-  const segments = reverseDnsRepoSegments(originUrl);
+  const segments = legacyGithubIdentitySegments(originUrl);
   if (!segments) return null;
   return { repoRoot, hostRepoSlug: segments.join("/"), commonDir };
 }

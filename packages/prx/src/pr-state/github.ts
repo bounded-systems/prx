@@ -31,6 +31,7 @@ import {
   type StateMode,
 } from "./contract.ts";
 import { loadTaskContract, taskContractExists } from "./task.ts";
+import { hostSegmentForHost, parseRepoUrl } from "./repos.ts";
 import { classify, type Disposition } from "@bounded-systems/disposition";
 // GH-1966: issue-parity type ontology relocated to a concern-grouped
 // sub-package. Runtime values (consts/functions) still live here.
@@ -3820,10 +3821,45 @@ export function isSafePathSegment(s: string): boolean {
   );
 }
 
-// Only GitHub is handled today; other hosts return null so the overlay
-// is silently skipped. Add `gitlab.com` / `bitbucket.org` branches here
-// when a non-GitHub repo needs an overlay.
+// Host segment is looked up via `hostSegmentForHost` (repos.ts) — the same
+// map `canonicalBarePathForRepo`/`canonicalWorktreePathForRepo` use, so a
+// host only needs to be taught here once. Unlisted hosts return null so the
+// overlay is silently skipped, same as before this was generalized.
+//
+// Filesystem placement ONLY — the overlay directory is resolved fresh from
+// the current origin on every call, so it's safe for this to follow the
+// current host-segment convention. Do NOT reuse this for anything whose
+// output gets hashed or persisted as a stable identity (dolt database
+// names, dolt server ids, workspace ledger ids) — those need
+// `legacyGithubIdentitySegments` below, pinned forever, or existing live
+// state (running dolt servers, on-disk ledgers) silently orphans the day
+// the filesystem convention changes.
 export function reverseDnsRepoSegments(originUrl: string): [string, string, string] | null {
+  const parsed = parseRepoUrl(originUrl);
+  if (!parsed) {
+    return null;
+  }
+  const hostSegment = hostSegmentForHost(parsed.host);
+  if (!hostSegment) {
+    return null;
+  }
+  const { owner, name } = parsed;
+  if (!isSafePathSegment(owner) || !isSafePathSegment(name)) {
+    return null;
+  }
+  return [hostSegment, owner, name];
+}
+
+// Pinned identity segments for GitHub origins — always `io.github`, forever,
+// regardless of what `hostSegmentForHost` (repos.ts) derives for filesystem
+// placement. Anything that hashes or persists this value as a stable id
+// (dolt database names, dolt server ids, workspace ledger ids) must import
+// this, not `reverseDnsRepoSegments`: those consumers key already-existing
+// external/on-disk state by the hash, and changing the input silently
+// orphans it (a live dolt sql-server, a database, a ledger file) rather
+// than failing loudly. Deliberately GitHub-only, matching the historical
+// scope of every consumer today.
+export function legacyGithubIdentitySegments(originUrl: string): [string, string, string] | null {
   const ownerRepo = parseGithubRepo(originUrl);
   if (!ownerRepo) {
     return null;
@@ -3840,15 +3876,18 @@ export function reverseDnsRepoSegments(originUrl: string): [string, string, stri
 }
 
 // E0 of GH-1685 — canonical per-repo `dolt_database` name in the live
-// reverse-DNS shape `io_github_<owner>_<repo>` (D0). Joins the reverse-DNS
-// segments and collapses each non-alphanumeric run to a single `_`
-// (`bounded-systems` → `bounded_systems`, `supply-plan-design` →
-// `supply_plan_design`). Returns null when the origin isn't a GitHub
-// owner/repo, or when the sanitized result isn't a valid database name.
-// The name is intentionally not reversible into owner/repo — always derive
-// forward from the origin (see DOLT_DATABASE_NAME_PATTERN in dolt/schema.ts).
+// reverse-DNS shape `io_github_<owner>_<repo>` (D0). Joins the pinned
+// identity segments (see `legacyGithubIdentitySegments`) and collapses each
+// non-alphanumeric run to a single `_` (`bounded-systems` → `bounded_systems`,
+// `supply-plan-design` → `supply_plan_design`). Returns null when the origin
+// isn't a GitHub owner/repo, or when the sanitized result isn't a valid
+// database name. The name is intentionally not reversible into owner/repo —
+// always derive forward from the origin (see DOLT_DATABASE_NAME_PATTERN in
+// dolt/schema.ts). MUST stay pinned to `io_github_...` — this names live
+// dolt databases already created under that scheme; changing it silently
+// orphans them rather than failing loudly.
 export function canonicalDoltDatabase(originUrl: string): string | null {
-  const segments = reverseDnsRepoSegments(originUrl);
+  const segments = legacyGithubIdentitySegments(originUrl);
   if (!segments) {
     return null;
   }

@@ -654,12 +654,12 @@ describe("discoverLocalRepos", () => {
       {
         name: "example-percy-ruby-selenium",
         kind: "standard",
-        canonicalBarePath: "/tmp/bare/io.github/percy/example-percy-ruby-selenium.git",
+        canonicalBarePath: "/tmp/bare/com.github/percy/example-percy-ruby-selenium.git",
         actions: [
           { type: "delete_orphan_branch", branch: "master" },
           {
             type: "create_canonical_bare",
-            path: "/tmp/bare/io.github/percy/example-percy-ruby-selenium.git",
+            path: "/tmp/bare/com.github/percy/example-percy-ruby-selenium.git",
           },
           { type: "detach_standard_git_dir", path: "/tmp/workspaces/example/.git" },
         ],
@@ -671,7 +671,7 @@ describe("discoverLocalRepos", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-repos-normalize-"));
     const standardRepo = join(root, "workspaces", "lone");
     const gitDir = join(standardRepo, ".git");
-    const canonicalBare = join(root, "bare", "io.github", "bdelanghe", "lone.git");
+    const canonicalBare = join(root, "bare", "com.github", "bdelanghe", "lone.git");
     mkdirSync(gitDir, { recursive: true });
     mkdirSync(canonicalBare, { recursive: true });
 
@@ -782,7 +782,7 @@ describe("discoverLocalRepos", () => {
 
   test("normalizeLocalRepos creates an attached worktree for a single-branch bare repo", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-repos-materialize-"));
-    const bareRepo = join(root, "bare", "io.github", "percy", "example-percy-ruby-selenium.git");
+    const bareRepo = join(root, "bare", "com.github", "percy", "example-percy-ruby-selenium.git");
     mkdirSync(bareRepo, { recursive: true });
     const previousHome = process.env.HOME;
     process.env.HOME = root;
@@ -842,7 +842,7 @@ describe("discoverLocalRepos", () => {
                 "state",
                 "git",
                 "worktrees",
-                "io.github",
+                "com.github",
                 "percy",
                 "example-percy-ruby-selenium",
                 "percy-integration",
@@ -855,7 +855,7 @@ describe("discoverLocalRepos", () => {
         },
       ]);
       expect(commands).toEqual([
-        `git worktree add ${join(root, ".local", "state", "git", "worktrees", "io.github", "percy", "example-percy-ruby-selenium", "percy-integration")} percy-integration|${bareRepo}`,
+        `git worktree add ${join(root, ".local", "state", "git", "worktrees", "com.github", "percy", "example-percy-ruby-selenium", "percy-integration")} percy-integration|${bareRepo}`,
       ]);
     } finally {
       process.env.HOME = previousHome;
@@ -1053,8 +1053,8 @@ describe("addLocalRepo", () => {
     mkdirSync(bareRoot, { recursive: true });
     mkdirSync(wtRoot, { recursive: true });
 
-    const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const expectedMainx = join(wtRoot, "io.github", "owner", "scratch", "mainx");
+    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
+    const expectedMainx = join(wtRoot, "com.github", "owner", "scratch", "mainx");
 
     const { runner, calls } = makeRunner(
       new Map([
@@ -1114,10 +1114,10 @@ describe("addLocalRepo", () => {
     mkdirSync(bareRoot, { recursive: true });
     mkdirSync(wtRoot, { recursive: true });
 
-    const expectedBareA = join(bareRoot, "io.github", "owner1", "deploy.git");
-    const expectedMainxA = join(wtRoot, "io.github", "owner1", "deploy", "mainx");
-    const expectedBareB = join(bareRoot, "io.github", "owner2", "deploy.git");
-    const expectedMainxB = join(wtRoot, "io.github", "owner2", "deploy", "mainx");
+    const expectedBareA = join(bareRoot, "com.github", "owner1", "deploy.git");
+    const expectedMainxA = join(wtRoot, "com.github", "owner1", "deploy", "mainx");
+    const expectedBareB = join(bareRoot, "com.github", "owner2", "deploy.git");
+    const expectedMainxB = join(wtRoot, "com.github", "owner2", "deploy", "mainx");
 
     const { runner: runnerA } = makeRunner(
       new Map([
@@ -1157,7 +1157,7 @@ describe("addLocalRepo", () => {
     mkdirSync(bareRoot, { recursive: true });
     mkdirSync(wtRoot, { recursive: true });
 
-    const expectedBare = join(bareRoot, "io.github", "owner", "legacy.git");
+    const expectedBare = join(bareRoot, "com.github", "owner", "legacy.git");
 
     const { runner } = makeRunner(
       new Map([
@@ -1190,7 +1190,7 @@ describe("addLocalRepo", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-repo-add-clobber-"));
     const bareRoot = join(root, "bare");
     const wtRoot = join(root, "wt");
-    const existing = join(bareRoot, "io.github", "owner", "scratch.git");
+    const existing = join(bareRoot, "com.github", "owner", "scratch.git");
     mkdirSync(existing, { recursive: true });
 
     const { runner } = makeRunner();
@@ -1214,7 +1214,7 @@ describe("addLocalRepo", () => {
     const bareRoot = join(root, "bare");
     const wtRoot = join(root, "wt");
     mkdirSync(bareRoot, { recursive: true });
-    mkdirSync(join(wtRoot, "io.github", "owner", "scratch", "mainx"), { recursive: true });
+    mkdirSync(join(wtRoot, "com.github", "owner", "scratch", "mainx"), { recursive: true });
 
     const { runner } = makeRunner();
 
@@ -1257,7 +1257,7 @@ describe("addLocalRepo", () => {
     const operatorConfigRoot = join(root, "ai-home");
     mkdirSync(operatorConfigRoot, { recursive: true });
 
-    const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
+    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
     const { runner } = makeRunner(
       new Map([
         [
@@ -1282,7 +1282,7 @@ describe("addLocalRepo", () => {
       operatorConfigRoot,
       ".prx",
       "repos",
-      "io.github",
+      "com.github",
       "owner",
       "scratch",
       "prx.toml",
@@ -1300,12 +1300,12 @@ describe("addLocalRepo", () => {
     const wtRoot = join(root, "wt");
     const operatorConfigRoot = join(root, "ai-home");
 
-    const overlayDir = join(operatorConfigRoot, ".prx", "repos", "io.github", "owner", "scratch");
+    const overlayDir = join(operatorConfigRoot, ".prx", "repos", "com.github", "owner", "scratch");
     mkdirSync(overlayDir, { recursive: true });
     const existingOverlay = join(overlayDir, "prx.toml");
     writeFileSync(existingOverlay, "# operator-authored content\n");
 
-    const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
+    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
     const { runner } = makeRunner(
       new Map([
         [
@@ -1339,7 +1339,7 @@ describe("addLocalRepo", () => {
     const bareRoot = join(root, "bare");
     const wtRoot = join(root, "wt");
 
-    const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
+    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
     const { runner } = makeRunner(
       new Map([
         [
@@ -1695,7 +1695,7 @@ describe("setRepoCanonical / setRepoStaleThresholdDays (GH-1710)", () => {
       repos: [
         {
           name: "demo-repo",
-          commonDir: "/bare/io.github/demo/demo-repo.git",
+          commonDir: "/bare/com.github/demo/demo-repo.git",
           kind: "bare",
           mainWorktree: null,
           worktrees: [],
@@ -1801,8 +1801,8 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
 
   test("auto-populates from `bd config get database.workspace_prefix` in the mainx", () => {
     const { bareRoot, wtRoot } = setupRoots();
-    const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const expectedMainx = join(wtRoot, "io.github", "owner", "scratch", "mainx");
+    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
+    const expectedMainx = join(wtRoot, "com.github", "owner", "scratch", "mainx");
     const { runner, calls } = makeRunner(
       new Map([
         [
@@ -1833,7 +1833,7 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
 
   test("override path bypasses the bd subprocess entirely", () => {
     const { bareRoot, wtRoot } = setupRoots();
-    const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
+    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
     const { runner, calls } = makeRunner(
       new Map([
         [
@@ -1867,7 +1867,7 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
     ["foo_bar"],
   ])("rejects invalid override value %p", (value) => {
     const { bareRoot, wtRoot } = setupRoots();
-    const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
+    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
     const { runner } = makeRunner(
       new Map([
         [
@@ -1899,7 +1899,7 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
 
   test("bd non-zero exit → bd_workspace_prefix_unresolved", () => {
     const { bareRoot, wtRoot } = setupRoots();
-    const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
+    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
     const { runner } = makeRunner(
       new Map([
         [
@@ -1931,7 +1931,7 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
 
   test("bd empty stdout → bd_workspace_prefix_empty", () => {
     const { bareRoot, wtRoot } = setupRoots();
-    const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
+    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
     const { runner } = makeRunner(
       new Map([
         [
@@ -1967,7 +1967,7 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
     ["-bad"],
   ])("bd non-conforming stdout %p → bd_workspace_prefix_invalid_shape", (value) => {
     const { bareRoot, wtRoot } = setupRoots();
-    const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
+    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
     const { runner } = makeRunner(
       new Map([
         [
@@ -2002,7 +2002,7 @@ describe("rollbackRepoAdd (GH-1657)", () => {
   test("removes existing bare + mainx paths", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-rollback-"));
     const barePath = join(root, "bare", "scratch.git");
-    const mainxPath = join(root, "git", "worktrees", "io.github", "owner", "scratch", "mainx");
+    const mainxPath = join(root, "git", "worktrees", "com.github", "owner", "scratch", "mainx");
     mkdirSync(barePath, { recursive: true });
     mkdirSync(mainxPath, { recursive: true });
 
@@ -2142,8 +2142,8 @@ describe("addLocalRepo .beads hydrate (GH-1680)", () => {
 
   test("hydrated → captured on result.beadsHydrate, stub invoked with mainxPath", () => {
     const { bareRoot, wtRoot } = setupRoots();
-    const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const expectedMainx = join(wtRoot, "io.github", "owner", "scratch", "mainx");
+    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
+    const expectedMainx = join(wtRoot, "com.github", "owner", "scratch", "mainx");
     const { runner } = makeRunner(
       new Map([
         [
@@ -2179,8 +2179,8 @@ describe("addLocalRepo .beads hydrate (GH-1680)", () => {
 
   test("skipped-no-beads → captured on result.beadsHydrate, no throw", () => {
     const { bareRoot, wtRoot } = setupRoots();
-    const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const expectedMainx = join(wtRoot, "io.github", "owner", "scratch", "mainx");
+    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
+    const expectedMainx = join(wtRoot, "com.github", "owner", "scratch", "mainx");
     const { runner } = makeRunner(
       new Map([
         [
@@ -2215,8 +2215,8 @@ describe("addLocalRepo .beads hydrate (GH-1680)", () => {
 
   test("clone-failed → captured, no throw, bare + mainx remain on disk (no rollback)", () => {
     const { bareRoot, wtRoot } = setupRoots();
-    const expectedBare = join(bareRoot, "io.github", "owner", "scratch.git");
-    const expectedMainx = join(wtRoot, "io.github", "owner", "scratch", "mainx");
+    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
+    const expectedMainx = join(wtRoot, "com.github", "owner", "scratch", "mainx");
     const { runner } = makeRunner(
       new Map([
         [
@@ -2366,8 +2366,8 @@ describe("refreshLocalRepo (GH-1681)", () => {
     const root = mkdtempSync(join(tmpdir(), "prx-repo-refresh-"));
     const bareRoot = join(root, "bare");
     const wtRoot = join(root, "wt");
-    const barePath = join(bareRoot, "io.github", "owner", "scratch.git");
-    const mainxPath = join(wtRoot, "io.github", "owner", "scratch", "mainx");
+    const barePath = join(bareRoot, "com.github", "owner", "scratch.git");
+    const mainxPath = join(wtRoot, "com.github", "owner", "scratch", "mainx");
     mkdirSync(barePath, { recursive: true });
     mkdirSync(wtRoot, { recursive: true });
     if (!opts.coldMainx) {
@@ -2809,7 +2809,7 @@ describe("refreshLocalRepo — legacy bare integration (GH-1751)", () => {
     const wtRoot = join(root, "wt");
     mkdirSync(bareRoot, { recursive: true });
     mkdirSync(wtRoot, { recursive: true });
-    const barePath = join(bareRoot, "io.github", "owner", "scratch.git");
+    const barePath = join(bareRoot, "com.github", "owner", "scratch.git");
     mkdirSync(dirname(barePath), { recursive: true });
     git(root, ["clone", "--bare", upstreamBare, barePath]);
 
@@ -2836,7 +2836,7 @@ describe("refreshLocalRepo — legacy bare integration (GH-1751)", () => {
     expect(probe.status).not.toBe(0);
 
     // 3. Run refresh with the real default runner.
-    const mainxPath = join(wtRoot, "io.github", "owner", "scratch", "mainx");
+    const mainxPath = join(wtRoot, "com.github", "owner", "scratch", "mainx");
     const repo: LocalRepo = {
       name: "scratch",
       commonDir: barePath,
