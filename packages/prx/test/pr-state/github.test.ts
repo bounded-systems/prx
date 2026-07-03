@@ -3970,8 +3970,8 @@ describe("board-status", () => {
       }
     }
 
-    function writeOverlay(aiHome: string, owner: string, repo: string, body: string): string {
-      const dir = join(aiHome, ".prx", "repos", "com.github", owner, repo);
+    function writeOverlay(overlayRoot: string, owner: string, repo: string, body: string): string {
+      const dir = join(overlayRoot, ".prx", "repos", "com.github", owner, repo);
       mkdirSync(dir, { recursive: true });
       const path = join(dir, "prx.toml");
       writeFileSync(path, body);
@@ -3980,7 +3980,7 @@ describe("board-status", () => {
 
     test("skips overlay when PRX_OPERATOR_CONFIG_ROOT points at an empty tree", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-nofile-"));
-      const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-empty-"));
+      const overlayRoot = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-root-empty-"));
       writeFileSync(
         join(root, "prx.toml"),
         [
@@ -3992,7 +3992,7 @@ describe("board-status", () => {
       );
       const runner = makeRunner(root, "git@github.com:bdelanghe/ai-home.git");
 
-      withOverlayRoot(aiHome, () => {
+      withOverlayRoot(overlayRoot, () => {
         const config = loadIdentityConfig(root, runner);
         expect(effectiveCanonicalIdPattern(config).test("PROJECT-1")).toBe(true);
         expect(findFirstSourceOfKind(config, "notion")).toBeNull();
@@ -4001,9 +4001,9 @@ describe("board-status", () => {
 
     test("overlay-only: repo-root prx.toml missing, overlay supplies sources", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-only-"));
-      const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-overlay-only-"));
+      const overlayRoot = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-root-overlay-only-"));
       writeOverlay(
-        aiHome,
+        overlayRoot,
         "demo",
         "demo-web",
         [
@@ -4020,7 +4020,7 @@ describe("board-status", () => {
       );
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
-      withOverlayRoot(aiHome, () => {
+      withOverlayRoot(overlayRoot, () => {
         const config = loadIdentityConfig(root, runner);
         expect(config.isDefault).toBe(false);
         const effective = effectiveCanonicalIdPattern(config);
@@ -4040,7 +4040,7 @@ describe("board-status", () => {
 
     test("overlay [sources.<name>] replaces base outright (no per-key merge)", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-merge-"));
-      const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-merge-"));
+      const overlayRoot = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-root-merge-"));
       writeFileSync(
         join(root, "prx.toml"),
         [
@@ -4056,7 +4056,7 @@ describe("board-status", () => {
         ].join("\n"),
       );
       writeOverlay(
-        aiHome,
+        overlayRoot,
         "demo",
         "demo-web",
         [
@@ -4069,7 +4069,7 @@ describe("board-status", () => {
       );
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
-      withOverlayRoot(aiHome, () => {
+      withOverlayRoot(overlayRoot, () => {
         const config = loadIdentityConfig(root, runner);
         expect(effectiveCanonicalIdPattern(config).test("PROJECT-9")).toBe(true);
         // Overlay replaces wholesale — base's database_id is gone.
@@ -4087,9 +4087,9 @@ describe("board-status", () => {
 
     test("reverse-DNS layout: overlay under com.github/<owner>/<repo>/, not flat repo-name", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-layout-"));
-      const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-layout-"));
+      const overlayRoot = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-root-layout-"));
 
-      const flatDir = join(aiHome, ".prx", "repos", "demo-web");
+      const flatDir = join(overlayRoot, ".prx", "repos", "demo-web");
       mkdirSync(flatDir, { recursive: true });
       writeFileSync(
         join(flatDir, "prx.toml"),
@@ -4099,7 +4099,7 @@ describe("board-status", () => {
       );
 
       writeOverlay(
-        aiHome,
+        overlayRoot,
         "demo",
         "demo-web",
         ["[sources.github]", 'kind = "github"', "canonical_id_pattern = '^RDNS-\\d+$'", ""].join(
@@ -4109,7 +4109,7 @@ describe("board-status", () => {
 
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
-      withOverlayRoot(aiHome, () => {
+      withOverlayRoot(overlayRoot, () => {
         const config = loadIdentityConfig(root, runner);
         const effective = effectiveCanonicalIdPattern(config);
         expect(effective.test("RDNS-1")).toBe(true);
@@ -4119,16 +4119,16 @@ describe("board-status", () => {
 
     test("overlay parse error surfaces the overlay path, not just 'prx.toml'", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-bad-"));
-      const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-bad-"));
+      const overlayRoot = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-root-bad-"));
       const overlayPath = writeOverlay(
-        aiHome,
+        overlayRoot,
         "demo",
         "demo-web",
         ["[sources.github]", 'kind = "github"', "canonical_id_pattern = 42", ""].join("\n"),
       );
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
-      withOverlayRoot(aiHome, () => {
+      withOverlayRoot(overlayRoot, () => {
         expect(() => loadIdentityConfig(root, runner)).toThrow(
           new RegExp(
             `must be a TOML string.*${overlayPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}|${overlayPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}.*must be a TOML string`,
@@ -4169,7 +4169,7 @@ describe("board-status", () => {
 
     test("no overlay when origin is not a GitHub remote", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-non-gh-"));
-      const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-non-gh-"));
+      const overlayRoot = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-root-non-gh-"));
       writeFileSync(
         join(root, "prx.toml"),
         ["[sources.github]", 'kind = "github"', 'canonical_id_pattern = "^BASE-\\\\d+$"', ""].join(
@@ -4177,7 +4177,7 @@ describe("board-status", () => {
         ),
       );
       writeOverlay(
-        aiHome,
+        overlayRoot,
         "demo",
         "demo-web",
         ["[sources.github]", 'kind = "github"', "canonical_id_pattern = '^OVERLAY-\\d+$'", ""].join(
@@ -4186,7 +4186,7 @@ describe("board-status", () => {
       );
       const runner = makeRunner(root, "git@gitlab.com:demo/demo-web.git");
 
-      withOverlayRoot(aiHome, () => {
+      withOverlayRoot(overlayRoot, () => {
         const config = loadIdentityConfig(root, runner);
         const effective = effectiveCanonicalIdPattern(config);
         expect(effective.test("BASE-1")).toBe(true);
@@ -4196,7 +4196,7 @@ describe("board-status", () => {
 
     test("overlay path-traversal defense: origin segments with `..` / extra segments are rejected", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-traversal-"));
-      const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-traversal-"));
+      const overlayRoot = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-root-traversal-"));
       writeFileSync(
         join(root, "prx.toml"),
         ["[sources.github]", 'kind = "github"', 'canonical_id_pattern = "^BASE-\\\\d+$"', ""].join(
@@ -4210,7 +4210,7 @@ describe("board-status", () => {
         "https://github.com/just-owner",
       ];
 
-      withOverlayRoot(aiHome, () => {
+      withOverlayRoot(overlayRoot, () => {
         for (const origin of badOrigins) {
           const runner = makeRunner(root, origin);
           const config = loadIdentityConfig(root, runner);
@@ -4221,9 +4221,9 @@ describe("board-status", () => {
 
     test("validation errors cite the overlay path when the bad value comes from the overlay", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-attrib-regex-"));
-      const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-attrib-regex-"));
+      const overlayRoot = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-root-attrib-regex-"));
       const overlayPath = writeOverlay(
-        aiHome,
+        overlayRoot,
         "demo",
         "demo-web",
         ["[sources.github]", 'kind = "github"', "canonical_id_pattern = '^(GH|PROD'", ""].join(
@@ -4232,7 +4232,7 @@ describe("board-status", () => {
       );
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
-      withOverlayRoot(aiHome, () => {
+      withOverlayRoot(overlayRoot, () => {
         expect(() => loadIdentityConfig(root, runner)).toThrow(
           new RegExp(
             `is not a valid regex.*\\(at ${overlayPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)`,
@@ -4243,9 +4243,9 @@ describe("board-status", () => {
 
     test("'required when auth = rest' error cites the overlay when overlay declares the section", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-attrib-required-"));
-      const aiHome = mkdtempSync(join(tmpdir(), "pr-state-identity-aihome-attrib-required-"));
+      const overlayRoot = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-root-attrib-required-"));
       const overlayPath = writeOverlay(
-        aiHome,
+        overlayRoot,
         "demo",
         "demo-web",
         [
@@ -4258,7 +4258,7 @@ describe("board-status", () => {
       );
       const runner = makeRunner(root, "git@github.com:demo/demo-web.git");
 
-      withOverlayRoot(aiHome, () => {
+      withOverlayRoot(overlayRoot, () => {
         expect(() => loadIdentityConfig(root, runner)).toThrow(
           new RegExp(
             `id_property is required when auth = "rest" \\(at ${overlayPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\)`,
