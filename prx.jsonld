@@ -271,6 +271,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/batch-transport.md",
+      "name": "ADR — the Message Batches API as a second model-call transport",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/batch-transport.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/beadsd-door-wiring.md",
       "name": "ADR — wiring the beadsd door into the claude-box pod (prx-asr / prx-634)",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/beadsd-door-wiring.md",
