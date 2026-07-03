@@ -91,6 +91,14 @@ export interface MintGrantInput {
   readonly now: number;
   /** Issuer actor (defaults to the door authority). */
   readonly actor?: string;
+  /**
+   * Opaque macaroon-shaped restrictions the serving door enforces (e.g.
+   * `repos=owner/repo`, `perms=contents:read`) — see guest-room's
+   * `checkCaveats`. Omitted ⇒ an unattenuated grant (the door's full
+   * authority). Signed into the grant like every other authority-bearing
+   * field, so a caveat can't be stripped in transit.
+   */
+  readonly caveats?: readonly string[];
 }
 
 /**
@@ -112,6 +120,7 @@ export function mintDoorGrant(
     env: `${input.door.toUpperCase()}_SOCK`,
     grants: `lease via the ${input.door} door`,
     use: `present this grant to the ${input.door} door`,
+    ...(input.caveats && input.caveats.length > 0 ? { caveats: [...input.caveats] } : {}),
   };
   const binding: GrantBinding = {
     audience: input.audience,
