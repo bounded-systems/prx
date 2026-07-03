@@ -63,6 +63,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - prx-ebo — Sync API efficiency: where the requests go, and how to cut them (ADR) — `docs/spikes/prx-ebo-sync-api-efficiency.md`
 - Capability-scoped DCI — a bounded interaction space for scout (spike) — `docs/spikes/scout-bounded-interaction-space.md`
 - Spike — eval-gated prompt evolution as a signed derivation — `docs/spikes/signed-prompt-evolution/README.md`
+- Spike — signed ref-snapshot + artifact provenance (OCAP-grade repo identity) — `docs/spikes/signed-ref-snapshot/README.md`
 - Two-clock policy — Netflix's slow-planner / fast-executor split, mapped to prx (spike) — `docs/spikes/two-clock-policy.md`
 - prx — value props (forcing-function-backed) — `docs/value-props.md`
 - @bounded-systems/prx-config — `packages/prx-config/README.md`
