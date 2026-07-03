@@ -1633,24 +1633,10 @@ export class RepoAddError extends Error {
   }
 }
 
-/**
- * Map a hostname to the canonical `io.<short>` namespace used by the bare-clone
- * tree and the operator-config overlay. The convention (predates GH-989; see
- * `~/.local/share/git/repos/io.github/...` and `<ai-home>/.prx/repos/io.github/...`)
- * is to drop the trailing TLD label so `github.com → github`,
- * `gitlab.com → gitlab`, `gitlab.example.com → gitlab.example`. Single-label
- * hosts pass through unchanged.
- */
-function canonicalHostSegment(host: string): string {
-  const labels = host.split(".");
-  if (labels.length <= 1) return host;
-  return labels.slice(0, -1).join(".");
-}
-
 export function canonicalBarePathFromParsed(bareRoot: string, parsed: ParsedRepoUrl): string {
   return join(
     bareRoot,
-    `io.${canonicalHostSegment(parsed.host)}`,
+    hostSegmentForHost(parsed.host) ?? parsed.host,
     parsed.owner,
     `${parsed.name}.git`,
   );
@@ -1664,7 +1650,7 @@ export function canonicalMainxPathFromParsed(wtRoot: string, parsed: ParsedRepoU
   // retired — prx now owns the worktree lifecycle end-to-end.
   return join(
     wtRoot,
-    `io.${canonicalHostSegment(parsed.host)}`,
+    hostSegmentForHost(parsed.host) ?? parsed.host,
     parsed.owner,
     parsed.name,
     "mainx",
@@ -1810,7 +1796,7 @@ function writeOverlayStub(operatorConfigRoot: string, parsed: ParsedRepoUrl): Re
     operatorConfigRoot,
     ".prx",
     "repos",
-    `io.${canonicalHostSegment(parsed.host)}`,
+    hostSegmentForHost(parsed.host) ?? parsed.host,
     parsed.owner,
     parsed.name,
   );
