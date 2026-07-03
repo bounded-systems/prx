@@ -16,6 +16,7 @@
  * optimization (relates the host-provisioning work, prx-9yv3).
  */
 
+import { beadsdBridgeRoom } from "./beadsd-bridge-room.ts";
 import { beadsdRoom } from "./beadsd-room.ts";
 import { claudeRoom } from "./claude-room.ts";
 import { DOLT_BOX_IMAGE, DOLT_BOX_ENV, DOLT_DATA_VOLUME, DOLT_DATA_DIR } from "./dolt-service.ts";
@@ -45,7 +46,7 @@ export const perRepoPod: PodSpec = {
   // The shared house — one VM (darwin) or the host (linux) the pod runs on.
   // Minimal here; the OCI/VM substrate is epic prx-zj8.
   executor: { name: "prx-pod-house" },
-  rooms: [claudeRoom, beadsdRoom, keeperdRoom, forgeDRoom],
+  rooms: [claudeRoom, beadsdRoom, keeperdRoom, forgeDRoom, beadsdBridgeRoom],
   services: [doltService],
   doorDir: DEFAULT_DOOR_DIR,
 };
