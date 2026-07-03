@@ -47,11 +47,7 @@ import {
 import { runKeeperEnsureWorktree, type KeeperEnsureWorktreeDeps } from "../pr-state/keeper.ts";
 import { ensurePrxExcludes } from "../tools/ignore_sync.ts";
 import { writeBeadsRedirect } from "../beads/redirect.ts";
-import {
-  loadWorkspaceConfig,
-  parseGithubRepo,
-  reverseDnsRepoSegments,
-} from "../pr-state/github.ts";
+import { loadWorkspaceConfig, legacyGithubIdentitySegments } from "../pr-state/github.ts";
 import { isMainxPath } from "../pr-state/scope-inference.ts";
 import {
   type Lifecycle,
@@ -194,9 +190,7 @@ export function resolveWorkspaceContext(
   if (!branch) return null;
   const originUrl = ctx.originUrl ?? resolveOrigin(worktreePath);
   if (!originUrl) return null;
-  const slug = parseGithubRepo(originUrl);
-  if (!slug) return null;
-  const segments = reverseDnsRepoSegments(originUrl);
+  const segments = legacyGithubIdentitySegments(originUrl);
   if (!segments) return null;
   const hostRepoSlug = segments.join("/");
   const workspaceId = computeWorkspaceId(hostRepoSlug, branch, worktreePath);
