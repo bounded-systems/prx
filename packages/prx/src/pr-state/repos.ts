@@ -569,18 +569,62 @@ function repoIdentityKey(repo: Pick<LocalRepo, "name" | "primaryRemote" | "commo
   return repo.primaryRemote?.githubRepo ?? `${repo.name}:${repo.commonDir}`;
 }
 
+// Host segment is the reverse-DNS form of each host's *Pages* domain, not its
+// git-remote domain — "io.github" reverses "github.io", not "github.com".
+// That's the convention every existing repo/worktree path was already built
+// on, so github.com keeps its literal rather than becoming "com.github".
+// Add an entry here for any other host once its worktree layout is adopted;
+// unlisted hosts fall back to `null` (no canonical placement), same as
+// before this map existed.
+const KNOWN_HOST_SEGMENTS: Record<string, string> = {
+  "github.com": "io.github",
+  "gitlab.com": "io.gitlab",
+};
+
+/** Shared by github.ts's `reverseDnsRepoSegments` — one host map, not two. */
+export function hostSegmentForHost(host: string): string | null {
+  return KNOWN_HOST_SEGMENTS[host] ?? null;
+}
+
+function hostSegmentForRepo(repo: Pick<LocalRepo, "primaryRemote">): string | null {
+  const url = repo.primaryRemote?.url;
+  if (!url) {
+    return null;
+  }
+  const parsed = parseRepoUrl(url);
+  if (!parsed) {
+    return null;
+  }
+  return KNOWN_HOST_SEGMENTS[parsed.host] ?? null;
+}
+
+function ownerAndNameForRepo(
+  repo: Pick<LocalRepo, "primaryRemote">,
+): { owner: string; name: string } | null {
+  const url = repo.primaryRemote?.url;
+  if (!url) {
+    return null;
+  }
+  const parsed = parseRepoUrl(url);
+  if (!parsed) {
+    return null;
+  }
+  return { owner: parsed.owner, name: parsed.name };
+}
+
 function canonicalBarePathForRepo(
   repo: Pick<LocalRepo, "primaryRemote">,
   bareRoot: string | null | undefined,
 ): string | null {
-  if (!bareRoot || !repo.primaryRemote?.githubRepo) {
+  if (!bareRoot) {
     return null;
   }
-  const [owner, name] = repo.primaryRemote.githubRepo.split("/");
-  if (!owner || !name) {
+  const hostSegment = hostSegmentForRepo(repo);
+  const ownerAndName = ownerAndNameForRepo(repo);
+  if (!hostSegment || !ownerAndName) {
     return null;
   }
-  return join(bareRoot, "io.github", owner, `${name}.git`);
+  return join(bareRoot, hostSegment, ownerAndName.owner, `${ownerAndName.name}.git`);
 }
 
 function canonicalWorktreePathForRepo(
@@ -588,14 +632,22 @@ function canonicalWorktreePathForRepo(
   branch: string,
 ): string | null {
   const homeDir = resolvedHome() ?? osHomeDir();
-  if (!repo.primaryRemote?.githubRepo) {
+  const hostSegment = hostSegmentForRepo(repo);
+  const ownerAndName = ownerAndNameForRepo(repo);
+  if (!hostSegment || !ownerAndName) {
     return null;
   }
-  const [owner, name] = repo.primaryRemote.githubRepo.split("/");
-  if (!owner || !name) {
-    return null;
-  }
-  return join(homeDir, ".local", "state", "git", "worktrees", "io.github", owner, name, branch);
+  return join(
+    homeDir,
+    ".local",
+    "state",
+    "git",
+    "worktrees",
+    hostSegment,
+    ownerAndName.owner,
+    ownerAndName.name,
+    branch,
+  );
 }
 
 export function uniqueBackupPath(path: string): string {

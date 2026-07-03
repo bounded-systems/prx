@@ -31,6 +31,7 @@ import {
   type StateMode,
 } from "./contract.ts";
 import { loadTaskContract, taskContractExists } from "./task.ts";
+import { hostSegmentForHost, parseRepoUrl } from "./repos.ts";
 import { classify, type Disposition } from "@bounded-systems/disposition";
 // GH-1966: issue-parity type ontology relocated to a concern-grouped
 // sub-package. Runtime values (consts/functions) still live here.
@@ -3820,33 +3821,35 @@ export function isSafePathSegment(s: string): boolean {
   );
 }
 
-// Only GitHub is handled today; other hosts return null so the overlay
-// is silently skipped. Add `gitlab.com` / `bitbucket.org` branches here
-// when a non-GitHub repo needs an overlay.
+// Host segment is looked up via `hostSegmentForHost` (repos.ts) — the same
+// map `canonicalBarePathForRepo`/`canonicalWorktreePathForRepo` use, so a
+// host only needs to be taught here once. Unlisted hosts return null so the
+// overlay is silently skipped, same as before this was generalized.
 export function reverseDnsRepoSegments(originUrl: string): [string, string, string] | null {
-  const ownerRepo = parseGithubRepo(originUrl);
-  if (!ownerRepo) {
+  const parsed = parseRepoUrl(originUrl);
+  if (!parsed) {
     return null;
   }
-  const parts = ownerRepo.split("/");
-  if (parts.length !== 2) {
+  const hostSegment = hostSegmentForHost(parsed.host);
+  if (!hostSegment) {
     return null;
   }
-  const [owner, repo] = parts;
-  if (!owner || !repo || !isSafePathSegment(owner) || !isSafePathSegment(repo)) {
+  const { owner, name } = parsed;
+  if (!isSafePathSegment(owner) || !isSafePathSegment(name)) {
     return null;
   }
-  return ["io.github", owner, repo];
+  return [hostSegment, owner, name];
 }
 
 // E0 of GH-1685 — canonical per-repo `dolt_database` name in the live
 // reverse-DNS shape `io_github_<owner>_<repo>` (D0). Joins the reverse-DNS
 // segments and collapses each non-alphanumeric run to a single `_`
 // (`bounded-systems` → `bounded_systems`, `supply-plan-design` →
-// `supply_plan_design`). Returns null when the origin isn't a GitHub
-// owner/repo, or when the sanitized result isn't a valid database name.
-// The name is intentionally not reversible into owner/repo — always derive
-// forward from the origin (see DOLT_DATABASE_NAME_PATTERN in dolt/schema.ts).
+// `supply_plan_design`). Returns null when the origin's host isn't in
+// `hostSegmentForHost`'s map (repos.ts), or when the sanitized result isn't
+// a valid database name. The name is intentionally not reversible into
+// owner/repo — always derive forward from the origin (see
+// DOLT_DATABASE_NAME_PATTERN in dolt/schema.ts).
 export function canonicalDoltDatabase(originUrl: string): string | null {
   const segments = reverseDnsRepoSegments(originUrl);
   if (!segments) {
