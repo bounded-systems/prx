@@ -325,6 +325,15 @@
     },
     {
       "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/cloud-box-attestation.md",
+      "name": "ADR — attesting the cloud box: what an untrusted Claude-Code-web session can prove",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/cloud-box-attestation.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/prx/dolt-start.md",
       "name": "`prx dolt start` — the dolt actor's start driver (GH-555)",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/prx/dolt-start.md",

@@ -41,6 +41,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - ADR — the Claude runtime as a pinned OCI fleet (prx-d4o / prx-zj8) — `docs/prx/claude-runtime.md`
 - ADR — decomposing the `pr-state/cli.ts` monolith — `docs/prx/cli-decomposition.md`
 - ADR — a spec-driven CLI: author verbs once, project everywhere — `docs/prx/cli-from-spec.md`
+- ADR — attesting the cloud box: what an untrusted Claude-Code-web session can prove — `docs/prx/cloud-box-attestation.md`
 - `prx dolt start` — the dolt actor's start driver (GH-555) — `docs/prx/dolt-start.md`
 - ADR — the door-bridge: authenticated TCP/vsock access to unix-only doors — `docs/prx/door-bridge.md`
 - ADR — GitHub Apps: permission-bucketed apps + per-use attenuation — `docs/prx/github-apps-architecture.md`

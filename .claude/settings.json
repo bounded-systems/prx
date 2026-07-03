@@ -51,6 +51,10 @@
           {
             "type": "command",
             "command": "bash .claude/inject-org-context.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/attest-box.sh"
           }
         ]
       }
