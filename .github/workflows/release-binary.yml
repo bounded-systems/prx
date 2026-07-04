@@ -22,6 +22,9 @@ jobs:
           - os: macos-14
             target: aarch64-darwin
             bunTarget: bun-darwin-arm64
+          - os: macos-13
+            target: x86_64-darwin
+            bunTarget: bun-darwin-x64
           - os: ubuntu-latest
             target: x86_64-linux
             bunTarget: bun-linux-x64
@@ -136,6 +139,7 @@ jobs:
           draft: true
           files: |
             release-assets/prx-aarch64-darwin
+            release-assets/prx-x86_64-darwin
             release-assets/prx-x86_64-linux
             release-assets/prx-aarch64-linux
       - name: Publish — flip draft → published (locks immutable with all assets present)
@@ -178,7 +182,7 @@ jobs:
           ver="${GITHUB_REF_NAME#v}"
           base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
           json=$(jq -n --arg v "$ver" '{version:$v, systems:{}}')
-          for sys in aarch64-darwin x86_64-linux aarch64-linux; do
+          for sys in aarch64-darwin x86_64-darwin x86_64-linux aarch64-linux; do
             h=$(nix-prefetch-url "$base/prx-$sys")
             json=$(printf '%s' "$json" | jq --arg s "$sys" --arg h "$h" '.systems[$s].prx=$h')
           done
@@ -186,6 +190,7 @@ jobs:
           cat release-hashes.json
           # Homebrew formula needs hex sha256 (nix stores base32) — convert.
           d_hex=$(nix hash convert --hash-algo sha256 --to base16 "$(jq -r '.systems."aarch64-darwin".prx' release-hashes.json)")
+          d_intel_hex=$(nix hash convert --hash-algo sha256 --to base16 "$(jq -r '.systems."x86_64-darwin".prx' release-hashes.json)")
           l_hex=$(nix hash convert --hash-algo sha256 --to base16 "$(jq -r '.systems."x86_64-linux".prx' release-hashes.json)")
           l_arm_hex=$(nix hash convert --hash-algo sha256 --to base16 "$(jq -r '.systems."aarch64-linux".prx' release-hashes.json)")
           mkdir -p Formula
@@ -203,6 +208,10 @@ jobs:
               on_arm do
                 url "https://github.com/bounded-systems/prx/releases/download/v$ver/prx-aarch64-darwin"
                 sha256 "$d_hex"
+              end
+              on_intel do
+                url "https://github.com/bounded-systems/prx/releases/download/v$ver/prx-x86_64-darwin"
+                sha256 "$d_intel_hex"
               end
             end
 
