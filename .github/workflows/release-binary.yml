@@ -22,7 +22,9 @@ jobs:
           - os: macos-14
             target: aarch64-darwin
             bunTarget: bun-darwin-arm64
-          - os: macos-13
+          # `macos-13` was retired; bare `macos-*` labels now default to
+          # Apple Silicon, so Intel needs the explicit `-intel` suffix.
+          - os: macos-15-intel
             target: x86_64-darwin
             bunTarget: bun-darwin-x64
           - os: ubuntu-latest
