@@ -114,6 +114,51 @@ function hasKubeRooms(pod: PodSpec): boolean {
   return p.rooms.some((r) => !roomNeedsSecretRuntime(r)) || p.services.length > 0;
 }
 
+/** The named data volumes the pod's backing services WRITE (e.g. dolt-box's
+ *  `prx-dolt-data`). These are the volumes the single-writer guard protects. */
+function podDataVolumes(pod: PodSpec): string[] {
+  return PodSpecSchema.parse(pod)
+    .services.map((s) => s.dataVolume?.name)
+    .filter((n): n is string => Boolean(n));
+}
+
+/** Container names currently holding `volume` (`podman ps --filter volume=`).
+ *  Empty on a non-zero probe (treated as "can't tell → don't block"). */
+function volumeHolders(volume: string, run: PodmanRun): string[] {
+  const res = run(["ps", "--format", "{{.Names}}", "--filter", `volume=${volume}`]);
+  if (res.status !== 0) return [];
+  return res.stdout
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Single-writer preflight (capability contract I5, claude-box). Refuse to bring
+ * up a pod whose backing service would open a SECOND writer on a data volume
+ * already held by an external container — notably the claude-box Quadlet `dolt`
+ * door backend that now owns `prx-dolt-data`. dolt's own working-set lock would
+ * fail the second server anyway ("database is locked by another dolt process"),
+ * but late and opaquely; this refuses EARLY and NAMES the holder. Only reached
+ * when the pod isn't already up (the idempotency probe returned first), so any
+ * holder is external or a stale leftover. Reach beads through the beadsd door
+ * rather than opening a competing server.
+ */
+function assertNoExternalVolumeHolder(pod: PodSpec, run: PodmanRun): void {
+  for (const volume of podDataVolumes(pod)) {
+    const holders = volumeHolders(volume, run);
+    if (holders.length > 0) {
+      throw new PodmanRuntimeError(
+        `refusing 'pod up': data volume '${volume}' is already held by ${holders.join(", ")} ` +
+          `— the single-writer invariant (I5) forbids a second writer on it. The claude-box door ` +
+          `fleet now owns this store; reach beads through the beadsd door, or stop the holder ` +
+          `first to recreate the pod.`,
+        { status: 1, stdout: holders.join("\n"), stderr: "" },
+      );
+    }
+  }
+}
+
 /**
  * Bring the pod UP across the runtime split. First **provision the shared door
  * fabric** ({@link ProvisionDoorFabric}, prx-3urm) — `mkdir -p` + SELinux
@@ -145,6 +190,9 @@ export function playPod(
       },
     ];
   }
+  // Single-writer preflight (I5): don't open a second writer on a data volume an
+  // external owner already holds (e.g. the claude-box Quadlet dolt door backend).
+  assertNoExternalVolumeHolder(pod, run);
   const results: PodmanRunResult[] = [];
   results.push(requireOk(provision(doorDir), `provision door fabric '${doorDir}'`));
   if (hasKubeRooms(pod)) {
