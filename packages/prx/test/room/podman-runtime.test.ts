@@ -170,6 +170,69 @@ describe("playPod", () => {
   });
 });
 
+describe("playPod — single-writer guard (I5)", () => {
+  // A pod that includes the dolt-box backing service on the prx-dolt-data volume.
+  const doltPod = (): PodSpec =>
+    PodSpecSchema.parse({
+      name: "prx-pod",
+      executor: { name: "house" },
+      rooms: [beadsdRoom],
+      services: [
+        {
+          name: "dolt-box",
+          image: "dolt-box",
+          dataVolume: { name: "prx-dolt-data", mountPath: "/var/lib/dolt" },
+          env: {},
+          args: [],
+        },
+      ],
+    });
+
+  test("refuses when the backing service's volume is already held by an external container", () => {
+    const run: PodmanRun = (args) => {
+      if (args[0] === "pod" && args[1] === "exists") return { status: 1, stdout: "", stderr: "" };
+      if (args[0] === "ps") return { status: 0, stdout: "dolt\n", stderr: "" }; // claude-box Quadlet dolt
+      return { status: 0, stdout: "", stderr: "" };
+    };
+    const { provision } = provisionRecorder();
+    expect(() => playPod(doltPod(), run, provision)).toThrow(PodmanRuntimeError);
+    try {
+      playPod(doltPod(), run, provision);
+    } catch (err) {
+      const m = (err as PodmanRuntimeError).message;
+      expect(m).toContain("prx-dolt-data");
+      expect(m).toContain("dolt");
+      expect(m).toContain("I5");
+    }
+  });
+
+  test("proceeds normally when nothing else holds the volume", () => {
+    const calls: string[][] = [];
+    const run: PodmanRun = (args) => {
+      if (args[0] === "pod" && args[1] === "exists") return { status: 1, stdout: "", stderr: "" };
+      if (args[0] === "ps") return { status: 0, stdout: "", stderr: "" }; // volume free
+      calls.push(args);
+      return { status: 0, stdout: "", stderr: "" };
+    };
+    const { provision } = provisionRecorder();
+    const res = playPod(doltPod(), run, provision);
+    expect(res.length).toBeGreaterThan(0);
+    expect(calls.some((a) => a[0] === "kube" && a[1] === "play")).toBe(true);
+  });
+
+  test("does not probe volumes for a pod with no backing services", () => {
+    let probed = false;
+    const run: PodmanRun = (args) => {
+      if (args[0] === "pod" && args[1] === "exists") return { status: 1, stdout: "", stderr: "" };
+      if (args[0] === "ps") probed = true;
+      return { status: 0, stdout: "", stderr: "" };
+    };
+    const { provision } = provisionRecorder();
+    playPod(pod([beadsdRoom]), run, provision);
+    expect(probed).toBe(false);
+  });
+});
+
 describe("downPod", () => {
   test("pipes the rendered manifest into `podman kube down -` (non-secret rooms)", () => {
     const p = pod([beadsdRoom]);
