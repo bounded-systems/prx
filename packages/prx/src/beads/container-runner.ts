@@ -17,6 +17,9 @@ import { getEnv } from "@bounded-systems/env";
 
 import { runBdLifecycle, DOLT_CREDS_SECRET } from "../room/lifecycle-runner.ts";
 import { spawnPodman, type PodmanRun } from "../room/podman-runtime.ts";
+import { resolveGitCommonDir } from "./git_common_dir.ts";
+
+export { resolveGitCommonDir };
 
 /** The shared `BdInitRunner` / `BdMigrateRunner` seam shape. */
 export type BdLifecycleRunner = (
@@ -33,7 +36,7 @@ export function containerBdRunner(run: PodmanRun = spawnPodman): BdLifecycleRunn
   return (cmd, options = {}) => {
     const repo = options.cwd ?? process.cwd();
     const [bin, ...args] = cmd as readonly string[];
-    const res = runBdLifecycle({ repo, bin, args }, run);
+    const res = runBdLifecycle({ repo, commonDir: resolveGitCommonDir(repo), bin, args }, run);
     return { status: res.status, signal: null, stdout: res.stdout, stderr: res.stderr };
   };
 }
@@ -55,7 +58,7 @@ export function containerRepoRunner(
   return (cmd, options = {}) => {
     const repo = options.cwd ?? process.cwd();
     const [bin, ...args] = cmd;
-    const res = runBdLifecycle({ repo, bin, args }, run);
+    const res = runBdLifecycle({ repo, commonDir: resolveGitCommonDir(repo), bin, args }, run);
     return { stdout: res.stdout, stderr: res.stderr, status: res.status ?? 1 };
   };
 }
@@ -113,6 +116,7 @@ export function containerBdDoltPush(
     const res = runBdLifecycle(
       {
         repo: cwd,
+        commonDir: resolveGitCommonDir(cwd),
         bin: "sh",
         args: ["-c", script, "_", branch],
         secrets: [DOLT_CREDS_SECRET],

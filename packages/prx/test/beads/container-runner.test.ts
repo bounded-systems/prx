@@ -1,4 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, mkdirSync, realpathSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import {
   containerBdRunner,
@@ -6,9 +10,92 @@ import {
   containerBdDoltPush,
   containerDoltClone,
   readHostDoltIdentity,
+  resolveGitCommonDir,
 } from "../../src/beads/container-runner.ts";
 import { renderBdLifecycleArgs } from "../../src/room/lifecycle-runner.ts";
 import type { PodmanRunResult } from "../../src/room/podman-runtime.ts";
+
+function mkTmp(prefix: string): string {
+  return realpathSync(mkdtempSync(join(tmpdir(), prefix)));
+}
+
+function gitInit(cwd: string): void {
+  const r = spawnSync("git", ["init", "-q", "-b", "main"], { cwd, encoding: "utf8" });
+  if (r.status !== 0) throw new Error(`git init failed: ${r.stderr}`);
+  spawnSync("git", ["-C", cwd, "config", "user.email", "test@example.com"]);
+  spawnSync("git", ["-C", cwd, "config", "user.name", "test"]);
+  spawnSync("git", ["-C", cwd, "config", "commit.gpgsign", "false"]);
+}
+
+/** A bare repo + a linked worktree off it — this ecosystem's usual shape
+ *  (`prx repo materialize`/`repo add`), NOT the plain primary+linked shape
+ *  `resolveMainWorktree` targets (see primary_worktree.test.ts's GH-1680
+ *  regression case, which this mirrors). */
+function makeBareWithWorktree(): { bare: string; worktree: string; cleanup: () => void } {
+  const root = mkTmp("container-runner-");
+  const seed = join(root, "seed");
+  mkdirSync(seed, { recursive: true });
+  gitInit(seed);
+  spawnSync("git", ["-C", seed, "commit", "-q", "--allow-empty", "-m", "seed"]);
+
+  const bare = join(root, "scratch.git");
+  const cloneResult = spawnSync("git", ["clone", "--bare", "-q", seed, bare], { encoding: "utf8" });
+  if (cloneResult.status !== 0) throw new Error(`git clone --bare failed: ${cloneResult.stderr}`);
+
+  const worktree = join(root, "mainx");
+  const wtResult = spawnSync("git", ["-C", bare, "worktree", "add", "-q", "--detach", worktree, "main"], {
+    encoding: "utf8",
+  });
+  if (wtResult.status !== 0) throw new Error(`git worktree add failed: ${wtResult.stderr}`);
+
+  return { bare, worktree, cleanup: () => rmSync(root, { recursive: true, force: true }) };
+}
+
+describe("resolveGitCommonDir", () => {
+  let cleanup: (() => void) | undefined;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = undefined;
+  });
+
+  test("returns the bare repo's path for a linked worktree off it", () => {
+    const fixture = makeBareWithWorktree();
+    cleanup = fixture.cleanup;
+    expect(resolveGitCommonDir(fixture.worktree)).toBe(fixture.bare);
+  });
+
+  test("returns undefined for a self-contained checkout (common-dir is already under repo)", () => {
+    const root = mkTmp("container-runner-self-");
+    cleanup = () => rmSync(root, { recursive: true, force: true });
+    gitInit(root);
+    expect(resolveGitCommonDir(root)).toBeUndefined();
+  });
+
+  test("returns undefined when git fails (not a repo)", () => {
+    expect(resolveGitCommonDir("/nonexistent/definitely/not/a/path-XYZ")).toBeUndefined();
+  });
+});
+
+describe("containerBdRunner — threads commonDir through for a linked worktree (regression)", () => {
+  let cleanup: (() => void) | undefined;
+  afterEach(() => {
+    cleanup?.();
+    cleanup = undefined;
+  });
+
+  test("mounts the bare repo identity-mapped alongside /work", () => {
+    const fixture = makeBareWithWorktree();
+    cleanup = fixture.cleanup;
+    let seen: string[] | undefined;
+    const run = (args: string[]): PodmanRunResult => {
+      seen = args;
+      return { status: 0, stdout: "ok", stderr: "" };
+    };
+    containerBdRunner(run)(["bd", "init", "--prefix=x"], { cwd: fixture.worktree });
+    expect(seen).toContain(`${fixture.bare}:${fixture.bare}`);
+    expect(seen).toContain(`${fixture.worktree}:/work`);
+  });
+});
 
 describe("containerBdRunner — bd lifecycle ops in an ephemeral container (prx-82b 2c.2)", () => {
   test("maps cmd[0]→entrypoint, cwd→/work, and the podman result→SpawnCaptureResult", () => {
