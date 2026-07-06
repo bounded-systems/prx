@@ -15,7 +15,7 @@
 
 import { parseGitOrigin } from "../beads/hydrate.ts";
 import {
-  classifyBeadsWorkspace as defaultClassifyBeadsWorkspace,
+  classifyBeadsWorkspaceForRepo,
   type BeadsWorkspaceMode,
 } from "../beads/workspace_mode.ts";
 import {
@@ -157,7 +157,7 @@ export function runRepoAddDolthub(
     deps.classify ??
     ((repo) => {
       const cwd = resolvedRepoCwd(repo) ?? repo.commonDir;
-      return defaultClassifyBeadsWorkspace(cwd);
+      return classifyBeadsWorkspaceForRepo(cwd);
     });
   const getGitOrigin =
     deps.getGitOrigin ??

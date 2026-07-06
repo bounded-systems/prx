@@ -23,6 +23,7 @@ import { join } from "node:path";
 import { isCaptureFailure, type SpawnCaptureFn } from "@bounded-systems/proc";
 
 import { bdSpawnCapture } from "../beadsd/bd-command-runner.ts";
+import { resolveGitCommonDir } from "./git_common_dir.ts";
 
 export type BeadsWorkspaceMode =
   | { kind: "none" }
@@ -76,6 +77,28 @@ export function classifyBeadsWorkspace(
     kind: "ambiguous",
     details: `.beads/ has neither dolt/ nor embeddeddolt/<ws>/.dolt`,
   };
+}
+
+/**
+ * Classify `.beads/` for a repo, falling back to the git-common-dir when the
+ * worktree `cwd` itself has none. For this ecosystem's usual bare-repo +
+ * linked-worktree layout, `bd init` places `.beads/` at the common-dir (one
+ * shared store per repo, not per worktree) rather than at the worktree cwd —
+ * confirmed live via `prx repo bootstrap` on a bare+worktree repo. Plain
+ * `classifyBeadsWorkspace(cwd)` alone reports `none` in that case even
+ * though a real workspace exists one level up; this is the fallback callers
+ * (`repo_bootstrap.ts`, `repo_add_dolthub.ts`) should use instead.
+ */
+export function classifyBeadsWorkspaceForRepo(
+  cwd: string,
+  opts: { homeDir?: string; resolveCommonDir?: (cwd: string) => string | undefined } = {},
+): BeadsWorkspaceMode {
+  const primary = classifyBeadsWorkspace(cwd, opts);
+  if (primary.kind !== "none") return primary;
+  const resolveCommonDir = opts.resolveCommonDir ?? resolveGitCommonDir;
+  const commonDir = resolveCommonDir(cwd);
+  if (!commonDir) return primary;
+  return classifyBeadsWorkspace(commonDir, opts);
 }
 
 export function beadsModeHint(mode: BeadsWorkspaceMode, slug: string): string | null {

@@ -50,6 +50,7 @@ import { containerBdRunner } from "../beads/container-runner.ts";
 import { isCaptureFailure } from "@bounded-systems/proc";
 import {
   classifyBeadsWorkspace as defaultClassifyBeadsWorkspace,
+  classifyBeadsWorkspaceForRepo,
   type BeadsWorkspaceMode,
 } from "../beads/workspace_mode.ts";
 import { recordEvent as defaultRecordEvent } from "../machine/record_event.ts";
@@ -284,7 +285,7 @@ export function runRepoBootstrap(
     deps.classify ??
     ((repo) => {
       const cwd = resolvedRepoCwd(repo) ?? repo.commonDir;
-      return defaultClassifyBeadsWorkspace(cwd);
+      return classifyBeadsWorkspaceForRepo(cwd);
     });
   // prx-82b Slice 2c.2: `bd init` + the `config set` below run in an ephemeral
   // beadsd-box container, not host bd (the host bd binary is being removed).
@@ -638,7 +639,13 @@ export function formatRepoBootstrap(result: RepoBootstrapResult, format: "plain"
     case "bootstrapped": {
       const lines: string[] = [
         `bootstrapped ${result.slug} [prefix=${result.prefix}]`,
-        `  mode: per-project${result.doltDir ? ` (${result.doltDir})` : ""}`,
+        // `doltDir` is only non-null for actual per-project mode (doltDirFromMode
+        // collapses embedded/none to null) — bd's current default is embedded
+        // mode (see workspace_mode.ts's classifyBeadsWorkspaceForRepo), so don't
+        // claim "per-project" when we don't actually know that's what landed.
+        result.doltDir
+          ? `  mode: per-project (${result.doltDir})`
+          : `  mode: non-per-project (bd's default; check .beads/ on disk for the actual shape)`,
         `  ship-metadata: ${result.shipped ? "yes" : "stealth (no upstream commit)"}`,
       ];
       if (result.pr) {
