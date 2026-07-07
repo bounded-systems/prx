@@ -31,6 +31,9 @@ function makeFixture(params: {
   const logs: string[] = [];
   const errs: string[] = [];
   const spawnCalls: SpawnCall[] = [];
+  // Parallel to spawnCalls (same index), captured separately so existing
+  // exact `toEqual(SpawnCall)` assertions don't need to grow an `env` field.
+  const spawnEnvs: Array<NodeJS.ProcessEnv | undefined> = [];
   const lockStates = [...params.lockStates];
   const spawnResults = [...params.spawnResults];
   const defaultExisting = new Set(
@@ -58,6 +61,7 @@ function makeFixture(params: {
         cwd: opts.cwd,
         stdio: opts.stdio,
       });
+      spawnEnvs.push(opts.env);
       const next = spawnResults.shift();
       return next ?? { status: 0 };
     },
@@ -72,7 +76,7 @@ function makeFixture(params: {
     error: (line: string) => errs.push(line),
   };
 
-  return { logs, errs, spawnCalls, deps, output };
+  return { logs, errs, spawnCalls, spawnEnvs, deps, output };
 }
 
 describe("resolveFlakeDir", () => {
@@ -222,6 +226,32 @@ describe("runHomeUpdate", () => {
     expect(log).toContain("ai-home: aaaaaaa → bbbbbbb");
     expect(log).toContain("home-manager switched");
     expect(fx.errs).toEqual([]);
+  });
+
+  test("the flake.lock commit sets MAIN_GUARD_ALLOW_PROTECTED_BRANCH=1 (ai-home's main-guard escape hatch); other spawns are untouched", () => {
+    const fx = makeFixture({
+      lockStates: [{ "ai-home": "aaaaaaaaaa1111" }, { "ai-home": "bbbbbbbbbb2222" }],
+      // nix update, git rev-parse (is-git), git add, git commit, hm switch.
+      spawnResults: [{ status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }, { status: 0 }],
+    });
+
+    const exit = runHomeUpdate(
+      { flakeDir: "/fake/flake", input: "ai-home", dryRun: false, format: "plain" },
+      fx.output,
+      fx.deps,
+    );
+
+    expect(exit).toBe(0);
+    // index 3 is the `git commit` call (nix update, rev-parse, add, commit, switch).
+    expect(fx.spawnCalls[3]!.args.slice(0, 3)).toEqual(["-C", "/fake/flake", "commit"]);
+    expect(fx.spawnEnvs[3]).toEqual({ MAIN_GUARD_ALLOW_PROTECTED_BRANCH: "1" });
+    // Every other spawn call gets the plain injected env, unmodified — the
+    // bypass is scoped to exactly this one mechanical commit, not broadened
+    // to the whole update (nix update, rev-parse, add, switch).
+    expect(fx.spawnEnvs[0]).toEqual({});
+    expect(fx.spawnEnvs[1]).toEqual({});
+    expect(fx.spawnEnvs[2]).toEqual({});
+    expect(fx.spawnEnvs[4]).toEqual({});
   });
 
   test("prx-9lc: multi-input updates both inputs in one nix flake update and commits both moved", () => {
