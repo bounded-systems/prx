@@ -16,6 +16,17 @@ import type { RoomSecret } from "./spec.ts";
 export interface BdLifecycleOpts {
   /** Absolute host repo dir, bind-mounted at `/work` (the op's cwd). */
   repo: string;
+  /**
+   * Absolute host git-common-dir for `repo`, when `repo` is a LINKED worktree
+   * (this ecosystem's usual bare-repo + separate-worktree layout) and the
+   * common-dir lives outside `repo` itself. `repo`'s `.git` file holds an
+   * absolute `gitdir: <commonDir>/worktrees/<name>` pointer, which only
+   * resolves inside the container if `commonDir` is ALSO mounted — at the
+   * same absolute path, since the pointer isn't rewritten for the container's
+   * `/work` remap. Omit for a self-contained checkout (common-dir already
+   * lives under `repo`, so no extra mount is needed).
+   */
+  commonDir?: string | undefined;
   /** Args passed to the entrypoint binary, e.g. `["init", "--prefix", "x"]`. */
   args: string[];
   /** Entrypoint binary inside the box (default `bd`; `dolt` for raw dolt ops). */
@@ -56,6 +67,10 @@ export function renderBdLifecycleArgs(o: BdLifecycleOpts): string[] {
     `${s.name},target=${s.target}`,
   ]);
   const envArgs = Object.entries(o.env ?? {}).flatMap(([k, v]) => ["-e", `${k}=${v}`]);
+  // Identity-mapped (same path in and out) so `repo`'s linked-worktree `.git`
+  // file's absolute gitdir pointer resolves from inside the container too —
+  // see the field doc on `BdLifecycleOpts.commonDir`.
+  const commonDirArgs = o.commonDir ? ["-v", `${o.commonDir}:${o.commonDir}`] : [];
   return [
     "run",
     "--rm",
@@ -65,6 +80,7 @@ export function renderBdLifecycleArgs(o: BdLifecycleOpts): string[] {
     "HOME=/tmp",
     ...envArgs,
     ...secretArgs,
+    ...commonDirArgs,
     "-v",
     `${o.repo}:/work`,
     "-w",

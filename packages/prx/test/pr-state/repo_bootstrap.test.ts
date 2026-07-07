@@ -652,6 +652,26 @@ describe("formatRepoBootstrap", () => {
     expect(out).toContain("dolthub: wired → https://doltremoteapi.dolthub.com/bdelanghe/ai-home");
   });
 
+  test("plain bootstrapped: doesn't claim per-project when bd actually landed embedded mode", () => {
+    // Regression: the formatter used to hardcode "mode: per-project" even when
+    // doltDir was null (bd's actual default is embedded mode — see
+    // workspace_mode.ts's classifyBeadsWorkspaceForRepo). Confirmed live on
+    // gh-project-room: bootstrap succeeded, .beads/embeddeddolt/ landed, yet
+    // the old text said "per-project" regardless.
+    const result: RepoBootstrapResult = {
+      kind: "bootstrapped",
+      slug: "gh-project-room",
+      prefix: "gh-project-room",
+      doltDir: null,
+      shipped: false,
+      dolthub: { skipped: true, reason: "beads-state-none" },
+      events: [],
+    };
+    const out = formatRepoBootstrap(result, "plain");
+    expect(out).not.toContain("mode: per-project");
+    expect(out).toContain("mode: non-per-project");
+  });
+
   test("plain bootstrapped: surfaces PR url when shipped", () => {
     const result: RepoBootstrapResult = {
       kind: "bootstrapped",

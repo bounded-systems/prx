@@ -9,7 +9,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
 
-import { beadsModeHint, classifyBeadsWorkspace } from "../../src/beads/workspace_mode.ts";
+import {
+  beadsModeHint,
+  classifyBeadsWorkspace,
+  classifyBeadsWorkspaceForRepo,
+} from "../../src/beads/workspace_mode.ts";
 
 function makeTmpCwd(): string {
   return mkdtempSync(join(tmpdir(), "prx-workspace-mode-"));
@@ -144,5 +148,34 @@ describe("beadsModeHint (GH-1684)", () => {
     const hint = beadsModeHint({ kind: "ambiguous", details: "x" }, "foo");
     expect(hint).not.toBeNull();
     expect(hint).toContain("prx repo refresh foo");
+  });
+});
+
+describe("classifyBeadsWorkspaceForRepo — git-common-dir fallback", () => {
+  test("returns the worktree's own classification when it has .beads/ (no fallback needed)", () => {
+    const cwd = makeTmpCwd();
+    mkdirSync(join(cwd, ".beads", "dolt"), { recursive: true });
+    const resolveCommonDir = () => {
+      throw new Error("must not be called — worktree already has .beads/");
+    };
+    const mode = classifyBeadsWorkspaceForRepo(cwd, { resolveCommonDir });
+    expect(mode.kind).toBe("per_project");
+  });
+
+  test("falls back to the git-common-dir when the worktree has no .beads/ (bare+worktree layout)", () => {
+    const worktree = makeTmpCwd();
+    const bareRepo = makeTmpCwd();
+    mkdirSync(join(bareRepo, ".beads", "embeddeddolt", "lima_devshell", ".dolt"), { recursive: true });
+    const mode = classifyBeadsWorkspaceForRepo(worktree, { resolveCommonDir: () => bareRepo });
+    expect(mode.kind).toBe("embedded");
+    if (mode.kind === "embedded") {
+      expect(mode.doltDir).toBe(join(bareRepo, ".beads", "embeddeddolt", "lima_devshell", ".dolt"));
+    }
+  });
+
+  test("stays 'none' when resolveCommonDir finds nothing (self-contained checkout, no .beads/ anywhere)", () => {
+    const cwd = makeTmpCwd();
+    const mode = classifyBeadsWorkspaceForRepo(cwd, { resolveCommonDir: () => undefined });
+    expect(mode).toEqual({ kind: "none" });
   });
 });

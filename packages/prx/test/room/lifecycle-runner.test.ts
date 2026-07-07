@@ -50,6 +50,25 @@ describe("renderBdLifecycleArgs — ephemeral lifecycle op (prx-82b Slice 2c)", 
     expect(argv[argv.indexOf("--userns") + 1]).toBe("keep-id");
     expect(argv).toContain("/r:/work");
   });
+
+  test("no commonDir mount by default (self-contained checkout)", () => {
+    const argv = renderBdLifecycleArgs({ repo: "/r", args: ["init"] });
+    expect(argv.filter((a) => a === "-v")).toHaveLength(1); // only the /work bind
+  });
+
+  test("commonDir renders an identity-mapped mount (linked worktree's bare repo)", () => {
+    const argv = renderBdLifecycleArgs({
+      repo: "/worktrees/lima-devshell/mainx",
+      commonDir: "/bare/lima-devshell.git",
+      args: ["init"],
+    });
+    expect(argv).toContain("/bare/lima-devshell.git:/bare/lima-devshell.git");
+    expect(argv).toContain("/worktrees/lima-devshell/mainx:/work");
+    // commonDir mount precedes the /work bind; both precede -w/--entrypoint.
+    expect(argv.indexOf("/bare/lima-devshell.git:/bare/lima-devshell.git")).toBeLessThan(
+      argv.indexOf("/worktrees/lima-devshell/mainx:/work"),
+    );
+  });
 });
 
 describe("runBdLifecycle", () => {
