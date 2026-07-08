@@ -1,0 +1,19 @@
+# Drift-gate for STATUS.md + docs/value-props.md, generated from
+# packages/prx/src/value_props.ts by @bounded-systems/descriptor-kit (replaces
+# the retired gen-value-props.ts + its drift tests). Switches to `descriptor: true`
+# on the shared repo-standard.yml once bounded-systems/.github#52 lands.
+name: descriptor
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  descriptor:
+    uses: bounded-systems/.github/.github/workflows/repo-standard.yml@d43c3280588ef05f4ead43426db1091d4cb8f520
+    with:
+      security: false
+      test: true
+      runtime: bun
+      test-command: "bun install --frozen-lockfile && git clone --depth 1 https://github.com/bounded-systems/descriptor-kit /tmp/dk && (cd /tmp/dk && bun install --frozen-lockfile) && bun /tmp/dk/src/cli.ts check ."

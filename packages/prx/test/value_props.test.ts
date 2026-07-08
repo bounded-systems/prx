@@ -2,18 +2,11 @@
 // have passing checks; the committed doc must match what the checks deliver now.
 
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { findRepoRoot } from "../src/repo-root.ts";
-const REPO_ROOT = findRepoRoot();
 import {
   VALUE_PROPS,
   backingOf,
   codeToValueProps,
   exercisedBy,
-  generateStatusDoc,
-  generateValuePropsDoc,
-  isFullyBacked,
   isValuePropBacked,
 } from "../src/value_props.ts";
 
@@ -30,32 +23,9 @@ describe("value props (prx-8mx)", () => {
     }
   });
 
-  test("the committed docs/value-props.md matches the generator (no drift)", () => {
-    const path = join(REPO_ROOT, "docs", "value-props.md");
-    expect(existsSync(path)).toBe(true);
-    expect(
-      readFileSync(path, "utf8"),
-      "docs/value-props.md is stale — run `bun packages/prx/scripts/gen-value-props.ts` and commit",
-    ).toBe(generateValuePropsDoc());
-  });
-
-  test("the committed STATUS.md matches the generator (the bubble-up top, no drift)", () => {
-    const path = join(REPO_ROOT, "STATUS.md");
-    expect(existsSync(path)).toBe(true);
-    expect(
-      readFileSync(path, "utf8"),
-      "STATUS.md is stale — run `bun packages/prx/scripts/gen-value-props.ts` and commit",
-    ).toBe(generateStatusDoc());
-  });
-
-  test("STATUS.md reports the live fully-backed count and lists every learning goal", () => {
-    const doc = generateStatusDoc();
-    const fullyBacked = VALUE_PROPS.filter(isFullyBacked).length;
-    expect(doc).toContain(`**${fullyBacked} of ${VALUE_PROPS.length} value props fully backed**`);
-    for (const vp of VALUE_PROPS) {
-      if (!isValuePropBacked(vp)) expect(doc).toContain(`- ${vp.claim}`);
-    }
-  });
+  // Drift of docs/value-props.md + STATUS.md is now gated by `descriptor check`
+  // (@bounded-systems/descriptor-kit) in CI, which renders both from this catalog —
+  // not a per-repo generator test. The catalog invariants below still hold here.
 
   test("a value prop is backed iff none of its forcing functions are learning goals", () => {
     for (const vp of VALUE_PROPS) {
