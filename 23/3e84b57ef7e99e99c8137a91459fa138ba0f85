@@ -1,0 +1,19 @@
+.changeset/adopt-descriptor-kit.md
+  s_e3fff2f6060e6c::t_da0247fd366c73 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "233e84b57ef7e99e99c8137a91459fa138ba0f85",
+  "prompts": {},
+  "sessions": {
+    "s_e3fff2f6060e6c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b45e8d3-21a6-47bd-bcd5-77e2c160db83",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
