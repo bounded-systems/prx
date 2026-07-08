@@ -1,0 +1,30 @@
+trellis.json
+  s_e3fff2f6060e6c::t_a1c9ecb41000bf 7-17
+  s_e3fff2f6060e6c::t_17560c594f791f 4-6
+  s_e3fff2f6060e6c::t_872cf74590283d 18-19
+  s_e3fff2f6060e6c::t_fafd0dc18aaebb 1-3
+.github/workflows/descriptor.yml
+  s_e3fff2f6060e6c::t_b70d44d52190ff 1-19
+packages/prx/test/value_props.test.ts
+  s_e3fff2f6060e6c::t_4e44d9f950f971 26-28
+STATUS.md
+  s_e3fff2f6060e6c::t_f87114ff2c3d02 3
+docs/value-props.md
+  s_e3fff2f6060e6c::t_ad6e95f6804f18 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "2cc2d333172cdc9a7b21a2c1510618e2a1857f7d",
+  "prompts": {},
+  "sessions": {
+    "s_e3fff2f6060e6c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b45e8d3-21a6-47bd-bcd5-77e2c160db83",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
