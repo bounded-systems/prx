@@ -1,0 +1,19 @@
+.github/workflows/pages.yml
+  s_590a4cb0d433ca::t_d56ae2ece9574d 47,50,66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "6b6c281ed1c6b90bf7b96b52138d8ce7446dfb79",
+  "prompts": {},
+  "sessions": {
+    "s_590a4cb0d433ca": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b0655308-1b11-42b1-889b-668f5601293b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert DeLanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
