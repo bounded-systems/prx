@@ -1,0 +1,21 @@
+packages/prx/CHANGELOG.md
+  s_a031e3c760ac4e::t_24b2cefe21cae7 3-16
+packages/prx/package.json
+  s_a031e3c760ac4e::t_e54999be34352a 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "6bb160f1585f5de69b2aa613ec6830f50727b801",
+  "prompts": {},
+  "sessions": {
+    "s_a031e3c760ac4e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2fedc9b-3f9d-4587-b3eb-8b7fbc296a3b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert Delanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
