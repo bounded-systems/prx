@@ -1,0 +1,21 @@
+Formula/prx.rb
+  s_a031e3c760ac4e::t_3b6b276c73c906 8,12-13,16-17,23-24,27-28
+release-hashes.json
+  s_a031e3c760ac4e::t_de9622c4f015b1 2,5,8,11,14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "f02282b5a22c7b4832b5292ea9bf5902324f334f",
+  "prompts": {},
+  "sessions": {
+    "s_a031e3c760ac4e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2fedc9b-3f9d-4587-b3eb-8b7fbc296a3b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert Delanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
