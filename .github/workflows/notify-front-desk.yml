@@ -1,9 +1,10 @@
 name: notify-front-desk
-# Per-repo trigger: on issue/PR events, kick the central Front Desk sweep.
-# Grants id-token: write so the OIDC → cf-token-broker mint propagates through
-# the reusable chain (trigger-sync → front-desk-sync) — no secrets (prx-26bq).
-# Without it the sweep fails open; the daily schedule + the brokered
-# front-desk-add (instant per-repo add) remain the backstop.
+# Per-repo trigger: on issue/PR events, kick the central Front Desk sweep. Grants
+# id-token: write so the OIDC -> cf-token-broker mint propagates through the reusable
+# chain (trigger-sync -> front-desk-sync) -- no secrets (prx-26bq). The reusable
+# workflow's job REQUESTS id-token: write, so the caller MUST grant it or the whole
+# run startup_failures (load-time permission union -- the .github#55 lesson). Ref is
+# pinned to a SHA so a branch can't swap the sync logic (conformance actions-audit R1a).
 on:
   issues:
     types: [opened, closed, reopened, labeled, unlabeled]
@@ -12,5 +13,5 @@ on:
 jobs:
   sync:
     permissions:
-      id-token: write # propagate OIDC to front-desk-sync's broker mint
-    uses: bounded-systems/gh-project-room/.github/workflows/trigger-sync.yml@main
+      id-token: write
+    uses: bounded-systems/gh-project-room/.github/workflows/trigger-sync.yml@293e6d884867111c3f0d0886d4d305d37b27e2ed
