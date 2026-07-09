@@ -1,5 +1,19 @@
 # @bounded-systems/prx
 
+## 0.29.0
+
+### Minor Changes
+
+- be088da: beadsd: publish its method surface as a verbspec interface (IDL). A new `beadsd/verbs.ts` projects the existing `BeadsRequestSchema` wire contract into a verbspec `Registry` (one verb per request `kind`, input derived from the union member, output the shared response schema) and emits a committed OpenRPC document (`beadsd.openrpc.json`) as beadsd's published interface. Projection-only in this slice — beadsd still serves over its existing `{kind}` envelope; wiring `dispatchNdjson` as the transport is a follow-up. Drift-guarded so the interface can't diverge from the wire contract or the committed artifact.
+- f910832: `prx pod up`: single-writer preflight guard for backing-service data volumes. Before bringing a pod up, `playPod` now refuses (with a loud, named error) if a backing service's data volume — e.g. dolt-box's `prx-dolt-data`, now owned by the claude-box Quadlet `dolt` door backend — is already held by an external container. Enforces the one-writer-per-store invariant (I5) from the prx side; mirrors the claude-box `dolt.container` guard.
+
+### Patch Changes
+
+- f040641: Adopt @bounded-systems/descriptor-kit for STATUS.md + docs/value-props.md generation; retire the bespoke gen-value-props.ts. Byte-parity except the provenance banner; the render layer moves to the shared tool while the value_props.ts catalog + backing helpers are unchanged.
+- 1becd78: Auto-repin room images to the freshly-built box digests (publish-oci-boxes repin job).
+- a6107b6: Fix `prx repo bootstrap`/`prx repo add-dolthub` for bare-repo + linked-worktree repos: the ephemeral container now mounts the repo's git-common-dir alongside the worktree (fixing "not a git repository" failures in `bd init`), the missing `BD_BOOTSTRAP_AUTO_PUSH_DISABLE*` events are registered in the event catalog, and `.beads/` classification falls back to the git-common-dir where `bd init` actually places embedded-mode workspaces for this layout.
+- 0891c0f: `prx home update` now sets `MAIN_GUARD_ALLOW_PROTECTED_BRANCH=1` on its own flake.lock commit, so it no longer fails when the flake dir is checked out on a protected branch (main/master/trunk) — a routine case for `~/.config/home-manager`.
+
 ## 0.28.0
 
 ### Minor Changes
