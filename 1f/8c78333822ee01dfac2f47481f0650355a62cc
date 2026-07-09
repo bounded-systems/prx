@@ -1,0 +1,29 @@
+.changeset/adopt-descriptor-kit.md
+  s_a031e3c760ac4e::t_7df96d39a578d6 1-5
+.github/workflows/descriptor.yml
+  s_a031e3c760ac4e::t_1c4a11ce38d1b2 1-19
+STATUS.md
+  s_a031e3c760ac4e::t_ac4a5ce9a982c4 3
+docs/value-props.md
+  s_a031e3c760ac4e::t_12acd737255271 3
+packages/prx/test/value_props.test.ts
+  s_a031e3c760ac4e::t_cabb4d671f243c 26-28
+trellis.json
+  s_a031e3c760ac4e::t_6f67ba8f8bc6c4 1-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "1f8c78333822ee01dfac2f47481f0650355a62cc",
+  "prompts": {},
+  "sessions": {
+    "s_a031e3c760ac4e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2fedc9b-3f9d-4587-b3eb-8b7fbc296a3b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "Robert Delanghe <1240090+bdelanghe@users.noreply.github.com>"
+    }
+  }
+}
