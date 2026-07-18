@@ -42,7 +42,7 @@ jobs:
       - name: Install skopeo
         run: sudo apt-get install -y skopeo
 
-      - uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+      - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -91,7 +91,7 @@ jobs:
       - name: Attest image provenance
         if: ${{ !inputs.dry_run }}
         continue-on-error: true
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/prx/beadsd-box
           subject-digest: ${{ steps.push.outputs.digest }}
@@ -120,7 +120,7 @@ jobs:
       - name: Install skopeo
         run: sudo apt-get install -y skopeo
 
-      - uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+      - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -169,7 +169,7 @@ jobs:
       - name: Attest image provenance
         if: ${{ !inputs.dry_run }}
         continue-on-error: true
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/prx/forge-d-box
           subject-digest: ${{ steps.push.outputs.digest }}
@@ -198,7 +198,7 @@ jobs:
       - name: Install skopeo
         run: sudo apt-get install -y skopeo
 
-      - uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+      - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -247,7 +247,7 @@ jobs:
       - name: Attest image provenance
         if: ${{ !inputs.dry_run }}
         continue-on-error: true
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/prx/concierged-box
           subject-digest: ${{ steps.push.outputs.digest }}
@@ -276,7 +276,7 @@ jobs:
       - name: Install skopeo
         run: sudo apt-get install -y skopeo
 
-      - uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+      - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -320,7 +320,7 @@ jobs:
       - name: Attest image provenance
         if: ${{ !inputs.dry_run }}
         continue-on-error: true
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/prx/dolt-box
           subject-digest: ${{ steps.push.outputs.digest }}
@@ -349,7 +349,7 @@ jobs:
       - name: Install skopeo
         run: sudo apt-get install -y skopeo
 
-      - uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+      - uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -393,7 +393,7 @@ jobs:
       - name: Attest image provenance
         if: ${{ !inputs.dry_run }}
         continue-on-error: true
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/prx/nix-builder-box
           subject-digest: ${{ steps.push.outputs.digest }}
