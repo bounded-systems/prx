@@ -21,9 +21,7 @@ import { readFileSync as nodeReadFileSync, readSync as nodeReadSync } from "node
 import { basename, relative } from "node:path";
 import { z } from "zod";
 
-import { execBd } from "@bounded-systems/bd";
 import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
-import { publishOne, type BeadsPublishRender, type PublishCoreResult } from "../beads/publish.ts";
 import { AREA, type LabelArea } from "../triage/labels.ts";
 import { areaLabelString, typeLabelString } from "../triage/label-vocab.ts";
 import {
@@ -143,41 +141,41 @@ export type IntakeOptions = z.infer<typeof intakeOptionsSchema>;
  * Result of the bd-create step — captures the argv that was planned (for
  * dry-run rendering and stderr context) and the exec outcome.
  */
-export type IntakeBdCreateResult = {
-  /** Args passed after the `create` subcommand (no leading `bd create`). */
+export type IntakeGhCreateResult = {
+  /** Args passed after `gh` (i.e. `["issue","create", …]`). */
   args: string[];
-  /** Created bd id (parsed from stdout); null when the create failed or on dry-run. */
-  bdId: string | null;
+  /** Created issue URL (parsed from `gh issue create` stdout); null on failure/dry-run. */
+  issueUrl: string | null;
+  /** Derived GH issue number; null on failure/dry-run. */
+  issueNumber: number | null;
   exitCode: number;
   stderr: string;
 };
 
 export type IntakeResult = {
-  /** Final composed title sent to bd (and to GH on `--to gh`). */
+  /** Final composed title sent to GitHub. */
   title: string;
-  /** Final composed body sent to bd (and to GH on `--to gh`). */
+  /** Final composed body sent to GitHub. */
   body: string;
-  /** Labels operator intended for the GH issue if `--to gh` was set. */
+  /** Labels applied to the GH issue. */
   labels: string[];
-  /** Optional repo override forwarded to publish; null when using gh's git-remote default. */
+  /** Repo override (`-R`), or null when using gh's git-remote default. */
   repo: string | null;
   /** "GH-N" detected from the current worktree, or null. */
   surfacedFrom: string | null;
-  /** Projection target requested (`"gh"`) or null for bd-only. */
-  to: "gh" | null;
   dryRun: boolean;
-  /** bd-create outcome (always present once we reach the bd write step). */
-  bdCreate: IntakeBdCreateResult | null;
-  /** Projection outcome when `--to gh` was set; null otherwise. */
-  publish: BeadsPublishRender | null;
+  /**
+   * GH issue-create outcome — the primary (and only) write (GH-1011: beads
+   * retired, GitHub is the write plane). The webhook lands the new issue on
+   * Front Desk.
+   */
+  ghCreate: IntakeGhCreateResult | null;
   exitCode: number;
 };
 
 export type IntakeDeps = {
-  execBd?: typeof execBd;
-  /** GH-296 / prx-82b — sync runner for the daemon-routed `prx beads create`. */
+  /** Sync runner for the `gh issue create` write (default: procRunner). */
   run?: CommandRunner;
-  publishOne?: typeof publishOne;
   detectBranchName?: (cwd: string) => string | null;
   getRepoRoot?: (cwd: string) => string | null;
   readStdin?: () => string;
@@ -469,8 +467,6 @@ export function runIntake(opts: IntakeOptions, output: Output, deps: IntakeDeps 
   const readStdin = deps.readStdin ?? defaultReadStdin;
   const readFile = deps.readFile ?? ((p: string) => nodeReadFileSync(p, "utf8"));
   const run = deps.run ?? procRunner;
-  const bdExec = deps.execBd ?? execBd;
-  const publish = deps.publishOne ?? publishOne;
   const isStdinTTY = deps.isStdinTTY ?? defaultIsStdinTTY;
   const isStdoutTTY = deps.isStdoutTTY ?? defaultIsStdoutTTY;
   const confirmIntake = deps.confirmIntake ?? defaultConfirmIntake;
@@ -523,71 +519,43 @@ export function runIntake(opts: IntakeOptions, output: Output, deps: IntakeDeps 
   // structured args mirror `bd update --description/--design/--acceptance/--notes`
   // semantics so freeform bodies and structured-cluster bodies both round-trip
   // through bd's record shape.
-  const bdCreateArgs = buildBdCreateArgs({
+  const ghArgs = buildGhIssueArgs({ title, body, labels, repo: opts.repo });
+
+  const previewResult = (dryRun: boolean): IntakeResult => ({
     title,
     body,
-    issueType: spec.type,
+    labels,
+    repo: opts.repo ?? null,
+    surfacedFrom,
+    dryRun,
+    ghCreate: { args: ghArgs, issueUrl: null, issueNumber: null, exitCode: 0, stderr: "" },
+    exitCode: 0,
   });
 
   if (opts.dryRun) {
-    const result: IntakeResult = {
-      title,
-      body,
-      labels,
-      repo: opts.repo ?? null,
-      surfacedFrom,
-      to: opts.to ?? null,
-      dryRun: true,
-      bdCreate: {
-        args: bdCreateArgs,
-        bdId: null,
-        exitCode: 0,
-        stderr: "",
-      },
-      publish: null,
-      exitCode: 0,
-    };
-    output.log(formatIntakeResult(result, opts.format));
+    output.log(formatIntakeResult(previewResult(true), opts.format));
     return 0;
   }
 
   // GH-1486: TTY confirm prompt — defuses the operator foot-gun where probing
-  // `prx intake spike --title …` writes a real bd record (and on `--to gh`
-  // also a real GH issue) with no preview. `--yes` skips the prompt; non-TTY/CI
-  // invocations preserve commit-by-default behavior so scripts and agents are
-  // unaffected. Gate on both stdin and stdout being TTYs so a redirected stdout
-  // (e.g. `… > out.txt`, or piped to a JSON parser under `--format json`)
-  // doesn't get the prompt mixed into its output stream.
+  // `prx intake spike --title …` files a real GitHub issue with no preview.
+  // `--yes` skips the prompt; non-TTY/CI invocations preserve commit-by-default
+  // behavior so scripts and agents are unaffected. Gate on both stdin and stdout
+  // being TTYs so a redirected stdout (e.g. `… > out.txt`, or piped to a JSON
+  // parser under `--format json`) doesn't get the prompt mixed into its output.
   if (!opts.yes && isStdinTTY() && isStdoutTTY()) {
-    const previewResult: IntakeResult = {
-      title,
-      body,
-      labels,
-      repo: opts.repo ?? null,
-      surfacedFrom,
-      to: opts.to ?? null,
-      dryRun: true,
-      bdCreate: {
-        args: bdCreateArgs,
-        bdId: null,
-        exitCode: 0,
-        stderr: "",
-      },
-      publish: null,
-      exitCode: 0,
-    };
-    const preview = formatIntakeResult(previewResult, "plain");
-    if (!confirmIntake(preview, output)) {
-      output.error("prx intake: aborted by operator (no record written)");
+    if (!confirmIntake(formatIntakeResult(previewResult(true), "plain"), output)) {
+      output.error("prx intake: aborted by operator (no issue filed)");
       return 1;
     }
   }
 
-  // Step 1: bd create — the primary, canonical write. Planning-tier override
-  // is required because the default executor role can't bd create/update.
-  const bdResult = run(["prx", "beads", "create", ...bdCreateArgs], { check: false });
-  if (bdResult.status !== 0) {
-    const detail = bdResult.stderr.trim() || bdResult.stdout.trim() || "prx beads create failed";
+  // The primary (and only) write: file a GitHub issue directly (GH-1011 — beads
+  // retired, GitHub is the write plane). The org's front-desk-sync webhook lands
+  // the new issue on Front Desk automatically.
+  const ghResult = run(["gh", ...ghArgs], { check: false });
+  if (ghResult.status !== 0) {
+    const detail = ghResult.stderr.trim() || ghResult.stdout.trim() || "gh issue create failed";
     output.error(`prx intake: ${detail}`);
     const result: IntakeResult = {
       title,
@@ -595,79 +563,29 @@ export function runIntake(opts: IntakeOptions, output: Output, deps: IntakeDeps 
       labels,
       repo: opts.repo ?? null,
       surfacedFrom,
-      to: opts.to ?? null,
       dryRun: false,
-      bdCreate: {
-        args: bdCreateArgs,
-        bdId: null,
-        exitCode: bdResult.status,
-        stderr: bdResult.stderr,
+      ghCreate: {
+        args: ghArgs,
+        issueUrl: null,
+        issueNumber: null,
+        exitCode: ghResult.status,
+        stderr: ghResult.stderr,
       },
-      publish: null,
-      exitCode: bdResult.status || 1,
+      exitCode: ghResult.status || 1,
     };
     if (opts.format === "json") output.log(formatIntakeResult(result, "json"));
     return result.exitCode;
   }
 
-  // `prx beads create` echoes the created record as JSON; parse its id.
-  let bdId = "";
-  try {
-    const record = JSON.parse(bdResult.stdout) as { id?: unknown };
-    if (typeof record.id === "string") bdId = record.id;
-  } catch {
-    output.error("prx intake: prx beads create returned unparseable output");
-    return 1;
-  }
-  if (!bdId) {
-    output.error("prx intake: prx beads create returned no id");
-    return 1;
-  }
-
-  const bdCreate: IntakeBdCreateResult = {
-    args: bdCreateArgs,
-    bdId,
-    exitCode: 0,
-    stderr: bdResult.stderr,
-  };
-
-  // Step 2: optional GH projection via `publishOne` — the GH adapter's
-  // single-record push, gated on `--to gh`. Without this flag the verb is
-  // bd-only and never reaches GH (per GH-1500 §1 corollary, GH-1607 acceptance).
-  let publishRender: BeadsPublishRender | null = null;
-  if (opts.to === "gh") {
-    const publishResult: PublishCoreResult = publish(
-      {
-        bdId,
-        repo: opts.repo,
-        dryRun: false,
-        noAdopt: false,
-        extraLabels: labels,
-        format: "plain",
-      },
-      { run },
+  // `gh issue create` prints the new issue URL on stdout.
+  const issueUrl = extractIntakeIssueUrl(ghResult.stdout);
+  if (!issueUrl) {
+    output.error(
+      `prx intake: gh issue create did not print an issue URL: ${ghResult.stdout.trim()}`,
     );
-    publishRender = publishResult.render;
-    if (publishResult.exitCode !== 0) {
-      // Surface the projection error on stderr but keep the bd-id as the
-      // primary handle; the bd record exists either way.
-      if (publishRender.message) output.error(`prx intake: ${publishRender.message}`);
-      const result: IntakeResult = {
-        title,
-        body,
-        labels,
-        repo: opts.repo ?? null,
-        surfacedFrom,
-        to: "gh",
-        dryRun: false,
-        bdCreate,
-        publish: publishRender,
-        exitCode: publishResult.exitCode,
-      };
-      output.log(formatIntakeResult(result, opts.format));
-      return publishResult.exitCode;
-    }
+    return 1;
   }
+  const issueNumber = intakeIssueNumber(issueUrl);
 
   const result: IntakeResult = {
     title,
@@ -675,33 +593,44 @@ export function runIntake(opts: IntakeOptions, output: Output, deps: IntakeDeps 
     labels,
     repo: opts.repo ?? null,
     surfacedFrom,
-    to: opts.to ?? null,
     dryRun: false,
-    bdCreate,
-    publish: publishRender,
+    ghCreate: { args: ghArgs, issueUrl, issueNumber, exitCode: 0, stderr: ghResult.stderr },
     exitCode: 0,
   };
   output.log(formatIntakeResult(result, opts.format));
   return 0;
 }
 
-// `bd create` argv builder. The composed body — surfaced-from banner +
-// freeform body OR rendered structured-cluster sections — goes onto bd's
-// `--description` axis as a single blob. We don't split structured fields
-// into bd's separate `--design/--acceptance/--notes` slots because the body
-// already renders them inline as labeled markdown sections (the same shape
-// the GH adapter will mirror); splitting would diverge the bd-side and
-// GH-side body shapes, breaking publishOne's title+description→GH parity.
-function buildBdCreateArgs(parts: {
+// `gh issue create` argv builder. The composed body — surfaced-from banner +
+// freeform body OR rendered structured-cluster sections — is the issue body;
+// the type/area are carried as labels (already stamped into `labels`), so the
+// GH issue is self-describing. `-R <repo>` is added only when overridden; else
+// gh resolves the repo from the git remote.
+function buildGhIssueArgs(parts: {
   title: string;
   body: string;
-  issueType: IntakeType;
+  labels: string[];
+  repo?: string | undefined;
 }): string[] {
-  // GH-296: `prx beads create` echoes the created record as JSON, so no `--silent`
-  // id-line is needed — we parse the record's id.
-  const args: string[] = ["--type", parts.issueType, "--title", parts.title];
-  if (parts.body.length > 0) args.push("--description", parts.body);
+  const args: string[] = ["issue", "create"];
+  if (parts.repo) args.push("-R", parts.repo);
+  args.push("--title", parts.title);
+  if (parts.body.length > 0) args.push("--body", parts.body);
+  for (const label of parts.labels) args.push("--label", label);
   return args;
+}
+
+/** The issue URL `gh issue create` prints on stdout (last URL line). */
+function extractIntakeIssueUrl(stdout: string): string | null {
+  const match = stdout.match(/https?:\/\/\S+\/issues\/\d+/);
+  return match ? match[0] : null;
+}
+
+function intakeIssueNumber(issueUrl: string): number | null {
+  const match = issueUrl.match(/\/issues\/(\d+)/);
+  if (!match) return null;
+  const n = Number.parseInt(match[1]!, 10);
+  return Number.isFinite(n) ? n : null;
 }
 
 function shellQuote(value: string): string {
@@ -715,33 +644,20 @@ export function formatIntakeResult(result: IntakeResult, format: "plain" | "json
     return JSON.stringify(result, null, 2);
   }
   if (result.dryRun) {
-    const bdArgs = result.bdCreate?.args ?? [];
-    const lines = [
+    const ghArgs = result.ghCreate?.args ?? [];
+    return [
       "prx intake (dry-run)",
       `  title:          ${result.title}`,
       `  surfaced-from:  ${result.surfacedFrom ?? "(none — not in a GH-N worktree)"}`,
-      `  to:             ${result.to ?? "(none — bd-only)"}`,
       `  repo:           ${result.repo ?? "(default — gh's git remote)"}`,
       `  labels:         ${result.labels.length ? result.labels.join(", ") : "(none)"}`,
       `  body:`,
       ...result.body.split(/\r?\n/).map((line) => `    ${line}`),
       `  would run:`,
-      `    bd create ${bdArgs.map(shellQuote).join(" ")}`,
-    ];
-    if (result.to === "gh") {
-      lines.push(
-        `    prx beads publish <bd-id>${result.repo ? ` --repo ${shellQuote(result.repo)}` : ""}`,
-      );
-    }
-    return lines.join("\n");
+      `    gh ${ghArgs.map(shellQuote).join(" ")}`,
+    ].join("\n");
   }
-  // Plain output: bd-id is the primary handle (per the GH-1500 model). The
-  // GH URL is appended on a second line when `--to gh` succeeded so an
-  // operator can copy either handle out of a one-or-two-line render.
-  const bdId = result.bdCreate?.bdId ?? "";
-  if (!bdId) return "";
-  if (result.publish && result.publish.externalRef) {
-    return `${bdId}\n${result.publish.externalRef}`;
-  }
-  return bdId;
+  // Plain output: the created issue URL is the primary handle (GH-1011 — the GH
+  // issue is the work unit; the webhook lands it on Front Desk).
+  return result.ghCreate?.issueUrl ?? "";
 }

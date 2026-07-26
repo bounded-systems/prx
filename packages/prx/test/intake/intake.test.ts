@@ -11,50 +11,29 @@ import {
   runIntake,
   type IntakeOptions,
 } from "../../src/intake/intake.ts";
-import type { BdExecResult } from "@bounded-systems/bd";
-import type {
-  PublishCoreResult,
-  BeadsPublishOptions,
-  BeadsPublishDeps,
-} from "../../src/beads/publish.ts";
 
-// Helper: stub bd create that returns a fixed bd id so runIntake can
-// proceed past the bd-create step. Returns a fresh stub per test.
-function makeBdCreateStub(bdId = "ai-home-001"): {
-  invocations: Array<{ subcommand: string; args: string[]; state?: string; role?: string }>;
-  exec: (opts: {
-    subcommand: string;
-    args: string[];
-    state?: string;
-    role?: string;
-  }) => BdExecResult;
+// Helper: stub the `run` command runner for the `gh issue create` write
+// (GH-1011: beads retired, GitHub is the write plane). Records each gh
+// invocation and returns the new issue URL on stdout so runIntake can parse
+// it. Returns a fresh stub per test. `issueNumber` is configurable (default
+// 42); `owner/repo` in the URL is fixed to bounded-systems/prx.
+function makeGhCreateStub(issueNumber = 42): {
+  invocations: string[][];
+  issueUrl: string;
   run: (
     cmd: string[],
     o?: { check?: boolean },
   ) => { status: number; stdout: string; stderr: string };
 } {
-  const invocations: Array<{ subcommand: string; args: string[]; state?: string; role?: string }> =
-    [];
+  const invocations: string[][] = [];
+  const issueUrl = `https://github.com/bounded-systems/prx/issues/${issueNumber}`;
   return {
     invocations,
-    exec: (opts) => {
-      invocations.push(opts);
-      if (opts.subcommand === "create") {
-        return { exitCode: 0, stdout: `${bdId}\n`, stderr: "", policy: null };
-      }
-      return { exitCode: 0, stdout: "", stderr: "", policy: null };
-    },
-    // GH-296 / prx-82b: bd create now runs `prx beads create …` through the
-    // daemon (a sync runner) which echoes the record as JSON. Records the
-    // equivalent invocation shape so the existing assertions hold.
+    issueUrl,
     run: (cmd: string[]) => {
-      invocations.push({
-        subcommand: cmd[2] ?? "",
-        args: cmd.slice(3),
-        state: "planning",
-        role: "planner",
-      });
-      return { status: 0, stdout: JSON.stringify({ id: bdId }), stderr: "" };
+      invocations.push(cmd);
+      // Only `gh issue create` is expected on this path.
+      return { status: 0, stdout: `${issueUrl}\n`, stderr: "" };
     },
   };
 }
@@ -274,9 +253,8 @@ describe("resolveBody", () => {
 });
 
 describe("runIntake — dry run", () => {
-  test("does not invoke bd or publish, exits 0", () => {
-    const bdCalls: unknown[] = [];
-    const publishCalls: unknown[] = [];
+  test("does not invoke gh, exits 0, renders the gh issue create preview", () => {
+    const stub = makeGhCreateStub();
     const logs: string[] = [];
     const exitCode = runIntake(
       makeOptions({
@@ -288,50 +266,28 @@ describe("runIntake — dry run", () => {
       }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
-        execBd: ((opts: unknown) => {
-          bdCalls.push(opts);
-          return { exitCode: 0, stdout: "", stderr: "", policy: null };
-        }) as never,
-        publishOne: ((opts: unknown) => {
-          publishCalls.push(opts);
-          return {
-            exitCode: 0,
-            outcome: "noop",
-            bdId: "x",
-            render: { bdId: "x", repo: "", title: "", outcome: "noop", dryRun: true, exitCode: 0 },
-          } as PublishCoreResult;
-        }) as never,
+        run: stub.run as never,
         detectBranchName: () => "GH-666",
         cwd: () => "/repo",
       },
     );
     expect(exitCode).toBe(0);
-    expect(bdCalls).toEqual([]);
-    expect(publishCalls).toEqual([]);
+    // Dry-run performs no write.
+    expect(stub.invocations).toEqual([]);
     expect(logs[0]).toContain("dry-run");
     expect(logs[0]).toContain("task(prx): x");
     expect(logs[0]).toContain("Surfaced from GH-666");
-    // GH-1607: dry-run preview renders the bd-create argv (not gh).
-    expect(logs[0]).toContain("bd create");
-    expect(logs[0]).toContain("--type task");
+    // GH-1011: dry-run preview renders the gh issue create argv.
+    expect(logs[0]).toContain("would run:");
+    expect(logs[0]).toContain("gh issue create");
     expect(logs[0]).toContain("--title 'task(prx): x'");
-    // GH-1305 / GH-1607: area::<scope> is folded into the projected labels;
-    // the dry-run preview surfaces them on the `labels:` line.
+    // GH-1305: area::<scope> is folded into the labels and reaches gh as a
+    // repeated --label flag.
     expect(logs[0]).toContain("area::prx");
-    // No --to flag → bd-only; no publish step in the preview.
-    expect(logs[0]).toContain("to:             (none — bd-only)");
+    expect(logs[0]).toContain("--label area::prx");
+    // No bd/publish plumbing survives GH-1011.
     expect(logs[0]).not.toContain("prx beads publish");
-  });
-
-  test("--to gh adds a publish step to the dry-run preview", () => {
-    const logs: string[] = [];
-    runIntake(
-      makeOptions({ type: "bug", title: "broken", to: "gh", dryRun: true }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      { detectBranchName: () => "main", cwd: () => "/repo" },
-    );
-    expect(logs[0]).toContain("to:             gh");
-    expect(logs[0]).toContain("prx beads publish");
+    expect(logs[0]).not.toContain("bd create");
   });
 
   test("plain dry-run shows '(none)' surfaced-from outside a GH-N worktree", () => {
@@ -346,267 +302,196 @@ describe("runIntake — dry run", () => {
   });
 });
 
-// GH-1607 acceptance bullet: `prx intake bug --title …` (no flag) creates
-// a bd record, surfaces bd-id, creates NO GitHub issue.
-describe("runIntake — bd-first default (GH-1607)", () => {
-  test("calls bd create once, no publishOne when --to omitted, prints bd-id", () => {
+// GH-1011: `prx intake bug --title …` files a GitHub issue directly via
+// `gh issue create`; the created issue URL is the primary handle. The org's
+// front-desk-sync webhook lands the new issue on Front Desk.
+describe("runIntake — gh issue create write (GH-1011)", () => {
+  test("calls gh issue create once and prints the created issue URL", () => {
     const logs: string[] = [];
-    const stub = makeBdCreateStub("ai-home-042");
-    let publishCallCount = 0;
+    const stub = makeGhCreateStub(42);
     const exitCode = runIntake(
       makeOptions({ type: "bug", title: "broken" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
-        execBd: stub.exec as never,
         run: stub.run as never,
-        publishOne: (() => {
-          publishCallCount++;
-          return {
-            exitCode: 0,
-            outcome: "created",
-            bdId: "ai-home-042",
-            render: {
-              bdId: "ai-home-042",
-              repo: "o/r",
-              title: "x",
-              outcome: "created",
-              dryRun: false,
-              exitCode: 0,
-            },
-          } as PublishCoreResult;
-        }) as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
       },
     );
     expect(exitCode).toBe(0);
     expect(stub.invocations).toHaveLength(1);
-    expect(stub.invocations[0]!.subcommand).toBe("create");
-    expect(publishCallCount).toBe(0);
-    expect(logs[0]).toBe("ai-home-042");
+    const cmd = stub.invocations[0]!;
+    expect(cmd[0]).toBe("gh");
+    expect(cmd.slice(1, 3)).toEqual(["issue", "create"]);
+    expect(logs[0]).toBe(stub.issueUrl);
   });
 
-  test("bd create receives --type, --title, planning role", () => {
-    const stub = makeBdCreateStub();
+  test("gh argv carries --title and the composed body via --body", () => {
+    const stub = makeGhCreateStub();
+    runIntake(
+      makeOptions({ type: "task", title: "wire up X", body: "some detail" }),
+      { log: () => undefined, error: () => undefined },
+      {
+        run: stub.run as never,
+        detectBranchName: () => "main",
+        cwd: () => "/repo",
+      },
+    );
+    const cmd = stub.invocations[0]!;
+    const titleIdx = cmd.indexOf("--title");
+    expect(titleIdx).toBeGreaterThanOrEqual(0);
+    expect(cmd[titleIdx + 1]).toBe("task: wire up X");
+    const bodyIdx = cmd.indexOf("--body");
+    expect(bodyIdx).toBeGreaterThanOrEqual(0);
+    expect(cmd[bodyIdx + 1]).toBe("some detail");
+  });
+
+  test("labels are passed as repeated --label flags (type stamp folded in)", () => {
+    const stub = makeGhCreateStub();
+    runIntake(
+      makeOptions({ type: "bug", title: "broken" }),
+      { log: () => undefined, error: () => undefined },
+      {
+        run: stub.run as never,
+        detectBranchName: () => "main",
+        cwd: () => "/repo",
+      },
+    );
+    const cmd = stub.invocations[0]!;
+    // Each label is its own `--label <value>` pair.
+    const labelValues: string[] = [];
+    for (let i = 0; i < cmd.length; i++) {
+      if (cmd[i] === "--label") labelValues.push(cmd[i + 1]!);
+    }
+    expect(labelValues).toContain("type::bug");
+  });
+
+  test("spike intent stamps both type::task and type::spike as --label flags", () => {
+    const stub = makeGhCreateStub();
     runIntake(
       makeOptions({ type: "spike", title: "explore" }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: stub.exec as never,
         run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
       },
     );
-    expect(stub.invocations[0]!.args).toEqual(["--type", "task", "--title", "spike: explore"]);
-    expect(stub.invocations[0]!.state).toBe("planning");
-    expect(stub.invocations[0]!.role).toBe("planner");
-  });
-});
-
-// GH-1607 acceptance bullet: `prx intake bug --title … --to gh` creates a
-// bd record + a GH issue and populates external_ref via publishOne.
-describe("runIntake — --to gh projection (GH-1607)", () => {
-  test("calls bd create then publishOne with the new bd id", () => {
-    const logs: string[] = [];
-    const stub = makeBdCreateStub("ai-home-007");
-    const publishCalls: BeadsPublishOptions[] = [];
-    const exitCode = runIntake(
-      makeOptions({ type: "bug", title: "broken", to: "gh", repo: "owner/repo" }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      {
-        execBd: stub.exec as never,
-        run: stub.run as never,
-        publishOne: ((opts: BeadsPublishOptions, _deps: BeadsPublishDeps) => {
-          publishCalls.push(opts);
-          return {
-            exitCode: 0,
-            outcome: "created",
-            bdId: opts.bdId,
-            externalRef: "https://github.com/owner/repo/issues/9",
-            render: {
-              bdId: opts.bdId,
-              repo: "owner/repo",
-              title: "broken",
-              outcome: "created",
-              externalRef: "https://github.com/owner/repo/issues/9",
-              dryRun: false,
-              exitCode: 0,
-            },
-          } as PublishCoreResult;
-        }) as never,
-        detectBranchName: () => "main",
-        cwd: () => "/repo",
-      },
-    );
-    expect(exitCode).toBe(0);
-    expect(publishCalls).toHaveLength(1);
-    expect(publishCalls[0]!.bdId).toBe("ai-home-007");
-    expect(publishCalls[0]!.repo).toBe("owner/repo");
-    // Type label is folded through extraLabels so the adapter mirrors it.
-    expect(publishCalls[0]!.extraLabels).toContain("type::bug");
-    // bd-id (primary handle) + GH URL on a follow-up line.
-    expect(logs[0]).toBe("ai-home-007\nhttps://github.com/owner/repo/issues/9");
+    const cmd = stub.invocations[0]!;
+    const labelValues: string[] = [];
+    for (let i = 0; i < cmd.length; i++) {
+      if (cmd[i] === "--label") labelValues.push(cmd[i + 1]!);
+    }
+    expect(labelValues).toContain("type::task");
+    expect(labelValues).toContain("type::spike");
+    // Title still uses the spike prefix even though the bd-axis type is task.
+    const titleIdx = cmd.indexOf("--title");
+    expect(cmd[titleIdx + 1]).toBe("spike: explore");
   });
 
-  test("spike intent passes type::task + type::spike through extraLabels", () => {
-    const stub = makeBdCreateStub();
-    const publishCalls: BeadsPublishOptions[] = [];
+  test("decision intent stamps both type::task and type::decision", () => {
+    const stub = makeGhCreateStub();
     runIntake(
-      makeOptions({ type: "spike", title: "explore", to: "gh" }),
+      makeOptions({ type: "decision", title: "design X" }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: stub.exec as never,
         run: stub.run as never,
-        publishOne: ((opts: BeadsPublishOptions) => {
-          publishCalls.push(opts);
-          return {
-            exitCode: 0,
-            outcome: "created",
-            bdId: opts.bdId,
-            externalRef: "https://x/y/issues/1",
-            render: {
-              bdId: opts.bdId,
-              repo: "",
-              title: "",
-              outcome: "created",
-              externalRef: "https://x/y/issues/1",
-              dryRun: false,
-              exitCode: 0,
-            },
-          } as PublishCoreResult;
-        }) as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
       },
     );
-    expect(publishCalls[0]!.extraLabels).toContain("type::task");
-    expect(publishCalls[0]!.extraLabels).toContain("type::spike");
+    const cmd = stub.invocations[0]!;
+    const labelValues: string[] = [];
+    for (let i = 0; i < cmd.length; i++) {
+      if (cmd[i] === "--label") labelValues.push(cmd[i + 1]!);
+    }
+    expect(labelValues).toContain("type::task");
+    expect(labelValues).toContain("type::decision");
   });
 
-  test("decision intent passes type::task + type::decision through extraLabels", () => {
-    const stub = makeBdCreateStub();
-    const publishCalls: BeadsPublishOptions[] = [];
+  test("--repo adds -R <repo> before --title", () => {
+    const stub = makeGhCreateStub();
     runIntake(
-      makeOptions({ type: "decision", title: "design X", to: "gh" }),
+      makeOptions({ type: "bug", title: "broken", repo: "owner/repo" }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: stub.exec as never,
         run: stub.run as never,
-        publishOne: ((opts: BeadsPublishOptions) => {
-          publishCalls.push(opts);
-          return {
-            exitCode: 0,
-            outcome: "created",
-            bdId: opts.bdId,
-            externalRef: "https://x/y/issues/1",
-            render: {
-              bdId: opts.bdId,
-              repo: "",
-              title: "",
-              outcome: "created",
-              externalRef: "https://x/y/issues/1",
-              dryRun: false,
-              exitCode: 0,
-            },
-          } as PublishCoreResult;
-        }) as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
       },
     );
-    expect(publishCalls[0]!.extraLabels).toContain("type::task");
-    expect(publishCalls[0]!.extraLabels).toContain("type::decision");
+    const cmd = stub.invocations[0]!;
+    const rIdx = cmd.indexOf("-R");
+    expect(rIdx).toBeGreaterThanOrEqual(0);
+    expect(cmd[rIdx + 1]).toBe("owner/repo");
+    // -R precedes --title in the argv.
+    expect(rIdx).toBeLessThan(cmd.indexOf("--title"));
   });
 
-  test("idempotent retry: publishOne's noop path is surfaced cleanly", () => {
-    // Simulates `prx beads publish` finding an existing external_ref on the
-    // bd record (step 6 in publish.ts) — no GH create, no duplicate issue.
-    const stub = makeBdCreateStub("ai-home-099");
+  test("no --repo omits -R (gh resolves repo from git remote)", () => {
+    const stub = makeGhCreateStub();
+    runIntake(
+      makeOptions({ type: "bug", title: "broken" }),
+      { log: () => undefined, error: () => undefined },
+      {
+        run: stub.run as never,
+        detectBranchName: () => "main",
+        cwd: () => "/repo",
+      },
+    );
+    expect(stub.invocations[0]!).not.toContain("-R");
+  });
+
+  test("configurable issue number flows into the printed URL and JSON result", () => {
+    const stub = makeGhCreateStub(7);
     const logs: string[] = [];
     runIntake(
-      makeOptions({ type: "task", title: "already linked", to: "gh" }),
+      makeOptions({ type: "bug", title: "broken", format: "json" }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
-        execBd: stub.exec as never,
         run: stub.run as never,
-        publishOne: (() => ({
-          exitCode: 0,
-          outcome: "noop",
-          bdId: "ai-home-099",
-          externalRef: "https://github.com/o/r/issues/5",
-          render: {
-            bdId: "ai-home-099",
-            repo: "o/r",
-            title: "already linked",
-            outcome: "noop",
-            externalRef: "https://github.com/o/r/issues/5",
-            dryRun: false,
-            exitCode: 0,
-            message: "already published to GH-5",
-          },
-        })) as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
       },
     );
-    expect(logs[0]).toBe("ai-home-099\nhttps://github.com/o/r/issues/5");
+    const result = JSON.parse(logs[0]!);
+    expect(result.ghCreate.issueUrl).toBe("https://github.com/bounded-systems/prx/issues/7");
+    expect(result.ghCreate.issueNumber).toBe(7);
+    expect(result.ghCreate.exitCode).toBe(0);
+    // GH-1011: bd-era fields are gone from the result shape.
+    expect(result.bdCreate).toBeUndefined();
+    expect(result.publish).toBeUndefined();
+    expect(result.to).toBeUndefined();
   });
 
-  test("bd create failure short-circuits before publishOne", () => {
-    let publishCallCount = 0;
+  test("gh issue create failure surfaces stderr and propagates the gh exit code", () => {
     const errors: string[] = [];
     const exitCode = runIntake(
-      makeOptions({ type: "task", title: "x", to: "gh" }),
+      makeOptions({ type: "task", title: "x" }),
       { log: () => undefined, error: (l) => errors.push(l) },
       {
-        run: (() => ({ status: 1, stdout: "", stderr: "bd: out of space\n" })) as never,
-        publishOne: (() => {
-          publishCallCount++;
-          return {
-            exitCode: 0,
-            outcome: "noop",
-            bdId: "x",
-            render: { bdId: "x", repo: "", title: "", outcome: "noop", dryRun: false, exitCode: 0 },
-          } as PublishCoreResult;
-        }) as never,
+        run: (() => ({ status: 3, stdout: "", stderr: "gh: auth required\n" })) as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
       },
     );
-    expect(exitCode).toBe(1);
-    expect(publishCallCount).toBe(0);
-    expect(errors.join("\n")).toContain("bd: out of space");
+    expect(exitCode).toBe(3);
+    expect(errors.join("\n")).toContain("prx intake: gh: auth required");
   });
 
-  test("publishOne failure surfaces error but bd-id stays primary handle", () => {
+  test("gh success with no issue URL on stdout is a hard error", () => {
     const errors: string[] = [];
-    const logs: string[] = [];
     const exitCode = runIntake(
-      makeOptions({ type: "task", title: "x", to: "gh" }),
-      { log: (l) => logs.push(l), error: (l) => errors.push(l) },
+      makeOptions({ type: "task", title: "x" }),
+      { log: () => undefined, error: (l) => errors.push(l) },
       {
-        run: makeBdCreateStub("ai-home-bad").run as never,
-        publishOne: (() => ({
-          exitCode: 1,
-          outcome: "error",
-          bdId: "ai-home-bad",
-          render: {
-            bdId: "ai-home-bad",
-            repo: "o/r",
-            title: "x",
-            outcome: "error",
-            dryRun: false,
-            exitCode: 1,
-            message: "prx beads publish: gh: auth required",
-          },
-        })) as never,
+        run: (() => ({ status: 0, stdout: "created but no url\n", stderr: "" })) as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
       },
     );
     expect(exitCode).toBe(1);
-    expect(errors.join("\n")).toContain("auth required");
+    expect(errors.join("\n")).toContain("did not print an issue URL");
   });
 });
 
@@ -730,7 +615,7 @@ describe("intakeOptionsSchema — structured/freeform mutex", () => {
 });
 
 describe("runIntake — structured fields", () => {
-  test("dry-run emits labeled-section body in the bd-create argv", () => {
+  test("dry-run emits labeled-section body in the gh issue create argv", () => {
     const logs: string[] = [];
     runIntake(
       makeOptions({
@@ -744,21 +629,20 @@ describe("runIntake — structured fields", () => {
       }),
       { log: (l) => logs.push(l), error: () => undefined },
       {
-        execBd: (() => ({ exitCode: 0, stdout: "", stderr: "", policy: null })) as never,
+        run: makeGhCreateStub().run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
       },
     );
-    // GH-1607: bd-create's --description carries the composed body (the
-    // surfaced-from banner is absent on `main`, so it's just the structured
-    // sections). publishOne mirrors that body onto GH on --to gh.
+    // GH-1011: gh's --body carries the composed body (the surfaced-from banner
+    // is absent on `main`, so it's just the structured sections).
     expect(logs[0]).toContain(
-      "--description '## Description\n\nwhat\n\n## Design\n\nhow\n\n## Acceptance Criteria\n\ndone when X\n\n## Notes\n\nsee Y'",
+      "--body '## Description\n\nwhat\n\n## Design\n\nhow\n\n## Acceptance Criteria\n\ndone when X\n\n## Notes\n\nsee Y'",
     );
   });
 
-  test("structured fields are written to bd via --description on create", () => {
-    const stub = makeBdCreateStub("ai-home-abc");
+  test("structured fields are written to gh via --body on create", () => {
+    const stub = makeGhCreateStub();
     runIntake(
       makeOptions({
         type: "feature",
@@ -770,17 +654,16 @@ describe("runIntake — structured fields", () => {
       }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: stub.exec as never,
         run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
       },
     );
     expect(stub.invocations).toHaveLength(1);
-    expect(stub.invocations[0]!.subcommand).toBe("create");
-    const descIdx = stub.invocations[0]!.args.indexOf("--description");
-    expect(descIdx).toBeGreaterThanOrEqual(0);
-    const body = stub.invocations[0]!.args[descIdx + 1]!;
+    const cmd = stub.invocations[0]!;
+    const bodyIdx = cmd.indexOf("--body");
+    expect(bodyIdx).toBeGreaterThanOrEqual(0);
+    const body = cmd[bodyIdx + 1]!;
     expect(body).toContain("## Description\n\nwhat");
     expect(body).toContain("## Design\n\nhow");
     expect(body).toContain("## Acceptance Criteria\n\ndone");
@@ -789,24 +672,21 @@ describe("runIntake — structured fields", () => {
 });
 
 describe("runIntake — title prefix mismatch (GH-1304)", () => {
-  test("aborts with non-zero exit, no bd calls, stderr message", () => {
-    let bdCallCount = 0;
+  test("aborts with non-zero exit, no gh calls, stderr message", () => {
+    const stub = makeGhCreateStub();
     const errors: string[] = [];
     const logs: string[] = [];
     const exitCode = runIntake(
       makeOptions({ type: "bug", title: "chore(bd): consolidate stuff" }),
       { log: (l) => logs.push(l), error: (l) => errors.push(l) },
       {
-        execBd: (() => {
-          bdCallCount++;
-          return { exitCode: 0, stdout: "", stderr: "", policy: null } as BdExecResult;
-        }) as never,
+        run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
       },
     );
     expect(exitCode).not.toBe(0);
-    expect(bdCallCount).toBe(0);
+    expect(stub.invocations).toEqual([]);
     expect(logs).toEqual([]);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain("chore");
@@ -859,57 +739,19 @@ describe("runIntake — title prefix mismatch (GH-1304)", () => {
   });
 });
 
-// GH-1607: with the actor inverted, the gh-side failure surface lives in
-// `publishOne`. This case asserts that when --to gh's projection fails,
-// runIntake propagates its exit code (the bd record still exists).
-describe("runIntake — --to gh projection failure", () => {
-  test("propagates publishOne exit code; bd-create still ran", () => {
-    const stub = makeBdCreateStub("ai-home-001");
-    const exitCode = runIntake(
-      makeOptions({ type: "task", title: "x", to: "gh" }),
-      { log: () => undefined, error: () => undefined },
-      {
-        execBd: stub.exec as never,
-        run: stub.run as never,
-        publishOne: (() => ({
-          exitCode: 2,
-          outcome: "error",
-          bdId: "ai-home-001",
-          render: {
-            bdId: "ai-home-001",
-            repo: "",
-            title: "",
-            outcome: "error",
-            dryRun: false,
-            exitCode: 2,
-            message: "prx beads publish: gh: auth required",
-          },
-        })) as never,
-        detectBranchName: () => "main",
-        cwd: () => "/repo",
-      },
-    );
-    expect(exitCode).toBe(2);
-    // bd-create ran first; only the GH projection failed.
-    expect(stub.invocations).toHaveLength(1);
-    expect(stub.invocations[0]!.subcommand).toBe("create");
-  });
-});
-
 // GH-1486 / GH-1607: TTY-gated confirm prompt — operator-protection guard
 // around any side-effecting write (now bd-first; the confirm wraps both the
 // bd-create and optional --to gh projection). Defaults to commit-by-default
 // for non-TTY (scripts/CI), requires y/N at a TTY, and `--yes` bypasses the
 // prompt. `--dry-run` always wins (no write, no prompt).
-describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
-  test("TTY + confirm 'yes' → bd called, exit 0", () => {
-    const stub = makeBdCreateStub();
+describe("runIntake — TTY confirm (GH-1486, GH-1011)", () => {
+  test("TTY + confirm 'yes' → gh called, exit 0", () => {
+    const stub = makeGhCreateStub();
     let confirmCallCount = 0;
     const exitCode = runIntake(
       makeOptions({ type: "spike", title: "probe" }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: stub.exec as never,
         run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
@@ -923,17 +765,17 @@ describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
     );
     expect(exitCode).toBe(0);
     expect(stub.invocations).toHaveLength(1);
+    expect(stub.invocations[0]!.slice(0, 3)).toEqual(["gh", "issue", "create"]);
     expect(confirmCallCount).toBe(1);
   });
 
-  test("TTY + confirm 'no' → bd NOT called, exit 1, stderr explains abort", () => {
-    const stub = makeBdCreateStub();
+  test("TTY + confirm 'no' → gh NOT called, exit 1, stderr explains abort", () => {
+    const stub = makeGhCreateStub();
     const errors: string[] = [];
     const exitCode = runIntake(
       makeOptions({ type: "spike", title: "probe" }),
       { log: () => undefined, error: (line) => errors.push(line) },
       {
-        execBd: stub.exec as never,
         run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
@@ -945,17 +787,16 @@ describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
     expect(exitCode).toBe(1);
     expect(stub.invocations).toEqual([]);
     expect(errors.join("\n")).toContain("aborted by operator");
-    expect(errors.join("\n")).toContain("no record written");
+    expect(errors.join("\n")).toContain("no issue filed");
   });
 
-  test("TTY + --yes → confirm NOT called, bd called once", () => {
-    const stub = makeBdCreateStub();
+  test("TTY + --yes → confirm NOT called, gh called once", () => {
+    const stub = makeGhCreateStub();
     let confirmCallCount = 0;
     const exitCode = runIntake(
       makeOptions({ type: "spike", title: "probe", yes: true }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: stub.exec as never,
         run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
@@ -972,14 +813,13 @@ describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
     expect(confirmCallCount).toBe(0);
   });
 
-  test("non-TTY stdin → confirm NOT called, bd called once (preserves CI/script behavior)", () => {
-    const stub = makeBdCreateStub();
+  test("non-TTY stdin → confirm NOT called, gh called once (preserves CI/script behavior)", () => {
+    const stub = makeGhCreateStub();
     let confirmCallCount = 0;
     const exitCode = runIntake(
       makeOptions({ type: "spike", title: "probe" }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: stub.exec as never,
         run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
@@ -996,14 +836,13 @@ describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
     expect(confirmCallCount).toBe(0);
   });
 
-  test("non-TTY stdout (redirected) → confirm NOT called, bd called once", () => {
-    const stub = makeBdCreateStub();
+  test("non-TTY stdout (redirected) → confirm NOT called, gh called once", () => {
+    const stub = makeGhCreateStub();
     let confirmCallCount = 0;
     const exitCode = runIntake(
       makeOptions({ type: "spike", title: "probe" }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: stub.exec as never,
         run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
@@ -1020,14 +859,13 @@ describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
     expect(confirmCallCount).toBe(0);
   });
 
-  test("dry-run wins: TTY + dryRun → confirm NOT called, bd NOT called", () => {
-    const stub = makeBdCreateStub();
+  test("dry-run wins: TTY + dryRun → confirm NOT called, gh NOT called", () => {
+    const stub = makeGhCreateStub();
     let confirmCallCount = 0;
     const exitCode = runIntake(
       makeOptions({ type: "spike", title: "probe", dryRun: true }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: stub.exec as never,
         run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
@@ -1044,14 +882,13 @@ describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
     expect(confirmCallCount).toBe(0);
   });
 
-  test("dry-run wins over --yes: dryRun + yes → no bd call, no prompt", () => {
-    const stub = makeBdCreateStub();
+  test("dry-run wins over --yes: dryRun + yes → no gh call, no prompt", () => {
+    const stub = makeGhCreateStub();
     let confirmCallCount = 0;
     const exitCode = runIntake(
       makeOptions({ type: "spike", title: "probe", dryRun: true, yes: true }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: stub.exec as never,
         run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
@@ -1068,14 +905,13 @@ describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
     expect(confirmCallCount).toBe(0);
   });
 
-  test("default confirm sees the bd-first preview headline (not 'prx intake (dry-run)')", () => {
-    const stub = makeBdCreateStub();
+  test("default confirm sees the preview headline (not 'prx intake (dry-run)')", () => {
+    const stub = makeGhCreateStub();
     let capturedPreview = "";
     runIntake(
       makeOptions({ type: "spike", title: "probe" }),
       { log: () => undefined, error: () => undefined },
       {
-        execBd: stub.exec as never,
         run: stub.run as never,
         detectBranchName: () => "main",
         cwd: () => "/repo",
@@ -1093,7 +929,7 @@ describe("runIntake — TTY confirm (GH-1486, GH-1607)", () => {
     expect(capturedPreview).toContain("prx intake (dry-run)");
     expect(capturedPreview).toContain("title:          spike: probe");
     expect(capturedPreview).toContain("would run:");
-    expect(capturedPreview).toContain("bd create");
+    expect(capturedPreview).toContain("gh issue create");
   });
 });
 
@@ -1230,72 +1066,52 @@ describe("intakeOptionsSchema — per-type required-field validation (GH-1258)",
   });
 });
 
-// GH-1489 / GH-1607: intake stamps `type::<bd_type>` so the type-pass
-// classifier's `hasType` gate (GH-957) preserves it on subsequent runs. After
-// the bd-first flip, the type label reaches GH via `publishOne`'s extraLabels;
-// for the bd-only default it lives only in the projected label set (visible in
-// `IntakeResult.labels`).
+// GH-1489 / GH-1011: intake stamps `type::<bd_type>` so the type-pass
+// classifier's `hasType` gate (GH-957) preserves it on subsequent runs. The
+// type/area labels reach GH directly as repeated `--label` flags on the
+// `gh issue create` argv.
 //
-// Helper: capture labels passed to publishOne by --to gh runs.
+// Helper: run intake and extract the `--label` values off the gh argv.
 function capturePublishLabels(
   options: IntakeOptions,
   deps: Partial<Parameters<typeof runIntake>[2]> = {},
 ): string[] {
-  let captured: string[] | null = null;
-  const stub = makeBdCreateStub();
+  const stub = makeGhCreateStub();
   runIntake(
     options,
     { log: () => undefined, error: () => undefined },
     {
-      execBd: stub.exec as never,
       run: stub.run as never,
-      publishOne: ((opts: BeadsPublishOptions) => {
-        captured = [...opts.extraLabels];
-        return {
-          exitCode: 0,
-          outcome: "created",
-          bdId: opts.bdId,
-          externalRef: "https://x/y/issues/1",
-          render: {
-            bdId: opts.bdId,
-            repo: "",
-            title: "",
-            outcome: "created",
-            externalRef: "https://x/y/issues/1",
-            dryRun: false,
-            exitCode: 0,
-          },
-        } as PublishCoreResult;
-      }) as never,
       detectBranchName: () => "main",
       cwd: () => "/repo",
       ...deps,
     },
   );
-  return captured ?? [];
+  const cmd = stub.invocations[0] ?? [];
+  const labels: string[] = [];
+  for (let i = 0; i < cmd.length; i++) {
+    if (cmd[i] === "--label") labels.push(cmd[i + 1]!);
+  }
+  return labels;
 }
 
 describe("runIntake — type-label stamping (GH-1489)", () => {
-  test("task intent projects type::task through publishOne extraLabels", () => {
-    const labels = capturePublishLabels(
-      makeOptions({ type: "task", title: "wire up X", to: "gh" }),
-    );
+  test("task intent stamps type::task as a gh --label", () => {
+    const labels = capturePublishLabels(makeOptions({ type: "task", title: "wire up X" }));
     expect(labels).toContain("type::task");
     // Bd-axis type only; no spike marker for plain task intent.
     expect(labels).not.toContain("type::spike");
   });
 
-  test("spike intent projects both type::task and type::spike (bd-axis + GH-only)", () => {
-    const labels = capturePublishLabels(
-      makeOptions({ type: "spike", title: "explore caching", to: "gh" }),
-    );
+  test("spike intent stamps both type::task and type::spike (bd-axis + GH-only)", () => {
+    const labels = capturePublishLabels(makeOptions({ type: "spike", title: "explore caching" }));
     expect(labels).toContain("type::task");
     expect(labels).toContain("type::spike");
   });
 
   test("spike intent + scope folds in area::<scope> alongside both type labels", () => {
     const labels = capturePublishLabels(
-      makeOptions({ type: "spike", title: "explore caching", scope: "prx", to: "gh" }),
+      makeOptions({ type: "spike", title: "explore caching", scope: "prx" }),
     );
     expect(labels).toContain("type::task");
     expect(labels).toContain("type::spike");
