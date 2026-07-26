@@ -32,6 +32,7 @@ import { execBd as defaultExecBd, type BdExecResult } from "@bounded-systems/bd"
 import { FrameDecoder, encodeFrame, runFramedServe } from "../door/framing.ts";
 import { resolveReadySource, type QueryBdReadyResult } from "../beads/ready.ts";
 import { frontDeskReady } from "../beads/frontdesk-source.ts";
+import { frontDeskBeadRaw, frontDeskBeadsRaw, resolveListSource } from "../beads/frontdesk-list.ts";
 import {
   BeadsRequestSchema,
   isBeadsWriteKind,
@@ -69,6 +70,15 @@ export interface BeadsDaemonDeps {
    * — its epic identity is bd-bead-id-based and moves with `bd list`, GH-1011.)
    */
   frontDesk?: ((opts: { cwd: string }) => QueryBdReadyResult) | undefined;
+  /**
+   * GH-1011: the Front Desk aggregate `list` + targeted `show` readers. The
+   * `list`/`show` door serves the work-item set from Front Desk by default
+   * (bd via `PRX_LIST_SOURCE=bd`); tests inject stubs. Default to the
+   * `fds list`-backed readers. Both return RAW `bd list --json`-shaped rows,
+   * so `parseBeadsRecords` on the host side is unchanged.
+   */
+  frontDeskList?: ((cwd: string) => unknown[]) | undefined;
+  frontDeskShow?: ((cwd: string, id: string) => unknown | null) | undefined;
 }
 
 /** A write `update` with no field to change — surfaced as a bad-request, not sent to bd. */
@@ -257,6 +267,46 @@ export async function handleBeadsRequest(
         ...(etag !== undefined ? { etag } : {}),
         ...(deps.localPrefix !== undefined ? { servedPrefix: deps.localPrefix } : {}),
       };
+    } catch (err) {
+      return {
+        status: "error",
+        code: "bd-read",
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  // GH-1011: serve the aggregate `list` + targeted `show` reads from Front Desk
+  // (the GH-canonical mirror; `PRX_LIST_SOURCE=bd` falls back to `bd list`). This
+  // is the one choke point every cache-fed loader funnels through
+  // (loadAllBeadsViaDaemon, and loadAllBeadsViaCli via `prx beads list`), so the
+  // whole read fleet flips here. The reply carries RAW `bd list --json`-shaped
+  // rows, parsed host-side by parseBeadsRecords exactly as before.
+  if ((request.kind === "list" || request.kind === "show") && resolveListSource() === "frontdesk") {
+    try {
+      const cwd = deps.cwd ?? ".";
+      const etag = deps.etag?.();
+      const ok = (result: unknown): BeadsResponse => ({
+        status: "ok",
+        result,
+        ...(etag !== undefined ? { etag } : {}),
+        ...(deps.localPrefix !== undefined ? { servedPrefix: deps.localPrefix } : {}),
+      });
+      if (request.kind === "show") {
+        const row = (deps.frontDeskShow ?? frontDeskBeadRaw)(cwd, request.id);
+        if (row === null) {
+          return { status: "error", code: "bd-read", message: `not found: ${request.id}` };
+        }
+        return ok(row);
+      }
+      let rows = (deps.frontDeskList ?? frontDeskBeadsRaw)(cwd);
+      if (request.status !== undefined) {
+        rows = rows.filter((r) => (r as { status?: string }).status === request.status);
+      }
+      if (request.limit !== undefined && request.limit > 0) {
+        rows = rows.slice(0, request.limit);
+      }
+      return ok(rows);
     } catch (err) {
       return {
         status: "error",

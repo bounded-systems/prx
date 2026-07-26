@@ -15805,6 +15805,39 @@ describe("parseCommand — doctor dedupe-bd --only", () => {
 });
 
 describe("resolveEpicChildBdIds — door-backed reads (prx-zbsi)", () => {
+  // GH-1011 flipped resolveEpicChildBdIds' default source to Front Desk; these
+  // exercise the bd `read` path, so pin the describe to bd.
+  const priorListSource = process.env.PRX_LIST_SOURCE;
+  beforeAll(() => {
+    process.env.PRX_LIST_SOURCE = "bd";
+  });
+  afterAll(() => {
+    if (priorListSource === undefined) delete process.env.PRX_LIST_SOURCE;
+    else process.env.PRX_LIST_SOURCE = priorListSource;
+  });
+
+  test("front desk source: parent-child children of the matched epic (GH-canonical)", () => {
+    const prior = process.env.PRX_LIST_SOURCE;
+    process.env.PRX_LIST_SOURCE = "frontdesk";
+    try {
+      const rows = [
+        {
+          id: "GH-42",
+          external_ref: "https://github.com/o/r/issues/42",
+          dependencies: [
+            { issue_id: "GH-42", depends_on_id: "GH-7", type: "parent-child" },
+            { issue_id: "GH-42", depends_on_id: "GH-8", type: "blocks" },
+          ],
+        },
+      ];
+      const out = resolveEpicChildBdIds("/repo", "issues/42", undefined, () => rows);
+      expect([...out]).toEqual(["GH-7"]);
+    } finally {
+      if (prior === undefined) delete process.env.PRX_LIST_SOURCE;
+      else process.env.PRX_LIST_SOURCE = prior;
+    }
+  });
+
   test("finds the epic via list+external_ref substring, then its children", () => {
     const calls: string[][] = [];
     const read = (cmd: string[]): string | null => {

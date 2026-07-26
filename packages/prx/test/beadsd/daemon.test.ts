@@ -25,12 +25,16 @@ const READY: BeadsRequest = { kind: "ready" };
 // tests exercise the bd dispatch, so pin them to `bd` (restored per-test); the
 // "front desk redirect" describe below overrides it.
 const PRIOR_READY_SOURCE = process.env.PRX_READY_SOURCE;
+const PRIOR_LIST_SOURCE = process.env.PRX_LIST_SOURCE;
 beforeEach(() => {
   process.env.PRX_READY_SOURCE = "bd";
+  process.env.PRX_LIST_SOURCE = "bd";
 });
 afterEach(() => {
   if (PRIOR_READY_SOURCE === undefined) delete process.env.PRX_READY_SOURCE;
   else process.env.PRX_READY_SOURCE = PRIOR_READY_SOURCE;
+  if (PRIOR_LIST_SOURCE === undefined) delete process.env.PRX_LIST_SOURCE;
+  else process.env.PRX_LIST_SOURCE = PRIOR_LIST_SOURCE;
 });
 
 describe("ready door → Front Desk redirect (GH-1010)", () => {
@@ -82,6 +86,51 @@ describe("ready door → Front Desk redirect (GH-1010)", () => {
     );
     expect(res.status).toBe("error");
     expect(res.status === "error" ? res.message : "").toContain("fds down");
+  });
+});
+
+describe("list/show door → Front Desk redirect (GH-1011)", () => {
+  const rows = [
+    { id: "GH-5", title: "a", status: "open", issue_type: "task" },
+    { id: "GH-6", title: "b", status: "closed", issue_type: "epic" },
+  ];
+
+  test("list returns the Front Desk rows — bd is never spawned", async () => {
+    process.env.PRX_LIST_SOURCE = "frontdesk";
+    const { execBd, calls } = fakeBd();
+    const res = await handleBeadsRequest(
+      { kind: "list", all: true, limit: 0 },
+      { execBd, frontDeskList: () => rows },
+    );
+    expect(res.status).toBe("ok");
+    expect(res.status === "ok" ? res.result : null).toEqual(rows);
+    expect(calls).toHaveLength(0);
+  });
+
+  test("list honors a status filter", async () => {
+    process.env.PRX_LIST_SOURCE = "frontdesk";
+    const { execBd } = fakeBd();
+    const res = await handleBeadsRequest(
+      { kind: "list", status: "closed" },
+      { execBd, frontDeskList: () => rows },
+    );
+    expect(res.status === "ok" ? res.result : null).toEqual([rows[1]]);
+  });
+
+  test("show returns one row; a miss is a not-found error", async () => {
+    process.env.PRX_LIST_SOURCE = "frontdesk";
+    const { execBd } = fakeBd();
+    const hit = await handleBeadsRequest(
+      { kind: "show", id: "GH-5" },
+      { execBd, frontDeskShow: (_cwd, id) => rows.find((r) => r.id === id) ?? null },
+    );
+    expect(hit.status === "ok" ? hit.result : null).toEqual(rows[0]);
+    const miss = await handleBeadsRequest(
+      { kind: "show", id: "GH-999" },
+      { execBd, frontDeskShow: () => null },
+    );
+    expect(miss.status).toBe("error");
+    expect(miss.status === "error" ? miss.message : "").toContain("not found");
   });
 });
 
