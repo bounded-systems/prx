@@ -46,7 +46,12 @@ suite("beadsd e2e — real daemon + real bd over a unix socket", () => {
     GIT_CONFIG_SYSTEM: "/dev/null",
   } as Record<string, string | undefined>;
 
+  // GH-1010 flipped the `ready` door's default source to Front Desk. This e2e
+  // exercises the real bd dispatch over the socket, so pin it to bd for the run.
+  const priorReadySource = process.env.PRX_READY_SOURCE;
+
   beforeAll(async () => {
+    process.env.PRX_READY_SOURCE = "bd";
     // Use /tmp explicitly, NOT os.tmpdir(): the test preload redirects TMPDIR
     // into the repo (`.tmp/bun-tests`), and bd's workspace discovery walks UP
     // the tree — a temp dir nested under the repo would resolve to the repo's
@@ -66,6 +71,8 @@ suite("beadsd e2e — real daemon + real bd over a unix socket", () => {
   }, 30_000);
 
   afterAll(async () => {
+    if (priorReadySource === undefined) delete process.env.PRX_READY_SOURCE;
+    else process.env.PRX_READY_SOURCE = priorReadySource;
     if (server) await new Promise<void>((r) => server!.close(() => r()));
     if (dir) {
       spawnSync("bd", ["dolt", "stop"], { cwd: dir, env: gitSafe });

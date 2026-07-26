@@ -30,6 +30,8 @@ import { type Server, type Socket } from "node:net";
 import { execBd as defaultExecBd, type BdExecResult } from "@bounded-systems/bd";
 
 import { FrameDecoder, encodeFrame, runFramedServe } from "../door/framing.ts";
+import { resolveReadySource, type QueryBdReadyResult } from "../beads/ready.ts";
+import { frontDeskReady } from "../beads/frontdesk-source.ts";
 import {
   BeadsRequestSchema,
   isBeadsWriteKind,
@@ -60,6 +62,13 @@ export interface BeadsDaemonDeps {
    * (refreshed on the reconcile cycle), so reads don't spawn dolt per request.
    */
   etag?: (() => string | undefined) | undefined;
+  /**
+   * GH-1010: the Front Desk ready reader. The `ready` door serves the ready
+   * queue from Front Desk by default (bd via `PRX_READY_SOURCE=bd`); tests inject
+   * a stub. Defaults to `frontDeskReady`. (The `dep`/`children` door stays on bd
+   * — its epic identity is bd-bead-id-based and moves with `bd list`, GH-1011.)
+   */
+  frontDesk?: ((opts: { cwd: string }) => QueryBdReadyResult) | undefined;
 }
 
 /** A write `update` with no field to change — surfaced as a bad-request, not sent to bd. */
@@ -231,6 +240,32 @@ export async function handleBeadsRequest(
   deps: BeadsDaemonDeps = {},
 ): Promise<BeadsResponse> {
   const execBd = deps.execBd ?? defaultExecBd;
+
+  // GH-1010: serve the ready queue from Front Desk (the verified WSJF scheduler,
+  // read off the mirror — zero GitHub API). `PRX_READY_SOURCE=bd` falls back to
+  // shelling `bd ready`. The reply shape matches bd's: an array for a plain
+  // `ready`, the `{ ready, blocked }` envelope for `--explain`. (The `children`
+  // door stays on bd — its epic identity is bd-bead-id-based, GH-1011.)
+  if (request.kind === "ready" && resolveReadySource() === "frontdesk") {
+    try {
+      const fd = (deps.frontDesk ?? frontDeskReady)({ cwd: deps.cwd ?? "." });
+      const result = request.explain === true ? { ready: fd.ready, blocked: fd.blocked } : fd.ready;
+      const etag = deps.etag?.();
+      return {
+        status: "ok",
+        result,
+        ...(etag !== undefined ? { etag } : {}),
+        ...(deps.localPrefix !== undefined ? { servedPrefix: deps.localPrefix } : {}),
+      };
+    } catch (err) {
+      return {
+        status: "error",
+        code: "bd-read",
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
   let args: string[];
   try {
     args = beadsArgs(request);

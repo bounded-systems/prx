@@ -17,6 +17,10 @@
 
 import { z } from "zod";
 import { execBd, type BdExecOptions } from "@bounded-systems/bd";
+// Value import is safe despite the frontdesk-source ↔ ready cycle: both sides
+// only reference each other inside function bodies (ESM live bindings), never
+// at module-init time.
+import { frontDeskReady } from "./frontdesk-source.ts";
 
 // bd issue type strings observed in `bd ready --json` (`issue_type` field).
 // Kept as an open string so a new bd type doesn't break parsing — the picker
@@ -191,9 +195,20 @@ export const defaultBdRunner: BdRunner = (opts) => {
   return { exitCode: result.exitCode, stdout: result.stdout, stderr: result.stderr };
 };
 
+export type ReadySource = "frontdesk" | "bd";
+
 export type QueryBdReadyOptions = {
   cwd: string;
   runner?: BdRunner | undefined;
+  /**
+   * The ready source. Defaults to `PRX_READY_SOURCE` (env), then `"frontdesk"`.
+   * GH-1010 repointed the ready queue onto Front Desk (the verified WSJF
+   * scheduler, read off the mirror — zero GitHub API); `"bd"` is the escape
+   * hatch back to shelling `bd ready`.
+   */
+  source?: ReadySource | undefined;
+  /** Injectable Front Desk reader (tests) — defaults to `frontDeskReady`. */
+  frontDesk?: ((opts: { cwd: string }) => QueryBdReadyResult) | undefined;
 };
 
 export type QueryBdReadyResult = {
@@ -202,15 +217,26 @@ export type QueryBdReadyResult = {
   raw: string;
 };
 
+/** Resolve the ready source: explicit opt → PRX_READY_SOURCE → "frontdesk". */
+export function resolveReadySource(explicit?: ReadySource): ReadySource {
+  if (explicit) return explicit;
+  return process.env.PRX_READY_SOURCE === "bd" ? "bd" : "frontdesk";
+}
+
 /**
- * Read `bd ready --explain --json` into typed records. Uses `--explain` so we
- * get both ready and blocked buckets (with inline `blocked_by` edges) in one
- * round-trip — avoids a second `bd dep list` per item for the I-BD1 gate.
+ * Read the ready queue into typed records — from Front Desk by default
+ * (GH-1010), or from `bd ready --explain --json` when `source === "bd"`.
  *
- * Returns empty buckets when bd has no ready work AND no blocked items; this
- * is distinct from a bd failure, which throws.
+ * The bd path uses `--explain` so both ready and blocked buckets (with inline
+ * `blocked_by` edges) arrive in one round-trip. Both sources yield the same
+ * `QueryBdReadyResult`; empty buckets mean no work (distinct from a failure,
+ * which throws).
  */
 export function queryBdReady(opts: QueryBdReadyOptions): QueryBdReadyResult {
+  if (resolveReadySource(opts.source) === "frontdesk") {
+    const frontDesk = opts.frontDesk ?? frontDeskReady;
+    return frontDesk({ cwd: opts.cwd });
+  }
   const runner = opts.runner ?? defaultBdRunner;
   const result = runner({
     subcommand: "ready",
