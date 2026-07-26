@@ -1,23 +1,30 @@
 /**
  * `prx intake bd {ls, memory ls|get|set}` — narrow bd surface for the intake
- * operator session (GH-1003, part of GH-998). Wraps `bd list`, `bd memories`,
- * `bd recall`, and `bd remember` so GH-1004 can drop the raw `bd list:*` and
- * `bd memories:*` allowlist entries from the intake profile.
+ * operator session (GH-1003, part of GH-998).
+ *
+ * `ls` still wraps `bd list` via `execBd` (policy-enforced). The three memory
+ * verbs (`memory ls|get|set`) were repointed off beads onto
+ * `@bounded-systems/agent-memory` (GH-1009, sub-issue of GH-1008 "retire
+ * beads") — they no longer touch `bd`; they go through the {@link MemoryPort}
+ * (a spawn of the `agent-memory` binary, see memory-port.ts). agent-memory is a
+ * fully separate capability holding its own dolt-server credentials; prx only
+ * spawns it.
  *
  * Mirrors src/intake/intake-view.ts: pure CLI leaves, no XState events, no
- * schema scaffolding. All bd calls route through `execBd` (policy-enforced)
- * with explicit state="planning"/role="planner" so the verbs work the same
- * whether invoked from inside an intake session or from a fresh shell.
+ * schema scaffolding. The bd `ls` call routes through `execBd` with explicit
+ * state="planning"/role="planner" so the verb works the same whether invoked
+ * from inside an intake session or from a fresh shell.
  *
- * Out of scope (deferred): destructive verbs (`bd close`, `bd forget`),
- * cross-source verbs (`bd github sync`), and the intake profile allowlist
- * narrowing (GH-1004).
+ * Out of scope (deferred): the destructive memory verb (`memory forget`,
+ * agent-memory's `forget`), and the intake profile allowlist narrowing that
+ * drops the now-unused `bd memories:*`/`recall`/`remember` entries (GH-1004).
  */
 
 import { processEnv } from "@bounded-systems/env";
 import { z } from "zod";
 
 import { execBd, type BdExecResult } from "@bounded-systems/bd";
+import { agentMemoryPort, type MemoryPort, type MemoryResult } from "./memory-port.ts";
 
 type Output = {
   log: (line: string) => void;
@@ -35,6 +42,8 @@ export class IntakeBdError extends Error {
 
 export type IntakeBdDeps = {
   execBd?: typeof execBd;
+  /** Injectable memory backend (default: the agent-memory binary port). */
+  memory?: MemoryPort;
 };
 
 // ---------------------------------------------------------------------------
@@ -96,20 +105,8 @@ export function runIntakeBdMemoryLs(
   output: Output,
   deps: IntakeBdDeps = {},
 ): number {
-  const bdExec = deps.execBd ?? execBd;
-  const args: string[] = [];
-  if (opts.search) {
-    args.push(opts.search);
-  }
-  if (opts.format === "json") {
-    args.push("--json");
-  }
-
-  const result = bdExec(
-    { subcommand: "memories", args, state: "planning", role: "planner" },
-    processEnv(),
-  );
-
+  const memory = deps.memory ?? agentMemoryPort;
+  const result = memory.list(opts.search, opts.format === "json");
   return emitBdResult(result, output, VERB_MEMORY_LS, opts.format);
 }
 
@@ -131,17 +128,8 @@ export function runIntakeBdMemoryGet(
   output: Output,
   deps: IntakeBdDeps = {},
 ): number {
-  const bdExec = deps.execBd ?? execBd;
-  const args: string[] = [opts.key];
-  if (opts.format === "json") {
-    args.push("--json");
-  }
-
-  const result = bdExec(
-    { subcommand: "recall", args, state: "planning", role: "planner" },
-    processEnv(),
-  );
-
+  const memory = deps.memory ?? agentMemoryPort;
+  const result = memory.recall(opts.key, opts.format === "json");
   return emitBdResult(result, output, VERB_MEMORY_GET, opts.format);
 }
 
@@ -164,17 +152,8 @@ export function runIntakeBdMemorySet(
   output: Output,
   deps: IntakeBdDeps = {},
 ): number {
-  const bdExec = deps.execBd ?? execBd;
-  const args: string[] = [opts.body, "--key", opts.key];
-  if (opts.format === "json") {
-    args.push("--json");
-  }
-
-  const result = bdExec(
-    { subcommand: "remember", args, state: "planning", role: "planner" },
-    processEnv(),
-  );
-
+  const memory = deps.memory ?? agentMemoryPort;
+  const result = memory.remember(opts.key, opts.body, opts.format === "json");
   return emitBdResult(result, output, VERB_MEMORY_SET, opts.format);
 }
 
@@ -187,7 +166,7 @@ export function runIntakeBdMemorySet(
 // it; plain stdout is what bd renders for humans. Errors collapse to a single
 // `<verb>: <detail>` line on stderr, matching the sibling intake verbs.
 function emitBdResult(
-  result: BdExecResult,
+  result: BdExecResult | MemoryResult,
   output: Output,
   verb: string,
   _format: "plain" | "json",

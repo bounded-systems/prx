@@ -14,6 +14,7 @@ import {
   type IntakeBdMemorySetOptions,
 } from "../../src/intake/intake-bd.ts";
 import type { BdExecResult } from "@bounded-systems/bd";
+import type { MemoryPort, MemoryResult } from "../../src/intake/memory-port.ts";
 
 type BdCall = { subcommand: string; args: string[]; state?: string; role?: string };
 
@@ -23,6 +24,39 @@ function bdOk(stdout = ""): BdExecResult {
 
 function bdFail(stderr: string, code = 1): BdExecResult {
   return { exitCode: code, stdout: "", stderr, policy: null };
+}
+
+// The memory verbs go through a MemoryPort (the agent-memory binary), not
+// execBd. Record which port method was invoked and with what arguments.
+type MemCall =
+  | { method: "list"; search: string | undefined; json: boolean }
+  | { method: "recall"; key: string; json: boolean }
+  | { method: "remember"; key: string; body: string; json: boolean };
+
+function memOk(stdout = ""): MemoryResult {
+  return { exitCode: 0, stdout, stderr: "" };
+}
+
+function memFail(stderr: string, code = 1): MemoryResult {
+  return { exitCode: code, stdout: "", stderr };
+}
+
+/** A MemoryPort that records calls and returns a fixed result. */
+function mockMemory(result: MemoryResult, calls: MemCall[]): MemoryPort {
+  return {
+    list: (search, json) => {
+      calls.push({ method: "list", search, json });
+      return result;
+    },
+    recall: (key, json) => {
+      calls.push({ method: "recall", key, json });
+      return result;
+    },
+    remember: (key, body, json) => {
+      calls.push({ method: "remember", key, body, json });
+      return result;
+    },
+  };
 }
 
 function lsOpts(overrides: Partial<IntakeBdLsOptions> = {}): IntakeBdLsOptions {
@@ -181,64 +215,50 @@ describe("runIntakeBdLs", () => {
 // ---------------------------------------------------------------------------
 
 describe("runIntakeBdMemoryLs", () => {
-  test("no search forwards no positional", () => {
-    const calls: BdCall[] = [];
+  test("no search → memory.list(undefined)", () => {
+    const calls: MemCall[] = [];
     runIntakeBdMemoryLs(
       memLsOpts(),
       { log: () => undefined, error: () => undefined },
-      {
-        execBd: ((opts: BdCall) => {
-          calls.push(opts);
-          return bdOk("");
-        }) as never,
-      },
+      { memory: mockMemory(memOk(""), calls) },
     );
-    expect(calls[0]!.subcommand).toBe("memories");
-    expect(calls[0]!.args).toEqual([]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toEqual({ method: "list", search: undefined, json: false });
   });
 
-  test("search positional forwards as bd memories <search>", () => {
-    const calls: BdCall[] = [];
+  test("search positional → memory.list(<search>)", () => {
+    const calls: MemCall[] = [];
     runIntakeBdMemoryLs(
       memLsOpts({ search: "dolt" }),
       { log: () => undefined, error: () => undefined },
-      {
-        execBd: ((opts: BdCall) => {
-          calls.push(opts);
-          return bdOk("");
-        }) as never,
-      },
+      { memory: mockMemory(memOk(""), calls) },
     );
-    expect(calls[0]!.args).toEqual(["dolt"]);
+    expect(calls[0]).toEqual({ method: "list", search: "dolt", json: false });
   });
 
-  test("format=json appends --json", () => {
-    const calls: BdCall[] = [];
+  test("format=json requests json output and passes stdout through", () => {
+    const calls: MemCall[] = [];
+    const logs: string[] = [];
     runIntakeBdMemoryLs(
       memLsOpts({ format: "json" }),
-      { log: () => undefined, error: () => undefined },
-      {
-        execBd: ((opts: BdCall) => {
-          calls.push(opts);
-          return bdOk("[]");
-        }) as never,
-      },
+      { log: (l) => logs.push(l), error: () => undefined },
+      { memory: mockMemory(memOk('{"count":0,"memories":[]}'), calls) },
     );
-    expect(calls[0]!.args).toEqual(["--json"]);
+    expect(calls[0]).toEqual({ method: "list", search: undefined, json: true });
+    expect(JSON.parse(logs[0]!)).toEqual({ count: 0, memories: [] });
   });
 
-  test("bd failure → single warning line + non-zero exit", () => {
+  test("memory failure → single warning line + non-zero exit", () => {
     const errors: string[] = [];
     const exitCode = runIntakeBdMemoryLs(
       memLsOpts(),
       { log: () => undefined, error: (l) => errors.push(l) },
-      {
-        execBd: (() => bdFail("bd unreachable", 1)) as never,
-      },
+      { memory: mockMemory(memFail("agent-memory unreachable", 1), []) },
     );
     expect(exitCode).toBe(1);
     expect(errors).toHaveLength(1);
     expect(errors[0]).toContain("prx intake bd memory ls");
+    expect(errors[0]).toContain("agent-memory unreachable");
   });
 });
 
@@ -247,47 +267,34 @@ describe("runIntakeBdMemoryLs", () => {
 // ---------------------------------------------------------------------------
 
 describe("runIntakeBdMemoryGet", () => {
-  test("calls bd recall <key>", () => {
-    const calls: BdCall[] = [];
+  test("calls memory.recall(<key>) and passes stdout through", () => {
+    const calls: MemCall[] = [];
     const logs: string[] = [];
     runIntakeBdMemoryGet(
       memGetOpts("dolt-phantoms"),
       { log: (l) => logs.push(l), error: () => undefined },
-      {
-        execBd: ((opts: BdCall) => {
-          calls.push(opts);
-          return bdOk("the body\n");
-        }) as never,
-      },
+      { memory: mockMemory(memOk("the body\n"), calls) },
     );
-    expect(calls[0]!.subcommand).toBe("recall");
-    expect(calls[0]!.args).toEqual(["dolt-phantoms"]);
+    expect(calls[0]).toEqual({ method: "recall", key: "dolt-phantoms", json: false });
     expect(logs[0]).toBe("the body");
   });
 
-  test("format=json appends --json", () => {
-    const calls: BdCall[] = [];
+  test("format=json requests json output", () => {
+    const calls: MemCall[] = [];
     runIntakeBdMemoryGet(
       intakeBdMemoryGetOptionsSchema.parse({ key: "k", format: "json" }),
       { log: () => undefined, error: () => undefined },
-      {
-        execBd: ((opts: BdCall) => {
-          calls.push(opts);
-          return bdOk("{}");
-        }) as never,
-      },
+      { memory: mockMemory(memOk("{}"), calls) },
     );
-    expect(calls[0]!.args).toEqual(["k", "--json"]);
+    expect(calls[0]).toEqual({ method: "recall", key: "k", json: true });
   });
 
-  test("missing key (bd exit non-zero) surfaces the error line", () => {
+  test("missing key (memory exit non-zero) surfaces the error line", () => {
     const errors: string[] = [];
     const exitCode = runIntakeBdMemoryGet(
       memGetOpts("nope"),
       { log: () => undefined, error: (l) => errors.push(l) },
-      {
-        execBd: (() => bdFail("memory not found: nope", 1)) as never,
-      },
+      { memory: mockMemory(memFail("memory not found: nope", 1), []) },
     );
     expect(exitCode).toBe(1);
     expect(errors[0]).toContain("memory not found: nope");
@@ -299,45 +306,37 @@ describe("runIntakeBdMemoryGet", () => {
 // ---------------------------------------------------------------------------
 
 describe("runIntakeBdMemorySet", () => {
-  test('calls bd remember "<body>" --key <key>', () => {
-    const calls: BdCall[] = [];
+  test("calls memory.remember(<key>, <body>)", () => {
+    const calls: MemCall[] = [];
     runIntakeBdMemorySet(
       memSetOpts({ key: "k1", body: "the value" }),
       { log: () => undefined, error: () => undefined },
-      {
-        execBd: ((opts: BdCall) => {
-          calls.push(opts);
-          return bdOk("ok\n");
-        }) as never,
-      },
+      { memory: mockMemory(memOk("ok\n"), calls) },
     );
-    expect(calls[0]!.subcommand).toBe("remember");
-    expect(calls[0]!.args).toEqual(["the value", "--key", "k1"]);
+    expect(calls[0]).toEqual({
+      method: "remember",
+      key: "k1",
+      body: "the value",
+      json: false,
+    });
   });
 
-  test("format=json appends --json", () => {
-    const calls: BdCall[] = [];
+  test("format=json requests json output", () => {
+    const calls: MemCall[] = [];
     runIntakeBdMemorySet(
       intakeBdMemorySetOptionsSchema.parse({ key: "k", body: "v", format: "json" }),
       { log: () => undefined, error: () => undefined },
-      {
-        execBd: ((opts: BdCall) => {
-          calls.push(opts);
-          return bdOk("{}");
-        }) as never,
-      },
+      { memory: mockMemory(memOk("{}"), calls) },
     );
-    expect(calls[0]!.args).toEqual(["v", "--key", "k", "--json"]);
+    expect(calls[0]).toEqual({ method: "remember", key: "k", body: "v", json: true });
   });
 
-  test("bd failure → single warning line + propagated exit code", () => {
+  test("memory failure → single warning line + propagated exit code", () => {
     const errors: string[] = [];
     const exitCode = runIntakeBdMemorySet(
       memSetOpts(),
       { log: () => undefined, error: (l) => errors.push(l) },
-      {
-        execBd: (() => bdFail("write blocked", 3)) as never,
-      },
+      { memory: mockMemory(memFail("write blocked", 3), []) },
     );
     expect(exitCode).toBe(3);
     expect(errors[0]).toContain("prx intake bd memory set");
