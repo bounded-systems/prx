@@ -159,15 +159,15 @@ describe("prxSessionNotProjectedLocallyMessage (GH-2089)", () => {
   }
 
   test("includes the canonical materialize hint when the source is accepted by the CLI", () => {
-    const msg = prxSessionNotProjectedLocallyMessage("BD-AAAAAAAA", resolved("beads"));
-    expect(msg).toContain("Cannot open PRX session for BD-AAAAAAAA:");
-    expect(msg).toContain("beads page");
+    const msg = prxSessionNotProjectedLocallyMessage("NOTION-AAAAAAAA", resolved("notion"));
+    expect(msg).toContain("Cannot open PRX session for NOTION-AAAAAAAA:");
+    expect(msg).toContain("notion page");
     expect(msg).toContain("`prx chain backfill --authority issue --scope all`");
     // The hint points at the canonical plan entry and drops the redundant
     // `--from` (`--create` auto-resolves the source); the retired `session
     // open` alias must not appear.
-    expect(msg).toContain("prx plan agent BD-AAAAAAAA --create");
-    expect(msg).toContain("prx plan session BD-AAAAAAAA --create");
+    expect(msg).toContain("prx plan agent NOTION-AAAAAAAA --create");
+    expect(msg).toContain("prx plan session NOTION-AAAAAAAA --create");
     expect(msg).not.toContain("session open");
     expect(msg).not.toContain("--from=");
   });
@@ -200,18 +200,18 @@ describe("prxSessionNotProjectedLocallyEnvelope (GH-2067)", () => {
   }
 
   test("includes the materialize hint when the source is accepted by the CLI", () => {
-    const envelope = prxSessionNotProjectedLocallyEnvelope("BD-AAAAAAAA", resolved("beads"));
+    const envelope = prxSessionNotProjectedLocallyEnvelope("NOTION-AAAAAAAA", resolved("notion"));
     expect(envelope.code).toBe("PRX_SESSION_NOT_PROJECTED_LOCALLY");
-    expect(envelope.workUnitId).toBe("BD-AAAAAAAA");
-    expect(envelope.source).toBe("beads");
+    expect(envelope.workUnitId).toBe("NOTION-AAAAAAAA");
+    expect(envelope.source).toBe("notion");
     expect(envelope.title).toBe("test");
     expect(envelope.url).toBe("https://example.test/TEST-ID");
     expect(envelope.message).toBe(
-      prxSessionNotProjectedLocallyMessage("BD-AAAAAAAA", resolved("beads")),
+      prxSessionNotProjectedLocallyMessage("NOTION-AAAAAAAA", resolved("notion")),
     );
     expect(envelope.suggestedNextCommands).toEqual([
       "prx chain backfill --authority issue --scope all",
-      "prx plan agent BD-AAAAAAAA --create",
+      "prx plan agent NOTION-AAAAAAAA --create",
     ]);
   });
 

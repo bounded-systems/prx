@@ -7,17 +7,17 @@
 // The load-bearing rule is **Rule 4 — one write surface per verb**: `writes` is
 // a single Surface or null, so two-surface mutation is structurally
 // unrepresentable. A verb that needs to touch two surfaces (the mirror/reconcile
-// family — `submit publish`, `beads publish`, `beads sync`, `delegate assign`)
-// must split into a canonical write + a single-surface projection.
+// family — `submit publish`, `delegate assign`) must split into a canonical
+// write + a single-surface projection.
 
 import { z } from "zod";
 
 /**
  * The backing stores a verb may touch. A surface is a STORE, not an actor
- * (Rule 3: `beads` is a surface, never an actor). Mirrors `#Surface` in
+ * (Rule 3: `github` is a surface, never an actor). Mirrors `#Surface` in
  * spec/prx/schema.cue.
  */
-export const Surface = z.enum(["github", "beads", "dolt", "notion", "filesystem", "cas", "tmux"]);
+export const Surface = z.enum(["github", "dolt", "notion", "filesystem", "cas", "tmux"]);
 export type Surface = z.infer<typeof Surface>;
 
 export const ALL_SURFACES: readonly Surface[] = Surface.options;

@@ -15,7 +15,7 @@ import {
 describe("Surface", () => {
   test("enumerates the backing stores from spec/prx/schema.cue", () => {
     expect(new Set(ALL_SURFACES)).toEqual(
-      new Set(["github", "beads", "dolt", "notion", "filesystem", "cas", "tmux"]),
+      new Set(["github", "dolt", "notion", "filesystem", "cas", "tmux"]),
     );
     expect(Surface.safeParse("github").success).toBe(true);
     expect(Surface.safeParse("not-a-surface").success).toBe(false);
@@ -36,7 +36,7 @@ describe("VerbEffects — Rule 4 (one write surface per verb)", () => {
   });
 
   test("two write surfaces are structurally unrepresentable (schema rejects an array)", () => {
-    expect(VerbEffects.safeParse({ writes: ["github", "beads"] }).success).toBe(false);
+    expect(VerbEffects.safeParse({ writes: ["github", "dolt"] }).success).toBe(false);
   });
 
   test("an unknown surface is rejected in reads or writes", () => {
@@ -48,6 +48,6 @@ describe("VerbEffects — Rule 4 (one write surface per verb)", () => {
     expect(
       touchedSurfaces(VerbEffects.parse({ reads: ["cas", "github"], writes: "github" })).sort(),
     ).toEqual(["cas", "github"]);
-    expect(touchedSurfaces(VerbEffects.parse({ reads: ["beads"] }))).toEqual(["beads"]);
+    expect(touchedSurfaces(VerbEffects.parse({ reads: ["dolt"] }))).toEqual(["dolt"]);
   });
 });

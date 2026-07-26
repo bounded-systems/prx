@@ -54,7 +54,7 @@ export async function resolveWorkUnitSource(
   const resolver = buildResolver(id, identity, repoPath);
   if (resolver === null) {
     throw new ScoutSourceError(
-      `scout source: no source resolver configured for ${id} — configure a GitHub/beads/Notion source or check the canonical id`,
+      `scout source: no source resolver configured for ${id} — configure a GitHub/Notion source or check the canonical id`,
     );
   }
   try {

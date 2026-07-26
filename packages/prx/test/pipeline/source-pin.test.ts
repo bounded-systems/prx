@@ -35,7 +35,7 @@ const issue = (overrides: Partial<ResolvedWorkUnit> = {}): ResolvedWorkUnit => (
   body: "the README drifted from the code",
   state: "open",
   url: "bd://prx-0v5",
-  source: "beads",
+  source: "github",
   ...overrides,
 });
 
@@ -77,7 +77,7 @@ describe("work-unit source pin (prx-adj / GH-292 signed root)", () => {
       body: "the README drifted from the code",
       state: "open",
       url: "bd://prx-0v5",
-      source: "beads",
+      source: "github",
     });
     // GH-292: the signature over the input text IS the artifact.
     expect(got.value?.attestation).toBeDefined();

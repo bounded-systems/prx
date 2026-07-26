@@ -69,7 +69,7 @@ describe("--from=<source> reachability through `prx plan session` (GH-2112)", ()
   // must be rejected by the lifted GH-2140 guard, before any `gh` round-trip.
   // The `session-plan --check` dispatch now forwards `parsed.from` (the
   // GH-2113/GH-2120 fix in this PR), so the guard fires on the operator path.
-  for (const from of ["beads", "notion"] as const) {
+  for (const from of ["notion"] as const) {
     test(`--from=${from} against a GH-keyed id is rejected before any gh round-trip`, () => {
       const root = setupRepo(`reject-${from}`);
       const result = runCli(
@@ -79,9 +79,8 @@ describe("--from=<source> reachability through `prx plan session` (GH-2112)", ()
       const stderr = new TextDecoder().decode(result.stderr);
 
       expect(result.exitCode).toBe(1);
-      // The lifted guard's exact message (cli.ts:4121-4122). "BD" for beads,
-      // "Notion" for notion.
-      const sourceLabel = from === "beads" ? "BD" : "Notion";
+      // The lifted guard's exact message (cli.ts:4121-4122). "Notion" for notion.
+      const sourceLabel = "Notion";
       expect(stderr).toContain(
         `--from=${from} is not valid for GitHub work unit IDs (GH-99999999).`,
       );

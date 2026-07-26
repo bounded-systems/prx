@@ -98,7 +98,7 @@ describe("prx intake source (GH-232)", () => {
 
   test("json format reports the pinned ref + resolved source", async () => {
     const { out, lines } = sink();
-    const unit = resolved({ id: "GH-901", source: "beads", title: "bd unit", url: "bd://GH-901" });
+    const unit = resolved({ id: "GH-901", source: "github", title: "gh unit", url: "gh://GH-901" });
     const code = await runIntakeSource({ id: "GH-901", format: "json" }, out, {
       loadIdentity: (() => ({})) as never,
       buildResolver: (() => fakeResolver(unit)) as never,
@@ -107,7 +107,7 @@ describe("prx intake source (GH-232)", () => {
     expect(code).toBe(0);
     const payload = JSON.parse(lines[0]!);
     expect(payload.unit).toBe("GH-901");
-    expect(payload.source).toBe("beads");
+    expect(payload.source).toBe("github");
     expect(typeof payload.ref).toBe("string");
     expect(payload.ref.length).toBeGreaterThan(0);
   });

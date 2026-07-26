@@ -3704,7 +3704,7 @@ function parseIdentityTomlFields(text: string, sourcePath: string): IdentityToml
       const header = `[${sectionMatch[1]}]`;
       if (LEGACY_IDENTITY_SECTION_RE.test(header)) {
         throw new Error(
-          `${label} ${header} is no longer supported (GH-1421). Replace with [sources.<name>] (kind = "github" | "notion" | "beads").`,
+          `${label} ${header} is no longer supported (GH-1421). Replace with [sources.<name>] (kind = "github" | "notion").`,
         );
       }
       const srcMatch = header.match(SOURCE_SECTION_RE);
