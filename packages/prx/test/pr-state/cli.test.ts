@@ -15758,41 +15758,7 @@ describe("parseCommand — beads doctor targets the canonical daemon clone (GH-2
   });
 });
 
-// GH-2379: `prx doctor dedupe-bd --only` selector parsing.
-describe("parseCommand — doctor dedupe-bd --only", () => {
-  test("`--only` without `--apply` is rejected as a CliError", () => {
-    expect(() => parseCommand(["doctor", "dedupe-bd", "--only", "GH-19"])).toThrow(CliError);
-  });
-
-  test("`--apply --only <value>` parses, threading a single selector", () => {
-    const parsed = parseCommand(["doctor", "dedupe-bd", "--apply", "--only", "GH-19"]);
-    expect(parsed.command).toBe("doctor-dedupe-bd");
-    if (parsed.command !== "doctor-dedupe-bd") throw new Error("unreachable");
-    expect(parsed.apply).toBe(true);
-    expect(parsed.only).toEqual(["GH-19"]);
-  });
-
-  test("repeatable `--only` flags accumulate into the union", () => {
-    const parsed = parseCommand([
-      "doctor",
-      "dedupe-bd",
-      "--apply",
-      "--only",
-      "GH-19",
-      "--only",
-      "ai-home-1463",
-    ]);
-    if (parsed.command !== "doctor-dedupe-bd") throw new Error("unreachable");
-    expect(parsed.only).toEqual(["GH-19", "ai-home-1463"]);
-  });
-
-  test("bare `dedupe-bd` (no --only) defaults `only` to []", () => {
-    const parsed = parseCommand(["doctor", "dedupe-bd"]);
-    if (parsed.command !== "doctor-dedupe-bd") throw new Error("unreachable");
-    expect(parsed.only).toEqual([]);
-    expect(parsed.apply).toBe(false);
-  });
-
+describe("parseCommand — capabilities aliases", () => {
   test("`capabilities` and its `caps` / `can` aliases all route to the capabilities command", () => {
     for (const argv of [["capabilities"], ["caps"], ["can"]]) {
       const parsed = parseCommand(argv);

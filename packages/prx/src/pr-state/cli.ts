@@ -124,7 +124,6 @@ import { adapterForCanonicalId } from "../adapters/domain-adapter.ts";
 import { nextAction, type ActionPlan, type ResolvedAction } from "./actions.ts";
 import { nextWork } from "./next_work.ts";
 import { runDelegateAssign } from "../delegate/assign.ts";
-import { runRepairAssignees } from "../delegate/repair_assignees.ts";
 import type { NextWorkResult } from "../beads/ready.ts";
 import {
   formatDelegateNext,
@@ -335,8 +334,6 @@ import { BeadsRequestSchema, type BeadsRequest } from "../beadsd/contract.ts";
 import { runScopeGate, ScopeGateInputError } from "./scope-gate.ts";
 import { runTestGate, TestGateInputError } from "./test-gate.ts";
 import type { GateResult } from "../provenance/gate.ts";
-// GH-1508: doctor substrate-tier dedupe verb (ADR §6).
-import { runDedupeBd as doctorRunDedupeBd } from "../doctor/dedupe-bd.ts";
 // GH-1823: audit actor — read-only adherence metrics over the artifact graph.
 import { runAuditIngest, runAuditUow, runAuditSystem } from "../audit/cli.ts";
 // GH-1407: services actor — Anthropic prompt-cache hit-rate projector.
@@ -1232,17 +1229,6 @@ type ParsedCommand =
       format: "plain" | "json";
     }
   | {
-      // GH-1508: ADR §6 dedupe verb. Operator-initiated, dry-run-by-default;
-      // `--apply` flips it to writing. Substrate-wide scan, no work-unit
-      // binding.
-      command: "doctor-dedupe-bd";
-      apply: boolean;
-      // GH-2379: scope `--apply` to the named cluster(s); repeatable; requires
-      // `--apply`. Empty = apply all clusters.
-      only: string[];
-      format: "plain" | "json";
-    }
-  | {
       // GH-1823 — `prx audit <verb>` adherence-metric verb.
       command: "audit-ingest";
       since?: string | undefined;
@@ -1970,13 +1956,6 @@ type ParsedCommand =
       unassign: boolean;
     }
   | {
-      command: "delegate-repair-assignees";
-      repoPath: string;
-      from: string;
-      to: string;
-      apply: boolean;
-    }
-  | {
       command: "actions";
       repoPath: string;
       format: "plain" | "json";
@@ -2655,8 +2634,6 @@ type CliDeps = {
   runPublisherPrUpdate?: typeof publisherRunPrUpdate;
   runPublisherPrComment?: typeof publisherRunPrComment;
   runPublisherPrEdit?: typeof publisherRunPrEdit;
-  // GH-1508: ADR §6 dedupe verb. No work-unit target — substrate-wide scan.
-  runDoctorDedupeBd?: typeof doctorRunDedupeBd;
   runIntakeBdLs?: (options: IntakeBdLsOptions, output: Output, deps?: IntakeBdDeps) => number;
   runIntakeBdMemoryLs?: (
     options: IntakeBdMemoryLsOptions,
@@ -4097,7 +4074,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
 
   if (c0 === "delegate") {
     if (!c1 || c1.startsWith("-")) {
-      throw new CliError("delegate requires a subcommand: next | assign | repair-assignees");
+      throw new CliError("delegate requires a subcommand: next | assign");
     }
     if (c1 === "next") {
       return ["delegate-next", ...tail];
@@ -4105,12 +4082,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     if (c1 === "assign") {
       return ["delegate-assign", ...tail];
     }
-    if (c1 === "repair-assignees") {
-      return ["delegate-repair-assignees", ...tail];
-    }
-    throw new CliError(
-      `Unknown delegate subcommand: ${c1}. Available: next | assign | repair-assignees`,
-    );
+    throw new CliError(`Unknown delegate subcommand: ${c1}. Available: next | assign`);
   }
 
   if (c0 === "worktree") {
@@ -4997,7 +4969,6 @@ function printDoctorHelpAndExit(): never {
       "Verbs:",
       "  inventory  Print typed PR snapshot + per-verb gate breakdown",
       "  gh-budget  Summarize recent `gh` GraphQL spend grouped by prx verb",
-      "  dedupe-bd  Close bd duplicates sharing an external_id pin (ADR §6)",
       "",
       "Deprecated (aliases for `prx publisher <verb>`; removed next release):",
       "  merge      → prx publisher merge",
@@ -5008,23 +4979,12 @@ function printDoctorHelpAndExit(): never {
       "  --method <squash|merge|rebase>  Merge method for `merge` (default: squash)",
       "  --no-update-branch              Skip the auto `gh pr update-branch` retry",
       "  --since <30m|2h|...>            Lookback window for `gh-budget` (default: 1h)",
-      "  --apply                         Write planned actions (dedupe-bd; dry-run otherwise)",
-      "  --only <pin|bd-id>              Apply only the named cluster(s); repeatable; requires --apply (dedupe-bd)",
       "  --format <plain|json>           Output format (default: plain)",
       "  -h, --help                      Show this help",
       "",
       "Examples:",
       "  prx doctor inventory",
       "  prx doctor gh-budget --since 2h",
-      "  prx doctor dedupe-bd",
-      "  prx doctor dedupe-bd --apply",
-      "  prx doctor dedupe-bd --apply --only <pin> --only <bd-id>",
-      "",
-      "See:",
-      "  docs/architecture/cross-repo-pr-linkage.md",
-      "    — cross-repo close-on-merge linkage (bd `gh` pin authority)",
-      "  docs/architecture/bd-canonical-pr-linkage.md",
-      "    — pin-zero case: no auto-close fires; `bd close <id>` is an explicit handoff",
       "",
     ].join("\n"),
   );
@@ -5057,7 +5017,7 @@ function parseDurationMs(raw: string, flag: string): number {
   return Math.round(n * scale);
 }
 
-const DOCTOR_VERBS = ["inventory", "merge", "ready", "draft", "gh-budget", "dedupe-bd"] as const;
+const DOCTOR_VERBS = ["inventory", "merge", "ready", "draft", "gh-budget"] as const;
 type DoctorVerb = (typeof DOCTOR_VERBS)[number];
 
 const DOCTOR_GH_BUDGET_DEFAULT_SINCE_MS = 60 * 60 * 1_000;
@@ -5088,38 +5048,6 @@ function parseDoctorGhBudgetCommand(subRest: string[]): ParsedCommand {
   };
 }
 
-function parseDoctorDedupeBdCommand(subRest: string[]): ParsedCommand {
-  if (subRest.includes("--help") || subRest.includes("-h")) {
-    printDoctorHelpAndExit();
-  }
-  const { values, positionals } = parseArgs({
-    args: subRest,
-    options: {
-      format: { type: "string", default: "plain" },
-      apply: { type: "boolean", default: false },
-      // GH-2379: repeatable `--only <pin|bd-id>` selector.
-      only: { type: "string", multiple: true },
-    },
-    strict: true,
-    allowPositionals: true,
-  });
-  if (positionals.length > 0) {
-    throw new CliError("prx doctor dedupe-bd takes no positional arguments; pass options as flags");
-  }
-  const only = values.only ?? [];
-  // GH-2379: `--only` is only meaningful at apply time — reject it standalone
-  // so a dry-run `--only` is never silently a no-op.
-  if (only.length > 0 && !(values.apply ?? false)) {
-    throw new CliError("prx doctor dedupe-bd: --only requires --apply");
-  }
-  return {
-    command: "doctor-dedupe-bd",
-    apply: values.apply ?? false,
-    only,
-    format: ensureChoice(values.format, ["plain", "json"], "--format"),
-  };
-}
-
 function parseDoctorCommand(rest: string[]): ParsedCommand {
   if (rest.length === 0 || rest[0] === "--help" || rest[0] === "-h") {
     printDoctorHelpAndExit();
@@ -5133,9 +5061,6 @@ function parseDoctorCommand(rest: string[]): ParsedCommand {
   const verb = verbArg as DoctorVerb;
   if (verb === "gh-budget") {
     return parseDoctorGhBudgetCommand(rest.slice(1));
-  }
-  if (verb === "dedupe-bd") {
-    return parseDoctorDedupeBdCommand(rest.slice(1));
   }
   const subRest = rest.slice(1);
   if (subRest.includes("--help") || subRest.includes("-h")) {
@@ -10459,39 +10384,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  if (command === "delegate-repair-assignees") {
-    // GH-2012: one-time repair for bd records whose assignee column is a
-    // display-name string (legacy `git config user.name` resolver behavior).
-    //   `prx delegate repair-assignees --from "<name>" --to <login>` (dry-run)
-    //   `prx delegate repair-assignees --from "<name>" --to <login> --apply`
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        "repo-path": { type: "string", default: "." },
-        from: { type: "string" },
-        to: { type: "string" },
-        apply: { type: "boolean", default: false },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    if (typeof values.from !== "string" || values.from.length === 0) {
-      throw new CliError("prx delegate repair-assignees: missing required --from <name>");
-    }
-    if (typeof values.to !== "string" || values.to.length === 0) {
-      throw new CliError("prx delegate repair-assignees: missing required --to <login>");
-    }
-
-    return {
-      command: "delegate-repair-assignees" as const,
-      repoPath: values["repo-path"],
-      from: values.from,
-      to: values.to,
-      apply: values.apply,
-    };
-  }
-
   if (command === "refresh") {
     const { values } = parseArgs({
       args: rest,
@@ -14701,7 +14593,6 @@ function auditVerbName(parsed: ParsedCommand): string {
   if (parsed.command === "publisher") return `publisher.${parsed.verb}`;
   if (parsed.command === "publisher-pr") return `publisher.pr.${parsed.verb}`;
   if (parsed.command === "doctor-gh-budget") return "doctor.gh-budget";
-  if (parsed.command === "doctor-dedupe-bd") return "doctor.dedupe-bd";
   return parsed.command.replace(/-/g, ".");
 }
 
@@ -18806,15 +18697,6 @@ export function runCli(
       return runDoctorGhBudget({ sinceMs: parsed.sinceMs, format: parsed.format }, output, deps);
     }
 
-    // GH-1508: ADR §6 substrate-tier dedupe verb.
-    if (parsed.command === "doctor-dedupe-bd") {
-      const handler = deps.runDoctorDedupeBd ?? doctorRunDedupeBd;
-      return handler(
-        { apply: parsed.apply, only: parsed.only, format: parsed.format },
-        { log: (line: string) => output.log(line), error: (line: string) => output.error(line) },
-      );
-    }
-
     // GH-1823: audit verb — adherence metrics over the artifact graph.
     if (parsed.command === "audit-ingest") {
       return runAuditIngest(
@@ -21380,22 +21262,6 @@ export function runCli(
         agent: parsed.agent,
         self: parsed.self,
         unassign: parsed.unassign,
-        repoPath: parsed.repoPath,
-      });
-      if (result.exitCode === 0) {
-        output.log(result.message);
-      } else {
-        output.error(result.message);
-      }
-      return result.exitCode;
-    }
-
-    if (parsed.command === "delegate-repair-assignees") {
-      // GH-2012: bulk-rewrite legacy display-name assignees to GH logins.
-      const result = runRepairAssignees({
-        from: parsed.from,
-        to: parsed.to,
-        apply: parsed.apply,
         repoPath: parsed.repoPath,
       });
       if (result.exitCode === 0) {

@@ -1099,16 +1099,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     domain: "state",
     actor: "doctor",
   },
-  {
-    // GH-1508: ADR §6 substrate-tier dedupe verb. Closes duplicate bd
-    // records pinned to the same (domain, external_id) and re-anchors
-    // their dep edges onto the canonical record.
-    name: "doctor dedupe-bd",
-    parent: "doctor",
-    description: "Close duplicate bd records per ADR §6",
-    domain: "work-units",
-    actor: "doctor",
-  },
 
   // ─── Publisher actor — PR publication transitions (GH-1559 / GH-1398) ──────
   // The publication-transition verbs moved off `doctor` per the GH-1398 ADR §4
@@ -1694,17 +1684,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     name: "delegate assign",
     parent: "delegate",
     description: "Assign a work unit to an agent (bd-canonical; mirror projects to GH)",
-    domain: "work-units",
-    actor: "delegate",
-  },
-  {
-    // GH-2012: one-time repair pass for bd records whose assignee column is a
-    // display-name string (legacy `git config user.name` resolver behavior),
-    // rewriting them to the operator-supplied GH login. Default --dry-run;
-    // --apply writes via `bd assign`.
-    name: "delegate repair-assignees",
-    parent: "delegate",
-    description: "List or rewrite bd records with non-GH-login assignees",
     domain: "work-units",
     actor: "delegate",
   },
