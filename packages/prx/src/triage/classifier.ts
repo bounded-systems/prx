@@ -11,12 +11,9 @@
 import { z } from "zod";
 
 import {
-  bdLabelPlanSchema,
   labelPlanSchema,
   proposedLabelsFor,
   type AreaLabel,
-  type BdLabelPlan,
-  type BdLabelPlanRow,
   type EffortLabel,
   type LabelPlan,
   type LabelPlanRow,
@@ -25,25 +22,15 @@ import {
   type TypeLabel,
 } from "./label-vocab.ts";
 import {
+  listOpenIssues as defaultListOpenIssues,
   repoNameWithOwner as defaultRepoNameWithOwner,
   type FallbackIssue,
 } from "../pr-state/github.ts";
-// GH-1602: substitute the gh-side `listOpenIssues` with the bd-resident
-// projection. `pruneMergedActor` syncs bd from GH at the head of every triage
-// pass, so the classifier's queue enumeration is substrate-resident now.
-import { listOpenIssuesFromBeads as defaultListOpenIssues } from "./issues-from-beads.ts";
 import {
   formatBudgetResetTime,
   refreshBudget as defaultRefreshBudget,
   type BudgetSnapshot,
 } from "@bounded-systems/github-budget";
-// GH-1710: bd-canonical branch reads beads directly and resolves canonical
-// from the per-repo inventory entry.
-import { join } from "node:path";
-import { execBd as defaultExecBd } from "@bounded-systems/bd";
-import { bdPriorityToLabel, loadTriageScopedBeads } from "./triage.ts";
-import { localRepoForCwd as defaultLocalRepoForCwd, repoCanonical } from "../pr-state/repos.ts";
-
 export const triageClassifyOptionsSchema = z.object({
   repo: z.string().trim().min(1).optional(),
   format: z.enum(["json", "tsv"]).default("json"),
@@ -63,13 +50,6 @@ export type TriageClassifyDeps = {
   now?: () => Date;
   readFileSync?: ReadTextFile;
   refreshBudget?: typeof defaultRefreshBudget;
-  /**
-   * GH-1710 — canonical-axis branch and bd-side substrate read. Injectable
-   * so tests can synthesize a canonical=bd repo without writing a real
-   * inventory index.
-   */
-  localRepoForCwd?: typeof defaultLocalRepoForCwd;
-  execBd?: typeof defaultExecBd;
 };
 
 type Output = {
@@ -223,93 +203,6 @@ export function classifyQueue(
   return labelPlanSchema.parse({ repo, generatedAt, rows });
 }
 
-// GH-1710: bd-canonical classifier row. The bd substrate stores priority as
-// a numeric field (0..3 or null) and type as a string column — there are no
-// `priority::*` / `type::*` labels on a bd record. We classify by title (same
-// rule table as GH) and emit a proposed-axes row only at axes the bead is
-// missing on, so apply (a future PR) can build a single `bd update <id>`
-// mutation per row without overwriting operator-curated state.
-export type BdRecordForClassify = {
-  id: string;
-  title: string;
-  priority: number | null;
-  issueType: string;
-};
-
-export function classifyBdRecord(record: BdRecordForClassify): BdLabelPlanRow {
-  const { type, typeConfidence, priority, priorityConfidence, area, effort } = classifyTitle(
-    record.title,
-  );
-  const hasPriority = record.priority !== null;
-  const hasType = record.issueType.length > 0;
-  const row: BdLabelPlanRow = {
-    bdId: record.id,
-    title: record.title,
-    currentPriority: record.priority,
-    currentType: record.issueType,
-  };
-  // GH-957 mirror: classifier output is suppressed at any axis the bead has
-  // already taken a value on. Apply path stays additive. GH-988: when the
-  // bead has no type yet, plumb both the fallback `task` value and the
-  // `typeConfidence` provenance bit so the bd-apply path can distinguish
-  // scored matches from the unscored sentinel.
-  if (!hasType) {
-    row.type = type;
-    row.typeConfidence = typeConfidence;
-  }
-  if (priority !== undefined && !hasPriority) row.priority = priority;
-  if (priorityConfidence !== undefined && !hasPriority) row.priorityConfidence = priorityConfidence;
-  if (area !== undefined) row.area = area;
-  if (effort !== undefined) row.effort = effort;
-  return row;
-}
-
-export function classifyBdQueue(
-  records: BdRecordForClassify[],
-  repo: string,
-  generatedAt: string,
-): BdLabelPlan {
-  const rows = records.map(classifyBdRecord);
-  return bdLabelPlanSchema.parse({ repo, canonical: "bd", generatedAt, rows });
-}
-
-export function formatBdLabelPlan(plan: BdLabelPlan, format: "json" | "tsv"): string {
-  if (format === "json") {
-    return JSON.stringify(plan, null, 2);
-  }
-  const lines: string[] = [];
-  lines.push(["#repo", plan.repo].join("\t"));
-  lines.push(["#canonical", plan.canonical].join("\t"));
-  lines.push(["#generatedAt", plan.generatedAt].join("\t"));
-  lines.push(
-    [
-      "bdId",
-      "type",
-      "priority",
-      "area",
-      "effort",
-      "current_priority",
-      "current_type",
-      "title",
-    ].join("\t"),
-  );
-  for (const row of plan.rows) {
-    lines.push(
-      [
-        row.bdId,
-        row.type ?? "",
-        row.priority ?? "",
-        row.area ?? "",
-        row.effort ?? "",
-        bdPriorityToLabel(row.currentPriority),
-        row.currentType,
-        row.title,
-      ].join("\t"),
-    );
-  }
-  return lines.join("\n");
-}
-
 export function formatLabelPlan(plan: LabelPlan, format: "json" | "tsv"): string {
   if (format === "json") {
     return JSON.stringify(plan, null, 2);
@@ -385,37 +278,6 @@ export function runTriageClassify(
   const cwd = (deps.cwd ?? process.cwd)();
   const now = (deps.now ?? (() => new Date()))();
   const generatedAt = now.toISOString();
-
-  // GH-1710: canonical=bd branches before the budget gate. There is no GH
-  // queue to read and no GH bucket to spend, so `--require-budget` is
-  // categorically inapplicable. `--from` is also bypassed for bd — the
-  // file-mode shape is GH-side LabelPlan-shaped and would not deserialize a
-  // bd-flavored payload sensibly.
-  const localRepo = (deps.localRepoForCwd ?? defaultLocalRepoForCwd)(cwd);
-  if (localRepo && repoCanonical(localRepo) === "bd") {
-    const bdExec = deps.execBd ?? defaultExecBd;
-    const allBeads = loadTriageScopedBeads(join(cwd, ".beads"), bdExec, output.error);
-    let bdRecords = allBeads
-      .filter((b) => b.status !== "closed")
-      .filter((b) => b.priority === null || b.priority === undefined || !b.issueType);
-    if (opts.limit > 0 && bdRecords.length > opts.limit) {
-      bdRecords = bdRecords.slice(0, opts.limit);
-    }
-    const repo =
-      opts.repo ?? localRepo.primaryRemote?.githubRepo ?? localRepo.name ?? "<bd-canonical>";
-    const plan = classifyBdQueue(
-      bdRecords.map((b) => ({
-        id: b.id,
-        title: b.title,
-        priority: b.priority,
-        issueType: b.issueType,
-      })),
-      repo,
-      generatedAt,
-    );
-    output.log(formatBdLabelPlan(plan, opts.format));
-    return 0;
-  }
 
   // GH-1218 PR-C: pre-flight GraphQL budget gate. When --require-budget is
   // set, refresh the rate-limit snapshot once and bail before any sweep

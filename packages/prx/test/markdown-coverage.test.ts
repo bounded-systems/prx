@@ -39,7 +39,6 @@ const NON_CATALOGED_PREFIXES: ReadonlyArray<readonly [string, string]> = [
 const NON_CATALOGED_FILES: Readonly<Record<string, string>> = {
   "CLAUDE.md":
     "Claude Code project instructions; @imports the generated .claude/context/project.md",
-  ".beads/README.md": "beads tool boilerplate",
   ".claude/commands/prx.md": "Claude slash-command definition (config, not project docs)",
   ".claude/commands/claims-audit.md": "Claude slash-command definition (config, not project docs)",
   ".github/ISSUE_TEMPLATE/custom.md": "GitHub issue form",

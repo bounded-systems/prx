@@ -20,7 +20,13 @@ const leaseMint = (() => ({
 const forgeGrantProvider = () =>
   cachingGrantProvider({
     acquire: () =>
-      mintDoorGrant({ door: "forge", audience: AUDIENCE, ttlSeconds: 60, nonce: "n", now: Date.now() }),
+      mintDoorGrant({
+        door: "forge",
+        audience: AUDIENCE,
+        ttlSeconds: 60,
+        nonce: "n",
+        now: Date.now(),
+      }),
   });
 
 describe("createDoorBroker over a GATED forge-d (grant presentation, prx-8uf2)", () => {
@@ -38,7 +44,10 @@ describe("createDoorBroker over a GATED forge-d (grant presentation, prx-8uf2)",
     server = await runForgeDServe({
       socketPath: `127.0.0.1:${p}`,
       grantGate: { keys: issuerKeys(), audience: AUDIENCE },
-      deps: { config: { issuer: "Iv1", privateKeyPem: "PEM", installationId: "1" }, mint: leaseMint },
+      deps: {
+        config: { issuer: "Iv1", privateKeyPem: "PEM", installationId: "1" },
+        mint: leaseMint,
+      },
     });
     const broker = createDoorBroker({
       endpoint: `127.0.0.1:${p}`,
@@ -53,7 +62,10 @@ describe("createDoorBroker over a GATED forge-d (grant presentation, prx-8uf2)",
     server = await runForgeDServe({
       socketPath: `127.0.0.1:${p}`,
       grantGate: { keys: issuerKeys(), audience: AUDIENCE },
-      deps: { config: { issuer: "Iv1", privateKeyPem: "PEM", installationId: "1" }, mint: leaseMint },
+      deps: {
+        config: { issuer: "Iv1", privateKeyPem: "PEM", installationId: "1" },
+        mint: leaseMint,
+      },
     });
     // No grantProvider → no grant on the wire → the gate denies before dispatch,
     // which guest-room `call` surfaces as a rejection (fail-closed lease).

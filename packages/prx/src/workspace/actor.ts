@@ -46,7 +46,6 @@ import {
 } from "../tools/worktree_layout.ts";
 import { runKeeperEnsureWorktree, type KeeperEnsureWorktreeDeps } from "../pr-state/keeper.ts";
 import { ensurePrxExcludes } from "../tools/ignore_sync.ts";
-import { writeBeadsRedirect } from "../beads/redirect.ts";
 import { loadWorkspaceConfig, legacyGithubIdentitySegments } from "../pr-state/github.ts";
 import { isMainxPath } from "../pr-state/scope-inference.ts";
 import {
@@ -497,11 +496,12 @@ export type PrepareDeps = {
    */
   hydrateBeads?: (cwd: string) => boolean;
   /**
-   * Inject the `.beads/redirect` writer for the `materialized` lifecycle
-   * (triage/intake), which skips hydrate. Defaults to the production
-   * {@link writeBeadsRedirect}; tests pass a stub. Without it, a materialized
-   * worktree has no redirect and `bd` spawns a stray per-worktree Dolt server
-   * (prx-jkb). Receives `(srcWorktree, destWorktree)` and returns files written.
+   * Optional `.beads/redirect` writer for the `materialized` lifecycle
+   * (triage/intake), which skips hydrate. There is no production default
+   * (the bd/Dolt redirect machinery was removed with GH-1012); when unset
+   * the materialized lifecycle simply writes no redirect. Tests may still
+   * inject a stub. Receives `(srcWorktree, destWorktree)` and returns files
+   * written.
    */
   writeRedirect?: (srcWorktree: string, destWorktree: string) => string[];
 };
@@ -555,22 +555,19 @@ export function runPrepare(
       if (deps.hydrateBeads) {
         beadsHydrated = deps.hydrateBeads(worktreePath) === true;
       }
-    } else {
-      // prx-jkb: the `materialized` lifecycle (triage/intake) skips hydrate and
-      // runs an agent in the new worktree directly. Without a `.beads/redirect`,
-      // `bd` resolves a per-worktree-path-keyed server and spawns a stray on a
-      // fresh port. Point the new worktree at the launching workspace's `.beads`
-      // (before the agent runs `bd`) so it resolves to that workspace's shared
-      // server. `cwd` is the launching workspace; `worktreePath` is the freshly
-      // materialized one.
+    } else if (deps.writeRedirect) {
+      // The `materialized` lifecycle (triage/intake) skips hydrate and runs an
+      // agent in the new worktree directly. Historically this wrote a
+      // `.beads/redirect` so `bd` resolved the launching workspace's shared Dolt
+      // server; that machinery was removed with GH-1012, so there is no
+      // production redirect writer. The injectable seam is retained for tests.
       // Source = the pre-chdir launching workspace. openSession chdir's into
       // the new worktree before prepare, so `cwd` IS the worktree here; using
       // it would make the redirect a no-op (src === dest). `input.launchCwd`
       // carries the workspace the operator launched from (mainx); the CLI omits
       // it (no chdir) and falls back to `cwd`.
       const source = input.launchCwd ?? cwd;
-      const writeRedirect = deps.writeRedirect ?? writeBeadsRedirect;
-      filesWritten.push(...writeRedirect(source, worktreePath));
+      filesWritten.push(...deps.writeRedirect(source, worktreePath));
     }
 
     updateLedgerState(ledgerPath, "prepared");

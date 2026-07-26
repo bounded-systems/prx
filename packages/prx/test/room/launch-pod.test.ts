@@ -119,6 +119,6 @@ describe("launchPod", () => {
       else deleteEnv("KEEPERD_SOCK");
     }
     expect(observedHost).toBeUndefined(); // KEEPERD_HOST not touched
-    expect(observedSock).toBeDefined();   // KEEPERD_SOCK was set
+    expect(observedSock).toBeDefined(); // KEEPERD_SOCK was set
   });
 });

@@ -2,13 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  type AddressInfo,
-  type Server,
-  type Socket,
-  connect,
-  createServer,
-} from "node:net";
+import { type AddressInfo, type Server, type Socket, connect, createServer } from "node:net";
 
 import { BRIDGE_BIND_ADDRESS, runLoopbackBridge } from "../../src/door/bridge.ts";
 

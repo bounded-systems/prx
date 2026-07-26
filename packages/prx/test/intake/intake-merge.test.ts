@@ -5,10 +5,8 @@ import {
   runIntakeMerge,
   type IntakeMergeOptions,
 } from "../../src/intake/intake-merge.ts";
-import type { BdIssueCloseResult } from "../../src/tools/bd_issue_close.ts";
 import type { GhExecResult } from "@bounded-systems/gh";
 import type { GhIssueCloseResult } from "../../src/tools/gh_issue_close.ts";
-import type { BeadsRecord } from "../../src/triage/triage.ts";
 
 type GhCallTag = { kind: "gh"; subcommand: string; args: string[] };
 type CloseCallTag = {
@@ -17,59 +15,7 @@ type CloseCallTag = {
   reason?: string | undefined;
   repo?: string | undefined;
 };
-type BdCallTag = {
-  kind: "bd";
-  subcommand: string;
-  args: string[];
-  state?: string | undefined;
-  role?: string | undefined;
-};
-type BdCloseCallTag = { kind: "bd-close"; id: string; reason?: string | undefined };
-type CallTag = GhCallTag | CloseCallTag | BdCallTag | BdCloseCallTag;
-
-function bdCloseOk(stdout = ""): BdIssueCloseResult {
-  return { exitCode: 0, stdout, stderr: "" };
-}
-
-function bdCloseFail(stderr: string, code = 1): BdIssueCloseResult {
-  return { exitCode: code, stdout: "", stderr };
-}
-
-// GH-296 / prx-82b: the bd↔bd pointer-note write now runs `prx beads update <id>
-// --notes …` through the daemon (a sync runner). The fake records the equivalent
-// old `bd update` BdCallTag shape so the existing assertions hold.
-const bdRunOk = () => ({ status: 0, stdout: "", stderr: "" });
-function recordingRun(calls: CallTag[]) {
-  return ((cmd: string[]) => {
-    calls.push({
-      kind: "bd",
-      subcommand: cmd[2] ?? "",
-      args: cmd.slice(3),
-      state: "planning",
-      role: "planner",
-    });
-    return bdRunOk();
-  }) as never;
-}
-
-function bdRecord(overrides: Partial<BeadsRecord> = {}): BeadsRecord {
-  return {
-    id: "ai-home-aaaaa",
-    title: "test record",
-    description: "",
-    status: "open",
-    priority: null,
-    issueType: "",
-    externalRef: null,
-    externalRefs: {},
-    metadata: null,
-    externalIssueNumber: null,
-    sourceSystem: null,
-    updatedAt: null,
-    notes: null,
-    ...overrides,
-  };
-}
+type CallTag = GhCallTag | CloseCallTag;
 
 const VIEW_OPEN_EMPTY = JSON.stringify({ state: "OPEN", comments: [] });
 
@@ -377,7 +323,7 @@ describe("runIntakeMerge — id rejection", () => {
     expect(errors[0]).toContain("invalid characters");
   });
 
-  test("mixed-backend pair (bd dup + GH canonical) is refused with cross-backend hint", () => {
+  test("bd dup id is refused — the bd backend was removed (GH-1012)", () => {
     const errors: string[] = [];
     const exitCode = runIntakeMerge(
       makeOpts({ dupId: "ai-home-abc123", canonicalId: "GH-200" }),
@@ -388,11 +334,10 @@ describe("runIntakeMerge — id rejection", () => {
       },
     );
     expect(exitCode).toBe(1);
-    expect(errors.join("\n")).toContain("cross-backend merge is out of scope");
-    expect(errors.join("\n")).toContain("bd dup + gh canonical");
+    expect(errors.join("\n")).toContain("the bd backend has been removed");
   });
 
-  test("mixed-backend pair (GH dup + bd canonical) is refused symmetrically", () => {
+  test("bd canonical id is refused symmetrically", () => {
     const errors: string[] = [];
     const exitCode = runIntakeMerge(
       makeOpts({ dupId: "GH-100", canonicalId: "ai-home-xyz" }),
@@ -403,296 +348,7 @@ describe("runIntakeMerge — id rejection", () => {
       },
     );
     expect(exitCode).toBe(1);
-    expect(errors.join("\n")).toContain("cross-backend merge is out of scope");
-    expect(errors.join("\n")).toContain("gh dup + bd canonical");
-  });
-});
-
-describe("runIntakeMerge — bd↔bd arm", () => {
-  test("happy path: preflight → append marker → bd close --reason duplicate", () => {
-    const calls: CallTag[] = [];
-    const exitCode = runIntakeMerge(
-      makeOpts({ dupId: "ai-home-dup", canonicalId: "ai-home-can" }),
-      { log: () => undefined, error: () => undefined },
-      {
-        run: recordingRun(calls),
-        execBdIssueClose: ((opts: { id: string; reason?: string }) => {
-          calls.push({ kind: "bd-close", id: opts.id, reason: opts.reason });
-          return bdCloseOk();
-        }) as never,
-        loadAllBeads: (() => [
-          bdRecord({ id: "ai-home-dup", status: "open", externalRef: null, notes: null }),
-        ]) as never,
-      },
-    );
-    expect(exitCode).toBe(0);
-    expect(calls).toHaveLength(2);
-    expect(calls[0]).toMatchObject({
-      kind: "bd",
-      subcommand: "update",
-      state: "planning",
-      role: "planner",
-    });
-    const updateArgs = (calls[0] as BdCallTag).args;
-    expect(updateArgs[0]).toBe("ai-home-dup");
-    expect(updateArgs).toContain("--notes");
-    const newNotes = updateArgs[updateArgs.indexOf("--notes") + 1]!;
-    expect(newNotes).toContain("[prx-intake-merge sha256-prefix=");
-    expect(newNotes).toContain("Merging into ai-home-can");
-    expect(calls[1]).toEqual({
-      kind: "bd-close",
-      id: "ai-home-dup",
-      reason: "duplicate",
-    });
-  });
-
-  test("already-closed dup short-circuits with idempotent success", () => {
-    const calls: CallTag[] = [];
-    const logs: string[] = [];
-    const exitCode = runIntakeMerge(
-      makeOpts({ dupId: "ai-home-dup", canonicalId: "ai-home-can" }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      {
-        run: recordingRun(calls),
-        execBdIssueClose: ((opts: { id: string }) => {
-          calls.push({ kind: "bd-close", id: opts.id });
-          return bdCloseOk();
-        }) as never,
-        loadAllBeads: (() => [
-          bdRecord({ id: "ai-home-dup", status: "closed", notes: "prior content" }),
-        ]) as never,
-      },
-    );
-    expect(exitCode).toBe(0);
-    expect(calls).toHaveLength(0);
-    expect(logs.join("\n")).toContain("already closed");
-  });
-
-  test("dup with external_ref is refused with cross-backend pointer hint", () => {
-    const errors: string[] = [];
-    const exitCode = runIntakeMerge(
-      makeOpts({ dupId: "ai-home-dup", canonicalId: "ai-home-can" }),
-      { log: () => undefined, error: (l) => errors.push(l) },
-      {
-        run: bdRunOk as never,
-        execBdIssueClose: (() => bdCloseOk()) as never,
-        loadAllBeads: (() => [
-          bdRecord({
-            id: "ai-home-dup",
-            externalRef: "https://github.com/o/r/issues/200",
-          }),
-        ]) as never,
-      },
-    );
-    expect(exitCode).toBe(1);
-    const stderr = errors.join("\n");
-    expect(stderr).toContain("pinned to a GH issue");
-    expect(stderr).toContain("prx intake merge GH-N GH-M");
-  });
-
-  test("--reason 'not planned' is forwarded to bd close call", () => {
-    let closeReason: string | undefined;
-    runIntakeMerge(
-      makeOpts({
-        dupId: "ai-home-dup",
-        canonicalId: "ai-home-can",
-        reason: "not planned",
-      }),
-      { log: () => undefined, error: () => undefined },
-      {
-        run: bdRunOk as never,
-        execBdIssueClose: ((opts: { reason?: string }) => {
-          closeReason = opts.reason;
-          return bdCloseOk();
-        }) as never,
-        loadAllBeads: (() => [bdRecord({ id: "ai-home-dup", notes: null })]) as never,
-      },
-    );
-    expect(closeReason).toBe("not planned");
-  });
-
-  test("--reason 'duplicate' (default) flows through to bd close", () => {
-    let closeReason: string | undefined;
-    runIntakeMerge(
-      makeOpts({ dupId: "ai-home-dup", canonicalId: "ai-home-can" }),
-      { log: () => undefined, error: () => undefined },
-      {
-        run: bdRunOk as never,
-        execBdIssueClose: ((opts: { reason?: string }) => {
-          closeReason = opts.reason;
-          return bdCloseOk();
-        }) as never,
-        loadAllBeads: (() => [bdRecord({ id: "ai-home-dup", notes: null })]) as never,
-      },
-    );
-    expect(closeReason).toBe("duplicate");
-  });
-
-  test("--label is refused on the bd arm", () => {
-    const errors: string[] = [];
-    const exitCode = runIntakeMerge(
-      makeOpts({
-        dupId: "ai-home-dup",
-        canonicalId: "ai-home-can",
-        label: "dedupe::merged",
-      }),
-      { log: () => undefined, error: (l) => errors.push(l) },
-      {
-        run: bdRunOk as never,
-        execBdIssueClose: (() => bdCloseOk()) as never,
-        loadAllBeads: (() => [bdRecord({ id: "ai-home-dup", notes: null })]) as never,
-      },
-    );
-    expect(exitCode).toBe(1);
-    expect(errors.join("\n")).toContain("--label is GH-only");
-  });
-
-  test("missing bd dup record refuses without spawning update/close", () => {
-    const calls: CallTag[] = [];
-    const errors: string[] = [];
-    const exitCode = runIntakeMerge(
-      makeOpts({ dupId: "ai-home-missing", canonicalId: "ai-home-can" }),
-      { log: () => undefined, error: (l) => errors.push(l) },
-      {
-        run: recordingRun(calls),
-        execBdIssueClose: ((opts: { id: string }) => {
-          calls.push({ kind: "bd-close", id: opts.id });
-          return bdCloseOk();
-        }) as never,
-        loadAllBeads: (() => []) as never,
-      },
-    );
-    expect(exitCode).toBe(1);
-    expect(calls).toHaveLength(0);
-    expect(errors.join("\n")).toContain("no bd record");
-    expect(errors.join("\n")).toContain("ai-home-missing");
-  });
-
-  test("close failure after successful append surfaces partial-state warning", () => {
-    const calls: CallTag[] = [];
-    const errors: string[] = [];
-    const exitCode = runIntakeMerge(
-      makeOpts({ dupId: "ai-home-dup", canonicalId: "ai-home-can" }),
-      { log: () => undefined, error: (l) => errors.push(l) },
-      {
-        run: recordingRun(calls),
-        execBdIssueClose: ((opts: { id: string }) => {
-          calls.push({ kind: "bd-close", id: opts.id });
-          return bdCloseFail("bd close: unauthorized", 3);
-        }) as never,
-        loadAllBeads: (() => [bdRecord({ id: "ai-home-dup", notes: null })]) as never,
-      },
-    );
-    expect(exitCode).toBe(3);
-    expect(calls).toHaveLength(2);
-    const stderr = errors.join("\n");
-    expect(stderr).toContain("bd close: unauthorized");
-    expect(stderr).toContain("partial state");
-    expect(stderr).toContain("ai-home-dup");
-  });
-
-  test("re-run with same body is idempotent: skips bd update but still closes", () => {
-    // Pre-seed bd notes with the marker that the first run would have written.
-    const firstRunCalls: CallTag[] = [];
-    runIntakeMerge(
-      makeOpts({ dupId: "ai-home-dup", canonicalId: "ai-home-can" }),
-      { log: () => undefined, error: () => undefined },
-      {
-        run: recordingRun(firstRunCalls),
-        execBdIssueClose: (() => bdCloseOk()) as never,
-        loadAllBeads: (() => [bdRecord({ id: "ai-home-dup", notes: null })]) as never,
-      },
-    );
-    const seededNotes = (firstRunCalls[0] as BdCallTag).args[
-      (firstRunCalls[0] as BdCallTag).args.indexOf("--notes") + 1
-    ]!;
-
-    const calls: CallTag[] = [];
-    runIntakeMerge(
-      makeOpts({ dupId: "ai-home-dup", canonicalId: "ai-home-can" }),
-      { log: () => undefined, error: () => undefined },
-      {
-        run: recordingRun(calls),
-        execBdIssueClose: ((opts: { id: string }) => {
-          calls.push({ kind: "bd-close", id: opts.id });
-          return bdCloseOk();
-        }) as never,
-        loadAllBeads: (() => [bdRecord({ id: "ai-home-dup", notes: seededNotes })]) as never,
-      },
-    );
-    // No bd update — marker already present. Still calls bd-close.
-    expect(calls.filter((c) => c.kind === "bd")).toHaveLength(0);
-    expect(calls.filter((c) => c.kind === "bd-close")).toHaveLength(1);
-  });
-
-  test("dry-run renders bd update + bd close argvs without spawning", () => {
-    const calls: CallTag[] = [];
-    const logs: string[] = [];
-    const exitCode = runIntakeMerge(
-      makeOpts({
-        dupId: "ai-home-dup",
-        canonicalId: "ai-home-can",
-        dryRun: true,
-      }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      {
-        run: recordingRun(calls),
-        execBdIssueClose: ((opts: { id: string }) => {
-          calls.push({ kind: "bd-close", id: opts.id });
-          return bdCloseOk();
-        }) as never,
-        loadAllBeads: (() => [bdRecord({ id: "ai-home-dup", notes: null })]) as never,
-      },
-    );
-    expect(exitCode).toBe(0);
-    expect(calls).toHaveLength(0);
-    const out = logs[0]!;
-    expect(out).toContain("(dry-run)");
-    expect(out).toContain("dup:        ai-home-dup");
-    expect(out).toContain("canonical:  ai-home-can");
-    expect(out).toContain("backend:    bd");
-    expect(out).toContain("would run:");
-    expect(out).toContain("bd update ai-home-dup --notes");
-    expect(out).toContain("bd close ai-home-dup --reason duplicate");
-  });
-
-  test("dry-run json output for bd arm carries backend=bd and both argvs", () => {
-    const logs: string[] = [];
-    runIntakeMerge(
-      makeOpts({
-        dupId: "ai-home-dup",
-        canonicalId: "ai-home-can",
-        dryRun: true,
-        format: "json",
-      }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      {
-        run: bdRunOk as never,
-        execBdIssueClose: (() => bdCloseOk()) as never,
-        loadAllBeads: (() => [bdRecord({ id: "ai-home-dup", notes: null })]) as never,
-      },
-    );
-    const parsed = JSON.parse(logs[0]!) as {
-      backend: "bd";
-      dupId: string;
-      canonicalId: string;
-      marker: string;
-      body: string;
-      bdUpdateArgv: string[];
-      bdCloseArgv: string[];
-      reason: string;
-      dryRun: boolean;
-    };
-    expect(parsed.backend).toBe("bd");
-    expect(parsed.dupId).toBe("ai-home-dup");
-    expect(parsed.canonicalId).toBe("ai-home-can");
-    expect(parsed.body).toBe("Merging into ai-home-can");
-    expect(parsed.marker).toMatch(/^\[prx-intake-merge sha256-prefix=[0-9a-f]{8}\]$/);
-    expect(parsed.reason).toBe("duplicate");
-    expect(parsed.bdUpdateArgv[0]).toBe("ai-home-dup");
-    expect(parsed.bdUpdateArgv).toContain("--notes");
-    expect(parsed.bdCloseArgv[0]).toBe("close");
-    expect(parsed.bdCloseArgv).toContain("--reason");
+    expect(errors.join("\n")).toContain("the bd backend has been removed");
   });
 });
 

@@ -26,7 +26,6 @@ import { provenanceSigner, realStatementSigner } from "../../src/machine/machine
 // in for validated raw state) at the single cast point per block.
 import type { RawStateV1 } from "@bounded-systems/machine-schema";
 import type { DomainStateV1 } from "../../src/pr-state/domain_state.ts";
-import { defaultCanonicalBeadsCwd } from "../../src/beadsd/client-factory.ts";
 import {
   actionableCliErrorLines,
   assertWorktreeOnNamedBranch,
@@ -614,186 +613,6 @@ describe("pr_state cli", () => {
     expect(errors.some((line) => line.includes("prx binary is"))).toBe(false);
   });
 
-  test("prx session open invokes hydrateBeads against the resolved launchCwd", async () => {
-    // GH-647: session open must own dolt-db hydration for its target
-    // worktree — otherwise claude launches with a MCP pointing at an
-    // empty dolt server and every bd call inside the session fails.
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-hydrate-"));
-    const previousCwd = process.cwd();
-    const previousEnv = process.env.PRX_SESSION_OPEN;
-    const hydrateCalls: Array<{ cwd?: string | undefined }> = [];
-    let exitCode: number | Promise<number>;
-    try {
-      delete process.env.PRX_SESSION_OPEN;
-      process.chdir(cwd);
-      exitCode = await runCliDirect(
-        ["open", "GH-5431", "--dry-run"],
-        { log: () => {}, error: () => {} },
-        {
-          ...noOpWorktreeLockDeps,
-          resolveWorkUnitCwd: () => cwd,
-          hydrateBeads: (opts = {}) => {
-            hydrateCalls.push({ cwd: opts.cwd });
-            return {
-              status: "already-hydrated",
-              doltRemote: null,
-              doltDatabase: "io_github_bdelanghe_ai_home",
-              message: "beads: io_github_bdelanghe_ai_home already hydrated, skipping",
-              exitCode: 0,
-            };
-          },
-        },
-      );
-    } finally {
-      process.chdir(previousCwd);
-      if (previousEnv !== undefined) process.env.PRX_SESSION_OPEN = previousEnv;
-    }
-
-    expect(exitCode).toBe(0);
-    expect(hydrateCalls).toEqual([{ cwd }]);
-  }, 15000);
-
-  test("prx session open surfaces hydrate hydrated on stderr", async () => {
-    // Happy path: after a successful fresh clone, hydrate returns
-    // `status: "hydrated"` — session open echoes the message so the
-    // operator can see that the target worktree just got its dolt db.
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-hydrate-ok-"));
-    const previousCwd = process.cwd();
-    const previousEnv = process.env.PRX_SESSION_OPEN;
-    const errors: string[] = [];
-    try {
-      delete process.env.PRX_SESSION_OPEN;
-      process.chdir(cwd);
-      await runCliDirect(
-        ["open", "GH-5431", "--dry-run"],
-        { log: () => {}, error: (line) => errors.push(line) },
-        {
-          ...noOpWorktreeLockDeps,
-          resolveWorkUnitCwd: () => cwd,
-          hydrateBeads: () => ({
-            status: "hydrated",
-            doltRemote: "https://doltremoteapi.dolthub.com/example/repo",
-            doltDatabase: "example_db",
-            message:
-              "beads: hydrated example_db from https://doltremoteapi.dolthub.com/example/repo",
-            exitCode: 0,
-          }),
-        },
-      );
-    } finally {
-      process.chdir(previousCwd);
-      if (previousEnv !== undefined) process.env.PRX_SESSION_OPEN = previousEnv;
-    }
-
-    expect(errors.some((line) => line.includes("beads: hydrated example_db"))).toBe(true);
-  }, 15000);
-
-  test("prx session open surfaces hydrate clone-failed on stderr without aborting", async () => {
-    // Clone failures (stale DoltHub token, offline, etc.) are logged but
-    // must not block session entry — matches the lenient post-switch hook
-    // semantics in src/beads/hydrate.ts.
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-hydrate-fail-"));
-    const previousCwd = process.cwd();
-    const previousEnv = process.env.PRX_SESSION_OPEN;
-    const errors: string[] = [];
-    let exitCode: number | Promise<number>;
-    try {
-      delete process.env.PRX_SESSION_OPEN;
-      process.chdir(cwd);
-      exitCode = await runCliDirect(
-        ["open", "GH-5431", "--dry-run"],
-        { log: () => {}, error: (line) => errors.push(line) },
-        {
-          ...noOpWorktreeLockDeps,
-          resolveWorkUnitCwd: () => cwd,
-          hydrateBeads: () => ({
-            status: "clone-failed",
-            doltRemote: "https://doltremoteapi.dolthub.com/example/repo",
-            doltDatabase: "example_db",
-            message: "beads: clone failed for https://doltremoteapi.dolthub.com/example/repo",
-            exitCode: 0,
-          }),
-        },
-      );
-    } finally {
-      process.chdir(previousCwd);
-      if (previousEnv !== undefined) process.env.PRX_SESSION_OPEN = previousEnv;
-    }
-
-    expect(exitCode).toBe(0);
-    expect(errors.some((line) => line.includes("beads: clone failed"))).toBe(true);
-  }, 15000);
-
-  test("prx session open surfaces unexpected hydrate exceptions as warnings without aborting", async () => {
-    // Defense in depth: if hydrateBeads throws (e.g., fs permission
-    // error from mkdirSync), session open must log a warning and
-    // continue — not let a beads side-effect block agent launch.
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-hydrate-throw-"));
-    const previousCwd = process.cwd();
-    const previousEnv = process.env.PRX_SESSION_OPEN;
-    const errors: string[] = [];
-    let exitCode: number | Promise<number>;
-    try {
-      delete process.env.PRX_SESSION_OPEN;
-      process.chdir(cwd);
-      exitCode = await runCliDirect(
-        ["open", "GH-5431", "--dry-run"],
-        { log: () => {}, error: (line) => errors.push(line) },
-        {
-          ...noOpWorktreeLockDeps,
-          resolveWorkUnitCwd: () => cwd,
-          hydrateBeads: () => {
-            throw new Error("EACCES: permission denied, mkdir '.beads/dolt'");
-          },
-        },
-      );
-    } finally {
-      process.chdir(previousCwd);
-      if (previousEnv !== undefined) process.env.PRX_SESSION_OPEN = previousEnv;
-    }
-
-    expect(exitCode).toBe(0);
-    expect(
-      errors.some(
-        (line) => line.includes("beads hydration failed unexpectedly") && line.includes("EACCES"),
-      ),
-    ).toBe(true);
-  }, 15000);
-
-  test("prx session open stays silent when hydrate skips (no .beads, no metadata, already-hydrated)", async () => {
-    // Regression guard: the only hydrate statuses that warrant stderr
-    // output are "hydrated" (informational) and "clone-failed" (warning).
-    // Skip statuses are silent.
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-session-hydrate-skip-"));
-    const previousCwd = process.cwd();
-    const previousEnv = process.env.PRX_SESSION_OPEN;
-    const errors: string[] = [];
-    try {
-      delete process.env.PRX_SESSION_OPEN;
-      process.chdir(cwd);
-      await runCliDirect(
-        ["open", "GH-5431", "--dry-run"],
-        { log: () => {}, error: (line) => errors.push(line) },
-        {
-          ...noOpWorktreeLockDeps,
-          resolveWorkUnitCwd: () => cwd,
-          hydrateBeads: () => ({
-            status: "skipped-no-metadata",
-            doltRemote: null,
-            doltDatabase: null,
-            message: "beads: no readable .beads/metadata.json, skipping",
-            exitCode: 0,
-          }),
-        },
-      );
-    } finally {
-      process.chdir(previousCwd);
-      if (previousEnv !== undefined) process.env.PRX_SESSION_OPEN = previousEnv;
-    }
-
-    expect(errors.some((line) => line.includes("beads:"))).toBe(false);
-  }, 15000);
-
   test("prx session open emits a rebased line and no advisory warning when auto-rebase succeeds", async () => {
     // GH-704: clean rebase path — session open should announce "rebased N
     // commits onto origin/main" and NOT emit the old advisory warning.
@@ -802,7 +621,6 @@ describe("pr_state cli", () => {
     const previousEnv = process.env.PRX_SESSION_OPEN;
     const lines: string[] = [];
     const errors: string[] = [];
-    let hydrateCalls = 0;
     try {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
@@ -813,16 +631,6 @@ describe("pr_state cli", () => {
           ...noOpWorktreeLockDeps,
           resolveWorkUnitCwd: () => cwd,
           autoRebaseOnSessionOpen: () => ({ status: "rebased", behind: 3 }),
-          hydrateBeads: () => {
-            hydrateCalls += 1;
-            return {
-              status: "already-hydrated",
-              doltRemote: null,
-              doltDatabase: "example_db",
-              message: "beads: already hydrated",
-              exitCode: 0,
-            };
-          },
         },
       );
     } finally {
@@ -832,7 +640,6 @@ describe("pr_state cli", () => {
 
     expect(lines.some((line) => line.includes("rebased 3 commits onto origin/main"))).toBe(true);
     expect(errors.some((line) => line.includes("warning: branch is"))).toBe(false);
-    expect(hydrateCalls).toBe(1);
   }, 15000);
 
   test("prx session open singularizes the rebased line for behind === 1", async () => {
@@ -868,7 +675,6 @@ describe("pr_state cli", () => {
     const previousCwd = process.cwd();
     const previousEnv = process.env.PRX_SESSION_OPEN;
     const errors: string[] = [];
-    let hydrateCalls = 0;
     let exitCode: number | Promise<number>;
     try {
       delete process.env.PRX_SESSION_OPEN;
@@ -883,16 +689,6 @@ describe("pr_state cli", () => {
             status: "conflict",
             conflicts: ["src/foo.ts", "src/bar.ts"],
           }),
-          hydrateBeads: () => {
-            hydrateCalls += 1;
-            return {
-              status: "already-hydrated",
-              doltRemote: null,
-              doltDatabase: "example_db",
-              message: "beads: already hydrated",
-              exitCode: 0,
-            };
-          },
         },
       );
     } finally {
@@ -907,7 +703,6 @@ describe("pr_state cli", () => {
     expect(errors.some((line) => line.includes("src/foo.ts"))).toBe(true);
     expect(errors.some((line) => line.includes("src/bar.ts"))).toBe(true);
     expect(errors.some((line) => line.includes("git rebase --continue"))).toBe(true);
-    expect(hydrateCalls).toBe(1);
   }, 15000);
 
   test("prx session open is silent when auto-rebase reports up_to_date", async () => {
@@ -943,7 +738,6 @@ describe("pr_state cli", () => {
     const previousCwd = process.cwd();
     const previousEnv = process.env.PRX_SESSION_OPEN;
     const errors: string[] = [];
-    let hydrateCalls = 0;
     try {
       delete process.env.PRX_SESSION_OPEN;
       process.chdir(cwd);
@@ -957,16 +751,6 @@ describe("pr_state cli", () => {
             status: "skipped",
             reason: "dirty worktree",
           }),
-          hydrateBeads: () => {
-            hydrateCalls += 1;
-            return {
-              status: "already-hydrated",
-              doltRemote: null,
-              doltDatabase: "example_db",
-              message: "beads: already hydrated",
-              exitCode: 0,
-            };
-          },
         },
       );
     } finally {
@@ -979,7 +763,6 @@ describe("pr_state cli", () => {
         (line) => line.includes("auto-rebase skipped") && line.includes("dirty worktree"),
       ),
     ).toBe(true);
-    expect(hydrateCalls).toBe(1);
   }, 15000);
 
   test("prx session open refuses when launch worktree is on detached HEAD (plain mode)", async () => {
@@ -1019,7 +802,6 @@ describe("pr_state cli", () => {
     const previousEnv = process.env.PRX_SESSION_OPEN;
     const errors: string[] = [];
     let rebaseCalls = 0;
-    let hydrateCalls = 0;
     let exitCode: number;
     try {
       delete process.env.PRX_SESSION_OPEN;
@@ -1038,16 +820,6 @@ describe("pr_state cli", () => {
             rebaseCalls += 1;
             return { status: "up_to_date" };
           },
-          hydrateBeads: () => {
-            hydrateCalls += 1;
-            return {
-              status: "already-hydrated",
-              doltRemote: null,
-              doltDatabase: "example_db",
-              message: "beads: already hydrated",
-              exitCode: 0,
-            };
-          },
         },
       );
     } finally {
@@ -1062,7 +834,6 @@ describe("pr_state cli", () => {
     expect(errors.some((line) => line.includes("GH-5431"))).toBe(true);
     expect(errors.some((line) => line.includes("checkout GH-5431"))).toBe(true);
     expect(rebaseCalls).toBe(0);
-    expect(hydrateCalls).toBe(0);
   }, 15000);
 
   test("prx session open emits the detached-HEAD refusal payload on stdout in --format=json mode", async () => {
@@ -4561,61 +4332,6 @@ describe("pr_state cli", () => {
     ).toBe(true);
   });
 
-  test("materializeWorkUnitBranch validates routed beads issue before running mainx", () => {
-    const repoRoot = mkdtempSync(join(tmpdir(), "pr-state-routing-beads-"));
-    writeFileSync(join(repoRoot, "prx.toml"), ["[routing]", 'GH = "beads_issue"', ""].join("\n"));
-    const spawnCalls: Array<{ file: string; args: string[] }> = [];
-    const spawn = (file: string, args: string[], options: { cwd: string; encoding: "utf8" }) => {
-      spawnCalls.push({ file, args });
-      if (file === "git" && args.join(" ") === "rev-parse --show-toplevel") {
-        return { status: 0, stdout: `${repoRoot}\n`, stderr: "" };
-      }
-      if (file === "git" && args.join(" ") === `-C ${repoRoot} fetch origin`) {
-        return { status: 0, stdout: "", stderr: "" };
-      }
-      if (file === "git" && args.join(" ") === `-C ${repoRoot} worktree list --porcelain`) {
-        return { status: 0, stdout: "", stderr: "" };
-      }
-      if (
-        file === "git" &&
-        args.join(" ") === `-C ${repoRoot} show-ref --verify --quiet refs/heads/GH-5480`
-      ) {
-        return { status: 1, stdout: "", stderr: "" };
-      }
-      if (file === "git" && args.join(" ").startsWith(`-C ${repoRoot} worktree add`)) {
-        return { status: 0, stdout: "", stderr: "" };
-      }
-      if (file === "git" && args.join(" ").includes("checkout --detach origin/main")) {
-        return { status: 0, stdout: "", stderr: "" };
-      }
-      throw new Error(`unexpected: ${file} ${args.join(" ")} (cwd=${options.cwd})`);
-    };
-    const runnerCalls: string[][] = [];
-    const runner = (cmd: string[], _options?: { cwd?: string; check?: boolean }) => {
-      runnerCalls.push(cmd);
-      if (cmd.join(" ") === `git -C ${repoRoot} rev-parse --show-toplevel`) {
-        return { status: 0, stdout: `${repoRoot}\n`, stderr: "" };
-      }
-      if (cmd.join(" ") === "bd show GH-5480 --json") {
-        return { status: 0, stdout: JSON.stringify({ status: "open" }), stderr: "" };
-      }
-      throw new Error(`unexpected runner call: ${cmd.join(" ")}`);
-    };
-
-    materializeWorkUnitBranch("GH-5480", repoRoot, spawn, runner);
-
-    expect(runnerCalls.some((c) => c.join(" ") === "bd show GH-5480 --json")).toBe(true);
-    expect(runnerCalls.some((c) => c[0] === "gh")).toBe(false);
-    expect(
-      spawnCalls.some((c) => c.file === "git" && c.args.join(" ").includes("fetch origin")),
-    ).toBe(true);
-    expect(
-      spawnCalls.some(
-        (c) => c.file === "git" && c.args.join(" ").startsWith(`-C ${repoRoot} worktree add`),
-      ),
-    ).toBe(true);
-  });
-
   test("materializeWorkUnitBranch throws when GH issue validation fails", () => {
     const spawn = (file: string, args: string[], _options: { cwd: string; encoding: "utf8" }) => {
       if (file === "git" && args.join(" ") === "rev-parse --show-toplevel") {
@@ -4812,148 +4528,6 @@ describe("pr_state cli", () => {
     ];
     expect(formatBeadsIssueMatches(204, matches, "id")).toBe("ai-home-aaa\nai-home-bbb");
     expect(formatBeadsIssueMatches(204, [], "id")).toBe("");
-  });
-
-  test("beads-issue --format=id command emits canonical short-id on match", () => {
-    const logs: string[] = [];
-    const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["beads", "issue", "GH-204", "--format", "id"],
-      {
-        log: (line) => logs.push(line),
-        error: (line) => errors.push(line),
-      },
-      {
-        findBeadsIssuesByGithubIssue: () => [
-          {
-            id: "ai-home-aaa",
-            title: "Linked via source_system",
-            source_system: "github:204",
-            external_ref: null,
-            status: "open",
-          },
-          {
-            id: "ai-home-bbb",
-            title: "Linked via external_ref",
-            source_system: null,
-            external_ref: "https://github.com/bdelanghe/ai-home/issues/204",
-            status: "in_progress",
-          },
-        ],
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    expect(logs).toEqual(["ai-home-aaa\nai-home-bbb"]);
-    expect(errors).toEqual([]);
-  });
-
-  test("beads-issue --format=id writes empty stdout + no-match message to stderr on no match", () => {
-    const logs: string[] = [];
-    const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["beads", "issue", "GH-1458", "--format", "id"],
-      {
-        log: (line) => logs.push(line),
-        error: (line) => errors.push(line),
-      },
-      {
-        findBeadsIssuesByGithubIssue: () => [],
-      },
-    );
-
-    expect(exitCode).toBe(1);
-    expect(logs).toEqual([]);
-    expect(errors).toEqual(["No Beads issues linked to GitHub issue #1458."]);
-  });
-
-  test("beads publish <bd-id> dispatches to runBeadsPublish with parsed defaults", () => {
-    const captured: Array<{
-      bdId: string;
-      repo?: string | undefined;
-      dryRun: boolean;
-      noAdopt: boolean;
-      format: string;
-    }> = [];
-    const exitCode = runCliDirect(
-      ["beads", "publish", "ai-home-abc"],
-      { log: () => {}, error: () => {} },
-      {
-        runBeadsPublish: (opts) => {
-          captured.push({
-            bdId: opts.bdId,
-            repo: opts.repo,
-            dryRun: opts.dryRun,
-            noAdopt: opts.noAdopt,
-            format: opts.format,
-          });
-          return 0;
-        },
-      },
-    );
-    expect(exitCode).toBe(0);
-    expect(captured).toEqual([
-      { bdId: "ai-home-abc", repo: undefined, dryRun: false, noAdopt: false, format: "plain" },
-    ]);
-  });
-
-  test("beads publish threads --repo / --dry-run / --no-adopt / --format json", () => {
-    const captured: Array<{
-      bdId: string;
-      repo?: string | undefined;
-      dryRun: boolean;
-      noAdopt: boolean;
-      format: string;
-    }> = [];
-    const exitCode = runCliDirect(
-      [
-        "beads",
-        "publish",
-        "ai-home-abc",
-        "--repo",
-        "owner/repo",
-        "--dry-run",
-        "--no-adopt",
-        "--format",
-        "json",
-      ],
-      { log: () => {}, error: () => {} },
-      {
-        runBeadsPublish: (opts) => {
-          captured.push({
-            bdId: opts.bdId,
-            repo: opts.repo,
-            dryRun: opts.dryRun,
-            noAdopt: opts.noAdopt,
-            format: opts.format,
-          });
-          return 0;
-        },
-      },
-    );
-    expect(exitCode).toBe(0);
-    expect(captured).toEqual([
-      { bdId: "ai-home-abc", repo: "owner/repo", dryRun: true, noAdopt: true, format: "json" },
-    ]);
-  });
-
-  test("beads with no subcommand lists publish in the error hint", () => {
-    const errors: string[] = [];
-    const exitCode = runCliDirect(["beads"], { log: () => {}, error: (l) => errors.push(l) });
-    expect(exitCode).toBe(1);
-    expect(errors.join("\n")).toContain("publish");
-  });
-
-  test("beads publish GH-123 → exit 1 with the intake-mirror hint", () => {
-    const logs: string[] = [];
-    const errors: string[] = [];
-    const exitCode = runCliDirect(["beads", "publish", "GH-123"], {
-      log: (l) => logs.push(l),
-      error: (l) => errors.push(l),
-    });
-    expect(exitCode).toBe(1);
-    expect(logs).toEqual([]);
-    expect(errors.join("\n")).toContain("prx intake mirror GH-123");
   });
 
   test("check-issue command prints stable JSON", () => {
@@ -5517,7 +5091,6 @@ describe("pr_state cli", () => {
           beadsResolver,
           undefined,
           undefined,
-          undefined,
           hasPlan,
         ),
       ).resolves.toMatchObject({
@@ -5541,7 +5114,6 @@ describe("pr_state cli", () => {
           undefined,
           loadIdentity,
           beadsResolver,
-          undefined,
           undefined,
           undefined,
           noPlan,
@@ -6290,54 +5862,6 @@ describe("pr_state cli", () => {
     expect(result.valid).toBe(true);
     expect(result.unitExists).toBe(true);
     expect(result.reason).toBe("ok");
-  });
-
-  // GH-1152: bd schema drift surfaces as a non-blocking chain-check reason
-  // when the probe reports drift; the operator unblocks via `prx chain
-  // repair-bd`. Existing `ok` and `backfill_allowed` paths take precedence.
-  test("checkWorkUnitChain reports bd_schema_drift_detected when the probe sees drift", async () => {
-    const tmp = realpathSync(mkdtempSync(join(tmpdir(), "chain-drift-")));
-    try {
-      mkdirSync(join(tmp, ".beads"), { recursive: true });
-      const board = () =>
-        unitCompleteBoard("GH-1152", {
-          merge_state: "open",
-          gh_issue: "dirty",
-          pr: "dirty",
-        });
-      const parity = () => ({
-        source: "surface-sync" as const,
-        repo: "owner/repo",
-        mode: "full" as const,
-        authority: "issue" as const,
-        scope: "all" as const,
-        apply: false,
-        units: [{ branch: "GH-1152", ticket: "GH-1152", actions: [] }],
-        actions: [],
-      });
-      const probe = () => ({
-        status: "drift_detected" as const,
-        errorClass: "started_at_missing" as const,
-        rawStderr: 'column "started_at" could not be found',
-      });
-      const result = await checkWorkUnitChain(
-        "GH-1152",
-        tmp,
-        false,
-        board,
-        parity,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        probe,
-      );
-      expect(result.reason).toBe("bd_schema_drift_detected");
-      expect(result.bdSchemaProbe?.status).toBe("drift_detected");
-    } finally {
-      rmSync(tmp, { recursive: true, force: true });
-    }
   });
 
   // GH-935: `prx session open` must refuse before worktree creation when the
@@ -9957,10 +9481,10 @@ describe("pr_state cli", () => {
             fetched: false,
             originHeadSet: false,
             beadsHydrate: {
-              status: "dry-run",
+              status: "skipped-no-beads",
               doltRemote: null,
               doltDatabase: "scratch_db",
-              message: "beads: dry-run",
+              message: "beads: skipped-no-beads",
               exitCode: 0,
             },
             dryRun: true,
@@ -10303,16 +9827,7 @@ describe("pr_state cli", () => {
       fetched: boolean;
       originHeadSet: boolean;
       dryRun: boolean;
-      hydrateStatus:
-        | "hydrated"
-        | "already-hydrated"
-        | "skipped-no-beads"
-        | "skipped-no-metadata"
-        | "skipped-no-origin"
-        | "skipped-unparseable-origin"
-        | "skipped-non-primary-worktree"
-        | "dry-run"
-        | "clone-failed";
+      hydrateStatus: "hydrated" | "already-hydrated" | "skipped-no-beads" | "clone-failed";
       hydrateExitCode: number;
     }> = {},
   ) {
@@ -10458,7 +9973,7 @@ describe("pr_state cli", () => {
           return repoRefreshResultStub({
             dryRun: true,
             fetched: false,
-            hydrateStatus: "dry-run",
+            hydrateStatus: "skipped-no-beads",
           });
         },
         discoverLocalRepos: () => ({ roots: [], repos: [] }),
@@ -10705,12 +10220,7 @@ describe("pr_state cli", () => {
     over: Partial<{
       mainxCreated: boolean;
       refspecUpgraded: boolean;
-      hydrateStatus:
-        | "hydrated"
-        | "already-hydrated"
-        | "skipped-no-beads"
-        | "dry-run"
-        | "clone-failed";
+      hydrateStatus: "hydrated" | "already-hydrated" | "skipped-no-beads" | "clone-failed";
       hydrateExitCode: number;
       dryRun: boolean;
     }> = {},
@@ -11001,7 +10511,7 @@ describe("pr_state cli", () => {
             return materializeRefreshResultStub({
               dryRun: true,
               mainxCreated: true,
-              hydrateStatus: "dry-run",
+              hydrateStatus: "skipped-no-beads",
             });
           },
           discoverLocalRepos: () => ({ roots: [], repos: [] }),
@@ -14257,18 +13767,6 @@ describe("delegate next command (GH-983 supersedes GH-1510)", () => {
   // bd-canonical output through optional filters and returns a top-1
   // pick (default) or full list (`--all`) with a suggested command.
 
-  const emptyNextWorkResult = {
-    source: "next-work" as const,
-    repo: "owner/repo",
-    threads: [],
-    cache: {
-      queried_at: "2026-05-13T00:00:00.000+00:00",
-      stale: false,
-      ttl_seconds: 60,
-      refreshed: false,
-    },
-  };
-
   const populatedNextWorkResult = {
     source: "next-work" as const,
     repo: "owner/repo",
@@ -14302,107 +13800,6 @@ describe("delegate next command (GH-983 supersedes GH-1510)", () => {
       refreshed: false,
     },
   };
-
-  test("plain output renders the top-1 candidate with a suggested command", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["delegate", "next"],
-      { log: (line) => logs.push(line), error: () => {} },
-      { nextWork: () => populatedNextWorkResult },
-    );
-    expect(exitCode).toBe(0);
-    const output = logs.join("\n");
-    expect(output).toContain("delegate next");
-    expect(output).toContain("ai-home-r1");
-    expect(output).toContain("GH-160");
-    expect(output).toContain("prx session open --create GH-160");
-  });
-
-  test("JSON output parses to source === 'delegate-next'", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["delegate", "next", "--format", "json"],
-      { log: (line) => logs.push(line), error: () => {} },
-      { nextWork: () => populatedNextWorkResult },
-    );
-    expect(exitCode).toBe(0);
-    const parsed = JSON.parse(logs.join("\n"));
-    expect(parsed.source).toBe("delegate-next");
-    expect(parsed.candidates[0].bd_id).toBe("ai-home-r1");
-    expect(parsed.candidates[0].thread).toBe("ready_to_start");
-    expect(parsed.suggested_command).toBe("prx session open --create GH-160");
-  });
-
-  test("--all renders the full filtered list", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["delegate", "next", "--all"],
-      { log: (line) => logs.push(line), error: () => {} },
-      { nextWork: () => populatedNextWorkResult },
-    );
-    expect(exitCode).toBe(0);
-    const output = logs.join("\n");
-    expect(output).toContain("1 candidate");
-    expect(output).toContain("ai-home-r1");
-  });
-
-  test("--type filters by bd issue_type", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["delegate", "next", "--type", "bug"],
-      { log: (line) => logs.push(line), error: () => {} },
-      { nextWork: () => populatedNextWorkResult },
-    );
-    // populated fixture's only candidate has issue_type=feature, so this
-    // filter yields zero matches and exit 1.
-    expect(exitCode).toBe(1);
-    expect(logs.join("\n")).toContain("no candidates matched");
-  });
-
-  test("--priority filters by numeric bd priority", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["delegate", "next", "--priority", "1", "--format", "json"],
-      { log: (line) => logs.push(line), error: () => {} },
-      { nextWork: () => populatedNextWorkResult },
-    );
-    expect(exitCode).toBe(0);
-    const parsed = JSON.parse(logs.join("\n"));
-    expect(parsed.candidates[0].priority).toBe(1);
-  });
-
-  test("--priority rejects non-numeric input", () => {
-    const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["delegate", "next", "--priority", "high"],
-      { log: () => {}, error: (line) => errors.push(line) },
-      { nextWork: () => populatedNextWorkResult },
-    );
-    expect(exitCode).not.toBe(0);
-    expect(errors.join("\n")).toContain("--priority must be an integer");
-  });
-
-  test("--epic rejects malformed values", () => {
-    const errors: string[] = [];
-    const exitCode = runCliDirect(
-      ["delegate", "next", "--epic", "974"],
-      { log: () => {}, error: (line) => errors.push(line) },
-      { nextWork: () => populatedNextWorkResult },
-    );
-    expect(exitCode).not.toBe(0);
-    expect(errors.join("\n")).toContain("--epic must be a GH-NNN");
-  });
-
-  test("exit code 1 when every thread is empty", () => {
-    const logs: string[] = [];
-    const exitCode = runCliDirect(
-      ["delegate", "next"],
-      { log: (line) => logs.push(line), error: () => {} },
-      { nextWork: () => emptyNextWorkResult },
-    );
-    expect(exitCode).toBe(1);
-    expect(logs.join("\n")).toContain("no candidates matched");
-  });
 
   test("retired `prx worktree next` surfaces an unknown-subcommand error", () => {
     const errors: string[] = [];
@@ -15345,13 +14742,6 @@ describe("prx plan prime (GH-1056)", () => {
           ...noOpWorktreeLockDeps,
           resolveWorkUnitCwd: () => cwd,
           autoRebaseOnSessionOpen: () => ({ status: "up_to_date" }),
-          hydrateBeads: () => ({
-            status: "hydrated",
-            doltRemote: "https://doltremoteapi.dolthub.com/example/repo",
-            doltDatabase: "example_db",
-            message: "beads: hydrated example_db",
-            exitCode: 0,
-          }),
           ensureRuntimeArtifacts: () => ({ mcpServers: [] }),
           ensureClaudeAllowlist: () => ({
             status: "created",
@@ -15370,7 +14760,6 @@ describe("prx plan prime (GH-1056)", () => {
     expect(primedLine).toBeDefined();
     expect(primedLine).toContain(`worktree=${cwd}`);
     expect(primedLine).toContain("branch=GH-5431");
-    expect(primedLine).toContain("beads=hydrated");
     expect(primedLine).toContain("mcp=none");
     expect(primedLine).toContain("allowlist=created");
   }, 15000);
@@ -15391,13 +14780,6 @@ describe("prx plan prime (GH-1056)", () => {
           ...noOpWorktreeLockDeps,
           resolveWorkUnitCwd: () => cwd,
           autoRebaseOnSessionOpen: () => ({ status: "up_to_date" }),
-          hydrateBeads: () => ({
-            status: "already-hydrated",
-            doltRemote: null,
-            doltDatabase: "example_db",
-            message: "beads: example_db already hydrated",
-            exitCode: 0,
-          }),
           ensureRuntimeArtifacts: () => ({ mcpServers: [] }),
           ensureClaudeAllowlist: () => ({
             status: "unchanged",
@@ -15414,52 +14796,7 @@ describe("prx plan prime (GH-1056)", () => {
     expect(exitCode).toBe(0);
     const primedLine = logs.find((line) => line.startsWith("primed:"));
     expect(primedLine).toBeDefined();
-    expect(primedLine).toContain("beads=already-hydrated");
     expect(primedLine).toContain("allowlist=unchanged");
-  }, 15000);
-
-  test("hydrate clone-failed exits 1 and emits the warning line", async () => {
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-plan-prime-fail-"));
-    const previousCwd = process.cwd();
-    const previousEnv = process.env.PRX_SESSION_OPEN;
-    const logs: string[] = [];
-    const errors: string[] = [];
-    let exitCode: number | Promise<number>;
-    try {
-      delete process.env.PRX_SESSION_OPEN;
-      process.chdir(cwd);
-      exitCode = await runCliDirect(
-        ["plan", "prime", "GH-5431"],
-        { log: (line) => logs.push(line), error: (line) => errors.push(line) },
-        {
-          ...noOpWorktreeLockDeps,
-          resolveWorkUnitCwd: () => cwd,
-          autoRebaseOnSessionOpen: () => ({ status: "up_to_date" }),
-          hydrateBeads: () => ({
-            status: "clone-failed",
-            doltRemote: "https://doltremoteapi.dolthub.com/example/repo",
-            doltDatabase: "example_db",
-            message: "beads: clone failed for https://doltremoteapi.dolthub.com/example/repo",
-            exitCode: 1,
-          }),
-          ensureRuntimeArtifacts: () => ({ mcpServers: [] }),
-          ensureClaudeAllowlist: () => ({
-            status: "unchanged",
-            path: `${cwd}/.claude/settings.local.json`,
-          }),
-          findSavedClaudeSession: () => false,
-        },
-      );
-    } finally {
-      process.chdir(previousCwd);
-      if (previousEnv !== undefined) process.env.PRX_SESSION_OPEN = previousEnv;
-    }
-
-    expect(exitCode).toBe(1);
-    expect(errors.some((line) => line.includes("beads: clone failed"))).toBe(true);
-    const primedLine = logs.find((line) => line.startsWith("primed:"));
-    expect(primedLine).toBeDefined();
-    expect(primedLine).toContain("beads=clone-failed");
   }, 15000);
 
   test("rejects --check with a clear error", async () => {
@@ -15469,10 +14806,6 @@ describe("prx plan prime (GH-1056)", () => {
       { log: () => {}, error: (line) => errors.push(line) },
       {
         ...noOpWorktreeLockDeps,
-        // Hydration deps must NOT be invoked — assert via throws.
-        hydrateBeads: () => {
-          throw new Error("hydrateBeads must not be called when --check is rejected");
-        },
       },
     );
     expect(exitCode).toBe(1);
@@ -15486,9 +14819,6 @@ describe("prx plan prime (GH-1056)", () => {
       { log: () => {}, error: (line) => errors.push(line) },
       {
         ...noOpWorktreeLockDeps,
-        hydrateBeads: () => {
-          throw new Error("hydrateBeads must not be called when --dry-run is rejected");
-        },
       },
     );
     expect(exitCode).toBe(1);
@@ -15510,13 +14840,6 @@ describe("prx plan prime (GH-1056)", () => {
           ...noOpWorktreeLockDeps,
           resolveWorkUnitCwd: () => cwd,
           autoRebaseOnSessionOpen: () => ({ status: "up_to_date" }),
-          hydrateBeads: () => ({
-            status: "already-hydrated",
-            doltRemote: null,
-            doltDatabase: "example_db",
-            message: "beads: already hydrated",
-            exitCode: 0,
-          }),
           ensureRuntimeArtifacts: () => ({ mcpServers: [] }),
           ensureClaudeAllowlist: () => ({
             status: "unchanged",
@@ -15548,13 +14871,6 @@ describe("prx plan prime (GH-1056)", () => {
           ...noOpWorktreeLockDeps,
           resolveWorkUnitCwd: () => cwd,
           autoRebaseOnSessionOpen: () => ({ status: "up_to_date" }),
-          hydrateBeads: () => ({
-            status: "already-hydrated",
-            doltRemote: null,
-            doltDatabase: "example_db",
-            message: "beads: already hydrated",
-            exitCode: 0,
-          }),
           ensureRuntimeArtifacts: () => ({ mcpServers: [] }),
           ensureClaudeAllowlist: () => ({
             status: "unchanged",
@@ -15571,7 +14887,6 @@ describe("prx plan prime (GH-1056)", () => {
     const payload = JSON.parse(logs.join("\n"));
     expect(payload.workUnitId).toBe("GH-5431");
     expect(payload.launchCwd).toBe(cwd);
-    expect(payload.hydrateStatus).toBe("already-hydrated");
     expect(payload.allowlistStatus).toBe("unchanged");
     expect(payload.runtimeArtifacts).toEqual({ mcpServers: [] });
   }, 15000);
@@ -15725,36 +15040,6 @@ describe("argparse — over-positional diagnostic (GH-1229)", () => {
     const stderr = new TextDecoder().decode(result.stderr);
     expect(stderr).not.toContain("accepts at most one");
     expect(stderr).not.toContain("Unknown option");
-  });
-});
-
-// GH-296: `prx beads doctor` must diagnose/heal the canonical one-true-source
-// clone (~/.local/state/prx/beads) that beadsd serves — not the process cwd. A
-// daemon-served repo has no local `.beads/`, so probing the cwd misreads it as
-// an unhealthy "issue_prefix not set" and `--fix` no-ops. The fix defaults the
-// doctor's cwd to defaultCanonicalBeadsCwd, the same store every other `prx
-// beads` verb uses (mirrors `beads-provision`).
-describe("parseCommand — beads doctor targets the canonical daemon clone (GH-296)", () => {
-  const canonical = defaultCanonicalBeadsCwd();
-
-  test("defaults cwd to the canonical clone when --cwd is absent", () => {
-    const parsed = parseCommand(["beads", "doctor"]);
-    expect(parsed.command).toBe("beads-doctor");
-    if (parsed.command !== "beads-doctor") throw new Error("unreachable");
-    expect(parsed.cwd).toBe(canonical ?? undefined);
-  });
-
-  test("--fix also targets the canonical clone (heal the real store, not the cwd)", () => {
-    const parsed = parseCommand(["beads", "doctor", "--fix"]);
-    if (parsed.command !== "beads-doctor") throw new Error("unreachable");
-    expect(parsed.fix).toBe(true);
-    expect(parsed.cwd).toBe(canonical ?? undefined);
-  });
-
-  test("an explicit --cwd still wins (the GH-228 worktree-clone escape hatch)", () => {
-    const parsed = parseCommand(["beads", "doctor", "--cwd", "/wt"]);
-    if (parsed.command !== "beads-doctor") throw new Error("unreachable");
-    expect(parsed.cwd).toBe("/wt");
   });
 });
 

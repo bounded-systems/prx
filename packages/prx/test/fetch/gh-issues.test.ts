@@ -24,7 +24,6 @@ import {
   configureRateLimit,
   type RateLimitDeps,
 } from "@bounded-systems/github-budget";
-import type { BdExecResult } from "@bounded-systems/bd";
 import type { CommandResult } from "../../src/pr-state/github.ts";
 import type { FetchBudget, FetchGhIssuesInput } from "../../src/fetch/types.ts";
 
@@ -282,22 +281,6 @@ function setupMocks(opts: MockOpts): MockedDeps {
     };
   };
 
-  // `bd update` mock — counts spawns + lets tests inject per-row failures.
-  const execBd = (cmdOpts: { subcommand: string; args: string[] }): BdExecResult => {
-    bdSpawnCalls.push({ subcommand: cmdOpts.subcommand, args: cmdOpts.args });
-    if (cmdOpts.subcommand === "update") {
-      const rowIdx = bdSpawnCalls.filter((c) => c.subcommand === "update").length - 1;
-      const beh = opts.bdUpdateBehavior?.(rowIdx) ?? { exitCode: 0 };
-      return {
-        exitCode: beh.exitCode,
-        stdout: "",
-        stderr: beh.stderr ?? "",
-        policy: null,
-      };
-    }
-    return { exitCode: 0, stdout: "", stderr: "", policy: null };
-  };
-
   // GH-296: the writer's bd update now runs `prx beads update …` through the
   // daemon (a sync runner). Record into the same bdSpawnCalls shape (subcommand
   // = cmd[2], args = cmd.slice(3)) so the existing update-count/failure
@@ -370,7 +353,6 @@ function setupMocks(opts: MockOpts): MockedDeps {
     bdConfigGetCalls,
     rateLimit,
     watermarkFs,
-    execBd,
     run,
   } as any;
 }
@@ -392,7 +374,6 @@ function makeDeps(mocks: ReturnType<typeof setupMocks>) {
       readFile: (p: string) => string;
       writeFile: (p: string, data: string) => void;
     };
-    execBd: (opts: { subcommand: string; args: string[] }) => BdExecResult;
     run: (cmd: string[]) => { status: number; stdout: string; stderr: string };
   };
   return {

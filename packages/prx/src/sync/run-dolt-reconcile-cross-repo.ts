@@ -57,7 +57,6 @@ import {
   type DoltReconcileResult,
   type DoltReconcileStep,
 } from "../pr-state/dolt-reconcile.ts";
-import { classifyBeadsWorkspace, type BeadsWorkspaceMode } from "../beads/workspace_mode.ts";
 import { appendAuditRow as defaultAppendAuditRow } from "../audit/sink.ts";
 import { getAuditRuntimeContext as defaultGetAuditRuntimeContext } from "@bounded-systems/audit-context";
 import {
@@ -112,13 +111,14 @@ function defaultLoadCandidates(
   return listIndexedReposForDoltReconcile(inventory, classifyBeadsState);
 }
 
-// Map the live `BeadsWorkspaceMode.kind` onto the
-// `BeadsStateForReconcile` shape the filter expects. The filter treats every
-// non-{per_project,shared_server} state as `legacy-embedded` conservatively,
-// so the mapping is lossless for the eligibility decision.
-function defaultClassifyBeadsState(barePath: string): BeadsStateForReconcile {
-  const mode: BeadsWorkspaceMode = classifyBeadsWorkspace(barePath);
-  return mode.kind;
+// GH-1012 — the bd `../beads/workspace_mode.ts` module (and its
+// `classifyBeadsWorkspace` probe) was removed with the rest of the pure-bd
+// machinery. With no backing store, the default classifier is inert: every
+// bare repo classifies as `none`, which the eligibility filter treats as
+// `legacy-embedded` and skips. The DI seam is preserved so any remaining
+// wiring/tests can inject a deterministic fixture.
+function defaultClassifyBeadsState(_barePath: string): BeadsStateForReconcile {
+  return "none";
 }
 
 function mapStep(s: DoltReconcileStep): {

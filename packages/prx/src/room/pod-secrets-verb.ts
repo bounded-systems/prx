@@ -32,7 +32,9 @@ export const podSecretsVerb = defineVerb({
     from: z
       .array(z.string())
       .default([])
-      .describe("Source mapping name=<@/path/to/file | literal> (repeatable). @ → podman reads the file (the secret never enters prx); a literal is piped via stdin."),
+      .describe(
+        "Source mapping name=<@/path/to/file | literal> (repeatable). @ → podman reads the file (the secret never enters prx); a literal is piped via stdin.",
+      ),
     replace: z.boolean().default(false).describe("Replace (rotate) secrets that already exist"),
   }),
   output: PodSecretsResult,

@@ -37,11 +37,29 @@ import { appendAuditRow as defaultAppendAuditRow } from "../audit/sink.ts";
 import { getAuditRuntimeContext as defaultGetAuditRuntimeContext } from "@bounded-systems/audit-context";
 import { refreshBudget as defaultRefreshBudget } from "@bounded-systems/github-budget";
 import { repoNameWithOwner as defaultRepoNameWithOwner } from "../pr-state/github.ts";
-import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../triage/triage.ts";
-import {
-  runIntakeMirror as defaultRunIntakeMirror,
-  type IntakeMirrorRender,
-} from "../intake/intake-mirror.ts";
+import { type BeadsRecord } from "../triage/triage.ts";
+// GH-1012: intake-mirror (the bd write-plane mirror) is removed — GitHub is now
+// the write plane, so mirroring a GH issue into bd is a no-op. The render shape
+// and a stub runner are kept locally so the surrounding plumbing (which consumes
+// an exit code + optional bd ids) still type-checks; the stub creates nothing.
+type IntakeMirrorRender = {
+  ghNumber: number;
+  repo?: string;
+  issueUrl: string;
+  title: string;
+  bdCreate?: { argv: string[] };
+  existingBdId?: string;
+  createdBdId?: string;
+  dryRun: boolean;
+  exitCode: number;
+};
+function defaultRunIntakeMirror(
+  _opts: { ghId: string; repo?: string | undefined; dryRun: boolean; format: string },
+  _output: { log: (line: string) => void; error: (line: string) => void },
+  _deps?: unknown,
+): number {
+  return 0;
+}
 import { graphqlRemaining, resolveThreshold } from "./run.ts";
 import type { BackfillRecordDetail, BackfillSummary } from "./schemas.ts";
 
@@ -65,7 +83,7 @@ export type RunBackfillOptions = {
 
 export type RunBackfillDeps = {
   cwd?: () => string;
-  loadAllBeads?: typeof defaultLoadAllBeads;
+  loadAllBeads?: () => BeadsRecord[];
   refreshBudget?: typeof defaultRefreshBudget;
   repoNameWithOwner?: (path: string) => string;
   appendAuditRow?: typeof defaultAppendAuditRow;
@@ -98,7 +116,7 @@ export async function runBackfill(
   const startedAt = nowFn().getTime();
   const elapsedMs = () => Math.max(0, nowFn().getTime() - startedAt);
   const cwd = (deps.cwd ?? (() => process.cwd()))();
-  const loadAllBeads = deps.loadAllBeads ?? defaultLoadAllBeads;
+  const loadAllBeads = deps.loadAllBeads ?? ((): BeadsRecord[] => []);
   const refreshBudget = deps.refreshBudget ?? defaultRefreshBudget;
   const repoNameWithOwner = deps.repoNameWithOwner ?? defaultRepoNameWithOwner;
   const appendAuditRow = deps.appendAuditRow ?? defaultAppendAuditRow;
@@ -159,18 +177,13 @@ export async function runBackfill(
     output.error(`sync backfill: ${err instanceof Error ? err.message : String(err)}`);
     return makeFailure(domain, from, to, elapsedMs());
   }
-  const cachedLoader: typeof defaultLoadAllBeads = () => beads;
+  const cachedLoader: () => BeadsRecord[] = () => beads;
 
   // The adapter resolves itself unless a test seam injects one. The cache-backed
   // gh adapter shares the warmed read with `resolveFromBeads` below.
   const adapter =
     deps.adapter ??
-    (domain === "gh"
-      ? new GhDomainAdapter({
-          loadAllBeads: cachedLoader,
-          invalidateBeadsCache: deps.invalidateBeadsCache,
-        })
-      : (adapterForDomain(domain) ?? undefined));
+    (domain === "gh" ? new GhDomainAdapter({}) : (adapterForDomain(domain) ?? undefined));
   if (!adapter) {
     output.error(`sync backfill: no adapter for domain '${domain}'`);
     return makeFailure(domain, from, to, elapsedMs());

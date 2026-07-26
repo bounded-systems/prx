@@ -1,8 +1,8 @@
 // GH-1513 — `runMemoryCompact` fixture-driven coverage. Every external
-// dependency is injected (bd loader, bd dep scan, the compact runner,
-// repo resolver, audit sink, the clock) so the verb runs with no `bd`,
-// `gh`, or disk I/O. Validates the eligibility classifier across every
-// branch + the §3 frozen-mirror invariant (no GH adapter calls).
+// dependency is injected (the Front Desk record loader, repo resolver, audit
+// sink, the clock) so the verb runs with no `gh` or disk I/O. Validates the
+// eligibility classifier across every branch + the §3 frozen-mirror invariant
+// (no compaction write plane; classification + audit only after GH-1012).
 
 import { describe, expect, test } from "bun:test";
 
@@ -16,7 +16,6 @@ import {
   type RunMemoryCompactOptions,
 } from "../../src/memory/compact.ts";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
-import type { BdAdminCompactResult, BdExecResult } from "@bounded-systems/bd";
 
 // ── fixtures ───────────────────────────────────────────────────────────────
 
@@ -40,13 +39,12 @@ function bead(overrides: Partial<BeadsRecord> & { id: string }): BeadsRecord {
     externalIssueNumber: overrides.externalIssueNumber ?? null,
     sourceSystem: overrides.sourceSystem ?? null,
     updatedAt: overrides.updatedAt,
+    ...(overrides.dependencies !== undefined ? { dependencies: overrides.dependencies } : {}),
   };
 }
 
 type Captured = {
   rows: unknown[];
-  compactCalls: { cwd: string; opts: { dryRun: boolean; ids: string[] } }[];
-  depCalls: number;
   logs: string[];
   errs: string[];
 };
@@ -60,31 +58,27 @@ function makeDeps(
   cap: Captured;
   output: { log: (l: string) => void; error: (l: string) => void };
 } {
-  const cap: Captured = { rows: [], compactCalls: [], depCalls: 0, logs: [], errs: [] };
+  const cap: Captured = { rows: [], logs: [], errs: [] };
+  // Express active-work pins as Front Desk dependency edges on an open record.
+  // GH-1012: the active-work scan is a pure pass over `record.dependencies`
+  // (populated from `fds list` edges) — there is no `bd dep list` call any more.
+  if (pinnedIds.size > 0) {
+    const openRecord = beads.find((b) => b.status !== "closed");
+    if (openRecord) {
+      openRecord.dependencies = [
+        ...(openRecord.dependencies ?? []),
+        ...Array.from(pinnedIds).map((id) => ({
+          issueId: openRecord.id,
+          dependsOnId: id,
+          type: "blocks",
+        })),
+      ];
+    }
+  }
   const deps: RunMemoryCompactDeps = {
     cwd: () => "/repo",
     repoNameWithOwner: () => "bdelanghe/ai-home",
     loadAllBeads: () => beads,
-    execBd: (opts): BdExecResult => {
-      if (opts.subcommand === "dep" && opts.args[0] === "list") {
-        cap.depCalls += 1;
-        const rows = Array.from(pinnedIds).map((id) => ({ id }));
-        return { exitCode: 0, stdout: JSON.stringify(rows), stderr: "", policy: null };
-      }
-      return {
-        exitCode: 1,
-        stdout: "",
-        stderr: `unexpected execBd subcommand: ${opts.subcommand}`,
-        policy: null,
-      };
-    },
-    runBdAdminCompact: (cwd, opts): BdAdminCompactResult => {
-      cap.compactCalls.push({ cwd, opts });
-      return {
-        exitCode: 0,
-        results: opts.ids.map((id) => ({ id, exitCode: 0, stdout: "", stderr: "" })),
-      };
-    },
     appendAuditRow: (row) => cap.rows.push(row),
     getAuditRuntimeContext: () => ({
       verb: "memory.compact",
@@ -178,7 +172,7 @@ describe("runMemoryCompact — fixture work-graph", () => {
     return { beads, pinnedIds: new Set(["bd-pin-1", "bd-pin-2"]) };
   }
 
-  test("dry-run (default): classifier partitions records; bd admin compact is NOT invoked", () => {
+  test("dry-run (default): classifier partitions records; no substrate write", () => {
     const { beads, pinnedIds } = buildFixture();
     const { deps, cap, output } = makeDeps(beads, pinnedIds);
 
@@ -193,8 +187,6 @@ describe("runMemoryCompact — fixture work-graph", () => {
     );
 
     expect(result.exitCode).toBe(0);
-    // §3 frozen-mirror invariant: no bd write (compact wrapper never invoked).
-    expect(cap.compactCalls.length).toBe(0);
 
     const summary = summaryRow(cap.rows);
     expect(summary.scanned).toBe(beads.length);
@@ -231,7 +223,7 @@ describe("runMemoryCompact — fixture work-graph", () => {
     ]);
   });
 
-  test("--apply invokes runBdAdminCompact exactly once with the eligible id list", () => {
+  test("--apply classifies the same eligible set and records a non-dry-run tick", () => {
     const { beads, pinnedIds } = buildFixture();
     const { deps, cap, output } = makeDeps(beads, pinnedIds);
 
@@ -247,11 +239,19 @@ describe("runMemoryCompact — fixture work-graph", () => {
     );
 
     expect(result.exitCode).toBe(0);
-    expect(cap.compactCalls.length).toBe(1);
-    const call = cap.compactCalls[0]!;
-    expect(call.cwd).toBe("/repo");
-    expect(call.opts.dryRun).toBe(false);
-    expect(call.opts.ids.sort()).toEqual([
+
+    const summary = summaryRow(cap.rows);
+    // GH-1012: apply and dry-run classify identically; only the audit `dryRun`
+    // flag differs (the compaction write plane was retired).
+    expect(summary.dryRun).toBe(false);
+    expect(summary.compacted).toBe(7);
+
+    const details = recordRows(cap.rows);
+    const compactedIds = details
+      .filter((d) => d.decision === "compacted")
+      .map((d) => d.beadId)
+      .sort();
+    expect(compactedIds).toEqual([
       "bd-elig-1",
       "bd-elig-2",
       "bd-elig-3",
@@ -260,10 +260,6 @@ describe("runMemoryCompact — fixture work-graph", () => {
       "bd-msg-1",
       "bd-msg-2",
     ]);
-
-    const summary = summaryRow(cap.rows);
-    expect(summary.dryRun).toBe(false);
-    expect(summary.compacted).toBe(7);
   });
 
   test("preservedTypes opt-out keeps configured issueTypes verbatim", () => {
@@ -305,16 +301,15 @@ describe("runMemoryCompact — fixture work-graph", () => {
   });
 
   test("invocation never reads the GH adapter (§3 frozen-mirror invariant)", () => {
-    // refreshBudget would be the seam if the verb touched gh; the verb's deps
-    // type does not even declare one, so this test is structural: the deps
-    // surface admits no gh hook. Re-asserted here as a regression bumper.
+    // The deps surface admits no gh hook; active-work pins come purely from the
+    // Front Desk dependency edges on the loaded records — no substrate write.
     const { beads, pinnedIds } = buildFixture();
     const { deps, cap, output } = makeDeps(beads, pinnedIds);
-    runMemoryCompact(defaultOpts({ horizonDays: 90 }), output, deps);
-    // No `gh` keys exist on RunMemoryCompactDeps; the spy on execBd would
-    // catch any accidental fall-through call.
-    expect(cap.compactCalls.length).toBe(0);
-    // exactly one bd dep call (the active-work scan); no other bd writes.
-    expect(cap.depCalls).toBe(1);
+    const result = runMemoryCompact(defaultOpts({ horizonDays: 90 }), output, deps);
+    expect(result.exitCode).toBe(0);
+    const summary = summaryRow(cap.rows);
+    // The active-work scan (over record.dependencies) still pins the two
+    // referenced closed records — proving the pin path with no bd call.
+    expect(summary.preservedByActiveWork).toBe(2);
   });
 });

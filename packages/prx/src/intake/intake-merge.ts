@@ -2,17 +2,14 @@
  * `prx intake merge <dup> <canonical>` — pointer-comment + close (GH-1001,
  * part of GH-998). Replaces the raw `gh issue comment <n>` + `gh issue close
  * <n>` pair operators run by hand during dedupe; GH-1004 has now dropped
- * `Bash(gh issue comment:*)` (and the rest of the raw `gh:*` / `bd:*` /
- * `git:*` surface) from the intake profile allowlist and denies them at the
- * Claude `--disallowedTools` flag layer, so this verb is the *only* way to
+ * `Bash(gh issue comment:*)` (and the rest of the raw `gh:*` / `git:*`
+ * surface) from the intake profile allowlist and denies them at the Claude
+ * `--disallowedTools` flag layer, so this verb is the *only* way to
  * comment-and-close a duplicate from inside an intake session.
  *
- * After GH-1710 (canonical-bd conversion) and GH-1913, both positionals may
- * be bd-side ids. The bd↔bd arm uses `loadAllBeads` for the preflight,
- * `notes-append.ts` for the pointer-comment leg, and `execBdIssueClose` (the
- * narrow `bd close` wrapper from `src/tools/bd_issue_close.ts`) for the
- * close leg. Mixed-backend pairs (one bd, one gh) are out of scope — refused
- * with a hint.
+ * GH is the sole write plane (GH-1012 removed the bd backend). Both positionals
+ * must resolve to GitHub ids; bd ids are refused with a hint. Notion ids are
+ * read-only and likewise refused.
  *
  * Mirrors src/intake/intake-view.ts and src/intake/intake-search.ts: pure
  * upstream-of-parity-chain CLI plumbing, no XState events, no schema
@@ -24,13 +21,6 @@ import { processEnv } from "@bounded-systems/env";
 import { z } from "zod";
 
 import { IssueResolveError, resolveIssueId, type IssueResolvedId } from "../issues/resolver.ts";
-import { execBd } from "@bounded-systems/bd";
-import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
-import {
-  execBdIssueClose,
-  buildBdIssueCloseArgs,
-  type BdIssueCloseResult,
-} from "../tools/bd_issue_close.ts";
 import { execGh, type GhExecResult } from "@bounded-systems/gh";
 import {
   buildGhIssueCloseArgs,
@@ -38,12 +28,6 @@ import {
   type GhIssueCloseResult,
   type GhIssueCloseStateReason,
 } from "../tools/gh_issue_close.ts";
-import { loadAllBeads } from "../triage/triage.ts";
-import {
-  buildNotesAppendMarker,
-  composeAppendedNotes,
-  notesAlreadyContains,
-} from "./notes-append.ts";
 
 const STATE_REASONS = ["completed", "not planned", "duplicate"] as const;
 
@@ -65,47 +49,27 @@ type Output = {
   error: (line: string) => void;
 };
 
-export type IntakeMergeRender =
-  | {
-      backend: "gh";
-      dupNumber: number;
-      canonicalNumber: number;
-      repo?: string | undefined;
-      preflight: {
-        argv: string[];
-        closed: boolean;
-        pointerSeen: boolean;
-        skipped: boolean;
-      };
-      comment: { argv: string[]; body: string };
-      close: { argv: string[]; reason: GhIssueCloseStateReason };
-      label?: { argv: string[]; name: string } | undefined;
-      dryRun: boolean;
-      exitCode: number;
-    }
-  | {
-      backend: "bd";
-      dupId: string;
-      canonicalId: string;
-      marker: string;
-      body: string;
-      bdUpdateArgv: string[];
-      bdCloseArgv: string[];
-      reason: string;
-      alreadyClosed: boolean;
-      pointerAlreadyPresent: boolean;
-      dryRun: boolean;
-      exitCode: number;
-    };
+export type IntakeMergeRender = {
+  backend: "gh";
+  dupNumber: number;
+  canonicalNumber: number;
+  repo?: string | undefined;
+  preflight: {
+    argv: string[];
+    closed: boolean;
+    pointerSeen: boolean;
+    skipped: boolean;
+  };
+  comment: { argv: string[]; body: string };
+  close: { argv: string[]; reason: GhIssueCloseStateReason };
+  label?: { argv: string[]; name: string } | undefined;
+  dryRun: boolean;
+  exitCode: number;
+};
 
 export type IntakeMergeDeps = {
   execGh?: typeof execGh;
   execGhIssueClose?: typeof execGhIssueClose;
-  execBd?: typeof execBd;
-  /** GH-296 / prx-82b — sync runner for the daemon-routed pointer-note write. */
-  run?: CommandRunner;
-  execBdIssueClose?: typeof execBdIssueClose;
-  loadAllBeads?: typeof loadAllBeads;
 };
 
 export class IntakeMergeError extends Error {
@@ -165,10 +129,6 @@ function buildCommentArgs(dupNumber: number, body: string, repo: string | undefi
   return args;
 }
 
-function buildBdUpdateArgs(bdId: string, newNotes: string): string[] {
-  return [bdId, "--notes", newNotes];
-}
-
 function buildLabelEditArgs(dupNumber: number, label: string, repo: string | undefined): string[] {
   const args: string[] = [String(dupNumber), "--add-label", label];
   if (repo) {
@@ -187,10 +147,6 @@ function renderGhArgvLine(args: string[]): string {
   return `gh ${args.map(shellQuote).join(" ")}`;
 }
 
-function renderBdArgvLine(args: string[]): string {
-  return `bd ${args.map(shellQuote).join(" ")}`;
-}
-
 export function runIntakeMerge(
   opts: IntakeMergeOptions,
   output: Output,
@@ -198,10 +154,6 @@ export function runIntakeMerge(
 ): number {
   const ghExec = deps.execGh ?? execGh;
   const ghClose = deps.execGhIssueClose ?? execGhIssueClose;
-  const bdExec = deps.execBd ?? execBd;
-  const run = deps.run ?? procRunner;
-  const bdClose = deps.execBdIssueClose ?? execBdIssueClose;
-  const loader = deps.loadAllBeads ?? loadAllBeads;
 
   let dup: IssueResolvedId;
   let canonical: IssueResolvedId;
@@ -218,42 +170,29 @@ export function runIntakeMerge(
 
   if (dup.kind === "notion" || canonical.kind === "notion") {
     output.error(
-      `${VERB}: Notion ids are read-only via 'prx scout notion'; merge into a bd or GH canonical instead`,
+      `${VERB}: Notion ids are read-only via 'prx scout notion'; merge into a GH canonical instead`,
     );
     return 1;
   }
 
-  if (dup.kind !== canonical.kind) {
+  if (dup.kind === "bd" || canonical.kind === "bd") {
     output.error(
-      `${VERB}: cross-backend merge is out of scope (got ${dup.kind} dup + ${canonical.kind} canonical); use a same-backend pair (both GH-N or both bd ids)`,
+      `${VERB}: the bd backend has been removed (GH-1012); merge GitHub issues instead (both GH-N)`,
     );
     return 1;
   }
 
-  if (dup.kind === "gh" && canonical.kind === "gh") {
-    return runGhMerge(
-      opts,
-      output,
-      { number: dup.number, repo: dup.repo },
-      { number: canonical.number, repo: canonical.repo },
-      ghExec,
-      ghClose,
-    );
-  }
-
-  if (dup.kind === "bd" && canonical.kind === "bd") {
-    if (opts.label !== undefined) {
-      output.error(
-        `${VERB}: --label is GH-only (bd has no label flag on 'bd update'); drop the flag on the bd arm`,
-      );
-      return 1;
-    }
-    return runBdMerge(opts, output, dup.id, canonical.id, bdExec, run, bdClose, loader);
-  }
-
-  // Unreachable: notion was refused, kind-mismatch was refused, leaving only
-  // (gh, gh) and (bd, bd) above.
-  throw new Error(`${VERB}: unreachable dispatch (dup=${dup.kind}, canonical=${canonical.kind})`);
+  // Notion and bd were refused above, leaving only (gh, gh). GH is the sole
+  // write plane (GH-1012 removed the bd backend), so there is no longer a
+  // cross-backend dispatch to arbitrate.
+  return runGhMerge(
+    opts,
+    output,
+    { number: dup.number, repo: dup.repo },
+    { number: canonical.number, repo: canonical.repo },
+    ghExec,
+    ghClose,
+  );
 }
 
 function runGhMerge(
@@ -424,144 +363,6 @@ function runGhMerge(
   return 0;
 }
 
-function runBdMerge(
-  opts: IntakeMergeOptions,
-  output: Output,
-  dupId: string,
-  canonicalId: string,
-  bdExec: typeof execBd,
-  run: CommandRunner,
-  bdClose: typeof execBdIssueClose,
-  loader: typeof loadAllBeads,
-): number {
-  const body = `Merging into ${canonicalId}`;
-  const marker = buildNotesAppendMarker("prx-intake-merge", body);
-  const bdCloseArgv = buildBdIssueCloseArgs({ id: dupId, reason: opts.reason });
-
-  if (opts.dryRun) {
-    const placeholderNotes = composeAppendedNotes(null, marker, body);
-    const render: IntakeMergeRender = {
-      backend: "bd",
-      dupId,
-      canonicalId,
-      marker,
-      body,
-      bdUpdateArgv: buildBdUpdateArgs(dupId, placeholderNotes),
-      bdCloseArgv,
-      reason: opts.reason,
-      alreadyClosed: false,
-      pointerAlreadyPresent: false,
-      dryRun: true,
-      exitCode: 0,
-    };
-    output.log(formatIntakeMergeRender(render, opts.format));
-    return 0;
-  }
-
-  let records;
-  try {
-    records = loader(bdExec);
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    output.error(`${VERB}: bd unreachable: ${detail}`);
-    return 1;
-  }
-  const dupRecord = records.find((r) => r.id === dupId);
-  if (!dupRecord) {
-    output.error(`${VERB}: no bd record matching '${dupId}'`);
-    return 1;
-  }
-
-  // Cross-backend safety: a bd record carrying a non-null `external_ref` is
-  // pinned to a GH issue. Merging it as bd-only would leave the GH pin
-  // dangling; the operator should run `prx intake merge GH-N GH-M` against
-  // the projected GH ids instead. Cross-backend merge is out of scope per
-  // GH-1913.
-  if (dupRecord.externalRef !== null && dupRecord.externalRef.trim().length > 0) {
-    output.error(
-      `${VERB}: bd record '${dupId}' is pinned to a GH issue (external_ref=${dupRecord.externalRef}); cross-backend merge is out of scope — run 'prx intake merge GH-N GH-M' on the projected GH ids`,
-    );
-    return 1;
-  }
-
-  const alreadyClosed = dupRecord.status === "closed";
-  const pointerAlreadyPresent = notesAlreadyContains(dupRecord.notes, marker);
-
-  if (alreadyClosed) {
-    const render: IntakeMergeRender = {
-      backend: "bd",
-      dupId,
-      canonicalId,
-      marker,
-      body,
-      bdUpdateArgv: buildBdUpdateArgs(
-        dupId,
-        pointerAlreadyPresent
-          ? (dupRecord.notes ?? "")
-          : composeAppendedNotes(dupRecord.notes, marker, body),
-      ),
-      bdCloseArgv,
-      reason: opts.reason,
-      alreadyClosed: true,
-      pointerAlreadyPresent,
-      dryRun: false,
-      exitCode: 0,
-    };
-    output.log(`${VERB}: ${dupId} already closed — skipping comment + close`);
-    output.log(formatIntakeMergeRender(render, opts.format));
-    return 0;
-  }
-
-  // Step 1: pointer comment (skipped when marker is already present).
-  let bdUpdateArgv: string[];
-  if (pointerAlreadyPresent) {
-    bdUpdateArgv = buildBdUpdateArgs(dupId, dupRecord.notes ?? "");
-  } else {
-    const newNotes = composeAppendedNotes(dupRecord.notes, marker, body);
-    bdUpdateArgv = buildBdUpdateArgs(dupId, newNotes);
-    // GH-296 / prx-82b: pointer-note write via the daemon (single writer).
-    const updateResult = run(["prx", "beads", "update", ...bdUpdateArgv], { check: false });
-    if (updateResult.status !== 0) {
-      const detail =
-        updateResult.stderr.trim() || updateResult.stdout.trim() || "prx beads update failed";
-      output.error(`${VERB}: ${detail}`);
-      return updateResult.status || 1;
-    }
-  }
-
-  // Step 2: close. On failure, the appended notes are not rolled back —
-  // surface a partial-state warning and propagate the exit code.
-  const closeResult: BdIssueCloseResult = bdClose({
-    id: dupId,
-    reason: opts.reason,
-  });
-  if (closeResult.exitCode !== 0) {
-    const detail = closeResult.stderr.trim() || closeResult.stdout.trim() || "bd close failed";
-    output.error(`${VERB}: ${detail}`);
-    output.error(
-      `${VERB}: pointer note appended but close failed — record is in partial state (${dupId})`,
-    );
-    return closeResult.exitCode || 1;
-  }
-
-  const render: IntakeMergeRender = {
-    backend: "bd",
-    dupId,
-    canonicalId,
-    marker,
-    body,
-    bdUpdateArgv,
-    bdCloseArgv,
-    reason: opts.reason,
-    alreadyClosed: false,
-    pointerAlreadyPresent,
-    dryRun: false,
-    exitCode: 0,
-  };
-  output.log(formatIntakeMergeRender(render, opts.format));
-  return 0;
-}
-
 export function formatIntakeMergeRender(
   render: IntakeMergeRender,
   format: "plain" | "json",
@@ -569,13 +370,10 @@ export function formatIntakeMergeRender(
   if (format === "json") {
     return JSON.stringify(render, null, 2);
   }
-  if (render.backend === "bd") {
-    return formatBdRender(render);
-  }
   return formatGhRender(render);
 }
 
-function formatGhRender(render: Extract<IntakeMergeRender, { backend: "gh" }>): string {
+function formatGhRender(render: IntakeMergeRender): string {
   const header = render.dryRun ? "prx intake merge (dry-run)" : "prx intake merge";
   const preflightSummary = render.preflight.skipped
     ? "(skipped — dry-run)"
@@ -601,30 +399,6 @@ function formatGhRender(render: Extract<IntakeMergeRender, { backend: "gh" }>): 
     }
   } else if (render.label) {
     lines.push(`  label:      ${render.label.name}`);
-  }
-  return lines.join("\n");
-}
-
-function formatBdRender(render: Extract<IntakeMergeRender, { backend: "bd" }>): string {
-  const header = render.dryRun ? "prx intake merge (dry-run)" : "prx intake merge";
-  const preflightSummary = render.dryRun
-    ? "(skipped — dry-run)"
-    : render.alreadyClosed
-      ? `closed=true pointer=${render.pointerAlreadyPresent}`
-      : `closed=false pointer=${render.pointerAlreadyPresent}`;
-  const lines: string[] = [
-    header,
-    `  dup:        ${render.dupId}`,
-    `  canonical:  ${render.canonicalId}`,
-    `  backend:    bd`,
-    `  reason:     ${render.reason}`,
-    `  comment:    ${render.body}`,
-    `  preflight:  ${preflightSummary}`,
-  ];
-  if (render.dryRun) {
-    lines.push(`  would run:`);
-    lines.push(`    ${renderBdArgvLine(["update", ...render.bdUpdateArgv])}`);
-    lines.push(`    ${renderBdArgvLine(render.bdCloseArgv)}`);
   }
   return lines.join("\n");
 }

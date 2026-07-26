@@ -19,8 +19,8 @@ import { mergeIssueHits, formatIssueSearchTable } from "../issues/merge.ts";
 import { IssueSearchError, searchBd, searchGh, type IssueSearchHit } from "../issues/search.ts";
 import { execGh } from "@bounded-systems/gh";
 import type { BeadsRecord } from "../triage/triage.ts";
-// GH-296: search is a scout-shaped aggregate read — route it through the daemon.
-import { loadAllBeadsViaDaemon } from "../beadsd/reads.ts";
+// GH-296: search is a scout-shaped aggregate read — route it through Front Desk.
+import { loadAllBeadsViaDaemon } from "../beads/frontdesk-reads.ts";
 
 export const intakeSearchOptionsSchema = z.object({
   query: z.string().trim().min(1, "query must not be empty"),

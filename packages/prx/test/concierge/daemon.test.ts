@@ -61,14 +61,24 @@ describe("concierged (guest-room protocol, end-to-end)", () => {
 
   test("resolve rejects when no live provider serves the capability", async () => {
     const path = await start();
-    await expect(call(path, "resolve", { capability: "nope", want: [], audience: AUDIENCE })).rejects.toThrow();
+    await expect(
+      call(path, "resolve", { capability: "nope", want: [], audience: AUDIENCE }),
+    ).rejects.toThrow();
   });
 
   test("list reports registered capabilities", async () => {
     const path = await start();
-    await call(path, "register", { capability: "ghapp", door: "/g.sock", grants: "gh app", lease: 300 });
+    await call(path, "register", {
+      capability: "ghapp",
+      door: "/g.sock",
+      grants: "gh app",
+      lease: 300,
+    });
     await call(path, "register", { capability: "keeper", door: "/k.sock", lease: 300 });
-    const { capabilities } = await call<{ capabilities: Array<{ capability: string }> }>(path, "list");
+    const { capabilities } = await call<{ capabilities: Array<{ capability: string }> }>(
+      path,
+      "list",
+    );
     expect(capabilities.map((c) => c.capability).sort()).toEqual(["ghapp", "keeper"]);
   });
 

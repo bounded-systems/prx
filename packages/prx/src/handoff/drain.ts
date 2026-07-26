@@ -11,9 +11,16 @@
 //   6. Persist the resulting envelope (status: done | failed | abandoned).
 //   7. Emit HANDOFF_* audit rows via `appendAuditRow` (I-HQ1, I-AUD1).
 //
-// The harness is dependency-injected end-to-end: bd I/O via execBd, the
-// CAS via writeBlob, the audit sink via appendAuditRow. Production code
-// gets defaults; tests can swap any of them.
+// The harness is dependency-injected end-to-end: the store I/O via the
+// injectable store functions, the audit sink via appendAuditRow. Production
+// code gets defaults; tests can swap any of them.
+//
+// GH-1012: the bd-backed handoff store (`./store.ts`) was removed with the
+// beads machinery. GitHub is now the write plane and Front Desk the read
+// plane; there is no bd memory surface for the structured handoff queue, so
+// the store operations below are local inert shims. The harness — adapter
+// registry, drain-time policy re-auth, machine wiring, audit emission —
+// stays intact and compiling until a non-bd handoff store lands.
 
 import { createActor } from "xstate";
 
@@ -26,7 +33,57 @@ import type {
 import { appendAuditRow as defaultAppendAuditRow } from "../audit/sink.ts";
 import { handoffMachine } from "../machine/machines/handoff.ts";
 import { checkPolicy as defaultCheckPolicy } from "@bounded-systems/policy";
-import { claimHandoff, listHandoffs, writeEnvelope, type HandoffStoreDeps } from "./store.ts";
+
+// ── handoff store shims (GH-1012) ────────────────────────────────────────────
+//
+// The bd-backed handoff store (`./store.ts`) was removed with the beads
+// machinery and has no non-bd replacement, so these local no-ops stand in for
+// its persistence surface. They preserve the store's injectable dependency
+// shape and function signatures so the drain harness keeps compiling; with no
+// store to read, `listHandoffs` yields nothing and the drain loop is inert.
+
+export type HandoffStoreDeps = {
+  execBd?: unknown;
+  /** Override for tests that want to bypass real CAS writes. */
+  casWriteBlob?: ((content: string, domain: string) => Promise<{ sha: string }>) | undefined;
+  now?: (() => Date) | undefined;
+  currentRepoSlug?: (() => string) | undefined;
+};
+
+type ListOptions = {
+  target?: HandoffEnvelope["targetActor"];
+  workUnitId?: string | null;
+  status?: HandoffEnvelope["status"];
+};
+
+type ClaimResult =
+  | { kind: "claimed"; envelope: HandoffEnvelope }
+  | { kind: "already-claimed"; by: string }
+  | { kind: "not-found" }
+  | { kind: "write-failed"; error: string };
+
+async function listHandoffs(
+  _opts: ListOptions = {},
+  _deps: HandoffStoreDeps = {},
+): Promise<HandoffEnvelope[]> {
+  return [];
+}
+
+async function claimHandoff(
+  _id: string,
+  _claimant: string,
+  _claimTtlSec: number,
+  _deps: HandoffStoreDeps = {},
+): Promise<ClaimResult> {
+  return { kind: "not-found" };
+}
+
+async function writeEnvelope(
+  _envelope: HandoffEnvelope,
+  _exec?: unknown,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  return { ok: true };
+}
 
 // ── adapter contract ───────────────────────────────────────────────────────
 

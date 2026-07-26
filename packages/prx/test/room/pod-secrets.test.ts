@@ -70,7 +70,10 @@ describe("ensurePodSecrets", () => {
       new Map([["prx-forge-id", { kind: "literal", value: "x" } as SecretSource]]),
       { run },
     );
-    expect(out.find((s) => s.name === "prx-forge-id")).toMatchObject({ action: "exists", present: true });
+    expect(out.find((s) => s.name === "prx-forge-id")).toMatchObject({
+      action: "exists",
+      present: true,
+    });
     expect(calls.some((c) => c.args.includes("create"))).toBe(false);
   });
 

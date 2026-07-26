@@ -17,8 +17,6 @@ import { dirname, join } from "node:path";
 
 import { z } from "zod";
 
-import { bdCommandRunner } from "../beadsd/bd-command-runner.ts";
-
 import {
   type ArtifactDiagnostic,
   type ArtifactEdge,
@@ -114,23 +112,14 @@ const agentResultEdge: ArtifactEdge<AgentResult> = defineEdge({
   validators: [agentResultContract],
 });
 
-/** Injected bead-id reader (the impure `bd list`); overridable in tests. */
+/** Injected bead-id reader; overridable in tests. */
 export type BeadIdReader = (cwd: string) => string[];
 
-const defaultBeadIdReader: BeadIdReader = (cwd) => {
-  // Route through @bounded-systems/proc (no raw subprocess in src/ — the
-  // ambient-authority guard). Best-effort: a missing `bd` (ENOENT, e.g. CI with
-  // no beads workspace) makes defaultRunner THROW, and a non-zero exit returns
-  // status≠0 — both yield [] so the result-capture never breaks the agent run.
-  try {
-    const r = bdCommandRunner(["bd", "list", "--json"], { cwd, check: false });
-    if (r.status !== 0) return [];
-    const rows = JSON.parse(r.stdout) as Array<{ id?: unknown }>;
-    return rows.map((x) => x?.id).filter((x): x is string => typeof x === "string" && x.length > 0);
-  } catch {
-    return [];
-  }
-};
+// With the beads (bd) plane removed, there is no default UoW-id source to diff
+// against. The reader degrades to the empty set, so UoW detection falls back to
+// "no new UoW" (the disposition an agent reports via `prx <actor> result` is the
+// primary signal now). Tests inject their own reader.
+const defaultBeadIdReader: BeadIdReader = () => [];
 
 /**
  * Snapshot the bead-id set — call before AND after the run to diff UoWs.

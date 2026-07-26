@@ -19,8 +19,17 @@ import {
   type BackfillResult,
 } from "../../src/sync/backfill.ts";
 import type { BudgetSnapshot } from "@bounded-systems/github-budget";
-import type { IntakeMirrorOptions } from "../../src/intake/intake-mirror.ts";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
+
+// GH-1012: intake-mirror (the bd write-plane) is removed. `runIntakeMirror` is
+// now a local stub in backfill.ts whose opts have this shape; the mirror-call
+// captures assert against `ghId`/`dryRun` off it.
+type IntakeMirrorOptions = {
+  ghId: string;
+  repo?: string | undefined;
+  dryRun: boolean;
+  format: string;
+};
 
 const FIXED_NOW = new Date("2026-05-20T09:00:00.000Z");
 

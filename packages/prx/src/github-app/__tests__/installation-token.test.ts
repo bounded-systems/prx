@@ -2,11 +2,7 @@ import { createVerify, generateKeyPairSync } from "node:crypto";
 
 import { describe, expect, test } from "bun:test";
 
-import {
-  appJwt,
-  mintInstallationToken,
-  type InstallationToken,
-} from "../installation-token.ts";
+import { appJwt, mintInstallationToken, type InstallationToken } from "../installation-token.ts";
 
 const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const PEM = privateKey.export({ type: "pkcs1", format: "pem" }) as string;
@@ -104,12 +100,18 @@ describe("mintInstallationToken", () => {
       { fetch: fakeFetch, now: () => NOW },
     );
     expect(seen.contentType).toBe("application/json");
-    expect(JSON.parse(seen.body)).toEqual({ repositories: ["prx"], permissions: { contents: "read" } });
+    expect(JSON.parse(seen.body)).toEqual({
+      repositories: ["prx"],
+      permissions: { contents: "read" },
+    });
   });
 
   test("throws with status + body when GitHub rejects the request", async () => {
     const fakeFetch: typeof fetch = (async () =>
-      new Response("bad key", { status: 401, statusText: "Unauthorized" })) as unknown as typeof fetch;
+      new Response("bad key", {
+        status: 401,
+        statusText: "Unauthorized",
+      })) as unknown as typeof fetch;
 
     await expect(
       mintInstallationToken(

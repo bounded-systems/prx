@@ -16,23 +16,26 @@ import { triageStatusOptionsSchema, type TriageStatusOptions } from "../triage.t
 import { triageClassifyOptionsSchema, type TriageClassifyOptions } from "../classifier.ts";
 import { triageApplyOptionsSchema, type TriageApplyOptions } from "../apply.ts";
 import { triagePrioritizeOptionsSchema, type TriagePrioritizeOptions } from "../prioritize.ts";
-import { triagePromoteOptionsSchema, type TriagePromoteOptions } from "../promote.ts";
-// GH-1342: drift-fix is no longer a forward-declaration — the verb landed in
-// drift-fix.ts with a broader option shape (`apply`, `from`, `sync` in
-// addition to the original `repo`/`axes`/`limit`/`dryRun`). Re-export the
-// canonical schema so machine/actor consumers see the same type the verb's
-// runtime parses against. Mirrors the prioritize-bulk / type-pass pattern.
-import {
-  triageDriftFixOptionsSchema as triageDriftFixVerbOptionsSchema,
-  type TriageDriftFixOptions as TriageDriftFixVerbOptions,
-} from "../drift-fix.ts";
+
+// GH-1012: the promote / drift-fix verb modules were deleted with the beads
+// removal, but their Zod option shapes stay the single triage import surface
+// for machine/actor/test consumers. They are pure boundary schemas (no bd
+// substrate), so they live inline here now instead of being re-exported from
+// the retired verb files.
+export const triagePromoteOptionsSchema = z.object({
+  repo: z.string().trim().min(1).optional(),
+  from: z.string().trim().min(1).optional(),
+  dryRun: z.boolean().default(false),
+  limit: z.number().int().min(0).default(0),
+  only: z.number().int().positive().optional(),
+});
+export type TriagePromoteOptions = z.infer<typeof triagePromoteOptionsSchema>;
 
 export {
   triageStatusOptionsSchema,
   triageClassifyOptionsSchema,
   triageApplyOptionsSchema,
   triagePrioritizeOptionsSchema,
-  triagePromoteOptionsSchema,
 };
 
 export type {
@@ -40,7 +43,6 @@ export type {
   TriageClassifyOptions,
   TriageApplyOptions,
   TriagePrioritizeOptions,
-  TriagePromoteOptions,
 };
 
 // GH-1021 — type-pass (Haiku batch type classifier).
@@ -63,11 +65,27 @@ export const triagePrioritizeBulkOptionsSchema = z.object({
 });
 export type TriagePrioritizeBulkOptions = z.infer<typeof triagePrioritizeBulkOptionsSchema>;
 
-// GH-1049 — drift-fix (reconcile bd↔GH type/priority drift, GH-authoritative).
-// Canonical schema lives in `../drift-fix.ts`; re-exported here so the barrel
-// stays the single import surface for triage Zod boundaries.
-export const triageDriftFixOptionsSchema = triageDriftFixVerbOptionsSchema;
-export type TriageDriftFixOptions = TriageDriftFixVerbOptions;
+// GH-1049 — drift-fix (reconcile type/priority/status drift, GH-authoritative).
+// GH-1012: the drift-fix verb module was deleted with the beads removal; its
+// option shape is defined inline here so the barrel stays the single import
+// surface for triage Zod boundaries.
+export const driftFixAxisSchema = z.enum(["type", "priority", "status"]);
+export type DriftFixAxis = z.infer<typeof driftFixAxisSchema>;
+
+export const triageDriftFixOptionsSchema = z.object({
+  repo: z.string().trim().min(1).optional(),
+  from: z.string().trim().min(1).optional(),
+  apply: z.boolean().default(false),
+  dryRun: z.boolean().default(false),
+  limit: z.number().int().min(0).default(0),
+  axes: z.array(driftFixAxisSchema).default(["type", "priority", "status"]),
+  sync: z.boolean().default(true),
+  includeDupes: z.boolean().default(true),
+  includeDoctor: z.boolean().default(true),
+  doctorFix: z.boolean().default(false),
+  applyDupes: z.boolean().default(true),
+});
+export type TriageDriftFixOptions = z.infer<typeof triageDriftFixOptionsSchema>;
 
 // GH-1022 — report (session totals + cost summary from JSONL audit logs).
 export const triageReportOptionsSchema = z.object({

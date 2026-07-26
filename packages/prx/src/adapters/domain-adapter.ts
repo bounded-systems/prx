@@ -32,29 +32,14 @@ import type { BeadsRecord } from "../triage/triage.ts";
 // `canonicalWorkUnitIdPattern = combinedCanonicalIdPattern()`; adapter
 // side-effect registration that happens after that snapshot would otherwise
 // be invisible to the cached pattern.
-//
-// `BD_SURFACE_ID_PATTERN` (GH-1645) joins the baseline so `BD-<8-hex>` is
-// recognised as canonical even in import paths that pull
-// `src/machine/work_unit.ts` before the adapter barrel
-// (`src/adapters/index.ts`) has loaded — same shape NOTION has today.
-//
-// `BD_LONG_ID_PATTERN` (GH-1658) joins the baseline as a second BD arm: the
-// workspace-prefixed long-id surface (`BD-<prefix>-<ts:13+>-<seq>-<hex8>`)
-// the cross-repo router (GH-1659) projects to a `(repo, externalId)` pair.
-// Both arms are recognised as canonical even before the adapter registers;
-// `BdDomainAdapter.matchesSurfaceId` ORs them so dispatch routes both.
 // ---------------------------------------------------------------------------
 
 export const GH_SURFACE_ID_PATTERN = /^GH-\d+$/;
 export const NOTION_SURFACE_ID_PATTERN = /^NOTION-([0-9a-fA-F]{32}|\d+)$/;
-export const BD_SURFACE_ID_PATTERN = /^BD-[0-9A-F]{8}$/;
-export const BD_LONG_ID_PATTERN = /^BD-[a-z][a-z0-9-]*-\d{13,}-\d+-[0-9a-f]{8}$/;
 
 const BASELINE_SURFACE_ID_PATTERNS: readonly RegExp[] = [
   GH_SURFACE_ID_PATTERN,
   NOTION_SURFACE_ID_PATTERN,
-  BD_SURFACE_ID_PATTERN,
-  BD_LONG_ID_PATTERN,
 ];
 
 // ---------------------------------------------------------------------------
@@ -391,14 +376,9 @@ function unanchor(source: string): string {
  * GH/Notion shapes plus any extra registered adapter patterns. Consumed by
  * `src/machine/work_unit.ts` so canonical-id recognition is driven by the
  * adapter registry rather than a hardcoded literal. With the prx-default
- * adapter set imported (GitHub + Notion + Beads — see `src/adapters/index.ts`)
- * this resolves to
- * `^(GH-\d+|NOTION-([0-9a-fA-F]{32}|\d+)|BD-[0-9A-F]{8}|BD-[a-z][a-z0-9-]*-\d{13,}-\d+-[0-9a-f]{8})$`,
- * the literal `loadIdentityConfig`'s `isDefault` check compares against
- * byte-for-byte. The `BD-<8-hex>` arm is the GH-1645 pin-zero canonical
- * surface; the `BD-<prefix>-<ts>-<seq>-<hex8>` arm is the GH-1658 workspace-
- * prefixed long-id surface routed by `repo_router` (GH-1659). Both are
- * contributed by `src/adapters/beads.ts`.
+ * adapter set imported (GitHub + Notion — see `src/adapters/index.ts`)
+ * this resolves to `^(GH-\d+|NOTION-([0-9a-fA-F]{32}|\d+))$`, the literal
+ * `loadIdentityConfig`'s `isDefault` check compares against byte-for-byte.
  */
 export function combinedCanonicalIdPattern(): RegExp {
   const seen = new Set<string>();

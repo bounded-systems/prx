@@ -1,10 +1,11 @@
 /**
  * GitHub domain adapter (GH-1536) — the first `DomainAdapter` implementation.
  *
- * Per the GH-1500 authority ADR: beads is canonical; GitHub issues are an
- * opt-in mirror target. This adapter wraps the existing low-level seams
- * (`defaultRunner` for gated `gh` I/O, `loadAllBeads` / `buildBeadsLookup` for
- * bd-record ⇄ external-id resolution) rather than re-implementing them.
+ * GitHub issues are the write plane; the Front Desk read plane owns the
+ * external-id ⇄ canonical-id map. This adapter wraps the gated `gh` CLI
+ * (`defaultRunner` for rate-limited I/O) — create / edit / close / enumerate —
+ * and resolves external ids against a Front-Desk record snapshot the caller
+ * supplies (`resolveFromBeads`), rather than loading one itself.
  *
  * Field ownership (`ownedOnPull`) is the ADR §2 GitHub column — see
  * `docs/spikes/GH-1500-authority.md`. The `ownedOnPull` assertion in
@@ -15,24 +16,17 @@
  *                      assignees, milestone). Routed through the GH-1141
  *                      rate-limit gate (`defaultRunner`); budget-exhaustion
  *                      errors propagate typed.
- *   - `push(bd)`     — project the bd-authoritative fields (title / body /
+ *   - `push(bd)`     — project the caller-authoritative fields (title / body /
  *                      axis labels / assignees / status) onto the GitHub issue;
- *                      create-if-missing (idempotent — dedup-checked,
- *                      write-back). GH-2382: the linked edit is lossless — it
- *                      reads the live issue and rewrites only divergent fields,
- *                      swapping the bd-axis `type::*`/`priority::*` labels
+ *                      create-if-missing. GH-2382: the linked edit is lossless —
+ *                      it reads the live issue and rewrites only divergent
+ *                      fields, swapping the `type::*`/`priority::*` axis labels
  *                      (a priority bump strips the stale rung) while preserving
  *                      foreign labels and GH-only markers, and returns a real
- *                      `edited` flag. The live read is reconciliation-only
- *                      (I-DS-PRIO / I-PROJ1) — never written back to bd.
- *   - `resolve(id)`  — external id (issue URL / `#N` / `N`) → bd short-id via
- *                      `buildBeadsLookup`. Never short-id prefix matching.
- *   - `bulkClose()`  — close every bd record in `beadIds` via the narrow
- *                      `execBdIssueClose` wrapper (GH-2011: the destructive
- *                      bd-side reconcile shell-out is retired; GH→bd close
- *                      flows through the same per-pair `adapter.pull`
- *                      detection + targeted close that bd-canonical
- *                      post-merge handoff uses).
+ *                      `edited` flag.
+ *   - `resolve(id)`  — external id (issue URL / `#N` / `N`) → canonical short-id
+ *                      via `resolveFromBeads` over a caller-supplied Front-Desk
+ *                      snapshot. Never short-id prefix matching.
  */
 
 import {
@@ -41,8 +35,6 @@ import {
 } from "../pr-state/github.ts";
 import { buildBeadsLookup, extractIssueNumber } from "../issues/dedupe.ts";
 import { extractIssueUrl } from "../tools/gh_issue_create.ts";
-import { execBd as defaultExecBd } from "@bounded-systems/bd";
-import { execBdIssueClose as defaultExecBdIssueClose } from "../tools/bd_issue_close.ts";
 import {
   execGhIssueEdit as defaultExecGhIssueEdit,
   hasGhIssueEdit,
@@ -50,8 +42,7 @@ import {
 } from "../tools/gh_issue_edit.ts";
 import { axisLabelDiff } from "../triage/bd-axis-labels.ts";
 import { parseConditionalRead } from "../sync/conditional-read.ts";
-import { updateBeadViaDaemon } from "../beadsd/writes.ts";
-import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../triage/triage.ts";
+import { type BeadsRecord } from "../triage/triage.ts";
 import {
   GH_SURFACE_ID_PATTERN,
   registerDomainAdapter,
@@ -119,20 +110,11 @@ export class GhDomainAdapterError extends Error {
 export type GhDomainAdapterDeps = {
   /** Rate-limit-gated `gh`/CLI runner. Defaults to `defaultRunner`. */
   runner?: AdapterCommandRunner | undefined;
-  /** bd CLI exec. Defaults to `execBd`. */
-  execBd?: typeof defaultExecBd | undefined;
-  /** Loader for the full bd record set. Defaults to `loadAllBeads`. */
-  loadAllBeads?: typeof defaultLoadAllBeads | undefined;
-  /**
-   * Narrow `bd close` wrapper. Defaults to `execBdIssueClose`. The bulkClose
-   * loop calls this once per bead id (GH-2011).
-   */
-  execBdIssueClose?: typeof defaultExecBdIssueClose | undefined;
   /**
    * GH-2382 — narrow `gh issue edit` wrapper. Defaults to `execGhIssueEdit`.
    * The linked `push()` path routes its lossless title/body/label/assignee
-   * edit through here so every bd→GH issue edit shares one rate-limit-gated
-   * chokepoint (mirrors how `bulkClose` routes through `execBdIssueClose`).
+   * edit through here so every GH issue edit shares one rate-limit-gated
+   * chokepoint.
    */
   execGhIssueEdit?: typeof defaultExecGhIssueEdit | undefined;
   /** OWNER/REPO resolver. Defaults to `repoNameWithOwner`. */
@@ -149,21 +131,6 @@ export type GhDomainAdapterDeps = {
   conditionalRead?: GhConditionalReadCache | undefined;
   /** cwd source. Defaults to `process.cwd`. */
   cwd?: (() => string) | undefined;
-  /**
-   * GH-1595 — drop the per-invocation `BeadsCache` after the adapter's
-   * write-back path (`bd update --external-ref` inside `push()` for an
-   * unlinked record). When this adapter is constructed from `runBeadsSync`,
-   * the cache is shared with every other `loadAllBeads`-shaped caller in the
-   * run; `push()` writes change the cached read, so we drop it on success.
-   */
-  invalidateBeadsCache?: (() => void) | undefined;
-  /**
-   * GH-296 / prx-82b — daemon-routed bd write-back for the unlinked-create path
-   * (`bd update <id> --external-ref <url>` after `gh issue create`). Default: the
-   * beadsd helper (single writer); tests inject a fake. Routes the link write off
-   * host `bd` and onto the one beads the daemon owns.
-   */
-  updateBead?: typeof updateBeadViaDaemon | undefined;
 };
 
 // ADR §2 GitHub column — these BeadsRecord-keyed fields are GitHub-owned on
@@ -198,15 +165,6 @@ export class GhDomainAdapter implements DomainAdapter {
 
   private get runner(): AdapterCommandRunner {
     return this.deps.runner ?? (defaultRunner as AdapterCommandRunner);
-  }
-
-  private loadBeads(): BeadsRecord[] {
-    // GH-1595: when the cache-backed loader is injected (via `runBeadsSync`
-    // or the `runCli` entry point), it ignores the `execBd` arg and returns
-    // a memoized snapshot — the loop in `prx beads sync` shares one read
-    // across every per-pair `push`/`resolve`.
-    const loader = this.deps.loadAllBeads ?? defaultLoadAllBeads;
-    return loader(this.deps.execBd ?? defaultExecBd);
   }
 
   private resolveRepo(repo: string | undefined, cwd: string | undefined): string {
@@ -438,23 +396,9 @@ export class GhDomainAdapter implements DomainAdapter {
       return { externalId: reconciled.externalId, created: false, edited: reconciled.edited };
     }
 
-    // --- Unlinked: dedup-check, then create + write-back.
-    const records = this.loadBeads();
-    // A bd record other than `bd` already mirrored to a GitHub issue with the
-    // exact same title is a likely duplicate — refuse rather than create one
-    // (feedback: check dedup before promoting). Title-exact is the fallback;
-    // the URL match is handled by the `bd.externalRef` linked path above.
-    const titleDuplicate = records.find(
-      (r) => r.id !== bd.id && r.externalIssueNumber !== null && r.title === bd.title,
-    );
-    if (titleDuplicate) {
-      throw new GhDomainAdapterError(
-        `gh adapter push: refusing to create a duplicate GitHub issue — bd ${titleDuplicate.id} ` +
-          `is already mirrored to issue #${titleDuplicate.externalIssueNumber} with the same title; ` +
-          `resolve the duplicate first`,
-      );
-    }
-
+    // --- Unlinked: create the GitHub issue (the write plane). The external id
+    // is returned to the caller, which owns linking it back in the Front Desk
+    // read plane; there is no bd write-back here.
     const repo = this.resolveRepo(undefined, opts?.cwd);
     const createArgs = ["issue", "create", "-R", repo, "--title", fields.title ?? bd.title];
     if (typeof fields.body === "string") createArgs.push("--body", fields.body);
@@ -471,15 +415,6 @@ export class GhDomainAdapter implements DomainAdapter {
         `gh adapter push: gh issue create stdout did not contain an issue URL: ${created.stdout.trim()}`,
       );
     }
-    // Write-back via the daemon (single writer): bd update <id> --external-ref <url>.
-    try {
-      await (this.deps.updateBead ?? updateBeadViaDaemon)(bd.id, { externalRef: issueUrl });
-    } catch (err) {
-      throw new GhDomainAdapterError(
-        `gh adapter push: created ${issueUrl} but bd write-back failed: ${(err as Error).message}`,
-      );
-    }
-    this.deps.invalidateBeadsCache?.();
     return { externalId: issueUrl, created: true, edited: true };
   }
 
@@ -704,7 +639,12 @@ export class GhDomainAdapter implements DomainAdapter {
   }
 
   async resolve(externalId: string, _opts?: AdapterIoOpts): Promise<string | null> {
-    return this.resolveFromBeads(externalId, this.loadBeads());
+    // The external-id → canonical-id map lives in the Front Desk read plane;
+    // this adapter no longer loads a record snapshot itself. Callers that hold
+    // a Front-Desk snapshot resolve through `resolveFromBeads(externalId,
+    // snapshot)` (the only path anything exercises). Absent a snapshot there is
+    // nothing to resolve against, so an id reads as unmirrored.
+    return this.resolveFromBeads(externalId, []);
   }
 
   resolveFromBeads(externalId: string, beads: BeadsRecord[]): string | null {
@@ -722,41 +662,6 @@ export class GhDomainAdapter implements DomainAdapter {
     }
     const byNumber = lookup.byIssueNumber.get(parsed.number);
     return byNumber ? byNumber.id : null;
-  }
-
-  /**
-   * Close-apply for the per-pair sync verb. Loops the narrow `bd close`
-   * wrapper (`execBdIssueClose`) over `beadIds` — each bead flagged by the
-   * per-pair `adapter.pull` (`GH_OWNED_ON_PULL` includes `status`) as having
-   * a CLOSED GH issue is closed in bd here.
-   *
-   * GH-2011: this replaces the previous repo-wide `bd github sync --pull-only
-   * --prefer-github` shell-out, which dropped bd-only writes for
-   * `issue_type`/`assignee`/`state`/`close_reason` while reconciling. The
-   * targeted close stays inside the bd-canonical authority boundary.
-   */
-  bulkClose(opts: { cwd: string; beadIds: readonly string[] }): {
-    exitCode: number;
-    stdout: string;
-    stderr: string;
-  } {
-    const close = this.deps.execBdIssueClose ?? defaultExecBdIssueClose;
-    const stdoutParts: string[] = [];
-    const stderrParts: string[] = [];
-    let worstExit = 0;
-    for (const beadId of opts.beadIds) {
-      const result = close({ id: beadId, cwd: opts.cwd, reason: "closed-by-pull" });
-      if (result.stdout) stdoutParts.push(result.stdout);
-      if (result.stderr) stderrParts.push(result.stderr);
-      if (result.exitCode !== 0 && worstExit === 0) {
-        worstExit = result.exitCode;
-      }
-    }
-    return {
-      exitCode: worstExit,
-      stdout: stdoutParts.join("\n"),
-      stderr: stderrParts.join("\n"),
-    };
   }
 }
 

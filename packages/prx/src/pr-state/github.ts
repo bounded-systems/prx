@@ -54,13 +54,11 @@ import {
   issueFeatureForUnit,
   issueFeatureStatus,
   normalizeIssueStatus,
-  githubIssueNumberFromWorkUnitId,
 } from "@bounded-systems/surface-sync";
 // Re-export the routing primitives (relocated to surface-sync) so existing
 // importers that reach for them via this module keep working.
 export { resolveFeatureForPrefix } from "@bounded-systems/surface-sync";
 export type { PrefixRoutingConfig } from "@bounded-systems/surface-sync";
-import { execBd, bdDoorGate } from "@bounded-systems/bd";
 import { runBeadsSync } from "../sync/run.ts";
 import { DEFAULT_SYNC_LIMIT } from "../sync/limits.ts";
 import { withBucketGate } from "@bounded-systems/github-budget";
@@ -3334,9 +3332,9 @@ export type NotionIdentityConfig = {
 // same concept. The registry-key `name` is a separate dimension so an
 // operator can register two sources of the same kind (e.g. `[sources.commerce]`
 // and `[sources.product]` both `kind = "notion"`).
-export type SourceKind = "github" | "notion" | "beads";
+export type SourceKind = "github" | "notion";
 
-export const sourceKinds: readonly SourceKind[] = ["github", "notion", "beads"];
+export const sourceKinds: readonly SourceKind[] = ["github", "notion"];
 
 export type GithubSourceConfig = {
   name: string;
@@ -3353,15 +3351,7 @@ export type NotionSourceConfig = {
   notion: NotionIdentityConfig;
 };
 
-export type BeadsSourceConfig = {
-  name: string;
-  kind: "beads";
-  canonicalIdPattern: RegExp;
-  source: string;
-  externalRefPrefix?: string;
-};
-
-export type SourceConfig = GithubSourceConfig | NotionSourceConfig | BeadsSourceConfig;
+export type SourceConfig = GithubSourceConfig | NotionSourceConfig;
 
 export type IdentityConfig = {
   sources: Record<string, SourceConfig>;
@@ -3978,12 +3968,6 @@ function buildSourceConfig(name: string, raw: SourceTomlFields): SourceConfig {
   if (kind === "github") {
     return { name, kind, canonicalIdPattern, source: raw.source };
   }
-  if (kind === "beads") {
-    const externalRefPrefix = raw.keys["external_ref_prefix"]?.value;
-    return externalRefPrefix && externalRefPrefix.length > 0
-      ? { name, kind, canonicalIdPattern, source: raw.source, externalRefPrefix }
-      : { name, kind, canonicalIdPattern, source: raw.source };
-  }
 
   // kind === "notion"
   const rawAuth = raw.keys["auth"];
@@ -4505,30 +4489,12 @@ export function hydrateBeads(
   if (!projectionBypass() && getUnit<BeadsSnapshot>(repoPath, beadId) !== null) {
     return;
   }
-  let view: BeadsIssueView | null = null;
-  // GH-296 / prx-zbsi: in the box profile (PRX_BEADS_DOOR) this `bd show` read
-  // routes through the beadsd door, never a local `bd`; off-profile the gate
-  // returns null and we spawn via the injected runner exactly as before. Gating
-  // here also keeps this bd read off `defaultRunner`'s GitHub rate-limit bucket.
-  const gated = bdDoorGate(["bd", "show", beadId, "--json"]);
-  const result = gated
-    ? { stdout: gated.stdout, stderr: gated.stderr, status: gated.exitCode }
-    : runner(["bd", "show", beadId, "--json"], { cwd: repoPath, check: false });
-  if (result.status === 0) {
-    try {
-      const parsed = JSON.parse(result.stdout) as unknown;
-      const row = Array.isArray(parsed) ? parsed[0] : parsed;
-      if (row && typeof row === "object") {
-        const record = row as Record<string, unknown>;
-        const id = typeof record.id === "string" ? record.id : beadId;
-        const status = typeof record.status === "string" ? record.status : null;
-        view = { id, status };
-      }
-    } catch {
-      view = null;
-    }
-  }
-  putUnit<BeadsSnapshot>(repoPath, beadId, { view });
+  // Beads retired (GH-1012): there is no bd read plane to hydrate from anymore
+  // (GitHub is the write plane, Front Desk the read plane). Store an absent
+  // snapshot so downstream readers resolve to "no bead" instead of a
+  // projection miss. The `runner` seam is kept for signature stability.
+  void runner;
+  putUnit<BeadsSnapshot>(repoPath, beadId, { view: null });
 }
 
 function maybeViewProjectItems(
@@ -4965,219 +4931,25 @@ export type SyncGitHubIssuesToBeadsResult = {
   lines: string[];
 };
 
-type GitHubIdentityBeadsIssue = {
-  id: string;
-  title: string;
-  status?: string | null;
-  external_ref?: string | null;
-  source_system?: string | null;
-};
-
-type GitHubIdentityGhIssue = {
-  number: number;
-  title: string;
-  url: string;
-  state: string;
-};
-
 type GitHubIdentityAuditResult = {
   exitCode: number;
   lines: string[];
 };
 
-function githubIssueNumberFromBeadsIssue(issue: GitHubIdentityBeadsIssue): number | null {
-  const fromId = githubIssueNumberFromWorkUnitId(issue.id);
-  if (fromId !== null) {
-    return fromId;
-  }
-
-  if (typeof issue.source_system === "string") {
-    const sourceMatch = issue.source_system.match(/github:.*:(\d+)$/);
-    if (sourceMatch) {
-      const parsed = Number.parseInt(sourceMatch[1]!, 10);
-      if (!Number.isNaN(parsed)) {
-        return parsed;
-      }
-    }
-  }
-
-  if (typeof issue.external_ref === "string") {
-    const refMatch = issue.external_ref.match(/\/issues\/(\d+)(?:\/)?$/);
-    if (refMatch) {
-      const parsed = Number.parseInt(refMatch[1]!, 10);
-      if (!Number.isNaN(parsed)) {
-        return parsed;
-      }
-    }
-  }
-
-  return null;
-}
-
-function loadBeadsIssuesForGitHubIdentity(
-  root: string,
-  exec: typeof execBd = execBd,
-): GitHubIdentityBeadsIssue[] {
-  // GH-1592: read the full bead set (open + closed, no limit) through the
-  // policy-enforcing `execBd` wrapper. The bare `bd list --json` this used to
-  // call only returned open beads inside bd's default window, so the
-  // GH-canonical-identity audit false-negatived on every bead outside it —
-  // same failure class as GH-1589's resolver, same fix shape.
-  const result = exec({
-    subcommand: "list",
-    args: ["--all", "--json", "--limit", "0"],
-    cwd: root,
-    state: "planning",
-    role: "planner",
-  });
-  if (result.exitCode !== 0) {
-    throw new Error((result.stderr || result.stdout).trim() || "Failed to list beads issues");
-  }
-  const parsed = JSON.parse(result.stdout || "[]") as unknown;
-  if (!Array.isArray(parsed)) {
-    throw new Error("Failed to parse beads issue list");
-  }
-  return parsed
-    .filter(
-      (entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object",
-    )
-    .map((entry) => ({
-      id: typeof entry.id === "string" ? entry.id : "",
-      title: typeof entry.title === "string" ? entry.title : "",
-      status: typeof entry.status === "string" ? entry.status : null,
-      external_ref: typeof entry.external_ref === "string" ? entry.external_ref : null,
-      source_system: typeof entry.source_system === "string" ? entry.source_system : null,
-    }))
-    .filter((entry) => entry.id.length > 0);
-}
-
-function loadGitHubIssuesForIdentity(
-  root: string,
-  repo: string,
-  runner: CommandRunner,
-): GitHubIdentityGhIssue[] {
-  const result = runner(
-    [
-      "gh",
-      "issue",
-      "list",
-      "-R",
-      repo,
-      "--state",
-      "all",
-      "--limit",
-      "500",
-      "--json",
-      "number,title,url,state",
-    ],
-    { cwd: root, check: false },
-  );
-  if (result.status !== 0) {
-    throw new Error((result.stderr || result.stdout).trim() || "Failed to list GitHub issues");
-  }
-  const parsed = JSON.parse(result.stdout) as unknown;
-  if (!Array.isArray(parsed)) {
-    throw new Error("Failed to parse GitHub issue list");
-  }
-  return parsed
-    .filter(
-      (entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === "object",
-    )
-    .map((entry) => ({
-      number: typeof entry.number === "number" ? entry.number : -1,
-      title: typeof entry.title === "string" ? entry.title : "",
-      url: typeof entry.url === "string" ? entry.url : "",
-      state: typeof entry.state === "string" ? entry.state : "",
-    }))
-    .filter((entry) => entry.number > 0);
-}
-
 function enforceGitHubIssueIdentity(
-  root: string,
-  repo: string,
-  apply: boolean,
-  runner: CommandRunner,
-  exec: typeof execBd = execBd,
+  _root: string,
+  _repo: string,
+  _apply: boolean,
+  _runner: CommandRunner,
 ): GitHubIdentityAuditResult {
-  const beadsIssues = loadBeadsIssuesForGitHubIdentity(root, exec);
-  const ghIssues = loadGitHubIssuesForIdentity(root, repo, runner);
-  const lines: string[] = [];
-  let exitCode = 0;
-
-  const byId = new Map(beadsIssues.map((issue) => [issue.id, issue]));
-  const byGithubNumber = new Map<number, GitHubIdentityBeadsIssue[]>();
-  for (const issue of beadsIssues) {
-    const number = githubIssueNumberFromBeadsIssue(issue);
-    if (number === null) {
-      continue;
-    }
-    const bucket = byGithubNumber.get(number) ?? [];
-    bucket.push(issue);
-    byGithubNumber.set(number, bucket);
-  }
-
-  const duplicateBindings = [...byGithubNumber.entries()].filter(([, issues]) => issues.length > 1);
-  for (const [number, issues] of duplicateBindings) {
-    exitCode = 1;
-    lines.push(
-      `FAIL GitHub issue #${number} is bound to multiple beads issues: ${issues.map((issue) => issue.id).join(", ")}`,
-    );
-  }
-
-  for (const issue of beadsIssues) {
-    const number = githubIssueNumberFromBeadsIssue(issue);
-    if (number === null) {
-      exitCode = 1;
-      lines.push(
-        `FAIL beads issue ${issue.id} has no GitHub binding; create or sync a GitHub issue before canonical migration.`,
-      );
-      continue;
-    }
-
-    const canonicalId = `GH-${number}`;
-    if (issue.id === canonicalId) {
-      continue;
-    }
-
-    const existing = byId.get(canonicalId);
-    if (existing && existing.id !== issue.id) {
-      exitCode = 1;
-      lines.push(`FAIL cannot rename ${issue.id} -> ${canonicalId}: target id already exists`);
-      continue;
-    }
-
-    if (apply) {
-      const renameResult = runner(["bd", "rename", issue.id, canonicalId], {
-        cwd: root,
-        check: false,
-      });
-      if (renameResult.status !== 0) {
-        exitCode = 1;
-        lines.push(
-          `FAIL rename ${issue.id} -> ${canonicalId}: ${(renameResult.stderr || renameResult.stdout).trim() || "unknown error"}`,
-        );
-      } else {
-        lines.push(`RENAMED ${issue.id} -> ${canonicalId}`);
-      }
-    } else {
-      exitCode = 1;
-      lines.push(`WOULD RENAME ${issue.id} -> ${canonicalId}`);
-    }
-  }
-
-  const mappedNumbers = new Set<number>([...byGithubNumber.keys()]);
-  for (const issue of ghIssues) {
-    if (!mappedNumbers.has(issue.number)) {
-      exitCode = 1;
-      lines.push(`FAIL GitHub issue #${issue.number} has no beads issue binding (${issue.title})`);
-    }
-  }
-
-  if (lines.length === 0) {
-    lines.push("OK GitHub identity is 1:1 between Beads and GitHub.");
-  }
-
-  return { exitCode, lines };
+  // Beads retired (GH-1012): the canonical-identity audit reconciled the bead
+  // set (read via the retired `bd list`) against GitHub issues. With no bd read
+  // plane there is nothing to reconcile, so the audit is a no-op that reports
+  // success. GitHub is now the sole identity authority.
+  return {
+    exitCode: 0,
+    lines: ["OK GitHub identity check skipped (beads retired)."],
+  };
 }
 
 function normalizeWtState(state: WtState): NormalizedWtState {
@@ -6630,7 +6402,11 @@ export async function syncGitHubIssuesToBeads(
   repoPath: string,
   apply: boolean,
   runner: CommandRunner = defaultRunner,
-  exec: typeof execBd = execBd,
+  // Beads retired (GH-1012): this positional seam used to inject the `execBd`
+  // wrapper for the identity audit. It is kept as an unused, loosely-typed slot
+  // so existing positional callers (which still pass a value here before
+  // `beadsSync`) keep working; the audit no longer reads bd.
+  _exec: unknown = undefined,
   // GH-2011 — canonical reconcile seam (replaces the legacy bd github sync
   // shell-out). Tests override this to assert chaining without spawning
   // real `gh` traffic; production callers use the default.
@@ -6702,7 +6478,7 @@ export async function syncGitHubIssuesToBeads(
     lines.push(apply ? "OK beads issue sync applied." : "OK beads issue sync dry-run completed.");
   }
 
-  const identityResult = enforceGitHubIssueIdentity(root, repo, apply, runner, exec);
+  const identityResult = enforceGitHubIssueIdentity(root, repo, apply, runner);
   lines.push(...identityResult.lines);
 
   return { exitCode: identityResult.exitCode, lines };

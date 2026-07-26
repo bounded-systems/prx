@@ -13,6 +13,7 @@ import {
   type AddDolthubDeps,
   type AddDolthubOptions,
   type AddDolthubResult,
+  type BeadsWorkspaceMode,
 } from "../../src/pr-state/repo_add_dolthub.ts";
 import {
   writeRepoInventoryIndex,
@@ -20,7 +21,6 @@ import {
   type RepoInventory,
   type RepoInventoryConfig,
 } from "../../src/pr-state/repos.ts";
-import type { BeadsWorkspaceMode } from "../../src/beads/workspace_mode.ts";
 
 function makeRepo(name: string, overrides: Partial<LocalRepo> = {}): LocalRepo {
   return {

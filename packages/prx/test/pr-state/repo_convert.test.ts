@@ -81,10 +81,7 @@ function withConvertResponses(
 ): Map<string, RunnerResponse | RunnerResponse[]> {
   responses.set(`git config core.bare true|${f.targetBare}`, ok(""));
   responses.set(`git config extensions.worktreeConfig true|${f.targetBare}`, ok(""));
-  responses.set(
-    `git -C ${f.targetBare} worktree add ${f.worktree} ${branch}|`,
-    ok(""),
-  );
+  responses.set(`git -C ${f.targetBare} worktree add ${f.worktree} ${branch}|`, ok(""));
   responses.set(`git config --worktree core.bare false|${f.worktree}`, ok(""));
   return responses;
 }
@@ -309,7 +306,10 @@ describe("convertWorktreeToBare", () => {
           // submodule-init step has something real to detect.
           const runner: RepoRunner = (cmd, options) => {
             if (cmd.includes("worktree") && cmd.includes("add")) {
-              writeFileSync(join(f.worktree, ".gitmodules"), '[submodule "brand"]\n\tpath = brand\n');
+              writeFileSync(
+                join(f.worktree, ".gitmodules"),
+                '[submodule "brand"]\n\tpath = brand\n',
+              );
             }
             return inner(cmd, options);
           };
@@ -347,7 +347,10 @@ describe("convertWorktreeToBare", () => {
           const inner = makeRunner(responses);
           const runner: RepoRunner = (cmd, options) => {
             if (cmd.includes("worktree") && cmd.includes("add")) {
-              writeFileSync(join(f.worktree, ".gitmodules"), '[submodule "brand"]\n\tpath = brand\n');
+              writeFileSync(
+                join(f.worktree, ".gitmodules"),
+                '[submodule "brand"]\n\tpath = brand\n',
+              );
             }
             return inner(cmd, options);
           };
@@ -445,7 +448,14 @@ describe("convertWorktreeToBare", () => {
           // this either. Fixed with an absolute path instead of trying to
           // recompute the relative depth by hand.
           expect(calls).toContainEqual({
-            cmd: ["git", "config", "--file", join(newGitdir, "config"), "core.worktree", submoduleWorktreePath],
+            cmd: [
+              "git",
+              "config",
+              "--file",
+              join(newGitdir, "config"),
+              "core.worktree",
+              submoduleWorktreePath,
+            ],
             cwd: sibling,
           });
         } finally {

@@ -352,7 +352,10 @@ describe("discoverLocalRepos", () => {
           `git rev-parse --show-toplevel|${strayRepo}`,
           { stdout: `${strayRepo}\n`, stderr: "", status: 0 },
         ],
-        [`git rev-parse --git-common-dir|${strayRepo}`, { stdout: ".git\n", stderr: "", status: 0 }],
+        [
+          `git rev-parse --git-common-dir|${strayRepo}`,
+          { stdout: ".git\n", stderr: "", status: 0 },
+        ],
       ]);
       const inventory = discoverLocalRepos(
         [homeDir],
@@ -438,7 +441,10 @@ describe("discoverLocalRepos", () => {
     writeFileSync(join(repoPath, "HEAD"), "ref: refs/heads/main\n");
 
     const responses = new Map<string, { stdout: string; stderr: string; status: number }>([
-      [`git rev-parse --is-bare-repository|${repoPath}`, { stdout: "true\n", stderr: "", status: 0 }],
+      [
+        `git rev-parse --is-bare-repository|${repoPath}`,
+        { stdout: "true\n", stderr: "", status: 0 },
+      ],
       [
         `git rev-parse --git-common-dir|${repoPath}`,
         { stdout: `${repoPath}\n`, stderr: "", status: 0 },
@@ -928,9 +934,7 @@ describe("findRepoSubmodules", () => {
           commonDir: join(withoutSubmodule, ".git"),
           kind: "standard",
           mainWorktree: withoutSubmodule,
-          worktrees: [
-            { path: withoutSubmodule, branch: "main", current: false, kind: "standard" },
-          ],
+          worktrees: [{ path: withoutSubmodule, branch: "main", current: false, kind: "standard" }],
           localOnlyBranches: [],
           findings: [],
           remotes: [],
@@ -1128,7 +1132,13 @@ describe("addLocalRepo", () => {
       ]),
     );
     const resultA = addLocalRepo(
-      { url: "git@github.com:owner1/deploy.git", bareRoot, wtRoot, operatorConfigRoot: null, overlay: false },
+      {
+        url: "git@github.com:owner1/deploy.git",
+        bareRoot,
+        wtRoot,
+        operatorConfigRoot: null,
+        overlay: false,
+      },
       runnerA,
     );
 
@@ -1141,7 +1151,13 @@ describe("addLocalRepo", () => {
       ]),
     );
     const resultB = addLocalRepo(
-      { url: "git@github.com:owner2/deploy.git", bareRoot, wtRoot, operatorConfigRoot: null, overlay: false },
+      {
+        url: "git@github.com:owner2/deploy.git",
+        bareRoot,
+        wtRoot,
+        operatorConfigRoot: null,
+        overlay: false,
+      },
       runnerB,
     );
 
@@ -2090,7 +2106,7 @@ describe("loadRepoInventoryIndex (GH-1657)", () => {
 // thrown — operators recover via `prx repo refresh <slug>` (PR-C, GH-1681).
 describe("addLocalRepo .beads hydrate (GH-1680)", () => {
   type RunnerCall = { cmd: string[]; cwd?: string | undefined };
-  type HydrateFn = typeof import("../../src/beads/repo_hydrate.ts").hydrateAfterMaterialize;
+  type HydrateFn = typeof import("../../src/pr-state/repos.ts").hydrateAfterMaterialize;
   type HydrateResult = ReturnType<HydrateFn>;
 
   function makeRunner(
@@ -2321,7 +2337,7 @@ describe("writeRepoInventoryIndex atomic-write ratchet (GH-1722)", () => {
 // materializeMainxIfMissing, and clone-failed surfacing.
 describe("refreshLocalRepo (GH-1681)", () => {
   type RunnerCall = { cmd: string[]; cwd?: string | undefined };
-  type HydrateFn = typeof import("../../src/beads/repo_hydrate.ts").hydrateAfterMaterialize;
+  type HydrateFn = typeof import("../../src/pr-state/repos.ts").hydrateAfterMaterialize;
   type HydrateResult = ReturnType<HydrateFn>;
 
   const CANONICAL_REFSPECS = [
@@ -2547,7 +2563,7 @@ describe("refreshLocalRepo (GH-1681)", () => {
       ]),
     );
     const { fn, calls: hydrateCalls } = makeHydrateStub({
-      status: "dry-run",
+      status: "skipped-no-beads",
       doltRemote: "https://doltremoteapi.dolthub.com/owner/scratch",
       doltDatabase: "scratch_db",
       message: "beads: would clone …",
@@ -2779,7 +2795,7 @@ describe("refreshLocalRepo (GH-1681)", () => {
 // upstream and asserts that `refreshLocalRepo` repairs it end-to-end. Uses
 // the default runner; hydrate is stubbed because the bare has no `.beads/`.
 describe("refreshLocalRepo — legacy bare integration (GH-1751)", () => {
-  type HydrateFn = typeof import("../../src/beads/repo_hydrate.ts").hydrateAfterMaterialize;
+  type HydrateFn = typeof import("../../src/pr-state/repos.ts").hydrateAfterMaterialize;
 
   function git(cwd: string, args: string[]): void {
     const result = spawnSync("git", args, { cwd, encoding: "utf8" });

@@ -116,7 +116,6 @@ const IMPLEMENT_CHECK_STEPS: readonly CheckStep[] = [
   { command: "bun", args: ["test"] },
 ];
 import { resolverForCanonicalId } from "./resolvers/dispatch.ts";
-import { BeadsResolver } from "./resolvers/beads.ts";
 import type { ResolvedWorkUnit, WorkUnitSource } from "./resolvers/types.ts";
 import { workUnitSources } from "./resolvers/types.ts";
 import { normalizeToBdSurfaceShort, recognizeBareWorkspaceLongId } from "../issues/resolver.ts";
@@ -125,12 +124,6 @@ import { nextAction, type ActionPlan, type ResolvedAction } from "./actions.ts";
 import { nextWork } from "./next_work.ts";
 import { runDelegateAssign } from "../delegate/assign.ts";
 import type { NextWorkResult } from "../beads/ready.ts";
-import {
-  formatDelegateNext,
-  formatDelegateNextList,
-  selectDelegateCandidate,
-  type DelegateNextEnrichment,
-} from "../beads/delegate.ts";
 import { buildDomainState, type DomainStateV1 } from "./domain_state.ts";
 import {
   addLocalRepo,
@@ -162,7 +155,6 @@ import {
   type RepoRefreshResult,
   type SetRepoAxisDelta,
 } from "./repos.ts";
-import { auditRegisteredRepos, formatRepoAudit, type RepoAuditDeps } from "./repo_audit.ts";
 import {
   // GH-1760: registry-store DI + types shared by adopt verbs and the
   // `prx repo audit` count line.
@@ -182,7 +174,6 @@ import { AddDolthubError, formatRepoAddDolthub, runRepoAddDolthub } from "./repo
 import { formatRepoBootstrap, RepoBootstrapError, runRepoBootstrap } from "./repo_bootstrap.ts";
 import { materializeBareRepo, MaterializeError, type MaterializeResult } from "./materialize.ts";
 import { resolveTargetRepoCwd } from "./repo-target.ts";
-import { beadsModeHint, classifyBeadsWorkspace } from "../beads/workspace_mode.ts";
 import {
   applyHooks,
   formatHookApply,
@@ -314,23 +305,6 @@ import {
 // GH-2348.2: keeper attested-push handler.
 import { runKeeperPush, type KeeperPushDeps } from "./keeper.ts";
 import { runKeeperServe, type KeeperDaemonDeps } from "../keeperd/daemon.ts";
-// GH-228: the beadsd read daemon (`prx beads serve`) — runs in the pod or locally.
-import { runBeadsServe, type BeadsDaemonDeps } from "../beadsd/daemon.ts";
-// GH-228: beads workspace self-heal (`prx beads doctor [--fix]`).
-import { diagnoseBeads, healBeads } from "../beads/doctor.ts";
-// GH-296: the host read-door — route `prx beads ready|list|show` through beadsd.
-import {
-  withBeadsClient,
-  defaultCanonicalBeadsCwd,
-  primeHostBeadsDoor,
-} from "../beadsd/client-factory.ts";
-import {
-  resolveWorkspaceAffinity,
-  WorkspaceAffinityError,
-  readWorkspaceWarning,
-} from "../beadsd/workspace-affinity.ts";
-import { provisionLocalBeads } from "../beadsd/provision-local.ts";
-import { BeadsRequestSchema, type BeadsRequest } from "../beadsd/contract.ts";
 import { runScopeGate, ScopeGateInputError } from "./scope-gate.ts";
 import { runTestGate, TestGateInputError } from "./test-gate.ts";
 import type { GateResult } from "../provenance/gate.ts";
@@ -354,28 +328,12 @@ import {
   withGitLockRecovery,
 } from "@bounded-systems/git";
 import { execGh } from "@bounded-systems/gh";
-import {
-  bdDoorGate,
-  execBd,
-  formatBdExecResult,
-  registerBdDoorDialer,
-  runBdShow,
-  runBdUpdateClaim,
-  type BdGithubRunner,
-} from "@bounded-systems/bd";
-import { prxBeadsDoorDialer } from "../beadsd/bd-door-dialer.ts";
-import { execBdIssueClose } from "../tools/bd_issue_close.ts";
 import { resolveAndCloseLinkedBeads, type PlanCloseBdRecordOutcome } from "./plan-close-bd.ts";
 import { runClaudePreflight, formatClaudePreflight } from "../tools/preflight_claude.ts";
 import { probeCapabilities, formatCapabilities } from "../tools/capabilities.ts";
 import { runNotionMcpPreflight, formatNotionMcpPreflight } from "../tools/preflight_notion_mcp.ts";
 import { discoverLocalGitRepos, formatLocalReposResult } from "../tools/repos_local.ts";
 import { ensurePrxExcludes, type EnsurePrxExcludesResult } from "../tools/ignore_sync.ts";
-import {
-  hydrate as hydrateBeads,
-  formatHydrateResult,
-  type HydrateStatus,
-} from "../beads/hydrate.ts";
 import {
   parseWorkspaceArgs,
   runWorkspaceCli,
@@ -394,22 +352,6 @@ import {
   runReserve as runWorkspaceReserve,
 } from "../workspace/actor.ts";
 import { MaterializeInput, ReserveInput } from "../workspace/schema.ts";
-import {
-  runBeadsPublish,
-  beadsPublishOptionsSchema,
-  type BeadsPublishOptions,
-  type BeadsPublishDeps,
-} from "../beads/publish.ts";
-import {
-  probeBdSchema,
-  repairBdSchema,
-  type BdSchemaProbeResult,
-  type BdSchemaRepairResult,
-} from "../beads/schema_repair.ts";
-// GH-1706: embedded → shared-server bd migration verb. Pure runner; the
-// CLI dispatch passes parsed flags straight through and formats the
-// discriminated-union result.
-import { runBeadsMigrate } from "../beads/migrate.ts";
 import { runHomeUpdate, type HomeUpdateOptions, type HomeUpdateDeps } from "./home-update.ts";
 import { runHomeSync, type HomeSyncOptions, type HomeSyncDeps } from "./home-sync.ts";
 import {
@@ -475,12 +417,6 @@ import {
   type IntakeCommentOptions,
   type IntakeCommentDeps,
 } from "../intake/intake-comment.ts";
-import {
-  runIntakeMirror,
-  intakeMirrorOptionsSchema,
-  type IntakeMirrorOptions,
-  type IntakeMirrorDeps,
-} from "../intake/intake-mirror.ts";
 // GH-1318: submit actor — pre-merge `Closes #N` emitter + post-merge sweep.
 import {
   runBodyTemplate,
@@ -548,21 +484,6 @@ import {
   type StageOptions,
 } from "../submit/stage.ts";
 import {
-  runIntakeBdLs,
-  runIntakeBdMemoryLs,
-  runIntakeBdMemoryGet,
-  runIntakeBdMemorySet,
-  intakeBdLsOptionsSchema,
-  intakeBdMemoryLsOptionsSchema,
-  intakeBdMemoryGetOptionsSchema,
-  intakeBdMemorySetOptionsSchema,
-  type IntakeBdLsOptions,
-  type IntakeBdMemoryLsOptions,
-  type IntakeBdMemoryGetOptions,
-  type IntakeBdMemorySetOptions,
-  type IntakeBdDeps,
-} from "../intake/intake-bd.ts";
-import {
   runTriageStatus,
   triageStatusOptionsSchema,
   type BeadsRecord,
@@ -584,25 +505,6 @@ import {
   type TriageApplyDeps,
 } from "../triage/apply.ts";
 import {
-  runTriagePromote,
-  triagePromoteOptionsSchema,
-  type TriagePromoteOptions,
-  type TriagePromoteDeps,
-} from "../triage/promote.ts";
-import {
-  runTriagePromoteChildren,
-  triagePromoteChildrenOptionsSchema,
-  type TriagePromoteChildrenOptions,
-  type TriagePromoteChildrenDeps,
-} from "../triage/promote-children.ts";
-import {
-  runTriageDriftFix,
-  triageDriftFixOptionsSchema,
-  type DriftFixAxis,
-  type TriageDriftFixOptions,
-  type TriageDriftFixDeps,
-} from "../triage/drift-fix.ts";
-import {
   runTriageMigrateAxisValue,
   triageMigrateAxisValueOptionsSchema,
   type TriageMigrateAxisValueOptions,
@@ -618,14 +520,6 @@ import {
   type TriageCloseReason,
   type TriageCloseResult,
 } from "../triage/close.ts";
-import {
-  runTriageCloseStale,
-  triageCloseStaleOptionsSchema,
-  formatTriageCloseStaleResult,
-  type TriageCloseStaleOptions,
-  type TriageCloseStaleDeps,
-  type TriageCloseStaleResult,
-} from "../triage/close-stale.ts";
 import {
   runTriagePrioritize,
   triagePrioritizeOptionsSchema,
@@ -728,8 +622,6 @@ import { openAnchoredChain } from "@bounded-systems/anchored-chain-sqlite";
 import { runMapCreate, mapCreateOptionsSchema, type MapCreateOptions } from "../map/create.ts";
 import { runMapShow, mapShowOptionsSchema, type MapShowOptions } from "../map/show.ts";
 import { MapRecordNotFoundError } from "../map/record-io.ts";
-import { formatScoutIssuesJsonLines, runScoutIssues, ScoutIssuesError } from "../scout/issues.ts";
-import { formatScoutNotionJson, runScoutNotion, ScoutNotionError } from "../scout/notion.ts";
 import {
   runScoutSource,
   scoutSourceOptionsSchema,
@@ -766,15 +658,7 @@ import { domainSyncMachine } from "../sync/machine.ts";
 import { fetchMachine } from "../machine/machines/fetch.ts";
 import { runBeadsSync, type RunBeadsSyncOptions } from "../sync/run.ts";
 import { DEFAULT_SYNC_LIMIT } from "../sync/limits.ts";
-import {
-  runBeadsSyncAcrossRepos,
-  type RunBeadsSyncAcrossReposOptions,
-} from "../sync/run-cross-repo.ts";
 import { runBackfill, type RunBackfillOptions } from "../sync/backfill.ts";
-import {
-  runDoltReconcileAcrossRepos,
-  type RunDoltReconcileAcrossReposOptions,
-} from "../sync/run-dolt-reconcile-cross-repo.ts";
 import { runMemoryCompact } from "../memory/compact.ts";
 import {
   runHandoffEnqueue,
@@ -808,7 +692,6 @@ import {
   type CloseSessionResult,
   type Output,
   type ParityChainApplyResult,
-  type RepairBdEntry,
   type SessionOpenCheckReport,
   VERB_HELP_SEE_ALSO,
   type WorkUnitChainCheckResult,
@@ -835,7 +718,6 @@ import {
   formatParityChainApplyResults,
   formatPhase,
   formatPlanNamespaceHelp,
-  formatRepairBdResults,
   formatRepoAdd,
   formatRepoNormalization,
   formatRepoOrigins,
@@ -1334,18 +1216,6 @@ type ParsedCommand =
       ledger?: string | undefined;
     }
   | {
-      // GH-1244: read-only beads/Dolt projection. Reads the local
-      // substrate (no external HTTP), parses kind/scope from titles,
-      // projects ghNumber + native dependency edges as `links`.
-      command: "scout-issues";
-      query: string;
-      state: "open" | "closed" | "all";
-      repo?: string | undefined;
-      max?: number | undefined;
-      maxStaleness: string;
-      format: "jsonl" | "plain";
-    }
-  | {
       command: "scout-source";
       id: string;
       format: "plain" | "json";
@@ -1356,13 +1226,6 @@ type ParsedCommand =
       unit: string;
       role: string;
       format: "plain" | "json";
-    }
-  | {
-      // GH-1420: Notion page UUID / Task-ID → structured mirror record.
-      command: "scout-notion";
-      id: string;
-      noMirrors: boolean;
-      format: "json";
     }
   | {
       // GH-1245 → GH-1603 — fetch verb. `--dry-run` projects an
@@ -1439,22 +1302,6 @@ type ParsedCommand =
       // GH-1423: rules inputs — dump loaded inputs as JSON for debugging.
       command: "rules-inputs";
       format: "plain" | "json";
-    }
-  | {
-      command: "beads-init";
-      importGh: boolean;
-      dryRun: boolean;
-    }
-  | {
-      // GH-1706: embedded → shared-server migration verb. `slug` is optional;
-      // when omitted, resolves the registered repo from cwd via
-      // `localRepoForCwd` so an operator inside a worktree can run the verb
-      // without re-typing the slug.
-      command: "beads-migrate";
-      slug?: string | undefined;
-      dryRun: boolean;
-      patchMetadata: boolean;
-      staleThresholdSeconds: number;
     }
   | {
       // GH-1261 (PR-1): read-only inspector — prints the parsed dep-research
@@ -1534,10 +1381,6 @@ type ParsedCommand =
       // every discovered repo's .gitmodules entries — a submodule audit,
       // not a repair; see findRepoSubmodules.
       listSubmodules: boolean;
-      format: "plain" | "json";
-    }
-  | {
-      command: "repo-audit";
       format: "plain" | "json";
     }
   | {
@@ -1702,13 +1545,6 @@ type ParsedCommand =
       cwd?: string | undefined;
     }
   | {
-      command: "tools-bd";
-      format: "plain" | "json";
-      subcommand: string;
-      passArgs: string[];
-      cwd?: string | undefined;
-    }
-  | {
       command: "capabilities";
       format: "plain" | "json";
     }
@@ -1726,96 +1562,6 @@ type ParsedCommand =
       scanHome: string;
       strict: boolean;
       countOnly: boolean;
-    }
-  | {
-      command: "beads-hydrate";
-      format: "plain" | "json";
-      cwd?: string | undefined;
-      dryRun: boolean;
-    }
-  | {
-      command: "beads-issue";
-      issueNumber: number;
-      format: "plain" | "json" | "id";
-    }
-  | {
-      command: "beads-publish";
-      bdId: string;
-      repo?: string | undefined;
-      dryRun: boolean;
-      noAdopt: boolean;
-      format: "plain" | "json";
-    }
-  | {
-      command: "beads-sync";
-      format: "plain" | "json";
-      repo?: string | undefined;
-      domain: string;
-      dryRun: boolean;
-      budget?: number | undefined;
-      limit: number;
-      /** GH-1662: cross-repo daemon mode — walk the .prx inventory. */
-      allRepos: boolean;
-    }
-  | {
-      // GH-1702: cross-repo fan-out of `prx dolt reconcile`.
-      command: "beads-sync-all";
-      format: "plain" | "json";
-      mode: "full" | "push-only" | "pull-only";
-      repo?: string | undefined;
-      dryRun: boolean;
-      resolve?: "schema-prefer-remote" | undefined;
-    }
-  | {
-      // GH-228: `beads serve` runs the beadsd read daemon on a unix socket (in-VM).
-      command: "beads-serve";
-      format: "plain" | "json";
-      socket: string;
-      pidfile?: string | undefined;
-      cwd?: string | undefined;
-    }
-  | {
-      // GH-228: `beads doctor [--fix]` — diagnose / re-bootstrap an unhealthy beads clone.
-      command: "beads-doctor";
-      format: "plain" | "json";
-      fix: boolean;
-      cwd?: string | undefined;
-    }
-  | {
-      // GH-296: `beads ready|list|show` routed through beadsd — the reachable
-      // beads surface for any shell. Routes through the local daemon
-      // (auto-started; `PRX_BEADS_SOCKET` selects the host-native or pod socket).
-      command: "beads-read";
-      format: "plain" | "json";
-      kind: "ready" | "list" | "show" | "children" | "recall" | "memories";
-      id?: string | undefined;
-      status?: string | undefined;
-      all?: boolean | undefined;
-      limit?: number | undefined;
-      /** `recall <key>` — the memory row key (prx-44y). */
-      key?: string | undefined;
-      /** `memories [<prefix>]` — optional memory key-prefix scan (prx-44y). */
-      prefix?: string | undefined;
-    }
-  | {
-      // GH-296 wave 2: the single-writer surface — `beads create|update|close`
-      // routed through beadsd. The validated write request travels as-is.
-      command: "beads-write";
-      format: "plain" | "json";
-      request: BeadsRequest;
-    }
-  | {
-      // GH-296: provision the canonical LOCAL beads clone (host twin of
-      // `prx lima provision-beads`). Default cwd: the resolved canonical path.
-      command: "beads-provision";
-      format: "plain" | "json";
-      origin: string;
-      cwd: string;
-    }
-  | {
-      // GH-296: daemon-aware session primer — the prx-beads twin of `bd prime`.
-      command: "beads-prime";
-      format: "plain" | "json";
     }
   | {
       // GH-1990: `prx sync issues --from <src> --to <dst>`. v0 wires only the
@@ -1927,24 +1673,6 @@ type ParsedCommand =
       command: "chains";
       repoPath: string;
       remote: boolean;
-      format: "plain" | "json";
-    }
-  | {
-      command: "repair-bd";
-      repoPath: string;
-      all: boolean;
-      format: "plain" | "json";
-    }
-  | {
-      command: "delegate-next";
-      repoPath: string;
-      filters: {
-        epic?: string | undefined;
-        area?: string | undefined;
-        priority?: number | undefined;
-        type?: string | undefined;
-        all: boolean;
-      };
       format: "plain" | "json";
     }
   | {
@@ -2180,35 +1908,6 @@ type ParsedCommand =
       format: "plain" | "json";
     }
   | {
-      command: "intake-mirror";
-      ghId: string;
-      repo?: string | undefined;
-      dryRun: boolean;
-      format: "plain" | "json";
-    }
-  | {
-      command: "intake-bd-ls";
-      status?: string | undefined;
-      limit: number;
-      format: "plain" | "json";
-    }
-  | {
-      command: "intake-bd-memory-ls";
-      search?: string | undefined;
-      format: "plain" | "json";
-    }
-  | {
-      command: "intake-bd-memory-get";
-      key: string;
-      format: "plain" | "json";
-    }
-  | {
-      command: "intake-bd-memory-set";
-      key: string;
-      body: string;
-      format: "plain" | "json";
-    }
-  | {
       // GH-1318: `prx submit body-template --closes <id> [...]` — pre-merge
       // emitter that renders `Closes #N` markdown for paste into
       // `gh pr create --body-file`. Pure-data; no gh I/O at this layer.
@@ -2345,31 +2044,6 @@ type ParsedCommand =
       sync: boolean;
     }
   | {
-      command: "triage-promote";
-      repo?: string | undefined;
-      from?: string | undefined;
-      dryRun: boolean;
-      limit: number;
-      only?: number | undefined;
-    }
-  | {
-      command: "triage-promote-children";
-      dir: string;
-      dryRun: boolean;
-      limit: number;
-      only?: string | undefined;
-    }
-  | {
-      command: "triage-drift-fix";
-      repo?: string | undefined;
-      from?: string | undefined;
-      apply: boolean;
-      dryRun: boolean;
-      limit: number;
-      axes: DriftFixAxis[];
-      sync: boolean;
-    }
-  | {
       command: "triage-migrate-axis-value";
       repo?: string | undefined;
       axis: LabelAxis;
@@ -2408,15 +2082,6 @@ type ParsedCommand =
       reason: TriageCloseReason;
       note?: string | undefined;
       dryRun: boolean;
-      format: "plain" | "json";
-    }
-  | {
-      command: "triage-close-stale";
-      repo?: string | undefined;
-      reason: TriageCloseReason;
-      note?: string | undefined;
-      dryRun: boolean;
-      limit: number;
       format: "plain" | "json";
     }
   | {
@@ -2486,8 +2151,6 @@ type CliDeps = {
   findRepoBySlug?: typeof findRepoBySlug;
   // GH-1689: shared slug→target-mainx resolver used by plan-session + triage-session.
   resolveTargetRepoCwd?: typeof resolveTargetRepoCwd;
-  // GH-1689 / GH-1684: workspace-mode classifier used by triage-session --repo.
-  classifyBeadsWorkspace?: typeof classifyBeadsWorkspace;
   writeRepoInventoryIndex?: typeof writeRepoInventoryIndex;
   applyHooks?: typeof applyHooks;
   hookStatus?: typeof hookStatus;
@@ -2532,8 +2195,6 @@ type CliDeps = {
     cwd: string,
     profile: SessionProfileName,
   ) => EnsureClaudeAllowlistResult;
-  hydrateBeads?: typeof hydrateBeads;
-  repairBdSchema?: typeof repairBdSchema;
   listFeatureWorktreesForRepair?: typeof listFeatureWorktreesForRepair;
   checkWorkUnitIssue?: typeof checkWorkUnitIssue;
   findBeadsIssuesByGithubIssue?: typeof findBeadsIssuesByGithubIssue;
@@ -2608,19 +2269,9 @@ type CliDeps = {
     output: Output,
     deps?: IntakeCommentDeps,
   ) => number;
-  runIntakeMirror?: (
-    options: IntakeMirrorOptions,
-    output: Output,
-    deps?: IntakeMirrorDeps,
-  ) => number;
   // GH-1318: submit actor handler seams.
   runBodyTemplate?: (options: BodyTemplateOptions, output: Output) => number;
   runPostmerge?: (options: PostmergeOptions, output: Output, deps?: PostmergeDeps) => number;
-  runBeadsPublish?: (
-    options: BeadsPublishOptions,
-    output: Output,
-    deps?: BeadsPublishDeps,
-  ) => number;
   // GH-885 + GH-882: doctor actor handler seams. Each takes the resolved
   // doctor target (workUnitId + repoPath) plus a verb-specific options shape.
   runDoctorInventory?: typeof doctorRunInventory;
@@ -2634,22 +2285,6 @@ type CliDeps = {
   runPublisherPrUpdate?: typeof publisherRunPrUpdate;
   runPublisherPrComment?: typeof publisherRunPrComment;
   runPublisherPrEdit?: typeof publisherRunPrEdit;
-  runIntakeBdLs?: (options: IntakeBdLsOptions, output: Output, deps?: IntakeBdDeps) => number;
-  runIntakeBdMemoryLs?: (
-    options: IntakeBdMemoryLsOptions,
-    output: Output,
-    deps?: IntakeBdDeps,
-  ) => number;
-  runIntakeBdMemoryGet?: (
-    options: IntakeBdMemoryGetOptions,
-    output: Output,
-    deps?: IntakeBdDeps,
-  ) => number;
-  runIntakeBdMemorySet?: (
-    options: IntakeBdMemorySetOptions,
-    output: Output,
-    deps?: IntakeBdDeps,
-  ) => number;
   runTriageStatus?: (
     options: TriageStatusOptions,
     output: Output,
@@ -2661,21 +2296,6 @@ type CliDeps = {
     deps?: TriageClassifyDeps,
   ) => number;
   runTriageApply?: (options: TriageApplyOptions, output: Output, deps?: TriageApplyDeps) => number;
-  runTriagePromote?: (
-    options: TriagePromoteOptions,
-    output: Output,
-    deps?: TriagePromoteDeps,
-  ) => number;
-  runTriagePromoteChildren?: (
-    options: TriagePromoteChildrenOptions,
-    output: Output,
-    deps?: TriagePromoteChildrenDeps,
-  ) => number;
-  runTriageDriftFix?: (
-    options: TriageDriftFixOptions,
-    output: Output,
-    deps?: TriageDriftFixDeps,
-  ) => Promise<number>;
   runTriageMigrateAxisValue?: (
     options: TriageMigrateAxisValueOptions,
     output: Output,
@@ -2701,11 +2321,6 @@ type CliDeps = {
     output: Output,
     deps?: TriageCloseDeps,
   ) => Promise<TriageCloseResult>;
-  runTriageCloseStale?: (
-    options: TriageCloseStaleOptions,
-    output: Output,
-    deps?: TriageCloseStaleDeps,
-  ) => TriageCloseStaleResult;
   runTriagePrime?: (
     options: TriagePrimeOptions,
     output: Output,
@@ -2737,13 +2352,6 @@ type CliDeps = {
   // GH-1469: `prx sync backfill` runtime override — tests inject a fake so the
   // verb is exercised without a real adapter `enumerate` / `runIntakeMirror`.
   backfill?: typeof runBackfill;
-  // GH-1662: cross-repo daemon runtime override — `--all-repos` walks the
-  // inventory and calls this once per indexed repo. Defaults to the in-tree
-  // orchestrator (`runBeadsSyncAcrossRepos`).
-  beadsSyncAcrossRepos?: typeof runBeadsSyncAcrossRepos;
-  // GH-1702: cross-repo `prx beads sync-all` runtime override — tests hand
-  // in a fake so the verb is exercised without a real `bd dolt push|pull`.
-  beadsSyncAllAcrossRepos?: typeof runDoltReconcileAcrossRepos;
   // GH-1513: `prx memory compact` runtime override — tests hand in a fake so
   // the verb is exercised without a real `bd admin compact` / `bd dep list`.
   memoryCompact?: typeof runMemoryCompact;
@@ -3209,7 +2817,6 @@ export async function checkWorkUnitChain(
   buildResolver: typeof resolverForCanonicalId = resolverForCanonicalId,
   from?: WorkUnitSource,
   readEpicChildren: typeof findEpicChildren = findEpicChildren,
-  probeSchema: typeof probeBdSchema = probeBdSchema,
   // prx-jcb: artifact-native local-projection probe (in-toto framing). Default
   // checks the CAS plan ref; injectable so tests stay offline.
   hasLocalPlanArtifact: (unit: string) => Promise<boolean> = defaultHasLocalPlanArtifact,
@@ -3526,27 +3133,8 @@ export async function checkWorkUnitChain(
     .filter((action) => action.type === "create_local_branch" || action.type === "create_worktree")
     .map((action) => action.type);
 
-  // GH-1152: detect bd schema drift (missing `started_at` column on worktrees
-  // that missed compat migration 017). Reported alongside backfill state, but
-  // strictly informational — the operator unblocks via `prx chain repair-bd`.
-  // backfill takes precedence in the `reason` field because backfill blocks
-  // session-open while drift only blocks `bd export` warnings on commit.
-  let bdSchemaProbe: BdSchemaProbeResult | undefined;
-  if (existsSync(join(repoPath, ".beads"))) {
-    try {
-      bdSchemaProbe = probeSchema(repoPath);
-    } catch {
-      // Probe is best-effort; never fail chain check on a bd binary issue.
-      bdSchemaProbe = undefined;
-    }
-  }
-  const driftDetected = bdSchemaProbe?.status === "drift_detected";
   const reason: WorkUnitChainCheckResult["reason"] =
-    backfillActions.length > 0
-      ? "backfill_allowed"
-      : driftDetected
-        ? "bd_schema_drift_detected"
-        : "ok";
+    backfillActions.length > 0 ? "backfill_allowed" : "ok";
 
   return {
     workUnitId,
@@ -3558,7 +3146,6 @@ export async function checkWorkUnitChain(
     checked: true,
     valid: true,
     reason,
-    ...(bdSchemaProbe ? { bdSchemaProbe } : {}),
   };
 }
 
@@ -3751,7 +3338,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "chain") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "chain requires a subcommand: status, check, check-issue, check-session, prune, backfill, sync, repair-bd",
+        "chain requires a subcommand: status, check, check-issue, check-session, prune, backfill, sync",
       );
     }
     if (c1 === "status") {
@@ -3775,23 +3362,17 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     if (c1 === "sync") {
       return ["reconcile", ...tail];
     }
-    if (c1 === "repair-bd") {
-      return ["repair-bd", ...tail];
-    }
     throw new CliError(`Unknown chain subcommand: ${c1}`);
   }
 
   if (c0 === "repo") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "repo requires a subcommand: add, add-dolthub, bootstrap, backfill, gc, refresh, list, audit, normalize, materialize, overview, status, checks, sync-issues, sync-status, protect-main, ci, pr-comments",
+        "repo requires a subcommand: add, add-dolthub, bootstrap, backfill, gc, refresh, list, normalize, materialize, overview, status, checks, sync-issues, sync-status, protect-main, ci, pr-comments",
       );
     }
     if (c1 === "list") {
       return ["repos", ...tail];
-    }
-    if (c1 === "audit") {
-      return ["repo-audit", ...tail];
     }
     if (c1 === "local") {
       return ["repos-local", ...tail];
@@ -3964,14 +3545,6 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     if (c1 === "slack") {
       return ["scout-slack", ...tail];
     }
-    // GH-1420: Notion page UUID / Task-ID resolver.
-    if (c1 === "notion") {
-      return ["scout-notion", ...tail];
-    }
-    // GH-1244: read-only beads/Dolt projection.
-    if (c1 === "issues") {
-      return ["scout-issues", ...tail];
-    }
     // GH-232: resolve a work unit's source authority (the FETCH; scout owns the
     // gh/bd/notion reach). The pin (intake) attenuates the result downstream.
     if (c1 === "source") {
@@ -4074,15 +3647,12 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
 
   if (c0 === "delegate") {
     if (!c1 || c1.startsWith("-")) {
-      throw new CliError("delegate requires a subcommand: next | assign");
-    }
-    if (c1 === "next") {
-      return ["delegate-next", ...tail];
+      throw new CliError("delegate requires a subcommand: assign");
     }
     if (c1 === "assign") {
       return ["delegate-assign", ...tail];
     }
-    throw new CliError(`Unknown delegate subcommand: ${c1}. Available: next | assign`);
+    throw new CliError(`Unknown delegate subcommand: ${c1}. Available: assign`);
   }
 
   if (c0 === "worktree") {
@@ -4140,13 +3710,10 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
 
   if (c0 === "tools") {
     if (!c1 || c1.startsWith("-")) {
-      throw new CliError("tools requires a subcommand: git, bd");
+      throw new CliError("tools requires a subcommand: git");
     }
     if (c1 === "git") {
       return ["tools-git", ...tail];
-    }
-    if (c1 === "bd") {
-      return ["tools-bd", ...tail];
     }
     throw new CliError(`Unknown tools subcommand: ${c1}`);
   }
@@ -4170,81 +3737,6 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
       return argv;
     }
     throw new CliError(`Unknown sync subcommand: ${c1}`);
-  }
-
-  if (c0 === "beads") {
-    if (!c1 || c1.startsWith("-")) {
-      throw new CliError(
-        "beads requires a subcommand: ready, list, show, children, create, update, close, reopen, dep, prime, hydrate, provision, issue, migrate, publish, sync, sync-all, doctor",
-      );
-    }
-    if (c1 === "prime") {
-      // GH-296: daemon-aware session primer (the prx-beads twin of `bd prime`).
-      return ["beads-prime", ...tail];
-    }
-    if (c1 === "hydrate") {
-      return ["beads-hydrate", ...tail];
-    }
-    if (c1 === "provision") {
-      // GH-296: provision the canonical local beads clone (host twin of
-      // `prx lima provision-beads`).
-      return ["beads-provision", ...tail];
-    }
-    if (c1 === "issue") {
-      return ["beads-issue", ...tail];
-    }
-    if (c1 === "migrate") {
-      return ["beads-migrate", ...tail];
-    }
-    if (c1 === "publish") {
-      return ["beads-publish", ...tail];
-    }
-    if (c1 === "sync") {
-      return ["beads-sync", ...tail];
-    }
-    if (c1 === "sync-all") {
-      // GH-1702: cross-repo fan-out of `prx dolt reconcile` over every
-      // dolthub-wired registered bare repo.
-      return ["beads-sync-all", ...tail];
-    }
-    if (c1 === "serve") {
-      // GH-228: the in-VM beadsd read daemon entrypoint.
-      return ["beads-serve", ...tail];
-    }
-    if (c1 === "doctor") {
-      // GH-228: beads workspace self-heal (diagnose / --fix re-bootstrap).
-      return ["beads-doctor", ...tail];
-    }
-    if (
-      c1 === "ready" ||
-      c1 === "list" ||
-      c1 === "show" ||
-      c1 === "children" ||
-      c1 === "recall" ||
-      c1 === "memories"
-    ) {
-      // GH-296: host read-door — routed through beadsd (the in-VM daemon).
-      // Collapse the reads onto one command with the kind as a positional.
-      // `children <id>` (prx-zbsi) serves an epic's parent-child children over
-      // the allowed `dep` subcommand. `recall <key>` / `memories [<prefix>]`
-      // (prx-44y) are the bd memory-surface reads.
-      return ["beads-read", c1, ...tail];
-    }
-    if (
-      c1 === "create" ||
-      c1 === "update" ||
-      c1 === "close" ||
-      c1 === "reopen" ||
-      c1 === "dep" ||
-      c1 === "remember"
-    ) {
-      // GH-296 wave 2: host write-door — the single-writer surface routed
-      // through beadsd. Collapse the atomic writes onto one command with the
-      // kind as a positional. `remember <body> --key <key>` (prx-44y) is the
-      // bd memory-surface upsert.
-      return ["beads-write", c1, ...tail];
-    }
-    throw new CliError(`Unknown beads subcommand: ${c1}`);
   }
 
   if (c0 === "memory") {
@@ -4289,7 +3781,7 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
   if (c0 === "triage") {
     if (!c1 || c1.startsWith("-")) {
       throw new CliError(
-        "triage requires a subcommand: status, agent, result, classify, apply, promote, prioritize, type-pass, prioritize-bulk, prime, drift-fix, migrate-axis-value, close, close-stale, dispatch",
+        "triage requires a subcommand: status, agent, result, classify, apply, prioritize, type-pass, prioritize-bulk, prime, migrate-axis-value, close, dispatch",
       );
     }
     // GH-1194: per-actor dispatch envelope.
@@ -4319,15 +3811,6 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     if (c1 === "apply") {
       return ["triage-apply", ...tail];
     }
-    if (c1 === "promote") {
-      return ["triage-promote", ...tail];
-    }
-    if (c1 === "promote-children") {
-      return ["triage-promote-children", ...tail];
-    }
-    if (c1 === "drift-fix") {
-      return ["triage-drift-fix", ...tail];
-    }
     if (c1 === "migrate-axis-value") {
       return ["triage-migrate-axis-value", ...tail];
     }
@@ -4343,10 +3826,6 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     // GH-1719: actor-tied close for bd-only records.
     if (c1 === "close") {
       return ["triage-close", ...tail];
-    }
-    // GH-1782: bulk close beads whose linked GH issue is already closed.
-    if (c1 === "close-stale") {
-      return ["triage-close-stale", ...tail];
     }
     // GH-1015: orchestrator that drives untriaged → 0 by looping the
     // classify/apply/(priority)/promote chain on the GH-1052 machine.
@@ -6821,219 +6300,6 @@ function parseIntakeCommentCommand(rest: string[]): ParsedCommand {
   };
 }
 
-// GH-1002: parser for `prx intake mirror <gh-id>` — idempotent bd create with
-// race-check. Accepts GH-N / #N / N / GitHub URL.
-function parseIntakeMirrorCommand(rest: string[]): ParsedCommand {
-  const { values, positionals } = parseArgs({
-    args: rest,
-    options: {
-      repo: { type: "string" },
-      "dry-run": { type: "boolean", default: false },
-      format: { type: "string", default: "plain" },
-      json: { type: "boolean", default: false },
-    },
-    strict: true,
-    allowPositionals: true,
-  });
-
-  if (positionals.length < 1) {
-    throw new CliError(
-      "intake mirror requires one positional: <gh-id> (accepts GH-N, #N, N, or URL)",
-    );
-  }
-  if (positionals.length > 1) {
-    throw new CliError(
-      `intake mirror: unexpected extra positionals: ${positionals.slice(1).join(" ")}`,
-    );
-  }
-
-  const ghId = positionals[0]!.trim();
-  if (!ghId) {
-    throw new CliError("intake mirror: gh-id must not be empty");
-  }
-
-  const format = values.json ? "json" : ensureChoice(values.format, ["plain", "json"], "--format");
-
-  return {
-    command: "intake-mirror",
-    ghId,
-    repo: values.repo,
-    dryRun: values["dry-run"] ?? false,
-    format,
-  };
-}
-
-// GH-1003: parsers for `prx intake bd {ls, memory ls|get|set}` — the narrow
-// bd surface that subsumes raw `bd list` and `bd memories` so GH-1004 can
-// drop those entries from the intake profile allowlist.
-function parseIntakeBdCommand(rest: string[]): ParsedCommand {
-  const sub = rest[0];
-  if (!sub) {
-    throw new CliError("intake bd requires a subcommand: ls | memory <ls|get|set>");
-  }
-  if (sub === "ls") {
-    return parseIntakeBdLsCommand(rest.slice(1));
-  }
-  if (sub === "memory") {
-    return parseIntakeBdMemoryCommand(rest.slice(1));
-  }
-  throw new CliError(`intake bd: unknown subcommand '${sub}'. Available: ls | memory <ls|get|set>`);
-}
-
-function parseIntakeBdLsCommand(rest: string[]): ParsedCommand {
-  const { values, positionals } = parseArgs({
-    args: rest,
-    options: {
-      status: { type: "string" },
-      limit: { type: "string", default: "20" },
-      format: { type: "string", default: "plain" },
-      json: { type: "boolean", default: false },
-    },
-    strict: true,
-    allowPositionals: false,
-  });
-
-  if (positionals.length > 0) {
-    throw new CliError(`intake bd ls: unexpected positionals: ${positionals.join(" ")}`);
-  }
-
-  // Reject the whole token (parseInt silently truncates "1.5" → 1; we want
-  // strict integer-only input so the CLI contract matches the schema).
-  const limitRaw = values.limit ?? "20";
-  if (!/^\d+$/.test(limitRaw)) {
-    throw new CliError(
-      `intake bd ls: --limit must be a non-negative integer (got ${values.limit})`,
-    );
-  }
-  const limitNum = Number.parseInt(limitRaw, 10);
-
-  const format = values.json ? "json" : ensureChoice(values.format, ["plain", "json"], "--format");
-
-  return {
-    command: "intake-bd-ls",
-    status: values.status,
-    limit: limitNum,
-    format,
-  };
-}
-
-function parseIntakeBdMemoryCommand(rest: string[]): ParsedCommand {
-  const sub = rest[0];
-  if (!sub) {
-    throw new CliError("intake bd memory requires a subcommand: ls | get | set");
-  }
-  if (sub === "ls") {
-    return parseIntakeBdMemoryLsCommand(rest.slice(1));
-  }
-  if (sub === "get") {
-    return parseIntakeBdMemoryGetCommand(rest.slice(1));
-  }
-  if (sub === "set") {
-    return parseIntakeBdMemorySetCommand(rest.slice(1));
-  }
-  throw new CliError(`intake bd memory: unknown subcommand '${sub}'. Available: ls | get | set`);
-}
-
-function parseIntakeBdMemoryLsCommand(rest: string[]): ParsedCommand {
-  const { values, positionals } = parseArgs({
-    args: rest,
-    options: {
-      format: { type: "string", default: "plain" },
-      json: { type: "boolean", default: false },
-    },
-    strict: true,
-    allowPositionals: true,
-  });
-
-  if (positionals.length > 1) {
-    throw new CliError(
-      `intake bd memory ls: unexpected extra positionals: ${positionals.slice(1).join(" ")}`,
-    );
-  }
-
-  const format = values.json ? "json" : ensureChoice(values.format, ["plain", "json"], "--format");
-
-  return {
-    command: "intake-bd-memory-ls",
-    search: positionals[0]?.trim() || undefined,
-    format,
-  };
-}
-
-function parseIntakeBdMemoryGetCommand(rest: string[]): ParsedCommand {
-  const { values, positionals } = parseArgs({
-    args: rest,
-    options: {
-      format: { type: "string", default: "plain" },
-      json: { type: "boolean", default: false },
-    },
-    strict: true,
-    allowPositionals: true,
-  });
-
-  if (positionals.length < 1) {
-    throw new CliError("intake bd memory get requires a <key> positional");
-  }
-  if (positionals.length > 1) {
-    throw new CliError(
-      `intake bd memory get: unexpected extra positionals: ${positionals.slice(1).join(" ")}`,
-    );
-  }
-
-  const key = positionals[0]!.trim();
-  if (!key) {
-    throw new CliError("intake bd memory get: key must not be empty");
-  }
-
-  const format = values.json ? "json" : ensureChoice(values.format, ["plain", "json"], "--format");
-
-  return {
-    command: "intake-bd-memory-get",
-    key,
-    format,
-  };
-}
-
-function parseIntakeBdMemorySetCommand(rest: string[]): ParsedCommand {
-  const { values, positionals } = parseArgs({
-    args: rest,
-    options: {
-      body: { type: "string" },
-      format: { type: "string", default: "plain" },
-      json: { type: "boolean", default: false },
-    },
-    strict: true,
-    allowPositionals: true,
-  });
-
-  if (positionals.length < 1) {
-    throw new CliError("intake bd memory set requires a <key> positional");
-  }
-  if (positionals.length > 1) {
-    throw new CliError(
-      `intake bd memory set: unexpected extra positionals: ${positionals.slice(1).join(" ")}`,
-    );
-  }
-
-  const key = positionals[0]!.trim();
-  if (!key) {
-    throw new CliError("intake bd memory set: key must not be empty");
-  }
-  const body = values.body;
-  if (body === undefined || body.length === 0) {
-    throw new CliError('intake bd memory set requires --body "<text>"');
-  }
-
-  const format = values.json ? "json" : ensureChoice(values.format, ["plain", "json"], "--format");
-
-  return {
-    command: "intake-bd-memory-set",
-    key,
-    body,
-    format,
-  };
-}
-
 // GH-1166: bare `prx session <verb>` is retired. Read-side subcommands moved
 // to canonical actor-owned homes (see registry.ts session.* leaves comment).
 // We keep:
@@ -7287,327 +6553,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       ...(values.socket !== undefined ? { socket: values.socket } : {}),
       ...(values.pidfile !== undefined ? { pidfile: values.pidfile } : {}),
       cwd: values.cwd,
-    };
-  }
-
-  // GH-228: `prx beads serve` runs the in-VM beadsd read daemon on a unix socket
-  // (rewritten to `beads-serve` by normalizeNamespaceArgv).
-  if (command === "beads-serve") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-        socket: { type: "string" },
-        pidfile: { type: "string" },
-        cwd: { type: "string" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-    if (typeof values.socket !== "string" || values.socket.length === 0) {
-      throw new CliError(
-        "prx beads serve requires a socket: --socket <path> (the beadsd listen path)",
-      );
-    }
-    return {
-      command: "beads-serve",
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      socket: values.socket,
-      ...(values.pidfile !== undefined ? { pidfile: values.pidfile } : {}),
-      ...(values.cwd !== undefined ? { cwd: values.cwd } : {}),
-    };
-  }
-
-  // GH-228: `prx beads doctor [--fix]` — diagnose (read-only) or re-bootstrap an
-  // unhealthy beads clone (rewritten to `beads-doctor` by normalizeNamespaceArgv).
-  if (command === "beads-doctor") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-        fix: { type: "boolean", default: false },
-        cwd: { type: "string" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-    // GH-296: the canonical beads live in the daemon's one-true-source clone
-    // (~/.local/state/prx/beads), not a per-worktree `.beads/`. Diagnose/heal
-    // that store — like every other `prx beads` verb (mirrors `beads-provision`)
-    // — so a daemon-served repo (no local `.beads/`) is not misread as an
-    // unhealthy "issue_prefix not set". An explicit `--cwd` still overrides.
-    const cwd = values.cwd ?? defaultCanonicalBeadsCwd(getEnv) ?? undefined;
-    return {
-      command: "beads-doctor",
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      fix: values.fix ?? false,
-      ...(cwd !== undefined ? { cwd } : {}),
-    };
-  }
-
-  // GH-296: `prx beads ready|list|show` — the reachable beads surface for any
-  // shell (rewritten to `beads-read <kind>` by normalizeNamespaceArgv). The host
-  // holds no beads DB; it asks the local daemon (auto-started by
-  // `withBeadsClient`; `PRX_BEADS_SOCKET` selects the host-native or pod socket).
-  if (command === "beads-prime") {
-    // GH-296: daemon-aware session primer (prx-beads twin of `bd prime`).
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-    return {
-      command: "beads-prime",
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
-
-  if (command === "beads-read") {
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-        status: { type: "string" },
-        all: { type: "boolean" },
-        limit: { type: "string" },
-        // Accepted and ignored: reads always emit JSON. The beadsd door dialer
-        // forwards a bd read's `--json` flag verbatim (`bd show <id> --json` →
-        // `prx beads show <id> --json`), so the read parser must tolerate it or
-        // every door read fails strict parsing (prx-zbsi).
-        json: { type: "boolean" },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-    const kind = positionals[0];
-    if (
-      kind !== "ready" &&
-      kind !== "list" &&
-      kind !== "show" &&
-      kind !== "children" &&
-      kind !== "recall" &&
-      kind !== "memories"
-    ) {
-      throw new CliError(
-        "prx beads read requires a kind: ready | list | show | children | recall | memories",
-      );
-    }
-    const id = positionals[1];
-    if ((kind === "show" || kind === "children") && (typeof id !== "string" || id.length === 0)) {
-      throw new CliError(`prx beads ${kind} requires an id: \`prx beads ${kind} <id>\``);
-    }
-    // recall needs a key; memories' prefix is optional (no prefix = scan all).
-    if (kind === "recall" && (typeof id !== "string" || id.length === 0)) {
-      throw new CliError("prx beads recall requires a key: `prx beads recall <key>`");
-    }
-    const limit = ((): number | undefined => {
-      if (values.limit === undefined) return undefined;
-      const n = Number(values.limit);
-      if (!Number.isInteger(n) || n < 0) {
-        throw new CliError("prx beads list: --limit must be a non-negative integer (0 = no cap)");
-      }
-      return n;
-    })();
-    return {
-      command: "beads-read",
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      kind,
-      ...(kind === "show" || kind === "children" ? { id } : {}),
-      ...(kind === "recall" ? { key: id } : {}),
-      ...(kind === "memories" && typeof id === "string" && id.length > 0 ? { prefix: id } : {}),
-      ...(values.status !== undefined ? { status: values.status } : {}),
-      ...(values.all === true ? { all: true } : {}),
-      ...(limit !== undefined ? { limit } : {}),
-    };
-  }
-
-  // GH-296 wave 2: `prx beads create|update|close` — the single-writer surface,
-  // routed through beadsd (rewritten to `beads-write <kind>` by
-  // normalizeNamespaceArgv). No `--vm` ⇒ local daemon (auto-started); `--vm`
-  // ⇒ the in-VM daemon.
-  if (command === "beads-write") {
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-        type: { type: "string" },
-        title: { type: "string" },
-        priority: { type: "string" },
-        description: { type: "string" },
-        status: { type: "string" },
-        assignee: { type: "string" },
-        reason: { type: "string" },
-        "external-ref": { type: "string" },
-        notes: { type: "string" },
-        metadata: { type: "string" },
-        silent: { type: "boolean" },
-        // `remember <body> --key <key>` — the bd memory-surface upsert (prx-44y).
-        key: { type: "string" },
-        // Accepted and ignored: the door dialer forwards a bd write's `--json`.
-        json: { type: "boolean" },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-    const kind = positionals[0];
-    const priority = ((): number | undefined => {
-      if (values.priority === undefined) return undefined;
-      const n = Number(values.priority);
-      if (!Number.isInteger(n) || n < 0 || n > 4) {
-        throw new CliError("prx beads: --priority must be an integer 0–4");
-      }
-      return n;
-    })();
-
-    let request: BeadsRequest;
-    if (kind === "create") {
-      if (typeof values.type !== "string" || values.type.length === 0) {
-        throw new CliError("prx beads create requires --type <task|bug|feature|epic>");
-      }
-      if (typeof values.title !== "string" || values.title.length === 0) {
-        throw new CliError("prx beads create requires --title <title>");
-      }
-      request = {
-        kind: "create",
-        issueType: values.type,
-        title: values.title,
-        ...(priority !== undefined ? { priority } : {}),
-        ...(values.description !== undefined ? { description: values.description } : {}),
-        ...(values["external-ref"] !== undefined ? { externalRef: values["external-ref"] } : {}),
-        ...(values.silent === true ? { silent: true } : {}),
-      };
-    } else if (kind === "update") {
-      const id = positionals[1];
-      if (typeof id !== "string" || id.length === 0) {
-        throw new CliError("prx beads update requires an id: `prx beads update <id> [--status …]`");
-      }
-      const fields = {
-        ...(values.status !== undefined ? { status: values.status } : {}),
-        ...(priority !== undefined ? { priority } : {}),
-        ...(values.assignee !== undefined ? { assignee: values.assignee } : {}),
-        ...(values.type !== undefined ? { issueType: values.type } : {}),
-        ...(values["external-ref"] !== undefined ? { externalRef: values["external-ref"] } : {}),
-        ...(values.notes !== undefined ? { notes: values.notes } : {}),
-        ...(values.title !== undefined ? { title: values.title } : {}),
-        ...(values.description !== undefined ? { description: values.description } : {}),
-        ...(values.metadata !== undefined ? { metadata: values.metadata } : {}),
-      };
-      if (Object.keys(fields).length === 0) {
-        throw new CliError(
-          "prx beads update needs at least one of --status / --priority / --assignee / --type / --external-ref / --notes / --title / --description",
-        );
-      }
-      request = { kind: "update", id, ...fields };
-    } else if (kind === "close") {
-      const id = positionals[1];
-      if (typeof id !== "string" || id.length === 0) {
-        throw new CliError("prx beads close requires an id: `prx beads close <id> [--reason r]`");
-      }
-      request = {
-        kind: "close",
-        id,
-        ...(values.reason !== undefined ? { reason: values.reason } : {}),
-      };
-    } else if (kind === "reopen") {
-      const id = positionals[1];
-      if (typeof id !== "string" || id.length === 0) {
-        throw new CliError("prx beads reopen requires an id: `prx beads reopen <id>`");
-      }
-      request = { kind: "reopen", id };
-    } else if (kind === "dep") {
-      // `prx beads dep add [--type <t>] <from> <to>` / `prx beads dep remove <from> <to>`
-      const action = positionals[1];
-      const from = positionals[2];
-      const to = positionals[3];
-      if (action !== "add" && action !== "remove") {
-        throw new CliError(
-          "prx beads dep requires an action: `prx beads dep add|remove <from> <to>`",
-        );
-      }
-      if (
-        typeof from !== "string" ||
-        from.length === 0 ||
-        typeof to !== "string" ||
-        to.length === 0
-      ) {
-        throw new CliError(`prx beads dep ${action} requires <from> <to>`);
-      }
-      request = {
-        kind: "dep",
-        action,
-        from,
-        to,
-        ...(values.type !== undefined ? { depType: values.type } : {}),
-      };
-    } else if (kind === "remember") {
-      // `prx beads remember <body> --key <key>` — upsert a bd memory row.
-      const body = positionals[1];
-      if (typeof values.key !== "string" || values.key.length === 0) {
-        throw new CliError(
-          "prx beads remember requires --key <key>: `prx beads remember <body> --key <key>`",
-        );
-      }
-      if (typeof body !== "string") {
-        throw new CliError(
-          "prx beads remember requires a body: `prx beads remember <body> --key <key>`",
-        );
-      }
-      request = { kind: "remember", key: values.key, body };
-    } else {
-      throw new CliError(
-        "prx beads write requires a kind: create | update | close | reopen | dep | remember",
-      );
-    }
-
-    // Validate against the wire contract for a clear error before dispatch.
-    const parsed = BeadsRequestSchema.safeParse(request);
-    if (!parsed.success) {
-      throw new CliError(
-        `invalid beads ${kind}: ${parsed.error.issues.map((i) => i.message).join("; ")}`,
-      );
-    }
-
-    return {
-      command: "beads-write",
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      request: parsed.data,
-    };
-  }
-
-  // GH-296: `prx beads provision` — provision the canonical LOCAL beads clone
-  // (host twin of `prx lima provision-beads`). Default cwd: the well-known
-  // ~/.local/state/prx/beads, which resolveLocalBeadsCwd then auto-serves.
-  if (command === "beads-provision") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-        origin: { type: "string" },
-        cwd: { type: "string" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-    const origin = values.origin;
-    if (typeof origin !== "string" || origin.length === 0) {
-      throw new CliError(
-        "prx beads provision requires --origin <owner/repo> (the canonical beads remote)",
-      );
-    }
-    const cwd = values.cwd ?? defaultCanonicalBeadsCwd(getEnv) ?? undefined;
-    if (typeof cwd !== "string" || cwd.length === 0) {
-      throw new CliError(
-        "prx beads provision: cannot resolve a default cwd (HOME unset) — pass --cwd <path>",
-      );
-    }
-    return {
-      command: "beads-provision",
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      origin,
-      cwd,
     };
   }
 
@@ -8244,80 +7189,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  if (command === "scout-issues") {
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: {
-        state: { type: "string", default: "open" },
-        repo: { type: "string" },
-        max: { type: "string" },
-        "max-staleness": { type: "string", default: "24h" },
-        format: { type: "string", default: "jsonl" },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-    if (positionals.length > 1) {
-      throw new CliError("scout issues accepts a single query positional; pass options as flags");
-    }
-    const maxRaw = values.max;
-    let max: number | undefined;
-    if (maxRaw !== undefined) {
-      const parsedNum = Number.parseInt(maxRaw, 10);
-      // Spec §9: --max <= 0 → exit 64 (EX_USAGE). Pre-parser-level so the
-      // error code matches whether the caller types `--max=0` or
-      // `--max=garbled` (NaN trips the same invariant downstream).
-      if (!Number.isFinite(parsedNum) || parsedNum <= 0) {
-        throw new CliError("scout issues INVALID_MAX: --max must be a positive integer", 64);
-      }
-      max = parsedNum;
-    }
-    const repo = values.repo;
-    if (
-      repo !== undefined &&
-      !/^[A-Za-z0-9][A-Za-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(repo)
-    ) {
-      throw new CliError(
-        `scout issues INVALID_REPO: --repo must be in owner/repo form (got: ${repo})`,
-        64,
-      );
-    }
-    return {
-      command,
-      query: (positionals[0] as string | undefined) ?? "",
-      state: ensureChoice(values.state, ["open", "closed", "all"] as const, "--state"),
-      repo,
-      max,
-      maxStaleness: (values["max-staleness"] as string | undefined) ?? "24h",
-      format: ensureChoice(values.format, ["jsonl", "plain"] as const, "--format"),
-    };
-  }
-  // GH-1420: Notion page UUID / Task-ID resolver.
-  if (command === "scout-notion") {
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: {
-        "no-mirrors": { type: "boolean", default: false },
-        format: { type: "string", default: "json" },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-    if (positionals.length === 0) {
-      throw new CliError(
-        "scout notion requires an id (e.g., `prx scout notion PROJ-5779` or a Notion page UUID)",
-      );
-    }
-    if (positionals.length > 1) {
-      throw new CliError("scout notion accepts a single id positional; pass options as flags");
-    }
-    return {
-      command,
-      id: positionals[0] as string,
-      noMirrors: values["no-mirrors"] === true,
-      format: ensureChoice(values.format, ["json"] as const, "--format"),
-    };
-  }
   // GH-1245 → GH-1603 — fetch verb. `--dry-run` runs the cheap GraphQL
   // count probe and skips the write loop (I-F6). Without it, the verb
   // paginates through `gh api graphql` and writes per page to bd with a
@@ -8402,22 +7273,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       format: ensureChoice(values.format, ["json"] as const, "--format"),
     };
   }
-  if (command === "beads-init") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        "import-gh": { type: "boolean", default: false },
-        "dry-run": { type: "boolean", default: false },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-    return {
-      command,
-      importGh: values["import-gh"],
-      dryRun: values["dry-run"],
-    };
-  }
   // GH-1768: derive-* verbs share a uniform parsing surface — a fixture
   // path, optional --issue filter, format, and free positionals the
   // verb-specific handler interprets.
@@ -8480,45 +7335,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       command,
       path: values.path.trim(),
       format: ensureChoice(values.format, ["plain", "json"] as const, "--format"),
-    };
-  }
-  // GH-1706: `prx beads migrate [<slug>]` — embedded → shared-server migration.
-  // `--patch-metadata` is default-on (the GH-1695 dolt_mode workaround); the
-  // `--no-patch-metadata` form retires the workaround once bd-upstream's
-  // metadata-persistence fix lands.
-  if (command === "beads-migrate") {
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: {
-        "dry-run": { type: "boolean", default: false },
-        "patch-metadata": { type: "boolean", default: true },
-        "no-patch-metadata": { type: "boolean", default: false },
-        "stale-threshold": { type: "string" },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-    if (positionals.length > 1) {
-      throw new CliError(
-        `beads migrate takes at most one <slug> positional, got ${positionals.length}: ${positionals.join(", ")}`,
-      );
-    }
-    let staleThresholdSeconds = 3600;
-    const staleRaw = values["stale-threshold"];
-    if (staleRaw !== undefined) {
-      const parsedNum = Number.parseInt(staleRaw, 10);
-      if (!Number.isFinite(parsedNum) || parsedNum <= 0) {
-        throw new CliError("beads migrate: --stale-threshold must be a positive integer (seconds)");
-      }
-      staleThresholdSeconds = parsedNum;
-    }
-    const patchMetadata = values["no-patch-metadata"] ? false : values["patch-metadata"];
-    return {
-      command,
-      slug: positionals[0] as string | undefined,
-      dryRun: values["dry-run"],
-      patchMetadata,
-      staleThresholdSeconds,
     };
   }
   // GH-1261 (PR-1): `prx dep manifest` — read-only inspector.
@@ -8741,23 +7557,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       listSubmodules: values["list-submodules"] === true,
       listOrigins: values["list-origins"] === true,
       format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
-
-  if (command === "repo-audit") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-        json: { type: "boolean", default: false },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-    const rawFormat = values.json === true ? "json" : values.format;
-    return {
-      command,
-      format: ensureChoice(rawFormat, ["plain", "json"], "--format"),
     };
   }
 
@@ -9408,38 +8207,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  if (command === "tools-bd") {
-    // GH-1227: auto-split prx flags from bd passthrough.
-    const { prxArgs, passthrough } = splitPassthroughArgv(
-      rest,
-      new Set(["format", "cwd"]),
-      new Set(),
-    );
-
-    const { values, positionals } = parseArgs({
-      args: prxArgs,
-      options: {
-        format: { type: "string", default: "plain" },
-        cwd: { type: "string" },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-
-    const subcommand = positionals[0];
-    if (!subcommand) {
-      throw new CliError("tools bd requires a subcommand (e.g., ready, list, show)");
-    }
-
-    return {
-      command,
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      subcommand,
-      passArgs: [...positionals.slice(1), ...passthrough],
-      cwd: values.cwd,
-    };
-  }
-
   if (command === "capabilities") {
     const { values } = parseArgs({
       args: rest,
@@ -9507,175 +8274,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       scanHome,
       strict: values.strict ?? false,
       countOnly: values.count ?? false,
-    };
-  }
-
-  if (command === "beads-hydrate") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-        cwd: { type: "string" },
-        "dry-run": { type: "boolean", default: false },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command,
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      cwd: values.cwd,
-      dryRun: values["dry-run"] ?? false,
-    };
-  }
-
-  if (command === "beads-issue") {
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-
-    const issueRef = positionals[0]?.trim();
-    if (!issueRef) {
-      throw new CliError(
-        "beads issue requires a GitHub issue reference (for example: 204 or GH-204)",
-      );
-    }
-    const issueNumber = parseGithubIssueNumber(issueRef);
-    if (issueNumber === null) {
-      throw new CliError(`beads issue: invalid GitHub issue reference "${issueRef}"`);
-    }
-
-    return {
-      command,
-      issueNumber,
-      format: ensureChoice(values.format, ["plain", "json", "id"], "--format"),
-    };
-  }
-
-  if (command === "beads-publish") {
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: {
-        repo: { type: "string" },
-        "dry-run": { type: "boolean", default: false },
-        "no-adopt": { type: "boolean", default: false },
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-
-    const bdId = positionals[0]?.trim();
-    if (!bdId) {
-      throw new CliError("beads publish requires one positional: <bd-id>");
-    }
-    if (positionals.length > 1) {
-      throw new CliError(
-        `beads publish: unexpected extra positionals: ${positionals.slice(1).join(" ")}`,
-      );
-    }
-
-    return {
-      command,
-      bdId,
-      repo: values.repo,
-      dryRun: values["dry-run"] ?? false,
-      noAdopt: values["no-adopt"] ?? false,
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
-
-  if (command === "beads-sync") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-        repo: { type: "string" },
-        domain: { type: "string", default: "gh" },
-        "dry-run": { type: "boolean", default: false },
-        budget: { type: "string" },
-        limit: { type: "string" },
-        // GH-1662: opt-in cross-repo daemon mode. Cron/launchd flips this on;
-        // interactive `prx beads sync` (no flag) stays single-repo as today.
-        "all-repos": { type: "boolean", default: false },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-    const parseNonNegInt = (raw: string | undefined, flag: string): number | undefined => {
-      if (raw === undefined) return undefined;
-      const n = Number.parseInt(raw, 10);
-      if (!Number.isFinite(n) || n < 0) {
-        throw new CliError(`beads sync: ${flag} must be a non-negative integer, got "${raw}"`);
-      }
-      return n;
-    };
-    const allRepos = values["all-repos"] ?? false;
-    if (allRepos && typeof values.repo === "string" && values.repo.trim().length > 0) {
-      throw new CliError("beads sync: --all-repos and --repo are mutually exclusive");
-    }
-    return {
-      command,
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      repo:
-        typeof values.repo === "string" && values.repo.trim().length > 0
-          ? values.repo.trim()
-          : undefined,
-      domain:
-        typeof values.domain === "string" && values.domain.trim().length > 0
-          ? values.domain.trim()
-          : "gh",
-      dryRun: values["dry-run"] ?? false,
-      budget: parseNonNegInt(values.budget, "--budget"),
-      limit: parseNonNegInt(values.limit, "--limit") ?? 0,
-      allRepos,
-    };
-  }
-
-  if (command === "beads-sync-all") {
-    // GH-1702: parse flags for the cross-repo `prx dolt reconcile` fan-out.
-    // `--push-only` / `--pull-only` are mutually exclusive (map onto the
-    // `DoltReconcileMode` parameter on the per-repo primitive).
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        format: { type: "string", default: "plain" },
-        repo: { type: "string" },
-        "push-only": { type: "boolean", default: false },
-        "pull-only": { type: "boolean", default: false },
-        "dry-run": { type: "boolean", default: false },
-        resolve: { type: "string" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-    if (values["push-only"] === true && values["pull-only"] === true) {
-      throw new CliError("beads sync-all: --push-only and --pull-only are mutually exclusive");
-    }
-    const mode: "full" | "push-only" | "pull-only" = values["push-only"]
-      ? "push-only"
-      : values["pull-only"]
-        ? "pull-only"
-        : "full";
-    return {
-      command: "beads-sync-all",
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      mode,
-      repo:
-        typeof values.repo === "string" && values.repo.trim().length > 0
-          ? values.repo.trim()
-          : undefined,
-      dryRun: values["dry-run"] ?? false,
-      resolve:
-        values.resolve === undefined
-          ? undefined
-          : ensureChoice(values.resolve, ["schema-prefer-remote"] as const, "--resolve"),
     };
   }
 
@@ -10279,73 +8877,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  if (command === "repair-bd") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        "repo-path": { type: "string", default: "." },
-        all: { type: "boolean", default: false },
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command: "repair-bd" as const,
-      repoPath: values["repo-path"],
-      all: values.all,
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
-
-  if (command === "delegate-next") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        "repo-path": { type: "string", default: "." },
-        epic: { type: "string" },
-        area: { type: "string" },
-        priority: { type: "string" },
-        type: { type: "string" },
-        all: { type: "boolean", default: false },
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    let priorityNum: number | undefined;
-    if (values.priority !== undefined) {
-      const parsed = Number.parseInt(values.priority, 10);
-      if (!Number.isFinite(parsed) || parsed < 0 || parsed > 10) {
-        throw new CliError(`--priority must be an integer 0-10 (got '${values.priority}')`);
-      }
-      priorityNum = parsed;
-    }
-
-    let epic: string | undefined;
-    if (values.epic !== undefined) {
-      if (!/^GH-\d+$/.test(values.epic)) {
-        throw new CliError(`--epic must be a GH-NNN issue id (got '${values.epic}')`);
-      }
-      epic = values.epic;
-    }
-
-    return {
-      command: "delegate-next" as const,
-      repoPath: values["repo-path"],
-      filters: {
-        epic,
-        area: values.area,
-        priority: priorityNum,
-        type: values.type,
-        all: values.all,
-      },
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
-
   if (command === "delegate-assign") {
     // GH-1874: bd-canonical assignment verb. Sibling of `delegate next` — the
     // picker surfaces a candidate; `assign` puts an owner on the hook.
@@ -10727,12 +9258,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     if (rest[0] === "comment") {
       return parseIntakeCommentCommand(rest.slice(1));
     }
-    // GH-1002: `prx intake mirror <gh-id>` is the idempotent bd-create verb.
-    // Routed before the type-positional validator since `mirror` is not a
-    // member of INTAKE_TYPES.
-    if (rest[0] === "mirror") {
-      return parseIntakeMirrorCommand(rest.slice(1));
-    }
     // prx-lfv: `prx intake result --disposition … --uow … [--reason …]` — the
     // structured tool the headless intake agent calls to REPORT its outcome
     // (filed | merged | duplicate | no_action). A non-MCP tool in the agent's
@@ -10740,13 +9265,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     // parent reads post-run to surface the UoW (or the reason).
     if (rest[0] === "result") {
       return parseIntakeResultCommand(rest.slice(1));
-    }
-    // GH-1003: `prx intake bd …` is the narrow bd surface (ls + memory verbs)
-    // that subsumes raw `bd list` / `bd memories` for the intake session.
-    // Routed before the type-positional validator since `bd` is not a member
-    // of INTAKE_TYPES.
-    if (rest[0] === "bd") {
-      return parseIntakeBdCommand(rest.slice(1));
     }
     // GH-1194: `prx intake dispatch …` redirects to the dispatch envelope.
     if (rest[0] === "dispatch") {
@@ -10782,12 +9300,12 @@ export function parseCommand(argv: string[]): ParsedCommand {
     const typePositional = positionals[0]?.trim();
     if (!typePositional) {
       throw new CliError(
-        `intake requires a type positional: ${INTAKE_INTENTS.join(" | ")} | session | view | search | status | merge | mirror | bd`,
+        `intake requires a type positional: ${INTAKE_INTENTS.join(" | ")} | session | view | search | status | merge`,
       );
     }
     if (!(INTAKE_INTENTS as readonly string[]).includes(typePositional)) {
       throw new CliError(
-        `intake: unknown type '${typePositional}'. Valid types: ${INTAKE_INTENTS.join(", ")} | session | view | search | status | merge | mirror | bd`,
+        `intake: unknown type '${typePositional}'. Valid types: ${INTAKE_INTENTS.join(", ")} | session | view | search | status | merge`,
       );
     }
 
@@ -10992,79 +9510,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  if (command === "triage-promote") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        repo: { type: "string" },
-        from: { type: "string" },
-        "dry-run": { type: "boolean", default: false },
-        limit: { type: "string", default: "0" },
-        only: { type: "string" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-    const limitNum = Number.parseInt(values.limit ?? "0", 10);
-    if (!Number.isFinite(limitNum) || limitNum < 0) {
-      throw new CliError(
-        `triage promote: --limit must be a non-negative integer (got ${values.limit})`,
-      );
-    }
-    let only: number | undefined;
-    if (values.only !== undefined) {
-      const onlyNum = Number.parseInt(values.only, 10);
-      if (!Number.isFinite(onlyNum) || onlyNum <= 0) {
-        throw new CliError(
-          `triage promote: --only must be a positive issue number (got ${values.only})`,
-        );
-      }
-      only = onlyNum;
-    }
-    return {
-      command: "triage-promote",
-      repo: values.repo,
-      from: values.from,
-      dryRun: values["dry-run"] ?? false,
-      limit: limitNum,
-      only,
-    };
-  }
-
-  if (command === "triage-promote-children") {
-    const { values, positionals } = parseArgs({
-      args: rest,
-      options: {
-        "dry-run": { type: "boolean", default: false },
-        limit: { type: "string", default: "0" },
-        only: { type: "string" },
-      },
-      strict: true,
-      allowPositionals: true,
-    });
-    if (positionals.length === 0) {
-      throw new CliError("triage promote-children requires a staging-dir positional argument");
-    }
-    if (positionals.length > 1) {
-      throw new CliError(
-        `triage promote-children accepts a single staging-dir positional (got ${positionals.length})`,
-      );
-    }
-    const limitNum = Number.parseInt(values.limit ?? "0", 10);
-    if (!Number.isFinite(limitNum) || limitNum < 0) {
-      throw new CliError(
-        `triage promote-children: --limit must be a non-negative integer (got ${values.limit})`,
-      );
-    }
-    return {
-      command: "triage-promote-children",
-      dir: positionals[0]!,
-      dryRun: values["dry-run"] ?? false,
-      limit: limitNum,
-      only: values.only,
-    };
-  }
-
   if (command === "triage-close") {
     // GH-1719: actor-tied close wrapper for bd-only records. Positional
     // <bd-id> is REQUIRED — this verb performs a real bd `update -s closed`
@@ -11105,103 +9550,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
       ...(values.note !== undefined ? { note: values.note } : {}),
       dryRun: values["dry-run"] ?? false,
       format,
-    };
-  }
-
-  if (command === "triage-close-stale") {
-    // GH-1782: bulk-close beads whose linked GH issue is closed. Default
-    // reason is `completed` (vs `not-planned` for `triage close`) because the
-    // dominant cause of a stale bead is "GH issue closed → PR merged → work
-    // shipped".
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        repo: { type: "string" },
-        reason: { type: "string", default: "completed" },
-        note: { type: "string" },
-        "dry-run": { type: "boolean", default: false },
-        limit: { type: "string", default: "0" },
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-    const reason = ensureChoice(
-      values.reason,
-      ["completed", "not-planned", "duplicate"] as const,
-      "--reason",
-    );
-    const format = ensureChoice(values.format, ["plain", "json"], "--format");
-    const limitNum = Number.parseInt(values.limit ?? "0", 10);
-    if (!Number.isFinite(limitNum) || limitNum < 0) {
-      throw new CliError(
-        `triage close-stale: --limit must be a non-negative integer (got ${values.limit})`,
-      );
-    }
-    return {
-      command: "triage-close-stale",
-      ...(values.repo !== undefined ? { repo: values.repo } : {}),
-      reason,
-      ...(values.note !== undefined ? { note: values.note } : {}),
-      dryRun: values["dry-run"] ?? false,
-      limit: limitNum,
-      format,
-    };
-  }
-
-  if (command === "triage-drift-fix") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        repo: { type: "string" },
-        from: { type: "string" },
-        apply: { type: "boolean", default: false },
-        "dry-run": { type: "boolean", default: false },
-        limit: { type: "string", default: "0" },
-        axes: { type: "string" },
-        "no-sync": { type: "boolean", default: false },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-    const limitNum = Number.parseInt(values.limit ?? "0", 10);
-    if (!Number.isFinite(limitNum) || limitNum < 0) {
-      throw new CliError(
-        `triage drift-fix: --limit must be a non-negative integer (got ${values.limit})`,
-      );
-    }
-    let axes: DriftFixAxis[] = ["type", "priority", "status"];
-    if (values.axes !== undefined) {
-      const parts = values.axes
-        .split(",")
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-      const valid = new Set<DriftFixAxis>(["type", "priority", "status"]);
-      for (const part of parts) {
-        if (!valid.has(part as DriftFixAxis)) {
-          throw new CliError(
-            `triage drift-fix: --axes must be a comma-separated subset of {type,priority,status} (got "${values.axes}")`,
-          );
-        }
-      }
-      if (parts.length === 0) {
-        throw new CliError("triage drift-fix: --axes must list at least one axis");
-      }
-      axes = parts as DriftFixAxis[];
-    }
-    const apply = values.apply ?? false;
-    if (apply && values.from !== undefined) {
-      throw new CliError("triage drift-fix: --apply and --from are mutually exclusive");
-    }
-    return {
-      command: "triage-drift-fix",
-      repo: values.repo,
-      from: values.from,
-      apply,
-      dryRun: values["dry-run"] ?? false,
-      limit: limitNum,
-      axes,
-      sync: !values["no-sync"],
     };
   }
 
@@ -13118,51 +11466,6 @@ export function resolveWorktreeRepoAnchor(
   return value;
 }
 
-// GH-1701: pick the best fs cwd to read a repo's `.beads/` and origin from.
-// Prefers an attached worktree (where per-project `.beads/` lives after
-// hydrate); falls back to the bare commonDir, which classifies as `none` or
-// `ambiguous` if no worktree has been hydrated yet.
-function repoAuditInspectionCwd(repo: LocalRepo): string {
-  if (repo.worktrees.length > 0) {
-    return repo.worktrees[0]!.path;
-  }
-  return repo.mainWorktree ?? repo.commonDir;
-}
-
-// GH-1701: `git --git-dir=<commonDir> remote get-url origin`. Returns null
-// when origin is unset, the spawn fails, or output is empty. Read-only.
-function readRepoOriginUrl(repo: LocalRepo): string | null {
-  let result;
-  try {
-    result = procRunner(["git", `--git-dir=${repo.commonDir}`, "remote", "get-url", "origin"], {
-      check: false,
-    });
-  } catch {
-    return null;
-  }
-  if (result.status !== 0) return null;
-  const url = result.stdout.trim();
-  return url && url.length > 0 ? url : null;
-}
-
-// GH-1701: count issues via `bd list --all --json --limit 0`. Honors I-RA2 —
-// never invokes `bd sql`. Returns null on probe failure or unparseable JSON.
-function countRepoBeadsIssues(repo: LocalRepo): number | null {
-  const cwd = repoAuditInspectionCwd(repo);
-  const result = execBd({
-    subcommand: "list",
-    args: ["--all", "--json", "--limit", "0"],
-    cwd,
-  });
-  if (result.exitCode !== 0) return null;
-  try {
-    const parsed = JSON.parse(result.stdout) as unknown;
-    return Array.isArray(parsed) ? parsed.length : null;
-  } catch {
-    return null;
-  }
-}
-
 function formatRepoAdoptResult(result: AdoptRepoResult, format: "plain" | "json"): string {
   if (format === "json") {
     return JSON.stringify(result, null, 2);
@@ -13266,79 +11569,12 @@ export function listFeatureWorktreesForRepair(repoPath: string): string[] {
   return entries.map((entry) => entry.path).filter((path) => existsSync(join(path, ".beads")));
 }
 
-// GH-983: bd enrichment for `prx delegate next` filters that need facts
-// outside the bd-ready cache (labels for --area, parent-child links for
-// --epic). Performs at most one bd subprocess call per active filter;
-// returns empty enrichment when no filter requires it (zero-cost on the
-// hot path). Failures degrade gracefully — an empty result map means
-// "no matches for that filter" and the projection falls through to the
-// exit-1 hint path.
-function buildDelegateEnrichment(
-  repoPath: string,
-  filters: {
-    epic?: string | undefined;
-    area?: string | undefined;
-    priority?: number | undefined;
-    type?: string | undefined;
-    all: boolean;
-  },
-  result: NextWorkResult,
-): DelegateNextEnrichment {
-  const enrichment: { labelsByBdId?: Map<string, string[]>; epicChildBdIds?: Set<string> } = {};
-
-  if (filters.area !== undefined) {
-    const bdIds = new Set<string>();
-    for (const thread of result.threads) {
-      for (const c of thread.candidates) bdIds.add(c.bd_id);
-    }
-    const labelsByBdId = new Map<string, string[]>();
-    for (const id of bdIds) {
-      const labels = readBdLabels(repoPath, id);
-      if (labels !== null) labelsByBdId.set(id, labels);
-    }
-    enrichment.labelsByBdId = labelsByBdId;
-  }
-
-  if (filters.epic !== undefined) {
-    enrichment.epicChildBdIds = resolveEpicChildBdIds(repoPath, filters.epic);
-  }
-
-  return enrichment;
-}
-
 /**
- * `tryCommand` for a `bd` read, door-gated (prx-zbsi). In the box profile
- * (PRX_BEADS_DOOR) the read routes through the beadsd door — never a local
- * `bd`; off-profile the gate returns null and we fall back to `tryCommand`
- * exactly as before. Returns the read's stdout, or null on any failure /
- * fail-closed door result (`tryCommand`'s null-on-failure preserved).
+ * `tryCommand` for a `bd` read. Returns the read's stdout, or null on any
+ * failure (`tryCommand`'s null-on-failure preserved).
  */
 function bdReadOrNull(cmd: string[], cwd: string): string | null {
-  const gated = bdDoorGate(cmd);
-  if (gated) return gated.exitCode === 0 ? gated.stdout : null;
   return tryCommand(cmd, cwd);
-}
-
-function readBdLabels(repoPath: string, bdId: string): string[] | null {
-  // bd auto-discovers `.beads/*.db` from cwd; passing repoPath as the
-  // child's cwd is the right surface — `bd --db` takes a .db file path,
-  // not a directory.
-  const raw = bdReadOrNull(["bd", "show", bdId, "--json"], repoPath);
-  if (!raw) return null;
-  return parseLabelsFromBdShow(raw);
-}
-
-function parseLabelsFromBdShow(raw: string): string[] | null {
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    const rec = Array.isArray(parsed) ? parsed[0] : parsed;
-    if (!rec || typeof rec !== "object") return null;
-    const labels = (rec as Record<string, unknown>).labels;
-    if (!Array.isArray(labels)) return [];
-    return labels.filter((l): l is string => typeof l === "string");
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -13610,7 +11846,6 @@ type PrimePlanSessionResult = {
   launchCwd: string;
   runtimeArtifacts: RuntimeArtifactStatus;
   hasPriorClaudeSession: boolean;
-  hydrateStatus: HydrateStatus | "error";
   rebaseStatus: AutoRebaseResult["status"];
   allowlistStatus: PrimePlanSessionAllowlistStatus;
   /**
@@ -13649,82 +11884,8 @@ async function primePlanSession(
     effectiveCreate = true;
   }
 
-  // GH-1766: canonical=bd fork. Hydrate via `bd show --json` instead of
-  // `gh issue view`, claim the bd record via `bd update --claim`, and
-  // normalise the input id to the canonical `BD-<8hex>` short surface
-  // form. The branch, worktree directory, and parity-chain row id all
-  // key off the normalised form so cross-input-shape calls converge on a
-  // single worktree per record.
-  let effectiveWorkUnitId = input.workUnitId;
-  let effectiveFrom: WorkUnitSource | undefined = input.from;
-  const localRepo = localRepoForCwd(targetRepoCwd);
-  const canonical = localRepo ? repoCanonical(localRepo) : "gh";
-
-  if (canonical === "bd") {
-    const beadsResolver = new BeadsResolver(targetRepoCwd);
-    let longId: string;
-    try {
-      longId = await beadsResolver.toBdLongId(input.workUnitId);
-    } catch (error) {
-      // recognizeBareWorkspaceLongId is the only remaining input shape the
-      // resolver does not auto-detect (it does not consult the workspace
-      // prefix). Try once more before failing.
-      const bare = recognizeBareWorkspaceLongId(input.workUnitId, targetRepoCwd);
-      if (bare) {
-        longId = bare;
-      } else {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new CliError(`bd canonical hydrate failed for ${input.workUnitId}: ${message}`);
-      }
-    }
-
-    // Hydrate via `bd show --json` so the operator sees the bd record's
-    // status / title rather than the cryptic "GitHub issue #NaN not found"
-    // that would surface if this fell through to the GH path.
-    let fetched: ResolvedWorkUnit;
-    try {
-      fetched = await beadsResolver.fetch(input.workUnitId);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new CliError(`bd canonical hydrate failed for ${input.workUnitId}: ${message}`);
-    }
-    if (fetched.state === "closed") {
-      throw new CliError(
-        `Cannot open session for ${input.workUnitId}: bd record is closed. Reopen with \`bd reopen\` before retrying.`,
-      );
-    }
-
-    // Normalise to `BD-<8hex>` for the branch / worktree / parity-chain row.
-    // `normalizeToBdSurfaceShort` reads the trailing 8-hex tail off any of
-    // the three accepted input shapes; semantic-id workspaces (no hex8 tail)
-    // pass through with the bare id form, matching the parity-chain row id
-    // the chain builder emits for non-GH-prefixed branches.
-    const normalised =
-      normalizeToBdSurfaceShort(input.workUnitId) ?? normalizeToBdSurfaceShort(longId);
-    if (normalised) {
-      effectiveWorkUnitId = normalised;
-    } else {
-      // Semantic-id workspace fallback — surface the bd long-id as-is. The
-      // branch name will be the bd id; downstream materialize uses this
-      // string verbatim.
-      effectiveWorkUnitId = longId;
-    }
-    effectiveFrom = "beads";
-
-    // Claim before materialize so a failed claim does not leave a worktree
-    // staged on a record the operator does not own. `bd update --claim`
-    // is policy-admitted (planner / all states) and is not on the bd
-    // wrapper's BLOCKED list. Failure is treated as a warning rather than
-    // a hard refusal — the operator can claim manually via `bd update`
-    // and re-enter the session.
-    const claim = runBdUpdateClaim(longId, targetRepoCwd);
-    if (claim.exitCode !== 0) {
-      const detail = (claim.stderr || claim.stdout || "").trim();
-      output.error(
-        `warning: bd update --claim ${longId} exited ${claim.exitCode}${detail ? `: ${detail}` : ""}`,
-      );
-    }
-  }
+  const effectiveWorkUnitId = input.workUnitId;
+  const effectiveFrom: WorkUnitSource | undefined = input.from;
 
   // GH-2014: bracket each pre-claude phase in `runStep` so the operator
   // gets a start banner, a 5s heartbeat for silent windows, and a finish
@@ -13836,23 +11997,6 @@ async function primePlanSession(
     output.error(`warning: auto-rebase skipped (${rebase.reason})`);
   }
 
-  let hydrateStatus: HydrateStatus | "error";
-  try {
-    const hydrateResult = await runStep(
-      "hydrate-beads",
-      async () => (deps.hydrateBeads ?? hydrateBeads)({ cwd: launchCwd }),
-      progressOpts,
-    );
-    if (hydrateResult.status === "hydrated" || hydrateResult.status === "clone-failed") {
-      output.error(hydrateResult.message);
-    }
-    hydrateStatus = hydrateResult.status;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    output.error(`warning: beads hydration failed unexpectedly: ${message}`);
-    hydrateStatus = "error";
-  }
-
   const runtimeArtifacts = await runStep(
     "runtime-artifacts",
     async () =>
@@ -13887,7 +12031,6 @@ async function primePlanSession(
     launchCwd,
     runtimeArtifacts,
     hasPriorClaudeSession,
-    hydrateStatus,
     rebaseStatus: rebase.status,
     allowlistStatus,
     workUnitId: effectiveWorkUnitId,
@@ -14731,11 +12874,9 @@ function runDoctorGhBudget(
 /**
  * GH-1697: shared `--repo <slug>` resolver for triage-* verbs. Mirrors the
  * routing block that `prx triage session --repo` proved out (GH-1689):
- * resolve the slug against the repo inventory, probe `.beads/` mode
- * (GH-1684), and return a `cwdFn` that the dispatched handler uses to
- * re-root reads at the target's mainx. Unknown slug → `CliError` from
- * `resolveTargetRepoCwd`; beads-less or embedded-mode target → `CliError`
- * via `beadsModeHint`.
+ * resolve the slug against the repo inventory and return a `cwdFn` that the
+ * dispatched handler uses to re-root reads at the target's mainx. Unknown
+ * slug → `CliError` from `resolveTargetRepoCwd`.
  */
 function resolveTriageRepoCwd(
   slug: string | undefined,
@@ -14751,11 +12892,6 @@ function resolveTriageRepoCwd(
       materializeBareRepo: deps.materializeBareRepo,
     },
   );
-  const mode = (deps.classifyBeadsWorkspace ?? classifyBeadsWorkspace)(resolved.targetCwd);
-  const hint = beadsModeHint(mode, slug);
-  if (hint !== null) {
-    throw new CliError(hint);
-  }
   const targetCwd = resolved.targetCwd;
   return { cwdFn: () => targetCwd };
 }
@@ -14765,15 +12901,6 @@ export function runCli(
   output: Output = console,
   deps: CliDeps = {},
 ): number | Promise<number> {
-  // Wire the beadsd door dialer (idempotent, process-wide). In the box profile
-  // (PRX_BEADS_DOOR set) this is how `execBd` reaches the canonical store
-  // instead of spawning a local `bd`; off-profile it is never consulted
-  // (prx-asr / prx-634).
-  registerBdDoorDialer(prxBeadsDoorDialer);
-  // prx-82b Slice 2e.1: on a host shell in a repo whose pod is up, point the bd
-  // door at that pod so the door-gated read sites route to it instead of host
-  // bd. No-op in a pod/room profile or when no pod is up (host-native fallback).
-  primeHostBeadsDoor();
   try {
     // Spec-driven verbs (pilot/fleet/health) are handled by the canonical
     // VerbSpec dispatch, ahead of the legacy typed-command union/executor
@@ -15533,57 +13660,6 @@ export function runCli(
       return handler(validated, output);
     }
 
-    if (parsed.command === "scout-issues") {
-      return (async () => {
-        try {
-          const result = await runScoutIssues({
-            query: parsed.query,
-            state: parsed.state,
-            repo: parsed.repo,
-            max: parsed.max,
-            maxStaleness: parsed.maxStaleness,
-            format: parsed.format,
-          });
-          const text = formatScoutIssuesJsonLines(result);
-          output.log(text.replace(/\n$/, ""));
-          return 0;
-        } catch (err) {
-          if (err instanceof ScoutIssuesError) {
-            output.error(`scout issues ${err.code}: ${err.message}`);
-            const usageCodes = new Set(["BD_NOT_FOUND", "INVALID_MAX", "INVALID_REPO"]);
-            return usageCodes.has(err.code) ? 64 : 65;
-          }
-          return handleRunCliError(err, output);
-        }
-      })();
-    }
-
-    // GH-1420: scout notion handler — Notion page UUID/Task-ID resolver.
-    // Emits a single JSON envelope so dispatch captures one CAS record.
-    if (parsed.command === "scout-notion") {
-      return (async () => {
-        try {
-          const result = await runScoutNotion({
-            id: parsed.id,
-            noMirrors: parsed.noMirrors,
-            ghExec: parsed.noMirrors ? undefined : execGh,
-            bdExec: parsed.noMirrors ? undefined : execBd,
-          });
-          // formatScoutNotionJson terminates with `\n`; strip the trailing
-          // newline so output.log doesn't double-print it.
-          output.log(formatScoutNotionJson(result).replace(/\n$/, ""));
-          return 0;
-        } catch (err) {
-          if (err instanceof ScoutNotionError) {
-            output.error(`scout notion ${err.code}: ${err.message}`);
-            const usageCodes = new Set(["MISSING_ID", "INVALID_ID"]);
-            return usageCodes.has(err.code) ? 64 : 65;
-          }
-          return handleRunCliError(err, output);
-        }
-      })();
-    }
-
     // GH-1194: per-actor dispatch handler. The XState dispatch machine
     // owns the capability/depth guard; on success we print the CAS handle
     // and exit 0, otherwise emit `dispatch <reason>: <detail>` to stderr
@@ -15607,51 +13683,6 @@ export function runCli(
           return handleRunCliError(err, output);
         }
       })();
-    }
-
-    if (parsed.command === "beads-init") {
-      return runBeadsInit(process.cwd(), parsed.importGh, parsed.dryRun, output);
-    }
-
-    // GH-1706: embedded → shared-server bd migration. Result is a
-    // discriminated union; map each arm to a stable exit code (0 on
-    // applied/dry-run; 64=usage refusal; 65=runtime failure).
-    if (parsed.command === "beads-migrate") {
-      const result = runBeadsMigrate({
-        slug: parsed.slug,
-        dryRun: parsed.dryRun,
-        patchMetadata: parsed.patchMetadata,
-        staleThresholdSeconds: parsed.staleThresholdSeconds,
-      });
-      if (result.kind === "dry-run") {
-        output.log(`beads migrate: dry-run for ${result.slug}`);
-        output.log(`  planned backup dir: ${result.plannedBackupDir}`);
-        for (const step of result.plannedSteps) {
-          output.log(`  - ${step}`);
-        }
-        return 0;
-      }
-      if (result.kind === "applied") {
-        output.log(`beads migrate: applied for ${result.slug}`);
-        output.log(`  backup dir: ${result.backupDir}`);
-        output.log(`  events: ${result.events.join(", ")}`);
-        if (result.patchedMetadata) {
-          output.log("  metadata patched: dolt_mode=server (GH-1695 workaround)");
-        }
-        output.log(`  ${result.hint}`);
-        return 0;
-      }
-      if (result.kind === "refused") {
-        output.error(`beads migrate refused: ${result.reason}`);
-        if (result.detail) output.error(`  ${result.detail}`);
-        if (result.hint) output.error(`  hint: ${result.hint}`);
-        return 64;
-      }
-      // failed
-      output.error(`beads migrate failed at ${result.failedAt}: ${result.detail}`);
-      output.error(`  backup preserved at ${result.backupDir}`);
-      output.error(`  events emitted: ${result.events.join(", ")}`);
-      return 65;
     }
 
     // GH-1261 (PR-1): print resolved dep-research manifest.
@@ -16350,7 +14381,7 @@ export function runCli(
               deps,
             );
             const mcpStatus = primed.runtimeArtifacts.mcpServers.join(",") || "none";
-            const statusLine = `primed: worktree=${primed.launchCwd}, branch=${parsed.workUnitId}, beads=${primed.hydrateStatus}, mcp=${mcpStatus}, allowlist=${primed.allowlistStatus}`;
+            const statusLine = `primed: worktree=${primed.launchCwd}, branch=${parsed.workUnitId}, mcp=${mcpStatus}, allowlist=${primed.allowlistStatus}`;
             if (parsed.format === "json") {
               output.log(
                 JSON.stringify(
@@ -16358,7 +14389,6 @@ export function runCli(
                     workUnitId: parsed.workUnitId,
                     launchCwd: primed.launchCwd,
                     runtimeArtifacts: primed.runtimeArtifacts,
-                    hydrateStatus: primed.hydrateStatus,
                     rebaseStatus: primed.rebaseStatus,
                     allowlistStatus: primed.allowlistStatus,
                   },
@@ -16368,13 +14398,6 @@ export function runCli(
               );
             } else {
               output.log(statusLine);
-            }
-            // Loud-failure path: prime is the explicit pre-flight, so a
-            // clone-failed hydration exits non-zero (the session handlers
-            // surface-and-continue because they can still hand a partial
-            // workspace to the agent; prime cannot).
-            if (primed.hydrateStatus === "clone-failed" || primed.hydrateStatus === "error") {
-              return 1;
             }
             return 0;
           } finally {
@@ -16515,18 +14538,6 @@ export function runCli(
                     `warning: branch is ${behind} commit${behind === 1 ? "" : "s"} behind origin/main — run \`prx worktree refresh\` to rebase`,
                   );
                 }
-              }
-              try {
-                const hydrateResult = (deps.hydrateBeads ?? hydrateBeads)({ cwd: launchCwd });
-                if (
-                  hydrateResult.status === "hydrated" ||
-                  hydrateResult.status === "clone-failed"
-                ) {
-                  output.error(hydrateResult.message);
-                }
-              } catch (error) {
-                const message = error instanceof Error ? error.message : String(error);
-                output.error(`warning: beads hydration failed unexpectedly: ${message}`);
               }
               runtimeArtifacts = (deps.ensureRuntimeArtifacts ?? ensureLocalRuntimeArtifacts)(
                 parsed.workUnitId,
@@ -17434,57 +15445,6 @@ export function runCli(
       return filteredInventory.repos.length > 0 ? 0 : 1;
     }
 
-    if (parsed.command === "repo-audit") {
-      // GH-1701: fleet-wide beads-state inventory. Read-only by construction
-      // (I-RA1): no `writeRepoInventoryIndex`, no `.beads/` mutation, no
-      // `bd sql` (I-RA2 — issue counts go through `bd list --all --json`).
-      const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(
-        process.cwd(),
-      );
-      let inventory: RepoInventory | null = null;
-      if (repoInventoryConfig.indexPath) {
-        inventory = (deps.loadRepoInventoryIndex ?? loadRepoInventoryIndex)(
-          repoInventoryConfig.indexPath,
-        );
-      }
-      if (!inventory) {
-        throw new CliError(
-          "No .prx/repos/index.json yet — run `prx repo list` first to populate the inventory.",
-        );
-      }
-
-      const auditDeps: RepoAuditDeps = {
-        classify: (repo) => classifyBeadsWorkspace(repoAuditInspectionCwd(repo)),
-        getGitOrigin: (repo) => readRepoOriginUrl(repo),
-        countIssues: (repo) => countRepoBeadsIssues(repo),
-        dolthubOwner: getEnv("BEADS_DOLTHUB_OWNER")?.trim() || null,
-      };
-      const rows = auditRegisteredRepos(inventory, auditDeps);
-
-      // GH-1760: append `adopted (registry.sqlite): N repos, M branches`. The
-      // sqlite open is best-effort — a non-existent registry file is opened
-      // fresh (count 0/0), and any other error degrades quietly to omitting
-      // the line so the existing audit output stays intact for operators who
-      // have not yet adopted anything.
-      let adoptedCounts: { repos: number; branches: number } | undefined;
-      try {
-        const registry = (deps.openRegistry ?? openRegistry)(defaultRegistryPath());
-        try {
-          adoptedCounts = {
-            repos: new RepositoryStore(registry).count(),
-            branches: new BranchStore(registry).count(),
-          };
-        } finally {
-          registry.close();
-        }
-      } catch {
-        adoptedCounts = undefined;
-      }
-
-      output.log(formatRepoAudit(rows, parsed.format, new Date().toISOString(), adoptedCounts));
-      return 0;
-    }
-
     if (parsed.command === "repos-add") {
       const repoInventoryConfig = (deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig)(
         process.cwd(),
@@ -18264,9 +16224,9 @@ export function runCli(
         includeIntentional: parsed.includeIntentional,
         rateLimit: parsed.rateLimit,
       });
-      return handler(validated, output, {
-        loadAllBeads: () => beadsCache.load(),
-      });
+      // GH-1012: intake-status now reads the beads leg from Front Desk via its
+      // default `frontDeskRows` seam; the retired `loadAllBeads` cache dep is gone.
+      return handler(validated, output);
     }
 
     if (parsed.command === "intake-merge") {
@@ -18820,55 +16780,6 @@ export function runCli(
       );
     }
 
-    if (parsed.command === "intake-mirror") {
-      const handler = deps.runIntakeMirror ?? runIntakeMirror;
-      const validated: IntakeMirrorOptions = intakeMirrorOptionsSchema.parse({
-        ghId: parsed.ghId,
-        repo: parsed.repo,
-        dryRun: parsed.dryRun,
-        format: parsed.format,
-      });
-      return handler(validated, output);
-    }
-
-    if (parsed.command === "intake-bd-ls") {
-      const handler = deps.runIntakeBdLs ?? runIntakeBdLs;
-      const validated: IntakeBdLsOptions = intakeBdLsOptionsSchema.parse({
-        ...(parsed.status !== undefined ? { status: parsed.status } : {}),
-        limit: parsed.limit,
-        format: parsed.format,
-      });
-      return handler(validated, output);
-    }
-
-    if (parsed.command === "intake-bd-memory-ls") {
-      const handler = deps.runIntakeBdMemoryLs ?? runIntakeBdMemoryLs;
-      const validated: IntakeBdMemoryLsOptions = intakeBdMemoryLsOptionsSchema.parse({
-        ...(parsed.search !== undefined ? { search: parsed.search } : {}),
-        format: parsed.format,
-      });
-      return handler(validated, output);
-    }
-
-    if (parsed.command === "intake-bd-memory-get") {
-      const handler = deps.runIntakeBdMemoryGet ?? runIntakeBdMemoryGet;
-      const validated: IntakeBdMemoryGetOptions = intakeBdMemoryGetOptionsSchema.parse({
-        key: parsed.key,
-        format: parsed.format,
-      });
-      return handler(validated, output);
-    }
-
-    if (parsed.command === "intake-bd-memory-set") {
-      const handler = deps.runIntakeBdMemorySet ?? runIntakeBdMemorySet;
-      const validated: IntakeBdMemorySetOptions = intakeBdMemorySetOptionsSchema.parse({
-        key: parsed.key,
-        body: parsed.body,
-        format: parsed.format,
-      });
-      return handler(validated, output);
-    }
-
     if (parsed.command === "intake") {
       const handler = deps.runIntake ?? runIntake;
       // GH-876: default --scope from cwd worktree when unset. Explicit --scope
@@ -18949,34 +16860,6 @@ export function runCli(
       return handler(validated, output, cwdFn ? { cwd: cwdFn } : {});
     }
 
-    if (parsed.command === "triage-promote") {
-      const handler = deps.runTriagePromote ?? runTriagePromote;
-      const { cwdFn } = resolveTriageRepoCwd(parsed.repo, deps);
-      const validated: TriagePromoteOptions = triagePromoteOptionsSchema.parse({
-        repo: cwdFn ? undefined : parsed.repo,
-        from: parsed.from,
-        dryRun: parsed.dryRun,
-        limit: parsed.limit,
-        only: parsed.only,
-      });
-      return handler(validated, output, {
-        loadAllBeads: () => beadsCache.load(),
-        invalidateBeadsCache: beadsCache.invalidate,
-        ...(cwdFn ? { cwd: cwdFn } : {}),
-      });
-    }
-
-    if (parsed.command === "triage-promote-children") {
-      const handler = deps.runTriagePromoteChildren ?? runTriagePromoteChildren;
-      const validated: TriagePromoteChildrenOptions = triagePromoteChildrenOptionsSchema.parse({
-        dir: parsed.dir,
-        dryRun: parsed.dryRun,
-        limit: parsed.limit,
-        only: parsed.only,
-      });
-      return handler(validated, output);
-    }
-
     if (parsed.command === "triage-close") {
       const handler = deps.runTriageClose ?? runTriageClose;
       const validated: TriageCloseOptions = triageCloseOptionsSchema.parse({
@@ -18996,46 +16879,6 @@ export function runCli(
         }
         return result.refusalReason !== null ? 1 : 0;
       })();
-    }
-
-    if (parsed.command === "triage-close-stale") {
-      const handler = deps.runTriageCloseStale ?? runTriageCloseStale;
-      const { cwdFn } = resolveTriageRepoCwd(parsed.repo, deps);
-      const validated: TriageCloseStaleOptions = triageCloseStaleOptionsSchema.parse({
-        repo: cwdFn ? undefined : parsed.repo,
-        reason: parsed.reason,
-        ...(parsed.note !== undefined ? { note: parsed.note } : {}),
-        dryRun: parsed.dryRun,
-        limit: parsed.limit,
-        format: parsed.format,
-      });
-      const result = handler(validated, output, {
-        invalidateBeadsCache: beadsCache.invalidate,
-        ...(cwdFn ? { cwd: cwdFn } : {}),
-      });
-      if (parsed.format === "json") {
-        output.log(formatTriageCloseStaleResult(result, "json"));
-      }
-      return result.errors > 0 ? 1 : 0;
-    }
-
-    if (parsed.command === "triage-drift-fix") {
-      const handler = deps.runTriageDriftFix ?? runTriageDriftFix;
-      const { cwdFn } = resolveTriageRepoCwd(parsed.repo, deps);
-      const validated: TriageDriftFixOptions = triageDriftFixOptionsSchema.parse({
-        repo: cwdFn ? undefined : parsed.repo,
-        from: parsed.from,
-        apply: parsed.apply,
-        dryRun: parsed.dryRun,
-        limit: parsed.limit,
-        axes: parsed.axes,
-        sync: parsed.sync,
-      });
-      return handler(validated, output, {
-        loadAllBeads: () => beadsCache.load(),
-        invalidateBeadsCache: beadsCache.invalidate,
-        ...(cwdFn ? { cwd: cwdFn } : {}),
-      });
     }
 
     if (parsed.command === "triage-migrate-axis-value") {
@@ -19275,11 +17118,6 @@ export function runCli(
           },
         );
         queueCwd = resolved.targetCwd;
-        const mode = (deps.classifyBeadsWorkspace ?? classifyBeadsWorkspace)(queueCwd);
-        const hint = beadsModeHint(mode, parsed.repoSlug);
-        if (hint !== null) {
-          throw new CliError(hint);
-        }
       } else {
         // Resolve the git toplevel so subdirectory invocations don't create a
         // nested .pr/ tree or set BEADS_WORKING_DIR to a non-root path.
@@ -20536,277 +18374,6 @@ export function runCli(
       return result.exitCode;
     }
 
-    if (parsed.command === "beads-serve") {
-      // GH-228: run beadsd — the read-only beads query daemon — on a unix socket.
-      // The host's IsolatedBeadsClient frames read requests (ready|list|show) to
-      // it; the daemon dispatches them to `bd` under its policy layer. Read-only,
-      // so no signer/ledger (unlike keeper serve).
-      return (async () => {
-        const deps: BeadsDaemonDeps = {};
-        if (parsed.cwd !== undefined) deps.cwd = parsed.cwd;
-        // prx-3vow: resolve the served clone's bd issue_prefix ONCE and pass it
-        // as the daemon's localPrefix, so every execBd in handleBeadsRequest
-        // admits NATIVE short ids (e.g. `show prx-716`, `dep add` on all-digit
-        // children) past the bd-safe I-BF1 guard while foreign refs stay
-        // refused. Best-effort: an unhealthy/prefixless clone leaves it unset →
-        // the guard keeps its safe refuse-all default.
-        const servedPrefix = diagnoseBeads(
-          parsed.cwd !== undefined ? { cwd: parsed.cwd } : {},
-        ).prefix;
-        if (servedPrefix !== null) deps.localPrefix = servedPrefix;
-        // GH-296: keep the served clone fresh — `bd dolt pull` on start + every
-        // 5 min (errors swallowed by runBeadsServe; conflicts vs local writes
-        // are the sync agent's job, prx-cu1). Only when serving a real cwd.
-        const refreshCwd = parsed.cwd;
-        const server = await runBeadsServe({
-          socketPath: parsed.socket,
-          ...(parsed.pidfile !== undefined ? { pidfile: parsed.pidfile } : {}),
-          deps,
-          ...(refreshCwd !== undefined
-            ? {
-                // GH-296 prx-57l: full reconcile (commit local writes → pull →
-                // push) on the interval, so daemon writes become DURABLE on the
-                // canonical remote — not just pull-fresh (prx-43b). Reuses the
-                // dolt-reconcile pipeline (sanctioned proc spawns, not raw).
-                // Quiet + non-throwing: a failed step returns non-zero and is
-                // swallowed by runBeadsServe (push needs remote creds; absent
-                // them, commit+pull still run and writes stay local, not lost).
-                refresh: () => {
-                  runDoltReconcile(
-                    { repoPath: refreshCwd, dryRun: false, format: "plain", mode: "full" },
-                    { log: () => undefined, error: () => undefined },
-                  );
-                },
-                // GH-296 prx-ebk: the dataset etag — the served clone's dolt
-                // HEAD hash. Cached by runBeadsServe (read on start + after each
-                // reconcile), surfaced on every `ok` reply so callers validate
-                // caches and sync short-circuits when nothing moved. Best-effort:
-                // any failure ⇒ undefined ⇒ etag simply omitted.
-                readHead: () => {
-                  try {
-                    const doltRoot = `${refreshCwd}/.beads/dolt`;
-                    const db = readdirSync(doltRoot, { withFileTypes: true }).find(
-                      (e) => e.isDirectory() && !e.name.startsWith("."),
-                    )?.name;
-                    if (db === undefined) return undefined;
-                    const r = procRunner(
-                      ["dolt", "sql", "-q", "select hashof('HEAD')", "-r", "csv"],
-                      { cwd: `${doltRoot}/${db}`, check: false },
-                    );
-                    if (r.status !== 0) return undefined;
-                    const last = r.stdout.trim().split("\n").pop()?.trim();
-                    return last && last !== "head" ? last : undefined;
-                  } catch {
-                    return undefined;
-                  }
-                },
-              }
-            : {}),
-        });
-        output.error(`beadsd: listening on ${parsed.socket}`);
-        // Block until the process is terminated — the daemon runs until killed.
-        await new Promise<void>((resolve) => server.on("close", () => resolve()));
-        return 0;
-      })();
-    }
-
-    if (parsed.command === "beads-doctor") {
-      // GH-228: diagnose (read-only) or, with --fix, re-bootstrap an unhealthy
-      // beads clone from the canonical (the post-prefix-repair self-heal).
-      const deps = parsed.cwd !== undefined ? { cwd: parsed.cwd } : {};
-      if (!parsed.fix) {
-        const diag = diagnoseBeads(deps);
-        if (parsed.format === "json") {
-          output.log(JSON.stringify(diag, null, 2));
-        } else if (diag.healthy) {
-          output.log(`beads: healthy (prefix=${diag.prefix})`);
-        } else {
-          output.log(
-            "beads: UNHEALTHY — issue_prefix not set; run `prx beads doctor --fix` to re-bootstrap",
-          );
-        }
-        return diag.healthy ? 0 : 1;
-      }
-      const res = healBeads(deps);
-      if (parsed.format === "json") {
-        output.log(JSON.stringify(res, null, 2));
-      } else if (res.action === "none") {
-        output.log(`beads: already healthy (prefix=${res.after.prefix}) — nothing to do`);
-      } else if (res.repaired) {
-        output.log(`beads: re-bootstrapped — now healthy (prefix=${res.after.prefix})`);
-      } else {
-        output.error(
-          "beads: re-bootstrap did not restore a prefix — see `bd doctor` / `bd help init-safety`",
-        );
-      }
-      return res.repaired || res.action === "none" ? 0 : 1;
-    }
-
-    if (parsed.command === "beads-prime") {
-      // GH-296: daemon-aware session primer (prx-beads twin of `bd prime`).
-      // Resilient — a SessionStart hook must never fail: an unreachable daemon
-      // still prints the guidance banner and exits 0.
-      return (async () => {
-        let ready: unknown[] = [];
-        let reachError: string | null = null;
-        try {
-          const reply = await withBeadsClient((client) => client.query({ kind: "ready" }));
-          if (reply.status === "ok" && Array.isArray(reply.result)) {
-            ready = reply.result;
-          } else if (reply.status === "error") {
-            reachError = `${reply.code}: ${reply.message}`;
-          }
-        } catch (err) {
-          reachError = err instanceof Error ? err.message : String(err);
-        }
-
-        if (parsed.format === "json") {
-          output.log(JSON.stringify({ ready, reachError }, null, 2));
-          return 0;
-        }
-
-        const lines: string[] = [
-          "# Beads via prx (GH-296)",
-          "",
-          "Reach beads through the daemon — `prx beads <ready|list|show|children|create|update|close|reopen>`.",
-          "It serves the one canonical beads for THIS repo (one daemon = one repo); raw `bd` is",
-          "unreachable in a worktree. Writes land in the daemon's clone; reconcile/push is the",
-          "sync agent's job — do not `bd dolt push` from a worktree.",
-          "",
-        ];
-        if (reachError) {
-          lines.push(`beads daemon not reachable: ${reachError}`);
-          lines.push("Start it: `prx beads serve --socket <path> --cwd <clone>`.");
-        } else {
-          lines.push(`## Ready work (${ready.length})`);
-          if (ready.length === 0) {
-            lines.push("✨ No ready issues");
-          } else {
-            for (const entry of ready) {
-              const r = entry as { id?: unknown; title?: unknown };
-              const id = typeof r.id === "string" ? r.id : "?";
-              const title = typeof r.title === "string" ? r.title : "";
-              lines.push(`- ${id}  ${title}`);
-            }
-          }
-        }
-        output.log(lines.join("\n"));
-        return 0;
-      })();
-    }
-
-    if (parsed.command === "beads-read") {
-      // GH-296: read through beadsd — the reachable beads surface for any shell.
-      // The host holds no beads DB, it asks the daemon (the single source for the
-      // human too) — the local daemon, auto-started (`PRX_BEADS_SOCKET` selects
-      // the host-native or pod socket).
-      return (async () => {
-        const request: BeadsRequest =
-          parsed.kind === "show"
-            ? { kind: "show", id: parsed.id! }
-            : parsed.kind === "children"
-              ? { kind: "children", id: parsed.id! }
-              : parsed.kind === "recall"
-                ? { kind: "recall", key: parsed.key! }
-                : parsed.kind === "memories"
-                  ? {
-                      kind: "memories",
-                      ...(parsed.prefix !== undefined ? { prefix: parsed.prefix } : {}),
-                    }
-                  : parsed.kind === "list"
-                    ? {
-                        kind: "list",
-                        ...(parsed.status !== undefined ? { status: parsed.status } : {}),
-                        ...(parsed.all === true ? { all: true } : {}),
-                        ...(parsed.limit !== undefined ? { limit: parsed.limit } : {}),
-                      }
-                    : { kind: "ready" };
-        try {
-          const reply = await withBeadsClient((client) => client.query(request));
-          if (reply.status === "error") {
-            output.error(`beads ${parsed.kind}: ${reply.code}: ${reply.message}`);
-            return 1;
-          }
-          // prx-9e86: warn (non-fatal) when the daemon serves a different repo
-          // than this worktree — results are that repo's beads, not this one's.
-          // Uses the daemon-reported served prefix (no client subprocess).
-          const warning = readWorkspaceWarning(reply.servedPrefix);
-          if (warning !== null) output.error(warning);
-          output.log(JSON.stringify(reply.result, null, 2));
-          return 0;
-        } catch (err) {
-          // BeadsUnavailableError carries the actionable "start beadsd" message.
-          output.error(`beads ${parsed.kind}: ${err instanceof Error ? err.message : String(err)}`);
-          return 1;
-        }
-      })();
-    }
-
-    if (parsed.command === "beads-write") {
-      // GH-296 wave 2: the single-writer surface — the validated write request
-      // goes to the local daemon (which dispatches `bd` against the one canonical
-      // clone), auto-started.
-      return (async () => {
-        const { request } = parsed;
-        // prx-9e86: fail CLOSED on a cross-repo write. The host-global daemon
-        // serves ONE clone; a write from a worktree whose prefix differs would
-        // land in the wrong repo's beads.
-        const affinity = resolveWorkspaceAffinity();
-        if (affinity.mismatch) {
-          output.error(new WorkspaceAffinityError(affinity).message);
-          return 1;
-        }
-        try {
-          const reply = await withBeadsClient((client) => client.query(request));
-          if (reply.status === "error") {
-            output.error(`beads ${request.kind}: ${reply.code}: ${reply.message}`);
-            return 1;
-          }
-          output.log(JSON.stringify(reply.result, null, 2));
-          return 0;
-        } catch (err) {
-          output.error(
-            `beads ${request.kind}: ${err instanceof Error ? err.message : String(err)}`,
-          );
-          return 1;
-        }
-      })();
-    }
-
-    if (parsed.command === "beads-provision") {
-      // GH-296: provision the canonical LOCAL beads clone so the local daemon
-      // serves one healthy beads from every worktree (host twin of
-      // `prx lima provision-beads`).
-      return (async () => {
-        try {
-          const result = provisionLocalBeads({ originSlug: parsed.origin, cwd: parsed.cwd });
-          if (parsed.format === "json") {
-            output.log(JSON.stringify(result, null, 2));
-          } else {
-            output.error(
-              `beads provision: cloned ${result.database} → ${result.workspace}; ` +
-                `the local daemon now serves it (set PRX_BEADS_CWD to override).`,
-            );
-          }
-          return 0;
-        } catch (err) {
-          output.error(`beads provision: ${err instanceof Error ? err.message : String(err)}`);
-          return 1;
-        }
-      })();
-    }
-
-    if (parsed.command === "tools-bd") {
-      const result = execBd({
-        subcommand: parsed.subcommand,
-        args: parsed.passArgs,
-        cwd: parsed.cwd,
-      });
-      const out = formatBdExecResult(result, parsed.format);
-      if (out) output.log(out);
-      return result.exitCode;
-    }
-
     if (parsed.command === "capabilities") {
       return (async () => {
         const report = await probeCapabilities();
@@ -20855,142 +18422,6 @@ export function runCli(
         output.log(formatLocalReposResult(result, parsed.format, parsed.countOnly));
         return 0;
       })();
-    }
-
-    if (parsed.command === "beads-hydrate") {
-      const result = hydrateBeads({
-        cwd: parsed.cwd,
-        dryRun: parsed.dryRun,
-      });
-      const out = formatHydrateResult(result, parsed.format);
-      if (out) {
-        if (result.exitCode === 0) {
-          output.log(out);
-        } else {
-          output.error(out);
-        }
-      }
-      return result.exitCode;
-    }
-
-    if (parsed.command === "beads-issue") {
-      const findFn = deps.findBeadsIssuesByGithubIssue ?? findBeadsIssuesByGithubIssue;
-      const matches = findFn(parsed.issueNumber, beadsCache.load);
-      if (matches.length === 0 && parsed.format === "id") {
-        output.error(`No Beads issues linked to GitHub issue #${parsed.issueNumber}.`);
-        return 1;
-      }
-      output.log(formatBeadsIssueMatches(parsed.issueNumber, matches, parsed.format));
-      return matches.length > 0 ? 0 : 1;
-    }
-
-    if (parsed.command === "beads-publish") {
-      const handler = deps.runBeadsPublish ?? runBeadsPublish;
-      const validated: BeadsPublishOptions = beadsPublishOptionsSchema.parse({
-        bdId: parsed.bdId,
-        repo: parsed.repo,
-        dryRun: parsed.dryRun,
-        noAdopt: parsed.noAdopt,
-        format: parsed.format,
-      });
-      return handler(validated, output, {
-        loadAllBeads: () => beadsCache.load(),
-        invalidateBeadsCache: beadsCache.invalidate,
-      });
-    }
-
-    if (parsed.command === "beads-sync") {
-      if (parsed.allRepos) {
-        // GH-1662: cross-repo daemon mode. Walks `.prx/repos/index.json` and
-        // runs the single-repo `runBeadsSync` once per indexed bare repo,
-        // sharing the GitHub-API budget. The in-tree orchestrator builds
-        // a per-repo cwd-bound `loadAllBeads` (each repo's bare path); the
-        // per-invocation `beadsCache` here is intentionally not threaded —
-        // it caches the cwd-bound `bd list`, which is wrong for every repo
-        // after the first.
-        const acrossOpts: RunBeadsSyncAcrossReposOptions = {
-          domain: parsed.domain,
-          dryRun: parsed.dryRun,
-          budget: parsed.budget,
-          limit: parsed.limit,
-          format: parsed.format,
-        };
-        return (deps.beadsSyncAcrossRepos ?? runBeadsSyncAcrossRepos)(acrossOpts, output).then(
-          (result) => result.exitCode,
-        );
-      }
-      const syncOpts: RunBeadsSyncOptions = {
-        repo: parsed.repo,
-        domain: parsed.domain,
-        dryRun: parsed.dryRun,
-        budget: parsed.budget,
-        limit: parsed.limit,
-        format: parsed.format,
-      };
-      return (deps.beadsSync ?? runBeadsSync)(syncOpts, output, {
-        loadAllBeads: () => beadsCache.load(),
-        invalidateBeadsCache: beadsCache.invalidate,
-      }).then((result) => result.exitCode);
-    }
-
-    if (parsed.command === "beads-sync-all") {
-      // GH-1702: cross-repo fan-out of `prx dolt reconcile`. The candidate
-      // set is the filtered inventory (dolt_remote + reconcile-ready beads
-      // state). On `--repo <slug>`, resolution happens here via
-      // `findRepoBySlug` so the orchestrator never sees an unresolved
-      // (label-only) flag — guards against the GH-1697 anti-pattern.
-      const handler = deps.beadsSyncAllAcrossRepos ?? runDoltReconcileAcrossRepos;
-
-      let candidates: DoltReconcileCandidate[] | undefined;
-      if (parsed.repo !== undefined) {
-        // Resolve the slug against the inventory and run only over that
-        // repo. The eligibility filter still applies (it may surface a
-        // `skipped: no-remote` or `legacy-embedded` row).
-        const loadConfig = deps.loadRepoInventoryConfig ?? loadRepoInventoryConfig;
-        const loadIndex = deps.loadRepoInventoryIndex ?? loadRepoInventoryIndex;
-        const cfg = loadConfig(process.cwd());
-        if (!cfg.indexPath) {
-          output.error(
-            "beads sync-all: no repo inventory index — run `prx repo add` first to register a bare repo",
-          );
-          return 1;
-        }
-        const inventory = loadIndex(cfg.indexPath);
-        if (!inventory) {
-          output.error(
-            "beads sync-all: repo inventory index is missing or unreadable; run `prx repo refresh` first",
-          );
-          return 1;
-        }
-        const resolution = findRepoBySlug(inventory, parsed.repo);
-        if (!resolution.ok) {
-          const err = resolution.error;
-          if (err.kind === "ambiguous") {
-            output.error(
-              `beads sync-all: --repo "${err.slug}" is ambiguous (matches ${err.candidates.join(", ")}); ` +
-                "pass the OWNER/REPO form instead",
-            );
-          } else {
-            output.error(
-              `beads sync-all: --repo "${err.slug}" did not match any registered bare repo`,
-            );
-          }
-          return 1;
-        }
-        candidates = listIndexedReposForDoltReconcile(
-          { repos: [resolution.repo], roots: [] },
-          (barePath) => (deps.classifyBeadsWorkspace ?? classifyBeadsWorkspace)(barePath).kind,
-        );
-      }
-
-      const acrossOpts: RunDoltReconcileAcrossReposOptions = {
-        mode: parsed.mode,
-        dryRun: parsed.dryRun,
-        format: parsed.format,
-        ...(parsed.resolve ? { resolve: parsed.resolve } : {}),
-        ...(candidates !== undefined ? { candidates } : {}),
-      };
-      return handler(acrossOpts, output).then((r) => r.exitCode);
     }
 
     if (parsed.command === "sync-issues-pair") {
@@ -21201,55 +18632,6 @@ export function runCli(
     if (parsed.command === "chains") {
       const summary = (deps.chainStatus ?? chainStatus)(parsed.repoPath, { remote: parsed.remote });
       output.log(formatChainsStatus(summary, parsed.format));
-      return 0;
-    }
-
-    if (parsed.command === "repair-bd") {
-      // GH-1152: repair bd schema drift on one or more worktrees by running a
-      // single `bd stats --json` (idempotent — triggers compat migration 017
-      // on a drifted DB; no-op on a healthy DB).
-      const listTargets = deps.listFeatureWorktreesForRepair ?? listFeatureWorktreesForRepair;
-      const repair = deps.repairBdSchema ?? repairBdSchema;
-      const targets = parsed.all ? listTargets(parsed.repoPath) : [parsed.repoPath];
-      const results = targets.map((cwd) => ({ cwd, result: repair(cwd) }));
-      output.log(formatRepairBdResults(results, parsed.format));
-      const anyFailed = results.some((entry) => entry.result.status === "repair_failed");
-      return anyFailed ? 1 : 0;
-    }
-
-    if (parsed.command === "delegate-next") {
-      // GH-983: filter-aware portfolio picker. Sibling of `prx next` —
-      // `next` dumps the full eight-thread surface; `delegate next`
-      // projects to a top-1 (default) or filtered list (`--all`) with a
-      // suggested operator command. Supersedes the retired `prx worktree
-      // next` alias (which itself was a GH-1510 deprecation alias for
-      // `prx next`).
-      const result = (deps.nextWork ?? nextWork)(parsed.repoPath);
-
-      const enrichment = buildDelegateEnrichment(parsed.repoPath, parsed.filters, result);
-      const projection = selectDelegateCandidate(result, {
-        filters: parsed.filters,
-        enrichment,
-      });
-
-      if (parsed.format === "json") {
-        output.log(JSON.stringify(projection, null, 2));
-      } else if (parsed.filters.all) {
-        output.log(formatDelegateNextList(projection));
-      } else {
-        output.log(formatDelegateNext(projection));
-      }
-
-      if (projection.candidates.length === 0) {
-        if (parsed.filters.epic !== undefined && enrichment.epicChildBdIds?.size === 0) {
-          output.error(
-            `prx delegate next: no bd children found for --epic ${parsed.filters.epic}. ` +
-              `Promote children to beads (e.g. \`bd link <child> <epic-bd-id> --type parent-child\`) ` +
-              `or check that the epic is itself a bd record.`,
-          );
-        }
-        return 1;
-      }
       return 0;
     }
 

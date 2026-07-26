@@ -3,7 +3,6 @@ import { join } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { deleteEnv, getEnv, setEnv } from "@bounded-systems/env";
-import { registerBdDoorDialer } from "@bounded-systems/bd";
 
 import type {
   BoardStatusResult,
@@ -459,39 +458,16 @@ describe("sync-github-issues-to-beads", () => {
       if (cmd.join(" ") === "bd config set github.repository owner/repo") {
         return { stdout: "", stderr: "", status: 0 };
       }
-      if (
-        cmd.join(" ") ===
-        "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state"
-      ) {
-        return { stdout: "[]", stderr: "", status: 0 };
-      }
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
-    };
-    const execCalls: Array<{
-      subcommand: string;
-      args: string[];
-      cwd?: string | undefined;
-      state?: string | undefined;
-      role?: string | undefined;
-    }> = [];
-    const execBdStub = (opts: {
-      subcommand: string;
-      args: string[];
-      cwd?: string | undefined;
-      state?: string | undefined;
-      role?: string | undefined;
-    }) => {
-      execCalls.push(opts);
-      return { exitCode: 0, stdout: "[]", stderr: "", policy: null };
     };
 
     const beadsSync = makeBeadsSyncStub();
-    expect(await syncGitHubIssuesToBeads(".", true, runner, execBdStub, beadsSync)).toEqual({
+    expect(await syncGitHubIssuesToBeads(".", true, runner, undefined, beadsSync)).toEqual({
       exitCode: 0,
       lines: [
         "UPDATED beads github.repository -> owner/repo",
         "OK beads issue sync applied.",
-        "OK GitHub identity is 1:1 between Beads and GitHub.",
+        "OK GitHub identity check skipped (beads retired).",
       ],
     });
     expect(beadsSync.calls()).toBe(1);
@@ -500,16 +476,6 @@ describe("sync-github-issues-to-beads", () => {
       "git -C /repo remote get-url origin|",
       "bd config get github.repository|/repo",
       "bd config set github.repository owner/repo|/repo",
-      "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state|/repo",
-    ]);
-    expect(execCalls).toEqual([
-      {
-        subcommand: "list",
-        args: ["--all", "--json", "--limit", "0"],
-        cwd: "/repo",
-        state: "planning",
-        role: "planner",
-      },
     ]);
   });
 
@@ -530,23 +496,16 @@ describe("sync-github-issues-to-beads", () => {
           status: 0,
         };
       }
-      if (
-        cmd.join(" ") ===
-        "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state"
-      ) {
-        return { stdout: "[]", stderr: "", status: 0 };
-      }
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
     };
-    const execBdStub = () => ({ exitCode: 0, stdout: "[]", stderr: "", policy: null });
 
     const beadsSync = makeBeadsSyncStub({ stdoutLine: "dry-run ok" });
-    expect(await syncGitHubIssuesToBeads(".", false, runner, execBdStub, beadsSync)).toEqual({
+    expect(await syncGitHubIssuesToBeads(".", false, runner, undefined, beadsSync)).toEqual({
       exitCode: 0,
       lines: [
         "OK beads github.repository=owner/repo",
         "dry-run ok",
-        "OK GitHub identity is 1:1 between Beads and GitHub.",
+        "OK GitHub identity check skipped (beads retired).",
       ],
     });
     expect(beadsSync.calls()).toBe(1);
@@ -554,7 +513,6 @@ describe("sync-github-issues-to-beads", () => {
       "git -C . rev-parse --show-toplevel|",
       "git -C /repo remote get-url origin|",
       "bd config get github.repository|/repo",
-      "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state|/repo",
     ]);
   });
 
@@ -577,23 +535,16 @@ describe("sync-github-issues-to-beads", () => {
       if (cmd.join(" ") === "bd config get github.repository") {
         return { stdout: "owner/repo\n", stderr: "", status: 0 };
       }
-      if (
-        cmd.join(" ") ===
-        "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state"
-      ) {
-        return { stdout: "[]", stderr: "", status: 0 };
-      }
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
     };
-    const execBdStub = () => ({ exitCode: 0, stdout: "[]", stderr: "", policy: null });
 
     const beadsSync = makeBeadsSyncStub({ stdoutLine: "dry-run ok" });
-    expect(await syncGitHubIssuesToBeads(".", false, runner, execBdStub, beadsSync)).toEqual({
+    expect(await syncGitHubIssuesToBeads(".", false, runner, undefined, beadsSync)).toEqual({
       exitCode: 0,
       lines: [
         "OK beads github.repository=owner/repo",
         "dry-run ok",
-        "OK GitHub identity is 1:1 between Beads and GitHub.",
+        "OK GitHub identity check skipped (beads retired).",
       ],
     });
     expect(beadsSync.calls()).toBe(1);
@@ -601,223 +552,6 @@ describe("sync-github-issues-to-beads", () => {
       "git -C . rev-parse --show-toplevel|",
       "git -C /repo remote get-url origin|",
       "bd config get github.repository|/repo",
-      "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state|/repo",
-    ]);
-  });
-
-  test("plans legacy GitHub-backed beads ids for rename to GH numbers", async () => {
-    const runner: CommandRunner = (cmd, options = {}) => {
-      if (cmd.join(" ") === "git -C . rev-parse --show-toplevel") {
-        return { stdout: "/repo\n", stderr: "", status: 0 };
-      }
-      if (cmd[0] === "gh" && cmd[1] === "repo") {
-        return { stdout: "owner/repo\n", stderr: "", status: 0 };
-      }
-      if (cmd.join(" ") === "bd config get github.repository") {
-        return { stdout: "owner/repo\n", stderr: "", status: 0 };
-      }
-      if (
-        cmd.join(" ") ===
-        "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state"
-      ) {
-        return {
-          stdout: JSON.stringify([
-            {
-              number: 204,
-              title: "Legacy issue",
-              url: "https://github.com/owner/repo/issues/204",
-              state: "OPEN",
-            },
-          ]),
-          stderr: "",
-          status: 0,
-        };
-      }
-      throw new Error(`Unexpected command: ${cmd.join(" ")}`);
-    };
-    const execBdStub = () => ({
-      exitCode: 0,
-      stdout: JSON.stringify([
-        {
-          id: "ai-home-1774100044092-173-b15a44dc",
-          title: "Legacy issue",
-          source_system: "github:https://github.com/owner/repo/issues/204:204",
-          external_ref: "https://github.com/owner/repo/issues/204",
-        },
-      ]),
-      stderr: "",
-      policy: null,
-    });
-
-    const beadsSync = makeBeadsSyncStub({ stdoutLine: "dry-run ok" });
-    expect(await syncGitHubIssuesToBeads(".", false, runner, execBdStub, beadsSync)).toEqual({
-      exitCode: 1,
-      lines: [
-        "OK beads github.repository=owner/repo",
-        "dry-run ok",
-        "WOULD RENAME ai-home-1774100044092-173-b15a44dc -> GH-204",
-      ],
-    });
-  });
-
-  test("renames legacy GitHub-backed beads ids to GH numbers on apply", async () => {
-    const commands: string[] = [];
-    const runner: CommandRunner = (cmd, options = {}) => {
-      commands.push(`${cmd.join(" ")}|${options.cwd ?? ""}`);
-      if (cmd.join(" ") === "git -C . rev-parse --show-toplevel") {
-        return { stdout: "/repo\n", stderr: "", status: 0 };
-      }
-      if (cmd.join(" ") === "git -C /repo remote get-url origin") {
-        return { stdout: "https://github.com/owner/repo.git\n", stderr: "", status: 0 };
-      }
-      if (cmd.join(" ") === "bd config get github.repository") {
-        return { stdout: "owner/repo\n", stderr: "", status: 0 };
-      }
-      if (
-        cmd.join(" ") ===
-        "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state"
-      ) {
-        return {
-          stdout: JSON.stringify([
-            {
-              number: 204,
-              title: "Legacy issue",
-              url: "https://github.com/owner/repo/issues/204",
-              state: "OPEN",
-            },
-          ]),
-          stderr: "",
-          status: 0,
-        };
-      }
-      if (cmd.join(" ") === "bd rename ai-home-1774100044092-173-b15a44dc GH-204") {
-        return { stdout: "", stderr: "", status: 0 };
-      }
-      throw new Error(`Unexpected command: ${cmd.join(" ")}`);
-    };
-    const execBdStub = () => ({
-      exitCode: 0,
-      stdout: JSON.stringify([
-        {
-          id: "ai-home-1774100044092-173-b15a44dc",
-          title: "Legacy issue",
-          source_system: "github:https://github.com/owner/repo/issues/204:204",
-          external_ref: "https://github.com/owner/repo/issues/204",
-        },
-      ]),
-      stderr: "",
-      policy: null,
-    });
-
-    const beadsSync = makeBeadsSyncStub();
-    expect(await syncGitHubIssuesToBeads(".", true, runner, execBdStub, beadsSync)).toEqual({
-      exitCode: 0,
-      lines: [
-        "OK beads github.repository=owner/repo",
-        "OK beads issue sync applied.",
-        "RENAMED ai-home-1774100044092-173-b15a44dc -> GH-204",
-      ],
-    });
-    expect(commands).toEqual([
-      "git -C . rev-parse --show-toplevel|",
-      "git -C /repo remote get-url origin|",
-      "bd config get github.repository|/repo",
-      "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state|/repo",
-      "bd rename ai-home-1774100044092-173-b15a44dc GH-204|/repo",
-    ]);
-  });
-
-  test("surfaces closed beads as duplicate bindings (GH-1592)", async () => {
-    // Regression: before GH-1592 the audit loaded beads via `bd list --json`,
-    // which excludes closed beads. With the fix it reads the full set
-    // (`--all --json --limit 0`) through execBd, so a closed bead that still
-    // points at a live GH issue is now visible to the duplicate-binding check.
-    const runner: CommandRunner = (cmd, options = {}) => {
-      void options;
-      if (cmd.join(" ") === "git -C . rev-parse --show-toplevel") {
-        return { stdout: "/repo\n", stderr: "", status: 0 };
-      }
-      if (cmd.join(" ") === "git -C /repo remote get-url origin") {
-        return { stdout: "https://github.com/owner/repo.git\n", stderr: "", status: 0 };
-      }
-      if (cmd.join(" ") === "bd config get github.repository") {
-        return { stdout: "owner/repo\n", stderr: "", status: 0 };
-      }
-      if (
-        cmd.join(" ") ===
-        "gh issue list -R owner/repo --state all --limit 500 --json number,title,url,state"
-      ) {
-        return {
-          stdout: JSON.stringify([
-            {
-              number: 204,
-              title: "Live issue",
-              url: "https://github.com/owner/repo/issues/204",
-              state: "OPEN",
-            },
-          ]),
-          stderr: "",
-          status: 0,
-        };
-      }
-      throw new Error(`Unexpected command: ${cmd.join(" ")}`);
-    };
-    const execCalls: Array<{
-      subcommand: string;
-      args: string[];
-      cwd?: string | undefined;
-      state?: string | undefined;
-      role?: string | undefined;
-    }> = [];
-    const execBdStub = (opts: {
-      subcommand: string;
-      args: string[];
-      cwd?: string | undefined;
-      state?: string | undefined;
-      role?: string | undefined;
-    }) => {
-      execCalls.push(opts);
-      return {
-        exitCode: 0,
-        stdout: JSON.stringify([
-          {
-            id: "GH-204",
-            title: "Live bead",
-            status: "open",
-            source_system: "github:https://github.com/owner/repo/issues/204:204",
-            external_ref: "https://github.com/owner/repo/issues/204",
-          },
-          {
-            id: "ai-home-legacy-204",
-            title: "Stale closed bead",
-            status: "closed",
-            source_system: "github:https://github.com/owner/repo/issues/204:204",
-            external_ref: "https://github.com/owner/repo/issues/204",
-          },
-        ]),
-        stderr: "",
-        policy: null,
-      };
-    };
-
-    const beadsSync = makeBeadsSyncStub({ stdoutLine: "dry-run ok" });
-    expect(await syncGitHubIssuesToBeads(".", false, runner, execBdStub, beadsSync)).toEqual({
-      exitCode: 1,
-      lines: [
-        "OK beads github.repository=owner/repo",
-        "dry-run ok",
-        "FAIL GitHub issue #204 is bound to multiple beads issues: GH-204, ai-home-legacy-204",
-        "FAIL cannot rename ai-home-legacy-204 -> GH-204: target id already exists",
-      ],
-    });
-    expect(execCalls).toEqual([
-      {
-        subcommand: "list",
-        args: ["--all", "--json", "--limit", "0"],
-        cwd: "/repo",
-        state: "planning",
-        role: "planner",
-      },
     ]);
   });
 });
@@ -2827,121 +2561,6 @@ describe("board-status", () => {
     });
   });
 
-  test("hydrates beads issue status from local task contract when remote mode is enabled", () => {
-    const root = mkdtempSync(join(tmpdir(), "pr-state-board-beads-"));
-    const worktree = join(root, "GH-190");
-    mkdirSync(join(worktree, ".pr", "local"), { recursive: true });
-    writeTaskContract(
-      join(worktree, ".pr", "local", "task.json"),
-      createTaskContract({
-        workUnitId: "GH-190",
-        worktree,
-        beadId: "BEAD-190",
-      }),
-    );
-
-    const runner: CommandRunner = (cmd, options) => {
-      const rendered = cmd.join(" ");
-      if (rendered === `git -C ${root} rev-parse --show-toplevel`) {
-        return { stdout: `${root}\n`, stderr: "", status: 0 };
-      }
-      if (cmd[0] === "gh" && cmd[1] === "repo") {
-        return { stdout: "owner/repo\n", stderr: "", status: 0 };
-      }
-      if (rendered === `git -C ${root} worktree list --porcelain`) {
-        return {
-          stdout: `worktree ${worktree}\nHEAD eee555\nbranch refs/heads/GH-190\n\n`,
-          stderr: "",
-          status: 0,
-        };
-      }
-      if (rendered === `git -C ${worktree} status --porcelain=v1 -b`) {
-        return { stdout: "## GH-190...origin/GH-190\n", stderr: "", status: 0 };
-      }
-      if (
-        rendered ===
-        "gh pr list --state open --json number,headRefName,title,isDraft,url,reviewDecision,statusCheckRollup,mergeable,reviews -R owner/repo"
-      ) {
-        return { stdout: "[]", stderr: "", status: 0 };
-      }
-      if (rendered === "gh issue view 190 --json number,state -R owner/repo") {
-        return { stdout: JSON.stringify({ number: 190, state: "OPEN" }), stderr: "", status: 0 };
-      }
-      if (cmd[0] === "gh" && cmd[1] === "api" && cmd[2] === "graphql") {
-        return {
-          stdout: JSON.stringify({
-            data: {
-              repository: {
-                issue: {
-                  projectItems: {
-                    nodes: [],
-                  },
-                },
-              },
-            },
-          }),
-          stderr: "",
-          status: 0,
-        };
-      }
-      if (rendered === `bd show BEAD-190 --json`) {
-        return {
-          stdout: JSON.stringify({ id: "BEAD-190", status: "in_progress" }),
-          stderr: "",
-          status: 0,
-        };
-      }
-      if (rendered === `git -C ${root} branch --list -r`) {
-        return { stdout: "  origin/GH-190\n", stderr: "", status: 0 };
-      }
-      if (rendered === `git -C ${root} branch --format=%(refname:short)`) {
-        return { stdout: "main\n", stderr: "", status: 0 };
-      }
-      if (rendered === `git -C ${root} show-ref --verify --quiet refs/heads/GH-190`) {
-        return { stdout: "", stderr: "", status: 1 };
-      }
-      if (rendered === `git -C ${root} rev-list --left-right --count origin/main...origin/GH-190`) {
-        return { stdout: "0\t1\n", stderr: "", status: 0 };
-      }
-      if (
-        rendered === `git -C ${root} rev-list --left-right --count origin/main...refs/heads/GH-190`
-      ) {
-        return { stdout: "0\t1\n", stderr: "", status: 0 };
-      }
-      if (rendered === `git -C ${root} fetch --dry-run origin`) {
-        return { stdout: "", stderr: "", status: 0 };
-      }
-      if (
-        rendered ===
-        "gh pr list --state all --head GH-190 --limit 1 --json number,state,isDraft,title,url,headRefName,reviewDecision,statusCheckRollup,mergeable,reviews -R owner/repo"
-      ) {
-        return { stdout: "[]", stderr: "", status: 0 };
-      }
-      if (rendered.includes("rev-list --left-right --count origin/main...local/")) {
-        return { stdout: "", stderr: "", status: 1 };
-      }
-      throw new Error(`Unexpected command: ${rendered}`);
-    };
-
-    const summary = boardStatus(root, { remote: true }, runner);
-    expect(summary.units[0]).toMatchObject({
-      ticket: "GH-190",
-      beadId: "BEAD-190",
-      status: {
-        remote: {
-          gh_issue: "dirty",
-          beads_issue: "dirty",
-          project_item: "clean",
-          branch: "dirty",
-          pr: "clean",
-          merge_state: "clean",
-          ci: "unknown",
-          problem: "no",
-        },
-      },
-    });
-  });
-
   test("adds remote-only branches with no open pr when remote mode is enabled", () => {
     const runner: CommandRunner = (cmd, options) => {
       const rendered = cmd.join(" ");
@@ -3590,9 +3209,7 @@ describe("board-status", () => {
       }
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
     };
-    expect(() => loadIdentityConfig(root, runner)).toThrow(
-      /kind must be one of github, notion, beads/,
-    );
+    expect(() => loadIdentityConfig(root, runner)).toThrow(/kind must be one of github, notion/);
   });
 
   test('loadIdentityConfig rejects kind = "dolt" pointing at GH-852', () => {
@@ -4001,7 +3618,9 @@ describe("board-status", () => {
 
     test("overlay-only: repo-root prx.toml missing, overlay supplies sources", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-only-"));
-      const overlayRoot = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-root-overlay-only-"));
+      const overlayRoot = mkdtempSync(
+        join(tmpdir(), "pr-state-identity-overlay-root-overlay-only-"),
+      );
       writeOverlay(
         overlayRoot,
         "demo",
@@ -4221,7 +3840,9 @@ describe("board-status", () => {
 
     test("validation errors cite the overlay path when the bad value comes from the overlay", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-attrib-regex-"));
-      const overlayRoot = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-root-attrib-regex-"));
+      const overlayRoot = mkdtempSync(
+        join(tmpdir(), "pr-state-identity-overlay-root-attrib-regex-"),
+      );
       const overlayPath = writeOverlay(
         overlayRoot,
         "demo",
@@ -4243,7 +3864,9 @@ describe("board-status", () => {
 
     test("'required when auth = rest' error cites the overlay when overlay declares the section", () => {
       const root = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-attrib-required-"));
-      const overlayRoot = mkdtempSync(join(tmpdir(), "pr-state-identity-overlay-root-attrib-required-"));
+      const overlayRoot = mkdtempSync(
+        join(tmpdir(), "pr-state-identity-overlay-root-attrib-required-"),
+      );
       const overlayPath = writeOverlay(
         overlayRoot,
         "demo",
@@ -6422,62 +6045,19 @@ describe("GH-2083 (.3.2) — view seams read a hydrated projection, never an inl
     match: (c: string[]) => c[0] === "gh" && c[1] === "issue" && c[2] === "view",
     result: { stdout: JSON.stringify({ number: 2083, state: "OPEN" }), stderr: "", status: 0 },
   };
-  const bdOk = {
-    match: (c: string[]) => c[0] === "bd" && c[1] === "show",
-    result: {
-      stdout: JSON.stringify({ id: "ai-home-udqx2.9", status: "open" }),
-      stderr: "",
-      status: 0,
-    },
-  };
-
   test("read seams take no CommandRunner — pure over the hydrated projection", () => {
-    const { runner } = recordingRunner([ghOk, bdOk]);
+    const { runner } = recordingRunner([ghOk]);
     hydrateIssue("owner/repo", "GH-2083", runner);
-    hydrateBeads("/repo", "ai-home-udqx2.9", runner);
     expect(maybeViewIssue("owner/repo", "GH-2083")).toEqual({ number: 2083, state: "OPEN" });
-    expect(maybeViewBeadsIssue("/repo", "ai-home-udqx2.9")).toEqual({
-      id: "ai-home-udqx2.9",
-      status: "open",
-    });
+    // Beads retired (GH-1012): hydrateBeads stores an absent snapshot (no bd
+    // read), so the beads read seam resolves to "no bead" rather than a view.
+    hydrateBeads("/repo", "ai-home-udqx2.9", runner);
+    expect(maybeViewBeadsIssue("/repo", "ai-home-udqx2.9")).toBeNull();
   });
 
   test("an un-hydrated read raises ProjectionMiss — never falls back to a shell-out", () => {
     expect(() => maybeViewIssue("owner/repo", "GH-9999")).toThrow(ProjectionMiss);
     expect(() => maybeViewBeadsIssue("/repo", "ai-home-absent")).toThrow(ProjectionMiss);
-  });
-
-  test("prx-zbsi: in the box profile the bd show read routes through the door, not the local runner", () => {
-    const prev = getEnv("PRX_BEADS_DOOR");
-    setEnv("PRX_BEADS_DOOR", "host.sock");
-    const dialedSubs: string[] = [];
-    registerBdDoorDialer((opts) => {
-      dialedSubs.push(opts.subcommand);
-      return {
-        exitCode: 0,
-        stdout: JSON.stringify({ id: "ai-home-door1", status: "open" }),
-        stderr: "",
-        policy: null,
-      };
-    });
-    let innerCalled = false;
-    const runner: CommandRunner = () => {
-      innerCalled = true;
-      return { stdout: "", stderr: "", status: 1 };
-    };
-    try {
-      hydrateBeads("/repo", "ai-home-door1", runner);
-      expect(dialedSubs).toEqual(["show"]);
-      expect(innerCalled).toBe(false);
-      expect(maybeViewBeadsIssue("/repo", "ai-home-door1")).toEqual({
-        id: "ai-home-door1",
-        status: "open",
-      });
-    } finally {
-      registerBdDoorDialer(undefined);
-      if (prev === undefined) deleteEnv("PRX_BEADS_DOOR");
-      else setEnv("PRX_BEADS_DOOR", prev);
-    }
   });
 
   test("hydrateIssue is fresh-or-fetch: a second hydrate is a cache hit (no re-run)", () => {

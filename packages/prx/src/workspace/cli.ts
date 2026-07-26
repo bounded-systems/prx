@@ -43,7 +43,6 @@ import {
   type TeardownOutput as TeardownOutputT,
   type WorkspaceVerb,
 } from "./schema.ts";
-import { hydrate as hydrateBeads } from "../beads/hydrate.ts";
 import { attestWorktreeAdd, runKeeperRemoveWorktree } from "../pr-state/keeper.ts";
 import { ensureClaudeWorktreeHooks } from "../machine/claude_local_settings.ts";
 import { resolveCanonicalChainLedger } from "./actor.ts";
@@ -470,9 +469,11 @@ export async function runWorktreeHookCli(
   });
 }
 
-function defaultHydrateBeads(cwd: string): boolean {
-  const r = hydrateBeads({ cwd });
-  return r.exitCode === 0 && (r.status === "hydrated" || r.status === "already-hydrated");
+function defaultHydrateBeads(_cwd: string): boolean {
+  // prx beads removed (GH-1012): there is no bd store to
+  // hydrate anymore. The `hydrateBeads` seam is preserved for callers/tests, but
+  // the default is a no-op — nothing is hydrated.
+  return false;
 }
 
 type AnyOutput =

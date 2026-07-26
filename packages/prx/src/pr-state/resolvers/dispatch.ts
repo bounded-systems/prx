@@ -1,6 +1,4 @@
-import { beadsDomainAdapter } from "../../adapters/beads.ts";
 import type { IdentityConfig, SourceConfig } from "../github.ts";
-import { BeadsResolver } from "./beads.ts";
 import { GithubResolver } from "./github.ts";
 import { NotionResolver } from "./notion.ts";
 import { NotionClaudeMcpResolver } from "./notion_claude_mcp.ts";
@@ -19,11 +17,6 @@ function resolverForSource(src: SourceConfig, repoPath: string): WorkUnitResolve
   switch (src.kind) {
     case "github":
       return new GithubResolver(repoPath);
-    case "beads":
-      // GH-852: thread the source's external_ref_prefix into the resolver so
-      // the non-BD canonical-id arm (e.g. PROJ-5743) can map onto the
-      // operator-tagged bd row via externalRefs[<prefix>].
-      return new BeadsResolver(repoPath, { externalRefPrefix: src.externalRefPrefix ?? null });
     case "notion":
       if (src.notion.auth === "notion-cli") return new NotionCliResolver(src.notion, repoPath);
       if (src.notion.auth === "claude-mcp")
@@ -54,14 +47,6 @@ export function resolverForCanonicalId(
   // dispatch semantics.
   if (GH_ID_PATTERN.test(id)) {
     return new GithubResolver(repoPath);
-  }
-
-  // GH-1766: bd surface id arm. The BdDomainAdapter recognises both `BD-`-
-  // prefixed shapes and (against the cwd repo's `bd_workspace_prefix`) the
-  // bare workspace-long-id form. Routed before the registry walk so a bd id
-  // never falls through to a Notion resolver configured on the same repo.
-  if (beadsDomainAdapter.matchesSurfaceId(id)) {
-    return new BeadsResolver(repoPath);
   }
 
   // GH-1421: first registry entry whose pattern matches the id wins.

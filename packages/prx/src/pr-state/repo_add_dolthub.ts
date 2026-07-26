@@ -13,11 +13,6 @@
 // sibling. Idempotency invariant: a repo already wired at the candidate URL
 // short-circuits to `already-wired` without invoking bd.
 
-import { parseGitOrigin } from "../beads/hydrate.ts";
-import {
-  classifyBeadsWorkspaceForRepo,
-  type BeadsWorkspaceMode,
-} from "../beads/workspace_mode.ts";
 import {
   DOLTHUB_REPO_NAME_PATTERN,
   defaultRepoRunner,
@@ -28,7 +23,80 @@ import {
   type RepoRunner,
 } from "./repos.ts";
 import { locateRepo } from "./repo_locate.ts";
-import { containerRepoRunner, containerBdDoltPush } from "../beads/container-runner.ts";
+
+// ── inlined origin parsing (formerly ../beads/hydrate.ts) ────────────────────
+// Pure, non-bd URL parsing: derive host / owner / repo from a git origin. Kept
+// local now that the beads hydrate module has been removed (GH-1012).
+
+export type OriginComponents = {
+  host: string;
+  owner: string;
+  repo: string;
+};
+
+/**
+ * Parse a git origin URL into host / owner / repo components. Returns null
+ * when the URL shape isn't recognized (local paths, unusual schemes). Host
+ * dots become dashes and everything is lowercased to match DoltHub's
+ * normalization.
+ */
+export function parseGitOrigin(url: string): OriginComponents | null {
+  let host = "";
+  let path = "";
+
+  // git@HOST:OWNER/REPO[.git]
+  const sshMatch = url.match(/^git@([^:]+):(.+)$/);
+  if (sshMatch) {
+    host = sshMatch[1]!;
+    path = sshMatch[2]!;
+  }
+
+  // ssh://git@HOST[:PORT]/OWNER/REPO[.git]
+  if (!host) {
+    const sshUrlMatch = url.match(/^ssh:\/\/git@([^/]+)\/(.+)$/);
+    if (sshUrlMatch) {
+      host = sshUrlMatch[1]!.replace(/:\d+$/, "");
+      path = sshUrlMatch[2]!;
+    }
+  }
+
+  // https://HOST/OWNER/REPO[.git] (also http://)
+  if (!host) {
+    const httpMatch = url.match(/^https?:\/\/([^/]+)\/(.+)$/);
+    if (httpMatch) {
+      host = httpMatch[1]!;
+      path = httpMatch[2]!;
+    }
+  }
+
+  if (!host || !path) return null;
+
+  path = path
+    .replace(/\.git$/, "")
+    .replace(/\/$/, "")
+    .toLowerCase();
+  host = host.toLowerCase().replace(/\./g, "-");
+
+  const slashIdx = path.indexOf("/");
+  if (slashIdx < 0) return null;
+  const owner = path.slice(0, slashIdx);
+  const repo = path.slice(slashIdx + 1);
+  if (!owner || !repo || repo.includes("/")) return null;
+
+  return { host, owner, repo };
+}
+
+// ── inlined workspace-mode shape (formerly ../beads/workspace_mode.ts) ───────
+// The classifier itself lived on the deleted bd disk-shape stack; only the
+// discriminated-union shape survives so callers can still inject a `classify`
+// seam and pattern-match the result.
+
+export type BeadsWorkspaceMode =
+  | { kind: "none" }
+  | { kind: "embedded"; doltDir: string }
+  | { kind: "per_project"; doltDir: string }
+  | { kind: "shared_server"; sharedDir: string }
+  | { kind: "ambiguous"; details: string };
 
 // ── options + deps ─────────────────────────────────────────────────────────
 
@@ -155,9 +223,13 @@ export function runRepoAddDolthub(
   const writeIndex = deps.writeRepoInventoryIndex ?? defaultWriteRepoInventoryIndex;
   const classify =
     deps.classify ??
-    ((repo) => {
-      const cwd = resolvedRepoCwd(repo) ?? repo.commonDir;
-      return classifyBeadsWorkspaceForRepo(cwd);
+    (() => {
+      // GH-1012: the bd disk-shape classifier was removed with the beads
+      // stack. Callers must inject `classify`; the retired default refuses.
+      throw new AddDolthubError(
+        "repo add-dolthub: beads workspace classification is unavailable after the bd removal (GH-1012); inject `classify`.",
+        "bd_removed",
+      );
     });
   const getGitOrigin =
     deps.getGitOrigin ??
@@ -175,8 +247,8 @@ export function runRepoAddDolthub(
   // the DoltHub creds via the room-secret rail (prx-dolt-creds) — auth validated
   // live (`dolt creds check`). Provision once: `prx pod secrets --from
   // prx-dolt-creds=@~/.dolt/creds/<active>.jwk`.
-  const bdRemoteAdd = deps.bdDoltRemoteAdd ?? defaultBdDoltRemoteAdd(containerRepoRunner());
-  const bdPush = deps.bdDoltPush ?? containerBdDoltPush();
+  const bdRemoteAdd = deps.bdDoltRemoteAdd ?? retiredBdSubprocess;
+  const bdPush = deps.bdDoltPush ?? retiredBdSubprocess;
 
   if (!opts.config.indexPath) {
     return {
@@ -357,16 +429,15 @@ export function runRepoAddDolthub(
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
-function defaultBdDoltRemoteAdd(
-  runner: RepoRunner,
-): (cwd: string, url: string) => BdSubprocessResult {
-  return (cwd, url) => {
-    const result = runner(["bd", "dolt", "remote", "add", "origin", url], {
-      cwd,
-      check: false,
-    });
-    return { stdout: result.stdout, stderr: result.stderr, status: result.status };
-  };
+// GH-1012: the bd dolt subprocess wrappers ran inside a beadsd container that
+// no longer exists. The DI seams (`bdDoltRemoteAdd` / `bdDoltPush`) remain so
+// tests and any future non-bd backend can supply their own; the retired
+// default refuses instead of shelling out to a deleted binary.
+function retiredBdSubprocess(): BdSubprocessResult {
+  throw new AddDolthubError(
+    "repo add-dolthub: the bd dolt remote/push backend was removed (GH-1012); inject `bdDoltRemoteAdd`/`bdDoltPush`.",
+    "bd_removed",
+  );
 }
 
 // ── formatter ──────────────────────────────────────────────────────────────

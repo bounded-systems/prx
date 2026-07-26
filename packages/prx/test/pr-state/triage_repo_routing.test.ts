@@ -19,7 +19,6 @@ import { describe, expect, test } from "bun:test";
 import { runCli } from "../../src/pr-state/cli.ts";
 import type { ResolveTargetRepoResult } from "../../src/pr-state/repo-target.ts";
 import type { LocalRepo } from "../../src/pr-state/repos.ts";
-import type { BeadsWorkspaceMode } from "../../src/beads/workspace_mode.ts";
 import type { TriageStatusResult } from "../../src/triage/triage.ts";
 
 type Output = {
@@ -66,10 +65,6 @@ function routingDeps(slug: string) {
     resolveTargetRepoCwd: (input: { slug: string }): ResolveTargetRepoResult => {
       expect(input.slug).toBe(slug);
       return { targetCwd: TARGET_CWD, repo: fakeRepo(slug, `owner/${slug}`), materialize: null };
-    },
-    classifyBeadsWorkspace: (cwd: string): BeadsWorkspaceMode => {
-      expect(cwd).toBe(TARGET_CWD);
-      return { kind: "per_project", doltDir: `${cwd}/.beads/dolt` };
     },
   };
 }
@@ -135,16 +130,6 @@ const VERBS: VerbProbe[] = [
     name: "triage-apply",
     argv: (repo) => ["triage", "apply", "--plan", "plan.json", ...(repo ? ["--repo", repo] : [])],
     injectRunner: (capture) => ({ runTriageApply: syncProbe(capture) }),
-  },
-  {
-    name: "triage-promote",
-    argv: (repo) => ["triage", "promote", "--dry-run", ...(repo ? ["--repo", repo] : [])],
-    injectRunner: (capture) => ({ runTriagePromote: syncProbe(capture) }),
-  },
-  {
-    name: "triage-drift-fix",
-    argv: (repo) => ["triage", "drift-fix", "--dry-run", ...(repo ? ["--repo", repo] : [])],
-    injectRunner: (capture) => ({ runTriageDriftFix: syncProbe(capture) }),
   },
   {
     name: "triage-migrate-axis-value",

@@ -19,15 +19,12 @@ import { processEnv } from "@bounded-systems/env";
 import { z } from "zod";
 
 import {
+  listOpenIssues as defaultListOpenIssues,
   repoNameWithOwner as defaultRepoNameWithOwner,
   type FallbackIssue,
 } from "../pr-state/github.ts";
 import { buildTriageHaikuClassifierRuntimeProfile } from "../machine/runtime_profiles.ts";
 import { agentProfileExecutionAsRuntimeResult, executeAgentProfile } from "../pr-state/executor.ts";
-// GH-1602: substitute the gh-side `listOpenIssues` with the bd-resident
-// projection. `pruneMergedActor` syncs bd from GH at the head of every triage
-// pass, so type-pass's queue enumeration is substrate-resident now.
-import { listOpenIssuesFromBeads as defaultListOpenIssues } from "./issues-from-beads.ts";
 import { BD_TYPE_ENUM, parseLabelName } from "./labels.ts";
 import { type TypeLabel } from "./label-vocab.ts";
 import { execGh as defaultExecGh, type GhExecResult } from "@bounded-systems/gh";

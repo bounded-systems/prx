@@ -113,6 +113,9 @@ describe("renderBdLifecycleArgs — room-style secret mounts (prx-82b 2c.4)", ()
   });
 
   test("DOLT_CREDS_SECRET is a room-shaped secret (provisioned like the others)", () => {
-    expect(DOLT_CREDS_SECRET).toEqual({ name: "prx-dolt-creds", target: "/run/secrets/dolt-creds" });
+    expect(DOLT_CREDS_SECRET).toEqual({
+      name: "prx-dolt-creds",
+      target: "/run/secrets/dolt-creds",
+    });
   });
 });

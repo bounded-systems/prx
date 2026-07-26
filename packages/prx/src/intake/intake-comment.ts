@@ -2,14 +2,12 @@
  * `prx intake comment <canonical> --body …` — pointer comment without close
  * (GH-1323, sister of `prx intake merge`).
  *
- * After GH-1710 (canonical-bd conversion), the canonical id may be a bd-side
- * id (`ai-home-<slug>`) rather than a GH issue. GH-1913 widens this verb to
- * dispatch on the resolved canonical:
- *   - `kind === "gh"` → existing `gh issue comment` flow.
- *   - `kind === "bd"` → marker-append onto the bd record's `notes` column
- *     (bd has no native comment surface).
+ * GitHub is the write plane, so this verb only comments on GH issues:
+ *   - `kind === "gh"` → `gh issue comment` flow.
  *   - `kind === "notion"` → refused (Notion is read-only via `prx scout
  *     notion`).
+ *   - `kind === "bd"` → refused: bd records carry no writable comment surface
+ *     (Front Desk is the read plane; there is no bd write backend anymore).
  *
  * Mirrors src/intake/intake-merge.ts: pure upstream-of-parity-chain CLI
  * plumbing, no XState events, no schema scaffolding. Body resolution
@@ -22,15 +20,7 @@ import { processEnv } from "@bounded-systems/env";
 import { z } from "zod";
 
 import { IssueResolveError, resolveIssueId, type IssueResolvedId } from "../issues/resolver.ts";
-import { execBd } from "@bounded-systems/bd";
-import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import { execGh, type GhExecResult } from "@bounded-systems/gh";
-import { loadAllBeads } from "../triage/triage.ts";
-import {
-  buildNotesAppendMarker,
-  composeAppendedNotes,
-  notesAlreadyContains,
-} from "./notes-append.ts";
 
 export const intakeCommentOptionsSchema = z.object({
   canonicalId: z.string().trim().min(1, "canonical id must not be empty"),
@@ -47,35 +37,17 @@ type Output = {
   error: (line: string) => void;
 };
 
-export type IntakeCommentRender =
-  | {
-      backend: "gh";
-      canonicalNumber: number;
-      repo?: string | undefined;
-      comment: { argv: string[]; body: string };
-      dryRun: boolean;
-      exitCode: number;
-    }
-  | {
-      backend: "bd";
-      bdId: string;
-      marker: string;
-      body: string;
-      bdUpdateArgv: string[];
-      alreadyPresent: boolean;
-      dryRun: boolean;
-      exitCode: number;
-    };
+export type IntakeCommentRender = {
+  backend: "gh";
+  canonicalNumber: number;
+  repo?: string | undefined;
+  comment: { argv: string[]; body: string };
+  dryRun: boolean;
+  exitCode: number;
+};
 
 export type IntakeCommentDeps = {
   execGh?: typeof execGh;
-  execBd?: typeof execBd;
-  loadAllBeads?: typeof loadAllBeads;
-  /**
-   * GH-296 / prx-82b — sync runner for the daemon-routed note write
-   * (`prx beads update <id> --notes …`). Default: procRunner.
-   */
-  run?: CommandRunner;
 };
 
 export class IntakeCommentError extends Error {
@@ -101,10 +73,6 @@ function buildCommentArgs(
   return args;
 }
 
-function buildBdUpdateArgs(bdId: string, newNotes: string): string[] {
-  return [bdId, "--notes", newNotes];
-}
-
 function shellQuote(value: string): string {
   if (value.length === 0) return "''";
   // `#` is excluded from the safe set: `#123` (the most common pointer-
@@ -118,19 +86,12 @@ function renderGhArgvLine(args: string[]): string {
   return `gh ${args.map(shellQuote).join(" ")}`;
 }
 
-function renderBdUpdateArgvLine(args: string[]): string {
-  return `bd update ${args.map(shellQuote).join(" ")}`;
-}
-
 export function runIntakeComment(
   opts: IntakeCommentOptions,
   output: Output,
   deps: IntakeCommentDeps = {},
 ): number {
   const ghExec = deps.execGh ?? execGh;
-  const bdExec = deps.execBd ?? execBd;
-  const loader = deps.loadAllBeads ?? loadAllBeads;
-  const run = deps.run ?? procRunner;
 
   let resolved: IssueResolvedId;
   try {
@@ -145,13 +106,16 @@ export function runIntakeComment(
 
   if (resolved.kind === "notion") {
     output.error(
-      `${VERB}: canonical id must be a GitHub issue or bd record; Notion ids are read-only via 'prx scout notion'`,
+      `${VERB}: canonical id must be a GitHub issue; Notion ids are read-only via 'prx scout notion'`,
     );
     return 1;
   }
 
   if (resolved.kind === "bd") {
-    return runBdComment(opts, output, resolved.id, bdExec, loader, run);
+    output.error(
+      `${VERB}: canonical id must be a GitHub issue; bd records have no writable comment surface`,
+    );
+    return 1;
   }
 
   return runGhComment(opts, output, resolved, ghExec);
@@ -217,89 +181,6 @@ function runGhComment(
   return 0;
 }
 
-function runBdComment(
-  opts: IntakeCommentOptions,
-  output: Output,
-  bdId: string,
-  bdExec: typeof execBd,
-  loader: typeof loadAllBeads,
-  run: CommandRunner,
-): number {
-  let records;
-  try {
-    records = loader(bdExec);
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    output.error(`${VERB}: bd unreachable: ${detail}`);
-    return 1;
-  }
-  const record = records.find((r) => r.id === bdId);
-  if (!record) {
-    output.error(`${VERB}: no bd record matching '${bdId}'`);
-    return 1;
-  }
-
-  const marker = buildNotesAppendMarker("prx-intake-comment", opts.body);
-  const alreadyPresent = notesAlreadyContains(record.notes, marker);
-  const newNotes = alreadyPresent
-    ? (record.notes ?? "")
-    : composeAppendedNotes(record.notes, marker, opts.body);
-  const bdUpdateArgv = buildBdUpdateArgs(bdId, newNotes);
-
-  if (opts.dryRun) {
-    const render: IntakeCommentRender = {
-      backend: "bd",
-      bdId,
-      marker,
-      body: opts.body,
-      bdUpdateArgv,
-      alreadyPresent,
-      dryRun: true,
-      exitCode: 0,
-    };
-    output.log(formatIntakeCommentRender(render, opts.format));
-    return 0;
-  }
-
-  if (alreadyPresent) {
-    output.log(`${VERB}: marker already present on '${bdId}' — idempotent no-op`);
-    const render: IntakeCommentRender = {
-      backend: "bd",
-      bdId,
-      marker,
-      body: opts.body,
-      bdUpdateArgv,
-      alreadyPresent: true,
-      dryRun: false,
-      exitCode: 0,
-    };
-    output.log(formatIntakeCommentRender(render, opts.format));
-    return 0;
-  }
-
-  // GH-296 / prx-82b: write the note via the daemon (single writer).
-  const updateResult = run(["prx", "beads", "update", bdId, "--notes", newNotes], { check: false });
-  if (updateResult.status !== 0) {
-    const detail =
-      updateResult.stderr.trim() || updateResult.stdout.trim() || "prx beads update failed";
-    output.error(`${VERB}: ${detail}`);
-    return updateResult.status || 1;
-  }
-
-  const render: IntakeCommentRender = {
-    backend: "bd",
-    bdId,
-    marker,
-    body: opts.body,
-    bdUpdateArgv,
-    alreadyPresent: false,
-    dryRun: false,
-    exitCode: 0,
-  };
-  output.log(formatIntakeCommentRender(render, opts.format));
-  return 0;
-}
-
 export function formatIntakeCommentRender(
   render: IntakeCommentRender,
   format: "plain" | "json",
@@ -307,13 +188,10 @@ export function formatIntakeCommentRender(
   if (format === "json") {
     return JSON.stringify(render, null, 2);
   }
-  if (render.backend === "bd") {
-    return formatBdRender(render);
-  }
   return formatGhRender(render);
 }
 
-function formatGhRender(render: Extract<IntakeCommentRender, { backend: "gh" }>): string {
+function formatGhRender(render: IntakeCommentRender): string {
   const header = render.dryRun ? "prx intake comment (dry-run)" : "prx intake comment";
   const lines: string[] = [
     header,
@@ -335,31 +213,6 @@ function formatGhRender(render: Extract<IntakeCommentRender, { backend: "gh" }>)
   if (render.dryRun) {
     lines.push(`  would run:`);
     lines.push(`    ${renderGhArgvLine(render.comment.argv)}`);
-  }
-  return lines.join("\n");
-}
-
-function formatBdRender(render: Extract<IntakeCommentRender, { backend: "bd" }>): string {
-  const header = render.dryRun ? "prx intake comment (dry-run)" : "prx intake comment";
-  const lines: string[] = [
-    header,
-    `  canonical:  ${render.bdId}`,
-    `  backend:    bd`,
-    `  marker:     ${render.marker}`,
-    `  status:     ${render.alreadyPresent ? "already-present (no-op)" : "appended"}`,
-  ];
-  const bodyLines = render.body.split("\n");
-  if (bodyLines.length === 1) {
-    lines.push(`  body:       ${bodyLines[0]}`);
-  } else {
-    lines.push(`  body:`);
-    for (const line of bodyLines) {
-      lines.push(`    ${line}`);
-    }
-  }
-  if (render.dryRun) {
-    lines.push(`  would run:`);
-    lines.push(`    ${renderBdUpdateArgvLine(render.bdUpdateArgv)}`);
   }
   return lines.join("\n");
 }

@@ -14,7 +14,6 @@ import {
   githubDomainAdapter,
 } from "../../src/adapters/github.ts";
 import { GraphQLBudgetExhaustedError, type BudgetSnapshot } from "@bounded-systems/github-budget";
-import type { BdExecOptions, BdExecResult } from "@bounded-systems/bd";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
 import {
   type execGhIssueEdit,
@@ -65,19 +64,6 @@ function recordingRunner(
     return responder(cmd);
   };
   return { runner, calls };
-}
-
-function recordingBdExec(
-  result: BdExecResult = { exitCode: 0, stdout: "", stderr: "", policy: null },
-): { exec: (opts: BdExecOptions) => BdExecResult; calls: BdExecOptions[] } {
-  const calls: BdExecOptions[] = [];
-  return {
-    exec: (opts: BdExecOptions) => {
-      calls.push(opts);
-      return result;
-    },
-    calls,
-  };
 }
 
 describe("GhDomainAdapter — config / ownedOnPull pin", () => {
@@ -334,29 +320,15 @@ describe("GhDomainAdapter.pull — conditional reads (GH-296 / prx-lzw lever 1)"
 });
 
 describe("GhDomainAdapter.push", () => {
-  test("create path: dedup-clean → gh issue create + bd write-back", async () => {
+  test("create path: unlinked bead → gh issue create returns the new issue url", async () => {
     const { runner, calls } = recordingRunner((cmd) => {
       if (cmd.includes("create")) {
         return { status: 0, stderr: "", stdout: "https://github.com/o/r/issues/999\n" };
       }
       throw new Error(`unexpected gh call: ${cmd.join(" ")}`);
     });
-    const bd = recordingBdExec();
     const adapter = new GhDomainAdapter({
       runner,
-      loadAllBeads: () => [],
-      execBd: bd.exec,
-      // GH-296: write-back routes through the daemon helper; record the
-      // equivalent old `bd update --external-ref` shape for the assertion.
-      updateBead: (async (id: string, fields: { externalRef?: string }) => {
-        bd.calls.push({
-          subcommand: "update",
-          args: [id, "--external-ref", fields.externalRef ?? ""],
-          state: "planning",
-          role: "planner",
-        } as never);
-        return null;
-      }) as never,
       repoNameWithOwner: () => "o/r",
       cwd: () => "/repo",
     });
@@ -390,43 +362,9 @@ describe("GhDomainAdapter.push", () => {
         cwd: "/repo",
       },
     ]);
-    expect(bd.calls).toEqual([
-      {
-        subcommand: "update",
-        args: ["ai-home-x", "--external-ref", "https://github.com/o/r/issues/999"],
-        state: "planning",
-        role: "planner",
-      },
-    ]);
   });
 
-  test("create path: refuses to create a duplicate when a same-title bd is already mirrored", async () => {
-    const { runner, calls } = recordingRunner(() => {
-      throw new Error("gh should not be called");
-    });
-    const bd = recordingBdExec();
-    const adapter = new GhDomainAdapter({
-      runner,
-      loadAllBeads: () => [
-        bead({
-          id: "ai-home-other",
-          title: "My issue",
-          externalIssueNumber: 42,
-          externalRef: "https://github.com/o/r/issues/42",
-        }),
-      ],
-      execBd: bd.exec,
-      repoNameWithOwner: () => "o/r",
-      cwd: () => "/repo",
-    });
-    await expect(adapter.push(bead(), { title: "My issue" })).rejects.toThrow(
-      /refusing to create a duplicate GitHub issue/i,
-    );
-    expect(calls).toEqual([]);
-    expect(bd.calls).toEqual([]);
-  });
-
-  test("linked path: idempotent edit of only the requested fields; no bd write-back", async () => {
+  test("linked path: idempotent edit of only the requested fields", async () => {
     // GH-2382: the linked edit reads the live issue (title + labels here) and
     // routes the edit through the `execGhIssueEdit` chokepoint, not the raw
     // runner. Title differs → rewritten; `agent::executor` is a foreign label
@@ -438,11 +376,9 @@ describe("GhDomainAdapter.push", () => {
       throw new Error(`unexpected gh call: ${cmd.join(" ")}`);
     });
     const { edit, calls: editCalls } = recordingEdit();
-    const bd = recordingBdExec();
     const adapter = new GhDomainAdapter({
       runner,
       execGhIssueEdit: edit,
-      execBd: bd.exec,
       cwd: () => "/repo",
     });
     const result = await adapter.push(bead({ externalRef: "https://github.com/o/r/issues/999" }), {
@@ -472,8 +408,6 @@ describe("GhDomainAdapter.push", () => {
       addLabels: ["agent::executor"],
       cwd: "/repo",
     });
-    // Direction-lock (I-DS-PRIO / I-PROJ1): no bd write-back from a linked reconcile.
-    expect(bd.calls).toEqual([]);
   });
 
   test("linked path: title already matches live → not rewritten (real no-op, GH-2382)", async () => {
@@ -786,31 +720,7 @@ describe("GhDomainAdapter.resolve / resolveFromBeads", () => {
     bead({ id: "ai-home-b", externalRef: null, externalIssueNumber: 99 }),
   ];
 
-  function adapter(): GhDomainAdapter {
-    return new GhDomainAdapter({ loadAllBeads: () => records, cwd: () => "/repo" });
-  }
-
-  test("URL match → bd short-id", async () => {
-    expect(await adapter().resolve("https://github.com/o/r/issues/204")).toBe("ai-home-a");
-  });
-
-  test("issue-number fallback (GH-N / #N / bare N) → bd short-id", async () => {
-    expect(await adapter().resolve("GH-99")).toBe("ai-home-b");
-    expect(await adapter().resolve("#99")).toBe("ai-home-b");
-    expect(await adapter().resolve("99")).toBe("ai-home-b");
-  });
-
-  test("no mirror → null", async () => {
-    expect(await adapter().resolve("https://github.com/o/r/issues/777")).toBeNull();
-    expect(await adapter().resolve("GH-777")).toBeNull();
-  });
-
-  test("never prefix-matches a bd long-id (non-GH input → null, not self)", async () => {
-    expect(await adapter().resolve("ai-home-a")).toBeNull();
-    expect(await adapter().resolve("not-an-id")).toBeNull();
-  });
-
-  test("`resolveFromBeads` is the sync sibling of `resolve` — same dispatch contract", () => {
+  test("`resolveFromBeads` resolves URL / issue-number ids against a supplied snapshot", () => {
     // Pass beads directly (no `loadAllBeads` dep) to confirm the sync seam.
     const sync = new GhDomainAdapter({ cwd: () => "/repo" });
     expect(sync.resolveFromBeads("https://github.com/o/r/issues/204", records)).toBe("ai-home-a");
@@ -839,186 +749,6 @@ describe("GhDomainAdapter.resolve / resolveFromBeads", () => {
     expect(sync.resolveFromBeads("https://github.com/o/r/issues/555", legacyOnly)).toBe(
       "ai-home-legacy",
     );
-  });
-});
-
-describe("GhDomainAdapter — BeadsCache sharing (GH-1595)", () => {
-  test("N `push()` calls in one process read beads exactly once when a shared cache is wired", async () => {
-    // The `prx beads sync` bulk loop calls `adapter.push` once per pinned
-    // pair; before GH-1595 each call ran a fresh `bd list --all --json
-    // --limit 0` to check the unlinked-dedup invariant. The cache wires the
-    // adapter to a memoized loader: subsequent `push`es reuse the snapshot.
-    const { createBeadsCache } = await import("../../src/triage/beads_cache.ts");
-    let reads = 0;
-    const cache = createBeadsCache({
-      loadAllBeads: () => {
-        reads += 1;
-        return [];
-      },
-    });
-
-    const { runner } = recordingRunner(() => ({
-      status: 0,
-      stderr: "",
-      stdout: "https://github.com/o/r/issues/1\n",
-    }));
-    const bd = recordingBdExec();
-    const adapter = new GhDomainAdapter({
-      runner,
-      loadAllBeads: () => cache.load(),
-      invalidateBeadsCache: cache.invalidate,
-      execBd: bd.exec,
-      updateBead: (async () => null) as never,
-      repoNameWithOwner: () => "o/r",
-      cwd: () => "/repo",
-    });
-
-    // Unlinked path runs `loadBeads()` for the dedup scan + then writes back;
-    // the write-back invalidates the cache, so each iteration re-reads.
-    await adapter.push(bead({ id: "ai-home-1" }), { title: "t1" });
-    expect(reads).toBe(1);
-
-    // After invalidation the next call re-reads; that's the correctness
-    // promise. But within a single un-invalidated window (e.g., back-to-back
-    // resolve()s), reads stay capped at 1.
-    await adapter.resolve("https://github.com/o/r/issues/1");
-    await adapter.resolve("https://github.com/o/r/issues/1");
-    expect(reads).toBe(2);
-  });
-
-  test("push() write-back path invokes `invalidateBeadsCache` exactly once on success", async () => {
-    let invalidations = 0;
-    // Unlinked create returns a URL on stdout; the linked view returns JSON.
-    const { runner } = recordingRunner((cmd) => {
-      if (cmd.includes("view")) {
-        return { status: 0, stderr: "", stdout: JSON.stringify({ title: "old" }) };
-      }
-      return { status: 0, stderr: "", stdout: "https://github.com/o/r/issues/42\n" };
-    });
-    const { edit } = recordingEdit();
-    const bd = recordingBdExec();
-    const adapter = new GhDomainAdapter({
-      runner,
-      execGhIssueEdit: edit,
-      loadAllBeads: () => [],
-      invalidateBeadsCache: () => {
-        invalidations += 1;
-      },
-      execBd: bd.exec,
-      updateBead: (async () => null) as never,
-      repoNameWithOwner: () => "o/r",
-      cwd: () => "/repo",
-    });
-
-    await adapter.push(bead({ id: "ai-home-x" }), { title: "t" });
-    expect(invalidations).toBe(1);
-
-    // Linked path is idempotent — no bd write-back → no invalidate.
-    await adapter.push(bead({ externalRef: "https://github.com/o/r/issues/42" }), {
-      title: "renamed",
-    });
-    expect(invalidations).toBe(1);
-  });
-});
-
-// GH-2011: GH adapter's `bulkClose` now loops the narrow `execBdIssueClose`
-// wrapper instead of dispatching repo-wide via the retired
-// `bd github sync --pull-only --prefer-github` shell-out. The destructive
-// shell-out dropped bd-only writes for `issue_type` / `assignee` /
-// `state` / `close_reason`; the per-id close stays inside the
-// bd-canonical authority boundary.
-describe("GhDomainAdapter.bulkClose (GH-2011)", () => {
-  type CloseCall = { id: string; cwd: string | undefined; reason: string | undefined };
-
-  function recordingClose(
-    response: (call: CloseCall) => { exitCode: number; stdout: string; stderr: string } = () => ({
-      exitCode: 0,
-      stdout: "",
-      stderr: "",
-    }),
-  ): {
-    execBdIssueClose: (opts: { id: string; cwd?: string; reason?: string }) => {
-      exitCode: number;
-      stdout: string;
-      stderr: string;
-    };
-    calls: CloseCall[];
-  } {
-    const calls: CloseCall[] = [];
-    return {
-      calls,
-      execBdIssueClose: (opts) => {
-        const call: CloseCall = { id: opts.id, cwd: opts.cwd, reason: opts.reason };
-        calls.push(call);
-        return response(call);
-      },
-    };
-  }
-
-  test("invokes execBdIssueClose once per bead id with reason='closed-by-pull'", () => {
-    const { execBdIssueClose, calls } = recordingClose();
-    const adapter = new GhDomainAdapter({
-      execBdIssueClose,
-      cwd: () => "/default",
-    });
-    const result = adapter.bulkClose({
-      cwd: "/repo",
-      beadIds: ["ai-home-1", "ai-home-2"],
-    });
-    expect(result.exitCode).toBe(0);
-    expect(calls).toEqual([
-      { id: "ai-home-1", cwd: "/repo", reason: "closed-by-pull" },
-      { id: "ai-home-2", cwd: "/repo", reason: "closed-by-pull" },
-    ]);
-  });
-
-  test("does not invoke any `bd github sync` shell-out (GH-2011 regression)", () => {
-    let bdSpawnCount = 0;
-    const adapter = new GhDomainAdapter({
-      execBdIssueClose: () => {
-        // Replaces the previous repo-wide reconcile that would have spawned
-        // `bd github sync --pull-only --prefer-github` once. With the per-id
-        // close path, the only bd spawn shape is `bd close <id>`.
-        bdSpawnCount += 1;
-        return { exitCode: 0, stdout: "", stderr: "" };
-      },
-      cwd: () => "/repo",
-    });
-    adapter.bulkClose({ cwd: "/repo", beadIds: ["ai-home-9"] });
-    expect(bdSpawnCount).toBe(1);
-  });
-
-  test("empty beadIds → no spawns, exit 0", () => {
-    const { execBdIssueClose, calls } = recordingClose();
-    const adapter = new GhDomainAdapter({
-      execBdIssueClose,
-      cwd: () => "/repo",
-    });
-    expect(adapter.bulkClose({ cwd: "/repo", beadIds: [] })).toEqual({
-      exitCode: 0,
-      stdout: "",
-      stderr: "",
-    });
-    expect(calls).toEqual([]);
-  });
-
-  test("propagates first non-zero exit code", () => {
-    const { execBdIssueClose } = recordingClose((call) => {
-      if (call.id === "ai-home-bad") {
-        return { exitCode: 2, stdout: "", stderr: "bd: close refused" };
-      }
-      return { exitCode: 0, stdout: "ok", stderr: "" };
-    });
-    const adapter = new GhDomainAdapter({
-      execBdIssueClose,
-      cwd: () => "/repo",
-    });
-    const result = adapter.bulkClose({
-      cwd: "/repo",
-      beadIds: ["ai-home-bad", "ai-home-ok"],
-    });
-    expect(result.exitCode).toBe(2);
-    expect(result.stderr).toContain("bd: close refused");
   });
 });
 

@@ -34,24 +34,14 @@
 // and produces no XState events. This module only reads; it never writes to
 // bd or gh.
 //
-// GH-1573: the bd-side fetch for `prx triage status` runs via `bd sql
-// --readonly` rather than `bd list --all --json` — the queue is multi-MB and
-// most of that volume is the `description` column, which triage never reads.
-// The scoped projection drops `description` outright and filters to
-// join-relevant rows only: every non-closed bead (reverse-orphan / drift /
-// stale candidates) plus every closed bead with a GH `external_ref` (so the
-// `bd-closed ↔ gh-open` arm of `findDrift` stays detectable). The only rows
-// dropped at the wire are closed bd-only memos with no external link — which
-// triage has no use for. `loadAllBeads` is unchanged and still serves the
-// other callers (intake, drift-fix, promote-children, etc.).
-import { processEnv } from "@bounded-systems/env";
-import { join } from "node:path";
-
+// GH-1012: the beads read plane is Front Desk (the GH-canonical mirror), not
+// bd. `prx triage status` loads work items via `frontDeskBeadsRaw` (`fds
+// list`), which emits the raw `bd list --json` object shape `parseBeadsRecords`
+// already consumes, so every downstream projection is invariant to the swap.
 import { z } from "zod";
 
-import { execBd, type BdExecResult } from "@bounded-systems/bd";
 import { adapterForDomain } from "../adapters/domain-adapter.ts";
-import { isEmbeddedDoltMode } from "../beads/hydrate.ts";
+import { frontDeskBeadsRaw } from "../beads/frontdesk-list.ts";
 import { localRepoForCwd, repoCanonical, repoStaleThresholdDays } from "../pr-state/repos.ts";
 import {
   listOpenIssues as defaultListOpenIssues,
@@ -230,7 +220,12 @@ export type TriageStatusDeps = {
   listOpenIssues?: typeof defaultListOpenIssues;
   listIssuesByState?: typeof defaultListIssuesByState;
   repoNameWithOwner?: typeof defaultRepoNameWithOwner;
-  execBd?: typeof execBd;
+  /**
+   * GH-1012: Front Desk raw-row reader (defaults to {@link frontDeskBeadsRaw}).
+   * Injectable so tests can supply a fixture array without spawning `fds`.
+   * Replaces the retired `execBd` seam.
+   */
+  frontDeskRows?: (cwd: string) => unknown[];
   cwd?: () => string;
   refreshBudget?: typeof defaultRefreshBudget;
   estimateSweepCost?: typeof defaultEstimateSweepCost;
@@ -390,58 +385,6 @@ export function priorityToBdNumber(label: "critical" | "high" | "medium" | "low"
   return 3;
 }
 
-export function loadAllBeads(
-  exec: typeof execBd = execBd,
-  warn: (line: string) => void = () => {},
-  cwd?: string,
-): BeadsRecord[] {
-  const result: BdExecResult = exec(
-    {
-      subcommand: "list",
-      args: ["--all", "--json", "--limit", "0"],
-      state: "planning",
-      role: "planner",
-      ...(cwd ? { cwd } : {}),
-    },
-    processEnv(),
-  );
-
-  // Parse stdout BEFORE judging the exit code. `bd list` can exit non-zero from
-  // a *post-listing* side-effect (dolt auto-sync against a divergent remote;
-  // cf. GH-826/GH-1112) while still having emitted a complete, valid array — so
-  // a non-zero exit alone must not knock out triage/intake's beads leg.
-  let raw: unknown;
-  let parseError = false;
-  try {
-    raw = JSON.parse(result.stdout || "[]");
-  } catch {
-    parseError = true;
-  }
-  const parsedArray = !parseError && Array.isArray(raw) ? (raw as unknown[]) : null;
-  // A *non-empty* parsed array proves the listing actually ran. Empty stdout
-  // (which `|| "[]"` coerces to `[]`) does NOT — that's the shape bd produces
-  // when it never printed anything (blocked subcommand, bd missing, crash).
-  const listingRan = parsedArray !== null && result.stdout.trim().length > 0;
-
-  if (result.exitCode !== 0) {
-    if (listingRan) {
-      const detail = result.stderr.trim() || `exit code ${result.exitCode}`;
-      warn(
-        `triage status: bd list --all --json --limit 0 exited non-zero but emitted a valid array; using parsed output (${detail})`,
-      );
-    } else {
-      const detail = result.stderr.trim() || result.stdout.trim() || "bd list --json failed";
-      throw new Error(`triage status: ${detail}`);
-    }
-  } else if (parseError) {
-    throw new Error("triage status: bd list --json returned invalid JSON");
-  } else if (parsedArray === null) {
-    throw new Error("triage status: expected bd list --json to return an array");
-  }
-
-  return parseBeadsRecords(parsedArray ?? []);
-}
-
 /**
  * Transform one raw `bd --json` entry (snake_case fields) into a parsed
  * {@link BeadsRecord} (camelCase + derived `externalRefs` /
@@ -573,143 +516,22 @@ function parseDependencies(raw: unknown): BeadsDependency[] {
   return out;
 }
 
-// GH-1573: scoped projection of `issues` used by `prx triage status`. Drops
-// the `description` column (never read by triage) and filters to rows the
-// GH↔bd join could plausibly need: every non-closed bead plus every closed
-// bead with a GH `external_ref`. `loadAllBeads` stays for callers that
-// genuinely need the full set.
-//
-// `bd sql --json` returns column values as the underlying DB stores them:
-// `metadata` arrives as a JSON-encoded string (e.g. `"null"`, `"{}"`) rather
-// than the already-parsed object you get from `bd list --json`. We parse it
-// inline and shape the result to the same `BeadsRecord` (with
-// `description: ""`) so downstream code is identical, including the
-// `externalRefs` map produced by `deriveExternalRefs` (GH-1538).
-const sqlBeadRowSchema = z.object({
-  id: z.string(),
-  title: z.string().nullable().optional(),
-  status: z.string().nullable().optional(),
-  priority: z.number().nullable().optional(),
-  issue_type: z.string().nullable().optional(),
-  external_ref: z.string().nullable().optional(),
-  source_system: z.string().nullable().optional(),
-  // bd stores `metadata` as a TEXT column holding JSON. SQLite returns it
-  // verbatim, so we get a string here even when bd's higher-level CLI would
-  // surface a parsed object.
-  metadata: z.string().nullable().optional(),
-  // GH-1710: project `updated_at` so the bd-canonical `stale` bucket has a
-  // last-touched timestamp to compare against the threshold. Inexpensive —
-  // a small ISO string per row.
-  updated_at: z.string().nullable().optional(),
-  // GH-1829: project `notes` so `findDrift` can detect the §6
-  // "duplicate of canonical" marker on closed-as-dup beads.
-  notes: z.string().nullable().optional(),
-});
-
-const JOIN_RELEVANT_BEADS_QUERY =
-  "SELECT id, title, status, priority, issue_type, external_ref, source_system, metadata, updated_at, notes " +
-  "FROM issues " +
-  "WHERE status != 'closed' OR external_ref IS NOT NULL";
-
-export function loadJoinRelevantBeads(exec: typeof execBd = execBd): BeadsRecord[] {
-  const result: BdExecResult = exec(
-    {
-      subcommand: "sql",
-      args: ["--json", JOIN_RELEVANT_BEADS_QUERY],
-      state: "planning",
-      role: "planner",
-    },
-    processEnv(),
-  );
-  if (result.exitCode !== 0) {
-    const detail = result.stderr.trim() || result.stdout.trim() || "bd sql --json failed";
-    throw new Error(`triage status: ${detail}`);
-  }
-  let raw: unknown;
-  try {
-    raw = JSON.parse(result.stdout || "[]");
-  } catch {
-    throw new Error("triage status: bd sql --json returned invalid JSON");
-  }
-  if (!Array.isArray(raw)) {
-    throw new Error("triage status: expected bd sql --json to return an array");
-  }
-  const records: BeadsRecord[] = [];
-  for (const entry of raw) {
-    const parsed = sqlBeadRowSchema.safeParse(entry);
-    if (!parsed.success) {
-      throw new Error(`triage status: bd sql --json row shape drift: ${parsed.error.message}`);
-    }
-    const row = parsed.data;
-    const externalRef = row.external_ref ?? null;
-    let metadata: Record<string, unknown> | null = null;
-    if (typeof row.metadata === "string" && row.metadata.length > 0) {
-      try {
-        const parsedMeta = JSON.parse(row.metadata);
-        if (parsedMeta && typeof parsedMeta === "object" && !Array.isArray(parsedMeta)) {
-          metadata = parsedMeta as Record<string, unknown>;
-        }
-      } catch {
-        // Tolerate malformed metadata: triage uses `metadata?.bd_only`
-        // defensively, so a null fallback simply means "no bd_only marker".
-        metadata = null;
-      }
-    }
-    const externalRefs = deriveExternalRefs(row.id, externalRef, metadata);
-    records.push({
-      id: row.id,
-      title: row.title ?? "",
-      description: "",
-      status: row.status ?? "open",
-      priority: typeof row.priority === "number" ? row.priority : null,
-      issueType: row.issue_type ?? "",
-      externalRef,
-      externalRefs,
-      metadata,
-      externalIssueNumber: extractIssueNumber(externalRefs.gh ?? externalRef),
-      sourceSystem: row.source_system ?? null,
-      // GH-1710: scoped projection now carries `updated_at` so the
-      // bd-canonical `stale` bucket has a last-touched timestamp. Callers
-      // that need it for non-stale purposes still go through `loadAllBeads`.
-      updatedAt: row.updated_at ?? null,
-      // GH-1829: project `notes` so `findDrift` can detect the §6
-      // "duplicate of canonical" marker on closed-as-dup beads.
-      notes: row.notes ?? null,
-    });
-  }
-  return records;
-}
-
 /**
- * GH-1691: route the triage GH↔bd projection by bd's declared dolt mode.
- *
- * Per-project workspaces (the GH-1471 canonical layout) keep the GH-1573
- * scoped `bd sql --json` read — drops the multi-MB `description` column.
- *
- * Legacy embedded-mode workspaces (`.beads/metadata.json` `dolt_mode:
- * "embedded"`) fall back to `loadAllBeads` because upstream bd refuses
- * `bd sql` there (GH-1061 won't-do, relaxed only for per-project). The
- * fallback emits one warn line and pays the unscoped-read perf cost on
- * the legacy path; `prx triage status` becomes usable instead of
- * dead-ending the status line.
- *
- * Both branches yield the same `BeadsRecord[]` shape; downstream
- * (`indexBeadsByIssueNumber`, `findReverseOrphans`, `findDrift`,
- * `findStaleBeads`) is invariant to which read path produced the records.
+ * GH-1012: load the triage work-item set from Front Desk (the GH-canonical
+ * mirror) rather than bd. `frontDeskBeadsRaw` spawns `fds list` and emits the
+ * raw `bd list --json` object shape `parseBeadsRecords` already consumes, so
+ * every downstream projection (`indexBeadsByIssueNumber`, `findReverseOrphans`,
+ * `findDrift`, `findStaleBeads`) is invariant to the substrate swap. The Front
+ * Desk mirror does not carry `description` / `priority` / `notes` /
+ * `updated_at`, so those fields default (see `frontdesk-list.ts`); the
+ * bd-canonical `stale` bucket (`findBdStale`) therefore has no timestamp to
+ * compare and yields nothing on this substrate.
  */
-export function loadTriageScopedBeads(
-  beadsDir: string,
-  exec: typeof execBd = execBd,
-  warn: (line: string) => void = () => {},
+export function loadTriageBeads(
+  cwd: string,
+  frontDeskRows: (cwd: string) => unknown[] = frontDeskBeadsRaw,
 ): BeadsRecord[] {
-  if (isEmbeddedDoltMode(beadsDir)) {
-    warn(
-      "triage status: bd workspace is embedded-mode; bd sql unavailable, " +
-        "using bd list fallback (GH-1691)",
-    );
-    return loadAllBeads(exec, warn);
-  }
-  return loadJoinRelevantBeads(exec);
+  return parseBeadsRecords(frontDeskRows(cwd));
 }
 
 export function indexBeadsByIssueNumber(records: BeadsRecord[]): Map<number, BeadsRecord> {
@@ -1234,7 +1056,7 @@ export function findStaleProjection(
   opts: { repo?: string; limit?: number } = {},
   deps: TriageStatusDeps = {},
 ): FindStaleProjectionResult {
-  const bdExec = deps.execBd ?? execBd;
+  const frontDeskRows = deps.frontDeskRows ?? frontDeskBeadsRaw;
   const cwd = (deps.cwd ?? process.cwd)();
 
   const localRepo = (deps.localRepoForCwd ?? localRepoForCwd)(cwd);
@@ -1253,7 +1075,7 @@ export function findStaleProjection(
   const repo = opts.repo ?? resolveRepo(cwd);
   const ghLimit = (opts.limit ?? 0) > 0 ? (opts.limit as number) : 1000;
   const openIssues = withGhTruthReason("drift-comparator", () => listIssues(repo, ghLimit));
-  const allBeads = loadTriageScopedBeads(join(cwd, ".beads"), bdExec, () => {});
+  const allBeads = loadTriageBeads(cwd, frontDeskRows);
   const rows = computeStaleRowsForGh(allBeads, openIssues, repo, ghLimit, listByState);
 
   return { repo, canonical: "gh", rows };
@@ -1266,7 +1088,7 @@ export function runStatusActor(
   const stdout: string[] = [];
   const stderr: string[] = [];
 
-  const bdExec = deps.execBd ?? execBd;
+  const frontDeskRows = deps.frontDeskRows ?? frontDeskBeadsRaw;
   const cwd = (deps.cwd ?? process.cwd)();
 
   // GH-1710: resolve canonical *before* hitting the GH wire. canonical="bd"
@@ -1275,9 +1097,7 @@ export function runStatusActor(
   const canonical: "gh" | "bd" = localRepo ? repoCanonical(localRepo) : "gh";
 
   if (canonical === "bd") {
-    const allBeads = loadTriageScopedBeads(join(cwd, ".beads"), bdExec, (line) =>
-      stderr.push(line),
-    );
+    const allBeads = loadTriageBeads(cwd, frontDeskRows);
     const thresholdDays = localRepo ? repoStaleThresholdDays(localRepo) : 30;
     const now = (deps.now ?? (() => new Date()))();
     const openBeads = allBeads.filter((r) => r.status !== "closed");
@@ -1316,28 +1136,22 @@ export function runStatusActor(
   const repo = opts.repo ?? resolveRepo(cwd);
   const ghLimit = opts.limit > 0 ? opts.limit : 1000;
   // GH-1786 — read-time freshness gate. Before hitting GH (open issues) and
-  // bd (scoped beads), check the substrate watermark and trigger one bounded
-  // `runFetchGhIssues` refresh when it's stale (or unset). The GH-canonical
-  // path keeps its existing `listOpenIssues` call — that one always queries
-  // GH fresh — but the bd-side `loadTriageScopedBeads` below is the laggy
-  // half, and gating it keeps the comparator direction-locked.
+  // the Front Desk beads mirror, check the substrate watermark and trigger one
+  // bounded `runFetchGhIssues` refresh when it's stale (or unset). The
+  // GH-canonical path keeps its existing `listOpenIssues` call — that one
+  // always queries GH fresh — but the Front Desk `loadTriageBeads` read below
+  // is the laggy half, and gating it keeps the comparator direction-locked.
   applyFreshnessGate({ opts, deps, cwd, repo, log: (l) => stderr.push(l) });
 
   // GH-1602: `runStatusActor` is the one triage verb that intentionally keeps
   // gh as the source of truth — forward-orphan / drift / stale all need an
-  // authoritative GH-side answer, not the bd mirror of it. Tag the residual
+  // authoritative GH-side answer, not the beads mirror of it. Tag the residual
   // calls with the load-bearing reason so the audit log identifies a justified
   // comparator (vs. an accidental gh fallback the refactor missed). One read
   // serves forward-orphan + drift; the more specific drift-comparator wins.
   const openIssues = withGhTruthReason("drift-comparator", () => listIssues(repo, ghLimit));
-  // GH-1573 routes the triage-status bd read through `bd sql --json` for
-  // per-project workspaces (drops the multi-MB `description` column). GH-1691
-  // adds the legacy embedded-mode fallback at the caller — upstream bd refuses
-  // `bd sql` in embedded mode (GH-1061), so the router downgrades to the
-  // unscoped `bd list --all --json` path. Neither read hits the non-zero-
-  // exit-with-valid-stdout failure mode the GH-1551 parse-then-warn fix
-  // covers, since the scoped path has no post-listing dolt sync.
-  const allBeads = loadTriageScopedBeads(join(cwd, ".beads"), bdExec, (line) => stderr.push(line));
+  // GH-1012: the beads leg reads from Front Desk (see `loadTriageBeads`).
+  const allBeads = loadTriageBeads(cwd, frontDeskRows);
   const beadsByNumber = indexBeadsByIssueNumber(allBeads);
 
   const rows = openIssues
@@ -1375,7 +1189,7 @@ export function runTriageStatus(
   output: Output,
   deps: TriageStatusDeps = {},
 ): number {
-  const bdExec = deps.execBd ?? execBd;
+  const frontDeskRows = deps.frontDeskRows ?? frontDeskBeadsRaw;
   const cwd = (deps.cwd ?? process.cwd)();
 
   // GH-1710: canonical-axis branch (parallels `runStatusActor`).
@@ -1383,7 +1197,7 @@ export function runTriageStatus(
   const canonical: "gh" | "bd" = localRepo ? repoCanonical(localRepo) : "gh";
 
   if (canonical === "bd") {
-    const allBeads = loadTriageScopedBeads(join(cwd, ".beads"), bdExec, output.error);
+    const allBeads = loadTriageBeads(cwd, frontDeskRows);
     const thresholdDays = localRepo ? repoStaleThresholdDays(localRepo) : 30;
     const now = (deps.now ?? (() => new Date()))();
     const openBeads = allBeads.filter((r) => r.status !== "closed");
@@ -1428,10 +1242,8 @@ export function runTriageStatus(
   // so the audit log doesn't fragment on whether the verb went via the actor
   // or the legacy CLI entry.
   const openIssues = withGhTruthReason("drift-comparator", () => listIssues(repo, ghLimit));
-  // GH-1573: scoped `bd sql --json` read; GH-1691: legacy embedded-mode bd
-  // workspaces fall back to `bd list --all --json` at the caller because
-  // upstream bd refuses `bd sql` there. See `loadTriageScopedBeads`.
-  const allBeads = loadTriageScopedBeads(join(cwd, ".beads"), bdExec, output.error);
+  // GH-1012: load the beads leg from Front Desk (see `loadTriageBeads`).
+  const allBeads = loadTriageBeads(cwd, frontDeskRows);
   const beadsByNumber = indexBeadsByIssueNumber(allBeads);
 
   const rows = openIssues

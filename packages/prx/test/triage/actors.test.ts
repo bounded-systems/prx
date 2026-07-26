@@ -49,7 +49,10 @@ describe("statusActor — parses options and forwards the deps seam", () => {
       deps: {
         listOpenIssues: () => [],
         listIssuesByState: () => [],
-        execBd: () => ({ exitCode: 0, stdout: "[]", stderr: "", policy: null }),
+        // GH-1012: the `execBd` seam was retired; the beads leg now reads Front
+        // Desk rows via `frontDeskRows` (defaults to `frontDeskBeadsRaw`, which
+        // spawns `fds list`). An empty reader keeps the delegate off subprocess.
+        frontDeskRows: () => [],
         refreshSubstrate: () => ({ ok: true as const }),
         readSubstrateWatermark: () => null,
         localRepoForCwd: () => null,

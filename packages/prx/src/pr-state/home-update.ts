@@ -466,7 +466,11 @@ export function runHomeUpdate(
       const committed = spawn(
         "git",
         ["-C", flakeDir, "commit", "-m", `chore(flake): update ${movedSummary}`],
-        { cwd: flakeDir, stdio: childStdio, env: { ...env, MAIN_GUARD_ALLOW_PROTECTED_BRANCH: "1" } },
+        {
+          cwd: flakeDir,
+          stdio: childStdio,
+          env: { ...env, MAIN_GUARD_ALLOW_PROTECTED_BRANCH: "1" },
+        },
       );
       if (committed.error || (committed.status !== null && committed.status !== 0)) {
         output.error(

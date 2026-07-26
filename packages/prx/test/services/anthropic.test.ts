@@ -126,13 +126,34 @@ describe("projectAnthropicSeries", () => {
   test("buckets work units by cost tier within each model", () => {
     const db = makeDbWithTransitions();
     // GH-1: $1.50 → <$2 tier, merged
-    seedUsage(db, { ts: "2026-05-15T00:00:00Z", workUnitId: "GH-1", model: "claude-opus-4-8", total_cost_usd: 1.5, input_tokens: 10, cache_read_input_tokens: 90 });
+    seedUsage(db, {
+      ts: "2026-05-15T00:00:00Z",
+      workUnitId: "GH-1",
+      model: "claude-opus-4-8",
+      total_cost_usd: 1.5,
+      input_tokens: 10,
+      cache_read_input_tokens: 90,
+    });
     seedTransition(db, "GH-1", "merged", "2026-05-15T01:00:00Z");
     // GH-2: $7.00 → $5–$10 tier, merged
-    seedUsage(db, { ts: "2026-05-15T00:01:00Z", workUnitId: "GH-2", model: "claude-opus-4-8", total_cost_usd: 7.0, input_tokens: 50, cache_read_input_tokens: 400 });
+    seedUsage(db, {
+      ts: "2026-05-15T00:01:00Z",
+      workUnitId: "GH-2",
+      model: "claude-opus-4-8",
+      total_cost_usd: 7.0,
+      input_tokens: 50,
+      cache_read_input_tokens: 400,
+    });
     seedTransition(db, "GH-2", "merged", "2026-05-15T02:00:00Z");
     // GH-3: $12.00 → $10–$20 tier, closed (no completion)
-    seedUsage(db, { ts: "2026-05-15T00:02:00Z", workUnitId: "GH-3", model: "claude-opus-4-8", total_cost_usd: 12.0, input_tokens: 80, cache_read_input_tokens: 600 });
+    seedUsage(db, {
+      ts: "2026-05-15T00:02:00Z",
+      workUnitId: "GH-3",
+      model: "claude-opus-4-8",
+      total_cost_usd: 12.0,
+      input_tokens: 80,
+      cache_read_input_tokens: 600,
+    });
     seedTransition(db, "GH-3", "closed", "2026-05-15T03:00:00Z");
 
     const points = projectAnthropicSeries(db);
@@ -153,9 +174,24 @@ describe("projectAnthropicSeries", () => {
 
   test("sorts by model then tier_min ascending", () => {
     const db = makeDbWithTransitions();
-    seedUsage(db, { ts: "2026-05-15T00:00:00Z", workUnitId: "GH-A", model: "claude-opus-4-8", total_cost_usd: 25.0 });
-    seedUsage(db, { ts: "2026-05-15T00:01:00Z", workUnitId: "GH-B", model: "claude-opus-4-8", total_cost_usd: 1.0 });
-    seedUsage(db, { ts: "2026-05-15T00:02:00Z", workUnitId: "GH-C", model: "claude-haiku-4-5", total_cost_usd: 3.0 });
+    seedUsage(db, {
+      ts: "2026-05-15T00:00:00Z",
+      workUnitId: "GH-A",
+      model: "claude-opus-4-8",
+      total_cost_usd: 25.0,
+    });
+    seedUsage(db, {
+      ts: "2026-05-15T00:01:00Z",
+      workUnitId: "GH-B",
+      model: "claude-opus-4-8",
+      total_cost_usd: 1.0,
+    });
+    seedUsage(db, {
+      ts: "2026-05-15T00:02:00Z",
+      workUnitId: "GH-C",
+      model: "claude-haiku-4-5",
+      total_cost_usd: 3.0,
+    });
 
     const points = projectAnthropicSeries(db);
     const opusPoints = points.filter((p) => p.model === "claude-opus-4-8");
@@ -273,7 +309,7 @@ describe("projectAnthropicUsage", () => {
       model: "claude-opus-4-8",
       input_tokens: 100,
       cache_read_input_tokens: 800,
-      total_cost_usd: 0.10,
+      total_cost_usd: 0.1,
     });
     seedUsage(db, {
       ts: "2026-05-15T00:01:00Z",
@@ -342,12 +378,7 @@ describe("projectAnthropicDiamond", () => {
     return db;
   }
 
-  function seedTransition(
-    db: Database,
-    issue: string,
-    state_to: string,
-    ts: string,
-  ): void {
+  function seedTransition(db: Database, issue: string, state_to: string, ts: string): void {
     db.run(
       `INSERT INTO transitions (id, issue, state_from, state_to, actor, ts)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -359,16 +390,44 @@ describe("projectAnthropicDiamond", () => {
     const db = makeDbWithTransitions();
 
     // GH-1: completed via merged, dominant model = opus (higher cost)
-    seedUsage(db, { ts: "2026-05-15T00:00:00Z", workUnitId: "GH-1", model: "claude-opus-4-8", total_cost_usd: 5.0, input_tokens: 100, cache_read_input_tokens: 800 });
-    seedUsage(db, { ts: "2026-05-15T00:01:00Z", workUnitId: "GH-1", model: "claude-haiku-4-5", total_cost_usd: 0.1, input_tokens: 10, cache_read_input_tokens: 50 });
+    seedUsage(db, {
+      ts: "2026-05-15T00:00:00Z",
+      workUnitId: "GH-1",
+      model: "claude-opus-4-8",
+      total_cost_usd: 5.0,
+      input_tokens: 100,
+      cache_read_input_tokens: 800,
+    });
+    seedUsage(db, {
+      ts: "2026-05-15T00:01:00Z",
+      workUnitId: "GH-1",
+      model: "claude-haiku-4-5",
+      total_cost_usd: 0.1,
+      input_tokens: 10,
+      cache_read_input_tokens: 50,
+    });
     seedTransition(db, "GH-1", "merged", "2026-05-15T01:00:00Z");
 
     // GH-2: closed, dominant model = opus
-    seedUsage(db, { ts: "2026-05-15T00:02:00Z", workUnitId: "GH-2", model: "claude-opus-4-8", total_cost_usd: 3.0, input_tokens: 60, cache_read_input_tokens: 400 });
+    seedUsage(db, {
+      ts: "2026-05-15T00:02:00Z",
+      workUnitId: "GH-2",
+      model: "claude-opus-4-8",
+      total_cost_usd: 3.0,
+      input_tokens: 60,
+      cache_read_input_tokens: 400,
+    });
     seedTransition(db, "GH-2", "closed", "2026-05-15T02:00:00Z");
 
     // GH-3: in_progress (no transition), dominant model = haiku
-    seedUsage(db, { ts: "2026-05-15T00:03:00Z", workUnitId: "GH-3", model: "claude-haiku-4-5", total_cost_usd: 0.2, input_tokens: 20, cache_read_input_tokens: 80 });
+    seedUsage(db, {
+      ts: "2026-05-15T00:03:00Z",
+      workUnitId: "GH-3",
+      model: "claude-haiku-4-5",
+      total_cost_usd: 0.2,
+      input_tokens: 20,
+      cache_read_input_tokens: 80,
+    });
 
     const points = projectAnthropicDiamond(db);
 
@@ -394,7 +453,12 @@ describe("projectAnthropicDiamond", () => {
 
   test("treats cleaned as completed", () => {
     const db = makeDbWithTransitions();
-    seedUsage(db, { ts: "2026-05-15T00:00:00Z", workUnitId: "GH-10", model: "claude-opus-4-8", total_cost_usd: 1.0 });
+    seedUsage(db, {
+      ts: "2026-05-15T00:00:00Z",
+      workUnitId: "GH-10",
+      model: "claude-opus-4-8",
+      total_cost_usd: 1.0,
+    });
     seedTransition(db, "GH-10", "cleaned", "2026-05-15T01:00:00Z");
     const points = projectAnthropicDiamond(db);
     expect(points[0]!.completed).toBe(1);
@@ -403,7 +467,12 @@ describe("projectAnthropicDiamond", () => {
 
   test("latest transition wins when multiple transitions exist", () => {
     const db = makeDbWithTransitions();
-    seedUsage(db, { ts: "2026-05-15T00:00:00Z", workUnitId: "GH-20", model: "claude-opus-4-8", total_cost_usd: 2.0 });
+    seedUsage(db, {
+      ts: "2026-05-15T00:00:00Z",
+      workUnitId: "GH-20",
+      model: "claude-opus-4-8",
+      total_cost_usd: 2.0,
+    });
     seedTransition(db, "GH-20", "draft", "2026-05-15T01:00:00Z");
     seedTransition(db, "GH-20", "merged", "2026-05-15T02:00:00Z");
     const points = projectAnthropicDiamond(db);
