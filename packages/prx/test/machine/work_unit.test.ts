@@ -2,13 +2,12 @@
 
 import { describe, expect, test } from "bun:test";
 
-// Side-effect imports: register the GH and BD adapters so
-// `adapterForCanonicalId` resolves their canonical ids. The test file is read
-// in isolation by some runners; without these imports the registry would be
-// empty and the canonical-id union (`canonicalWorkUnitIdPattern`) would not
-// include the adapter-driven `BD-<8-hex>` arm.
+// Side-effect imports: register the GH adapter so `adapterForCanonicalId`
+// resolves its canonical ids. The test file is read in isolation by some
+// runners; without these imports the registry would be empty and the
+// canonical-id union (`canonicalWorkUnitIdPattern`) would not include the
+// adapter-driven arms.
 import "../../src/adapters/github.ts";
-import "../../src/adapters/beads.ts";
 
 import {
   __unregisterDomainAdapterForTesting,
@@ -26,20 +25,15 @@ import {
   parseCanonicalWorkUnitId,
   resolveUoW,
 } from "../../src/machine/work_unit.ts";
-import { BdDomainAdapter, beadsDomainAdapter } from "../../src/adapters/beads.ts";
 import type { BeadsRecord } from "../../src/triage/triage.ts";
 
 // The canonical-id union prx ships with by default — baseline GH + Notion
-// shapes, the `BD-<8-hex>` short-id arm contributed by the BD adapter
-// (GH-1645), and the workspace-prefixed `BD-<prefix>-<ts>-<seq>-<hex8>`
-// long-id arm (GH-1658). `loadIdentityConfig`'s `isDefault` check compares
-// the user's pinned `canonical_id_pattern` against
-// `canonicalWorkUnitIdPattern.source` byte-for-byte — drift here silently
-// turns every default repo into a "custom identity", which would change
-// canonical-id resolution. Do not change this constant without auditing
-// `isDefault`.
-const LEGACY_CANONICAL_ID_SOURCE =
-  "^(GH-\\d+|NOTION-([0-9a-fA-F]{32}|\\d+)|BD-[0-9A-F]{8}|BD-[a-z][a-z0-9-]*-\\d{13,}-\\d+-[0-9a-f]{8})$";
+// shapes. `loadIdentityConfig`'s `isDefault` check compares the user's pinned
+// `canonical_id_pattern` against `canonicalWorkUnitIdPattern.source`
+// byte-for-byte — drift here silently turns every default repo into a
+// "custom identity", which would change canonical-id resolution. Do not
+// change this constant without auditing `isDefault`.
+const LEGACY_CANONICAL_ID_SOURCE = "^(GH-\\d+|NOTION-([0-9a-fA-F]{32}|\\d+))$";
 
 function bead(overrides: Partial<BeadsRecord> = {}): BeadsRecord {
   return {
@@ -121,11 +115,9 @@ describe("canonicalWorkUnitIdPattern — regression", () => {
 describe("parseCanonicalWorkUnitId — case preservation across arms (GH-1674)", () => {
   // The seam used to do `trim().toUpperCase()` unconditionally before testing
   // against the canonical-id union. That silently nulled out every arm of
-  // `combinedCanonicalIdPattern()` whose character classes are lowercase-only
-  // — most importantly the BD long-id arm
-  // (`BD-[a-z][a-z0-9-]*-\d{13,}-\d+-[0-9a-f]{8}`, GH-1658). Verbatim-first,
-  // case-folded fallback restores the doctrine that the pattern (not the
-  // seam) decides which arms are case-sensitive.
+  // `combinedCanonicalIdPattern()` whose character classes are lowercase-only.
+  // Verbatim-first, case-folded fallback restores the doctrine that the pattern
+  // (not the seam) decides which arms are case-sensitive.
 
   test("GH baseline canonical: verbatim unchanged", () => {
     expect(parseCanonicalWorkUnitId("GH-1538") as string | null).toBe("GH-1538");
@@ -137,24 +129,6 @@ describe("parseCanonicalWorkUnitId — case preservation across arms (GH-1674)",
 
   test("GH baseline canonical: trim + verbatim", () => {
     expect(parseCanonicalWorkUnitId(" GH-1538 ") as string | null).toBe("GH-1538");
-  });
-
-  test("BD short-id: verbatim uppercase preserved", () => {
-    expect(parseCanonicalWorkUnitId("BD-407F177F") as string | null).toBe("BD-407F177F");
-  });
-
-  test("BD short-id: lowercase via case-folded fallback", () => {
-    expect(parseCanonicalWorkUnitId("bd-407f177f") as string | null).toBe("BD-407F177F");
-  });
-
-  test("BD long-id: lowercase verbatim preserved (THE FIX)", () => {
-    expect(parseCanonicalWorkUnitId("BD-ai-home-1777747201085-737-407f177f") as string | null).toBe(
-      "BD-ai-home-1777747201085-737-407f177f",
-    );
-  });
-
-  test("BD long-id: uppercase form rejected (arm is structurally lowercase-only)", () => {
-    expect(parseCanonicalWorkUnitId("BD-AI-HOME-1777747201085-737-407F177F")).toBeNull();
   });
 
   test("NOTION 32-hex: verbatim lowercase preserved", () => {
@@ -211,68 +185,6 @@ describe("resolveUoW — GH dispatch via the GitHub adapter", () => {
     // NOTION-… matches the *baseline* surface-id pattern (it is recognised
     // canonical), but no Notion adapter is registered → no resolver path.
     expect(resolveUoW("NOTION-0123456789abcdef0123456789abcdef", beads)).toBeNull();
-  });
-});
-
-describe("resolveUoW — BD dispatch via the BdDomainAdapter", () => {
-  // Pin-zero bd record (no external domain pinned) — the GH-1645 case
-  // `BD-<8-hex>` exists to address.
-  const beads: BeadsRecord[] = [
-    bead({ id: "ai-home-1777747201085-737-407f177f", externalRef: null }),
-  ];
-
-  test("resolves `BD-407F177F` to its bd record id", () => {
-    expect(resolveUoW("BD-407F177F", beads)).toBe("ai-home-1777747201085-737-407f177f");
-  });
-
-  test("accepts lowercase / whitespace-padded canonical input via the parser", () => {
-    expect(resolveUoW(" bd-407f177f ", beads)).toBe("ai-home-1777747201085-737-407f177f");
-  });
-
-  test("no bd record matches the 8-hex tail → null", () => {
-    expect(resolveUoW("BD-DEADBEEF", beads)).toBeNull();
-  });
-
-  test("workspace-prefixed long bd id is not a canonical surface id → null", () => {
-    // The bare bd long-id (no `BD-` prefix) is not a canonical surface id;
-    // it doesn't match any arm of `canonicalWorkUnitIdPattern`. The
-    // surface-prefixed form (`BD-ai-home-…`) IS canonical and dispatches
-    // through the long-id arm — see the GH-1674 case-preservation test
-    // below. Long-id cross-repo routing for foreign prefixes is GH-1658 /
-    // GH-1659.
-    expect(resolveUoW("ai-home-1777747201085-737-407f177f", beads)).toBeNull();
-  });
-});
-
-describe("resolveUoW — BD long-id dispatch via the BdDomainAdapter (GH-1674)", () => {
-  // GH-1674 lifts the seam-level case-loss that previously nulled out the
-  // long-id arm before the adapter ever saw it. We stub the adapter's deps
-  // (`cwd` + `localWorkspacePrefix`) so the test stays hermetic — no read of
-  // `.prx/repos/index.json`. The bd record id is the bare long-id (no `BD-`
-  // prefix), matching the adapter's `endsWith("-<hex8>")` lookup tail.
-
-  const beads: BeadsRecord[] = [
-    bead({ id: "ai-home-1777747201085-737-407f177f", externalRef: null }),
-  ];
-
-  test("`BD-<prefix>-<ts>-<seq>-<hex8>` dispatches to the bd record id", () => {
-    // Swap in a stubbed adapter for the duration of the test, then restore
-    // the production `beadsDomainAdapter` singleton so other test files that
-    // assert `adapterForCanonicalId(...) === beadsDomainAdapter` by identity
-    // (e.g. `test/adapters/bd.test.ts`) keep seeing the original.
-    try {
-      registerDomainAdapter(
-        new BdDomainAdapter({
-          cwd: () => "/fixture",
-          localWorkspacePrefix: () => "ai-home",
-        }),
-      );
-      expect(resolveUoW("BD-ai-home-1777747201085-737-407f177f", beads, { cwd: "/fixture" })).toBe(
-        "ai-home-1777747201085-737-407f177f",
-      );
-    } finally {
-      registerDomainAdapter(beadsDomainAdapter);
-    }
   });
 });
 

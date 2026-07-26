@@ -3332,9 +3332,9 @@ export type NotionIdentityConfig = {
 // same concept. The registry-key `name` is a separate dimension so an
 // operator can register two sources of the same kind (e.g. `[sources.commerce]`
 // and `[sources.product]` both `kind = "notion"`).
-export type SourceKind = "github" | "notion" | "beads";
+export type SourceKind = "github" | "notion";
 
-export const sourceKinds: readonly SourceKind[] = ["github", "notion", "beads"];
+export const sourceKinds: readonly SourceKind[] = ["github", "notion"];
 
 export type GithubSourceConfig = {
   name: string;
@@ -3351,15 +3351,7 @@ export type NotionSourceConfig = {
   notion: NotionIdentityConfig;
 };
 
-export type BeadsSourceConfig = {
-  name: string;
-  kind: "beads";
-  canonicalIdPattern: RegExp;
-  source: string;
-  externalRefPrefix?: string;
-};
-
-export type SourceConfig = GithubSourceConfig | NotionSourceConfig | BeadsSourceConfig;
+export type SourceConfig = GithubSourceConfig | NotionSourceConfig;
 
 export type IdentityConfig = {
   sources: Record<string, SourceConfig>;
@@ -3975,12 +3967,6 @@ function buildSourceConfig(name: string, raw: SourceTomlFields): SourceConfig {
 
   if (kind === "github") {
     return { name, kind, canonicalIdPattern, source: raw.source };
-  }
-  if (kind === "beads") {
-    const externalRefPrefix = raw.keys["external_ref_prefix"]?.value;
-    return externalRefPrefix && externalRefPrefix.length > 0
-      ? { name, kind, canonicalIdPattern, source: raw.source, externalRefPrefix }
-      : { name, kind, canonicalIdPattern, source: raw.source };
   }
 
   // kind === "notion"

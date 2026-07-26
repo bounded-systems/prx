@@ -116,7 +116,6 @@ const IMPLEMENT_CHECK_STEPS: readonly CheckStep[] = [
   { command: "bun", args: ["test"] },
 ];
 import { resolverForCanonicalId } from "./resolvers/dispatch.ts";
-import { BeadsResolver } from "./resolvers/beads.ts";
 import type { ResolvedWorkUnit, WorkUnitSource } from "./resolvers/types.ts";
 import { workUnitSources } from "./resolvers/types.ts";
 import { normalizeToBdSurfaceShort, recognizeBareWorkspaceLongId } from "../issues/resolver.ts";
