@@ -49,12 +49,11 @@ describe("extractCanonicalRefs — default identity", () => {
     expect(extractCanonicalRefs(blob, defaultIdentity)).toEqual(["GH-100"]);
   });
 
-  test("extracts mixed canonical surfaces (GH/NOTION/BD-8hex)", () => {
-    const blob = "linked: GH-456 NOTION-1234567890abcdef1234567890abcdef BD-DEADBEEF";
+  test("extracts mixed canonical surfaces (GH/NOTION)", () => {
+    const blob = "linked: GH-456 NOTION-1234567890abcdef1234567890abcdef";
     const out = extractCanonicalRefs(blob, defaultIdentity);
     expect(out).toContain("GH-456");
     expect(out).toContain("NOTION-1234567890abcdef1234567890abcdef");
-    expect(out).toContain("BD-DEADBEEF");
   });
 
   test("does not match decorative-looking but non-canonical strings", () => {

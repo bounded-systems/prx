@@ -29,7 +29,7 @@
 // (GH-2120). Closing both children, with the positive case below, closes the
 // umbrella GH-2112.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -52,29 +52,6 @@ function setupRepo(prefix: string): string {
   const root = realpathSync(mkdtempSync(join(tmpdir(), `gh-2112-${prefix}-`)));
   execFileSync("git", ["-C", root, "init", "-q"]);
   return root;
-}
-
-function writeIndexWithBdPrefix(root: string, bdWorkspacePrefix: string): void {
-  mkdirSync(join(root, ".prx", "repos"), { recursive: true });
-  const inventory = {
-    roots: [root],
-    repos: [
-      {
-        name: "test-repo",
-        commonDir: root,
-        kind: "bare" as const,
-        mainWorktree: null,
-        worktrees: [],
-        localOnlyBranches: [],
-        findings: [],
-        remotes: [],
-        primaryRemote: null,
-        upstreamRemote: null,
-        bd_workspace_prefix: bdWorkspacePrefix,
-      },
-    ],
-  };
-  writeFileSync(join(root, ".prx", "repos", "index.json"), JSON.stringify(inventory, null, 2));
 }
 
 // Markers that, if present in stderr, would prove the live binary reached a
@@ -118,32 +95,4 @@ describe("--from=<source> reachability through `prx plan session` (GH-2112)", ()
       }
     });
   }
-
-  // B. Positive smoke — a bare workspace-long id reaches past the canonical-id
-  // gate (covers acceptance #1). Hermetic gate-clearance assertion: with a
-  // matching `bd_workspace_prefix` and default identity, gate 1
-  // (parseCanonicalWorkUnitId) falls through to the adapter registry and the
-  // id is accepted, so the operator is no longer bounced at the gate. (On
-  // `--check` the GH-1239 preflight — gates 2+3 — is skipped entirely.) Any
-  // downstream failure is the bare temp repo's absent remote board, not a gate
-  // bounce — which is exactly what acceptance #1 requires.
-  test("a bare bd workspace-long id clears the canonical-id gate (not bounced at gate 1)", () => {
-    const root = setupRepo("positive");
-    writeIndexWithBdPrefix(root, "demo-repo");
-    const result = runCli(
-      ["plan", "session", "demo-repo-aqg", "--create", "--from=beads", "--check"],
-      root,
-    );
-    const stderr = new TextDecoder().decode(result.stderr);
-
-    // Gate 1 (parseCanonicalWorkUnitId) cleared via the GH-2015 adapter
-    // fall-through — the bare workspace-long id is no longer rejected at the
-    // canonical-id boundary.
-    expect(stderr).not.toContain("must match CANONICAL-ID format");
-    // Gates 2+3 (plan preflight) messages must not appear either — they are
-    // skipped on `--check`, and the id would clear them anyway via the
-    // preflight.ts adapter fall-through.
-    expect(stderr).not.toContain("must match canonical_id_pattern");
-    expect(stderr).not.toContain("Configured sources:");
-  });
 });

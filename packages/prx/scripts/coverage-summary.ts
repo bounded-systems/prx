@@ -81,6 +81,8 @@ const PER_FILE_BASELINE = new Set<string>([
   "packages/prx/src/door/framing.ts", // door frame codec — beadsd door tests removed; still covered by keeper/forge/concierge door tests
   "packages/prx/src/audit/store/db.ts", // sqlite-bound audit store; integration-covered
   "packages/prx/src/sync/push-watermark.ts", // fs/watermark wiring; borderline, exercised via sync integration
+  "packages/prx/src/pr-state/resolvers/notion.ts", // 73% — Notion resolver; MCP/CLI branches are integration-bound (real `claude`/notion), not unit-covered
+  "packages/prx/src/pr-state/resolvers/notion_claude_mcp.ts", // 85% floor — Notion claude-MCP resolver; live-MCP paths integration-bound
 ]);
 
 type Totals = {

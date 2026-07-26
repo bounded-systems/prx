@@ -3209,9 +3209,7 @@ describe("board-status", () => {
       }
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
     };
-    expect(() => loadIdentityConfig(root, runner)).toThrow(
-      /kind must be one of github, notion, beads/,
-    );
+    expect(() => loadIdentityConfig(root, runner)).toThrow(/kind must be one of github, notion/);
   });
 
   test('loadIdentityConfig rejects kind = "dolt" pointing at GH-852', () => {
