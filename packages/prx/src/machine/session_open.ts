@@ -56,13 +56,13 @@ function describeResolvedWorkUnit(resolved: ResolvedWorkUnit): string {
  * register an issue-authority resolver for that id pattern. Tells the
  * operator how to configure one or fall back to GH-<n>.
  * GH-1421: identity overlays now use [sources.<name>] (kind = "github" |
- * "notion" | "beads") instead of the legacy [identity] / [identity.notion]
+ * "notion") instead of the legacy [identity] / [identity.notion]
  * shape.
  */
 export function prxSessionNoSourceConfiguredMessage(workUnitId: string): string {
   return [
     `${prxSessionCannotOpenPrefix(workUnitId)} no issue-authority resolver is configured for this canonical id.`,
-    'Register a [sources.<name>] block (kind = "github" | "notion" | "beads") in prx.toml, or use a GH-<n> id.',
+    'Register a [sources.<name>] block (kind = "github" | "notion") in prx.toml, or use a GH-<n> id.',
   ].join(" ");
 }
 

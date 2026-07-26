@@ -2346,7 +2346,7 @@ describe("pr_state cli", () => {
       body: null,
       state: "open" as const,
       url: "https://example.test/BD-AAAAAAAA",
-      source: "beads" as const,
+      source: "notion" as const,
     };
     const envelope = prxSessionNotProjectedLocallyEnvelope("BD-AAAAAAAA", resolvedFixture);
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-plan-session-not-projected-json-"));
@@ -2391,7 +2391,7 @@ describe("pr_state cli", () => {
       };
       expect(parsed.error.code).toBe("PRX_SESSION_NOT_PROJECTED_LOCALLY");
       expect(parsed.error.workUnitId).toBe("BD-AAAAAAAA");
-      expect(parsed.error.source).toBe("beads");
+      expect(parsed.error.source).toBe("notion");
       expect(parsed.error.title).toBe("supply_plan_output: add filters");
       expect(parsed.error.url).toBe("https://example.test/BD-AAAAAAAA");
       expect(parsed.error.message).toContain("has no local parity-chain unit yet");
@@ -2417,7 +2417,7 @@ describe("pr_state cli", () => {
       body: null,
       state: "open" as const,
       url: "https://example.test/BD-AAAAAAAA",
-      source: "beads" as const,
+      source: "notion" as const,
     };
     const envelope = prxSessionNotProjectedLocallyEnvelope("BD-AAAAAAAA", resolvedFixture);
     const cwd = mkdtempSync(join(tmpdir(), "pr-state-plan-session-not-projected-plain-"));
@@ -5063,19 +5063,19 @@ describe("pr_state cli", () => {
       actions: [],
     });
     const loadIdentity = () => buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|prx)-/ });
-    const beadsResolver = () => ({
-      name: "beads" as const,
+    const sourceResolver = () => ({
+      name: "notion" as const,
       fetch: async () => ({
         id: "prx-0v5",
         title: "task: README is out of date",
         body: null,
         state: "open" as const,
-        url: "bd://prx-0v5",
-        source: "beads" as const,
+        url: "https://notion.so/prx-0v5",
+        source: "notion" as const,
       }),
     });
 
-    test("accepts a beads unit when a plan artifact already links it locally", async () => {
+    test("accepts a unit when a plan artifact already links it locally", async () => {
       // The GH board has no row for prx-0v5, but a CAS plan artifact exists — the
       // artifact graph IS the projection, so entry is allowed (no board re-probe).
       const hasPlan = async () => true;
@@ -5088,7 +5088,7 @@ describe("pr_state cli", () => {
           emptyParity,
           undefined,
           loadIdentity,
-          beadsResolver,
+          sourceResolver,
           undefined,
           undefined,
           hasPlan,
@@ -5113,7 +5113,7 @@ describe("pr_state cli", () => {
           emptyParity,
           undefined,
           loadIdentity,
-          beadsResolver,
+          sourceResolver,
           undefined,
           undefined,
           noPlan,
@@ -5200,140 +5200,6 @@ describe("pr_state cli", () => {
         "notion",
       ),
     ).rejects.toThrow("no issue-authority resolver is configured");
-  });
-
-  // GH-2090: --create --from=beads validates the bd-backed source before
-  // allowing materialization, mirroring the --from=notion arm above.
-  test("checkWorkUnitChain allows create + from=beads when the bd record resolves open", async () => {
-    const board = () => ({
-      source: "derived-board" as const,
-      repo: "owner/repo",
-      remote_freshness: "fresh" as const,
-      units: [],
-    });
-    const parity = () => ({
-      source: "surface-sync" as const,
-      repo: "owner/repo",
-      mode: "full" as const,
-      authority: "issue" as const,
-      scope: "all" as const,
-      apply: false,
-      units: [],
-      actions: [],
-    });
-    const loadIdentity = () =>
-      buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|BD)-[0-9A-Fa-f]+$/ });
-    let resolverCalls = 0;
-    const buildResolver = () => ({
-      name: "beads" as const,
-      fetch: async () => {
-        resolverCalls += 1;
-        return {
-          id: "BD-AAAAAAAA",
-          title: "bd-backed unit",
-          body: null,
-          state: "open" as const,
-          url: null,
-          source: "beads" as const,
-        };
-      },
-    });
-    await expect(
-      checkWorkUnitChain(
-        "BD-AAAAAAAA",
-        "/repo",
-        true,
-        board,
-        parity,
-        undefined,
-        loadIdentity,
-        buildResolver,
-        "beads",
-      ),
-    ).resolves.toMatchObject({ valid: true, reason: "missing_unit_allowed" });
-    expect(resolverCalls).toBe(1);
-  });
-
-  test("checkWorkUnitChain rejects create + from=beads when no resolver is configured", async () => {
-    const board = () => ({
-      source: "derived-board" as const,
-      repo: "owner/repo",
-      remote_freshness: "fresh" as const,
-      units: [],
-    });
-    const parity = () => ({
-      source: "surface-sync" as const,
-      repo: "owner/repo",
-      mode: "full" as const,
-      authority: "issue" as const,
-      scope: "all" as const,
-      apply: false,
-      units: [],
-      actions: [],
-    });
-    const loadIdentity = () =>
-      buildIdentityFromLegacy({ canonicalIdPattern: /^(GH|BD)-[0-9A-Fa-f]+$/ });
-    const buildResolver = () => null;
-    await expect(
-      checkWorkUnitChain(
-        "BD-AAAAAAAA",
-        "/repo",
-        true,
-        board,
-        parity,
-        undefined,
-        loadIdentity,
-        buildResolver,
-        "beads",
-      ),
-    ).rejects.toThrow("no issue-authority resolver is configured");
-  });
-
-  // GH-2152: exercises the STANDALONE-caller path — checkWorkUnitChain invoked
-  // directly with a GH-shaped id + "beads". In the live `session`/`plan session`
-  // command flow this arm is shadowed by the lifted guard (GH-2140) covered at
-  // the `work --check ... --from=beads` test below; this case keeps the
-  // defense-in-depth arm honest for direct callers.
-  test("checkWorkUnitChain rejects create + from=beads for GitHub canonical IDs (standalone caller)", async () => {
-    const board = () => ({
-      source: "derived-board" as const,
-      repo: "owner/repo",
-      remote_freshness: "fresh" as const,
-      units: [],
-    });
-    const parity = () => ({
-      source: "surface-sync" as const,
-      repo: "owner/repo",
-      mode: "full" as const,
-      authority: "issue" as const,
-      scope: "all" as const,
-      apply: false,
-      units: [],
-      actions: [],
-    });
-    const loadIdentity = () =>
-      buildIdentityFromLegacy({ canonicalIdPattern: /^GH-\d+$/, isDefault: true });
-    let resolverBuilt = 0;
-    const buildResolver = () => {
-      resolverBuilt += 1;
-      return null;
-    };
-    await expect(
-      checkWorkUnitChain(
-        "GH-2090",
-        "/repo",
-        true,
-        board,
-        parity,
-        undefined,
-        loadIdentity,
-        buildResolver,
-        "beads",
-      ),
-    ).rejects.toThrow("--from=beads is not valid for GitHub work unit IDs (GH-2090)");
-    // GH-870 defensive skip applies to from=beads too: no GH fetch, no
-    // resolver build before the rejection lands.
-    expect(resolverBuilt).toBe(0);
   });
 
   test("checkWorkUnitChain resolves the source once on plain create to pin it (prx-pl2)", async () => {
@@ -6269,38 +6135,6 @@ describe("pr_state cli", () => {
     // emitted no hint); `prx open` prepends a one-line deprecation hint, so the
     // --from guard message is found in the error stream rather than at [0].
     const fromError = errors.find((l) => l.includes("--from=notion"));
-    expect(fromError).toBeDefined();
-    expect(fromError!).toContain("GH-9999");
-  });
-
-  test("work --check threads --from=beads through validateWorkSessionEntry before any IO (GH-870, GH-2113)", async () => {
-    const errors: string[] = [];
-    const cwd = mkdtempSync(join(tmpdir(), "pr-state-check-from-beads-"));
-    const previousCwd = process.cwd();
-    process.chdir(cwd);
-
-    const exitCode = await runCliDirect(
-      ["open", "GH-9999", "--check", "--create", "--from", "beads"],
-      { log: () => {}, error: (line) => errors.push(line) },
-      {
-        ...noOpWorktreeLockDeps,
-        // GH-2140: beads sibling of the notion case above — no local parity unit,
-        // so reject from the local worktree view before any remote board fetch.
-        wtStatus: () => localWtView([]),
-        boardStatus: () => {
-          throw new Error("boardStatus must not run before the --from guard");
-        },
-        inspectSessionOpenState: () => {
-          throw new Error("--check must not reach inspectSessionOpenState when probe rejects");
-        },
-      },
-    );
-
-    process.chdir(previousCwd);
-
-    expect(exitCode).toBe(1);
-    // prx-rgr: `prx open` prepends a deprecation hint; find the --from guard line.
-    const fromError = errors.find((l) => l.includes("--from=beads"));
     expect(fromError).toBeDefined();
     expect(fromError!).toContain("GH-9999");
   });

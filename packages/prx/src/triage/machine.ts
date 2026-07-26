@@ -1,11 +1,11 @@
 // XState v5 machine for the `prx triage` workflow (GH-1052).
 //
-// Lifecycle: load status → classify → apply → (typePass?) → prioritize* →
-// promote → (driftFix?) → report → done. Decision pseudo-
-// states use eager `always` transitions with guards reading from the status
-// snapshot loaded into context. Each invoke target is a Zod-typed
-// `fromPromise` actor (real for the four existing verbs + status, stub for
-// the five sibling-ticket verbs).
+// Lifecycle: pruneMerged → load status → classify → apply → (typePass?) →
+// prioritize* → (scope clip) → report → done. Decision pseudo-states use eager
+// `always` transitions with guards reading from the status snapshot loaded into
+// context. Each invoke target is a Zod-typed `fromPromise` actor (real for the
+// existing verbs + status, stub for the report verb). GH-1023 retired the
+// promote / drift-fix stages (bd substrate removed).
 //
 // Companion to `prSystem` (src/machine/machines/pr.ts) and `taskRoleMachine`
 // (src/machine/machines/task.ts). Per memory `reference_zod_boundary_layer`,
@@ -22,10 +22,8 @@ import { assign, setup } from "xstate";
 import {
   applyActor,
   classifyActor,
-  driftFixActor,
   prioritizeActor,
   prioritizeBulkActor,
-  promoteActor,
   pruneMergedActor,
   reportActor,
   statusActor,
@@ -36,9 +34,7 @@ import type { TriageStatusActorResult } from "./triage.ts";
 import type { TriageClassifyActorResult } from "./classifier.ts";
 import type { TriageApplyActorResult } from "./apply.ts";
 import type { TriagePrioritizeActorResult } from "./prioritize.ts";
-import type { TriagePromoteActorResult } from "./actors.ts";
 import type { TriagePruneMergedActorResult } from "./prune-merged.ts";
-import type { TriageDriftFixActorResult } from "./actors.ts";
 import type { TriageStatusSnapshot, TriageMachineEvent } from "./schemas/index.ts";
 
 // ── machine input + context ────────────────────────────────────────────────
@@ -59,11 +55,10 @@ export type TriageMachineInput = {
    */
   autoPrioritize: boolean;
   /**
-   * GH-1342: when true under `scope: "prime"`, route promoting.onDone through
-   * `driftDecision` so the drift-fix reconcile actor runs whenever
-   * `totalDrift > 0`. Default false preserves the GH-1015 short-circuit
-   * (promoting → done). No effect under `scope: "full"`, which already runs
-   * the drift tail unconditionally.
+   * GH-1342 flag retained on the input/result surface (and the `prx triage
+   * prime` banner) for compatibility. GH-1023 retired the drift-fix stage, so
+   * this no longer influences machine flow; kept to avoid churning the prime
+   * wrapper's option/output shape.
    */
   autoDriftFix: boolean;
   /**
@@ -99,8 +94,6 @@ export type TriageMachineContext = {
   classifyResult: TriageClassifyActorResult | null;
   applyResult: TriageApplyActorResult | null;
   prioritizeResult: TriagePrioritizeActorResult | null;
-  promoteResult: TriagePromoteActorResult | null;
-  driftFixResult: TriageDriftFixActorResult | null;
   // ── failure state ────────────────────────────────────────────────────────
   blockedReason: TriageBlockedReason | null;
 };
@@ -116,8 +109,6 @@ export const initialTriageMachineContext = (input: TriageMachineInput): TriageMa
   classifyResult: null,
   applyResult: null,
   prioritizeResult: null,
-  promoteResult: null,
-  driftFixResult: null,
   blockedReason: null,
 });
 
@@ -177,8 +168,6 @@ export const triageMachine = setup({
     typePassActor,
     prioritizeActor,
     prioritizeBulkActor,
-    promoteActor,
-    driftFixActor,
     reportActor,
     pruneMergedActor,
   },
@@ -186,14 +175,9 @@ export const triageMachine = setup({
     hasTypelessRows: ({ context }) => statusHasTypelessRows(context.status),
     hasPriorityNoneRows: ({ context }) => statusHasPriorityNoneRows(context.status),
     noPriorityNoneRows: ({ context }) => !statusHasPriorityNoneRows(context.status),
-    hasDrift: ({ context }) => statusHasDrift(context.status),
     autoPrioritizationEnabled: ({ context }) => context.autoPrioritize,
-    // GH-1342: opt-in chain — when prime is running with --auto-drift-fix,
-    // route promoting.onDone through `driftDecision` so the drift reconcile
-    // actor runs whenever `totalDrift > 0`.
-    autoDriftFixEnabled: ({ context }) => context.autoDriftFix,
-    // GH-1015: scope clip for `prx triage prime` — exit at promoting.onDone
-    // and skip the orphan/drift/reporting tail.
+    // GH-1015: scope clip for `prx triage prime` — exit at the scope decision
+    // (post-prioritize) straight to `done`, skipping the reporting tail.
     scopeIsPrime: ({ context }) => context.scope === "prime",
   },
 }).createMachine({
@@ -331,7 +315,7 @@ export const triageMachine = setup({
     },
     priorityDecision: {
       always: [
-        { target: "promoting", guard: "noPriorityNoneRows" },
+        { target: "scopeDecision", guard: "noPriorityNoneRows" },
         { target: "prioritizingBulk", guard: "autoPrioritizationEnabled" },
         { target: "prioritizingInteractive" },
       ],
@@ -347,7 +331,7 @@ export const triageMachine = setup({
           limit: 0,
           dryRun: context.dryRun,
         }),
-        onDone: { target: "promoting" },
+        onDone: { target: "scopeDecision" },
         onError: {
           target: "blocked",
           actions: assign({
@@ -367,7 +351,7 @@ export const triageMachine = setup({
           sync: true,
         }),
         onDone: {
-          target: "promoting",
+          target: "scopeDecision",
           actions: assign({
             prioritizeResult: ({ event }) => event.output,
           }),
@@ -380,115 +364,12 @@ export const triageMachine = setup({
         },
       },
     },
-    promoting: {
-      invoke: {
-        id: "promote",
-        src: "promoteActor",
-        input: ({ context }) => ({
-          repo: context.repo,
-          dryRun: context.dryRun,
-          limit: 0,
-        }),
-        // GH-1015 / GH-1342: scope + auto-drift-fix combine to pick the
-        // post-promote branch. First match wins:
-        //   1. prime + autoDriftFix → driftDecision (chain reconcile in)
-        //   2. prime alone           → done (GH-1015 short-circuit)
-        //   3. full                  → driftDecision (existing lifecycle)
-        // Under `full`, prime-scope guards never fire so behavior is unchanged.
-        onDone: [
-          {
-            target: "driftDecision",
-            guard: ({ context }) => context.scope === "prime" && context.autoDriftFix,
-            actions: assign({
-              promoteResult: ({ event }) => event.output,
-            }),
-          },
-          {
-            target: "done",
-            guard: "scopeIsPrime",
-            actions: assign({
-              promoteResult: ({ event }) => event.output,
-            }),
-          },
-          {
-            target: "driftDecision",
-            actions: assign({
-              promoteResult: ({ event }) => event.output,
-            }),
-          },
-        ],
-        onError: {
-          target: "blocked",
-          actions: assign({
-            blockedReason: ({ event }) => blockedReasonFromError("promote", event.error),
-          }),
-        },
-      },
-    },
-    driftDecision: {
-      // GH-1342: under prime + autoDriftFix, the post-driftFix path must exit
-      // to `done` instead of falling through to the still-stubbed `reporting`
-      // state (GH-1022). The clean-drift case is symmetric — prime ends here.
-      always: [
-        { target: "driftFixing", guard: "hasDrift" },
-        { target: "done", guard: "scopeIsPrime" },
-        { target: "reporting" },
-      ],
-    },
-    driftFixing: {
-      invoke: {
-        id: "driftFix",
-        src: "driftFixActor",
-        input: ({ context }) => ({
-          repo: context.repo,
-          // The "title" axis is not part of the verb's enum
-          // (`driftFixAxisSchema` is type|priority|status). The previous
-          // stubbed call hid that; once unstubbed, request only the supported
-          // axes so the Zod parse in the actor adapter succeeds.
-          axes: ["type", "priority", "status"] as const,
-          limit: 0,
-          dryRun: context.dryRun,
-          // `apply` is forced to true inside `runDriftFixActor`; carry the
-          // matching value here so the input matches the parsed
-          // `TriageDriftFixOptions` shape pre-parse. `sync` mirrors the
-          // verb's default so the bd↔github sync still runs after writes.
-          apply: true,
-          sync: true,
-          // GH-1255 — bd-substrate dedupe + health surfaces. Defaults bake
-          // the in-flow behavior here so a follow-up CLI lift (`--no-dupes`,
-          // `--no-doctor`, `--doctor-fix`) just threads the operator's
-          // override through `TriageMachineInput`. `doctorFix` stays off:
-          // the machine never auto-`--fix`s the bd substrate — operator
-          // opt-in only.
-          includeDupes: true,
-          includeDoctor: true,
-          applyDupes: true,
-          doctorFix: false,
-        }),
-        // GH-1342: same prime short-circuit as `promoting.onDone` — prime
-        // never reaches the report stub.
-        onDone: [
-          {
-            target: "done",
-            guard: "scopeIsPrime",
-            actions: assign({
-              driftFixResult: ({ event }) => event.output,
-            }),
-          },
-          {
-            target: "reporting",
-            actions: assign({
-              driftFixResult: ({ event }) => event.output,
-            }),
-          },
-        ],
-        onError: {
-          target: "blocked",
-          actions: assign({
-            blockedReason: ({ event }) => blockedReasonFromError("driftFix", event.error),
-          }),
-        },
-      },
+    scopeDecision: {
+      // GH-1023: promote (bd→GH mirror) and drift-fix (bd↔GH reconcile) are
+      // retired, so the post-prioritize tail is just the scope clip. Under
+      // `prime` the machine ends here (the outer `prx triage prime` loop drives
+      // repeated passes); under `full` it proceeds to the report stub (GH-1022).
+      always: [{ target: "done", guard: "scopeIsPrime" }, { target: "reporting" }],
     },
     reporting: {
       invoke: {
@@ -528,6 +409,4 @@ export type {
   TriageClassifyActorResult,
   TriageApplyActorResult,
   TriagePrioritizeActorResult,
-  TriagePromoteActorResult,
-  TriageDriftFixActorResult,
 };

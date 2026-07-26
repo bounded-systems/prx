@@ -14,7 +14,6 @@ import type {
   TriageStatusOptions,
   TriageClassifyOptions,
   TriageApplyOptions,
-  TriagePromoteOptions,
   TriagePrioritizeOptions,
   TriagePrioritizeBulkOptions,
   TriageStatusSnapshot,
@@ -22,7 +21,6 @@ import type {
 import type { TriageStatusActorResult } from "../../src/triage/triage.ts";
 import type { TriageClassifyActorResult } from "../../src/triage/classifier.ts";
 import type { TriageApplyActorResult } from "../../src/triage/apply.ts";
-import type { TriagePromoteActorResult } from "../../src/triage/actors.ts";
 import type { TriagePrioritizeActorResult } from "../../src/triage/prioritize.ts";
 import type { TriagePrioritizeBulkActorResult } from "../../src/triage/prioritize-bulk.ts";
 import type { TriagePruneMergedActorResult } from "../../src/triage/prune-merged.ts";
@@ -126,12 +124,6 @@ function machineWithSuccessChain(innerStatusUntriaged = 0) {
     stderr: [],
     touchedIssues: [],
   }));
-  const promote = fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(async () => ({
-    exitCode: 0,
-    stdout: [],
-    stderr: [],
-    promotedBeadIds: [],
-  }));
   const prioritizeOk = fromPromise<TriagePrioritizeActorResult, TriagePrioritizeOptions>(
     async () => ({
       exitCode: 0,
@@ -158,7 +150,6 @@ function machineWithSuccessChain(innerStatusUntriaged = 0) {
       statusActor: innerStatus,
       classifyActor: classify,
       applyActor: apply,
-      promoteActor: promote,
       prioritizeActor: prioritizeOk,
       prioritizeBulkActor: bulkOk,
     },
@@ -385,12 +376,6 @@ describe("runTriagePrime — autoPrioritize routing", () => {
           batchCount: 1,
           totalCostUsd: 0.01,
         })),
-        promoteActor: fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(async () => ({
-          exitCode: 0,
-          stdout: [],
-          stderr: [],
-          promotedBeadIds: [],
-        })),
       },
     });
 
@@ -439,151 +424,5 @@ describe("runTriagePrime — plain output", () => {
     expect(out.lines[0]).toContain("auto-drift-fix=false");
     expect(out.lines.find((l) => l.startsWith("iteration 1:"))).toBeDefined();
     expect(out.lines[out.lines.length - 1]).toContain("queue-drained");
-  });
-});
-
-// GH-1342 — `--auto-drift-fix` threads through into the machine input and
-// surfaces on TriagePrimeResult / the plain-mode banner.
-describe("runTriagePrime — autoDriftFix routing", () => {
-  test("autoDriftFix=true + drift>0 → driftFixActor runs once per iteration, exit 0", async () => {
-    let driftFixCalls = 0;
-    const driftOk = fromPromise<
-      import("../../src/triage/actors.ts").TriageDriftFixActorResult,
-      import("../../src/triage/actors.ts").DriftFixActorInput
-    >(async () => {
-      driftFixCalls += 1;
-      return {
-        exitCode: 0,
-        stdout: [],
-        stderr: [],
-        writes: 2,
-        skips: 0,
-        errors: 0,
-        touchedIssues: [501, 502],
-      };
-    });
-
-    // Status sequence: 4 untriaged + drift -> drains to 0.
-    const seq = statusSequence([4, 0]);
-    const out = captureOutput();
-    const machine = triageMachine.provide({
-      actors: {
-        pruneMergedActor: pruneMergedOk,
-        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(async () => ({
-          exitCode: 0,
-          snapshot: snap({
-            totalUntriaged: 4,
-            totalDrift: 2,
-            issues: rowsForCount(4, ["beads-link"]),
-          }),
-          stdout: [],
-          stderr: [],
-        })),
-        classifyActor: fromPromise<TriageClassifyActorResult, TriageClassifyOptions>(async () => ({
-          exitCode: 0,
-          plan: null,
-          stdout: [],
-          stderr: [],
-        })),
-        applyActor: fromPromise<TriageApplyActorResult, TriageApplyOptions>(async () => ({
-          exitCode: 0,
-          audit: [],
-          stdout: [],
-          stderr: [],
-          touchedIssues: [],
-        })),
-        promoteActor: fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(async () => ({
-          exitCode: 0,
-          stdout: [],
-          stderr: [],
-          promotedBeadIds: [],
-        })),
-        driftFixActor: driftOk,
-      },
-    });
-
-    const exit = await runTriagePrime(
-      {
-        repo: "bdelanghe/ai-home",
-        dryRun: false,
-        autoPrioritize: false,
-        autoDriftFix: true,
-        maxIterations: 5,
-        format: "json",
-      },
-      out,
-      { machine, loadStatus: seq.loadStatus },
-    );
-    expect(exit).toBe(0);
-    expect(driftFixCalls).toBe(1);
-    const result = lastJsonResult(out);
-    expect(result.autoDriftFix).toBe(true);
-    expect(result.stopReason).toBe("queue-drained");
-  });
-
-  test("autoDriftFix=false default → driftFixActor never invoked even when drift>0", async () => {
-    let driftFixCalls = 0;
-    const driftMustNotRun = fromPromise<
-      import("../../src/triage/actors.ts").TriageDriftFixActorResult,
-      import("../../src/triage/actors.ts").DriftFixActorInput
-    >(async () => {
-      driftFixCalls += 1;
-      throw new Error("must not run");
-    });
-
-    const seq = statusSequence([2, 0]);
-    const out = captureOutput();
-    const machine = triageMachine.provide({
-      actors: {
-        pruneMergedActor: pruneMergedOk,
-        statusActor: fromPromise<TriageStatusActorResult, TriageStatusOptions>(async () => ({
-          exitCode: 0,
-          snapshot: snap({
-            totalUntriaged: 2,
-            totalDrift: 5,
-            issues: rowsForCount(2, ["beads-link"]),
-          }),
-          stdout: [],
-          stderr: [],
-        })),
-        classifyActor: fromPromise<TriageClassifyActorResult, TriageClassifyOptions>(async () => ({
-          exitCode: 0,
-          plan: null,
-          stdout: [],
-          stderr: [],
-        })),
-        applyActor: fromPromise<TriageApplyActorResult, TriageApplyOptions>(async () => ({
-          exitCode: 0,
-          audit: [],
-          stdout: [],
-          stderr: [],
-          touchedIssues: [],
-        })),
-        promoteActor: fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(async () => ({
-          exitCode: 0,
-          stdout: [],
-          stderr: [],
-          promotedBeadIds: [],
-        })),
-        driftFixActor: driftMustNotRun,
-      },
-    });
-
-    const exit = await runTriagePrime(
-      {
-        repo: "bdelanghe/ai-home",
-        dryRun: false,
-        autoPrioritize: false,
-        autoDriftFix: false,
-        maxIterations: 5,
-        format: "json",
-      },
-      out,
-      { machine, loadStatus: seq.loadStatus },
-    );
-    expect(exit).toBe(0);
-    expect(driftFixCalls).toBe(0);
-    const result = lastJsonResult(out);
-    expect(result.autoDriftFix).toBe(false);
   });
 });

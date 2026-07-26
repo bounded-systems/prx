@@ -42,11 +42,12 @@ export type ProducerDomain = CasDomain | typeof DYNAMIC_DOMAIN;
 
 /**
  * Sync / mirror domains (spike §3 "sync / mirror domain", external): the
- * `bd`/`gh`/`notion` mirror *targets*. They are orthogonal to where an artifact
+ * `gh`/`notion` mirror *targets*. They are orthogonal to where an artifact
  * is produced and must NEVER become a CAS prefix. The coverage test enforces
- * that no producer's `domain` collides with one of these.
+ * that no producer's `domain` collides with one of these. (The `bd` mirror
+ * target was removed with the beads CLI, GH-1022.)
  */
-export const SYNC_MIRROR_DOMAINS = ["bd", "gh", "notion"] as const;
+export const SYNC_MIRROR_DOMAINS = ["gh", "notion"] as const;
 export type SyncMirrorDomain = (typeof SYNC_MIRROR_DOMAINS)[number];
 
 /**

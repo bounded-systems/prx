@@ -2850,8 +2850,7 @@ export async function checkWorkUnitChain(
     // GH-870: skip the GH fetch when --from=notion was passed against a GH
     // canonical id — the existing branch below already rejects with a clear
     // error, and the epic check would otherwise mask it with a `gh` failure.
-    // GH-2090: same defensive skip for --from=beads.
-    if (epicCheckIssueNumber !== null && !(create && (from === "notion" || from === "beads"))) {
+    if (epicCheckIssueNumber !== null && !(create && from === "notion")) {
       cachedGhIssue = readGitHubIssue(board.repo, epicCheckIssueNumber);
       if (hasEpicLabel(cachedGhIssue.labels)) {
         // GH-935: if `bd` itself fails (missing binary, parse error, schema
@@ -2886,35 +2885,6 @@ export async function checkWorkUnitChain(
         if (githubIssueNumberForWorkUnit(workUnitId) !== null) {
           throw new CliError(
             `--from=notion is not valid for GitHub work unit IDs (${workUnitId}). Use a Notion canonical ID or omit --from=notion.`,
-          );
-        }
-        createResolvedSource = await probeNonGhResolver(
-          workUnitId,
-          repoPath,
-          loadIdentity,
-          buildResolver,
-        );
-        if (createResolvedSource === null) {
-          throw new CliError(prxSessionNoSourceConfiguredMessage(workUnitId));
-        }
-      }
-      // GH-2090: mirror of the --from=notion arm above for bd-backed canonical
-      // ids on canonical=bd repos. Dispatch by canonical-id shape (handled by
-      // resolverForCanonicalId via BeadsResolver), so we don't assert
-      // resolved.source === "beads" here — the notion arm doesn't either.
-      //
-      // GH-2152: through the `session`/`plan session` command flow this GH-shaped
-      // rejection is unreachable — the equivalent guard lifted upstream by GH-2140
-      // (validateWorkSessionEntry, ~line 4003) fires first on the local wtStatus
-      // view, and canonical=bd ids normalize/bail in primePlanSession before this
-      // helper sees a GH id. This arm is retained as defense-in-depth for
-      // standalone/direct checkWorkUnitChain callers (see the standalone-caller
-      // test in cli.test.ts), and the operator hint still surfaces via the lifted
-      // guard in the only config where it is meaningful (canonical=GH).
-      if (from === "beads") {
-        if (githubIssueNumberForWorkUnit(workUnitId) !== null) {
-          throw new CliError(
-            `--from=beads is not valid for GitHub work unit IDs (${workUnitId}). Use a BD canonical ID or omit --from=beads.`,
           );
         }
         createResolvedSource = await probeNonGhResolver(
@@ -3161,8 +3131,8 @@ async function validateWorkSessionEntry(
   readEpicChildren: typeof findEpicChildren = findEpicChildren,
   readWtStatus: typeof wtStatus = wtStatus,
 ): Promise<void> {
-  // GH-2140 (uh534.1/GH-2113, uh534.2/GH-2120): the GH-870 contract — `--from=beads`
-  // and `--from=notion` are invalid against GitHub-keyed canonical ids when no local
+  // GH-2140 (uh534.1/GH-2113, uh534.2/GH-2120): the GH-870 contract — `--from=notion`
+  // is invalid against GitHub-keyed canonical ids when no local
   // parity unit exists yet — mirrors the in-body refusal arms in checkWorkUnitChain
   // (`!unit && create` branch), which only reject in the missing-unit case. Lift it to
   // the front of the entry boundary so the rejection no longer hides behind two
@@ -3175,11 +3145,7 @@ async function validateWorkSessionEntry(
   // fetch when it is stale — is the deferred validate-work-session IO work (udqx2.1) and
   // is intentionally out of scope here. The in-body arms in checkWorkUnitChain are
   // retained as defense-in-depth for standalone callers.
-  if (
-    create &&
-    (from === "notion" || from === "beads") &&
-    githubIssueNumberForWorkUnit(workUnitId) !== null
-  ) {
+  if (create && from === "notion" && githubIssueNumberForWorkUnit(workUnitId) !== null) {
     const localView = readWtStatus(repoPath, false);
     const hasLocalParityUnit =
       localView.wt_available &&
@@ -3189,7 +3155,7 @@ async function validateWorkSessionEntry(
     if (!hasLocalParityUnit) {
       throw new CliError(
         `--from=${from} is not valid for GitHub work unit IDs (${workUnitId}). ` +
-          `Use a ${from === "beads" ? "BD" : "Notion"} canonical ID or omit --from=${from}.`,
+          `Use a Notion canonical ID or omit --from=${from}.`,
       );
     }
   }
@@ -13201,7 +13167,7 @@ export function runCli(
           if (!resolver) {
             if (await hasProjection(parsed.workUnitId)) return acceptProjection();
             throw new CliError(
-              `${prxSessionCannotOpenPrefix(parsed.workUnitId)} no issue-authority resolver is configured for this canonical id. Add a [sources.<name>] block to prx.toml (kind = "github" | "notion" | "beads") or use a GH-<n> id.`,
+              `${prxSessionCannotOpenPrefix(parsed.workUnitId)} no issue-authority resolver is configured for this canonical id. Add a [sources.<name>] block to prx.toml (kind = "github" | "notion") or use a GH-<n> id.`,
             );
           }
           let resolved: Awaited<ReturnType<typeof resolver.fetch>>;

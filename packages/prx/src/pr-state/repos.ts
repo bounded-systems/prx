@@ -1820,7 +1820,7 @@ function overlayTemplate(parsed: ParsedRepoUrl): string {
 # ai-home, never in the upstream repo.
 #
 # GH-1421: declare ticket-tracker backends as [sources.<name>] blocks. Each
-# block carries a \`kind\` ("github" | "notion" | "beads") and the
+# block carries a \`kind\` ("github" | "notion") and the
 # \`canonical_id_pattern\` that routes ids through this source. The first
 # declared source becomes the default.
 

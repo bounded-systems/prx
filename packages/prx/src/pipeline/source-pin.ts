@@ -3,7 +3,7 @@
  *
  * The provenance chain (`plan@ → implement@latest → commit/v1 → checks/v1 →
  * push/v1`) referenced a unit by id but never content-anchored its *source* —
- * the GH issue / beads row / Notion ticket that is the unit's authority. This
+ * the GH issue / Notion ticket that is the unit's authority. This
  * pins that source as the chain ROOT: `<unit>:source@pinned`.
  *
  * GH-292: the root is not bare content — *the actor that submitted the unit signs
@@ -79,7 +79,7 @@ export const resolvedSourceSchema = z.object({
   body: z.string().nullable(),
   state: z.enum(["open", "closed", "unknown"]),
   url: z.string().nullable(),
-  source: z.enum(["github", "notion", "beads"]),
+  source: z.enum(["github", "notion"]),
   attestation: sourceAttestationSchema.optional(),
 });
 export type ResolvedSource = z.infer<typeof resolvedSourceSchema>;
@@ -105,7 +105,7 @@ export function canonicalSourceInput(resolved: {
   body: string | null;
   state: "open" | "closed" | "unknown";
   url: string | null;
-  source: "github" | "notion" | "beads";
+  source: "github" | "notion";
 }): string {
   return JSON.stringify({
     id: resolved.id,

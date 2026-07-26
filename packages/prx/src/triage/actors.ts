@@ -64,28 +64,11 @@ import {
   type TriagePruneMergedOptions,
 } from "./schemas/index.ts";
 
-// GH-1012: `triage promote` (bd→GH mirror publish) and `triage drift-fix`
+// GH-1023: `triage promote` (bd→GH mirror publish) and `triage drift-fix`
 // (bd↔GH reconcile) are retired — GitHub is the write plane and the bd
-// substrate is gone, so their verb modules were deleted. The triage machine
-// still invokes no-op actors at the `promoting` / `driftFixing` stages so its
-// lifecycle flow is preserved. These minimal result shapes stand in for the
-// deleted verb result types; they are only stored in machine context (no source
-// consumer reads them).
-export type TriagePromoteActorResult = {
-  exitCode: number;
-  promotedBeadIds: string[];
-  stdout: string[];
-  stderr: string[];
-};
-export type TriageDriftFixActorResult = {
-  exitCode: number;
-  writes: number;
-  skips: number;
-  errors: number;
-  touchedIssues: number[];
-  stdout: string[];
-  stderr: string[];
-};
+// substrate is gone. Their verb modules were deleted (GH-1012) and the no-op
+// actor stubs that preserved the machine's `promoting` / `driftFixing` stages
+// are now removed too, along with the machine states that invoked them.
 
 // ── actor input types (options + an injectable, test-only deps seam) ────────
 
@@ -93,34 +76,11 @@ export type StatusActorInput = TriageStatusOptions & { deps?: TriageStatusDeps }
 export type ClassifyActorInput = TriageClassifyOptions & { deps?: TriageClassifyDeps };
 export type ApplyActorInput = TriageApplyOptions & { deps?: TriageApplyDeps };
 export type PrioritizeActorInput = TriagePrioritizeOptions & { deps?: TriagePrioritizeDeps };
-// GH-1012: local option shapes for the retired promote/drift-fix verbs (their
-// schema modules were deleted). Mirror exactly the input the triage machine's
-// `promoting` / `driftFixing` states construct.
-type TriagePromoteOptions = {
-  repo?: string | undefined;
-  dryRun: boolean;
-  limit: number;
-};
-type TriageDriftFixOptions = {
-  repo?: string | undefined;
-  axes: readonly ("type" | "priority" | "status")[];
-  limit: number;
-  dryRun: boolean;
-  apply: boolean;
-  sync: boolean;
-  includeDupes: boolean;
-  includeDoctor: boolean;
-  applyDupes: boolean;
-  doctorFix: boolean;
-};
-
-export type PromoteActorInput = TriagePromoteOptions & { deps?: unknown };
 export type TypePassActorInput = TriageTypePassOptions & { deps?: TriageTypePassDeps };
 export type PrioritizeBulkActorInput = TriagePrioritizeBulkOptions & {
   deps?: TriagePrioritizeBulkDeps;
 };
 export type PruneMergedActorInput = TriagePruneMergedOptions & { deps?: TriagePruneMergedDeps };
-export type DriftFixActorInput = TriageDriftFixOptions & { deps?: unknown };
 
 // ── real actors ────────────────────────────────────────────────────────────
 
@@ -156,11 +116,6 @@ export const prioritizeActor = fromPromise<TriagePrioritizeActorResult, Prioriti
   },
 );
 
-export const promoteActor = fromPromise<TriagePromoteActorResult, PromoteActorInput>(async () => {
-  // GH-1012: no-op — promotion (bd→GH mirror publish) is retired.
-  return { exitCode: 0, promotedBeadIds: [], stdout: [], stderr: [] };
-});
-
 // GH-1125 — `prx prune --merged-only` pre-step at the head of the triage
 // machine. Closes GH issues whose linked PR is already merged so the
 // status snapshot the rest of the machine reads is free of merged-PR
@@ -189,26 +144,6 @@ export const typePassActor = fromPromise<TriageTypePassActorResult, TypePassActo
     const { deps, ...data } = input;
     const opts = triageTypePassOptionsSchema.parse(data);
     return runTypePassActor(opts, deps);
-  },
-);
-
-// GH-1342 — driftFixActor wired to the real verb so `prx triage prime
-// --auto-drift-fix` can chain reconcile into each iteration. The GH-1049
-// stub (`throw new TriageStubError("drift-fix", "GH-1049")`) was removed
-// here; `runDriftFixActor` forces `apply: true` so the machine's
-// `driftFixing` state always runs the one-shot apply path.
-export const driftFixActor = fromPromise<TriageDriftFixActorResult, DriftFixActorInput>(
-  async () => {
-    // GH-1012: no-op — drift-fix reconcile is retired.
-    return {
-      exitCode: 0,
-      writes: 0,
-      skips: 0,
-      errors: 0,
-      touchedIssues: [],
-      stdout: [],
-      stderr: [],
-    };
   },
 );
 
