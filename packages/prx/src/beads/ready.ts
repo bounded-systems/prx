@@ -17,6 +17,7 @@
 
 import { z } from "zod";
 import { execBd, type BdExecOptions } from "@bounded-systems/bd";
+import { processEnv } from "@bounded-systems/env";
 // Value import is safe despite the frontdesk-source ↔ ready cycle: both sides
 // only reference each other inside function bodies (ESM live bindings), never
 // at module-init time.
@@ -220,7 +221,7 @@ export type QueryBdReadyResult = {
 /** Resolve the ready source: explicit opt → PRX_READY_SOURCE → "frontdesk". */
 export function resolveReadySource(explicit?: ReadySource): ReadySource {
   if (explicit) return explicit;
-  return process.env.PRX_READY_SOURCE === "bd" ? "bd" : "frontdesk";
+  return processEnv().PRX_READY_SOURCE === "bd" ? "bd" : "frontdesk";
 }
 
 /**
