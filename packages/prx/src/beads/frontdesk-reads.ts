@@ -10,11 +10,7 @@
  */
 
 import { parseBeadsRecord, parseBeadsRecords, type BeadsRecord } from "../triage/triage.ts";
-import {
-  frontDeskBeadRaw,
-  frontDeskBeadsRaw,
-  type FrontDeskListDeps,
-} from "../beads/frontdesk-list.ts";
+import { frontDeskBeadRaw, frontDeskBeadsRaw, type FrontDeskListDeps } from "./frontdesk-list.ts";
 
 /** Injectable Front Desk read deps: the runner + the repo-resolving cwd. */
 export type FrontDeskReadDeps = FrontDeskListDeps & { cwd?: string | undefined };

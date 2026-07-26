@@ -26,7 +26,7 @@ const REPO_ROOT = join(import.meta.dir, "..", "..");
 
 const GUARDED_FILES = [
   "../../README.md",
-  "src/triage/drift-fix.ts",
+  // GH-1012: src/triage/drift-fix.ts retired (drift-fix reconcile removed).
   "src/triage/apply.ts",
   // GH-2011 — scope-cleaned files (added to the guard so a regression that
   // re-introduces the literal phrase is caught at CI time).
@@ -42,7 +42,7 @@ const GUARDED_FILES = [
   "src/triage/prioritize-bulk.ts",
   "src/triage/migrate-axis-value.ts",
   "src/triage/prune-merged.ts",
-  "src/triage/issues-from-beads.ts",
+  // GH-1012: src/triage/issues-from-beads.ts retired (bd substrate removed).
 ] as const;
 
 // The scrubbed instructional phrase. Any reintroduction in a guarded file is

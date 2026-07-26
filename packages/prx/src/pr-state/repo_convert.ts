@@ -264,7 +264,8 @@ export function convertWorktreeToBare({
     // against work that had nothing to do with this conversion. Confirm our
     // own entry actually landed at stash@{0} by message before trusting it.
     const stashList = runner(["git", "stash", "list"], { cwd: absWorktree, check: false });
-    stashed = stashList.status === 0 && (stashList.stdout.split("\n")[0] ?? "").includes(stashMessage);
+    stashed =
+      stashList.status === 0 && (stashList.stdout.split("\n")[0] ?? "").includes(stashMessage);
   }
 
   mkdirSync(dirname(plan.targetBarePath), { recursive: true });
@@ -316,7 +317,16 @@ export function convertWorktreeToBare({
   const worktreeAddCmd =
     plan.branch !== null
       ? ["git", "-C", plan.targetBarePath, "worktree", "add", absWorktree, plan.branch]
-      : ["git", "-C", plan.targetBarePath, "worktree", "add", "--detach", absWorktree, plan.headSha];
+      : [
+          "git",
+          "-C",
+          plan.targetBarePath,
+          "worktree",
+          "add",
+          "--detach",
+          absWorktree,
+          plan.headSha,
+        ];
   const worktreeAdd = runner(worktreeAddCmd, { check: false });
   if (worktreeAdd.status !== 0) {
     throw new RepoConvertError(
@@ -544,7 +554,14 @@ function repairSiblingSubmodules(siblingPath: string, runner: RepoRunner): void 
     }
     const submoduleWorktreePath = join(siblingPath, submodulePath);
     const coreWorktree = runner(
-      ["git", "config", "--file", join(newGitdir, "config"), "core.worktree", submoduleWorktreePath],
+      [
+        "git",
+        "config",
+        "--file",
+        join(newGitdir, "config"),
+        "core.worktree",
+        submoduleWorktreePath,
+      ],
       { cwd: siblingPath, check: false },
     );
     if (coreWorktree.status !== 0) {

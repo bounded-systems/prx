@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { loadAllBeadsViaDaemon, showBeadViaDaemon } from "../../src/beadsd/reads.ts";
+import { loadAllBeadsViaDaemon, showBeadViaDaemon } from "../../src/beads/frontdesk-reads.ts";
 import type { CommandRunner } from "@bounded-systems/proc";
 
 // GH-1012: these readers now read Front Desk directly (`fds list`), not the

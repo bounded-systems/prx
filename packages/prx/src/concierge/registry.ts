@@ -79,9 +79,7 @@ export class ProviderRegistry {
 
   /** Live (unexpired) providers for a capability, in registration order. */
   live(capability: string, now: number): ProviderEntry[] {
-    return [...this.slots.values()].filter(
-      (e) => e.capability === capability && e.expiresAt > now,
-    );
+    return [...this.slots.values()].filter((e) => e.capability === capability && e.expiresAt > now);
   }
 
   /** Discovery: one row per capability with at least one live provider. */

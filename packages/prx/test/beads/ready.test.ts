@@ -1,7 +1,16 @@
-// GH-1510 — tests for the bd-ready query + cache layer.
+// GH-1510 — tests for the ready query + cache layer.
+//
+// GH-1012 retired beads: the old bd runner path (the removed graph query, the
+// removed runner type, and `queryBdReady({ runner })`) is gone. `queryBdReady`
+// now resolves ONLY via
+// Front Desk (`frontDeskReady`, injectable via the `frontDesk` option). These
+// tests cover the surviving surface: source selection, `filterBlocked`, and the
+// ready_cache layer (driven through a stub `fds` binary, since `getBdReady`
+// queries Front Desk with no runner seam).
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
+  chmodSync,
   existsSync,
   mkdtempSync,
   readFileSync,
@@ -18,12 +27,9 @@ import {
   BdReadyCacheSchema,
   BdReadyExplainEnvelopeSchema,
   filterBlocked,
-  queryBdGraph,
   queryBdReady,
-  type BdRunner,
   type BdReadyCandidate,
 } from "../../src/beads/ready.ts";
-import type { BdExecOptions } from "@bounded-systems/bd";
 import {
   DEFAULT_READY_TTL_SECONDS,
   cacheFilePath,
@@ -34,36 +40,47 @@ import {
 } from "../../src/beads/ready_cache.ts";
 
 const MIXED_FIXTURE_PATH = new URL("./fixtures/bd-ready-mixed.json", import.meta.url).pathname;
-const mixedFixtureRaw = readFileSync(MIXED_FIXTURE_PATH, "utf8");
-const mixedFixture = BdReadyExplainEnvelopeSchema.parse(JSON.parse(mixedFixtureRaw));
+const mixedFixture = BdReadyExplainEnvelopeSchema.parse(
+  JSON.parse(readFileSync(MIXED_FIXTURE_PATH, "utf8")),
+);
 
-function fixtureRunner(stdout: string, opts: { failGraph?: boolean } = {}): BdRunner {
-  return (call: BdExecOptions) => {
-    if (call.subcommand === "ready") {
-      return { exitCode: 0, stdout, stderr: "" };
-    }
-    if (call.subcommand === "dep" && call.args[0] === "list") {
-      if (opts.failGraph) return { exitCode: 1, stdout: "", stderr: "boom" };
-      const id = call.args[1] ?? "";
-      // Synthesize an edge for any id whose candidate has inline blockers in
-      // the fixture, so queryBdGraph round-trips end-to-end.
-      const candidate = [...mixedFixture.ready, ...mixedFixture.blocked].find((c) => c.id === id);
-      const rows = candidate
-        ? candidate.blocked_by.map((b) => ({ id: b.id, dependency_type: "blocks" }))
-        : [];
-      return { exitCode: 0, stdout: JSON.stringify(rows), stderr: "" };
-    }
-    return { exitCode: 1, stdout: "", stderr: `unexpected bd call: ${call.subcommand}` };
-  };
+// A stub `fds graph --json` payload with a single ready item. Front Desk maps
+// item `{ number: 1, repository: "prx" }` → candidate id `GH-1`.
+const FDS_STUB_JSON = JSON.stringify({
+  source: "front-desk",
+  syncedAt: "2026-01-01T00:00:00Z",
+  ready: [
+    {
+      number: 1,
+      repository: "prx",
+      kind: "task",
+      title: "Ready one",
+      status: "Todo",
+      effort: 1,
+      value: 1,
+      score: 1,
+      ageDays: 0,
+    },
+  ],
+  blocked: [],
+  edges: [],
+});
+
+/**
+ * Write an executable stub `fds` into `dir` that emits `FDS_STUB_JSON`, and
+ * point `PRX_FRONTDESK_BIN` at it. Returns the script path. This is the seam
+ * `getBdReady` uses to reach Front Desk (it takes no runner).
+ */
+function installFdsStub(dir: string): string {
+  const script = join(dir, "fds-stub.sh");
+  writeFileSync(script, `#!/bin/sh\ncat <<'JSON'\n${FDS_STUB_JSON}\nJSON\n`, "utf8");
+  chmodSync(script, 0o755);
+  process.env.PRX_FRONTDESK_BIN = script;
+  return script;
 }
 
-// GH-1010 flipped queryBdReady's DEFAULT source to Front Desk. Every test in
-// this file exercises the bd path, so pin it to `bd` (restored per-test). The
-// source-selection describe below manages the env itself.
+// Restore PRX_READY_SOURCE around the source-selection tests, which mutate it.
 const PRIOR_READY_SOURCE = process.env.PRX_READY_SOURCE;
-beforeEach(() => {
-  process.env.PRX_READY_SOURCE = "bd";
-});
 afterEach(() => {
   if (PRIOR_READY_SOURCE === undefined) delete process.env.PRX_READY_SOURCE;
   else process.env.PRX_READY_SOURCE = PRIOR_READY_SOURCE;
@@ -81,22 +98,12 @@ describe("ready source selection (GH-1010)", () => {
         called = true;
         return stubResult;
       },
-      // a bd runner that would throw if reached, proving bd is NOT consulted
-      runner: () => {
-        throw new Error("bd should not be called when source=frontdesk");
-      },
     });
     expect(called).toBe(true);
     expect(out).toBe(stubResult);
   });
 
-  test("PRX_READY_SOURCE=bd routes to the bd runner", () => {
-    process.env.PRX_READY_SOURCE = "bd";
-    const out = queryBdReady({ cwd: "/dev/null", runner: fixtureRunner(mixedFixtureRaw) });
-    expect(out.ready.length).toBeGreaterThan(0);
-  });
-
-  test("explicit source overrides the env", () => {
+  test("explicit source=frontdesk uses the injected Front Desk reader", () => {
     process.env.PRX_READY_SOURCE = "bd";
     let called = false;
     queryBdReady({
@@ -108,65 +115,6 @@ describe("ready source selection (GH-1010)", () => {
       },
     });
     expect(called).toBe(true);
-  });
-});
-
-describe("queryBdReady", () => {
-  test("parses --explain --json envelope into typed buckets", () => {
-    const result = queryBdReady({ cwd: "/dev/null", runner: fixtureRunner(mixedFixtureRaw) });
-    expect(result.ready.map((c) => c.id)).toEqual(["ai-home-r1", "ai-home-r2", "ai-home-child-1"]);
-    expect(result.blocked.map((c) => c.id)).toEqual([
-      "ai-home-b1",
-      "ai-home-b2",
-      "ai-home-parent-1",
-    ]);
-    expect(result.blocked[0]?.blocked_by[0]?.id).toBe("ai-home-r1");
-  });
-
-  test("accepts the legacy `bd ready --json` array shape", () => {
-    const onlyArray = JSON.stringify(mixedFixture.ready);
-    const result = queryBdReady({ cwd: "/dev/null", runner: fixtureRunner(onlyArray) });
-    expect(result.ready).toHaveLength(3);
-    expect(result.blocked).toHaveLength(0);
-  });
-
-  test("returns empty buckets on empty stdout (clean db)", () => {
-    const result = queryBdReady({ cwd: "/dev/null", runner: fixtureRunner("") });
-    expect(result.ready).toHaveLength(0);
-    expect(result.blocked).toHaveLength(0);
-  });
-
-  test("throws on non-zero exit", () => {
-    const runner: BdRunner = () => ({ exitCode: 2, stdout: "", stderr: "bd died" });
-    expect(() => queryBdReady({ cwd: "/dev/null", runner })).toThrow(
-      /bd ready --explain --json failed/,
-    );
-  });
-});
-
-describe("queryBdGraph", () => {
-  test("synthesizes typed edges from per-id `bd dep list` reads", () => {
-    const edges = queryBdGraph({
-      cwd: "/dev/null",
-      runner: fixtureRunner(mixedFixtureRaw),
-      ids: ["ai-home-b1", "ai-home-parent-1"],
-    });
-    expect(edges).toContainEqual({ from: "ai-home-b1", to: "ai-home-r1", kind: "blocks" });
-    expect(edges).toContainEqual({
-      from: "ai-home-parent-1",
-      to: "ai-home-child-1",
-      kind: "blocks",
-    });
-  });
-
-  test("propagates bd failures", () => {
-    expect(() =>
-      queryBdGraph({
-        cwd: "/dev/null",
-        runner: fixtureRunner(mixedFixtureRaw, { failGraph: true }),
-        ids: ["ai-home-b1"],
-      }),
-    ).toThrow(/bd dep list/);
   });
 });
 
@@ -213,22 +161,22 @@ describe("filterBlocked (I-BD1 gate)", () => {
 
 describe("ready cache (atomic write + sync-if-stale)", () => {
   let repoPath: string;
+  const PRIOR_FRONTDESK_BIN = process.env.PRX_FRONTDESK_BIN;
   beforeEach(() => {
     repoPath = mkdtempSync(join(tmpdir(), "bd-ready-cache-"));
+    installFdsStub(repoPath);
   });
   afterEach(() => {
     rmSync(repoPath, { recursive: true, force: true });
+    if (PRIOR_FRONTDESK_BIN === undefined) delete process.env.PRX_FRONTDESK_BIN;
+    else process.env.PRX_FRONTDESK_BIN = PRIOR_FRONTDESK_BIN;
   });
 
   test("first call refreshes (no cache) and writes an atomic file", () => {
-    const result = getBdReady(repoPath, { runner: fixtureRunner(mixedFixtureRaw), ttlSeconds: 60 });
+    const result = getBdReady(repoPath, { ttlSeconds: 60 });
     expect(result.refreshed).toBe(true);
     expect(result.stale).toBe(false);
-    expect(result.cache.ready.map((c) => c.id)).toEqual([
-      "ai-home-r1",
-      "ai-home-r2",
-      "ai-home-child-1",
-    ]);
+    expect(result.cache.ready.map((c) => c.id)).toEqual(["GH-1"]);
 
     const path = cacheFilePath(repoPath);
     expect(existsSync(path)).toBe(true);
@@ -239,18 +187,13 @@ describe("ready cache (atomic write + sync-if-stale)", () => {
     BdReadyCacheSchema.parse(JSON.parse(readFileSync(path, "utf8")));
   });
 
-  test("second call within TTL serves cached envelope without hitting bd", () => {
-    let bdCalls = 0;
-    const wrappedRunner: BdRunner = (call) => {
-      bdCalls += 1;
-      return fixtureRunner(mixedFixtureRaw)(call);
-    };
-    getBdReady(repoPath, { runner: wrappedRunner, ttlSeconds: 60 });
-    expect(bdCalls).toBe(1);
-    const second = getBdReady(repoPath, { runner: wrappedRunner, ttlSeconds: 60 });
-    expect(bdCalls).toBe(1);
+  test("second call within TTL serves cached envelope without re-querying", () => {
+    const first = getBdReady(repoPath, { ttlSeconds: 60 });
+    const second = getBdReady(repoPath, { ttlSeconds: 60 });
     expect(second.refreshed).toBe(false);
     expect(second.stale).toBe(false);
+    // Same run_id ⇒ served from the on-disk cache, not a fresh query.
+    expect(second.cache.run_id).toBe(first.cache.run_id);
   });
 
   test("stale cache is detected and refreshed (I-BD3 path)", () => {
@@ -266,28 +209,24 @@ describe("ready cache (atomic write + sync-if-stale)", () => {
     };
     writeFileSync(cacheFilePath(repoPath), JSON.stringify(stale), "utf8");
 
-    const result = getBdReady(repoPath, { runner: fixtureRunner(mixedFixtureRaw), ttlSeconds: 60 });
+    const result = getBdReady(repoPath, { ttlSeconds: 60 });
     expect(result.stale).toBe(true);
     expect(result.refreshed).toBe(true);
-    expect(result.cache.ready).toHaveLength(3);
+    expect(result.cache.ready).toHaveLength(1);
   });
 
   test("force=true refreshes even when cache is fresh", () => {
-    getBdReady(repoPath, { runner: fixtureRunner(mixedFixtureRaw), ttlSeconds: 3600 });
-    let calls = 0;
-    const counting: BdRunner = (call) => {
-      calls += 1;
-      return fixtureRunner(mixedFixtureRaw)(call);
-    };
-    const result = getBdReady(repoPath, { runner: counting, force: true, ttlSeconds: 3600 });
-    expect(calls).toBe(1);
+    const first = getBdReady(repoPath, { ttlSeconds: 3600 });
+    const result = getBdReady(repoPath, { force: true, ttlSeconds: 3600 });
     expect(result.refreshed).toBe(true);
+    // A fresh query mints a new run_id.
+    expect(result.cache.run_id).not.toBe(first.cache.run_id);
   });
 
   test("invalid cache JSON is treated as missing", () => {
     mkdirSync(join(repoPath, ".beads", "cache"), { recursive: true });
     writeFileSync(cacheFilePath(repoPath), "not-json {{", "utf8");
-    const result = getBdReady(repoPath, { runner: fixtureRunner(mixedFixtureRaw), ttlSeconds: 60 });
+    const result = getBdReady(repoPath, { ttlSeconds: 60 });
     expect(result.refreshed).toBe(true);
   });
 

@@ -63,7 +63,6 @@ import {
   type BeadsInitSetupResult,
   type CloseSessionResult,
   type ParityChainApplyResult,
-  type RepairBdEntry,
   type SessionOpenCheckReport,
   VERB_HELP_SEE_ALSO,
   type WorkUnitChainCheckResult,
@@ -1614,21 +1613,6 @@ export function formatParityChainApplyResults(
   }
 
   return lines.join("\n");
-}
-
-export function formatRepairBdResults(entries: RepairBdEntry[], format: "plain" | "json"): string {
-  if (format === "json") {
-    return JSON.stringify(entries, null, 2);
-  }
-  if (entries.length === 0) {
-    return "repair-bd: no worktrees with .beads found";
-  }
-  return entries
-    .map(({ cwd, result }) => {
-      const tail = result.message ? ` — ${result.message}` : "";
-      return `${cwd}: ${result.status} (${result.durationMs}ms via ${result.command})${tail}`;
-    })
-    .join("\n");
 }
 
 export function formatChainsStatus(summary: ChainStatusResult, format: "plain" | "json"): string {

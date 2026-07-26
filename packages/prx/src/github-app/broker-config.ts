@@ -97,7 +97,10 @@ export function resolveBrokerConfig(deps: ResolveBrokerConfigDeps = {}): BrokerC
   // installation scope) so the broker stays back-compatible when unset.
   const reposRaw = getEnv("PRX_GH_APP_REPOSITORIES");
   const repositories = reposRaw
-    ? reposRaw.split(",").map((r) => r.trim()).filter((r) => r.length > 0)
+    ? reposRaw
+        .split(",")
+        .map((r) => r.trim())
+        .filter((r) => r.length > 0)
     : undefined;
 
   const permsRaw = getEnv("PRX_GH_APP_PERMISSIONS");

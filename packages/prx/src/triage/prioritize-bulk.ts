@@ -30,13 +30,14 @@ import { agentProfileExecutionAsRuntimeResult, executeAgentProfile } from "../pr
 import { z } from "zod";
 
 import {
+  listOpenIssues as defaultListOpenIssues,
   repoNameWithOwner as defaultRepoNameWithOwner,
   type FallbackIssue,
 } from "../pr-state/github.ts";
-// GH-1602: substitute the gh-side `listOpenIssues` with the bd-resident
-// projection. `pruneMergedActor` syncs bd from GH at the head of every triage
-// pass, so prioritize-bulk's queue enumeration is substrate-resident now.
-import { listOpenIssuesFromBeads as defaultListOpenIssues } from "./issues-from-beads.ts";
+// GH-1012: bd removed. GitHub is the write plane and the queue is enumerated
+// directly off `gh issue list` via the gh-side `listOpenIssues` (same
+// `FallbackIssue[]` shape and `(repo, limit)` call signature the retired
+// bd-resident projection provided).
 import { parseLabelName } from "./labels.ts";
 import { PRIORITY_LABELS, priorityLabelString } from "./label-vocab.ts";
 import { execGh as defaultExecGh, type GhExecResult } from "@bounded-systems/gh";

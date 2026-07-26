@@ -3,7 +3,11 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { runSyncServe, DEFAULT_SYNC_INTERVAL_MS, type SyncServeOutput } from "../../src/sync/serve.ts";
+import {
+  runSyncServe,
+  DEFAULT_SYNC_INTERVAL_MS,
+  type SyncServeOutput,
+} from "../../src/sync/serve.ts";
 
 const SAFE_PASSES = {
   beadsSyncPass: async () => ({ exitCode: 0 }),
@@ -85,7 +89,9 @@ describe("runSyncServe — the sync-agent loop (prx-697)", () => {
 
     // beads threw, but dolt still ran and runSyncServe did not reject.
     expect(dolt).toBe(1);
-    expect(out.errors.some((e) => e.includes("beads pass failed") && e.includes("boom"))).toBe(true);
+    expect(out.errors.some((e) => e.includes("beads pass failed") && e.includes("boom"))).toBe(
+      true,
+    );
 
     handle.stop();
     await handle.closed;

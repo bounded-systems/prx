@@ -18,7 +18,42 @@ import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { homeDir as osHomeDir } from "@bounded-systems/host";
 import { z } from "zod";
 import { spawnCapture } from "@bounded-systems/proc";
-import { hydrateAfterMaterialize, type HydrateResult } from "../beads/repo_hydrate.ts";
+// GH-1012: the bd/dolt `.beads/` hydration machinery (`../beads/repo_hydrate.ts`)
+// is removed — Front Desk is the read plane and there is no bd tree to hydrate.
+// The `beadsHydrate` outcome shape is retained here (consumed by the repo-add /
+// refresh CLI formatters) with a no-op default producer so a `prx repo add` /
+// `refresh` still reports a stable, healthy "nothing to hydrate" status.
+export type HydrateStatus = "hydrated" | "already-hydrated" | "skipped-no-beads" | "clone-failed";
+
+export type HydrateResult = {
+  status: HydrateStatus;
+  exitCode: number;
+  message: string;
+  doltDatabase?: string | null;
+  doltRemote?: string | null;
+};
+
+/**
+ * GH-1012: former `.beads/` hydrate hook, now a no-op. bd is gone, so there is
+ * nothing to clone/materialize; return a stable `skipped-no-beads` outcome so
+ * the surrounding (non-bd) repo-add / refresh flow — bare clone, mainx
+ * bootstrap, refspec upgrade — is unaffected and the result shape the CLI
+ * formatters read keeps compiling. Signature preserved so the `hydrateFn`
+ * injection seam on `addLocalRepo` / `refreshLocalRepo` stays intact.
+ */
+export function hydrateAfterMaterialize(
+  _mainxPath: string,
+  _opts?: unknown,
+  _flags?: { dryRun?: boolean },
+): HydrateResult {
+  return {
+    status: "skipped-no-beads",
+    exitCode: 0,
+    message: "beads hydration removed (GH-1012)",
+    doltDatabase: null,
+    doltRemote: null,
+  };
+}
 
 // GH-1657: bd workspace prefix shape — mirrors DomainAdapterConfig.domain
 // (`^[a-z][a-z0-9-]*$`); inlined to avoid an import cycle with the adapters

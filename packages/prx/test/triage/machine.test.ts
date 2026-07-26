@@ -17,21 +17,19 @@ import type {
   TriageClassifyOptions,
   TriageApplyOptions,
   TriagePrioritizeOptions,
-  TriagePromoteOptions,
   TriageTypePassOptions,
   TriagePrioritizeBulkOptions,
-  TriageDriftFixOptions,
   TriageReportOptions,
 } from "../../src/triage/schemas/index.ts";
 import type { TriageStatusActorResult } from "../../src/triage/triage.ts";
 import type { TriageClassifyActorResult } from "../../src/triage/classifier.ts";
 import type { TriageApplyActorResult } from "../../src/triage/apply.ts";
 import type { TriagePrioritizeActorResult } from "../../src/triage/prioritize.ts";
-import type { TriagePromoteActorResult } from "../../src/triage/promote.ts";
+import type { TriagePromoteActorResult, PromoteActorInput } from "../../src/triage/actors.ts";
 import type { TriageTypePassActorResult } from "../../src/triage/type-pass.ts";
 import type { TriagePrioritizeBulkActorResult } from "../../src/triage/prioritize-bulk.ts";
 import type { TriagePruneMergedActorResult } from "../../src/triage/prune-merged.ts";
-import type { TriageDriftFixActorResult } from "../../src/triage/drift-fix.ts";
+import type { TriageDriftFixActorResult, DriftFixActorInput } from "../../src/triage/actors.ts";
 import type { TriagePruneMergedOptions } from "../../src/triage/schemas/index.ts";
 
 // ── builders ───────────────────────────────────────────────────────────────
@@ -79,10 +77,8 @@ const fakeApplyOk = fromPromise<TriageApplyActorResult, TriageApplyOptions>(asyn
   touchedIssues: [],
 }));
 
-const fakePromoteOk = fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(async () => ({
+const fakePromoteOk = fromPromise<TriagePromoteActorResult, PromoteActorInput>(async () => ({
   exitCode: 0,
-  plan: null,
-  audit: [],
   stdout: [],
   stderr: [],
   promotedBeadIds: [],
@@ -126,7 +122,7 @@ function rejectingDriftFixActor(ticket: string) {
   // `TriageDriftFixActorResult`. The output type widens from `never`
   // to the actor's result type so the rejecting test stub still
   // satisfies the typed actor slot the machine expects.
-  return fromPromise<TriageDriftFixActorResult, TriageDriftFixOptions>(async () => {
+  return fromPromise<TriageDriftFixActorResult, DriftFixActorInput>(async () => {
     throw new TriageStubError("drift-fix", ticket);
   });
 }
@@ -584,22 +580,16 @@ describe("triageMachine — GH-1015 scope clip", () => {
 describe("triageMachine — GH-1342 prime + autoDriftFix", () => {
   test("prime + autoDriftFix=true + drift>0 → driftFixing runs, lands in done", async () => {
     let driftFixCalls = 0;
-    const driftOk = fromPromise<TriageDriftFixActorResult, TriageDriftFixOptions>(async () => {
+    const driftOk = fromPromise<TriageDriftFixActorResult, DriftFixActorInput>(async () => {
       driftFixCalls += 1;
       return {
         exitCode: 0,
-        audit: [],
         stdout: [],
         stderr: [],
         writes: 1,
         skips: 0,
         errors: 0,
-        syncOutcome: "ok",
         touchedIssues: [42],
-        duplicatesDetected: 0,
-        mergesApplied: 0,
-        mergesSkippedParity: 0,
-        substrateHealth: { total: 0, fixable: 0, fixed: false },
       };
     });
 
@@ -642,12 +632,10 @@ describe("triageMachine — GH-1342 prime + autoDriftFix", () => {
 
   test("prime + autoDriftFix=true + drift=0 → driftDecision skips to done (never invokes report stub)", async () => {
     let driftFixCalls = 0;
-    const driftMustNotRun = fromPromise<TriageDriftFixActorResult, TriageDriftFixOptions>(
-      async () => {
-        driftFixCalls += 1;
-        throw new Error("driftFixActor must not run when totalDrift===0");
-      },
-    );
+    const driftMustNotRun = fromPromise<TriageDriftFixActorResult, DriftFixActorInput>(async () => {
+      driftFixCalls += 1;
+      throw new Error("driftFixActor must not run when totalDrift===0");
+    });
 
     const machine = triageMachine.provide({
       actors: {
@@ -677,24 +665,18 @@ describe("triageMachine — GH-1342 prime + autoDriftFix", () => {
   // machine bakes in `includeDupes:true, includeDoctor:true, applyDupes:true,
   // doctorFix:false` at this single call site; assert the actor sees them.
   test("driftFixing invoke passes GH-1255 dupe + doctor flags to the actor input", async () => {
-    const observed: { input: TriageDriftFixOptions | null } = { input: null };
-    const driftCapture = fromPromise<TriageDriftFixActorResult, TriageDriftFixOptions>(
+    const observed: { input: DriftFixActorInput | null } = { input: null };
+    const driftCapture = fromPromise<TriageDriftFixActorResult, DriftFixActorInput>(
       async ({ input }) => {
         observed.input = input;
         return {
           exitCode: 0,
-          audit: [],
           stdout: [],
           stderr: [],
           writes: 0,
           skips: 0,
           errors: 0,
-          syncOutcome: "skipped",
           touchedIssues: [],
-          duplicatesDetected: 0,
-          mergesApplied: 0,
-          mergesSkippedParity: 0,
-          substrateHealth: { total: 0, fixable: 0, fixed: false },
         };
       },
     );
@@ -736,12 +718,10 @@ describe("triageMachine — GH-1342 prime + autoDriftFix", () => {
 
   test("prime + autoDriftFix=false + drift>0 → GH-1015 short-circuit holds (skips driftFixing)", async () => {
     let driftFixCalls = 0;
-    const driftMustNotRun = fromPromise<TriageDriftFixActorResult, TriageDriftFixOptions>(
-      async () => {
-        driftFixCalls += 1;
-        throw new Error("driftFixActor must not run when autoDriftFix=false");
-      },
-    );
+    const driftMustNotRun = fromPromise<TriageDriftFixActorResult, DriftFixActorInput>(async () => {
+      driftFixCalls += 1;
+      throw new Error("driftFixActor must not run when autoDriftFix=false");
+    });
 
     const machine = triageMachine.provide({
       actors: {

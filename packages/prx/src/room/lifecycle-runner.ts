@@ -62,10 +62,7 @@ export interface BdLifecycleOpts {
  * render as `--secret name,target=path`, mirroring `renderPodmanRun`.
  */
 export function renderBdLifecycleArgs(o: BdLifecycleOpts): string[] {
-  const secretArgs = (o.secrets ?? []).flatMap((s) => [
-    "--secret",
-    `${s.name},target=${s.target}`,
-  ]);
+  const secretArgs = (o.secrets ?? []).flatMap((s) => ["--secret", `${s.name},target=${s.target}`]);
   const envArgs = Object.entries(o.env ?? {}).flatMap(([k, v]) => ["-e", `${k}=${v}`]);
   // Identity-mapped (same path in and out) so `repo`'s linked-worktree `.git`
   // file's absolute gitdir pointer resolves from inside the container too —

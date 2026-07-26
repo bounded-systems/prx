@@ -11,7 +11,6 @@ import { describe, expect, test } from "bun:test";
 import { runCli } from "../../src/pr-state/cli.ts";
 import type { RuntimeExecutionResult, RuntimeExecutor } from "../../src/pr-state/executor.ts";
 import type { TriageStatusResult } from "../../src/triage/triage.ts";
-import type { BeadsWorkspaceMode } from "../../src/beads/workspace_mode.ts";
 import type { ResolveTargetRepoResult } from "../../src/pr-state/repo-target.ts";
 import type { LocalRepo } from "../../src/pr-state/repos.ts";
 import { dispatchFromArgv } from "../../src/pr-state/session-entry/dispatch.ts";
@@ -418,10 +417,6 @@ describe("prx triage session (GH-893)", () => {
         expect(input.slug).toBe("foo");
         return { targetCwd, repo: fakeRepo, materialize: null };
       },
-      classifyBeadsWorkspace: (cwd): BeadsWorkspaceMode => {
-        expect(cwd).toBe(targetCwd);
-        return { kind: "per_project", doltDir: `${cwd}/.beads/dolt` };
-      },
       runTriageStatus: (_opts, out, statusDeps) => {
         triageStatusCwd = statusDeps?.cwd?.();
         out.log(JSON.stringify(fakeQueueResult()));
@@ -448,72 +443,6 @@ describe("prx triage session (GH-893)", () => {
     // The spawn lands on the reserved ephemeral worktree (off the target's origin/main).
     expect(executorCwd).toBe(worktreePath);
     expect(allowlistCwd).toBe(worktreePath);
-  });
-
-  test("--repo <slug> on a beads-less target → CliError with the GH-493 bootstrap hint (GH-1689)", async () => {
-    const { errors, output } = captureOutput();
-    const targetCwd = "/scratch/wt/spd/mainx";
-    const fakeRepo: LocalRepo = {
-      name: "demo-repo",
-      commonDir: "/scratch/bare/demo-repo.git",
-      kind: "bare",
-      mainWorktree: targetCwd,
-      worktrees: [],
-      localOnlyBranches: [],
-      findings: [],
-      remotes: [],
-      primaryRemote: null,
-      upstreamRemote: null,
-    };
-    let executorCalled = false;
-
-    const exit = await runCli(["triage", "agent", "--repo", "demo-repo", "--dry-run"], output, {
-      resolveTargetRepoCwd: () => ({ targetCwd, repo: fakeRepo, materialize: null }),
-      classifyBeadsWorkspace: () => ({ kind: "none" }),
-      runTriageStatus: () => 0,
-      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-      execRuntime: () => {
-        executorCalled = true;
-        return { status: 0, stdout: "", stderr: "" };
-      },
-    });
-
-    expect(exit).not.toBe(0);
-    expect(executorCalled).toBe(false);
-    expect(errors.some((line) => line.includes("demo-repo"))).toBe(true);
-    expect(errors.some((line) => line.includes("GH-493"))).toBe(true);
-  });
-
-  test("--repo <slug> on an embedded-mode target → CliError with the GH-1471 migration hint (GH-1689)", async () => {
-    const { errors, output } = captureOutput();
-    const targetCwd = "/scratch/wt/spd/mainx";
-    const fakeRepo: LocalRepo = {
-      name: "demo-repo",
-      commonDir: "/scratch/bare/demo-repo.git",
-      kind: "bare",
-      mainWorktree: targetCwd,
-      worktrees: [],
-      localOnlyBranches: [],
-      findings: [],
-      remotes: [],
-      primaryRemote: null,
-      upstreamRemote: null,
-    };
-
-    const exit = await runCli(["triage", "agent", "--repo", "demo-repo"], output, {
-      resolveTargetRepoCwd: () => ({ targetCwd, repo: fakeRepo, materialize: null }),
-      classifyBeadsWorkspace: () => ({
-        kind: "embedded",
-        doltDir: `${targetCwd}/.beads/embeddeddolt/ws/.dolt`,
-      }),
-      runTriageStatus: () => 0,
-      ensureOpsRuntimeMcp: () => ({ mcpServers: [] }),
-    });
-
-    expect(exit).not.toBe(0);
-    expect(errors.some((line) => line.includes("embedded mode"))).toBe(true);
-    expect(errors.some((line) => line.includes("GH-1471"))).toBe(true);
-    expect(errors.some((line) => line.includes("GH-1061"))).toBe(true);
   });
 
   test("--repo <unknown> surfaces the `prx repo add` hint (GH-1689)", async () => {

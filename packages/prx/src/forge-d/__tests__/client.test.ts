@@ -34,8 +34,8 @@ describe("IsolatedForgeDClient", () => {
 
   test("a reply that violates the contract throws ForgeDProtocolError", async () => {
     const transport: ForgeDTransport = async () => ({ status: "ok" }); // missing token/expiresAt
-    await expect(new IsolatedForgeDClient(transport).lease({ kind: "lease" })).rejects.toBeInstanceOf(
-      ForgeDProtocolError,
-    );
+    await expect(
+      new IsolatedForgeDClient(transport).lease({ kind: "lease" }),
+    ).rejects.toBeInstanceOf(ForgeDProtocolError);
   });
 });

@@ -41,11 +41,7 @@ import {
   resolveGrantIssuer,
   type GrantIssuer,
 } from "../door/grant-issuer.ts";
-import {
-  ProviderRegistry,
-  type CapabilityRow,
-  type RegisterInput,
-} from "./registry.ts";
+import { ProviderRegistry, type CapabilityRow, type RegisterInput } from "./registry.ts";
 
 /** Default minted-grant lifetime (seconds) — SHORT (per-lease), mirroring token TTLs. */
 export const DEFAULT_GRANT_TTL_SECONDS = 60;

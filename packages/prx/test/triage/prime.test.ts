@@ -22,7 +22,7 @@ import type {
 import type { TriageStatusActorResult } from "../../src/triage/triage.ts";
 import type { TriageClassifyActorResult } from "../../src/triage/classifier.ts";
 import type { TriageApplyActorResult } from "../../src/triage/apply.ts";
-import type { TriagePromoteActorResult } from "../../src/triage/promote.ts";
+import type { TriagePromoteActorResult } from "../../src/triage/actors.ts";
 import type { TriagePrioritizeActorResult } from "../../src/triage/prioritize.ts";
 import type { TriagePrioritizeBulkActorResult } from "../../src/triage/prioritize-bulk.ts";
 import type { TriagePruneMergedActorResult } from "../../src/triage/prune-merged.ts";
@@ -128,8 +128,6 @@ function machineWithSuccessChain(innerStatusUntriaged = 0) {
   }));
   const promote = fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(async () => ({
     exitCode: 0,
-    plan: null,
-    audit: [],
     stdout: [],
     stderr: [],
     promotedBeadIds: [],
@@ -389,8 +387,6 @@ describe("runTriagePrime — autoPrioritize routing", () => {
         })),
         promoteActor: fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(async () => ({
           exitCode: 0,
-          plan: null,
-          audit: [],
           stdout: [],
           stderr: [],
           promotedBeadIds: [],
@@ -452,24 +448,18 @@ describe("runTriagePrime — autoDriftFix routing", () => {
   test("autoDriftFix=true + drift>0 → driftFixActor runs once per iteration, exit 0", async () => {
     let driftFixCalls = 0;
     const driftOk = fromPromise<
-      import("../../src/triage/drift-fix.ts").TriageDriftFixActorResult,
-      import("../../src/triage/schemas/index.ts").TriageDriftFixOptions
+      import("../../src/triage/actors.ts").TriageDriftFixActorResult,
+      import("../../src/triage/actors.ts").DriftFixActorInput
     >(async () => {
       driftFixCalls += 1;
       return {
         exitCode: 0,
-        audit: [],
         stdout: [],
         stderr: [],
         writes: 2,
         skips: 0,
         errors: 0,
-        syncOutcome: "ok",
         touchedIssues: [501, 502],
-        duplicatesDetected: 0,
-        mergesApplied: 0,
-        mergesSkippedParity: 0,
-        substrateHealth: { total: 0, fixable: 0, fixed: false },
       };
     });
 
@@ -504,8 +494,6 @@ describe("runTriagePrime — autoDriftFix routing", () => {
         })),
         promoteActor: fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(async () => ({
           exitCode: 0,
-          plan: null,
-          audit: [],
           stdout: [],
           stderr: [],
           promotedBeadIds: [],
@@ -536,8 +524,8 @@ describe("runTriagePrime — autoDriftFix routing", () => {
   test("autoDriftFix=false default → driftFixActor never invoked even when drift>0", async () => {
     let driftFixCalls = 0;
     const driftMustNotRun = fromPromise<
-      import("../../src/triage/drift-fix.ts").TriageDriftFixActorResult,
-      import("../../src/triage/schemas/index.ts").TriageDriftFixOptions
+      import("../../src/triage/actors.ts").TriageDriftFixActorResult,
+      import("../../src/triage/actors.ts").DriftFixActorInput
     >(async () => {
       driftFixCalls += 1;
       throw new Error("must not run");
@@ -573,8 +561,6 @@ describe("runTriagePrime — autoDriftFix routing", () => {
         })),
         promoteActor: fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(async () => ({
           exitCode: 0,
-          plan: null,
-          audit: [],
           stdout: [],
           stderr: [],
           promotedBeadIds: [],

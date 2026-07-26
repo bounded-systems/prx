@@ -25,13 +25,14 @@ import { createInterface } from "node:readline/promises";
 import { z } from "zod";
 
 import {
+  listOpenIssues as defaultListOpenIssues,
   repoNameWithOwner as defaultRepoNameWithOwner,
   type FallbackIssue,
 } from "../pr-state/github.ts";
-// GH-1602: substitute the gh-side `listOpenIssues` with the bd-resident
-// projection. `pruneMergedActor` syncs bd from GH at the head of every triage
-// pass, so prioritize's queue enumeration is substrate-resident now.
-import { listOpenIssuesFromBeads as defaultListOpenIssues } from "./issues-from-beads.ts";
+// GH-1012: the bd-resident queue projection (`issues-from-beads`) is retired
+// with the beads substrate. GitHub is the write plane and carries the axis
+// labels this verb filters on (`priority::none`), so the queue enumeration
+// reads open issues directly from GitHub via `listOpenIssues`.
 import { parseLabelName } from "./labels.ts";
 import { execGh as defaultExecGh, type GhExecResult } from "@bounded-systems/gh";
 import { runBeadsSync as defaultRunBeadsSync, type BeadsSyncResult } from "../sync/run.ts";

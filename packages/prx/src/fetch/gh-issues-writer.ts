@@ -19,11 +19,8 @@
 // `bd import` is blocked at `src/tools/bd.ts:69-71`, so per-row writes
 // are not just stylistic — they're the only admitted shape.
 
-import { execBd as defaultExecBd } from "@bounded-systems/bd";
 import { defaultRunner as procRunner, type CommandRunner } from "@bounded-systems/proc";
 import type { GhIssueRow } from "./gh-issues-graphql.ts";
-
-export type BdExecRunner = typeof defaultExecBd;
 
 /** Outcome of the create-from-external-record path (I-BF2). Mirrors the
  *  `runIntakeMirror` JSON render: a fresh create yields `createdBdId`, a
@@ -35,12 +32,8 @@ export type FetchCreateBeadResult = {
 };
 
 export type FetchWriteDeps = {
-  /** Injected so tests can drive the bd boundary without a real binary. */
-  execBd?: BdExecRunner;
   /** GH-296 / prx-82b — sync runner for the daemon-routed `prx beads update`. */
   run?: CommandRunner;
-  /** Forwarded to `execBd` so the bd spawn inherits the operator env. */
-  env?: NodeJS.ProcessEnv;
   /**
    * Resolve a GH issue URL → bd canonical long id, or null when the issue
    * is not yet mirrored. Production = `adapter.resolveFromBeads(url, beads)`

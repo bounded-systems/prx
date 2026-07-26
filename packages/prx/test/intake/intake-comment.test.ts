@@ -5,19 +5,10 @@ import {
   runIntakeComment,
   type IntakeCommentOptions,
 } from "../../src/intake/intake-comment.ts";
-import type { BdExecResult } from "@bounded-systems/bd";
 import type { GhExecResult } from "@bounded-systems/gh";
-import type { BeadsRecord } from "../../src/triage/triage.ts";
 
 type GhCallTag = {
   kind: "gh";
-  subcommand: string;
-  args: string[];
-  state?: string | undefined;
-  role?: string | undefined;
-};
-type BdCallTag = {
-  kind: "bd";
   subcommand: string;
   args: string[];
   state?: string | undefined;
@@ -38,51 +29,6 @@ function ghOk(stdout = ""): GhExecResult {
 
 function ghFail(stderr: string, code = 1): GhExecResult {
   return { exitCode: code, stdout: "", stderr, policy: null };
-}
-
-function bdOk(stdout = ""): BdExecResult {
-  return { exitCode: 0, stdout, stderr: "", policy: null };
-}
-
-function bdFail(stderr: string, code = 1): BdExecResult {
-  return { exitCode: code, stdout: "", stderr, policy: null };
-}
-
-// GH-296 / prx-82b: the bd note write now runs `prx beads update <id> --notes …`
-// through the daemon (a sync runner). The fake records the equivalent old
-// `bd update` BdCallTag shape so the existing assertions hold; `result` drives
-// the exit status.
-function recordingRun(bdCalls: BdCallTag[], result: BdExecResult = bdOk()) {
-  return (cmd: string[], _opts?: { check?: boolean }) => {
-    // cmd = ["prx","beads","update", <id>, "--notes", <notes>]
-    bdCalls.push({
-      kind: "bd",
-      subcommand: "update",
-      args: cmd.slice(3),
-      state: "planning",
-      role: "planner",
-    });
-    return { status: result.exitCode, stdout: result.stdout, stderr: result.stderr };
-  };
-}
-
-function bdRecord(overrides: Partial<BeadsRecord> = {}): BeadsRecord {
-  return {
-    id: "ai-home-gmkwh",
-    title: "test record",
-    description: "",
-    status: "open",
-    priority: null,
-    issueType: "",
-    externalRef: null,
-    externalRefs: {},
-    metadata: null,
-    externalIssueNumber: null,
-    sourceSystem: null,
-    updatedAt: null,
-    notes: null,
-    ...overrides,
-  };
 }
 
 describe("runIntakeComment — happy path", () => {
@@ -209,36 +155,24 @@ describe("runIntakeComment — dry-run (gh arm)", () => {
 });
 
 describe("runIntakeComment — id dispatch", () => {
-  test("bd-shaped id routes through bd update --notes (no gh issue comment)", () => {
+  test("bd-shaped id is refused (bd has no writable comment surface)", () => {
     const ghCalls: GhCallTag[] = [];
-    const bdCalls: BdCallTag[] = [];
+    const errors: string[] = [];
     const exitCode = runIntakeComment(
       makeOpts({ canonicalId: "ai-home-gmkwh", body: "follow-up note" }),
-      { log: () => undefined, error: () => undefined },
+      { log: () => undefined, error: (l) => errors.push(l) },
       {
         execGh: ((opts: { subcommand: string; args: string[] }) => {
           ghCalls.push({ kind: "gh", subcommand: opts.subcommand, args: opts.args });
           return ghOk();
         }) as never,
-        run: recordingRun(bdCalls) as never,
-        loadAllBeads: (() => [bdRecord({ id: "ai-home-gmkwh", notes: null })]) as never,
       },
     );
 
-    expect(exitCode).toBe(0);
+    expect(exitCode).toBe(1);
     expect(ghCalls).toHaveLength(0);
-    expect(bdCalls).toHaveLength(1);
-    expect(bdCalls[0]).toMatchObject({
-      kind: "bd",
-      subcommand: "update",
-      state: "planning",
-      role: "planner",
-    });
-    expect(bdCalls[0]!.args[0]).toBe("ai-home-gmkwh");
-    expect(bdCalls[0]!.args).toContain("--notes");
-    const newNotes = bdCalls[0]!.args[bdCalls[0]!.args.indexOf("--notes") + 1]!;
-    expect(newNotes).toContain("[prx-intake-comment sha256-prefix=");
-    expect(newNotes).toContain("follow-up note");
+    expect(errors.join("\n")).toContain("GitHub issue");
+    expect(errors.join("\n")).toContain("bd");
   });
 
   test("notion-shaped id is refused", () => {
@@ -268,188 +202,6 @@ describe("runIntakeComment — id dispatch", () => {
     );
     expect(exitCode).toBe(1);
     expect(errors[0]).toContain("invalid characters");
-  });
-});
-
-describe("runIntakeComment — bd arm", () => {
-  test("first-write into null notes appends marker + body", () => {
-    const bdCalls: BdCallTag[] = [];
-    runIntakeComment(
-      makeOpts({ canonicalId: "ai-home-gmkwh", body: "first note" }),
-      { log: () => undefined, error: () => undefined },
-      {
-        run: recordingRun(bdCalls) as never,
-        loadAllBeads: (() => [bdRecord({ id: "ai-home-gmkwh", notes: null })]) as never,
-      },
-    );
-    const notesArg = bdCalls[0]!.args[bdCalls[0]!.args.indexOf("--notes") + 1]!;
-    // Marker first (no prior content), body second, separated by newline.
-    expect(notesArg).toMatch(/^\[prx-intake-comment sha256-prefix=[0-9a-f]{8}\]\nfirst note$/);
-  });
-
-  test("append onto non-empty prior notes preserves prior content with blank-line separator", () => {
-    const bdCalls: BdCallTag[] = [];
-    runIntakeComment(
-      makeOpts({ canonicalId: "ai-home-gmkwh", body: "second" }),
-      { log: () => undefined, error: () => undefined },
-      {
-        run: recordingRun(bdCalls) as never,
-        loadAllBeads: (() => [
-          bdRecord({ id: "ai-home-gmkwh", notes: "existing hand note" }),
-        ]) as never,
-      },
-    );
-    const notesArg = bdCalls[0]!.args[bdCalls[0]!.args.indexOf("--notes") + 1]!;
-    expect(notesArg.startsWith("existing hand note\n\n")).toBe(true);
-    expect(notesArg).toContain("[prx-intake-comment sha256-prefix=");
-    expect(notesArg.endsWith("\nsecond")).toBe(true);
-  });
-
-  test("re-run with same body is an idempotent no-op (no bd update spawned)", () => {
-    const bdCalls: BdCallTag[] = [];
-    const logs: string[] = [];
-    // Pre-seed notes with what the first run would have written.
-    const firstRunCalls: BdCallTag[] = [];
-    runIntakeComment(
-      makeOpts({ canonicalId: "ai-home-gmkwh", body: "follow-up" }),
-      { log: () => undefined, error: () => undefined },
-      {
-        run: recordingRun(firstRunCalls) as never,
-        loadAllBeads: (() => [bdRecord({ id: "ai-home-gmkwh", notes: null })]) as never,
-      },
-    );
-    const seededNotes = firstRunCalls[0]!.args[firstRunCalls[0]!.args.indexOf("--notes") + 1]!;
-
-    const exitCode = runIntakeComment(
-      makeOpts({ canonicalId: "ai-home-gmkwh", body: "follow-up" }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      {
-        run: recordingRun(bdCalls) as never,
-        loadAllBeads: (() => [bdRecord({ id: "ai-home-gmkwh", notes: seededNotes })]) as never,
-      },
-    );
-
-    expect(exitCode).toBe(0);
-    expect(bdCalls).toHaveLength(0);
-    expect(logs.join("\n")).toContain("already present");
-  });
-
-  test("no bd record found → refusal, no bd update spawned", () => {
-    const bdCalls: BdCallTag[] = [];
-    const errors: string[] = [];
-    const exitCode = runIntakeComment(
-      makeOpts({ canonicalId: "ai-home-missing", body: "x" }),
-      { log: () => undefined, error: (l) => errors.push(l) },
-      {
-        run: recordingRun(bdCalls) as never,
-        loadAllBeads: (() => []) as never,
-      },
-    );
-    expect(exitCode).toBe(1);
-    expect(bdCalls).toHaveLength(0);
-    expect(errors.join("\n")).toContain("no bd record");
-    expect(errors.join("\n")).toContain("ai-home-missing");
-  });
-
-  test("loadAllBeads throwing surfaces as 'bd unreachable'", () => {
-    const errors: string[] = [];
-    const exitCode = runIntakeComment(
-      makeOpts({ canonicalId: "ai-home-gmkwh", body: "x" }),
-      { log: () => undefined, error: (l) => errors.push(l) },
-      {
-        execBd: (() => bdOk()) as never,
-        loadAllBeads: (() => {
-          throw new Error("triage status: bd list failed");
-        }) as never,
-      },
-    );
-    expect(exitCode).toBe(1);
-    expect(errors.join("\n")).toContain("bd unreachable");
-  });
-
-  test("bd update failure propagates exit code and stderr", () => {
-    const errors: string[] = [];
-    const exitCode = runIntakeComment(
-      makeOpts({ canonicalId: "ai-home-gmkwh", body: "x" }),
-      { log: () => undefined, error: (l) => errors.push(l) },
-      {
-        run: recordingRun([], bdFail("bd-safe: blocked", 2)) as never,
-        loadAllBeads: (() => [bdRecord({ id: "ai-home-gmkwh", notes: null })]) as never,
-      },
-    );
-    expect(exitCode).toBe(2);
-    expect(errors.join("\n")).toContain("bd-safe: blocked");
-    expect(errors.join("\n")).toContain("prx intake comment");
-  });
-
-  test("--repo is silently ignored on the bd arm (bd has no per-repo flag)", () => {
-    const bdCalls: BdCallTag[] = [];
-    runIntakeComment(
-      makeOpts({ canonicalId: "ai-home-gmkwh", body: "x", repo: "o/r" }),
-      { log: () => undefined, error: () => undefined },
-      {
-        run: recordingRun(bdCalls) as never,
-        loadAllBeads: (() => [bdRecord({ id: "ai-home-gmkwh", notes: null })]) as never,
-      },
-    );
-    expect(bdCalls).toHaveLength(1);
-    expect(bdCalls[0]!.args).not.toContain("--repo");
-    expect(bdCalls[0]!.args).not.toContain("o/r");
-  });
-
-  test("dry-run on bd arm renders 'bd update' argv without spawning", () => {
-    const bdCalls: BdCallTag[] = [];
-    const logs: string[] = [];
-    const exitCode = runIntakeComment(
-      makeOpts({ canonicalId: "ai-home-gmkwh", body: "preview", dryRun: true }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      {
-        run: recordingRun(bdCalls) as never,
-        loadAllBeads: (() => [bdRecord({ id: "ai-home-gmkwh", notes: null })]) as never,
-      },
-    );
-    expect(exitCode).toBe(0);
-    expect(bdCalls).toHaveLength(0);
-    const out = logs[0]!;
-    expect(out).toContain("dry-run");
-    expect(out).toContain("canonical:  ai-home-gmkwh");
-    expect(out).toContain("backend:    bd");
-    expect(out).toContain("would run:");
-    expect(out).toContain("bd update ai-home-gmkwh --notes");
-  });
-
-  test("dry-run json output for bd arm carries backend=bd and bdUpdateArgv", () => {
-    const logs: string[] = [];
-    runIntakeComment(
-      makeOpts({
-        canonicalId: "ai-home-gmkwh",
-        body: "preview",
-        dryRun: true,
-        format: "json",
-      }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      {
-        execBd: (() => bdOk()) as never,
-        loadAllBeads: (() => [bdRecord({ id: "ai-home-gmkwh", notes: null })]) as never,
-      },
-    );
-    const parsed = JSON.parse(logs[0]!) as {
-      backend: "bd";
-      bdId: string;
-      marker: string;
-      body: string;
-      bdUpdateArgv: string[];
-      alreadyPresent: boolean;
-      dryRun: boolean;
-    };
-    expect(parsed.backend).toBe("bd");
-    expect(parsed.bdId).toBe("ai-home-gmkwh");
-    expect(parsed.body).toBe("preview");
-    expect(parsed.marker).toMatch(/^\[prx-intake-comment sha256-prefix=[0-9a-f]{8}\]$/);
-    expect(parsed.alreadyPresent).toBe(false);
-    expect(parsed.dryRun).toBe(true);
-    expect(parsed.bdUpdateArgv[0]).toBe("ai-home-gmkwh");
-    expect(parsed.bdUpdateArgv).toContain("--notes");
   });
 });
 

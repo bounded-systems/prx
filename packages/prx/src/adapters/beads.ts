@@ -37,7 +37,11 @@
  */
 
 import { localWorkspacePrefixForCwd } from "../pr-state/repos.ts";
-import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../triage/triage.ts";
+// GH-1012: the aggregate bd read now comes from Front Desk (GH-canonical) via
+// `loadAllBeadsViaCli` — same sync `() => BeadsRecord[]` contract the deleted
+// `triage/triage.ts#loadAllBeads` used to provide.
+import { loadAllBeadsViaCli as defaultLoadAllBeads } from "../triage/beads-daemon-loader.ts";
+import { type BeadsRecord } from "../triage/triage.ts";
 import {
   BD_LONG_ID_PATTERN,
   BD_SURFACE_ID_PATTERN,
@@ -134,7 +138,7 @@ export class ForeignWorkspacePrefixError extends Error {
 }
 
 export type BdDomainAdapterDeps = {
-  /** Loader for the full bd record set. Defaults to `loadAllBeads`. */
+  /** Loader for the full bd record set. Defaults to `loadAllBeadsViaCli` (Front Desk). */
   loadAllBeads?: typeof defaultLoadAllBeads;
   /** cwd source. Defaults to `process.cwd`. */
   cwd?: () => string;

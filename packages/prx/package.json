@@ -17,7 +17,6 @@
     "@bounded-systems/anchored-chain-sqlite": "npm:@jsr/bounded-systems__anchored-chain-sqlite@^0.2.1",
     "@bounded-systems/audit-context": "npm:@jsr/bounded-systems__audit-context@^0.2.0",
     "@bounded-systems/auth": "npm:@jsr/bounded-systems__auth@^0.2.0",
-    "@bounded-systems/bd": "npm:@jsr/bounded-systems__bd@^0.3.1",
     "@bounded-systems/cas": "npm:@jsr/bounded-systems__cas@^0.1.1",
     "@bounded-systems/disposition": "npm:@jsr/bounded-systems__disposition@^0.2.0",
     "@bounded-systems/door-kit": "npm:@jsr/bounded-systems__door-kit@^0.6.0",

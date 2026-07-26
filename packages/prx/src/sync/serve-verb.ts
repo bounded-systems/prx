@@ -15,17 +15,14 @@ import {
   type SyncServeHandle,
   type SyncServeOutput,
 } from "./serve.ts";
-import { runBeadsSyncAcrossRepos } from "./run-cross-repo.ts";
 import { runDoltReconcileAcrossRepos } from "./run-dolt-reconcile-cross-repo.ts";
-import { DEFAULT_SYNC_LIMIT } from "./limits.ts";
 
-/** The real domain↔GH pass: reconcile every inventory repo against GitHub. */
-async function beadsSyncPass(output: SyncServeOutput): Promise<{ exitCode: number }> {
-  const r = await runBeadsSyncAcrossRepos(
-    { dryRun: false, domain: "gh", limit: DEFAULT_SYNC_LIMIT, format: "plain" },
-    output,
-  );
-  return { exitCode: r.exitCode };
+/** Former domain↔GH cross-repo pass. The bd-backed cross-repo sync
+ *  (`runBeadsSyncAcrossRepos`) was removed with the beads machinery (GH-1012);
+ *  the write plane is now GitHub directly. Kept as a no-op so the sync agent's
+ *  dolt-reconcile loop is unchanged and `serve`'s required dep is satisfied. */
+async function beadsSyncPass(_output: SyncServeOutput): Promise<{ exitCode: number }> {
+  return { exitCode: 0 };
 }
 
 /** The real dolt pass: full commit→pull→push reconcile of every eligible repo. */
@@ -64,7 +61,9 @@ export const syncServeVerb = defineVerb({
       .int()
       .positive()
       .optional()
-      .describe(`seconds between cross-repo reconcile passes (default ${DEFAULT_SYNC_INTERVAL_MS / 1000})`),
+      .describe(
+        `seconds between cross-repo reconcile passes (default ${DEFAULT_SYNC_INTERVAL_MS / 1000})`,
+      ),
     pidfile: z.string().optional().describe("write the daemon pid here (removed on close)"),
     // Accepted for daemon-lifecycle uniformity (the generic launcher passes --cwd
     // to every serve command). The sync agent is host-global / cross-repo, not

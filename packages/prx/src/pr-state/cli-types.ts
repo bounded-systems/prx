@@ -1,6 +1,5 @@
 import type { SurfaceSyncAction } from "@bounded-systems/surface-sync";
 import { type TaskContract } from "./task.ts";
-import { type BdSchemaProbeResult, type BdSchemaRepairResult } from "../beads/schema_repair.ts";
 
 // Extracted from packages/prx/src/pr-state/cli.ts by scripts/codemod/extract-module.ts — part of the
 // §4 decomposition of the pr-state/cli.ts monolith into focused modules.
@@ -66,7 +65,6 @@ export type WorkUnitChainCheckResult = {
     // artifact (a plan in CAS) already links it locally. The artifact graph IS
     // the projection — entry is allowed and the consumer validates the artifact.
     | "artifact_projected";
-  bdSchemaProbe?: BdSchemaProbeResult;
 };
 
 export type SessionOpenCheckReport = {
@@ -134,5 +132,3 @@ export type ParityChainApplyResult = {
   stdout: string;
   stderr: string;
 };
-
-export type RepairBdEntry = { cwd: string; result: BdSchemaRepairResult };

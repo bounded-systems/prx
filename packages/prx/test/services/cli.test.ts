@@ -6,7 +6,11 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 
-import { runServicesDiamond, runServicesSeries, runServicesStatus } from "../../src/services/cli.ts";
+import {
+  runServicesDiamond,
+  runServicesSeries,
+  runServicesStatus,
+} from "../../src/services/cli.ts";
 
 function seedDb(): Database {
   const db = new Database(":memory:");
@@ -79,21 +83,54 @@ function seedDbWithTransitions(): Database {
   `);
   // GH-1: merged (completed), model = claude-opus-4-8
   db.run(`INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
-    "e-1", "2026-05-15T00:00:00Z", "claude-code", "non-interactive-agent",
-    "GH-1", null, null,
-    JSON.stringify({ ts: "2026-05-15T00:00:00Z", kind: "non-interactive-agent", subkind: "usage",
-      workUnitId: "GH-1", model: "claude-opus-4-8", input_tokens: 100,
-      cache_read_input_tokens: 800, total_cost_usd: 5.0 }),
+    "e-1",
+    "2026-05-15T00:00:00Z",
+    "claude-code",
+    "non-interactive-agent",
+    "GH-1",
+    null,
+    null,
+    JSON.stringify({
+      ts: "2026-05-15T00:00:00Z",
+      kind: "non-interactive-agent",
+      subkind: "usage",
+      workUnitId: "GH-1",
+      model: "claude-opus-4-8",
+      input_tokens: 100,
+      cache_read_input_tokens: 800,
+      total_cost_usd: 5.0,
+    }),
   ]);
-  db.run(`INSERT INTO transitions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ["tr-1", "GH-1", "open", "merged", "test", null, "2026-05-15T01:00:00Z", null, null]);
+  db.run(`INSERT INTO transitions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
+    "tr-1",
+    "GH-1",
+    "open",
+    "merged",
+    "test",
+    null,
+    "2026-05-15T01:00:00Z",
+    null,
+    null,
+  ]);
   // GH-2: in_progress (no transition), model = claude-haiku-4-5
   db.run(`INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
-    "e-2", "2026-05-15T00:01:00Z", "claude-code", "non-interactive-agent",
-    "GH-2", null, null,
-    JSON.stringify({ ts: "2026-05-15T00:01:00Z", kind: "non-interactive-agent", subkind: "usage",
-      workUnitId: "GH-2", model: "claude-haiku-4-5", input_tokens: 10,
-      cache_read_input_tokens: 90, total_cost_usd: 0.2 }),
+    "e-2",
+    "2026-05-15T00:01:00Z",
+    "claude-code",
+    "non-interactive-agent",
+    "GH-2",
+    null,
+    null,
+    JSON.stringify({
+      ts: "2026-05-15T00:01:00Z",
+      kind: "non-interactive-agent",
+      subkind: "usage",
+      workUnitId: "GH-2",
+      model: "claude-haiku-4-5",
+      input_tokens: 10,
+      cache_read_input_tokens: 90,
+      total_cost_usd: 0.2,
+    }),
   ]);
   return db;
 }
@@ -190,7 +227,9 @@ describe("runServicesSeries", () => {
     );
     expect(code).toBe(0);
     expect(logs.some((l) => l.includes("series"))).toBe(true);
-    expect(logs.some((l) => l.includes("claude-opus-4-8") || l.includes("claude-haiku-4-5"))).toBe(true);
+    expect(logs.some((l) => l.includes("claude-opus-4-8") || l.includes("claude-haiku-4-5"))).toBe(
+      true,
+    );
   });
 });
 

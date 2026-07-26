@@ -21,7 +21,8 @@ import { runKeeperServe, type KeeperServer } from "../../src/keeperd/daemon.ts";
 const { publicKey, privateKey } = generateKeyPairSync("ed25519");
 const publicKeyPem = publicKey.export({ type: "spki", format: "pem" }).toString();
 const keys: IssuerKeys = { keys: [{ kid: "k1", publicKeyPem }] };
-const sign = (d: string): string => cryptoSign(null, Buffer.from(d, "utf8"), privateKey).toString("base64");
+const sign = (d: string): string =>
+  cryptoSign(null, Buffer.from(d, "utf8"), privateKey).toString("base64");
 const AUDIENCE = "claude-room";
 
 function mintGrant(door = "keeper", audience = AUDIENCE): SignedGrant {
@@ -37,12 +38,18 @@ function mintGrant(door = "keeper", audience = AUDIENCE): SignedGrant {
   return signGrant(grant, binding, sign);
 }
 
-type Resp = { id: string; ok: boolean; result?: unknown; error?: { code: string; message: string } };
+type Resp = {
+  id: string;
+  ok: boolean;
+  result?: unknown;
+  error?: { code: string; message: string };
+};
 
 /** Minimal newline-JSON client (TCP or unix) — the wire createDoorHandlers speaks. */
 function send(target: { port: number } | { path: string }, req: unknown): Promise<Resp> {
   return new Promise((resolve, reject) => {
-    const opts = "port" in target ? { host: "127.0.0.1", port: target.port } : { path: target.path };
+    const opts =
+      "port" in target ? { host: "127.0.0.1", port: target.port } : { path: target.path };
     const c = connect(opts, () => c.write(JSON.stringify(req) + "\n"));
     let buf = "";
     c.on("data", (d: Buffer) => {
@@ -83,7 +90,10 @@ describe("runKeeperServe TCP grant gate (prx-8uf2)", () => {
 
   test("TCP + gate: a request with NO grant is denied before dispatch", async () => {
     const p = port();
-    server = await runKeeperServe({ socketPath: `127.0.0.1:${p}`, grantGate: { keys, audience: AUDIENCE } });
+    server = await runKeeperServe({
+      socketPath: `127.0.0.1:${p}`,
+      grantGate: { keys, audience: AUDIENCE },
+    });
     const res = await send({ port: p }, pushReq());
     expect(res.ok).toBe(false);
     expect(res.error?.code).toBe("UNAUTHENTICATED");
@@ -91,7 +101,10 @@ describe("runKeeperServe TCP grant gate (prx-8uf2)", () => {
 
   test("TCP + gate: a grant minted for a DIFFERENT door is denied", async () => {
     const p = port();
-    server = await runKeeperServe({ socketPath: `127.0.0.1:${p}`, grantGate: { keys, audience: AUDIENCE } });
+    server = await runKeeperServe({
+      socketPath: `127.0.0.1:${p}`,
+      grantGate: { keys, audience: AUDIENCE },
+    });
     const res = await send({ port: p }, pushReq(mintGrant("forge")));
     expect(res.ok).toBe(false);
     expect(res.error?.code).toBe("UNAUTHENTICATED");
@@ -99,7 +112,10 @@ describe("runKeeperServe TCP grant gate (prx-8uf2)", () => {
 
   test("TCP + gate: a valid grant passes the gate and reaches dispatch", async () => {
     const p = port();
-    server = await runKeeperServe({ socketPath: `127.0.0.1:${p}`, grantGate: { keys, audience: AUDIENCE } });
+    server = await runKeeperServe({
+      socketPath: `127.0.0.1:${p}`,
+      grantGate: { keys, audience: AUDIENCE },
+    });
     // Minimal params fail the keeper wire contract → a bad-request VERDICT wrapped
     // in an ok envelope. The point: it is NOT UNAUTHENTICATED — the gate let it in.
     const res = await send({ port: p }, pushReq(mintGrant()));
@@ -116,13 +132,18 @@ describe("runKeeperServe TCP grant gate (prx-8uf2)", () => {
     });
     const res = await send({ port: p }, pushReq()); // no grant, no gate → reaches dispatch
     expect(res.ok).toBe(true);
-    expect(logs.some(([l, m]) => l === "WARN" && /CREDENTIAL door over TCP with NO grant gate/.test(m))).toBe(true);
+    expect(
+      logs.some(([l, m]) => l === "WARN" && /CREDENTIAL door over TCP with NO grant gate/.test(m)),
+    ).toBe(true);
   });
 
   test("UNIX: the gate is bypassed — a no-grant request is served (held-ref = authority)", async () => {
     unixPath = join(tmpdir(), `keeperd-gate-${process.pid}-${counter++}.sock`);
     // A grantGate is supplied, but a unix listener must ignore it entirely.
-    server = await runKeeperServe({ socketPath: unixPath, grantGate: { keys, audience: AUDIENCE } });
+    server = await runKeeperServe({
+      socketPath: unixPath,
+      grantGate: { keys, audience: AUDIENCE },
+    });
     const res = await send({ path: unixPath }, pushReq());
     expect(res.ok).toBe(true); // reached dispatch with no grant — unix never gates
   });

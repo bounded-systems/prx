@@ -7,7 +7,6 @@ import { afterEach, describe, expect, test } from "bun:test";
 // import shape `src/sync/run.ts` and other production callers use via the
 // `src/adapters/index.ts` barrel.
 import "../../src/adapters/github.ts";
-import "../../src/adapters/notion.ts";
 import "../../src/adapters/beads.ts";
 
 import {

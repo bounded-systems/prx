@@ -9,10 +9,7 @@ import { canonicalWorkUnitIdPattern } from "../../src/machine/work_unit.ts";
 import type { GhExecResult } from "@bounded-systems/gh";
 import type { GhIssueCloseResult } from "../../src/tools/gh_issue_close.ts";
 import type { GhPrViewResult } from "../../src/tools/gh_pr_view.ts";
-import type { BdIssueCloseResult } from "../../src/tools/bd_issue_close.ts";
-import type { BdShowResult } from "@bounded-systems/bd";
 import type { IdentityConfig } from "../../src/pr-state/github.ts";
-import type { LocalRepo, RepoInventory, RepoInventoryConfig } from "../../src/pr-state/repos.ts";
 
 type PrViewTag = { kind: "pr-view"; number: number };
 type GhCall = { kind: "gh"; subcommand: string; args: string[] };
@@ -22,9 +19,7 @@ type CloseCall = {
   reason?: string | undefined;
   repo?: string | undefined;
 };
-type BdShowCall = { kind: "bd-show"; id: string };
-type BdCloseCall = { kind: "bd-close"; id: string };
-type CallTag = PrViewTag | GhCall | CloseCall | BdShowCall | BdCloseCall;
+type CallTag = PrViewTag | GhCall | CloseCall;
 
 const defaultIdentity: IdentityConfig = {
   sources: {
@@ -84,66 +79,12 @@ function closeOk(stdout = ""): GhIssueCloseResult {
   return { exitCode: 0, stdout, stderr: "" };
 }
 
-function bdCloseOk(stdout = ""): BdIssueCloseResult {
-  return { exitCode: 0, stdout, stderr: "" };
-}
-
-function bdShowOk(id: string, status: string): BdShowResult {
-  return {
-    ok: true,
-    record: { id, title: "", status },
-    stdout: "",
-    stderr: "",
-  };
-}
-
-// GH-1806: minimal inventory stubs for the cross-workspace classification
-// arm. `inventoryConfigStub` puts an in-memory indexPath so postmerge calls
-// `loadRepoInventoryIndex`; `inventoryWith` returns whatever stub repo list
-// the test supplies.
-function inventoryConfigStub(indexPath: string | null = "/stub/index.json"): RepoInventoryConfig {
-  return {
-    repoRoot: null,
-    bareRoot: null,
-    roots: [],
-    everywhereRoots: [],
-    globalConfigPath: null,
-    configPath: null,
-    indexPath,
-  };
-}
-
-function inventoryWith(repos: LocalRepo[]): RepoInventory {
-  return { roots: [], repos };
-}
-
-function bareRepo(name: string, commonDir: string, prefix: string): LocalRepo {
-  return {
-    name,
-    commonDir,
-    kind: "bare",
-    mainWorktree: null,
-    worktrees: [],
-    localOnlyBranches: [],
-    findings: [],
-    remotes: [],
-    primaryRemote: null,
-    upstreamRemote: null,
-    bd_workspace_prefix: prefix,
-  };
-}
-
 function makeDeps(opts: {
   calls: CallTag[];
   prView: () => GhPrViewResult;
   issueViewState?: Record<number, "OPEN" | "CLOSED">;
   perGhSubcommand?: Partial<Record<string, () => GhExecResult>>;
   close?: () => GhIssueCloseResult;
-  bdShowState?: Record<string, string>;
-  bdShow?: (id: string) => BdShowResult;
-  bdClose?: (id: string) => BdIssueCloseResult;
-  inventory?: RepoInventory | null;
-  localPrefix?: string | null;
 }) {
   return {
     execGhPrView: ((req: { number: number }) => {
@@ -170,24 +111,7 @@ function makeDeps(opts: {
       });
       return (opts.close ?? closeOk)();
     }) as never,
-    runBdShow: ((id: string) => {
-      opts.calls.push({ kind: "bd-show", id });
-      if (opts.bdShow) return opts.bdShow(id);
-      const status = opts.bdShowState?.[id] ?? "open";
-      return bdShowOk(id, status);
-    }) as never,
-    execBdIssueClose: ((req: { id: string }) => {
-      opts.calls.push({ kind: "bd-close", id: req.id });
-      return (opts.bdClose ?? bdCloseOk)(req.id);
-    }) as never,
     loadIdentityConfig: (() => defaultIdentity) as never,
-    // GH-1806: inventory + local-prefix stubs threaded through the new
-    // PostmergeDeps slots. Default to an empty inventory (no foreign repos)
-    // so existing test cases keep their current behavior.
-    loadRepoInventoryConfig: (() =>
-      inventoryConfigStub(opts.inventory === undefined ? null : "/stub/index.json")) as never,
-    loadRepoInventoryIndex: (() => opts.inventory ?? null) as never,
-    localWorkspacePrefixForCwd: (() => opts.localPrefix ?? null) as never,
   };
 }
 
@@ -345,7 +269,7 @@ describe("runPostmerge — dry-run", () => {
   });
 });
 
-describe("runPostmerge — notion refs are filtered (no bd/gh shape)", () => {
+describe("runPostmerge — notion refs are filtered (no gh shape)", () => {
   test("notion-only refs in the body do not trigger any close calls", () => {
     const calls: CallTag[] = [];
     runPostmerge(
@@ -357,386 +281,13 @@ describe("runPostmerge — notion refs are filtered (no bd/gh shape)", () => {
           prViewOk({
             number: 200,
             title: "feat: cleanup (#200)",
-            body: "References NOTION-1234567890abcdef1234567890abcdef but no GH/bd refs.",
+            body: "References NOTION-1234567890abcdef1234567890abcdef but no GH refs.",
             closing: [],
           }),
       }),
     );
     expect(calls.filter((c) => c.kind === "close")).toHaveLength(0);
-    expect(calls.filter((c) => c.kind === "bd-close")).toHaveLength(0);
     expect(calls.filter((c) => c.kind === "gh")).toHaveLength(0);
-  });
-});
-
-describe("runPostmerge — bd-canonical close loop (GH-1773)", () => {
-  test("bd-only PR closes the bd record after preflight (status open)", () => {
-    const calls: CallTag[] = [];
-    const logs: string[] = [];
-    const exit = runPostmerge(
-      makeOpts({ prNumber: 400 }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      makeDeps({
-        calls,
-        prView: () =>
-          prViewOk({
-            number: 400,
-            title: "feat: ship (#400)",
-            body: "Refs BD-deadbeef\n",
-            closing: [],
-          }),
-      }),
-    );
-    expect(exit).toBe(0);
-    expect(calls.filter((c) => c.kind === "close")).toHaveLength(0);
-    expect(calls.filter((c) => c.kind === "bd-show")).toEqual([
-      { kind: "bd-show", id: "BD-deadbeef" },
-    ]);
-    expect(calls.filter((c) => c.kind === "bd-close")).toEqual([
-      { kind: "bd-close", id: "BD-deadbeef" },
-    ]);
-  });
-
-  test("mixed PR closes both GH and bd targets, deterministic order", () => {
-    const calls: CallTag[] = [];
-    const exit = runPostmerge(
-      makeOpts({ prNumber: 401 }),
-      { log: () => undefined, error: () => undefined },
-      makeDeps({
-        calls,
-        prView: () =>
-          prViewOk({
-            number: 401,
-            title: "feat (GH-885) (#401)",
-            body: "Closes #885\n\nRefs BD-cafebabe",
-            closing: [885],
-          }),
-      }),
-    );
-    expect(exit).toBe(0);
-    expect(calls.filter((c) => c.kind === "close")).toHaveLength(0);
-    expect(calls.filter((c) => c.kind === "bd-show")).toEqual([
-      { kind: "bd-show", id: "BD-cafebabe" },
-    ]);
-    expect(calls.filter((c) => c.kind === "bd-close")).toEqual([
-      { kind: "bd-close", id: "BD-cafebabe" },
-    ]);
-  });
-
-  test("idempotency: already-closed bd record is skipped", () => {
-    const calls: CallTag[] = [];
-    const exit = runPostmerge(
-      makeOpts({ prNumber: 402 }),
-      { log: () => undefined, error: () => undefined },
-      makeDeps({
-        calls,
-        bdShowState: { "BD-deadbeef": "closed" },
-        prView: () =>
-          prViewOk({
-            number: 402,
-            title: "feat (#402)",
-            body: "Refs BD-deadbeef",
-            closing: [],
-          }),
-      }),
-    );
-    expect(exit).toBe(0);
-    expect(calls.filter((c) => c.kind === "bd-show")).toHaveLength(1);
-    expect(calls.filter((c) => c.kind === "bd-close")).toHaveLength(0);
-  });
-
-  test("non-canonical bd ref (no 8-hex tail) is surfaced as skip-unrecognized", () => {
-    // Identity overlay that accepts a semantic-id bd shape (pin.9.4.2-style
-    // workspaces have no 8-hex tail). Mirrors a real canonical=bd repo where
-    // `normalizeToBdSurfaceShort` legitimately returns null.
-    const semanticIdentity: IdentityConfig = {
-      sources: {
-        github: {
-          name: "github",
-          kind: "github",
-          canonicalIdPattern: /^BD-[a-z]+$/,
-          source: "<test>",
-        },
-      },
-      defaultSourceName: "github",
-      isDefault: false,
-    };
-    const calls: CallTag[] = [];
-    const logs: string[] = [];
-    const deps = makeDeps({
-      calls,
-      prView: () =>
-        prViewOk({
-          number: 403,
-          title: "feat (#403)",
-          body: "Refs BD-semantic\n",
-          closing: [],
-        }),
-    });
-    deps.loadIdentityConfig = (() => semanticIdentity) as never;
-    const exit = runPostmerge(
-      makeOpts({ prNumber: 403, format: "json" }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      deps,
-    );
-    expect(exit).toBe(0);
-    expect(calls.filter((c) => c.kind === "bd-show")).toHaveLength(0);
-    expect(calls.filter((c) => c.kind === "bd-close")).toHaveLength(0);
-    const parsed = JSON.parse(logs[0]!);
-    const skip = parsed.targets.find((t: { kind: string }) => t.kind === "skip:bd-unrecognized");
-    expect(skip).toBeDefined();
-    expect(skip.raw).toBe("BD-semantic");
-  });
-
-  test("bd close error → exit 1, error-bd target surfaced", () => {
-    const calls: CallTag[] = [];
-    const exit = runPostmerge(
-      makeOpts({ prNumber: 404 }),
-      { log: () => undefined, error: () => undefined },
-      makeDeps({
-        calls,
-        bdClose: () => ({ exitCode: 1, stdout: "", stderr: "bd: boom" }),
-        prView: () =>
-          prViewOk({
-            number: 404,
-            title: "feat (#404)",
-            body: "Refs BD-deadbeef",
-            closing: [],
-          }),
-      }),
-    );
-    expect(exit).toBe(1);
-  });
-
-  test("dry-run renders bd close argv without spawning bd-show/bd-close", () => {
-    const calls: CallTag[] = [];
-    const logs: string[] = [];
-    const exit = runPostmerge(
-      makeOpts({ prNumber: 405, dryRun: true }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      makeDeps({
-        calls,
-        prView: () =>
-          prViewOk({
-            number: 405,
-            title: "feat (#405)",
-            body: "Refs BD-deadbeef",
-            closing: [],
-          }),
-      }),
-    );
-    expect(exit).toBe(0);
-    expect(calls.filter((c) => c.kind === "bd-show")).toHaveLength(0);
-    expect(calls.filter((c) => c.kind === "bd-close")).toHaveLength(0);
-    const out = logs[0]!;
-    expect(out).toContain("BD-deadbeef");
-    expect(out).toContain("would close");
-    expect(out).toContain("bd close BD-deadbeef");
-  });
-
-  test("JSON render exposes bdCandidates + closed-bd targets", () => {
-    const calls: CallTag[] = [];
-    const logs: string[] = [];
-    runPostmerge(
-      makeOpts({ prNumber: 406, format: "json" }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      makeDeps({
-        calls,
-        prView: () =>
-          prViewOk({
-            number: 406,
-            title: "feat (#406)",
-            body: "Refs BD-deadbeef\nClosing #885",
-            closing: [],
-          }),
-      }),
-    );
-    const parsed = JSON.parse(logs[0]!);
-    expect(parsed.bdCandidates).toEqual(["BD-deadbeef"]);
-    const closedBd = parsed.targets.find((t: { kind: string }) => t.kind === "closed-bd");
-    expect(closedBd).toBeDefined();
-    expect(closedBd.id).toBe("BD-deadbeef");
-  });
-});
-
-describe("runPostmerge — cross-workspace bd refs (GH-1806)", () => {
-  test("foreign bd long-id with pinned prefix → skip:bd-foreign-workspace, no bd-show/close", () => {
-    const foreignRef = "BD-beta-1234567890123-1-deadbeef";
-    const calls: CallTag[] = [];
-    const logs: string[] = [];
-    const exit = runPostmerge(
-      makeOpts({ prNumber: 500, format: "json" }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      makeDeps({
-        calls,
-        localPrefix: "alpha",
-        inventory: inventoryWith([
-          bareRepo("alpha-repo", "/bare/alpha.git", "alpha"),
-          bareRepo("beta-repo", "/bare/beta.git", "beta"),
-        ]),
-        prView: () =>
-          prViewOk({
-            number: 500,
-            title: "feat (#500)",
-            body: `Refs ${foreignRef}\n`,
-            closing: [],
-          }),
-      }),
-    );
-    expect(exit).toBe(0);
-    expect(calls.filter((c) => c.kind === "bd-show")).toHaveLength(0);
-    expect(calls.filter((c) => c.kind === "bd-close")).toHaveLength(0);
-    const parsed = JSON.parse(logs[0]!);
-    const skip = parsed.targets.find(
-      (t: { kind: string }) => t.kind === "skip:bd-foreign-workspace",
-    );
-    expect(skip).toBeDefined();
-    expect(skip.raw).toBe(foreignRef);
-    expect(skip.prefix).toBe("beta");
-    expect(skip.repo).toBe("beta-repo");
-  });
-
-  test("foreign bd long-id with no inventory pin → skip:bd-missing-pin with hint", () => {
-    const foreignRef = "BD-orphan-1234567890123-1-deadbeef";
-    const calls: CallTag[] = [];
-    const logs: string[] = [];
-    const exit = runPostmerge(
-      makeOpts({ prNumber: 501 }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      makeDeps({
-        calls,
-        localPrefix: "alpha",
-        inventory: inventoryWith([bareRepo("alpha-repo", "/bare/alpha.git", "alpha")]),
-        prView: () =>
-          prViewOk({
-            number: 501,
-            title: "feat (#501)",
-            body: `Refs ${foreignRef}\n`,
-            closing: [],
-          }),
-      }),
-    );
-    expect(exit).toBe(0);
-    expect(calls.filter((c) => c.kind === "bd-show")).toHaveLength(0);
-    expect(calls.filter((c) => c.kind === "bd-close")).toHaveLength(0);
-    const out = logs[0]!;
-    expect(out).toContain("skip");
-    expect(out).toContain(foreignRef);
-    expect(out).toContain('"orphan"');
-    expect(out).toContain("prx repo add");
-  });
-
-  test("local bd long-id (prefix === local) still closes via existing path", () => {
-    const localRef = "BD-alpha-1234567890123-1-cafebabe";
-    const calls: CallTag[] = [];
-    const exit = runPostmerge(
-      makeOpts({ prNumber: 502 }),
-      { log: () => undefined, error: () => undefined },
-      makeDeps({
-        calls,
-        localPrefix: "alpha",
-        inventory: inventoryWith([bareRepo("alpha-repo", "/bare/alpha.git", "alpha")]),
-        prView: () =>
-          prViewOk({
-            number: 502,
-            title: "feat (#502)",
-            body: `Refs ${localRef}\n`,
-            closing: [],
-          }),
-      }),
-    );
-    expect(exit).toBe(0);
-    expect(calls.filter((c) => c.kind === "bd-show")).toEqual([
-      { kind: "bd-show", id: "BD-cafebabe" },
-    ]);
-    expect(calls.filter((c) => c.kind === "bd-close")).toEqual([
-      { kind: "bd-close", id: "BD-cafebabe" },
-    ]);
-  });
-
-  test("short-form bd id (no embedded prefix) still closes via existing path", () => {
-    const calls: CallTag[] = [];
-    const exit = runPostmerge(
-      makeOpts({ prNumber: 503 }),
-      { log: () => undefined, error: () => undefined },
-      makeDeps({
-        calls,
-        // Even with a foreign inventory pinned to another prefix, a short-form
-        // ref carries no prefix and routes locally — this guards against
-        // accidental routing of `BD-<8hex>` ids through `decideRoute`.
-        localPrefix: "alpha",
-        inventory: inventoryWith([
-          bareRepo("alpha-repo", "/bare/alpha.git", "alpha"),
-          bareRepo("beta-repo", "/bare/beta.git", "beta"),
-        ]),
-        prView: () =>
-          prViewOk({
-            number: 503,
-            title: "feat (#503)",
-            body: "Refs BD-deadbeef\n",
-            closing: [],
-          }),
-      }),
-    );
-    expect(exit).toBe(0);
-    expect(calls.filter((c) => c.kind === "bd-show")).toEqual([
-      { kind: "bd-show", id: "BD-deadbeef" },
-    ]);
-    expect(calls.filter((c) => c.kind === "bd-close")).toEqual([
-      { kind: "bd-close", id: "BD-deadbeef" },
-    ]);
-  });
-
-  test("narrowed overlay does not hide foreign long-id — safety-net surfaces skip:bd-foreign-workspace", () => {
-    // Identity overlay that only accepts a semantic-id bd shape, so the
-    // foreign-prefix long-id would be filtered by `extractCanonicalRefs`.
-    // The GH-1806 safety-net union scan must still surface it.
-    const foreignRef = "BD-beta-1234567890123-1-deadbeef";
-    const semanticIdentity: IdentityConfig = {
-      sources: {
-        github: {
-          name: "github",
-          kind: "github",
-          canonicalIdPattern: /^BD-[a-z]+$/,
-          source: "<test>",
-        },
-      },
-      defaultSourceName: "github",
-      isDefault: false,
-    };
-    const calls: CallTag[] = [];
-    const logs: string[] = [];
-    const deps = makeDeps({
-      calls,
-      localPrefix: "alpha",
-      inventory: inventoryWith([
-        bareRepo("alpha-repo", "/bare/alpha.git", "alpha"),
-        bareRepo("beta-repo", "/bare/beta.git", "beta"),
-      ]),
-      prView: () =>
-        prViewOk({
-          number: 504,
-          title: "feat (#504)",
-          body: `Refs ${foreignRef}\n`,
-          closing: [],
-        }),
-    });
-    deps.loadIdentityConfig = (() => semanticIdentity) as never;
-    const exit = runPostmerge(
-      makeOpts({ prNumber: 504, format: "json" }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      deps,
-    );
-    expect(exit).toBe(0);
-    expect(calls.filter((c) => c.kind === "bd-show")).toHaveLength(0);
-    expect(calls.filter((c) => c.kind === "bd-close")).toHaveLength(0);
-    const parsed = JSON.parse(logs[0]!);
-    const skip = parsed.targets.find(
-      (t: { kind: string }) => t.kind === "skip:bd-foreign-workspace",
-    );
-    expect(skip).toBeDefined();
-    expect(skip.raw).toBe(foreignRef);
-    expect(skip.prefix).toBe("beta");
-    expect(skip.repo).toBe("beta-repo");
   });
 });
 

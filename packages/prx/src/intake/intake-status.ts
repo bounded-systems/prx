@@ -13,7 +13,7 @@
 
 import { z } from "zod";
 
-import { execBd } from "@bounded-systems/bd";
+import { frontDeskBeadsRaw } from "../beads/frontdesk-list.ts";
 import {
   listOpenIssues as defaultListOpenIssues,
   repoNameWithOwner as defaultRepoNameWithOwner,
@@ -30,7 +30,7 @@ import {
   findDrift,
   findReverseOrphans,
   indexBeadsByIssueNumber,
-  loadAllBeads as defaultLoadAllBeads,
+  loadTriageBeads,
   type DriftRow,
   type ReverseOrphanRow,
 } from "../triage/triage.ts";
@@ -70,17 +70,15 @@ export type IntakeStatusResult = {
 export type IntakeStatusDeps = {
   listOpenIssues?: typeof defaultListOpenIssues;
   repoNameWithOwner?: typeof defaultRepoNameWithOwner;
-  execBd?: typeof execBd;
   cwd?: () => string;
   refreshBudget?: typeof defaultRefreshBudget;
   estimateSweepCost?: typeof defaultEstimateSweepCost;
   /**
-   * GH-1595 — read-only consumer of the per-invocation `BeadsCache`. When
-   * wired (production), shares the canonical `bd list` read with every other
-   * `loadAllBeads`-shaped caller in this process. Missing on test paths uses
-   * the uncached default.
+   * GH-1012: Front Desk raw-row reader (defaults to {@link frontDeskBeadsRaw}).
+   * Injectable so tests can supply a fixture array without spawning `fds`.
+   * Replaces the retired `execBd` / `loadAllBeads` seams.
    */
-  loadAllBeads?: typeof defaultLoadAllBeads;
+  frontDeskRows?: (cwd: string) => unknown[];
 };
 
 type Output = {
@@ -133,14 +131,14 @@ export function runIntakeStatus(
 ): number {
   const listIssues = deps.listOpenIssues ?? defaultListOpenIssues;
   const resolveRepo = deps.repoNameWithOwner ?? defaultRepoNameWithOwner;
-  const bdExec = deps.execBd ?? execBd;
-  const loadBeads = deps.loadAllBeads ?? defaultLoadAllBeads;
+  const frontDeskRows = deps.frontDeskRows ?? frontDeskBeadsRaw;
   const cwd = (deps.cwd ?? process.cwd)();
 
   const repo = opts.repo ?? resolveRepo(cwd);
   const ghLimit = opts.limit > 0 ? opts.limit : 1000;
   const openIssues = listIssues(repo, ghLimit);
-  const allBeads = loadBeads(bdExec);
+  // GH-1012: load the beads leg from Front Desk (see `loadTriageBeads`).
+  const allBeads = loadTriageBeads(cwd, frontDeskRows);
   const beadsByNumber = indexBeadsByIssueNumber(allBeads);
 
   const untriaged: IntakeUntriagedRow[] = [];

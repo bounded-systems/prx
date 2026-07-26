@@ -27,8 +27,7 @@ function fakeFs(seed: Record<string, string> = {}) {
   };
 }
 
-const path = (channel: string) =>
-  `${HOME}/.local/state/prx/sync/slack/_repo/${channel}/watermark`;
+const path = (channel: string) => `${HOME}/.local/state/prx/sync/slack/_repo/${channel}/watermark`;
 
 describe("slackWatermarkKey", () => {
   test("derives the per-channel logical key", () => {
@@ -51,7 +50,9 @@ describe("getSlackWatermark — file cursor (prx-82b 2e.2)", () => {
   });
 
   test("absent cursor ⇒ null (self-healing)", () => {
-    expect(getSlackWatermark("C1", { cwd: "/repo", env, readFile: fakeFs().readFile }).ts).toBeNull();
+    expect(
+      getSlackWatermark("C1", { cwd: "/repo", env, readFile: fakeFs().readFile }).ts,
+    ).toBeNull();
   });
 
   test("invalid channel throws WatermarkError", () => {

@@ -497,46 +497,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "intake",
   },
   {
-    name: "intake mirror",
-    parent: "intake",
-    description: "Idempotent bd create from a GH issue (race-checked)",
-    domain: "work-units",
-    binding: "mainx",
-    actor: "intake",
-  },
-  {
-    name: "intake bd ls",
-    parent: "intake",
-    description: "List bd issues (narrow `bd list` wrapper)",
-    domain: "work-units",
-    binding: "mainx",
-    actor: "intake",
-  },
-  {
-    name: "intake bd memory ls",
-    parent: "intake",
-    description: "List or search bd memories (narrow `bd memories` wrapper)",
-    domain: "work-units",
-    binding: "mainx",
-    actor: "intake",
-  },
-  {
-    name: "intake bd memory get",
-    parent: "intake",
-    description: "Read a bd memory by key (narrow `bd recall` wrapper)",
-    domain: "work-units",
-    binding: "mainx",
-    actor: "intake",
-  },
-  {
-    name: "intake bd memory set",
-    parent: "intake",
-    description: "Upsert a bd memory by key (narrow `bd remember` wrapper)",
-    domain: "work-units",
-    binding: "mainx",
-    actor: "intake",
-  },
-  {
     // GH-232: the intake role (human OR agent) owns the chain ROOT. A plain
     // deterministic verb so either an operator types it or an intake agent calls
     // it — `actor: intake` is the capability label, not an agent-only gate.
@@ -576,25 +536,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "triage",
   },
   {
-    name: "triage promote",
-    parent: "triage",
-    description: "Promote execution-ready issues into beads",
-    domain: "work-units",
-    binding: "mainx",
-    actor: "triage",
-  },
-  {
-    // GH-1351: file Ultraplan-staged child issues + wire dep edges in one
-    // verb so triage no longer drops into manual `prx intake` / `bd dep add`
-    // loops for plan-supplied child sets.
-    name: "triage promote-children",
-    parent: "triage",
-    description: "File child issues from a staging dir manifest",
-    domain: "work-units",
-    binding: "mainx",
-    actor: "triage",
-  },
-  {
     name: "triage type-pass",
     parent: "triage",
     description: "Bulk-classify type-less issues via Haiku",
@@ -611,17 +552,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     name: "triage close",
     parent: "triage",
     description: "Close a bd-only record (no GH mirror)",
-    domain: "work-units",
-    binding: "mainx",
-    actor: "triage",
-  },
-  // GH-1782: bulk-close beads whose linked GH issue is already closed (the
-  // action-counterpart to `prx triage status`'s `stale` projection). bd-only
-  // write — no GH state mutated.
-  {
-    name: "triage close-stale",
-    parent: "triage",
-    description: "Bulk-close beads whose linked GH issue is already closed",
     domain: "work-units",
     binding: "mainx",
     actor: "triage",
@@ -891,13 +821,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     name: "scout overview",
     parent: "scout",
     description: "Fetch a repo overview snapshot",
-    domain: "state",
-    actor: "scout",
-  },
-  {
-    name: "scout notion",
-    parent: "scout",
-    description: "Resolve a Notion page UUID/Task-ID to a structured mirror record",
     domain: "state",
     actor: "scout",
   },
@@ -1665,19 +1588,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     actor: "worktree",
   },
   {
-    // GH-983: filter-aware portfolio picker. Supersedes the retired
-    // `worktree next` verb (which was a GH-1510 deprecation alias for
-    // `prx next`). Sibling of `prx next` — `next` dumps the full
-    // eight-thread projection; `delegate next` returns a top-1 pick
-    // (default) or filtered list (`--all`) with `--epic | --area |
-    // --priority | --type` filters.
-    name: "delegate next",
-    parent: "delegate",
-    description: "Pick top portfolio candidate to delegate",
-    domain: "work-units",
-    actor: "delegate",
-  },
-  {
     // GH-1874: bd-canonical assignment verb. Writes bd's `assignee` column
     // via `bd assign`; the bd→GH mirror's `push()` projects it onto the
     // issue on the next sync cadence. Sibling of `delegate next`.
@@ -1704,163 +1614,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     domain: "repo-plumbing",
     binding: "work-unit",
     actor: "worktree",
-  },
-  {
-    name: "beads hydrate",
-    parent: "beads",
-    description: "Hydrate beads database for current repo",
-    domain: "repo-plumbing",
-    actor: "beads",
-  },
-  {
-    // GH-296: host twin of `prx lima provision-beads` — clone canonical beads
-    // into the well-known local path so the local daemon serves one healthy DB.
-    name: "beads provision",
-    parent: "beads",
-    description: "Provision the canonical local beads clone",
-    domain: "repo-plumbing",
-    actor: "beads",
-  },
-  {
-    // GH-296: daemon-aware session primer (the prx-beads twin of `bd prime`).
-    name: "beads prime",
-    parent: "beads",
-    description: "Prime session beads context via the daemon",
-    domain: "repo-plumbing",
-    actor: "beads",
-  },
-  {
-    name: "beads issue",
-    parent: "beads",
-    description: "Look up beads row by GitHub issue",
-    domain: "repo-plumbing",
-    actor: "beads",
-  },
-  {
-    // GH-1706: one-call embedded → shared-server migration. Sister verbs
-    // `prx repo add-dolthub` (GH-1703) and `prx repo gc` (GH-1700) handle
-    // remote wiring + orphan sweep separately.
-    name: "beads migrate",
-    parent: "beads",
-    description: "Migrate a registered repo's beads from embedded to shared-server",
-    domain: "state",
-    actor: "beads",
-  },
-  {
-    // GH-1507: single-record bd→GH mirror push. Sibling of `intake mirror`
-    // (GH→bd); the canonical per-record reverse-orphan publish verb
-    // (GH-1718 retired the prior `triage push-orphans` sweep).
-    name: "beads publish",
-    parent: "beads",
-    description: "Publish a beads record to GitHub (bd→GH mirror)",
-    domain: "work-units",
-    binding: "mainx",
-    actor: "beads",
-  },
-  {
-    // GH-1990: alias of `prx sync issues --from gh --to bd`. Retained so
-    // existing consumers/scripts keep working; agents and operators should
-    // name the canonical surface (`prx sync issues …`). Removal is a
-    // follow-up once consumers migrate.
-    //
-    // GH-2095: reconciles pinned (bd, <domain>) pairs.
-    //   pull leg (external → bd): status — close-applies via bd close.
-    //   push leg (bd → external): title, body, assignee.
-    //   --limit caps push only; pull runs over every pinned pair.
-    //   exit 2 + stderr WARN when any pair is left non-reconciled.
-    // The CommandSpec.description field is constrained to 4-12 words
-    // (help-surface §6.4) — the long-form contract above is the source of
-    // truth, the description below is the help-table summary.
-    name: "beads sync",
-    parent: "beads",
-    description: "Alias of sync issues; --limit caps push only",
-    domain: "state",
-    actor: "beads",
-  },
-  {
-    // GH-1702: cross-repo fan-out of `prx dolt reconcile` across every
-    // dolthub-wired registered bare repo. Lands under the `beads` parent
-    // per the issue title and original spec; the GH-2009 forward
-    // declaration at `dolt sync-all` remains for the eventual canonical
-    // surface migration. Actor is `dolt` because the per-repo primitive
-    // and the new DOLT_SYNC_* emits are dolt-actor events.
-    name: "beads sync-all",
-    parent: "beads",
-    description: "Fan out prx dolt reconcile across dolthub-wired registered repos",
-    domain: "repo-plumbing",
-    actor: "dolt",
-  },
-  {
-    // GH-228: `beads serve` runs beadsd — the read-only beads query daemon — on
-    // a unix socket inside an isolated VM. In-VM infrastructure verb (the host
-    // reaches it via the Lima channel), `internal: true` like `keeper serve`.
-    name: "beads serve",
-    parent: "beads",
-    description: "Run the beadsd read daemon on a unix socket (GH-228)",
-    domain: "repo-plumbing",
-    actor: "beads",
-    internal: true,
-  },
-  {
-    // GH-228: operator self-heal for an unhealthy beads clone (missing prefix /
-    // diverged after the canonical prefix repair). Visible — agents/operators run it.
-    name: "beads doctor",
-    parent: "beads",
-    description: "Diagnose the beads workspace; --fix re-bootstraps an unhealthy clone (GH-228)",
-    domain: "repo-plumbing",
-    actor: "beads",
-  },
-  {
-    // GH-296: the read door — query beads through the in-VM beadsd daemon (no
-    // host beads DB). The human + agents reach beads through one source.
-    name: "beads ready",
-    parent: "beads",
-    description: "Ready issues via the in-VM beadsd daemon (GH-296)",
-    domain: "repo-plumbing",
-    actor: "beads",
-  },
-  {
-    name: "beads list",
-    parent: "beads",
-    description: "List issues via the in-VM beadsd daemon (GH-296)",
-    domain: "repo-plumbing",
-    actor: "beads",
-  },
-  {
-    name: "beads show",
-    parent: "beads",
-    description: "Show one issue via the in-VM beadsd daemon (GH-296)",
-    domain: "repo-plumbing",
-    actor: "beads",
-  },
-  {
-    // GH-296 wave 2: the write door — single-writer, routed through beadsd.
-    name: "beads create",
-    parent: "beads",
-    description: "Create an issue via the beadsd daemon (GH-296)",
-    domain: "repo-plumbing",
-    actor: "beads",
-  },
-  {
-    name: "beads update",
-    parent: "beads",
-    description: "Update an issue via the beadsd daemon (GH-296)",
-    domain: "repo-plumbing",
-    actor: "beads",
-  },
-  {
-    name: "beads close",
-    parent: "beads",
-    description: "Close an issue via the beadsd daemon (GH-296)",
-    domain: "repo-plumbing",
-    actor: "beads",
-  },
-  {
-    name: "beads reopen",
-    parent: "beads",
-    description: "Reopen a closed issue via the beadsd daemon (GH-296)",
-    domain: "repo-plumbing",
-    actor: "beads",
   },
   {
     // GH-1990: canonical actor surface for bd↔external reconcile. Operators
@@ -1998,13 +1751,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
     name: "tools git",
     parent: "tools",
     description: "Wrap git with policy enforcement",
-    domain: "repo-plumbing",
-    actor: "tools",
-  },
-  {
-    name: "tools bd",
-    parent: "tools",
-    description: "Wrap beads CLI with policy enforcement",
     domain: "repo-plumbing",
     actor: "tools",
   },
@@ -2299,7 +2045,6 @@ const RAW_ACTOR_SPECS: z.input<typeof ActorSpec>[] = [
   { name: "worktree", dispatchable: true, allowedCallers: ["plan"] },
   { name: "delegate", dispatchable: true, allowedCallers: ["plan"] },
   { name: "repo", dispatchable: true, allowedCallers: ["plan", "author"] },
-  { name: "beads", dispatchable: true, allowedCallers: ["plan"] },
   { name: "triage", dispatchable: true, allowedCallers: ["plan"] },
   { name: "submit", dispatchable: true, allowedCallers: ["plan", "implement", "author"] },
   { name: "work", dispatchable: true, allowedCallers: ["plan"] },

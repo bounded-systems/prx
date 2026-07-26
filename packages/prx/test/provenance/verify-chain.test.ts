@@ -13,8 +13,10 @@ import type { L3Attestation } from "../../src/provenance/verify-l3.ts";
 
 const COMMIT = "a".repeat(40);
 const pem = (k: KeyObject): string => k.export({ type: "spki", format: "pem" }) as string;
-const signWith = (priv: KeyObject) => (s: string): string =>
-  edSign(null, Buffer.from(s), priv).toString("base64");
+const signWith =
+  (priv: KeyObject) =>
+  (s: string): string =>
+    edSign(null, Buffer.from(s), priv).toString("base64");
 const sha256 = (s: string): string => createHash("sha256").update(s).digest("hex");
 
 function buildL2(launcherPriv: KeyObject, manifestDigest: string) {
@@ -25,7 +27,11 @@ function buildL2(launcherPriv: KeyObject, manifestDigest: string) {
       capabilities: { workcell: "claude-box", manifestDigest: { sha256: manifestDigest } },
     }),
   );
-  return { statement: slsa, signature: signWith(launcherPriv)(canonicalJson(slsa)), keyId: "launcher" };
+  return {
+    statement: slsa,
+    signature: signWith(launcherPriv)(canonicalJson(slsa)),
+    keyId: "launcher",
+  };
 }
 
 function buildL3(keeperPriv: KeyObject, l2LaunchDigest: string): L3Attestation {

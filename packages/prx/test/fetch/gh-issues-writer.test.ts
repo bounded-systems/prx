@@ -105,7 +105,7 @@ describe("writePage — resolve-by-URL + positional-id write (I-F7)", () => {
       }),
     ];
     // Drive the *real* resolver seam, not a stub.
-    const adapter = new GhDomainAdapter({ loadAllBeads: () => beads });
+    const adapter = new GhDomainAdapter();
     const { run, recorded } = makeRecordingRun();
 
     const deps: FetchWriteDeps = {
@@ -179,7 +179,7 @@ describe("writePage — resolve-by-URL + positional-id write (I-F7)", () => {
       bead({ id: LONG_ID_1, externalRefs: { gh: rows[0]!.url }, externalIssueNumber: 1 }),
       bead({ id: LONG_ID_2, externalRefs: { gh: rows[1]!.url }, externalIssueNumber: 2 }),
     ];
-    const adapter = new GhDomainAdapter({ loadAllBeads: () => beads });
+    const adapter = new GhDomainAdapter();
     // Second bd update (call index 1) fails.
     const { run, recorded } = makeRecordingRun((i) =>
       i === 1 ? { status: 1, stderr: "bd: connection refused" } : { status: 0 },

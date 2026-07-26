@@ -47,10 +47,7 @@ export const forgeServeVerb = defineVerb({
   }),
   output: ForgeServeResult,
   deps: realForgeServeDeps,
-  run: async (
-    input,
-    deps: ForgeServeDeps = realForgeServeDeps(),
-  ): Promise<ForgeServeResult> => {
+  run: async (input, deps: ForgeServeDeps = realForgeServeDeps()): Promise<ForgeServeResult> => {
     // The App key is resolved host-side (inline PEM or key file) and held by the
     // daemon. Absent ⇒ the door still serves but every lease replies error
     // (so a misconfigured host fails loudly at lease time, not at startup).

@@ -28,7 +28,7 @@ import type { BeadsRecord } from "../../triage/triage.ts";
 // GH-296: read through beadsd (one true source). The daemon serves one
 // workspace = one repo (multi-tenant is rejected as a security risk), so the
 // resolver's `cwd` is vestigial — it routes to the single per-repo daemon.
-import { showBeadViaDaemon, loadAllBeadsViaDaemon } from "../../beadsd/reads.ts";
+import { showBeadViaDaemon, loadAllBeadsViaDaemon } from "../../beads/frontdesk-reads.ts";
 import { defaultRunner, type CommandRunner } from "../github.ts";
 import type { ResolvedWorkUnit, WorkUnitResolver } from "./types.ts";
 

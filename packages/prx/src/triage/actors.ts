@@ -30,11 +30,6 @@ import {
   type TriagePrioritizeDeps,
 } from "./prioritize.ts";
 import {
-  runPromoteActor,
-  type TriagePromoteActorResult,
-  type TriagePromoteDeps,
-} from "./promote.ts";
-import {
   runTypePassActor,
   type TriageTypePassActorResult,
   type TriageTypePassDeps,
@@ -49,34 +44,48 @@ import {
   type TriagePruneMergedActorResult,
   type TriagePruneMergedDeps,
 } from "./prune-merged.ts";
-import {
-  runDriftFixActor,
-  type TriageDriftFixActorResult,
-  type TriageDriftFixDeps,
-} from "./drift-fix.ts";
 
 import {
   triageStatusOptionsSchema,
   triageClassifyOptionsSchema,
   triageApplyOptionsSchema,
   triagePrioritizeOptionsSchema,
-  triagePromoteOptionsSchema,
   triageTypePassOptionsSchema,
   triagePrioritizeBulkOptionsSchema,
-  triageDriftFixOptionsSchema,
   triageReportOptionsSchema,
   triagePruneMergedOptionsSchema,
   type TriageStatusOptions,
   type TriageClassifyOptions,
   type TriageApplyOptions,
   type TriagePrioritizeOptions,
-  type TriagePromoteOptions,
   type TriageTypePassOptions,
   type TriagePrioritizeBulkOptions,
-  type TriageDriftFixOptions,
   type TriageReportOptions,
   type TriagePruneMergedOptions,
 } from "./schemas/index.ts";
+
+// GH-1012: `triage promote` (bd→GH mirror publish) and `triage drift-fix`
+// (bd↔GH reconcile) are retired — GitHub is the write plane and the bd
+// substrate is gone, so their verb modules were deleted. The triage machine
+// still invokes no-op actors at the `promoting` / `driftFixing` stages so its
+// lifecycle flow is preserved. These minimal result shapes stand in for the
+// deleted verb result types; they are only stored in machine context (no source
+// consumer reads them).
+export type TriagePromoteActorResult = {
+  exitCode: number;
+  promotedBeadIds: string[];
+  stdout: string[];
+  stderr: string[];
+};
+export type TriageDriftFixActorResult = {
+  exitCode: number;
+  writes: number;
+  skips: number;
+  errors: number;
+  touchedIssues: number[];
+  stdout: string[];
+  stderr: string[];
+};
 
 // ── actor input types (options + an injectable, test-only deps seam) ────────
 
@@ -84,13 +93,34 @@ export type StatusActorInput = TriageStatusOptions & { deps?: TriageStatusDeps }
 export type ClassifyActorInput = TriageClassifyOptions & { deps?: TriageClassifyDeps };
 export type ApplyActorInput = TriageApplyOptions & { deps?: TriageApplyDeps };
 export type PrioritizeActorInput = TriagePrioritizeOptions & { deps?: TriagePrioritizeDeps };
-export type PromoteActorInput = TriagePromoteOptions & { deps?: TriagePromoteDeps };
+// GH-1012: local option shapes for the retired promote/drift-fix verbs (their
+// schema modules were deleted). Mirror exactly the input the triage machine's
+// `promoting` / `driftFixing` states construct.
+type TriagePromoteOptions = {
+  repo?: string | undefined;
+  dryRun: boolean;
+  limit: number;
+};
+type TriageDriftFixOptions = {
+  repo?: string | undefined;
+  axes: readonly ("type" | "priority" | "status")[];
+  limit: number;
+  dryRun: boolean;
+  apply: boolean;
+  sync: boolean;
+  includeDupes: boolean;
+  includeDoctor: boolean;
+  applyDupes: boolean;
+  doctorFix: boolean;
+};
+
+export type PromoteActorInput = TriagePromoteOptions & { deps?: unknown };
 export type TypePassActorInput = TriageTypePassOptions & { deps?: TriageTypePassDeps };
 export type PrioritizeBulkActorInput = TriagePrioritizeBulkOptions & {
   deps?: TriagePrioritizeBulkDeps;
 };
 export type PruneMergedActorInput = TriagePruneMergedOptions & { deps?: TriagePruneMergedDeps };
-export type DriftFixActorInput = TriageDriftFixOptions & { deps?: TriageDriftFixDeps };
+export type DriftFixActorInput = TriageDriftFixOptions & { deps?: unknown };
 
 // ── real actors ────────────────────────────────────────────────────────────
 
@@ -126,13 +156,10 @@ export const prioritizeActor = fromPromise<TriagePrioritizeActorResult, Prioriti
   },
 );
 
-export const promoteActor = fromPromise<TriagePromoteActorResult, PromoteActorInput>(
-  async ({ input }) => {
-    const { deps, ...data } = input;
-    const opts = triagePromoteOptionsSchema.parse(data);
-    return runPromoteActor(opts, deps);
-  },
-);
+export const promoteActor = fromPromise<TriagePromoteActorResult, PromoteActorInput>(async () => {
+  // GH-1012: no-op — promotion (bd→GH mirror publish) is retired.
+  return { exitCode: 0, promotedBeadIds: [], stdout: [], stderr: [] };
+});
 
 // GH-1125 — `prx prune --merged-only` pre-step at the head of the triage
 // machine. Closes GH issues whose linked PR is already merged so the
@@ -171,10 +198,17 @@ export const typePassActor = fromPromise<TriageTypePassActorResult, TypePassActo
 // here; `runDriftFixActor` forces `apply: true` so the machine's
 // `driftFixing` state always runs the one-shot apply path.
 export const driftFixActor = fromPromise<TriageDriftFixActorResult, DriftFixActorInput>(
-  async ({ input }) => {
-    const { deps, ...data } = input;
-    const opts = triageDriftFixOptionsSchema.parse(data);
-    return await runDriftFixActor(opts, deps);
+  async () => {
+    // GH-1012: no-op — drift-fix reconcile is retired.
+    return {
+      exitCode: 0,
+      writes: 0,
+      skips: 0,
+      errors: 0,
+      touchedIssues: [],
+      stdout: [],
+      stderr: [],
+    };
   },
 );
 

@@ -36,9 +36,9 @@ import type { TriageStatusActorResult } from "./triage.ts";
 import type { TriageClassifyActorResult } from "./classifier.ts";
 import type { TriageApplyActorResult } from "./apply.ts";
 import type { TriagePrioritizeActorResult } from "./prioritize.ts";
-import type { TriagePromoteActorResult } from "./promote.ts";
+import type { TriagePromoteActorResult } from "./actors.ts";
 import type { TriagePruneMergedActorResult } from "./prune-merged.ts";
-import type { TriageDriftFixActorResult } from "./drift-fix.ts";
+import type { TriageDriftFixActorResult } from "./actors.ts";
 import type { TriageStatusSnapshot, TriageMachineEvent } from "./schemas/index.ts";
 
 // ── machine input + context ────────────────────────────────────────────────

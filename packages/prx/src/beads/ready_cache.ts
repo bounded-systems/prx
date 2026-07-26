@@ -24,17 +24,15 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 
-import { BdReadyCacheSchema, queryBdReady, type BdReadyCache, type BdRunner } from "./ready.ts";
+import { BdReadyCacheSchema, queryBdReady, type BdReadyCache } from "./ready.ts";
 
 export const DEFAULT_READY_TTL_SECONDS = 60;
 
 export type GetBdReadyOptions = {
   /** Override TTL for this call (otherwise from prx.toml or default). */
   ttlSeconds?: number | undefined;
-  /** Skip the cache; always re-query bd and overwrite the cache file. */
+  /** Skip the cache; always re-query and overwrite the cache file. */
   force?: boolean | undefined;
-  /** Inject a bd runner for tests. */
-  runner?: BdRunner | undefined;
 };
 
 export type GetBdReadyResult = {
@@ -119,7 +117,7 @@ export function getBdReady(repoPath: string, opts: GetBdReadyOptions = {}): GetB
   }
 
   // Live query (force, missing, invalid, or stale).
-  const live = queryBdReady({ cwd: repoPath, runner: opts.runner });
+  const live = queryBdReady({ cwd: repoPath });
   const cache: BdReadyCache = {
     run_id: newRunId(),
     queried_at: new Date(now).toISOString(),

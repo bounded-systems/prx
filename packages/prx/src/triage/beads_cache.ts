@@ -1,13 +1,11 @@
-// GH-1595 — per-invocation memoization layer over `loadAllBeads`. One cache
-// is constructed at the CLI entry (`runCli`) and threaded via existing DI
-// (`loadAllBeads?` / `execBd?`) into every verb that already accepts those
-// deps. Writers (`bd update --external-ref`, `bd update <axes>`) call
+// GH-1595 — per-invocation memoization layer over the Front Desk loader. One
+// cache is constructed at the CLI entry (`runCli`) and threaded via existing DI
+// (`loadAllBeads?`) into every verb that already accepts that dep. Writers call
 // `invalidate()` before the next read; the loader re-fetches on the next
 // `load()`.
 //
-// Why at this layer (not `execBd`): invalidation policy needs to distinguish
-// `bd update` (mutates the canonical `list` projection) from `bd show` (no
-// mutation), which `execBd` cannot see. Sitting above `loadAllBeads` keeps
+// Why at this layer: invalidation policy needs to distinguish a mutation of the
+// canonical `list` projection from a no-op read. Sitting above the loader keeps
 // the typed `BeadsRecord` shape and puts `invalidate()` next to the writers
 // that know they wrote.
 //
@@ -16,8 +14,7 @@
 // per-process cache cannot help that case (GH-1554 is the relevant streaming
 // boundary fix; this is the parallel in-process win).
 
-import { execBd as defaultExecBd, type BdExecResult } from "@bounded-systems/bd";
-import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "./triage.ts";
+import { type BeadsRecord } from "./triage.ts";
 import { loadAllBeadsViaCli } from "./beads-daemon-loader.ts";
 
 export type BeadsCache = {
@@ -41,14 +38,12 @@ export type BeadsCache = {
 };
 
 export type CreateBeadsCacheOptions = {
-  exec?: (...args: Parameters<typeof defaultExecBd>) => BdExecResult;
   /**
    * Aggregate bead loader. When omitted, the cache reads through the daemon
-   * (GH-296 / prx-fda — a sync `prx beads list --all` spawn), NOT the host `bd`.
-   * Inject a `() => BeadsRecord[]` in tests, or a local-`bd` loader to opt back
-   * out. When injected, `exec` is forwarded to it (legacy `loadAllBeads(exec)`).
+   * (GH-296 / prx-fda — a sync `prx beads list --all` spawn). Inject a
+   * `() => BeadsRecord[]` in tests to opt out.
    */
-  loadAllBeads?: typeof defaultLoadAllBeads;
+  loadAllBeads?: () => BeadsRecord[];
   /**
    * GH-296: the dataset generation (the daemon's dolt HEAD etag). When provided,
    * `load()` re-fetches only when the generation changed since the cached copy —
@@ -58,12 +53,10 @@ export type CreateBeadsCacheOptions = {
 };
 
 export function createBeadsCache(options: CreateBeadsCacheOptions = {}): BeadsCache {
-  const exec = options.exec ?? defaultExecBd;
-  // GH-296 / prx-fda: default to the daemon (one true source) rather than the
-  // host `bd` against a per-clone .beads. An injected loader (tests, or an
-  // explicit local-bd loader) wins and receives `exec` for the legacy signature.
+  // GH-296 / prx-fda: default to the daemon (one true source). An injected
+  // loader (tests) wins.
   const injectedLoader = options.loadAllBeads;
-  const load = injectedLoader ? () => injectedLoader(exec) : () => loadAllBeadsViaCli();
+  const load = injectedLoader ? () => injectedLoader() : () => loadAllBeadsViaCli();
   const generation = options.generation;
   let cached: BeadsRecord[] | null = null;
   let cachedGen: string | undefined;

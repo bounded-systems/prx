@@ -24,11 +24,38 @@
 import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { execGit } from "@bounded-systems/git";
-import {
-  repairBdSchema as defaultRepairBdSchema,
-  type BdSchemaRepairResult,
-} from "../beads/schema_repair.ts";
-import { resolveMainWorktree as defaultResolveMainWorktree } from "../beads/primary_worktree.ts";
+
+/**
+ * Result of a legacy bd-schema repair trigger. The bd machinery that produced
+ * this has been removed (GH-1012); the type is kept locally so the optional
+ * `repairBdSchema` injection point in {@link BootstrapDeps} — and any caller
+ * that still surfaces its result — continues to type-check. Nothing in prod
+ * wires an implementation anymore, so the trigger is inert by default.
+ */
+export type BdSchemaRepairResult = {
+  status: "repaired" | "already_healthy" | "repair_failed" | "skipped_no_bd";
+  durationMs: number;
+  command: string;
+  message?: string;
+};
+
+/**
+ * Primary-vs-feature worktree classification (GH-653), inlined after the
+ * `beads/primary_worktree` helper was removed with the bd machinery.
+ * Classification is purely structural via `git rev-parse --git-common-dir`:
+ * for a standard repo common-dir is `<worktree>/.git`; for a linked worktree
+ * it's `<primary>/.git`. In both cases the primary worktree is the parent of
+ * the `.git` directory. Returns null when git common-dir is unresolvable.
+ */
+function resolveMainWorktree(cwd: string): string | null {
+  const out = gitOutput(["rev-parse", "--git-common-dir"], cwd);
+  if (!out) return null;
+  const absolute = resolve(cwd, out);
+  if (absolute.endsWith("/.git") || absolute.endsWith("/.git/")) {
+    return absolute.replace(/\/\.git\/?$/, "");
+  }
+  return null;
+}
 
 export type BeadsBootstrapStatus =
   | "wrote-redirect"
@@ -127,12 +154,14 @@ export function buildDefaultDeps(
   initContractImpl: (outputPath: string) => Promise<unknown>,
 ): BootstrapDeps {
   return {
-    // GH-653: delegate to the shared helper so primary/feature classification
-    // is consistent between bootstrap and hydrate.
-    resolveMainWorktree: (cwd) => defaultResolveMainWorktree(cwd),
+    // GH-653: structural primary/feature classification via git common-dir.
+    resolveMainWorktree: (cwd) => resolveMainWorktree(cwd),
     resolveRepoRoot: (cwd) => gitOutput(["rev-parse", "--show-toplevel"], cwd),
     initContract: initContractImpl,
-    repairBdSchema: defaultRepairBdSchema,
+    // GH-1012: the bd-schema repair trigger was removed with the bd machinery.
+    // The injection point remains for tests/callers, but there is no default
+    // implementation — bootstrap never shells out to bd.
+    repairBdSchema: null,
   };
 }
 
