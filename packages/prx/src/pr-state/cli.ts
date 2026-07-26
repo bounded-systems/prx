@@ -174,11 +174,7 @@ import {
   openRegistry,
 } from "./registry_store.ts";
 import { adoptRepo, type AdoptRepoResult } from "./repo_adopt.ts";
-import {
-  convertWorktreeToBare,
-  RepoConvertError,
-  type RepoConvertResult,
-} from "./repo_convert.ts";
+import { convertWorktreeToBare, RepoConvertError, type RepoConvertResult } from "./repo_convert.ts";
 import { adoptBranch, type AdoptBranchResult } from "./branch_adopt.ts";
 import { adoptWorkspace, type AdoptWorkspaceResult } from "./workspace_adopt.ts";
 import { formatRepoBackfill, RepoBackfillError, runRepoBackfill } from "./repo_backfill.ts";
@@ -235,6 +231,7 @@ import {
   prxSessionUnitCompleteMessage,
 } from "../machine/session_open.ts";
 import { findEpicChildren } from "../beads/epic_children.ts";
+import { frontDeskBeadsRaw, resolveListSource } from "../beads/frontdesk-list.ts";
 import { hasEpicLabel } from "../triage/labels.ts";
 import {
   ensureClaudeInteractiveAllowlist,
@@ -13461,8 +13458,28 @@ export function resolveEpicChildBdIds(
   repoPath: string,
   epic: string,
   read: (cmd: string[], cwd: string) => string | null = bdReadOrNull,
+  frontDeskRows: (cwd: string) => unknown[] = frontDeskBeadsRaw,
 ): Set<string> {
   const out = new Set<string>();
+  // GH-1011: Front Desk (GH-canonical) path. The epic is matched by its ref
+  // (external_ref substring, or the `GH-<epic>` synthetic id); its parent-child
+  // children are the `depends_on_id`s of its parent-child dep edges. Returns
+  // `GH-<n>` ids, matching the now-GH-canonical next-work candidates (GH-1010).
+  if (resolveListSource() === "frontdesk") {
+    const rows = frontDeskRows(repoPath) as {
+      id: string;
+      external_ref?: string;
+      dependencies?: { depends_on_id: string; type: string }[];
+    }[];
+    for (const rec of rows) {
+      const matchesRef = typeof rec.external_ref === "string" && rec.external_ref.includes(epic);
+      if (!matchesRef && rec.id !== `GH-${epic}`) continue;
+      for (const dep of rec.dependencies ?? []) {
+        if (dep.type === "parent-child") out.add(dep.depends_on_id);
+      }
+    }
+    return out;
+  }
   // Step 1: locate the bd id whose external_ref matches the epic ref. The old
   // `bd query "external_ref contains <epic>"` is not on the beadsd read
   // surface, so we read the door-backed `bd list --all` and apply the same
@@ -18579,7 +18596,9 @@ export function runCli(
       } else {
         output.log(`publicKey: ${key.publicKey}`);
         output.log(`path:      ${key.privateKeyPath}`);
-        output.log(`register:  GitHub → Settings → SSH and GPG keys → New SSH key (type: Signing Key)`);
+        output.log(
+          `register:  GitHub → Settings → SSH and GPG keys → New SSH key (type: Signing Key)`,
+        );
       }
       return 0;
     }
@@ -20649,8 +20668,9 @@ export function runCli(
         // children) past the bd-safe I-BF1 guard while foreign refs stay
         // refused. Best-effort: an unhealthy/prefixless clone leaves it unset →
         // the guard keeps its safe refuse-all default.
-        const servedPrefix = diagnoseBeads(parsed.cwd !== undefined ? { cwd: parsed.cwd } : {})
-          .prefix;
+        const servedPrefix = diagnoseBeads(
+          parsed.cwd !== undefined ? { cwd: parsed.cwd } : {},
+        ).prefix;
         if (servedPrefix !== null) deps.localPrefix = servedPrefix;
         // GH-296: keep the served clone fresh — `bd dolt pull` on start + every
         // 5 min (errors swallowed by runBeadsServe; conflicts vs local writes
