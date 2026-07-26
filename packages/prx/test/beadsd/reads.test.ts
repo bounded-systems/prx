@@ -1,78 +1,57 @@
 import { describe, expect, test } from "bun:test";
 
 import { loadAllBeadsViaDaemon, showBeadViaDaemon } from "../../src/beadsd/reads.ts";
-import type { WithBeadsClientDeps } from "../../src/beadsd/client-factory.ts";
-import type { BeadsRequest } from "../../src/beadsd/contract.ts";
+import type { CommandRunner } from "@bounded-systems/proc";
 
-// The RAW `bd --json` shape the daemon actually returns: snake_case fields, no
-// derived `externalRefs` / `externalIssueNumber`. The readers MUST run the same
-// parse transform the local `bd list` path uses — this is the regression guard
-// for the bug where the daemon result was cast straight to BeadsRecord.
-const RAW = {
-  id: "prx-abb",
-  title: "do a thing",
-  external_ref: "https://github.com/o/r/issues/123",
-  issue_type: "task",
-  source_system: "github",
-  updated_at: "2026-01-01T00:00:00Z",
-};
-
-/** A withBeadsClient deps bundle whose transport answers with a canned reply. */
-function fakeDeps(reply: unknown, sink?: (req: BeadsRequest) => void): WithBeadsClientDeps {
-  return {
-    endpoint: { kind: "local", socket: "/tmp/reads-test.sock" },
-    ensureUp: async () => {},
-    localTransport: () => async (req) => {
-      sink?.(req as BeadsRequest);
-      return reply;
+// GH-1012: these readers now read Front Desk directly (`fds list`), not the
+// beadsd daemon. The runner answers `git remote get-url origin` + `fds list`;
+// records are GH-canonical (`id = GH-<n>`), parsed via parseBeadsRecords.
+const FD = JSON.stringify({
+  source: "server",
+  syncedAt: "2026-07-26T00:00:00Z",
+  items: [
+    {
+      number: 123,
+      repository: "prx",
+      kind: "task",
+      title: "do a thing",
+      status: "Todo",
+      effort: 1,
+      value: 1,
+      dependsOn: [],
+      ageDays: 0,
     },
-  };
+  ],
+  edges: [],
+});
+
+function fdsRunner(listJson = FD): CommandRunner {
+  return ((cmd) => {
+    if (cmd[0] === "git") {
+      return { status: 0, stdout: "https://github.com/bounded-systems/prx.git\n", stderr: "" };
+    }
+    return { status: 0, stdout: listJson, stderr: "" };
+  }) as CommandRunner;
 }
 
-describe("daemon readers parse raw bd --json into BeadsRecord (GH-296)", () => {
-  test("loadAllBeadsViaDaemon maps snake_case → camelCase and derives refs", async () => {
-    const recs = await loadAllBeadsViaDaemon(fakeDeps({ status: "ok", result: [RAW] }));
+describe("Front Desk readers → BeadsRecord (GH-1012)", () => {
+  test("loadAllBeadsViaDaemon reads Front Desk and derives refs", async () => {
+    const recs = await loadAllBeadsViaDaemon({ run: fdsRunner(), cwd: "/repo" });
     expect(recs).toHaveLength(1);
-    expect(recs[0]!.externalRef).toBe("https://github.com/o/r/issues/123");
+    expect(recs[0]!.id).toBe("GH-123");
     expect(recs[0]!.issueType).toBe("task");
-    expect(recs[0]!.sourceSystem).toBe("github");
     expect(recs[0]!.externalIssueNumber).toBe(123);
-    expect(recs[0]!.externalRefs.gh).toBe("https://github.com/o/r/issues/123");
+    expect(recs[0]!.externalRefs.gh).toContain("/prx/issues/123");
   });
 
-  test("loadAllBeadsViaDaemon issues an aggregate `list --all --limit 0` query", async () => {
-    let seen: BeadsRequest | undefined;
-    await loadAllBeadsViaDaemon(fakeDeps({ status: "ok", result: [] }, (r) => (seen = r)));
-    expect(seen).toEqual({ kind: "list", all: true, limit: 0 });
-  });
-
-  test("showBeadViaDaemon issues a TARGETED `show <id>` and parses the one record", async () => {
-    let seen: BeadsRequest | undefined;
-    const rec = await showBeadViaDaemon(
-      "prx-abb",
-      fakeDeps({ status: "ok", result: [RAW] }, (r) => (seen = r)),
-    );
-    expect(seen).toEqual({ kind: "show", id: "prx-abb" });
-    expect(rec?.id).toBe("prx-abb");
+  test("showBeadViaDaemon returns the one record by GH id", async () => {
+    const rec = await showBeadViaDaemon("GH-123", { run: fdsRunner(), cwd: "/repo" });
+    expect(rec?.id).toBe("GH-123");
     expect(rec?.externalIssueNumber).toBe(123);
   });
 
-  test("showBeadViaDaemon unwraps a bare (non-array) result too", async () => {
-    const rec = await showBeadViaDaemon("prx-abb", fakeDeps({ status: "ok", result: RAW }));
-    expect(rec?.id).toBe("prx-abb");
-  });
-
-  test("showBeadViaDaemon returns null on a not-found error verdict (not an exception)", async () => {
-    const rec = await showBeadViaDaemon(
-      "nope",
-      fakeDeps({ status: "error", code: "not-found", message: "no record found" }),
-    );
+  test("showBeadViaDaemon returns null when the id is absent (not an exception)", async () => {
+    const rec = await showBeadViaDaemon("GH-999", { run: fdsRunner(), cwd: "/repo" });
     expect(rec).toBeNull();
-  });
-
-  test("showBeadViaDaemon throws on a non-not-found error verdict", async () => {
-    await expect(
-      showBeadViaDaemon("x", fakeDeps({ status: "error", code: "bd-read", message: "boom" })),
-    ).rejects.toThrow(/bd-read/);
   });
 });
