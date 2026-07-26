@@ -57,6 +57,60 @@ function fixtureRunner(stdout: string, opts: { failGraph?: boolean } = {}): BdRu
   };
 }
 
+// GH-1010 flipped queryBdReady's DEFAULT source to Front Desk. Every test in
+// this file exercises the bd path, so pin it to `bd` (restored per-test). The
+// source-selection describe below manages the env itself.
+const PRIOR_READY_SOURCE = process.env.PRX_READY_SOURCE;
+beforeEach(() => {
+  process.env.PRX_READY_SOURCE = "bd";
+});
+afterEach(() => {
+  if (PRIOR_READY_SOURCE === undefined) delete process.env.PRX_READY_SOURCE;
+  else process.env.PRX_READY_SOURCE = PRIOR_READY_SOURCE;
+});
+
+describe("ready source selection (GH-1010)", () => {
+  const stubResult = { ready: [], blocked: [], raw: "{}" };
+
+  test("default source is frontdesk (no env) — uses the injected Front Desk reader", () => {
+    delete process.env.PRX_READY_SOURCE;
+    let called = false;
+    const out = queryBdReady({
+      cwd: "/repo",
+      frontDesk: () => {
+        called = true;
+        return stubResult;
+      },
+      // a bd runner that would throw if reached, proving bd is NOT consulted
+      runner: () => {
+        throw new Error("bd should not be called when source=frontdesk");
+      },
+    });
+    expect(called).toBe(true);
+    expect(out).toBe(stubResult);
+  });
+
+  test("PRX_READY_SOURCE=bd routes to the bd runner", () => {
+    process.env.PRX_READY_SOURCE = "bd";
+    const out = queryBdReady({ cwd: "/dev/null", runner: fixtureRunner(mixedFixtureRaw) });
+    expect(out.ready.length).toBeGreaterThan(0);
+  });
+
+  test("explicit source overrides the env", () => {
+    process.env.PRX_READY_SOURCE = "bd";
+    let called = false;
+    queryBdReady({
+      cwd: "/repo",
+      source: "frontdesk",
+      frontDesk: () => {
+        called = true;
+        return stubResult;
+      },
+    });
+    expect(called).toBe(true);
+  });
+});
+
 describe("queryBdReady", () => {
   test("parses --explain --json envelope into typed buckets", () => {
     const result = queryBdReady({ cwd: "/dev/null", runner: fixtureRunner(mixedFixtureRaw) });

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { connect, type Server } from "node:net";
 import { tmpdir } from "node:os";
@@ -17,8 +17,73 @@ import {
   type BeadsDaemonDeps,
 } from "../../src/beadsd/daemon.ts";
 import type { BeadsRequest } from "../../src/beadsd/contract.ts";
+import type { BdReadyCandidate, QueryBdReadyResult } from "../../src/beads/ready.ts";
 
 const READY: BeadsRequest = { kind: "ready" };
+
+// GH-1010 flipped the `ready` door's default source to Front Desk. The existing
+// tests exercise the bd dispatch, so pin them to `bd` (restored per-test); the
+// "front desk redirect" describe below overrides it.
+const PRIOR_READY_SOURCE = process.env.PRX_READY_SOURCE;
+beforeEach(() => {
+  process.env.PRX_READY_SOURCE = "bd";
+});
+afterEach(() => {
+  if (PRIOR_READY_SOURCE === undefined) delete process.env.PRX_READY_SOURCE;
+  else process.env.PRX_READY_SOURCE = PRIOR_READY_SOURCE;
+});
+
+describe("ready door → Front Desk redirect (GH-1010)", () => {
+  const cand: BdReadyCandidate = {
+    id: "GH-5",
+    title: "t",
+    status: "open",
+    priority: 2,
+    issue_type: "task",
+    created_at: "",
+    updated_at: "",
+    labels: [],
+    blocked_by: [],
+    blocked_by_count: 0,
+  };
+  const fd: QueryBdReadyResult = { ready: [cand], blocked: [], raw: "{}" };
+
+  test("plain ready returns the Front Desk ready array — bd is never spawned", async () => {
+    process.env.PRX_READY_SOURCE = "frontdesk";
+    const { execBd, calls } = fakeBd();
+    const res = await handleBeadsRequest({ kind: "ready" }, { execBd, frontDesk: () => fd });
+    expect(res.status).toBe("ok");
+    expect(res.status === "ok" ? res.result : null).toEqual([cand]);
+    expect(calls).toHaveLength(0);
+  });
+
+  test("explain ready returns the { ready, blocked } envelope", async () => {
+    process.env.PRX_READY_SOURCE = "frontdesk";
+    const { execBd } = fakeBd();
+    const res = await handleBeadsRequest(
+      { kind: "ready", explain: true },
+      { execBd, frontDesk: () => fd },
+    );
+    expect(res.status).toBe("ok");
+    expect(res.status === "ok" ? res.result : null).toEqual({ ready: [cand], blocked: [] });
+  });
+
+  test("a Front Desk failure surfaces as a bd-read error (daemon stays up)", async () => {
+    process.env.PRX_READY_SOURCE = "frontdesk";
+    const { execBd } = fakeBd();
+    const res = await handleBeadsRequest(
+      { kind: "ready" },
+      {
+        execBd,
+        frontDesk: () => {
+          throw new Error("fds down");
+        },
+      },
+    );
+    expect(res.status).toBe("error");
+    expect(res.status === "error" ? res.message : "").toContain("fds down");
+  });
+});
 
 const okResult = (stdout = "[]"): BdExecResult => ({
   exitCode: 0,
