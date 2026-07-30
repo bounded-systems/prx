@@ -542,7 +542,7 @@
     {
       "@type": "TechArticle",
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/token-custody-and-trail-build-vs-adopt.md",
-      "name": "Token custody and the call trail: adopt Octo STS, or build the injection proxy? (ADR)",
+      "name": "Token custody and the call trail: does custody move into the prx proxy? (ADR)",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/token-custody-and-trail-build-vs-adopt.md",
       "isPartOf": {
         "@id": "https://github.com/bounded-systems/prx"
