@@ -38,3 +38,15 @@ their GitHub profile at {{copyright.url}} rather than disclosing publicly.
 (`git`, `gh`, `bd`, Dolt, container runtimes). Reports about how `{{project.name}}`
 invokes, trusts, or passes data to those tools are in scope. Vulnerabilities in
 the upstream tools themselves should be reported to their respective projects.
+
+## Accepted risks — see `THREATS.md`
+
+This document covers *reporting* a vulnerability. Risks the architecture takes
+on **deliberately** — where a design concentrates risk and we accepted it for
+what it buys — are recorded separately in [`THREATS.md`](THREATS.md), with the
+reason and the boundary of what each one does not cover.
+
+Those entries are not vulnerabilities and are not unfixed bugs; they are
+documented consequences of designs working as intended. If you believe an
+accepted risk is mis-scoped, or that its stated boundary is wrong, that is worth
+reporting through the process above rather than opening a public issue.

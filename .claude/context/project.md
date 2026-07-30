@@ -73,6 +73,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Security Policy — `SECURITY.md`
 - spike: effect-typed CUE spec unifying the prx actor-model invariants (+ Rule 4, MCP-as-projection) — `spec/README.md`
 - prx — status — `STATUS.md`
+- Threat model — `THREATS.md`
 
 ## Commands & workflow
 

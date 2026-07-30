@@ -191,9 +191,17 @@ The proxy would hold all credentials and sit in every data path: the
 highest-value target in the system and a single point of failure. This is a real
 cost of the decision, not a footnote.
 
-prx has `SECURITY.md` and **no `THREATS.md`**. This ADR does not assume the
-document exists — the concentration needs recording wherever threat modelling
-ends up living, and #1030's "done when" makes that a condition of the yes.
+**Recorded as [`THREATS.md`](../../THREATS.md) T1** (prx#1032), which is where
+prx's accepted risks now live — a different genre from `SECURITY.md`, which is a
+vulnerability-*reporting* policy. `SECURITY.md` links across to it.
+
+T1 carries the parts this section only gestures at: what the concentration buys
+(§6's enforcement property, which is the reason it is accepted rather than
+minimised), the §7 boundary restated as what the control does *not* cover, the
+migration caveat that a half-migrated deployment has the concentration without
+the benefit, and the blast-radius note that keeping the proxy a broker
+*consumer* — holding minted short-lived tokens, never the App key — is the
+intended shape.
 
 ## 9. Build parameters (decided)
 
