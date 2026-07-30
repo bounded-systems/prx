@@ -53,6 +53,6 @@ jobs:
   osv:
     # SHA-pinned per org policy. `# main` records what the SHA was at the time, so a
     # reviewer can tell an intentional bump from a drifted one.
-    uses: bounded-systems/ci-workflows/.github/workflows/osv-scan.yml@fa4620770395c57e4fc0d042ded33094b9e7d290 # main
+    uses: bounded-systems/ci-workflows/.github/workflows/osv-scan.yml@62990dd15f1b0deba21e597bebd1512970544c15 # main
     with:
       report-only: true # adoption grace — delete this once findings are clear (ci-workflows#2)
