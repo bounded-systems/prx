@@ -13,18 +13,8 @@ name: deps
 # (OSV has no JSR ecosystem). A repo with nothing scannable passes rather than
 # red-lining.
 #
-# Failure posture is HARD-FAIL by default. This template ships `report-only: true`
-# as an ADOPTION GRACE setting: 5 of the first 8 repos scanned carried pre-existing
-# advisories, and blocking adoption on remediation would mean most repos stay
-# UNINSTRUMENTED while their findings go unseen. Grace decouples "we can see it"
-# from "we have fixed it".
-#
-# >>> DELETE THE `report-only: true` LINE BELOW once this repo's findings are clear.
-# >>> That flips it to hard-fail, which is the intended steady state.
-# Progress tracked in ci-workflows#2.
-#
-# Grace downgrades VULNERABILITY findings only. A tool or network failure still fails
-# hard in every mode — a lane that cannot run must never report green.
+# Failure posture: HARD-FAIL. Adoption grace was removed once this repo's scan
+# came back clean (ci-workflows#8) — a known vulnerability now reds the lane.
 #
 # The reviewable escape hatch for an accepted or unfixable finding is an
 # osv-scanner.toml [[IgnoredVulns]] entry next to the lockfile, with a written reason.
@@ -54,5 +44,3 @@ jobs:
     # SHA-pinned per org policy. `# main` records what the SHA was at the time, so a
     # reviewer can tell an intentional bump from a drifted one.
     uses: bounded-systems/ci-workflows/.github/workflows/osv-scan.yml@62990dd15f1b0deba21e597bebd1512970544c15 # main
-    with:
-      report-only: true # adoption grace — delete this once findings are clear (ci-workflows#2)
