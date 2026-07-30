@@ -1,0 +1,58 @@
+name: deps
+# Dependency scanning via the org's shared lane (infra#104, ci-workflows#1).
+#
+# STANDARDIZED ORG-WIDE CALLER — copy this file byte-identical to
+# .github/workflows/deps.yml in the adopting repo. Do not tailor it per repo: the
+# scanner version, its sha256, and the deno.lock converter all live in the reusable
+# workflow (one definition), and a fleet of identical callers means the next bump is
+# one review of one diff, applied everywhere by the same sed.
+#
+# What a green check means: every lockfile ecosystem osv-scanner supports, plus the
+# npm subset of any v4/v5 deno.lock (converted in-lane). Still not scannable by
+# anything today, and logged per run: jsr-native deps and @jsr/* npm-compat mirrors
+# (OSV has no JSR ecosystem). A repo with nothing scannable passes rather than
+# red-lining.
+#
+# Failure posture is HARD-FAIL by default. This template ships `report-only: true`
+# as an ADOPTION GRACE setting: 5 of the first 8 repos scanned carried pre-existing
+# advisories, and blocking adoption on remediation would mean most repos stay
+# UNINSTRUMENTED while their findings go unseen. Grace decouples "we can see it"
+# from "we have fixed it".
+#
+# >>> DELETE THE `report-only: true` LINE BELOW once this repo's findings are clear.
+# >>> That flips it to hard-fail, which is the intended steady state.
+# Progress tracked in ci-workflows#2.
+#
+# Grace downgrades VULNERABILITY findings only. A tool or network failure still fails
+# hard in every mode — a lane that cannot run must never report green.
+#
+# The reviewable escape hatch for an accepted or unfixable finding is an
+# osv-scanner.toml [[IgnoredVulns]] entry next to the lockfile, with a written reason.
+#
+# The weekly rescan exists because advisories are published against locks that are
+# not changing: a repo that merges rarely would otherwise stay green on stale
+# information indefinitely. Tuesday, one day after ci-workflows' Monday self-test —
+# the canary catches a broken digest or release URL fleet-wide BEFORE the fleet
+# rescans on it.
+#
+# NOT path-filtered, deliberately: a check that is skipped on some PRs cannot be
+# made a required check without the skipped-required-check problem.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 7 * * 2"
+  workflow_dispatch: {}
+concurrency:
+  group: deps-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  osv:
+    # SHA-pinned per org policy. `# main` records what the SHA was at the time, so a
+    # reviewer can tell an intentional bump from a drifted one.
+    uses: bounded-systems/ci-workflows/.github/workflows/osv-scan.yml@62990dd15f1b0deba21e597bebd1512970544c15 # main
+    with:
+      report-only: true # adoption grace — delete this once findings are clear (ci-workflows#2)
