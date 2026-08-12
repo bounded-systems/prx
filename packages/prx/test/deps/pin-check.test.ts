@@ -184,7 +184,91 @@ describe("the shrinking allowlist", () => {
   });
 });
 
+/**
+ * These run IN-PROCESS deliberately. The CLI cases below cover the same ground
+ * end-to-end, but they spawn a subprocess, so none of their execution reaches
+ * the coverage instrumentation — which left this feature reading as untested
+ * and put the file one line above the `--per-file-min 85` floor.
+ */
+describe("lockfile drift — a pin that isn't what actually resolves", () => {
+  const key = (m: string, f: string, n: string) => JSON.stringify([m, f, n]);
+
+  test("an exact pin the lockfile does not resolve is a failure", () => {
+    const report = checkPins(
+      [manifest("package.json", { dependencies: { xstate: "5.32.5" } })],
+      { entries: [] },
+      new Map([[key("package.json", "dependencies", "xstate"), "5.32.9"]]),
+    );
+    expect(report.lockDrift).toHaveLength(1);
+    expect(report.lockDrift[0]?.declared).toBe("5.32.5");
+    expect(report.lockDrift[0]?.resolved).toBe("5.32.9");
+    expect(isFailing(report)).toBeTrue();
+  });
+
+  test("agreement is silent", () => {
+    const report = checkPins(
+      [manifest("package.json", { dependencies: { xstate: "5.32.5" } })],
+      { entries: [] },
+      new Map([[key("package.json", "dependencies", "xstate"), "5.32.5"]]),
+    );
+    expect(report.lockDrift).toBeEmpty();
+    expect(isFailing(report)).toBeFalse();
+  });
+
+  test("an alias is compared on its range, not on the whole spec string", () => {
+    const report = checkPins(
+      [manifest("package.json", { dependencies: { "@bs/cas": "npm:@jsr/bs__cas@0.1.2" } })],
+      { entries: [] },
+      new Map([[key("package.json", "dependencies", "@bs/cas"), "0.1.2"]]),
+    );
+    expect(report.lockDrift).toBeEmpty();
+  });
+
+  test("a dep absent from the lockfile is not reported as drift", () => {
+    const report = checkPins(
+      [manifest("package.json", { dependencies: { xstate: "5.32.5" } })],
+      { entries: [] },
+      new Map(),
+    );
+    expect(report.lockDrift).toBeEmpty();
+  });
+
+  test("a float is reported as a float, not as drift", () => {
+    const report = checkPins(
+      [manifest("package.json", { dependencies: { xstate: "^5.32.5" } })],
+      { entries: [] },
+      new Map([[key("package.json", "dependencies", "xstate"), "5.32.9"]]),
+    );
+    expect(report.violations).toHaveLength(1);
+    expect(report.lockDrift).toBeEmpty();
+  });
+
+  test("the report names both versions and how to reconcile them", () => {
+    const out = renderReport(
+      checkPins(
+        [manifest("package.json", { devDependencies: { ajv: "8.19.0" } })],
+        { entries: [] },
+        new Map([[key("package.json", "devDependencies", "ajv"), "8.20.0"]]),
+      ),
+    );
+    expect(out).toContain("does not resolve");
+    expect(out).toContain("8.19.0");
+    expect(out).toContain("8.20.0");
+    expect(out).toContain("bun install");
+  });
+});
+
 describe("renderReport teaches the fix", () => {
+  test("an unexplained allowlist entry is named in the output", () => {
+    const out = renderReport(
+      checkPins([manifest("package.json", { dependencies: { flaky: "^1.0.0" } })], {
+        entries: [{ manifest: "package.json", field: "dependencies", name: "flaky" }],
+      }),
+    );
+    expect(out).toContain("no written reason");
+    expect(out).toContain("dependencies.flaky");
+  });
+
   test("a violation names the file, the spec and the command to run", () => {
     const out = renderReport(
       checkPins([manifest("package.json", { devDependencies: { ajv: "^8.17.1" } })]),
