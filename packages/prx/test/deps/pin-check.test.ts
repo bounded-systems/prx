@@ -211,7 +211,11 @@ describe("check-dep-pins CLI (fixture-driven)", () => {
 
   function withFixture(
     root: Record<string, unknown>,
-    extra: { pkgs?: Record<string, Record<string, unknown>>; allowlist?: unknown } = {},
+    extra: {
+      pkgs?: Record<string, Record<string, unknown>>;
+      allowlist?: unknown;
+      lock?: unknown;
+    } = {},
   ) {
     const dir = mkdtempSync(join(tmpdir(), "pin-check-"));
     writeFileSync(join(dir, "package.json"), JSON.stringify(root, null, 2));
@@ -220,6 +224,9 @@ describe("check-dep-pins CLI (fixture-driven)", () => {
         mkdirSync(join(dir, "packages", name), { recursive: true });
         writeFileSync(join(dir, "packages", name, "package.json"), JSON.stringify(json, null, 2));
       }
+    }
+    if (extra.lock !== undefined) {
+      writeFileSync(join(dir, "bun.lock"), JSON.stringify(extra.lock, null, 2));
     }
     if (extra.allowlist !== undefined) {
       writeFileSync(
@@ -327,6 +334,74 @@ describe("check-dep-pins CLI (fixture-driven)", () => {
       const { code, out } = run(dir);
       expect(code).toBe(0);
       expect(out).toContain("pinned exactly");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("FAILS when a pin disagrees with what bun.lock resolves", () => {
+    const dir = withFixture(
+      { name: "fixture", dependencies: { xstate: "5.32.5" } },
+      {
+        // The lock resolves 5.32.9; the manifest claims 5.32.5. Pinned, but
+        // still not recording what the tree installs.
+        lock: {
+          lockfileVersion: 1,
+          workspaces: { "": { name: "fixture", dependencies: { xstate: "5.32.5" } } },
+          packages: { xstate: ["xstate@5.32.9", "", {}, "sha512-deadbeef"] },
+        },
+      },
+    );
+    try {
+      const { code, out } = run(dir);
+      expect(code).toBe(1);
+      expect(out).toContain("does not resolve");
+      expect(out).toContain("5.32.5");
+      expect(out).toContain("5.32.9");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("resolves an alias by its alias key, not the underlying package name", () => {
+    // The trap this check was written around: bun.lock carries BOTH keys at
+    // different versions. Reading the wrong one silently pins a transitive's
+    // version onto a direct dep.
+    const dir = withFixture(
+      {
+        name: "fixture",
+        dependencies: { "@bs/disposition": "npm:@jsr/bs__disposition@0.2.0" },
+      },
+      {
+        lock: {
+          lockfileVersion: 1,
+          workspaces: { "": { name: "fixture" } },
+          packages: {
+            "@bs/disposition": ["@jsr/bs__disposition@0.2.0", "", {}, "sha512-a"],
+            "@jsr/bs__disposition": ["@jsr/bs__disposition@0.3.0", "", {}, "sha512-b"],
+          },
+        },
+      },
+    );
+    try {
+      // 0.2.0 is what the ALIAS resolves to, so this must pass. It would fail
+      // if the lookup went through "@jsr/bs__disposition" (0.3.0).
+      expect(run(dir).code).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("tolerates a lockfile with trailing commas (bun writes JSONC)", () => {
+    const dir = withFixture({ name: "fixture", dependencies: { xstate: "5.32.5" } });
+    writeFileSync(
+      join(dir, "bun.lock"),
+      '{\n  "packages": {\n    "xstate": ["xstate@5.32.9", "", {}, "sha512-x"],\n  },\n}\n',
+    );
+    try {
+      const { code, out } = run(dir);
+      expect(code).toBe(1);
+      expect(out).toContain("5.32.9");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

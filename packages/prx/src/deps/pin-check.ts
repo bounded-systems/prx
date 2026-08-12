@@ -130,6 +130,21 @@ export type AllowlistEntry = {
 
 export type Allowlist = { entries: AllowlistEntry[] };
 
+/**
+ * What the lockfile actually resolved each direct dep to, keyed by
+ * `keyOf(manifest, field, name)`. Built by the caller (the lockfile lives on
+ * disk; this module stays pure).
+ */
+export type ResolvedVersions = Map<string, string>;
+
+export type LockDrift = {
+  manifest: string;
+  field: CheckedField;
+  name: string;
+  declared: string;
+  resolved: string;
+};
+
 export type PinReport = {
   /** Floats with no allowlist entry — these fail the gate. */
   violations: Violation[];
@@ -139,6 +154,8 @@ export type PinReport = {
   stale: (AllowlistEntry & { why: string })[];
   /** Allowlist entries missing a written reason. */
   unexplained: AllowlistEntry[];
+  /** Deps pinned to a version the lockfile does not actually resolve. */
+  lockDrift: LockDrift[];
   /** Total direct specs examined, for the "what did this actually look at" line. */
   examined: number;
 };
@@ -154,8 +171,10 @@ const keyOf = (manifest: string, field: string, name: string) =>
 export function checkPins(
   manifests: Manifest[],
   allowlist: Allowlist = { entries: [] },
+  resolved: ResolvedVersions = new Map(),
 ): PinReport {
   const floats = new Map<string, Violation>();
+  const lockDrift: LockDrift[] = [];
   let examined = 0;
 
   for (const m of manifests) {
@@ -165,15 +184,29 @@ export function checkPins(
       for (const [name, rawSpec] of Object.entries(block as Record<string, unknown>)) {
         const spec = typeof rawSpec === "string" ? rawSpec : String(rawSpec);
         examined += 1;
+        const key = keyOf(m.path, field, name);
         const verdict = classifySpec(spec);
         if (verdict.kind === "floating") {
-          floats.set(keyOf(m.path, field, name), {
-            manifest: m.path,
-            field,
-            name,
-            spec,
-            why: verdict.why,
-          });
+          floats.set(key, { manifest: m.path, field, name, spec, why: verdict.why });
+          continue;
+        }
+        // An exact spec the lockfile does not resolve is the same defect this
+        // gate exists to stop, wearing a pin: the manifest does not record what
+        // the tree installs.
+        //
+        // Honest scope: `bun install --frozen-lockfile` also rejects both cases
+        // this was tested against, so this is defence in depth rather than a
+        // hole only we can see. It earns its place by being a pure file read —
+        // no install, no network — and by naming the two versions instead of
+        // "lockfile had changes", which is what rule 2 asks a gate to do.
+        // (The *range* drift GH-1040 describes on `main` is invisible to
+        // --frozen-lockfile, but ranges are floats here and fail earlier.)
+        const actual = resolved.get(key);
+        if (verdict.kind === "pinned" && actual !== undefined) {
+          const declared = unwrapAlias(spec.trim());
+          if (declared !== actual) {
+            lockDrift.push({ manifest: m.path, field, name, declared, resolved: actual });
+          }
         }
       }
     }
@@ -214,12 +247,19 @@ export function checkPins(
   violations.sort(order);
   allowed.sort(order);
 
-  return { violations, allowed, stale, unexplained, examined };
+  lockDrift.sort((a, b) => a.manifest.localeCompare(b.manifest) || a.name.localeCompare(b.name));
+
+  return { violations, allowed, stale, unexplained, lockDrift, examined };
 }
 
 /** True when the report should fail CI. */
 export function isFailing(report: PinReport): boolean {
-  return report.violations.length > 0 || report.stale.length > 0 || report.unexplained.length > 0;
+  return (
+    report.violations.length > 0 ||
+    report.stale.length > 0 ||
+    report.unexplained.length > 0 ||
+    report.lockDrift.length > 0
+  );
 }
 
 /**
@@ -264,6 +304,26 @@ export function renderReport(report: PinReport): string {
       lines.push(`  ${e.manifest}  ${e.field}.${e.name} — ${e.why}`);
     }
     lines.push("  The allowlist only shrinks: remove entries once the dep is pinned or gone.");
+  }
+
+  if (report.lockDrift.length > 0) {
+    lines.push(
+      `✗ ${report.lockDrift.length} dep(s) pinned to a version the lockfile does not resolve:`,
+    );
+    lines.push("");
+    for (const d of report.lockDrift) {
+      lines.push(`  ${d.manifest}  ${d.field}.${d.name}`);
+      lines.push(`      package.json declares: ${d.declared}`);
+      lines.push(`      bun.lock resolves:     ${d.resolved}`);
+    }
+    lines.push("");
+    lines.push("  The manifest is pinned but does not record what the tree installs.");
+    lines.push("  `bun install --frozen-lockfile` normally also rejects this; this check runs");
+    lines.push("  without a network install and names the two versions outright.");
+    lines.push("");
+    lines.push("  Fix — pick the one you mean, then re-run:");
+    lines.push("      bun install     # keep the declared version, move the lock to match");
+    lines.push("      # …or edit package.json to the resolved version if the lock is right");
   }
 
   if (report.allowed.length > 0) {
