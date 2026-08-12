@@ -54,6 +54,6 @@
     "zod": "^3.25.0 || ^4.0.0"
   },
   "devDependencies": {
-    "@bounded-systems/seam-check": "npm:@jsr/bounded-systems__seam-check@^0.1.0"
+    "@bounded-systems/seam-check": "npm:@jsr/bounded-systems__seam-check@0.1.0"
   }
 }

@@ -71,6 +71,15 @@ jobs:
       - name: jsr.json versions in sync with package.json
         run: bun run jsr:versions:check
 
+      # GH-1039: every *direct* dependency must be pinned to an exact version, so
+      # a version change is something a reviewer approves rather than something a
+      # resolver does. A float that genuinely cannot be pinned lives in
+      # `.dep-pins-allowlist.json` with a written reason, and that list can only
+      # shrink. Placed before the build: a float is a cheap, unambiguous failure
+      # and there is no point compiling a binary to discover it.
+      - name: Direct dependencies pinned exactly
+        run: bun run deps:pins:check
+
       - name: Build prx binary
         run: mkdir -p dist && bun packages/prx/scripts/prx-compile.ts dist/prx
 

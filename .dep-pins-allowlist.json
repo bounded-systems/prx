@@ -1,0 +1,31 @@
+{
+  "$comment": [
+    "Shrinking allowlist for the direct-dependency pin gate (GH-1039).",
+    "Enforced by `bun run deps:pins:check` (packages/prx/scripts/check-dep-pins.ts).",
+    "",
+    "An entry is how a direct dependency that genuinely CANNOT be pinned today",
+    "survives the gate. It is a debt marker, not a waiver: the list only shrinks.",
+    "",
+    "  - every entry MUST carry a non-empty `reason` — an entry without one fails",
+    "    the gate, because the reason is the whole point of the escape hatch;",
+    "  - a STALE entry — one whose dependency is now pinned, removed or renamed —",
+    "    also fails the gate, so the list cannot rot into a place floats live.",
+    "",
+    "`entries` is empty because at the time of the sweep every direct dependency",
+    "in this repo could be pinned to the version the lockfile had already",
+    "resolved. That is the goal state, not an oversight — the mechanism is here",
+    "so a float that truly cannot be pinned has a reviewable home, and so that",
+    "the gate can be adopted without a big-bang.",
+    "",
+    "Entry shape:",
+    "  { \"manifest\": \"packages/prx/package.json\",",
+    "    \"field\": \"dependencies\",",
+    "    \"name\": \"@bounded-systems/example\",",
+    "    \"reason\": \"upstream publishes no immutable tag; tracked in GH-xxxx\" }",
+    "",
+    "Out of scope by design (never needs an entry): `peerDependencies` (a",
+    "compatibility statement to consumers, not a resolution input) and",
+    "`overrides`/`resolutions` (those pin TRANSITIVE deps — see GH-1038)."
+  ],
+  "entries": []
+}
