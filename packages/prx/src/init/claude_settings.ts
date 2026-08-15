@@ -92,6 +92,13 @@ export function buildClaudeSettings(): ClaudeSettings {
  * the org `env` defaults and the SessionStart context-injection hook. Drives
  * THIS repo's checked-in `.claude/settings.json`; never the public scaffolder.
  *
+ *   - permissions: the public allow-list plus the canonical org floor entry
+ *     `Bash(bash .claude/org-repair.sh)` (#491), which pre-approves the
+ *     committed org repair/bootstrap for bounded-systems cloud sessions. This
+ *     entry is deliberately confined to the org harness: `org-repair.sh` is
+ *     org-internal and (when `ORG_BOOT_SHA256` is set with no local boot copy)
+ *     fetches and executes remote bootstrap code, so it must never leak into
+ *     the public `prx init` scaffold via `buildClaudeSettings()`.
  *   - env: subagent model → haiku, autocompact at 75%, telemetry switch on
  *     (inert until an OTEL endpoint is configured out-of-band).
  *   - SessionStart: ensures the per-repo beadsd is up (host-side bridge for
@@ -100,8 +107,13 @@ export function buildClaudeSettings(): ClaudeSettings {
  *     (both fail open).
  */
 export function buildOrgHarnessSettings(): ClaudeSettings {
+  const base = buildClaudeSettings();
   return {
-    ...buildClaudeSettings(),
+    ...base,
+    permissions: {
+      ...base.permissions,
+      allow: [...base.permissions.allow, "Bash(bash .claude/org-repair.sh)"],
+    },
     env: {
       CLAUDE_CODE_SUBAGENT_MODEL: "haiku",
       CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: "75",
