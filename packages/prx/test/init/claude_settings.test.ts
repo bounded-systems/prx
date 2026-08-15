@@ -48,13 +48,22 @@ describe("buildClaudeSettings", () => {
     const settings = buildClaudeSettings();
     expect(settings.env).toBeUndefined();
     expect(settings.hooks).toBeUndefined();
+    // The org-internal repair pre-approval must never ship in the public scaffold.
+    expect(settings.permissions.allow).not.toContain("Bash(bash .claude/org-repair.sh)");
   });
 });
 
 describe("buildOrgHarnessSettings", () => {
-  test("layers the org env baseline on the public permissions", () => {
+  test("layers the org env baseline and the org-repair floor on the public permissions", () => {
     const settings = buildOrgHarnessSettings();
-    expect(settings.permissions).toEqual(buildClaudeSettings().permissions);
+    const publicPerms = buildClaudeSettings().permissions;
+    // Deny list is inherited unchanged; allow list is the public floor plus the
+    // canonical org repair pre-approval (#491), appended.
+    expect(settings.permissions.deny).toEqual(publicPerms.deny);
+    expect(settings.permissions.allow).toEqual([
+      ...publicPerms.allow,
+      "Bash(bash .claude/org-repair.sh)",
+    ]);
     expect(settings.env).toEqual({
       CLAUDE_CODE_SUBAGENT_MODEL: "haiku",
       CLAUDE_AUTOCOMPACT_PCT_OVERRIDE: "75",
