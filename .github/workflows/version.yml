@@ -37,19 +37,35 @@ jobs:
     permissions:
       contents: write # push the changeset-release branch
       pull-requests: write # open/update the release PR
+      id-token: write # OIDC -> broker /github/forge-version
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
-      - name: Mint GitHub App token
+      # Broker mint (cf-token-broker /github/forge-version): OIDC in, short-lived
+      # installation token out. The entry is capability-named and pinned to THIS
+      # workflow on main; the App behind it (bs-door-forge) can be swapped
+      # registry-side without touching this file. Replaces the
+      # create-github-app-token mint from the PRX_FORGE_APP_PRIVATE_KEY repo
+      # secret — no PEM in this repo. Same fallback contract as before: when the
+      # broker URL is not configured, downstream steps use GITHUB_TOKEN.
+      - name: Mint forge token (broker /github/forge-version)
         id: app-token
-        if: ${{ vars.PRX_FORGE_APP_ID != '' }}
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v2.1.4
-        with:
-          app-id: ${{ vars.PRX_FORGE_APP_ID }}
-          private-key: ${{ secrets.PRX_FORGE_APP_PRIVATE_KEY }}
+        if: ${{ vars.CF_BROKER_URL != '' }}
+        env:
+          CF_BROKER_URL: ${{ vars.CF_BROKER_URL }}
+        run: |
+          set -euo pipefail
+          jwt="$(curl -sf "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=github-app-broker"             -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" | jq -r '.value // empty')"
+          [ -n "$jwt" ] || { echo "::error::no OIDC token for github-app-broker"; exit 1; }
+          body="$(curl -sf -X POST "${CF_BROKER_URL%/}/github/forge-version" -H "Authorization: Bearer $jwt")" || {
+            echo "::error::broker refused the forge-version mint (401 = pin rejected, 404 = entry not deployed)"; exit 1; }
+          tok="$(jq -r '.token // empty' <<<"$body")"
+          [ -n "$tok" ] || { echo "::error::broker returned no token"; exit 1; }
+          echo "::add-mask::$tok"
+          echo "token=$tok" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
