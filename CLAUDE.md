@@ -9,10 +9,13 @@ edit the sources (community.json / package descriptions / docs), not the doc.
 <!-- bounded-systems-org:begin — managed by adopt-claude-harness; do not hand-edit this block -->
 ## bounded-systems sessions — before anything else
 
-1. **Bootstrap**: run `bash .claude/org-repair.sh` (pre-approved; verifies every
-   byte against `$ORG_BOOT_SHA256`, refuses unverified code). `bootstrap in
-   effect` → continue. `REFUSED` or a permission denial → stop and report; do
-   not work around it.
+1. **Bootstrap**: run `bash .claude/org-repair.sh` — pre-approved where this
+   repo's settings carry the org floor; generator-owned repos may still prompt.
+   Its only trust anchor is the dialog-recorded `$ORG_BOOT_SHA256` (typed by a
+   human in the environment dialog, never fetched): it executes a local or
+   fetched copy ONLY if the bytes hash to that value, and refuses otherwise.
+   `bootstrap in effect` → continue. `REFUSED` or a permission denial → stop
+   and report; do not work around it.
 2. **Claim before working**: dispatch `claim-ticket.yml` in
    `bounded-systems/.github` (workflow_dispatch: `repo`, `issue`, `claimant`),
    then confirm the claim comment ON THE ISSUE names your claimant. Any
