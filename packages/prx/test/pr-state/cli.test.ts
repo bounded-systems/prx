@@ -8620,6 +8620,8 @@ describe("pr_state cli", () => {
             originHeadSet: true,
             overlay: null,
             bdWorkspacePrefix: opts.bdWorkspacePrefixOverride ?? "ai-home",
+            bdWorkspacePrefixSource:
+              opts.bdWorkspacePrefixOverride === undefined ? "slug-derived" : "override",
             canonical: opts.canonical ?? "gh",
             beadsHydrate: {
               status: "skipped-no-beads",
@@ -8660,6 +8662,7 @@ describe("pr_state cli", () => {
           originHeadSet: true,
           overlay: null,
           bdWorkspacePrefix: "ai-home",
+          bdWorkspacePrefixSource: "slug-derived",
           canonical: opts.canonical ?? "gh",
           beadsHydrate: {
             status: "skipped-no-beads",
@@ -8731,6 +8734,7 @@ describe("pr_state cli", () => {
           originHeadSet: true,
           overlay: null,
           bdWorkspacePrefix: "demo-web",
+          bdWorkspacePrefixSource: "slug-derived",
           canonical: opts.canonical ?? "gh",
           beadsHydrate: {
             status: "skipped-no-beads",
@@ -8867,6 +8871,8 @@ describe("pr_state cli", () => {
             originHeadSet: true,
             overlay: null,
             bdWorkspacePrefix: opts.bdWorkspacePrefixOverride ?? "supply-plan",
+            bdWorkspacePrefixSource:
+              opts.bdWorkspacePrefixOverride === undefined ? "slug-derived" : "override",
             canonical: opts.canonical ?? "gh",
             beadsHydrate: {
               status: "skipped-no-beads",
@@ -9206,6 +9212,7 @@ describe("pr_state cli", () => {
             originHeadSet: true,
             overlay: null,
             bdWorkspacePrefix: "ai-home",
+            bdWorkspacePrefixSource: "slug-derived",
             canonical: opts.canonical ?? "gh",
             beadsHydrate: {
               status: "skipped-no-beads",
@@ -9564,6 +9571,7 @@ describe("pr_state cli", () => {
           originHeadSet: true,
           overlay: null,
           bdWorkspacePrefix: "scratch-prefix",
+          bdWorkspacePrefixSource: "slug-derived",
           canonical: opts.canonical ?? "gh",
           beadsHydrate: {
             status: "skipped-no-beads",

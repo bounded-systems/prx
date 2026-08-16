@@ -17,6 +17,7 @@ import { getAuditRuntimeContext as defaultGetAuditRuntimeContext } from "@bounde
 import {
   canonicalMainxPathFromParsed,
   defaultRepoRunner,
+  kebabPrefixFromName,
   loadRepoInventoryIndex as defaultLoadRepoInventoryIndex,
   materializeMainxIfMissing as defaultMaterializeMainxIfMissing,
   parseRepoUrl,
@@ -194,23 +195,13 @@ function defaultHydrateAfterMaterialize(_mainxPath: string): HydrateResult {
 }
 
 /**
- * Conservative kebab projection for the name-fallback. Underscores become
- * dashes, any other non-`[a-z0-9-]` character becomes a dash, and runs are
- * collapsed + edge-trimmed so the result conforms to
- * {@link WORKSPACE_PREFIX_PATTERN}. The handler validates the output before
- * adopting it — names that produce an empty / non-`[a-z]`-prefixed string
- * land in the `failed` bucket so the operator can supply an override in a
- * follow-up.
+ * Conservative kebab projection for the name-fallback. Re-exported from
+ * `repos.ts`, which now owns the derivation because `addLocalRepo` shares it
+ * (GH-1005). The handler validates the output before adopting it — names that
+ * produce an empty / non-`[a-z]`-prefixed string land in the `failed` bucket
+ * so the operator can supply an override in a follow-up.
  */
-export function kebabPrefixFromName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/_/g, "-")
-    .replace(/[^a-z0-9-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+/, "")
-    .replace(/-+$/, "");
-}
+export { kebabPrefixFromName } from "./repos.ts";
 
 function isFileOnlyRemote(repo: LocalRepo): boolean {
   const url = repo.primaryRemote?.url ?? "";
