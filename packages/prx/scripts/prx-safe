@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/tool-policy.sh"
+
+if [[ $# -lt 1 ]]; then
+  echo "prx-safe: subcommand required" >&2
+  exit 1
+fi
+
+subcommand="$1"
+shift
+
+case "$subcommand" in
+  work|open|stately)
+    echo "prx-safe: blocked subcommand '$subcommand'" >&2
+    exit 1
+    ;;
+  session)
+    case "${1-}" in
+      ""|help|--help|-h)
+        echo "prx-safe: blocked session invocation" >&2
+        exit 1
+        ;;
+    esac
+    if [[ "${1-}" =~ ^[A-Z][A-Z0-9]+-[0-9]+$ ]]; then
+      echo "prx-safe: blocked session open shorthand" >&2
+      exit 1
+    fi
+    ;;
+  model)
+    if [[ "${1-}" == "stately" ]]; then
+      echo "prx-safe: blocked subcommand 'model stately'" >&2
+      exit 1
+    fi
+    ;;
+esac
+
+enforce_policy_or_exit "prx" "$subcommand"
+
+case "$subcommand" in
+  help|help-all|commands|tui|version|init|status|transition|event|contract|skills|open-mode|graph|runtime-profile|overview|repos|worktree|worktrees|worktree-remove|repo-status|remote-ci-check|pr-comments|repo-checks|protect-main|parity-chain|prune|backfill|chains|next-worktree|nw|sync-issues|sync-status|actions|next-action|phase|snapshot|statusline|actors|model|update|task|spec|role|desktop|agent-smoke|check-issue|check-session|check-chain|sprint|chain|repo|run|session)
+    exec prx "$subcommand" "$@"
+    ;;
+  *)
+    echo "prx-safe: unknown or disallowed subcommand '$subcommand'" >&2
+    exit 1
+    ;;
+esac

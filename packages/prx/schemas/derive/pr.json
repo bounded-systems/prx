@@ -1,0 +1,71 @@
+{
+  "$ref": "#/definitions/derive_pr",
+  "definitions": {
+    "derive_pr": {
+      "type": "object",
+      "properties": {
+        "issueId": {
+          "type": "string"
+        },
+        "exists": {
+          "type": "boolean"
+        },
+        "number": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "none",
+            "open",
+            "closed",
+            "merged"
+          ]
+        },
+        "isDraft": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "headRef": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "autoMergeEnabled": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "issueId",
+        "exists",
+        "number",
+        "state",
+        "isDraft",
+        "headRef",
+        "autoMergeEnabled"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

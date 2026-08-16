@@ -1,0 +1,6 @@
+period,rank,name,email,primary_tz_offset,community_touches,touch_share
+2025-Q1,1,Alice,alice@corp.dev,-05:00,2,0.5000
+2025-Q1,2,Bob,bob@corp.dev,+01:00,1,0.2500
+2025-Q1,3,Carol,carol@corp.dev,-05:00,1,0.2500
+2025-Q2,1,Bob,bob@corp.dev,+01:00,1,0.5000
+2025-Q2,2,Alice,alice@corp.dev,-05:00,1,0.5000

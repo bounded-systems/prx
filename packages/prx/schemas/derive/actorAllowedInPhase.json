@@ -1,0 +1,22 @@
+{
+  "$ref": "#/definitions/derive_actorAllowedInPhase",
+  "definitions": {
+    "derive_actorAllowedInPhase": {
+      "type": "object",
+      "properties": {
+        "actor": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "actor",
+        "phase"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

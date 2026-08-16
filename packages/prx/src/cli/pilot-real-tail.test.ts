@@ -1,0 +1,284 @@
+import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
+import { createActor, waitFor } from "xstate";
+import {
+  ed25519Signer,
+  ed25519Verifier,
+  generateEd25519Keypair,
+} from "@bounded-systems/anchored-chain";
+
+import type { NonInteractiveAgentResult } from "../claude/agent_service.ts";
+import { createPilotMachine } from "../machine/machines/pilot.ts";
+import { verifyLeg } from "../machine/machines/pilot-signing.ts";
+import {
+  buildRealChecks,
+  buildRealCiGate,
+  buildRealMerge,
+  buildRealPilotDeps,
+  parseCiConclusion,
+  type OpenSessionFn,
+  type RunAgentFn,
+  type RunPrx,
+  type SeamObservation,
+} from "./pilot-real.ts";
+
+const noSleep = async () => {};
+const newSigner = () => {
+  const kp = generateEd25519Keypair();
+  return { kp, signer: ed25519Signer(kp.privateKey, kp.keyid) };
+};
+const okOpen: OpenSessionFn = async ({ workUnitId, actor }) =>
+  ({
+    status: "opened",
+    worktree_path: `/wt/${workUnitId}/${actor}`,
+    profile: {},
+  }) as unknown as Awaited<ReturnType<OpenSessionFn>>;
+
+describe("real CI gate + merge tail", () => {
+  test("parseCiConclusion maps scout statuses", () => {
+    expect(parseCiConclusion('{"conclusion":"success"}')).toBe("success");
+    expect(parseCiConclusion('{"status":"failure"}')).toBe("failure");
+    expect(parseCiConclusion('{"state":"in_progress"}')).toBe("pending");
+    expect(parseCiConclusion("not json")).toBe("unknown");
+  });
+
+  test("green CI settles and signs a verifiable gate link", async () => {
+    const { kp, signer } = newSigner();
+    const out = '{"conclusion":"success"}';
+    const runPrx: RunPrx = async () => ({ ok: true, stdout: out, stderr: "" });
+    const { passed, attestation } = await buildRealCiGate({ runPrx, signer })({
+      workUnitId: "GH-1",
+    });
+
+    expect(passed).toBe(true);
+    expect(attestation.predicate).toBe("ci.passed");
+    const hash = createHash("sha256").update(out).digest("hex");
+    expect(await verifyLeg(ed25519Verifier(kp.publicKey), attestation, hash)).toBe(true);
+  });
+
+  test("red CI → passed:false (no merge edge taken)", async () => {
+    const { signer } = newSigner();
+    const runPrx: RunPrx = async () => ({
+      ok: true,
+      stdout: '{"conclusion":"failure"}',
+      stderr: "",
+    });
+    const { passed, attestation } = await buildRealCiGate({ runPrx, signer })({
+      workUnitId: "GH-2",
+    });
+    expect(passed).toBe(false);
+    expect(attestation.predicate).toBe("ci.failed");
+  });
+
+  test("pending polls until settled — the hard block", async () => {
+    const { signer } = newSigner();
+    let n = 0;
+    const runPrx: RunPrx = async () => ({
+      ok: true,
+      stdout: n++ < 2 ? '{"conclusion":"pending"}' : '{"conclusion":"success"}',
+      stderr: "",
+    });
+    const { passed } = await buildRealCiGate({ runPrx, signer, sleep: noSleep })({
+      workUnitId: "GH-3",
+    });
+    expect(passed).toBe(true);
+    expect(n).toBeGreaterThanOrEqual(3);
+  });
+
+  test("a gate that never settles throws (machine retreats, bounded)", async () => {
+    const { signer } = newSigner();
+    const runPrx: RunPrx = async () => ({
+      ok: true,
+      stdout: '{"conclusion":"pending"}',
+      stderr: "",
+    });
+    let threw = "";
+    try {
+      await buildRealCiGate({ runPrx, signer, maxPolls: 3, sleep: noSleep })({
+        workUnitId: "GH-4",
+      });
+    } catch (e) {
+      threw = String(e);
+    }
+    expect(threw).toContain("did not settle");
+  });
+
+  test("local checks gate runs `prx ci` in the worktree + signs a verifiable gate@checks-local", async () => {
+    const { kp, signer } = newSigner();
+    let ranIn = "";
+    const runPrx: RunPrx = async (args, opts) => {
+      ranIn = `${args.join(" ")}@${opts?.cwd}`;
+      return { ok: true, stdout: "ok", stderr: "" };
+    };
+    const { passed, attestation } = await buildRealChecks({ runPrx, signer, openSession: okOpen })({
+      workUnitId: "GH-10",
+    });
+
+    expect(passed).toBe(true);
+    // It shelled `prx ci` in the unit's implement worktree (not process CWD).
+    expect(ranIn).toBe("ci@/wt/GH-10/implement");
+    expect(attestation.subject).toBe("GH-10:gate@checks-local");
+    expect(attestation.predicate).toBe("checks.passed");
+    const hash = createHash("sha256").update("ok\n").digest("hex");
+    expect(await verifyLeg(ed25519Verifier(kp.publicKey), attestation, hash)).toBe(true);
+  });
+
+  test("red `prx ci` → passed:false (pilot retreats, no advance)", async () => {
+    const { signer } = newSigner();
+    const runPrx: RunPrx = async () => ({ ok: false, stdout: "", stderr: "3 fail" });
+    const { passed, attestation } = await buildRealChecks({ runPrx, signer, openSession: okOpen })({
+      workUnitId: "GH-11",
+    });
+    expect(passed).toBe(false);
+    expect(attestation.predicate).toBe("checks.failed");
+  });
+
+  test("a failed openSession throws (machine retreats, bounded)", async () => {
+    const { signer } = newSigner();
+    const badOpen: OpenSessionFn = async () =>
+      ({ status: "error", worktree_path: "", profile: undefined }) as unknown as Awaited<
+        ReturnType<OpenSessionFn>
+      >;
+    const runPrx: RunPrx = async () => ({ ok: true, stdout: "", stderr: "" });
+    let threw = "";
+    try {
+      await buildRealChecks({ runPrx, signer, openSession: badOpen })({ workUnitId: "GH-12" });
+    } catch (e) {
+      threw = String(e);
+    }
+    expect(threw).toContain("no worktree");
+  });
+
+  test("checks seam passes a hard timeout to `prx ci` (analogue of job timeout-minutes)", async () => {
+    const { signer } = newSigner();
+    let seenOpts: { cwd?: string; timeoutMs?: number } | undefined;
+    const runPrx: RunPrx = async (_args, opts) => {
+      seenOpts = opts;
+      return { ok: true, stdout: "ok", stderr: "" };
+    };
+    await buildRealChecks({ runPrx, signer, openSession: okOpen, timeoutMs: 1234 })({
+      workUnitId: "GH-13",
+    });
+    expect(seenOpts?.timeoutMs).toBe(1234);
+    expect(seenOpts?.cwd).toBe("/wt/GH-13/implement");
+  });
+
+  test("merge runs `publisher merge` + signs merged@pr; failure throws", async () => {
+    const { signer } = newSigner();
+    const okPrx: RunPrx = async () => ({ ok: true, stdout: "merged PR #9", stderr: "" });
+    const { attestation } = await buildRealMerge({ runPrx: okPrx, signer })({ workUnitId: "GH-5" });
+    expect(attestation.stage).toBe("merge");
+    expect(attestation.predicate).toBe("pr.merged");
+
+    const badPrx: RunPrx = async () => ({ ok: false, stdout: "", stderr: "protected branch" });
+    let threw = "";
+    try {
+      await buildRealMerge({ runPrx: badPrx, signer })({ workUnitId: "GH-6" });
+    } catch (e) {
+      threw = String(e);
+    }
+    expect(threw).toContain("publisher merge failed");
+  });
+
+  test("buildRealPilotDeps drives the WHOLE real tail to merged with real sigs", async () => {
+    const { kp, signer } = newSigner();
+    const fakeOpen: OpenSessionFn = async ({ workUnitId }) =>
+      ({ status: "opened", worktree_path: `/wt/${workUnitId}`, profile: {} }) as unknown as Awaited<
+        ReturnType<OpenSessionFn>
+      >;
+    const okRun = (): NonInteractiveAgentResult => ({
+      kind: "success",
+      text: "ok",
+      stdout: "ok",
+      usage: {
+        input_tokens: 0,
+        output_tokens: 0,
+        cache_creation_input_tokens: 0,
+        cache_read_input_tokens: 0,
+      },
+      elapsed_ms: 1,
+    });
+    const fakeRun: RunAgentFn = async () => okRun();
+    const runPrx: RunPrx = async (args) =>
+      args[0] === "scout"
+        ? { ok: true, stdout: '{"conclusion":"success"}', stderr: "" }
+        : { ok: true, stdout: "merged", stderr: "" };
+
+    const deps = buildRealPilotDeps({ openSession: fakeOpen, runAgent: fakeRun, runPrx, signer });
+    const actor = createActor(createPilotMachine(deps), { input: { workUnitId: "GH-7" } }).start();
+    const done = await waitFor(actor, (s) => s.status === "done", { timeout: 4000 });
+
+    expect(done.value).toBe("merged");
+    const checks = done.context.chain.find((l) => l.stage === "checks")!;
+    const ci = done.context.chain.find((l) => l.stage === "ci")!;
+    const merge = done.context.chain.find((l) => l.stage === "merge")!;
+    expect(checks.signedBy).toBe(kp.keyid);
+    expect(checks.subject).toBe("GH-7:gate@checks-local");
+    expect(checks.predicate).toBe("checks.passed");
+    expect(ci.signedBy).toBe(kp.keyid);
+    expect(merge.signedBy).toBe(kp.keyid);
+    expect(ci.predicate).toBe("ci.passed");
+    expect(done.context.summary!.signedBy).toBe(kp.keyid);
+    // Telemetry is anchored into the signed summary: a hash-chain head over all
+    // observations, committed to by the pilot's signature (tamper-evident, no gate).
+    const observed = (
+      done.context.summary!.predicate as { observed?: { digest: string; count: number } }
+    ).observed;
+    expect(observed?.count).toBeGreaterThan(0);
+    expect(observed?.digest).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  test("every deterministic seam emits start+done telemetry (parity with the LLM-leg heartbeat)", async () => {
+    const { signer } = newSigner();
+    const fakeOpen: OpenSessionFn = async ({ workUnitId, actor }) =>
+      ({
+        status: "opened",
+        worktree_path: `/wt/${workUnitId}/${actor}`,
+        profile: {},
+      }) as unknown as Awaited<ReturnType<OpenSessionFn>>;
+    const fakeRun: RunAgentFn = async () =>
+      ({
+        kind: "success",
+        text: "ok",
+        stdout: "ok",
+        usage: {
+          input_tokens: 0,
+          output_tokens: 0,
+          cache_creation_input_tokens: 0,
+          cache_read_input_tokens: 0,
+        },
+        elapsed_ms: 1,
+      }) as NonInteractiveAgentResult;
+    const runPrx: RunPrx = async (args) =>
+      args[0] === "scout"
+        ? { ok: true, stdout: '{"conclusion":"success"}', stderr: "" }
+        : { ok: true, stdout: "merged", stderr: "" };
+
+    const obs: SeamObservation[] = [];
+    const deps = buildRealPilotDeps({
+      openSession: fakeOpen,
+      runAgent: fakeRun,
+      runPrx,
+      signer,
+      onSeamObserved: (i) => obs.push(i),
+    });
+    const actor = createActor(createPilotMachine(deps), { input: { workUnitId: "GH-8" } }).start();
+    const done = await waitFor(actor, (s) => s.status === "done", { timeout: 4000 });
+    expect(done.value).toBe("merged");
+
+    // Each GH-facing seam reported exactly one start and one done (none errored).
+    for (const seam of ["intake", "checks", "ci", "merge"]) {
+      expect(obs.filter((o) => o.seam === seam && o.phase === "start").length).toBe(1);
+      expect(obs.filter((o) => o.seam === seam && o.phase === "done").length).toBe(1);
+    }
+    expect(obs.some((o) => o.phase === "error")).toBe(false);
+    // `done` observations carry elapsed time so an observer can see WHERE a run sits.
+    expect(
+      obs.filter((o) => o.phase === "done").every((o) => typeof o.elapsedMs === "number"),
+    ).toBe(true);
+  });
+
+  test("buildRealPilotDeps refuses without a signing key (no agent unsigned)", () => {
+    expect(() => buildRealPilotDeps({ signer: null })).toThrow("must hold a signing key");
+  });
+});

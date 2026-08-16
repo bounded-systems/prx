@@ -1,0 +1,95 @@
+{
+  "$ref": "#/definitions/transition_contract",
+  "definitions": {
+    "transition_contract": {
+      "type": "object",
+      "properties": {
+        "axis": {
+          "type": "string",
+          "enum": [
+            "role",
+            "workflow",
+            "lifecycle"
+          ]
+        },
+        "fromPhase": {
+          "type": "string",
+          "minLength": 1
+        },
+        "toPhase": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requiredArtifact": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "requiredStatus": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "present"
+          ]
+        },
+        "forbiddenArtifacts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_]*$"
+          }
+        },
+        "requiredPredicates": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "artifact": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "passed",
+                  "present"
+                ]
+              },
+              "binding": {
+                "type": "string",
+                "enum": [
+                  "property",
+                  "event"
+                ]
+              }
+            },
+            "required": [
+              "artifact",
+              "status",
+              "binding"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "guardId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "axis",
+        "fromPhase",
+        "toPhase",
+        "requiredArtifact",
+        "requiredStatus",
+        "forbiddenArtifacts",
+        "guardId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

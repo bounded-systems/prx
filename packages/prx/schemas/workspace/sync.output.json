@@ -1,0 +1,42 @@
+{
+  "$ref": "#/definitions/workspace_sync_output",
+  "definitions": {
+    "workspace_sync_output": {
+      "type": "object",
+      "properties": {
+        "workspace_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{12}$"
+        },
+        "ignore_synced": {
+          "type": "boolean"
+        },
+        "tooling_drift_corrected": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "noop",
+            "error"
+          ]
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace_id",
+        "ignore_synced",
+        "tooling_drift_corrected",
+        "status"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

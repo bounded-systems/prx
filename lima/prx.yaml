@@ -1,0 +1,110 @@
+# Lima VM template for running prx's local CI with `act`.
+#
+# Lima (https://lima-vm.io) boots a Linux VM with a working Docker daemon — the
+# piece `act` needs that macOS lacks natively. This template preinstalls docker,
+# bun, gh, and act, and mounts your home directory so the prx checkout is
+# visible inside the VM.
+#
+# Usage (from the repo root, or anywhere):
+#   limactl start --name=prx ./lima/prx.yaml
+#   limactl shell prx
+#   cd <path-to-prx-checkout>     # your home dir is mounted read/write
+#   bun run ci:act                # runs .github/workflows/ci.yml via act
+#
+# Stop / discard:
+#   limactl stop prx
+#   limactl delete prx
+#
+# Notes:
+#   - vmType is left to Lima's default ("vz" on Apple Silicon macOS 13+, which
+#     is fast; "qemu" elsewhere). Override with `limactl start --vm-type=qemu …`.
+#   - Image digests are intentionally omitted so the template tracks the latest
+#     24.04 point release; Lima will fetch + verify by URL. Pin a `digest:` if
+#     you want byte-for-byte reproducibility.
+
+images:
+  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
+    arch: "x86_64"
+  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img"
+    arch: "aarch64"
+
+# Mount the host home directory so the prx checkout is reachable in the VM.
+# Writable so `bun install` / build artifacts land back on the host.
+mounts:
+  - location: "~"
+    writable: true
+
+# act drives the Docker daemon directly; Lima's own containerd is not needed.
+containerd:
+  system: false
+  user: false
+
+provision:
+  # Install Docker, gh, and act as root.
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      export DEBIAN_FRONTEND=noninteractive
+
+      # Docker Engine (via the official convenience script). Skip if present.
+      if ! command -v docker >/dev/null 2>&1; then
+        curl -fsSL https://get.docker.com | sh
+      fi
+      # Let the default Lima user drive docker without sudo.
+      usermod -aG docker "${LIMA_CIDATA_USER}"
+      systemctl enable --now docker
+
+      # GitHub CLI (`gh`) from the official apt repo.
+      if ! command -v gh >/dev/null 2>&1; then
+        mkdir -p -m 755 /etc/apt/keyrings
+        curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+          -o /etc/apt/keyrings/githubcli-archive-keyring.gpg
+        chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+          > /etc/apt/sources.list.d/github-cli.list
+        apt-get update
+        apt-get install -y gh
+      fi
+
+      # act (https://github.com/nektos/act) — the local Actions runner.
+      if ! command -v act >/dev/null 2>&1; then
+        curl -fsSL https://raw.githubusercontent.com/nektos/act/master/install.sh \
+          | bash -s -- -b /usr/local/bin
+      fi
+
+  # Install bun for the invoking user (its installer writes to $HOME).
+  - mode: user
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      if ! command -v bun >/dev/null 2>&1; then
+        curl -fsSL https://bun.sh/install | bash
+        # Make bun available in non-login shells too.
+        grep -q 'BUN_INSTALL' "$HOME/.bashrc" 2>/dev/null \
+          || echo 'export BUN_INSTALL="$HOME/.bun"; export PATH="$BUN_INSTALL/bin:$PATH"' >> "$HOME/.bashrc"
+      fi
+
+# Readiness gates so `limactl start` only returns once the VM is actually usable.
+probes:
+  - description: "docker daemon reachable"
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      if ! timeout 120s bash -c "until docker info >/dev/null 2>&1; do sleep 2; done"; then
+        echo >&2 "docker did not become reachable"
+        exit 1
+      fi
+    hint: |
+      The docker daemon did not come up. Check the provisioning log:
+        limactl shell prx -- sudo journalctl -u docker --no-pager
+  - description: "act and bun installed"
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      command -v act >/dev/null 2>&1 || { echo >&2 "act missing"; exit 1; }
+      command -v "$HOME/.bun/bin/bun" >/dev/null 2>&1 || command -v bun >/dev/null 2>&1 \
+        || { echo >&2 "bun missing"; exit 1; }
+    hint: |
+      act or bun failed to install — see the provisioning log:
+        limactl shell prx -- cat /var/log/cloud-init-output.log

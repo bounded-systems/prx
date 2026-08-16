@@ -1,0 +1,9 @@
+{"ts":"2026-05-16T10:00:00.000Z","actor":"prx","action":"audit ingest","issue":"GH-1823"}
+{"ts":"2026-05-16T10:01:00.000Z","actor":"prx","action":"work session open","issue":"GH-1823"}
+{"ts":"2026-05-16T10:02:00.000Z","actor":"executor_agent","action":"artifact emit","issue":"GH-1823","artifact_type":"patch_proposal","artifact_ref":"scout://sha256:patch01","input_refs":["scout://sha256:plan01"]}
+{"ts":"2026-05-16T10:03:00.000Z","actor":"local_ci","action":"artifact emit","issue":"GH-1823","artifact_type":"patch_check","artifact_ref":"scout://sha256:check01","input_refs":["scout://sha256:patch01"]}
+{"ts":"2026-05-16T10:04:00.000Z","actor":"local_ci","action":"artifact emit","issue":"GH-1823","artifact_type":"guard_check","artifact_ref":"scout://sha256:guard01","input_refs":["scout://sha256:patch01"]}
+{"ts":"2026-05-16T10:05:00.000Z","actor":"tester_agent","action":"artifact emit","issue":"GH-1823","artifact_type":"test_run","artifact_ref":"scout://sha256:test01","input_refs":["scout://sha256:patch01"]}
+{"ts":"2026-05-16T10:10:00.000Z","actor":"executor_agent","action":"artifact emit","issue":"GH-1808","artifact_type":"patch_proposal","artifact_ref":"scout://sha256:patch02"}
+{"ts":"2026-05-16T10:15:00.000Z","actor":"claude-code","action":"git push"}
+{"ts":"2026-05-16T10:16:00.000Z","actor":"prx","action":"work session close"}

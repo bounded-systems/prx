@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# setup-provenance-signing — file-system preflight, then `prx provenance setup`.
+#
+# The materialize+verify step is now the `prx provenance setup` command (register
+# the per-actor trust map → verify drift → report posture). This wrapper keeps
+# the one thing the CLI deliberately doesn't do: a file-system perms check on the
+# decrypted master secret. Prefer `prx provenance setup` directly if you don't
+# need the preflight. Idempotent — safe to re-run (e.g. after a master rotation).
+#
+# Prerequisites (set by the hm-module, or export them yourself):
+#   PRX_PROVENANCE_MASTER_FILE  path to the agenix/sops-decrypted base64 master
+#                               (32 bytes, mode 0600). Unset ⇒ zero-config dev
+#                               master (bootstrap).
+#   PRX_PROVENANCE_KEY=dev      per-actor signing mode (derives from the master).
+#   PRX_REQUIRE_SIGNED_DERIVATIONS=1   fail-closed verification.
+#
+# Usage: packages/prx/scripts/setup-provenance-signing   (run from the repo root)
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+cd "$repo_root"
+
+# Resolve the prx entrypoint: prefer a built binary, else run from source.
+if command -v prx >/dev/null 2>&1; then
+  prx() { command prx "$@"; }
+elif [[ -x dist/prx ]]; then
+  prx() { ./dist/prx "$@"; }
+else
+  prx() { bun packages/prx/scripts/pr_state.ts "$@"; }
+fi
+
+note() { printf '  %s\n' "$*" >&2; }
+fail() { printf 'setup-provenance-signing: %s\n' "$*" >&2; exit 1; }
+
+echo "== prx provenance signing ==" >&2
+
+# 1) Master secret — the one thing this script never creates (it is a deployment
+#    secret; mint with `head -c 32 /dev/urandom | base64`, encrypt with sops/agenix).
+master="${PRX_PROVENANCE_MASTER_FILE:-}"
+if [[ -n "$master" ]]; then
+  [[ -f "$master" ]] || fail "PRX_PROVENANCE_MASTER_FILE=$master does not exist (agenix/sops not decrypted?)"
+  perms="$(stat -c %a "$master" 2>/dev/null || stat -f %Lp "$master" 2>/dev/null || echo '?')"
+  [[ "$perms" == "600" ]] || note "warning: master file perms are $perms (want 600) — tighten with: chmod 600 $master"
+  note "master: $master (operator-supplied)"
+else
+  note "master: none configured ⇒ zero-config persisted dev master (bootstrap)."
+  note "         set PRX_PROVENANCE_MASTER_FILE for the production operator master."
+fi
+
+# 2) Signing mode — per-actor requires dev / actor-dev.
+case "${PRX_PROVENANCE_KEY:-}" in
+  dev | actor-dev) note "mode: per-actor signing (PRX_PROVENANCE_KEY=${PRX_PROVENANCE_KEY})" ;;
+  "") fail "PRX_PROVENANCE_KEY is unset — set it to 'dev' for per-actor signing." ;;
+  *) note "mode: PRX_PROVENANCE_KEY=${PRX_PROVENANCE_KEY} (not per-actor; trust-map register expects dev/actor-dev)" ;;
+esac
+
+# 3) Materialize + verify + report — delegate to the command (register the trust
+#    map, verify drift is clean, print the resulting posture). Non-zero on drift.
+echo "-- prx provenance setup --" >&2
+exec prx provenance setup "$@"

@@ -1,0 +1,26 @@
+{
+  "number": 1961,
+  "title": "feat(parity-chain): wire pr(unit) end-to-end through Fetcher",
+  "url": "https://github.com/bdelanghe/io.github.bdelanghe.ai/pull/1961",
+  "isDraft": true,
+  "baseRefName": "main",
+  "reviewDecision": "",
+  "mergeStateStatus": "BLOCKED",
+  "mergeable": "MERGEABLE",
+  "autoMergeRequest": null,
+  "reviews": [
+    {
+      "author": { "login": "bdelanghe" },
+      "body": "kickoff",
+      "state": "COMMENTED",
+      "submittedAt": "2026-05-19T15:00:00Z"
+    },
+    {
+      "author": { "login": "bdelanghe" },
+      "body": "follow-up after fetcher wired",
+      "state": "COMMENTED",
+      "submittedAt": "2026-05-19T16:30:00Z"
+    }
+  ],
+  "updatedAt": "2026-05-19T16:30:00Z"
+}

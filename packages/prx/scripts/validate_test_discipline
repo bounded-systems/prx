@@ -1,0 +1,109 @@
+#!/usr/bin/env ruby
+# Validates one-to-one mapping between methods added in the current branch
+# and test_* methods in the corresponding test file.
+#
+# Usage:
+#   script/validate_test_discipline lib/analytics_order_helper.rb
+#   script/validate_test_discipline app/models/order.rb
+#   script/validate_test_discipline lib/foo.rb test/lib/foo_test.rb  # explicit test path
+#   script/validate_test_discipline --full lib/foo.rb                 # check entire file, not just diff
+#
+# Exit codes:
+#   0 - all added methods have exactly one primary test and no extra tests exist
+#   1 - violations found
+
+require "set"
+
+PUNCTUATION_MAP = {
+  "!" => "_bang",
+  "?" => "_predicate",
+  "=" => "_setter"
+}.freeze
+
+def normalize_method_name(name)
+  PUNCTUATION_MAP.each { |char, suffix| name = name.chomp(char) + suffix if name.end_with?(char) }
+  name
+end
+
+def snake_case(name)
+  name.gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2').gsub(/([a-z\d])([A-Z])/, '\1_\2').downcase
+end
+
+def extract_methods_from_source(source)
+  methods = source.scan(/^\s+def (?:self\.)?(\w[\w?!=]*)/).map { |m| normalize_method_name(m[0]) }.reject { |n| n == "initialize" }
+  classes = source.scan(/^\s+class (\w+)/).map { |m| snake_case(m[0]) }
+  (methods + classes).uniq
+end
+
+def extract_test_methods(test_path)
+  File.read(test_path).scan(/^\s+def (test_\w+)/).map { |m| m[0] }
+end
+
+def infer_test_path(source_path)
+  path = source_path.sub(%r{^app/}, "").sub(%r{^lib/}, "lib/")
+  "test/#{path.sub(/\.rb$/, "_test.rb")}"
+end
+
+def diff_added_methods(source_path, base: "main")
+  # Compare working tree to base so unstaged edits are included
+  diff = `git diff #{base} -- #{source_path} 2>/dev/null`
+  added_lines = diff.lines.select { |l| l.start_with?("+") && !l.start_with?("+++") }
+  added_source = added_lines.map { |l| l[1..] }.join
+  extract_methods_from_source(added_source).uniq
+end
+
+def diff_added_tests(test_path, base: "main")
+  # Compare working tree to base so unstaged edits are included
+  diff = `git diff #{base} -- #{test_path} 2>/dev/null`
+  added_lines = diff.lines.select { |l| l.start_with?("+") && !l.start_with?("+++") }
+  added_source = added_lines.map { |l| l[1..] }.join
+  added_source.scan(/^\s+def (test_\w+)/).map { |m| m[0] }
+end
+
+full_mode = ARGV.delete("--full")
+base_ref  = ARGV.delete("--base")&.then { |_| ARGV.shift } || "main"
+
+source_path = ARGV[0]
+abort "Usage: script/validate_test_discipline [--full] [--base <ref>] <source_file.rb> [test_file.rb]" unless source_path
+abort "File not found: #{source_path}" unless File.exist?(source_path)
+
+test_path = ARGV[1] || infer_test_path(source_path)
+abort "Test file not found: #{test_path}" unless File.exist?(test_path)
+
+puts "Source : #{source_path}"
+puts "Tests  : #{test_path}"
+puts "Mode   : #{full_mode ? "full file" : "diff vs #{base_ref}"}"
+puts
+
+if full_mode
+  source_methods = extract_methods_from_source(File.read(source_path)).uniq
+  test_methods   = extract_test_methods(test_path)
+else
+  source_methods = diff_added_methods(source_path, base: base_ref)
+  test_methods   = diff_added_tests(test_path, base: base_ref)
+end
+
+if source_methods.empty?
+  puts "No methods found in scope — nothing to validate."
+  exit 0
+end
+
+expected_tests = source_methods.map { |m| "test_#{m}" }.to_set
+actual_tests   = test_methods.to_set
+
+missing = expected_tests - actual_tests
+extra   = actual_tests - expected_tests
+
+errors = []
+errors << "Missing tests (#{missing.size}):\n#{missing.sort.map { |t| "  - #{t}" }.join("\n")}" if missing.any?
+errors << "Extra tests (#{extra.size}):\n#{extra.sort.map { |t| "  + #{t}" }.join("\n")}" if extra.any?
+
+if errors.empty?
+  puts "OK — #{source_methods.size} methods, #{test_methods.size} tests, perfect 1:1 match."
+  exit 0
+else
+  puts "FAIL"
+  errors.each { |e| puts "\n#{e}" }
+  puts "\nSummary: #{missing.size} missing, #{extra.size} extra"
+  exit 1
+end

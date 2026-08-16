@@ -1,0 +1,4 @@
+{"id":"fd7cbc22-6744-48a2-b504-a3111a608b3f","issue":"main","state_from":"drafting","state_to":"validating","actor":"local_ci","artifact":"branch:main","timestamp":"2026-06-23T16:13:28.602Z","proof":{"commit":"b2b86da9e7ad"}}
+{"id":"8f73dcdb-a5b3-4d8f-bea3-834c98d34d5e","issue":"main","state_from":"drafting","state_to":"validating","actor":"codex","artifact":"branch:main","timestamp":"2026-06-23T16:13:28.619Z","proof":{"commit":"b2b86da9e7ad"}}
+{"id":"6ac5d7c8-36b8-4291-ba32-bd0c1b98c58b","issue":"main","state_from":"drafting","state_to":"validating","actor":"local_ci","artifact":"branch:main","timestamp":"2026-06-23T16:14:54.209Z","proof":{"commit":"b2b86da9e7ad"}}
+{"id":"685d9f6c-98e5-4b7e-a31e-21b1414d25cc","issue":"main","state_from":"drafting","state_to":"validating","actor":"codex","artifact":"branch:main","timestamp":"2026-06-23T16:14:54.225Z","proof":{"commit":"b2b86da9e7ad"}}

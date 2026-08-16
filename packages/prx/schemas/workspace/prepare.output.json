@@ -1,0 +1,42 @@
+{
+  "$ref": "#/definitions/workspace_prepare_output",
+  "definitions": {
+    "workspace_prepare_output": {
+      "type": "object",
+      "properties": {
+        "workspace_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{12}$"
+        },
+        "files_written": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "beads_hydrated": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ok",
+            "partial",
+            "error"
+          ]
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace_id",
+        "files_written",
+        "beads_hydrated",
+        "status"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

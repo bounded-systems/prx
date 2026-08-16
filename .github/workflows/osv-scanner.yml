@@ -1,0 +1,66 @@
+name: osv-scanner
+
+# OSV-Scanner — dependency vulnerability scan against osv.dev. Complements the
+# rest of the supply-chain posture: Dependabot bumps versions, CodeQL scans
+# code patterns, SBOM/provenance attest the build — OSV adds *known-CVE*
+# detection over the resolved `bun.lock`. Report-only and non-blocking for now
+# (modeled on scorecard.yml): the SARIF→code-scanning upload is gated behind
+# GitHub Advanced Security, so results are also kept as an artifact.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "27 7 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # SARIF upload to code scanning (gated below)
+      contents: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Run OSV-Scanner
+        # Non-blocking: a found vulnerability must not fail the build yet — this
+        # is a surfacing tool, not a gate. Promote to a gate later by dropping
+        # continue-on-error once the baseline is clean.
+        continue-on-error: true
+        uses: google/osv-scanner-action/osv-scanner-action@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
+        with:
+          scan-args: |-
+            --format=sarif
+            --output=results.sarif
+            --lockfile=bun.lock
+
+      - name: Upload SARIF to code scanning
+        # Disabled to match scorecard.yml. CodeQL default setup already uploads
+        # SARIF on this repo, so Advanced Security code scanning is active —
+        # flip this to `if: always()` to surface OSV findings in the Security
+        # tab alongside CodeQL.
+        if: false
+        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        with:
+          sarif_file: results.sarif
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: osv-scanner-results
+          path: results.sarif
+          retention-days: 5

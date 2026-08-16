@@ -1,0 +1,75 @@
+# Dependabot version updates.
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# Three ecosystems present in this repo:
+#   - bun            -> root package.json + workspace members (packages/*), bun.lock
+#   - docker         -> ./Dockerfile
+#   - github-actions -> .github/workflows/* (actions are SHA-pinned; keep them current)
+version: 2
+updates:
+  # Bun / npm dependencies. Pointed at the workspace root: Dependabot resolves
+  # the `workspaces` field and updates child packages/* manifests from here.
+  #
+  # GH-1039: every direct dependency is declared as an EXACT version, so a bump
+  # must rewrite that exact version (`8.20.0` -> `8.21.0`) and must never widen it
+  # back into a range (`^8.20.0`, `>=8.20.0 <9`). Dependabot preserves the
+  # declared constraint style for JS manifests, so an exact declaration stays
+  # exact — but that is upstream behaviour, not something this file can assert.
+  #
+  # The actual forcing function is the gate, not this comment: `ci` runs
+  # `bun run deps:pins:check` on every pull_request, including Dependabot's own,
+  # so a PR that reintroduces a range goes red instead of quietly landing.
+  #
+  # `versioning-strategy: increase` would state the intent declaratively and is
+  # the obvious thing to add here — it is deliberately NOT set because the option
+  # is not documented as supported for the `bun` ecosystem, and an unrecognised
+  # key makes Dependabot reject the whole file, silently stopping every update in
+  # this repo. Add it once bun support is confirmed.
+  - package-ecosystem: "bun"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      # Batch low-risk bumps into one PR.
+      bun-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      # Batch majors into a single PR too; breaking changes still land
+      # together for one focused review rather than N noisy PRs.
+      bun-major:
+        patterns: ["*"]
+        update-types: ["major"]
+
+  # Container base image(s) in the root Dockerfile.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      docker:
+        patterns: ["*"]
+
+  # GitHub Actions used in workflows (kept SHA-pinned for supply-chain hygiene).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      # Batch routine action bumps; major bumps open individually so a
+      # potentially CI-breaking upgrade gets its own review.
+      github-actions:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]

@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "types": ["bun"],
+    // TS 6.0 deprecates `baseUrl` (TS5101); silence until the paths setup is
+    // migrated off it. Removed entirely in TS 7.0. See prx-d68.
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@bounded-systems/prx-config": ["./packages/prx-config/src/index.ts"]
+    }
+  },
+  "include": [
+    "packages/prx/scripts/**/*.ts",
+    "packages/prx/test/**/*.ts",
+    "packages/*/src/**/*.ts"
+  ]
+}

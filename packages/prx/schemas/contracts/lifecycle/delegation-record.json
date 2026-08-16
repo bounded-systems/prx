@@ -1,0 +1,62 @@
+{
+  "$ref": "#/definitions/delegation_record",
+  "definitions": {
+    "delegation_record": {
+      "type": "object",
+      "properties": {
+        "unitId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assigned_to": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expected_output_type": {
+          "type": "string",
+          "enum": [
+            "work_map",
+            "delegation_record",
+            "context_bundle",
+            "plan",
+            "patch_proposal",
+            "patch_check",
+            "guard_check",
+            "test_plan",
+            "test_run",
+            "review_bundle",
+            "status_update",
+            "blocker_report",
+            "tree_projection",
+            "runner_contract"
+          ]
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "deadline": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+        },
+        "delegated_by": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "unitId",
+        "assigned_to",
+        "expected_output_type",
+        "capabilities",
+        "delegated_by"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

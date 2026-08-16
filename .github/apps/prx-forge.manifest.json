@@ -1,0 +1,28 @@
+{
+  "name": "prx-forge",
+  "url": "https://bounded.tools",
+  "description": "prx forge bucket — repo write surface: drive issues/PRs/commits/checks for the agent PR pipeline. One of the permission-bucketed apps (docs/prx/github-apps-architecture.md); tokens are further attenuated per use.",
+  "public": false,
+  "hook_attributes": {
+    "url": "https://bounded.tools/api/github/webhooks",
+    "active": true
+  },
+  "redirect_url": "https://bounded.tools/app-manifest/callback",
+  "setup_url": "https://bounded.tools/setup",
+  "setup_on_update": false,
+  "request_oauth_on_install": false,
+  "default_events": [
+    "issues",
+    "pull_request",
+    "pull_request_review",
+    "check_suite",
+    "meta"
+  ],
+  "default_permissions": {
+    "metadata": "read",
+    "contents": "write",
+    "issues": "write",
+    "pull_requests": "write",
+    "checks": "read"
+  }
+}

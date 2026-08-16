@@ -1,0 +1,65 @@
+{
+  "$ref": "#/definitions/agent_contract",
+  "definitions": {
+    "agent_contract": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "planner",
+            "executor",
+            "tester",
+            "scout",
+            "reviewer",
+            "map",
+            "delegate",
+            "report",
+            "retro",
+            "gc",
+            "plan",
+            "intake",
+            "triage",
+            "implement",
+            "submit",
+            "author",
+            "scratch"
+          ]
+        },
+        "inputArtifact": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "outputArtifact": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "forbidden": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "role",
+        "inputArtifact",
+        "outputArtifact",
+        "capabilities",
+        "forbidden"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

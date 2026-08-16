@@ -1,0 +1,3 @@
+{"id":"t-001","issue":"GH-1823","state_from":"pushed","state_to":"draft","actor":"prx","artifact":null,"timestamp":"2026-05-16T10:06:00.000Z","proof":{}}
+{"id":"t-002","issue":"GH-1823","state_from":"draft","state_to":"in_review","actor":"prx","artifact":"scout://sha256:patch01","timestamp":"2026-05-16T10:07:00.000Z","proof":{"checks":["patch_check","guard_check"]}}
+{"id":"t-003","issue":"GH-1808","state_from":"pushed","state_to":"in_review","actor":"prx","artifact":null,"timestamp":"2026-05-16T10:11:00.000Z","proof":{}}

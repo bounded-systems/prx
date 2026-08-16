@@ -1,0 +1,22 @@
+{
+  "$ref": "#/definitions/derive_sync",
+  "definitions": {
+    "derive_sync": {
+      "type": "object",
+      "properties": {
+        "issueId": {
+          "type": "string"
+        },
+        "remoteFresh": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "issueId",
+        "remoteFresh"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

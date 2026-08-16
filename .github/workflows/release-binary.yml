@@ -1,0 +1,258 @@
+name: release-binary
+
+# On a semver tag (e.g. v0.1.0), build the self-contained prx binary per platform
+# and attach it to the GitHub Release. Consumers (e.g. ai-home)
+# fetch the asset via nix `pkgs.fetchurl` (hermetic) — no source build needed.
+# Library npm publishing (semver) is handled separately by release.yml + changesets.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: aarch64-darwin
+            bunTarget: bun-darwin-arm64
+          # `macos-13` was retired; bare `macos-*` labels now default to
+          # Apple Silicon, so Intel needs the explicit `-intel` suffix.
+          - os: macos-15-intel
+            target: x86_64-darwin
+            bunTarget: bun-darwin-x64
+          - os: ubuntu-latest
+            target: x86_64-linux
+            bunTarget: bun-linux-x64
+          # Cross-compiled on the x86 runner via `bun --target` (no arm64 runner
+          # needed) — the binary the aarch64-linux box + prx-zj8 fleet need.
+          - os: ubuntu-latest
+            target: aarch64-linux
+            bunTarget: bun-linux-arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    # Build only uploads an artifact (the release is published once, later, by
+    # the `release` job); id-token + attestations mint a signed build-provenance
+    # attestation linking the binary to this commit.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - run: bun install --frozen-lockfile
+      - name: Build prx
+        run: |
+          PRX_COMPILE_GIT_SHA="$(git rev-parse --short=12 HEAD)" \
+          PRX_COMPILE_VERSION="${{ github.ref_name }}" \
+          BUN="$(which bun)" \
+            bun packages/prx/scripts/prx-compile.ts ./prx-${{ matrix.target }} --target=${{ matrix.bunTarget }}
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: prx-${{ matrix.target }}
+          path: prx-${{ matrix.target }}
+          if-no-files-found: error
+      # After the binary is built: a failed attestation must not block the release.
+      - name: Attest build provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        with:
+          subject-path: prx-${{ matrix.target }}
+
+  # Publish the prx CLI as a container image to GHCR (ghcr.io/<owner>/prx).
+  # Multi-stage Dockerfile compiles with bun, then ships a slim runtime.
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # packages: write to push the image; id-token + attestations to mint a
+    # signed build-provenance attestation for the pushed image digest.
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+      - id: build
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+      # The image is already pushed above; a failed attestation must not fail the job.
+      - name: Attest image provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
+        with:
+          subject-name: ghcr.io/${{ github.repository }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  # Single release job: gather both platform binaries and publish the GitHub
+  # Release in one shot. Immutable releases lock on publish, so every asset must
+  # be attached to the DRAFT first, then the draft is flipped to published. The
+  # old per-matrix parallel attach raced to publish and lost the second asset
+  # (v0.3.0 shipped linux-only when the darwin job hit the immutable lock).
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Download platform binaries
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          # Only the per-platform prx binaries. Without this the step also pulls
+          # the `image` job's `.dockerbuild` artifact and fails the download.
+          pattern: prx-*
+          path: release-assets
+          merge-multiple: true
+      - name: List assets
+        run: ls -l release-assets
+      - name: Create draft release with both assets
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          draft: true
+          files: |
+            release-assets/prx-aarch64-darwin
+            release-assets/prx-x86_64-darwin
+            release-assets/prx-x86_64-linux
+            release-assets/prx-aarch64-linux
+      - name: Publish — flip draft → published (locks immutable with all assets present)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # --repo is required: this job has no checkout, so gh can't infer the
+        # repo from git context (the v0.3.1 publish failed with "not a git
+        # repository" without it).
+        run: gh release edit "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --draft=false --latest
+
+  # After the release is published, compute the assets' sha256 and open a PR
+  # updating release-hashes.json (consumed by the flake packages + home-manager
+  # module). Tag-only: GITHUB_REF_NAME is the version tag here.
+  update-hashes:
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      # Mint a prx-forge App token so the hashes branch push + PR are attributed
+      # to the App (the PR then triggers CI), and "Actions can't create PRs" no
+      # longer blocks this job. Mirrors version.yml. Falls back to GITHUB_TOKEN.
+      - name: Mint GitHub App token
+        id: app-token
+        if: ${{ vars.PRX_FORGE_APP_ID != '' }}
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v2.1.4
+        with:
+          app-id: ${{ vars.PRX_FORGE_APP_ID }}
+          private-key: ${{ secrets.PRX_FORGE_APP_PRIVATE_KEY }}
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+      - uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+      - name: Compute hashes → release-hashes.json + Homebrew formula
+        run: |
+          set -euo pipefail
+          ver="${GITHUB_REF_NAME#v}"
+          base="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          json=$(jq -n --arg v "$ver" '{version:$v, systems:{}}')
+          for sys in aarch64-darwin x86_64-darwin x86_64-linux aarch64-linux; do
+            h=$(nix-prefetch-url "$base/prx-$sys")
+            json=$(printf '%s' "$json" | jq --arg s "$sys" --arg h "$h" '.systems[$s].prx=$h')
+          done
+          printf '%s\n' "$json" | jq . > release-hashes.json
+          cat release-hashes.json
+          # Homebrew formula needs hex sha256 (nix stores base32) — convert.
+          d_hex=$(nix hash convert --hash-algo sha256 --to base16 "$(jq -r '.systems."aarch64-darwin".prx' release-hashes.json)")
+          d_intel_hex=$(nix hash convert --hash-algo sha256 --to base16 "$(jq -r '.systems."x86_64-darwin".prx' release-hashes.json)")
+          l_hex=$(nix hash convert --hash-algo sha256 --to base16 "$(jq -r '.systems."x86_64-linux".prx' release-hashes.json)")
+          l_arm_hex=$(nix hash convert --hash-algo sha256 --to base16 "$(jq -r '.systems."aarch64-linux".prx' release-hashes.json)")
+          mkdir -p Formula
+          cat > Formula/prx.rb <<RUBY
+          # Homebrew formula for prx. This repo doubles as a tap:
+          #   brew tap bounded-systems/prx https://github.com/bounded-systems/prx
+          #   brew install prx
+          # Auto-maintained by .github/workflows/release-binary.yml (update-hashes job).
+          class Prx < Formula
+            desc "Agent-run PR contract / work-unit CLI"
+            homepage "https://github.com/bounded-systems/prx"
+            version "$ver"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/bounded-systems/prx/releases/download/v$ver/prx-aarch64-darwin"
+                sha256 "$d_hex"
+              end
+              on_intel do
+                url "https://github.com/bounded-systems/prx/releases/download/v$ver/prx-x86_64-darwin"
+                sha256 "$d_intel_hex"
+              end
+            end
+
+            on_linux do
+              on_intel do
+                url "https://github.com/bounded-systems/prx/releases/download/v$ver/prx-x86_64-linux"
+                sha256 "$l_hex"
+              end
+              on_arm do
+                url "https://github.com/bounded-systems/prx/releases/download/v$ver/prx-aarch64-linux"
+                sha256 "$l_arm_hex"
+              end
+            end
+
+            def install
+              bin.install Dir["prx-*"].first => "prx"
+            end
+
+            test do
+              assert_match(/git-/, shell_output("#{bin}/prx --version"))
+            end
+          end
+          RUBY
+          cat Formula/prx.rb
+      - name: Open PR if anything changed
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet release-hashes.json Formula/prx.rb; then
+            echo "release-hashes.json + formula already up to date"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          branch="release-hashes-${GITHUB_REF_NAME}"
+          git checkout -b "$branch"
+          git add release-hashes.json Formula/prx.rb
+          git commit -m "chore: release-hashes + brew formula for ${GITHUB_REF_NAME}"
+          git push -u origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "chore: release-hashes + brew formula for ${GITHUB_REF_NAME}" \
+            --body "Auto-generated: sha256 of the ${GITHUB_REF_NAME} release assets, consumed by the flake packages, \`homeManagerModules.prx\`, and the Homebrew formula."

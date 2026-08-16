@@ -1,0 +1,55 @@
+{
+  "$ref": "#/definitions/derive_worktree",
+  "definitions": {
+    "derive_worktree": {
+      "type": "object",
+      "properties": {
+        "issueId": {
+          "type": "string"
+        },
+        "exists": {
+          "type": "boolean"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "checkedOutBranch": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "headSha": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "issueId",
+        "exists",
+        "path",
+        "checkedOutBranch",
+        "headSha"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

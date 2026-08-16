@@ -1,0 +1,22 @@
+# act (https://github.com/nektos/act) configuration for running prx's GitHub
+# Actions workflows locally. Read automatically by `act` from the repo root.
+# Driven by `bun run ci:act` (packages/prx/scripts/local-ci-act); see
+# docs/local-ci.md for the full local-CI story (incl. Lima/Colima on macOS).
+
+# Map the `ubuntu-latest` runner to a catthehacker image. These images bundle
+# the tooling GitHub's hosted runners ship with (node, git, etc.); the bare
+# `act-*` images stay small and our workflows install bun via setup-bun anyway.
+# Pinned to the 22.04 tag for reproducibility — bump deliberately, like the
+# action SHAs in .github/workflows.
+-P ubuntu-latest=catthehacker/ubuntu:act-22.04
+
+# Quieter, deterministic output for a local run.
+--rm
+
+# Apple Silicon note: the `ci:act` wrapper defaults --container-architecture to
+# the host arch (linux/arm64 on Apple Silicon), so the run is native — Docker
+# would otherwise resolve `ubuntu-latest` to amd64, and under emulation the
+# setup-bun → actions/cache hand-off loses `node` from PATH and the job dies.
+# If an action is amd64-only, force it back with:
+#   bun run ci:act -- --container-architecture linux/amd64   (emulated, slower)
+# (Pinned here rather than in the wrapper because the right arch is host-specific.)

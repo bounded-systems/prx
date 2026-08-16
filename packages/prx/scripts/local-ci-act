@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# local-ci-act — run prx's GitHub Actions workflows locally with `act`.
+#
+# `prx ci --phase=…` already runs the *validation logic* (install → typecheck →
+# docs → build → test) directly. This wrapper runs the *workflow layer* on top
+# of it: the actual `.github/workflows/*.yml` job graph, steps, permissions, and
+# pinned-SHA actions, inside a runner container — so a workflow regression is
+# caught locally instead of on the PR. It needs a Docker daemon; on macOS that
+# is supplied by Lima/Colima (see docs/local-ci.md and lima/prx.yaml).
+#
+# Usage:
+#   bun run ci:act                 # run the `ci` job of ci.yml (push event)
+#   bun run ci:act -- -l           # list jobs act would run
+#   bun run ci:act -- -n           # dry-run (no containers)
+#   bun run ci:act -- -W .github/workflows/coverage.yml   # a different workflow
+#   bun run ci:act -- --container-architecture linux/amd64  # Apple Silicon escape hatch
+#
+# Anything after `--` is passed straight through to `act`.
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+cd "$repo_root"
+
+die() {
+  echo "local-ci-act: $*" >&2
+  exit 1
+}
+
+# --- preflight: act ---------------------------------------------------------
+if ! command -v act >/dev/null 2>&1; then
+  cat >&2 <<'EOF'
+local-ci-act: `act` is not on PATH.
+
+Install it one of these ways:
+  - script : curl -fsSL https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash -s -- -b /usr/local/bin
+  - brew   : brew install act
+  - nix    : nix shell nixpkgs#act
+  - go      : go install github.com/nektos/act@latest
+
+…or use the bundled Lima VM, which preinstalls it (see docs/local-ci.md):
+  limactl start --name=prx ./lima/prx.yaml && limactl shell prx
+EOF
+  exit 127
+fi
+
+# --- preflight: docker daemon ----------------------------------------------
+if ! command -v docker >/dev/null 2>&1; then
+  die "no \`docker\` client on PATH. act needs a Docker daemon — start one with
+  Colima (brew install colima && colima start), Docker Desktop, or the bundled
+  Lima VM (limactl start --name=prx ./lima/prx.yaml). See docs/local-ci.md."
+fi
+
+if ! docker info >/dev/null 2>&1; then
+  die "Docker daemon is not reachable (\`docker info\` failed).
+  Start it first:
+    - Lima   : limactl start --name=prx ./lima/prx.yaml   (then run inside: limactl shell prx)
+    - Colima : colima start
+    - Desktop: open Docker Desktop
+  If a daemon is running elsewhere, point DOCKER_HOST at its socket."
+fi
+
+# --- container architecture -------------------------------------------------
+# act passes no --platform, so Docker resolves `ubuntu-latest` to whatever
+# architecture it defaults to — often amd64 even on Apple Silicon. Under amd64
+# emulation the setup-bun → actions/cache hand-off loses `node` from PATH and
+# the job dies ("exec: node: not found"). Default to the host architecture so
+# the run is native and deterministic. Callers can still override (e.g. force
+# amd64 for an amd64-only action) by passing their own --container-architecture
+# after `--`; we only inject a default when none was given.
+arch_args=()
+if [[ "$*" != *"--container-architecture"* ]]; then
+  case "$(uname -m)" in
+    arm64 | aarch64) arch_args=(--container-architecture linux/arm64) ;;
+    x86_64 | amd64) arch_args=(--container-architecture linux/amd64) ;;
+  esac
+fi
+
+# --- defaults ---------------------------------------------------------------
+# Default to the `ci` job of ci.yml on the `push` event — the closest analogue
+# to what runs on a PR, without needing a synthetic pull_request payload. Both
+# are overridable: pass your own -W / -j / event after `--`.
+default_args=(push -W .github/workflows/ci.yml -j ci)
+
+if [[ $# -gt 0 ]]; then
+  echo "local-ci-act: act $* ${arch_args[*]}" >&2
+  exec act "$@" ${arch_args[@]+"${arch_args[@]}"}
+fi
+
+echo "local-ci-act: act ${default_args[*]} ${arch_args[*]}" >&2
+exec act "${default_args[@]}" ${arch_args[@]+"${arch_args[@]}"}

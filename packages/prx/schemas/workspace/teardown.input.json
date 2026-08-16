@@ -1,0 +1,24 @@
+{
+  "$ref": "#/definitions/workspace_teardown_input",
+  "definitions": {
+    "workspace_teardown_input": {
+      "type": "object",
+      "properties": {
+        "workspace_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{12}$"
+        },
+        "force": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "workspace_id",
+        "force"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

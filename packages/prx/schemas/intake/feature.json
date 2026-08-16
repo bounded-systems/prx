@@ -1,0 +1,40 @@
+{
+  "$ref": "#/definitions/intake_feature_body",
+  "definitions": {
+    "intake_feature_body": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": true,
+          "x-prx-heading": "Description"
+        },
+        "design": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": true,
+          "x-prx-heading": "Design"
+        },
+        "acceptance_criteria": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": true,
+          "x-prx-heading": "Acceptance Criteria"
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": false,
+          "x-prx-heading": "Notes"
+        }
+      },
+      "required": [
+        "description",
+        "acceptance_criteria"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

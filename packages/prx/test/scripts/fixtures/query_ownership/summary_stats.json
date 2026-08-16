@@ -1,0 +1,15 @@
+{
+  "commits": 6,
+  "commits_seen": 6,
+  "commits_excluded_identities": 0,
+  "commits_excluded_merges": 0,
+  "edges": 8,
+  "people": 3,
+  "files": 4,
+  "cochange_pairs_total": 1,
+  "cochange_edges": 1,
+  "cochange_commits_used": 2,
+  "cochange_commits_skipped": 0,
+  "cochange_commits_filtered": 0,
+  "cochange_files_excluded": 0
+}

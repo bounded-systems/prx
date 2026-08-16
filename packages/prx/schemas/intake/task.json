@@ -1,0 +1,28 @@
+{
+  "$ref": "#/definitions/intake_task_body",
+  "definitions": {
+    "intake_task_body": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": true,
+          "x-prx-heading": "Description"
+        },
+        "acceptance_criteria": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": true,
+          "x-prx-heading": "Acceptance Criteria"
+        }
+      },
+      "required": [
+        "description",
+        "acceptance_criteria"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

@@ -1,0 +1,46 @@
+[
+  {
+    "id": 1,
+    "size": 2,
+    "files": [
+      "auth/login.ts",
+      "crypto/tls.ts"
+    ],
+    "maintainers": [
+      {
+        "person_id": "bob@corp.dev",
+        "name": "Bob",
+        "touches": 3,
+        "touch_share": 0.375,
+        "recency_share": 0.4118,
+        "sensitive_share": 0.375,
+        "primary_tz_offset": "+01:00"
+      },
+      {
+        "person_id": "alice@corp.dev",
+        "name": "Alice",
+        "touches": 3,
+        "touch_share": 0.375,
+        "recency_share": 0.3515,
+        "sensitive_share": 0.375,
+        "primary_tz_offset": "-05:00"
+      },
+      {
+        "person_id": "carol@corp.dev",
+        "name": "Carol",
+        "touches": 2,
+        "touch_share": 0.25,
+        "recency_share": 0.2367,
+        "sensitive_share": 0.25,
+        "primary_tz_offset": "-05:00"
+      }
+    ],
+    "bus_factor": 3,
+    "owner_count": 3,
+    "totals": {
+      "touches": 8,
+      "recency_weight": 1.644625,
+      "sensitive_weight": 8.0
+    }
+  }
+]

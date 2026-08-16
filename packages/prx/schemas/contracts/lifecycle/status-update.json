@@ -1,0 +1,44 @@
+{
+  "$ref": "#/definitions/status_update",
+  "definitions": {
+    "status_update": {
+      "type": "object",
+      "properties": {
+        "unitId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uow_refs": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1
+        },
+        "author": {
+          "type": "string",
+          "minLength": 1
+        },
+        "ts": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$"
+        }
+      },
+      "required": [
+        "unitId",
+        "uow_refs",
+        "body",
+        "author",
+        "ts"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

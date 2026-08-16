@@ -1,0 +1,38 @@
+{
+  "$ref": "#/definitions/workspace_reserve_output",
+  "definitions": {
+    "workspace_reserve_output": {
+      "type": "object",
+      "properties": {
+        "workspace_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{12}$"
+        },
+        "branch_ref": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "created",
+            "exists-local",
+            "exists-remote",
+            "skipped",
+            "base-unresolved",
+            "error"
+          ]
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "workspace_id",
+        "branch_ref",
+        "status"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

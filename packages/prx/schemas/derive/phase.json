@@ -1,0 +1,22 @@
+{
+  "$ref": "#/definitions/derive_phase",
+  "definitions": {
+    "derive_phase": {
+      "type": "object",
+      "properties": {
+        "issueId": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "issueId",
+        "phase"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

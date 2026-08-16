@@ -1,0 +1,52 @@
+{
+  "$ref": "#/definitions/intake_spike_body",
+  "definitions": {
+    "intake_spike_body": {
+      "type": "object",
+      "properties": {
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": false,
+          "x-prx-heading": "Question"
+        },
+        "proposed_approach": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": true,
+          "x-prx-heading": "Proposed Approach"
+        },
+        "time_box": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": false,
+          "x-prx-heading": "Time Box"
+        },
+        "success_criteria": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": true,
+          "x-prx-heading": "Success Criteria"
+        },
+        "design": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": true,
+          "x-prx-heading": "Design"
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": false,
+          "x-prx-heading": "Notes"
+        }
+      },
+      "required": [
+        "question",
+        "success_criteria"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

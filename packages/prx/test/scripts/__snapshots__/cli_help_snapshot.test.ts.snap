@@ -1,0 +1,587 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`CLI help snapshot matches expected CLI help output 1`] = `
+"## claude --help
+
+exit_code: 0
+Usage: claude [options] [command] [prompt]
+
+Claude Code - starts an interactive session by default, use -p/--print for
+non-interactive output
+
+Arguments:
+  prompt                                Your prompt
+
+Options:
+  --add-dir <directories...>            Additional directories to allow tool
+                                        access to
+  --agent <agent>                       Agent for the current session. Overrides
+                                        the 'agent' setting.
+  --agents <json>                       JSON object defining custom agents (e.g.
+                                        '{"reviewer": {"description": "Reviews
+                                        code", "prompt": "You are a code
+                                        reviewer"}}')
+  --allow-dangerously-skip-permissions  Enable bypassing all permission checks
+                                        as an option, without it being enabled
+                                        by default. Recommended only for
+                                        sandboxes with no internet access.
+  --allowedTools, --allowed-tools <tools...>
+      Comma or space-separated list of tool names to allow (e.g. "Bash(git *)
+      Edit")
+  --append-system-prompt <prompt>       Append a system prompt to the default
+                                        system prompt
+  --bare                                Minimal mode: skip hooks, LSP, plugin
+                                        sync, attribution, auto-memory,
+                                        background prefetches, keychain reads,
+                                        and CLAUDE.md auto-discovery. Sets
+                                        CLAUDE_CODE_SIMPLE=1. Anthropic auth is
+                                        strictly ANTHROPIC_API_KEY or
+                                        apiKeyHelper via --settings (OAuth and
+                                        keychain are never read). 3P providers
+                                        (Bedrock/Vertex/Foundry) use their own
+                                        credentials. Skills still resolve via
+                                        /skill-name. Explicitly provide context
+                                        via: --system-prompt[-file],
+                                        --append-system-prompt[-file], --add-dir
+                                        (CLAUDE.md dirs), --mcp-config,
+                                        --settings, --agents, --plugin-dir.
+  --betas <betas...>                    Beta headers to include in API requests
+                                        (API key users only)
+  --brief                               Enable SendUserMessage tool for
+                                        agent-to-user communication
+  --chrome                              Enable Claude in Chrome integration
+  -c, --continue                        Continue the most recent conversation in
+                                        the current directory
+  --dangerously-skip-permissions        Bypass all permission checks.
+                                        Recommended only for sandboxes with no
+                                        internet access.
+  -d, --debug [filter]                  Enable debug mode with optional category
+                                        filtering (e.g., "api,hooks" or
+                                        "!1p,!file")
+  --debug-file <path>                   Write debug logs to a specific file path
+                                        (implicitly enables debug mode)
+  --disable-slash-commands              Disable all skills
+  --disallowedTools, --disallowed-tools <tools...>
+      Comma or space-separated list of tool names to deny (e.g. "Bash(git *)
+      Edit")
+  --effort <level>                      Effort level for the current session
+                                        (low, medium, high, xhigh, max)
+  --exclude-dynamic-system-prompt-sections
+      Move per-machine sections (cwd, env info, memory paths, git status) from
+      the system prompt into the first user message. Improves cross-user
+      prompt-cache reuse. Only applies with the default system prompt (ignored
+      with --system-prompt). (default: false)
+  --fallback-model <model>              Enable automatic fallback to specified
+                                        model when the default model is
+                                        overloaded or not available (only works
+                                        with --print)
+  --file <specs...>                     File resources to download at startup.
+                                        Format: file_id:relative_path (e.g.,
+                                        --file file_abc:doc.txt
+                                        file_def:img.png)
+  --fork-session                        When resuming, create a new session ID
+                                        instead of reusing the original (use
+                                        with --resume or --continue)
+  --from-pr [value]                     Resume a session linked to a PR by PR
+                                        number/URL, or open interactive picker
+                                        with optional search term
+  -h, --help                            Display help for command
+  --ide                                 Automatically connect to IDE on startup
+                                        if exactly one valid IDE is available
+  --include-hook-events                 Include all hook lifecycle events in the
+                                        output stream (only works with
+                                        --output-format=stream-json)
+  --include-partial-messages            Include partial message chunks as they
+                                        arrive (only works with --print and
+                                        --output-format=stream-json)
+  --input-format <format>               Input format (only works with --print):
+                                        "text" (default), or "stream-json"
+                                        (realtime streaming input) (choices:
+                                        "text", "stream-json")
+  --json-schema <schema>                JSON Schema for structured output
+                                        validation. Example:
+                                        {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
+  --max-budget-usd <amount>             Maximum dollar amount to spend on API
+                                        calls (only works with --print)
+  --mcp-config <configs...>             Load MCP servers from JSON files or
+                                        strings (space-separated)
+  --mcp-debug                           [DEPRECATED. Use --debug instead] Enable
+                                        MCP debug mode (shows MCP server errors)
+  --model <model>                       Model for the current session. Provide
+                                        an alias for the latest model (e.g.
+                                        'sonnet' or 'opus') or a model's full
+                                        name (e.g. 'claude-opus-4-8').
+  -n, --name <name>                     Set a display name for this session
+                                        (shown in the prompt box, /resume
+                                        picker, and terminal title)
+  --no-chrome                           Disable Claude in Chrome integration
+  --no-session-persistence              Disable session persistence - sessions
+                                        will not be saved to disk and cannot be
+                                        resumed (only works with --print)
+  --output-format <format>              Output format (only works with --print):
+                                        "text" (default), "json" (single
+                                        result), or "stream-json" (realtime
+                                        streaming) (choices: "text", "json",
+                                        "stream-json")
+  --permission-mode <mode>              Permission mode to use for the session
+                                        (choices: "acceptEdits", "auto",
+                                        "bypassPermissions", "default",
+                                        "dontAsk", "plan")
+  --plugin-dir <path>                   Load a plugin from a directory or .zip
+                                        for this session only (repeatable:
+                                        --plugin-dir A --plugin-dir B.zip)
+                                        (default: [])
+  --plugin-url <url>                    Fetch a plugin .zip from a URL for this
+                                        session only (repeatable: --plugin-url A
+                                        --plugin-url B) (default: [])
+  -p, --print                           Print response and exit (useful for
+                                        pipes). Note: The workspace trust dialog
+                                        is skipped when Claude is run in
+                                        non-interactive mode (via -p, or when
+                                        stdout is not a TTY, e.g. piped or
+                                        redirected output). Only use this in
+                                        directories you trust. Settings files
+                                        that fail validation are silently
+                                        ignored in this mode (no error dialog is
+                                        shown).
+  --prompt-suggestions [value]          Enable prompt suggestions. In print/SDK
+                                        mode, emits a prompt_suggestion message
+                                        after each turn with a predicted next
+                                        user prompt (choices: "true", "false",
+                                        "1", "0", "yes", "no", "on", "off",
+                                        preset: "true")
+  --remote-control [name]               Start an interactive session with Remote
+                                        Control enabled (optionally named)
+  --remote-control-session-name-prefix <prefix>
+      Prefix for auto-generated Remote Control session names (default: hostname)
+  --replay-user-messages                Re-emit user messages from stdin back on
+                                        stdout for acknowledgment (only works
+                                        with --input-format=stream-json and
+                                        --output-format=stream-json)
+  -r, --resume [value]                  Resume a conversation by session ID, or
+                                        open interactive picker with optional
+                                        search term
+  --session-id <uuid>                   Use a specific session ID for the
+                                        conversation (must be a valid UUID)
+  --setting-sources <sources>           Comma-separated list of setting sources
+                                        to load (user, project, local).
+  --settings <file-or-json>             Path to a settings JSON file or a JSON
+                                        string to load additional settings from
+  --strict-mcp-config                   Only use MCP servers from --mcp-config,
+                                        ignoring all other MCP configurations
+  --system-prompt <prompt>              System prompt to use for the session
+  --tmux                                Create a tmux session for the worktree
+                                        (requires --worktree). Uses iTerm2
+                                        native panes when available; use
+                                        --tmux=classic for traditional tmux.
+  --tools <tools...>                    Specify the list of available tools from
+                                        the built-in set. Use "" to disable all
+                                        tools, "default" to use all tools, or
+                                        specify tool names (e.g.
+                                        "Bash,Edit,Read").
+  --verbose                             Override verbose mode setting from
+                                        config
+  -v, --version                         Output the version number
+  -w, --worktree [name]                 Create a new git worktree for this
+                                        session (optionally specify a name)
+
+Commands:
+  agents [options]                      Manage background agents
+  auth                                  Manage authentication
+  auto-mode                             Inspect auto mode classifier
+                                        configuration
+  doctor                                Check the health of your Claude Code
+                                        auto-updater. Note: The workspace trust
+                                        dialog is skipped and stdio servers from
+                                        .mcp.json are spawned for health checks.
+                                        Only use this command in directories you
+                                        trust.
+  install [options] [target]            Install Claude Code native build. Use
+                                        [target] to specify version (stable,
+                                        latest, or specific version)
+  mcp                                   Configure and manage MCP servers
+  plugin|plugins                        Manage Claude Code plugins
+  project                               Manage Claude Code project state
+  setup-token                           Set up a long-lived authentication token
+                                        (requires Claude subscription)
+  ultrareview [options] [target]        Run a cloud-hosted multi-agent code
+                                        review of the current branch (or a PR
+                                        number / base branch) and print the
+                                        findings
+  update|upgrade                        Check for updates and install if
+                                        available
+
+## codex --help
+
+exit_code: 0
+Codex CLI
+
+If no subcommand is specified, options will be forwarded to the interactive CLI.
+
+Usage: codex [OPTIONS] [PROMPT]
+       codex [OPTIONS] <COMMAND> [ARGS]
+
+Commands:
+  exec         Run Codex non-interactively [aliases: e]
+  review       Run a code review non-interactively
+  login        Manage login
+  logout       Remove stored authentication credentials
+  mcp          Manage external MCP servers for Codex
+  mcp-server   Start Codex as an MCP server (stdio)
+  app-server   [experimental] Run the app server or related tooling
+  app          Launch the Codex desktop app (downloads the macOS installer if missing)
+  completion   Generate shell completion scripts
+  sandbox      Run commands within a Codex-provided sandbox
+  debug        Debugging tools
+  apply        Apply the latest diff produced by Codex agent as a \`git apply\` to your local working
+               tree [aliases: a]
+  resume       Resume a previous interactive session (picker by default; use --last to continue the
+               most recent)
+  fork         Fork a previous interactive session (picker by default; use --last to fork the most
+               recent)
+  cloud        [EXPERIMENTAL] Browse tasks from Codex Cloud and apply changes locally
+  exec-server  [EXPERIMENTAL] Run the standalone exec-server binary
+  features     Inspect feature flags
+  help         Print this message or the help of the given subcommand(s)
+
+Arguments:
+  [PROMPT]
+          Optional user prompt to start the session
+
+Options:
+  -c, --config <key=value>
+          Override a configuration value that would otherwise be loaded from \`~/.codex/config.toml\`.
+          Use a dotted path (\`foo.bar.baz\`) to override nested values. The \`value\` portion is parsed
+          as TOML. If it fails to parse as TOML, the raw string is used as a literal.
+
+          Examples: - \`-c model="o3"\` - \`-c 'sandbox_permissions=["disk-full-read-access"]'\` - \`-c
+          shell_environment_policy.inherit=all\`
+
+      --enable <FEATURE>
+          Enable a feature (repeatable). Equivalent to \`-c features.<name>=true\`
+
+      --disable <FEATURE>
+          Disable a feature (repeatable). Equivalent to \`-c features.<name>=false\`
+
+      --remote <ADDR>
+          Connect the TUI to a remote app server websocket endpoint.
+
+          Accepted forms: \`ws://host:port\` or \`wss://host:port\`.
+
+      --remote-auth-token-env <ENV_VAR>
+          Name of the environment variable containing the bearer token to send to a remote app
+          server websocket
+
+  -i, --image <FILE>...
+          Optional image(s) to attach to the initial prompt
+
+  -m, --model <MODEL>
+          Model the agent should use
+
+      --oss
+          Convenience flag to select the local open source model provider. Equivalent to -c
+          model_provider=oss; verifies a local LM Studio or Ollama server is running
+
+      --local-provider <OSS_PROVIDER>
+          Specify which local provider to use (lmstudio or ollama). If not specified with --oss,
+          will use config default or show selection
+
+  -p, --profile <CONFIG_PROFILE>
+          Configuration profile from config.toml to specify default options
+
+  -s, --sandbox <SANDBOX_MODE>
+          Select the sandbox policy to use when executing model-generated shell commands
+
+          [possible values: read-only, workspace-write, danger-full-access]
+
+  -a, --ask-for-approval <APPROVAL_POLICY>
+          Configure when the model requires human approval before executing a command
+
+          Possible values:
+          - untrusted:  Only run "trusted" commands (e.g. ls, cat, sed) without asking for user
+            approval. Will escalate to the user if the model proposes a command that is not in the
+            "trusted" set
+          - on-failure: DEPRECATED: Run all commands without asking for user approval. Only asks for
+            approval if a command fails to execute, in which case it will escalate to the user to
+            ask for un-sandboxed execution. Prefer \`on-request\` for interactive runs or \`never\` for
+            non-interactive runs
+          - on-request: The model decides when to ask the user for approval
+          - never:      Never ask for user approval Execution failures are immediately returned to
+            the model
+
+      --full-auto
+          Convenience alias for low-friction sandboxed automatic execution (-a on-request, --sandbox
+          workspace-write)
+
+      --dangerously-bypass-approvals-and-sandbox
+          Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY
+          DANGEROUS. Intended solely for running in environments that are externally sandboxed
+
+  -C, --cd <DIR>
+          Tell the agent to use the specified directory as its working root. In remote mode, the
+          path is forwarded to the server and resolved there
+
+      --search
+          Enable live web search. When enabled, the native Responses \`web_search\` tool is available
+          to the model (no per‑call approval)
+
+      --add-dir <DIR>
+          Additional directories that should be writable alongside the primary workspace
+
+      --no-alt-screen
+          Disable alternate screen mode
+
+          Runs the TUI in inline mode, preserving terminal scrollback history. This is useful in
+          terminal multiplexers like Zellij that follow the xterm spec strictly and disable
+          scrollback in alternate screen buffers.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
+
+## gh --help
+
+exit_code: 0
+Work seamlessly with GitHub from the command line.
+
+USAGE
+  gh <command> <subcommand> [flags]
+
+CORE COMMANDS
+  auth:          Authenticate gh and git with GitHub
+  browse:        Open repositories, issues, pull requests, and more in the browser
+  codespace:     Connect to and manage codespaces
+  gist:          Manage gists
+  issue:         Manage issues
+  org:           Manage organizations
+  pr:            Manage pull requests
+  project:       Work with GitHub Projects.
+  release:       Manage releases
+  repo:          Manage repositories
+  skill:         Install and manage agent skills (preview)
+
+GITHUB ACTIONS COMMANDS
+  cache:         Manage GitHub Actions caches
+  run:           View details about workflow runs
+  workflow:      View details about GitHub Actions workflows
+
+EXTENSION COMMANDS
+  dash:          Extension dash
+  octo:          Extension octo
+
+ADDITIONAL COMMANDS
+  agent-task:    Work with agent tasks (preview)
+  alias:         Create command shortcuts
+  api:           Make an authenticated GitHub API request
+  attestation:   Work with artifact attestations
+  completion:    Generate shell completion scripts
+  config:        Manage configuration for gh
+  copilot:       Run the GitHub Copilot CLI (preview)
+  extension:     Manage gh extensions
+  gpg-key:       Manage GPG keys
+  label:         Manage labels
+  licenses:      View third-party license information
+  preview:       Execute previews for gh features
+  ruleset:       View info about repo rulesets
+  search:        Search for repositories, issues, and pull requests
+  secret:        Manage GitHub secrets
+  ssh-key:       Manage SSH keys
+  status:        Print information about relevant issues, pull requests, and notifications across repositories
+  variable:      Manage GitHub Actions variables
+
+HELP TOPICS
+  accessibility: Learn about GitHub CLI's accessibility experiences
+  actions:       Learn about working with GitHub Actions
+  environment:   Environment variables that can be used with gh
+  exit-codes:    Exit codes used by gh
+  formatting:    Formatting options for JSON data exported from gh
+  mintty:        Information about using gh with MinTTY
+  reference:     A comprehensive reference of all gh commands
+  telemetry:     Information about telemetry in gh
+
+FLAGS
+  --help      Show help for command
+  --version   Show gh version
+
+EXAMPLES
+  $ gh issue create
+  $ gh repo clone cli/cli
+  $ gh pr checkout 321
+
+LEARN MORE
+  Use \`gh <command> <subcommand> --help\` for more information about a command.
+  Read the manual at https://cli.github.com/manual
+  Learn about exit codes using \`gh help exit-codes\`
+  Learn about accessibility experiences using \`gh help accessibility\`
+
+## gh copilot --help
+
+exit_code: 0
+Runs the GitHub Copilot CLI.
+
+Executing the Copilot CLI through \`gh\` is currently in preview and subject to change.
+
+If already installed, \`gh\` will execute the Copilot CLI found in your \`PATH\`.
+If the Copilot CLI is not installed, it will be downloaded to $HOME/.local/share/gh/copilot.
+
+Use \`--remove\` to remove the downloaded Copilot CLI.
+
+This command is only supported on Windows, Linux, and Darwin, on amd64/x64
+or arm64 architectures.
+
+To prevent \`gh\` from interpreting flags intended for Copilot,
+use \`--\` before Copilot flags and args.
+
+Learn more at https://gh.io/copilot-cli
+
+
+USAGE
+  gh copilot [flags] [args]
+
+FLAGS
+  --remove   Remove the downloaded Copilot CLI
+
+INHERITED FLAGS
+  --help   Show help for command
+
+EXAMPLES
+  # Download and run the Copilot CLI
+  $ gh copilot
+
+  # Run the Copilot CLI
+  $ gh copilot -p "Summarize this week's commits" --allow-tool 'shell(git)'
+
+  # Remove the Copilot CLI (if installed through gh)
+  $ gh copilot --remove
+
+  # Run the Copilot CLI help command
+  $ gh copilot -- --help
+
+LEARN MORE
+  Use \`gh <command> <subcommand> --help\` for more information about a command.
+  Read the manual at https://cli.github.com/manual
+  Learn about exit codes using \`gh help exit-codes\`
+  Learn about accessibility experiences using \`gh help accessibility\`
+
+## gemini --help
+
+exit_code: 0
+Usage: gemini [options] [command]
+
+Gemini CLI - Defaults to interactive mode. Use -p/--prompt for non-interactive (headless) mode.
+
+Commands:
+  gemini [query..]             Launch Gemini CLI  [default]
+  gemini mcp                   Manage MCP servers
+  gemini extensions <command>  Manage Gemini CLI extensions.  [aliases: extension]
+  gemini skills <command>      Manage agent skills.  [aliases: skill]
+  gemini hooks <command>       Manage Gemini CLI hooks.  [aliases: hook]
+
+Positionals:
+  query  Initial prompt. Runs in interactive mode by default; use -p/--prompt for non-interactive.
+
+Options:
+  -d, --debug                     Run in debug mode (open debug console with F12)  [boolean] [default: false]
+  -m, --model                     Model  [string]
+  -p, --prompt                    Run in non-interactive (headless) mode with the given prompt. Appended to input on stdin (if any).  [string]
+  -i, --prompt-interactive        Execute the provided prompt and continue in interactive mode  [string]
+  -s, --sandbox                   Run in sandbox?  [boolean]
+  -y, --yolo                      Automatically accept all actions (aka YOLO mode, see https://www.youtube.com/watch?v=xvFZjo5PgG0 for more details)?  [boolean] [default: false]
+      --approval-mode             Set the approval mode: default (prompt for approval), auto_edit (auto-approve edit tools), yolo (auto-approve all tools), plan (read-only mode)  [string] [choices: "default", "auto_edit", "yolo", "plan"]
+      --experimental-acp          Starts the agent in ACP mode  [boolean]
+      --allowed-mcp-server-names  Allowed MCP server names  [array]
+      --allowed-tools             Tools that are allowed to run without confirmation  [array]
+  -e, --extensions                A list of extensions to use. If not provided, all extensions are used.  [array]
+  -l, --list-extensions           List all available extensions and exit.  [boolean]
+  -r, --resume                    Resume a previous session. Use "latest" for most recent or index number (e.g. --resume 5)  [string]
+      --list-sessions             List available sessions for the current project and exit.  [boolean]
+      --delete-session            Delete a session by index number (use --list-sessions to see available sessions).  [string]
+      --include-directories       Additional directories to include in the workspace (comma-separated or multiple --include-directories)  [array]
+      --screen-reader             Enable screen reader mode for accessibility.  [boolean]
+  -o, --output-format             The format of the CLI output.  [string] [choices: "text", "json", "stream-json"]
+      --raw-output                Disable sanitization of model output (e.g. allow ANSI escape sequences). WARNING: This can be a security risk if the model output is untrusted.  [boolean]
+      --accept-raw-output-risk    Suppress the security warning when using --raw-output.  [boolean]
+  -v, --version                   Show version number  [boolean]
+  -h, --help                      Show help  [boolean]
+
+## cursor-agent --help
+
+exit_code: 0
+Usage: agent [options] [command] [prompt...]
+
+Start the Cursor Agent
+
+Arguments:
+  prompt                       Initial prompt for the agent
+
+Options:
+  -v, --version                Output the version number
+  --api-key <key>              API key for authentication (can also use
+                               CURSOR_API_KEY env var)
+  -H, --header <header>        Add custom header to agent requests (format:
+                               'Name: Value', can be used multiple times)
+  -p, --print                  Print responses to console (for scripts or
+                               non-interactive use). Has access to all tools,
+                               including write and shell. (default: false)
+  --output-format <format>     Output format (only works with --print): text |
+                               json | stream-json (default: "text")
+  --stream-partial-output      Stream partial output as individual text deltas
+                               (only works with --print and stream-json format)
+                               (default: false)
+  -c, --cloud                  Start in cloud mode (open composer picker on
+                               launch) (default: false)
+  --mode <mode>                Start in the given execution mode. plan:
+                               read-only/planning (analyze, propose plans, no
+                               edits). ask: Q&A style for explanations and
+                               questions (read-only). (choices: "plan", "ask")
+  --plan                       Start in plan mode (shorthand for --mode=plan).
+                               Ignored if --cloud is passed. (default: false)
+  --resume [chatId]            Select a session to resume (default: false)
+  --continue                   Continue previous session (default: false)
+  --model <model>              Model to use (e.g., gpt-5, sonnet-4,
+                               sonnet-4-thinking)
+  --list-models                List available models and exit (default: false)
+  -f, --force                  Force allow commands unless explicitly denied
+                               (default: false)
+  --yolo                       Alias for --force (Run Everything) (default:
+                               false)
+  --sandbox <mode>             Explicitly enable or disable sandbox mode
+                               (overrides config) (choices: "enabled",
+                               "disabled")
+  --approve-mcps               Automatically approve all MCP servers (default:
+                               false)
+  --trust                      Trust the current workspace without prompting
+                               (only works with --print/headless mode) (default:
+                               false)
+  --workspace <path>           Workspace directory to use (defaults to current
+                               working directory)
+  -w, --worktree [name]        Start in an isolated git worktree at
+                               ~/.cursor/worktrees/<reponame>/<name>. If
+                               omitted, a name is generated.
+  --worktree-base <branch>     Branch or ref to base the new worktree on
+                               (default: current HEAD)
+  --skip-worktree-setup        Skip running worktree setup scripts from
+                               .cursor/worktrees.json (default: false)
+  -h, --help                   Display help for command
+
+Commands:
+  install-shell-integration    Install shell integration to ~/.zshrc
+  uninstall-shell-integration  Remove shell integration from ~/.zshrc
+  login                        Authenticate with Cursor. Set NO_OPEN_BROWSER to
+                               disable browser opening.
+  logout                       Sign out and clear stored authentication
+  mcp                          Manage MCP servers
+  status|whoami                View authentication status
+  models                       List available models for this account
+  about                        Display version, system, and account information
+  update                       Update Cursor Agent to the latest version
+  create-chat                  Create a new empty chat and return its ID
+  generate-rule|rule           Generate a new Cursor rule with interactive
+                               prompts
+  agent [prompt...]            Start the Cursor Agent
+  ls                           Resume a chat session
+  resume                       Resume the latest chat session
+  help [command]               Display help for command"
+`;

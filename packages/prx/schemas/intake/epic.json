@@ -1,0 +1,35 @@
+{
+  "$ref": "#/definitions/intake_epic_body",
+  "definitions": {
+    "intake_epic_body": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": true,
+          "x-prx-heading": "Description"
+        },
+        "child_decomposition": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": true,
+          "x-prx-heading": "Child Decomposition"
+        },
+        "success_criteria": {
+          "type": "string",
+          "minLength": 1,
+          "x-prx-actions-bearing": true,
+          "x-prx-heading": "Success Criteria"
+        }
+      },
+      "required": [
+        "description",
+        "child_decomposition",
+        "success_criteria"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

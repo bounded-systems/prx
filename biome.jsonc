@@ -1,0 +1,77 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+
+  // Adopted in RATCHET mode — see docs/agentic-code-hygiene.md.
+  // The formatter/linter are scoped to hand-written TypeScript only: generated
+  // docs (*.md), the JSON-LD graph, exported JSON schemas, drizzle migrations,
+  // and test fixtures/snapshots are projected from sources and must NOT be
+  // reflowed (a formatter fighting a generator is drift, not cleanup).
+  "files": {
+    "includes": [
+      "packages/*/src/**/*.ts",
+      "packages/*/test/**/*.ts",
+      "packages/*/scripts/**/*.ts",
+      ".claude/hooks/**/*.ts",
+      "!**/*.generated.ts",
+      "!**/migrations/**",
+      "!**/__fixtures__/**",
+      "!**/fixtures/**",
+      "!**/*.snap"
+    ]
+  },
+
+  // lineWidth 100 matches the repo's de-facto wrap (98.6% of lines already fit).
+  // Not yet applied across the tree: `format:write` is a deliberate follow-up
+  // commit, recorded in .git-blame-ignore-revs so it doesn't pollute blame.
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    }
+  },
+
+  // Curated, high-signal starter set — all at `warn`, so nothing blocks today.
+  // The ratchet: drive a rule's count to 0, then flip it to `error` to lock it
+  // in (the same shape as .dependency-cruiser.cjs and the ≤2000-line size cap).
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": false,
+      "correctness": {
+        "noUnusedVariables": "warn",
+        "noUnusedImports": "warn",
+        "noUnusedFunctionParameters": "warn"
+      },
+      "suspicious": {
+        "noExplicitAny": "warn",
+        // Graduated warn → error (both at 0) — the ratchet's first lock-ins.
+        "noFocusedTests": "error",
+        "noDoubleEquals": "error"
+      }
+    }
+  },
+
+  // Import organizing is off for now — turning it on rewrites every file; stage
+  // it as its own ratchet after the formatter reformat lands.
+  "assist": {
+    "enabled": true,
+    "actions": { "source": { "organizeImports": "off" } }
+  },
+
+  "overrides": [
+    {
+      // `any` is a pragmatic escape hatch in tests, demos, and infra scripts;
+      // src is already held at 99.4% strict type-coverage by `bun run typecov`.
+      "includes": ["**/*.test.ts", "**/scripts/**", "**/*-example.ts"],
+      "linter": { "rules": { "suspicious": { "noExplicitAny": "off" } } }
+    }
+  ]
+}

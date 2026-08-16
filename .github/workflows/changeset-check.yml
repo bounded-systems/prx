@@ -1,0 +1,52 @@
+name: changeset-check
+
+# Require a changeset on every PR that touches a package, so version bumps are
+# driven by changesets (the "Version Packages" PR) — not hand-cut, which collides
+# with the automation (see the v0.3.7/v0.4.0 release thrash). A no-release change
+# (docs / CI / tests) satisfies the gate with an EMPTY changeset:
+#   bunx @changesets/cli@^2.27 add --empty
+#
+# This is the input contract a future `release` actor consumes (GH-347).
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  changeset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Require a changeset for package changes
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          # The changesets bot's "Version Packages" PR consumes changesets and
+          # bumps versions — it must NOT itself require one.
+          case "$HEAD_REF" in
+            changeset-release/*) echo "Version Packages PR — exempt."; exit 0 ;;
+          esac
+          # Full fetch (NOT --depth=1): a shallow base has no merge-base, so the
+          # three-dot diff fails with "no merge base" (checkout uses fetch-depth:0).
+          git fetch --no-tags origin "$BASE"
+          changed="$(git diff --name-only "origin/${BASE}...HEAD")"
+          if echo "$changed" | grep -qE '^packages/'; then
+            if echo "$changed" | grep -qE '^\.changeset/.+\.md$'; then
+              echo "changeset present — OK."
+            else
+              echo "::error::This PR changes packages/ but adds no changeset."
+              echo "Run \`bun run changeset\` to record the version bump, or"
+              echo "\`bunx @changesets/cli@^2.27 add --empty\` for a no-release change (docs/CI/tests)."
+              exit 1
+            fi
+          else
+            echo "No package changes — changeset not required."
+          fi
