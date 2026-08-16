@@ -2923,7 +2923,13 @@ describe("refreshLocalRepo — legacy bare integration (GH-1751)", () => {
   type HydrateFn = typeof import("../../src/pr-state/repos.ts").hydrateAfterMaterialize;
 
   function git(cwd: string, args: string[]): void {
-    const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+    // `-c commit.gpgsign=false` keeps these temp-repo commits hermetic: without
+    // it, a developer with `commit.gpgsign=true` (e.g. SSH signing) hangs the
+    // seed commit on a signing prompt. Harmless for non-commit subcommands.
+    const result = spawnSync("git", ["-c", "commit.gpgsign=false", ...args], {
+      cwd,
+      encoding: "utf8",
+    });
     if (result.status !== 0) {
       throw new Error(`git ${args.join(" ")} failed (cwd=${cwd}): ${result.stderr}`);
     }
