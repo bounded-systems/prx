@@ -1,4 +1,4 @@
-import { getEnv, processEnv, setEnv, deleteEnv } from "@bounded-systems/env";
+import { getEnv, setEnv, deleteEnv } from "@bounded-systems/env";
 import { defaultRunner as procRunner, localProcExecutor } from "@bounded-systems/proc";
 import { bakedGitSha, bakedReleaseVersion } from "../build-info.ts";
 import { parseArgs } from "node:util";
@@ -221,7 +221,7 @@ import {
   prxSessionUnitCompleteMessage,
 } from "../machine/session_open.ts";
 import { findEpicChildren } from "../beads/epic_children.ts";
-import { frontDeskBeadsRaw, resolveListSource } from "../beads/frontdesk-list.ts";
+import { frontDeskBeadsRaw } from "../beads/frontdesk-list.ts";
 import { hasEpicLabel } from "../triage/labels.ts";
 import {
   ensureClaudeInteractiveAllowlist,
@@ -602,7 +602,6 @@ import type { DispatchActor } from "../machine/dispatch.ts";
 import { readDispatchSource } from "../machine/dispatch.ts";
 import { DispatchParseError, parseDispatchCommand as parseDispatchArgv } from "./dispatch/parse.ts";
 import { renderDispatchOutcome, runDispatch } from "./dispatch/handler.ts";
-import { rewriteFileAtomic } from "../tools/atomic_file.ts";
 import {
   formatScoutGrepJsonLines,
   runScoutGrep,
@@ -9822,188 +9821,23 @@ export function parseCommand(argv: string[]): ParsedCommand {
 
 const repoRootPath = fileURLToPath(new URL("../../", import.meta.url));
 
-function canonicalBeadsRepoIdFromGithubRepo(githubRepo: string): string | null {
-  const [owner, repo] = githubRepo.split("/");
-  if (!owner || !repo) {
-    return null;
-  }
-  return `io.github.${owner}/${repo}`;
-}
-
-export function canonicalBeadsRepoIdFromRemote(url: string): string | null {
-  const githubRepo = parseGithubRepo(url);
-  if (!githubRepo) {
-    return null;
-  }
-  return canonicalBeadsRepoIdFromGithubRepo(githubRepo);
-}
-
-export function canonicalBeadsDatabaseName(canonicalRepoId: string): string {
-  return canonicalRepoId
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
-
+// GH-1012 — the bd/beads write plane has been removed, so there is no bd
+// workspace to detect, initialize, or force-repair. The verb surface is kept
+// (both `prx init` and `prx sync-issues --apply` still call this and render
+// the result) but it now answers with the retired-plane skip instead of
+// spawning `bd`. The `_runner`/`_options` params are retained so existing
+// callers and the `RunCliDeps.ensureBeadsInitSetup` seam keep their shape.
 export function ensureBeadsInitSetup(
-  cwd = process.cwd(),
-  runner: CommandRunner = runCommand,
-  options: { force: boolean } = { force: false },
+  _cwd = process.cwd(),
+  _runner: CommandRunner = runCommand,
+  _options: { force: boolean } = { force: false },
 ): BeadsInitSetupResult {
-  const bdVersion = runner(["bd", "version"], cwd);
-  if (bdVersion.error || bdVersion.status !== 0) {
-    return { status: "skipped", reason: "`bd` is unavailable" };
-  }
-
-  const originResult = runner(["git", "remote", "get-url", "origin"], cwd);
-  if (originResult.error || originResult.status !== 0) {
-    return { status: "skipped", reason: "git origin remote is unavailable" };
-  }
-
-  const originUrl = originResult.stdout.trim();
-  const githubRepo = parseGithubRepo(originUrl);
-  if (!githubRepo) {
-    return { status: "skipped", reason: `unsupported git remote: ${originUrl}` };
-  }
-
-  const canonicalRepoId = canonicalBeadsRepoIdFromGithubRepo(githubRepo);
-  if (!canonicalRepoId) {
-    return { status: "skipped", reason: `unsupported git remote: ${originUrl}` };
-  }
-
-  const database = canonicalBeadsDatabaseName(canonicalRepoId);
-  const repoName = githubRepo.split("/")[1] ?? "";
-  const forceInitialize = (): BeadsInitSetupResult => {
-    const forcedInitResult = runner(
-      [
-        "bd",
-        "init",
-        "--prefix",
-        repoName,
-        "--database",
-        database,
-        "--force",
-        "--destroy-token",
-        `DESTROY-${repoName}`,
-      ],
-      cwd,
-    );
-    if (forcedInitResult.error) {
-      throw forcedInitResult.error;
-    }
-    if (forcedInitResult.status !== 0) {
-      const message =
-        (forcedInitResult.stderr || forcedInitResult.stdout).trim() ||
-        "Failed to force beads initialization";
-      throw new Error(message);
-    }
-    configureGithubRepository();
-    runner(["bd", "config", "set", "doctor.suppress.git-hooks", "true"], cwd);
-    runner(["bd", "vc", "commit", "-m", "prx init: stabilize config state"], cwd);
-    return {
-      status: "forced",
-      canonicalRepoId,
-      database,
-      githubRepository: githubRepo,
-      prefix: repoName,
-    };
-  };
-
-  const configureGithubRepository = (): void => {
-    const configured = runner(["bd", "config", "get", "github.repository"], cwd);
-    if (
-      !configured.error &&
-      configured.status === 0 &&
-      parseBeadsConfigValue(configured.stdout) === githubRepo
-    ) {
-      return;
-    }
-
-    const configResult = runner(["bd", "config", "set", "github.repository", githubRepo], cwd);
-    if (configResult.error) {
-      throw configResult.error;
-    }
-    if (configResult.status !== 0) {
-      const message =
-        (configResult.stderr || configResult.stdout).trim() ||
-        "Failed to configure beads GitHub repository";
-      throw new Error(message);
-    }
-  };
-
-  const contextResult = runner(["bd", "context", "--json"], cwd);
-  if (!contextResult.error && contextResult.status === 0) {
-    try {
-      const context = JSON.parse(contextResult.stdout) as { database?: string };
-      if (context.database === database) {
-        configureGithubRepository();
-        return { status: "unchanged", canonicalRepoId, database, githubRepository: githubRepo };
-      }
-
-      if (options.force) {
-        return forceInitialize();
-      }
-
-      return {
-        status: "skipped",
-        reason: `existing beads database ${context.database ?? "unknown"} does not match ${database}`,
-        canonicalRepoId,
-        database,
-        githubRepository: githubRepo,
-      };
-    } catch {
-      return {
-        status: "skipped",
-        reason: "could not parse current beads context",
-        canonicalRepoId,
-        database,
-        githubRepository: githubRepo,
-      };
-    }
-  }
-
-  if (options.force) {
-    return forceInitialize();
-  }
-
-  const initResult = runner(["bd", "init", "--prefix", repoName, "--database", database], cwd);
-  if (initResult.error) {
-    throw initResult.error;
-  }
-  if (initResult.status !== 0) {
-    const message = (initResult.stderr || initResult.stdout).trim() || "Failed to initialize beads";
-    throw new Error(message);
-  }
-  configureGithubRepository();
-
-  runner(["bd", "config", "set", "doctor.suppress.git-hooks", "true"], cwd);
-  runner(["bd", "vc", "commit", "-m", "prx init: stabilize config state"], cwd);
-
   return {
-    status: "initialized",
-    canonicalRepoId,
-    database,
-    githubRepository: githubRepo,
-    prefix: repoName,
+    status: "skipped",
+    reason:
+      "beads-removed (GH-1012): the bd/beads write plane has been removed; " +
+      "GitHub issues are the write plane and Front Desk the read plane, so there is nothing to initialize",
   };
-}
-
-function parseBeadsConfigValue(stdout: string): string {
-  const trimmed = stdout.trim();
-  if (trimmed.length === 0) {
-    return "";
-  }
-
-  try {
-    const parsed = JSON.parse(trimmed) as { value?: unknown };
-    if (typeof parsed?.value === "string") {
-      return parsed.value;
-    }
-  } catch {
-    // Fall back to legacy plain-text output from bd config get.
-  }
-
-  return trimmed;
 }
 
 async function detectInitTitle(cwd = process.cwd()): Promise<string> {
@@ -11000,250 +10834,6 @@ export function closeSession(
   };
 }
 
-export function runBeadsInit(
-  cwd: string,
-  importGh: boolean,
-  dryRun: boolean,
-  output: { log: (msg: string) => void },
-  spawn: SpawnLike = procSpawnLike,
-): number {
-  const repoRoot = resolveRepoRootWithSpawn(cwd, spawn);
-
-  // Verify git repo and required tools
-  const originUrl = spawn("git", ["-C", repoRoot, "remote", "get-url", "origin"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-  });
-  if (originUrl.status !== 0 || !originUrl.stdout?.trim()) {
-    throw new CliError("beads-init: no 'origin' remote found");
-  }
-
-  const url = originUrl.stdout.trim();
-  const match = url.match(/github\.com[:/]([^\s]+)$/);
-  if (!match) {
-    throw new CliError(`beads-init: unsupported git remote: ${url}`);
-  }
-
-  const githubRepo = match[1]!.replace(/\.git$/, "");
-  const repoParts = githubRepo.split("/");
-  const owner = repoParts[0] ?? "";
-  const repo = repoParts[1] ?? "";
-  const canonicalRepoId = `io.github.${owner}/${repo}`;
-  const database = canonicalRepoId
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-
-  const metadataPath = join(repoRoot, ".beads", "metadata.json");
-
-  // Read current metadata database. Read atomically through a descriptor (no
-  // existsSync-then-read, which CodeQL pairs with the later metadata writes as
-  // js/file-system-race).
-  let metadataDatabase: string | null = null;
-  try {
-    const fd = openSync(metadataPath, "r");
-    try {
-      const metadata = JSON.parse(readFileSync(fd, "utf8"));
-      metadataDatabase = typeof metadata.dolt_database === "string" ? metadata.dolt_database : null;
-    } finally {
-      closeSync(fd);
-    }
-  } catch {
-    // missing or invalid → leave null
-  }
-
-  const run = (cmd: string, args: string[]): { status: number; stdout: string; stderr: string } => {
-    if (dryRun) {
-      output.log(`[dry-run] ${cmd} ${args.join(" ")}`);
-      return { status: 0, stdout: "", stderr: "" };
-    }
-    const env = { ...processEnv() };
-    delete env.BEADS_DIR;
-    const result = spawn(cmd, args, { cwd: repoRoot, encoding: "utf8", env });
-    if (result.error) {
-      const cmdLine = [cmd, ...args].join(" ");
-      throw new CliError(`Failed to run "${cmdLine}": ${result.error.message}`);
-    }
-    const status = result.status ?? 1;
-    const stdout = (result.stdout ?? "").trim();
-    const stderr = (result.stderr ?? "").trim();
-    if (status !== 0) {
-      const cmdLine = [cmd, ...args].join(" ");
-      const details = [stderr, stdout].filter(Boolean).join("\n");
-      throw new CliError(
-        `Command failed with exit code ${status}: ${cmdLine}${details ? `\n${details}` : ""}`,
-      );
-    }
-    return { status, stdout, stderr };
-  };
-
-  const canonicalContextIsUsable = (): boolean => {
-    const env = { ...processEnv() };
-    delete env.BEADS_DIR;
-    const probeResult = spawn("bd", ["info"], {
-      cwd: repoRoot,
-      encoding: "utf8",
-      env,
-    });
-    return (probeResult.status ?? 1) === 0;
-  };
-
-  const bootstrapRuntimeRepair = (): void => {
-    output.log(
-      "repair: canonical metadata matches, but database is unavailable; running beads bootstrap",
-    );
-    run("bd", dryRun ? ["bootstrap", "--dry-run"] : ["bootstrap", "--yes"]);
-  };
-
-  // Patch metadata if needed. Rewrite through one descriptor (rewriteFileAtomic)
-  // rather than existsSync-then-read-then-write (CodeQL js/file-system-race).
-  if (metadataDatabase !== database) {
-    output.log(
-      `repair: rewriting ${metadataPath} dolt_database ${metadataDatabase ?? "unset"} -> ${database}`,
-    );
-    if (!dryRun) {
-      let invalidJson = false;
-      rewriteFileAtomic(metadataPath, (current) => {
-        let metadata: { dolt_database?: string };
-        try {
-          metadata = JSON.parse(current);
-        } catch {
-          invalidJson = true;
-          return null;
-        }
-        metadata.dolt_database = database;
-        return JSON.stringify(metadata, null, 2) + "\n";
-      });
-      if (invalidJson) {
-        throw new CliError(
-          `beads-init: ${metadataPath} contains invalid JSON; fix or delete it and re-run`,
-        );
-      }
-    }
-  }
-
-  // Check current bd context database
-  let currentDatabase: string | null = null;
-  {
-    const env = { ...processEnv() };
-    delete env.BEADS_DIR;
-    const ctxResult = spawn("bd", ["context", "--json"], {
-      cwd: repoRoot,
-      encoding: "utf8",
-      env,
-    });
-    if (ctxResult.status === 0 && ctxResult.stdout) {
-      try {
-        const ctx = JSON.parse(ctxResult.stdout);
-        currentDatabase = typeof ctx.database === "string" ? ctx.database : null;
-      } catch {
-        // ignore
-      }
-    }
-  }
-
-  output.log(`origin:            ${url}`);
-  output.log(`github repo:       ${githubRepo}`);
-  output.log(`canonical repo id: ${canonicalRepoId}`);
-  output.log(`canonical db:      ${database}`);
-  output.log(`issue prefix:      ${repo}`);
-  output.log(`metadata db:       ${metadataDatabase ?? "unset"}`);
-  output.log(`bd context db:     ${currentDatabase ?? "unavailable"}`);
-
-  // Init if needed
-  if (currentDatabase !== database) {
-    const beadsDir = join(repoRoot, ".beads");
-    if (existsSync(beadsDir)) {
-      output.log("repair: running forced canonical Beads init");
-      run("bd", [
-        "init",
-        "--prefix",
-        repo,
-        "--database",
-        database,
-        "--force",
-        "--destroy-token",
-        `DESTROY-${repo}`,
-      ]);
-    } else {
-      output.log("repair: running canonical Beads init");
-      run("bd", ["init", "--prefix", repo, "--database", database]);
-    }
-    // Re-patch metadata after init. Rewrite through one descriptor
-    // (rewriteFileAtomic) rather than existsSync-then-read-then-write
-    // (CodeQL js/file-system-race).
-    if (!dryRun) {
-      let invalidJson = false;
-      rewriteFileAtomic(metadataPath, (current) => {
-        let metadata: { dolt_database?: string };
-        try {
-          metadata = JSON.parse(current);
-        } catch {
-          invalidJson = true;
-          return null;
-        }
-        if (metadata.dolt_database === database) return null;
-        metadata.dolt_database = database;
-        return JSON.stringify(metadata, null, 2) + "\n";
-      });
-      if (invalidJson) {
-        throw new CliError(
-          `beads-init: ${metadataPath} contains invalid JSON; fix or delete it and re-run`,
-        );
-      }
-    }
-  } else {
-    if (canonicalContextIsUsable()) {
-      output.log("status:            canonical context already active");
-    } else {
-      bootstrapRuntimeRepair();
-    }
-  }
-
-  // Configure repo
-  run("bd", ["config", "set", "github.repository", githubRepo]);
-  run("bd", ["config", "set", "doctor.suppress.git-hooks", "true"]);
-
-  if (importGh) {
-    run("bd", ["github", "sync", "--pull-only", "--prefer-github"]);
-  }
-
-  // Verify
-  if (!dryRun) {
-    const env = { ...processEnv() };
-    delete env.BEADS_DIR;
-    const verifyResult = spawn("bd", ["context", "--json"], {
-      cwd: repoRoot,
-      encoding: "utf8",
-      env,
-    });
-    if (verifyResult.status === 0 && verifyResult.stdout) {
-      try {
-        const ctx = JSON.parse(verifyResult.stdout);
-        const verifiedDb = typeof ctx.database === "string" ? ctx.database : null;
-        output.log(`verified db:       ${verifiedDb}`);
-        if (verifiedDb !== database) {
-          output.log(`beads-init: expected canonical database ${database}, got ${verifiedDb}`);
-          return 1;
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    const readyResult = spawn("beads", ["ready"], {
-      cwd: repoRoot,
-      encoding: "utf8",
-      env,
-    });
-    if (readyResult.status === 0) {
-      output.log("verified:          beads ready");
-    }
-  }
-
-  return 0;
-}
-
 export function materializeWorkUnitBranch(
   workUnitId: string,
   cwd = process.cwd(),
@@ -11536,83 +11126,30 @@ export function listFeatureWorktreesForRepair(repoPath: string): string[] {
 }
 
 /**
- * `tryCommand` for a `bd` read. Returns the read's stdout, or null on any
- * failure (`tryCommand`'s null-on-failure preserved).
- */
-function bdReadOrNull(cmd: string[], cwd: string): string | null {
-  return tryCommand(cmd, cwd);
-}
-
-/**
- * The bd ids of an epic's parent-child children, both reads door-backed
- * (prx-zbsi). `read` is injectable for tests; production uses {@link
- * bdReadOrNull} so the box profile reaches the beadsd door.
+ * The ids of an epic's parent-child children, read from Front Desk (the
+ * GH-canonical mirror). GH-1012 removed the bd substrate, so the legacy
+ * door-backed `bd list` / `bd children` fallback (and its `PRX_LIST_SOURCE=bd`
+ * escape hatch) is gone; Front Desk is the only source. The epic is matched by
+ * its ref (external_ref substring, or the `GH-<epic>` synthetic id); its
+ * children are the `depends_on_id`s of its parent-child dep edges. Returns
+ * `GH-<n>` ids, matching the GH-canonical next-work candidates (GH-1010).
  */
 export function resolveEpicChildBdIds(
   repoPath: string,
   epic: string,
-  read: (cmd: string[], cwd: string) => string | null = bdReadOrNull,
   frontDeskRows: (cwd: string) => unknown[] = frontDeskBeadsRaw,
 ): Set<string> {
   const out = new Set<string>();
-  // GH-1011: Front Desk (GH-canonical) path. The epic is matched by its ref
-  // (external_ref substring, or the `GH-<epic>` synthetic id); its parent-child
-  // children are the `depends_on_id`s of its parent-child dep edges. Returns
-  // `GH-<n>` ids, matching the now-GH-canonical next-work candidates (GH-1010).
-  if (resolveListSource() === "frontdesk") {
-    const rows = frontDeskRows(repoPath) as {
-      id: string;
-      external_ref?: string;
-      dependencies?: { depends_on_id: string; type: string }[];
-    }[];
-    for (const rec of rows) {
-      const matchesRef = typeof rec.external_ref === "string" && rec.external_ref.includes(epic);
-      if (!matchesRef && rec.id !== `GH-${epic}`) continue;
-      for (const dep of rec.dependencies ?? []) {
-        if (dep.type === "parent-child") out.add(dep.depends_on_id);
-      }
-    }
-    return out;
-  }
-  // Step 1: locate the bd id whose external_ref matches the epic ref. The old
-  // `bd query "external_ref contains <epic>"` is not on the beadsd read
-  // surface, so we read the door-backed `bd list --all` and apply the same
-  // substring match in-process — it works for both the issue URL
-  // (`https://github.com/.../issues/N`) and the legacy `GH-N` token. The
-  // expected match set is tiny (≤ 1).
-  const listRaw = read(["bd", "list", "--all", "--json"], repoPath);
-  if (!listRaw) return out;
-  let listParsed: unknown;
-  try {
-    listParsed = JSON.parse(listRaw);
-  } catch {
-    return out;
-  }
-  const rows = Array.isArray(listParsed) ? listParsed : [];
-  for (const row of rows) {
-    if (!row || typeof row !== "object") continue;
-    const rec = row as Record<string, unknown>;
-    const externalRef = rec.external_ref;
-    if (typeof externalRef !== "string" || !externalRef.includes(epic)) continue;
-    const epicBdId = rec.id;
-    if (typeof epicBdId !== "string") continue;
-    // Step 2: list children via the door-backed `bd children <epic-bd-id>`
-    // verb (served as `bd dep list ... --type parent-child` in the daemon;
-    // off-profile this is a real `bd children` spawn). Both shapes carry the
-    // child id in `id`.
-    const childrenRaw = read(["bd", "children", epicBdId, "--json"], repoPath);
-    if (!childrenRaw) continue;
-    let childrenParsed: unknown;
-    try {
-      childrenParsed = JSON.parse(childrenRaw);
-    } catch {
-      continue;
-    }
-    const childRows = Array.isArray(childrenParsed) ? childrenParsed : [];
-    for (const child of childRows) {
-      if (!child || typeof child !== "object") continue;
-      const id = (child as Record<string, unknown>).id;
-      if (typeof id === "string") out.add(id);
+  const rows = frontDeskRows(repoPath) as {
+    id: string;
+    external_ref?: string;
+    dependencies?: { depends_on_id: string; type: string }[];
+  }[];
+  for (const rec of rows) {
+    const matchesRef = typeof rec.external_ref === "string" && rec.external_ref.includes(epic);
+    if (!matchesRef && rec.id !== `GH-${epic}`) continue;
+    for (const dep of rec.dependencies ?? []) {
+      if (dep.type === "parent-child") out.add(dep.depends_on_id);
     }
   }
   return out;
