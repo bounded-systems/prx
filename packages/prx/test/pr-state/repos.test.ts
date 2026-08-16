@@ -24,6 +24,7 @@ import {
   localWorkspacePrefixForCwd,
   normalizeLocalRepos,
   parseRepoUrl,
+  readBdWorkspacePrefix,
   refreshLocalRepo,
   RepoAddError,
   repoCanonical,
@@ -1913,9 +1914,142 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
     expect((thrown as RepoAddError).code).toBe("bd_workspace_prefix_invalid_shape");
   });
 
-  test("bd non-zero exit → bd_workspace_prefix_unresolved", () => {
+  // GH-1005: every one of these was a hard failure before — thrown AFTER the
+  // bare clone and mainx worktree had already been created, which is what left
+  // `prx repo add <external-url>` registered but unfinished with no prx-native
+  // way forward. They now fall back to the slug derivation. The underlying
+  // probe still reports each distinct condition; those codes are asserted
+  // directly on `readBdWorkspacePrefix` below, where they are still reachable.
+  test.each([
+    ["bd non-zero exit (bd absent from PATH)", { status: 1, stderr: "bd: not found" }],
+    ["bd empty stdout", { stdout: "\n" }],
+    ["bd non-conforming stdout", { stdout: "AI Home\n" }],
+  ])("%s → falls back to the slug-derived prefix", (_label, bdResponse) => {
     const { bareRoot, wtRoot } = setupRoots();
     const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
+    const { runner } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+        ["bd config get database.workspace_prefix", bdResponse],
+      ]),
+    );
+
+    const result = addLocalRepo(
+      {
+        url: "git@github.com:owner/scratch.git",
+        bareRoot,
+        wtRoot,
+        operatorConfigRoot: null,
+        overlay: false,
+      },
+      runner,
+    );
+
+    expect(result.bdWorkspacePrefix).toBe("scratch");
+    expect(result.bdWorkspacePrefixSource).toBe("slug-derived");
+  });
+
+  // The prefix is derived from the repo slug, not the worktree directory name
+  // — the distinction the issue's `bd init` workaround got wrong (`mainx-*`
+  // ids instead of `icfp2026-*`).
+  test("slug-derived prefix comes from the repo name, not the mainx dir", () => {
+    const { bareRoot, wtRoot } = setupRoots();
+    const expectedBare = join(bareRoot, "com.github", "OMG-ICFP-FTW", "icfp2026.git");
+    const { runner } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+        [
+          "bd config get database.workspace_prefix",
+          { status: 1, stderr: "no beads database found" },
+        ],
+      ]),
+    );
+
+    const result = addLocalRepo(
+      {
+        url: "https://github.com/OMG-ICFP-FTW/icfp2026",
+        bareRoot,
+        wtRoot,
+        operatorConfigRoot: null,
+        overlay: false,
+      },
+      runner,
+    );
+
+    expect(result.bdWorkspacePrefix).toBe("icfp2026");
+    expect(result.bdWorkspacePrefixSource).toBe("slug-derived");
+    expect(result.mainxPath.endsWith("mainx")).toBe(true);
+  });
+
+  test("bd-config wins over the slug derivation when a workspace answers", () => {
+    const { bareRoot, wtRoot } = setupRoots();
+    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
+    const { runner } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+        ["bd config get database.workspace_prefix", { stdout: "ai-home\n" }],
+      ]),
+    );
+
+    const result = addLocalRepo(
+      {
+        url: "git@github.com:owner/scratch.git",
+        bareRoot,
+        wtRoot,
+        operatorConfigRoot: null,
+        overlay: false,
+      },
+      runner,
+    );
+
+    expect(result.bdWorkspacePrefix).toBe("ai-home");
+    expect(result.bdWorkspacePrefixSource).toBe("bd-config");
+  });
+
+  test("override wins over both, and is reported as such", () => {
+    const { bareRoot, wtRoot } = setupRoots();
+    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
+    const { runner } = makeRunner(
+      new Map([
+        [
+          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
+          { stdout: "origin/main\n" },
+        ],
+        ["bd config get database.workspace_prefix", { stdout: "ai-home\n" }],
+      ]),
+    );
+
+    const result = addLocalRepo(
+      {
+        url: "git@github.com:owner/scratch.git",
+        bareRoot,
+        wtRoot,
+        operatorConfigRoot: null,
+        overlay: false,
+        bdWorkspacePrefixOverride: "supply-plan",
+      },
+      runner,
+    );
+
+    expect(result.bdWorkspacePrefix).toBe("supply-plan");
+    expect(result.bdWorkspacePrefixSource).toBe("override");
+  });
+
+  // The one remaining hard failure: no bd workspace AND a slug that projects
+  // to nothing the pattern accepts. Unlike the bd probe it used to replace,
+  // this names a fix the operator can actually carry out.
+  test("unprojectable slug with no bd workspace → bd_workspace_prefix_underivable", () => {
+    const { bareRoot, wtRoot } = setupRoots();
+    const expectedBare = join(bareRoot, "com.github", "owner", "42.git");
     const { runner } = makeRunner(
       new Map([
         [
@@ -1930,7 +2064,7 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
     try {
       addLocalRepo(
         {
-          url: "git@github.com:owner/scratch.git",
+          url: "git@github.com:owner/42.git",
           bareRoot,
           wtRoot,
           operatorConfigRoot: null,
@@ -1942,34 +2076,42 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
       thrown = err;
     }
     expect(thrown).toBeInstanceOf(RepoAddError);
+    expect((thrown as RepoAddError).code).toBe("bd_workspace_prefix_underivable");
+    expect((thrown as RepoAddError).message).toContain("--bd-workspace-prefix");
+  });
+});
+
+// GH-1005: `addLocalRepo` no longer propagates these — it catches them and
+// derives from the slug — but the probe is still the shared seam
+// `prx repo backfill` reads through, so its per-condition codes stay covered.
+describe("readBdWorkspacePrefix (GH-1657)", () => {
+  function probeRunner(response: {
+    stdout?: string;
+    stderr?: string;
+    status?: number;
+  }): import("../../src/pr-state/repos.ts").RepoRunner {
+    return () => ({
+      stdout: response.stdout ?? "",
+      stderr: response.stderr ?? "",
+      status: response.status ?? 0,
+    });
+  }
+
+  test("non-zero exit → bd_workspace_prefix_unresolved", () => {
+    let thrown: unknown;
+    try {
+      readBdWorkspacePrefix("/mainx", probeRunner({ status: 1, stderr: "bd: not found" }));
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(RepoAddError);
     expect((thrown as RepoAddError).code).toBe("bd_workspace_prefix_unresolved");
   });
 
-  test("bd empty stdout → bd_workspace_prefix_empty", () => {
-    const { bareRoot, wtRoot } = setupRoots();
-    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
-    const { runner } = makeRunner(
-      new Map([
-        [
-          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
-          { stdout: "origin/main\n" },
-        ],
-        ["bd config get database.workspace_prefix", { stdout: "\n" }],
-      ]),
-    );
-
+  test("empty stdout → bd_workspace_prefix_empty", () => {
     let thrown: unknown;
     try {
-      addLocalRepo(
-        {
-          url: "git@github.com:owner/scratch.git",
-          bareRoot,
-          wtRoot,
-          operatorConfigRoot: null,
-          overlay: false,
-        },
-        runner,
-      );
+      readBdWorkspacePrefix("/mainx", probeRunner({ stdout: "\n" }));
     } catch (err) {
       thrown = err;
     }
@@ -1981,36 +2123,19 @@ describe("addLocalRepo bd_workspace_prefix population (GH-1657)", () => {
     ["AI Home"],
     ["1foo"],
     ["-bad"],
-  ])("bd non-conforming stdout %p → bd_workspace_prefix_invalid_shape", (value) => {
-    const { bareRoot, wtRoot } = setupRoots();
-    const expectedBare = join(bareRoot, "com.github", "owner", "scratch.git");
-    const { runner } = makeRunner(
-      new Map([
-        [
-          `git -C ${expectedBare} symbolic-ref --short refs/remotes/origin/HEAD`,
-          { stdout: "origin/main\n" },
-        ],
-        ["bd config get database.workspace_prefix", { stdout: `${value}\n` }],
-      ]),
-    );
-
+  ])("non-conforming stdout %p → bd_workspace_prefix_invalid_shape", (value) => {
     let thrown: unknown;
     try {
-      addLocalRepo(
-        {
-          url: "git@github.com:owner/scratch.git",
-          bareRoot,
-          wtRoot,
-          operatorConfigRoot: null,
-          overlay: false,
-        },
-        runner,
-      );
+      readBdWorkspacePrefix("/mainx", probeRunner({ stdout: `${value}\n` }));
     } catch (err) {
       thrown = err;
     }
     expect(thrown).toBeInstanceOf(RepoAddError);
     expect((thrown as RepoAddError).code).toBe("bd_workspace_prefix_invalid_shape");
+  });
+
+  test("conforming stdout is returned trimmed", () => {
+    expect(readBdWorkspacePrefix("/mainx", probeRunner({ stdout: "ai-home\n" }))).toBe("ai-home");
   });
 });
 

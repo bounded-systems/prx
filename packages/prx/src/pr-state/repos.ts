@@ -60,6 +60,28 @@ export function hydrateAfterMaterialize(
 // module.
 export const WORKSPACE_PREFIX_PATTERN = /^[a-z][a-z0-9-]*$/;
 
+/**
+ * Conservative kebab projection of a repo slug into a
+ * {@link WORKSPACE_PREFIX_PATTERN}-conforming prefix. Underscores become
+ * dashes, any other non-`[a-z0-9-]` character becomes a dash, and runs are
+ * collapsed + edge-trimmed. Callers validate the output before adopting it —
+ * a slug that projects to an empty / non-`[a-z]`-prefixed string has no usable
+ * derivation and the caller must ask the operator for an override.
+ *
+ * GH-1005: lives here (rather than in `repo_backfill.ts`, its original home)
+ * because `addLocalRepo` shares the derivation; `repo_backfill.ts` imports
+ * from this module, so the reverse direction would be a cycle.
+ */
+export function kebabPrefixFromName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/_/g, "-")
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+/, "")
+    .replace(/-+$/, "");
+}
+
 // GH-1703: Dolthub repo-name path segment. Dolthub enforces 3–32 chars,
 // `[A-Za-z][A-Za-z0-9_-]*`. This pattern matches the *path segment*, not the
 // full URL — the schema applies it to the segment after the {dolt_user}.
@@ -1635,6 +1657,14 @@ export type RepoAddOverlayResult = {
   reason?: "already_exists";
 };
 
+/**
+ * GH-1005: which route resolved the workspace prefix on a `prx repo add`.
+ * Mirrors `RepoBackfillSource` in `repo_backfill.ts` — the two verbs now share
+ * the same derivation ladder — with `override` for the `--bd-workspace-prefix`
+ * path, which backfill has no equivalent of.
+ */
+export type BdWorkspacePrefixSource = "override" | "bd-config" | "slug-derived";
+
 export type RepoAddResult = {
   url: string;
   parsed: ParsedRepoUrl;
@@ -1645,10 +1675,19 @@ export type RepoAddResult = {
   overlay: RepoAddOverlayResult | null;
   /**
    * GH-1657: workspace prefix resolved from `bd config get
-   * database.workspace_prefix` (or supplied via override). Always populated on
-   * success; `addLocalRepo` throws if it cannot resolve a conforming value.
+   * database.workspace_prefix` (or supplied via override). GH-1005: falls back
+   * to a slug derivation when no bd workspace answers. Always populated on
+   * success; `addLocalRepo` throws only when every route — override, bd probe,
+   * slug projection — fails to produce a conforming value.
    */
   bdWorkspacePrefix: string;
+  /**
+   * GH-1005: which route produced {@link bdWorkspacePrefix}. Surfaced by
+   * `formatRepoAdd` so an operator can tell a slug-derived prefix (the normal
+   * case now that the bd write plane is gone, GH-1012) from one a bd workspace
+   * actually declared.
+   */
+  bdWorkspacePrefixSource: BdWorkspacePrefixSource;
   /**
    * GH-1710: resolved canonical axis ("gh" by default). Always populated so
    * the CLI's index-merge step has an explicit value to write.
@@ -1995,8 +2034,21 @@ export function addLocalRepo(
 
   // 6. resolve the BD workspace prefix (GH-1657). Override path skips the bd
   // subprocess entirely; without it, query `bd config get
-  // database.workspace_prefix` in the mainx we just bootstrapped.
+  // database.workspace_prefix` in the mainx we just bootstrapped and fall back
+  // to a slug derivation when that probe finds no bd workspace.
+  //
+  // GH-1005: the fallback is why `prx repo add <external-url>` no longer dies
+  // on its last step. The bd/beads write plane was removed in GH-1012 —
+  // `hydrateAfterMaterialize` is a no-op and `prx repo bootstrap` refuses — so
+  // on any repo without a pre-existing `.beads/`, and on every repo at all once
+  // `bd` is off the operator's PATH, this probe was a guaranteed failure after
+  // the bare clone and mainx worktree had already succeeded. It leaves a
+  // registered-but-unfinished repo and no prx-native way forward. Deriving from
+  // the repo slug matches what `prx repo backfill` already does for stale
+  // entries, and gives the slug-shaped prefix (`icfp2026`) rather than the
+  // worktree-dir-shaped one (`mainx`) that a bare `bd init` would have.
   let bdWorkspacePrefix: string;
+  let bdWorkspacePrefixSource: BdWorkspacePrefixSource;
   if (options.bdWorkspacePrefixOverride !== undefined) {
     const candidate = options.bdWorkspacePrefixOverride;
     if (!WORKSPACE_PREFIX_PATTERN.test(candidate)) {
@@ -2006,8 +2058,28 @@ export function addLocalRepo(
       );
     }
     bdWorkspacePrefix = candidate;
+    bdWorkspacePrefixSource = "override";
   } else {
-    bdWorkspacePrefix = readBdWorkspacePrefix(mainxPath, runner);
+    try {
+      bdWorkspacePrefix = readBdWorkspacePrefix(mainxPath, runner);
+      bdWorkspacePrefixSource = "bd-config";
+    } catch (err) {
+      if (!(err instanceof RepoAddError)) throw err;
+      const derived = kebabPrefixFromName(parsed.name);
+      if (!WORKSPACE_PREFIX_PATTERN.test(derived)) {
+        // No usable derivation — the slug projects to something the pattern
+        // rejects. This is the one remaining hard failure, and unlike the bd
+        // probe it names a fix the operator can actually carry out.
+        throw new RepoAddError(
+          `Could not derive a workspace prefix from repo name '${parsed.name}' ` +
+            `(projected to '${derived || "<empty>"}', which does not match ${WORKSPACE_PREFIX_PATTERN}), ` +
+            `and no bd workspace was found in ${mainxPath}. Pass --bd-workspace-prefix <value>.`,
+          "bd_workspace_prefix_underivable",
+        );
+      }
+      bdWorkspacePrefix = derived;
+      bdWorkspacePrefixSource = "slug-derived";
+    }
   }
 
   let overlay: RepoAddOverlayResult | null = null;
@@ -2030,6 +2102,7 @@ export function addLocalRepo(
     fetchRefspecAdded: true,
     overlay,
     bdWorkspacePrefix,
+    bdWorkspacePrefixSource,
     canonical: options.canonical ?? "gh",
     beadsHydrate,
     originHeadSet,

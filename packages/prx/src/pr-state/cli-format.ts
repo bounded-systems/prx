@@ -1030,7 +1030,7 @@ export function formatRepoAdd(result: RepoAddResult, format: "plain" | "json"): 
     `  default: ${result.defaultBranch}`,
     `  fetch refspec: ${result.fetchRefspecAdded ? "set (heads + tags + notes)" : "unchanged"}`,
     `  origin/HEAD: ${result.originHeadSet ? "set (git remote set-head --auto)" : "unchanged"}`,
-    `  bd workspace prefix: ${result.bdWorkspacePrefix}`,
+    `  bd workspace prefix: ${result.bdWorkspacePrefix} (${result.bdWorkspacePrefixSource})`,
     `  canonical: ${result.canonical}`,
   ];
   if (result.overlay) {

@@ -71,12 +71,12 @@ const PER_FILE_BASELINE = new Set<string>([
   "packages/prx/src/sync/serve-verb.ts", // wraps the live cross-repo orchestrators (real bd/gh/dolt); the loop (serve.ts) is unit-tested, not the live wiring (mirrors pod-up-verb)
   // GH-1012 (beads removal): thin remnants / shared infra that lost bd-path
   // coverage. handoff/cli+drain were bd-store-backed (handoff/store.ts removed);
-  // repo_bootstrap is now a "beads-removed" refusal stub; framing was exercised
-  // by the deleted beadsd door tests (still partly covered by keeper/forge/
-  // concierge door tests). Revisit / prune these files separately.
+  // framing was exercised by the deleted beadsd door tests (still partly covered
+  // by keeper/forge/concierge door tests). Revisit / prune these files separately.
+  // (repo_bootstrap.ts left this list in GH-1005 — the refusal stub got its own
+  // test file, taking it from 5% to 89%.)
   "packages/prx/src/handoff/cli.ts", // beads-store-backed handoff remnant (store.ts removed)
   "packages/prx/src/handoff/drain.ts", // beads-store-backed handoff remnant (store.ts removed)
-  "packages/prx/src/pr-state/repo_bootstrap.ts", // now a beads-removed refusal stub (bd-init path gone)
   "packages/prx/src/sync/run-dolt-reconcile-cross-repo.ts", // live cross-repo dolt orchestrator; loop unit-tested, not the live wiring
   "packages/prx/src/door/framing.ts", // door frame codec — beadsd door tests removed; still covered by keeper/forge/concierge door tests
   "packages/prx/src/audit/store/db.ts", // sqlite-bound audit store; integration-covered

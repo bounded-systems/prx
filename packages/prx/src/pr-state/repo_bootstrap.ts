@@ -13,11 +13,8 @@
 
 import {
   loadRepoInventoryIndex as defaultLoadRepoInventoryIndex,
-  WORKSPACE_PREFIX_PATTERN,
-  type LocalRepo,
   type RepoInventoryConfig,
 } from "./repos.ts";
-import { locateRepo } from "./repo_locate.ts";
 import { type AddDolthubRefusalReason } from "./repo_add_dolthub.ts";
 
 // ── options + deps ─────────────────────────────────────────────────────────
@@ -107,84 +104,40 @@ export class RepoBootstrapError extends Error {
   }
 }
 
-// ── helpers ────────────────────────────────────────────────────────────────
-
-function resolvedRepoCwd(repo: LocalRepo): string | null {
-  if (repo.mainWorktree) return repo.mainWorktree;
-  if (repo.worktrees.length > 0) return repo.worktrees[0]!.path;
-  return null;
-}
-
 // ── handler ────────────────────────────────────────────────────────────────
 
 export function runRepoBootstrap(
   opts: RepoBootstrapOptions,
-  deps: RepoBootstrapDeps = {},
+  _deps: RepoBootstrapDeps = {},
 ): RepoBootstrapResult {
-  const loadIndex = deps.loadRepoInventoryIndex ?? defaultLoadRepoInventoryIndex;
-
-  // 1. inventory load.
-  if (!opts.config.indexPath) {
-    return {
-      kind: "refused",
-      slug: opts.slug,
-      reason: "no-inventory",
-      detail:
-        "No `.prx/repos/index.json` resolved from this cwd. Run `prx repo bootstrap` from a prx-managed checkout (or run `prx repo list` once to bootstrap the inventory).",
-    };
-  }
-  const inventory = loadIndex(opts.config.indexPath);
-  if (!inventory) {
-    return {
-      kind: "refused",
-      slug: opts.slug,
-      reason: "no-inventory",
-      detail: `No repo inventory index at ${opts.config.indexPath}. Run \`prx repo list\` to populate it before bootstrapping a beads workspace.`,
-    };
-  }
-
-  // 2. locate repo.
-  const located = locateRepo(inventory, { slug: opts.slug, cwd: opts.cwd });
-  if (located.kind === "not_found") {
-    return {
-      kind: "refused",
-      slug: opts.slug,
-      reason: "slug-not-found",
-      detail: located.detail,
-    };
-  }
-  const { repo } = located;
-
-  // 3. worktree presence.
-  const workspaceCwd = resolvedRepoCwd(repo);
-  if (!workspaceCwd) {
-    return {
-      kind: "refused",
-      slug: repo.name,
-      reason: "no-worktree",
-      detail: `${repo.name}: no attached worktree on the inventory entry. Run \`prx repo materialize ${repo.name}\` first.`,
-    };
-  }
-
-  // 4. derive + validate prefix.
-  const prefix = opts.prefixOverride?.trim() || repo.name;
-  if (!WORKSPACE_PREFIX_PATTERN.test(prefix)) {
-    return {
-      kind: "refused",
-      slug: repo.name,
-      reason: "prefix-invalid",
-      detail: `${repo.name}: prefix '${prefix}' does not match ${WORKSPACE_PREFIX_PATTERN}. Pass --prefix <value> to override.`,
-    };
-  }
-
-  // 5. GH-1012 — the bd/beads write-plane has been removed; there is no
+  // GH-1012 — the bd/beads write-plane has been removed; there is no
   // per-project bd workspace to bootstrap. GitHub issues are the write plane
   // and Front Desk the read plane.
+  //
+  // GH-1005: this refusal is returned FIRST, ahead of the inventory / locate /
+  // worktree / prefix gates that used to run before it. Those gates could only
+  // ever change WHICH refusal came back, never whether one did — and on an
+  // externally-added repo (no `.prx/repos/index.json` in its worktree) the
+  // first gate won the race and answered `no-inventory`, whose detail told the
+  // operator to run `prx repo list`. That is a dead end twice over: `repo list`
+  // does not create a per-worktree inventory for an external repo, and even if
+  // it did the verb would still refuse. Diagnosing a retired verb as a missing
+  // inventory sends the operator to fix something that is not broken, so the
+  // verb now answers with the one true reason for every caller.
+  //
+  // `opts.slug` is echoed back unresolved: resolving it required the inventory
+  // read this refusal deliberately skips, and a slug the operator typed is
+  // more useful in the message than one this verb can no longer look up.
   return {
     kind: "refused",
-    slug: repo.name,
+    slug: opts.slug,
     reason: "beads-removed",
-    detail: `${repo.name}: \`prx repo bootstrap\` provisioned a bd/beads workspace, which has been removed (GH-1012). GitHub issues are now the write plane and Front Desk the read plane; there is no per-project bd workspace to bootstrap.`,
+    detail:
+      "`prx repo bootstrap` provisioned a bd/beads workspace, which has been removed (GH-1012). " +
+      "GitHub issues are now the write plane and Front Desk the read plane; there is no per-project " +
+      "bd workspace to bootstrap, on this or any repo. Nothing needs to be run in its place: " +
+      "`prx repo add` finishes the job on its own (it derives the workspace prefix from the repo slug), " +
+      "and work items live on GitHub.",
   };
 }
 
