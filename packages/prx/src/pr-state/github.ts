@@ -6416,36 +6416,10 @@ export async function syncGitHubIssuesToBeads(
   const repo = repoNameWithOwner(root, runner);
   const lines: string[] = [];
 
-  const configuredRepo = parseBeadsConfigValue(
-    runner(["bd", "config", "get", "github.repository"], { cwd: root, check: false }).stdout,
-  );
-
-  if (configuredRepo !== repo) {
-    if (apply) {
-      const configResult = runner(["bd", "config", "set", "github.repository", repo], {
-        cwd: root,
-        check: false,
-      });
-      if (configResult.status !== 0) {
-        const message =
-          (configResult.stderr || configResult.stdout).trim() ||
-          "Failed to configure beads GitHub repository";
-        lines.push(`FAIL beads github.repository -> ${repo}: ${message}`);
-        return { exitCode: 1, lines };
-      }
-      lines.push(`UPDATED beads github.repository -> ${repo}`);
-    } else {
-      lines.push(`WOULD UPDATE beads github.repository: ${configuredRepo || "unset"} -> ${repo}`);
-    }
-  } else {
-    lines.push(`OK beads github.repository=${repo}`);
-  }
-
-  if (!apply && configuredRepo !== repo) {
-    lines.push("WOULD RUN prx beads sync --domain=gh --dry-run after updating github.repository");
-    return { exitCode: 0, lines };
-  }
-
+  // GH-1012: the `bd config get/set github.repository` pre-step is gone with
+  // the bd binary — the canonical reconcile resolves the repo itself from the
+  // git remote, so there is no bd-side config to align first.
+  //
   // GH-2011: route through the canonical reconcile rather than the retired
   // bd-side reconcile shell-out.
   const syncCapture: { stdout: string[]; stderr: string[] } = { stdout: [], stderr: [] };
@@ -6482,22 +6456,4 @@ export async function syncGitHubIssuesToBeads(
   lines.push(...identityResult.lines);
 
   return { exitCode: identityResult.exitCode, lines };
-}
-
-function parseBeadsConfigValue(stdout: string): string {
-  const trimmed = stdout.trim();
-  if (trimmed.length === 0) {
-    return "";
-  }
-
-  try {
-    const parsed = JSON.parse(trimmed) as { value?: unknown };
-    if (typeof parsed?.value === "string") {
-      return parsed.value;
-    }
-  } catch {
-    // Fall back to legacy plain-text output from bd config get.
-  }
-
-  return trimmed;
 }

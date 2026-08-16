@@ -31,8 +31,6 @@ import {
   assertWorktreeOnNamedBranch,
   autoRebaseOnSessionOpen,
   buildInitialPrContract,
-  canonicalBeadsDatabaseName,
-  canonicalBeadsRepoIdFromRemote,
   checkPrxBinaryUpstream,
   checkWorkUnitChain,
   checkWorkUnitIssue,
@@ -47,7 +45,6 @@ import {
   prepareMainxWorktree,
   pruneStaleRemoteRefs,
   resolveEpicChildBdIds,
-  runBeadsInit,
   resolveWorkUnitLaunchCwd,
   assertLaunchCwdNotMainx,
   runCli as runCliDirect,
@@ -7270,253 +7267,19 @@ describe("pr_state cli", () => {
     expect(errs.some((l) => l.includes("no issue-authority resolver is configured"))).toBe(true);
   });
 
-  test("canonical beads repo ids are derived from github remotes", () => {
-    expect(canonicalBeadsRepoIdFromRemote("git@github.com:bdelanghe/ai-home.git")).toBe(
-      "io.github.bdelanghe/ai-home",
-    );
-    expect(canonicalBeadsRepoIdFromRemote("https://github.com/demo/demo-web.git")).toBe(
-      "io.github.demo/demo-web",
-    );
-    expect(canonicalBeadsDatabaseName("io.github.demo/demo-web")).toBe("io_github_demo_demo_web");
-  });
-
-  test("beads init setup initializes fresh repos with canonical database names", () => {
+  test("ensureBeadsInitSetup answers with the beads-removed skip and never spawns bd (GH-1012)", () => {
     const commands: string[][] = [];
     const runner = (command: string[]) => {
       commands.push(command);
-      const joined = command.join(" ");
-      if (joined === "bd version") {
-        return { status: 0, stdout: "0.61.0\n", stderr: "" };
-      }
-      if (joined === "git remote get-url origin") {
-        return { status: 0, stdout: "git@github.com:bdelanghe/ai-home.git\n", stderr: "" };
-      }
-      if (joined === "bd context --json") {
-        return { status: 1, stdout: "", stderr: "not initialized" };
-      }
-      if (joined === "bd init --prefix ai-home --database io_github_bdelanghe_ai_home") {
-        return { status: 0, stdout: "ok", stderr: "" };
-      }
-      if (joined === "bd config get github.repository") {
-        return { status: 1, stdout: "", stderr: "unset" };
-      }
-      if (joined === "bd config set github.repository bdelanghe/ai-home") {
-        return { status: 0, stdout: "ok", stderr: "" };
-      }
-      if (joined === "bd config set doctor.suppress.git-hooks true") {
-        return { status: 0, stdout: "", stderr: "" };
-      }
-      if (joined === "bd vc commit -m prx init: stabilize config state") {
-        return { status: 0, stdout: "", stderr: "" };
-      }
-      throw new Error(`Unexpected command: ${joined}`);
+      throw new Error(`Unexpected command: ${command.join(" ")}`);
     };
 
-    expect(ensureBeadsInitSetup("/fixtures/repo", runner)).toEqual({
-      status: "initialized",
-      canonicalRepoId: "io.github.bdelanghe/ai-home",
-      database: "io_github_bdelanghe_ai_home",
-      githubRepository: "bdelanghe/ai-home",
-      prefix: "ai-home",
-    });
-    expect(commands.map((command) => command.join(" "))).toEqual([
-      "bd version",
-      "git remote get-url origin",
-      "bd context --json",
-      "bd init --prefix ai-home --database io_github_bdelanghe_ai_home",
-      "bd config get github.repository",
-      "bd config set github.repository bdelanghe/ai-home",
-      "bd config set doctor.suppress.git-hooks true",
-      "bd vc commit -m prx init: stabilize config state",
-    ]);
-  });
-
-  test("beads init setup does not rewrite an existing mismatched database", () => {
-    const runner = (command: string[]) => {
-      const joined = command.join(" ");
-      if (joined === "bd version") {
-        return { status: 0, stdout: "0.61.0\n", stderr: "" };
-      }
-      if (joined === "git remote get-url origin") {
-        return { status: 0, stdout: "git@github.com:bdelanghe/ai-home.git\n", stderr: "" };
-      }
-      if (joined === "bd context --json") {
-        return { status: 0, stdout: JSON.stringify({ database: "bdelanghe_demo" }), stderr: "" };
-      }
-      throw new Error(`Unexpected command: ${joined}`);
-    };
-
-    expect(ensureBeadsInitSetup("/fixtures/repo", runner)).toEqual({
-      status: "skipped",
-      reason: "existing beads database bdelanghe_demo does not match io_github_bdelanghe_ai_home",
-      canonicalRepoId: "io.github.bdelanghe/ai-home",
-      database: "io_github_bdelanghe_ai_home",
-      githubRepository: "bdelanghe/ai-home",
-    });
-  });
-
-  test("beads init setup can force a mismatched database to the canonical name", () => {
-    const commands: string[][] = [];
-    const runner = (command: string[]) => {
-      commands.push(command);
-      const joined = command.join(" ");
-      if (joined === "bd version") {
-        return { status: 0, stdout: "0.61.0\n", stderr: "" };
-      }
-      if (joined === "git remote get-url origin") {
-        return { status: 0, stdout: "git@github.com:bdelanghe/ai-home.git\n", stderr: "" };
-      }
-      if (joined === "bd context --json") {
-        return { status: 0, stdout: JSON.stringify({ database: "bdelanghe_demo" }), stderr: "" };
-      }
-      if (
-        joined ===
-        "bd init --prefix ai-home --database io_github_bdelanghe_ai_home --force --destroy-token DESTROY-ai-home"
-      ) {
-        return { status: 0, stdout: "ok", stderr: "" };
-      }
-      if (joined === "bd config get github.repository") {
-        return { status: 1, stdout: "", stderr: "unset" };
-      }
-      if (joined === "bd config set github.repository bdelanghe/ai-home") {
-        return { status: 0, stdout: "ok", stderr: "" };
-      }
-      if (joined === "bd config set doctor.suppress.git-hooks true") {
-        return { status: 0, stdout: "", stderr: "" };
-      }
-      if (joined === "bd vc commit -m prx init: stabilize config state") {
-        return { status: 0, stdout: "", stderr: "" };
-      }
-      throw new Error(`Unexpected command: ${joined}`);
-    };
-
-    expect(ensureBeadsInitSetup("/fixtures/repo", runner, { force: true })).toEqual({
-      status: "forced",
-      canonicalRepoId: "io.github.bdelanghe/ai-home",
-      database: "io_github_bdelanghe_ai_home",
-      githubRepository: "bdelanghe/ai-home",
-      prefix: "ai-home",
-    });
-    expect(commands.map((command) => command.join(" "))).toEqual([
-      "bd version",
-      "git remote get-url origin",
-      "bd context --json",
-      "bd init --prefix ai-home --database io_github_bdelanghe_ai_home --force --destroy-token DESTROY-ai-home",
-      "bd config get github.repository",
-      "bd config set github.repository bdelanghe/ai-home",
-      "bd config set doctor.suppress.git-hooks true",
-      "bd vc commit -m prx init: stabilize config state",
-    ]);
-  });
-
-  test("beads init setup accepts JSON output from bd config get", () => {
-    const commands: string[][] = [];
-    const runner = (command: string[]) => {
-      commands.push(command);
-      const joined = command.join(" ");
-      if (joined === "bd version") {
-        return { status: 0, stdout: "0.61.0\n", stderr: "" };
-      }
-      if (joined === "git remote get-url origin") {
-        return { status: 0, stdout: "git@github.com:bdelanghe/ai-home.git\n", stderr: "" };
-      }
-      if (joined === "bd context --json") {
-        return {
-          status: 0,
-          stdout: JSON.stringify({ database: "io_github_bdelanghe_ai_home" }),
-          stderr: "",
-        };
-      }
-      if (joined === "bd config get github.repository") {
-        return {
-          status: 0,
-          stdout: JSON.stringify({ key: "github.repository", value: "bdelanghe/ai-home" }),
-          stderr: "",
-        };
-      }
-      throw new Error(`Unexpected command: ${joined}`);
-    };
-
-    expect(ensureBeadsInitSetup("/fixtures/repo", runner)).toEqual({
-      status: "unchanged",
-      canonicalRepoId: "io.github.bdelanghe/ai-home",
-      database: "io_github_bdelanghe_ai_home",
-      githubRepository: "bdelanghe/ai-home",
-    });
-    expect(commands.map((command) => command.join(" "))).toEqual([
-      "bd version",
-      "git remote get-url origin",
-      "bd context --json",
-      "bd config get github.repository",
-    ]);
-  });
-
-  test("beads-init force-repairs stale canonical context when the database is unavailable", () => {
-    const logs: string[] = [];
-    const commands: string[] = [];
-    const spawn = (
-      file: string,
-      args: readonly string[],
-      options?: { cwd?: string; encoding?: string; env?: NodeJS.ProcessEnv },
-    ) => {
-      void options;
-      const joined = [file, ...args].join(" ");
-      commands.push(joined);
-      if (joined === "git rev-parse --show-toplevel") {
-        return { status: 0, stdout: "/fixtures/repo\n", stderr: "" };
-      }
-      if (joined === "git -C /fixtures/repo remote get-url origin") {
-        return { status: 0, stdout: "git@github.com:bdelanghe/ai-home.git\n", stderr: "" };
-      }
-      if (joined === "bd context --json") {
-        return {
-          status: 0,
-          stdout: JSON.stringify({ database: "io_github_bdelanghe_ai_home" }),
-          stderr: "",
-        };
-      }
-      if (joined === "bd info") {
-        return {
-          status: 1,
-          stdout: "",
-          stderr: 'database "io_github_bdelanghe_ai_home" not found',
-        };
-      }
-      if (joined === "bd bootstrap --yes") {
-        return { status: 0, stdout: "ok", stderr: "" };
-      }
-      if (joined === "bd config set github.repository bdelanghe/ai-home") {
-        return { status: 0, stdout: "ok", stderr: "" };
-      }
-      if (joined === "bd config set doctor.suppress.git-hooks true") {
-        return { status: 0, stdout: "ok", stderr: "" };
-      }
-      if (joined === "beads ready") {
-        return { status: 0, stdout: "ok", stderr: "" };
-      }
-      throw new Error(`Unexpected command: ${joined}`);
-    };
-
-    expect(
-      runBeadsInit("/fixtures/repo", false, false, { log: (line) => logs.push(line) }, spawn),
-    ).toBe(0);
-
-    expect(logs).toContain(
-      "repair: canonical metadata matches, but database is unavailable; running beads bootstrap",
-    );
-    expect(logs).toContain("verified db:       io_github_bdelanghe_ai_home");
-    expect(logs).toContain("verified:          beads ready");
-    expect(commands).toEqual([
-      "git rev-parse --show-toplevel",
-      "git -C /fixtures/repo remote get-url origin",
-      "bd context --json",
-      "bd info",
-      "bd bootstrap --yes",
-      "bd config set github.repository bdelanghe/ai-home",
-      "bd config set doctor.suppress.git-hooks true",
-      "bd context --json",
-      "beads ready",
-    ]);
+    const result = ensureBeadsInitSetup("/fixtures/repo", runner, { force: true });
+    expect(result.status).toBe("skipped");
+    if (result.status !== "skipped") throw new Error("unreachable");
+    expect(result.reason).toContain("beads-removed (GH-1012)");
+    // The retired plane spawns nothing — no `bd`, no `git`.
+    expect(commands).toEqual([]);
   });
 
   test("status supports plain output", () => {
@@ -8053,7 +7816,7 @@ describe("pr_state cli", () => {
       {
         syncGitHubIssuesToBeads: async () => ({
           exitCode: 0,
-          lines: ["WOULD UPDATE beads github.repository: unset -> owner/repo", "Dry run complete"],
+          lines: ["OK beads issue sync dry-run completed.", "Dry run complete"],
         }),
       },
     );
@@ -8061,7 +7824,7 @@ describe("pr_state cli", () => {
     expect(await exitCode).toBe(0);
     expect(JSON.parse(logs[0]!)).toMatchObject({
       exitCode: 0,
-      lines: ["WOULD UPDATE beads github.repository: unset -> owner/repo", "Dry run complete"],
+      lines: ["OK beads issue sync dry-run completed.", "Dry run complete"],
     });
   });
 
@@ -14897,92 +14660,36 @@ describe("parseCommand — capabilities aliases", () => {
   });
 });
 
-describe("resolveEpicChildBdIds — door-backed reads (prx-zbsi)", () => {
-  // GH-1011 flipped resolveEpicChildBdIds' default source to Front Desk; these
-  // exercise the bd `read` path, so pin the describe to bd.
-  const priorListSource = process.env.PRX_LIST_SOURCE;
-  beforeAll(() => {
-    process.env.PRX_LIST_SOURCE = "bd";
-  });
-  afterAll(() => {
-    if (priorListSource === undefined) delete process.env.PRX_LIST_SOURCE;
-    else process.env.PRX_LIST_SOURCE = priorListSource;
-  });
-
-  test("front desk source: parent-child children of the matched epic (GH-canonical)", () => {
-    const prior = process.env.PRX_LIST_SOURCE;
-    process.env.PRX_LIST_SOURCE = "frontdesk";
-    try {
-      const rows = [
-        {
-          id: "GH-42",
-          external_ref: "https://github.com/o/r/issues/42",
-          dependencies: [
-            { issue_id: "GH-42", depends_on_id: "GH-7", type: "parent-child" },
-            { issue_id: "GH-42", depends_on_id: "GH-8", type: "blocks" },
-          ],
-        },
-      ];
-      const out = resolveEpicChildBdIds("/repo", "issues/42", undefined, () => rows);
-      expect([...out]).toEqual(["GH-7"]);
-    } finally {
-      if (prior === undefined) delete process.env.PRX_LIST_SOURCE;
-      else process.env.PRX_LIST_SOURCE = prior;
-    }
+describe("resolveEpicChildBdIds — Front Desk reads (GH-1011 / GH-1012)", () => {
+  // GH-1012 removed the bd substrate; Front Desk (GH-canonical) is the only
+  // source — there is no `bd list` / `bd children` fallback left to pin.
+  test("parent-child children of the matched epic (GH-canonical)", () => {
+    const rows = [
+      {
+        id: "GH-42",
+        external_ref: "https://github.com/o/r/issues/42",
+        dependencies: [
+          { issue_id: "GH-42", depends_on_id: "GH-7", type: "parent-child" },
+          { issue_id: "GH-42", depends_on_id: "GH-8", type: "blocks" },
+        ],
+      },
+    ];
+    const out = resolveEpicChildBdIds("/repo", "issues/42", () => rows);
+    expect([...out]).toEqual(["GH-7"]);
   });
 
-  test("finds the epic via list+external_ref substring, then its children", () => {
-    const calls: string[][] = [];
-    const read = (cmd: string[]): string | null => {
-      calls.push(cmd);
-      if (cmd[1] === "list") {
-        return JSON.stringify([
-          { id: "prx-epic", external_ref: "https://github.com/o/r/issues/42" },
-          { id: "prx-other", external_ref: "https://github.com/o/r/issues/7" },
-        ]);
-      }
-      if (cmd[1] === "children") {
-        return JSON.stringify([{ id: "prx-c1" }, { id: "prx-c2" }]);
-      }
-      return null;
-    };
-    const out = resolveEpicChildBdIds("/repo", "issues/42", read);
-    expect([...out].sort()).toEqual(["prx-c1", "prx-c2"]);
-    // No `bd query` — the epic lookup is the door-backed `bd list --all`.
-    expect(calls[0]).toEqual(["bd", "list", "--all", "--json"]);
-    expect(calls.some((c) => c[1] === "query")).toBe(false);
-    expect(calls).toContainEqual(["bd", "children", "prx-epic", "--json"]);
+  test("matches the legacy GH-N synthetic id too", () => {
+    const rows = [
+      {
+        id: "GH-42",
+        dependencies: [{ issue_id: "GH-42", depends_on_id: "GH-7", type: "parent-child" }],
+      },
+    ];
+    expect([...resolveEpicChildBdIds("/repo", "42", () => rows)]).toEqual(["GH-7"]);
   });
 
-  test("matches the legacy GH-N token in external_ref too", () => {
-    const read = (cmd: string[]): string | null =>
-      cmd[1] === "list"
-        ? JSON.stringify([{ id: "prx-epic", external_ref: "GH-42" }])
-        : JSON.stringify([{ id: "prx-c1" }]);
-    expect([...resolveEpicChildBdIds("/repo", "GH-42", read)]).toEqual(["prx-c1"]);
-  });
-
-  test("tolerates the door children shape (child issue rows with extra fields)", () => {
-    const read = (cmd: string[]): string | null =>
-      cmd[1] === "list"
-        ? JSON.stringify([{ id: "prx-epic", external_ref: "issues/42" }])
-        : JSON.stringify([{ id: "prx-c1", dependency_type: "parent-child", title: "x" }]);
-    expect([...resolveEpicChildBdIds("/repo", "issues/42", read)]).toEqual(["prx-c1"]);
-  });
-
-  test("returns empty when no external_ref matches (no children read)", () => {
-    const calls: string[][] = [];
-    const read = (cmd: string[]): string | null => {
-      calls.push(cmd);
-      return cmd[1] === "list"
-        ? JSON.stringify([{ id: "prx-x", external_ref: "issues/99" }])
-        : null;
-    };
-    expect([...resolveEpicChildBdIds("/repo", "issues/42", read)]).toEqual([]);
-    expect(calls.some((c) => c[1] === "children")).toBe(false);
-  });
-
-  test("a fail-closed/absent list read yields an empty set (graceful degrade)", () => {
-    expect([...resolveEpicChildBdIds("/repo", "issues/42", () => null)]).toEqual([]);
+  test("returns empty when no ref matches", () => {
+    const rows = [{ id: "GH-99", external_ref: "https://github.com/o/r/issues/99" }];
+    expect([...resolveEpicChildBdIds("/repo", "issues/42", () => rows)]).toEqual([]);
   });
 });

@@ -412,7 +412,7 @@ describe("sync-github-issues-to-beads", () => {
     expect(commandEnv(["git", "status"], polluted)).toBe(polluted);
   });
 
-  test("reports dry-run config update and sync", async () => {
+  test("dry-runs the canonical reconcile with no bd traffic (GH-1012)", async () => {
     const commands: string[] = [];
     const runner: CommandRunner = (cmd, options = {}) => {
       commands.push(`${cmd.join(" ")}|${options.cwd ?? ""}`);
@@ -421,28 +421,24 @@ describe("sync-github-issues-to-beads", () => {
       }
       if (cmd.join(" ") === "git -C /repo remote get-url origin") {
         return { stdout: "https://github.com/owner/repo.git\n", stderr: "", status: 0 };
-      }
-      if (cmd.join(" ") === "bd config get github.repository") {
-        return { stdout: "", stderr: "unset", status: 1 };
       }
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
     };
 
-    expect(await syncGitHubIssuesToBeads(".", false, runner)).toEqual({
+    const beadsSync = makeBeadsSyncStub({ stdoutLine: "dry-run ok" });
+    expect(await syncGitHubIssuesToBeads(".", false, runner, undefined, beadsSync)).toEqual({
       exitCode: 0,
-      lines: [
-        "WOULD UPDATE beads github.repository: unset -> owner/repo",
-        "WOULD RUN prx beads sync --domain=gh --dry-run after updating github.repository",
-      ],
+      lines: ["dry-run ok", "OK GitHub identity check skipped (beads retired)."],
     });
+    expect(beadsSync.calls()).toBe(1);
+    // GH-1012: no `bd config get/set` pre-step — only the git repo resolution.
     expect(commands).toEqual([
       "git -C . rev-parse --show-toplevel|",
       "git -C /repo remote get-url origin|",
-      "bd config get github.repository|/repo",
     ]);
   });
 
-  test("applies config update before syncing", async () => {
+  test("applies the canonical reconcile with no bd traffic (GH-1012)", async () => {
     const commands: string[] = [];
     const runner: CommandRunner = (cmd, options = {}) => {
       commands.push(`${cmd.join(" ")}|${options.cwd ?? ""}`);
@@ -451,12 +447,6 @@ describe("sync-github-issues-to-beads", () => {
       }
       if (cmd.join(" ") === "git -C /repo remote get-url origin") {
         return { stdout: "https://github.com/owner/repo.git\n", stderr: "", status: 0 };
-      }
-      if (cmd.join(" ") === "bd config get github.repository") {
-        return { stdout: "different/repo\n", stderr: "", status: 0 };
-      }
-      if (cmd.join(" ") === "bd config set github.repository owner/repo") {
-        return { stdout: "", stderr: "", status: 0 };
       }
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
     };
@@ -464,55 +454,12 @@ describe("sync-github-issues-to-beads", () => {
     const beadsSync = makeBeadsSyncStub();
     expect(await syncGitHubIssuesToBeads(".", true, runner, undefined, beadsSync)).toEqual({
       exitCode: 0,
-      lines: [
-        "UPDATED beads github.repository -> owner/repo",
-        "OK beads issue sync applied.",
-        "OK GitHub identity check skipped (beads retired).",
-      ],
+      lines: ["OK beads issue sync applied.", "OK GitHub identity check skipped (beads retired)."],
     });
     expect(beadsSync.calls()).toBe(1);
     expect(commands).toEqual([
       "git -C . rev-parse --show-toplevel|",
       "git -C /repo remote get-url origin|",
-      "bd config get github.repository|/repo",
-      "bd config set github.repository owner/repo|/repo",
-    ]);
-  });
-
-  test("accepts JSON output from bd config get", async () => {
-    const commands: string[] = [];
-    const runner: CommandRunner = (cmd, options = {}) => {
-      commands.push(`${cmd.join(" ")}|${options.cwd ?? ""}`);
-      if (cmd.join(" ") === "git -C . rev-parse --show-toplevel") {
-        return { stdout: "/repo\n", stderr: "", status: 0 };
-      }
-      if (cmd.join(" ") === "git -C /repo remote get-url origin") {
-        return { stdout: "https://github.com/owner/repo.git\n", stderr: "", status: 0 };
-      }
-      if (cmd.join(" ") === "bd config get github.repository") {
-        return {
-          stdout: JSON.stringify({ key: "github.repository", value: "owner/repo" }),
-          stderr: "",
-          status: 0,
-        };
-      }
-      throw new Error(`Unexpected command: ${cmd.join(" ")}`);
-    };
-
-    const beadsSync = makeBeadsSyncStub({ stdoutLine: "dry-run ok" });
-    expect(await syncGitHubIssuesToBeads(".", false, runner, undefined, beadsSync)).toEqual({
-      exitCode: 0,
-      lines: [
-        "OK beads github.repository=owner/repo",
-        "dry-run ok",
-        "OK GitHub identity check skipped (beads retired).",
-      ],
-    });
-    expect(beadsSync.calls()).toBe(1);
-    expect(commands).toEqual([
-      "git -C . rev-parse --show-toplevel|",
-      "git -C /repo remote get-url origin|",
-      "bd config get github.repository|/repo",
     ]);
   });
 
@@ -520,20 +467,15 @@ describe("sync-github-issues-to-beads", () => {
   // `bd github sync` shell-out (the bd binary needed GITHUB_TOKEN to call
   // GitHub's API itself). The canonical reconcile uses the in-tree
   // `defaultRunner` (`gh issue view ...`) which is already authenticated, so
-  // no separate token plumbing is needed. The test now just asserts the
+  // no separate token plumbing is needed. The test just asserts the
   // canonical reconcile runs once and emits its captured output.
   test("syncGitHubIssuesToBeads invokes the canonical reconcile (no separate gh auth token plumbing)", async () => {
-    const commands: string[] = [];
-    const runner: CommandRunner = (cmd, options = {}) => {
-      commands.push(`${cmd.join(" ")}|${options.cwd ?? ""}`);
+    const runner: CommandRunner = (cmd) => {
       if (cmd.join(" ") === "git -C . rev-parse --show-toplevel") {
         return { stdout: "/repo\n", stderr: "", status: 0 };
       }
       if (cmd.join(" ") === "git -C /repo remote get-url origin") {
         return { stdout: "https://github.com/owner/repo.git\n", stderr: "", status: 0 };
-      }
-      if (cmd.join(" ") === "bd config get github.repository") {
-        return { stdout: "owner/repo\n", stderr: "", status: 0 };
       }
       throw new Error(`Unexpected command: ${cmd.join(" ")}`);
     };
@@ -541,18 +483,9 @@ describe("sync-github-issues-to-beads", () => {
     const beadsSync = makeBeadsSyncStub({ stdoutLine: "dry-run ok" });
     expect(await syncGitHubIssuesToBeads(".", false, runner, undefined, beadsSync)).toEqual({
       exitCode: 0,
-      lines: [
-        "OK beads github.repository=owner/repo",
-        "dry-run ok",
-        "OK GitHub identity check skipped (beads retired).",
-      ],
+      lines: ["dry-run ok", "OK GitHub identity check skipped (beads retired)."],
     });
     expect(beadsSync.calls()).toBe(1);
-    expect(commands).toEqual([
-      "git -C . rev-parse --show-toplevel|",
-      "git -C /repo remote get-url origin|",
-      "bd config get github.repository|/repo",
-    ]);
   });
 });
 
