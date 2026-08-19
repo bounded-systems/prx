@@ -1,5 +1,152 @@
 # @bounded-systems/prx
 
+## 1.0.0
+
+### Major Changes
+
+- 52cc437: Remove beads (`@bounded-systems/bd`) entirely (GH-1012 — completes GH-1008). prx
+  no longer depends on beads for anything: reads come from Front Desk, writes create
+  GitHub issues. Deleted the beadsd daemon, the `beads/` bd-subcommand machinery, the
+  `prx beads` command tree, the triage bd-reconcilers, Notion, `sync run-cross-repo`,
+  intake-bd/mirror, and the `.beads/` + nix substrate; severed residual bd from the
+  surviving GitHub/Front-Desk core (github adapters, triage, ready/epic_children,
+  repo_gc, sync/run). `grep @bounded-systems/bd` in code is now zero.
+
+### Minor Changes
+
+- c91293f: Repoint the ready queue off `bd ready` onto Front Desk (GH-1010). The next-work
+  picker (`queryBdReady`) and the beadsd `ready` door now read the WSJF-ranked
+  ready/blocked queue from the verified Front Desk scheduler (via a spawned `fds
+graph`, zero GitHub API) instead of shelling `bd ready`. Front Desk is
+  GH-canonical, so items map to synthetic `GH-<n>` bd ids with the issue URL as
+  `external_ref`. Default source is `frontdesk`; `PRX_READY_SOURCE=bd` falls back
+  to `bd ready`. The `dep`/`children` door stays on bd for now — its epic identity
+  is bd-bead-id-based and moves with `bd list` (GH-1011).
+- 136e039: Invert `prx intake` from bead-primary to GitHub-issue-primary (GH-1011 — beads
+  retirement). Intake now files a GitHub issue directly (`gh issue create`) as the
+  primary and only write; the org's front-desk-sync webhook lands it on Front Desk.
+  The old `bd create` primary + opt-in `--to gh` projection is gone — GitHub is the
+  write plane. `IntakeResult` now carries `ghCreate` (issue URL / number) instead of
+  `bdCreate`/`publish`; the plain-output handle is the created issue URL. The `--to`
+  flag is still accepted but inert. This severs the last functional write path from
+  intake to beads.
+- 1c94c97: Repoint the aggregate work-item read (`bd list`) off beads onto Front Desk
+  (GH-1011). The BeadsCache-fed fleet (next-work enrichment, resolvers, plan/intake
+  search) and the `epic_children` surface now read the GH-canonical mirror via
+  `fds list` instead of shelling `bd list --all`. One choke point flips the fleet:
+  the beadsd daemon `{kind:"list"}` (and `{kind:"show"}`) case, which every loader
+  funnels through. Work items become GH-canonical (`id = GH-<n>`, `external_ref` =
+  the issue URL); `epic_children` + `resolveEpicChildBdIds` were rewritten to speak
+  GH numbers (closing GH-1010's deferred children half). Default source is
+  `frontdesk`; `PRX_LIST_SOURCE=bd` falls back to `bd list`. The bd sync/maintenance
+  readers (`loadAllBeads` in triage) stay on bd — they are retired wholesale in
+  GH-1012, not repointed.
+- 58096f7: Delete the bd maintenance subcommands `prx doctor dedupe-bd` and `prx delegate
+repair-assignees` (GH-1012, beads removal). Both were bd-substrate maintenance
+  verbs (dedupe bd records sharing an external-id pin; rewrite legacy bd assignee
+  strings) with no purpose once beads is retired. Removed the modules, their tests,
+  the CLI wiring (command union, router, parser, dispatch, help, registry), and
+  refreshed the help snapshot.
+- b23662b: Retire the last live `bd` call sites in the `prx init` / `prx sync-issues` flow
+  (GH-1012, beads removal — phase 4 follow-through). `ensureBeadsInitSetup` no
+  longer probes/initializes a bd workspace (10 `bd` spawns); it now answers with
+  the retired-plane skip (`beads-removed (GH-1012): …`), which `prx init` and
+  `prx sync-issues --apply` render as before. `syncGitHubIssuesToBeads` drops the
+  `bd config get/set github.repository` pre-step (2 spawns) — the canonical
+  reconcile (`runBeadsSync`, GH-2011) resolves the repo from the git remote
+  itself. `resolveEpicChildBdIds` loses its door-backed `bd list` / `bd children`
+  fallback (2 spawns) and reads Front Desk only. Also deleted as dead code: the
+  unreachable `runBeadsInit` driver (no verb dispatched it) and the
+  `canonicalBeadsRepoIdFromRemote` / `canonicalBeadsDatabaseName` helpers that
+  only served the removed init path.
+- e454814: Beads-removal follow-up cleanup (GH-1022/1023/1024):
+
+  - Remove the dead `prx beads update` subprocess back-write from fetch/gh-issues-writer
+    and drop `"bd"` from `SYNC_MIRROR_DOMAINS` (GH-1022).
+  - Excise the triage XState machine's promote/drift-fix no-op stubs (`promoteActor`,
+    `driftFixActor`) and their states; re-point the machine to a `scopeDecision`
+    pseudo-state (GH-1023).
+  - Remove the last `"beads"` from the type system (GH-1024): the `Surface` enum,
+    the `--from`/source-pin `WorkUnitSource` enum, `spec/schema.cue` `#Surface`, and
+    the `kind = "github" | "notion"` help/error strings; drop the now-dead
+    `--from=beads` create arm.
+
+  (Deferred to #1024: the residual inert `beads` _actor_ / `beads_issue` / hydrateBeads
+  no-op surface, and the broader Notion-integration removal decision.)
+
+### Patch Changes
+
+- 5420b23: Fix `prx repo add <external-url>` failing on its last step (GH-1005). The bare
+  clone, mainx worktree and registry write all succeeded, then `addLocalRepo`
+  shelled out to `bd config get database.workspace_prefix` and treated any failure
+  as fatal — leaving a registered-but-unfinished repo. GH-1012 removed the bd/beads
+  write plane, so that probe fails on every repo without a pre-existing `.beads/`,
+  and on every repo at all once `bd` is off the operator's PATH.
+
+  The probe is now best-effort with a slug derivation behind it — the same ladder
+  `prx repo backfill` already used for stale entries, so the two verbs agree on how
+  a prefix is derived. That also yields the slug-shaped prefix (`icfp2026`) instead
+  of the worktree-dir-shaped one (`mainx`) an operator got by reaching for `bd init`
+  directly. `RepoAddResult` gains `bdWorkspacePrefixSource`
+  (`override` | `bd-config` | `slug-derived`), which `formatRepoAdd` now prints
+  alongside the prefix. A slug that projects to nothing `WORKSPACE_PREFIX_PATTERN`
+  accepts is the one remaining hard failure (`bd_workspace_prefix_underivable`) —
+  unlike the probe it replaces, it names a fix the operator can carry out.
+
+  `prx repo bootstrap` no longer dead-ends. It can only refuse (GH-1012 left it a
+  stub), but its inventory/locate/worktree/prefix gates ran first, so an
+  externally-added repo hit `no-inventory` and was told to run `prx repo list` —
+  which neither creates a per-worktree inventory for an external repo nor changes
+  the outcome if it did. The `beads-removed` refusal is hoisted ahead of the gates
+  so every caller gets the one true reason, and points at `prx repo add`.
+
+- b18f0c3: Repoint `prx intake bd memory ls|get|set` off beads onto agent-memory (GH-1009).
+  The three memory verbs no longer route through `execBd` (`bd memories`/`recall`/
+  `remember`); they go through a new `MemoryPort` that spawns the `agent-memory`
+  binary (a fully separate, dolt-server-backed capability). `agent-memory` resolves
+  on PATH (`PRX_MEMORY_BIN`); memories are scoped to one agent id (`PRX_MEMORY_AGENT`,
+  default `prx`). No user-facing verb or output change for the plain path; `--json`
+  now emits agent-memory's shape.
+- 4c6b818: Read the aggregate/targeted work-item loaders from Front Desk directly, dropping
+  the beadsd daemon hop (GH-1012, toward fully removing beads). `loadAllBeadsViaCli`,
+  `loadAllBeadsViaDaemon`, and `showBeadViaDaemon` now call `frontDeskBeadsRaw`/
+  `frontDeskBeadRaw` instead of round-tripping through the daemon (which, since
+  GH-1017, already served Front Desk). Behavior-preserving — the records are the
+  same GH-canonical `BeadsRecord[]` consumers already received; only the daemon
+  round-trip is removed. This leaves the daemon with no read callers, clearing the
+  way to delete beadsd and the bd dependency.
+- 2d3d09d: Default `programs.prx.provenance.enable` to true so the signer ships with the
+  binary that enforces it (#433). `ciSigningDecision` is fail-closed — a
+  provenance ledger in scope plus no signer is `fail` (exit 65), not `skip`, for
+  both `prx ci` (#396) and an in-pipeline `scout read` (#427). The home-manager
+  module and the released binary come from the same flake, so a deployment
+  picking up the signing release also picks up this default: with no `masterFile`
+  set it signs against the zero-config persisted dev master (the **bootstrap**
+  posture) instead of failing, and `prx provenance status` still reports the path
+  to the operator-master production posture. No binary behaviour changes —
+  `PRX_REQUIRE_SIGNED_DERIVATIONS` was already default-on when unset, so the
+  module's export of it is unchanged in effect. Set `enable = false` to opt out.
+- 49d29c8: Fix `prx submit stage` resolving the patch base from the LOCAL `main` ref
+  (prx-3f1 / #119). The local branch drifts from `origin/main` during a long
+  orchestration or an external push, and both drift directions corrupt the
+  artifact: a local ref that lags folds the intervening main commits into the
+  patch as additions, one that leads renders them as reverts (observed: 76KB
+  across 34 files for a real 10-file change).
+
+  The base commit is now the merge base of `HEAD` with the base branch's
+  remote-tracking ref (`main@{upstream}`, else `origin/main`) — the fork point,
+  which is what makes the patch exactly the unit's own change. The tip of the
+  remote ref is not enough on its own: it produces the mirror-image bug for a unit
+  cut before the remote advanced. Because a merge base does not move when
+  `origin/main` gains commits on top, the result is also insensitive to how
+  recently the ref was fetched, so `stage` stays a pure git READER — no `fetch`,
+  keeper remains the sole git-writer.
+
+  `baseRef` in the artifact is unchanged (still the branch `publish` opens the PR
+  against); `baseSha` is now the fork point. `stage` renders a new `base-from:`
+  line naming the rev the base came from, which flags a base taken from a local
+  ref in repos with no remote-tracking branch.
+
 ## 0.29.0
 
 ### Minor Changes
