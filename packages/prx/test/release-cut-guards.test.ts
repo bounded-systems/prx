@@ -36,7 +36,10 @@ function extractGuardScript(): string {
 interface Fixture {
   version?: string;
   changelogVersion?: string | null;
-  pendingChangesets?: string[];
+  /** Changesets that DECLARE a package bump — these must block. */
+  bumpChangesets?: string[];
+  /** Empty changesets ("---\n---") — the CI-only convention; must NOT block. */
+  emptyChangesets?: string[];
   localTags?: string[];
   remoteTags?: string[];
 }
@@ -46,7 +49,8 @@ function runGuards(expectVersion: string, fx: Fixture = {}) {
   const {
     version = "1.0.0",
     changelogVersion = version,
-    pendingChangesets = [],
+    bumpChangesets = [],
+    emptyChangesets = [],
     localTags = [],
     remoteTags = [],
   } = fx;
@@ -77,8 +81,15 @@ function runGuards(expectVersion: string, fx: Fixture = {}) {
     // changesets' own scaffolding — must NOT count as a pending intent.
     writeFileSync(join(work, ".changeset/README.md"), "scaffolding\n");
     writeFileSync(join(work, ".changeset/config.json"), "{}\n");
-    for (const name of pendingChangesets) {
-      writeFileSync(join(work, `.changeset/${name}`), "---\n---\n\nintent\n");
+    for (const name of bumpChangesets) {
+      writeFileSync(
+        join(work, `.changeset/${name}`),
+        `---\n"@bounded-systems/prx": patch\n---\n\nintent\n`,
+      );
+    }
+    for (const name of emptyChangesets) {
+      // Exactly the shape gh1062 / gh280 / gh1039 / gh1056 use.
+      writeFileSync(join(work, `.changeset/${name}`), "---\n---\n\nCI-only, no bump.\n");
     }
 
     git(work, "add", "-A");
@@ -146,17 +157,37 @@ describe("release-cut guards (#1068)", () => {
     expect(r.stderr).toContain("already exists on the remote");
   });
 
-  test("guard 3: an unconsumed changeset → blocks", () => {
-    const r = runGuards("1.0.0", { pendingChangesets: ["gh999-something.md"] });
+  test("guard 3: an unconsumed changeset with a bump → blocks", () => {
+    const r = runGuards("1.0.0", { bumpChangesets: ["gh999-something.md"] });
     expect(r.status).not.toBe(0);
-    expect(r.stderr).toContain("unconsumed changesets");
+    expect(r.stderr).toContain("unconsumed changesets with a version bump");
     expect(r.stderr).toContain("gh999-something.md");
+  });
+
+  test("guard 3: an EMPTY changeset does not block", () => {
+    // The repo's convention for a change with no package codepath (gh1062,
+    // gh280, gh1039, gh1056). It carries no version intent, so the manifest is
+    // not behind it. Counting these blocked release-cut's first real dispatch
+    // on its own CI-only changeset (#1068).
+    const r = runGuards("1.0.0", { emptyChangesets: ["gh1068-release-cut.md"] });
+    expect(r.status, r.stderr).toBe(0);
+  });
+
+  test("guard 3: a bump still blocks when an empty changeset sits beside it", () => {
+    // The empty one must not mask the real intent.
+    const r = runGuards("1.0.0", {
+      bumpChangesets: ["gh999-real.md"],
+      emptyChangesets: ["gh1068-ci-only.md"],
+    });
+    expect(r.status).not.toBe(0);
+    expect(r.stderr).toContain("gh999-real.md");
+    expect(r.stderr).not.toContain("gh1068-ci-only.md");
   });
 
   test("guard 3: README.md and config.json are not mistaken for intents", () => {
     // Both always exist in .changeset/; counting either would make every cut
     // impossible — a guard that never passes is as broken as one that never fails.
-    const r = runGuards("1.0.0", { pendingChangesets: [] });
+    const r = runGuards("1.0.0", {});
     expect(r.status, r.stderr).toBe(0);
   });
 

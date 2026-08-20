@@ -137,15 +137,34 @@ jobs:
             exit 1
           fi
 
-          # ── Guard 3: the changesets are consumed. An unconsumed .changeset/*.md
-          # means `changeset version` has not been applied and merged, so the
-          # manifest is BEHIND the intents and this tag would ship a version whose
-          # changelog is missing entries. config.json is excluded by the *.md
-          # glob; README.md is changesets' own scaffolding, not an intent.
-          pending="$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' -printf '%f\n' 2>/dev/null | sort || true)"
+          # ── Guard 3: every VERSION-AFFECTING changeset is consumed. An
+          # unconsumed intent means `changeset version` has not been applied and
+          # merged, so the manifest is BEHIND the intents and this tag would ship
+          # a version whose changelog is missing entries.
+          #
+          # Only a changeset declaring a package bump counts. An EMPTY one
+          # ("---" immediately followed by "---") is this repo's convention for a
+          # change with no package codepath — CI-only or test-only work (gh1062,
+          # gh280, gh1039, gh1056) — so it carries no version intent and the
+          # manifest is not behind anything. Counting those blocked this
+          # workflow's first real dispatch on its OWN CI-only changeset, and
+          # would have forced a no-op Version Packages PR before every release.
+          #
+          # config.json is excluded by the *.md glob; README.md is changesets'
+          # own scaffolding, not an intent.
+          pending=""
+          for f in .changeset/*.md; do
+            [ -e "$f" ] || continue
+            case "${f##*/}" in README.md) continue ;; esac
+            # The frontmatter: lines between the opening --- and its closer. A
+            # bump is any non-blank line there ("<pkg>": patch|minor|major).
+            fm="$(awk 'NR==1 && $0=="---" {inside=1; next} inside && $0=="---" {exit} inside {print}' "$f")"
+            if printf '%s' "$fm" | grep -q '[^[:space:]]'; then
+              pending="$pending ${f##*/}"
+            fi
+          done
           if [ -n "$pending" ]; then
-            echo "::error::unconsumed changesets present — merge the Version Packages PR first:" >&2
-            echo "$pending" >&2
+            echo "::error::unconsumed changesets with a version bump — merge the Version Packages PR first:$pending" >&2
             exit 1
           fi
 
