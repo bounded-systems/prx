@@ -3,9 +3,8 @@
 `prx` — the agent-run PR contract / work-unit CLI. Thanks for your interest in contributing.
 
 > **Licensing note.** `prx` is released under the
-> [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0) (PolyForm-Noncommercial-1.0.0). Source-available. Free for any noncommercial use; all commercial rights are reserved to the copyright holder. This is not an OSI-approved open-source license.
-> By submitting a contribution you agree it is licensed under the same terms,
-> and that commercial rights remain reserved to the copyright holder.
+> [MIT License](https://opensource.org/license/mit) (MIT). OSI-approved permissive open-source licence. Free for any use, including commercial, provided the copyright notice and permission notice are retained.
+> By submitting a contribution you agree it is licensed under the same terms.
 
 ## Before you start
 

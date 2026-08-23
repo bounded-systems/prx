@@ -112,8 +112,8 @@ run in CI) keep the graph, the README, and the sources in lockstep.
 
 ## License
 
-`{{project.name}}` is **source-available**, not OSI open-source. It is licensed under the
+`{{project.name}}` is licensed under the
 [{{license.name}}]({{license.url}})
-(`{{license.spdx}}`): free for any **noncommercial** use, with all
-commercial rights reserved to the copyright holder. For a commercial license,
-contact the maintainer at <{{maintainerUrl}}>. See [`LICENSE`](LICENSE).
+(`{{license.spdx}}`) — an OSI-approved permissive licence. Free for any use,
+including commercial, provided the copyright notice and permission notice are
+retained. See [`LICENSE`](LICENSE).
