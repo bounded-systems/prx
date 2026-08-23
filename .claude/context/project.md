@@ -6,7 +6,7 @@
 # prx — project context for Claude
 
 prx — the agent-run PR contract / work-unit CLI. A Bun + TypeScript monorepo,
-source-available under `PolyForm-Noncommercial-1.0.0`.
+licensed under `MIT`.
 
 - `packages/prx/` — the CLI
 - `packages/*` — the `@bounded-systems/*` libraries it builds on

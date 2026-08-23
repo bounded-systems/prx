@@ -2,7 +2,7 @@
   "name": "prx",
   "private": true,
   "type": "module",
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "MIT",
   "workspaces": [
     "packages/*"
   ],

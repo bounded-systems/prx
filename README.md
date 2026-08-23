@@ -112,8 +112,8 @@ run in CI) keep the graph, the README, and the sources in lockstep.
 
 ## License
 
-`prx` is **source-available**, not OSI open-source. It is licensed under the
-[PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0)
-(`PolyForm-Noncommercial-1.0.0`): free for any **noncommercial** use, with all
-commercial rights reserved to the copyright holder. For a commercial license,
-contact the maintainer at <https://github.com/bdelanghe>. See [`LICENSE`](LICENSE).
+`prx` is licensed under the
+[MIT License](https://opensource.org/license/mit)
+(`MIT`) — an OSI-approved permissive licence. Free for any use,
+including commercial, provided the copyright notice and permission notice are
+retained. See [`LICENSE`](LICENSE).

@@ -4,8 +4,7 @@
 
 > **Licensing note.** `{{project.name}}` is released under the
 > [{{license.name}}]({{license.url}}) ({{license.spdx}}). {{license.summary}}
-> By submitting a contribution you agree it is licensed under the same terms,
-> and that commercial rights remain reserved to the copyright holder.
+> By submitting a contribution you agree it is licensed under the same terms.
 
 ## Before you start
 
