@@ -44,9 +44,12 @@ export function operatorConfigPath(deps: OperatorConfigDeps = {}): string | null
 
 /**
  * Parse `~/.config/prx/config.json` into a plain object. The single reader for
- * the operator config — `provenance`, `homeUpdate.inputs` (GH-411 slice 3), and
- * `scopeMap` (slice 4) are all blocks within it. Returns `{}` when the file is
- * absent or malformed (config must never break a command).
+ * the operator config — `provenance` and `scopeMap` (slice 4) are blocks within
+ * it. Returns `{}` when the file is absent or malformed (config must never
+ * break a command).
+ *
+ * `homeUpdate.inputs` (GH-411 slice 3) was read here too until the home verbs
+ * were retired; a stale block under that key is now simply ignored.
  */
 export function readOperatorConfig(deps: OperatorConfigDeps = {}): Record<string, unknown> {
   const path = operatorConfigPath(deps);

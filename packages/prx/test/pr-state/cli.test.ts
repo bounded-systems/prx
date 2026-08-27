@@ -361,7 +361,10 @@ describe("pr_state cli", () => {
     // prx-rgr: the relocated claude launcher is a work-units leaf.
     expect(stdout).toContain("prx claude");
     expect(stdout).toContain("prx repo protect-main");
-    expect(stdout).toContain("prx home update");
+    // System-domain representative. Was `prx home update` until the home verbs
+    // (`home update`, `home sync`, `upgrade`) were retired; `hooks apply` is the
+    // stand-in leaf for that section.
+    expect(stdout).toContain("prx hooks apply");
     // GH-1166: retired bare-session reads have canonical homes:
     expect(stdout).toContain("prx phase");
     expect(stdout).toContain("prx snapshot");
