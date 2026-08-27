@@ -22,7 +22,7 @@ import { claudeRoom } from "./claude-room.ts";
 import { DOLT_BOX_IMAGE, DOLT_BOX_ENV, DOLT_DATA_VOLUME, DOLT_DATA_DIR } from "./dolt-service.ts";
 import { forgeDRoom } from "./forge-d-room.ts";
 import { keeperdRoom } from "./keeperd-room.ts";
-import { DEFAULT_DOOR_DIR } from "./pod.ts";
+import { DEFAULT_DOOR_DIR, DEFAULT_GUEST_DOOR_DIR } from "./pod.ts";
 import type { PodSpec } from "./pod.ts";
 import { podFor, type SlugResolver } from "./pod-identity.ts";
 import type { PodService } from "./spec.ts";
@@ -49,6 +49,7 @@ export const perRepoPod: PodSpec = {
   rooms: [claudeRoom, beadsdRoom, keeperdRoom, forgeDRoom, beadsdBridgeRoom],
   services: [doltService],
   doorDir: DEFAULT_DOOR_DIR,
+  guestDoorDir: DEFAULT_GUEST_DOOR_DIR,
 };
 
 /**
