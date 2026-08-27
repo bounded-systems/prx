@@ -246,13 +246,17 @@ jobs:
           if git diff --quiet release-hashes.json Formula/prx.rb; then
             echo "release-hashes.json + formula already up to date"; exit 0
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           branch="release-hashes-${GITHUB_REF_NAME}"
-          git checkout -b "$branch"
-          git add release-hashes.json Formula/prx.rb
-          git commit -m "chore: release-hashes + brew formula for ${GITHUB_REF_NAME}"
-          git push -u origin "$branch"
+          # Signed commit through the API rather than `git commit` + `git push`.
+          # The org's default-branch-protection ruleset requires signed commits,
+          # and a git-pushed commit is unsigned whichever token pushes it — which
+          # is why this PR needed `gh pr merge --admin` every single release.
+          # The script creates the branch too, so `git checkout -b` and
+          # `git push -u` go with it. Only release-hashes.json and Formula/prx.rb
+          # are dirty at this point, so committing the whole tree is equivalent
+          # to the previous explicit `git add` of those two paths.
+          .github/scripts/signed-commit.sh "$branch" \
+            "chore: release-hashes + brew formula for ${GITHUB_REF_NAME}"
           gh pr create --base main --head "$branch" \
             --title "chore: release-hashes + brew formula for ${GITHUB_REF_NAME}" \
             --body "Auto-generated: sha256 of the ${GITHUB_REF_NAME} release assets, consumed by the flake packages, \`homeManagerModules.prx\`, and the Homebrew formula."
