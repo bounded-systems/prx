@@ -455,10 +455,22 @@ export function runHomeUpdate(
             `${name} ${shortRev(fromRevs.get(name) ?? null)}→${shortRev(toRevs.get(name) ?? null)}`,
         )
         .join(", ");
+      // The global pre-commit hook (ai-home's main-guard) refuses a commit
+      // made directly on a protected branch (main/master/trunk), pointing at
+      // `MAIN_GUARD_ALLOW_PROTECTED_BRANCH=1` as its own escape hatch for
+      // exactly this shape of commit: a narrow, auto-generated, mechanical
+      // flake.lock bump, not a human edit that wants review friction. Without
+      // this, `prx home update` on a flake dir checked out on main fails here
+      // and home-manager switch then refuses on the now-dirty tree — found
+      // live running `prx home update` against ~/.config/home-manager.
       const committed = spawn(
         "git",
         ["-C", flakeDir, "commit", "-m", `chore(flake): update ${movedSummary}`],
-        { cwd: flakeDir, stdio: childStdio, env },
+        {
+          cwd: flakeDir,
+          stdio: childStdio,
+          env: { ...env, MAIN_GUARD_ALLOW_PROTECTED_BRANCH: "1" },
+        },
       );
       if (committed.error || (committed.status !== null && committed.status !== 0)) {
         output.error(

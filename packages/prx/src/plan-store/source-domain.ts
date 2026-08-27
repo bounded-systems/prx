@@ -25,7 +25,7 @@
  * today. These are the `<domain>://<sha>` namespaces — the axis gc aligns to
  * (spike §3 "artifact / source domain", internal).
  */
-export const CAS_DOMAINS = ["plans", "submit", "scout", "handoff", "slack"] as const;
+export const CAS_DOMAINS = ["plans", "submit", "scout", "slack"] as const;
 export type CasDomain = (typeof CAS_DOMAINS)[number];
 
 /**
@@ -42,11 +42,12 @@ export type ProducerDomain = CasDomain | typeof DYNAMIC_DOMAIN;
 
 /**
  * Sync / mirror domains (spike §3 "sync / mirror domain", external): the
- * `bd`/`gh`/`notion` mirror *targets*. They are orthogonal to where an artifact
+ * `gh`/`notion` mirror *targets*. They are orthogonal to where an artifact
  * is produced and must NEVER become a CAS prefix. The coverage test enforces
- * that no producer's `domain` collides with one of these.
+ * that no producer's `domain` collides with one of these. (The `bd` mirror
+ * target was removed with the beads CLI, GH-1022.)
  */
-export const SYNC_MIRROR_DOMAINS = ["bd", "gh", "notion"] as const;
+export const SYNC_MIRROR_DOMAINS = ["gh", "notion"] as const;
 export type SyncMirrorDomain = (typeof SYNC_MIRROR_DOMAINS)[number];
 
 /**
@@ -153,16 +154,6 @@ export const CAS_PRODUCERS: readonly CasProducer[] = [
     note:
       "`prx triage prioritize-bulk` classifier batch blob. §3: `scout` is a " +
       "*capability* under triage/plan, not a standalone service (GH-2405).",
-  },
-  {
-    source: "handoff.spill",
-    callSite: "src/handoff/store.ts",
-    domain: "handoff",
-    serviceDomain: "implement",
-    catalogDomains: ["bounded_code_change"],
-    note:
-      "`prx implement` dispatch-handoff arg spill (over the inline threshold). " +
-      "§3: `handoff` is a *mechanism*, not a service (GH-2405).",
   },
   {
     source: "dispatch.handler",

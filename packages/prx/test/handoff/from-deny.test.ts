@@ -4,7 +4,11 @@
 // Plus the two enqueue seams that translate a deny into a routed handoff:
 //   - buildPolicyEnqueueAdapter (policy-table deny → mapped enqueue result)
 //   - enqueueFromFlagLayerDeny  (disallowedTools deny → raw EnqueueResult)
-// Both inject the bd seam via `execBd` so no real bd/CAS/git is touched.
+//
+// GH-1012: the handoff queue was bd/Dolt-backed and has been removed. The
+// enqueue itself is now a no-op that reports the queue as unavailable
+// ("bd-unprovisioned"); the routing + cross-repo guard behavior is retained
+// and exercised here.
 
 import { describe, expect, test } from "bun:test";
 
@@ -13,8 +17,7 @@ import {
   enqueueFromFlagLayerDeny,
   recipientForDeniedVerb,
 } from "../../src/handoff/from-deny.ts";
-import type { HandoffStoreDeps } from "../../src/handoff/store.ts";
-import type { BdExecOptions, BdExecResult } from "@bounded-systems/bd";
+import type { EnqueueFromPolicyDenyDeps } from "../../src/handoff/from-deny.ts";
 import type { WorkUnitId } from "@bounded-systems/machine-schema";
 
 describe("recipientForDeniedVerb (GH-2348.3 keeper split)", () => {
@@ -36,47 +39,14 @@ describe("recipientForDeniedVerb (GH-2348.3 keeper split)", () => {
   });
 });
 
-// ── shared bd fake ──────────────────────────────────────────────────────────
+// ── deterministic deps ──────────────────────────────────────────────────────
 
-/**
- * An in-memory bd seam: `remember` records the row keyed by `--key`, and
- * `memories` returns the rows under a prefix. Backing the two with one map
- * makes the idempotency (duplicate) path real — a second enqueue of the same
- * envelope finds the row it just wrote.
- */
-function makeFakeBd(rows: Map<string, string> = new Map()): HandoffStoreDeps["execBd"] {
-  return (opts: BdExecOptions): BdExecResult => {
-    if (opts.subcommand === "remember") {
-      const body = opts.args[0] as string;
-      const keyIdx = opts.args.indexOf("--key");
-      const key = (keyIdx >= 0 ? opts.args[keyIdx + 1] : "") as string;
-      rows.set(key, body);
-      return { exitCode: 0, stdout: "{}", stderr: "", policy: null };
-    }
-    if (opts.subcommand === "memories") {
-      const prefix = opts.args[0] as string;
-      const out: Array<{ key: string; body: string }> = [];
-      for (const [k, v] of rows) if (k.startsWith(prefix)) out.push({ key: k, body: v });
-      return { exitCode: 0, stdout: JSON.stringify(out), stderr: "", policy: null };
-    }
-    return { exitCode: 1, stdout: "", stderr: `unexpected: ${opts.subcommand}`, policy: null };
-  };
-}
-
-const unprovisionedBd: HandoffStoreDeps["execBd"] = () => ({
-  exitCode: 1,
-  stdout: "",
-  stderr: "bd: not provisioned",
-  policy: null,
-});
-
-const deterministicDeps = (execBd: HandoffStoreDeps["execBd"]) => ({
-  execBd,
+const deterministicDeps: EnqueueFromPolicyDenyDeps = {
   now: () => new Date("2026-06-06T00:00:00Z"),
   repoSlug: () => "bounded-systems/prx",
   sourceActor: () => "executor",
   workUnitId: () => "GH-1397" as WorkUnitId,
-});
+};
 
 const denyInput = {
   tool: "git" as const,
@@ -89,36 +59,19 @@ const denyInput = {
 // ── buildPolicyEnqueueAdapter ────────────────────────────────────────────────
 
 describe("buildPolicyEnqueueAdapter", () => {
-  test("created: a fresh deny enqueues and maps to {enqueued, handoffId}", async () => {
-    const adapter = buildPolicyEnqueueAdapter(deterministicDeps(makeFakeBd()));
-    const result = await adapter(denyInput);
-    expect(result.kind).toBe("enqueued");
-    if (result.kind === "enqueued") expect(result.handoffId).toMatch(/^H/);
-  });
-
-  test("duplicate: the same deny twice returns the same handoffId", async () => {
-    const rows = new Map<string, string>();
-    const adapter = buildPolicyEnqueueAdapter(deterministicDeps(makeFakeBd(rows)));
-    const first = await adapter(denyInput);
-    const second = await adapter(denyInput);
-    expect(first.kind).toBe("enqueued");
-    expect(second.kind).toBe("enqueued");
-    if (first.kind === "enqueued" && second.kind === "enqueued") {
-      expect(second.handoffId).toBe(first.handoffId);
-    }
-  });
-
-  test("bd-unprovisioned maps to {skipped, bd-unprovisioned}", async () => {
-    const adapter = buildPolicyEnqueueAdapter(deterministicDeps(unprovisionedBd));
+  test("no persistent backend: a deny maps to {skipped, bd-unprovisioned}", async () => {
+    // GH-1012: the bd/Dolt-backed queue is gone, so every non-cross-repo deny
+    // reports the queue as unavailable rather than enqueuing a row.
+    const adapter = buildPolicyEnqueueAdapter(deterministicDeps);
     const result = await adapter(denyInput);
     expect(result).toEqual({ kind: "skipped", reason: "bd-unprovisioned" });
   });
 
   test("cross-repo deny maps to {skipped, cross-repo}", async () => {
     const adapter = buildPolicyEnqueueAdapter({
-      ...deterministicDeps(makeFakeBd()),
+      ...deterministicDeps,
       // The queue is per-repo; an enqueue whose repoSlug differs from the
-      // current repo is refused before any bd write.
+      // current repo is refused by the cross-repo guard.
       currentRepoSlug: () => "someone-else/other-repo",
     });
     const result = await adapter(denyInput);
@@ -137,45 +90,18 @@ describe("enqueueFromFlagLayerDeny", () => {
     sourceActor: "executor",
   };
 
-  test("defaults the recipient to publisher and stamps flag-layer-deny", async () => {
+  test("reports the removed queue as bd-unprovisioned", async () => {
     const result = await enqueueFromFlagLayerDeny(baseInput, {
-      execBd: makeFakeBd(),
       now: () => new Date("2026-06-06T00:00:00Z"),
     });
-    expect(result.kind).toBe("created");
-    if (result.kind === "created") {
-      expect(result.envelope.targetActor).toBe("publisher");
-      expect(result.envelope.denialReason).toBe("flag-layer-deny");
-      expect(result.envelope.intent.verb).toBe("Bash(git push:*)");
-    }
-  });
-
-  test("honors an explicit target override", async () => {
-    const result = await enqueueFromFlagLayerDeny(
-      { ...baseInput, target: "keeper" },
-      { execBd: makeFakeBd(), now: () => new Date("2026-06-06T00:00:00Z") },
-    );
-    expect(result.kind).toBe("created");
-    if (result.kind === "created") expect(result.envelope.targetActor).toBe("keeper");
-  });
-
-  test("propagates a bd-unprovisioned result unmapped", async () => {
-    const result = await enqueueFromFlagLayerDeny(baseInput, { execBd: unprovisionedBd });
     expect(result.kind).toBe("bd-unprovisioned");
   });
 
-  test("falls back to env sourceActor + resolved/unknown repoSlug when omitted", async () => {
-    // Omitting repoSlug/sourceActor exercises the default seams:
-    // sourceActorFromEnv (PRX_AGENT_ROLE → "executor") and tryRepoSlug
-    // (git resolve, try/catch → "unknown-repo" on failure).
-    const result = await enqueueFromFlagLayerDeny(
-      { tool: "Edit", args: null },
-      { execBd: makeFakeBd(), now: () => new Date("2026-06-06T00:00:00Z") },
-    );
-    expect(result.kind).toBe("created");
-    if (result.kind === "created") {
-      expect(result.envelope.sourceActor.length).toBeGreaterThan(0);
-      expect(result.envelope.repoSlug.length).toBeGreaterThan(0);
-    }
+  test("cross-repo deny is refused before the no-op enqueue", async () => {
+    const result = await enqueueFromFlagLayerDeny(baseInput, {
+      now: () => new Date("2026-06-06T00:00:00Z"),
+      currentRepoSlug: () => "someone-else/other-repo",
+    });
+    expect(result.kind).toBe("cross-repo-refused");
   });
 });

@@ -1,14 +1,15 @@
-// `prx memory compact` runtime — bd-side memory-decay policy (GH-1513;
-// GH-1500 ADR §7 split 4 of GH-298). Selects eligible closed bd records,
-// then delegates the compaction to `bd admin compact --auto` via the
-// policy-enforced wrapper (`runBdAdminCompact`). One audit row per tick,
-// plus an optional per-record row per classified candidate.
+// `prx memory compact` runtime — memory-decay policy (GH-1513;
+// GH-1500 ADR §7 split 4 of GH-298). Selects eligible closed work-item
+// records (read from Front Desk) and classifies each candidate. One audit
+// row per tick, plus an optional per-record row per classified candidate.
 //
-// Compaction is bd-side only (ADR §3 "closed once frozen"). This verb does
-// not invoke the GH adapter, does not consume the GraphQL budget, and does
-// not produce parity-chain transitions. Forward-compatible with the
-// GH-1512 message-issue lifecycle via `--message-horizon-days` + a
-// `messageIssueTypes` knob (no-op until GH-1512 lands the type marker).
+// GH-1012: the bd substrate (and the `bd admin compact --auto` write plane)
+// was retired. There is no compaction backend to write to any more, so this
+// verb is now classification + audit only — the durable output is the audit
+// log, and `apply` vs dry-run differ only in the audit `dryRun` flag.
+// Forward-compatible with the GH-1512 message-issue lifecycle via
+// `--message-horizon-days` + a `messageIssueTypes` knob (no-op until GH-1512
+// lands the type marker).
 //
 // Eligibility classifier (opt-out): a record is eligible iff ALL of
 //   1. status === "closed"
@@ -21,25 +22,29 @@
 // All four "preserve" outcomes are reported separately so the audit log
 // distinguishes operator-marker vs type-axis vs reference-pin opt-outs.
 
-import { processEnv } from "@bounded-systems/env";
 import { z } from "zod";
 
 import { appendAuditRow as defaultAppendAuditRow } from "../audit/sink.ts";
 import { getAuditRuntimeContext as defaultGetAuditRuntimeContext } from "@bounded-systems/audit-context";
 import { repoNameWithOwner as defaultRepoNameWithOwner } from "../pr-state/github.ts";
-import {
-  execBd as defaultExecBd,
-  runBdAdminCompact as defaultRunBdAdminCompact,
-  type BdAdminCompactResult,
-} from "@bounded-systems/bd";
-import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../triage/triage.ts";
+import { parseBeadsRecords, type BeadsRecord } from "../triage/triage.ts";
+import { frontDeskBeadsRaw } from "../beads/frontdesk-list.ts";
+
+/** Front Desk read: the aggregate closed/open work-item set as `BeadsRecord[]`. */
+function defaultLoadAllBeads(cwd: string): BeadsRecord[] {
+  return parseBeadsRecords(frontDeskBeadsRaw(cwd));
+}
 
 // ── options + deps ─────────────────────────────────────────────────────────
 
 export const runMemoryCompactOptionsSchema = z.object({
   /** Optional OWNER/REPO label for the audit row. Defaults to `repoNameWithOwner(cwd)`. */
   repo: z.string().optional(),
-  /** When false, invoke `bd admin compact`; when true (default), classify-only. */
+  /**
+   * When true, mark the run as an apply tick (audit `dryRun: false`); when
+   * false (default), a dry-run. GH-1012: with the bd write plane retired both
+   * modes classify + audit only — no substrate is mutated either way.
+   */
   apply: z.boolean().default(false),
   /** General closed-age threshold in days (default 90). */
   horizonDays: z.number().nonnegative().default(90),
@@ -62,8 +67,6 @@ export type RunMemoryCompactOptions = z.input<typeof runMemoryCompactOptionsSche
 export type RunMemoryCompactDeps = {
   cwd?: () => string;
   loadAllBeads?: typeof defaultLoadAllBeads;
-  execBd?: typeof defaultExecBd;
-  runBdAdminCompact?: typeof defaultRunBdAdminCompact;
   repoNameWithOwner?: (path: string) => string;
   appendAuditRow?: typeof defaultAppendAuditRow;
   getAuditRuntimeContext?: typeof defaultGetAuditRuntimeContext;
@@ -128,49 +131,20 @@ function hasKeepCompactFalse(record: BeadsRecord): boolean {
 }
 
 /**
- * Load every active-work edge: for each open bd id, ask bd for its outgoing
- * dependency edges (down direction). Any closed bd id that appears as an
- * edge target is pinned by active work and must not be compacted.
+ * Collect every active-work pin: for each open record, every outgoing
+ * dependency edge target. Any closed id that appears as an edge target is
+ * pinned by active work and must not be compacted.
  *
- * One batched call (`bd dep list <id1> <id2> ... --direction down --json`).
+ * Front Desk (GH-1012) carries the dependency edges inline on each record
+ * (`record.dependencies`, populated from `fds list` edges), so this is a pure
+ * pass over the already-loaded records — no separate `bd dep list` call.
  */
-function loadActiveWorkPins(openIds: string[], exec: typeof defaultExecBd): Set<string> {
+function loadActiveWorkPins(openRecords: BeadsRecord[]): Set<string> {
   const pins = new Set<string>();
-  if (openIds.length === 0) return pins;
-  const result = exec(
-    {
-      subcommand: "dep",
-      args: ["list", ...openIds, "--direction", "down", "--json"],
-      state: "planning",
-      role: "planner",
-    },
-    processEnv(),
-  );
-  if (result.exitCode !== 0) {
-    // Surface as an empty pin set; the verb logs the bd stderr and the
-    // operator can re-run after fixing bd. Without dep data we fail-safe by
-    // not compacting anything — pins are checked, so emptiness means
-    // nothing passes the active-work gate either.
-    return pins;
-  }
-  let raw: unknown;
-  try {
-    raw = JSON.parse(result.stdout || "[]");
-  } catch {
-    return pins;
-  }
-  if (!Array.isArray(raw)) return pins;
-  for (const entry of raw) {
-    if (!entry || typeof entry !== "object") continue;
-    const row = entry as Record<string, unknown>;
-    // bd v1.x `bd dep list --direction down` emits each row as the depended-on
-    // issue object with `dependency_type` appended; field naming has varied
-    // across bd releases. Accept any shape that carries an `id`/`to`/
-    // `target_id`/`depends_on_id` string and pin that id.
-    for (const key of ["id", "to", "target_id", "depends_on_id", "depends_on"]) {
-      const value = row[key];
-      if (typeof value === "string" && value.length > 0) {
-        pins.add(value);
+  for (const record of openRecords) {
+    for (const dep of record.dependencies ?? []) {
+      if (typeof dep.dependsOnId === "string" && dep.dependsOnId.length > 0) {
+        pins.add(dep.dependsOnId);
       }
     }
   }
@@ -190,8 +164,6 @@ export function runMemoryCompact(
   const elapsedMs = () => Math.max(0, nowFn().getTime() - startedAt);
   const cwd = (deps.cwd ?? (() => process.cwd()))();
   const loadAllBeads = deps.loadAllBeads ?? defaultLoadAllBeads;
-  const execBdFn = deps.execBd ?? defaultExecBd;
-  const runCompact = deps.runBdAdminCompact ?? defaultRunBdAdminCompact;
   const repoNameWithOwner = deps.repoNameWithOwner ?? defaultRepoNameWithOwner;
   const appendAuditRow = deps.appendAuditRow ?? defaultAppendAuditRow;
   const getAuditRuntimeContext = deps.getAuditRuntimeContext ?? defaultGetAuditRuntimeContext;
@@ -209,18 +181,18 @@ export function runMemoryCompact(
   // ── enumerate ────────────────────────────────────────────────────────────
   let beads: BeadsRecord[];
   try {
-    beads = loadAllBeads();
+    beads = loadAllBeads(cwd);
   } catch (err) {
     output.error(`memory compact: ${err instanceof Error ? err.message : String(err)}`);
     return makeFailure(repo, elapsedMs(), dryRun);
   }
   const scanned = beads.length;
 
-  const openIds = beads.filter((b) => b.status !== "closed").map((b) => b.id);
+  const openRecords = beads.filter((b) => b.status !== "closed");
   const closedRecords = beads.filter((b) => b.status === "closed");
   const closed = closedRecords.length;
 
-  const activeWorkPins = loadActiveWorkPins(openIds, execBdFn);
+  const activeWorkPins = loadActiveWorkPins(openRecords);
 
   const messageTypeSet = new Set(opts.messageIssueTypes);
   const preservedTypeSet = new Set(opts.preservedTypes);
@@ -272,7 +244,7 @@ export function runMemoryCompact(
         issueType: record.issueType,
         ageDays: ageDaysValue,
         decision: "preserved-active-work",
-        reason: "referenced by an open bd record",
+        reason: "referenced by an open work-item record",
       });
       continue;
     }
@@ -314,34 +286,13 @@ export function runMemoryCompact(
     }
   }
   const eligible = compactIds.length + deferred;
-  let compacted = 0;
-  let bdResult: BdAdminCompactResult | null = null;
-
-  // ── compact (apply only) ────────────────────────────────────────────────
-  if (!dryRun && compactIds.length > 0) {
-    bdResult = runCompact(cwd, { dryRun: false, ids: compactIds });
-    for (const r of bdResult.results) {
-      if (r.exitCode === 0) {
-        compacted += 1;
-      } else {
-        // bd refused this id; reflect it back to the per-record detail.
-        const detail = records.find((d) => d.beadId === r.id);
-        const errMsg = r.stderr.trim() || r.stdout.trim() || "bd admin compact failed";
-        if (detail) {
-          detail.decision = "deferred";
-          detail.reason = `bd admin compact: ${errMsg}`;
-        }
-      }
-    }
-    if (bdResult.exitCode !== 0) {
-      output.error(
-        `memory compact: WARN bd admin compact exited ${bdResult.exitCode} for at least one id`,
-      );
-    }
-  } else if (dryRun) {
-    // On dry-run the "compacted" classifier outcome is planned, not applied.
-    compacted = compactIds.length;
-  }
+  // GH-1012: the bd `admin compact` write plane was retired and there is no
+  // replacement compaction backend (GitHub is the write plane; Front Desk is
+  // read-only). The classifier's `compacted` decisions and the audit rows are
+  // the durable output now — nothing is written to any substrate, so `apply`
+  // and dry-run produce the same count and differ only in the audit `dryRun`
+  // flag.
+  const compacted = compactIds.length;
 
   const summary: MemoryCompactSummary = {
     repo,

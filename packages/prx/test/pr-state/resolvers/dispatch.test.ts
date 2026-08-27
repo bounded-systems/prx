@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
 import { resolverForCanonicalId } from "../../../src/pr-state/resolvers/dispatch.ts";
-import { BeadsResolver } from "../../../src/pr-state/resolvers/beads.ts";
 import { GithubResolver } from "../../../src/pr-state/resolvers/github.ts";
 import { NotionResolver } from "../../../src/pr-state/resolvers/notion.ts";
 import { NotionClaudeMcpResolver } from "../../../src/pr-state/resolvers/notion_claude_mcp.ts";
@@ -99,18 +98,6 @@ describe("resolverForCanonicalId", () => {
   test('returns a NotionCliResolver when auth = "notion-cli"', () => {
     const resolver = resolverForCanonicalId("PROJ-5743", notionCliConfig, "/tmp/repo");
     expect(resolver).toBeInstanceOf(NotionCliResolver);
-  });
-
-  // GH-1766: bd surface arm. Routed before the Notion arm so a bd id
-  // never falls through to a Notion resolver configured on the same repo.
-  test("returns a BeadsResolver for a BD-<8hex> short surface id", () => {
-    const resolver = resolverForCanonicalId("BD-a1b2c3d4", defaultConfig, "/tmp/repo");
-    expect(resolver).toBeInstanceOf(BeadsResolver);
-  });
-
-  test("BD- surface routing wins over a Notion source on the same repo", () => {
-    const resolver = resolverForCanonicalId("BD-a1b2c3d4", notionConfig, "/tmp/repo");
-    expect(resolver).toBeInstanceOf(BeadsResolver);
   });
 
   // GH-1421: --source=<name> explicit dispatch

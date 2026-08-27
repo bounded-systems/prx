@@ -14,11 +14,10 @@ import { existsSync as defaultExistsSync } from "node:fs";
 
 import { appendAuditRow as defaultAppendAuditRow } from "../audit/sink.ts";
 import { getAuditRuntimeContext as defaultGetAuditRuntimeContext } from "@bounded-systems/audit-context";
-import { buildDoltRemoteUrl, parseGitOrigin } from "../beads/hydrate.ts";
-import { hydrateAfterMaterialize as defaultHydrateAfterMaterialize } from "../beads/repo_hydrate.ts";
 import {
   canonicalMainxPathFromParsed,
   defaultRepoRunner,
+  kebabPrefixFromName,
   loadRepoInventoryIndex as defaultLoadRepoInventoryIndex,
   materializeMainxIfMissing as defaultMaterializeMainxIfMissing,
   parseRepoUrl,
@@ -111,24 +110,98 @@ export class RepoBackfillError extends Error {
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
-/**
- * Conservative kebab projection for the name-fallback. Underscores become
- * dashes, any other non-`[a-z0-9-]` character becomes a dash, and runs are
- * collapsed + edge-trimmed so the result conforms to
- * {@link WORKSPACE_PREFIX_PATTERN}. The handler validates the output before
- * adopting it — names that produce an empty / non-`[a-z]`-prefixed string
- * land in the `failed` bucket so the operator can supply an override in a
- * follow-up.
- */
-export function kebabPrefixFromName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/_/g, "-")
-    .replace(/[^a-z0-9-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+/, "")
-    .replace(/-+$/, "");
+// GH-1012: pure git-origin → DoltHub URL helpers (formerly `../beads/hydrate.ts`).
+// No bd coupling — plain string parsing used to surface a candidate
+// `dolt_remote` for name-derived populates. Inlined here (mirroring
+// `repo_audit.ts`) now that the bd CLI machinery is gone.
+type OriginComponents = {
+  host: string;
+  owner: string;
+  repo: string;
+};
+
+function parseGitOrigin(url: string): OriginComponents | null {
+  let host = "";
+  let path = "";
+
+  // git@HOST:OWNER/REPO[.git]
+  const sshMatch = url.match(/^git@([^:]+):(.+)$/);
+  if (sshMatch) {
+    host = sshMatch[1]!;
+    path = sshMatch[2]!;
+  }
+
+  // ssh://git@HOST[:PORT]/OWNER/REPO[.git]
+  if (!host) {
+    const sshUrlMatch = url.match(/^ssh:\/\/git@([^/]+)\/(.+)$/);
+    if (sshUrlMatch) {
+      host = sshUrlMatch[1]!.replace(/:\d+$/, "");
+      path = sshUrlMatch[2]!;
+    }
+  }
+
+  // https://HOST/OWNER/REPO[.git] (also http://)
+  if (!host) {
+    const httpMatch = url.match(/^https?:\/\/([^/]+)\/(.+)$/);
+    if (httpMatch) {
+      host = httpMatch[1]!;
+      path = httpMatch[2]!;
+    }
+  }
+
+  if (!host || !path) return null;
+
+  path = path
+    .replace(/\.git$/, "")
+    .replace(/\/$/, "")
+    .toLowerCase();
+  host = host.toLowerCase().replace(/\./g, "-");
+
+  const slashIdx = path.indexOf("/");
+  if (slashIdx < 0) return null;
+  const owner = path.slice(0, slashIdx);
+  const repo = path.slice(slashIdx + 1);
+  if (!owner || !repo || repo.includes("/")) return null;
+
+  return { host, owner, repo };
 }
+
+function buildDoltRemoteUrl(components: OriginComponents, dolthubOwner?: string | null): string {
+  const { owner, repo } = components;
+  const dolt_user = dolthubOwner?.trim() || owner;
+  return `https://doltremoteapi.dolthub.com/${dolt_user}/${repo}`;
+}
+
+// GH-1012: the bd `.beads/` clone/hydration machinery (formerly
+// `../beads/repo_hydrate.ts`) is gone. Only `.status` is consumed downstream
+// (to set the `hydrated` flag), so the shape is inlined to the used surface and
+// the default is a no-op that reports "no beads" — the handler then falls back
+// to the name-derived prefix. Tests still inject their own `hydrateAfterMaterialize`.
+type HydrateStatus =
+  | "hydrated"
+  | "already-hydrated"
+  | "skipped-no-beads"
+  | "skipped-no-metadata"
+  | "skipped-no-origin"
+  | "skipped-unparseable-origin"
+  | "skipped-non-primary-worktree"
+  | "dry-run"
+  | "clone-failed";
+
+type HydrateResult = { status: HydrateStatus };
+
+function defaultHydrateAfterMaterialize(_mainxPath: string): HydrateResult {
+  return { status: "skipped-no-beads" };
+}
+
+/**
+ * Conservative kebab projection for the name-fallback. Re-exported from
+ * `repos.ts`, which now owns the derivation because `addLocalRepo` shares it
+ * (GH-1005). The handler validates the output before adopting it — names that
+ * produce an empty / non-`[a-z]`-prefixed string land in the `failed` bucket
+ * so the operator can supply an override in a follow-up.
+ */
+export { kebabPrefixFromName } from "./repos.ts";
 
 function isFileOnlyRemote(repo: LocalRepo): boolean {
   const url = repo.primaryRemote?.url ?? "";

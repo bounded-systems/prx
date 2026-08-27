@@ -7,9 +7,13 @@
 //   prx handoff drain   --actor <name> [--once] [--max <N>]
 //   prx handoff replay  <id>   (re-enqueue an abandoned row with fresh state)
 //
-// All four ride the same `enqueueHandoff` / `listHandoffs` / `drain` core.
 // Operator entry point: the agent (or human) calls `prx handoff enqueue`
 // from inside a session that just hit a flag-layer deny.
+//
+// GH-1012: the durable queue (`handoff/store.ts`, bd/CAS-backed) was removed
+// with the beads substrate. `enqueue`/`drain` still route through the
+// surviving `from-deny.ts` / `drain.ts` seams; the store-backed reads
+// (`status`, `replay`) fail closed until a non-bd store lands.
 
 import { readFileSync } from "node:fs";
 
@@ -23,7 +27,6 @@ import {
 
 import { drain, emitHandoffEvent, type DrainDeps } from "./drain.ts";
 import { enqueueFromFlagLayerDeny } from "./from-deny.ts";
-import { enqueueHandoff, getHandoff, listHandoffs, type HandoffStoreDeps } from "./store.ts";
 
 // ── shared output shape ────────────────────────────────────────────────────
 
@@ -34,13 +37,13 @@ export type HandoffCliOutput = {
 
 /**
  * Injectable seams for the handoff verbs. All optional, defaulting to the real
- * bd/CAS/audit-backed implementations, so production call sites pass nothing —
- * they exist so the verbs are exercisable without a live bd substrate.
+ * implementations, so production call sites pass nothing — they exist so the
+ * verbs are exercisable without a live substrate.
  */
 export type HandoffCliDeps = {
-  /** bd/CAS store seam for enqueue / list / get / replay. */
-  store?: HandoffStoreDeps;
-  /** Drain engine seam (bd + policy + audit). */
+  /** Store seam threaded to the flag-layer-deny enqueue path. */
+  store?: Parameters<typeof enqueueFromFlagLayerDeny>[1];
+  /** Drain engine seam (policy + audit). */
   drain?: DrainDeps;
   /** Audit-row writer for the HANDOFF_ENQUEUED telemetry on the created path. */
   appendAuditRow?: Parameters<typeof emitHandoffEvent>[2];
@@ -108,6 +111,10 @@ export async function runHandoffEnqueue(
       );
       return 4;
   }
+  // Defensive terminal return: the switch is exhaustive over the current
+  // EnqueueResult union; the fallthrough keeps the verb yielding an exit code
+  // if that union ever gains a kind.
+  return 1;
 }
 
 // ── status ─────────────────────────────────────────────────────────────────
@@ -121,44 +128,16 @@ export type HandoffStatusOptions = {
 };
 
 export async function runHandoffStatus(
-  opts: HandoffStatusOptions,
+  _opts: HandoffStatusOptions,
   output: HandoffCliOutput,
-  deps: HandoffCliDeps = {},
+  _deps: HandoffCliDeps = {},
 ): Promise<number> {
-  let target: HandoffEnvelope["targetActor"] | undefined;
-  if (opts.target) {
-    const parsed = safeParseHandoffTargetActor(opts.target);
-    if (!parsed.success) {
-      output.error(
-        `handoff status: --target must be one of ${HANDOFF_TARGET_ACTOR_VALUES.join("|")}, got "${opts.target}"`,
-      );
-      return 2;
-    }
-    target = parsed.data;
-  }
-  const envelopes = await listHandoffs(
-    {
-      ...(target ? { target } : {}),
-      ...(opts.workUnitId ? { workUnitId: opts.workUnitId } : {}),
-      ...(opts.state ? { status: opts.state } : {}),
-    },
-    deps.store,
-  );
-
-  if (opts.format === "json") {
-    output.log(JSON.stringify(envelopes, null, 2));
-    return 0;
-  }
-  if (envelopes.length === 0) {
-    output.log("handoff status: no rows");
-    return 0;
-  }
-  for (const env of envelopes) {
-    output.log(
-      `${env.id}  ${env.status.padEnd(10)} ${env.targetActor.padEnd(10)} ${env.intent.verb}  uow=${env.workUnitId ?? "-"}  attempts=${env.attempts}`,
-    );
-  }
-  return 0;
+  // GH-1012: the durable handoff queue lived in `handoff/store.ts`, a
+  // bd/CAS-backed store removed with the beads substrate. `status` was purely
+  // a read over that store, so there is no backend left to query. Fail closed
+  // rather than report a misleading empty result.
+  output.error("handoff status: durable handoff store removed (GH-1012); no queue backend to read");
+  return 3;
 }
 
 // ── drain ──────────────────────────────────────────────────────────────────
@@ -208,55 +187,13 @@ export type HandoffReplayOptions = {
 export async function runHandoffReplay(
   opts: HandoffReplayOptions,
   output: HandoffCliOutput,
-  deps: HandoffCliDeps = {},
+  _deps: HandoffCliDeps = {},
 ): Promise<number> {
-  const existing = await getHandoff(opts.id, deps.store);
-  if (!existing) {
-    output.error(`handoff replay: no row found for id ${opts.id}`);
-    return 1;
-  }
-  if (existing.status !== "abandoned" && existing.status !== "failed") {
-    output.error(
-      `handoff replay: row ${opts.id} status is "${existing.status}"; only abandoned/failed rows are replayable`,
-    );
-    return 2;
-  }
-
-  const result = await enqueueHandoff(
-    {
-      workUnitId: existing.workUnitId,
-      repoSlug: existing.repoSlug,
-      sourceActor: existing.sourceActor,
-      ...(existing.sourceSessionId ? { sourceSessionId: existing.sourceSessionId } : {}),
-      targetActor: existing.targetActor,
-      intent: existing.intent,
-      inputRefs: existing.inputRefs,
-      denialReason: existing.denialReason,
-      ...(existing.policyKey ? { policyKey: existing.policyKey } : {}),
-      ...(existing.workTreeRef ? { workTreeRef: existing.workTreeRef } : {}),
-      ...(existing.causedBy ? { causedBy: existing.causedBy } : {}),
-      maxAttempts: existing.maxAttempts,
-    },
-    deps.store,
-  );
-
-  switch (result.kind) {
-    case "created":
-      emitHandoffEvent("HANDOFF_ENQUEUED", result.envelope, deps.appendAuditRow);
-      output.log(formatEnvelope(result.envelope, opts.format, "replayed"));
-      return 0;
-    case "duplicate":
-      output.log(formatEnvelope(result.envelope, opts.format, "duplicate"));
-      return 0;
-    case "bd-unprovisioned":
-      output.error(`handoff replay: bd unprovisioned (${result.error})`);
-      return 3;
-    case "cross-repo-refused":
-      output.error(
-        `handoff replay: cross-repo refused (got ${result.got}, expected ${result.expected})`,
-      );
-      return 4;
-  }
+  // GH-1012: replay re-read an existing row from the durable handoff store
+  // (`handoff/store.ts`) and re-enqueued it. That bd/CAS-backed store was
+  // removed with the beads substrate, so there is no row to read; fail closed.
+  output.error(`handoff replay: durable handoff store removed (GH-1012); cannot replay ${opts.id}`);
+  return 3;
 }
 
 // ── helpers ────────────────────────────────────────────────────────────────

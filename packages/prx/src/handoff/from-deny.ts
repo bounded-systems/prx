@@ -21,7 +21,11 @@
 import { getEnv } from "@bounded-systems/env";
 import { hostName } from "@bounded-systems/host";
 
-import type { HandoffTargetActor, WorkUnitId } from "@bounded-systems/machine-schema";
+import type {
+  HandoffEnvelope,
+  HandoffTargetActor,
+  WorkUnitId,
+} from "@bounded-systems/machine-schema";
 
 import { repoNameWithOwner as defaultRepoNameWithOwner } from "../pr-state/github.ts";
 import type {
@@ -30,12 +34,62 @@ import type {
   PolicyTool,
   CheckPolicyOrEnqueueDeps,
 } from "@bounded-systems/policy";
-import {
-  enqueueHandoff,
-  type EnqueueInput,
-  type EnqueueResult,
-  type HandoffStoreDeps,
-} from "./store.ts";
+
+// ── handoff-queue seam (formerly src/handoff/store.ts) ─────────────────────
+//
+// GH-1012: the handoff queue was persisted through bd memory (Dolt-backed).
+// With bd removed the persistence backend is gone, so there is no store to
+// enqueue into. These type shapes and the `enqueueHandoff` entry point are
+// retained locally so the deny → handoff translation logic below still
+// type-checks and `cli.ts` keeps its import; the enqueue itself is now a
+// no-op that reports the queue as unavailable (mapped to a "skipped" result).
+
+export type HandoffStoreDeps = {
+  /** Override for tests that want to bypass real CAS writes. */
+  casWriteBlob?: ((content: string, domain: string) => Promise<{ sha: string }>) | undefined;
+  now?: (() => Date) | undefined;
+  /** `repoNameWithOwner(cwd)` for the cross-repo guard. */
+  currentRepoSlug?: (() => string) | undefined;
+};
+
+export type EnqueueResult =
+  | { kind: "created"; envelope: HandoffEnvelope }
+  | { kind: "duplicate"; envelope: HandoffEnvelope; existingId: string }
+  | { kind: "bd-unprovisioned"; error: string }
+  | { kind: "cross-repo-refused"; expected: string; got: string };
+
+export type EnqueueInput = Omit<
+  HandoffEnvelope,
+  "id" | "dedupKey" | "enqueuedAt" | "status" | "attempts" | "inputRefs" | "maxAttempts"
+> & {
+  /** Optional caller-supplied inputRefs; CAS spillover handles get appended. */
+  inputRefs?: string[];
+  /** Defaults to 3 (envelope schema default). */
+  maxAttempts?: number;
+};
+
+/**
+ * Enqueue a handoff. The persistent queue was bd-backed and removed in
+ * GH-1012, so this now returns a "queue unavailable" result rather than
+ * writing a row. The cross-repo guard is preserved for callers that still
+ * inject `currentRepoSlug`.
+ */
+// eslint-disable-next-line @typescript-eslint/require-await
+async function enqueueHandoff(
+  input: EnqueueInput,
+  deps: HandoffStoreDeps = {},
+): Promise<EnqueueResult> {
+  if (deps.currentRepoSlug) {
+    const expected = deps.currentRepoSlug();
+    if (expected && input.repoSlug !== expected) {
+      return { kind: "cross-repo-refused", expected, got: input.repoSlug };
+    }
+  }
+  return {
+    kind: "bd-unprovisioned",
+    error: "handoff queue removed (GH-1012): no persistent backend to enqueue into",
+  };
+}
 
 // ── owning-role → recipient mapping ────────────────────────────────────────
 

@@ -47,7 +47,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
@@ -70,6 +70,15 @@ jobs:
       # this fails the PR if a hand-edit reintroduces drift.
       - name: jsr.json versions in sync with package.json
         run: bun run jsr:versions:check
+
+      # GH-1039: every *direct* dependency must be pinned to an exact version, so
+      # a version change is something a reviewer approves rather than something a
+      # resolver does. A float that genuinely cannot be pinned lives in
+      # `.dep-pins-allowlist.json` with a written reason, and that list can only
+      # shrink. Placed before the build: a float is a cheap, unambiguous failure
+      # and there is no point compiling a binary to discover it.
+      - name: Direct dependencies pinned exactly
+        run: bun run deps:pins:check
 
       - name: Build prx binary
         run: mkdir -p dist && bun packages/prx/scripts/prx-compile.ts dist/prx

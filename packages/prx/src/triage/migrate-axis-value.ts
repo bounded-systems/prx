@@ -44,13 +44,15 @@ import { execGh as defaultExecGh, type GhExecResult } from "@bounded-systems/gh"
 import { runBeadsSync as defaultRunBeadsSync, type BeadsSyncResult } from "../sync/run.ts";
 import { DEFAULT_SYNC_LIMIT } from "../sync/limits.ts";
 import {
+  listOpenIssues as defaultListOpenIssues,
   repoNameWithOwner as defaultRepoNameWithOwner,
   type FallbackIssue,
 } from "../pr-state/github.ts";
-// GH-1602: substitute the gh-side `listOpenIssues` with the bd-resident
-// projection. `pruneMergedActor` syncs bd from GH at the head of every triage
-// pass, so migrate-axis-value's queue enumeration is substrate-resident now.
-import { listOpenIssuesFromBeads as defaultListOpenIssues } from "./issues-from-beads.ts";
+// GH-1012: the bd-resident queue projection (`issues-from-beads`) was retired
+// with beads. This verb reads its queue straight from GitHub — the authoritative
+// write plane — via `listOpenIssues`, which carries the full `<axis>::<value>`
+// label set the migrate decision inspects (the Front Desk mirror is degraded and
+// does not carry arbitrary labels).
 
 export const labelAxisSchema = z.enum(LABEL_AXES as readonly [LabelAxis, ...LabelAxis[]]);
 

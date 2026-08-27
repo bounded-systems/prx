@@ -1,32 +1,15 @@
 /**
- * GH-2110: bd-record close-and-verify for `prx plan close`.
+ * `prx plan close` driver + (formerly) bd-record close-and-verify.
  *
- * Resolves bead(s) linked to a GH issue number, closes any still-open ones via
- * the narrow `bd close` wrapper, and re-reads with `bd show` to confirm the
- * status transition actually landed. Mirrors the loop shape in
- * `src/submit/postmerge.ts` (close-and-verify), but stays its own helper
- * because the resolution path here is "lookup by GH issue number" rather than
- * the postmerge "scan refs in PR body".
- *
- * Why this exists separately from the reconcile chain (`runBeadsSync`): the
- * reconcile tick can return `exitCode=0` even when a per-pair close was
- * deferred — pinned-pair gating, `--limit` budget, GH eventual-consistency
- * lag. `prx plan close` is the canonical close *actor* for this work unit, so
- * it owns an end-of-line write here rather than relying on the periodic
- * reconcile to eventually catch up.
+ * GH-1012: the bd write plane has been removed. GitHub
+ * is now the sole write plane and `gh issue close` (in `planClose` below) is the
+ * canonical close for a work unit; Front Desk is the read plane. There are no bd
+ * records left to close-and-verify, so the former `resolveAndCloseLinkedBeads`
+ * close-and-verify pass is now a no-op kept only so the driver's output shape and
+ * the exported types stay stable for downstream callers (cli.ts / cli-format.ts /
+ * plan-close-verb.ts).
  */
 
-import {
-  execBdIssueClose as defaultExecBdIssueClose,
-  type BdIssueCloseResult,
-} from "../tools/bd_issue_close.ts";
-import {
-  runBdShow as defaultBdShow,
-  type BdShowResult,
-  type BdGithubRunner,
-} from "@bounded-systems/bd";
-import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../triage/triage.ts";
-import { buildBeadsLookup } from "../issues/dedupe.ts";
 // `prx plan close` driver deps (moved with planClose from cli.ts).
 import {
   defaultRunner,
@@ -55,7 +38,7 @@ export type PlanCloseBdRecordOutcome = {
   /**
    * Whether the verb should treat this outcome as success. `skip:no-bead-link`
    * and `skip:already-closed` count as success — the work unit is in a
-   * coherent state and no follow-up `bd close` is needed.
+   * coherent state and no follow-up close is needed.
    */
   ok: boolean;
   /** Per-bead detail; empty when no beads were linked. */
@@ -75,16 +58,14 @@ export type PlanCloseResult = {
   upstreamCommentPosted: boolean;
   issueClosed: boolean;
   /**
-   * GH-2110: outcome of the bd-record close-and-verify pass that runs after
-   * `gh issue close` succeeds. The headline operator-facing signal — distinct
-   * from `bdSyncExitCode` (the broader reconcile tick), which can still
-   * report `ok` even when this pass leaves the linked bd record open.
+   * Outcome of the (now no-op, GH-1012) bd-record close-and-verify pass. Kept
+   * for output-shape stability; always reports the `skip:no-bead-link` success
+   * outcome since there is no bd write plane to close against.
    */
   bdRecord: PlanCloseBdRecordOutcome | null;
   /**
-   * Exit code from the canonical reconcile tick (`runBeadsSync`). Narrower
-   * meaning post-GH-2110 — "did the periodic-reconcile shell out cleanly?",
-   * not "is the linked bd record CLOSED?". The latter is `bdRecord`.
+   * Exit code from the canonical reconcile tick (`runBeadsSync`). "did the
+   * periodic-reconcile shell out cleanly?".
    */
   bdSyncExitCode: number | null;
   handoff: string[];
@@ -93,7 +74,7 @@ export type PlanCloseResult = {
 };
 
 /**
- * Translate the canonical `prx plan close --reason` surface to a bd
+ * Translate the canonical `prx plan close --reason` surface to a
  * `close_reason` slot. Parallel to `planCloseReasonToGhReason`. Distinguishes
  * plan-close provenance from the postmerge sweep's `"closed-by-pull"`.
  */
@@ -107,148 +88,25 @@ export type ResolveAndCloseLinkedBeadsOptions = {
   cwd: string;
 };
 
-export type ResolveAndCloseLinkedBeadsDeps = {
-  execBdIssueClose?: typeof defaultExecBdIssueClose | undefined;
-  bdShow?: typeof defaultBdShow | undefined;
-  loadAllBeads?: (() => BeadsRecord[]) | undefined;
-};
-
+/**
+ * GH-1012 no-op. The bd write plane is gone — GitHub is the sole write plane and
+ * `planClose`'s `gh issue close` is the canonical close for a work unit, so there
+ * are no linked bd records to close-and-verify. Retained (and still exported) so
+ * the driver's output shape and downstream imports stay stable; always reports
+ * the `skip:no-bead-link` success outcome.
+ */
 export async function resolveAndCloseLinkedBeads(
-  opts: ResolveAndCloseLinkedBeadsOptions,
-  deps: ResolveAndCloseLinkedBeadsDeps = {},
+  _opts: ResolveAndCloseLinkedBeadsOptions,
 ): Promise<PlanCloseBdRecordOutcome> {
-  const execClose = deps.execBdIssueClose ?? defaultExecBdIssueClose;
-  const show = deps.bdShow ?? defaultBdShow;
-  const load = deps.loadAllBeads ?? (() => defaultLoadAllBeads());
-
-  let beads: BeadsRecord[];
-  try {
-    beads = load();
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    return {
-      outcome: `error:load-beads-failed:${truncate(detail)}`,
-      ok: false,
-      perId: [],
-    };
-  }
-
-  const lookup = buildBeadsLookup(beads);
-  const hit = lookup.byIssueNumber.get(opts.issueNumber);
-
-  if (!hit) {
-    return { outcome: "skip:no-bead-link", ok: true, perId: [] };
-  }
-
-  // Single-bead path is the common case. We still keep the per-id list for
-  // JSON parity with the multi path. (Multi-bead linkage to one GH issue is
-  // rare but reachable when two beads share an `external_ref` post-dedupe.)
-  const linkedIds = collectLinkedBeadIds(beads, opts.issueNumber);
-  const bdReason = planCloseReasonToBdReason(opts.reason);
-
-  const perId: PlanCloseBdPerId[] = [];
-  for (const id of linkedIds) {
-    perId.push(closeAndVerify(id, opts.cwd, bdReason, show, execClose));
-  }
-
-  return summarize(perId);
-}
-
-function collectLinkedBeadIds(beads: BeadsRecord[], issueNumber: number): string[] {
-  const ids: string[] = [];
-  for (const record of beads) {
-    if (record.externalIssueNumber === issueNumber) {
-      ids.push(record.id);
-    }
-  }
-  return ids;
-}
-
-function closeAndVerify(
-  id: string,
-  cwd: string,
-  reason: string,
-  show: typeof defaultBdShow,
-  execClose: typeof defaultExecBdIssueClose,
-): PlanCloseBdPerId {
-  const initial: BdShowResult = show(id, cwd);
-  if (!initial.ok) {
-    return {
-      id,
-      kind: "error",
-      detail: `bd-show:${truncate(initial.stderr.trim() || initial.stdout.trim() || "failed")}`,
-    };
-  }
-  if (initial.record.status.toLowerCase() === "closed") {
-    return { id, kind: "skip:already-closed" };
-  }
-
-  const close: BdIssueCloseResult = execClose({ id, cwd, reason });
-  if (close.exitCode !== 0) {
-    return {
-      id,
-      kind: "error",
-      detail: `bd-close:${truncate(close.stderr.trim() || close.stdout.trim() || "failed")}`,
-    };
-  }
-
-  // Re-read to verify the transition actually landed. This is the GH-2110
-  // symptom guard: `bd close` can exit 0 while the bd record stays in a
-  // non-closed status if the write was a no-op or got rolled back.
-  const verify: BdShowResult = show(id, cwd);
-  if (!verify.ok) {
-    return {
-      id,
-      kind: "error",
-      detail: `bd-show-verify:${truncate(verify.stderr.trim() || verify.stdout.trim() || "failed")}`,
-    };
-  }
-  if (verify.record.status.toLowerCase() !== "closed") {
-    return {
-      id,
-      kind: "error",
-      detail: `state-not-closed:${verify.record.status.toLowerCase() || "unknown"}`,
-    };
-  }
-  return { id, kind: "closed" };
-}
-
-function summarize(perId: PlanCloseBdPerId[]): PlanCloseBdRecordOutcome {
-  if (perId.length === 1) {
-    const only = perId[0]!;
-    if (only.kind === "closed") return { outcome: "closed", ok: true, perId };
-    if (only.kind === "skip:already-closed") {
-      return { outcome: "skip:already-closed", ok: true, perId };
-    }
-    return { outcome: `error:${only.detail}`, ok: false, perId };
-  }
-
-  const total = perId.length;
-  const closedCount = perId.filter(
-    (p) => p.kind === "closed" || p.kind === "skip:already-closed",
-  ).length;
-  const ok = perId.every((p) => p.kind !== "error");
-  return {
-    outcome: `multi:${closedCount}/${total}`,
-    ok,
-    perId,
-  };
-}
-
-const TRUNCATE_LEN = 80;
-function truncate(value: string): string {
-  const collapsed = value.replace(/\s+/g, " ").trim();
-  if (collapsed.length <= TRUNCATE_LEN) return collapsed;
-  return `${collapsed.slice(0, TRUNCATE_LEN - 1)}…`;
+  return { outcome: "skip:no-bead-link", ok: true, perId: [] };
 }
 
 // ── `prx plan close` driver (moved from pr-state/cli.ts, GH-1057) ─────────────
 // GH-1057: `prx plan close` — operator-context wrapper for issue
 // close-without-merge. Distinct from `closeSession` (post-merge cleanup) in
 // that this verb actually invokes `gh issue close` with a structured reason
-// + optional upstream-pointer comment, then runs `bd github sync` to mirror
-// the closed state into beads. Carries actor identity for hooks gating raw
-// `gh issue close` from non-plan profiles.
+// + optional upstream-pointer comment. Carries actor identity for hooks gating
+// raw `gh issue close` from non-plan profiles.
 // GH-1720: `gh issue close --reason` accepts {completed|not planned|duplicate}
 // (space form). Our canonical surface is hyphen form per
 // feedback_no_raw_gh_close. Translate at the spawn boundary only.
@@ -266,21 +124,12 @@ export type PlanCloseOptions = {
 export type PlanCloseDeps = {
   cwd?: string;
   runner?: GithubCommandRunner;
-  bdRunner?: BdGithubRunner;
   /**
    * Canonical reconcile (GH-2011: replaces the retired `bdSync` slot that
    * dispatched the bd-side reconcile shell-out). Tests override this seam
    * to assert the chain is invoked.
    */
   beadsSync?: typeof runBeadsSync;
-  /**
-   * GH-2110: bd-record close seams. Tests inject stubs to assert the
-   * close-and-verify shape without spawning bd. Production wires the
-   * defaults from `tools/bd_issue_close.ts` + `tools/bd.ts` + `triage.ts`.
-   */
-  execBdIssueClose?: typeof defaultExecBdIssueClose;
-  bdShow?: typeof defaultBdShow;
-  loadAllBeads?: () => BeadsRecord[];
 };
 
 export async function planClose(
@@ -377,24 +226,13 @@ export async function planClose(
     };
   }
 
-  // GH-2110: end-of-line bd-record close-and-verify. Done by the close *actor*
-  // for this work unit so the operator-visible outcome reflects the linked bd
-  // record's actual status — the reconcile chain below can return 0 while
-  // skipping per-pair closes (unpinned, limit, eventual-consistency lag), and
-  // the previous `bd_sync=ok` line did not distinguish those cases from a
-  // landed close.
-  const bdRecord = await resolveAndCloseLinkedBeads(
-    { issueNumber, reason: options.reason, cwd },
-    {
-      execBdIssueClose: deps.execBdIssueClose,
-      bdShow: deps.bdShow,
-      loadAllBeads: deps.loadAllBeads,
-    },
-  );
+  // GH-1012: bd-record close-and-verify is now a no-op (the bd write plane is
+  // gone; `gh issue close` above is the canonical close). Kept in the chain so
+  // the output shape stays stable.
+  const bdRecord = await resolveAndCloseLinkedBeads({ issueNumber, reason: options.reason, cwd });
 
-  // GH-2011: chain the canonical reconcile rather than the destructive bd
-  // verb. Reconcile lag is still expected — surface the exit code so the
-  // caller can re-run.
+  // GH-2011: chain the canonical reconcile. Reconcile lag is still expected —
+  // surface the exit code so the caller can re-run.
   const repoSlugTrimmed = repoSlug.trim();
   const syncResult = await beadsSync(
     {
@@ -408,11 +246,11 @@ export async function planClose(
     { cwd: () => cwd },
   );
 
-  // GH-2074 PR-3: this actor just mutated the unit — the GH issue and its
-  // linked beads are now closed. Drop the unit's read-projection entries so a
-  // subsequent read re-hydrates fresh instead of serving the stale pre-close
-  // ("open") state within the TTL window (ai-home-udqx2.12 self-mutation
-  // invalidation). Best-effort; a missing entry is a no-op.
+  // GH-2074 PR-3: this actor just mutated the unit — the GH issue is now closed.
+  // Drop the unit's read-projection entries so a subsequent read re-hydrates
+  // fresh instead of serving the stale pre-close ("open") state within the TTL
+  // window (ai-home-udqx2.12 self-mutation invalidation). Best-effort; a missing
+  // entry is a no-op.
   invalidateUnit(repoSlug, options.workUnitId);
   for (const per of bdRecord.perId ?? []) {
     invalidateUnit(cwd, per.id);

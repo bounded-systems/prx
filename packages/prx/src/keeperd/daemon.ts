@@ -212,7 +212,8 @@ export function runKeeperServe(options: KeeperServeOptions): Promise<KeeperServe
   const { socketPath, pidfile, deps } = options;
   const target = listenTarget(socketPath);
   const onTcp = !("unix" in target);
-  const log = options.log ?? ((level: string, msg: string) => console.error(`keeperd ${level}: ${msg}`));
+  const log =
+    options.log ?? ((level: string, msg: string) => console.error(`keeperd ${level}: ${msg}`));
 
   // The signed-grant gate is enforced ONLY on the TCP edge — a unix peer is
   // kernel-authenticated (held-ref = authority). When listening on TCP we resolve

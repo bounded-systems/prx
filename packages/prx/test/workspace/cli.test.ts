@@ -24,6 +24,9 @@ function makeFixtureRepo(): { repoDir: string; cleanup: () => void } {
   sh(repoDir, "git", ["init", "-b", "main"]);
   sh(repoDir, "git", ["config", "user.email", "test@example.com"]);
   sh(repoDir, "git", ["config", "user.name", "Test"]);
+  // Signing off: without it a host with `commit.gpgsign=true` (e.g. SSH
+  // signing) hangs this fixture's commit on a signing prompt (#280).
+  sh(repoDir, "git", ["config", "commit.gpgsign", "false"]);
   sh(repoDir, "git", ["remote", "add", "origin", "git@github.com:test-owner/test-repo.git"]);
   writeFileSync(join(repoDir, "README"), "hello\n");
   sh(repoDir, "git", ["add", "README"]);
@@ -47,6 +50,9 @@ function gitCommitAvailable(): boolean {
       ["init", "-b", "main"],
       ["config", "user.email", "probe@example.com"],
       ["config", "user.name", "Probe"],
+      // Must mirror makeFixtureRepo's signing config, or this probe reports
+      // "cannot commit" for a fixture that would now build fine (#280).
+      ["config", "commit.gpgsign", "false"],
       ["commit", "--allow-empty", "-m", "probe"],
     ]) {
       const r = spawnSync("git", args, { cwd: dir, encoding: "utf8" });

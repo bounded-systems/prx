@@ -7,8 +7,6 @@ import { afterEach, describe, expect, test } from "bun:test";
 // import shape `src/sync/run.ts` and other production callers use via the
 // `src/adapters/index.ts` barrel.
 import "../../src/adapters/github.ts";
-import "../../src/adapters/notion.ts";
-import "../../src/adapters/beads.ts";
 
 import {
   __unregisterDomainAdapterForTesting,
@@ -33,16 +31,12 @@ import {
 import type { BeadsRecord } from "../../src/triage/triage.ts";
 
 // The canonical-id union prx ships with by default: baseline GH + Notion
-// shapes plus the registry-contributed `BD-<8-hex>` short-id arm and the
-// workspace-prefixed `BD-<prefix>-<ts>-<seq>-<hex8>` long-id arm from
-// `beads.ts` (GH-1645, GH-1658). `loadIdentityConfig`'s `isDefault` check
-// compares the user's pinned `canonical_id_pattern` against this `.source`
-// byte-for-byte — drift here silently turns every default repo into a
-// "custom identity", which would change canonical-id resolution. Update in
-// lock-step with `test/machine/work_unit.test.ts` LEGACY_CANONICAL_ID_SOURCE.
-const LEGACY_CANONICAL_ID_SOURCE =
-  /^(GH-\d+|NOTION-([0-9a-fA-F]{32}|\d+)|BD-[0-9A-F]{8}|BD-[a-z][a-z0-9-]*-\d{13,}-\d+-[0-9a-f]{8})$/
-    .source;
+// shapes. `loadIdentityConfig`'s `isDefault` check compares the user's pinned
+// `canonical_id_pattern` against this `.source` byte-for-byte — drift here
+// silently turns every default repo into a "custom identity", which would
+// change canonical-id resolution. Update in lock-step with
+// `test/machine/work_unit.test.ts` LEGACY_CANONICAL_ID_SOURCE.
+const LEGACY_CANONICAL_ID_SOURCE = /^(GH-\d+|NOTION-([0-9a-fA-F]{32}|\d+))$/.source;
 
 class FakeAdapter extends BaseDomainAdapter {
   constructor(config: DomainAdapterConfigInput) {
@@ -178,12 +172,11 @@ describe("registry", () => {
 describe("combinedCanonicalIdPattern", () => {
   afterEach(() => __unregisterDomainAdapterForTesting("jira"));
 
-  test("prx-default registry reproduces the GH/NOTION/BD canonical-id literal source", () => {
+  test("prx-default registry reproduces the GH/NOTION canonical-id literal source", () => {
     expect(combinedCanonicalIdPattern().source).toBe(LEGACY_CANONICAL_ID_SOURCE);
     expect(combinedCanonicalIdPattern().test("GH-456")).toBe(true);
     expect(combinedCanonicalIdPattern().test("NOTION-0123456789abcdef0123456789abcdef")).toBe(true);
     expect(combinedCanonicalIdPattern().test("NOTION-123")).toBe(true);
-    expect(combinedCanonicalIdPattern().test("BD-407F177F")).toBe(true);
     expect(combinedCanonicalIdPattern().test("PROJ-9")).toBe(false);
   });
 

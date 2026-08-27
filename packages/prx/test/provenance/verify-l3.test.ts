@@ -19,7 +19,9 @@ function makeL3(commitSha: string, privateKey: KeyObject): L3Attestation {
     predicateType: "https://slsa.dev/provenance/v1",
     predicate: { buildDefinition: { buildType: "https://prx.dev/git/push/v1" } },
   };
-  const signature = sign(null, Buffer.from(canonicalJson(statement)), privateKey).toString("base64");
+  const signature = sign(null, Buffer.from(canonicalJson(statement)), privateKey).toString(
+    "base64",
+  );
   return { statement, signature, keyId: "test-key" };
 }
 
@@ -43,15 +45,19 @@ describe("verifyL3Attestation", () => {
   });
 
   test("rejects under a different public key", () => {
-    const otherPem = generateKeyPairSync("ed25519")
-      .publicKey.export({ type: "spki", format: "pem" }) as string;
+    const otherPem = generateKeyPairSync("ed25519").publicKey.export({
+      type: "spki",
+      format: "pem",
+    }) as string;
     expect(verifyL3Attestation(makeL3(commit, privateKey), otherPem, commit)).toBe(false);
   });
 
   test("fails closed on malformed input", () => {
     expect(verifyL3Attestation(null, pubPem)).toBe(false);
     expect(verifyL3Attestation({ signature: "x" }, pubPem)).toBe(false);
-    expect(verifyL3Attestation({ statement: {}, signature: "not-base64-sig" }, pubPem, commit)).toBe(false);
+    expect(
+      verifyL3Attestation({ statement: {}, signature: "not-base64-sig" }, pubPem, commit),
+    ).toBe(false);
   });
 
   test("isL3Attestation recognises the shape", () => {

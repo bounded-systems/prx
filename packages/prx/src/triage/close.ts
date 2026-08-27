@@ -26,10 +26,17 @@
 import { z } from "zod";
 
 import type { BeadsRecord } from "./triage.ts";
-// GH-296 wave 2: read + close through beadsd (one true source), not local bd.
-// A single-id close is a targeted `show <id>` + daemon close, not a load-all.
-import { showBeadViaDaemon } from "../beadsd/reads.ts";
-import { closeBeadViaDaemon } from "../beadsd/writes.ts";
+// GH-1012: reads route through Front Desk (the read plane); a single-id close is
+// a targeted `show <id>` against Front Desk, not a load-all. The bd write plane
+// (beadsd `bd update -s closed`) was removed — bd-only records have no GitHub
+// issue to close, so the default close has no write target and fails cleanly
+// (surfaced by {@link runTriageClose} as a refusal). Inject `closeBead` to
+// supply a real write path.
+import { showBeadViaDaemon } from "../beads/frontdesk-reads.ts";
+
+const closeBeadViaDaemon = async (id: string): Promise<BeadsRecord | null> => {
+  throw new Error(`bd write plane removed (GH-1012): cannot close bd-only record '${id}'`);
+};
 
 export const triageCloseReasonSchema = z.enum(["completed", "not-planned", "duplicate"]);
 export type TriageCloseReason = z.infer<typeof triageCloseReasonSchema>;

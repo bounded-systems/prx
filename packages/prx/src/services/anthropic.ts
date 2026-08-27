@@ -145,9 +145,7 @@ function buildWuidOutcomes(db: Database, since?: string): WuidOutcome[] {
   if (byWuid.size === 0) return [];
 
   const allTransitions = db
-    .query<TransitionRow, []>(
-      `SELECT issue, state_to, ts FROM transitions ORDER BY ts ASC`,
-    )
+    .query<TransitionRow, []>(`SELECT issue, state_to, ts FROM transitions ORDER BY ts ASC`)
     .all();
   const latestState = new Map<string, string>();
   for (const t of allTransitions) {

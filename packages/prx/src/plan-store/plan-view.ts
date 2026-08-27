@@ -1,15 +1,15 @@
 /**
  * `prx plan view <id>` — read primitive for the plan operator session
  * (GH-1186, planner-side twin of `prx intake view`). Accepts GH-N / #N /
- * bare integer / GitHub URL / Notion UUID / Notion Task-ID / bd id and
- * prints title + state + labels + body + comments through the same
- * `src/issues/` core.
+ * bare integer / GitHub URL / work-item id and prints title + state +
+ * labels + body + comments through the same `src/issues/` core.
  *
  * Pure read; sits upstream of the parity chain; emits no XState events,
- * touches no schema. Same shape as `runIntakeView`. GH-874 extended the
- * resolver to a 3-arm discriminated union (gh | notion | bd); the Notion
- * arm dispatches through `runScoutNotion` so plan-view returns
- * `Promise<number>`.
+ * touches no schema. Same shape as `runIntakeView`. GH-1012 removed the
+ * bd + Notion (scout) arms: the write plane is GitHub and the read plane
+ * is Front Desk. Non-gh ids resolve through {@link showBeadViaDaemon}
+ * (Front Desk) and, when carrying a GH external ref, fall through to the
+ * GitHub view; the resolver's Notion arm now returns an error.
  */
 
 import { z } from "zod";
@@ -17,13 +17,11 @@ import { z } from "zod";
 import { extractIssueNumber } from "../issues/dedupe.ts";
 import { IssueResolveError, resolveIssueId, type IssueResolvedId } from "../issues/resolver.ts";
 import { formatIssueViewRender, viewGhIssue, type IssueViewRender } from "../issues/render.ts";
-import { runScoutNotion, ScoutNotionError } from "../scout/notion.ts";
-import { execBd } from "@bounded-systems/bd";
 import { execGh } from "@bounded-systems/gh";
 import type { BeadsRecord } from "../triage/triage.ts";
-// GH-296: targeted beads read through the daemon (one true source), not local
-// bd. A single-id view is `show <id>`, not load-the-world-and-`.find()`.
-import { showBeadViaDaemon } from "../beadsd/reads.ts";
+// GH-296/GH-1012: targeted work-item read through Front Desk (the read plane),
+// not local bd. A single-id view is `show <id>`, not load-the-world-and-`.find()`.
+import { showBeadViaDaemon } from "../beads/frontdesk-reads.ts";
 
 export const planViewOptionsSchema = z.object({
   id: z.string().trim().min(1, "id must not be empty"),
@@ -39,10 +37,8 @@ type Output = {
 
 export type PlanViewDeps = {
   execGh?: typeof execGh;
-  execBd?: typeof execBd;
-  /** GH-296: daemon-routed targeted read (default {@link showBeadViaDaemon}). */
+  /** GH-296/GH-1012: Front-Desk targeted read (default {@link showBeadViaDaemon}). */
   showBead?: (id: string) => Promise<BeadsRecord | null>;
-  runScoutNotion?: typeof runScoutNotion;
 };
 
 const VERB = "prx plan view";
@@ -54,8 +50,6 @@ export async function runPlanView(
 ): Promise<number> {
   const ghExec = deps.execGh ?? execGh;
   const showBead = deps.showBead ?? showBeadViaDaemon;
-  const bdExec = deps.execBd ?? execBd;
-  const scoutNotion = deps.runScoutNotion ?? runScoutNotion;
 
   let resolved: IssueResolvedId;
   try {
@@ -76,21 +70,10 @@ export async function runPlanView(
     }
 
     if (resolved.kind === "notion") {
-      try {
-        const result = await scoutNotion({
-          id: resolved.id.value,
-          ghExec,
-          bdExec,
-        });
-        output.log(renderPlanView({ source: "notion", payload: result }, opts.format));
-        return 0;
-      } catch (err) {
-        if (err instanceof ScoutNotionError) {
-          output.error(`${VERB}: ${err.message}`);
-          return 1;
-        }
-        throw err;
-      }
+      // GH-1012: the Notion adapter (scout/notion) is gone; Notion ids no
+      // longer resolve through plan view.
+      output.error(`${VERB}: Notion ids are no longer supported`);
+      return 1;
     }
 
     let record;
@@ -98,11 +81,11 @@ export async function runPlanView(
       record = await showBead(resolved.id);
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
-      output.error(`${VERB}: bd unreachable: ${detail}`);
+      output.error(`${VERB}: Front Desk unreachable: ${detail}`);
       return 1;
     }
     if (!record) {
-      output.error(`${VERB}: no bd record matching '${resolved.id}'`);
+      output.error(`${VERB}: no record matching '${resolved.id}'`);
       return 1;
     }
     const refNumber = extractIssueNumber(record.externalRef);

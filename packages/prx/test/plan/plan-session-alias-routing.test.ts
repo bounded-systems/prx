@@ -48,18 +48,6 @@ describe("plan-session vs session-open alias routing (ai-home-f2lcz)", () => {
     );
   });
 
-  test("`prx plan session GH-456 --create --from=beads` carries the source through to session-plan", () => {
-    // GH-2089 wired beads as a first-class --from value. Pin that path here
-    // so any regression of the print-default + beads-source composition is
-    // caught at the parser layer (no need to spin up bd state to detect it).
-    const parsed = parseCommand(["plan", "session", "GH-456", "--create", "--from=beads"]);
-    expect(parsed.command).toBe("session-plan");
-    if (parsed.command !== "session-plan") return;
-    expect(parsed.create).toBe(true);
-    expect(parsed.from).toBe("beads");
-    expect(parsed.interactive).toBe(false);
-  });
-
   test("`prx plan session GH-456 --interactive` switches off the print default at the parser", () => {
     // Sanity-check the opt-in: the canonical exposes --interactive as the
     // way to drop the print default. Pinning this complements the alias

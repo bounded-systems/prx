@@ -25,7 +25,11 @@ describe("createBroker", () => {
   test("caches: a second ensure() within margin does not re-mint", async () => {
     let mints = 0;
     const broker = createBroker(CONFIG, {
-      mint: mintReturning(async () => ({ token: `t${++mints}`, expiresAt: EXPIRES, permissions: {} })),
+      mint: mintReturning(async () => ({
+        token: `t${++mints}`,
+        expiresAt: EXPIRES,
+        permissions: {},
+      })),
       now: () => T0,
     });
     const a = await broker.ensure();
@@ -57,7 +61,11 @@ describe("createBroker", () => {
     let mints = 0;
     let now = T0;
     const broker = createBroker(CONFIG, {
-      mint: mintReturning(async () => ({ token: `t${++mints}`, expiresAt: EXPIRES, permissions: {} })),
+      mint: mintReturning(async () => ({
+        token: `t${++mints}`,
+        expiresAt: EXPIRES,
+        permissions: {},
+      })),
       now: () => now,
     });
     await broker.ensure();
@@ -83,7 +91,11 @@ describe("createBroker", () => {
   test("reset() drops the cache and forces a re-mint", async () => {
     let mints = 0;
     const broker = createBroker(CONFIG, {
-      mint: mintReturning(async () => ({ token: `t${++mints}`, expiresAt: EXPIRES, permissions: {} })),
+      mint: mintReturning(async () => ({
+        token: `t${++mints}`,
+        expiresAt: EXPIRES,
+        permissions: {},
+      })),
       now: () => T0,
     });
     await broker.ensure();

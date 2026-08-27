@@ -24,7 +24,8 @@
       "Bash(bd list:*)",
       "Bash(bd show:*)",
       "Bash(bd blocked:*)",
-      "Bash(bd memories:*)"
+      "Bash(bd memories:*)",
+      "Bash(bash .claude/org-repair.sh)"
     ],
     "deny": [
       "Bash(rm -rf:*)",

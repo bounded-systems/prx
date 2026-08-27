@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-  DEFAULT_PROVIDER_LEASE_SECONDS,
-  ProviderRegistry,
-} from "../../src/concierge/registry.ts";
+import { DEFAULT_PROVIDER_LEASE_SECONDS, ProviderRegistry } from "../../src/concierge/registry.ts";
 
 describe("ProviderRegistry", () => {
   test("register returns the lease ttl and makes the provider live", () => {

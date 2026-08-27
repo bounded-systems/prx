@@ -17,7 +17,12 @@ const baseGrant: DoorGrant = {
 
 const AUDIENCE = "claude-room";
 
-type Resp = { id: string; ok: boolean; result?: unknown; error?: { code: string; message: string } };
+type Resp = {
+  id: string;
+  ok: boolean;
+  result?: unknown;
+  error?: { code: string; message: string };
+};
 
 function send(port: number, req: unknown): Promise<Resp> {
   return new Promise((resolve, reject) => {
@@ -50,7 +55,9 @@ describe("FORGE_D_CAVEAT_VERIFIERS (unit)", () => {
   test("repos: satisfied only when every requested repo is in the OR-set", () => {
     const grant = attenuate(baseGrant, ["repos=o/a,o/b"]);
     expect(checkCaveats(grant, { repositories: ["o/a"] }, FORGE_D_CAVEAT_VERIFIERS).ok).toBe(true);
-    expect(checkCaveats(grant, { repositories: ["o/a", "o/b"] }, FORGE_D_CAVEAT_VERIFIERS).ok).toBe(true);
+    expect(checkCaveats(grant, { repositories: ["o/a", "o/b"] }, FORGE_D_CAVEAT_VERIFIERS).ok).toBe(
+      true,
+    );
     expect(checkCaveats(grant, { repositories: ["o/c"] }, FORGE_D_CAVEAT_VERIFIERS).ok).toBe(false);
     // omission is not a bypass — requesting "everything" when narrowed is denied.
     expect(checkCaveats(grant, {}, FORGE_D_CAVEAT_VERIFIERS).ok).toBe(false);
@@ -58,13 +65,19 @@ describe("FORGE_D_CAVEAT_VERIFIERS (unit)", () => {
 
   test("perms: satisfied only when every requested key:value pair is in the OR-set", () => {
     const grant = attenuate(baseGrant, ["perms=contents:read"]);
-    expect(checkCaveats(grant, { permissions: { contents: "read" } }, FORGE_D_CAVEAT_VERIFIERS).ok).toBe(true);
-    expect(checkCaveats(grant, { permissions: { contents: "write" } }, FORGE_D_CAVEAT_VERIFIERS).ok).toBe(false);
+    expect(
+      checkCaveats(grant, { permissions: { contents: "read" } }, FORGE_D_CAVEAT_VERIFIERS).ok,
+    ).toBe(true);
+    expect(
+      checkCaveats(grant, { permissions: { contents: "write" } }, FORGE_D_CAVEAT_VERIFIERS).ok,
+    ).toBe(false);
     expect(checkCaveats(grant, {}, FORGE_D_CAVEAT_VERIFIERS).ok).toBe(false);
   });
 
   test("no caveats: any request passes (unattenuated grant)", () => {
-    expect(checkCaveats(baseGrant, { repositories: ["anything"] }, FORGE_D_CAVEAT_VERIFIERS).ok).toBe(true);
+    expect(
+      checkCaveats(baseGrant, { repositories: ["anything"] }, FORGE_D_CAVEAT_VERIFIERS).ok,
+    ).toBe(true);
     expect(checkCaveats(baseGrant, {}, FORGE_D_CAVEAT_VERIFIERS).ok).toBe(true);
   });
 });

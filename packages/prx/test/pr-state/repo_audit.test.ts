@@ -3,8 +3,17 @@
 
 import { describe, expect, test } from "bun:test";
 
-import type { BeadsWorkspaceMode } from "../../src/beads/workspace_mode.ts";
 import type { LocalRepo, RepoInventory } from "../../src/pr-state/repos.ts";
+
+// GH-1012: the pure `.beads/` disk-shape classification (formerly imported
+// from `../../src/beads/workspace_mode.ts`, now deleted with the bd machinery)
+// is inlined here to mirror the unexported shape `repo_audit.ts` classifies on.
+type BeadsWorkspaceMode =
+  | { kind: "none" }
+  | { kind: "embedded"; doltDir: string }
+  | { kind: "per_project"; doltDir: string }
+  | { kind: "shared_server"; sharedDir: string }
+  | { kind: "ambiguous"; details: string };
 import {
   auditRegisteredRepos,
   formatRepoAudit,

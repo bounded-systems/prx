@@ -49,7 +49,10 @@ describe("parsePolicedCommand (prx-g88.2)", () => {
       tool: "git",
       subcommand: "push",
     });
-    expect(parsePolicedCommand("gh -R o/r pr merge 9")).toEqual({ tool: "gh", subcommand: "merge" });
+    expect(parsePolicedCommand("gh -R o/r pr merge 9")).toEqual({
+      tool: "gh",
+      subcommand: "merge",
+    });
     expect(parsePolicedCommand("gh --repo o/r issue create")).toEqual({
       tool: "gh",
       subcommand: "create",
@@ -143,13 +146,19 @@ describe("decideAgentToolCall — prx-w1v fail-closed parsing", () => {
       true,
     );
     // a read with a leading option stays allowed for a git-capable role
-    expect(decideAgentToolCall({ agentType: "reviewer", command: "git -C /repo status" }).allow).toBe(
-      true,
-    );
+    expect(
+      decideAgentToolCall({ agentType: "reviewer", command: "git -C /repo status" }).allow,
+    ).toBe(true);
   });
 
   test("an unparseable policed command fails closed for policy roles", () => {
-    for (const command of ["prx tools git", "prx tools git --subcommand", "git", "git -C /repo", "gh -R o/r"]) {
+    for (const command of [
+      "prx tools git",
+      "prx tools git --subcommand",
+      "git",
+      "git -C /repo",
+      "gh -R o/r",
+    ]) {
       const d = decideAgentToolCall({ agentType: "reviewer", command });
       expect(d.allow, `"${command}" should fail closed`).toBe(false);
       expect(d.reason).toContain("prx-w1v");
@@ -164,9 +173,9 @@ describe("decideAgentToolCall — prx-w1v fail-closed parsing", () => {
 
   test("out of scope: main session + unknown subagents still pass through", () => {
     expect(decideAgentToolCall({ command: "prx tools git" }).allow).toBe(true);
-    expect(
-      decideAgentToolCall({ agentType: "some-other-agent", command: "git -C /x" }).allow,
-    ).toBe(true);
+    expect(decideAgentToolCall({ agentType: "some-other-agent", command: "git -C /x" }).allow).toBe(
+      true,
+    );
   });
 
   test("non-policed unparseable still passes (not our boundary)", () => {

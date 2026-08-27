@@ -323,13 +323,21 @@ describe("cli-format — repo origins", () => {
     const inventory: RepoInventory = {
       roots: [],
       repos: [
-        repo("b-repo", [{ name: "origin", url: "https://github.com/b/repo.git", githubRepo: "b/repo" }]),
-        repo("a-repo", [{ name: "origin", url: "https://github.com/a/repo.git", githubRepo: "a/repo" }]),
+        repo("b-repo", [
+          { name: "origin", url: "https://github.com/b/repo.git", githubRepo: "b/repo" },
+        ]),
+        repo("a-repo", [
+          { name: "origin", url: "https://github.com/a/repo.git", githubRepo: "a/repo" },
+        ]),
         // Duplicate origin URL (e.g. two worktrees of the same repo) collapses.
-        repo("b-repo-dup", [{ name: "origin", url: "https://github.com/b/repo.git", githubRepo: "b/repo" }]),
+        repo("b-repo-dup", [
+          { name: "origin", url: "https://github.com/b/repo.git", githubRepo: "b/repo" },
+        ]),
         // Only a "local" buffer remote, no real origin — must be excluded, not
         // fall back to it the way `primaryRemote` would.
-        repo("local-only", [{ name: "local", url: "file:///buffer/local-only.git", githubRepo: null }]),
+        repo("local-only", [
+          { name: "local", url: "file:///buffer/local-only.git", githubRepo: null },
+        ]),
         // No remotes at all.
         repo("no-remotes", []),
       ],

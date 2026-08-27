@@ -35,7 +35,10 @@ export type KeeperGrantGate = DoorGrantGate;
  * `keeper` door, audience-bound, unexpired, signed by a known issuer key. A unix
  * caller never reaches this (kernel-authenticated).
  */
-export function buildKeeperAuthorizer(gate: KeeperGrantGate, now?: () => number): RequestAuthorizer {
+export function buildKeeperAuthorizer(
+  gate: KeeperGrantGate,
+  now?: () => number,
+): RequestAuthorizer {
   return buildDoorAuthorizer(KEEPER_DOOR, gate, now);
 }
 

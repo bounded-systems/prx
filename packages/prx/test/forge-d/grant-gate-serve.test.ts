@@ -9,12 +9,18 @@ import { runForgeDServe, type ForgeDServer } from "../../src/forge-d/daemon.ts";
 
 const AUDIENCE = "claude-room";
 
-type Resp = { id: string; ok: boolean; result?: unknown; error?: { code: string; message: string } };
+type Resp = {
+  id: string;
+  ok: boolean;
+  result?: unknown;
+  error?: { code: string; message: string };
+};
 
 /** Minimal newline-JSON client (TCP or unix) — the wire createDoorHandlers speaks. */
 function send(target: { port: number } | { path: string }, req: unknown): Promise<Resp> {
   return new Promise((resolve, reject) => {
-    const opts = "port" in target ? { host: "127.0.0.1", port: target.port } : { path: target.path };
+    const opts =
+      "port" in target ? { host: "127.0.0.1", port: target.port } : { path: target.path };
     const c = connect(opts, () => c.write(JSON.stringify(req) + "\n"));
     let buf = "";
     c.on("data", (d: Buffer) => {

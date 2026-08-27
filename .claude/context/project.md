@@ -6,7 +6,7 @@
 # prx — project context for Claude
 
 prx — the agent-run PR contract / work-unit CLI. A Bun + TypeScript monorepo,
-source-available under `PolyForm-Noncommercial-1.0.0`.
+licensed under `MIT`.
 
 - `packages/prx/` — the CLI
 - `packages/*` — the `@bounded-systems/*` libraries it builds on
@@ -65,6 +65,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Capability-scoped DCI — a bounded interaction space for scout (spike) — `docs/spikes/scout-bounded-interaction-space.md`
 - Spike — eval-gated prompt evolution as a signed derivation — `docs/spikes/signed-prompt-evolution/README.md`
 - Spike — signed ref-snapshot + artifact provenance (OCAP-grade repo identity) — `docs/spikes/signed-ref-snapshot/README.md`
+- Token custody and the call trail: does custody move into the prx proxy? (ADR) — `docs/spikes/token-custody-and-trail-build-vs-adopt.md`
 - Two-clock policy — Netflix's slow-planner / fast-executor split, mapped to prx (spike) — `docs/spikes/two-clock-policy.md`
 - prx — value props (forcing-function-backed) — `docs/value-props.md`
 - @bounded-systems/prx-config — `packages/prx-config/README.md`
@@ -72,6 +73,7 @@ source-available under `PolyForm-Noncommercial-1.0.0`.
 - Security Policy — `SECURITY.md`
 - spike: effect-typed CUE spec unifying the prx actor-model invariants (+ Rule 4, MCP-as-projection) — `spec/README.md`
 - prx — status — `STATUS.md`
+- Threat model — `THREATS.md`
 
 ## Commands & workflow
 

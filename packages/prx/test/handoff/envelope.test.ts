@@ -2,10 +2,7 @@
 
 import { describe, expect, test } from "bun:test";
 
-import {
-  parseHandoffEnvelope,
-  HANDOFF_TARGET_ACTOR_VALUES,
-} from "@bounded-systems/machine-schema";
+import { parseHandoffEnvelope, HANDOFF_TARGET_ACTOR_VALUES } from "@bounded-systems/machine-schema";
 import type {
   HandoffDenialReason,
   HandoffStatus,

@@ -51,7 +51,7 @@ secret) into the prx launcher:
 programs.prx = {
   enable = true;
   provenance = {
-    enable = true;
+    enable = true;                                     # on by default (#433)
     masterFile = "/run/agenix/prx-provenance-master";  # the decrypted secret
     requireSigned = true;                              # fail-closed (default)
   };
@@ -61,6 +61,15 @@ programs.prx = {
 That sets `PRX_PROVENANCE_MASTER_FILE`, `PRX_PROVENANCE_KEY=dev` (per-actor), and
 `PRX_REQUIRE_SIGNED_DERIVATIONS=1`. Without home-manager, export those three
 yourself.
+
+`provenance.enable` **defaults to true** (#433). The signing gates are fail-closed
+wherever a provenance ledger is in scope — `prx ci` and an in-pipeline
+`scout read` exit 65 when no signer is configured — so the signer has to reach a
+deployment together with the binary that enforces it, not after it. Left at the
+default with no `masterFile`, prx signs against the zero-config persisted dev
+master (the **bootstrap** posture): it signs rather than fails, and
+`prx provenance status` reports the steps up to the production posture above.
+Set `enable = false` to opt out.
 
 ### 4. Publish the trust map + verify
 

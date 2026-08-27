@@ -114,7 +114,8 @@ export function runForgeDServe(options: ForgeDServeOptions): Promise<ForgeDServe
   const { socketPath, pidfile, deps } = options;
   const target = listenTarget(socketPath);
   const onTcp = !("unix" in target);
-  const log = options.log ?? ((level: string, msg: string) => console.error(`forge-d ${level}: ${msg}`));
+  const log =
+    options.log ?? ((level: string, msg: string) => console.error(`forge-d ${level}: ${msg}`));
 
   // The signed-grant gate is enforced ONLY on the TCP edge — a unix peer is
   // kernel-authenticated (held-ref = authority). A credential door on TCP with no

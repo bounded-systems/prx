@@ -14,13 +14,57 @@
  */
 
 import { localWorkspacePrefixForCwd } from "../pr-state/repos.ts";
-import {
-  detectNotionId,
-  NOTION_UUID_RE,
-  TASK_ID_SHAPE_RE,
-  ScoutNotionError,
-  type DetectedNotionId,
-} from "../scout/notion.ts";
+
+// Notion page UUID shape — accepts hyphenated and unhyphenated 32-hex.
+// Formerly lived in `src/scout/notion.ts` (removed in GH-1012 alongside the
+// bd machinery); the pure parsing helpers are pure string logic with no bd
+// dependency, so they are kept here so issue-read verbs continue to route
+// Notion-shaped ids without a bd backend.
+export const NOTION_UUID_RE =
+  /^([0-9a-f]{8})-?([0-9a-f]{4})-?([0-9a-f]{4})-?([0-9a-f]{4})-?([0-9a-f]{12})$/i;
+
+// Generic Task-ID shape (`PROJ-5779`, `OPS-42`, …). The configured
+// canonical_id_pattern is checked separately when present.
+export const TASK_ID_SHAPE_RE = /^[A-Z][A-Z0-9]+-\d+$/;
+
+export type DetectedNotionId = { kind: "uuid"; value: string } | { kind: "task_id"; value: string };
+
+export class ScoutNotionError extends Error {
+  readonly code: string;
+  constructor(message: string, code: string) {
+    super(message);
+    this.name = "ScoutNotionError";
+    this.code = code;
+  }
+}
+
+export function detectNotionId(input: string, canonicalIdPattern?: RegExp): DetectedNotionId {
+  if (typeof input !== "string" || input.length === 0) {
+    throw new ScoutNotionError("id must not be empty", "MISSING_ID");
+  }
+  const trimmed = input.trim();
+  if (trimmed.length === 0) {
+    throw new ScoutNotionError("id must not be empty", "MISSING_ID");
+  }
+  const m = trimmed.match(NOTION_UUID_RE);
+  if (m) {
+    const [, a, b, c, d, e] = m;
+    return { kind: "uuid", value: `${a}-${b}-${c}-${d}-${e}`.toLowerCase() };
+  }
+  if (TASK_ID_SHAPE_RE.test(trimmed)) {
+    if (canonicalIdPattern && !canonicalIdPattern.test(trimmed)) {
+      throw new ScoutNotionError(
+        `id ${trimmed} does not match the configured canonical_id_pattern`,
+        "INVALID_ID",
+      );
+    }
+    return { kind: "task_id", value: trimmed };
+  }
+  throw new ScoutNotionError(
+    `id ${input} is neither a Notion page UUID nor a configured Task-ID`,
+    "INVALID_ID",
+  );
+}
 
 export type IssueResolvedId =
   | { kind: "gh"; number: number; repo?: string }

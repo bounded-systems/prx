@@ -107,5 +107,10 @@ export async function applyBrokeredGhToken(
 
   const t = await broker.ensure(); // throws on mint failure — fail-closed
   setEnv("GH_TOKEN", t.token);
-  return { applied: true, source: config.source, expiresAt: t.expiresAt, permissions: t.permissions };
+  return {
+    applied: true,
+    source: config.source,
+    expiresAt: t.expiresAt,
+    permissions: t.permissions,
+  };
 }

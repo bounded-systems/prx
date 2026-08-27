@@ -9,7 +9,6 @@
  */
 
 import { processEnv } from "@bounded-systems/env";
-import type { ScoutNotionResult } from "../scout/notion.ts";
 import type { execGh, GhExecResult } from "@bounded-systems/gh";
 import type { BeadsRecord } from "../triage/triage.ts";
 import { IssueResolveError } from "./resolver.ts";
@@ -29,8 +28,7 @@ export type GhIssueViewPayload = {
 
 export type IssueViewRender =
   | { source: "gh"; payload: GhIssueViewPayload }
-  | { source: "bd"; payload: BeadsRecord }
-  | { source: "notion"; payload: ScoutNotionResult };
+  | { source: "bd"; payload: BeadsRecord };
 
 export function viewGhIssue(
   resolved: { number: number; repo?: string },
@@ -112,9 +110,6 @@ export function formatIssueViewRender(render: IssueViewRender, format: "plain" |
   if (render.source === "gh") {
     return formatGhPayloadPlain(render.payload);
   }
-  if (render.source === "notion") {
-    return formatNotionResultPlain(render.payload);
-  }
   return formatBdRecordPlain(render.payload);
 }
 
@@ -142,21 +137,6 @@ export function formatGhPayloadPlain(payload: GhIssueViewPayload): string {
     const body = (c.body ?? "").split(/\r?\n/).map((l) => `  ${l}`);
     lines.push(...body);
   }
-  return lines.join("\n");
-}
-
-export function formatNotionResultPlain(result: ScoutNotionResult): string {
-  const lines = [
-    `title:    ${result.title}`,
-    `uuid:     ${result.uuid}`,
-    `task_id:  ${result.task_id ?? "(none)"}`,
-    `state:    ${result.state}`,
-    `url:      ${result.url ?? "(none)"}`,
-    `gh_issue: ${result.gh_issue !== null ? `GH-${result.gh_issue}` : "(none)"}`,
-    `bd_id:    ${result.bd_id ?? "(none)"}`,
-    "",
-    result.body && result.body.length > 0 ? result.body : "(no body)",
-  ];
   return lines.join("\n");
 }
 

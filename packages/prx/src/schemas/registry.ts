@@ -34,7 +34,6 @@ import { CODE_HEALTH_SCHEMA_NAME, CodeHealthReport } from "../health/model.ts";
 import { buildIntakeJsonSchema } from "../intake/schemas/export_json.ts";
 import { INTAKE_BODY_SCHEMA_TYPES } from "../intake/schemas/index.ts";
 import { README_MODEL_SCHEMA_NAME, ReadmeModel } from "../readme/model.ts";
-import { scoutNotionResultSchema } from "../scout/notion.ts";
 import {
   WORKSPACE_INPUT_SCHEMAS,
   WORKSPACE_OUTPUT_SCHEMAS,
@@ -124,14 +123,6 @@ export function schemaArtifacts(): SchemaArtifact[] {
   for (const type of INTAKE_BODY_SCHEMA_TYPES) {
     out.push(at(`schemas/intake/${type}.json`, ser(buildIntakeJsonSchema(type))));
   }
-
-  // scout
-  out.push(
-    at(
-      "schemas/scout/notion.json",
-      ser(toJsonSchemaArtifact(scoutNotionResultSchema, "scout_notion_result")),
-    ),
-  );
 
   // workspace — input + output per verb
   for (const verb of WORKSPACE_VERBS) {

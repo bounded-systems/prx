@@ -1,0 +1,19 @@
+{
+  "node": "prx",
+  "visibility": "public",
+  "provides": [],
+  "consumes": [],
+  "descriptor": {
+    "tagline": "the agent-run PR contract / work-unit CLI",
+    "what": "The agent-run work-unit CLI: capability-scoped agents driving each work unit through one signed, content-addressed pipeline to a merged PR — git-writes signed by a capability-gated actor.",
+    "role": { "hotel": "bellhop", "kind": "cli" },
+    "status": "Partial",
+    "proof": { "suite": "bun test", "valueProps": "./packages/prx/src/value_props.ts" },
+    "positioning": "capability-scoped agents to one signed, content-addressed pipeline",
+    "links": {
+      "repo": "https://github.com/bounded-systems/prx",
+      "status": "STATUS.md",
+      "valueProps": "docs/value-props.md"
+    }
+  }
+}

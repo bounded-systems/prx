@@ -612,7 +612,10 @@ describe("runKeeperCommitTree (GH-2381)", () => {
 
   test("prx-e7cl: signingKeyPath injects PRX_COMMIT_SIGNING_KEY into the git env", async () => {
     const seen: Array<{ sub: string; env?: Record<string, string | undefined> | undefined }> = [];
-    const git = ((opts: GitExecOptions, env?: Record<string, string | undefined>): GitExecResult => {
+    const git = ((
+      opts: GitExecOptions,
+      env?: Record<string, string | undefined>,
+    ): GitExecResult => {
       seen.push({ sub: opts.subcommand, env });
       if (opts.subcommand === "commit-tree") {
         return { exitCode: 0, stdout: `${COMMIT_OID}\n`, stderr: "", policy: null };

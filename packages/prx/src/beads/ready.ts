@@ -16,7 +16,11 @@
 //   - NextWorkResultSchema    — the picker's portfolio output.
 
 import { z } from "zod";
-import { execBd, type BdExecOptions } from "@bounded-systems/bd";
+import { processEnv } from "@bounded-systems/env";
+// Value import is safe despite the frontdesk-source ↔ ready cycle: both sides
+// only reference each other inside function bodies (ESM live bindings), never
+// at module-init time.
+import { frontDeskReady } from "./frontdesk-source.ts";
 
 // bd issue type strings observed in `bd ready --json` (`issue_type` field).
 // Kept as an open string so a new bd type doesn't break parsing — the picker
@@ -178,22 +182,18 @@ export type NextWorkResult = z.infer<typeof NextWorkResultSchema>;
 // Query layer
 // ---------------------------------------------------------------------------
 
-// A runner of `bd` subcommands. Mirrors the `BdGithubRunner` injection
-// pattern in `src/tools/bd.ts` so tests don't need a real `bd` binary.
-export type BdRunner = (opts: BdExecOptions) => {
-  exitCode: number;
-  stdout: string;
-  stderr: string;
-};
-
-export const defaultBdRunner: BdRunner = (opts) => {
-  const result = execBd(opts);
-  return { exitCode: result.exitCode, stdout: result.stdout, stderr: result.stderr };
-};
+export type ReadySource = "frontdesk" | "bd";
 
 export type QueryBdReadyOptions = {
   cwd: string;
-  runner?: BdRunner | undefined;
+  /**
+   * The ready source. Defaults to `PRX_READY_SOURCE` (env), then `"frontdesk"`.
+   * GH-1010 repointed the ready queue onto Front Desk (the verified WSJF
+   * scheduler, read off the mirror — zero GitHub API).
+   */
+  source?: ReadySource | undefined;
+  /** Injectable Front Desk reader (tests) — defaults to `frontDeskReady`. */
+  frontDesk?: ((opts: { cwd: string }) => QueryBdReadyResult) | undefined;
 };
 
 export type QueryBdReadyResult = {
@@ -202,101 +202,22 @@ export type QueryBdReadyResult = {
   raw: string;
 };
 
-/**
- * Read `bd ready --explain --json` into typed records. Uses `--explain` so we
- * get both ready and blocked buckets (with inline `blocked_by` edges) in one
- * round-trip — avoids a second `bd dep list` per item for the I-BD1 gate.
- *
- * Returns empty buckets when bd has no ready work AND no blocked items; this
- * is distinct from a bd failure, which throws.
- */
-export function queryBdReady(opts: QueryBdReadyOptions): QueryBdReadyResult {
-  const runner = opts.runner ?? defaultBdRunner;
-  const result = runner({
-    subcommand: "ready",
-    args: ["--explain", "--json"],
-    cwd: opts.cwd,
-  });
-
-  if (result.exitCode !== 0) {
-    throw new Error(
-      `bd ready --explain --json failed (exit ${result.exitCode}): ${result.stderr.trim()}`,
-    );
-  }
-
-  const trimmed = result.stdout.trim();
-  if (trimmed.length === 0) {
-    return { ready: [], blocked: [], raw: result.stdout };
-  }
-
-  const parsed: unknown = JSON.parse(trimmed);
-
-  // bd has two output shapes:
-  //   - `bd ready --json`            → array of ready records (legacy)
-  //   - `bd ready --explain --json`  → { ready: [], blocked: [] }
-  // Accept both so callers/tests can hand either shape.
-  if (Array.isArray(parsed)) {
-    const ready = parsed.map((r) => BdReadyCandidateSchema.parse(r));
-    return { ready, blocked: [], raw: result.stdout };
-  }
-
-  const envelope = BdReadyExplainEnvelopeSchema.parse(parsed);
-  return { ready: envelope.ready, blocked: envelope.blocked, raw: result.stdout };
+/** Resolve the ready source: explicit opt → PRX_READY_SOURCE → "frontdesk". */
+export function resolveReadySource(explicit?: ReadySource): ReadySource {
+  if (explicit) return explicit;
+  return processEnv().PRX_READY_SOURCE === "bd" ? "bd" : "frontdesk";
 }
 
-export type QueryBdGraphOptions = {
-  cwd: string;
-  runner?: BdRunner;
-  /** Issue IDs to enumerate edges for. One `bd dep list <id> --json` per id. */
-  ids: string[];
-};
-
 /**
- * Read typed dep edges for a set of bd IDs via `bd dep list <id> --json`.
+ * Read the ready queue into typed records from Front Desk (GH-1010).
  *
- * One round-trip per id — bd's `dep list` is per-issue. For the picker we
- * usually don't need this (`bd ready --explain --json` already carries the
- * blocked_by edges inline); this query exists for the projection writer and
- * future graph-shape consumers.
- *
- * Edges are normalized to a uniform `BdDepEdge` shape with `from` = the
- * queried id and `to` = the related id; `kind` is the bd-emitted
- * `dependency_type`.
+ * Front Desk yields both ready and blocked buckets (with inline `blocked_by`
+ * edges) in one shot; empty buckets mean no work (distinct from a failure,
+ * which throws).
  */
-export function queryBdGraph(opts: QueryBdGraphOptions): BdDepEdge[] {
-  const runner = opts.runner ?? defaultBdRunner;
-  const edges: BdDepEdge[] = [];
-
-  for (const id of opts.ids) {
-    const result = runner({
-      subcommand: "dep",
-      args: ["list", id, "--json"],
-      cwd: opts.cwd,
-    });
-    if (result.exitCode !== 0) {
-      throw new Error(
-        `bd dep list ${id} --json failed (exit ${result.exitCode}): ${result.stderr.trim()}`,
-      );
-    }
-    const trimmed = result.stdout.trim();
-    if (trimmed.length === 0) continue;
-    const rows: unknown = JSON.parse(trimmed);
-    if (!Array.isArray(rows)) {
-      throw new Error(`bd dep list ${id} --json did not return an array`);
-    }
-    for (const row of rows) {
-      const parsed = z
-        .object({
-          id: z.string().min(1),
-          dependency_type: BdDepKind,
-        })
-        .passthrough()
-        .parse(row);
-      edges.push({ from: id, to: parsed.id, kind: parsed.dependency_type });
-    }
-  }
-
-  return edges;
+export function queryBdReady(opts: QueryBdReadyOptions): QueryBdReadyResult {
+  const frontDesk = opts.frontDesk ?? frontDeskReady;
+  return frontDesk({ cwd: opts.cwd });
 }
 
 /**

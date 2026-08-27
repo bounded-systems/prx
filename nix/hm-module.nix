@@ -163,7 +163,30 @@ in
     };
 
     provenance = {
-      enable = lib.mkEnableOption "prx provenance signing (per-actor, master-derived, enforced)";
+      # Default-ON since #433: the signer must reach a deployment WITH (not after)
+      # the binary that enforces it. `prx ci` and an in-pipeline `scout read` are
+      # fail-closed wherever a provenance ledger is in scope and no signer is
+      # configured (#396/#427, `ciSigningDecision`), so a deployment that picked up
+      # the signing release with this defaulted off would have started failing at
+      # exit 65 with no local change — the binary and the module ship from this
+      # same flake, so flipping the default here closes that window by
+      # construction. `masterFile = null` signs against the zero-config persisted
+      # dev master (the bootstrap posture) rather than failing, and
+      # `prx provenance status` nudges from there to the operator-master
+      # production posture.
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        example = false;
+        description = ''
+          Whether to configure prx provenance signing (per-actor, master-derived,
+          enforced). On by default: the signing gates are fail-closed wherever a
+          provenance ledger is in scope, so a deployment without a signer would
+          fail `prx ci` rather than skip it. With `masterFile = null` this signs
+          against the zero-config persisted dev master — the bootstrap posture, no
+          secret required. Set to false to opt out.
+        '';
+      };
 
       masterFile = lib.mkOption {
         type = lib.types.nullOr lib.types.str;

@@ -17,7 +17,8 @@
 //     Reads a JSON fixture from disk (the original v0 demo path; kept
 //     verbatim as the regression net for the engine tests).
 //   - default (no `--fixture`) — live mode. Reads `RawStateV1` for the
-//     current unit via `buildDomainState`, all beads via `loadAllBeads`,
+//     current unit via `buildDomainState`, all work items from Front Desk
+//     via `loadAllBeadsViaCli`,
 //     and the transition log from `.prx/transitions.jsonl`. Synthetic
 //     inputs (`actorAllowedInPhase`, `scopeOwns`, `changedTree`) have
 //     no live producer — they stay empty, so the `eligibility` and
@@ -51,7 +52,8 @@ import {
 import { formatDerivationTree } from "./rules/provenance.ts";
 import { buildDomainState as defaultBuildDomainState } from "../pr-state/domain_state.ts";
 import { readTransitionLog as defaultReadTransitionLog } from "../pr-state/transition_log.ts";
-import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../triage/triage.ts";
+import { type BeadsRecord } from "../triage/triage.ts";
+import { loadAllBeadsViaCli as defaultLoadAllBeads } from "../triage/beads-daemon-loader.ts";
 
 export type DeriveVerb = "ready" | "drift" | "eligible" | "why" | "dump-facts";
 

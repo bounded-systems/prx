@@ -1,20 +1,34 @@
 # TEMPLATE — per-repo event-driven add (the instant half of the hybrid).
 #
-# Drop this into EACH org repo as `.github/workflows/front-desk-add.yml`.
-# It fires the moment an issue/PR is opened and adds it to Front Desk, so cards
-# land instantly; the central sweep (gh-project-room) is the backstop.
+# THIS FILE IS THE CANONICAL SOURCE. reroll-front-desk-add.sh rolls it into EACH
+# org repo as `.github/workflows/front-desk-add.yml`, and
+# audit-front-desk-add.sh checks the deployed copies against it. It fires the
+# moment an issue/PR is opened and adds it to Front Desk, so cards land
+# instantly; the central sweep (gh-project-room) is the backstop.
 #
 # Auth = the Front Desk *door*, brokered (prx-26bq): the job proves its identity
 # with GitHub Actions OIDC and exchanges it at the cf-token-broker for a
 # least-privilege App installation token — NO App private key in the repo. The
 # broker holds the key; any bounded-systems repo may mint the `front-desk` app.
 # Configure ONCE as an ORG-level variable so every repo's copy switches on:
-#   - org variable  FRONT_DESK_BROKER_URL   (the broker base URL — not a secret)
+#   - org variable  CF_BROKER_URL   (the broker base URL — not a secret)
 # (See infra/cloudflare/broker + bounded-systems/.github → broker-gh-token.)
 #
 # Until that var is set, the job FAILS OPEN: the credentialed steps are gated on
-# FRONT_DESK_BROKER_URL and skipped, so the `add` check passes instead of dying
-# on every PR org-wide. The central sweep (front-desk-sync.yml) is the backstop.
+# CF_BROKER_URL and skipped, so the `add` check passes instead of dying on every
+# PR org-wide. The central sweep (front-desk-sync.yml) is the backstop.
+#
+# PORTED TO THE BROKER 2026-08-07 (#255/#261). Until then this template
+# documented the App-key model — `FRONT_DESK_CLIENT_ID` + an org-level
+# `FRONT_DESK_APP_PRIVATE_KEY` — while `bounded-systems/.github`'s DEPLOYED copy
+# had already moved to the broker and was running green. The canonical source and
+# the deployed copy disagreeing about the auth model is not a documentation nit:
+# the audit classifies every repo by grepping for this file's guard, so the stale
+# sentinel was certifying key-path copies as current and would have marked the
+# one correct copy in the org as stale. This file now matches what `.github`
+# deploys.
+#
+# Pin both actions to a full commit SHA before adopting (hardening §4).
 name: front-desk-add
 
 on:
@@ -31,26 +45,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Fail OPEN when the broker isn't configured yet: an unset org var
-      # FRONT_DESK_BROKER_URL means the mint (and thus the job) would fail on
+      # CF_BROKER_URL means the mint (and thus the job) would fail on
       # every PR. Skip the credentialed steps and let the job pass — the central
       # sweep (gh-project-room) is the backstop until the var is set.
       - name: broker not configured — skipping
-        if: ${{ vars.FRONT_DESK_BROKER_URL == '' }}
-        run: echo "FRONT_DESK_BROKER_URL unset; relying on the central sweep."
+        if: ${{ vars.CF_BROKER_URL == '' }}
+        run: echo "CF_BROKER_URL unset; relying on the central sweep."
       # Best-effort: front-desk-add must never red-flag a PR — the central sweep
       # is the backstop, so a transient mint/add failure (e.g. an installation
       # rate-limit burst) is non-fatal. continue-on-error on both steps; the add
       # is additionally gated on a non-empty token (claude-box #174 posture).
       - name: Mint Front Desk token via the OIDC broker
         id: app-token
-        if: ${{ vars.FRONT_DESK_BROKER_URL != '' }}
+        if: ${{ vars.CF_BROKER_URL != '' }}
         continue-on-error: true
-        uses: bounded-systems/.github/.github/actions/broker-gh-token@4a77867f40419ea5b38f3a3be7c481fa7e0eab84 # broker-gh-token (prx-26bq)
+        uses: bounded-systems/.github/.github/actions/broker-gh-token@d1b25e3bb48ba919f2af0f1ab83063a1d76d88d4 # broker-gh-token (prx-26bq), .github#109
         with:
           app: front-desk
-          broker-url: ${{ vars.FRONT_DESK_BROKER_URL }}
+          broker-url: ${{ vars.CF_BROKER_URL }}
       - name: Add to Front Desk
-        if: ${{ vars.FRONT_DESK_BROKER_URL != '' && steps.app-token.outputs.token != '' }}
+        if: ${{ vars.CF_BROKER_URL != '' && steps.app-token.outputs.token != '' }}
         continue-on-error: true
         uses: actions/add-to-project@244f685bbc3b7adfa8466e08b698b5577571133e # v1.0.2
         with:

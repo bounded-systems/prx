@@ -9,13 +9,9 @@
  * works against an immutable snapshot and {@link uowFresh} reports when the live
  * issue/bead has drifted from it — the Nix fixed-output-derivation pattern.
  *
- * The impure read is injected ({@link UowReader}); the default shells
- * `bd show <id> --json`. So the edge is fully testable without bd/gh.
+ * The impure read is injected ({@link UowReader}) by the caller (e.g. a
+ * Front-Desk/gh-backed reader). So the edge is fully testable without live I/O.
  */
-import type { CommandRunner } from "@bounded-systems/proc";
-
-import { bdCommandRunner } from "../../beadsd/bd-command-runner.ts";
-
 import { type Uow, uowSchema } from "../../machine/contracts/lifecycle_artifacts.ts";
 import {
   type ArtifactEdge,
@@ -36,14 +32,14 @@ export const intakeToTriage: ArtifactEdge<Uow> = defineEdge({
   schema: uowSchema,
 });
 
-/** A raw work-unit record as read from its impure home (bd / gh). */
+/** A raw work-unit record as read from its impure home (gh / Front Desk). */
 export interface RawUow {
   id: string;
   title: string;
   status: string;
 }
 
-/** Map a raw bd/gh record onto the typed uow contract (validates the status). */
+/** Map a raw gh/Front Desk record onto the typed uow contract (validates the status). */
 export function normalizeUow(raw: RawUow): Uow {
   return uowSchema.parse({ id: raw.id, title: raw.title, status: raw.status });
 }
@@ -51,39 +47,13 @@ export function normalizeUow(raw: RawUow): Uow {
 /** The injected impure read — the I/O half of the FOD fetcher. */
 export type UowReader = (unit: string) => Promise<RawUow> | RawUow;
 
-/**
- * Build the `bd show <id> --json` reader. `bd show` returns the unit plus its
- * dependency rows, so we select the row whose `id` matches `unit`. Routed
- * through the door-gated proc runner (`bdCommandRunner`, `check:false`) rather
- * than a raw subprocess — the no-ambient-authority architecture guard requires
- * it, and in the box profile the read routes through the beadsd door instead of
- * a local `bd`. `run` is injectable (defaults to the gated spawn) so the
- * bd-output parsing is testable without a live bd.
- */
-export function uowReaderWith(run: CommandRunner = bdCommandRunner): UowReader {
-  return (unit) => {
-    const r = run(["bd", "show", unit, "--json"], { check: false });
-    if (r.status !== 0) {
-      throw new Error(`bd show ${unit} failed: ${(r.stderr || r.stdout || "").trim()}`);
-    }
-    const parsed = JSON.parse(r.stdout) as unknown;
-    const rows = (Array.isArray(parsed) ? parsed : [parsed]) as Array<Record<string, unknown>>;
-    const row = rows.find((x) => x?.id === unit);
-    if (!row) throw new Error(`bd show ${unit}: no record with id=${unit}`);
-    return { id: String(row.id), title: String(row.title), status: String(row.status) };
-  };
-}
-
-/** Production default reader — the real `bd show` spawn. */
-export const defaultUowReader: UowReader = uowReaderWith();
-
 /** The FOD fetcher for a uow: impure read → normalized + validated. */
-export function uowFetcher(read: UowReader = defaultUowReader): Fetcher<Uow> {
+export function uowFetcher(read: UowReader): Fetcher<Uow> {
   return async (unit) => normalizeUow(await read(unit));
 }
 
 /** intake: pin the uow snapshot into the CAS (FOD) so triage can consume it. */
-export function pinUow(unit: string, read: UowReader = defaultUowReader) {
+export function pinUow(unit: string, read: UowReader) {
   return pinSource(intakeToTriage, unit, uowFetcher(read));
 }
 
@@ -92,7 +62,7 @@ export function consumeUow(unit: string) {
   return consumeArtifact(intakeToTriage, unit);
 }
 
-/** Is the pinned uow snapshot still fresh vs its live (bd/gh) source? */
-export function uowFresh(unit: string, read: UowReader = defaultUowReader) {
+/** Is the pinned uow snapshot still fresh vs its live (gh/Front Desk) source? */
+export function uowFresh(unit: string, read: UowReader) {
   return isFresh(intakeToTriage, unit, uowFetcher(read));
 }

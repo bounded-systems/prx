@@ -63,7 +63,6 @@ import {
   type BeadsInitSetupResult,
   type CloseSessionResult,
   type ParityChainApplyResult,
-  type RepairBdEntry,
   type SessionOpenCheckReport,
   VERB_HELP_SEE_ALSO,
   type WorkUnitChainCheckResult,
@@ -1031,7 +1030,7 @@ export function formatRepoAdd(result: RepoAddResult, format: "plain" | "json"): 
     `  default: ${result.defaultBranch}`,
     `  fetch refspec: ${result.fetchRefspecAdded ? "set (heads + tags + notes)" : "unchanged"}`,
     `  origin/HEAD: ${result.originHeadSet ? "set (git remote set-head --auto)" : "unchanged"}`,
-    `  bd workspace prefix: ${result.bdWorkspacePrefix}`,
+    `  bd workspace prefix: ${result.bdWorkspacePrefix} (${result.bdWorkspacePrefixSource})`,
     `  canonical: ${result.canonical}`,
   ];
   if (result.overlay) {
@@ -1614,21 +1613,6 @@ export function formatParityChainApplyResults(
   }
 
   return lines.join("\n");
-}
-
-export function formatRepairBdResults(entries: RepairBdEntry[], format: "plain" | "json"): string {
-  if (format === "json") {
-    return JSON.stringify(entries, null, 2);
-  }
-  if (entries.length === 0) {
-    return "repair-bd: no worktrees with .beads found";
-  }
-  return entries
-    .map(({ cwd, result }) => {
-      const tail = result.message ? ` — ${result.message}` : "";
-      return `${cwd}: ${result.status} (${result.durationMs}ms via ${result.command})${tail}`;
-    })
-    .join("\n");
 }
 
 export function formatChainsStatus(summary: ChainStatusResult, format: "plain" | "json"): string {

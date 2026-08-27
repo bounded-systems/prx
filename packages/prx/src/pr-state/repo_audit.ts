@@ -14,9 +14,80 @@
 
 import { z } from "zod";
 
-import { buildDoltRemoteUrl, parseGitOrigin } from "../beads/hydrate.ts";
-import type { BeadsWorkspaceMode } from "../beads/workspace_mode.ts";
 import type { LocalRepo, RepoInventory } from "./repos.ts";
+
+// GH-1012: the pure `.beads/` disk-shape classification (formerly
+// `../beads/workspace_mode.ts`) is the only bd-adjacent contract this
+// read-only projection still needs. The bd CLI machinery is gone; the shape
+// type is inlined here so the audit's arm classification keeps compiling and
+// behaving identically off the injected `classify` dep.
+type BeadsWorkspaceMode =
+  | { kind: "none" }
+  | { kind: "embedded"; doltDir: string }
+  | { kind: "per_project"; doltDir: string }
+  | { kind: "shared_server"; sharedDir: string }
+  | { kind: "ambiguous"; details: string };
+
+// GH-1012: pure git-origin → DoltHub URL helpers (formerly
+// `../beads/hydrate.ts`). No bd coupling — plain string parsing used to
+// surface a candidate `dolt_remote` in the audit row.
+type OriginComponents = {
+  host: string;
+  owner: string;
+  repo: string;
+};
+
+function parseGitOrigin(url: string): OriginComponents | null {
+  let host = "";
+  let path = "";
+
+  // git@HOST:OWNER/REPO[.git]
+  const sshMatch = url.match(/^git@([^:]+):(.+)$/);
+  if (sshMatch) {
+    host = sshMatch[1]!;
+    path = sshMatch[2]!;
+  }
+
+  // ssh://git@HOST[:PORT]/OWNER/REPO[.git]
+  if (!host) {
+    const sshUrlMatch = url.match(/^ssh:\/\/git@([^/]+)\/(.+)$/);
+    if (sshUrlMatch) {
+      host = sshUrlMatch[1]!.replace(/:\d+$/, "");
+      path = sshUrlMatch[2]!;
+    }
+  }
+
+  // https://HOST/OWNER/REPO[.git] (also http://)
+  if (!host) {
+    const httpMatch = url.match(/^https?:\/\/([^/]+)\/(.+)$/);
+    if (httpMatch) {
+      host = httpMatch[1]!;
+      path = httpMatch[2]!;
+    }
+  }
+
+  if (!host || !path) return null;
+
+  path = path
+    .replace(/\.git$/, "")
+    .replace(/\/$/, "")
+    .toLowerCase();
+  host = host.toLowerCase().replace(/\./g, "-");
+
+  const slashIdx = path.indexOf("/");
+  if (slashIdx < 0) return null;
+  const owner = path.slice(0, slashIdx);
+  const repo = path.slice(slashIdx + 1);
+  if (!owner || !repo || repo.includes("/")) return null;
+
+  return { host, owner, repo };
+}
+
+function buildDoltRemoteUrl(components: OriginComponents, dolthubOwner?: string | null): string {
+  const { owner, repo } = components;
+  const dolt_user = dolthubOwner?.trim() || owner;
+  return `https://doltremoteapi.dolthub.com/${dolt_user}/${repo}`;
+}
 
 export const BEADS_STATE_VALUES = [
   "none",

@@ -1,17 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-  classifyBdQueue,
-  classifyBdRecord,
   classifyIssueRow,
   classifyQueue,
   classifyTitle,
-  formatBdLabelPlan,
   formatLabelPlan,
   runTriageClassify,
 } from "../../src/triage/classifier.ts";
 import type { FallbackIssue } from "../../src/pr-state/github.ts";
-import type { BdExecResult } from "@bounded-systems/bd";
 
 describe("classifyTitle — type rule table", () => {
   const cases: Array<[string, string]> = [
@@ -583,146 +579,5 @@ describe("runTriageClassify", () => {
       expect(refreshCalls).toBe(0);
       expect(log).toHaveLength(1);
     });
-  });
-});
-
-// GH-1710: canonical=bd classifier branch. Iterates bd records (not GH
-// issues), runs the same `classifyTitle` rule table, and emits a bd-flavored
-// LabelPlan keyed by bdId.
-describe("classifyBdRecord / classifyBdQueue (GH-1710)", () => {
-  test("suggests type/area only at axes the bead is missing", () => {
-    const row = classifyBdRecord({
-      id: "spd-1",
-      title: "feat(prx): add classify verb",
-      priority: null,
-      issueType: "",
-    });
-    expect(row.bdId).toBe("spd-1");
-    expect(row.type).toBe("feature");
-    expect(row.area).toBe("prx");
-    expect(row.priority).toBe("none");
-    expect(row.priorityConfidence).toBe("unscored");
-    expect(row.currentPriority).toBeNull();
-    expect(row.currentType).toBe("");
-  });
-
-  test("suppresses classifier output when the bead already carries a value", () => {
-    const row = classifyBdRecord({
-      id: "spd-2",
-      title: "feat(prx): foo",
-      priority: 1,
-      issueType: "feature",
-    });
-    expect(row.type).toBeUndefined();
-    expect(row.priority).toBeUndefined();
-    expect(row.currentPriority).toBe(1);
-    expect(row.currentType).toBe("feature");
-  });
-
-  test("classifyBdQueue parses through bdLabelPlanSchema and tags canonical=bd", () => {
-    const plan = classifyBdQueue(
-      [
-        { id: "a", title: "fix(prx): a thing", priority: null, issueType: "" },
-        { id: "b", title: "chore: bump deps", priority: 2, issueType: "" },
-      ],
-      "demo/demo-repo",
-      "2026-05-14T00:00:00.000Z",
-    );
-    expect(plan.canonical).toBe("bd");
-    expect(plan.repo).toBe("demo/demo-repo");
-    expect(plan.rows.map((r) => r.bdId)).toEqual(["a", "b"]);
-  });
-
-  test("formatBdLabelPlan TSV renders bd-side columns", () => {
-    const plan = classifyBdQueue(
-      [{ id: "spd-1", title: "feat(prx): foo", priority: null, issueType: "" }],
-      "demo/demo-repo",
-      "2026-05-14T00:00:00.000Z",
-    );
-    const tsv = formatBdLabelPlan(plan, "tsv");
-    expect(tsv).toContain("#canonical\tbd");
-    expect(tsv).toContain("bdId");
-    expect(tsv).toContain("spd-1");
-  });
-});
-
-describe("runTriageClassify — canonical=bd branch (GH-1710)", () => {
-  function bdCanonicalLocalRepo() {
-    return {
-      name: "demo-repo",
-      commonDir: "/bare/io.github/demo/demo-repo.git",
-      kind: "bare" as const,
-      mainWorktree: null,
-      worktrees: [],
-      localOnlyBranches: [],
-      findings: [],
-      remotes: [],
-      primaryRemote: {
-        name: "origin",
-        url: "git@github.com:demo/demo-repo.git",
-        githubRepo: "demo/demo-repo",
-      },
-      upstreamRemote: null,
-      canonical: "bd" as const,
-    };
-  }
-
-  function makeExecBdReturning(
-    records: Array<{
-      id: string;
-      title: string;
-      priority: number | null;
-      issue_type: string;
-    }>,
-  ) {
-    return ((_args: unknown, _env?: unknown) =>
-      ({
-        exitCode: 0,
-        stdout: JSON.stringify(
-          records.map((r) => ({
-            id: r.id,
-            title: r.title,
-            status: "open",
-            priority: r.priority,
-            issue_type: r.issue_type,
-            external_ref: null,
-            source_system: null,
-            metadata: null,
-            updated_at: null,
-            dependencies: [],
-          })),
-        ),
-        stderr: "",
-        policy: null,
-      }) as BdExecResult) as never;
-  }
-
-  test("iterates bd substrate and never calls listOpenIssues", () => {
-    const log: string[] = [];
-    let ghCalls = 0;
-    const code = runTriageClassify(
-      { format: "json", limit: 0 },
-      { log: (l) => log.push(l), error: () => {} },
-      {
-        cwd: () => "/some/cwd",
-        now: () => new Date("2026-05-14T00:00:00Z"),
-        localRepoForCwd: () => bdCanonicalLocalRepo(),
-        execBd: makeExecBdReturning([
-          { id: "spd-1", title: "feat(prx): foo", priority: null, issue_type: "" },
-          { id: "spd-2", title: "fix(triage): bar", priority: 2, issue_type: "bug" },
-        ]),
-        listOpenIssues: ((..._a: unknown[]) => {
-          ghCalls += 1;
-          return [];
-        }) as never,
-      },
-    );
-    expect(code).toBe(0);
-    expect(ghCalls).toBe(0);
-    expect(log).toHaveLength(1);
-    const plan = JSON.parse(log[0]!) as { canonical: string; rows: Array<{ bdId: string }> };
-    expect(plan.canonical).toBe("bd");
-    // spd-2 is fully triaged (priority + type set); filter drops it.
-    expect(plan.rows.map((r) => r.bdId)).toEqual(["spd-1"]);
   });
 });

@@ -22,11 +22,11 @@ package prx
 // ---------------------------------------------------------------------------
 // Surfaces — the external state planes a verb may touch.
 //
-// A surface is a BACKING STORE, not an actor. This is Rule 3 in type form:
-// `beads` lives here, never in #Prx.actors. (`dolt` and `notion` are substrates
-// too and arguably belong to the same exclusion — flagged for confirmation,
-// not yet hard-excluded, since only beads was an explicit directive.)
-#Surface: "github" | "beads" | "dolt" | "notion" | "filesystem" | "cas" | "tmux"
+// A surface is a BACKING STORE, not an actor. This is Rule 3 in type form.
+// `beads` was removed entirely (GH-1012); `dolt` remains as the Front Desk
+// mirror substrate, `notion` as an (arguably retireable) substrate — flagged
+// for confirmation, not hard-excluded.
+#Surface: "github" | "dolt" | "notion" | "filesystem" | "cas" | "tmux"
 
 // ---------------------------------------------------------------------------
 // Verb — one executable command. Effects and transport are first-class.

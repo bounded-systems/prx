@@ -1,8 +1,8 @@
 import type { CommandRunner } from "../github.ts";
 
-export type WorkUnitSource = "github" | "notion" | "beads";
+export type WorkUnitSource = "github" | "notion";
 
-export const workUnitSources: readonly WorkUnitSource[] = ["github", "notion", "beads"];
+export const workUnitSources: readonly WorkUnitSource[] = ["github", "notion"];
 
 export type ResolvedWorkUnit = {
   id: string;

@@ -21,7 +21,10 @@ import { readFileSync } from "node:fs";
 
 import { getEnv } from "@bounded-systems/env";
 import { type IssuerKeys } from "@bounded-systems/guest-room";
-import { signedGrantAuthorizer, type RequestAuthorizer } from "@bounded-systems/guest-room/protocol";
+import {
+  signedGrantAuthorizer,
+  type RequestAuthorizer,
+} from "@bounded-systems/guest-room/protocol";
 
 /**
  * Verify an ed25519 grant signature (base64) over `data` against a PEM public
@@ -29,7 +32,11 @@ import { signedGrantAuthorizer, type RequestAuthorizer } from "@bounded-systems/
  * malformed key/signature is a verification FAILURE (false), never a throw — a
  * bad grant must deny, not crash the daemon.
  */
-export function ed25519VerifyWith(data: string, signatureB64: string, publicKeyPem: string): boolean {
+export function ed25519VerifyWith(
+  data: string,
+  signatureB64: string,
+  publicKeyPem: string,
+): boolean {
   try {
     return cryptoVerify(
       null,

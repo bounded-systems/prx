@@ -44,11 +44,29 @@ import {
 import { repoNameWithOwner as defaultRepoNameWithOwner } from "../pr-state/github.ts";
 import type { CommandRunner } from "../pr-state/github.ts";
 import { GhDomainAdapter } from "../adapters/github.ts";
-import { loadAllBeads as defaultLoadAllBeads, type BeadsRecord } from "../triage/triage.ts";
-import {
-  runIntakeMirror as defaultRunIntakeMirror,
-  type IntakeMirrorRender,
-} from "../intake/intake-mirror.ts";
+import { type BeadsRecord } from "../triage/triage.ts";
+// GH-1012: intake-mirror (the bd write-plane mirror) is removed — GitHub is now
+// the write plane, so mirroring a GH issue into bd is a no-op. The render shape
+// and a stub runner are kept locally so the surrounding plumbing (which consumes
+// an exit code + optional bd ids) still type-checks; the stub creates nothing.
+type IntakeMirrorRender = {
+  ghNumber: number;
+  repo?: string;
+  issueUrl: string;
+  title: string;
+  bdCreate?: { argv: string[] };
+  existingBdId?: string;
+  createdBdId?: string;
+  dryRun: boolean;
+  exitCode: number;
+};
+function defaultRunIntakeMirror(
+  _opts: { ghId: string; repo?: string | undefined; dryRun: boolean; format: string },
+  _output: { log: (line: string) => void; error: (line: string) => void },
+  _deps?: unknown,
+): number {
+  return 0;
+}
 import {
   DEFAULT_SAFETY_MARGIN,
   type FetchBudget,
@@ -357,11 +375,11 @@ export function runFetchGhIssues(
   //     URL→bdId resolution is in-process (no per-row bd spawn) and writes
   //     by the canonical long id positional (I-F7) — never bd's
   //     last-touched fallback.
-  const beads = (deps.loadBeadsSnapshot ?? (() => defaultLoadAllBeads()))();
+  const beads = (deps.loadBeadsSnapshot ?? ((): BeadsRecord[] => []))();
   const resolveFromBeads =
     deps.resolveBdId ??
     ((url: string, snapshot: BeadsRecord[]) =>
-      new GhDomainAdapter({ loadAllBeads: () => snapshot }).resolveFromBeads(url, snapshot));
+      new GhDomainAdapter({}).resolveFromBeads(url, snapshot));
   const createBead =
     deps.createBead ??
     ((args: { ghId: string; repo: string }): FetchCreateBeadResult => {

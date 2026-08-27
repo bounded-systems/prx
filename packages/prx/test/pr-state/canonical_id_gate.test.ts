@@ -60,16 +60,9 @@ function writeIndexWithBdPrefix(root: string, bdWorkspacePrefix: string): void {
 }
 
 describe("CLI canonical-id gate adapter fall-through (GH-2015)", () => {
-  test("bare bd workspace id is accepted when the cwd repo declares a matching prefix", () => {
-    // Default identity (no prx.toml overlay) + an indexed repo whose
-    // `bd_workspace_prefix` covers the cwd. The static regex misses the
-    // bare form; the adapter fall-through accepts it.
-    const root = setupRepo("bare-accept");
-    writeIndexWithBdPrefix(root, "demo-repo");
-    const result = runCli(["audit", "uow", "demo-repo-aqg"], root);
-    const stderr = new TextDecoder().decode(result.stderr);
-    expect(stderr).not.toContain("must match CANONICAL-ID format");
-  });
+  // GH-1012: the "bare bd workspace id is accepted" case is gone — the bd
+  // adapter fall-through was removed with beads, so a bd-shaped id no longer
+  // clears the gate. The rejection path (with the beads-id hint) is kept below.
 
   test("bare bd workspace id is rejected with an actionable unregistered-prefix hint when no covering repo prefix is registered", () => {
     // Default identity + no `.prx/repos/index.json` (or one whose prefix

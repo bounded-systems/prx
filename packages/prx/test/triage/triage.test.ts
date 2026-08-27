@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
 import {
   bdPriorityToLabel,
   classifyIssue,
@@ -19,9 +15,6 @@ import {
   formatTriageStatus,
   indexBeadsByIssueNumber,
   isCanonicalDupClose,
-  loadAllBeads,
-  loadJoinRelevantBeads,
-  loadTriageScopedBeads,
   normalizeTitle,
   runStatusActor,
   runTriageStatus,
@@ -37,7 +30,6 @@ import {
   __resetAuditRuntimeContextForTesting,
   getAuditRuntimeContext,
 } from "@bounded-systems/audit-context";
-import type { BdExecResult } from "@bounded-systems/bd";
 import type { FallbackIssue, GitHubIssueState } from "../../src/pr-state/github.ts";
 
 function makeOptions(overrides: Partial<TriageStatusOptions> = {}): TriageStatusOptions {
@@ -965,438 +957,6 @@ describe("isCanonicalDupClose", () => {
   });
 });
 
-describe("loadAllBeads", () => {
-  test("parses bd list --json output into BeadsRecord[]", () => {
-    const exec = (() =>
-      ({
-        exitCode: 0,
-        stdout: JSON.stringify([
-          {
-            id: "ai-home-1",
-            title: "first",
-            status: "open",
-            priority: 1,
-            issue_type: "feature",
-            external_ref: "https://github.com/o/r/issues/10",
-            metadata: null,
-          },
-          {
-            id: "ai-home-2",
-            title: "second",
-            status: "closed",
-            priority: 2,
-            issue_type: "task",
-            external_ref: null,
-            metadata: { bd_only: true },
-          },
-        ]),
-        stderr: "",
-        policy: null,
-      }) as BdExecResult) as never;
-    const records = loadAllBeads(exec);
-    expect(records).toHaveLength(2);
-    expect(records[0]!.externalIssueNumber).toBe(10);
-    expect(records[1]!.metadata).toEqual({ bd_only: true });
-  });
-
-  test("throws on non-zero exit", () => {
-    const exec = (() =>
-      ({
-        exitCode: 1,
-        stdout: "",
-        stderr: "bd: oops\n",
-        policy: null,
-      }) as BdExecResult) as never;
-    expect(() => loadAllBeads(exec)).toThrow(/bd: oops/);
-  });
-
-  // GH-1551: `bd list --all --json --limit 0` can exit non-zero from a
-  // *post-listing* dolt auto-sync side-effect while still emitting a complete,
-  // valid array on stdout — `loadAllBeads` parses stdout before judging the
-  // exit code so the bd leg survives the recoverable failure.
-  test("non-zero exit but valid array stdout: warns and returns parsed records", () => {
-    const exec = (() =>
-      ({
-        exitCode: 1,
-        stdout: JSON.stringify([
-          {
-            id: "ai-home-1",
-            title: "first",
-            status: "open",
-            priority: 1,
-            issue_type: "feature",
-            external_ref: "https://github.com/o/r/issues/10",
-            metadata: null,
-          },
-          {
-            id: "ai-home-2",
-            title: "second",
-            status: "open",
-            priority: 2,
-            issue_type: "task",
-            external_ref: null,
-            metadata: null,
-          },
-        ]),
-        stderr: "dolt: push rejected (non-fast-forward)\n",
-        policy: null,
-      }) as BdExecResult) as never;
-    const warnings: string[] = [];
-    const records = loadAllBeads(exec, (line) => warnings.push(line));
-    expect(records).toHaveLength(2);
-    expect(records[0]!.externalIssueNumber).toBe(10);
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toContain("exited non-zero but emitted a valid array");
-    expect(warnings[0]).toContain("dolt: push rejected");
-  });
-
-  test("non-zero exit with unparseable stdout still throws", () => {
-    const exec = (() =>
-      ({
-        exitCode: 1,
-        stdout: "not json",
-        stderr: "bd: oops\n",
-        policy: null,
-      }) as BdExecResult) as never;
-    expect(() => loadAllBeads(exec)).toThrow(/bd: oops/);
-  });
-
-  // GH-1538: derive `externalRefs` from the post-amendment shape +
-  // back-compat from the legacy `external_ref` single-pin.
-  function execWith(
-    records: Array<Record<string, unknown>>,
-  ): typeof import("@bounded-systems/bd").execBd {
-    return (() =>
-      ({
-        exitCode: 0,
-        stdout: JSON.stringify(records),
-        stderr: "",
-        policy: null,
-      }) as BdExecResult) as never;
-  }
-
-  test("a record with only legacy `external_ref` (GH-shaped) → `externalRefs.gh === external_ref`", () => {
-    const records = loadAllBeads(
-      execWith([
-        {
-          id: "ai-home-1",
-          title: "legacy",
-          status: "open",
-          priority: 1,
-          issue_type: "task",
-          external_ref: "https://github.com/o/r/issues/10",
-          metadata: null,
-        },
-      ]),
-    );
-    expect(records[0]!.externalRefs).toEqual({
-      gh: "https://github.com/o/r/issues/10",
-    });
-    expect(records[0]!.externalIssueNumber).toBe(10);
-  });
-
-  test("a record with only `metadata.external_refs.notion` → `externalRefs.notion` set; `externalRefs.gh` unset", () => {
-    const records = loadAllBeads(
-      execWith([
-        {
-          id: "ai-home-2",
-          title: "notion-pinned",
-          status: "open",
-          priority: 1,
-          issue_type: "task",
-          external_ref: null,
-          metadata: {
-            external_refs: { notion: "https://www.notion.so/abc-page" },
-          },
-        },
-      ]),
-    );
-    expect(records[0]!.externalRefs).toEqual({
-      notion: "https://www.notion.so/abc-page",
-    });
-    expect(records[0]!.externalIssueNumber).toBeNull();
-  });
-
-  test("a record with both legacy `external_ref` (GH) AND `metadata.external_refs.notion` → both keys present", () => {
-    const ghUrl = "https://github.com/o/r/issues/1538";
-    const notionUrl = "https://www.notion.so/page-1538";
-    const records = loadAllBeads(
-      execWith([
-        {
-          id: "ai-home-3",
-          title: "multi-domain",
-          status: "open",
-          priority: 1,
-          issue_type: "task",
-          external_ref: ghUrl,
-          metadata: { external_refs: { notion: notionUrl } },
-        },
-      ]),
-    );
-    expect(records[0]!.externalRefs).toEqual({ gh: ghUrl, notion: notionUrl });
-  });
-
-  test("conflict on `gh` slot: legacy `external_ref` wins over divergent `metadata.external_refs.gh`", () => {
-    // The recommended precedence: bd-CLI's `bd update --external-ref` writes
-    // legacy; the metadata slot is the post-amendment shape. A divergent
-    // metadata pin is malformed — legacy wins, plus a warning. Pin the rule
-    // so a future code edit can't silently flip it.
-    const legacyUrl = "https://github.com/o/r/issues/123";
-    const metaUrl = "https://github.com/o/r/issues/456";
-    const records = loadAllBeads(
-      execWith([
-        {
-          id: "ai-home-conflict",
-          title: "conflict",
-          status: "open",
-          priority: 1,
-          issue_type: "task",
-          external_ref: legacyUrl,
-          metadata: { external_refs: { gh: metaUrl } },
-        },
-      ]),
-    );
-    expect(records[0]!.externalRefs.gh).toBe(legacyUrl);
-  });
-
-  test("malformed `metadata.external_refs` shape (non-string values) is silently skipped", () => {
-    // The contract is soft (bd-CLI does not validate it). `loadAllBeads`
-    // degrades to "no pin in that domain" rather than throwing.
-    const records = loadAllBeads(
-      execWith([
-        {
-          id: "ai-home-malformed",
-          title: "malformed",
-          status: "open",
-          priority: 1,
-          issue_type: "task",
-          external_ref: null,
-          metadata: {
-            external_refs: { gh: 42, notion: "", jira: "  " },
-          },
-        },
-      ]),
-    );
-    expect(records[0]!.externalRefs).toEqual({});
-  });
-
-  test("a non-GH-shaped legacy `external_ref` (e.g. Notion URL) does NOT promote into `externalRefs.gh`", () => {
-    // Preserves the existing `findReverseOrphans` contract — a non-GH
-    // `external_ref` means the bead is intentionally linked elsewhere.
-    const records = loadAllBeads(
-      execWith([
-        {
-          id: "ai-home-notion-only",
-          title: "notion-as-legacy",
-          status: "open",
-          priority: 1,
-          issue_type: "task",
-          external_ref: "https://www.notion.so/page-abc",
-          metadata: null,
-        },
-      ]),
-    );
-    expect(records[0]!.externalRefs).toEqual({});
-  });
-});
-
-describe("loadJoinRelevantBeads (GH-1573)", () => {
-  test("invokes bd sql with --json and the scoped SELECT (planning/planner)", () => {
-    let captured: { subcommand: string; args: string[]; state?: string; role?: string } | null =
-      null;
-    const exec = ((opts: { subcommand: string; args: string[]; state?: string; role?: string }) => {
-      captured = opts;
-      return { exitCode: 0, stdout: "[]", stderr: "", policy: null } as BdExecResult;
-    }) as never;
-    loadJoinRelevantBeads(exec);
-    expect(captured).not.toBeNull();
-    expect(captured!.subcommand).toBe("sql");
-    expect(captured!.args).toContain("--json");
-    expect(captured!.state).toBe("planning");
-    expect(captured!.role).toBe("planner");
-    const query = captured!.args.find((arg) => arg.toUpperCase().startsWith("SELECT"));
-    expect(query).toBeDefined();
-    expect(query!).toContain("FROM issues");
-    // `description` is the largest column and the whole point of GH-1573 is
-    // to stop fetching it on the per-decision hot path.
-    expect(query!).not.toContain("description");
-    // The WHERE clause must keep closed beads that still carry a GH link, so
-    // `findDrift`'s bd-closed ↔ gh-open arm stays detectable.
-    expect(query!).toContain("external_ref IS NOT NULL");
-  });
-
-  test("parses bd sql --json rows into BeadsRecord[] (metadata is a JSON string)", () => {
-    const exec = (() =>
-      ({
-        exitCode: 0,
-        stdout: JSON.stringify([
-          {
-            id: "ai-home-1",
-            title: "first",
-            status: "open",
-            priority: 1,
-            issue_type: "feature",
-            external_ref: "https://github.com/o/r/issues/10",
-            metadata: "null",
-          },
-          {
-            // bd sql returns metadata as a JSON-encoded string, not the parsed
-            // object that bd list --json hands back.
-            id: "ai-home-2",
-            title: "second",
-            status: "open",
-            priority: 2,
-            issue_type: "task",
-            external_ref: null,
-            metadata: '{"bd_only":true}',
-          },
-        ]),
-        stderr: "",
-        policy: null,
-      }) as BdExecResult) as never;
-    const records = loadJoinRelevantBeads(exec);
-    expect(records).toHaveLength(2);
-    expect(records[0]!.id).toBe("ai-home-1");
-    expect(records[0]!.externalIssueNumber).toBe(10);
-    // description must default to "" since we don't fetch it.
-    expect(records[0]!.description).toBe("");
-    expect(records[1]!.metadata).toEqual({ bd_only: true });
-  });
-
-  test("throws on non-zero exit", () => {
-    const exec = (() =>
-      ({
-        exitCode: 1,
-        stdout: "",
-        stderr: "bd sql: syntax error\n",
-        policy: null,
-      }) as BdExecResult) as never;
-    expect(() => loadJoinRelevantBeads(exec)).toThrow(/bd sql: syntax error/);
-  });
-
-  test("throws on malformed JSON stdout", () => {
-    const exec = (() =>
-      ({
-        exitCode: 0,
-        stdout: "not json",
-        stderr: "",
-        policy: null,
-      }) as BdExecResult) as never;
-    expect(() => loadJoinRelevantBeads(exec)).toThrow(/returned invalid JSON/);
-  });
-
-  test("throws on row shape drift (missing id)", () => {
-    const exec = (() =>
-      ({
-        exitCode: 0,
-        stdout: JSON.stringify([{ title: "no id here" }]),
-        stderr: "",
-        policy: null,
-      }) as BdExecResult) as never;
-    expect(() => loadJoinRelevantBeads(exec)).toThrow(/row shape drift/);
-  });
-});
-
-describe("loadTriageScopedBeads (GH-1691)", () => {
-  type Tmp = { root: string; beadsDir: string; cleanup: () => void };
-  function makeBeadsDir(metadata: object | null): Tmp {
-    const root = mkdtempSync(join(tmpdir(), "triage-scoped-"));
-    const beadsDir = join(root, ".beads");
-    mkdirSync(beadsDir, { recursive: true });
-    if (metadata !== null) {
-      writeFileSync(join(beadsDir, "metadata.json"), JSON.stringify(metadata));
-    }
-    return {
-      root,
-      beadsDir,
-      cleanup: () => rmSync(root, { recursive: true, force: true }),
-    };
-  }
-
-  test("embedded-mode workspace falls back to bd list --all --json", () => {
-    const tmp = makeBeadsDir({ dolt_mode: "embedded", dolt_database: "io_github_test_embedded" });
-    try {
-      const captured: Array<{ subcommand: string; args: string[] }> = [];
-      const exec = ((opts: { subcommand: string; args: string[] }) => {
-        captured.push({ subcommand: opts.subcommand, args: opts.args });
-        if (opts.subcommand === "sql") {
-          return {
-            exitCode: 1,
-            stdout: "",
-            stderr: "'bd sql' is not yet supported in embedded mode",
-            policy: null,
-          } as BdExecResult;
-        }
-        return {
-          exitCode: 0,
-          stdout: JSON.stringify([
-            {
-              id: "ai-home-1",
-              title: "first",
-              description: "long desc",
-              status: "open",
-              priority: 1,
-              issue_type: "feature",
-              external_ref: "https://github.com/o/r/issues/10",
-              metadata: null,
-            },
-          ]),
-          stderr: "",
-          policy: null,
-        } as BdExecResult;
-      }) as never;
-
-      const warnings: string[] = [];
-      const records = loadTriageScopedBeads(tmp.beadsDir, exec, (line) => warnings.push(line));
-
-      expect(records).toHaveLength(1);
-      expect(records[0]!.id).toBe("ai-home-1");
-      expect(captured.some((c) => c.subcommand === "sql")).toBe(false);
-      expect(captured.some((c) => c.subcommand === "list")).toBe(true);
-      expect(warnings.some((w) => /GH-1691/.test(w))).toBe(true);
-    } finally {
-      tmp.cleanup();
-    }
-  });
-
-  test("per-project workspace uses scoped bd sql projection", () => {
-    const tmp = makeBeadsDir({ dolt_mode: "per-project", dolt_database: "io_github_test_pp" });
-    try {
-      const captured: Array<{ subcommand: string; args: string[] }> = [];
-      const exec = ((opts: { subcommand: string; args: string[] }) => {
-        captured.push({ subcommand: opts.subcommand, args: opts.args });
-        return { exitCode: 0, stdout: "[]", stderr: "", policy: null } as BdExecResult;
-      }) as never;
-
-      const warnings: string[] = [];
-      loadTriageScopedBeads(tmp.beadsDir, exec, (line) => warnings.push(line));
-
-      expect(captured.some((c) => c.subcommand === "sql")).toBe(true);
-      expect(captured.some((c) => c.subcommand === "list")).toBe(false);
-      expect(warnings).toHaveLength(0);
-    } finally {
-      tmp.cleanup();
-    }
-  });
-
-  test("missing metadata.json defaults to per-project (scoped) read", () => {
-    const tmp = makeBeadsDir(null);
-    try {
-      const captured: Array<{ subcommand: string }> = [];
-      const exec = ((opts: { subcommand: string }) => {
-        captured.push({ subcommand: opts.subcommand });
-        return { exitCode: 0, stdout: "[]", stderr: "", policy: null } as BdExecResult;
-      }) as never;
-
-      loadTriageScopedBeads(tmp.beadsDir, exec);
-      expect(captured.some((c) => c.subcommand === "sql")).toBe(true);
-      expect(captured.some((c) => c.subcommand === "list")).toBe(false);
-    } finally {
-      tmp.cleanup();
-    }
-  });
-});
-
 describe("formatTriageStatus", () => {
   test("renders JSON exactly as the result", () => {
     const result = emptyResult({
@@ -1613,8 +1173,7 @@ describe("runTriageStatus", () => {
           resolveCalls++;
           return "wrong/repo";
         }) as never,
-        execBd: (() =>
-          ({ exitCode: 0, stdout: "[]", stderr: "", policy: null }) as BdExecResult) as never,
+        frontDeskRows: () => [],
       },
     );
     expect(exitCode).toBe(0);
@@ -1636,49 +1195,12 @@ describe("runTriageStatus", () => {
           expect(cwd).toBe("/repo");
           return "owner/inferred";
         }) as never,
-        execBd: (() =>
-          ({ exitCode: 0, stdout: "[]", stderr: "", policy: null }) as BdExecResult) as never,
+        frontDeskRows: () => [],
         cwd: () => "/repo",
       },
     );
     const result = JSON.parse(logs[0]!) as TriageStatusResult;
     expect(result.repo).toBe("owner/inferred");
-  });
-
-  test("calls bd sql with the planning/planner policy override and a scoped SELECT (GH-1573)", () => {
-    const bdCalls: Array<{ subcommand: string; args: string[]; state?: string; role?: string }> =
-      [];
-    runTriageStatus(
-      makeOptions({ repo: "o/r" }),
-      { log: () => undefined, error: () => undefined },
-      {
-        listOpenIssues: (() => []) as never,
-        execBd: ((opts: { subcommand: string; args: string[]; state?: string; role?: string }) => {
-          bdCalls.push(opts);
-          return { exitCode: 0, stdout: "[]", stderr: "", policy: null } as BdExecResult;
-        }) as never,
-      },
-    );
-    expect(bdCalls).toHaveLength(1);
-    expect(bdCalls[0]!.subcommand).toBe("sql");
-    expect(bdCalls[0]!.args).toContain("--json");
-    expect(bdCalls[0]!.state).toBe("planning");
-    expect(bdCalls[0]!.role).toBe("planner");
-    // Scoped projection: `description` is the largest column and triage never
-    // reads it, so it must not appear in the SELECT. The WHERE clause must
-    // keep closed beads that still carry a GH link (drift / stale detection
-    // depends on them).
-    const query = bdCalls[0]!.args.find((arg) => arg.toUpperCase().startsWith("SELECT"));
-    expect(query).toBeDefined();
-    expect(query!).toContain("id");
-    expect(query!).toContain("title");
-    expect(query!).toContain("status");
-    expect(query!).toContain("priority");
-    expect(query!).toContain("issue_type");
-    expect(query!).toContain("external_ref");
-    expect(query!).toContain("metadata");
-    expect(query!).not.toContain("description");
-    expect(query!).toContain("external_ref IS NOT NULL");
   });
 
   test("filters out fully-triaged issues from the report", () => {
@@ -1701,30 +1223,25 @@ describe("runTriageStatus", () => {
             labels: [{ name: "priority::none" }, { name: "type::task" }],
           },
         ]) as never,
-        execBd: (() =>
-          ({
-            exitCode: 0,
-            stdout: JSON.stringify([
-              {
-                id: "ai-home-1",
-                title: "good",
-                status: "open",
-                priority: 2,
-                issue_type: "task",
-                external_ref: "https://github.com/o/r/issues/1",
-              },
-              {
-                id: "ai-home-2",
-                title: "bad",
-                status: "open",
-                priority: 2,
-                issue_type: "task",
-                external_ref: "https://github.com/o/r/issues/2",
-              },
-            ]),
-            stderr: "",
-            policy: null,
-          }) as BdExecResult) as never,
+        frontDeskRows: () =>
+          [
+            {
+              id: "ai-home-1",
+              title: "good",
+              status: "open",
+              priority: 2,
+              issue_type: "task",
+              external_ref: "https://github.com/o/r/issues/1",
+            },
+            {
+              id: "ai-home-2",
+              title: "bad",
+              status: "open",
+              priority: 2,
+              issue_type: "task",
+              external_ref: "https://github.com/o/r/issues/2",
+            },
+          ] as unknown[],
       },
     );
     const result = JSON.parse(logs[0]!) as TriageStatusResult;
@@ -1749,32 +1266,27 @@ describe("runTriageStatus", () => {
             labels: [{ name: "priority::medium" }, { name: "type::task" }],
           },
         ]) as never,
-        execBd: (() =>
-          ({
-            exitCode: 0,
-            stdout: JSON.stringify([
-              // paired but title drift
-              {
-                id: "ai-home-100",
-                title: "Bar",
-                status: "open",
-                priority: 2,
-                issue_type: "task",
-                external_ref: "https://github.com/o/r/issues/100",
-              },
-              // reverse orphan
-              {
-                id: "ai-home-rev",
-                title: "lonely",
-                status: "open",
-                priority: 2,
-                issue_type: "task",
-                external_ref: null,
-              },
-            ]),
-            stderr: "",
-            policy: null,
-          }) as BdExecResult) as never,
+        frontDeskRows: () =>
+          [
+            // paired but title drift
+            {
+              id: "ai-home-100",
+              title: "Bar",
+              status: "open",
+              priority: 2,
+              issue_type: "task",
+              external_ref: "https://github.com/o/r/issues/100",
+            },
+            // reverse orphan
+            {
+              id: "ai-home-rev",
+              title: "lonely",
+              status: "open",
+              priority: 2,
+              issue_type: "task",
+              external_ref: null,
+            },
+          ] as unknown[],
       },
     );
     const result = JSON.parse(logs[0]!) as TriageStatusResult;
@@ -1801,22 +1313,17 @@ describe("runTriageStatus", () => {
             { number: 999, title: "merged", url: "https://github.com/o/r/issues/999", labels: [] },
           ] as FallbackIssue[];
         }) as never,
-        execBd: (() =>
-          ({
-            exitCode: 0,
-            stdout: JSON.stringify([
-              {
-                id: "ai-home-999",
-                title: "merged",
-                status: "open",
-                priority: 1,
-                issue_type: "feature",
-                external_ref: "https://github.com/o/r/issues/999",
-              },
-            ]),
-            stderr: "",
-            policy: null,
-          }) as BdExecResult) as never,
+        frontDeskRows: () =>
+          [
+            {
+              id: "ai-home-999",
+              title: "merged",
+              status: "open",
+              priority: 1,
+              issue_type: "feature",
+              external_ref: "https://github.com/o/r/issues/999",
+            },
+          ] as unknown[],
       },
     );
     const result = JSON.parse(logs[0]!) as TriageStatusResult;
@@ -1835,22 +1342,17 @@ describe("runTriageStatus", () => {
       {
         listOpenIssues: (() => []) as never,
         listIssuesByState: (() => [] as FallbackIssue[]) as never,
-        execBd: (() =>
-          ({
-            exitCode: 0,
-            stdout: JSON.stringify([
-              {
-                id: "ai-home-999",
-                title: "merged",
-                status: "open",
-                priority: 1,
-                issue_type: "feature",
-                external_ref: "https://github.com/o/r/issues/999",
-              },
-            ]),
-            stderr: "",
-            policy: null,
-          }) as BdExecResult) as never,
+        frontDeskRows: () =>
+          [
+            {
+              id: "ai-home-999",
+              title: "merged",
+              status: "open",
+              priority: 1,
+              issue_type: "feature",
+              external_ref: "https://github.com/o/r/issues/999",
+            },
+          ] as unknown[],
       },
     );
     const result = JSON.parse(logs[0]!) as TriageStatusResult;
@@ -1877,22 +1379,17 @@ describe("runTriageStatus", () => {
           closedCalls += 1;
           return [] as FallbackIssue[];
         }) as never,
-        execBd: (() =>
-          ({
-            exitCode: 0,
-            stdout: JSON.stringify([
-              {
-                id: "ai-home-100",
-                title: "Foo",
-                status: "open",
-                priority: 2,
-                issue_type: "task",
-                external_ref: "https://github.com/o/r/issues/100",
-              },
-            ]),
-            stderr: "",
-            policy: null,
-          }) as BdExecResult) as never,
+        frontDeskRows: () =>
+          [
+            {
+              id: "ai-home-100",
+              title: "Foo",
+              status: "open",
+              priority: 2,
+              issue_type: "task",
+              external_ref: "https://github.com/o/r/issues/100",
+            },
+          ] as unknown[],
       },
     );
     const result = JSON.parse(logs[0]!) as TriageStatusResult;
@@ -1914,22 +1411,17 @@ describe("runTriageStatus", () => {
             labels: [{ name: "priority::high" }, { name: "priority::low" }, { name: "type::task" }],
           },
         ]) as never,
-        execBd: (() =>
-          ({
-            exitCode: 0,
-            stdout: JSON.stringify([
-              {
-                id: "ai-home-1449",
-                title: "dual priority",
-                status: "open",
-                priority: 1,
-                issue_type: "task",
-                external_ref: "https://github.com/o/r/issues/1449",
-              },
-            ]),
-            stderr: "",
-            policy: null,
-          }) as BdExecResult) as never,
+        frontDeskRows: () =>
+          [
+            {
+              id: "ai-home-1449",
+              title: "dual priority",
+              status: "open",
+              priority: 1,
+              issue_type: "task",
+              external_ref: "https://github.com/o/r/issues/1449",
+            },
+          ] as unknown[],
       },
     );
     const result = JSON.parse(logs[0]!) as TriageStatusResult;
@@ -1946,10 +1438,10 @@ describe("runTriageStatus", () => {
   });
 
   test("respects includeIntentional by default-excluding bd_only sentinel records", () => {
-    // GH-1573: `bd sql --json` returns the `metadata` column as a JSON-encoded
-    // string (the raw DB form), not the parsed object that `bd list --json`
-    // hands back. `loadJoinRelevantBeads` parses it inline.
-    const stdout = JSON.stringify([
+    // GH-1012: the beads leg now reads Front Desk raw rows (the `bd list --json`
+    // object shape `parseBeadsRecords` consumes), so `metadata` is a parsed
+    // object, not a JSON-encoded string.
+    const rows = [
       {
         id: "ai-home-spike",
         title: "spike",
@@ -1957,17 +1449,16 @@ describe("runTriageStatus", () => {
         priority: 2,
         issue_type: "task",
         external_ref: null,
-        metadata: '{"bd_only":true}',
+        metadata: { bd_only: true },
       },
-    ]);
-    const exec = (() =>
-      ({ exitCode: 0, stdout, stderr: "", policy: null }) as BdExecResult) as never;
+    ];
+    const frontDeskRows = () => rows;
 
     const logsDefault: string[] = [];
     runTriageStatus(
       makeOptions({ repo: "o/r", format: "json" }),
       { log: (l) => logsDefault.push(l), error: () => undefined },
-      { listOpenIssues: (() => []) as never, execBd: exec },
+      { listOpenIssues: (() => []) as never, frontDeskRows },
     );
     expect((JSON.parse(logsDefault[0]!) as TriageStatusResult).totalReverseOrphans).toBe(0);
 
@@ -1975,28 +1466,9 @@ describe("runTriageStatus", () => {
     runTriageStatus(
       makeOptions({ repo: "o/r", format: "json", includeIntentional: true }),
       { log: (l) => logsInclude.push(l), error: () => undefined },
-      { listOpenIssues: (() => []) as never, execBd: exec },
+      { listOpenIssues: (() => []) as never, frontDeskRows },
     );
     expect((JSON.parse(logsInclude[0]!) as TriageStatusResult).totalReverseOrphans).toBe(1);
-  });
-
-  test("propagates a bd list failure as a thrown error", () => {
-    expect(() =>
-      runTriageStatus(
-        makeOptions({ repo: "o/r" }),
-        { log: () => undefined, error: () => undefined },
-        {
-          listOpenIssues: (() => []) as never,
-          execBd: (() =>
-            ({
-              exitCode: 1,
-              stdout: "",
-              stderr: "bd: oops\n",
-              policy: null,
-            }) as BdExecResult) as never,
-        },
-      ),
-    ).toThrow(/bd: oops/);
   });
 });
 
@@ -2010,8 +1482,7 @@ describe("runTriageStatus + --rate-limit", () => {
       { log: (l) => logs.push(l), error: () => undefined },
       {
         listOpenIssues: (() => []) as never,
-        execBd: (() =>
-          ({ exitCode: 0, stdout: "[]", stderr: "", policy: null }) as BdExecResult) as never,
+        frontDeskRows: () => [],
         refreshBudget: (() => {
           refreshCalls += 1;
           return null;
@@ -2057,23 +1528,18 @@ describe("runTriageStatus + --rate-limit", () => {
           { number: 1, title: "x", url: "u", labels: [] },
           { number: 2, title: "y", url: "u", labels: [] },
         ]) as never,
-        execBd: (() =>
-          ({
-            exitCode: 0,
-            stdout: JSON.stringify([
-              // 1 reverse orphan
-              {
-                id: "ai-home-rev",
-                title: "lonely",
-                status: "open",
-                priority: 2,
-                issue_type: "task",
-                external_ref: null,
-              },
-            ]),
-            stderr: "",
-            policy: null,
-          }) as BdExecResult) as never,
+        frontDeskRows: () =>
+          [
+            // 1 reverse orphan
+            {
+              id: "ai-home-rev",
+              title: "lonely",
+              status: "open",
+              priority: 2,
+              issue_type: "task",
+              external_ref: null,
+            },
+          ] as unknown[],
         refreshBudget: (() => snapshots) as never,
         estimateSweepCost: ((queueSize: number) => {
           receivedQueue = queueSize;
@@ -2100,8 +1566,7 @@ describe("runTriageStatus + --rate-limit", () => {
       { log: (l) => logs.push(l), error: () => undefined },
       {
         listOpenIssues: (() => []) as never,
-        execBd: (() =>
-          ({ exitCode: 0, stdout: "[]", stderr: "", policy: null }) as BdExecResult) as never,
+        frontDeskRows: () => [],
         refreshBudget: (() => [
           { bucket: "core", limit: 5000, remaining: 4994, resetAt: 1700000000000, fetchedAt: 0 },
           { bucket: "graphql", limit: 5000, remaining: 4823, resetAt: 1700000000000, fetchedAt: 0 },
@@ -2129,13 +1594,8 @@ describe("runTriageStatus + --rate-limit", () => {
 // audit log distinguishes a justified comparator from an accidental gh
 // fallback the GH-1602 refactor missed.
 describe("runStatusActor — withGhTruthReason on residual gh comparators (GH-1602)", () => {
-  function emptyExecBd(): never {
-    return ((): BdExecResult => ({
-      exitCode: 0,
-      stdout: "[]",
-      stderr: "",
-      policy: null,
-    })) as never;
+  function emptyFrontDesk(): () => unknown[] {
+    return () => [];
   }
 
   test("tags the open-issue read with drift-comparator", () => {
@@ -2147,7 +1607,7 @@ describe("runStatusActor — withGhTruthReason on residual gh comparators (GH-16
         return [] as FallbackIssue[];
       }) as never,
       listIssuesByState: (() => [] as FallbackIssue[]) as never,
-      execBd: emptyExecBd(),
+      frontDeskRows: emptyFrontDesk(),
     });
     expect(observedReason).toBe("drift-comparator");
     // The wrapper restores the prior value on exit.
@@ -2174,22 +1634,17 @@ describe("runStatusActor — withGhTruthReason on residual gh comparators (GH-16
         expect(state).toBe("closed");
         return [] as FallbackIssue[];
       }) as never,
-      execBd: (() =>
-        ({
-          exitCode: 0,
-          stdout: JSON.stringify([
-            {
-              id: "ai-home-999",
-              title: "merged",
-              status: "open",
-              priority: 1,
-              issue_type: "feature",
-              external_ref: "https://github.com/o/r/issues/999",
-            },
-          ]),
-          stderr: "",
-          policy: null,
-        }) as BdExecResult) as never,
+      frontDeskRows: () =>
+        [
+          {
+            id: "ai-home-999",
+            title: "merged",
+            status: "open",
+            priority: 1,
+            issue_type: "feature",
+            external_ref: "https://github.com/o/r/issues/999",
+          },
+        ] as unknown[],
     });
     expect(observedReason).toBe("stale-comparator");
     expect(getAuditRuntimeContext().ghTruthReason).toBeNull();
@@ -2211,22 +1666,17 @@ describe("runStatusActor — axis-conflicts plumbing (GH-1449)", () => {
           labels: [{ name: "type::task" }, { name: "type::feature" }, { name: "priority::medium" }],
         },
       ]) as never,
-      execBd: (() =>
-        ({
-          exitCode: 0,
-          stdout: JSON.stringify([
-            {
-              id: "ai-home-1449",
-              title: "dual axis",
-              status: "open",
-              priority: 2,
-              issue_type: "task",
-              external_ref: "https://github.com/o/r/issues/1449",
-            },
-          ]),
-          stderr: "",
-          policy: null,
-        }) as BdExecResult) as never,
+      frontDeskRows: () =>
+        [
+          {
+            id: "ai-home-1449",
+            title: "dual axis",
+            status: "open",
+            priority: 2,
+            issue_type: "task",
+            external_ref: "https://github.com/o/r/issues/1449",
+          },
+        ] as unknown[],
     });
     expect(result.snapshot.totalAxisConflicts).toBe(1);
     expect(result.snapshot.axisConflicts).toHaveLength(1);
@@ -2278,25 +1728,21 @@ describe("canonical=bd triage status (GH-1710)", () => {
     };
   }
 
-  function makeExecBdReturningBeads(records: BeadsRecord[]) {
-    return ((_args: unknown, _env?: unknown) => {
-      const stdout = JSON.stringify(
-        records.map((r) => ({
-          id: r.id,
-          title: r.title,
-          description: r.description,
-          status: r.status,
-          priority: r.priority,
-          issue_type: r.issueType,
-          external_ref: r.externalRef,
-          source_system: r.sourceSystem,
-          metadata: r.metadata,
-          updated_at: r.updatedAt,
-          dependencies: [],
-        })),
-      );
-      return { exitCode: 0, stdout, stderr: "", policy: null } as BdExecResult;
-    }) as never;
+  function makeFrontDeskRows(records: BeadsRecord[]): () => unknown[] {
+    return () =>
+      records.map((r) => ({
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        status: r.status,
+        priority: r.priority,
+        issue_type: r.issueType,
+        external_ref: r.externalRef,
+        source_system: r.sourceSystem,
+        metadata: r.metadata,
+        updated_at: r.updatedAt,
+        dependencies: [],
+      }));
   }
 
   test("findBdUntriaged flags beads missing priority or issueType", () => {
@@ -2346,7 +1792,7 @@ describe("canonical=bd triage status (GH-1710)", () => {
     const result = runStatusActor(makeOptions({ format: "json" }), {
       cwd: () => "/some/cwd",
       localRepoForCwd: () => bdCanonicalRepo(),
-      execBd: makeExecBdReturningBeads(records),
+      frontDeskRows: makeFrontDeskRows(records),
       listOpenIssues: ((..._args: unknown[]) => {
         ghCalls.push("listOpenIssues");
         return [];
@@ -2444,7 +1890,7 @@ describe("canonical=bd triage status (GH-1710)", () => {
     const result = runStatusActor(makeOptions({ format: "json" }), {
       cwd: () => "/some/cwd",
       localRepoForCwd: () => bdCanonicalRepo(),
-      execBd: makeExecBdReturningBeads(records),
+      frontDeskRows: makeFrontDeskRows(records),
       listOpenIssues: ((..._args: unknown[]) => {
         throw new Error("listOpenIssues must not be called on canonical=bd");
       }) as never,
@@ -2493,22 +1939,17 @@ describe("findStaleProjection", () => {
             { number: 999, title: "merged", url: "https://github.com/o/r/issues/999", labels: [] },
           ] as FallbackIssue[];
         }) as never,
-        execBd: (() =>
-          ({
-            exitCode: 0,
-            stdout: JSON.stringify([
-              {
-                id: "ai-home-999",
-                title: "merged",
-                status: "open",
-                priority: 1,
-                issue_type: "feature",
-                external_ref: "https://github.com/o/r/issues/999",
-              },
-            ]),
-            stderr: "",
-            policy: null,
-          }) as BdExecResult) as never,
+        frontDeskRows: () =>
+          [
+            {
+              id: "ai-home-999",
+              title: "merged",
+              status: "open",
+              priority: 1,
+              issue_type: "feature",
+              external_ref: "https://github.com/o/r/issues/999",
+            },
+          ] as unknown[],
       },
     );
     expect(result.canonical).toBe("gh");
@@ -2537,10 +1978,10 @@ describe("findStaleProjection", () => {
           ghCalls.push("listIssuesByState");
           return [];
         }) as never,
-        execBd: ((opts: { subcommand: string }) => {
-          bdCalls.push(opts.subcommand);
-          return { exitCode: 0, stdout: "[]", stderr: "", policy: null } as BdExecResult;
-        }) as never,
+        frontDeskRows: () => {
+          bdCalls.push("frontDeskRows");
+          return [];
+        },
       },
     );
     expect(result.canonical).toBe("bd");
@@ -2632,9 +2073,8 @@ describe("runTriageStatus — read-time freshness gate (GH-1786)", () => {
   const FRESH = new Date(NOW.getTime() - 60_000).toISOString();
   const STALE = new Date(NOW.getTime() - 25 * 60 * 60 * 1_000).toISOString();
 
-  function bdEmpty() {
-    return (() =>
-      ({ exitCode: 0, stdout: "[]", stderr: "", policy: null }) as BdExecResult) as never;
+  function bdEmpty(): () => unknown[] {
+    return () => [];
   }
 
   test("cache-hit (fresh): refresher is NOT called", () => {
@@ -2644,7 +2084,7 @@ describe("runTriageStatus — read-time freshness gate (GH-1786)", () => {
       { log: () => undefined, error: () => undefined },
       {
         listOpenIssues: (() => []) as never,
-        execBd: bdEmpty(),
+        frontDeskRows: bdEmpty(),
         readSubstrateWatermark: () => FRESH,
         refreshSubstrate: (args) => {
           refreshCalls.push(args);
@@ -2663,7 +2103,7 @@ describe("runTriageStatus — read-time freshness gate (GH-1786)", () => {
       { log: () => undefined, error: () => undefined },
       {
         listOpenIssues: (() => []) as never,
-        execBd: bdEmpty(),
+        frontDeskRows: bdEmpty(),
         readSubstrateWatermark: () => STALE,
         refreshSubstrate: (args) => {
           refreshCalls.push(args);
@@ -2683,7 +2123,7 @@ describe("runTriageStatus — read-time freshness gate (GH-1786)", () => {
       { log: () => undefined, error: () => undefined },
       {
         listOpenIssues: (() => []) as never,
-        execBd: bdEmpty(),
+        frontDeskRows: bdEmpty(),
         readSubstrateWatermark: () => null,
         refreshSubstrate: (args) => {
           refreshCalls.push(args);
@@ -2702,7 +2142,7 @@ describe("runTriageStatus — read-time freshness gate (GH-1786)", () => {
       { log: () => undefined, error: (l) => errLines.push(l) },
       {
         listOpenIssues: (() => []) as never,
-        execBd: bdEmpty(),
+        frontDeskRows: bdEmpty(),
         readSubstrateWatermark: () => STALE,
         refreshSubstrate: () => ({
           ok: false,
@@ -2722,7 +2162,7 @@ describe("runTriageStatus — read-time freshness gate (GH-1786)", () => {
       { log: () => undefined, error: () => undefined },
       {
         listOpenIssues: (() => []) as never,
-        execBd: bdEmpty(),
+        frontDeskRows: bdEmpty(),
         readSubstrateWatermark: () => STALE,
         refreshSubstrate: (args) => {
           refreshCalls.push(args);
@@ -2738,7 +2178,7 @@ describe("runTriageStatus — read-time freshness gate (GH-1786)", () => {
     const refreshCalls: Array<{ repo: string | undefined }> = [];
     runStatusActor(makeOptions({ repo: "o/r", noRefresh: false, maxStaleness: "24h" }), {
       listOpenIssues: (() => []) as never,
-      execBd: bdEmpty(),
+      frontDeskRows: bdEmpty(),
       readSubstrateWatermark: () => STALE,
       refreshSubstrate: (args) => {
         refreshCalls.push(args);

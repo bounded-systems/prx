@@ -17,21 +17,17 @@ import type {
   TriageClassifyOptions,
   TriageApplyOptions,
   TriagePrioritizeOptions,
-  TriagePromoteOptions,
   TriageTypePassOptions,
   TriagePrioritizeBulkOptions,
-  TriageDriftFixOptions,
   TriageReportOptions,
 } from "../../src/triage/schemas/index.ts";
 import type { TriageStatusActorResult } from "../../src/triage/triage.ts";
 import type { TriageClassifyActorResult } from "../../src/triage/classifier.ts";
 import type { TriageApplyActorResult } from "../../src/triage/apply.ts";
 import type { TriagePrioritizeActorResult } from "../../src/triage/prioritize.ts";
-import type { TriagePromoteActorResult } from "../../src/triage/promote.ts";
 import type { TriageTypePassActorResult } from "../../src/triage/type-pass.ts";
 import type { TriagePrioritizeBulkActorResult } from "../../src/triage/prioritize-bulk.ts";
 import type { TriagePruneMergedActorResult } from "../../src/triage/prune-merged.ts";
-import type { TriageDriftFixActorResult } from "../../src/triage/drift-fix.ts";
 import type { TriagePruneMergedOptions } from "../../src/triage/schemas/index.ts";
 
 // ── builders ───────────────────────────────────────────────────────────────
@@ -79,15 +75,6 @@ const fakeApplyOk = fromPromise<TriageApplyActorResult, TriageApplyOptions>(asyn
   touchedIssues: [],
 }));
 
-const fakePromoteOk = fromPromise<TriagePromoteActorResult, TriagePromoteOptions>(async () => ({
-  exitCode: 0,
-  plan: null,
-  audit: [],
-  stdout: [],
-  stderr: [],
-  promotedBeadIds: [],
-}));
-
 // GH-1021 — typePassActor is a real verb now; tests use this success stub
 // instead of the prior rejecting stub, which kept the type-pass branch
 // blocked. Helper retained (un-exported, scoped) for parity with the other
@@ -119,15 +106,6 @@ function rejectingPrioritizeBulkActor(ticket: string) {
 function rejectingPrioritizeActor() {
   return fromPromise<TriagePrioritizeActorResult, TriagePrioritizeOptions>(async () => {
     throw new Error("STUBBED prioritize");
-  });
-}
-function rejectingDriftFixActor(ticket: string) {
-  // GH-1342: driftFixActor is now wired to a real verb returning
-  // `TriageDriftFixActorResult`. The output type widens from `never`
-  // to the actor's result type so the rejecting test stub still
-  // satisfies the typed actor slot the machine expects.
-  return fromPromise<TriageDriftFixActorResult, TriageDriftFixOptions>(async () => {
-    throw new TriageStubError("drift-fix", ticket);
   });
 }
 function rejectingReportActor(ticket: string) {
@@ -174,7 +152,6 @@ describe("triageMachine — decision-state branching", () => {
         statusActor: fakeStatusActor(snapshot()),
         classifyActor: fakeClassifyOk,
         applyActor: fakeApplyOk,
-        promoteActor: fakePromoteOk,
         reportActor: rejectingReportActor("GH-1022"),
       },
     });
@@ -186,7 +163,6 @@ describe("triageMachine — decision-state branching", () => {
     expect(context.status).not.toBeNull();
     expect(context.classifyResult).not.toBeNull();
     expect(context.applyResult).not.toBeNull();
-    expect(context.promoteResult).not.toBeNull();
   });
 
   test("typeless rows → enters typePassing, resolves, then continues to priorityDecision", async () => {
@@ -218,7 +194,6 @@ describe("triageMachine — decision-state branching", () => {
         classifyActor: fakeClassifyOk,
         applyActor: fakeApplyOk,
         typePassActor: fakeTypePassOk,
-        promoteActor: fakePromoteOk,
         reportActor: rejectingReportActor("GH-1022"),
       },
     });
@@ -255,7 +230,6 @@ describe("triageMachine — decision-state branching", () => {
         classifyActor: fakeClassifyOk,
         applyActor: fakeApplyOk,
         prioritizeActor: rejectingPrioritizeActor(),
-        promoteActor: fakePromoteOk,
         reportActor: rejectingReportActor("GH-1022"),
       },
     });
@@ -293,7 +267,6 @@ describe("triageMachine — decision-state branching", () => {
         classifyActor: fakeClassifyOk,
         applyActor: fakeApplyOk,
         prioritizeBulkActor: rejectingPrioritizeBulkActor("GH-1047"),
-        promoteActor: fakePromoteOk,
         reportActor: rejectingReportActor("GH-1022"),
       },
     });
@@ -347,7 +320,6 @@ describe("triageMachine — decision-state branching", () => {
         classifyActor: fakeClassifyOk,
         applyActor: fakeApplyOk,
         prioritizeBulkActor: fakeBulkOk,
-        promoteActor: fakePromoteOk,
         reportActor: rejectingReportActor("GH-1022"),
       },
     });
@@ -357,15 +329,14 @@ describe("triageMachine — decision-state branching", () => {
       autoPrioritize: true,
     });
     // Reaches reporting and blocks there (report actor still a stub) — proves
-    // the bulk → promoting transition fired and promote ran successfully.
+    // the bulk → scopeDecision → reporting transition fired.
     expect(value).toBe("blocked");
     expect(context.blockedReason?.actor).toBe("report");
-    expect(context.promoteResult).not.toBeNull();
   });
 
-  test("reverse orphans present → driftDecision → reporting (no orphan push, GH-1718)", async () => {
+  test("reverse orphans present → scopeDecision → reporting (no orphan push, GH-1718)", async () => {
     // GH-1718: `triage push-orphans` retired. Reverse-orphan signals no
-    // longer influence machine flow — the path is promote → driftDecision
+    // longer influence machine flow — the path is scopeDecision
     // → reporting regardless of `totalReverseOrphans`. prx-3f1: reverse-orphans
     // are the normal beads-first state (informational only), not projected into
     // next_work's triage_backlog; an operator may still publish manually via
@@ -390,7 +361,6 @@ describe("triageMachine — decision-state branching", () => {
         ),
         classifyActor: fakeClassifyOk,
         applyActor: fakeApplyOk,
-        promoteActor: fakePromoteOk,
         reportActor: rejectingReportActor("GH-1022"),
       },
     });
@@ -401,7 +371,10 @@ describe("triageMachine — decision-state branching", () => {
     expect(context.blockedReason?.ticket).toBe("GH-1022");
   });
 
-  test("drift present → driftFixing (stub)", async () => {
+  // GH-1023: drift-fix stage retired. Drift signals no longer route anywhere
+  // special — under `full` scope the machine proceeds scopeDecision → reporting
+  // and blocks at the report stub regardless of `totalDrift`.
+  test("drift present → scopeDecision → reporting (drift-fix retired, GH-1023)", async () => {
     const machine = triageMachine.provide({
       actors: {
         pruneMergedActor: fakePruneMergedOk,
@@ -419,16 +392,14 @@ describe("triageMachine — decision-state branching", () => {
         ),
         classifyActor: fakeClassifyOk,
         applyActor: fakeApplyOk,
-        promoteActor: fakePromoteOk,
-        driftFixActor: rejectingDriftFixActor("GH-1049"),
         reportActor: rejectingReportActor("GH-1022"),
       },
     });
 
     const { value, context } = await runToCompletion(machine);
     expect(value).toBe("blocked");
-    expect(context.blockedReason?.actor).toBe("driftFix");
-    expect(context.blockedReason?.ticket).toBe("GH-1049");
+    expect(context.blockedReason?.actor).toBe("report");
+    expect(context.blockedReason?.ticket).toBe("GH-1022");
   });
 });
 
@@ -442,7 +413,6 @@ describe("triageMachine — failure handling", () => {
         }),
         classifyActor: fakeClassifyOk,
         applyActor: fakeApplyOk,
-        promoteActor: fakePromoteOk,
         reportActor: rejectingReportActor("GH-1022"),
       },
     });
@@ -462,7 +432,6 @@ describe("triageMachine — failure handling", () => {
           throw new Error("boom");
         }),
         applyActor: fakeApplyOk,
-        promoteActor: fakePromoteOk,
         reportActor: rejectingReportActor("GH-1022"),
       },
     });
@@ -482,7 +451,6 @@ describe("triageMachine — initial context", () => {
         }),
         classifyActor: fakeClassifyOk,
         applyActor: fakeApplyOk,
-        promoteActor: fakePromoteOk,
         reportActor: rejectingReportActor("GH-1022"),
       },
     });
@@ -507,7 +475,6 @@ describe("triageMachine — initial context", () => {
         }),
         classifyActor: fakeClassifyOk,
         applyActor: fakeApplyOk,
-        promoteActor: fakePromoteOk,
         reportActor: rejectingReportActor("GH-1022"),
       },
     });
@@ -516,18 +483,19 @@ describe("triageMachine — initial context", () => {
   });
 });
 
-// GH-1015 — `scope: "prime"` clips the lifecycle at `promoting.onDone`. The
-// outer `prx triage prime` loop is then free to drive the chain repeatedly
-// without bumping into the orphan / drift / report stubs (#1048/#1049/#1022).
+// GH-1015 / GH-1023 — `scope: "prime"` clips the lifecycle at the
+// post-prioritize `scopeDecision`, landing straight in `done`. The outer
+// `prx triage prime` loop is then free to drive the chain repeatedly without
+// bumping into the report stub (#1022). With promote / drift-fix retired
+// (GH-1023), drift and reverse-orphan signals no longer influence flow — prime
+// ends in `done` regardless, and `autoDriftFix` is inert.
 describe("triageMachine — GH-1015 scope clip", () => {
-  test("scope:'prime' lands in 'done' after promote, skipping orphan/drift/report", async () => {
+  test("scope:'prime' lands in 'done' at scopeDecision, skipping the report stub", async () => {
     const machine = triageMachine.provide({
       actors: {
         pruneMergedActor: fakePruneMergedOk,
-        // Provide orphan + drift signals AND keep the drift / report
-        // stubs in place. Under `scope: 'full'` the same setup blocks at
-        // the report stub (drift route); under `scope: 'prime'` we expect
-        // 'done' because the machine exits at promote.
+        // Orphan + drift signals present; under `scope: 'full'` this setup
+        // would proceed to the report stub, but `prime` clips to `done` first.
         statusActor: fakeStatusActor(
           snapshot({
             totalOpen: 2,
@@ -554,11 +522,8 @@ describe("triageMachine — GH-1015 scope clip", () => {
         ),
         classifyActor: fakeClassifyOk,
         applyActor: fakeApplyOk,
-        promoteActor: fakePromoteOk,
-        // Stubs left rejecting on purpose — the scope branch must skip them.
-        // The report actor (GH-1022) still rejects, so if the scope clip
-        // failed the machine would land in `blocked` at `report`, not `done`.
-        driftFixActor: rejectingDriftFixActor("GH-1049"),
+        // Report stub still rejects — if the scope clip failed the machine
+        // would land in `blocked` at `report`, not `done`.
         reportActor: rejectingReportActor("GH-1022"),
       },
     });
@@ -569,40 +534,10 @@ describe("triageMachine — GH-1015 scope clip", () => {
     });
     expect(value).toBe("done");
     expect(context.scope).toBe("prime");
-    expect(context.promoteResult).not.toBeNull();
     expect(context.blockedReason).toBeNull();
   });
-});
 
-// GH-1342 — `scope: "prime"` + `autoDriftFix: true` opts back into the drift
-// reconcile actor without re-enabling the `reporting` stub. Three cases:
-//   1. drift > 0 + autoDriftFix=true → driftFixing runs, lands in done
-//   2. drift = 0 + autoDriftFix=true → driftDecision short-circuits to done
-//      (the prime scope guard fires before falling into `reporting`)
-//   3. drift > 0 + autoDriftFix=false → existing GH-1015 short-circuit holds
-//      (machine exits at promoting.onDone without invoking driftFixActor)
-describe("triageMachine — GH-1342 prime + autoDriftFix", () => {
-  test("prime + autoDriftFix=true + drift>0 → driftFixing runs, lands in done", async () => {
-    let driftFixCalls = 0;
-    const driftOk = fromPromise<TriageDriftFixActorResult, TriageDriftFixOptions>(async () => {
-      driftFixCalls += 1;
-      return {
-        exitCode: 0,
-        audit: [],
-        stdout: [],
-        stderr: [],
-        writes: 1,
-        skips: 0,
-        errors: 0,
-        syncOutcome: "ok",
-        touchedIssues: [42],
-        duplicatesDetected: 0,
-        mergesApplied: 0,
-        mergesSkippedParity: 0,
-        substrateHealth: { total: 0, fixable: 0, fixed: false },
-      };
-    });
-
+  test("scope:'prime' + autoDriftFix=true + drift>0 → still lands in 'done' (drift-fix retired, GH-1023)", async () => {
     const machine = triageMachine.provide({
       actors: {
         pruneMergedActor: fakePruneMergedOk,
@@ -620,10 +555,6 @@ describe("triageMachine — GH-1342 prime + autoDriftFix", () => {
         ),
         classifyActor: fakeClassifyOk,
         applyActor: fakeApplyOk,
-        promoteActor: fakePromoteOk,
-        driftFixActor: driftOk,
-        // Report stub left rejecting — if the prime+autoDriftFix path falls
-        // into reporting, the test fails on blocked at report.
         reportActor: rejectingReportActor("GH-1022"),
       },
     });
@@ -634,146 +565,8 @@ describe("triageMachine — GH-1342 prime + autoDriftFix", () => {
       autoDriftFix: true,
     });
     expect(value).toBe("done");
-    expect(driftFixCalls).toBe(1);
     expect(context.autoDriftFix).toBe(true);
-    expect(context.driftFixResult?.writes).toBe(1);
     expect(context.blockedReason).toBeNull();
-  });
-
-  test("prime + autoDriftFix=true + drift=0 → driftDecision skips to done (never invokes report stub)", async () => {
-    let driftFixCalls = 0;
-    const driftMustNotRun = fromPromise<TriageDriftFixActorResult, TriageDriftFixOptions>(
-      async () => {
-        driftFixCalls += 1;
-        throw new Error("driftFixActor must not run when totalDrift===0");
-      },
-    );
-
-    const machine = triageMachine.provide({
-      actors: {
-        pruneMergedActor: fakePruneMergedOk,
-        statusActor: fakeStatusActor(snapshot({ totalDrift: 0 })),
-        classifyActor: fakeClassifyOk,
-        applyActor: fakeApplyOk,
-        promoteActor: fakePromoteOk,
-        driftFixActor: driftMustNotRun,
-        reportActor: rejectingReportActor("GH-1022"),
-      },
-    });
-
-    const { value, context } = await runToCompletion(machine, {
-      ...baseInput,
-      scope: "prime",
-      autoDriftFix: true,
-    });
-    expect(value).toBe("done");
-    expect(driftFixCalls).toBe(0);
-    expect(context.driftFixResult).toBeNull();
-    expect(context.blockedReason).toBeNull();
-  });
-
-  // GH-1255 — the `driftFixing` invoke input grows four new fields that
-  // thread the bd-substrate dedupe + health surfaces through the actor. The
-  // machine bakes in `includeDupes:true, includeDoctor:true, applyDupes:true,
-  // doctorFix:false` at this single call site; assert the actor sees them.
-  test("driftFixing invoke passes GH-1255 dupe + doctor flags to the actor input", async () => {
-    const observed: { input: TriageDriftFixOptions | null } = { input: null };
-    const driftCapture = fromPromise<TriageDriftFixActorResult, TriageDriftFixOptions>(
-      async ({ input }) => {
-        observed.input = input;
-        return {
-          exitCode: 0,
-          audit: [],
-          stdout: [],
-          stderr: [],
-          writes: 0,
-          skips: 0,
-          errors: 0,
-          syncOutcome: "skipped",
-          touchedIssues: [],
-          duplicatesDetected: 0,
-          mergesApplied: 0,
-          mergesSkippedParity: 0,
-          substrateHealth: { total: 0, fixable: 0, fixed: false },
-        };
-      },
-    );
-
-    const machine = triageMachine.provide({
-      actors: {
-        pruneMergedActor: fakePruneMergedOk,
-        statusActor: fakeStatusActor(
-          snapshot({
-            totalDrift: 1,
-            drift: [
-              {
-                issueNumber: 42,
-                beadsId: "ai-home-drift-flags",
-                fields: { type: { gh: "feature", bd: "task" } },
-              },
-            ],
-          }),
-        ),
-        classifyActor: fakeClassifyOk,
-        applyActor: fakeApplyOk,
-        promoteActor: fakePromoteOk,
-        driftFixActor: driftCapture,
-        reportActor: rejectingReportActor("GH-1022"),
-      },
-    });
-
-    await runToCompletion(machine, {
-      ...baseInput,
-      scope: "prime",
-      autoDriftFix: true,
-    });
-    expect(observed.input).not.toBeNull();
-    expect(observed.input?.includeDupes).toBe(true);
-    expect(observed.input?.includeDoctor).toBe(true);
-    expect(observed.input?.applyDupes).toBe(true);
-    expect(observed.input?.doctorFix).toBe(false);
-  });
-
-  test("prime + autoDriftFix=false + drift>0 → GH-1015 short-circuit holds (skips driftFixing)", async () => {
-    let driftFixCalls = 0;
-    const driftMustNotRun = fromPromise<TriageDriftFixActorResult, TriageDriftFixOptions>(
-      async () => {
-        driftFixCalls += 1;
-        throw new Error("driftFixActor must not run when autoDriftFix=false");
-      },
-    );
-
-    const machine = triageMachine.provide({
-      actors: {
-        pruneMergedActor: fakePruneMergedOk,
-        statusActor: fakeStatusActor(
-          snapshot({
-            totalDrift: 1,
-            drift: [
-              {
-                issueNumber: 99,
-                beadsId: "ai-home-skip",
-                fields: { type: { gh: "feature", bd: "task" } },
-              },
-            ],
-          }),
-        ),
-        classifyActor: fakeClassifyOk,
-        applyActor: fakeApplyOk,
-        promoteActor: fakePromoteOk,
-        driftFixActor: driftMustNotRun,
-        reportActor: rejectingReportActor("GH-1022"),
-      },
-    });
-
-    const { value, context } = await runToCompletion(machine, {
-      ...baseInput,
-      scope: "prime",
-      autoDriftFix: false,
-    });
-    expect(value).toBe("done");
-    expect(driftFixCalls).toBe(0);
-    expect(context.driftFixResult).toBeNull();
   });
 });
 
@@ -800,7 +593,6 @@ describe("triageMachine — GH-1125 pruneMerged head state", () => {
         statusActor: fakeStatusActor(snapshot()),
         classifyActor: fakeClassifyOk,
         applyActor: fakeApplyOk,
-        promoteActor: fakePromoteOk,
       },
     });
 

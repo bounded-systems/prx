@@ -24,7 +24,6 @@ import {
   configureRateLimit,
   type RateLimitDeps,
 } from "@bounded-systems/github-budget";
-import type { BdExecResult } from "@bounded-systems/bd";
 import type { CommandResult } from "../../src/pr-state/github.ts";
 import type { FetchBudget, FetchGhIssuesInput } from "../../src/fetch/types.ts";
 
@@ -198,7 +197,6 @@ type MockedDeps = {
   cwd: string;
   ghRunner: GhRawRunner;
   ghCalls: string[][];
-  bdSpawnCalls: Array<{ subcommand: string; args: string[] }>;
   bdSetCalls: string[][];
   bdConfigGetCalls: number;
   rateLimit: RateLimitDeps;
@@ -228,14 +226,11 @@ type MockOpts = {
   >;
   /** Persisted watermark; null → unset (bd "not set" sentinel). */
   watermarkValue?: string | null;
-  /** Default: every `bd update` succeeds. */
-  bdUpdateBehavior?: (rowIndex: number) => { exitCode: number; stderr?: string };
 };
 
 function setupMocks(opts: MockOpts): MockedDeps {
   const cwd = mkdtempSync(join(tmpdir(), "prx-fetch-test-"));
   const ghCalls: string[][] = [];
-  const bdSpawnCalls: Array<{ subcommand: string; args: string[] }> = [];
   const bdSetCalls: string[][] = [];
   let bdConfigGetCalls = 0;
   let liveWatermark: string | null = opts.watermarkValue ?? null;
@@ -280,37 +275,6 @@ function setupMocks(opts: MockOpts): MockedDeps {
       stderr: `gh runner: response/argv mismatch (expected ${next.kind}, got ${kind})`,
       status: 1,
     };
-  };
-
-  // `bd update` mock — counts spawns + lets tests inject per-row failures.
-  const execBd = (cmdOpts: { subcommand: string; args: string[] }): BdExecResult => {
-    bdSpawnCalls.push({ subcommand: cmdOpts.subcommand, args: cmdOpts.args });
-    if (cmdOpts.subcommand === "update") {
-      const rowIdx = bdSpawnCalls.filter((c) => c.subcommand === "update").length - 1;
-      const beh = opts.bdUpdateBehavior?.(rowIdx) ?? { exitCode: 0 };
-      return {
-        exitCode: beh.exitCode,
-        stdout: "",
-        stderr: beh.stderr ?? "",
-        policy: null,
-      };
-    }
-    return { exitCode: 0, stdout: "", stderr: "", policy: null };
-  };
-
-  // GH-296: the writer's bd update now runs `prx beads update …` through the
-  // daemon (a sync runner). Record into the same bdSpawnCalls shape (subcommand
-  // = cmd[2], args = cmd.slice(3)) so the existing update-count/failure
-  // assertions hold; reuse bdUpdateBehavior for per-row failure injection.
-  const run = (cmd: string[]): { status: number; stdout: string; stderr: string } => {
-    const subcommand = cmd[2] ?? "";
-    bdSpawnCalls.push({ subcommand, args: cmd.slice(3) });
-    if (subcommand === "update") {
-      const rowIdx = bdSpawnCalls.filter((c) => c.subcommand === "update").length - 1;
-      const beh = opts.bdUpdateBehavior?.(rowIdx) ?? { exitCode: 0 };
-      return { status: beh.exitCode, stdout: "", stderr: beh.stderr ?? "" };
-    }
-    return { status: 0, stdout: "", stderr: "" };
   };
 
   // Watermark cursor fs seam — prx-82b 2e.2: the cursor is a host-local FILE now,
@@ -365,13 +329,10 @@ function setupMocks(opts: MockOpts): MockedDeps {
     cwd,
     ghRunner,
     ghCalls,
-    bdSpawnCalls,
     bdSetCalls,
     bdConfigGetCalls,
     rateLimit,
     watermarkFs,
-    execBd,
-    run,
   } as any;
 }
 
@@ -392,13 +353,10 @@ function makeDeps(mocks: ReturnType<typeof setupMocks>) {
       readFile: (p: string) => string;
       writeFile: (p: string, data: string) => void;
     };
-    execBd: (opts: { subcommand: string; args: string[] }) => BdExecResult;
-    run: (cmd: string[]) => { status: number; stdout: string; stderr: string };
   };
   return {
     cwd: m.cwd,
     graphql: { rawRunner: m.ghRunner, rateLimit: m.rateLimit },
-    writer: { run: m.run },
     watermarkFs: m.watermarkFs,
     rateLimit: m.rateLimit,
     // GH-1649: keep the snapshot empty + resolve every row to a canonical
@@ -415,11 +373,6 @@ function makeDeps(mocks: ReturnType<typeof setupMocks>) {
   };
 }
 
-function bdUpdateCount(mocks: ReturnType<typeof setupMocks>): number {
-  const m = mocks as unknown as { bdSpawnCalls: Array<{ subcommand: string }> };
-  return m.bdSpawnCalls.filter((c) => c.subcommand === "update").length;
-}
-
 // ─── Failure-mode + write-path catalog ───────────────────────────────────────
 
 describe("runFetchGhIssues — failure-mode catalog", () => {
@@ -433,7 +386,7 @@ describe("runFetchGhIssues — failure-mode catalog", () => {
     });
     const result = runFetchGhIssues(DRY_RUN_INPUT, makeDeps(mocks));
     expect(result.plan.decision).toBe("skip");
-    expect(bdUpdateCount(mocks)).toBe(0);
+    expect(result.run).toBeNull();
     expect((mocks as unknown as MockedDeps).bdSetCalls).toHaveLength(0);
   });
 
@@ -446,7 +399,7 @@ describe("runFetchGhIssues — failure-mode catalog", () => {
     const result = runFetchGhIssues(DRY_RUN_INPUT, makeDeps(mocks));
     expect(result.plan.decision).toBe("fail");
     expect(result.plan.rationale).toMatch(/hard rate exhaust/);
-    expect(bdUpdateCount(mocks)).toBe(0);
+    expect(result.run).toBeNull();
   });
 
   test("rate_limit probe fails → NO_BUDGET", () => {
@@ -463,7 +416,6 @@ describe("runFetchGhIssues — failure-mode catalog", () => {
     }
     expect(caught).toBeInstanceOf(FetchGhIssuesError);
     expect((caught as FetchGhIssuesError).code).toBe("NO_BUDGET");
-    expect(bdUpdateCount(mocks)).toBe(0);
   });
 
   test("Malformed GraphQL response → GH_GRAPHQL_PARSE_FAILED", () => {
@@ -480,7 +432,6 @@ describe("runFetchGhIssues — failure-mode catalog", () => {
     }
     expect(caught).toBeInstanceOf(FetchGhIssuesError);
     expect((caught as FetchGhIssuesError).code).toBe("GH_GRAPHQL_PARSE_FAILED");
-    expect(bdUpdateCount(mocks)).toBe(0);
   });
 
   test("Empty corpus (totalCount=0) → go, 0 writes, watermark advances", () => {
@@ -493,7 +444,7 @@ describe("runFetchGhIssues — failure-mode catalog", () => {
     expect(result.plan.decision).toBe("go");
     expect(result.corpusSize).toBe(0);
     // No pages to write; the live path short-circuits on empty plan.
-    expect(bdUpdateCount(mocks)).toBe(0);
+    expect(result.run).toBeNull();
   });
 
   test("Single-page live corpus writes per-row + advances watermark", () => {
@@ -523,26 +474,12 @@ describe("runFetchGhIssues — failure-mode catalog", () => {
     });
     const result: FetchGhIssuesResult = runFetchGhIssues(LIVE_INPUT, makeDeps(mocks));
     expect(result.plan.decision).toBe("go");
-    expect(bdUpdateCount(mocks)).toBe(2);
     expect(result.run?.totalRowsWritten).toBe(2);
     expect(result.run?.pagesCommitted).toBe(1);
     expect(result.run?.totalPointsSpent).toBe(5);
     const set = (mocks as unknown as MockedDeps).bdSetCalls;
     expect(set).toHaveLength(1);
     expect(set[0]![4]).toBe("2026-05-13T11:00:00Z"); // page max(updatedAt)
-
-    // GH-1649 / I-F7: every `bd update` writes by canonical-long-id
-    // positional (args[0]), never the bare `--external-ref`-first form that
-    // would hit bd's last-touched fallback.
-    const updateArgs = (mocks as unknown as MockedDeps).bdSpawnCalls
-      .filter((c) => c.subcommand === "update")
-      .map((c) => c.args);
-    expect(updateArgs).toHaveLength(2);
-    for (const args of updateArgs) {
-      expect(args[0]!.startsWith("-")).toBe(false);
-      expect(args[0]).toBe(longIdForUrl(args[2]!)); // args = [bdId, "--external-ref", url, …]
-      expect(args[1]).toBe("--external-ref");
-    }
   });
 });
 
@@ -579,14 +516,13 @@ describe("I-F4 / I-F5 — page atomicity + watermark monotonicity", () => {
     // I-F5-correct — what we assert is that page-1's write + watermark
     // advance survived.
     expect((caught as FetchGhIssuesError).code).toBe("BUDGET_EXHAUSTED");
-    // page-1 wrote its row + advanced the watermark BEFORE page-2 blew up.
-    expect(bdUpdateCount(mocks)).toBe(1);
+    // page-1 committed + advanced the watermark BEFORE page-2 blew up.
     const set = (mocks as unknown as MockedDeps).bdSetCalls;
     expect(set).toHaveLength(1);
     expect(set[0]![4]).toBe("2026-05-13T10:00:00Z");
   });
 
-  test("Partial-page bd write failure — second row's bd update exits non-zero → no watermark advance", () => {
+  test("Partial-page mirror failure — second row's createBead exits non-zero → no watermark advance", () => {
     const page1 = [
       {
         number: 1,
@@ -610,19 +546,22 @@ describe("I-F4 / I-F5 — page atomicity + watermark monotonicity", () => {
         { kind: "page", rows: page1, hasNextPage: false, endCursor: null, cost: 5 },
       ],
       watermarkValue: null,
-      bdUpdateBehavior: (i) =>
-        i === 1 ? { exitCode: 1, stderr: "bd: connection refused" } : { exitCode: 0 },
     });
+    // Row 2 is unmirrored (resolver returns null) and its create fails —
+    // the page-atomic write path aborts before advancing the watermark.
+    const deps = {
+      ...makeDeps(mocks),
+      resolveBdId: (url: string) => (url.endsWith("/issues/2") ? null : longIdForUrl(url)),
+      createBead: (_args: { ghId: string; repo: string }) => ({ exitCode: 1 }),
+    };
     let caught: unknown = null;
     try {
-      runFetchGhIssues(LIVE_INPUT, makeDeps(mocks));
+      runFetchGhIssues(LIVE_INPUT, deps);
     } catch (err) {
       caught = err;
     }
     expect(caught).toBeInstanceOf(FetchGhIssuesError);
     expect((caught as FetchGhIssuesError).code).toBe("FETCH_WRITE_FAILED");
-    // bd update was called twice (the first succeeded, the second failed).
-    expect(bdUpdateCount(mocks)).toBe(2);
     // I-F4 + I-F5: the page's watermark advance never fired.
     expect((mocks as unknown as MockedDeps).bdSetCalls).toHaveLength(0);
   });
@@ -652,8 +591,7 @@ describe("I-F6 — dry-run no-writes", () => {
     runFetchGhIssues(DRY_RUN_INPUT, makeDeps(mocks));
     // Exactly one graphql call — the count probe. No paginated page fetches.
     expect((mocks as unknown as MockedDeps).ghCalls).toHaveLength(1);
-    // Zero bd update calls + zero bd config set (watermark) calls.
-    expect(bdUpdateCount(mocks)).toBe(0);
+    // Zero bd config set (watermark) calls.
     expect((mocks as unknown as MockedDeps).bdSetCalls).toHaveLength(0);
   });
 });

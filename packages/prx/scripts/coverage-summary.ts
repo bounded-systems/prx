@@ -69,6 +69,20 @@ const PER_FILE_BASELINE = new Set<string>([
   "packages/prx/src/room/pod-down-verb.ts", // run() calls live downPod (podman); covered by live e2e, not unit test (mirrors pod-up-verb)
   "packages/prx/src/builder/verb.ts", // run() calls live podman + ssh-keygen (the nix-builder container); render core (container-builder.ts) is unit-tested, not the live verb (mirrors pod-up-verb)
   "packages/prx/src/sync/serve-verb.ts", // wraps the live cross-repo orchestrators (real bd/gh/dolt); the loop (serve.ts) is unit-tested, not the live wiring (mirrors pod-up-verb)
+  // GH-1012 (beads removal): thin remnants / shared infra that lost bd-path
+  // coverage. handoff/cli+drain were bd-store-backed (handoff/store.ts removed);
+  // framing was exercised by the deleted beadsd door tests (still partly covered
+  // by keeper/forge/concierge door tests). Revisit / prune these files separately.
+  // (repo_bootstrap.ts left this list in GH-1005 — the refusal stub got its own
+  // test file, taking it from 5% to 89%.)
+  "packages/prx/src/handoff/cli.ts", // beads-store-backed handoff remnant (store.ts removed)
+  "packages/prx/src/handoff/drain.ts", // beads-store-backed handoff remnant (store.ts removed)
+  "packages/prx/src/sync/run-dolt-reconcile-cross-repo.ts", // live cross-repo dolt orchestrator; loop unit-tested, not the live wiring
+  "packages/prx/src/door/framing.ts", // door frame codec — beadsd door tests removed; still covered by keeper/forge/concierge door tests
+  "packages/prx/src/audit/store/db.ts", // sqlite-bound audit store; integration-covered
+  "packages/prx/src/sync/push-watermark.ts", // fs/watermark wiring; borderline, exercised via sync integration
+  "packages/prx/src/pr-state/resolvers/notion.ts", // 73% — Notion resolver; MCP/CLI branches are integration-bound (real `claude`/notion), not unit-covered
+  "packages/prx/src/pr-state/resolvers/notion_claude_mcp.ts", // 85% floor — Notion claude-MCP resolver; live-MCP paths integration-bound
 ]);
 
 type Totals = {

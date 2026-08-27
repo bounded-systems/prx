@@ -1,0 +1,251 @@
+name: release-cut
+
+# Cut the release tag in CI, under the workflow's own identity — the one step of
+# prx's release chain that otherwise required a human's laptop (#1068, mint#22).
+#
+# WHY THIS IS AN ATTESTATION FIX, NOT A CONVENIENCE ONE
+# `version.yml` and `release.yml` already run in CI; only the tag cut didn't. So
+# the thing that starts the whole chain was created by whoever happened to run
+# git, while everything downstream of it was attested. A tag cut by pinned code
+# on protected `main` is attested by `job_workflow_ref` — the reviewed-program
+# side of the agent/program distinction in infra/docs/cloud-sessions.md, not the
+# agent side. A session may DISPATCH this; the workflow holds the credential and
+# does the work.
+#
+# ┌───────────────────────────────────────────────────────────────────────────┐
+# │ HOW THE DOWNSTREAM CHAIN FIRES — the part that is easy to get wrong.       │
+# │                                                                           │
+# │ GitHub does not create workflow runs from events caused by GITHUB_TOKEN.   │
+# │ So the tag pushed here does NOT trigger `release-binary.yml`'s             │
+# │ `on: push: tags`. A naive version of this workflow yields a tag, a green   │
+# │ run, and no release — green-but-does-nothing, and nothing in CI flags it.  │
+# │                                                                           │
+# │ `workflow_dispatch` is one of the two documented exceptions, so the last   │
+# │ step DISPATCHES release-binary.yml AT THE NEW TAG rather than relying on   │
+# │ the push. A dispatch against a tag ref resolves `github.ref` to            │
+# │ `refs/tags/<tag>` and `github.ref_name` to `<tag>` (verified against       │
+# │ v0.29.0 before this was written), so release-binary.yml's tag-only logic — │
+# │ `ver="${GITHUB_REF_NAME#v}"` and its two `startsWith(github.ref,           │
+# │ 'refs/tags/')` guards — works unchanged. No refactor of a release-critical │
+# │ workflow, and no PAT or App token for the push, which mint#22 rejected as  │
+# │ making the tag's provenance worse than the laptop tag it replaces.         │
+# └───────────────────────────────────────────────────────────────────────────┘
+#
+# REQUIRES (manual, [settings]): the org ruleset that restricts tag creation
+# must allow this repository's Actions actor to create `v*` tags. Without it the
+# push fails closed at the last step, after every guard has passed — loud, not
+# silent. See mint#18.
+
+on:
+  workflow_dispatch:
+    inputs:
+      expect-version:
+        description: "The version you expect to cut, without the leading v (e.g. 1.0.0). Fails if the manifest disagrees."
+        required: true
+        type: string
+      dry-run:
+        description: "Run every guard and report the plan without creating anything. Default true — cutting is the explicit second act."
+        required: false
+        type: boolean
+        default: true
+
+# Least privilege by default; the job widens only what it needs.
+permissions:
+  contents: read
+
+# Never let two cuts race: the tag guard is only meaningful if one cut finishes
+# before the next starts. Not cancel-in-progress — a half-cancelled cut is worse
+# than a queued one.
+concurrency:
+  group: release-cut
+  cancel-in-progress: false
+
+jobs:
+  cut:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # create + push the tag
+      actions: write # dispatch release-binary.yml at the new tag
+    outputs:
+      version: ${{ steps.guards.outputs.version }}
+      tag: ${{ steps.guards.outputs.tag }}
+      cut: ${{ steps.cut.outputs.cut }}
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      # fetch-depth: 0 + fetch-tags: true are load-bearing, not hygiene. On a
+      # shallow clone with no tags the "tag already exists" guard would pass
+      # vacuously — a guard that is worse than absent, because it reads as
+      # protection.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Refuse to cut from anywhere but main
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$REF" != "refs/heads/main" ]; then
+            echo "::error::release-cut must be dispatched against main; got '$REF'." >&2
+            echo "A release tag names a commit on the protected branch. Cutting from" >&2
+            echo "anywhere else would tag unreviewed code." >&2
+            exit 1
+          fi
+
+      - name: Guards
+        id: guards
+        env:
+          EXPECT: ${{ inputs.expect-version }}
+        run: |
+          set -euo pipefail
+
+          manifest=packages/prx/package.json
+          changelog=packages/prx/CHANGELOG.md
+
+          # ── Guard 1: the manifest version is the one the dispatcher expected.
+          # Cheap protection against dispatching the wrong thing entirely.
+          version="$(jq -r '.version' "$manifest")"
+          if [ -z "$version" ] || [ "$version" = "null" ]; then
+            echo "::error::could not read .version from $manifest" >&2
+            exit 1
+          fi
+          if [ "$version" != "$EXPECT" ]; then
+            echo "::error::version mismatch: $manifest says '$version', you dispatched expect-version='$EXPECT'." >&2
+            echo "Either the Version Packages PR has not merged yet, or you meant a different version." >&2
+            exit 1
+          fi
+          tag="v$version"
+
+          # ── Guard 2: never re-cut a published version. JSR versions are
+          # immutable and a Release is public, so this checks BOTH local refs
+          # and the remote — a local-only check passes vacuously on a clone that
+          # simply has not fetched the tag.
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "::error::tag $tag already exists locally — refusing to re-cut a published version." >&2
+            exit 1
+          fi
+          if [ -n "$(git ls-remote --tags origin "refs/tags/$tag")" ]; then
+            echo "::error::tag $tag already exists on the remote — refusing to re-cut a published version." >&2
+            exit 1
+          fi
+
+          # ── Guard 3: every VERSION-AFFECTING changeset is consumed. An
+          # unconsumed intent means `changeset version` has not been applied and
+          # merged, so the manifest is BEHIND the intents and this tag would ship
+          # a version whose changelog is missing entries.
+          #
+          # Only a changeset declaring a package bump counts. An EMPTY one
+          # ("---" immediately followed by "---") is this repo's convention for a
+          # change with no package codepath — CI-only or test-only work (gh1062,
+          # gh280, gh1039, gh1056) — so it carries no version intent and the
+          # manifest is not behind anything. Counting those blocked this
+          # workflow's first real dispatch on its OWN CI-only changeset, and
+          # would have forced a no-op Version Packages PR before every release.
+          #
+          # config.json is excluded by the *.md glob; README.md is changesets'
+          # own scaffolding, not an intent.
+          pending=""
+          for f in .changeset/*.md; do
+            [ -e "$f" ] || continue
+            case "${f##*/}" in README.md) continue ;; esac
+            # The frontmatter: lines between the opening --- and its closer. A
+            # bump is any non-blank line there ("<pkg>": patch|minor|major).
+            fm="$(awk 'NR==1 && $0=="---" {inside=1; next} inside && $0=="---" {exit} inside {print}' "$f")"
+            if printf '%s' "$fm" | grep -q '[^[:space:]]'; then
+              pending="$pending ${f##*/}"
+            fi
+          done
+          if [ -n "$pending" ]; then
+            echo "::error::unconsumed changesets with a version bump — merge the Version Packages PR first:$pending" >&2
+            exit 1
+          fi
+
+          # ── Guard 4: the changelog actually documents this version. Catches a
+          # release whose notes were never generated, BEFORE anything is published
+          # rather than after someone reads an empty release page.
+          if ! grep -qxF "## $version" "$changelog"; then
+            echo "::error::$changelog has no '## $version' section — refusing to cut a release with no notes." >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### release-cut guards passed"
+            echo
+            echo "| check | result |"
+            echo "| --- | --- |"
+            echo "| manifest version matches \`expect-version\` | \`$version\` |"
+            echo "| tag \`$tag\` unused (local + remote) | ok |"
+            echo "| changesets consumed | ok |"
+            echo "| \`## $version\` in CHANGELOG | ok |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dry run — stop before creating anything
+        if: ${{ inputs.dry-run }}
+        env:
+          TAG: ${{ steps.guards.outputs.tag }}
+        run: |
+          set -euo pipefail
+          {
+            echo
+            echo "**Dry run.** Every guard passed. Nothing was created."
+            echo
+            echo "Re-dispatch with \`dry-run: false\` to cut \`$TAG\` at \`$GITHUB_SHA\`"
+            echo "and dispatch release-binary.yml at that tag."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "dry run: would cut $TAG at $GITHUB_SHA"
+
+      # Annotated, not signed: a workflow holds no signing key. The tag names a
+      # commit that is already on protected main and was reached through the
+      # reviewed pipeline; the attestation that matters is job_workflow_ref, not
+      # a signature this job cannot make. Subject matches the existing tags
+      # ("prx v0.29.0").
+      - name: Cut the tag
+        id: cut
+        if: ${{ !inputs.dry-run }}
+        env:
+          TAG: ${{ steps.guards.outputs.tag }}
+          VERSION: ${{ steps.guards.outputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" "$GITHUB_SHA" -m "prx $TAG"
+          git push origin "refs/tags/$TAG"
+
+          # Verify the POSTCONDITION, not the command's own claim: confirm the
+          # ref is on the remote before anything downstream is told it exists.
+          if [ -z "$(git ls-remote --tags origin "refs/tags/$TAG")" ]; then
+            echo "::error::push reported success but $TAG is not on the remote." >&2
+            exit 1
+          fi
+          echo "cut=true" >> "$GITHUB_OUTPUT"
+          echo "cut $TAG at $GITHUB_SHA"
+
+      # The step the whole header is about. Without this, the tag exists and
+      # nothing builds.
+      - name: Dispatch release-binary at the new tag
+        if: ${{ !inputs.dry-run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.guards.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh workflow run release-binary.yml --repo "$GITHUB_REPOSITORY" --ref "$TAG"
+          {
+            echo
+            echo "**Cut \`$TAG\`** at \`$GITHUB_SHA\` and dispatched \`release-binary.yml\` at that tag."
+            echo
+            echo "The dispatch is deliberate: a GITHUB_TOKEN tag push does not trigger"
+            echo "\`on: push: tags\`, so relying on it would leave a tag with no release."
+          } >> "$GITHUB_STEP_SUMMARY"

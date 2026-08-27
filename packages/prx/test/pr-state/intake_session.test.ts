@@ -452,7 +452,6 @@ describe("prx intake namespace help (GH-1474)", () => {
     expect(out).toContain("prx intake task");
     expect(out).toContain("prx intake comment");
     expect(out).toContain("prx intake search");
-    expect(out).toContain("prx intake bd memory ls");
     expect(out).toContain("Per-subcommand flag listings: run `prx intake <sub> --help`.");
     expect(out).not.toMatch(TOP_LEVEL_BANNER_RE);
   });
@@ -500,17 +499,6 @@ describe("prx intake namespace help (GH-1474)", () => {
     const out = logs.join("\n");
     expect(out).toContain("prx intake search");
     expect(out).toContain("Unified GH+bd dedupe search before filing");
-    expect(out).not.toMatch(TOP_LEVEL_BANNER_RE);
-  });
-
-  test("`prx intake bd memory ls --help` resolves the multi-level subcommand to its registry entry", async () => {
-    const { logs, output } = captureOutput();
-    const exit = await runCli(["intake", "bd", "memory", "ls", "--help"], output, {});
-
-    expect(exit).toBe(0);
-    const out = logs.join("\n");
-    expect(out).toContain("prx intake bd memory ls");
-    expect(out).toContain("List or search bd memories");
     expect(out).not.toMatch(TOP_LEVEL_BANNER_RE);
   });
 

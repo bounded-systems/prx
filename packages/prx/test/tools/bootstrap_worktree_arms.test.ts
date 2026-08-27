@@ -51,10 +51,11 @@ describe("buildDefaultDeps + gitOutput", () => {
   // under bun test resolves against the test's own worktree rather than the
   // passed cwd (a cached-git-env harness quirk), so a tmpdir cwd still yields a
   // toplevel. The value arm below covers the trim/return path.
-  test("wires the real path resolvers and bd-schema repair", () => {
+  test("wires the real path resolvers; bd-schema repair is removed (null)", () => {
     const deps = buildDefaultDeps(async () => ({}));
     expect(typeof deps.resolveMainWorktree).toBe("function");
-    expect(deps.repairBdSchema).toBeTypeOf("function");
+    // GH-1012: the bd-schema repair trigger was removed with the bd machinery.
+    expect(deps.repairBdSchema).toBeNull();
     // gitOutput value arm: a real repo cwd resolves to a non-empty toplevel.
     const root = deps.resolveRepoRoot(process.cwd());
     expect(root).not.toBeNull();

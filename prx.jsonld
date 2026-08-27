@@ -35,9 +35,9 @@
       "runtimePlatform": "Bun",
       "license": {
         "@type": "CreativeWork",
-        "name": "PolyForm Noncommercial License 1.0.0",
-        "url": "https://polyformproject.org/licenses/noncommercial/1.0.0",
-        "identifier": "PolyForm-Noncommercial-1.0.0"
+        "name": "MIT License",
+        "url": "https://opensource.org/license/mit",
+        "identifier": "MIT"
       },
       "author": {
         "@type": "Person",
@@ -139,6 +139,15 @@
       "@id": "https://github.com/bounded-systems/prx/blob/main/STATUS.md",
       "name": "prx — status",
       "url": "https://github.com/bounded-systems/prx/blob/main/STATUS.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/THREATS.md",
+      "name": "Threat model",
+      "url": "https://github.com/bounded-systems/prx/blob/main/THREATS.md",
       "isPartOf": {
         "@id": "https://github.com/bounded-systems/prx"
       }
@@ -535,6 +544,15 @@
       "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/signed-ref-snapshot/README.md",
       "name": "Spike — signed ref-snapshot + artifact provenance (OCAP-grade repo identity)",
       "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/signed-ref-snapshot/README.md",
+      "isPartOf": {
+        "@id": "https://github.com/bounded-systems/prx"
+      }
+    },
+    {
+      "@type": "TechArticle",
+      "@id": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/token-custody-and-trail-build-vs-adopt.md",
+      "name": "Token custody and the call trail: does custody move into the prx proxy? (ADR)",
+      "url": "https://github.com/bounded-systems/prx/blob/main/docs/spikes/token-custody-and-trail-build-vs-adopt.md",
       "isPartOf": {
         "@id": "https://github.com/bounded-systems/prx"
       }

@@ -239,7 +239,7 @@ describe("runPlanView — bd loader failure (GH-1186 review)", () => {
       },
     );
     expect(exitCode).toBe(1);
-    expect(errors[0]).toContain("bd unreachable");
+    expect(errors[0]).toContain("Front Desk unreachable");
     expect(errors[0]).toContain("bd: database not found");
   });
 
@@ -265,84 +265,27 @@ describe("runPlanView — bd loader failure (GH-1186 review)", () => {
   });
 });
 
-describe("runPlanView — notion paths (GH-874)", () => {
-  test("Notion UUID dispatches to runScoutNotion and renders the result", async () => {
-    const calls: Array<{ id: string }> = [];
-    const logs: string[] = [];
+describe("runPlanView — notion paths removed (GH-1012)", () => {
+  test("Notion UUID no longer resolves; returns exit 1", async () => {
+    const errors: string[] = [];
     const exitCode = await runPlanView(
       makeOpts({ id: "550e8400-e29b-41d4-a716-446655440000" }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      {
-        runScoutNotion: (async (input: { id: string }) => {
-          calls.push({ id: input.id });
-          return {
-            uuid: input.id,
-            task_id: null,
-            title: "from notion",
-            body: "notion body",
-            url: "https://www.notion.so/page-id",
-            state: "open" as const,
-            gh_issue: null,
-            bd_id: null,
-            intake_shape: { type: null, title: "from notion", body: "notion body" },
-          };
-        }) as never,
-      },
+      { log: () => undefined, error: (l) => errors.push(l) },
+      { execGh: (() => ghOk()) as never },
     );
-    expect(exitCode).toBe(0);
-    expect(calls).toHaveLength(1);
-    expect(calls[0]!.id).toBe("550e8400-e29b-41d4-a716-446655440000");
-    expect(logs[0]).toContain("title:    from notion");
-    expect(logs[0]).toContain("uuid:     550e8400-e29b-41d4-a716-446655440000");
+    expect(exitCode).toBe(1);
+    expect(errors[0]).toContain("Notion ids are no longer supported");
   });
 
-  test("Notion Task-ID dispatches to runScoutNotion", async () => {
-    const calls: Array<{ id: string }> = [];
-    await runPlanView(
+  test("Notion Task-ID no longer resolves; returns exit 1", async () => {
+    const errors: string[] = [];
+    const exitCode = await runPlanView(
       makeOpts({ id: "PROJ-5779" }),
-      { log: () => undefined, error: () => undefined },
-      {
-        runScoutNotion: (async (input: { id: string }) => {
-          calls.push({ id: input.id });
-          return {
-            uuid: "550e8400-e29b-41d4-a716-446655440000",
-            task_id: input.id,
-            title: "task",
-            body: null,
-            url: null,
-            state: "unknown" as const,
-            gh_issue: null,
-            bd_id: null,
-            intake_shape: { type: null, title: "task", body: null },
-          };
-        }) as never,
-      },
+      { log: () => undefined, error: (l) => errors.push(l) },
+      { execGh: (() => ghOk()) as never },
     );
-    expect(calls).toHaveLength(1);
-    expect(calls[0]!.id).toBe("PROJ-5779");
-  });
-
-  test("Notion json output wraps result with source='notion'", async () => {
-    const logs: string[] = [];
-    await runPlanView(
-      makeOpts({ id: "550e8400-e29b-41d4-a716-446655440000", format: "json" }),
-      { log: (l) => logs.push(l), error: () => undefined },
-      {
-        runScoutNotion: (async () => ({
-          uuid: "550e8400-e29b-41d4-a716-446655440000",
-          task_id: null,
-          title: "t",
-          body: null,
-          url: null,
-          state: "open" as const,
-          gh_issue: null,
-          bd_id: null,
-          intake_shape: { type: null, title: "t", body: null },
-        })) as never,
-      },
-    );
-    const parsed = JSON.parse(logs[0]!) as { source: string };
-    expect(parsed.source).toBe("notion");
+    expect(exitCode).toBe(1);
+    expect(errors[0]).toContain("Notion ids are no longer supported");
   });
 });
 

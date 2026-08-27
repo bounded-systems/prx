@@ -1,15 +1,28 @@
 #!/usr/bin/env bash
 # SessionStart hook — inject the bounded-systems canonical Claude context.
-# Canonical source: bounded-systems/.github-private -> claude/context.md
-# Fail OPEN: anything that goes wrong yields no context, never a blocked session.
+# Canonical source since .github#175: bounded-systems/.github -> claude/context.md
+# (PUBLIC — the #491 audit found nothing private; the .github-private copy stays
+# byte-identical until #494 retires it and remains the fallback below).
+# Fail OPEN but never SILENT: anything that goes wrong yields no context and one
+# status line saying so — a degraded session must be able to tell (#491).
 set -uo pipefail
 command -v jq >/dev/null 2>&1 || exit 0
 
 path='repos/bounded-systems/.github-private/contents/claude/context.md'
 ctx=""
 
+# 0) The public canonical copy — anonymous raw fetch, no token, no clone. This
+#    is the source that works in a cloud session with NOTHING attached; every
+#    fallback below was measured failing there on 2026-07-31, when the file
+#    lived only in the private repo.
+if command -v curl >/dev/null 2>&1; then
+  ctx="$(curl -fsSL --connect-timeout 5 --max-time 15 \
+    https://raw.githubusercontent.com/bounded-systems/.github/main/claude/context.md \
+    2>/dev/null || true)"
+fi
+
 # 1) gh API — local dev, or cloud only if gh is installed AND a token is present.
-if command -v gh >/dev/null 2>&1; then
+if [ -z "$ctx" ] && command -v gh >/dev/null 2>&1; then
   ctx="$(gh api "$path" -H 'Accept: application/vnd.github.raw' 2>/dev/null || true)"
 fi
 
@@ -35,6 +48,13 @@ if [ -z "$ctx" ]; then
   fi
 fi
 
-[ -z "$ctx" ] && exit 0   # fail open
+# Fail OPEN but LOUD: hook stdout is injected into session context, so this one
+# line is what lets a session know it is degraded — measured 2026-08-15 (#491):
+# the silent variant made a context-less session indistinguishable from a
+# healthy one, and the verbspec worker shipped work without knowing.
+if [ -z "$ctx" ]; then
+  echo "org context NOT loaded — all sources failed (public raw, gh api, git clone, curl+token). Degraded mode: see the org stanza in CLAUDE.md."
+  exit 0
+fi
 jq -n --arg c "$ctx" \
   '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$c}}'

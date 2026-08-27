@@ -27,7 +27,11 @@ describe("createDoorBroker (default transport — real forge-d over guest-room c
     socketPath = join(tmpdir(), `ds-forge-d-${process.pid}.sock`);
     const mint = ((input) => {
       void input;
-      return Promise.resolve({ token: "ghs_e2e", expiresAt: EXPIRES, permissions: { contents: "read" } });
+      return Promise.resolve({
+        token: "ghs_e2e",
+        expiresAt: EXPIRES,
+        permissions: { contents: "read" },
+      });
     }) as typeof mintInstallationToken;
     server = await runForgeDServe({
       socketPath,
@@ -76,7 +80,11 @@ describe("createDoorBroker", () => {
       now: () => T0,
     });
     await broker.ensure();
-    expect(sent).toEqual({ kind: "lease", repositories: ["prx"], permissions: { contents: "read" } });
+    expect(sent).toEqual({
+      kind: "lease",
+      repositories: ["prx"],
+      permissions: { contents: "read" },
+    });
   });
 
   test("an error lease reply throws (fail-closed — no local fallback on the door path)", async () => {
