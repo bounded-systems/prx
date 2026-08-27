@@ -352,8 +352,6 @@ import {
   runReserve as runWorkspaceReserve,
 } from "../workspace/actor.ts";
 import { MaterializeInput, ReserveInput } from "../workspace/schema.ts";
-import { runHomeUpdate, type HomeUpdateOptions, type HomeUpdateDeps } from "./home-update.ts";
-import { runHomeSync, type HomeSyncOptions, type HomeSyncDeps } from "./home-sync.ts";
 import {
   runDoltReconcile,
   type DoltReconcileOptions,
@@ -1778,21 +1776,6 @@ type ParsedCommand =
       format: "plain" | "json";
     }
   | {
-      command: "home-update";
-      flakeDir?: string | undefined;
-      input?: string | undefined;
-      dryRun: boolean;
-      format: "plain" | "json";
-      verbose: boolean;
-    }
-  | {
-      command: "home-sync";
-      flakeDir?: string | undefined;
-      input?: string | undefined;
-      dryRun: boolean;
-      format: "plain" | "json";
-    }
-  | {
       command: "dolt-reconcile";
       repoPath: string;
       dryRun: boolean;
@@ -2235,8 +2218,6 @@ type CliDeps = {
     launchCwd: string,
     expectedBranch: string,
   ) => DetachedHeadRefusal | null;
-  homeUpdate?: (options: HomeUpdateOptions, output: Output, deps?: HomeUpdateDeps) => number;
-  homeSync?: (options: HomeSyncOptions, output: Output, deps?: HomeSyncDeps) => number;
   runDoltReconcile?: (
     options: DoltReconcileOptions,
     output: Output,
@@ -3902,35 +3883,12 @@ export function normalizeNamespaceArgv(argv: string[]): string[] {
     throw new CliError(`Unknown preflight subcommand: ${c1}`);
   }
 
-  if (c0 === "home") {
-    if (!c1 || c1.startsWith("-")) {
-      throw new CliError("home requires a subcommand: update | sync");
-    }
-    if (c1 === "update") {
-      return ["home-update", ...tail];
-    }
-    if (c1 === "sync") {
-      return ["home-sync", ...tail];
-    }
-    throw new CliError(`Unknown home subcommand: ${c1}`);
-  }
-
-  // prx-1ab: `prx upgrade` — the one-command self-update. Updates the `prx` flake
-  // input (the installed binary), commits the lockfile, and runs home-manager
-  // switch (all via `home-update`). `--input <name>` overrides the default to
-  // update a different input. Tail flags (--dry-run/--format/--flake-dir) pass
-  // through. (Distinct from `prx update`, which renders/updates the GitHub PR.)
-  //
-  // prx-9lc / GH-411 slice 3: the coupled set (prx + whatever consumer flake
-  // imports its hm modules) must move together — bumping only `prx` lets a stale
-  // consumer reference a removed prx option and abort the switch. The set is no
-  // longer hardcoded here: `home-update` reads it from `homeUpdate.inputs` in
-  // `~/.config/prx/config.json` (falling back to `["prx"]`), so `prx upgrade`
-  // just passes through and an explicit `--input` still overrides.
-  if (c0 === "upgrade") {
-    const argv = [c1, ...tail].filter((a): a is string => a !== undefined);
-    return ["home-update", ...argv];
-  }
+  // `prx home update`, `prx home sync`, and `prx upgrade` were removed: prx no
+  // longer drives `nix flake update` + `home-manager switch`. All three routed
+  // through one `home-update` handler that shelled out to home-manager against
+  // a flake dir prx guessed, which silently applied a different configuration
+  // than the one the operator was editing. Updating prx is now an ordinary
+  // flake operation in the consuming config — bump the input and switch there.
 
   // GH-955: `prx ci` is the CLI surface for the `local_ci` actor's `run`
   // accept (workflow tier verification_publication). Top-level leaf verb;
@@ -7952,51 +7910,6 @@ export function parseCommand(argv: string[]): ParsedCommand {
     };
   }
 
-  if (command === "home-update") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        "flake-dir": { type: "string" },
-        input: { type: "string" },
-        "dry-run": { type: "boolean", default: false },
-        format: { type: "string", default: "plain" },
-        verbose: { type: "boolean", default: false },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command: "home-update",
-      flakeDir: values["flake-dir"],
-      input: values.input,
-      dryRun: values["dry-run"],
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-      verbose: values.verbose,
-    };
-  }
-
-  if (command === "home-sync") {
-    const { values } = parseArgs({
-      args: rest,
-      options: {
-        "flake-dir": { type: "string" },
-        input: { type: "string" },
-        "dry-run": { type: "boolean", default: false },
-        format: { type: "string", default: "plain" },
-      },
-      strict: true,
-      allowPositionals: false,
-    });
-
-    return {
-      command: "home-sync",
-      flakeDir: values["flake-dir"],
-      input: values.input,
-      dryRun: values["dry-run"],
-      format: ensureChoice(values.format, ["plain", "json"], "--format"),
-    };
-  }
 
   if (command === "dolt-reconcile") {
     const { values } = parseArgs({
@@ -15604,34 +15517,6 @@ export function runCli(
       const statusResult = (deps.hookStatus ?? hookStatus)(inventory, parsed.hooksPath);
       output.log(formatHookStatus(statusResult, parsed.format));
       return hookStatusHasDrift(statusResult) ? 1 : 0;
-    }
-
-    if (parsed.command === "home-update") {
-      const handler = deps.homeUpdate ?? runHomeUpdate;
-      return handler(
-        {
-          flakeDir: parsed.flakeDir,
-          input: parsed.input,
-          dryRun: parsed.dryRun,
-          format: parsed.format,
-          verbose: parsed.verbose,
-        },
-        output,
-      );
-    }
-
-    if (parsed.command === "home-sync") {
-      const handler = deps.homeSync ?? runHomeSync;
-      return handler(
-        {
-          flakeDir: parsed.flakeDir,
-          input: parsed.input,
-          dryRun: parsed.dryRun,
-          format: parsed.format,
-        },
-        output,
-        { prepareMainx: prepareMainxWorktree },
-      );
     }
 
     if (parsed.command === "dolt-reconcile") {

@@ -214,9 +214,6 @@ System:
   prx rules validate            Validate rules markdown against typed substrate
   prx rules inputs              Dump typed inputs as JSON for debugging
   prx transcripts list-sources  List registered transcript source adapters
-  prx home update               Run nix flake update plus home-manager switch
-  prx upgrade                   Self-update: nix flake update prx + commit lockfile + home-manager switch
-  prx home sync                 Detach origin main then run home update
   prx hooks apply               Apply prx-managed git hooks across repos
   prx hooks status              Report git hooks path drift
   prx preflight claude          Verify claude agent runtime dependencies
