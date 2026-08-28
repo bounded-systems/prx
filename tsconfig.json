@@ -13,10 +13,11 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "types": ["bun"],
-    // TS 6.0 deprecates `baseUrl` (TS5101); silence until the paths setup is
-    // migrated off it. Removed entirely in TS 7.0. See prx-d68.
-    "ignoreDeprecations": "6.0",
-    "baseUrl": ".",
+    // `baseUrl` is GONE in TS 7.0 (TS5102), as the note that used to live here
+    // predicted (prx-d68). `paths` needs no baseUrl: entries are resolved
+    // relative to this file's directory, which is what the `./` prefixes below
+    // already assume. `ignoreDeprecations` went with it -- it existed only to
+    // silence the TS 6.0 baseUrl deprecation.
     "paths": {
       "@bounded-systems/prx-config": ["./packages/prx-config/src/index.ts"]
     }
