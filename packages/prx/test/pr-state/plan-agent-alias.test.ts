@@ -29,23 +29,16 @@ describe("prx plan agent alias (prx-383)", () => {
   });
 });
 
-describe("prx upgrade self-update alias (prx-1ab, prx-9lc, GH-411 slice 3)", () => {
-  test("`prx upgrade` passes through to home-update (coupled set comes from config)", () => {
-    // GH-411 slice 3: the coupled input set is no longer hardcoded here —
-    // home-update resolves it from `homeUpdate.inputs` in ~/.config/prx/config.json
-    // (falling back to `["prx"]`). `prx upgrade` is now a thin alias.
-    expect(normalizeNamespaceArgv(["upgrade"])).toEqual(["home-update"]);
+describe("retired home verbs", () => {
+  // `prx home update`, `prx home sync`, and `prx upgrade` all routed through a
+  // single `home-update` handler that shelled out to `home-manager switch`
+  // against a flake dir prx guessed. All three are gone, so none of them
+  // normalize to anything — they fall through as ordinary unknown commands.
+  test("`prx upgrade` is no longer a namespace alias", () => {
+    expect(normalizeNamespaceArgv(["upgrade"])).toEqual(["upgrade"]);
   });
 
-  test("tail flags pass through", () => {
-    expect(normalizeNamespaceArgv(["upgrade", "--dry-run"])).toEqual(["home-update", "--dry-run"]);
-  });
-
-  test("an explicit --input still overrides the configured set", () => {
-    expect(normalizeNamespaceArgv(["upgrade", "--input", "ai-home"])).toEqual([
-      "home-update",
-      "--input",
-      "ai-home",
-    ]);
+  test("`prx home` is no longer a namespace", () => {
+    expect(normalizeNamespaceArgv(["home", "update"])).toEqual(["home", "update"]);
   });
 });

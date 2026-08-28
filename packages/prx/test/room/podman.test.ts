@@ -42,8 +42,10 @@ describe("renderPodmanKube", () => {
     expect(manifest).toContain(`path: "${dir}"`);
     expect(manifest).toContain("type: DirectoryOrCreate");
     expect(manifest).not.toContain("emptyDir:");
-    // Every NON-SECRET room mounts it at the pod's doorDir.
-    const mountLine = `mountPath: "${dir}"`;
+    // Every NON-SECRET room mounts it at the pod's guestDoorDir — a
+    // host-agnostic path distinct from the host-side hostPath source above,
+    // so the guest can't fingerprint the host from its own mount table.
+    const mountLine = `mountPath: "${perRepoPod.guestDoorDir}"`;
     const mounts = manifest.split(mountLine).length - 1;
     expect(mounts).toBe(kubeRooms.length);
   });
@@ -74,7 +76,7 @@ describe("renderPodmanKube", () => {
     // it reaches the keeper on the shared fabric (the whole point of the split).
     expect(manifest).toContain("PRX_KEEPER_DOOR");
     expect(manifest).toContain(`value: "keeperd"`);
-    expect(manifest).toContain(`value: "${perRepoPod.doorDir}/keeperd.sock"`);
+    expect(manifest).toContain(`value: "${perRepoPod.guestDoorDir}/keeperd.sock"`);
   });
 
   test("falls back to a placeholder for a room with no image", () => {
@@ -91,23 +93,24 @@ describe("renderPodmanKube", () => {
     // The beadsd consume↔expose pair resolves → claude-room gets the gate env.
     expect(manifest).toContain("PRX_BEADS_DOOR");
     expect(manifest).toContain(`value: "beadsd"`);
-    expect(manifest).toContain(`value: "${perRepoPod.doorDir}/beadsd.sock"`);
+    expect(manifest).toContain(`value: "${perRepoPod.guestDoorDir}/beadsd.sock"`);
   });
 
   test("overrides beadsd-room's --socket to the shared fabric path (prx-asr)", () => {
     // The beadsd-box image bakes `--socket /run/prx/doors/beadsd.sock`; the kube
-    // container must override it to the mounted doorDir so the socket lands on
-    // the fabric consumers read (else beadsd serves off-fabric, unreachable).
+    // container must override it to the mounted guestDoorDir so the socket
+    // lands on the fabric consumers read (else beadsd serves off-fabric,
+    // unreachable).
     expect(manifest).toContain("args:");
     expect(manifest).toContain(`- "--socket"`);
-    expect(manifest).toContain(`- "${perRepoPod.doorDir}/beadsd.sock"`);
+    expect(manifest).toContain(`- "${perRepoPod.guestDoorDir}/beadsd.sock"`);
   });
 
   test("does NOT add a --socket override for claude-room's sealed control door", () => {
     // claude-room exposes only `control` (state: closed) and its occupant is
     // `claude`, which would choke on a stray --socket. Assert no control socket
     // arg is emitted.
-    expect(manifest).not.toContain(`${perRepoPod.doorDir}/control.sock`);
+    expect(manifest).not.toContain(`${perRepoPod.guestDoorDir}/control.sock`);
   });
 
   test("does not emit env for a room with no wired door (beadsd-room)", () => {
@@ -197,7 +200,7 @@ describe("renderPodmanKube — backing services (prx-asr / dolt-box)", () => {
     const slice = lines.slice(start).join("\n");
     expect(slice).not.toContain("--socket");
     // The dolt container mounts ONLY its data volume, not the door fabric.
-    expect(slice).not.toContain(`mountPath: "${svcPod.doorDir}"`);
+    expect(slice).not.toContain(`mountPath: "${svcPod.guestDoorDir}"`);
   });
 
   test("emits no persistentVolumeClaim when the pod has no services", () => {
@@ -237,8 +240,8 @@ describe("renderPodmanRun (prx-b44y — secret-holding rooms)", () => {
     expect(i).toBeGreaterThanOrEqual(0);
     // `:z` (shared) so an SELinux-enforcing host lets the keeper write its socket
     // on the dir shared with the kube pod (prx-3urm); shared, not private `:Z`.
-    const dir = perRepoPod.doorDir;
-    expect(argv[i + 1]).toBe(`${dir}:${dir}:z`);
+    // Mounted at guestDoorDir (host-agnostic), not the host doorDir itself.
+    expect(argv[i + 1]).toBe(`${perRepoPod.doorDir}:${perRepoPod.guestDoorDir}:z`);
   });
 
   test("image precedes CMD args; CMD args override entrypoint socket + key (prx-9yv3)", () => {
@@ -250,7 +253,7 @@ describe("renderPodmanRun (prx-b44y — secret-holding rooms)", () => {
     const cmdArgs = argv.slice(imageIdx + 1);
     const socketIdx = cmdArgs.lastIndexOf("--socket");
     expect(socketIdx).toBeGreaterThanOrEqual(0);
-    expect(cmdArgs[socketIdx + 1]).toBe(`${perRepoPod.doorDir}/keeperd.sock`);
+    expect(cmdArgs[socketIdx + 1]).toBe(`${perRepoPod.guestDoorDir}/keeperd.sock`);
     const keyIdx = cmdArgs.lastIndexOf("--key");
     expect(keyIdx).toBeGreaterThanOrEqual(0);
     expect(cmdArgs[keyIdx + 1]).toBe("/run/secrets/keeper-key");
@@ -302,7 +305,7 @@ describe("renderPodmanRun (prx-b44y — secret-holding rooms)", () => {
     // onto the shared fabric (not the in-box default /run/keeperd.sock).
     expect(envPairs.some((e) => e.startsWith("KEEPERD_SOCK="))).toBe(true);
     const keeperSockEnv = envPairs.find((e) => e.startsWith("KEEPERD_SOCK="));
-    expect(keeperSockEnv).toBe(`KEEPERD_SOCK=${perRepoPod.doorDir}/keeperd.sock`);
+    expect(keeperSockEnv).toBe(`KEEPERD_SOCK=${perRepoPod.guestDoorDir}/keeperd.sock`);
   });
 
   test("throws for a non-member room", () => {
@@ -341,8 +344,8 @@ describe("renderPodmanQuadlet (prx-b44y — production systemd form)", () => {
   test("mounts the shared door fabric with a shared :z relabel (prx-3urm)", () => {
     // `:z` so an SELinux-enforcing host (the common production case) lets the
     // keeper write its socket on the shared door dir; shared, not private `:Z`.
-    const dir = perRepoPod.doorDir;
-    expect(lines).toContain(`Volume=${dir}:${dir}:z`);
+    // Mounted at guestDoorDir (host-agnostic), not the host doorDir itself.
+    expect(lines).toContain(`Volume=${perRepoPod.doorDir}:${perRepoPod.guestDoorDir}:z`);
   });
 
   test("borrows claude-box's hardening floor; keeps egress for the push", () => {

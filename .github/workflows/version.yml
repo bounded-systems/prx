@@ -40,7 +40,7 @@ jobs:
       id-token: write # OIDC -> broker /github/forge-version
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
 
@@ -68,7 +68,7 @@ jobs:
           echo "token=$tok" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           # App token (if configured) so the branch push is attributed to the App
@@ -107,12 +107,13 @@ jobs:
         run: |
           set -euo pipefail
           branch="changeset-release/main"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -B "$branch"
-          git add -A
-          git commit -m "chore(release): version packages"
-          git push -f origin "$branch"
+          # Signed commit through the API rather than `git commit` + `git push`.
+          # The org's default-branch-protection ruleset requires signed commits,
+          # and a git-pushed commit is unsigned whichever token pushes it — which
+          # is why this PR needed `gh pr merge --admin` every single release.
+          # The script also creates or force-points the branch, so it replaces
+          # `git checkout -B` and `git push -f` too.
+          .github/scripts/signed-commit.sh "$branch" "chore(release): version packages"
           if gh pr view "$branch" --json state --jq '.state' 2>/dev/null | grep -q OPEN; then
             echo "::notice::release PR already open — branch updated"
           else

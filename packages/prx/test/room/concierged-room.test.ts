@@ -50,7 +50,7 @@ describe("conciergedRoom renders as a secret room (podman run --secret)", () => 
     const i = argv.indexOf("--socket");
     expect(i).toBeGreaterThanOrEqual(0);
     expect(argv[i + 1]!.endsWith("/concierged.sock")).toBe(true);
-    expect(argv[i + 1]!.startsWith(pod.doorDir)).toBe(true);
+    expect(argv[i + 1]!.startsWith(pod.guestDoorDir)).toBe(true);
   });
 
   test("runs the concierged-box image", () => {

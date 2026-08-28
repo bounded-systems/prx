@@ -20,18 +20,24 @@
     "url": "https://github.com/bdelanghe"
   },
   "license": {
-    "spdx": "PolyForm-Noncommercial-1.0.0",
-    "name": "PolyForm Noncommercial License 1.0.0",
-    "url": "https://polyformproject.org/licenses/noncommercial/1.0.0",
-    "summary": "Source-available. Free for any noncommercial use; all commercial rights are reserved to the copyright holder. This is not an OSI-approved open-source license."
+    "spdx": "MIT",
+    "name": "MIT License",
+    "url": "https://opensource.org/license/mit",
+    "summary": "OSI-approved permissive open-source licence. Free for any use, including commercial, provided the copyright notice and permission notice are retained."
   },
   "security": {
     "channel": "github-private-advisory",
     "reportUrl": "https://github.com/bounded-systems/prx/security/advisories/new",
     "responseDays": 7,
     "supportedVersions": [
-      { "range": "0.1.x", "supported": true },
-      { "range": "< 0.1", "supported": false }
+      {
+        "range": "0.1.x",
+        "supported": true
+      },
+      {
+        "range": "< 0.1",
+        "supported": false
+      }
     ]
   },
   "conduct": {

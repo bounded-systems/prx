@@ -154,7 +154,7 @@ export function renderPodmanKube(pod: PodSpec): string {
     }
     lines.push("      volumeMounts:");
     lines.push(`        - name: ${DOOR_VOLUME}`);
-    lines.push(`          mountPath: ${dq(p.doorDir)}`);
+    lines.push(`          mountPath: ${dq(p.guestDoorDir)}`);
     if (p.repo) {
       lines.push(`        - name: ${REPO_VOLUME}`);
       lines.push(`          mountPath: ${dq(WORK_DIR)}`);
@@ -184,7 +184,7 @@ export function renderPodmanKube(pod: PodSpec): string {
     // qualifies while claude-room's sealed `control` does not.
     const socketArgs = room.doors
       .filter((d) => d.direction === "expose" && d.state !== "closed")
-      .flatMap((d) => ["--socket", `${p.doorDir}/${d.socket.split("/").at(-1) ?? d.socket}`]);
+      .flatMap((d) => ["--socket", `${p.guestDoorDir}/${d.socket.split("/").at(-1) ?? d.socket}`]);
     // room.extraArgs (already honored by the secret/run path, renderPodmanRun)
     // is honored here too — e.g. a door-bridge room (prx-8uf2) with no exposed
     // door of its own, whose CMD is `sh -c 'prx door bridge --port <p> --socket
@@ -318,12 +318,15 @@ export function renderPodmanRun(pod: PodSpec, roomName: string): string[] {
   }
   // The shared door fabric: the SAME host doorDir the kube pod hostPath-mounts,
   // so this standalone container's exposed door is reachable across runtimes.
+  // Mounted at guestDoorDir (host-agnostic), NOT the host doorDir itself — a
+  // same-path mount would let the container fingerprint the host's OS/user/
+  // home layout from its own mount table (2026-07-03 finding).
   // `:z` = SHARED SELinux relabel (container_file_t, shared) — required on an
   // SELinux-enforcing host (e.g. a Fedora podman machine), else the keeper hits
   // EACCES creating its socket on the unlabeled (var_run_t) dir; SHARED (`:z`)
   // not private (`:Z`) because the dir is shared with the kube pod's containers.
   // A no-op on non-SELinux hosts. Live-validated on the host (prx-3urm).
-  args.push("--volume", `${p.doorDir}:${p.doorDir}:z`);
+  args.push("--volume", `${p.doorDir}:${p.guestDoorDir}:z`);
   // TCP port mapping for rooms that declare tcpPort — the macOS virtiofs
   // workaround (prx-zj8): virtiofs exposes the socket file but not the socket
   // semantics, so the Mac-host client can't connect via Unix; publishing a port
@@ -356,7 +359,7 @@ export function renderPodmanRun(pod: PodSpec, roomName: string): string[] {
   for (const door of room.doors) {
     if (door.direction === "expose") {
       const socketFile = door.socket.split("/").at(-1) ?? door.socket;
-      args.push("--env", `${door.name.toUpperCase()}_SOCK=${p.doorDir}/${socketFile}`);
+      args.push("--env", `${door.name.toUpperCase()}_SOCK=${p.guestDoorDir}/${socketFile}`);
     }
   }
   // The room's -box image; full registry ref resolved at deploy (prx-zj8).
@@ -368,7 +371,7 @@ export function renderPodmanRun(pod: PodSpec, roomName: string): string[] {
   for (const door of room.doors) {
     if (door.direction === "expose") {
       const socketFile = door.socket.split("/").at(-1) ?? door.socket;
-      args.push("--socket", `${p.doorDir}/${socketFile}`);
+      args.push("--socket", `${p.guestDoorDir}/${socketFile}`);
     }
   }
   // Room-specific CMD arg overrides (e.g. keeperd's --key <target>).
@@ -445,13 +448,16 @@ export function renderPodmanQuadlet(pod: PodSpec, roomName: string): string {
     lines.push(`Secret=${secret.name},target=${secret.target}`);
   }
   // The shared door fabric — the SAME host doorDir the kube pod hostPath-mounts,
-  // so this unit's exposed door is reachable across runtimes. `:z` (shared
-  // SELinux relabel) for the same reason renderPodmanRun emits it (prx-3urm):
-  // on an SELinux-enforcing host — the common case for a production quadlet —
-  // the bare mount leaves the door dir `var_run_t` and the keeper hits EACCES
-  // creating its socket; `:z` relabels to `container_file_t`. Shared, not `:Z`,
-  // because the fabric is shared with the kube pod; a no-op on non-SELinux hosts.
-  lines.push(`Volume=${p.doorDir}:${p.doorDir}:z`);
+  // so this unit's exposed door is reachable across runtimes. Mounted at
+  // guestDoorDir (host-agnostic), NOT the host doorDir itself — see the
+  // matching note in renderPodmanRun (2026-07-03 fingerprinting finding).
+  // `:z` (shared SELinux relabel) for the same reason renderPodmanRun emits it
+  // (prx-3urm): on an SELinux-enforcing host — the common case for a
+  // production quadlet — the bare mount leaves the door dir `var_run_t` and
+  // the keeper hits EACCES creating its socket; `:z` relabels to
+  // `container_file_t`. Shared, not `:Z`, because the fabric is shared with
+  // the kube pod; a no-op on non-SELinux hosts.
+  lines.push(`Volume=${p.doorDir}:${p.guestDoorDir}:z`);
   // The repo bind-mount + WorkingDir (mirrors renderPodmanRun; prx-u5lx). `:z`
   // for the same SELinux reason — the repo is shared by every room.
   if (p.repo) {

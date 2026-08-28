@@ -1855,29 +1855,6 @@ const RAW_REGISTRY: z.input<typeof CommandSpec>[] = [
   // ─── System ────────────────────────────────────────────────────────────────
 
   {
-    name: "home update",
-    parent: "home",
-    description: "Run nix flake update plus home-manager switch",
-    domain: "system",
-    actor: "home",
-  },
-  {
-    // prx-1ab: one-command self-update — `prx upgrade` updates the `prx` flake
-    // input, commits the lockfile, and runs home-manager switch. (Distinct from
-    // `prx update`, the PR-contract render/update.)
-    name: "upgrade",
-    description: "Self-update: nix flake update prx + commit lockfile + home-manager switch",
-    domain: "system",
-    actor: "home",
-  },
-  {
-    name: "home sync",
-    parent: "home",
-    description: "Detach origin main then run home update",
-    domain: "system",
-    actor: "home",
-  },
-  {
     name: "hooks apply",
     parent: "hooks",
     description: "Apply prx-managed git hooks across repos",
