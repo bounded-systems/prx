@@ -1,0 +1,81 @@
+name: claim-sweep
+
+# THE CANONICAL claim-sweep CALLER, rolled to every non-archived org repo by
+# docs/handoffs/scripts/reroll-claim-sweep.sh. Identical bytes in every repo —
+# there is nothing per-repo to substitute, which is what makes the roll safe to
+# re-run.
+#
+# THIS IS A CALLER, NOT AN IMPLEMENTATION. The door lives once, in
+# `bounded-systems/.github` as `_claim-sweep.yml`, and every consumer calls it —
+# the shape `claim.yml` already has for `_claim.yml`, and for the reason that
+# file records: the convention was once "copy this file", the copies drifted,
+# and one left issues labelled `claimed` with no comment naming anyone —
+# unheld, unclaimable, clearable only by hand (`.github-private`#652).
+#
+# NO CREDENTIAL IS NEEDED. The reusable runs against THIS repository with THIS
+# repository's built-in GITHUB_TOKEN, and `issues: write` is the entire
+# capability a release uses. That is why adopting the sweep is one file rather
+# than a broker grant per repo — and why the earlier cross-repo design was
+# abandoned: it minted through an OIDC broker entry that does not exist, which a
+# dispatch proved rather than inferred (`broker refused to mint for app
+# 'claim-sweep' (HTTP 404): unknown app`).
+#
+# WHY THE PIN IS THIS COMMIT. `.github`#291 shipped `_claim-sweep.yml` first,
+# but that version enumerated claims by the `claimed` LABEL alone — while a
+# claim is the label OR an assignee, which is what `_claim.yml` states, what
+# `_pr-claim.yml` reads, and what the board projection computes. It therefore
+# reported repos clean while never visiting their assignee-only claims:
+# measured on six closed issues in `.github` that a green `released 23, kept 0`
+# run had skipped, and independently on `site`#185 and `site`#217. This pins
+# df94b1f, the fixed door. The roll script refuses any payload not pinned here.
+#
+# WHAT IT DOES, per claimed issue, in order:
+#   1. EXEMPT a standing claim (`standing-claim` label) at any age — those are
+#      held by machine lanes so `pr-claim` has an open claimed issue to resolve.
+#   2. RELEASE if the issue is CLOSED, whatever closed it: a claim on closed
+#      work guards nothing.
+#   3. RELEASE if open, with no linked open PR, untouched for `stale_days`
+#      (14) — claims are leases on attention, shorter than the 30-day PR window.
+#   4. KEEP everything else, with the reason printed.
+# A release removes the label, unassigns, and leaves one comment naming the run.
+
+on:
+  schedule:
+    # Weekly backstop. A dropped slot costs a week of drift, not correctness:
+    # every release this makes is one a later run would also make.
+    - cron: "37 9 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Preview only (print the release/keep table, touch nothing)"
+        type: boolean
+        default: true
+      release_closed:
+        description: "Release claims on closed issues"
+        type: boolean
+        default: true
+      stale_days:
+        description: "Release claims on open issues untouched for this many days; 0 releases none"
+        type: string
+        default: "14"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: claim-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    # SHA-pinned, per org policy — never a branch.
+    uses: bounded-systems/.github/.github/workflows/_claim-sweep.yml@8dcfb39a8289946a8381554412a5072388fcb881
+    permissions:
+      contents: read
+      issues: write
+    with:
+      # Cron is a real run by the #713 standing decision that a backlog drain
+      # must never need a session; a dispatch defaults to dry.
+      dry_run: ${{ github.event_name == 'schedule' && false || inputs.dry_run }}
+      release_closed: ${{ github.event_name == 'schedule' && true || inputs.release_closed }}
+      stale_days: ${{ inputs.stale_days || '14' }}
