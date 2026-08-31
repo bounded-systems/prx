@@ -11,7 +11,7 @@ permissions:
   contents: read
 jobs:
   descriptor:
-    uses: bounded-systems/.github/.github/workflows/repo-standard.yml@d43c3280588ef05f4ead43426db1091d4cb8f520
+    uses: bounded-systems/.github/.github/workflows/repo-standard.yml@d5da3d12bdb0e04b09a63d6a58b266a2e48ca508
     with:
       security: false
       test: true
