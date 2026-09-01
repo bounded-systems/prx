@@ -26,11 +26,23 @@ name: pr-claim
 # reports as `unreadable` and counts as NOT claimed, the fail-closed direction,
 # but a false red rather than a true one.
 #
-# WHY THE PIN IS 8a56f22. That is `.github`#283, the newest commit to touch
-# `_pr-claim.yml`: it names which state each candidate issue is in rather than
-# collapsing four outcomes into one sentence. Pinning an older commit rolls a
-# check whose failure message cannot tell an unreadable issue from an unclaimed
-# one. The roll script refuses any template not pinned here.
+# WHY THE PIN IS bc4cb7d. That is `.github`#299, the newest commit to touch
+# `_pr-claim.yml`: it fails a PR whose BODY says keep an issue open and whose
+# COMMIT says close it. That check exists because #296 carried
+# `Claim-issue: …#295` and `Closes #295` at once, went green, and closed the
+# issue on squash anyway -- which made the follow-up PR naming it unmergeable
+# (`.github-private`#780, #781). A squash merge honours the commit message, so
+# nothing before bc4cb7d can catch it.
+#
+# It supersedes 8a56f22 (#283, which named which state each candidate issue is
+# in). That pin was carried here while 37 of 43 deployed callers had already
+# moved PAST it -- Dependabot bumps each repo's pin independently -- so the
+# template was rolling a door older than most of the fleet was running, and
+# `.github`'s own caller was among the six still on it (#322).
+#
+# The roll script refuses any template not pinned here, so this constant and
+# its GUARD must move together or the roll hard-fails. That is the guard
+# working, not an obstacle to route around.
 #
 # IT DOES NOT AUTHENTICATE THE CLAIMANT. A green `pr-claim` means "an open,
 # claimed issue was named", and no more — an author can name any claimed issue,
@@ -39,7 +51,23 @@ name: pr-claim
 # authorization.
 
 on:
+  # `edited` is load-bearing, not tidiness (.github#319). The default type set
+  # for `pull_request` is opened/synchronize/reopened, so editing a PR BODY does
+  # not re-trigger this check — and the dependency-intake shape
+  # (bounded-systems/infra#560) works by writing a `Claim-issue:` trailer into
+  # the body of a PR that named no issue. Without this, that trailer lands and
+  # nothing re-evaluates it: 43 injected trailers meant 43 checks re-run by hand
+  # (.github#317), through a credential a workflow does not have — `rerun-failed-jobs`
+  # answers 403 on GITHUB_TOKEN (#309). So this cannot be scripted around; the
+  # trigger is the fix.
+  #
+  # Still `pull_request`, never `pull_request_target`, and still no checkout: the
+  # PR's code is never fetched or executed, and a fork PR still gets a read-only
+  # token. `edited` also fires on title and base-branch edits; the check is
+  # fail-closed on all of them, so more triggers can only mean more refusals,
+  # never fewer.
   pull_request:
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
@@ -53,4 +81,4 @@ jobs:
       issues: read
       pull-requests: read
     # SHA-pinned, per org policy — never a branch.
-    uses: bounded-systems/.github/.github/workflows/_pr-claim.yml@d5da3d12bdb0e04b09a63d6a58b266a2e48ca508
+    uses: bounded-systems/.github/.github/workflows/_pr-claim.yml@bc4cb7dada47cc59eed416372a4851201bd6f503
