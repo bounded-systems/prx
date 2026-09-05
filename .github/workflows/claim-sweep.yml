@@ -69,7 +69,7 @@ concurrency:
 jobs:
   sweep:
     # SHA-pinned, per org policy — never a branch.
-    uses: bounded-systems/.github/.github/workflows/_claim-sweep.yml@d126d721fa50275e12af0bdeaf1a2ff3016eedfd
+    uses: bounded-systems/.github/.github/workflows/_claim-sweep.yml@2cd9ebc0a2543b3ba11dc7673b351a9d1f6c9445
     permissions:
       contents: read
       issues: write
