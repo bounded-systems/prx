@@ -50,32 +50,27 @@ else
     -f ref="refs/heads/${branch}" -f sha="${base_sha}" >/dev/null
 fi
 
-# Build fileChanges. Contents must be base64; `tr -d` because base64 wraps.
-additions='[]'
-deletions='[]'
+# Build fileChanges on disk, never in argv. A file's base64 body is a single
+# argument if passed with `--arg`, and Linux caps one argument at 128 KiB
+# (MAX_ARG_STRLEN) — CHANGELOG.md alone is ~240 KiB encoded, so the first
+# real run of this script died with `jq: Argument list too long` and every
+# version.yml run since #1080 failed at this point (#434). `--rawfile` and
+# `--slurpfile` read from files, so the size of what is committed no longer
+# bounds what can be committed.
+work="$(mktemp -d)"
+trap 'rm -rf "${work}"' EXIT
+
+: > "${work}/additions.ndjson"
 while IFS= read -r -d '' path; do
-  encoded="$(base64 < "${path}" | tr -d '\n')"
-  additions="$(jq -c --arg p "${path}" --arg c "${encoded}" \
-    '. + [{path: $p, contents: $c}]' <<<"${additions}")"
+  base64 < "${path}" | tr -d '\n' > "${work}/contents.b64"
+  jq -nc --arg p "${path}" --rawfile c "${work}/contents.b64" \
+    '{path: $p, contents: $c}' >> "${work}/additions.ndjson"
 done < <(git diff --cached --name-only -z --diff-filter=ACMR)
 
+: > "${work}/deletions.ndjson"
 while IFS= read -r -d '' path; do
-  deletions="$(jq -c --arg p "${path}" '. + [{path: $p}]' <<<"${deletions}")"
+  jq -nc --arg p "${path}" '{path: $p}' >> "${work}/deletions.ndjson"
 done < <(git diff --cached --name-only -z --diff-filter=D)
-
-variables="$(jq -nc \
-  --arg repo "${repo}" \
-  --arg branch "${branch}" \
-  --arg headline "${message}" \
-  --arg oid "${base_sha}" \
-  --argjson additions "${additions}" \
-  --argjson deletions "${deletions}" \
-  '{input: {
-      branch: {repositoryNameWithOwner: $repo, branchName: $branch},
-      message: {headline: $headline},
-      expectedHeadOid: $oid,
-      fileChanges: {additions: $additions, deletions: $deletions}
-    }}')"
 
 read -r -d '' query <<'GRAPHQL' || true
 mutation ($input: CreateCommitOnBranchInput!) {
@@ -85,8 +80,24 @@ mutation ($input: CreateCommitOnBranchInput!) {
 }
 GRAPHQL
 
-oid="$(jq -nc --arg q "${query}" --argjson v "${variables}" '{query: $q, variables: $v}' \
-  | gh api graphql --input - --jq '.data.createCommitOnBranch.commit.oid')"
+# --slurpfile collects every JSON value in the file into one array — the
+# additions/deletions lists exactly, and [] for an empty file.
+jq -nc \
+  --arg q "${query}" \
+  --arg repo "${repo}" \
+  --arg branch "${branch}" \
+  --arg headline "${message}" \
+  --arg oid "${base_sha}" \
+  --slurpfile additions "${work}/additions.ndjson" \
+  --slurpfile deletions "${work}/deletions.ndjson" \
+  '{query: $q, variables: {input: {
+      branch: {repositoryNameWithOwner: $repo, branchName: $branch},
+      message: {headline: $headline},
+      expectedHeadOid: $oid,
+      fileChanges: {additions: $additions, deletions: $deletions}
+    }}}' > "${work}/body.json"
+
+oid="$(gh api graphql --input "${work}/body.json" --jq '.data.createCommitOnBranch.commit.oid')"
 
 [ -n "${oid}" ] || { echo "::error::createCommitOnBranch returned no commit oid"; exit 1; }
 
