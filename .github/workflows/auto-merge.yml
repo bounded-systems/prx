@@ -1,0 +1,60 @@
+name: auto-merge
+
+# THE CANONICAL auto-merge CALLER, rolled to every repo the `ci-green-standard`
+# ruleset gates by docs/handoffs/scripts/reroll-auto-merge.sh. Identical bytes
+# in every repo — nothing per-repo to substitute, which is what makes the roll
+# safe to re-run. `.github-private`#923, step 3 of #913.
+#
+# WHAT IT DOES. Asks GitHub to merge this PR the moment its required checks
+# pass, under an App identity minted through the OIDC broker (`pr-arm`). If the
+# PR is already clean it merges now. It merges nothing the repo's rules would
+# refuse: `standard / test` and `pr-claim / pr-claim` are required on main, so a
+# red or unclaimed PR is armed and never merges. The rules are the gate; this
+# file only stops a green PR from waiting for a person.
+#
+# WHY THE ROLL ORDER IS THE REVERSE OF pr-claim's. A required check with no
+# workflow producing it bricks a repo, so pr-claim's caller had to land
+# everywhere BEFORE the ruleset required it. Arming is the opposite shape: it
+# does nothing until the repo IS gated and `allow_auto_merge` is on
+# (infra#630, applied 2026-09-05 on all 37), so it lands AFTER both. Rolling it
+# to an ungated repo is harmless — the reusable reads the rules and exits with a
+# notice — but pointless.
+#
+# THE PERMISSION IS GRANTED HERE, NOT IN THE REUSABLE. A `workflow_call` callee
+# can only narrow what the caller hands it. `id-token: write` is the OIDC grant
+# the mint needs; nothing else is elevated — the arming identity is the App's,
+# never this token's.
+#
+# WHY THE PIN IS a0330ae. That is `.github`#399, the commit after which the
+# callee arms only when a CI context other than the claim is required (the
+# first pin, 2cd9ebc, was #387, which added the file). The broker door `pr-arm`
+# (infra#637, re-pinned in infra#650) is pinned to the SAME SHA: under `workflow_call` the callee's ref is what the broker sees, so a
+# caller on any other ref is refused at mint with a 401, and a re-roll of this
+# file is a door change first. The roll script refuses any template not pinned
+# here, so this constant and its GUARD must move together or the roll hard-fails.
+#
+# `pull_request`, never `pull_request_target`, and no checkout: the PR's code is
+# never fetched or executed. A fork PR carries no OIDC identity and is skipped
+# by the reusable's own job condition — `pr-sweep` drains it weekly if it goes
+# clean.
+
+on:
+  pull_request:
+    # `ready_for_review` is the one that matters beyond the defaults: a draft is
+    # never armed, so the moment it stops being one is the moment to arm.
+    # `synchronize` re-arms nothing (the reusable sees auto-merge already
+    # enabled and exits) but catches a PR that was opened, went clean while
+    # unarmed, and got a push.
+    types: [opened, reopened, ready_for_review, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  auto-merge:
+    # The reusable can only narrow what it is handed — see the note above.
+    permissions:
+      contents: read
+      id-token: write
+    # SHA-pinned, per org policy — never a branch. The broker door pins this SHA too.
+    uses: bounded-systems/.github/.github/workflows/_auto-merge.yml@a0330aea1a9fc899ff1002bf52d20ef8d9b2edad
